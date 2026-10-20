@@ -16,8 +16,7 @@
       ],
       "collection_kind": "native_ports",
       "notable_games": [
-        "The Legend of Zelda: Twilight Princess",
-        "Mario Kart Wii"
+        "The Legend of Zelda: Twilight Princess"
       ]
     },
     "ids": {
@@ -49,18 +48,6 @@
       "default_standalone": true,
       "unique_id": "ports.ios.dusklight",
       "description": "Dusklight native iOS Core embedded in NeoStation.",
-      "is_retroachievements_compatible": false,
-      "platforms": {
-        "ios": {
-          "embedded": true
-        }
-      }
-    },
-    {
-      "name": "Mario Kart Pad",
-      "default_standalone": false,
-      "unique_id": "ports.ios.kartpad",
-      "description": "KartPad native iOS Core embedded in NeoStation for Mario Kart Wii.",
       "is_retroachievements_compatible": false,
       "platforms": {
         "ios": {

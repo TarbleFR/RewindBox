@@ -1,19 +1,15 @@
 // Light maintenance, test J (docs/storage-audit-cleanup.md § 4 and § 6):
 // engine logs are bounded at their documented points only. A Dolphin launch
 // that names a new session log keeps the ten newest session logs and rotates
-// dolphin-persistent.jsonl at 5 MiB like app.log; a KartPad launch keeps the
-// ten newest runtime logs (*.log, console.txt) before any native call, and
-// never while a session it started may still run. Links, folders and other
-// names are never touched, and laying out the folders (what startup and the
-// scanner call) deletes nothing. File-system behaviour on the test host only.
-import 'dart:async';
-import 'dart:convert';
+// dolphin-persistent.jsonl at 5 MiB like app.log. (The KartPad runtime-log
+// group left with KartPad on 19 October 2026.) Links, folders and other names
+// are never touched, and laying out the folders (what startup and the scanner
+// call) deletes nothing. File-system behaviour on the test host only.
 import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
-import 'package:neostation/services/kartpad_internal_service.dart';
 import 'package:neostation/services/storage/storage_picker_copies.dart';
 import 'package:path/path.dart' as p;
 
@@ -22,21 +18,11 @@ const _fiveMiB = 5 * 1024 * 1024;
 /// Dolphin session logs as the service names them, never its persistent log.
 final _sessionLog = RegExp(r'^dolphin-(?!persistent\.jsonl$).*\.jsonl$');
 
-/// Mario Kart Wii PAL header KartPad accepts: RMCP01, disc 0, revision 0,
-/// Wii magic at 0x18.
-List<int> _kartPadDisc() {
-  final bytes = Uint8List(4096)..setAll(0, ascii.encode('RMCP01'));
-  ByteData.sublistView(bytes).setUint32(0x18, 0x5D1C9EA3);
-  return bytes;
-}
-
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
   final messenger = binding.defaultBinaryMessenger;
   const paths = MethodChannel('plugins.flutter.io/path_provider');
   const dolphin = MethodChannel('neostation/dolphin_internal');
-  const kartPad = MethodChannel('neostation/kartpad_internal');
-  const codec = StandardMethodCodec();
   final base = DateTime.now().subtract(const Duration(days: 30));
 
   late Directory scratch;
@@ -321,132 +307,6 @@ void main() {
       await launch();
       expect(persistent.lengthSync(), _fiveMiB, reason: 'not over the limit');
       expect(old.lengthSync(), _fiveMiB + 1);
-    });
-  });
-
-  group('KartPad runtime logs', () {
-    late Directory logs;
-    late File game;
-    var transaction = 0;
-
-    /// The Logs folder as the native launch found it, one entry per launch.
-    final atNativeLaunch = <Set<String>>[];
-
-    Future<void> sessionEnded() async {
-      final delivered = Completer<void>();
-      await messenger.handlePlatformMessage(
-        kartPad.name,
-        codec.encodeMethodCall(
-          MethodCall('sessionEnded', {
-            'transaction': transaction,
-            'exitReason': 'userReturn',
-            'success': true,
-            'runtimeReleased': true,
-          }),
-        ),
-        (_) => delivered.complete(),
-      );
-      await delivered.future;
-    }
-
-    setUpAll(() async {
-      await KartPadInternalService.ensureLayout();
-      logs = await KartPadInternalService.logsDirectory();
-      game = File(
-        p.join(
-          (await KartPadInternalService.gamesDirectory()).path,
-          'Mario Kart Wii.iso',
-        ),
-      )..writeAsBytesSync(_kartPadDisc());
-      messenger.setMockMethodCallHandler(kartPad, (call) async {
-        if (call.method != 'launch') return true;
-        transaction = (call.arguments as Map)['transaction'] as int;
-        atNativeLaunch.add(names(logs));
-        return {'success': true, 'stage': 'first_frame'};
-      });
-    });
-
-    tearDownAll(() async {
-      // The bridge keeps its session in statics: end the last one.
-      if (transaction > 0) await sessionEnded();
-      messenger.setMockMethodCallHandler(kartPad, null);
-    });
-
-    String run(int index) => 'run-${index.toString().padLeft(2, '0')}.log';
-
-    test('the ten newest *.log and console.txt are kept before the native '
-        'launch, and nothing while a session may run', () async {
-      for (var i = 0; i < 12; i++) {
-        log(logs, run(i), 10 + 2 * i);
-      }
-      log(logs, 'console.txt', 15);
-      log(logs, 'BOOT.LOG', 5);
-      log(logs, 'notes.md', 0);
-      log(logs, 'crash.dmp', 1);
-      final target = log(outside, 'target.log', 2);
-      Link(p.join(logs.path, 'old.log')).createSync(target.path);
-      Directory(p.join(logs.path, 'archive.log')).createSync();
-      final everything = names(logs);
-
-      // What startup and the import menu call.
-      await KartPadInternalService.ensureLayout();
-      expect(names(logs), everything);
-
-      final first = await KartPadInternalService.launch(game.path);
-      expect(first.success, isTrue);
-      expect(atNativeLaunch, hasLength(1));
-      final gone = {'BOOT.LOG', run(0), run(1), run(2)};
-      expect(
-        atNativeLaunch.single,
-        everything.difference(gone),
-        reason: 'bounded before the native launch, nothing else touched',
-      );
-      expect(target.existsSync(), isTrue);
-
-      // The session runs (the bridge owns it) and the core writes: another
-      // launch bounds nothing and the bridge refuses it.
-      for (var i = 0; i < 3; i++) {
-        log(logs, 'live-$i.log', 40 + i);
-      }
-      final during = names(logs);
-      final second = await KartPadInternalService.launch(game.path);
-      expect(second.errorCode, 'KARTPAD_SESSION_ACTIVE');
-      expect(atNativeLaunch, hasLength(1));
-      expect(names(logs), during);
-
-      // Once the session has ended, the next launch bounds again.
-      await sessionEnded();
-      final third = await KartPadInternalService.launch(game.path);
-      expect(third.success, isTrue);
-      expect(atNativeLaunch, hasLength(2));
-      expect(
-        atNativeLaunch.last,
-        during.difference({'console.txt', run(3), run(4)}),
-      );
-      expect(target.existsSync(), isTrue);
-    });
-
-    test('the bridge lifecycle log is bounded at launch, never during a '
-        'session', () async {
-      // Free the session the previous test left running.
-      await sessionEnded();
-      final root = (await KartPadInternalService.rootDirectory()).path;
-      final lifecycle = File(p.join(root, 'neostation-kartpad-lifecycle.log'));
-      final old = File('${lifecycle.path}.old');
-      lifecycle.writeAsBytesSync(List<int>.filled(5 * 1024 * 1024 + 1, 0x61));
-
-      final first = await KartPadInternalService.launch(game.path);
-      expect(first.success, isTrue);
-      expect(old.existsSync(), isTrue, reason: 'over 5 MiB: rotated like app.log');
-      expect(old.lengthSync(), 5 * 1024 * 1024 + 1);
-      expect(lifecycle.existsSync(), isFalse);
-
-      // The session now runs: the next launch is refused and rotates nothing.
-      lifecycle.writeAsBytesSync(List<int>.filled(5 * 1024 * 1024 + 7, 0x62));
-      final second = await KartPadInternalService.launch(game.path);
-      expect(second.errorCode, 'KARTPAD_SESSION_ACTIVE');
-      expect(lifecycle.lengthSync(), 5 * 1024 * 1024 + 7);
-      expect(old.lengthSync(), 5 * 1024 * 1024 + 1);
     });
   });
 }

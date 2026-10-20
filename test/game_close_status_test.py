@@ -45,7 +45,7 @@ def main():
     executables = re.findall(r"'(ios_\w+)'", candidates)
     assert set(executables) == {'ios_libretro_internal', 'ios_dolphin_internal',
                                'ios_armsx2_internal', 'ios_rpcs3_internal',
-                               'ios_dusklight_internal', 'ios_kartpad_internal'}
+                               'ios_dusklight_internal'}
     locale_paths = sorted((ROOT / 'lib/l10n').glob('app_locale_*.dart'))
     assert len(locale_paths) == 12, locale_paths
     translations = {}

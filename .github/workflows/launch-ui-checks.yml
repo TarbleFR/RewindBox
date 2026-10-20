@@ -13,7 +13,6 @@ on:
       - 'lib/services/game_launch_manager.dart'
       - 'lib/services/audio_policy_service.dart'
       - 'test/game_audio_handoff_test.py'
-      - 'lib/services/kartpad_internal_service.dart'
       - 'lib/services/ports_game_identity.dart'
       - 'lib/services/screenscraper_service.dart'
       - 'lib/l10n/ports_locale.dart'
@@ -25,20 +24,22 @@ on:
       - 'lib/services/game/game_launch_service.dart'
       - 'assets/systems/ports.json'
       - 'test/dusklight_ports_stage1_test.dart'
-      - 'test/kartpad_locale_test.dart'
-      - 'packages/kartpad_internal_bridge/**'
-      - 'build-utils/kartpad/**'
-      - 'test/kartpad_bridge_contract_test.py'
+      - 'test/kartpad_removal_test.dart'
+      - 'build-utils/validate_no_kartpad_ipa.py'
+      - 'build-utils/game_content_gate.py'
+      - 'build-utils/fetch_native_donor_subset.py'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   test:
     runs-on: macos-15
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
+          # Frozen-source contracts compare with earlier commits.
+          fetch-depth: 0
           persist-credentials: false
       - uses: subosito/flutter-action@v2
         with:
@@ -53,9 +54,25 @@ jobs:
         run: python3 test/game_audio_handoff_test.py
       - name: Resolve Flutter dependencies
         run: flutter pub get --enforce-lockfile
-      - name: Analyze Ports Stage 1 sources
-        run: flutter analyze --no-fatal-infos lib/services/kartpad_internal_service.dart lib/services/ports_game_identity.dart lib/services/screenscraper_service.dart lib/l10n/ports_locale.dart lib/widgets/ports_internal_playlist_actions.dart lib/screens/game_screen/my_games_list.dart lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart lib/providers/sqlite_config_provider.dart lib/services/game/game_launch_service.dart lib/services/game_launch_manager.dart packages/kartpad_internal_bridge/lib/kartpad_internal_bridge.dart
-      - name: Exercise Ports multi-import and KartPad isolation
-        run: flutter test test/dusklight_ports_stage1_test.dart test/kartpad_locale_test.dart
-      - name: Exercise KartPad bridge contract
-        run: python3 test/kartpad_bridge_contract_test.py
+      - name: Analyze the whole app after the KartPad removal
+        run: flutter analyze --no-fatal-infos
+      - name: Exercise Ports without KartPad, its refusal and twelve languages
+        run: >-
+          flutter test test/kartpad_removal_test.dart test/dusklight_ports_stage1_test.dart
+          test/dusklight_library_test.dart test/external_display_unsupported_engine_test.dart
+          test/ambient_music_service_test.dart test/general_settings_external_display_test.dart
+          test/storage_locale_test.dart test/storage_cleanup_planner_test.dart
+      - name: Exercise the KartPad-free contracts, delivery checks and close status
+        run: |
+          set -euo pipefail
+          python3 test/game_close_status_test.py
+          python3 test/no_kartpad_ipa_test.py
+          python3 test/game_content_gate_test.py
+          python3 test/native_donor_subset_test.py
+          python3 test/retroarch_baseline_scope_test.py
+          python3 test/cheats_media_source_contract_test.py
+          python3 test/embedded_engine_route_contract_test.py
+          python3 test/ports_external_display_test.py
+          python3 test/storage_contract_test.py
+          python3 test/legal_bundle_preflight_test.py
+          python3 test/neoplay_companion_contract_test.py

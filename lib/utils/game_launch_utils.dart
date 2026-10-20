@@ -79,7 +79,7 @@ Future<void> launchGameWithDialog({
   }
 
   try {
-    // KartPad/DuskLight are in-process native Ports. The old unconditional
+    // DuskLight is an in-process native Port. The old unconditional
     // two-second presentation delay was pure startup latency for them. Keep a
     // single short paint/handoff window, while preserving the legacy delay for
     // external emulator launches.

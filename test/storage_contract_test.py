@@ -233,9 +233,6 @@ ALLOWED_CALLERS = {
     'lib/services/dolphin_internal_v2_service.dart': (
         'static Future<DolphinImportResult> importGames(',
         'static Future<String> _sessionLogPath(',),
-    'lib/services/kartpad_internal_service.dart': (
-        'static Future<KartPadImportResult> importGame(',
-        'static Future<KartPadLaunchResult> launch(',),
     'lib/services/dusklight_internal_service.dart': (
         'static Future<DusklightImportResult> importGames(',),
     'lib/services/armsx2_internal_service.dart': (
@@ -270,7 +267,7 @@ class NothingAtStartup(unittest.TestCase):
         for token in ('StoragePickerCopies', 'StorageLogRotation', 'storage_picker_copies'):
             self.assertNotIn(token, main.text, token)
         for token in ('importGames(', 'importGame(', 'importBios(', 'importFirmware(', 'importGuarded(',
-                      'KartPadInternalService.launch(', 'DolphinInternalV2Service.launch('):
+                      'DolphinInternalV2Service.launch('):
             self.assertNotIn(token, main.masked, token)
 
     def test_the_helpers_are_called_only_at_the_documented_points(self) -> None:
@@ -293,8 +290,6 @@ class NothingAtStartup(unittest.TestCase):
         expected = {
             'lib/services/libretro_internal_service.dart': (1, 0, 0),
             'lib/services/dolphin_internal_v2_service.dart': (1, 1, 1),
-            # rotateAtSize: the bridge lifecycle log, in the same session gate.
-            'lib/services/kartpad_internal_service.dart': (1, 1, 1),
             'lib/services/dusklight_internal_service.dart': (1, 0, 0),
             'lib/services/armsx2_internal_service.dart': (1, 0, 0),
             'lib/services/rpcs3_internal_service.dart': (1, 0, 0),
@@ -336,21 +331,6 @@ class PickerCopiesAfterAVerifiedImport(unittest.TestCase):
             span = Span(source, signature)
             self.assertGreater(span.count('_copySelection('), 0, signature)
             self.assertEqual(span.count('StoragePickerCopies'), 0, signature)
-
-    def test_kartpad_discards_after_the_verified_rename(self) -> None:
-        span = Span(Source('lib/services/kartpad_internal_service.dart'),
-                    'static Future<KartPadImportResult> importGame(')
-        prepared = span.find('KartPadInternalBridge.prepareGame(')
-        check = span.find('if (await temporary.length() != await source.length()) {')
-        renamed = span.find('await temporary.rename(output.path);')
-        discard = span.find(DISCARD)
-        self.assertLess(prepared, check)
-        self.assertLess(check, renamed)
-        self.assertLess(renamed, discard)
-        call = span.call(discard)
-        self.assertIn('sourcePath', call)
-        self.assertIn('expectedLength: (await output.stat()).size', call)
-        self.assertLess(discard, span.find('importedPaths: <String>[output.path]', after=discard))
 
     def test_rpcs3_firmware_discards_once_staged_before_the_core(self) -> None:
         span = Span(Source('lib/services/rpcs3_internal_service.dart'), 'static Future<bool> importFirmware(')
@@ -435,49 +415,6 @@ class LogsBoundedAtTheirPoints(unittest.TestCase):
         self.assertLess(session.find("invokeMethod<bool>('isRunning')", original=True),
                         session.find('await _launch('))
         self.assertEqual(source.masked.count('await _launch('), 1)
-
-    def test_kartpad_runtime_logs_before_any_native_call_and_never_during_a_session(self) -> None:
-        source = Source('lib/services/kartpad_internal_service.dart')
-        span = Span(source, 'static Future<KartPadLaunchResult> launch(')
-        layout = span.find('await ensureLayout();')
-        gate = span.find('if (!_nativeLaunchStarted || KartPadInternalBridge.didEndSession) {')
-        keep = span.find(KEEP_NEWEST)
-        identity = span.find('await inspectGameFile(game)')
-        native = span.find('await launchNativeSession(')
-        self.assertLess(layout, gate)
-        self.assertLess(gate, keep)
-        self.assertLess(keep, span.block_end('if (!_nativeLaunchStarted || KartPadInternalBridge.didEndSession) {'))
-        self.assertLess(keep, identity, 'before the first native call (DiscIO identity)')
-        self.assertLess(identity, native)
-        call = span.call(keep)
-        self.assertIn('await logsDirectory()', call)
-        self.assertIn('name: _runtimeLogName', call)
-        self.assertIn('keep: 10', call)
-        # The bridge's lifecycle log is bounded in the same gate, before the
-        # first native call too.
-        rotate = span.find(ROTATE)
-        self.assertLess(gate, rotate)
-        self.assertLess(rotate, span.block_end('if (!_nativeLaunchStarted || KartPadInternalBridge.didEndSession) {'))
-        self.assertLess(rotate, identity)
-        self.assertIn("'neostation-kartpad-lifecycle.log'", span.call(rotate))
-
-        started = span.find('_nativeLaunchStarted = true;')
-        self.assertEqual(source.masked.count('_nativeLaunchStarted = true;'), 1)
-        self.assertLess(span.find("trace('native_launch_begin');", original=True), started)
-        self.assertLess(started, native)
-        native_session = Span(source, 'static Future<Map<String, dynamic>> launchNativeSession(')
-        self.assertEqual(native_session.count('Storage'), 0, 'the external-display hold is untouched')
-
-        declaration = re.search(
-            r"static final RegExp _runtimeLogName\s*=\s*RegExp\(\s*r'([^']*)',\s*caseSensitive: false\)",
-            source.text)
-        self.assertIsNotNone(declaration)
-        pattern = re.compile(declaration.group(1), re.IGNORECASE)
-        for name in ('console.txt', 'CONSOLE.TXT', 'console.log', 'run-01.log', 'BOOT.LOG', '.log'):
-            self.assertTrue(pattern.search(name), name)
-        for name in ('notes.md', 'console.txt.bak', 'crash.dmp', 'run.log.old', 'my-console.txt'):
-            self.assertFalse(pattern.search(name), name)
-
 
 class HelperNeverFollowsLinks(unittest.TestCase):
     def test_listings_do_not_follow_links_and_nothing_is_deleted_recursively(self) -> None:
@@ -706,8 +643,6 @@ IMPORT_SITES = {
         'static Future<DolphinImportResult> importGames(',),
     'lib/services/dolphin_smart_import_service.dart': (
         'static Future<DolphinSmartImportResult> importGames(',),
-    'lib/services/kartpad_internal_service.dart': (
-        'static Future<KartPadImportResult> importGame(',),
     'lib/services/dusklight_internal_service.dart': (
         'static Future<DusklightImportResult> importGames(',),
     'lib/services/armsx2_internal_service.dart': (

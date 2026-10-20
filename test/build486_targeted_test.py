@@ -97,7 +97,6 @@ HOST_PYTHON = [
     'test/libretro_frontend_ui_contract_test.py',
     'test/external_display_scope_test.py',
     'test/external_display_test.py',
-    'test/kartpad_bridge_contract_test.py',
     'test/libretro_route_contract_test.py',
     'test/ui_refresh_rate_scope_test.py',
     'test/validate_cheat_bulk_ipa_test.py',

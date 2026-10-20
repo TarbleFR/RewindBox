@@ -7,10 +7,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../l10n/dusklight_locale.dart';
 import '../l10n/ports_locale.dart';
 import '../services/dusklight_internal_service.dart';
-import '../services/kartpad_internal_service.dart';
 import '../services/logger_service.dart';
 
-enum _PortsImportTarget { dusklight, kartPad }
+// One entry per embedded port that imports its own game files.
+enum _PortsImportTarget { dusklight }
 
 class PortsInternalPlaylistActions extends StatefulWidget {
   const PortsInternalPlaylistActions({
@@ -45,51 +45,26 @@ class _PortsInternalPlaylistActionsState
     final locale = Localizations.localeOf(context);
     setState(() => _busy = true);
     try {
-      if (target == _PortsImportTarget.dusklight) {
-        final result = await DusklightInternalService.importGames();
-        if (result.imported > 0) {
-          await widget.onLibraryChanged();
-          final enrich = widget.onGamesImported;
-          if (enrich != null) unawaited(enrich(result.importedPaths));
-          _notice(DusklightLocale.forLocale(
-            locale,
-            'imported',
-            count: result.imported,
-          ));
-        }
-        if (result.rejected > 0) {
-          final issue = result.errors.isEmpty ? null : result.errors.first;
-          _notice(issue == null
-              ? DusklightLocale.forLocale(locale, 'rejected')
-              : '${issue.fileName}: ${DusklightLocale.forLocale(locale, issue.messageKey)}');
-        }
-        return;
-      }
-
-      final result = await KartPadInternalService.importGame();
+      final result = await DusklightInternalService.importGames();
       if (result.imported > 0) {
         await widget.onLibraryChanged();
         final enrich = widget.onGamesImported;
         if (enrich != null) unawaited(enrich(result.importedPaths));
-        _notice(PortsLocale.forLocale(locale, 'kartpadImported'));
+        _notice(DusklightLocale.forLocale(
+          locale,
+          'imported',
+          count: result.imported,
+        ));
       }
       if (result.rejected > 0) {
         final issue = result.errors.isEmpty ? null : result.errors.first;
         _notice(issue == null
-            ? PortsLocale.forLocale(locale, 'kartpadImportFailed')
-            : '${issue.fileName}: ${PortsLocale.forLocale(locale, issue.messageKey)}');
-        for (final error in result.errors) {
-          LoggerService.instance.w(
-            '[KartPad import] ${error.fileName}: '
-            '${error.messageKey} ${error.details ?? ""}',
-          );
-        }
+            ? DusklightLocale.forLocale(locale, 'rejected')
+            : '${issue.fileName}: ${DusklightLocale.forLocale(locale, issue.messageKey)}');
       }
     } catch (error) {
       LoggerService.instance.w('[Ports import] $error');
-      _notice(target == _PortsImportTarget.dusklight
-          ? DusklightLocale.forLocale(locale, 'importFailed')
-          : PortsLocale.forLocale(locale, 'kartpadImportFailed'));
+      _notice(DusklightLocale.forLocale(locale, 'importFailed'));
     } finally {
       if (mounted) setState(() => _busy = false);
       widget.onInteractionChanged?.call(false);
@@ -114,10 +89,6 @@ class _PortsInternalPlaylistActionsState
         PopupMenuItem(
           value: _PortsImportTarget.dusklight,
           child: Text(PortsLocale.forLocale(locale, 'dusklight')),
-        ),
-        PopupMenuItem(
-          value: _PortsImportTarget.kartPad,
-          child: Text(PortsLocale.forLocale(locale, 'kartpad')),
         ),
       ],
       child: SizedBox(

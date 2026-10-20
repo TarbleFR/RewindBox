@@ -51,13 +51,6 @@ class LegalCreditsDialog {
       'assets/legal/Dusklight-CC0-1.0.txt',
     ),
     _LegalEntry(
-      'KartPad / WiiCompiled',
-      'chrissotraidis; WiiCompiled by patchzyy',
-      'GPL-3.0-only software where stated; game-derived rights are separate',
-      'https://github.com/chrissotraidis/kartpad',
-      'assets/legal/KartPad-RIGHTS_AND_LICENSES.md',
-    ),
-    _LegalEntry(
       'StikJIT',
       'StikDebug and StikJIT contributors',
       'MPL-2.0',

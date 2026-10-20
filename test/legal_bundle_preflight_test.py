@@ -28,7 +28,6 @@ class LegalBundlePreflightTests(unittest.TestCase):
             "build-utils/rpcs3/canonical-source.json",
             "build-utils/armsx2/source.json",
             "build-utils/dusklight/source.json",
-            "build-utils/kartpad/source.json",
             "LICENSE.md", "NOTICE.md", "docs/LEGAL_AND_CREDITS.md",
         ):
             target = self.root / name

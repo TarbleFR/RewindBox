@@ -533,9 +533,6 @@ jobs:
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
       IPA_NAME: NeoStation
       ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '490' }}-${{ github.sha }}-cold
-      KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
-      KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
-      KARTPAD_CANDIDATE: '1'
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -607,19 +604,20 @@ jobs:
         flutter config --no-enable-swift-package-manager
         test ! -d ios
         python3 build-utils/delivery_metrics.py host_scaffold_and_registrant python3 packages/dolphin_internal_bridge/ci/build_support.py scaffold
-    - name: Download validated Build 350 native donor
+    - name: Download validated Build 350 native donor without KartPad
       shell: bash
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -euo pipefail
         # Artifact 10932894067 (run 36323843067) was purged on 7 October 2026.
-        # The same Build 350 IPA is published as release 0.0.1; require its
-        # exact SHA-256. Only its native Core and UI resources are used,
-        # never its JIT framework.
+        # The same Build 350 IPA is published as release 0.0.1. It also holds
+        # the old KartPad donor (code translated from Mario Kart Wii), which
+        # must never enter this job: only the members the native preparer
+        # reuses are fetched by range from its pinned central directory, and
+        # their names and hashes must match a pinned aggregate.
         mkdir -p build/native-donor
-        gh release download 0.0.1 --repo "$GITHUB_REPOSITORY" --pattern NeoStation.ipa --dir build/native-donor
-        echo "e1017b96842ec970be3ed0cd981083ee945d069cf76e689a4ca3c81339299b46  build/native-donor/NeoStation.ipa" | shasum -a 256 -c -
+        python3 build-utils/fetch_native_donor_subset.py build/native-donor/NeoStation.ipa \
+          --report build/native-donor/subset-report.json
+        python3 build-utils/game_content_gate.py build/native-donor/NeoStation.ipa
     - name: Reuse validated native runtimes
       shell: bash
       run: |
@@ -1111,38 +1109,6 @@ jobs:
       run: python3 test/libretro_core_options_test.py --cores dist/libretro
     - name: Check BIOS names, OpenBIOS option and bundled PPSSPP files against the pinned cores
       run: python3 test/libretro_bios_requirements_test.py --cores dist/libretro
-    - name: Download validated KartPad Core candidate
-      if: ${{ env.KARTPAD_CANDIDATE == '1' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        # KartPadCore-3934ac9d (run 36322395443) was purged on 7 October 2026
-        # and its official source IPA is no longer published. The verified
-        # Build 350 donor IPA embeds that exact artifact; restore it byte for
-        # byte against the pinned identity checked again below.
-        # Restoration implementation tests are reused from the verified closed input tree.
-        python3 build-utils/restore_kartpad_donor_from_ipa.py build/native-donor/NeoStation.ipa dist/kartpad-native
-    - name: Verify KartPad Core candidate identity
-      if: ${{ env.KARTPAD_CANDIDATE == '1' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        test -f dist/kartpad-native/KartPadCore.framework/KartPadCore
-        test -f dist/kartpad-native/identity.json
-        python3 build-utils/kartpad/validate_embedded_core.py             dist/kartpad-native/KartPadCore.framework             dist/kartpad-native/identity.json
-        python3 - <<'PY'
-        import json, os
-        from pathlib import Path
-        identity=json.loads(Path('dist/kartpad-native/identity.json').read_text())
-        assert identity['host_commit'] == os.environ['KARTPAD_CORE_HOST_SHA'], identity
-        assert identity['sha256'] == '995e876715b98be8fde897a88f7b93fb2357b6c47826d99c1df0a0b05a98930c', identity
-        assert identity['runtime_sha256'] == 'ad5c00a0a508bbfcc0dc3eb1ee04a17f10919cde0b5cccd90d1d9e6a31c39eb0', identity
-        PY
-        git diff --exit-code "$KARTPAD_CORE_HOST_SHA" "$GITHUB_SHA" -- \
-          native/kartpad build-utils/kartpad packages/kartpad_internal_bridge \
-          ":(exclude)build-utils/kartpad/inspect_personal_pack.py" \
-          ":(exclude)build-utils/kartpad/migration-target.json"
-        # Unchanged inspector tests are reused; actual Core identity above is checked on every export.
     - name: Prepare emulator build definitions
       shell: bash
       run: |
@@ -1293,13 +1259,6 @@ jobs:
         ditto dist/libretro/Libretro-Licenses "$APP/Libretro-Licenses"
         cp dist/libretro/identity.json "$APP/Libretro-native-identity.json"
         ls "$APP/Frameworks" | grep -c '_libretro.framework'
-    - name: Embed validated KartPad Core candidate
-      if: ${{ env.KARTPAD_CANDIDATE == '1' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
-        python3 build-utils/kartpad/embed_core.py             --app "$APP"             --artifact dist/kartpad-native
     - name: Embed legal, license and source notices
       shell: bash
       run: |
@@ -1383,16 +1342,9 @@ jobs:
           --report dist/libretro-validation.json
         python3 build-utils/validate_shader_compiler_ipa.py "dist/$IPA_NAME.ipa" \
           --build-number "$BUILD_NUMBER" --report dist/shader-compiler-validation.json
-        if [ "$KARTPAD_CANDIDATE" = "1" ]; then
-          python3 build-utils/validate_kartpad_ipa.py "dist/$IPA_NAME.ipa" \
-            --identity dist/kartpad-native/identity.json \
-            --core-host "$KARTPAD_CORE_HOST_SHA" \
-            --build-number "$BUILD_NUMBER"
-          cp dist/kartpad-native/identity.json dist/kartpad-core-identity.json
-        else
-          python3 build-utils/validate_kartpad_ipa.py "dist/$IPA_NAME.ipa" \
-            --build-number "$BUILD_NUMBER" --expect-absent
-        fi
+        # KartPad left NeoStation: no part of it and no file of game origin.
+        python3 build-utils/validate_no_kartpad_ipa.py "dist/$IPA_NAME.ipa" \
+          --build-number "$BUILD_NUMBER" --report dist/no-kartpad-validation.json
         cp build/fast-native/identity.json dist/fast-native-identity.json
         cp build/fast-native/rpcs3-core-identity.json dist/rpcs3-core-identity.json
         python3 build-utils/validate_neoplay_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --commit "$GITHUB_SHA" --report dist/neoplay-validation.json
@@ -1465,9 +1417,6 @@ jobs:
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
       IPA_NAME: NeoStation
       ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '490' }}-${{ github.sha }}-warm
-      KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
-      KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
-      KARTPAD_CANDIDATE: '1'
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -1618,13 +1567,6 @@ jobs:
         ditto dist/libretro/Libretro-Licenses "$APP/Libretro-Licenses"
         cp dist/libretro/identity.json "$APP/Libretro-native-identity.json"
         ls "$APP/Frameworks" | grep -c '_libretro.framework'
-    - name: Embed validated KartPad Core candidate
-      if: ${{ env.KARTPAD_CANDIDATE == '1' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
-        python3 build-utils/kartpad/embed_core.py             --app "$APP"             --artifact dist/kartpad-native
     - name: Embed legal, license and source notices
       shell: bash
       run: |
@@ -1708,16 +1650,9 @@ jobs:
           --report dist/libretro-validation.json
         python3 build-utils/validate_shader_compiler_ipa.py "dist/$IPA_NAME.ipa" \
           --build-number "$BUILD_NUMBER" --report dist/shader-compiler-validation.json
-        if [ "$KARTPAD_CANDIDATE" = "1" ]; then
-          python3 build-utils/validate_kartpad_ipa.py "dist/$IPA_NAME.ipa" \
-            --identity dist/kartpad-native/identity.json \
-            --core-host "$KARTPAD_CORE_HOST_SHA" \
-            --build-number "$BUILD_NUMBER"
-          cp dist/kartpad-native/identity.json dist/kartpad-core-identity.json
-        else
-          python3 build-utils/validate_kartpad_ipa.py "dist/$IPA_NAME.ipa" \
-            --build-number "$BUILD_NUMBER" --expect-absent
-        fi
+        # KartPad left NeoStation: no part of it and no file of game origin.
+        python3 build-utils/validate_no_kartpad_ipa.py "dist/$IPA_NAME.ipa" \
+          --build-number "$BUILD_NUMBER" --report dist/no-kartpad-validation.json
         cp build/fast-native/identity.json dist/fast-native-identity.json
         cp build/fast-native/rpcs3-core-identity.json dist/rpcs3-core-identity.json
         python3 build-utils/validate_neoplay_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --commit "$GITHUB_SHA" --report dist/neoplay-validation.json

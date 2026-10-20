@@ -21,7 +21,6 @@ import 'package:neostation/services/libretro_internal_service.dart';
 // DOLPHIN_ISOLATION_BEGIN: launcher_import
 import '../dolphin_internal_v2_service.dart';
 import '../dusklight_internal_service.dart';
-import '../kartpad_internal_service.dart';
 // DOLPHIN_ISOLATION_END: launcher_import
 import 'package:neostation/services/logger_service.dart';
 
@@ -65,6 +64,20 @@ class GameLaunchResult {
 
   GameLaunchResult.failure(this.errorMessage, [this.errorDetails])
     : success = false;
+}
+
+/// Whether [gamePath] lies in `Ports/KartPad/Games`, the folder of the former
+/// embedded KartPad port. Its files belong to the player and stay in place.
+bool isRemovedKartPadGamePath(String gamePath) {
+  final parts = path.posix.split(path.posix.normalize(gamePath));
+  for (var i = 0; i + 3 < parts.length; i++) {
+    if (parts[i] == 'Ports' &&
+        parts[i + 1] == 'KartPad' &&
+        parts[i + 2] == 'Games') {
+      return true;
+    }
+  }
+  return false;
 }
 
 /// Executes game launches across all supported platforms and monitors the
@@ -248,10 +261,10 @@ class GameLaunchService {
       // DOLPHIN_ISOLATION_END: explicit_gc_wii_route
 
       // Ports are explicitly dispatched by their private NeoStation owner.
-      // A staged KartPad import must never fall through into Dusklight,
-      // RetroArch or the iOS share sheet while its callable Core is unfinished.
+      // A game left in the former KartPad folder must never fall through into
+      // Dusklight, RetroArch or the iOS share sheet.
       if (Platform.isIOS && system.folderName.toLowerCase() == 'ports') {
-        // Build 448: KartPad and Dusklight switched off; no external app.
+        // Build 448: Dusklight switched off; no external app.
         final portsAllowed =
             await EmbeddedEnginePolicy.instance.allowsSystem(system);
         if (!context.mounted) return GameLaunchResult.failure('', '');
@@ -264,44 +277,13 @@ class GameLaunchService {
             system.folderName,
           );
         }
-        if (await KartPadInternalService.ownsGamePath(gamePath)) {
-          final KartPadLaunchResult report;
-          try {
-            report = await KartPadInternalService.launch(
-              gamePath,
-              uiText: PortsLocale.kartPadNativeUI(locale),
-            );
-          } catch (error) {
-            _log.e('[KartPad launch] $error');
-            return GameLaunchResult.failure(
-              PortsLocale.kartPadLaunchError(locale, null),
-              '$error',
-            );
-          }
-          if (!context.mounted) return GameLaunchResult.failure('', '');
-          if (!report.success) {
-            final runtimeMessage = report.message.trim();
-            final details =
-                'KartPad stage: ${report.stage ?? "unknown"}\n'
-                'Code: ${report.errorCode ?? "unknown"}\n'
-                '${report.technicalDetails}\n'
-                'Runtime message: ${runtimeMessage.isEmpty ? "none" : runtimeMessage}';
-            _log.e('[KartPad launch]\n$details');
-            // User-facing copy always follows NeoStation's selected locale.
-            // Keep the exact native runtime message in the technical details so
-            // diagnostics remain lossless without leaking English into the UI.
-            return GameLaunchResult.failure(
-              PortsLocale.kartPadLaunchError(locale, report.errorCode),
-              details,
-            );
-          }
-          GameSessionManager.registerGameLaunch(
-            system,
-            game,
-            'ios_kartpad_internal',
+        // KartPad left NeoStation (19 October 2026); its folder keeps the
+        // player's own files until a rescan drops the old library row.
+        if (isRemovedKartPadGamePath(gamePath)) {
+          return GameLaunchResult.failure(
+            PortsLocale.forLocale(locale, 'kartpadRemoved'),
+            'KartPad is not part of this NeoStation build: $gamePath',
           );
-          await FavoritesService.recordGamePlayed(game);
-          return GameLaunchResult.success();
         }
         final DusklightLaunchResult report;
         try {

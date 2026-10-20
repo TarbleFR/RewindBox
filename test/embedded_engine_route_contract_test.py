@@ -42,8 +42,12 @@ require('RetroArchLibraryService' not in dolphin and 'retroarch://' not in dolph
 
 ports = between(router, "if (Platform.isIOS && system.folderName.toLowerCase() == 'ports') {",
                 "'ios_dusklight_internal'")
-require(ports.index(POLICY) < ports.index('KartPadInternalService.ownsGamePath'),
-        'Ports ask the policy before KartPad or Dusklight')
+require(ports.index(POLICY) < ports.index('DusklightInternalService.launch('),
+        'Ports ask the policy before Dusklight')
+# KartPad left NeoStation: a game from its old folder is refused, never handed on.
+require(ports.index('isRemovedKartPadGamePath(gamePath)') < ports.index('DusklightInternalService.launch('),
+        'the old KartPad folder is refused before Dusklight')
+require('KartPadInternalService' not in router, 'no KartPad launch route remains')
 require('return _embeddedEngineOff(context, system);' in ports, 'Ports off is an explicit refusal')
 
 ps3 = between(router, 'if (isPs3 &&', "'ios_rpcs3_internal'")

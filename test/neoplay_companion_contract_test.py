@@ -9,11 +9,14 @@ class CompanionContracts(unittest.TestCase):
             'packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm':['Armsx2GameViewController','@selector(menuPressed)'],
             'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm':['RPCS3GameViewController','@selector(menuPressed)'],
             'native/dusklight/core/NeoDusklightCore.mm':['NeoDusklightControls','@selector(openMenu)'],
-            'native/kartpad/donor/NeoKartPadDonorCore.mm':['KartPadGameOverlay','FindButtonWithAccessibilityLabel','@"Menu"'],
         }
         for path,markers in sources.items():
             text = (ROOT/path).read_text()
             for marker in markers: self.assertIn(marker,text,path)
+        # KartPad left NeoStation on 19 October 2026: no adapter for it remains.
+        anchor = (ROOT/'packages/neoplay_bridge/ios/Classes/NPGameHUDAnchor.swift').read_text()
+        self.assertNotIn('KartPad',anchor)
+        self.assertNotIn('kartpad',anchor)
     def test_companion_has_no_emulator_or_input_mutation(self):
         names = ['NPGameHUD.swift','NPGameHUDAnchor.swift','NPControllerBatteryMonitor.swift','NPAirPlayMonitor.swift']
         text = '\n'.join((ROOT/'packages/neoplay_bridge/ios/Classes'/n).read_text() for n in names)

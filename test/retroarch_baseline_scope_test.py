@@ -40,6 +40,40 @@ NEOSWAP_DIRECT_444_REVIEWED = {
     'native/neoswap-relay/Backend.h': '230e5572307f01c6ba47c11f9e6e47fcfcd1a5fd43f0d9e450d6e4304a1fff35',
 }
 
+# KartPad removal, maintainer decision of 19 October 2026: KartPad is no longer
+# part of NeoStation (players build it themselves as a separate app). The two
+# library files lose exactly the KartPad scan root, reconstructed below before
+# the 419 fingerprint check; the retired KartPad host sources must be absent.
+KARTPAD_REMOVAL_EDITS = {
+    'lib/providers/sqlite_config_provider.dart': [
+        (b"import '../services/dusklight_internal_service.dart';\n/* DOLPHIN_ISOLATION_END: provider_import */\n",
+         b"import '../services/dusklight_internal_service.dart';\nimport '../services/kartpad_internal_service.dart';\n/* DOLPHIN_ISOLATION_END: provider_import */\n"),
+    ],
+    'lib/providers/sqlite_config_provider/scanning.dart': [
+        (b"    await DusklightInternalService.ensureLayout();\n    if (_availableSystems.isEmpty) await _loadAvailableSystems();\n",
+         b"    await DusklightInternalService.ensureLayout();\n    await KartPadInternalService.ensureLayout();\n    if (_availableSystems.isEmpty) await _loadAvailableSystems();\n"),
+        (b"""            (await DusklightInternalService.rootDirectory()).path;
+        nativeScanRoots = <String>[dusklightRoot];
+""",
+         b"""            (await DusklightInternalService.rootDirectory()).path;
+        final kartPadRoot = (await KartPadInternalService.rootDirectory()).path;
+        nativeScanRoots = <String>[dusklightRoot, kartPadRoot];
+"""),
+        (b"""            'ports': (await DusklightInternalService.gamesDirectory()).path,
+          },
+        };
+""",
+         b"""            'ports': (await DusklightInternalService.gamesDirectory()).path,
+          },
+          kartPadRoot: <String, String>{
+            'ports': (await KartPadInternalService.gamesDirectory()).path,
+          },
+        };
+"""),
+    ],
+}
+RETIRED_KARTPAD_NATIVE = 'native/kartpad/'
+
 
 class RetroArchBaselineScope(unittest.TestCase):
     def test_library_is_the_recorded_build419_reference(self):
@@ -68,6 +102,13 @@ class RetroArchBaselineScope(unittest.TestCase):
                     for current, original in edits:
                         self.assertEqual(data.count(current), 1)
                         data = data.replace(current, original, 1)
+                if name in KARTPAD_REMOVAL_EDITS:
+                    # KartPad removal, at the maintainer's request (19 October
+                    # 2026): only the Ports › KartPad scan root and its import
+                    # are gone; every other byte stays 419.
+                    for current, original in KARTPAD_REMOVAL_EDITS[name]:
+                        self.assertEqual(data.count(current), 1)
+                        data = data.replace(current, original, 1)
                 if name == 'lib/main.dart':
                     # Build433, at the maintainer's request (10 October 2026):
                     # saved library folders are found again at startup after
@@ -88,6 +129,10 @@ class RetroArchBaselineScope(unittest.TestCase):
         self.assertEqual(set(NEOSWAP_DIRECT_444_REVIEWED), set(NEOSWAP_PREPARED_441_REVIEWED))
         for name, expected in MANIFEST['native_sha256'].items():
             with self.subTest(path=name):
+                if name.startswith(RETIRED_KARTPAD_NATIVE):
+                    # Retired with KartPad: the old host sources must not come back.
+                    self.assertFalse((ROOT / name).exists())
+                    continue
                 reviewed = NEOSWAP_DIRECT_444_REVIEWED.get(name, NEOSWAP_PREPARED_441_REVIEWED.get(name, NEOSWAP_MELONX_REVIEWED.get(name, expected)))
                 self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), reviewed)
 

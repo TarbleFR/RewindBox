@@ -1,5 +1,10 @@
 # KartPad native port — NeoStation integration
 
+> **Historical.** KartPad was removed from NeoStation on 19 October 2026 at the
+> maintainer's decision: its runtime carries code translated from Mario Kart Wii,
+> so each player builds KartPad as a separate app. This page describes the former
+> integration; see `docs/kartpad-removal-2026-10-19.md`.
+
 ## Stable baseline
 
 NeoStation iOS **Build 350** is the stable restoration point promoted by the

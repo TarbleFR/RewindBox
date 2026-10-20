@@ -723,7 +723,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       case ConsoleEngine.rpcs3:
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'RPCS3'});
       case ConsoleEngine.ports:
-        return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'KartPad, Dusklight'});
+        return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'Dusklight'});
       case ConsoleEngine.melonx:
         return _cf(ConsoleManagerLocale.engineExternal, {'app': 'MeloNX'});
       case ConsoleEngine.retroarch:

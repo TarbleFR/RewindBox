@@ -22,8 +22,6 @@ REQUIRED_LEGAL_FILES = (
     "RPCS3-GPL-2.0.txt",
     "ARMSX2-GPL-3.0.txt",
     "Dusklight-CC0-1.0.txt",
-    "KartPad-RIGHTS_AND_LICENSES.md",
-    "KartPad-THIRD_PARTY_NOTICES.md",
     "StikJIT-MPL-2.0.txt",
     "NeoStation-Assets-CC-BY-NC-SA-4.0.txt",
     "RiiSU-ATTRIBUTION.md",
@@ -124,7 +122,6 @@ def main() -> None:
     rpcs3 = load_json(ROOT / "build-utils/rpcs3/canonical-source.json")
     armsx2 = load_json(ROOT / "build-utils/armsx2/source.json")
     dusklight = load_json(ROOT / "build-utils/dusklight/source.json")
-    kartpad = load_json(ROOT / "build-utils/kartpad/source.json")
 
     require_pinned_header(
         LEGAL_ASSETS / "Dolphin-COPYING.txt", args.dolphin_sha
@@ -137,14 +134,6 @@ def main() -> None:
     )
     require_pinned_header(
         LEGAL_ASSETS / "Dusklight-CC0-1.0.txt", dusklight["commit"]
-    )
-    require_pinned_header(
-        LEGAL_ASSETS / "KartPad-RIGHTS_AND_LICENSES.md",
-        kartpad["releaseTagCommit"],
-    )
-    require_pinned_header(
-        LEGAL_ASSETS / "KartPad-THIRD_PARTY_NOTICES.md",
-        kartpad["releaseTagCommit"],
     )
     require_pinned_header(
         LEGAL_ASSETS / "StikJIT-MPL-2.0.txt", "1.9.0"
@@ -210,14 +199,6 @@ def main() -> None:
             "revision": dusklight["commit"],
             "sdl_revision": dusklight["sdl"]["commit"],
             "submodules": dusklight["submodules"],
-        },
-        "kartpad": {
-            "repository": "https://github.com/chrissotraidis/kartpad",
-            "release": kartpad["release"],
-            "release_tag_commit": kartpad["releaseTagCommit"],
-            "compiled_source": kartpad["compiledSource"],
-            "ios_runtime_commit": kartpad["iosRuntimeCommit"],
-            "public_source_limitation": kartpad["publicSourceLimitation"],
         },
         "stikjit": {
             "repository": "https://github.com/StikDebug/StikJIT",

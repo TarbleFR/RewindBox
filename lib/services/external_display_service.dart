@@ -357,8 +357,7 @@ class ExternalDisplayService extends ChangeNotifier {
   int get unsupportedEngineHolds => _unsupportedEngineHolds;
 
   /// Runs the native session of an engine that cannot draw on the external
-  /// screen (KartPad: the SDL window of its locked donor core; its bridge
-  /// stays byte-identical to its pinned Core, so the pairing lives here).
+  /// screen and whose bridge cannot pair with the display itself.
   ///
   /// NeoStation's window on the external screen is hidden right before
   /// [start] (iOS mirrors the iPhone meanwhile) and shown again exactly

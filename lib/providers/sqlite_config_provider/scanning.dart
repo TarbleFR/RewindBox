@@ -664,7 +664,6 @@ extension SqliteConfigScanning on SqliteConfigProvider {
       throw StateError('Embedded Ports refresh is available on iOS only.');
     }
     await DusklightInternalService.ensureLayout();
-    await KartPadInternalService.ensureLayout();
     if (_availableSystems.isEmpty) await _loadAvailableSystems();
     final system = _availableSystems.firstWhere(
       (candidate) => candidate.folderName == 'ports',
@@ -731,14 +730,10 @@ extension SqliteConfigScanning on SqliteConfigProvider {
       } else if (isPortsInternalSystem) {
         final dusklightRoot =
             (await DusklightInternalService.rootDirectory()).path;
-        final kartPadRoot = (await KartPadInternalService.rootDirectory()).path;
-        nativeScanRoots = <String>[dusklightRoot, kartPadRoot];
+        nativeScanRoots = <String>[dusklightRoot];
         effectiveRootFoldersMap = <String, Map<String, String>>{
           dusklightRoot: <String, String>{
             'ports': (await DusklightInternalService.gamesDirectory()).path,
-          },
-          kartPadRoot: <String, String>{
-            'ports': (await KartPadInternalService.gamesDirectory()).path,
           },
         };
       } else {

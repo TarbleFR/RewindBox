@@ -60,7 +60,7 @@ physical memory or circumvent Apple's resource enforcement.
 | **LZMA SDK (7-Zip)** | Igor Pavlov | Since Build 486, the 7z reader of the HD texture catalogue (`packages/neo_texture_catalog/ios/ThirdParty/lzma`, LZMA SDK 24.09) is compiled into that pod with hidden symbols. The LZMA SDK is placed in the public domain by its author; files are kept unmodified with their headers. |
 | **librashader** | Ronny Chan / SnowflakePowered and contributors | Native Metal shader chains used by ARMSX2 2.6. The pinned 0.12.0 C API declares MPL-2.0 OR GPL-3.0-only; preserve upstream notices. |
 | **Dusklight** | TwilitRealm/Dusklight contributors; Twilight Princess decompilation community; Aurora and Borealis contributors | Dusklight's root work is CC0-1.0; embedded dependencies retain their own licenses. |
-| **KartPad / WiiCompiled** | KartPad by @chrissotraidis; WiiCompiled by @patchzyy | KartPad-owned software and its WiiCompiled modifications are GPL-3.0-only where stated by KartPad. WiiCompiled and dependency notices remain applicable. Game-derived translated logic has separate rights considerations and is not relicensed by the software licenses. |
+| **KartPad / WiiCompiled** (earlier builds only) | KartPad by @chrissotraidis; WiiCompiled by @patchzyy | Removed from NeoStation on 19 October 2026: players build KartPad themselves as a separate app. Credit kept for the earlier builds that embedded it. KartPad-owned software and its WiiCompiled modifications are GPL-3.0-only where stated by KartPad; rights in game content are separate. |
 | **StikJIT** | StikDebug / StikJIT contributors | MPL-2.0. Recipients of executable form must be informed how to obtain the covered source. |
 | **Dawn, SDL, Aurora, Borealis and other runtime dependencies** | Their respective projects and contributors | Their individual license files and notices apply. |
 
@@ -148,22 +148,18 @@ NeoStation does not claim authorship of those datasets.
 
 ## KartPad / translated game-logic boundary
 
-KartPad's own rights document explicitly separates the GPL-covered software
-from rights in Nintendo-owned game content and from questions concerning
-ahead-of-time translated game logic.
+NeoStation no longer includes KartPad (maintainer decision of 19 October 2026).
+Earlier builds embedded the official KartPad v0.5.1-experimental.1 runtime,
+which carries Mario Kart Wii logic translated ahead of time. Because that
+runtime contains code derived from the game, it is now left entirely to each
+player: whoever wants KartPad builds it with its own tools from their own disc
+and installs it as a separate app. NeoStation's sources, workflows and IPA no
+longer contain KartPad, and the delivery checks refuse any file of game origin.
 
-NeoStation therefore does not state or imply that:
-
-- the GPL grants rights in Mario Kart Wii;
-- Nintendo-owned code, data, characters, names, audio, textures or other
-  commercial assets have been relicensed;
-- possession of a NeoStation binary replaces the user's obligation to supply
-  legally obtained supported game data where required.
-
-The public NeoStation source manifest also records KartPad's upstream source
-limitation concerning generated translation/profile inputs. A release must not
-be described as providing complete KartPad Corresponding Source unless the
-complete source required for that exact binary is actually available.
+KartPad's own rights document separates the GPL-covered software from rights
+in Nintendo-owned game content and from translated game logic. NeoStation never
+stated that the GPL grants rights in Mario Kart Wii or relicenses Nintendo-owned
+code, data or assets.
 
 ## RPCS3 licensing boundary
 
@@ -217,7 +213,6 @@ application bundle containing:
 - the exact release source manifest;
 - Dolphin's COPYING notice;
 - the exact RPCS3 GPL-2.0 license text;
-- KartPad's rights and third-party notices;
 - StikJIT's MPL-2.0 text;
 - Dusklight's CC0-1.0 text;
 - additional dependency notices collected by embedded projects.
@@ -418,7 +413,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **RPCS3 iOS / RPCS3** | iOS release/core work by [XITRIX](https://github.com/XITRIX/RPCS3-iOS-Releases), based on the [RPCS3](https://github.com/RPCS3/rpcs3) project. XITRIX also credits ARMSX3 and the wider iOS emulation/JIT community. |
 | **ARMSX2 / PCSX2** | [ARMSX2](https://github.com/ARMSX2/ARMSX2) team and contributors; ARMSX2 is based on the long-running [PCSX2](https://github.com/PCSX2/pcsx2) project. |
 | **Dusklight** | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. |
-| **KartPad / WiiCompiled** | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). |
+| **KartPad / WiiCompiled** (earlier builds only) | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). No longer included in NeoStation since 19 October 2026. |
 | **MeloNX / Ryujinx** | [MeloNX](https://github.com/nurtrino/MeloNX) contributors; MeloNX describes itself as based on Ryujinx/Ryubing. |
 | **RetroArch / Libretro** | [RetroArch](https://github.com/libretro/RetroArch) and Libretro contributors, for the API, core ecosystem and buildbot distributions used by **Embedded RetroArch** inside NeoStation. Individual emulator authors are credited below. |
 | **Provenance Skin Catalog** | [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins), maintained by the Provenance team and community contributors; one of the sources used to discover controller skins. |

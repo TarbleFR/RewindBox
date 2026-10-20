@@ -13,14 +13,6 @@ enum NPGameHUDAnchor {
             if className == "RPCS3GameViewController" && actions.contains("menuPressed") { return "rpcs3" }
             if className == "NeoDusklightControls" && actions.contains("openMenu") { return "dusklight" }
         }
-        if button.menu != nil && button.accessibilityLabel == "Menu" {
-            var parent = button.superview
-            for _ in 0..<12 {
-                guard let view = parent else { break }
-                if NSStringFromClass(type(of:view)) == "KartPadGameOverlay" { return "kartpad" }
-                parent = view.superview
-            }
-        }
         return nil
     }
     static func visible(_ view: UIView) -> Bool {

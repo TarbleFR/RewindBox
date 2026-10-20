@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Ports keeps Dusklight playable and advertises Mario Kart Wii', () {
+  test('Ports keeps Dusklight as its only embedded port', () {
     final root = jsonDecode(File('assets/systems/ports.json').readAsStringSync())
         as Map<String, dynamic>;
     final system = Map<String, dynamic>.from(root['system'] as Map);
@@ -13,75 +13,40 @@ void main() {
     expect(system['id'], 'ports');
     expect(
       (system['details'] as Map)['notable_games'],
-      containsAll(<String>[
-        'The Legend of Zelda: Twilight Princess',
-        'Mario Kart Wii',
-      ]),
+      <String>['The Legend of Zelda: Twilight Princess'],
     );
-    expect(emulators, hasLength(2));
-    final byId = <String, Map>{
-      for (final emulator in emulators) emulator['unique_id'] as String: emulator,
-    };
-    expect(byId['ports.ios.dusklight']?['name'], 'Dusklight');
-    expect(byId['ports.ios.kartpad']?['name'], 'Mario Kart Pad');
+    // KartPad left NeoStation on 19 October 2026: players build it themselves.
+    expect(emulators, hasLength(1));
+    expect(emulators.single['unique_id'], 'ports.ios.dusklight');
+    expect(emulators.single['name'], 'Dusklight');
     expect(
-      ((byId['ports.ios.kartpad']?['platforms'] as Map)['ios'] as Map)['embedded'],
+      ((emulators.single['platforms'] as Map)['ios'] as Map)['embedded'],
       isTrue,
     );
+    expect(File('lib/services/kartpad_internal_service.dart').existsSync(),
+        isFalse);
   });
 
-  test('KartPad owns a strict private PAL RMCP01 user import', () {
-    final service =
-        File('lib/services/kartpad_internal_service.dart').readAsStringSync();
-    for (final folder in <String>[
-      "'Ports'",
-      "'KartPad'",
-      "'Games'",
-      "'Saves'",
-      "'Config'",
-      "'Mods'",
-      "'Logs'",
-      "'Metadata'",
-    ]) {
-      expect(service, contains(folder));
-    }
-    expect(service, contains("supportedDiscId = 'RMCP01'"));
-    expect(service, contains('supportedDiscNumber = 0'));
-    expect(service, contains('supportedRevision = 0'));
-    expect(service, contains('0x5D1C9EA3'));
-    expect(service, contains("'Mario Kart Wii'"));
-    expect(
-      service,
-      contains("supportedGameExtensions = <String>{'iso', 'wbfs', 'rvz'}"),
-    );
-    expect(service, contains("MethodChannel('neostation/dolphin_internal')"));
-    expect(service, contains("'saveIdentity'"));
-    expect(service, contains('KartPadInternalBridge.prepareGame'));
-    expect(service, contains("'kartpadRvzPrepareFailed'"));
-    expect(service, contains(r"File('${output.path}.part')"));
-  });
-
-  test('Ports exposes one Import menu with DuskLight and Mario Kart Pad', () {
+  test('Ports exposes one Import menu with DuskLight only', () {
     final widget =
         File('lib/widgets/ports_internal_playlist_actions.dart')
             .readAsStringSync();
     expect(widget, contains("ValueKey('ports-internal-import')"));
     expect(widget, contains("'import'"));
     expect(widget, contains("'dusklight'"));
-    expect(widget, contains("'kartpad'"));
     expect(widget, contains('DusklightInternalService.importGames()'));
-    expect(widget, contains('KartPadInternalService.importGame()'));
+    expect(widget.toLowerCase(), isNot(contains('kartpad')));
   });
 
-  test('Ports scraper resolves KartPad independently from Dusklight', () {
+  test('Ports scraper resolves Dusklight identities only', () {
     final identity =
         File('lib/services/ports_game_identity.dart').readAsStringSync();
     final scraper =
         File('lib/services/screenscraper_service.dart').readAsStringSync();
 
-    expect(identity, contains('KartPadInternalService.ownsGamePath'));
-    expect(identity, contains('screenScraperSystemId: 16'));
+    expect(identity, contains('DusklightGameIdentity.read'));
     expect(identity, contains('PortGameIdentity'));
+    expect(identity.toLowerCase(), isNot(contains('kartpad')));
     expect(scraper, contains('PortGameIdentity.read'));
     expect(scraper, isNot(contains('DusklightGameIdentity.read')));
   });
@@ -94,7 +59,8 @@ void main() {
     expect(manage, contains('refreshPortsInternalLibrary'));
   });
 
-  test('Ports scan and launch isolate KartPad from Dusklight', () {
+  test('Ports scan reads Dusklight only and launch refuses the old KartPad folder',
+      () {
     final scanning =
         File('lib/providers/sqlite_config_provider/scanning.dart')
             .readAsStringSync();
@@ -105,18 +71,19 @@ void main() {
 
     expect(scanning, contains('refreshPortsInternalLibrary'));
     expect(scanning, contains('DusklightInternalService.rootDirectory'));
-    expect(scanning, contains('KartPadInternalService.rootDirectory'));
-    expect(scanning, contains('KartPadInternalService.gamesDirectory'));
+    expect(scanning, contains('nativeScanRoots = <String>[dusklightRoot];'));
+    expect(scanning, isNot(contains('KartPad')));
 
     final portsRoute =
         launcher.indexOf("system.folderName.toLowerCase() == 'ports'");
-    final kartPadDispatch =
-        launcher.indexOf('KartPadInternalService.ownsGamePath', portsRoute);
+    final removedRefusal =
+        launcher.indexOf('isRemovedKartPadGamePath(gamePath)', portsRoute);
     final dusklightLaunch =
         launcher.indexOf('DusklightInternalService.launch', portsRoute);
     expect(portsRoute, greaterThanOrEqualTo(0));
-    expect(kartPadDispatch, greaterThan(portsRoute));
-    expect(dusklightLaunch, greaterThan(kartPadDispatch));
+    expect(removedRefusal, greaterThan(portsRoute));
+    expect(dusklightLaunch, greaterThan(removedRefusal));
+    expect(launcher, isNot(contains('KartPadInternalService')));
 
     expect(playlist, contains('PortsInternalPlaylistActions'));
     expect(playlist, contains('_buildPortsImportAction'));

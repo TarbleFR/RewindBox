@@ -438,7 +438,7 @@ void main() {
     expect(service.isPlaying, isTrue);
   });
 
-  test('KartPad engine restart: cut without fade, back after the session', () async {
+  test('shared engine restart: cut without fade, back after the session', () async {
     final service = create();
     await service.attachFrontend();
     session.value = true;

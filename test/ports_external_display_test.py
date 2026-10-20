@@ -1,33 +1,30 @@
 #!/usr/bin/env python3
-"""Contracts of the Dusklight and KartPad engines towards the external display
-host (docs/external-display-universal.md § 5, last row, and § 8 bis).
+"""Contract of the Dusklight engine towards the external display host
+(docs/external-display-universal.md § 5, last row, and § 8 bis).
 
-Both engines draw in an SDL window created inside their locked core, so
-NeoStation's external-display window cannot host them: it is hidden for the
+Dusklight draws in an SDL window created inside its locked core, so
+NeoStation's external-display window cannot host it: it is hidden for the
 session, so iOS resumes mirroring the iPhone, and shown again on every end
-path.
+path. Its bridge hides the window as the last statement before the native
+handoff (`_api->start`) and shows it again on every end path: a start refused
+by the core, the end-of-session event (clean return, language restart, runtime
+failure, crash, first-frame timeout and Flutter `stop` all come back through
+`coreState:`), and the plugin's own deallocation, where the core callback is
+cleared first. Only `suspendForUnsupportedEngine` and
+`resumeAfterUnsupportedEngine` are used: no render host, menu, scene or
+preference API.
 
-- Dusklight: its bridge hides the window as the last statement before the
-  native handoff (`_api->start`) and shows it again on every end path: a
-  start refused by the core, the end-of-session event (clean return, language
-  restart, runtime failure, crash, first-frame timeout and Flutter `stop` all
-  come back through `coreState:`), and the plugin's own deallocation, where
-  the core callback is cleared first. Only `suspendForUnsupportedEngine` and
-  `resumeAfterUnsupportedEngine` are used: no render host, menu, scene or
-  preference API.
-- KartPad: its bridge is pinned byte for byte with its Core (delivery guard
-  "Verify KartPad Core candidate identity", KARTPAD_CORE_HOST_SHA; delivery run
-  38207626900 stopped there when Build 447 first edited it, before any IPA).
-  The bridge therefore never mentions the external display; Flutter pairs the
-  suspension around the native launch (KartPadInternalService
-  .launchNativeSession -> ExternalDisplayService.runUnsupportedEngineSession
-  -> channel methods of ExternalDisplayPlugin.m). The behaviour is tested in
-  test/external_display_unsupported_engine_test.dart; this file checks the
-  wiring and the pin.
+KartPad, the other engine in this situation, left NeoStation on 19 October 2026
+(maintainer decision): its bridge, service and delivery pin are gone, and the
+Flutter pairing it used (ExternalDisplayService.runUnsupportedEngineSession ->
+channel methods of ExternalDisplayPlugin.m) stays available and checked here
+for any future engine; its behaviour is tested in
+test/external_display_unsupported_engine_test.dart.
 
-Nothing under native/ changes (the baseline manifest hashes of both cores are
-re-verified here). Source contracts: the bridges compile on macOS CI only and
-the window hand-off runs only on an iPhone with an Apple TV. No device claim.
+Nothing under native/ changes (the baseline manifest hashes of the Dusklight
+core are re-verified here). Source contracts: the bridges compile on macOS CI
+only and the window hand-off runs only on an iPhone with an Apple TV. No device
+claim.
 """
 from __future__ import annotations
 
@@ -43,8 +40,8 @@ EXTERNAL = ROOT / 'packages/external_display/ios'
 EXTERNAL_POD = 'external_display'
 COORDINATOR_HEADER = 'NeoExternalDisplayCoordinator.h'
 MANIFEST = ROOT / 'docs/retroarch-baseline-manifest.json'
-NATIVE_TREES = ('native/dusklight', 'native/kartpad')
-WINDOW_OWNERS = ('native/dusklight/core/NeoDusklightCore.mm', 'native/kartpad/donor/NeoKartPadDonorCore.mm')
+NATIVE_TREES = ('native/dusklight',)
+WINDOW_OWNERS = ('native/dusklight/core/NeoDusklightCore.mm',)
 SUSPEND = '[self suspendExternalDisplay];'
 RESUME = '[self resumeExternalDisplay];'
 ALLOWED_COORDINATOR_API = {'suspendForUnsupportedEngine', 'resumeAfterUnsupportedEngine'}
@@ -71,14 +68,10 @@ BRIDGES = {
     ),
 }
 
-KARTPAD_PACKAGE = ROOT / 'packages/kartpad_internal_bridge'
-KARTPAD_SERVICE = ROOT / 'lib/services/kartpad_internal_service.dart'
-KARTPAD_DART_BRIDGE = KARTPAD_PACKAGE / 'lib/kartpad_internal_bridge.dart'
 SERVICE = ROOT / 'lib/services/external_display_service.dart'
 CHANNEL = ROOT / 'packages/external_display/lib/external_display.dart'
 PLUGIN = EXTERNAL / 'Classes/ExternalDisplayPlugin.m'
 DELIVERY = ROOT / '.github/workflows/retroarch-delivery.yml'
-EXTERNAL_TOKENS = ('external_display', 'ExternalDisplay', 'NeoExternal', 'UnsupportedEngine')
 
 
 def code(text: str) -> str:
@@ -256,65 +249,15 @@ class ScopeTests(unittest.TestCase):
 
 
 
-def kartpad_pin() -> str:
-    match = re.search(r"KARTPAD_CORE_HOST_SHA: \$\{\{ inputs\.kartpad_core_host_sha \|\| '([0-9a-f]{40})' \}\}",
-                      DELIVERY.read_text(encoding='utf-8'))
-    assert match is not None, 'the delivery pins KARTPAD_CORE_HOST_SHA'
-    return match.group(1)
+class KartPadRemovalTests(unittest.TestCase):
+    def test_kartpad_is_gone(self) -> None:
+        self.assertFalse((ROOT / 'packages/kartpad_internal_bridge').exists())
+        self.assertFalse((ROOT / 'lib/services/kartpad_internal_service.dart').exists())
+        self.assertFalse((ROOT / 'native/kartpad').exists())
+        self.assertNotIn('KARTPAD_CORE_HOST_SHA', DELIVERY.read_text(encoding='utf-8'))
 
 
-class KartPadPinTests(unittest.TestCase):
-    def test_bridge_never_mentions_the_external_display(self) -> None:
-        checked = 0
-        for path in sorted(KARTPAD_PACKAGE.rglob('*')):
-            if not path.is_file() or path.suffix not in {'.h', '.m', '.mm', '.podspec', '.dart', '.yaml', '.swift'}:
-                continue
-            checked += 1
-            text = path.read_text(encoding='utf-8', errors='ignore')
-            for token in EXTERNAL_TOKENS:
-                with self.subTest(path=str(path.relative_to(ROOT)), token=token):
-                    self.assertNotIn(token, text)
-        self.assertGreaterEqual(checked, 4, 'plugin, ABI, podspec and Dart bridge are read')
-
-    def test_bridge_is_byte_identical_to_its_pinned_core_host(self) -> None:
-        pin = kartpad_pin()
-        known = subprocess.run(['git', 'cat-file', '-e', pin + '^{commit}'], cwd=ROOT, capture_output=True)
-        if known.returncode != 0:
-            self.skipTest(pin + ' is not in this checkout (shallow clone); the delivery checks job has full history')
-        diff = subprocess.run(['git', 'diff', '--quiet', pin, '--', 'packages/kartpad_internal_bridge'], cwd=ROOT)
-        self.assertEqual(diff.returncode, 0,
-                         'packages/kartpad_internal_bridge differs from KARTPAD_CORE_HOST_SHA: '
-                         'the delivery guard would stop before the IPA')
-
-
-class KartPadDartPairingTests(unittest.TestCase):
-    def test_the_native_launch_runs_inside_the_hold(self) -> None:
-        service = re.sub(r'//[^\n]*', ' ', KARTPAD_SERVICE.read_text(encoding='utf-8'))
-        self.assertEqual(service.count('KartPadInternalBridge.launch('), 1, 'one native launch call site')
-        helper = service[service.index('static Future<Map<String, dynamic>> launchNativeSession({'):]
-        helper = helper[:helper.index('static Future<KartPadLaunchResult> launch(')]
-        for token in ('.runUnsupportedEngineSession<Map<String, dynamic>>(', "engine: 'KartPad',",
-                      'sessionEnded: KartPadInternalBridge.sessionEvents,',
-                      'start: () => KartPadInternalBridge.launch(',
-                      "answer['success'] == true ||",
-                      "answer['errorCode'] == 'KARTPAD_FIRST_FRAME_TIMEOUT',"):
-            self.assertIn(token, helper, token)
-        launch = service[service.index('static Future<KartPadLaunchResult> launch('):]
-        self.assertIn('final response = await launchNativeSession(', launch)
-        self.assertLess(launch.index("trace('native_launch_begin');"), launch.index('await launchNativeSession('))
-
-    def test_the_continuation_rule_matches_the_bridge_ownership(self) -> None:
-        # The Dart bridge keeps the session owned exactly when the hold keeps
-        # the window hidden (a success or a first-frame timeout), and only the
-        # current transaction's sessionEnded reaches the stream.
-        bridge = KARTPAD_DART_BRIDGE.read_text(encoding='utf-8')
-        self.assertIn("if (response['success'] != true &&\n"
-                      "          response['errorCode'] != 'KARTPAD_FIRST_FRAME_TIMEOUT') {\n"
-                      "        _sessionOwned = false;", bridge)
-        self.assertIn("if (call.method != 'sessionEnded') return;", bridge)
-        self.assertIn("if (arguments is! Map || arguments['transaction'] != _transaction) return;", bridge)
-        self.assertIn('final transaction = ++_transaction;', bridge)
-
+class UnsupportedEnginePairingTests(unittest.TestCase):
     def test_the_channel_reaches_the_coordinator(self) -> None:
         channel = CHANNEL.read_text(encoding='utf-8')
         plugin = code(PLUGIN.read_text(encoding='utf-8'))

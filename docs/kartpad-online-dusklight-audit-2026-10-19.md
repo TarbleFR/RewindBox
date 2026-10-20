@@ -1,5 +1,7 @@
 # KartPad en ligne et mise à jour des ports natifs (KartPad, Dusklight) — audit du 19 octobre 2026
 
+> **Suite donnée.** Après cet audit, le mainteneur a décidé le retrait complet de KartPad de NeoStation (19 octobre 2026) : chaque joueur le construit lui-même comme application séparée. Les étapes « intégrer le moteur 0.8.3 » ci-dessous ne sont plus d'actualité. Voir `docs/kartpad-removal-2026-10-19.md`.
+
 Demande du mainteneur (19 octobre 2026, priorité haute) : un joueur signale que KartPad installé seul propose le jeu en ligne, mais pas le port intégré à NeoStation. Le mainteneur demande trois choses :
 
 - intégrer dans NeoStation le multijoueur en ligne de KartPad (Retro Rewind et Retro WFC en priorité, puis une étude de Mario Kart Wii original) ;

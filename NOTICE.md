@@ -234,16 +234,20 @@ packages/dusklight_internal_bridge/.
 
 ---
 
-KARTPAD / WIICOMPILED — EMBEDDED MARIO KART WII RUNTIME
+KARTPAD / WIICOMPILED — FORMERLY EMBEDDED, REMOVED
+
+NeoStation no longer includes KartPad. Earlier NeoStation builds embedded the
+official KartPad v0.5.1-experimental.1 runtime, which carries Mario Kart Wii
+logic translated ahead of time. At the maintainer's decision of 19 October
+2026, KartPad was removed from NeoStation's sources, workflows and IPA: players
+who want it build KartPad themselves with its own tools and install it as a
+separate app. Their files left in NeoStation's Ports/KartPad folder are kept.
 
 KartPad:
 https://github.com/chrissotraidis/kartpad
 
 KartPad creator/maintainer:
 https://github.com/chrissotraidis
-
-NeoStation's current pinned KartPad release/source metadata is recorded in:
-build-utils/kartpad/source.json
 
 KartPad states that it builds on WiiCompiled, the original Mario Kart Wii static
 recompilation project created by patchzyy.
@@ -254,22 +258,10 @@ https://github.com/patchzyy/Wiicompiled
 WiiCompiled creator:
 https://github.com/patchzyy
 
-NeoStation's KartPad integration does not claim authorship of KartPad,
-WiiCompiled or their translated/runtime work. NeoStation-specific embedding,
-menu, lifecycle and storage adaptations are maintained in native/kartpad/,
-build-utils/kartpad/ and packages/kartpad_internal_bridge/.
-
-KartPad's RIGHTS_AND_LICENSES.md states that KartPad-owned software and its
-WiiCompiled modifications are GPL-3.0-only where covered, while rights in
-Nintendo-owned game content and ahead-of-time translated game logic remain a
-separate issue. NeoStation does not claim that the software license grants
-rights in Mario Kart Wii or other commercial game content.
-
-The pinned NeoStation source manifest also records that the public KartPad
-source delivery excludes generated translation/profile inputs and that a full
-KartPadCore requires an authorized RMCP01 translation graph. Do not describe
-the public source set as complete KartPad Corresponding Source unless the exact
-required source for the distributed binary is actually available.
+This credit is kept for the earlier builds that included KartPad. NeoStation
+never claimed authorship of KartPad, WiiCompiled or their translated/runtime
+work, nor that their software licence grants rights in Mario Kart Wii or other
+commercial game content.
 
 ---
 

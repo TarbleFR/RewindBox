@@ -2,11 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'package:armsx2_internal_bridge/armsx2_internal_bridge.dart';
 import 'package:dusklight_internal_bridge/dusklight_internal_bridge.dart';
-import 'package:kartpad_internal_bridge/kartpad_internal_bridge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'audio_policy_service.dart';
-import 'home_music_service.dart';
 import 'game_service.dart';
 import 'music_player_service.dart';
 import 'sfx_service.dart';
@@ -66,7 +64,6 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
 
   static const Set<String> _embeddedIOSSessionExecutables = <String>{
     'ios_dusklight_internal',
-    'ios_kartpad_internal',
     'ios_armsx2_internal',
     'ios_dolphin_internal',
     'ios_rpcs3_internal',
@@ -199,16 +196,7 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
       // The native session has ended before this route is disposed. Restore
       // audio ownership before resuming any menu voices, including on failure.
       await AudioPolicyService().restoreAfterGameSession();
-      if (Platform.isIOS && _activeEmulatorExe == 'ios_kartpad_internal') {
-        await HomeMusicService().beforeSharedEngineRestart();
-        try {
-          await MusicPlayerService().restoreAfterKartPad();
-        } finally {
-          await HomeMusicService().afterSharedEngineRestart();
-        }
-      } else {
-        await MusicPlayerService().resumeAfterGame();
-      }
+      await MusicPlayerService().resumeAfterGame();
     } catch (error, stack) {
       _log.e(
         '[GameLaunchManager] Could not resume menu audio.',
@@ -278,33 +266,6 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
         },
       );
       if (DusklightInternalBridge.didEndSession && !_isClosing) {
-        _triggerClose();
-      }
-      return;
-    }
-
-    if (Platform.isIOS && emulatorExe == 'ios_kartpad_internal') {
-      _embeddedSessionSubscription = KartPadInternalBridge.sessionEvents.listen(
-        (event) {
-          final exitReason = event['exitReason']?.toString() ?? 'unknown';
-          _log.i(
-            '[GameLaunchManager] KartPad host result=$exitReason '
-            'message=${event['reason'] ?? 'unknown'} '
-            '(success=${event['success']}, runtimeReleased=${event['runtimeReleased']})',
-          );
-          if (_phase != GameLaunchPhase.playing || _isClosing) return;
-
-          if (exitReason == 'userReturn' ||
-              exitReason == 'languageRestart' ||
-              exitReason == 'normalTermination' ||
-              exitReason == 'runtimeFailure' ||
-              exitReason == 'crash' ||
-              exitReason == 'launchFailure') {
-            _triggerClose();
-          }
-        },
-      );
-      if (KartPadInternalBridge.didEndSession && !_isClosing) {
         _triggerClose();
       }
       return;

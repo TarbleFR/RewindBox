@@ -24,7 +24,6 @@ import 'package:neostation/services/armsx2_internal_service.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
 import 'package:neostation/services/dolphin_smart_import_service.dart';
 import 'package:neostation/services/dusklight_internal_service.dart';
-import 'package:neostation/services/kartpad_internal_service.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/services/rpcs3_save_exchange_service.dart';
@@ -75,7 +74,7 @@ const _inbox = 'com.neostation.app-Inbox';
 List<int> _bytes(int length, [int seed = 7]) =>
     List<int>.generate(length, (i) => (seed * 31 + i) & 0xff);
 
-/// Disc header the KartPad and Dusklight importers read: six-character ID,
+/// Disc header the Dusklight importer reads: six-character ID,
 /// disc 0, revision 0 and the Wii magic at 0x18.
 List<int> _disc(String id, int length) {
   final bytes = Uint8List(length)
@@ -651,24 +650,6 @@ void main() {
         expectPresent([unknown, systemCopy('Unknown.iso')]);
       },
     );
-
-    test('KartPad: renamed into Games, then the copies go; another disc keeps '
-        'them', () async {
-      final other = await pick('Other.iso', _disc('RMCE01', 4096));
-      FilePickerPlatform.instance = _Sheet([other]);
-      final refused = await KartPadInternalService.importGame();
-      expect(refused.imported, 0);
-      expectPresent([other, systemCopy('Other.iso')]);
-
-      final game = await pick('MKW.iso', _disc('RMCP01', 4096));
-      FilePickerPlatform.instance = _Sheet([game]);
-      final result = await KartPadInternalService.importGame();
-
-      expect(result.imported, 1);
-      final games = await KartPadInternalService.gamesDirectory();
-      expect(File(p.join(games.path, 'Mario Kart Wii.iso')).lengthSync(), 4096);
-      expectGone([game, systemCopy('MKW.iso')]);
-    });
 
     test('Dusklight: verified and renamed, then the copies go; another disc '
         'keeps them', () async {

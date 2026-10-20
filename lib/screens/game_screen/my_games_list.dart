@@ -1783,8 +1783,7 @@ class _SystemGamesListState extends State<SystemGamesList> {
             SizedBox(height: 8.r),
             Text(
               '${PortsLocale.text(context, 'import')}: '
-              '${PortsLocale.text(context, 'dusklight')} • '
-              '${PortsLocale.text(context, 'kartpad')}',
+              '${PortsLocale.text(context, 'dusklight')}',
               textAlign: TextAlign.center,
             ),
           ]),

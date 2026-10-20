@@ -79,7 +79,6 @@ def main() -> None:
             "RPCS3 / XITRIX",
             "ARMSX2 / PCSX2",
             "Dusklight",
-            "KartPad / WiiCompiled",
             "StikJIT",
             "GameDB / GameDB-PS3",
         ):

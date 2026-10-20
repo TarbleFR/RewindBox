@@ -121,7 +121,12 @@ NeoStation’s frontend license does not relicense third-party codes.
 | **ARMSX2 / PCSX2** | PlayStation 2 |
 | **RPCS3 / XITRIX iOS fork** | PlayStation 3 |
 | **Dusklight** | Twilight Princess port; requires compatible game data |
-| **KartPad / WiiCompiled** | Mario Kart Wii port; requires supported PAL RMCP01 game data |
+
+KartPad (Mario Kart Wii) is no longer included. Its runtime carries code
+translated from the game, so each player who wants it builds
+[KartPad](https://github.com/chrissotraidis/kartpad) with its own tools and
+installs it as a separate app. Files already in NeoStation's `Ports/KartPad`
+folder are left untouched.
 
 The public Build 455 release contains 14 Libretro cores; the current source tree
 contains 34. [All current core credits and license references](assets/legal/libretro/LIBRETRO_CORES.md)

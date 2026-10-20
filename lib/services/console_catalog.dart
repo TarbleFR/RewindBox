@@ -16,7 +16,7 @@ enum ConsoleEngine {
   /// RPCS3 (PlayStation 3), embedded.
   rpcs3,
 
-  /// KartPad and Dusklight (Ports), embedded.
+  /// Dusklight (Ports), embedded.
   ports,
 
   /// The MeloNX app (Nintendo Switch), external.

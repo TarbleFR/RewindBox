@@ -13,13 +13,71 @@ manager=(root/'lib/services/game_launch_manager.dart').read_text()
 original=subprocess.check_output(['git','show','d3e558fad05feeb0838b4d3d80fc854546eaf0a4:lib/services/game_launch_manager.dart'],cwd=root,text=True)
 # The embedded libretro engine (requested 9 Oct 2026) adds one in-process
 # executable; it is polled through EmbeddedIOSSessionStatus like RPCS3.
+# KartPad left NeoStation on 19 October 2026 (maintainer decision): its
+# session monitor, executable and audio restore are the only other removals.
+KARTPAD_SESSION = """    if (Platform.isIOS && emulatorExe == 'ios_kartpad_internal') {
+      _embeddedSessionSubscription = KartPadInternalBridge.sessionEvents.listen(
+        (event) {
+          final exitReason = event['exitReason']?.toString() ?? 'unknown';
+          _log.i(
+            '[GameLaunchManager] KartPad host result=$exitReason '
+            'message=${event['reason'] ?? 'unknown'} '
+            '(success=${event['success']}, runtimeReleased=${event['runtimeReleased']})',
+          );
+          if (_phase != GameLaunchPhase.playing || _isClosing) return;
+
+          if (exitReason == 'userReturn' ||
+              exitReason == 'languageRestart' ||
+              exitReason == 'normalTermination' ||
+              exitReason == 'runtimeFailure' ||
+              exitReason == 'crash' ||
+              exitReason == 'launchFailure') {
+            _triggerClose();
+          }
+        },
+      );
+      if (KartPadInternalBridge.didEndSession && !_isClosing) {
+        _triggerClose();
+      }
+      return;
+    }
+
+"""
+KARTPAD_REMOVAL = [
+    ("import 'package:dusklight_internal_bridge/dusklight_internal_bridge.dart';\n",
+     "import 'package:dusklight_internal_bridge/dusklight_internal_bridge.dart';\n"
+     "import 'package:kartpad_internal_bridge/kartpad_internal_bridge.dart';\n"),
+    ("import 'audio_policy_service.dart';\n",
+     "import 'audio_policy_service.dart';\nimport 'home_music_service.dart';\n"),
+    ("    'ios_dusklight_internal',\n", "    'ios_dusklight_internal',\n    'ios_kartpad_internal',\n"),
+    ("""      await AudioPolicyService().restoreAfterGameSession();
+      await MusicPlayerService().resumeAfterGame();
+""", """      await AudioPolicyService().restoreAfterGameSession();
+      if (Platform.isIOS && _activeEmulatorExe == 'ios_kartpad_internal') {
+        await HomeMusicService().beforeSharedEngineRestart();
+        try {
+          await MusicPlayerService().restoreAfterKartPad();
+        } finally {
+          await HomeMusicService().afterSharedEngineRestart();
+        }
+      } else {
+        await MusicPlayerService().resumeAfterGame();
+      }
+"""),
+    ("    if (Platform.isIOS && emulatorExe == 'ios_armsx2_internal') {\n",
+     KARTPAD_SESSION + "    if (Platform.isIOS && emulatorExe == 'ios_armsx2_internal') {\n"),
+]
+assert 'kartpad' not in manager.lower(), 'KartPad must not come back to the session lifecycle'
+for current, removed in KARTPAD_REMOVAL:
+    assert manager.count(current)==1, current
+    manager = manager.replace(current, removed, 1)
 assert manager.replace("    'ios_dolphin_internal',\n    'ios_rpcs3_internal',\n    'ios_libretro_internal',\n",'')==original, 'unrelated lifecycle regression'
 for file in ('lib/screens/game_screen/my_games_list.dart','lib/screens/secondary_screen/secondary_screen.dart','lib/widgets/shaders/shader_gif_widget.dart'):
     data=(root/file).read_text();assert 'FrontendMediaGate.instance.register' in data,file
     assert 'FrontendMediaGate.instance.unregister' in data,file
 service=(root/'lib/services/game/game_launch_service.dart').read_text()
 assert service.index('await FrontendMediaGate.instance.quiet')<service.index('await _launchGameImpl')
-print('PASS: exact retained KartPad lifecycle, all preview factories gated, 12 native cheat locales, generated sources match')
+print('PASS: exact retained lifecycle (KartPad removed), all preview factories gated, 12 native cheat locales, generated sources match')
 
 import re
 bridge='packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm'

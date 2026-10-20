@@ -12,9 +12,10 @@ The exact 0.0.1 source/binary identity manifest is:
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/RELEASE_0.0.1_SOURCE_MANIFEST.md
 
 Primary credited projects include NeoStation, Dolphin/DolphiniOS, RPCS3,
-XITRIX, ARMSX2/PCSX2, Dusklight, Aurora, Borealis, KartPad/WiiCompiled,
-StikJIT, RetroArch/libretro, MeloNX, GameDB/GameDB-PS3, ScreenScraper and
-RetroAchievements.
+XITRIX, ARMSX2/PCSX2, Dusklight, Aurora, Borealis, StikJIT,
+RetroArch/libretro, MeloNX, GameDB/GameDB-PS3, ScreenScraper and
+RetroAchievements. KartPad/WiiCompiled, embedded in earlier builds only, is no
+longer included.
 
 Each component remains under its own applicable license and copyright notices.
 Nothing in this file relicenses third-party software, game content, trademarks

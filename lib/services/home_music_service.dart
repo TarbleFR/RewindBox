@@ -488,7 +488,7 @@ class HomeMusicService extends ChangeNotifier with WidgetsBindingObserver {
   static Future<void> armsx2SessionEnded() =>
       Armsx2InternalBridge.sessionEvents.first;
 
-  /// KartPad releases SDL's audio device; the shared engine is recreated.
+  /// The shared audio engine is being recreated: hold playback until it is ready.
   Future<void> beforeSharedEngineRestart() async {
     _sharedEngineRestarting = true;
     await _sync();
