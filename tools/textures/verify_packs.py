@@ -184,7 +184,11 @@ def strip_comments(text):
 
 def check_dolphin(folder):
     report = {'dds': {}}
-    for path in Path(folder).rglob('*.dds'):
+    # Dolphin and the native installer accept DDS extensions without case.
+    # Case-sensitive globbing missed real .DDS/.Dds files in creator archives.
+    for path in Path(folder).rglob('*'):
+        if not path.is_file() or path.suffix.lower() != '.dds':
+            continue
         kind = dds_kind(path)
         report['dds'][kind] = report['dds'].get(kind, 0) + 1
     report['tex1'] = sum(1 for path in Path(folder).rglob('tex1_*') if path.is_file())
@@ -241,7 +245,9 @@ def check_ppsspp(folder):
     report['caseMismatches'] = sum(1 for name in targets if name not in files and name.lower() in lower)
     report['leadingSlash'] = sum(1 for name in hashes if name.startswith('/'))
     report['dds'] = {}
-    for path in Path(folder).rglob('*.dds'):
+    for path in Path(folder).rglob('*'):
+        if not path.is_file() or path.suffix.lower() != '.dds':
+            continue
         kind = dds_kind(path)
         report['dds'][kind] = report['dds'].get(kind, 0) + 1
     return report, problems
