@@ -64,7 +64,7 @@ def main():
         api = 'repos/TarbleFR/neostation-ios/actions/jobs/' + str(pin['job'])
         job = json.loads(subprocess.check_output(['gh', 'api', api]))
         assert job['head_sha'] == pin['hostSource'] and job['run_id'] == pin['run']
-        log = subprocess.check_output(['gh', 'api', api + '/logs'], text=True)
+        log = subprocess.check_output(['gh', 'api', '--allow-escape-sequences', api + '/logs'], text=True)
         assert re.search(r'Passed!\s+- Failed:\s+0, Passed:\s+5, Skipped:\s+0, Total:\s+5,', log)
         assert pin['layoutTestsPassed'] == 5
         configure_feed(engine, feed, lock['package'])

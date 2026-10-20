@@ -30,7 +30,9 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Execute the embedded storage boundary
-        run: python3 test/melonx_bootstrap_test.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 build-utils/melonx/check_bootstrap.py
       - uses: actions/download-artifact@v4
         with:
           name: MeloNX-engine-56aeec6722a93f07bbdc05a4576e71cebc93702b

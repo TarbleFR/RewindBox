@@ -45,7 +45,15 @@ The first actual embedded engine adaptation is now in `native/melonx`:
 - The bootstrap ABI is **not** an availability/session-ready report. No native
   game session is registered or enabled in the app by this step.
 
-The executable bootstrap checks and the adapted NativeAOT build are pending.
+Run `39505037649`, source `240a7be3fcace824e0d7c690e34fdbae1c3c3c73`,
+passes all **15** executable storage/initialization cases, including concurrent
+initialization, invalid-root recovery, refusal to overwrite another initializer
+and quarantine of partial failure. Its reuse verifier then stops before the
+adapted engine build: the current GitHub CLI refuses the upstream NUKE log's
+terminal escape sequences without an explicit flag. That log-reader invocation
+is corrected. The successful 15 cases are reused only after comparing their
+source inputs, SDK and framework runtime identities. No adapted engine binary
+has yet been produced.
 The existing retirement validations below remain historical, unchanged results.
 
 Source references:
