@@ -450,7 +450,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale and handcrafted, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale and handcrafted, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Original archive internally identifies SLUS-20685; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/release-slus-20685-ape-escape-2-hd-ui-and-hud-manually-redrawn.666907/",
@@ -765,11 +765,6 @@
       "type": "serial",
       "scheme": "ps2-disc-serial",
       "value": "SLES-55034"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-55035"
      }
     ],
     "regions": [
@@ -787,7 +782,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Original archive internally identifies SLES-55034; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/asterix-at-the-olympic-games-pal-m-uhd-remaster.638699/",
@@ -1491,7 +1486,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Original archive internally identifies SLUS-20795; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/bloody-roar-4-slus-20795-hd-texture-pack.684165/",
@@ -1987,7 +1982,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original 7Z and its selected texture subset. Original archive internally identifies SLUS-20742; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/chulip-ntsc-hd-textures.639567/",
@@ -2030,7 +2025,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Creator original post explicitly identifies SLUS-21047. Original public Pixeldrain file link, fetched through its standard download API; no mirror or rehost. Creator describes an AI upscale; exact contents and native import are pending. No other region or iPhone rendering is inferred.",
+  "notes": "Original creator post and downloaded file identify SLUS-21047. Published as RAR; native direct RAR import is unsupported. Extract externally and import the texture folder. Not counted as an installable verified archive; no iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/cold-fear-slus-21047-hd-texture-pack.682778/",
@@ -2237,7 +2232,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Original archive internally identifies SLES-53439; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/crash-tag-team-racing-pal-hd-textures.659225/",
@@ -2469,16 +2464,10 @@
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SLES-53870"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
       "value": "SLUS-21297"
      }
     ],
     "regions": [
-     "Europe",
      "USA"
     ],
     "confirm": true
@@ -2493,7 +2482,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Creator explicitly specifies USA SLUS-21297, matching original file SLUS-21297.7z. Inferred PAL SLES-53870 is removed; availability awaits a corrected-target verification.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/devil-kings-sengoku-basara-hd-texture-pack.640998/",
@@ -2899,16 +2888,10 @@
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SLES-54945"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
       "value": "SLUS-21678"
      }
     ],
     "regions": [
-     "Europe",
      "USA"
     ],
     "confirm": true
@@ -2923,7 +2906,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Archive identifies USA SLUS-21678; inferred PAL SLES-54945 is removed. The creator-designed 16:9 texture correction is partial and applies no executable patch; availability awaits corrected-target verification.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/dragon-ball-z-budokai-tenkaichi-3-16-9-hd-texture-pack.642510/",
@@ -3009,7 +2992,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Original archive internally identifies SLUS-21678; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/dragon-ball-z-budokai-tenkaichi-3-uhd-remaster-not-complete-v1.645442/",
@@ -3267,7 +3250,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original 7Z and its selected texture subset. Flat archive has no internal serial, but the creator-linked original file is named SLES-52322.7z and the upstream creator record specifies PAL; confirmation remains required. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/drakengard-1-hd-texture-pack.653456/",
@@ -3431,13 +3414,10 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original archive inspection identifies SLUS-20653 (Dynasty Warriors 4) inside a file named SLUS-20938 (Empires). The actual game/hash relationship is not established; verified availability is withheld.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dynasty-warriors-4-empires-ntsc-hd-texture-pack-wip.645696/",
-   "verify": {
-    "url": "https://mega.nz/file/hNlikTYb#oxNCmS481P3qOaQH--fYtDPXqN_CbAjCfb9gbnvhr38"
-   }
+   "page": "https://gbatemp.net/threads/dynasty-warriors-4-empires-ntsc-hd-texture-pack-wip.645696/"
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4421,7 +4401,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Flat archive has no internal serial; original creator publication explicitly names SLUS-20734. Creator says the game was not finished and the dump is incomplete. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/slus-20734-froggers-adventures-the-rescue-hd-texture-pack-1-0.674838/",
@@ -4433,7 +4413,7 @@
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/tylermods.478205/",
-  "scope": "complete"
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-futurama-dahu",
@@ -4464,7 +4444,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Original archive internally identifies SLES-51507; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/futurama-upscaled-texture-pack-sles-51507-ps2.675739/",
@@ -4716,7 +4696,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Original archive internally identifies SLUS-21306; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/ghost-rider-usa-uhd-remaster-definitive-added-fonts-textures.638407/",
@@ -4917,7 +4897,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Flat archive has no internal serial; original creator opening post explicitly specifies Disc: SCUS-97481. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/god-of-war-2-remastered-project-ps2-4k-texture-pack-ai-enhanced.669146/",
@@ -5078,7 +5058,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Creator original post explicitly identifies SCES-54206. Original public Pixeldrain file link, fetched through its standard download API; no mirror or rehost. Creator describes an AI upscale; exact contents and native import are pending. No other region or iPhone rendering is inferred.",
+  "notes": "Original creator post and downloaded file identify SCES-54206. Published as RAR; native direct RAR import is unsupported. Extract externally and import the texture folder. Not counted as an installable verified archive; no iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/god-of-war-2-sces-54206-hd-texture-pack.683758/",
@@ -5530,11 +5510,6 @@
       "type": "serial",
       "scheme": "ps2-disc-serial",
       "value": "SLES-53523"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-53647"
      }
     ],
     "regions": [
@@ -5552,7 +5527,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Original archive internally identifies SLES-53523; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/gun-sles-53523-hd-texture-pack.683898/",
@@ -5809,7 +5784,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original 7Z and its selected texture subset. Original archive internally identifies SLUS-20817; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/headhunter-redemption-hd-texture-pack.668024/",
@@ -7093,7 +7068,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Production native import validated this exact original ZIP and its selected texture subset. Original archive internally identifies SLUS-20722; inferred additional identities are not retained. No iPhone rendering is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/maximo-vs-army-of-zin-usa-uhd-remaster-definitive.639191/",
@@ -8497,7 +8472,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Creator original post explicitly identifies SLUS-20492. Original public Pixeldrain file link, fetched through its standard download API; no mirror or rehost. Incomplete, currently partial coverage. No other region or iPhone rendering is inferred.",
+  "notes": "First creator upscale, covering most in-game scenarios except subtitle text. USA SLUS-20492 is explicit in the original creator post and archive filename. Production import verified 1,196 BC3 DDS textures (about 6.0 GB installed). No other region or iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/ninja-assault-hd-texture-pack-slus-20492.678175/",
