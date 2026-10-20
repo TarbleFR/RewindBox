@@ -1,6 +1,5 @@
 // Render previews of the inspector for manual inspection (not part of CI).
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';

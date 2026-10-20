@@ -58,10 +58,6 @@ void main() {
     return file;
   }
 
-  Set<String> names(Directory folder) => {
-    for (final entity in folder.listSync()) p.basename(entity.path),
-  };
-
   String session(int day) =>
       'dolphin-2026-09-${day.toString().padLeft(2, '0')}T10-00-00.000000Z.jsonl';
 
