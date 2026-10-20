@@ -59,8 +59,7 @@ PROBES = {
         'markers': ['hdpack', 'HdPacks', 'hires.txt'],
     },
     'mesen': {
-        # Not in the pinned package before it is added (add_cores.py): absent there is no failure.
-        'optional': True,
+        # In the delivered package since lot 3 (LibretroCores-4c218620, 35 cores): required.
         'options': ['mesen_hdpacks'],
         'markers': ['HdPacks', 'hires.txt', '<supportedrom>', 'disksys.rom'],
     },

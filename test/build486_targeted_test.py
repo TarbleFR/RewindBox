@@ -5,7 +5,8 @@ Since the catalogue expansion of 19 October 2026 the same runner proves the
 next candidate that changes the catalogue pod (Build 488: Nintendo 64 adapter
 for Mupen64Plus-Next and the expanded index; Build 489: Beetle PSX HW in
 Vulkan with its PS1 adapter, and manual packs whose author's file was
-verified on CI); its verdicts carry BUILD.
+verified on CI; Build 495: the Mesen core as an NES engine, its adapter and
+the NES packs); its verdicts carry BUILD.
 
 Build 486 adds the neo_texture_catalog pod (catalogue, pack store, engine
 adapters for ARMSX2, Dolphin, PPSSPP and Azahar, the shared "HD textures"
@@ -45,8 +46,8 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'build/build486'
 # The candidate these verdicts prove (486: first catalogue; 488: N64 adapter and expanded index;
-# 489: Beetle PSX HW in Vulkan, PS1 adapter, verified manual packs).
-BUILD = 489
+# 489: Beetle PSX HW in Vulkan, PS1 adapter, verified manual packs; 495: Mesen and the NES packs).
+BUILD = 495
 
 PRODUCT = sorted({
     'lib/l10n/texture_catalog_locale.dart',
@@ -69,6 +70,12 @@ PRODUCT = sorted({
     'lib/services/libretro_resolution.dart',
     'pubspec.yaml',
     'native/textures/catalogue/manifest.json.gz',
+    # Build 495: Mesen in the libretro catalogue, its credits and its FDS BIOS entry.
+    'assets/data/libretro_bios_requirements.json',
+    'assets/legal/libretro/LIBRETRO_CORES.md',
+    'assets/legal/libretro/license-sources.json',
+    'assets/legal/libretro/mesen-LICENSE',
+    'assets/legal/libretro/mesen-README.md',
 } | set(subprocess.check_output(['git', 'ls-files', '--cached', '--others', '--exclude-standard',
                                  'packages/neo_texture_catalog', 'tools/textures'], cwd=ROOT, text=True).split()))
 
@@ -106,6 +113,10 @@ HOST_PYTHON = [
     'test/game_launch_route_test.py',
     'test/setup_skip_test.py',
     'test/carousel_chrome_layout_test.py',
+    # Build 495: the core catalogue and its BIOS and option contracts with Mesen.
+    'test/libretro_core_options_test.py',
+    'test/libretro_bios_requirements_test.py',
+    'test/libretro_add_cores_test.py',
 ]
 # The catalogue: generated files current, every pack the app's own rules accept.
 CATALOGUE = [['tools/textures/labels.py', '--check'], ['tools/textures/build_catalogue.py', '--check'],
@@ -143,6 +154,13 @@ DART_TESTS = [
     'test/libretro_resolution_test.dart',
     'test/libretro_beetle_vulkan_fallback_test.dart',
     'test/libretro_bios_launch_test.dart',
+    # Build 495: Mesen as an NES alternative, credited, with the FDS BIOS of Nestopia and Mesen.
+    'test/legal_credits_dialog_test.dart',
+    'test/libretro_bios_catalog_test.dart',
+    'test/libretro_bios_check_service_test.dart',
+    'test/libretro_engine_settings_test.dart',
+    'test/libretro_main_menu_test.dart',
+    'test/libretro_consoles_tab_test.dart',
 ]
 NATIVE = [
     ['test/texture_catalog_native_test.py'],
@@ -161,6 +179,7 @@ SUPPORT = [
     'test/texture_catalog_store_test.mm', 'test/armsx2_texture_store_test.mm', 'test/armsx2_texture_core_adapter_test.mm',
     'test/armsx2_texture_pack_core_test.cpp', 'test/libretro_host/stubs/Flutter/Flutter.h',
     'test/touch_layout_support.py', 'test/libretro_ios_syntax_test.py', 'build-utils/validate_hd_textures_ipa.py',
+    'test/fixtures/libretro_bios/core_info_5a74858a.json',
 ]
 # Fail on the unchanged base in the development container and read a changed
 # file (pubspec.yaml, the Dolphin plugin): compared with the base on the CI host.

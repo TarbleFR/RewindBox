@@ -123,7 +123,7 @@ abstract final class TextureCatalogService {
         'title': game.name,
         'gamePath': romPath,
         if (_libretro(textureSystem)) 'gameKey': '$systemKey/${game.romname}',
-        if (core != null) 'libretroCore': core,
+        'libretroCore': ?core,
         ...await _directories(),
       });
     } catch (error) {
@@ -151,7 +151,7 @@ abstract final class TextureCatalogService {
           'path': row.romPath,
           'title': row.realName?.trim().isNotEmpty == true ? row.realName : row.romname,
           if (_libretro(textureSystem)) 'gameKey': _gameKey(consoleKey ?? systemFolder, row.romname),
-          if (core != null) 'libretroCore': core,
+          'libretroCore': ?core,
         });
       }
       return await NeoTextureCatalog.open({

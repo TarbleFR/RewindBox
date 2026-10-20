@@ -251,7 +251,9 @@ jobs:
 
   cores:
     name: Texture replacement in the pinned libretro cores (N64, PS1, NES) and in Mesen on the buildbot
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'cores' }}
+    # On push: the binaries of the delivered package (Mesen included) against the catalogue's option,
+    # folder and BIOS contracts. The buildbot read runs on dispatch only.
+    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'cores' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -259,15 +261,21 @@ jobs:
         with: {persist-credentials: false}
       - uses: actions/download-artifact@v4
         with:
-          name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
-          run-id: '38638115521'
+          # The package the delivery pins (retroarch-delivery.yml LIBRETRO_CORES_HOST_SHA, RUN_ID).
+          name: LibretroCores-4c2186204ce06b50b989689a9c2322068f523a58
+          run-id: '39366986940'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: dist/libretro
       - name: Option keys and folders compiled into the pinned binaries
         run: |
           find dist/libretro -maxdepth 3 | head -60
           python3 tools/textures/probe_cores.py --cores dist/libretro --out build/hdtex/cores.json
+      - name: Catalogue option and BIOS contracts against the same binaries (Mesen included)
+        run: |
+          python3 test/libretro_core_options_test.py --cores dist/libretro
+          python3 test/libretro_bios_requirements_test.py --cores dist/libretro
       - name: Cores NeoStation does not ship yet, read from the libretro buildbot (Mesen, NES HD packs)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         run: python3 tools/textures/probe_cores.py --buildbot mesen --out build/hdtex/buildbot.json
       - uses: actions/upload-artifact@v4
         if: always()

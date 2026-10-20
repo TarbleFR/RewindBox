@@ -154,8 +154,9 @@ jobs:
     - name: Download the libretro cores pinned by the delivery
       uses: actions/download-artifact@v4
       with:
-        name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
-        run-id: '38638115521'
+        # The 35-core package of lot 3 (Mesen), retroarch-delivery.yml LIBRETRO_CORES_HOST_SHA and RUN_ID.
+        name: LibretroCores-4c2186204ce06b50b989689a9c2322068f523a58
+        run-id: '39366986940'
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro
     - name: Source contracts
