@@ -10,11 +10,26 @@
   `docs/melonx-embedded-integration-2026-10-20.md`. Engine pin `13700519f3`;
   upstream .NET 10 NativeAOT is distinct from mandatory guest JIT. Do not mark
   an engine available from an embedded flag or route alone: require the native
-  runtime's report. Engine compilation is blocked by missing exact
-  Ryujinx.LibHac 0.21.0-alpha.129 in both namespaces of the official feed
-  (NU1101); the previous server is unreachable (NU1301). Integration and a
-  test IPA are not complete. Restore the exact dependency/source before
-  implementing and validating the native session; no engine is packaged.
+  runtime's report. The original LibHac NuGet package remains unavailable;
+  matching source `23e402ebb6dedc517e34a98a033078dc0f6fd478` is reconstructed
+  locally, with five upstream NACP layout tests passed. Source identification
+  comes from the matching consumer change; no original package-byte equivalence
+  is claimed. Package SHA-256 `b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9`.
+- The first adapted NativeAOT engine now compiles and passes iOS/arm64/export
+  checks: source `3ec09b234b758814976d955cf52cf695b2de0226`, successful run
+  `39506631512`, artifact `12304021888`; dylib SHA-256
+  `0ac7412e80f562f02446feab934aafe3df4e614524811a440ee42467d3646509`.
+  Independent ZIP/Mach-O verification matches its receipt. The bootstrap in
+  `native/melonx` confines storage to Documents/MeloNX and serializes initial
+  engine setup; 15 executable host cases passed and are reused with unchanged
+  inputs and matching SDK/runtime identities. It is initialization only.
+- Native game sessions, app runtime packaging, JIT for NeoStation's PID,
+  imports, original touch/editor adaptation and NeoSwap integration remain
+  incomplete. No Switch game/homebrew/device run or test IPA is claimed.
+  Before activation, resolve session ownership/relaunch: upstream Load disposes
+  its input manager and Stop/Exit/ExecutionEntrypoint can repeatedly dispose
+  the same emulation context. Do not equate the bootstrap ABI with session
+  readiness. No engine is yet packaged in a NeoStation IPA.
 - Retain the existing dedicated Dolphin/ARMSX2/RPCS3 helper identities and
   source-built StikJIT framework. The two old Swift launcher source snapshots
   remain only for the unchanged framework ABI/source verifier and are explicitly

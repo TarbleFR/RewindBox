@@ -27,10 +27,11 @@ archive and source receipt. The **whole run fails**, subsequently, at
 NETSDK1112: the NativeAOT iOS runtime pack was not downloaded during restore.
 There is still no engine dylib from this run.
 
-The next build reuses that exact package and its successful layout tests after
-checking the source pin, package/archive hashes, job source and test log. It
-aligns restore with publish (`Release`, `SelfContained=true`, `ios-arm64`).
-No unchanged Flutter or emulator checks are rerun.
+Later builds reuse that exact package and its successful layout tests after
+checking the source pin, package/archive hashes, job source and test log.
+Explicit Release/SelfContained restore still fails at NETSDK1112; running
+`dotnet publish` with its own restore, as in upstream `distribution/ios/build.sh`,
+resolves the NativeAOT runtime. No unchanged Flutter or emulator checks are rerun.
 
 The first actual embedded engine adaptation is now in `native/melonx`:
 
@@ -53,8 +54,38 @@ adapted engine build: the current GitHub CLI refuses the upstream NUKE log's
 terminal escape sequences without an explicit flag. That log-reader invocation
 is corrected. The successful 15 cases are reused only after comparing their
 source inputs, SDK and framework runtime identities. No adapted engine binary
-has yet been produced.
+had been produced by that attempt.
 The existing retirement validations below remain historical, unchanged results.
+
+### First compiled embedded-bootstrap engine
+
+Run `39506066398` successfully compiles and publishes the adapted engine, then
+fails at an incorrectly ordered `lipo -verify_arch` command. That run is a
+failed audit, not a passed build receipt. Its compiled dylib was not retained.
+
+Run **39506631512**, source **3ec09b234b758814976d955cf52cf695b2de0226**,
+passes every phase. Artifact **12304021888** retains the library, both original
+source archives, adapted sources, generated dependency sources and receipts.
+The downloaded ZIP and Mach-O were then checked independently:
+
+| Property | Verified value |
+| --- | --- |
+| ZIP SHA-256 | `42acf3cbb222b5153809cace1199980cd7db30da5e8d9267530f387663c06d79` |
+| Dylib SHA-256 | `0ac7412e80f562f02446feab934aafe3df4e614524811a440ee42467d3646509` |
+| Dylib size | 37,319,640 bytes |
+| Mach-O | ARM64, MH_DYLIB, platform iOS, minimum OS 12.2, SDK 26.5 |
+| Install name | `@rpath/Ryujinx.Library.dylib` |
+| Required exports | 14 present, including both new bootstrap functions |
+| New host checks | 15 passed in 39505037649; reused, not rerun |
+| Dependency checks | 5 upstream layout cases passed in 39504259828; reused |
+
+This is a compiled engine and storage bootstrap, **not a completed in-app
+Switch session**. It is not packaged in a NeoStation IPA. No iPhone execution,
+homebrew, firmware installation, guest JIT, relaunch, controller or NeoSwap
+behavior is asserted. Native session ownership is next: upstream `Load` disposes
+the input manager, while stop/window/entrypoint teardown can dispose the same
+device repeatedly. A host lifecycle adapter must resolve that before activation.
+Evidence: `docs/evidence/melonx-native-bootstrap-2026-10-20.json`.
 
 Source references:
 <https://starforgejo.dev/archive/LibHac_Ryubing/commit/23e402ebb6dedc517e34a98a033078dc0f6fd478>
@@ -139,10 +170,9 @@ The builder retains the upstream-declared Ryulynx feed and exact alpha.129
 dependency; it does not retain the guessed projects namespace as its default.
 Restore now has a 240-second bound. The source linked by MeloNX for LibHac,
 <https://github.com/Thealexbarney/LibHac>, also returns 404 when checked.
-Continuing the engine build requires the exact package or its matching source.
-Using an older API or extracting an unverified binary is not a completed port:
-the storage, session lifetime, dependency isolation and JIT adaptations still
-require implementation and testing.
+At that point, continuing required the exact package or its matching source.
+The source reconstruction above supersedes this historical dependency stop.
+It does not replace the remaining session, dependency-isolation and JIT work.
 
 ## Validation and remaining work
 

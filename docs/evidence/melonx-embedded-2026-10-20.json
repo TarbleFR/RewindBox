@@ -83,6 +83,25 @@
       "libHacLayoutChecksReused": true,
       "artifact": 12303221310,
       "engineBinaryProduced": false
+    },
+    {
+      "run": 39506066398,
+      "source": "30575e29a91d709668ef7278ed4c139183cf355c",
+      "status": "completed",
+      "conclusion": "failure",
+      "compilerPublishSucceeded": true,
+      "blockingError": "Post-publish lipo arguments were reversed; the compiled binary was not retained.",
+      "engineBinaryProduced": true,
+      "engineArtifactRetained": false
+    },
+    {
+      "run": 39506631512,
+      "source": "3ec09b234b758814976d955cf52cf695b2de0226",
+      "status": "completed",
+      "conclusion": "success",
+      "engineBinaryProduced": true,
+      "artifact": 12304021888,
+      "enginePackagedInNeoStation": false
     }
   ],
   "retirement": {
@@ -110,7 +129,7 @@
     "artifact": "MeloNX-retirement-proof-e214cf5975a1b3c2031baac5ff06961a1f979859"
   },
   "limits": {
-    "switchEngineCompiled": false,
+    "switchEngineCompiled": true,
     "embeddedSessionImplemented": false,
     "switchImportsImplemented": false,
     "originalTouchAndLayoutAdapted": false,
@@ -119,9 +138,10 @@
     "deviceGameplayTested": false,
     "ipaProduced": false,
     "releasePublished": false,
-    "personalFilesDeleted": false
+    "personalFilesDeleted": false,
+    "embeddedBootstrapImplemented": true
   },
-  "nextRequiredInput": "Complete NativeAOT runtime restore/build, then implement the native session and its lifecycle.",
+  "nextRequiredInput": null,
   "libHacSourceReconstruction": {
     "source": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
     "consumerChange": "cc6d2dc162ca00a3db9af09f176798a8297926ab",
@@ -145,5 +165,7 @@
     "generatedSourceFiles": 3,
     "bytesDownloadedAndChecked": true,
     "originalPublishedPackageEquivalenceClaimed": false
-  }
+  },
+  "nextRequiredWork": "Implement the owned native game session, dependency packaging and JIT on NeoStation PID; then imports, original controls/editor, NeoSwap validation and the test IPA.",
+  "compiledEngineEvidence": "docs/evidence/melonx-native-bootstrap-2026-10-20.json"
 }

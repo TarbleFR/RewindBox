@@ -1,0 +1,63 @@
+{
+  "source": "3ec09b234b758814976d955cf52cf695b2de0226",
+  "run": 39506631512,
+  "artifact": 12304021888,
+  "zipSha256": "42acf3cbb222b5153809cace1199980cd7db30da5e8d9267530f387663c06d79",
+  "coreSha256": "0ac7412e80f562f02446feab934aafe3df4e614524811a440ee42467d3646509",
+  "coreBytes": 37319640,
+  "architecture": "arm64",
+  "platform": "iOS",
+  "dylibId": "@rpath/Ryujinx.Library.dylib",
+  "requiredExports": [
+    "initialize",
+    "main_ryujinx_sdl",
+    "set_native_window",
+    "stop_emulation",
+    "toggle_pause_emulation",
+    "load_keyset",
+    "install_firmware",
+    "installed_firmware_version",
+    "get_game_info",
+    "set_gamepad_button_state",
+    "set_gamepad_stick_axis",
+    "RegisterCallback",
+    "neostation_melonx_bootstrap_abi",
+    "neostation_melonx_initialize"
+  ],
+  "embeddedSessionImplemented": false,
+  "ipaProduced": false,
+  "platformReport": "/Users/runner/work/neostation-ios/neostation-ios/.native-sources/MeloNX/src/Ryujinx.Library/bin/Release/net10.0/ios-arm64/native/Ryujinx.Library.dylib:\nLoad command 8\n      cmd LC_BUILD_VERSION\n  cmdsize 32\n platform IOS\n    minos 12.2\n      sdk 26.5\n   ntools 1\n     tool LD\n  version 1267.0\n",
+  "dependenciesReport": "/Users/runner/work/neostation-ios/neostation-ios/.native-sources/MeloNX/src/Ryujinx.Library/bin/Release/net10.0/ios-arm64/native/Ryujinx.Library.dylib:\n\t@rpath/Ryujinx.Library.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2100.43.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)\n\t/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)\n\t/usr/lib/swift/libswiftCore.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/usr/lib/swift/libswiftFoundation.dylib (compatibility version 1.0.0, current version 120.100.0)\n\t/usr/lib/libz.1.dylib (compatibility version 1.0.0, current version 1.2.12)\n\t/usr/lib/libicucore.A.dylib (compatibility version 1.0.0, current version 78.1.0)\n\t/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation (compatibility version 150.0.0, current version 5026.5.4)\n\t/System/Library/Frameworks/CryptoKit.framework/CryptoKit (compatibility version 1.0.0, current version 1.0.0)\n\t/System/Library/Frameworks/Foundation.framework/Foundation (compatibility version 300.0.0, current version 5026.5.4)\n\t/System/Library/Frameworks/Network.framework/Network (compatibility version 1.0.0, current version 5812.122.1)\n\t/System/Library/Frameworks/Security.framework/Security (compatibility version 1.0.0, current version 61901.120.67)\n\t/System/Library/Frameworks/GSS.framework/GSS (compatibility version 1.0.0, current version 1.0.0)\n",
+  "bootstrapChecks": {
+    "source": "240a7be3fcace824e0d7c690e34fdbae1c3c3c73",
+    "run": 39505037649,
+    "job": 118911723958,
+    "passedCases": 15,
+    "inputsUnchanged": true,
+    "sdk": "10.0.401",
+    "runtime": "8.0.32",
+    "reexecuted": false
+  },
+  "libHacReuse": {
+    "hostSource": "56aeec6722a93f07bbdc05a4576e71cebc93702b",
+    "run": 39504259828,
+    "job": 118909098038,
+    "artifact": 12302912762,
+    "artifactName": "MeloNX-engine-56aeec6722a93f07bbdc05a4576e71cebc93702b",
+    "artifactSha256": "f31b5a53aa3ee5726a8fe593bca7940befa5f1b447d4e60dd1123f3f45ebf197",
+    "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+    "libHacSource": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+    "layoutTestsPassed": 5,
+    "runConclusion": "failure",
+    "laterFailure": "NETSDK1112: NativeAOT iOS runtime pack not downloaded; LibHac build and its five tests passed beforehand.",
+    "reused": true,
+    "testsReexecuted": false
+  },
+  "adaptations": {
+    "native/melonx/EmbeddedBootstrap.cs": "a67477cb59343b9eca59b1bc1f3edafa6344b29fd276618f17f960525f3d020e",
+    "native/melonx/EmbeddedDataRoot.cs": "0a0c9137403d5b2fbfa3a2f6c6c208d810fce0f5bebfc8ee435e0c313c89adb8",
+    "native/melonx/EmbeddedInitializationState.cs": "66b016aa6f10dc8bd86688c8da9ddcae925d50aa241debe9f79102ec3e07e239",
+    "build-utils/melonx/prepare_embedded.py": "86ca1bde46b38c0787432578e24c5765d27b269e17ae8da122268e9e879b0d33"
+  },
+  "currentAdaptedSourceInputsMatchCompiledEngine": true
+}
