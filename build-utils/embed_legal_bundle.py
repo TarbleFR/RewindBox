@@ -21,7 +21,6 @@ REQUIRED_LEGAL_FILES = (
     "Dolphin-COPYING.txt",
     "RPCS3-GPL-2.0.txt",
     "ARMSX2-GPL-3.0.txt",
-    "Dusklight-CC0-1.0.txt",
     "StikJIT-MPL-2.0.txt",
     "NeoStation-Assets-CC-BY-NC-SA-4.0.txt",
     "RiiSU-ATTRIBUTION.md",
@@ -121,7 +120,6 @@ def main() -> None:
 
     rpcs3 = load_json(ROOT / "build-utils/rpcs3/canonical-source.json")
     armsx2 = load_json(ROOT / "build-utils/armsx2/source.json")
-    dusklight = load_json(ROOT / "build-utils/dusklight/source.json")
 
     require_pinned_header(
         LEGAL_ASSETS / "Dolphin-COPYING.txt", args.dolphin_sha
@@ -131,9 +129,6 @@ def main() -> None:
     )
     require_pinned_header(
         LEGAL_ASSETS / "ARMSX2-GPL-3.0.txt", armsx2["revision"]
-    )
-    require_pinned_header(
-        LEGAL_ASSETS / "Dusklight-CC0-1.0.txt", dusklight["commit"]
     )
     require_pinned_header(
         LEGAL_ASSETS / "StikJIT-MPL-2.0.txt", "1.9.0"
@@ -167,13 +162,6 @@ def main() -> None:
         copy_file(LEGAL_ASSETS / "libretro" / name,
                   destination / "Libretro" / name)
 
-    dusklight_licenses = ROOT / "dist/dusklight/licenses"
-    if dusklight_licenses.is_dir():
-        shutil.copytree(
-            dusklight_licenses,
-            destination / "Dusklight-Dependency-Licenses",
-        )
-
     identity = {
         "schema": 1,
         "build_number": str(args.build_number),
@@ -193,12 +181,6 @@ def main() -> None:
                 "repository", "https://github.com/ARMSX2/ARMSX2.git"
             ),
             "revision": armsx2["revision"],
-        },
-        "dusklight": {
-            "repository": dusklight["repository"],
-            "revision": dusklight["commit"],
-            "sdl_revision": dusklight["sdl"]["commit"],
-            "submodules": dusklight["submodules"],
         },
         "stikjit": {
             "repository": "https://github.com/StikDebug/StikJIT",

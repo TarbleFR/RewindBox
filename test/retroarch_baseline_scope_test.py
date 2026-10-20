@@ -75,6 +75,178 @@ KARTPAD_REMOVAL_EDITS = {
 RETIRED_KARTPAD_NATIVE = 'native/kartpad/'
 
 
+# Removal of Dusklight and the Ports playlist, maintainer decision of 20 October
+# 2026 (docs/ports-removal-2026-10-20.md): six library files lose exactly the
+# Ports import, scan roots, forced playlist, scraping identity and SQL name
+# cases, and sqlite_service.dart gains two marked RETIRED_PORTS blocks (the
+# checked database copy made before the former system is pruned). Each edit is
+# reconstructed below (current, original, occurrences) before the Build 423 and
+# KartPad reconstructions; the retired Dusklight host sources must be absent.
+PORTS_REMOVAL_EDITS = {
+    'lib/providers/sqlite_config_provider.dart': [
+        (b"""import '../services/armsx2_internal_service.dart';
+/* DOLPHIN_ISOLATION_END: provider_import */
+""",
+         b"""import '../services/armsx2_internal_service.dart';
+import '../services/dusklight_internal_service.dart';
+/* DOLPHIN_ISOLATION_END: provider_import */
+""", 1),
+    ],
+    'lib/providers/sqlite_config_provider/scanning.dart': [
+        (b"""      await Armsx2InternalService.ensureLayout();
+    }
+""",
+         b"""      await Armsx2InternalService.ensureLayout();
+      await DusklightInternalService.ensureLayout();
+    }
+""", 1),
+        (b"        for (final folderName in const <String>['ps2']) {\n",
+         b"        for (final folderName in const <String>['ps2', 'ports']) {\n", 1),
+        (b"            ? ['gc', 'wii', 'ps2']\n",
+         b"            ? ['gc', 'wii', 'ps2', 'ports']\n", 1),
+        (b"""        final isEmbeddedIosLibrary =
+            Platform.isIOS &&
+            const <String>{'ps2'}.contains(
+              system.folderName.toLowerCase(),
+            );
+""",
+         b"""        final isEmbeddedIosLibrary =
+            Platform.isIOS &&
+            const <String>{'ps2', 'ports'}.contains(
+              system.folderName.toLowerCase(),
+            );
+""", 1),
+        (b'  /// Performs an isolated scan for a specific system.\n',
+         b"""  /// Refreshes NeoStation's Files-visible native Ports libraries.
+  Future<void> refreshPortsInternalLibrary() async {
+    if (!Platform.isIOS) {
+      throw StateError('Embedded Ports refresh is available on iOS only.');
+    }
+    await DusklightInternalService.ensureLayout();
+    if (_availableSystems.isEmpty) await _loadAvailableSystems();
+    final system = _availableSystems.firstWhere(
+      (candidate) => candidate.folderName == 'ports',
+    );
+    await SystemRepository.addDetectedSystem(system.id!, system.folderName);
+    if (!_detectedSystems.any((candidate) => candidate.id == system.id)) {
+      _detectedSystems = [..._detectedSystems, system];
+    }
+    await _scanSystemRoms(system);
+    await _refreshDetectedSystemsFromDatabase();
+    _sortDetectedSystems();
+    _notify();
+  }
+
+  /// Compatibility alias while the former single-port API is retired.
+  Future<void> refreshDusklightInternalLibrary() =>
+      refreshPortsInternalLibrary();
+
+  /// Performs an isolated scan for a specific system.
+""", 1),
+        (b"""      final isArmsx2InternalSystem =
+          Platform.isIOS && system.folderName.toLowerCase() == 'ps2';
+      final isNativeInternalSystem =
+          isDolphinInternalSystem ||
+          isArmsx2InternalSystem;
+""",
+         b"""      final isArmsx2InternalSystem =
+          Platform.isIOS && system.folderName.toLowerCase() == 'ps2';
+      final isPortsInternalSystem =
+          Platform.isIOS && system.folderName.toLowerCase() == 'ports';
+      final isNativeInternalSystem =
+          isDolphinInternalSystem ||
+          isArmsx2InternalSystem ||
+          isPortsInternalSystem;
+""", 1),
+        (b"""          (await Armsx2InternalService.gamesDirectory()).path,
+        ];
+      } else {
+""",
+         b"""          (await Armsx2InternalService.gamesDirectory()).path,
+        ];
+      } else if (isPortsInternalSystem) {
+        final dusklightRoot =
+            (await DusklightInternalService.rootDirectory()).path;
+        nativeScanRoots = <String>[dusklightRoot];
+        effectiveRootFoldersMap = <String, Map<String, String>>{
+          dusklightRoot: <String, String>{
+            'ports': (await DusklightInternalService.gamesDirectory()).path,
+          },
+        };
+      } else {
+""", 1),
+        (b"""                  const <String>{'ps2'}.contains(
+                    updatedSystem.folderName.toLowerCase(),
+                  )));
+""",
+         b"""                  const <String>{'ps2', 'ports'}.contains(
+                    updatedSystem.folderName.toLowerCase(),
+                  )));
+""", 1),
+    ],
+    'lib/data/datasources/sqlite_database_service.dart': [
+        (b"""import '../../utils/vita_title_extractor.dart';
+
+""",
+         b"""import '../../utils/vita_title_extractor.dart';
+import '../../services/ports_game_identity.dart';
+
+""", 1),
+        (b"    if (systemId == 'switch' || systemId == 'nintendo-switch') return true;\n",
+         b"""    if (systemId == 'ports') return true;
+    if (systemId == 'switch' || systemId == 'nintendo-switch') return true;
+""", 1),
+        (b"""        String? titleName;
+
+        if (isSwitch && !entry.path.startsWith('content://')) {
+""",
+         b"""        String? titleName;
+
+        if (systemFolderName == 'ports') {
+          final identity = await PortGameIdentity.read(entry.path);
+          if (identity != null) {
+            titleId = identity.discId;
+            titleName = identity.displayTitle;
+          }
+        }
+
+        if (isSwitch && !entry.path.startsWith('content://')) {
+""", 1),
+    ],
+    'lib/data/datasources/sqlite_service.dart': [
+        (b"CASE WHEN s.folder_name = 'android' OR",
+         b"CASE WHEN s.folder_name IN ('android', 'ports') OR", 4),
+    ],
+    'lib/repositories/scraper_repository.dart': [
+        (b"""        AND (s.screenscraper_id IS NOT NULL AND s.screenscraper_id != 0)
+      ORDER BY s.real_name
+""",
+         b"""        AND ((s.screenscraper_id IS NOT NULL AND s.screenscraper_id != 0)
+             OR s.folder_name = 'ports')
+      ORDER BY s.real_name
+""", 1),
+        (b"""        WHERE (asys.screenscraper_id IS NOT NULL AND asys.screenscraper_id > 0)
+        AND ussc.enabled = 1
+""",
+         b"""        WHERE ((asys.screenscraper_id IS NOT NULL AND asys.screenscraper_id > 0)
+               OR asys.folder_name = 'ports')
+        AND ussc.enabled = 1
+""", 1),
+        (b'      WHERE asys.screenscraper_id IS NULL\n',
+         b"      WHERE asys.screenscraper_id IS NULL AND asys.folder_name != 'ports'\n", 1),
+        (b'WHERE screenscraper_id IS NOT NULL AND screenscraper_id > 0",\n',
+         b'WHERE (screenscraper_id IS NOT NULL AND screenscraper_id > 0) OR folder_name = \'ports\'",\n', 1),
+    ],
+    'lib/repositories/system_repository.dart': [
+        (b"      for (final folderName in const <String>['ps2', 'ps3']) {\n",
+         b"      for (final folderName in const <String>['ps2', 'ps3', 'ports']) {\n", 1),
+    ],
+}
+RETIRED_PORTS_BLOCK = re.compile(
+    rb'(?m)^[ \t]*// RETIRED_PORTS_BEGIN: (\w+)\n.*?^[ \t]*// RETIRED_PORTS_END: \1\n', re.S)
+RETIRED_DUSKLIGHT_NATIVE = 'native/dusklight/'
+
+
 class RetroArchBaselineScope(unittest.TestCase):
     def test_library_is_the_recorded_build419_reference(self):
         for name, expected in MANIFEST['library_sha256'].items():
@@ -87,6 +259,15 @@ class RetroArchBaselineScope(unittest.TestCase):
                     literal = b'final rootPath = path.normalize(linkedRoot);'
                     self.assertEqual(data.count(literal), 1)
                     data = data.replace(literal, b'final rootPath = path.normalize(linkedRoot.trim());', 1)
+                if name in PORTS_REMOVAL_EDITS:
+                    # Dusklight and Ports removal, at the maintainer's request
+                    # (20 October 2026): the marked database-copy blocks and
+                    # the Ports lines are reconstructed first.
+                    data, blocks = RETIRED_PORTS_BLOCK.subn(b'', data)
+                    self.assertEqual(blocks, 2 if name.endswith('/sqlite_service.dart') else 0)
+                    for current, original, occurrences in PORTS_REMOVAL_EDITS[name]:
+                        self.assertEqual(data.count(current), occurrences)
+                        data = data.replace(current, original)
                 if name == 'lib/providers/sqlite_config_provider/scanning.dart':
                     # Build423: the user's seven saved roots exposed the silent
                     # five-folder cap. Only registration changes; scan logic is
@@ -129,8 +310,9 @@ class RetroArchBaselineScope(unittest.TestCase):
         self.assertEqual(set(NEOSWAP_DIRECT_444_REVIEWED), set(NEOSWAP_PREPARED_441_REVIEWED))
         for name, expected in MANIFEST['native_sha256'].items():
             with self.subTest(path=name):
-                if name.startswith(RETIRED_KARTPAD_NATIVE):
-                    # Retired with KartPad: the old host sources must not come back.
+                if name.startswith((RETIRED_KARTPAD_NATIVE, RETIRED_DUSKLIGHT_NATIVE)):
+                    # Retired with KartPad and Dusklight: the old host sources
+                    # must not come back.
                     self.assertFalse((ROOT / name).exists())
                     continue
                 reviewed = NEOSWAP_DIRECT_444_REVIEWED.get(name, NEOSWAP_PREPARED_441_REVIEWED.get(name, NEOSWAP_MELONX_REVIEWED.get(name, expected)))

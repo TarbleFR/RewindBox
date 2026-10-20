@@ -8,15 +8,15 @@ class CompanionContracts(unittest.TestCase):
             'packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm':['DOLDolphinViewController','@selector(menuPressed:)'],
             'packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm':['Armsx2GameViewController','@selector(menuPressed)'],
             'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm':['RPCS3GameViewController','@selector(menuPressed)'],
-            'native/dusklight/core/NeoDusklightCore.mm':['NeoDusklightControls','@selector(openMenu)'],
         }
         for path,markers in sources.items():
             text = (ROOT/path).read_text()
             for marker in markers: self.assertIn(marker,text,path)
-        # KartPad left NeoStation on 19 October 2026: no adapter for it remains.
+        # KartPad (19 October 2026) and Dusklight (20 October 2026,
+        # docs/ports-removal-2026-10-20.md) left NeoStation: no adapter remains.
         anchor = (ROOT/'packages/neoplay_bridge/ios/Classes/NPGameHUDAnchor.swift').read_text()
-        self.assertNotIn('KartPad',anchor)
-        self.assertNotIn('kartpad',anchor)
+        for retired in ['KartPad','kartpad','NeoDusklightControls','Dusklight','dusklight']:
+            self.assertNotIn(retired,anchor)
     def test_companion_has_no_emulator_or_input_mutation(self):
         names = ['NPGameHUD.swift','NPGameHUDAnchor.swift','NPControllerBatteryMonitor.swift','NPAirPlayMonitor.swift']
         text = '\n'.join((ROOT/'packages/neoplay_bridge/ios/Classes'/n).read_text() for n in names)

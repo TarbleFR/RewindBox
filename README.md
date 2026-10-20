@@ -13,8 +13,8 @@
 
 </div>
 
-NeoStation iOS brings a game library, embedded emulators and game ports into
-one sideloaded app. It is an independently maintained iOS/iPadOS fork of
+NeoStation iOS brings a game library and embedded emulators into one
+sideloaded app. It is an independently maintained iOS/iPadOS fork of
 [NeoStation](https://github.com/misobadev/neostation-frontend), maintained by
 [@TarbleFR](https://github.com/TarbleFR).
 
@@ -112,7 +112,7 @@ NeoStation’s frontend license does not relicense third-party codes.
 
 </details>
 
-## Embedded systems and ports
+## Embedded systems
 
 | Integration | Systems / purpose |
 | --- | --- |
@@ -120,13 +120,15 @@ NeoStation’s frontend license does not relicense third-party codes.
 | **Dolphin / DolphiniOS** | GameCube and Wii |
 | **ARMSX2 / PCSX2** | PlayStation 2 |
 | **RPCS3 / XITRIX iOS fork** | PlayStation 3 |
-| **Dusklight** | Twilight Princess port; requires compatible game data |
 
-KartPad (Mario Kart Wii) is no longer included. Its runtime carries code
+NeoStation no longer includes native game ports, nor the Ports playlist.
+KartPad (Mario Kart Wii) and Dusklight (Twilight Princess) were embedded in
+earlier builds and removed in October 2026. KartPad's runtime carries code
 translated from the game, so each player who wants it builds
 [KartPad](https://github.com/chrissotraidis/kartpad) with its own tools and
-installs it as a separate app. Files already in NeoStation's `Ports/KartPad`
-folder are left untouched.
+installs it as a separate app. Twilight Princess remains playable from its
+GameCube or Wii version with Dolphin. Files already in NeoStation's
+`Ports/KartPad` and `Ports/Dusklight` folders are left untouched.
 
 The public Build 455 release contains 14 Libretro cores; the current source tree
 contains 34. [All current core credits and license references](assets/legal/libretro/LIBRETRO_CORES.md)

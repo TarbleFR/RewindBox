@@ -24,13 +24,16 @@ void main() {
       'DolphiniOS',
       'ARMSX2',
       'RPCS3',
-      'Dusklight',
     ]) {
       expect(gameTab + dialog, contains("'$engine'"), reason: engine);
     }
-    for (final folder in <String>['gc', 'wii', 'ps2', 'ps3', 'ports']) {
+    for (final folder in <String>['gc', 'wii', 'ps2', 'ps3']) {
       expect(gameTab + dialog, contains("'$folder'"), reason: folder);
     }
+    // Dusklight and the Ports playlist were removed
+    // (docs/ports-removal-2026-10-20.md).
+    expect(gameTab + dialog, isNot(contains("'Dusklight'")));
+    expect(gameTab + dialog, isNot(contains("'ports'")));
     expect(systemDialog, isNot(contains("folderName.toLowerCase() == 'ps3'")));
   });
 

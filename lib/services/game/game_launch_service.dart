@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/rpcs3_library_locale.dart';
-import 'package:neostation/l10n/dusklight_locale.dart';
 import 'package:neostation/l10n/dolphin_import_locale.dart';
-import 'package:neostation/l10n/ports_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/l10n/console_manager_locale.dart';
 import 'package:path/path.dart' as path;
@@ -20,9 +18,9 @@ import 'package:neostation/services/rpcs3_launch_service.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 // DOLPHIN_ISOLATION_BEGIN: launcher_import
 import '../dolphin_internal_v2_service.dart';
-import '../dusklight_internal_service.dart';
 // DOLPHIN_ISOLATION_END: launcher_import
 import 'package:neostation/services/logger_service.dart';
+import 'package:neostation/services/retired_ports_backup.dart';
 
 import '../../models/game_model.dart';
 import '../../models/system_model.dart';
@@ -64,20 +62,6 @@ class GameLaunchResult {
 
   GameLaunchResult.failure(this.errorMessage, [this.errorDetails])
     : success = false;
-}
-
-/// Whether [gamePath] lies in `Ports/KartPad/Games`, the folder of the former
-/// embedded KartPad port. Its files belong to the player and stay in place.
-bool isRemovedKartPadGamePath(String gamePath) {
-  final parts = path.posix.split(path.posix.normalize(gamePath));
-  for (var i = 0; i + 3 < parts.length; i++) {
-    if (parts[i] == 'Ports' &&
-        parts[i + 1] == 'KartPad' &&
-        parts[i + 2] == 'Games') {
-      return true;
-    }
-  }
-  return false;
 }
 
 /// Executes game launches across all supported platforms and monitors the
@@ -260,58 +244,17 @@ class GameLaunchService {
       }
       // DOLPHIN_ISOLATION_END: explicit_gc_wii_route
 
-      // Ports are explicitly dispatched by their private NeoStation owner.
-      // A game left in the former KartPad folder must never fall through into
-      // Dusklight, RetroArch or the iOS share sheet.
-      if (Platform.isIOS && system.folderName.toLowerCase() == 'ports') {
-        // Build 448: Dusklight switched off; no external app.
-        final portsAllowed =
-            await EmbeddedEnginePolicy.instance.allowsSystem(system);
-        if (!context.mounted) return GameLaunchResult.failure('', '');
-        if (!portsAllowed) return _embeddedEngineOff(context, system);
-        final locale = Localizations.localeOf(context);
-        final gamePath = game.romPath;
-        if (gamePath == null || gamePath.isEmpty) {
-          return GameLaunchResult.failure(
-            DusklightLocale.launchError(locale, 'DUSKLIGHT_GAME_UNREADABLE'),
-            system.folderName,
-          );
-        }
-        // KartPad left NeoStation (19 October 2026); its folder keeps the
-        // player's own files until a rescan drops the old library row.
-        if (isRemovedKartPadGamePath(gamePath)) {
-          return GameLaunchResult.failure(
-            PortsLocale.forLocale(locale, 'kartpadRemoved'),
-            'KartPad is not part of this NeoStation build: $gamePath',
-          );
-        }
-        final DusklightLaunchResult report;
-        try {
-          report = await DusklightInternalService.launch(gamePath,
-            uiText: DusklightLocale.nativeUI(locale));
-        } catch (error) {
-          _log.e('[Dusklight launch] $error');
-          return GameLaunchResult.failure(
-            DusklightLocale.launchError(locale, null),
-            '$error',
-          );
-        }
-        if (!context.mounted) return GameLaunchResult.failure('', '');
-        if (!report.success) {
-          return GameLaunchResult.failure(
-            DusklightLocale.launchError(locale, report.errorCode),
-            'Dusklight stage: ${report.stage ?? "unknown"}\n'
-            'Code: ${report.errorCode ?? "unknown"}\n'
-            '${report.technicalDetails}\n${report.message}',
-          );
-        }
-        GameSessionManager.registerGameLaunch(
-          system,
-          game,
-          'ios_dusklight_internal',
+      // The Ports playlist and its engines left NeoStation
+      // (docs/ports-removal-2026-10-20.md). A game row kept while its
+      // database copy waits never falls through to another emulator, a
+      // RetroArch link or the share sheet; its file stays where it is.
+      if (system.folderName.toLowerCase() ==
+          RetiredPortsBackup.retiredFolderName) {
+        return GameLaunchResult.failure(
+          AppLocale.noEmulator.getString(context),
+          'The Ports playlist is not part of this NeoStation build: '
+          '${game.romPath ?? game.name}',
         );
-        await FavoritesService.recordGamePlayed(game);
-        return GameLaunchResult.success();
       }
 
       // iOS: there's no equivalent of Android's "send an Intent with a file

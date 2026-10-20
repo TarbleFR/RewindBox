@@ -1,0 +1,73 @@
+name: Build 492 targeted checks (Dusklight and Ports removal)
+# Run on the delivery commit (Claude): the delivery gate
+# .github/diagnostics/portsremoval492_delivery.py reads the two verdicts of a
+# successful run on that exact commit and never reruns these suites.
+# A new workflow cannot be dispatched before it reaches the default branch
+# (main, not modified here): a push of its own files on Claude starts it.
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - test/build492_targeted_test.py
+      - .github/workflows/build492-checks.yml
+  workflow_dispatch:
+    inputs:
+      parts:
+        description: Parts to run
+        type: choice
+        options: [all, host, native]
+        default: all
+permissions: {contents: read, actions: read}
+concurrency:
+  group: build492-checks-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  host:
+    name: Analysis, delivery Dart suite, Dusklight and Ports removal checks
+    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Changed inputs since Build 491, analysis, Dart and Python checks
+        run: python3 test/build492_targeted_test.py --part host
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build492-host-${{ github.sha }}
+          path: build/build492/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  native:
+    name: NeoPlay companion adapters and external display sources for iPhone
+    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native' }}
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Fetch the iOS engine of the pinned Flutter
+        run: flutter precache --ios
+      - name: external_display iPhone syntax, NPCheck harness (every NeoPlay Swift source, companion tests)
+        run: python3 test/build492_targeted_test.py --part native
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build492-native-${{ github.sha }}
+          path: |
+            build/build492/native-verdict.json
+            build/build492/NPCheck.xcresult
+          if-no-files-found: ignore
+          retention-days: 14

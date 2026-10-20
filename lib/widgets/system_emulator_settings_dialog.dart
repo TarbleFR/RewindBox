@@ -97,7 +97,7 @@ class _SystemEmulatorSettingsDialogState
     // switch is misleading here and previously caused the same UI issue for
     // Dolphin/RPCS3.
     if (Platform.isIOS &&
-        const <String>{'gc', 'wii', 'ps2', 'ps3', 'ports'}.contains(folder)) {
+        const <String>{'gc', 'wii', 'ps2', 'ps3'}.contains(folder)) {
       return false;
     }
     return true;
@@ -111,7 +111,6 @@ class _SystemEmulatorSettingsDialogState
       'gc' || 'wii' => 'DolphiniOS',
       'ps2' => 'ARMSX2',
       'ps3' => 'RPCS3',
-      'ports' => 'Dusklight',
       _ => null,
     };
   }

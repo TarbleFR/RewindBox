@@ -210,12 +210,21 @@ revision used by a particular build.
 
 ---
 
-DUSKLIGHT — EMBEDDED TWILIGHT PRINCESS REIMPLEMENTATION
+DUSKLIGHT — FORMERLY EMBEDDED, REMOVED
+
+NeoStation no longer includes Dusklight, nor the Ports playlist that launched
+it. Earlier NeoStation builds embedded Dusklight, a reimplementation of The
+Legend of Zelda: Twilight Princess that builds on the work of the Twilight
+Princess decompilation. At the maintainer's decision of 20 October 2026, its
+Core, bridge, sources, workflows, notices and launch route were removed from
+NeoStation's sources and IPA; no other port of Twilight Princess replaces it.
+Players' files left in NeoStation's Ports/Dusklight folder are kept; the
+GameCube and Wii versions of the game remain playable with Dolphin.
 
 Dusklight repository:
 https://github.com/TwilitRealm/dusklight
 
-Pinned NeoStation source revision:
+Last NeoStation source revision of Dusklight (earlier builds only):
 40457c6adb381928e4b5fef6ed459ed291edd5e2
 
 Dusklight describes itself as a reverse-engineered reimplementation of Twilight
@@ -228,9 +237,8 @@ https://github.com/zeldaret/tp
 Aurora:
 https://github.com/encounter/aurora
 
-NeoStation's iOS host/lifecycle adaptations are maintained separately under
-native/dusklight/, build-utils/dusklight/ and
-packages/dusklight_internal_bridge/.
+This credit is kept for the earlier builds that included Dusklight. NeoStation
+never claimed authorship of Dusklight or of the works it builds on.
 
 ---
 

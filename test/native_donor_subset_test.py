@@ -1,7 +1,7 @@
-"""The native donor subset never requests a byte of a KartPad member.
+"""The native donor subset never requests a byte of a KartPad or Dusklight member.
 
-A synthetic IPA interleaves allowed native members with KartPad donor members
-and root runtime resources. A local HTTP server honours byte ranges and records
+A synthetic IPA interleaves allowed native members with KartPad donor members,
+Dusklight Core members (removed on 20 October 2026) and root runtime resources. A local HTTP server honours byte ranges and records
 every range it serves. The fetcher must:
 - serve only planned 206 ranges, none intersecting a refused member's record;
 - reproduce the allowed members byte for byte, with permissions;
@@ -45,6 +45,8 @@ MEMBERS = [
     ("Frameworks/dolphin_internal_bridge.framework/Touch.nib/objects.nib", b"nib" * 50, 0o644),
     ("dsp_coef.bin", b"coef" * 100, 0o644),
     ("Dusklight-native-identity.json", b'{"abi_version":7}', 0o644),
+    ("Frameworks/DusklightCore.framework/DusklightCore", os.urandom(20_000), 0o755),
+    ("Dusklight-Licenses/aurora-LICENSE", b"MIT" * 100, 0o644),
     ("cacert.pem", b"-----BEGIN CERTIFICATE-----", 0o644),
     ("Frameworks/KartPadCore.framework/KartPadCore", os.urandom(10_000), 0o755),
 ]
@@ -52,7 +54,7 @@ ALLOWED = {
     "Frameworks/DolphinCore.framework/DolphinCore", "Frameworks/libRPCS3Core.dylib",
     "Sys/GC/font.bin", "Frameworks/dolphin_internal_bridge.framework/Pad.png",
     "Frameworks/dolphin_internal_bridge.framework/Touch.nib/objects.nib",
-    "Dusklight-native-identity.json", "cacert.pem",
+    "cacert.pem",
 }
 
 
@@ -134,7 +136,7 @@ aggregate = fetcher.aggregate(lines)
 member_spans = spans(ipa)
 refused_spans = [span for name, span in member_spans.items()
                  if fetcher.REFUSED.search(name)]
-assert len(refused_spans) == 5, refused_spans
+assert len(refused_spans) == 8, refused_spans
 
 with tempfile.TemporaryDirectory() as temporary:
     temp = Path(temporary)
@@ -180,6 +182,17 @@ with tempfile.TemporaryDirectory() as temporary:
     assert not (temp / "agg.ipa").exists()
     server.shutdown()
 
+# The pins of the real Build 350 donor: the previous selection (2,698 members)
+# minus exactly the 42 Dusklight members (framework, notices, identity).
+assert fetcher.SELECTED_MEMBERS == 2656
+assert fetcher.SELECTED_AGGREGATE_SHA256 == "2f73382bc15c56f425e19aa29afd11e6a29a4c547e1aa7f40f29547204a85536"
+for name in ("Frameworks/DusklightCore.framework/DusklightCore", "Dusklight-Licenses/SDL-LICENSE.txt",
+             "Dusklight-native-identity.json"):
+    assert not fetcher.wanted(name) and fetcher.REFUSED.search(name), name
+for name in ("Sys/Load/GraphicMods/The Legend of Zelda Twilight Princess/metadata.json",
+             "Frameworks/DolphinCore.framework/DolphinCore"):
+    assert fetcher.wanted(name), name  # Dolphin's own files for Twilight Princess stay
+
 # A planned range never covers a refused member, even when the gap is small.
 members = [fetcher.Member(APP + "Frameworks/libRPCS3Core.dylib", 0, 0, 10, 10, 0, 0),
            fetcher.Member(APP + "Frameworks/KartPadRuntime.framework/KartPadRuntime", 0, 0, 10, 10, 100, 0),
@@ -188,6 +201,6 @@ members = [fetcher.Member(APP + "Frameworks/libRPCS3Core.dylib", 0, 0, 10, 10, 0
 selected, ranges = fetcher.plan(members, 400)
 assert [len(items) for _, _, items in ranges] == [1, 2], ranges
 assert all(not (start < 200 and end > 100) for start, end, _ in ranges)
-print("PASS: native donor subset — only planned 206 ranges, no KartPad member byte served "
+print("PASS: native donor subset — only planned 206 ranges, no KartPad or Dusklight member byte served "
       f"({len(refused_spans)} refused records), exact members and modes, whole-file/central-directory/"
       "aggregate refusals, gap planning never spans a refused member")

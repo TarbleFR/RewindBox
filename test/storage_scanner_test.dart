@@ -469,8 +469,13 @@ void main() {
       onProgress: events.add,
     );
     expect(events, isNotEmpty);
-    expect(events.every((event) => event.rootsTotal == 29), isTrue);
-    expect(events.last.rootsDone, 29);
+    expect(
+      events.every((event) => event.rootsTotal == registry.roots.length),
+      isTrue,
+    );
+    // 29 inventory rows, INV-13 retired with Dusklight.
+    expect(registry.roots.length, 28);
+    expect(events.last.rootsDone, registry.roots.length);
     expect(events.last.entries, result.entries);
     expect(events.last.bytes, result.logicalBytes);
     for (var index = 1; index < events.length; index++) {

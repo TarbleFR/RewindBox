@@ -27,7 +27,6 @@ class LegalBundlePreflightTests(unittest.TestCase):
             "packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/SOURCE.txt",
             "build-utils/rpcs3/canonical-source.json",
             "build-utils/armsx2/source.json",
-            "build-utils/dusklight/source.json",
             "LICENSE.md", "NOTICE.md", "docs/LEGAL_AND_CREDITS.md",
         ):
             target = self.root / name
@@ -50,31 +49,40 @@ class LegalBundlePreflightTests(unittest.TestCase):
                  for p in self.root.rglob("*") if p.is_file()}
         self.assertEqual(after, before)
 
-    def test_old_dusklight_notice_is_rejected_before_compilation(self):
-        notice = self.root / "assets/legal/Dusklight-CC0-1.0.txt"
-        pins = json.loads((self.root / "build-utils/dusklight/source.json").read_text())
-        current = "Pinned revision/tag: " + pins["commit"]
+    def test_old_armsx2_notice_is_rejected_before_compilation(self):
+        # Dusklight, whose notice this check pinned until its removal
+        # (docs/ports-removal-2026-10-20.md), is no longer packaged: the same
+        # pin is exercised on the ARMSX2 notice.
+        notice = self.root / "assets/legal/ARMSX2-GPL-3.0.txt"
+        pins = json.loads((self.root / "build-utils/armsx2/source.json").read_text())
+        current = "Pinned revision/tag: " + pins["revision"]
         self.assertIn(current, notice.read_text())
         notice.write_text(notice.read_text().replace(
             current, "Pinned revision/tag: ad979d3dae092d0f5cbdaf49eabca7b4f1db4838"))
         result = self.run_packager("--validate-only")
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Dusklight-CC0-1.0.txt is stale", result.stderr)
-        self.assertIn(pins["commit"], result.stderr)
+        self.assertIn("ARMSX2-GPL-3.0.txt is stale", result.stderr)
+        self.assertIn(pins["revision"], result.stderr)
         self.assertFalse((self.root / "Legal").exists())
 
     def test_embedding_preserves_notice_and_records_current_sources(self):
         app = self.root / "Runner.app"
         app.mkdir()
+        stale = self.root / "dist/dusklight/licenses/aurora-LICENSE"
+        stale.parent.mkdir(parents=True)
+        stale.write_text("MIT")
         result = self.run_packager("--app", str(app), "--build-number", "369")
         self.assertEqual(result.returncode, 0, result.stderr)
         identity = json.loads((app / "Legal/BUILD_SOURCE_IDENTITY.json").read_text())
-        pins = json.loads((self.root / "build-utils/dusklight/source.json").read_text())
+        pins = json.loads((self.root / "build-utils/armsx2/source.json").read_text())
         self.assertEqual(identity["build_number"], "369")
-        self.assertEqual(identity["dusklight"]["revision"], pins["commit"])
-        self.assertEqual(identity["dusklight"]["submodules"], pins["submodules"])
-        self.assertEqual((app / "Legal/Dusklight-CC0-1.0.txt").read_bytes(),
-                         (self.root / "assets/legal/Dusklight-CC0-1.0.txt").read_bytes())
+        self.assertEqual(identity["armsx2"]["revision"], pins["revision"])
+        # Dusklight was removed (docs/ports-removal-2026-10-20.md): no
+        # identity, notice or dependency notices of it are embedded any more,
+        # even when an older step left its licences in dist/.
+        self.assertNotIn("dusklight", identity)
+        self.assertFalse(any("dusklight" in path.name.lower()
+                             for path in (app / "Legal").rglob("*")))
         expected = self.root / "assets/legal/libretro"
         for source in expected.iterdir():
             self.assertEqual((app / "Legal/Libretro" / source.name).read_bytes(),

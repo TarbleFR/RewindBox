@@ -2,15 +2,16 @@
 """Fetch only the native runtimes NeoStation reuses from the Build 350 IPA.
 
 The published NeoStation 0.0.1 IPA (Build 350) also contains the old KartPad
-donor, whose KartPadRuntime links code translated from Mario Kart Wii. That
-code must never enter a GitHub Actions job, cache or artifact. Instead of
-downloading the whole IPA, this reads its ZIP central directory with HTTP
-range requests, checks it against a pinned SHA-256, then downloads and
-decompresses only the members prepare_fast_native_runtime.py needs (Dolphin,
-RPCS3, ARMSX2 and Dusklight Cores, the Dolphin Sys tree, Dusklight notices,
-Dolphin touch resources and cacert.pem).
+donor, whose KartPadRuntime links code translated from Mario Kart Wii, and
+the Dusklight Core, built from the Twilight Princess decompilation. Neither
+may enter a GitHub Actions job, cache or artifact any more (KartPad removed
+on 19 October 2026, Dusklight on 20 October 2026). Instead of downloading the
+whole IPA, this reads its ZIP central directory with HTTP range requests,
+checks it against a pinned SHA-256, then downloads and decompresses only the
+members prepare_fast_native_runtime.py needs (Dolphin, RPCS3 and ARMSX2
+Cores, the Dolphin Sys tree, Dolphin touch resources and cacert.pem).
 
-No byte range of a KartPad member is ever requested: requests are planned
+No byte range of a KartPad or Dusklight member is ever requested: requests are planned
 from the pinned central directory, ranges that would cover a refused member
 are never merged, and every response must be a 206 for exactly the bytes
 asked. The selected members must reproduce a pinned aggregate digest of
@@ -33,27 +34,25 @@ from pathlib import Path
 DONOR_URL = "https://github.com/TarbleFR/neostation-ios/releases/download/0.0.1/NeoStation.ipa"
 DONOR_BYTES = 143538718
 CENTRAL_DIRECTORY_SHA256 = "777010fd3a2d5ae1b3b01d64ef6a99dbe77768948e7f94d8936b2e3e06d4311d"
-SELECTED_AGGREGATE_SHA256 = "cc2eaab89c369f39e4d263fddf335851bfca67dc55d09a08ca7ee34e836379d2"
-SELECTED_MEMBERS = 2698
+SELECTED_AGGREGATE_SHA256 = "2f73382bc15c56f425e19aa29afd11e6a29a4c547e1aa7f40f29547204a85536"
+SELECTED_MEMBERS = 2656
 APP = "Payload/NeoStation.app/"
 
 ALLOWED_PREFIXES = (
     "Frameworks/DolphinCore.framework/",
     "Frameworks/ARMSX2Core.framework/",
-    "Frameworks/DusklightCore.framework/",
-    "Dusklight-Licenses/",
     "Sys/",
 )
 ALLOWED_FILES = (
     "Frameworks/libRPCS3Core.dylib",
-    "Dusklight-native-identity.json",
     "cacert.pem",
 )
 TOUCH_PREFIX = "Frameworks/dolphin_internal_bridge.framework/"
 # Members of the old KartPad donor and its runtime resources copied to the
-# application root. Their bytes are never requested.
+# application root, and of the removed Dusklight Core (framework, notices,
+# identity). Their bytes are never requested.
 REFUSED = re.compile(
-    r"(?i)(kartpad|^wii_bootstrap/|^dsp_coef\.bin$|^initial_pipeline_cache\.db$)")
+    r"(?i)(kartpad|dusklight|^wii_bootstrap/|^dsp_coef\.bin$|^initial_pipeline_cache\.db$)")
 
 MAX_GAP = 4 * 1024 * 1024
 

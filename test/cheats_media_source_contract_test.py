@@ -67,7 +67,44 @@ KARTPAD_REMOVAL = [
     ("    if (Platform.isIOS && emulatorExe == 'ios_armsx2_internal') {\n",
      KARTPAD_SESSION + "    if (Platform.isIOS && emulatorExe == 'ios_armsx2_internal') {\n"),
 ]
+# Dusklight and the Ports playlist left NeoStation on 20 October 2026
+# (maintainer decision, docs/ports-removal-2026-10-20.md): its bridge,
+# executable and session monitor are restored first, then KartPad's.
+DUSKLIGHT_SESSION = """    if (Platform.isIOS && emulatorExe == 'ios_dusklight_internal') {
+      _embeddedSessionSubscription = DusklightInternalBridge.sessionEvents.listen(
+        (event) {
+          if (_phase == GameLaunchPhase.playing && !_isClosing) {
+            _log.i(
+              '[GameLaunchManager] Dusklight returned to NeoStation: '
+              '${event['reason']} (runtimeReleased=${event['runtimeReleased']})',
+            );
+            // A normal return now retains the suspended Dusklight runtime so
+            // the same disc can reopen instantly. Build 321's early RPCS3 JIT
+            // escrow remains reserved before Dusklight can allocate memory.
+            _triggerClose();
+          }
+        },
+      );
+      if (DusklightInternalBridge.didEndSession && !_isClosing) {
+        _triggerClose();
+      }
+      return;
+    }
+
+"""
+DUSKLIGHT_REMOVAL = [
+    ("import 'package:armsx2_internal_bridge/armsx2_internal_bridge.dart';\n",
+     "import 'package:armsx2_internal_bridge/armsx2_internal_bridge.dart';\n"
+     "import 'package:dusklight_internal_bridge/dusklight_internal_bridge.dart';\n"),
+    ("    'ios_armsx2_internal',\n", "    'ios_dusklight_internal',\n    'ios_armsx2_internal',\n"),
+    ("    if (Platform.isIOS && emulatorExe == 'ios_armsx2_internal') {\n",
+     DUSKLIGHT_SESSION + "    if (Platform.isIOS && emulatorExe == 'ios_armsx2_internal') {\n"),
+]
 assert 'kartpad' not in manager.lower(), 'KartPad must not come back to the session lifecycle'
+assert 'dusklight' not in manager.lower(), 'Dusklight must not come back to the session lifecycle'
+for current, removed in DUSKLIGHT_REMOVAL:
+    assert manager.count(current)==1, current
+    manager = manager.replace(current, removed, 1)
 for current, removed in KARTPAD_REMOVAL:
     assert manager.count(current)==1, current
     manager = manager.replace(current, removed, 1)
@@ -77,7 +114,7 @@ for file in ('lib/screens/game_screen/my_games_list.dart','lib/screens/secondary
     assert 'FrontendMediaGate.instance.unregister' in data,file
 service=(root/'lib/services/game/game_launch_service.dart').read_text()
 assert service.index('await FrontendMediaGate.instance.quiet')<service.index('await _launchGameImpl')
-print('PASS: exact retained lifecycle (KartPad removed), all preview factories gated, 12 native cheat locales, generated sources match')
+print('PASS: exact retained lifecycle (KartPad, Dusklight removed), all preview factories gated, 12 native cheat locales, generated sources match')
 
 import re
 bridge='packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm'

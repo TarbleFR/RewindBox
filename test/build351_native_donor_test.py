@@ -29,7 +29,6 @@ def main() -> None:
         "7129d9c654fb6d28f2fa92ae1a4c14d1f25a1fc3e87788237676b48a0fb3aa2d",
         "4866265eca27327c3fc9be14190fec082b58a5e1946f541ced34e46c13ceabd9",
         "cadb6cd56c4b5d01b623bf9696800d48ba504eef8129a8de468c11381de8d162",
-        "5a64e2fd48c47831fd07306c90e28036535a125bd887149d92ba4567ac9af8a7",
         "DONOR_RUN_ID=36323843067",
         "DONOR_ARTIFACT_ID=10932894067",
     ):
@@ -37,6 +36,12 @@ def main() -> None:
 
     require("STIKJIT_SHA" not in PREPARE and "official_stik" not in PREPARE,
             "the native donor must never install a legacy JIT runtime or module")
+    # Dusklight left NeoStation (20 October 2026, docs/ports-removal-2026-10-20.md):
+    # its Build 350 Core identity is no longer accepted and no step restores it.
+    require("5a64e2fd48c47831fd07306c90e28036535a125bd887149d92ba4567ac9af8a7" not in PREPARE,
+            "the removed Dusklight Core identity must not be accepted from the donor")
+    require("Dusklight Core" not in WORKFLOW and "dist/dusklight" not in WORKFLOW,
+            "no workflow step may verify or embed the removed Dusklight Core")
 
     donor = WORKFLOW.index("Download validated Build 350 native donor")
     rpcs3 = WORKFLOW.index("Download pinned passive RPCS3 Core", donor)
@@ -44,8 +49,7 @@ def main() -> None:
     armsx2_cleanup = WORKFLOW.index("Require completed exact ARMSX2 2.6 Core and remove its donor bootstrap", dolphin)
     armsx2_download = WORKFLOW.index("Download pinned ARMSX2 2.6 Core", armsx2_cleanup)
     armsx2 = WORKFLOW.index("Verify pinned ARMSX2 Core identity", armsx2_download)
-    dusklight = WORKFLOW.index("Verify retained stable Dusklight Core identity", armsx2)
-    require(donor < rpcs3 < dolphin < armsx2_cleanup < armsx2_download < armsx2 < dusklight,
+    require(donor < rpcs3 < dolphin < armsx2_cleanup < armsx2_download < armsx2,
             "pinned Cores must replace their donor bootstrap before identity verification")
     print("Build 351 retained native donor contract: OK")
 

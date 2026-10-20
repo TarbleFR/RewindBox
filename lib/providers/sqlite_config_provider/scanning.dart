@@ -91,7 +91,6 @@ extension SqliteConfigScanning on SqliteConfigProvider {
 
     if (Platform.isIOS) {
       await Armsx2InternalService.ensureLayout();
-      await DusklightInternalService.ensureLayout();
     }
 
     // Re-probe the fast SAF walk once per scan: the permission behind it can be
@@ -186,7 +185,7 @@ extension SqliteConfigScanning on SqliteConfigProvider {
       }
 
       if (Platform.isIOS) {
-        for (final folderName in const <String>['ps2', 'ports']) {
+        for (final folderName in const <String>['ps2']) {
           if (detectedSystems.any(
             (system) => system.folderName == folderName,
           )) {
@@ -238,7 +237,7 @@ extension SqliteConfigScanning on SqliteConfigProvider {
         final List<String> fastScanFolders = Platform.isAndroid
             ? ['android']
             : Platform.isIOS
-            ? ['gc', 'wii', 'ps2', 'ports']
+            ? ['gc', 'wii', 'ps2']
             : [];
         // DOLPHIN_ISOLATION_END: fast_scan_playlists
 
@@ -548,7 +547,7 @@ extension SqliteConfigScanning on SqliteConfigProvider {
             DolphinInternalV2Service.isDolphinSystem(system.folderName);
         final isEmbeddedIosLibrary =
             Platform.isIOS &&
-            const <String>{'ps2', 'ports'}.contains(
+            const <String>{'ps2'}.contains(
               system.folderName.toLowerCase(),
             );
         if (romCount > 0 ||
@@ -658,30 +657,6 @@ extension SqliteConfigScanning on SqliteConfigProvider {
     _notify();
   }
 
-  /// Refreshes NeoStation's Files-visible native Ports libraries.
-  Future<void> refreshPortsInternalLibrary() async {
-    if (!Platform.isIOS) {
-      throw StateError('Embedded Ports refresh is available on iOS only.');
-    }
-    await DusklightInternalService.ensureLayout();
-    if (_availableSystems.isEmpty) await _loadAvailableSystems();
-    final system = _availableSystems.firstWhere(
-      (candidate) => candidate.folderName == 'ports',
-    );
-    await SystemRepository.addDetectedSystem(system.id!, system.folderName);
-    if (!_detectedSystems.any((candidate) => candidate.id == system.id)) {
-      _detectedSystems = [..._detectedSystems, system];
-    }
-    await _scanSystemRoms(system);
-    await _refreshDetectedSystemsFromDatabase();
-    _sortDetectedSystems();
-    _notify();
-  }
-
-  /// Compatibility alias while the former single-port API is retired.
-  Future<void> refreshDusklightInternalLibrary() =>
-      refreshPortsInternalLibrary();
-
   /// Performs an isolated scan for a specific system.
   Future<ScanSummary> _scanSystemRoms(
     SystemModel system, {
@@ -694,12 +669,9 @@ extension SqliteConfigScanning on SqliteConfigProvider {
           DolphinInternalV2Service.isDolphinSystem(system.folderName);
       final isArmsx2InternalSystem =
           Platform.isIOS && system.folderName.toLowerCase() == 'ps2';
-      final isPortsInternalSystem =
-          Platform.isIOS && system.folderName.toLowerCase() == 'ports';
       final isNativeInternalSystem =
           isDolphinInternalSystem ||
-          isArmsx2InternalSystem ||
-          isPortsInternalSystem;
+          isArmsx2InternalSystem;
       // Native embedded playlists scan their own roots even when no public ROM
       // folder exists. Every other system retains the original early return.
       if (_config.romFolders.isEmpty &&
@@ -727,15 +699,6 @@ extension SqliteConfigScanning on SqliteConfigProvider {
         nativeScanRoots = <String>[
           (await Armsx2InternalService.gamesDirectory()).path,
         ];
-      } else if (isPortsInternalSystem) {
-        final dusklightRoot =
-            (await DusklightInternalService.rootDirectory()).path;
-        nativeScanRoots = <String>[dusklightRoot];
-        effectiveRootFoldersMap = <String, Map<String, String>>{
-          dusklightRoot: <String, String>{
-            'ports': (await DusklightInternalService.gamesDirectory()).path,
-          },
-        };
       } else {
         nativeScanRoots = _config.romFolders;
       }
@@ -834,7 +797,7 @@ extension SqliteConfigScanning on SqliteConfigProvider {
               (DolphinInternalV2Service.isDolphinSystem(
                     updatedSystem.folderName,
                   ) ||
-                  const <String>{'ps2', 'ports'}.contains(
+                  const <String>{'ps2'}.contains(
                     updatedSystem.folderName.toLowerCase(),
                   )));
       // DOLPHIN_ISOLATION_END: refresh_keep_native_systems

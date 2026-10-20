@@ -4,7 +4,6 @@ import '../models/system_model.dart';
 import '../providers/file_provider.dart';
 import '../services/game_service.dart';
 import '../services/game_launch_manager.dart';
-import '../services/logger_service.dart';
 import '../widgets/game_launch_dialog.dart';
 
 /// Standardizes the game launch workflow: Session initialization -> Progress Dialog -> Delay -> Execution -> Monitoring.
@@ -12,8 +11,7 @@ import '../widgets/game_launch_dialog.dart';
 /// Workflow details:
 /// 1. Initializes a new session via [GameLaunchManager].
 /// 2. Displays the [GameLaunchDialog] to show loading progress and metadata.
-/// 3. Gives the launch route time to paint before execution. Internal Ports use
-///    only a short handoff delay; external emulator launches keep the legacy 2s.
+/// 3. Gives the launch route time to paint before execution (2s).
 ///
 /// 4. Executes the emulator/game via [GameService.launchGame].
 ///
@@ -79,25 +77,7 @@ Future<void> launchGameWithDialog({
   }
 
   try {
-    // DuskLight is an in-process native Port. The old unconditional
-    // two-second presentation delay was pure startup latency for them. Keep a
-    // single short paint/handoff window, while preserving the legacy delay for
-    // external emulator launches.
-    final launchPresentationDelay =
-        system.folderName.toLowerCase() == 'ports'
-            ? const Duration(milliseconds: 150)
-            : const Duration(seconds: 2);
-    final handoffWatch = Stopwatch()..start();
-    if (system.folderName.toLowerCase() == 'ports') {
-      LoggerService.instance.i('[Port launch boundary] presentation_begin '
-          'at ${DateTime.now().toUtc().toIso8601String()}');
-    }
-    await Future.delayed(launchPresentationDelay);
-    if (system.folderName.toLowerCase() == 'ports') {
-      LoggerService.instance.i('[Port launch boundary] presentation_ready '
-          'elapsedMs=${handoffWatch.elapsedMilliseconds} '
-          'at ${DateTime.now().toUtc().toIso8601String()}');
-    }
+    await Future.delayed(const Duration(seconds: 2));
     if (!context.mounted || !dialogRoute.isActive) {
       GameService.clearLaunchPending();
       closeLaunchDialog();

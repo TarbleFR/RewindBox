@@ -5,7 +5,8 @@
 // ExternalDisplayService.runUnsupportedEngineSession.
 //
 // KartPad, the engine this was written for, left NeoStation on 19 October
-// 2026; its channel group went with it. The service keeps its contract for
+// 2026 (Dusklight, which paired natively, on 20 October); its channel group
+// went with it. The service keeps its contract for
 // any future engine in the same situation, driven here by a fake native
 // coordinator. Source and channel behaviour only: no iPhone or Apple TV claim.
 import 'dart:async';

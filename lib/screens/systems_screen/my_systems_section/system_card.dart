@@ -388,10 +388,6 @@ class _SystemCardState extends State<SystemCard> {
   }
 
   Widget _buildBundledBackground() {
-    if (!widget.info.isGame && widget.info.folderName == 'ports') {
-      return Image.asset('assets/images/ports-gaming.webp',
-        fit: BoxFit.cover, cacheWidth: widget.backgroundCacheWidth);
-    }
     return Container(color: widget.info.color1AsColor?.withValues(alpha: 0.26));
   }
 

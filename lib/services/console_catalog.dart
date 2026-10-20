@@ -16,9 +16,6 @@ enum ConsoleEngine {
   /// RPCS3 (PlayStation 3), embedded.
   rpcs3,
 
-  /// Dusklight (Ports), embedded.
-  ports,
-
   /// The MeloNX app (Nintendo Switch), external.
   melonx,
 
@@ -200,13 +197,6 @@ abstract final class ConsoleCatalog {
         engine: ConsoleEngine.rpcs3,
         importSystem: 'ps3',
         systems: <String>{'ps3'},
-      ),
-      const ConsoleEntry(
-        id: 'ports',
-        name: 'Ports',
-        engine: ConsoleEngine.ports,
-        importSystem: 'ports',
-        systems: <String>{'ports'},
       ),
       const ConsoleEntry(
         id: 'switch',

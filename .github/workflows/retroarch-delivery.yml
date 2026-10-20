@@ -1,6 +1,6 @@
-name: NeoStation RetroArch • Build 491 • SideStore
+name: NeoStation RetroArch • Build 492 • SideStore
 # The closed evidence reader captures historical ANSI-bearing logs privately.
-run-name: NeoStation Build ${{ inputs.build_number || '491' }} • ${{ github.sha }} • embedded libretro
+run-name: NeoStation Build ${{ inputs.build_number || '492' }} • ${{ github.sha }} • embedded libretro
 'on':
   push:
     branches:
@@ -12,7 +12,7 @@ run-name: NeoStation Build ${{ inputs.build_number || '491' }} • ${{ github.sh
       build_number:
         description: New delivery build number
         required: true
-        default: '491'
+        default: '492'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -74,7 +74,7 @@ jobs:
         if [ "${{ steps.dart-cache.outputs.cache-hit }}" = 'true' ]; then
           echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
         else
-          python3 .github/diagnostics/kartpad491_delivery.py --dart-evidence --output build/delivery/dart-validation.json
+          python3 .github/diagnostics/portsremoval492_delivery.py --dart-evidence --output build/delivery/dart-validation.json
           echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
         fi
     - uses: subosito/flutter-action@v2
@@ -84,7 +84,7 @@ jobs:
         cache: true
       if: ${{ inputs.validation_scope == 'rpcs3_neoswap' || steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Verify closed validation input tree and previous CI success
-      run: python3 .github/diagnostics/kartpad491_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+      run: python3 .github/diagnostics/portsremoval492_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Analyze the changed integration and its restored dependencies
       run: |-
         flutter pub get --enforce-lockfile
@@ -210,7 +210,7 @@ jobs:
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '491' }}-validation-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '492' }}-validation-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -268,7 +268,7 @@ jobs:
       if: ${{ inputs.validation_scope == 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '491' }}-native-reuse-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '492' }}-native-reuse-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -278,7 +278,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 .github/diagnostics/kartpad491_delivery.py --libretro-evidence --output build/delivery/neoswap/identity.json
+        python3 .github/diagnostics/portsremoval492_delivery.py --libretro-evidence --output build/delivery/neoswap/identity.json
         echo 'reused=true' >> "$GITHUB_OUTPUT"
     - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane
       if: ${{ inputs.validation_scope != 'library_covers' && steps.neoswap-evidence.outputs.reused != 'true' }}
@@ -416,7 +416,7 @@ jobs:
       if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '491' }}-neoswap-native-${{ github.sha }}
+        name: NeoStation-${{ inputs.build_number || '492' }}-neoswap-native-${{ github.sha }}
         path: build/delivery/neoswap/
         if-no-files-found: error
         retention-days: 14
@@ -455,7 +455,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 .github/diagnostics/kartpad491_delivery.py --libretro-evidence --output build/delivery/libretro-native-reuse.json
+        python3 .github/diagnostics/portsremoval492_delivery.py --libretro-evidence --output build/delivery/libretro-native-reuse.json
         echo 'reused=true' >> "$GITHUB_OUTPUT"
     - name: Run the embedded libretro host against a test core
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
@@ -529,18 +529,16 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '491' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '492' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '491' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '492' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
       RPCS3_CORE_HOST_SHA: 1cf0219773d4c64922367151de3508f5dbcb9c8e
       RPCS3_CORE_RUN_ID: '39251938919'
-      DUSKLIGHT_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
-      DUSKLIGHT_CORE_RUN_ID: '37641472546'
       LIBRETRO_CORES_HOST_SHA: c3408821b2b9c47c6e31ae25b45c113aa9fd3f74
       LIBRETRO_CORES_VALIDATED_SHA: a518034e826258b1e2aa20f7abddb00d750411b4
       LIBRETRO_CORES_RUN_ID: '39081741396'
@@ -560,7 +558,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/kartpad491_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/portsremoval492_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -577,7 +575,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/kartpad491_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/portsremoval492_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -685,7 +683,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/kartpad491_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/portsremoval492_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           build-utils/build_rpcs3_embedded_core.sh \
@@ -774,7 +772,7 @@ jobs:
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
         sys.path.insert(0, '.github/diagnostics')
-        from kartpad491_delivery import validate_rpc_core_identity as validate_core_input_identity
+        from portsremoval492_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
@@ -974,84 +972,6 @@ jobs:
         fast_path.write_text(json.dumps(fast,indent=2)+'\n')
         print(identity)
         PY
-    - name: Require completed exact Dusklight 2.0.3 Core
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        set -euo pipefail
-        python3 - <<'PY'
-        import json, os, shutil, subprocess, time
-        endpoint = 'repos/TarbleFR/neostation-ios/actions/runs/' + os.environ['DUSKLIGHT_CORE_RUN_ID']
-        deadline = time.monotonic() + 3600
-        while True:
-            result = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
-            assert result['head_sha'] == os.environ['DUSKLIGHT_CORE_HOST_SHA'], result
-            assert result['path'] == '.github/workflows/dusklight-core.yml', result
-            if result['status'] == 'completed':
-                assert result['conclusion'] == 'success', result
-                break
-            assert time.monotonic() < deadline, 'Pinned Dusklight Core did not complete'
-            print('Waiting for exact Dusklight Core', result['id'], result['status'], flush=True)
-            time.sleep(30)
-        # The retained donor was verified separately. Remove its complete
-        # Dusklight tree so retired resources cannot survive the update.
-        shutil.rmtree('dist/dusklight')
-        PY
-        git diff --exit-code "$DUSKLIGHT_CORE_HOST_SHA" "$GITHUB_SHA" -- \
-          native/dusklight build-utils/dusklight .github/workflows/dusklight-core.yml \
-          packages/dusklight_internal_bridge/ios/Classes/DusklightCoreABI.h
-    - name: Download pinned Dusklight 2.0.3 Core
-      uses: actions/download-artifact@v4
-      with:
-        name: NeoStation-Dusklight-Core-${{ env.DUSKLIGHT_CORE_HOST_SHA }}
-        run-id: ${{ env.DUSKLIGHT_CORE_RUN_ID }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path: dist/dusklight
-    - name: Verify updated Dusklight Core identity
-      run: |
-        set -euo pipefail
-        python3 - <<'PYCORE'
-        import hashlib, json, os
-        from pathlib import Path
-        root = Path('dist/dusklight')
-        identity = json.loads((root / 'identity.json').read_text())
-        pins = json.loads(Path('build-utils/dusklight/source.json').read_text())
-        assert identity['host_commit'] == os.environ['DUSKLIGHT_CORE_HOST_SHA']
-        assert identity['source_release'] == pins['release'] == 'v2.0.3'
-        assert identity['source_commit'] == pins['commit']
-        assert identity['submodules'] == pins['submodules']
-        assert identity['sdl_commit'] == pins['sdl']['commit']
-        assert identity['abi_version'] == 7
-        assert identity['session_policy'] == 'host_frame_loop_warm_resume_rpcs3_jit_escrow'
-        canonical = Path('native/dusklight')
-        expected_sources = {
-            name: canonical / name
-            for name in json.loads((canonical / 'upstream-manifest.json').read_text())
-        }
-        expected_sources.update({
-            'neostation/' + item.name: item
-            for item in (canonical / 'core').iterdir() if item.is_file()
-        })
-        expected_sources['neostation/DusklightCoreABI.h'] = Path(
-            'packages/dusklight_internal_bridge/ios/Classes/DusklightCoreABI.h')
-        assert set(identity['canonical_sources']) == set(expected_sources)
-        for relative, source in expected_sources.items():
-            assert hashlib.sha256(source.read_bytes()).hexdigest() == identity['canonical_sources'][relative], relative
-        framework = root / 'DusklightCore.framework'
-        assert hashlib.sha256((framework / 'DusklightCore').read_bytes()).hexdigest() == identity['sha256']
-        for relative, digest in identity['resources'].items():
-            assert hashlib.sha256((framework / relative).read_bytes()).hexdigest() == digest, relative
-        fast_path = Path('build/fast-native/identity.json')
-        fast = json.loads(fast_path.read_text())
-        fast.update({
-            'dusklightCoreSha256': identity['sha256'],
-            'dusklightCoreHostCommit': identity['host_commit'],
-            'dusklightSourceRevision': identity['source_commit'],
-            'dusklightSourceRelease': identity['source_release'],
-            'dusklightCoreRun': os.environ['DUSKLIGHT_CORE_RUN_ID'],
-        })
-        fast_path.write_text(json.dumps(fast, indent=2) + '\n')
-        PYCORE
     - name: Require the completed pinned libretro cores
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1238,14 +1158,6 @@ jobs:
         file "$APP/Frameworks/ARMSX2Core.framework/ARMSX2Core"
         nm -gj "$APP/Frameworks/ARMSX2Core.framework/ARMSX2Core" > build/armsx2-exports.txt
         grep -qx '_NeoARMSX2_GetAPI' build/armsx2-exports.txt
-    - name: Embed lazy-loaded Dusklight framework and notices
-      run: |
-        set -euo pipefail
-        APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
-        ditto dist/dusklight/DusklightCore.framework "$APP/Frameworks/DusklightCore.framework"
-        chmod 755 "$APP/Frameworks/DusklightCore.framework/DusklightCore"
-        ditto dist/dusklight/licenses "$APP/Dusklight-Licenses"
-        cp dist/dusklight/identity.json "$APP/Dusklight-native-identity.json"
     - name: Embed lazy-loaded libretro cores, MoltenVK and system assets
       run: |
         set -euo pipefail
@@ -1334,9 +1246,6 @@ jobs:
         python3 build-utils/validate_armsx2_ipa.py "dist/$IPA_NAME.ipa" \
           --build-number "$BUILD_NUMBER" \
           --source-revision "$ARMSX2_SOURCE_REVISION"
-        python3 build-utils/validate_dusklight_ipa.py "dist/$IPA_NAME.ipa" \
-          --identity dist/dusklight/identity.json --core-host "$DUSKLIGHT_CORE_HOST_SHA" \
-          --build-number "$BUILD_NUMBER"
         python3 build-utils/validate_libretro_ipa.py "dist/$IPA_NAME.ipa" \
           --identity dist/libretro/identity.json --build-number "$BUILD_NUMBER" \
           --report dist/libretro-validation.json
@@ -1345,6 +1254,10 @@ jobs:
         # KartPad left NeoStation: no part of it and no file of game origin.
         python3 build-utils/validate_no_kartpad_ipa.py "dist/$IPA_NAME.ipa" \
           --build-number "$BUILD_NUMBER" --report dist/no-kartpad-validation.json
+        # Dusklight and the Ports playlist left NeoStation
+        # (docs/ports-removal-2026-10-20.md): no part of them in the IPA.
+        python3 build-utils/validate_no_dusklight_ipa.py "dist/$IPA_NAME.ipa" \
+          --build-number "$BUILD_NUMBER" --report dist/no-dusklight-validation.json
         cp build/fast-native/identity.json dist/fast-native-identity.json
         cp build/fast-native/rpcs3-core-identity.json dist/rpcs3-core-identity.json
         python3 build-utils/validate_neoplay_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --commit "$GITHUB_SHA" --report dist/neoplay-validation.json
@@ -1413,18 +1326,16 @@ jobs:
     needs:
     - cold
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '491' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '492' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '491' }}-${{ github.sha }}-warm
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '492' }}-${{ github.sha }}-warm
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
       RPCS3_CORE_HOST_SHA: 1cf0219773d4c64922367151de3508f5dbcb9c8e
       RPCS3_CORE_RUN_ID: '39251938919'
-      DUSKLIGHT_CORE_HOST_SHA: 899d3c44f8f465c8da0d93c763817ffca519c00c
-      DUSKLIGHT_CORE_RUN_ID: '37641472546'
       LIBRETRO_CORES_HOST_SHA: c3408821b2b9c47c6e31ae25b45c113aa9fd3f74
       LIBRETRO_CORES_VALIDATED_SHA: a518034e826258b1e2aa20f7abddb00d750411b4
       LIBRETRO_CORES_RUN_ID: '39081741396'
@@ -1459,7 +1370,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/kartpad491_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/portsremoval492_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Restore exact device build state
       id: state
       uses: actions/cache/restore@v4
@@ -1546,14 +1457,6 @@ jobs:
         file "$APP/Frameworks/ARMSX2Core.framework/ARMSX2Core"
         nm -gj "$APP/Frameworks/ARMSX2Core.framework/ARMSX2Core" > build/armsx2-exports.txt
         grep -qx '_NeoARMSX2_GetAPI' build/armsx2-exports.txt
-    - name: Embed lazy-loaded Dusklight framework and notices
-      run: |
-        set -euo pipefail
-        APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
-        ditto dist/dusklight/DusklightCore.framework "$APP/Frameworks/DusklightCore.framework"
-        chmod 755 "$APP/Frameworks/DusklightCore.framework/DusklightCore"
-        ditto dist/dusklight/licenses "$APP/Dusklight-Licenses"
-        cp dist/dusklight/identity.json "$APP/Dusklight-native-identity.json"
     - name: Embed lazy-loaded libretro cores, MoltenVK and system assets
       run: |
         set -euo pipefail
@@ -1642,9 +1545,6 @@ jobs:
         python3 build-utils/validate_armsx2_ipa.py "dist/$IPA_NAME.ipa" \
           --build-number "$BUILD_NUMBER" \
           --source-revision "$ARMSX2_SOURCE_REVISION"
-        python3 build-utils/validate_dusklight_ipa.py "dist/$IPA_NAME.ipa" \
-          --identity dist/dusklight/identity.json --core-host "$DUSKLIGHT_CORE_HOST_SHA" \
-          --build-number "$BUILD_NUMBER"
         python3 build-utils/validate_libretro_ipa.py "dist/$IPA_NAME.ipa" \
           --identity dist/libretro/identity.json --build-number "$BUILD_NUMBER" \
           --report dist/libretro-validation.json
@@ -1653,6 +1553,10 @@ jobs:
         # KartPad left NeoStation: no part of it and no file of game origin.
         python3 build-utils/validate_no_kartpad_ipa.py "dist/$IPA_NAME.ipa" \
           --build-number "$BUILD_NUMBER" --report dist/no-kartpad-validation.json
+        # Dusklight and the Ports playlist left NeoStation
+        # (docs/ports-removal-2026-10-20.md): no part of them in the IPA.
+        python3 build-utils/validate_no_dusklight_ipa.py "dist/$IPA_NAME.ipa" \
+          --build-number "$BUILD_NUMBER" --report dist/no-dusklight-validation.json
         cp build/fast-native/identity.json dist/fast-native-identity.json
         cp build/fast-native/rpcs3-core-identity.json dist/rpcs3-core-identity.json
         python3 build-utils/validate_neoplay_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --commit "$GITHUB_SHA" --report dist/neoplay-validation.json

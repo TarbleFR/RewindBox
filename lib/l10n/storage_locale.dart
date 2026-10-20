@@ -8,7 +8,7 @@ import 'package:flutter/widgets.dart';
 /// and dates already localized. Paths, refusal codes, errno and SQLite texts
 /// and other raw diagnostics are inserted through placeholders or shown apart
 /// through [technicalCode], never translated. Product names (NeoStation,
-/// RPCS3, Dolphin, KartPad, Dusklight, ARMSX2, NeoSwap, RetroArch, libretro)
+/// RPCS3, Dolphin, KartPad, ARMSX2, NeoSwap, RetroArch, libretro)
 /// are not catalog entries. No text names the Library sources folder: it is
 /// counted under [rootLibrary].
 abstract final class StorageLocale {

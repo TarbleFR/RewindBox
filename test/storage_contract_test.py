@@ -204,12 +204,6 @@ LOOP_SITES = (
      'verifiedCopies[sourcePath] = outputLength;',
      'for (final picked in selection.files) {',
      ()),
-    ('lib/services/dusklight_internal_service.dart',
-     'static Future<DusklightImportResult> importGames(',
-     'if (await temporary.length() != await source.length()) {',
-     'verifiedCopies[sourcePath] = (await output.stat()).size;',
-     'for (final picked in selection.files) {',
-     ('await temporary.rename(output.path);',)),
     ('lib/services/armsx2_internal_service.dart',
      'static Future<Armsx2ImportResult> _copySelection(',
      'if (sourceLength <= 0 || sourceLength != outputLength) {',
@@ -233,8 +227,6 @@ ALLOWED_CALLERS = {
     'lib/services/dolphin_internal_v2_service.dart': (
         'static Future<DolphinImportResult> importGames(',
         'static Future<String> _sessionLogPath(',),
-    'lib/services/dusklight_internal_service.dart': (
-        'static Future<DusklightImportResult> importGames(',),
     'lib/services/armsx2_internal_service.dart': (
         'static Future<Armsx2ImportResult> _copySelection(',),
     'lib/services/rpcs3_internal_service.dart': (
@@ -259,6 +251,21 @@ class NeverClearTheWholeTemporaryDirectory(unittest.TestCase):
     def test_the_rpcs3_save_import_flag_is_gone(self) -> None:
         exchange = Source('lib/services/rpcs3_save_exchange_service.dart')
         self.assertNotIn('cleanPickerCopies', exchange.masked)
+
+
+class RetiredPortsServices(unittest.TestCase):
+    # KartPad (19 October 2026), then Dusklight and the Ports playlist
+    # (docs/ports-removal-2026-10-20.md) were removed: their import, launch
+    # and log call sites left with them, and no other file took their place.
+    def test_the_ports_services_are_gone(self) -> None:
+        for relative in ('lib/services/dusklight_internal_service.dart',
+                         'lib/services/kartpad_internal_service.dart',
+                         'lib/services/ports_game_identity.dart'):
+            self.assertFalse((ROOT / relative).exists(), relative)
+        for path in dart_files():
+            masked = Source(str(path.relative_to(ROOT))).masked
+            for token in ('DusklightInternalService', 'KartPadInternalService'):
+                self.assertNotIn(token, masked, str(path))
 
 
 class NothingAtStartup(unittest.TestCase):
@@ -290,7 +297,6 @@ class NothingAtStartup(unittest.TestCase):
         expected = {
             'lib/services/libretro_internal_service.dart': (1, 0, 0),
             'lib/services/dolphin_internal_v2_service.dart': (1, 1, 1),
-            'lib/services/dusklight_internal_service.dart': (1, 0, 0),
             'lib/services/armsx2_internal_service.dart': (1, 0, 0),
             'lib/services/rpcs3_internal_service.dart': (1, 0, 0),
             'lib/services/rpcs3_save_exchange_service.dart': (1, 0, 0),
@@ -643,8 +649,6 @@ IMPORT_SITES = {
         'static Future<DolphinImportResult> importGames(',),
     'lib/services/dolphin_smart_import_service.dart': (
         'static Future<DolphinSmartImportResult> importGames(',),
-    'lib/services/dusklight_internal_service.dart': (
-        'static Future<DusklightImportResult> importGames(',),
     'lib/services/armsx2_internal_service.dart': (
         'static Future<Armsx2ImportResult> importGames(',
         'static Future<Armsx2ImportResult> importBios(',),

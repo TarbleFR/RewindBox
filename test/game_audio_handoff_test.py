@@ -37,14 +37,9 @@ class GameService {
   static void setOnProcessExitCallback(void Function() cb) {}
   static Future<bool> isEmulatorRunning(String? exe) async => true;
 }
-class DusklightInternalBridge {
+class Armsx2InternalBridge {
   static final controller = StreamController<Map<String, dynamic>>.broadcast();
   static Stream<Map<String, dynamic>> get sessionEvents => controller.stream;
-  static bool get didEndSession => false;
-  static bool get didReleaseRuntime => false;
-}
-class Armsx2InternalBridge {
-  static Stream<Map<String, dynamic>> get sessionEvents => const Stream.empty();
 }
 class SfxService {
   static final instance = SfxService._();
@@ -101,10 +96,10 @@ void main() {
       final effects = i.isEven, playing = i % 3 == 0;
       sfx.isEnabled = effects; music.playing = playing;
       await manager.beginSession();
-      manager.onGameStarted(emulatorExe: 'ios_dusklight_internal');
-      DusklightInternalBridge.controller.add({
-        'reason': 'native-return', 'runtimeReleased': false,
-      });
+      // An embedded engine that reports its own end (ARMSX2; Dusklight was
+      // the vehicle until its removal, docs/ports-removal-2026-10-20.md).
+      manager.onGameStarted(emulatorExe: 'ios_armsx2_internal');
+      Armsx2InternalBridge.controller.add({'reason': 'native-return'});
       await flush(); expect(manager.phase, GameLaunchPhase.closing);
       manager.completeClose(); manager.onDialogDisposed(); manager.onDialogDisposed();
       await flush();

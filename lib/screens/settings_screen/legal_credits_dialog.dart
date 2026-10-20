@@ -44,13 +44,6 @@ class LegalCreditsDialog {
       'assets/legal/ARMSX2-GPL-3.0.txt',
     ),
     _LegalEntry(
-      'Dusklight',
-      'TwilitRealm, TP decompilation, Aurora and Borealis contributors',
-      'CC0-1.0 root project; dependencies keep their own licenses',
-      'https://github.com/TwilitRealm/dusklight',
-      'assets/legal/Dusklight-CC0-1.0.txt',
-    ),
-    _LegalEntry(
       'StikJIT',
       'StikDebug and StikJIT contributors',
       'MPL-2.0',

@@ -16,7 +16,6 @@ on:
     - test/external_display_*
     - test/armsx2_external_display_test.py
     - test/rpcs3_external_display_test.py
-    - test/ports_external_display_test.py
     - test/libretro_external_surface_test.py
   workflow_dispatch:
 permissions:
@@ -56,7 +55,6 @@ jobs:
           python3 test/external_display_host_plist_test.py
           python3 test/armsx2_external_display_test.py
           python3 test/rpcs3_external_display_test.py
-          python3 test/ports_external_display_test.py
           python3 test/libretro_external_surface_test.py
       - name: iPhone arm64 syntax of every plugin source against the real Flutter.xcframework
         run: |

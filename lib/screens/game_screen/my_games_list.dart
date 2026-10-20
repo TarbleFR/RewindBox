@@ -19,14 +19,12 @@ import 'package:provider/provider.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
-import '../../l10n/ports_locale.dart';
 
 // DOLPHIN_ISOLATION_BEGIN: playlist_import
 import 'package:neostation/widgets/dolphin_internal_playlist_actions.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
 import 'package:neostation/widgets/rpcs3_internal_playlist_actions.dart';
 import 'package:neostation/widgets/armsx2_internal_playlist_actions.dart';
-import 'package:neostation/widgets/ports_internal_playlist_actions.dart';
 import 'package:neostation/widgets/libretro_internal_playlist_actions.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 
@@ -121,8 +119,6 @@ class _SystemGamesListState extends State<SystemGamesList> {
       Platform.isIOS && widget.system.folderName.toLowerCase() == 'ps3';
   bool get _isArmsx2Library =>
       Platform.isIOS && widget.system.folderName.toLowerCase() == 'ps2';
-  bool get _isPortsLibrary =>
-      Platform.isIOS && widget.system.folderName.toLowerCase() == 'ports';
   bool get _isLibretroLibrary =>
       LibretroInternalService.handlesSystemModel(widget.system);
   int _selectedGameIndex = 0;
@@ -713,7 +709,7 @@ class _SystemGamesListState extends State<SystemGamesList> {
                 child: _isLoading
                     ? _buildLoadingState()
                     : _games.isEmpty
-                    ? (_isPortsLibrary ? _buildGamesList() : _buildEmptyState())
+                    ? _buildEmptyState()
                     : Consumer<SqliteConfigProvider>(
                         builder: (context, configProvider, child) {
                           if (widget.system.folderName == 'music') {
@@ -784,30 +780,6 @@ class _SystemGamesListState extends State<SystemGamesList> {
                         color: Theme.of(context).colorScheme.tertiaryFixed,
                         borderRadius: BorderRadius.circular(10.r),
                         child: _buildArmsx2ImportAction(),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            if (!_isGameLaunching && _isPortsLibrary)
-              Consumer<SqliteConfigProvider>(
-                builder: (context, config, child) {
-                  final mode = config.config.gameViewMode;
-                  if (!_isLoading &&
-                      _games.isNotEmpty &&
-                      _selectedGame != null &&
-                      mode != 'grid' &&
-                      mode != 'carousel') {
-                    return const SizedBox.shrink();
-                  }
-                  return Positioned(
-                    top: 8.r,
-                    right: 10.r,
-                    child: SafeArea(
-                      child: Material(
-                        color: Theme.of(context).colorScheme.tertiaryFixed,
-                        borderRadius: BorderRadius.circular(10.r),
-                        child: _buildPortsImportAction(),
                       ),
                     ),
                   );
@@ -958,41 +930,6 @@ class _SystemGamesListState extends State<SystemGamesList> {
         },
       );
 
-  Widget _buildPortsImportAction() => PortsInternalPlaylistActions(
-    onGamesImported: _scrapeImportedPortGames,
-    onInteractionChanged: (active) {
-      if (!mounted) return;
-      if (active) {
-        _gamepadNav.deactivate();
-      } else {
-        _gamepadNav.activate();
-      }
-    },
-    onLibraryChanged: () async {
-      if (!mounted) return;
-      await context.read<SqliteConfigProvider>().refreshPortsInternalLibrary();
-      if (mounted) await _loadGames();
-    },
-  );
-
-  Widget _buildEmbeddedPortsImportAction() => PortsInternalPlaylistActions(
-    embedded: true,
-    onGamesImported: _scrapeImportedPortGames,
-    onInteractionChanged: (active) {
-      if (!mounted) return;
-      if (active) {
-        _gamepadNav.deactivate();
-      } else {
-        _gamepadNav.activate();
-      }
-    },
-    onLibraryChanged: () async {
-      if (!mounted) return;
-      await context.read<SqliteConfigProvider>().refreshPortsInternalLibrary();
-      if (mounted) await _loadGames();
-    },
-  );
-
   // LIBRETRO_INTERNAL_BEGIN: import_action_builder
   /// Imported games go to one of the user's library folders, so they join
   /// this very playlist. NeoStation's own `roms` folder received them only
@@ -1034,29 +971,6 @@ class _SystemGamesListState extends State<SystemGamesList> {
     libraryFolders: _libretroLibraryFolders,
   );
   // LIBRETRO_INTERNAL_END: import_action_builder
-
-  Future<void> _scrapeImportedPortGames(List<String> paths) async {
-    try {
-      if (!await ScreenScraperService.hasSavedCredentials()) return;
-      for (final gamePath in paths) {
-        if (!await File(gamePath).exists()) continue;
-        await ScreenScraperService.scrapeSingleGame(
-          appSystemId: widget.system.id!,
-          systemFolder: 'ports',
-          romName: gamePath.split('/').last,
-          romPath: gamePath,
-        );
-        _scrapingProvider.markArtworkUpdated();
-        if (mounted) {
-          await _loadGames();
-        }
-      }
-    } catch (error) {
-      // Import is already committed and visible. Network failures can be
-      // retried with the ordinary per-game scrape action.
-      _log.w('Ports media enrichment failed: $error');
-    }
-  }
 
   Widget _buildEmbeddedRpcs3ImportAction() => Rpcs3InternalPlaylistActions(
     embedded: true,
@@ -1772,23 +1686,6 @@ class _SystemGamesListState extends State<SystemGamesList> {
 
   Widget _buildGameDetailsPanel() {
     if (_selectedGame == null) {
-      if (_isPortsLibrary) {
-        return Center(child: Padding(
-          padding: EdgeInsets.all(24.r),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.sports_esports_outlined, size: 48.r),
-            SizedBox(height: 12.r),
-            Text('Ports', textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18.r, fontWeight: FontWeight.w600)),
-            SizedBox(height: 8.r),
-            Text(
-              '${PortsLocale.text(context, 'import')}: '
-              '${PortsLocale.text(context, 'dusklight')}',
-              textAlign: TextAlign.center,
-            ),
-          ]),
-        ));
-      }
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1870,8 +1767,6 @@ class _SystemGamesListState extends State<SystemGamesList> {
           ? _buildEmbeddedDolphinImportAction()
           : _isArmsx2Library
           ? _buildEmbeddedArmsx2ImportAction()
-          : _isPortsLibrary
-          ? _buildEmbeddedPortsImportAction()
           : _isRpcs3Library && _rpcs3FirmwareReady
           ? _buildEmbeddedRpcs3ImportAction()
           : _isLibretroLibrary

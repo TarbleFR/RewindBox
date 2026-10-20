@@ -59,10 +59,10 @@ physical memory or circumvent Apple's resource enforcement.
 | **ARMSX2 texture pack readers** | ARMSX2 team and contributors | Since Build 485, `IOS/TexturePackPaths.h` and `IOS/TexturePackTar.h` of the ARMSX2 tag `iOSv2.6.0` (`9d989ca9`) are copied unmodified into `packages/armsx2_internal_bridge/ios/Classes/upstream/` (GPL-3.0-or-later, SPDX headers kept; SHA-256 pinned in `build-utils/armsx2/upstream-files.json`) so HD texture packs install to the same paths as in ARMSX2. |
 | **LZMA SDK (7-Zip)** | Igor Pavlov | Since Build 486, the 7z reader of the HD texture catalogue (`packages/neo_texture_catalog/ios/ThirdParty/lzma`, LZMA SDK 24.09) is compiled into that pod with hidden symbols. The LZMA SDK is placed in the public domain by its author; files are kept unmodified with their headers. |
 | **librashader** | Ronny Chan / SnowflakePowered and contributors | Native Metal shader chains used by ARMSX2 2.6. The pinned 0.12.0 C API declares MPL-2.0 OR GPL-3.0-only; preserve upstream notices. |
-| **Dusklight** | TwilitRealm/Dusklight contributors; Twilight Princess decompilation community; Aurora and Borealis contributors | Dusklight's root work is CC0-1.0; embedded dependencies retain their own licenses. |
+| **Dusklight** (earlier builds only) | TwilitRealm/Dusklight contributors; Twilight Princess decompilation community; Aurora and Borealis contributors | Removed from NeoStation on 20 October 2026, with the Ports playlist; no other Twilight Princess port replaces it (Dolphin runs the GameCube and Wii versions). Credit kept for the earlier builds that embedded it. Dusklight's root work is CC0-1.0; its dependencies retain their own licenses. |
 | **KartPad / WiiCompiled** (earlier builds only) | KartPad by @chrissotraidis; WiiCompiled by @patchzyy | Removed from NeoStation on 19 October 2026: players build KartPad themselves as a separate app. Credit kept for the earlier builds that embedded it. KartPad-owned software and its WiiCompiled modifications are GPL-3.0-only where stated by KartPad; rights in game content are separate. |
 | **StikJIT** | StikDebug / StikJIT contributors | MPL-2.0. Recipients of executable form must be informed how to obtain the covered source. |
-| **Dawn, SDL, Aurora, Borealis and other runtime dependencies** | Their respective projects and contributors | Their individual license files and notices apply. |
+| **Dawn, SDL, Aurora, Borealis** (earlier builds only) | Their respective projects and contributors | Runtime dependencies of the removed Dusklight and KartPad ports; their individual license files and notices apply to the earlier builds that embedded them. |
 
 ### Historical source identities used by the 0.0.1 binary
 
@@ -214,8 +214,10 @@ application bundle containing:
 - Dolphin's COPYING notice;
 - the exact RPCS3 GPL-2.0 license text;
 - StikJIT's MPL-2.0 text;
-- Dusklight's CC0-1.0 text;
 - additional dependency notices collected by embedded projects.
+
+Builds up to the removal of Dusklight (20 October 2026) also carried
+Dusklight's CC0-1.0 text and its dependency notices.
 
 The published 0.0.7 IPA contains the main notice bundle and a subset of Libretro
 notices. The post-release correction embeds and checks every file in
@@ -412,7 +414,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **Dolphin / DolphiniOS** | Dolphin Emulator contributors and [DolphiniOS](https://github.com/OatmealDome/dolphin-ios) / OatmealDome contributors. |
 | **RPCS3 iOS / RPCS3** | iOS release/core work by [XITRIX](https://github.com/XITRIX/RPCS3-iOS-Releases), based on the [RPCS3](https://github.com/RPCS3/rpcs3) project. XITRIX also credits ARMSX3 and the wider iOS emulation/JIT community. |
 | **ARMSX2 / PCSX2** | [ARMSX2](https://github.com/ARMSX2/ARMSX2) team and contributors; ARMSX2 is based on the long-running [PCSX2](https://github.com/PCSX2/pcsx2) project. |
-| **Dusklight** | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. |
+| **Dusklight** (earlier builds only) | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. No longer included in NeoStation since 20 October 2026. |
 | **KartPad / WiiCompiled** (earlier builds only) | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). No longer included in NeoStation since 19 October 2026. |
 | **MeloNX / Ryujinx** | [MeloNX](https://github.com/nurtrino/MeloNX) contributors; MeloNX describes itself as based on Ryujinx/Ryubing. |
 | **RetroArch / Libretro** | [RetroArch](https://github.com/libretro/RetroArch) and Libretro contributors, for the API, core ecosystem and buildbot distributions used by **Embedded RetroArch** inside NeoStation. Individual emulator authors are credited below. |

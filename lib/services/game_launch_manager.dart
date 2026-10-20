@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:armsx2_internal_bridge/armsx2_internal_bridge.dart';
-import 'package:dusklight_internal_bridge/dusklight_internal_bridge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'audio_policy_service.dart';
@@ -63,7 +62,6 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
   StreamSubscription<Map<String, dynamic>>? _embeddedSessionSubscription;
 
   static const Set<String> _embeddedIOSSessionExecutables = <String>{
-    'ios_dusklight_internal',
     'ios_armsx2_internal',
     'ios_dolphin_internal',
     'ios_rpcs3_internal',
@@ -247,27 +245,6 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
   void _startPlatformMonitoring(String? emulatorExe) {
     if (Platform.isAndroid) {
       GameService.setOnGameReturnedCallback((_) => _triggerClose());
-      return;
-    }
-
-    if (Platform.isIOS && emulatorExe == 'ios_dusklight_internal') {
-      _embeddedSessionSubscription = DusklightInternalBridge.sessionEvents.listen(
-        (event) {
-          if (_phase == GameLaunchPhase.playing && !_isClosing) {
-            _log.i(
-              '[GameLaunchManager] Dusklight returned to NeoStation: '
-              '${event['reason']} (runtimeReleased=${event['runtimeReleased']})',
-            );
-            // A normal return now retains the suspended Dusklight runtime so
-            // the same disc can reopen instantly. Build 321's early RPCS3 JIT
-            // escrow remains reserved before Dusklight can allocate memory.
-            _triggerClose();
-          }
-        },
-      );
-      if (DusklightInternalBridge.didEndSession && !_isClosing) {
-        _triggerClose();
-      }
       return;
     }
 

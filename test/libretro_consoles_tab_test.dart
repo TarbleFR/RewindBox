@@ -50,7 +50,7 @@ class _SlowMenu extends LibretroMainMenu {
 /// listed the 17 embedded libretro consoles with an "Add to the main menu" /
 /// "Show in the main menu" button, and hiding stayed in Settings › Systems.
 /// Now it lists every console of [ConsoleCatalog] (libretro, Dolphin,
-/// ARMSX2, RPCS3, Ports, MeloNX, RetroArch-only systems) with a main-menu
+/// ARMSX2, RPCS3, MeloNX, RetroArch-only systems) with a main-menu
 /// visibility switch (which also hides) and, when the console has one, the
 /// switch of its built-in engine; "Show all" and "Restore defaults" act on
 /// all of them. The behaviors the old buttons guaranteed are kept and tested
@@ -187,7 +187,8 @@ void main() {
     // NeoStation's library actions stay in the tab.
     expect(find.byKey(const ValueKey('libretro-library-create-folders')), findsOneWidget);
     expect(find.byKey(const ValueKey('libretro-library-move')), findsOneWidget);
-    expect(ConsoleCatalog.entries.length, 85);
+    // 85 until the Ports console left with Dusklight (20 October 2026).
+    expect(ConsoleCatalog.entries.length, 84);
     for (final entry in ConsoleCatalog.entries) {
       final card = find.byKey(ValueKey('console-${entry.id}'));
       expect(card, findsOneWidget, reason: entry.id);
@@ -201,11 +202,13 @@ void main() {
       expect(find.byKey(ValueKey('libretro-console-resolution-${console?.id}')),
           console == null ? findsNothing : findsOneWidget);
     }
-    // Dolphin, ARMSX2, RPCS3, the Ports and every libretro core: switchable.
-    for (final id in ['gc', 'wii', 'ps2', 'ps3', 'ports', 'nes', 'psx', 'pico']) {
+    // Dolphin, ARMSX2, RPCS3 and every libretro core: switchable.
+    for (final id in ['gc', 'wii', 'ps2', 'ps3', 'nes', 'psx', 'pico']) {
       expect(switchOf(tester, engine(id)).value, isTrue, reason: id);
       expect(switchOf(tester, engine(id)).onChanged, isNotNull, reason: id);
     }
+    // No Ports console since Dusklight and KartPad were removed.
+    expect(find.byKey(const ValueKey('console-ports')), findsNothing);
     // External apps only: MeloNX, RetroArch.
     expect(find.descendant(of: find.byKey(const ValueKey('console-switch')), matching: find.text('External app: MeloNX')), findsOneWidget);
     expect(find.descendant(of: find.byKey(const ValueKey('console-c64')), matching: find.text('External app: RetroArch')), findsOneWidget);

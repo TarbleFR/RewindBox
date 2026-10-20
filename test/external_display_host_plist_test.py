@@ -327,7 +327,7 @@ class DeliveryWiringTests(unittest.TestCase):
         for name in ('external_display_test', 'external_display_scope_test',
                      'external_display_labels_test', 'external_display_host_plist_test',
                      'armsx2_external_display_test', 'rpcs3_external_display_test',
-                     'ports_external_display_test', 'libretro_external_surface_test'):
+                     'libretro_external_surface_test'):
             self.assertIn('        python3 test/' + name + '.py\n', guards)
         dart = checks.split('name: Validate changed library, callback, launch and restart behavior', 1)[1]
         dart = dart.split("        python3 - <<'PY'", 1)[0]
@@ -390,10 +390,10 @@ class DeliveryWiringTests(unittest.TestCase):
         for name in ('external_display_test', 'external_display_scope_test', 'external_display_labels_test',
                      'external_display_host_plist_test', 'external_display_ui_test',
                      'armsx2_external_display_test', 'rpcs3_external_display_test',
-                     'ports_external_display_test', 'libretro_external_surface_test'):
+                     'libretro_external_surface_test'):
             self.assertIn('python3 test/' + name + '.py', check)
         for name in ('armsx2_external_display_test', 'rpcs3_external_display_test',
-                     'ports_external_display_test', 'libretro_external_surface_test'):
+                     'libretro_external_surface_test'):
             self.assertIn('    - test/' + name + '.py\n', check, 'a change to the bridge contract re-runs the check')
         self.assertIn('xcrun clang -fsyntax-only -x objective-c -fobjc-arc', check)
         self.assertIn('-miphoneos-version-min=17.4', check)

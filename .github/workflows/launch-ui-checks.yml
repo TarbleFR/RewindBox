@@ -13,19 +13,18 @@ on:
       - 'lib/services/game_launch_manager.dart'
       - 'lib/services/audio_policy_service.dart'
       - 'test/game_audio_handoff_test.py'
-      - 'lib/services/ports_game_identity.dart'
       - 'lib/services/screenscraper_service.dart'
-      - 'lib/l10n/ports_locale.dart'
-      - 'lib/widgets/ports_internal_playlist_actions.dart'
+      - 'lib/services/retired_ports_backup.dart'
+      - 'lib/data/datasources/sqlite_service.dart'
       - 'lib/screens/game_screen/my_games_list.dart'
       - 'lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart'
       - 'lib/providers/sqlite_config_provider.dart'
       - 'lib/providers/sqlite_config_provider/scanning.dart'
       - 'lib/services/game/game_launch_service.dart'
-      - 'assets/systems/ports.json'
-      - 'test/dusklight_ports_stage1_test.dart'
-      - 'test/kartpad_removal_test.dart'
+      - 'test/retired_ports_backup_test.dart'
+      - 'test/retired_ports_launch_test.dart'
       - 'build-utils/validate_no_kartpad_ipa.py'
+      - 'build-utils/validate_no_dusklight_ipa.py'
       - 'build-utils/game_content_gate.py'
       - 'build-utils/fetch_native_donor_subset.py'
   workflow_dispatch:
@@ -54,25 +53,25 @@ jobs:
         run: python3 test/game_audio_handoff_test.py
       - name: Resolve Flutter dependencies
         run: flutter pub get --enforce-lockfile
-      - name: Analyze the whole app after the KartPad removal
+      - name: Analyze the whole app after the KartPad, Dusklight and Ports removal
         run: flutter analyze --no-fatal-infos
-      - name: Exercise Ports without KartPad, its refusal and twelve languages
+      - name: Exercise the removed Ports playlist (checked copy, refused launch) and twelve languages
         run: >-
-          flutter test test/kartpad_removal_test.dart test/dusklight_ports_stage1_test.dart
-          test/dusklight_library_test.dart test/external_display_unsupported_engine_test.dart
+          flutter test test/retired_ports_backup_test.dart test/retired_ports_launch_test.dart
+          test/external_display_unsupported_engine_test.dart
           test/ambient_music_service_test.dart test/general_settings_external_display_test.dart
           test/storage_locale_test.dart test/storage_cleanup_planner_test.dart
-      - name: Exercise the KartPad-free contracts, delivery checks and close status
+      - name: Exercise the KartPad- and Dusklight-free contracts, delivery checks and close status
         run: |
           set -euo pipefail
           python3 test/game_close_status_test.py
           python3 test/no_kartpad_ipa_test.py
+          python3 test/no_dusklight_ipa_test.py
           python3 test/game_content_gate_test.py
           python3 test/native_donor_subset_test.py
           python3 test/retroarch_baseline_scope_test.py
           python3 test/cheats_media_source_contract_test.py
           python3 test/embedded_engine_route_contract_test.py
-          python3 test/ports_external_display_test.py
           python3 test/storage_contract_test.py
           python3 test/legal_bundle_preflight_test.py
           python3 test/neoplay_companion_contract_test.py

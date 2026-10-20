@@ -11,7 +11,6 @@ enum NPGameHUDAnchor {
             if className == "DOLDolphinViewController" && actions.contains("menuPressed:") { return "dolphin" }
             if className == "Armsx2GameViewController" && actions.contains("menuPressed") { return "armsx2" }
             if className == "RPCS3GameViewController" && actions.contains("menuPressed") { return "rpcs3" }
-            if className == "NeoDusklightControls" && actions.contains("openMenu") { return "dusklight" }
         }
         return nil
     }

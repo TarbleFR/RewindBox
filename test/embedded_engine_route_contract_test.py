@@ -40,15 +40,13 @@ require('return _embeddedEngineOff(context, system);' in dolphin, 'Dolphin off i
 require('RetroArchLibraryService' not in dolphin and 'retroarch://' not in dolphin,
         'GameCube/Wii never fall through to RetroArch')
 
-ports = between(router, "if (Platform.isIOS && system.folderName.toLowerCase() == 'ports') {",
-                "'ios_dusklight_internal'")
-require(ports.index(POLICY) < ports.index('DusklightInternalService.launch('),
-        'Ports ask the policy before Dusklight')
-# KartPad left NeoStation: a game from its old folder is refused, never handed on.
-require(ports.index('isRemovedKartPadGamePath(gamePath)') < ports.index('DusklightInternalService.launch('),
-        'the old KartPad folder is refused before Dusklight')
-require('KartPadInternalService' not in router, 'no KartPad launch route remains')
-require('return _embeddedEngineOff(context, system);' in ports, 'Ports off is an explicit refusal')
+# KartPad (19 October 2026) then Dusklight and the Ports playlist
+# (20 October 2026, docs/ports-removal-2026-10-20.md) left NeoStation: no
+# route, refusal or session name of theirs is left in the router.
+for retired in ("'ports'", 'ios_dusklight_internal', 'ios_kartpad_internal',
+                'DusklightInternalService', 'KartPadInternalService',
+                'isRemovedKartPadGamePath'):
+    require(retired not in router, 'the router keeps no Ports route: ' + retired)
 
 ps3 = between(router, 'if (isPs3 &&', "'ios_rpcs3_internal'")
 require(POLICY in ps3 and 'return _embeddedEngineOff(context, system);' in ps3,

@@ -26,7 +26,7 @@ enum ConsoleListFilter { all, shown, hidden }
 /// The consoles tab of the main bar (iOS), extended to every console in
 /// Build 448: NeoStation's library (its console folders, or a library moved
 /// into it), then every console the app runs — the embedded engines
-/// (libretro cores, Dolphin, ARMSX2, RPCS3, the Ports) and the external
+/// (libretro cores, Dolphin, ARMSX2, RPCS3) and the external
 /// apps (MeloNX, RetroArch) — each with:
 ///
 /// - its main-menu visibility switch (shown, or hidden like Settings ›
@@ -722,8 +722,6 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'ARMSX2'});
       case ConsoleEngine.rpcs3:
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'RPCS3'});
-      case ConsoleEngine.ports:
-        return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'Dusklight'});
       case ConsoleEngine.melonx:
         return _cf(ConsoleManagerLocale.engineExternal, {'app': 'MeloNX'});
       case ConsoleEngine.retroarch:

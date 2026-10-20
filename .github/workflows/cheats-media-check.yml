@@ -71,5 +71,5 @@ jobs:
       - run: flutter analyze --no-fatal-infos
       - name: Execute frontend media and existing preview regression tests
         run: flutter test test/frontend_media_gate_test.dart test/video_preview_lifecycle_test.dart
-      - name: Verify Ports without KartPad and the retained Dusklight identity
-        run: flutter test test/kartpad_removal_test.dart test/dusklight_library_test.dart test/dusklight_ports_stage1_test.dart
+      - name: Verify the removed Ports playlist keeps its rows until a checked copy and launches nothing
+        run: flutter test test/retired_ports_backup_test.dart test/retired_ports_launch_test.dart

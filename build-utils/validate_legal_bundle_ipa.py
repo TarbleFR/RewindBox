@@ -78,7 +78,6 @@ def main() -> None:
             "Dolphin / DolphiniOS",
             "RPCS3 / XITRIX",
             "ARMSX2 / PCSX2",
-            "Dusklight",
             "StikJIT",
             "GameDB / GameDB-PS3",
         ):

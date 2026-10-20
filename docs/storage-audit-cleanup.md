@@ -1,5 +1,12 @@
 # Analyse et nettoyage du stockage — conception et contrat (12 octobre 2026)
 
+> **20 octobre 2026.** Dusklight et la playlist Ports ont quitté NeoStation
+> (`docs/ports-removal-2026-10-20.md`) : la racine INV-13 (`Documents/Ports/Dusklight`,
+> `Caches/Dusklight`) et `StorageEngine.dusklight` sont retirés. Ce qu'un joueur y a laissé est
+> désormais classé « inconnu », donc jamais proposé à la suppression ; la copie de la base faite avant
+> le retrait (`Support/NeoStation/Maintenance/data-before-ports-removal-*.sqlite`) est en classe « jamais ».
+> KartPad (INV-12) garde la protection décidée le 19 octobre.
+
 Chantier 5 de la grande mise à jour (`docs/grande-mise-a-jour-audit-2026-10-12.md`, § 7, verdict § 10,
 décisions 26–32 du § 11). Candidate : l'IPA unique construite par-dessus la Build 446, numéro attribué à la
 livraison. Tout en Dart (`dart:ffi` compris) : aucun fichier natif, aucun cœur, aucun plugin. Ce document fixe

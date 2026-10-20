@@ -535,7 +535,8 @@ def plugin_contracts() -> None:
     push = source.split('isEqualToString:@"pushMenuState"', 1)[1]
     check('pushMenuState:json' in push and 'result(@YES);' in push, 'pushMenuState relays and answers true')
     # § 8 bis: an engine whose bridge cannot call the coordinator (KartPad,
-    # removed on 19 October 2026) has Flutter ask for the suspension.
+    # removed on 19 October 2026, was the last one) has Flutter ask for the
+    # suspension.
     for method in ('suspendForUnsupportedEngine', 'resumeAfterUnsupportedEngine'):
         branch = source.split(f'isEqualToString:@"{method}"', 1)[1].split('return;', 1)[0]
         check(f'[coordinator {method}];' in branch and 'result(@YES);' in branch, f'{method} reaches the coordinator')

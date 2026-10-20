@@ -348,8 +348,8 @@ void main() {
       findsNothing,
     );
 
-    // The unsupported-engine line needs the native suspension (Dusklight;
-    // review of 12 October 2026, m2).
+    // The unsupported-engine line needs the native suspension (RPCS3 while
+    // its core stops; review of 12 October 2026, m2).
     native = externalState(
       connected: true,
       content: 'none',

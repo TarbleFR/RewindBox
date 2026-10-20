@@ -118,13 +118,17 @@ void main() {
     expect(GameLaunchManager().starts, 1);
     await tester.pumpWidget(const SizedBox());
   });
-  testWidgets('Ports launch skips the artificial two-second delay', (tester) async {
+  testWidgets('every system waits the same two-second presentation', (tester) async {
+    // The short Ports hand-off left with Dusklight and the Ports playlist
+    // (docs/ports-removal-2026-10-20.md): no folder name shortens the delay.
     await mount(tester);
     launchFuture = launchGameWithDialog(context: launcherContext, game: GameModel(),
       system: SystemModel('ports'), fileProvider: FileProvider(),
       onGameClosed: () { closed++; });
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
+    expect(GameService.calls, 0);
+    await tester.pump(const Duration(milliseconds: 1800));
     expect(GameService.calls, 1);
     GameService.result.complete(GameLaunchResult(true));
     await tester.pump(); await launchFuture;
