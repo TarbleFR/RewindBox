@@ -230,5 +230,31 @@ au § 7.
   Wii 63, PSP 110, 3DS 53, N64 21, PS1 2, NES 5), 408 sources, aucun pack en
   attente.
 
-Contrôles host/native/uikit du catalogue et sonde du Simulateur `--mesen` :
-ajoutés ci-dessous à leur fin.
+- Après le correctif de l'hôte (`31222605`) et celui de la liste de cœurs de
+  la sonde (`8d1429cf`, une concaténation liste + tuple introduite avec Mesen
+  arrêtait la sonde des skins avant toute session) :
+  - catalogue, run `39371944591` (`31222605`) : host, native (dont le test
+    du hôte portable avec ses deux nouvelles vérifications, test Foundation
+    de l'adaptateur Mesen, compilation iPhone de chaque source modifiée),
+    UIKit (dont la page NES) et cœurs (paquet livré de 35 cœurs : marqueurs
+    Mesen exigés, contrats d'options et de BIOS) réussis ;
+  - Simulateur, run `39373940448` (`8d1429cf`) : `mesen` (les cinq scénarios :
+    256 × 240 sans pack, 512 × 480 avec le pack de la sonde, 256 × 240 pack
+    désactivé), `lot1`, `lot2`, `beetle`, `shaders`, `official-shaders` et les
+    deux contrôles historiques réussis ; `probe` échoue sur la seule
+    limitation connue de la sonde simulateur (`ppsspp-crowded`,
+    `ppsspp-crowded-prx` : « the core log lacks "PPSSPP's memory at the
+    reserved base" », contenus lancés, exécutés et fermés) — aucune
+    régression de lancement démontrée ; le même travail avait réussi sur
+    `31222605` ;
+  - `libretro-checks.yml`, runs `39371944493` et `39373940485` : Dart réussi
+    (contrats d'options et de BIOS avec le paquet de 35 cœurs), sessions de
+    skins réussies (`8d1429cf`), test du hôte portable réussi ; l'étape des
+    modules du frontend échoue sur deux assertions de
+    `test/libretro_host/frontend/cheat_automatic_test.m` (lignes 78 et 108,
+    triches PSX/FFVII de Beetle), identiques avant ce cycle (`e4b6802a`) ;
+  - triches unifiées, run `39371944494` (`31222605`) : réussi, effets réels
+    des cœurs compris.
+- Porte de livraison `.github/diagnostics/hdtex495_delivery.py` : source
+  testée `8d1429cf`, preuves ci-dessus ; la Build 494 livrée (source, run) y
+  est épinglée quand elle existe.
