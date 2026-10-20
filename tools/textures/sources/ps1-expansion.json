@@ -355,7 +355,7 @@
       "redistribution": "Original author host only; no rehosting."
     },
     "requirements": "Beetle PSX HW Vulkan, Track Textures and Replace Textures. Edition confirmation required.",
-    "notes": "Original archive linked by author video; archive contents and installation not verified yet. Do not publish as verified download before canonical CI. Archive filename labelsUSA.",
+    "notes": "Original archive linked by the author video. Canonical CI returned an anti-bot challenge; manual author reference only, without verified archive contents, installation or download. The archive filename labels USA; edition confirmation remains required.",
     "download": {
       "automatable": false,
       "verify": {
@@ -398,7 +398,7 @@
       "redistribution": "Original author host only; no rehosting."
     },
     "requirements": "Beetle PSX HW Vulkan, Track Textures and Replace Textures. Edition confirmation required.",
-    "notes": "Original archive linked by author video; archive contents and installation not verified yet. Do not publish as verified download before canonical CI. The listed serial is a game identity candidate only; no author region/translation claim.",
+    "notes": "Original archive linked by the author video. Canonical CI returned an anti-bot challenge; manual author reference only, without verified archive contents, installation or download. The listed serial is a game identity candidate only; no author region or translation claim.",
     "download": {
       "automatable": false,
       "verify": {
@@ -406,6 +406,51 @@
       },
       "in_app": true,
       "file_name": "Clock_Tower_-_The_First_Fear-texture-replacements.7z"
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-cac-gamer-gran-turismo-2-tahiti-x8",
+    "family": "ps1-cac-gamer-gran-turismo-2-tahiti-x8",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Gran Turismo 2 Tahiti x8 — CAC GAMER",
+    "version": "2020-12-20 partial update",
+    "authors": [
+      "CAC GAMER"
+    ],
+    "page_url": "https://www.youtube.com/watch?v=exmoqt7e26U",
+    "source_id": "author:cac-gamer",
+    "credits": "CAC GAMER",
+    "games": [
+      {
+        "title": "Gran Turismo 2",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SCUS-94455"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "licence": {
+      "summary": "Author invites extension of the work; no general redistribution licence established.",
+      "redistribution": "Original author download only; no rehosting."
+    },
+    "requirements": "Beetle PSX HW Vulkan, Track Textures and Replace Textures. USA v1.1 Arcade disc according to author; edition confirmation required.",
+    "notes": "Original creator describes x8 textures for Tahiti Dirt Route 3, Opel Tigra Ice Race Car and Lancia Delta HF Integrale Rally Car. One partial project and original archive; no whole-game coverage or physical iPhone rendering established.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://drive.google.com/file/d/1DzJoV91neJquz79UviCJ1NXaTqCj9zA6/view?usp=sharing"
+      },
+      "in_app": true,
+      "file_name": "Gran Turismo 2 texture replacements.zip"
     },
     "scope": "partial"
   }
