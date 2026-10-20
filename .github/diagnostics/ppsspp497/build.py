@@ -69,7 +69,8 @@ def main():
     command = ['make', '-C', source / 'libretro', '-j3', '-k', 'platform=ios', 'TARGET_ARCH=arm64',
                'DEBUG=0', 'IOSSDK=' + sdk, 'GIT_VERSION=1bd28b0-neostation-memory1',
                'CC=' + clang, 'CXX=' + clangxx,
-               'PLATCFLAGS=' + target + ' -DHAVE_POSIX_MEMALIGN -DMOBILE_DEVICE',
+               'PLATCFLAGS=' + target + ' -DHAVE_POSIX_MEMALIGN -DMOBILE_DEVICE -DLUA_USE_IOS'
+               ' -UHAVE_STRONG_GETAUXVAL -DHAVE_DLFCN_H',
                'CPUFLAGS=-DARM64', 'FFMPEG_CMAKE_TOOLCHAIN=' + ffmpeg,
                # Make exports command-line flags. FFmpeg's configure probes
                # must not inherit the core's dylib link or not-yet-built libs.
