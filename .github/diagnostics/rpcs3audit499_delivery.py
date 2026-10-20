@@ -1,4 +1,4 @@
-"""Build 499: exact Build 498 product plus the rebuilt, independently proved SPU Core.
+"""Build 499: unchanged native/Dart product, new SPU Core and proved PS1 catalogue.
 
 Read successful evidence for unchanged Dart, native hosts and other cores.
 Never normalize or rewrite this newly built Core's authentic input identity.
@@ -29,6 +29,25 @@ ALLOWED = {'AGENTS.md', '.github/workflows/rpcs3-core.yml', '.github/workflows/r
     'build-utils/rpcs3/canonical-source.json', 'build-utils/rpcs3/embedded-core.patch',
     'test/neo_swap_core_pin_test.py', 'test/rpcs3_build487_core_diagnostics_test.py',
     'test/rpcs3_build499_spu_audit_test.py', 'test/native/rpcs3_build499_spu_audit_test.cpp'}
+PS1_MANIFESTS = {'native/textures/catalogue/manifest.json.gz',
+    'packages/neo_texture_catalog/ios/Resources/manifest.json.gz'}
+# The maintainer explicitly requested PS1 integration in the next update.
+# Only these data/provenance paths and their focused checks extend the closed
+# 499 scope. Every pre-existing pack must remain identical, and none of the
+# protected/manual references can gain an installation or download claim.
+PS1_ALLOWED = PS1_MANIFESTS | {
+    '.github/workflows/hd-textures.yml', '.github/workflows/ps1-catalogue-delivery-check.yml',
+    'tools/textures/build_catalogue.py', 'tools/textures/check_ps1_expansion.py',
+    'tools/textures/verified.jsonl', 'tools/textures/ci-records.json',
+    'tools/textures/sources/ps1-expansion.json', 'tools/textures/sources/ps1-ironhulk33.json',
+    'tools/textures/sources/ps1-author-pages.json',
+    'test/texture_direct_host_publication_test.py', 'test/texture_catalog_native_test.py',
+    'tools/textures/research/ps1-hd-inventory-2026-10-20.json',
+    'tools/textures/research/ps1-hd-inventory-2026-10-20.csv',
+    'tools/textures/research/ps1-installation-candidates-2026-10-20.json',
+    'tools/textures/research/ps1-hd-inventory-expanded-2026-10-20.json',
+    'tools/textures/research/ps1-hd-inventory-expanded-2026-10-20.csv',
+    'tools/textures/research/ps1-hd-expansion-review-2026-10-20.json'}
 
 
 def command(args):
@@ -80,13 +99,38 @@ def successful(run_id, sha, names):
     return {'source': sha, 'run': run_id, 'jobs': names, 'conclusion': 'success'}
 
 
+def ps1_catalogue_evidence():
+    sys.path.insert(0, str(ROOT / 'tools/textures'))
+    import check_ps1_expansion
+    proof = json.loads((ROOT / 'docs/evidence/ps1-hd-catalogue-checks.json').read_text())
+    assert proof['passed'] is True and len(proof['source']) == 40 and proof['run'] > 0
+    assert set(proof['inputs_sha256']) == set(check_ps1_expansion.input_paths())
+    for path, digest in proof['inputs_sha256'].items():
+        assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() == digest, path
+        tested = subprocess.check_output(['git', 'show', proof['source'] + ':' + path], cwd=ROOT)
+        assert hashlib.sha256(tested).hexdigest() == digest, ('CI input identity', path)
+    current = check_ps1_expansion.verify()
+    assert current['catalogue_sha256'] == proof['catalogue_sha256']
+    assert current['ps1_total'] == proof['ps1_total'] == 26
+    assert current['new_verified_one_tap'] == proof['new_verified_one_tap'] == 2
+    assert current['new_manual_author_references'] == proof['new_manual_author_references'] == 22
+    evidence = successful(proof['run'], proof['source'], [
+        'PS1 catalogue generation, provenance and preserved entries',
+        'PS1 bundled catalogue and regional matching on Foundation'])
+    return {**evidence, 'revision': current['revision'], 'manifestSHA256': current['catalogue_sha256'],
+        'existingPackObjectsUnchanged': 1088, 'ps1References': 26, 'verifiedPS1OneTap': 4,
+        'manualAuthorPagesWithoutInstallationClaim': 22, 'physicalDeviceValidated': False}
+
+
 def source_closure():
     source = os.environ.get('HD_FINAL_SOURCE', FINAL_SOURCE)
     assert len(source) == 40 and command(['git', 'rev-parse', 'HEAD']) == source
     for end in (['HEAD'], []):
-        command(['git', 'diff', '--exit-code', BASE, *end, '--', *PRODUCT])
+        command(['git', 'diff', '--exit-code', BASE, *end, '--', *PRODUCT,
+                 *[':(exclude)' + path for path in sorted(PS1_MANIFESTS)]])
         changed = command(['git', 'diff', '--name-only', BASE, *end]).splitlines()
-        assert all(path in ALLOWED or path.startswith('docs/') for path in changed), changed
+        assert all(path in ALLOWED or path in PS1_ALLOWED or path.startswith('docs/') for path in changed), changed
+    ps1 = ps1_catalogue_evidence()
     original = json.loads(command(['git', 'show', BASE + ':build-utils/rpcs3/canonical-source.json']))
     current = json.loads((ROOT / 'build-utils/rpcs3/canonical-source.json').read_text())
     changed_core = set(current['optimizations_499']['changed_core_files'])
@@ -98,7 +142,8 @@ def source_closure():
     assert current['optimizations_499']['unchanged_core_files_sha256'] == protected
     core_module().validate_source_contract()
     core_module().validate_exact_pin(CORE_SOURCE)
-    return {'source': source, 'baseline': BASE, 'productInputsByteIdenticalTo498': True,
+    return {'source': source, 'baseline': BASE, 'productInputsByteIdenticalTo498': False,
+        'nativeAndDartInputsByteIdenticalTo498': True, 'ps1Catalogue': ps1,
         'changedCoreFiles': sorted(changed_core), 'unchangedCanonicalCoreFiles': len(protected),
         'coreABI': 30, 'neoSwapHostAndCoreClientsUnchanged': True, 'rebuiltCores': ['RPCS3']}
 
@@ -145,7 +190,8 @@ def final_ipa(path, build):
     validate_rpc_core_identity(identity)
     result.update(source=command(['git', 'rev-parse', 'HEAD']), coreRun=int(CORE_RUN), coreSource=CORE_SOURCE,
         coreSHA256BeforeSigning=identity['sha256'], coreABI=30, neoSwapPreserved=True,
-        compiledSPU499Marker=True, exact498Catalogue=True, rebuiltCores=['RPCS3'], physicalDeviceValidated=False)
+        compiledSPU499Marker=True, exact498Catalogue=False, exactExpandedPS1Catalogue=True,
+        rebuiltCores=['RPCS3'], physicalDeviceValidated=False)
     return result
 
 
@@ -154,6 +200,7 @@ def main():
     parser.add_argument('--source-only', action='store_true')
     parser.add_argument('--skin-session-evidence', action='store_true')
     parser.add_argument('--libretro-evidence', action='store_true')
+    parser.add_argument('--ps1-catalogue-only', action='store_true')
     parser.add_argument('--rpc-core-inputs')
     parser.add_argument('--ipa', type=Path)
     parser.add_argument('--build-number', type=int, default=499)
@@ -163,7 +210,9 @@ def main():
     if args.rpc_core_inputs:
         validate_rpc_core_pin(args.rpc_core_inputs, args.core_paths)
         return
-    if args.ipa:
+    if args.ps1_catalogue_only:
+        record = {'result': 'passed', 'ps1Catalogue': ps1_catalogue_evidence()}
+    elif args.ipa:
         record = final_ipa(args.ipa, args.build_number)
     else:
         record = {'result': 'passed', 'sourceClosure': source_closure()}
@@ -176,8 +225,12 @@ def main():
     path = ROOT / args.output
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(record, indent=2) + '\n')
-    print('PASS: closed Build 499 source, reused unchanged Build 498 evidence and exact new RPCS3 Core' if not args.ipa else 'PASS: final signed Build 499 IPA with the rebuilt RPCS3 Core')
+    if args.ps1_catalogue_only:
+        print('PASS: next delivery retains the exact CI-verified PS1 catalogue and manual-reference boundaries')
+    else:
+        print('PASS: closed Build 499 source, reused unchanged Build 498 native evidence, proved PS1 catalogue and exact new RPCS3 Core' if not args.ipa else 'PASS: final signed Build 499 IPA with the rebuilt RPCS3 Core')
 
 
 if __name__ == '__main__':
     main()
+

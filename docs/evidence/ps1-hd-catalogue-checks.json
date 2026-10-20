@@ -1,0 +1,40 @@
+{
+  "passed": true,
+  "baseline": "64e73bcfdcaa66067b7a8edfea0e8852faa0d43a",
+  "revision": "2026-10-20.2a44a9d3ed55",
+  "catalogue_sha256": "6b37e6e3adb927c76f98aded2e7784269cd0839d855a56fbb75e02fb0181b4e1",
+  "existing_pack_objects_unchanged": 1088,
+  "new_ps1_references": 24,
+  "new_verified_one_tap": 2,
+  "new_manual_author_references": 22,
+  "ps1_total": 26,
+  "ps1_verified_one_tap_total": 4,
+  "new_pngs_verified": 836,
+  "archive_observations": {
+    "ok": 2,
+    "protected": 10
+  },
+  "total_one_tap_families": 420,
+  "total_installable_profiles": 505,
+  "physical_device_validated": false,
+  "source": "29381d0441081b93b36ed924e9a295a8ba34280c",
+  "run": 39477034529,
+  "inputs_sha256": {
+    ".github/workflows/hd-textures.yml": "6d89bb0c3279b12cfca54a64790ee726e29958f003167c7bc389ef5bd05d497f",
+    "docs/evidence/ps1-hd-ci/39475381324.jsonl": "a9bcb2b910d7dbc02d396d2f5f0417d2be3e365a3ba1c73ef622da5d77f7b3ff",
+    "docs/evidence/ps1-hd-ci/39475695835.jsonl": "8fa07f44caf944906d8e2ac4a75f7bd99c3e5487cb198a594fb71fe2eee10f9c",
+    "native/textures/catalogue/manifest.json.gz": "6b37e6e3adb927c76f98aded2e7784269cd0839d855a56fbb75e02fb0181b4e1",
+    "packages/neo_texture_catalog/ios/Resources/manifest.json.gz": "6b37e6e3adb927c76f98aded2e7784269cd0839d855a56fbb75e02fb0181b4e1",
+    "test/texture_catalog_native_test.py": "4b1c0b9840838e8e96bc07f36103e6a08780291c4b81a0fb902f614eff0952a1",
+    "test/texture_direct_host_publication_test.py": "55387dad484a65c9dce191d94e45c3e47bc2d9603b4b9e9c00f1a1ce8cc8ef0f",
+    "tools/textures/build_catalogue.py": "c1ad857b1e8465141d09dc96a5708eba0ab62baf8904d12d3fcd4ac4c23ae257",
+    "tools/textures/check_ps1_expansion.py": "c632457a4a6bb78e821f6a1952320e8724f2bd5a828769b3d603631d2d5a8e50",
+    "tools/textures/ci-records.json": "23aab75849ea55dbd967ac4406e2c70cf16b9f9a8d579bad27bdcf8ed7b0dcd4",
+    "tools/textures/count_packs.py": "011ee4272c52525b955468c091dd748a223f181d838e94a06a3f855b24ac9d9f",
+    "tools/textures/sources/ps1-author-pages.json": "09b9fa61d908b13a8a8cb25efd127d1db90c52cfa163fe0514720b6323b6174b",
+    "tools/textures/sources/ps1-expansion.json": "df66527a800ac83d9a119a97979cfeb31dc762b2f6df70be8f044afe9db02b19",
+    "tools/textures/sources/ps1-ironhulk33.json": "2008fe753b52e49350d6d1d8597c025e0560966ebc73a12393fe74627f905024",
+    "tools/textures/sources/ps1.json": "c5b167004367fb3d47f85b82c1a7f0fe4a994c9f080df898fbe23ce7cfe6838f",
+    "tools/textures/verified.jsonl": "7c8c960fe0d047c7c114fe0cb5bb2509689e21584f4922aeff51e963363e5541"
+  }
+}

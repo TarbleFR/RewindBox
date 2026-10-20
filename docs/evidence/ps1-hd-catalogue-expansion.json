@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-20",
+  "catalogue_commit": "29381d0441081b93b36ed924e9a295a8ba34280c",
+  "catalogue_revision": "2026-10-20.2a44a9d3ed55",
+  "manifest_sha256": "6b37e6e3adb927c76f98aded2e7784269cd0839d855a56fbb75e02fb0181b4e1",
+  "counts": {
+    "research_project_families": 127,
+    "previous_research_project_families": 115,
+    "additional_qualified_research_families": 12,
+    "inventory_rows": 140,
+    "beetle_named_projects": 31,
+    "duckstation_named_projects": 72,
+    "projects_with_both_engine_variants": 3,
+    "unique_game_titles_researched_with_projects": 104,
+    "runtime_ps1_references_before": 2,
+    "runtime_ps1_references_after": 26,
+    "new_runtime_references": 24,
+    "new_verified_one_tap_packs": 2,
+    "new_manual_author_references": 22,
+    "runtime_verified_one_tap_before": 2,
+    "runtime_verified_one_tap_after": 4,
+    "new_archives_installed_in_canonical_ci": 2,
+    "new_archive_protection_refusals": 10,
+    "physical_iphone_render_tests": 0
+  },
+  "archive_runs": [
+    {
+      "run": 39475381324,
+      "source": "0ed658654bd6edbb44257762421d7867d79d26b7",
+      "ok": 2,
+      "protected": 0,
+      "artifact": 12289765745,
+      "zip_sha256": "f27e23c5a52cc70d31016af8f4c1304b99205aa1b538ef5e02ac3355df29225d"
+    },
+    {
+      "run": 39475695835,
+      "source": "070557e734dec9c1aa064fea11967afc525b9148",
+      "ok": 0,
+      "protected": 10,
+      "artifact": 12288138309,
+      "zip_sha256": "d061c45fb11961ecc511de10181fb449e8418d1ae5e20f9eb1ed98fd96088a03"
+    }
+  ],
+  "publication_validation": {
+    "run": 39477034529,
+    "source": "29381d0441081b93b36ed924e9a295a8ba34280c",
+    "jobs_succeeded": 2,
+    "native_foundation_checks": 177,
+    "native_failures": 0,
+    "canonical_observations_matched": 684,
+    "publication_artifact": 12288854606,
+    "publication_zip_sha256": "27c2fc6afb01e4d3e791d3c75d6c89abc8b19cd1f15427ca8ea786093526aabb",
+    "native_artifact": 12289269436,
+    "native_zip_sha256": "fde677d8dbe1c7605da38256e1f9940cd04f5b6b2cf4da9810772d1b7383e830"
+  },
+  "runtime_native_sources_changed": false,
+  "core_rebuilt": false,
+  "ipa_produced": false,
+  "physical_device_validated": false,
+  "next_update": "Both hosted and bundled manifests contain this revision. The Build 499 delivery guard requires this exact separately verified catalogue and preserves all native/Dart inputs."
+}

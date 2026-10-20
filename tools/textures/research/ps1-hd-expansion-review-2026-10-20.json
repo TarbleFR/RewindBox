@@ -1,0 +1,359 @@
+{
+  "date": "2026-10-20",
+  "catalogue_commit": "29381d0441081b93b36ed924e9a295a8ba34280c",
+  "counts": {
+    "research_project_families": 127,
+    "previous_research_project_families": 115,
+    "additional_qualified_research_families": 12,
+    "inventory_rows": 140,
+    "beetle_named_projects": 31,
+    "duckstation_named_projects": 72,
+    "projects_with_both_engine_variants": 3,
+    "unique_game_titles_researched_with_projects": 104,
+    "runtime_ps1_references_before": 2,
+    "runtime_ps1_references_after": 26,
+    "new_runtime_references": 24,
+    "new_verified_one_tap_packs": 2,
+    "new_manual_author_references": 22,
+    "runtime_verified_one_tap_before": 2,
+    "runtime_verified_one_tap_after": 4,
+    "new_archives_installed_in_canonical_ci": 2,
+    "new_archive_protection_refusals": 10,
+    "physical_iphone_render_tests": 0
+  },
+  "original_ironhulk_public_collection": {
+    "source": "https://www.mediafire.com/folder/k8yncbpnlckw3/ironhulk33",
+    "path": "PS1/Beetle PSX HW",
+    "folder": "v1kg7bfe9ne2j",
+    "files": [
+      {
+        "filename": "Ballistic (USA).zip",
+        "quickkey": "unbhejetyrrcho3",
+        "size": "176187253",
+        "privacy": "public",
+        "links": {
+          "normal_download": "https://www.mediafire.com/file_premium/unbhejetyrrcho3/Ballistic_%2528USA%2529.zip/file"
+        }
+      },
+      {
+        "filename": "Klonoa Beach Volleyball (Europe).zip",
+        "quickkey": "kdo2h1me5alxmex",
+        "size": "179889439",
+        "privacy": "public",
+        "links": {
+          "normal_download": "https://www.mediafire.com/file_premium/kdo2h1me5alxmex/Klonoa_Beach_Volleyball_%2528Europe%2529.zip/file"
+        }
+      },
+      {
+        "filename": "M&M's - Shell Shocked (USA).zip",
+        "quickkey": "ucl9hmsp1usy34o",
+        "size": "80898358",
+        "privacy": "public",
+        "links": {
+          "normal_download": "https://www.mediafire.com/file_premium/ucl9hmsp1usy34o/M%2526M%2527s_-_Shell_Shocked_%2528USA%2529.zip/file"
+        }
+      },
+      {
+        "filename": "Namco Museum Vol. 1 (USA).zip",
+        "quickkey": "ovc9phx9d23uly7",
+        "size": "1171673097",
+        "privacy": "public",
+        "links": {
+          "normal_download": "https://www.mediafire.com/file_premium/ovc9phx9d23uly7/Namco_Museum_Vol._1_%2528USA%2529.zip/file"
+        }
+      },
+      {
+        "filename": "Namco Museum Vol. 2 (USA).7z",
+        "quickkey": "l9dmknu9y64ybum",
+        "size": "1271188464",
+        "privacy": "public",
+        "links": {
+          "normal_download": "https://www.mediafire.com/file_premium/l9dmknu9y64ybum/Namco_Museum_Vol._2_%2528USA%2529.7z/file"
+        }
+      },
+      {
+        "filename": "Scooby-Doo and the Cyber Chase (USA).7z",
+        "quickkey": "bafhu64kemeyz1t",
+        "size": "198185391",
+        "privacy": "public",
+        "links": {
+          "normal_download": "https://www.mediafire.com/file_premium/bafhu64kemeyz1t/Scooby-Doo_and_the_Cyber_Chase_%2528USA%2529.7z/file"
+        }
+      },
+      {
+        "filename": "Sesame Street - Elmo's Letter Adventure (USA).7z",
+        "quickkey": "lgqz3dd4czn2se4",
+        "size": "41791115",
+        "privacy": "public",
+        "links": {
+          "normal_download": "https://www.mediafire.com/file_premium/lgqz3dd4czn2se4/Sesame_Street_-_Elmo%2527s_Letter_Adventure_%2528USA%2529.7z/file"
+        }
+      },
+      {
+        "filename": "Sesame Street - Elmo's Number Journey (USA).7z",
+        "quickkey": "13c2qatex2d7tti",
+        "size": "15937148",
+        "privacy": "public",
+        "links": {
+          "normal_download": "https://www.mediafire.com/file_premium/13c2qatex2d7tti/Sesame_Street_-_Elmo%2527s_Number_Journey_%2528USA%2529.7z/file"
+        }
+      },
+      {
+        "filename": "Sesame Street Sports (USA).7z",
+        "quickkey": "bu3vz9udocrxoav",
+        "size": "70583078",
+        "privacy": "public",
+        "links": {
+          "normal_download": "https://www.mediafire.com/file_premium/bu3vz9udocrxoav/Sesame_Street_Sports_%2528USA%2529.7z/file"
+        }
+      },
+      {
+        "filename": "Strikers 1945 (Japan).7z",
+        "quickkey": "k0bd4qmlurumpvr",
+        "size": "4252282676",
+        "privacy": "public",
+        "links": {
+          "normal_download": "https://www.mediafire.com/file_premium/k0bd4qmlurumpvr/Strikers_1945_%2528Japan%2529.7z/file"
+        }
+      }
+    ]
+  },
+  "vierock_primary_pages": [
+    {
+      "path": "/ps1/breath-of-fire-3",
+      "urls": [
+        "https://ko-fi.com/s/2ef175f5d6"
+      ],
+      "beetle": true
+    },
+    {
+      "path": "/ps1/breath-of-fire-iv-hd",
+      "urls": [
+        "https://ko-fi.com/s/c3590c36f7"
+      ],
+      "beetle": true
+    },
+    {
+      "path": "/ps1/legend-of-dragoon",
+      "urls": [
+        "https://ko-fi.com/s/fbafffe63c"
+      ],
+      "beetle": false
+    },
+    {
+      "path": "/ps1/legend-of-legaia",
+      "urls": [
+        "https://ko-fi.com/s/f5f29f2a1c"
+      ],
+      "beetle": true
+    },
+    {
+      "path": "/ps1/mega-man-legend-hd",
+      "urls": [
+        "https://ko-fi.com/s/e0d98f47b8"
+      ],
+      "beetle": true
+    },
+    {
+      "path": "/ps1/parasite-eve-hd",
+      "urls": [
+        "https://www.mediafire.com/file/3bfo50kz9iwdr9i/Parasite+Eve+%28USA%29+%28Disc+1%29-texture-replacements.7z.004/file",
+        "https://www.mediafire.com/file/j0clg9ntmc9murm/Parasite_Eve_%2528USA%2529_%2528Disc_1%2529-texture-replacements.7z.002/file",
+        "https://www.mediafire.com/file/p8yqrvs2eukcei9/Parasite+Eve+%28USA%29+%28Disc+1%29-texture-replacements.7z.001/file",
+        "https://www.mediafire.com/file/zyz3bvwbmakqhlm/Parasite+Eve+%28USA%29+%28Disc+1%29-texture-replacements.7z.003/file"
+      ],
+      "beetle": true
+    },
+    {
+      "path": "/ps1/saga-frontier-2-hd",
+      "urls": [
+        "https://ko-fi.com/s/3c75bb76b4"
+      ],
+      "beetle": true
+    },
+    {
+      "path": "/ps1/tales-of-eternia",
+      "urls": [
+        "https://ko-fi.com/s/54248bc279"
+      ],
+      "beetle": true
+    },
+    {
+      "path": "/ps1/vagrant-story-hd",
+      "urls": [
+        "https://ko-fi.com/s/506e9299f0"
+      ],
+      "beetle": true
+    },
+    {
+      "path": "/ps1/vandal-hearts-hd",
+      "urls": [
+        "https://ko-fi.com/s/b64200958a"
+      ],
+      "beetle": true
+    },
+    {
+      "path": "/ps1/wild-arms-2-hd",
+      "urls": [
+        "https://ko-fi.com/s/3864af28ce"
+      ],
+      "beetle": true
+    },
+    {
+      "path": "/ps1/xenogears",
+      "urls": [
+        "https://ko-fi.com/s/2783f9b7d1"
+      ],
+      "beetle": true
+    }
+  ],
+  "serial_identity_evidence": {
+    "source": "https://github.com/stenzek/duckstation/blob/master/data/resources/gamedb.yaml",
+    "observed_date": "2026-10-20",
+    "file_sha256": "41ca7b169543757ecbda7b4bec54041ae45fb9963d44745d2b28d061bddd4814",
+    "scope": "Serial-to-title evidence only. Regional texture compatibility is limited to the creator archive or explicit creator statement. No physical gameplay evidence.",
+    "observations": [
+      {
+        "pack": "ps1-linnaealyn-xenogears-perfect-art-works",
+        "serial": "SLUS-00664",
+        "database_title": "Xenogears (Disc 1)",
+        "archive_regions": [
+          "USA",
+          "Japan"
+        ]
+      },
+      {
+        "pack": "ps1-linnaealyn-xenogears-perfect-art-works",
+        "serial": "SLUS-00669",
+        "database_title": "Xenogears (Disc 2)",
+        "archive_regions": [
+          "USA",
+          "Japan"
+        ]
+      },
+      {
+        "pack": "ps1-linnaealyn-xenogears-perfect-art-works",
+        "serial": "SLPS-01160",
+        "database_title": "Xenogears (Disc 1)",
+        "archive_regions": [
+          "USA",
+          "Japan"
+        ]
+      },
+      {
+        "pack": "ps1-linnaealyn-xenogears-perfect-art-works",
+        "serial": "SLPS-01161",
+        "database_title": "Xenogears (Disc 2)",
+        "archive_regions": [
+          "USA",
+          "Japan"
+        ]
+      },
+      {
+        "pack": "ps1-faospark-suikoden-ii-project-kyaro",
+        "serial": "SLUS-00958",
+        "database_title": "Suikoden II",
+        "archive_regions": [
+          "USA"
+        ]
+      },
+      {
+        "pack": "ps1-ironhulk33-ballistic-beetle",
+        "serial": "SLUS-00966",
+        "database_title": "Ballistic",
+        "archive_regions": [
+          "USA"
+        ]
+      },
+      {
+        "pack": "ps1-ironhulk33-klonoa-beach-volleyball",
+        "serial": "SCES-03922",
+        "database_title": "Klonoa Beach Volleyball",
+        "archive_regions": [
+          "Europe"
+        ]
+      },
+      {
+        "pack": "ps1-ironhulk33-m-ms-shell-shocked",
+        "serial": "SLUS-01306",
+        "database_title": "M&M's - Shell Shocked",
+        "archive_regions": [
+          "USA"
+        ]
+      },
+      {
+        "pack": "ps1-ironhulk33-namco-museum-vol-1-beetle",
+        "serial": "SLUS-00215",
+        "database_title": "Namco Museum Vol. 1",
+        "archive_regions": [
+          "USA"
+        ]
+      },
+      {
+        "pack": "ps1-ironhulk33-namco-museum-vol-2-beetle",
+        "serial": "SLUS-00216",
+        "database_title": "Namco Museum Vol. 2",
+        "archive_regions": [
+          "USA"
+        ]
+      },
+      {
+        "pack": "ps1-ironhulk33-scooby-doo-and-the-cyber-chase",
+        "serial": "SLUS-01396",
+        "database_title": "Scooby-Doo and the Cyber Chase",
+        "archive_regions": [
+          "USA"
+        ]
+      },
+      {
+        "pack": "ps1-ironhulk33-sesame-street-elmos-letter-adventure-beetle",
+        "serial": "SLUS-00621",
+        "database_title": "Sesame Street - Elmo's Letter Adventure",
+        "archive_regions": [
+          "USA"
+        ]
+      },
+      {
+        "pack": "ps1-ironhulk33-sesame-street-elmos-number-journey-beetle",
+        "serial": "SLUS-00622",
+        "database_title": "Sesame Street - Elmo's Number Journey",
+        "archive_regions": [
+          "USA"
+        ]
+      },
+      {
+        "pack": "ps1-ironhulk33-sesame-street-sports-beetle",
+        "serial": "SLUS-01180",
+        "database_title": "Sesame Street Sports",
+        "archive_regions": [
+          "USA"
+        ]
+      },
+      {
+        "pack": "ps1-ironhulk33-strikers-1945",
+        "serial": "SLPS-00407",
+        "database_title": "Strikers 1945",
+        "archive_regions": [
+          "Japan"
+        ]
+      }
+    ]
+  },
+  "unavailable_originals": [
+    {
+      "name": "lunar",
+      "url": "https://mega.nz/folder/UUBxxQqD#0vSDIZxdKijiV3ek-a_p5Q",
+      "error": "gone: MEGA ENOENT"
+    },
+    {
+      "url": "https://drive.google.com/file/d/19d8qYq1k8-azrT9aEh2zRCtpCGZs93yw/view",
+      "error": "gone: HTTP 404"
+    }
+  ],
+  "rules": [
+    "No protected download retried through another address, host or account.",
+    "No shop, member-only archive, third-party mirror or DuckStation pack activated.",
+    "Creator-declared compatibility and an archive installation proof are separate states.",
+    "No rendering or performance on physical iPhone is claimed."
+  ]
+}
