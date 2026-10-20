@@ -1,6 +1,6 @@
-# Reusable recipe, invoked only by the registered hd-textures workflow dispatch delivery499.
+# Reusable recipe, invoked only by registered rpcs3-core phase delivery499.
 # Do not edit the frozen 497 workflow. Candidate C keeps {{FINAL_SOURCE}}; workflow-only W resolves it.
-# Fill catalogue/provider/Store/SDK pins in the dedicated gate before committing C.
+# Core, host and expanded PS1 catalogue inputs are proved independently.
 name: NeoStation RPCS3 audit • Build 499 • reusable private delivery
 'on':
   workflow_call:
@@ -29,7 +29,7 @@ defaults:
       {0}
 jobs:
   checks:
-    name: Exact Build 498 reuse and new RPCS3 Core proof
+    name: Build 498 host reuse, PS1 catalogue and new RPCS3 Core proof
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -41,7 +41,7 @@ jobs:
         ref: '{{FINAL_SOURCE}}'
         fetch-depth: 0
         persist-credentials: false
-    - name: Verify unchanged product inputs and successful Core evidence
+    - name: Verify closed product inputs, exact PS1 catalogue and successful Core evidence
       run: python3 .github/diagnostics/rpcs3audit499_delivery.py --output build/delivery/rpcs3-audit-source.json
     - uses: actions/upload-artifact@v4
       with:
@@ -64,8 +64,8 @@ jobs:
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
-      RPCS3_CORE_HOST_SHA: '{{CORE_SOURCE}}'
-      RPCS3_CORE_RUN_ID: '{{CORE_RUN}}'
+      RPCS3_CORE_HOST_SHA: '0b18a23460b0a9840406fda2e3d6da4c5cdb7273'
+      RPCS3_CORE_RUN_ID: '39472233521'
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_RUN_ID: '39455712245'

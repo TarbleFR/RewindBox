@@ -162,5 +162,23 @@
   ],
   "publicSource": "ARMSX2/ARMSX3@2e1a02c3aecaa6841e161cfeda4b6c57cd5cacbd",
   "privateHashPubliclyResolved": false,
-  "deviceRuntimeTested": false
+  "deviceRuntimeTested": false,
+  "shufbFullTableComparison": [
+    {
+      "image": "ARMSX3-22348",
+      "tableOffset": "0x417a8d8",
+      "recordStride": 48,
+      "records": 30,
+      "mismatchesAgainstCorrectedSource": []
+    },
+    {
+      "image": "NeoStation-498",
+      "tableOffset": "0x3c25fc8",
+      "recordStride": 48,
+      "records": 30,
+      "mismatchesAgainstCorrectedSource": [
+        29
+      ]
+    }
+  ]
 }

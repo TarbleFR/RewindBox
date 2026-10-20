@@ -1,8 +1,8 @@
 # Build 499 — selective ARMSX3 / RPCS3 improvements
 
-Status: candidate, Core and IPA build pending. No physical-device validation or measured FPS gain.
+Status: Core compiled and verified; private IPA composition pending. No physical-device validation or measured FPS gain.
 
-The baseline is Claude `ef8b4b9db09ac142e801ee43e65221261d49cae4`, including delivered Build 498, its verified PSP memory contract, 418 directly installable HD families and native RAR/public-host support. Only the RPCS3 Core is rebuilt.
+The baseline is Claude `ef8b4b9db09ac142e801ee43e65221261d49cae4`, including delivered Build 498, its verified PSP memory contract, 418 directly installable HD families and native RAR/public-host support. Only the RPCS3 Core is rebuilt. The concurrently validated PS1 catalogue is included as required by the maintainer: revision 2026-10-20.169a7760ffbe, 34 PS1 references, seven verified downloads and 27 manual author pages without an installation claim. Publication CI 39480710051 validates the exact 17 inputs; all 1,088 original pack objects and all 1,112 objects from the first PS1 extension are preserved. Every other native and Dart product input remains byte-identical to 498.
 
 ## Evidence and scope
 
@@ -29,7 +29,7 @@ Local production-snippet test: 30 masks x 1,024 independent random inputs, zero 
 
 The canonical patch was regenerated in bytes and reapplied on a pristine upstream clone, reproducing all 226 postimages. The existing Build 487 helper/metrics/boot/retention tests pass locally under ASan/UBSan; on this restricted Linux host LeakSanitizer cannot inspect /proc, so leak scanning was disabled only for that local rerun. The default macOS Core gate retains its sanitizer settings. No failure is presented as device proof.
 
-Core preflight, full iPhoneOS compilation, produced-binary checks, IPA composition and artifact verification are pending. Exact identities and measured build results will be appended after completion.
+Core preflight and full iPhoneOS compilation succeeded in run 39472233521 on source 0b18a23460b0a9840406fda2e3d6da4c5cdb7273. The build step took 58 min 57 s. ABI 30, all 78 authentic inputs, exports and passive-load checks pass on the actual 76,953,968-byte binary. Core SHA-256: 87bd77794232fc44b61d421e55d71bae3b2829a58b87ee36b2a176730d78004f. PPU codegen cf1718033f6fda2d is unchanged from 498; SPU codegen is 42c4b3542f924d07. The corrected SHUFB record is present and the bad record absent in this binary. IPA composition and final artifact verification follow.
 
 ## Credits and testing on device
 
