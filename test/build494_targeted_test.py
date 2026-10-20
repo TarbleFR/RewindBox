@@ -299,7 +299,8 @@ def compare_small_print(old, new):
             gate = SMALL_PRINT_GATES.get(scale, {}).get(block)
             rows.append({'platform': platform_name, 'language': language, 'scale': scale, 'block': block,
                          'fontPixels': r['fontPixels'], 'build493': round(was, 3), 'build494': round(now, 3),
-                         'gate': gate})
+                         'gate': gate, 'text493': before.get(key, {}).get('recognized', ''),
+                         'text494': r['recognized']})
             if gate is not None and now < gate:
                 failures.append(f'{platform_name} {language} ×{scale} {block}: {now:.3f} < {gate}')
             if now < was - NO_REGRESSION:
@@ -333,6 +334,9 @@ def native():
     for row in rows:
         print(f"{row['platform']:12} {row['language']} ×{row['scale']:<3} {row['block']:9} "
               f"{row['fontPixels']:5.1f} px  493 {row['build493']:.3f}  494 {row['build494']:.3f}")
+        # The reports are cut in the log: the texts read differently are shown here.
+        if row['text493'] != row['text494']:
+            print(f"    493: {row['text493']!r}\n    494: {row['text494']!r}")
     if failures:
         raise SystemExit('Small print checks failed: ' + '; '.join(failures))
 
