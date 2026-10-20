@@ -8,6 +8,7 @@ internal sealed class EmbeddedInitializationState
     private string _root;
     private bool _failed;
     internal string LastFailure { get; private set; }
+    internal bool Ready { get { lock (_gate) return _root != null && !_failed; } }
 
     internal int Initialize(string documents, string requested,
                             Func<bool> engineAlreadyInitialized, Action<string> initialize)
