@@ -1,8 +1,15 @@
 name: Build 491 targeted checks (Canvas ES-DE, KartPad removal)
-# Dispatched on the delivery commit (tag build-491): the delivery gate
+# Run on the delivery commit (Claude; the session cannot push tags): the delivery gate
 # .github/diagnostics/kartpad491_delivery.py reads the two verdicts of a
 # successful run on that exact commit and never reruns these suites.
+# A new workflow cannot be dispatched before it reaches the default branch
+# (main, not modified here): a push of its own files on Claude starts it.
 on:
+  push:
+    branches: [Claude]
+    paths:
+      - test/build491_targeted_test.py
+      - .github/workflows/build491-checks.yml
   workflow_dispatch:
     inputs:
       parts:
@@ -17,7 +24,7 @@ concurrency:
 jobs:
   host:
     name: Analysis, delivery Dart suite, KartPad removal and Canvas checks
-    if: ${{ inputs.parts == 'all' || inputs.parts == 'host' }}
+    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -41,7 +48,7 @@ jobs:
 
   native:
     name: NeoPlay companion adapters in the iOS Simulator
-    if: ${{ inputs.parts == 'all' || inputs.parts == 'native' }}
+    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native' }}
     runs-on: macos-15
     timeout-minutes: 40
     env:
