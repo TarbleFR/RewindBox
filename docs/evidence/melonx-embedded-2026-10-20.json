@@ -41,6 +41,20 @@
       "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39502094518",
       "blockingError": "NU1101: exact Ryujinx.LibHac package absent from migrated projects feed",
       "engineBinaryProduced": false
+    },
+    {
+      "run": 39504259828,
+      "source": "56aeec6722a93f07bbdc05a4576e71cebc93702b",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39504259828",
+      "blockingError": "NETSDK1112: NativeAOT iOS runtime pack missing after restore omitted SelfContained=true",
+      "libHacReconstructed": true,
+      "libHacLayoutTestsPassed": 5,
+      "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+      "artifact": 12302912762,
+      "engineDependenciesRestored": true,
+      "engineBinaryProduced": false
     }
   ],
   "retirement": {
@@ -79,5 +93,12 @@
     "releasePublished": false,
     "personalFilesDeleted": false
   },
-  "nextRequiredInput": "Ryujinx.LibHac 0.21.0-alpha.129 package or corresponding attested source"
+  "nextRequiredInput": "Complete NativeAOT runtime restore/build, then implement the native session and its lifecycle.",
+  "libHacSourceReconstruction": {
+    "source": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+    "consumerChange": "cc6d2dc162ca00a3db9af09f176798a8297926ab",
+    "identification": "Inference from matching NACP correction and upstream consumer version change ten minutes later.",
+    "originalNugetPackageRecovered": false,
+    "originalBinaryEquivalenceClaimed": false
+  }
 }

@@ -6,6 +6,53 @@ layouts, controllers, compatible HD content and a test IPA. The subsequent
 instruction explicitly retires the external MeloNX entry. Work stays on Claude;
 there is no authorization for a public release.
 
+## Continuation: source-built dependency and embedded bootstrap
+
+The original NuGet feed is still missing alpha.129. The matching source change
+has now been found in the Starforge mirror of `projects/LibHac`:
+`23e402ebb6dedc517e34a98a033078dc0f6fd478` (25 February, 19:48:57 UTC).
+Ten minutes later the consumer commit
+`cc6d2dc162ca00a3db9af09f176798a8297926ab` adopts alpha.129 instead of alpha.126
+with the same NACP language-buffer correction. This identifies corresponding
+source by the upstream change history; it does **not** recover the original
+package bytes or prove equality with the original published NuGet binary.
+
+Run `39504259828`, host source `56aeec6722a93f07bbdc05a4576e71cebc93702b`,
+successfully runs the upstream generators, compiles LibHac, passes all **five**
+`LibHac.Tests.Ns.TypeLayoutTests`, builds its local NuGet package and restores
+every MeloNX dependency. The reconstructed package SHA-256 is
+`b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9`.
+Artifact `12302912762` retains that package, generated sources, upstream source
+archive and source receipt. The **whole run fails**, subsequently, at
+NETSDK1112: the NativeAOT iOS runtime pack was not downloaded during restore.
+There is still no engine dylib from this run.
+
+The next build reuses that exact package and its successful layout tests after
+checking the source pin, package/archive hashes, job source and test log. It
+aligns restore with publish (`Release`, `SelfContained=true`, `ios-arm64`).
+No unchanged Flutter or emulator checks are rerun.
+
+The first actual embedded engine adaptation is now in `native/melonx`:
+
+- A caller-owned UTF-8 root and explicit bootstrap ABI; no foreign allocation
+  ownership is transferred across this boundary.
+- Only the current `Documents/MeloNX` root is accepted. Documents itself,
+  other engine directories, relative paths and a symbolic-link root are refused.
+- The engine's iOS data manager now respects its supplied root. The existing
+  standalone initializer still supplies Documents and retains its old behavior.
+- Initialization is serialized and idempotent. A failure after entering engine
+  initialization prevents another attempt over partially created native handles.
+- The bootstrap ABI is **not** an availability/session-ready report. No native
+  game session is registered or enabled in the app by this step.
+
+The executable bootstrap checks and the adapted NativeAOT build are pending.
+The existing retirement validations below remain historical, unchanged results.
+
+Source references:
+<https://starforgejo.dev/archive/LibHac_Ryubing/commit/23e402ebb6dedc517e34a98a033078dc0f6fd478>
+and
+<https://starforgejo.dev/projects/MeloNX/commit/cc6d2dc162ca00a3db9af09f176798a8297926ab>.
+
 ## Source audit
 
 The inspected engine is `projects/MeloNX` at

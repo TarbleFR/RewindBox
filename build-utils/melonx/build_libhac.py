@@ -6,8 +6,10 @@ Only LibHac uses this private, local feed; all other package mapping is retained
 """
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
+import re
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
@@ -19,6 +21,18 @@ def run(*args, cwd=None, timeout=600):
 
 def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def configure_feed(engine, feed, package):
+    nuget = engine / 'nuget.config'
+    config = ET.parse(nuget)
+    selected = [item for item in config.getroot().findall('./packageSources/add')
+                if item.get('key') == 'LibHacAlpha']
+    assert len(selected) == 1
+    selected[0].set('value', str(feed))
+    mapping = config.getroot().find("./packageSourceMapping/packageSource[@key='LibHacAlpha']")
+    assert [p.get('pattern') for p in mapping] == [package]
+    config.write(nuget, encoding='utf-8', xml_declaration=True)
 
 
 def main():
@@ -40,6 +54,23 @@ def main():
     output = root / 'dist/melonx'
     feed = output / 'libhac-feed'
     feed.mkdir(parents=True, exist_ok=True)
+    if os.environ.get('MELONX_REUSE_LIBHAC') == '1':
+        pin = json.loads((root / 'build-utils/melonx/libhac-reuse.json').read_text())
+        receipt = json.loads((output / 'libhac-identity.json').read_text())
+        assert receipt['source'] == lock and actual == pin['libHacSource']
+        package = feed / (lock['package'] + '.' + lock['version'] + '.nupkg')
+        assert sha256(package) == receipt['packageSha256'] == pin['packageSha256']
+        assert sha256(output / 'libhac-upstream-source.tar') == receipt['upstreamSourceSha256']
+        api = 'repos/TarbleFR/neostation-ios/actions/jobs/' + str(pin['job'])
+        job = json.loads(subprocess.check_output(['gh', 'api', api]))
+        assert job['head_sha'] == pin['hostSource'] and job['run_id'] == pin['run']
+        log = subprocess.check_output(['gh', 'api', api + '/logs'], text=True)
+        assert re.search(r'Passed!\s+- Failed:\s+0, Passed:\s+5, Skipped:\s+0, Total:\s+5,', log)
+        assert pin['layoutTestsPassed'] == 5
+        configure_feed(engine, feed, lock['package'])
+        (output / 'libhac-reuse.json').write_text(json.dumps(dict(pin, reused=True, testsReexecuted=False), indent=2) + '\n')
+        print('Reused the exact source-built LibHac package and five successful layout tests:', pin['run'])
+        return
     with (output / 'libhac-upstream-source.tar').open('wb') as target:
         subprocess.run(['git', '-C', str(source), 'archive', 'HEAD'], stdout=target, check=True)
     # Run the upstream generators. Its Stage2 wrapper catches failures, so run
@@ -66,15 +97,7 @@ def main():
     with zipfile.ZipFile(output / 'libhac-generated-source.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
         for path in generated:
             archive.write(path, str(path.relative_to(source)))
-    nuget = engine / 'nuget.config'
-    config = ET.parse(nuget)
-    sources = config.getroot().findall('./packageSources/add')
-    selected = [item for item in sources if item.get('key') == 'LibHacAlpha']
-    assert len(selected) == 1
-    selected[0].set('value', str(feed))
-    mapping = config.getroot().find("./packageSourceMapping/packageSource[@key='LibHacAlpha']")
-    assert [p.get('pattern') for p in mapping] == [lock['package']]
-    config.write(nuget, encoding='utf-8', xml_declaration=True)
+    configure_feed(engine, feed, lock['package'])
     receipt = dict(source=lock, reconstructed=True, originalPackageRecovered=False,
                    packageSha256=sha256(package), packageBytes=package.stat().st_size,
                    generatedInputs={str(p.relative_to(source)): sha256(p) for p in generated},

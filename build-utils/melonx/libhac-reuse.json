@@ -1,0 +1,13 @@
+{
+  "hostSource": "56aeec6722a93f07bbdc05a4576e71cebc93702b",
+  "run": 39504259828,
+  "job": 118909098038,
+  "artifact": 12302912762,
+  "artifactName": "MeloNX-engine-56aeec6722a93f07bbdc05a4576e71cebc93702b",
+  "artifactSha256": "f31b5a53aa3ee5726a8fe593bca7940befa5f1b447d4e60dd1123f3f45ebf197",
+  "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+  "libHacSource": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+  "layoutTestsPassed": 5,
+  "runConclusion": "failure",
+  "laterFailure": "NETSDK1112: NativeAOT iOS runtime pack not downloaded; LibHac build and its five tests passed beforehand."
+}

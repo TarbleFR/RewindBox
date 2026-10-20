@@ -36,10 +36,11 @@ dotnet --info
 test "$(dotnet --version)" = '10.0.100'
 dotnet workload install mobile-librarybuilder --skip-manifest-update
 python3 "$TASK_ROOT/build-utils/melonx/build_libhac.py" "$SOURCE_DIR" "$LIBHAC_DIR"
+python3 "$TASK_ROOT/build-utils/melonx/prepare_embedded.py" "$SOURCE_DIR"
 python3 - <<'PY_RESTORE'
 import subprocess
 # A dead service must not trigger unbounded retries across every project.
-subprocess.run(['dotnet', 'restore', 'src/Ryujinx.Library', '-r', 'ios-arm64', '-p:ExtraDefineConstants=DISABLE_UPDATER', '-p:NativeLib=Shared'], check=True, timeout=240)
+subprocess.run(['dotnet', 'restore', 'src/Ryujinx.Library', '-r', 'ios-arm64', '-p:Configuration=Release', '-p:SelfContained=true', '-p:ExtraDefineConstants=DISABLE_UPDATER', '-p:NativeLib=Shared'], check=True, timeout=240)
 PY_RESTORE
 dotnet publish src/Ryujinx.Library --no-restore -c Release -r ios-arm64 --self-contained true -p:ExtraDefineConstants=DISABLE_UPDATER -p:NativeLib=Shared
 CORE="$SOURCE_DIR/src/Ryujinx.Library/bin/Release/net10.0/ios-arm64/native/Ryujinx.Library.dylib"
@@ -56,9 +57,12 @@ from pathlib import Path
 root, core = map(Path, sys.argv[1:])
 pin = json.loads((root / 'build-utils/melonx/source.json').read_text())
 exports = (root / 'dist/melonx/exports.txt').read_text()
-required = ['initialize', 'main_ryujinx_sdl', 'set_native_window', 'stop_emulation', 'toggle_pause_emulation', 'load_keyset', 'install_firmware', 'installed_firmware_version', 'get_game_info', 'set_gamepad_button_state', 'set_gamepad_stick_axis', 'RegisterCallback']
+required = ['initialize', 'main_ryujinx_sdl', 'set_native_window', 'stop_emulation', 'toggle_pause_emulation', 'load_keyset', 'install_firmware', 'installed_firmware_version', 'get_game_info', 'set_gamepad_button_state', 'set_gamepad_stick_axis', 'RegisterCallback', 'neostation_melonx_bootstrap_abi', 'neostation_melonx_initialize']
 symbols = {line.split()[-1] for line in exports.splitlines() if line.split()}
 assert all('_' + name in symbols for name in required), [name for name in required if '_' + name not in symbols]
 receipt = dict(source=pin, host=subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip(), size=core.stat().st_size, sha256=hashlib.sha256(core.read_bytes()).hexdigest(), exports=required, status='compiled-not-gameplay-tested')
+receipt['adaptations'] = json.loads((root / 'dist/melonx/embedded-inputs.json').read_text())
+receipt['libHac'] = json.loads((root / 'dist/melonx/libhac-identity.json').read_text())
+receipt['embeddedSessionImplemented'] = False
 (root / 'dist/melonx/identity.json').write_text(json.dumps(receipt, indent=2) + '\n')
 PY
