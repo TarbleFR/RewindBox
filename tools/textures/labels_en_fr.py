@@ -324,3 +324,29 @@ FR = {
     'actionImportVerified': 'Importer le fichier téléchargé',
     'error.notVerifiedFile': 'Ce n’est pas le fichier vérifié pour ce pack (sa taille ou son SHA-256 diffère). Vérifiez la version sur la page de l’auteur ; une autre archive peut toujours être importée depuis la page du jeu.',
 }
+
+# Mesen (NES HD packs).
+EN.update({
+    'error.missingHires': 'This Mesen HD pack has no hires.txt at its root.',
+    'error.formatTooNew': 'This HD pack is made for Mesen 2 (a format newer than 106): the Mesen engine of NeoStation cannot read it.',
+    'error.missingFiles': 'Images named by this pack’s hires.txt are missing from the archive.',
+    'error.memoryTooLarge': 'This HD pack needs more memory than this device can give it: Mesen loads every image of the pack when the game starts.',
+    'error.mesenNotSelected': 'Mesen could not be selected for this game. Choose Mesen in the game’s settings (Emulator), then switch the pack on.',
+    'activation.mesenEngine': 'Switching on also makes this game start with Mesen: Nestopia, the default NES engine, reads no HD pack.',
+    'identity.contentName': 'The game’s file name cannot be used as a texture folder name.',
+    'firstLaunchNotice.mesen': 'Mesen loads every image of the pack when the game starts: a large pack makes the start longer and uses more memory.',
+    'engineNotice.mesen': 'NES HD packs are read by the Mesen engine; packs made for Mesen 2 (a format above 106) are not. A game’s engine can be changed in its settings (Emulator).',
+    'importHelp.mesen': 'Use a Mesen HD pack made for this ROM file: hires.txt with its PNG images (a ZIP, 7z or folder). Installed in {folder}.',
+})
+FR.update({
+    'error.missingHires': 'Ce pack HD Mesen n’a pas de hires.txt à sa racine.',
+    'error.formatTooNew': 'Ce pack HD est conçu pour Mesen 2 (un format plus récent que 106) : le moteur Mesen de NeoStation ne peut pas le lire.',
+    'error.missingFiles': 'Des images nommées par le hires.txt de ce pack manquent dans l’archive.',
+    'error.memoryTooLarge': 'Ce pack HD demande plus de mémoire que cet appareil ne peut lui en donner : Mesen charge toutes les images du pack au démarrage du jeu.',
+    'error.mesenNotSelected': 'Mesen n’a pas pu être choisi pour ce jeu. Choisissez Mesen dans les réglages du jeu (Émulateur), puis activez le pack.',
+    'activation.mesenEngine': 'L’activation fait aussi démarrer ce jeu avec Mesen : Nestopia, le moteur NES par défaut, ne lit aucun pack HD.',
+    'identity.contentName': 'Le nom du fichier du jeu ne peut pas servir de nom de dossier de textures.',
+    'firstLaunchNotice.mesen': 'Mesen charge toutes les images du pack au démarrage du jeu : un gros pack allonge le démarrage et utilise plus de mémoire.',
+    'engineNotice.mesen': 'Les packs HD NES sont lus par le moteur Mesen ; les packs conçus pour Mesen 2 (un format au-delà de 106) ne le sont pas. Le moteur d’un jeu se change dans ses réglages (Émulateur).',
+    'importHelp.mesen': 'Utilisez un pack HD Mesen conçu pour ce fichier ROM : hires.txt avec ses images PNG (ZIP, 7z ou dossier). Installé dans {folder}.',
+})

@@ -2,13 +2,15 @@
 //   detect <engine> <current> <names-file>
 //   install <engine> <root> <archive|folder> <from=to[|exclude]...>...   (folder when it is a directory)
 //   remove <root> <relative> | recover <root> | accepts <engine> <path>
+//   mesencheck <folder>   (CheckMesenPack: version, decoded bytes, ROM SHA-1s, problem)
 #include "NeoTextureInstall.h"
 #include <cstdio>
 #include <fstream>
 using namespace NeoTextureInstall;
 static Engine Parse(const std::string& s) {
   return s == "dolphin" ? Engine::dolphin : s == "armsx2" ? Engine::armsx2 : s == "ppsspp" ? Engine::ppsspp
-       : s == "mupen64plus" ? Engine::mupen64plus : s == "beetle" ? Engine::beetle : Engine::azahar;
+       : s == "mupen64plus" ? Engine::mupen64plus : s == "beetle" ? Engine::beetle : s == "mesen" ? Engine::mesen
+       : Engine::azahar;
 }
 int main(int argc, char** argv) {
   if (argc < 3) return 64;
@@ -24,6 +26,14 @@ int main(int argc, char** argv) {
     for (const auto& id : layout.found) std::printf(" found=%s", id.c_str());
     std::printf("\n");
     return 0;
+  }
+  if (command == "mesencheck") {
+    const MesenPack pack = CheckMesenPack(argv[2]);
+    std::printf("problem=%s ver=%d scale=%d decoded=%llu missing=%zu skipped=%zu", pack.problem.c_str(), pack.version, pack.scale,
+                (unsigned long long)pack.decodedBytes, pack.missing.size(), pack.skipped.size());
+    for (const auto& rom : pack.roms) std::printf(" rom=%s", rom.c_str());
+    std::printf("\n");
+    return pack.problem.empty() ? 0 : 1;
   }
   if (command == "recover") { Recover(argv[2]); return 0; }
   if (command == "remove") return Remove(argv[2], argv[3]) ? 0 : 1;

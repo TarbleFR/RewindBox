@@ -11,6 +11,7 @@ int main(int argc, char** argv) {
   else if (kind == "3ds") r = NeoTextureIdentity::N3DS(path);
   else if (kind == "n64") r = NeoTextureIdentity::N64(path);
   else if (kind == "ps1") r = NeoTextureIdentity::PS1(path);
+  else if (kind == "nes") r = NeoTextureIdentity::NES(path);
   else return 64;
   std::string folder = r.folder;  // an N64 ROM name has spaces: printed as "+" (one field per word)
   for (char& c : folder) if (c == ' ') c = '+';

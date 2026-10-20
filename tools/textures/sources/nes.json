@@ -1,0 +1,287 @@
+[
+ {
+  "id": "nes-contra-80s-tastic",
+  "system": "nes",
+  "engine": "mesen",
+  "availability": "available",
+  "title": "Contra 80s (Mesen HD pack)",
+  "version": "1.4.2",
+  "games": [
+   {
+    "title": "Contra",
+    "regions": [
+     "USA"
+    ],
+    "identities": [
+     {
+      "type": "sha1",
+      "scheme": "nes-rom-sha1",
+      "value": "C9EA66BB7CB30AD5343F1721B1D4D3219859319B"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Tastic"
+  ],
+  "page_url": "https://github.com/TasticHacks/Contra80s/releases/tag/1.4.2",
+  "source_id": "github:TasticHacks/Contra80s",
+  "licence": {
+   "summary": "Free Mesen HD pack (README: \"a free Mesen HD Pack developed by Tastic\"); no licence file",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "hires.txt format 106, scale 2 (512x480). Made for Contra (USA), the ROM its <supportedRom> line names. Mesen decodes its images when the game starts: about 1.6 GB of memory, so devices that cannot give it that much refuse the pack.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Contra80s.zip",
+   "parts": [
+    {
+     "url": "https://github.com/TasticHacks/Contra80s/releases/download/1.4.2/Contra80s.zip"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Contra80s-v1.4.2/Contra (U) [!]/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "Mesen HD pack (hires.txt), installed in System › HdPacks in the folder named after the game's ROM file. Read by the Mesen engine only: switching it on makes the game start with Mesen (Nestopia reads no HD pack). New stage backgrounds, sprites and title cards inspired by 1980s films (README)."
+ },
+ {
+  "id": "nes-mega-man-super-axlrocks",
+  "system": "nes",
+  "engine": "mesen",
+  "availability": "available",
+  "title": "Megaman: Super (16-bit Mesen graphics pack)",
+  "version": "repository be6f9c2",
+  "games": [
+   {
+    "title": "Mega Man",
+    "regions": [
+     "USA"
+    ],
+    "identities": [
+     {
+      "type": "sha1",
+      "scheme": "nes-rom-sha1",
+      "value": "2F88381557339A14C20428455F6991C1EB902C99"
+     },
+     {
+      "type": "sha1",
+      "scheme": "nes-rom-sha1",
+      "value": "51A9FE7B5CB82833FC416E0F29B965495D9CE49A"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "AxlRocks"
+  ],
+  "page_url": "https://github.com/AxlRocks/Megaman-Super/tree/be6f9c23335666aaface41d4598a299a09ab110b",
+  "source_id": "github:AxlRocks/Megaman-Super",
+  "licence": {
+   "summary": "No licence stated; README: fan work with no original Capcom assets, only remixed fan-made graphics",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "hires.txt format 106. Its patch (Megaman - Super.ips) applies only to the two Mega Man ROMs whose SHA-1 hires.txt names; README: if the patch does not apply, the ROM differs.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Megaman-Super-be6f9c23335666aaface41d4598a299a09ab110b.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/AxlRocks/Megaman-Super/zip/be6f9c23335666aaface41d4598a299a09ab110b"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/AxlRocks/Megaman-Super",
+    "commit": "be6f9c23335666aaface41d4598a299a09ab110b"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Megaman-Super-be6f9c23335666aaface41d4598a299a09ab110b/",
+     "to": "{id}",
+     "exclude": [
+      "Customization/"
+     ]
+    }
+   ]
+  },
+  "notes": "Mesen HD pack (hires.txt), installed in System › HdPacks in the folder named after the game's ROM file. Read by the Mesen engine only: switching it on makes the game start with Mesen (Nestopia reads no HD pack). The default pack only; the Customization folder (music and pause variants) is not installed."
+ },
+ {
+  "id": "nes-pac-man-4x-pepcodes",
+  "system": "nes",
+  "engine": "mesen",
+  "availability": "available",
+  "title": "Pac-Man HDNes Pack (4x)",
+  "version": "repository 447e601",
+  "games": [
+   {
+    "title": "Pac-Man",
+    "regions": [
+     "USA"
+    ],
+    "identities": [
+     {
+      "type": "sha1",
+      "scheme": "nes-rom-sha1",
+      "value": "E7D818E128593109B5C480497A050FACC0744F1B"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "PepCodes"
+  ],
+  "page_url": "https://github.com/PepCodes/HDNes-Graphics-Pac/tree/447e6018a538c65aa60c2be77ea2a97cc535a543",
+  "source_id": "github:PepCodes/HDNes-Graphics-Pac",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "hires.txt format 100, scale 4. Made for the 1993 Namco release of Pac-Man (README), the ROM its <supportedRom> line names; built and tested with Mesen 0.9.5.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HDNes-Graphics-Pac-447e6018a538c65aa60c2be77ea2a97cc535a543.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/PepCodes/HDNes-Graphics-Pac/zip/447e6018a538c65aa60c2be77ea2a97cc535a543"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/PepCodes/HDNes-Graphics-Pac",
+    "commit": "447e6018a538c65aa60c2be77ea2a97cc535a543"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "HDNes-Graphics-Pac-447e6018a538c65aa60c2be77ea2a97cc535a543/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "Mesen HD pack (hires.txt), installed in System › HdPacks in the folder named after the game's ROM file. Read by the Mesen engine only: switching it on makes the game start with Mesen (Nestopia reads no HD pack). Known issue (README): on the demo screen, Clyde disappears before Pac-Man eats him."
+ },
+ {
+  "id": "nes-super-mario-bros-roney33",
+  "system": "nes",
+  "engine": "mesen",
+  "availability": "available",
+  "title": "Super Mario Bros. HD pack (Mesen)",
+  "version": "repository 06e65ea",
+  "games": [
+   {
+    "title": "Super Mario Bros.",
+    "regions": [
+     "World"
+    ],
+    "identities": [
+     {
+      "type": "sha1",
+      "scheme": "nes-rom-sha1",
+      "value": "EA343F4E445A9050D4B4FBAC2C77D0693B1D0922"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "roney33"
+  ],
+  "page_url": "https://github.com/roney33/MyHdPacksForMesen/tree/06e65eacdd60932cc7bcaaaeabe0f33b824e83a9",
+  "source_id": "github:roney33/MyHdPacksForMesen",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "hires.txt format 104, scale 1 (redrawn tiles at the original size). Made for the ROM its <supportedRom> line names.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MyHdPacksForMesen-06e65eacdd60932cc7bcaaaeabe0f33b824e83a9.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/roney33/MyHdPacksForMesen/zip/06e65eacdd60932cc7bcaaaeabe0f33b824e83a9"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/roney33/MyHdPacksForMesen",
+    "commit": "06e65eacdd60932cc7bcaaaeabe0f33b824e83a9"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "MyHdPacksForMesen-06e65eacdd60932cc7bcaaaeabe0f33b824e83a9/Super Mario Bros. (W) [!]/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "Mesen HD pack (hires.txt), installed in System › HdPacks in the folder named after the game's ROM file. Read by the Mesen engine only: switching it on makes the game start with Mesen (Nestopia reads no HD pack)."
+ },
+ {
+  "id": "nes-super-mario-bros-lyonhrt",
+  "system": "nes",
+  "engine": "mesen",
+  "availability": "available",
+  "title": "Super Mario Bros. HD graphics pack (HDNes / Mesen)",
+  "version": "repository ed46788",
+  "games": [
+   {
+    "title": "Super Mario Bros.",
+    "regions": [
+     "World"
+    ],
+    "identities": [
+     {
+      "type": "sha1",
+      "scheme": "nes-rom-sha1",
+      "value": "EA343F4E445A9050D4B4FBAC2C77D0693B1D0922"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "lyonhrt"
+  ],
+  "page_url": "https://github.com/lyonhrt/hdnes-projects/tree/ed467883a336396184109544c983ed6c33341029/Super%20Mario%20Bros",
+  "source_id": "github:lyonhrt/hdnes-projects",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Older HDNes format (version 2, scale 4), read by Mesen (README: packs for HDNes and Mesen). The pack names no ROM: the identity is the Super Mario Bros. (World) ROM that roney33's pack names, to confirm.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "hdnes-projects-ed467883a336396184109544c983ed6c33341029.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/lyonhrt/hdnes-projects/zip/ed467883a336396184109544c983ed6c33341029"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/lyonhrt/hdnes-projects",
+    "commit": "ed467883a336396184109544c983ed6c33341029"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "hdnes-projects-ed467883a336396184109544c983ed6c33341029/Super Mario Bros/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "Mesen HD pack (hires.txt), installed in System › HdPacks in the folder named after the game's ROM file. Read by the Mesen engine only: switching it on makes the game start with Mesen (Nestopia reads no HD pack). README: use the recommended ROM."
+ }
+]

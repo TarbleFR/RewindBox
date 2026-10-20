@@ -56,5 +56,102 @@
   },
   "scope": "partial",
   "family": "ps1-wip3out-se-beta-texturepack-matsilagi"
+ },
+ {
+  "id": "ps1-wip3out-hd-texture-pack-nr74w",
+  "system": "ps1",
+  "engine": "beetle",
+  "title": "Wip3out HD Texture Pack",
+  "version": "repository 039a069",
+  "games": [
+   {
+    "title": "Wip3out",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps1-disc-serial",
+      "value": "SLUS-00865"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Wip3out",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps1-disc-serial",
+      "value": "SCES-01909"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "WipEout 3",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps1-disc-serial",
+      "value": "SCPS-10098"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Wip3out Special Edition",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps1-disc-serial",
+      "value": "SCES-02845"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "NR74W"
+  ],
+  "page_url": "https://github.com/princepeter64/Wip3out-HD-Texture-Pack/tree/039a0690448047401cef251594327a25fcc73fad",
+  "source_id": "github:princepeter64/Wip3out-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author (README in images)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "credits": "Hashes.ini: NR74W's pack, homepage github.com/NR74W/Wip3out-HD-Texture-Pack (the account is now princepeter64).",
+  "requirements": "Beetle PSX HW with its Vulkan renderer, Track Textures and Replace Textures (what NeoStation's switch sets). Hashes.ini names the four editions it covers.",
+  "notes": "Fonts, menus, HUD, ships, billboards, tracks and effects (Hashes.ini table of contents), and the PlayStation boot screens. Hashes.ini (the hash-to-file list) is not installed: Beetle reads the texture files only.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Wip3out-HD-Texture-Pack-039a0690448047401cef251594327a25fcc73fad.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/princepeter64/Wip3out-HD-Texture-Pack/zip/039a0690448047401cef251594327a25fcc73fad"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/princepeter64/Wip3out-HD-Texture-Pack",
+    "commit": "039a0690448047401cef251594327a25fcc73fad"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Wip3out-HD-Texture-Pack-039a0690448047401cef251594327a25fcc73fad/(cue name)-texture-replacements/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "ps1-wip3out-hd-texture-pack-nr74w"
  }
 ]

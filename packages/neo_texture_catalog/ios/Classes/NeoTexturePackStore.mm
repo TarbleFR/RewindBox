@@ -26,6 +26,7 @@ static NeoTextureInstall::Engine EngineKind(id<NeoTextureEngine> engine) {
   if ([name isEqualToString:@"ppsspp"]) return NeoTextureInstall::Engine::ppsspp;
   if ([name isEqualToString:@"mupen64plus"]) return NeoTextureInstall::Engine::mupen64plus;
   if ([name isEqualToString:@"beetle"]) return NeoTextureInstall::Engine::beetle;
+  if ([name isEqualToString:@"mesen"]) return NeoTextureInstall::Engine::mesen;
   return NeoTextureInstall::Engine::azahar;
 }
 

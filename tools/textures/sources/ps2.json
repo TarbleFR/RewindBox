@@ -3132,5 +3132,57 @@
   "engine": "armsx2",
   "availability": "manual",
   "notes": "Roster, uniform, stadium and field mod: its textures go with the authors' patched game image and roster files. Install it on a computer following the authors' guide."
+ },
+ {
+  "id": "ps2-srw-z-english-ui-retro-trans",
+  "title": "SRW Z English - PCSX2 texture pack (4x UI art)",
+  "version": "v0.9.88",
+  "games": [
+   {
+    "title": "Super Robot Taisen Z",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPS-25887"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "binhlt0402 (retro-trans)"
+  ],
+  "page_url": "https://github.com/retro-trans/SRW-Z/releases/tag/v0.9.88",
+  "source_id": "github:retro-trans/SRW-Z",
+  "licence": {
+   "summary": "MIT (repository LICENSE, © 2026 binhlt0402)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Made for the original edition SLPS-25887 (README); the \"The Best\" edition is not covered. Part of the SRW Z English translation project: it replaces the Japanese UI-art textures with 4x English art and works with any build of the patch (README).",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "SRWZ-texture-pack.zip",
+   "parts": [
+    {
+     "url": "https://github.com/retro-trans/SRW-Z/releases/download/v0.9.88/SRWZ-texture-pack.zip"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/SLPS-25887/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "notes": "UI only (status-bar labels, menu buttons). The two optional prologue cards in intro-cards are machine-specific (README) and not installed.",
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
  }
 ]

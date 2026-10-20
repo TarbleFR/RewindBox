@@ -82,6 +82,7 @@ NSString *NeoTexCanonicalSystem(id value) {
   if ([s isEqualToString:@"n3ds"] || [s isEqualToString:@"nintendo 3ds"]) return @"3ds";
   if ([s isEqualToString:@"gamecube"] || [s isEqualToString:@"ngc"]) return @"gc";
   if ([s isEqualToString:@"psx"] || [s isEqualToString:@"playstation"]) return @"ps1";
+  if ([s isEqualToString:@"fc"] || [s isEqualToString:@"famicom"] || [s isEqualToString:@"fds"] || [s isEqualToString:@"nes-hacks"]) return @"nes";
   return s;
 }
 
@@ -106,6 +107,7 @@ NSString *NeoTexEngineForSystem(NSString *system) {
   if ([s isEqualToString:@"3ds"]) return @"azahar";
   if ([s isEqualToString:@"n64"]) return @"mupen64plus";
   if ([s isEqualToString:@"ps1"]) return @"beetle";
+  if ([s isEqualToString:@"nes"]) return @"mesen";
   return nil;
 }
 

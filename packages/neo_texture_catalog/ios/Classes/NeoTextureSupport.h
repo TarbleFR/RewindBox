@@ -25,7 +25,7 @@ NSCharacterSet *NeoTexIdentityCharacters(void);
 /// A manual pack's download.verified (the author's file on a file host, verified
 /// on CI: format zip|7z, size, sha256, file_name), when well formed; nil otherwise.
 NSDictionary *_Nullable NeoTexVerifiedFile(NSDictionary *_Nullable pack);
-/// ps2->armsx2, gc/wii->dolphin, psp->ppsspp, 3ds->azahar, n64->mupen64plus, ps1->beetle, else nil.
+/// ps2->armsx2, gc/wii->dolphin, psp->ppsspp, 3ds->azahar, n64->mupen64plus, ps1->beetle, nes->mesen, else nil.
 NSString *_Nullable NeoTexEngineForSystem(NSString *_Nullable system);
 /// pspminis->psp, n3ds->3ds, gamecube->gc, lower case.
 NSString *NeoTexCanonicalSystem(id _Nullable system);

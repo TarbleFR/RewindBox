@@ -647,3 +647,53 @@ KO = {
     'actionImportVerified': '다운로드한 파일 가져오기',
     'error.notVerifiedFile': '이 팩용으로 검증한 파일이 아닙니다(크기 또는 SHA-256이 다름). 제작자 페이지에서 버전을 확인하세요. 다른 압축 파일은 게임 페이지에서 가져올 수 있습니다.',
 }
+
+# Mesen (NES HD packs).
+ZH.update({
+    'error.missingHires': '此 Mesen 高清包的根目录中没有 hires.txt。',
+    'error.formatTooNew': '此高清包是为 Mesen 2 制作的（格式新于 106）：NeoStation 的 Mesen 引擎无法读取。',
+    'error.missingFiles': '归档中缺少此包的 hires.txt 列出的图像。',
+    'error.memoryTooLarge': '此高清包所需的内存超出此设备能提供的范围：Mesen 会在游戏启动时载入包中的全部图像。',
+    'error.mesenNotSelected': '无法为此游戏选择 Mesen。请在游戏设置（模拟器）中选择 Mesen，然后开启此包。',
+    'activation.mesenEngine': '开启后，此游戏也将使用 Mesen 启动：默认的 NES 引擎 Nestopia 不读取高清包。',
+    'identity.contentName': '游戏的文件名不能用作纹理文件夹名称。',
+    'firstLaunchNotice.mesen': 'Mesen 会在游戏启动时载入包中的全部图像：大型包会延长启动时间并占用更多内存。',
+    'engineNotice.mesen': 'NES 高清包由 Mesen 引擎读取；为 Mesen 2 制作的包（格式高于 106）无法读取。游戏的引擎可在其设置（模拟器）中更改。',
+    'importHelp.mesen': '请使用为此 ROM 文件制作的 Mesen 高清包：hires.txt 及其 PNG 图像（ZIP、7z 或文件夹）。安装到 {folder}。',
+})
+ZH_HANT.update({
+    'error.missingHires': '此 Mesen 高畫質包的根目錄中沒有 hires.txt。',
+    'error.formatTooNew': '此高畫質包是為 Mesen 2 製作的（格式新於 106）：NeoStation 的 Mesen 引擎無法讀取。',
+    'error.missingFiles': '封存檔中缺少此包的 hires.txt 所列出的影像。',
+    'error.memoryTooLarge': '此高畫質包所需的記憶體超出這部裝置能提供的範圍：Mesen 會在遊戲啟動時載入包內的所有影像。',
+    'error.mesenNotSelected': '無法為此遊戲選擇 Mesen。請在遊戲設定（模擬器）中選擇 Mesen，然後開啟此包。',
+    'activation.mesenEngine': '開啟後，此遊戲也會改用 Mesen 啟動：預設的 NES 引擎 Nestopia 不會讀取高畫質包。',
+    'identity.contentName': '遊戲的檔名無法作為材質資料夾名稱。',
+    'firstLaunchNotice.mesen': 'Mesen 會在遊戲啟動時載入包內的所有影像：大型包會拉長啟動時間並佔用更多記憶體。',
+    'engineNotice.mesen': 'NES 高畫質包由 Mesen 引擎讀取；為 Mesen 2 製作的包（格式高於 106）則無法讀取。遊戲的引擎可在其設定（模擬器）中變更。',
+    'importHelp.mesen': '請使用為此 ROM 檔案製作的 Mesen 高畫質包：hires.txt 與其 PNG 影像（ZIP、7z 或資料夾）。安裝至 {folder}。',
+})
+JA.update({
+    'error.missingHires': 'このMesen HDパックのルートにhires.txtがありません。',
+    'error.formatTooNew': 'このHDパックはMesen 2用です（106より新しい形式）：NeoStationのMesenエンジンでは読み込めません。',
+    'error.missingFiles': 'このパックのhires.txtが指定している画像がアーカイブにありません。',
+    'error.memoryTooLarge': 'このHDパックには、このデバイスが割り当てられる以上のメモリが必要です：Mesenはゲーム起動時にパックのすべての画像を読み込みます。',
+    'error.mesenNotSelected': 'このゲームにMesenを選択できませんでした。ゲームの設定（エミュレーター）でMesenを選んでから、パックをオンにしてください。',
+    'activation.mesenEngine': 'オンにすると、このゲームはMesenで起動するようにもなります：標準のNESエンジンであるNestopiaはHDパックを読み込みません。',
+    'identity.contentName': 'ゲームのファイル名はテクスチャフォルダ名として使えません。',
+    'firstLaunchNotice.mesen': 'Mesenはゲーム起動時にパックのすべての画像を読み込みます：大きなパックほど起動に時間がかかり、メモリを多く使います。',
+    'engineNotice.mesen': 'NESのHDパックはMesenエンジンが読み込みます。Mesen 2用のパック（106を超える形式）は読み込めません。ゲームのエンジンはその設定（エミュレーター）で変更できます。',
+    'importHelp.mesen': 'このROMファイル用に作られたMesen HDパックを使ってください：hires.txtとそのPNG画像（ZIP、7z、またはフォルダ）。{folder}にインストールされます。',
+})
+KO.update({
+    'error.missingHires': '이 Mesen HD 팩의 최상위 폴더에 hires.txt가 없습니다.',
+    'error.formatTooNew': '이 HD 팩은 Mesen 2용입니다(106보다 새로운 형식). NeoStation의 Mesen 엔진은 읽을 수 없습니다.',
+    'error.missingFiles': '이 팩의 hires.txt가 지정한 이미지가 압축 파일에 없습니다.',
+    'error.memoryTooLarge': '이 HD 팩에는 이 기기가 내줄 수 있는 것보다 많은 메모리가 필요합니다. Mesen은 게임을 시작할 때 팩의 모든 이미지를 불러옵니다.',
+    'error.mesenNotSelected': '이 게임에 Mesen을 선택할 수 없습니다. 게임 설정(에뮬레이터)에서 Mesen을 선택한 다음 팩을 켜세요.',
+    'activation.mesenEngine': '켜면 이 게임은 Mesen으로 시작하게도 됩니다. 기본 NES 엔진인 Nestopia는 HD 팩을 읽지 않습니다.',
+    'identity.contentName': '게임 파일 이름을 텍스처 폴더 이름으로 사용할 수 없습니다.',
+    'firstLaunchNotice.mesen': 'Mesen은 게임을 시작할 때 팩의 모든 이미지를 불러옵니다. 큰 팩일수록 시작이 오래 걸리고 메모리를 더 사용합니다.',
+    'engineNotice.mesen': 'NES HD 팩은 Mesen 엔진이 읽습니다. Mesen 2용 팩(106보다 높은 형식)은 읽지 않습니다. 게임의 엔진은 해당 설정(에뮬레이터)에서 바꿀 수 있습니다.',
+    'importHelp.mesen': '이 ROM 파일용으로 만든 Mesen HD 팩을 사용하세요: hires.txt와 PNG 이미지(ZIP, 7z 또는 폴더). {folder}에 설치됩니다.',
+})

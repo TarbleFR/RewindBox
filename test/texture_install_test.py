@@ -6,10 +6,12 @@ and removal limited to the pack's own folder.
 """
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 import zipfile
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +21,15 @@ import texture_7z_writer as sz  # noqa: E402
 CLASSES = ROOT / 'packages/neo_texture_catalog/ios/Classes'
 LZMA = ROOT / 'packages/neo_texture_catalog/ios/ThirdParty/lzma'
 PNG = b'\x89PNG\r\n\x1a\n' + bytes(range(256)) * 64
+
+
+def real_png(width, height):
+    """A decodable RGBA PNG (Mesen reads each image's IHDR size)."""
+    def chunk(kind, data):
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+    raw = b''.join(b'\x00' + bytes(4 * width) for _ in range(height))
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 6, 0, 0, 0)) +
+            chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
 DDS = b'DDS ' + bytes(124) + bytes(range(256)) * 8
 
 
@@ -91,7 +102,13 @@ def main():
                                  ('beetle', '1a2b3c4d-0.png', True), ('beetle', 'ABCD-1234.DDS', True),
                                  ('beetle', 'ff-ff.webp', True), ('beetle', '0-0.tga', True), ('beetle', 'prefetch.journal', True),
                                  ('beetle', 'sub/1a2b-0.png', False), ('beetle', '1a2b-0.gif', False),
-                                 ('beetle', '123456789-0.png', False), ('beetle', 'readme.txt', False), ('beetle', 'g12-0.png', False)):
+                                 ('beetle', '123456789-0.png', False), ('beetle', 'readme.txt', False), ('beetle', 'g12-0.png', False),
+                                 # Mesen: hires.txt and palette.dat at the pack root (exact names), the PNG,
+                                 # OGG and IPS/UPS/BPS files hires.txt names, anywhere below.
+                                 ('mesen', 'hires.txt', True), ('mesen', 'palette.dat', True), ('mesen', 'sub/hires.txt', False),
+                                 ('mesen', 'Hires.txt', False), ('mesen', 'tiles/a.PNG', True), ('mesen', 'BGM/title.ogg', True),
+                                 ('mesen', 'Megaman - Super.ips', True), ('mesen', 'fix.bps', True), ('mesen', 'readme.txt', False),
+                                 ('mesen', 'preview.jpg', False)):
             assert (run('accepts', engine, path)[0] == 0) == ok, (engine, path)
 
         # Import layout detection.
@@ -243,6 +260,46 @@ def main():
         assert run('remove', beetle, current)[0] == 0 and not (beetle / current).exists()
         assert (beetle / 'Game (USA).mcr').exists() and (beetle / 'Game (USA).1.mcr').exists(), 'memory cards must stay'
 
+        # Mesen: HdPacks/<content name>/, the folder of the shallowest
+        # hires.txt (a variant's hires.txt below it is the author's option,
+        # never read by the core); a pack without hires.txt is refused.
+        out = detect('mesen', 'Contra (U)', ['Contra80s-v1.4.2/Contra (U) [!]/hires.txt', 'Contra80s-v1.4.2/Contra (U) [!]/a.png',
+                                             'Contra80s-v1.4.2/Contra (U) [!]/alt/hires.txt', 'Contra80s-v1.4.2/README.md'])
+        assert 'rule=Contra80s-v1.4.2/Contra (U) [!]/>Contra (U)' in out and 'problem= ' in out + ' ', out
+        assert 'problem=missingHires' in detect('mesen', 'Contra (U)', ['pack/a.png', 'pack/readme.txt'])
+        nes = temp / 'Libretro/System/HdPacks'
+        nes.mkdir(parents=True)
+        hires = ('<ver>106\n<scale>2\n<supportedRom>c9ea66bb7cb30ad5343f1721b1d4d3219859319b\n<img>tiles/a.png\n'
+                 '[hud]<background>Stage1.png,1.0\n<patch>fix.ips,2F88381557339A14C20428455F6991C1EB902C99\n'
+                 '<bgm>0,1,BGM\\title.ogg\n<tile>0,0,0F161616,0,0,1,N\n')
+        tile = real_png(16, 16)
+        pack = zip_of('m.zip', [('Pack/Contra (U) [!]/hires.txt', hires), ('Pack/Contra (U) [!]/tiles/a.png', tile),
+                                ('Pack/Contra (U) [!]/fix.ips', b'PATCH' + b'EOF'), ('Pack/Contra (U) [!]/BGM/title.ogg', b'OggS' + bytes(60)),
+                                ('Pack/Contra (U) [!]/notes.txt', b'x'), ('Pack/screenshot.png', PNG)])
+        code, out = run('install', 'mesen', nes, pack, 'Pack/Contra (U) [!]/=Contra (U)')
+        assert code == 0 and 'files=4' in out, out
+        assert sorted(str(p.relative_to(nes / 'Contra (U)')) for p in (nes / 'Contra (U)').rglob('*') if p.is_file()) == \
+            ['BGM/title.ogg', 'fix.ips', 'hires.txt', 'tiles/a.png'], out
+        # What the core would refuse or could not hold, read from the folder.
+        code, out = run('mesencheck', nes / 'Contra (U)')
+        assert code == 0 and 'ver=106 scale=2' in out and f'decoded={16 * 16 * 4}' in out, out
+        assert 'skipped=1' in out and 'missing=0' in out, out          # Stage1.png: the core skips a missing background
+        assert 'rom=2F88381557339A14C20428455F6991C1EB902C99' in out and 'rom=C9EA66BB7CB30AD5343F1721B1D4D3219859319B' in out, out
+        mesen2 = temp / 'mesen2'
+        mesen2.mkdir()
+        (mesen2 / 'hires.txt').write_text('<ver>108\n<img>a.png\n')
+        (mesen2 / 'a.png').write_bytes(tile)
+        assert 'problem=formatTooNew' in run('mesencheck', mesen2)[1]
+        (mesen2 / 'hires.txt').write_text('<ver>106\n<img>a.png\n<img>sub\\missing.png\n')
+        assert 'problem=missingFiles' in run('mesencheck', mesen2)[1]
+        (mesen2 / 'hires.txt').write_text('<ver>106\n<img>../outside.png\n')
+        assert 'problem=missingFiles' in run('mesencheck', mesen2)[1]
+        (mesen2 / 'hires.txt').write_text('<ver>106\n<img>a.png\n')
+        (mesen2 / 'a.png').write_bytes(b'not a png at all, but long enough')
+        assert 'problem=archiveDamaged' in run('mesencheck', mesen2)[1]
+        assert 'problem=missingHires' in run('mesencheck', temp / 'Libretro/System')[1]
+        assert run('remove', nes, 'Contra (U)')[0] == 0 and not (nes / 'Contra (U)').exists()
+
         # Refusals leave the installed pack untouched and no staging behind.
         before = sorted(p.name for p in (dolphin / 'GZ2E01').iterdir())
         bad = zip_of('bad.zip', [('GZ2E01/tex1_bad.png', b'not a png at all')])
@@ -281,9 +338,10 @@ def main():
         assert run('recover', dolphin)[0] == 0
         assert (dolphin / 'GZ2E01/tex1_c.png').exists() and not list(dolphin.glob('.neostation-*'))
         print(f'PASS texture install: {checks[0]} checks (engine file filters, import layout detection for Dolphin/ARMSX2/'
-              'PPSSPP/Azahar/Mupen64Plus-Next/Beetle PSX HW incl. region-free, other region and other game, ZIP/7z/folder installs into the real '
+              'PPSSPP/Azahar/Mupen64Plus-Next/Beetle PSX HW/Mesen incl. region-free, other region and other game, ZIP/7z/folder installs into the real '
               'layouts incl. Dolphin Game ID markers and excluded subfolders, update, removal limited to the pack folder with PS2 dumps '
-              'and PS1 memory cards kept, signature/empty/RAR/duplicate/'
+              'and PS1 memory cards kept, Mesen hires.txt version/missing image/damaged image/decoded size/ROM SHA-1, '
+              'signature/empty/RAR/duplicate/'
               'link refusals without side effects, crash recovery)')
 
 

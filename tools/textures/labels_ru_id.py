@@ -323,3 +323,29 @@ ID = {
     'actionImportVerified': 'Impor berkas yang diunduh',
     'error.notVerifiedFile': 'Ini bukan berkas yang diverifikasi untuk paket ini (ukuran atau SHA-256 berbeda). Periksa versinya di halaman pembuat; arsip lain tetap dapat diimpor dari halaman game.',
 }
+
+# Mesen (NES HD packs).
+RU.update({
+    'error.missingHires': 'В корне этого HD-пакета Mesen нет файла hires.txt.',
+    'error.formatTooNew': 'Этот HD-пакет создан для Mesen 2 (формат новее 106): движок Mesen в NeoStation не может его прочитать.',
+    'error.missingFiles': 'В архиве нет изображений, указанных в hires.txt этого пакета.',
+    'error.memoryTooLarge': 'Этому HD-пакету нужно больше памяти, чем может выделить устройство: Mesen загружает все изображения пакета при запуске игры.',
+    'error.mesenNotSelected': 'Не удалось выбрать Mesen для этой игры. Выберите Mesen в настройках игры (Эмулятор), затем включите пакет.',
+    'activation.mesenEngine': 'При включении эта игра также будет запускаться в Mesen: Nestopia, движок NES по умолчанию, не читает HD-пакеты.',
+    'identity.contentName': 'Имя файла игры нельзя использовать как имя папки текстур.',
+    'firstLaunchNotice.mesen': 'Mesen загружает все изображения пакета при запуске игры: большой пакет удлиняет запуск и занимает больше памяти.',
+    'engineNotice.mesen': 'HD-пакеты NES читает движок Mesen; пакеты для Mesen 2 (формат выше 106) не читаются. Движок игры меняется в её настройках (Эмулятор).',
+    'importHelp.mesen': 'Используйте HD-пакет Mesen, созданный для этого файла ROM: hires.txt с его изображениями PNG (ZIP, 7z или папка). Устанавливается в {folder}.',
+})
+ID.update({
+    'error.missingHires': 'Paket HD Mesen ini tidak memiliki hires.txt di akarnya.',
+    'error.formatTooNew': 'Paket HD ini dibuat untuk Mesen 2 (format lebih baru dari 106): mesin Mesen di NeoStation tidak dapat membacanya.',
+    'error.missingFiles': 'Gambar yang disebut oleh hires.txt paket ini tidak ada di arsip.',
+    'error.memoryTooLarge': 'Paket HD ini memerlukan lebih banyak memori daripada yang dapat diberikan perangkat ini: Mesen memuat semua gambar paket saat game dimulai.',
+    'error.mesenNotSelected': 'Mesen tidak dapat dipilih untuk game ini. Pilih Mesen di pengaturan game (Emulator), lalu aktifkan paketnya.',
+    'activation.mesenEngine': 'Mengaktifkannya juga membuat game ini dimulai dengan Mesen: Nestopia, mesin NES bawaan, tidak membaca paket HD.',
+    'identity.contentName': 'Nama berkas game tidak dapat dipakai sebagai nama folder tekstur.',
+    'firstLaunchNotice.mesen': 'Mesen memuat semua gambar paket saat game dimulai: paket yang besar memperlama awal permainan dan memakai lebih banyak memori.',
+    'engineNotice.mesen': 'Paket HD NES dibaca oleh mesin Mesen; paket untuk Mesen 2 (format di atas 106) tidak. Mesin sebuah game dapat diubah di pengaturannya (Emulator).',
+    'importHelp.mesen': 'Gunakan paket HD Mesen yang dibuat untuk berkas ROM ini: hires.txt dengan gambar PNG-nya (ZIP, 7z, atau folder). Dipasang di {folder}.',
+})

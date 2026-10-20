@@ -21,7 +21,7 @@
 
 namespace NeoTextureInstall {
 
-enum class Engine { dolphin, armsx2, ppsspp, azahar, mupen64plus, beetle };
+enum class Engine { dolphin, armsx2, ppsspp, azahar, mupen64plus, beetle, mesen };
 
 inline std::string Lower(std::string s) { for (char& c : s) if (c >= 'A' && c <= 'Z') c = char(c + 32); return s; }
 inline std::string UpperCase(std::string s) { for (char& c : s) if (c >= 'a' && c <= 'z') c = char(c - 32); return s; }
@@ -96,6 +96,13 @@ inline bool Accepts(Engine engine, const std::string& relative) {
       // keeps the Lazy modes' prefetch journal next to the textures.
       if (relative.find('/') != std::string::npos) return false;
       return name == "prefetch.journal" || BeetleTextureName(name);
+    case Engine::mesen:
+      // Mesen (libretro Mesen 0102910, HdPackLoader.cpp): hires.txt and the
+      // optional palette.dat at the pack root (opened by these exact names),
+      // the PNG images, OGG music and effects and IPS/UPS/BPS ROM patches
+      // hires.txt names, by paths relative to the pack folder.
+      if (name == "hires.txt" || name == "palette.dat") return relative.find('/') == std::string::npos;
+      return extension == "png" || extension == "ogg" || extension == "ips" || extension == "ups" || extension == "bps";
   }
   return false;
 }
@@ -119,6 +126,7 @@ inline bool IsTexture(Engine engine, const std::string& relative) {
     case Engine::armsx2: return true;
     case Engine::mupen64plus: return true;
     case Engine::beetle: return Basename(relative) != "prefetch.journal";
+    case Engine::mesen: return Extension(lower) == "png";
   }
   return false;
 }
@@ -142,6 +150,112 @@ inline bool SignatureOK(const std::string& path) {
   if (!file.open(path) || file.length() < 8 || !file.read(0, head, 8)) return false;
   static const unsigned char png[8] = {137, 80, 78, 71, 13, 10, 26, 10};
   return extension == "png" ? !std::memcmp(head, png, 8) : !std::memcmp(head, "DDS ", 4);
+}
+
+// Mesen HD pack definition (libretro Mesen 0102910, HdPackLoader::LoadPack):
+// what the core would refuse, read from the staged folder. <ver> above 106 is
+// refused by the core (HdNesPack::CurrentVersion); an <img> it cannot read
+// makes the whole pack fail, while a missing <background>, <patch>, <bgm> or
+// <sfx> file is skipped by the core and only reported. Every image and
+// background is decoded whole when the game starts: decodedBytes counts
+// their width x height x 4 bytes, which the app compares with the memory the
+// device can give (the core has no lazy loading).
+inline constexpr int kMesenFormatVersion = 106;
+
+struct MesenPack {
+  int version = 0, scale = 1;
+  uint64_t decodedBytes = 0;
+  std::vector<std::string> roms;     // SHA-1 of the ROM files the pack names (<supportedRom>, <patch>), upper case
+  std::vector<std::string> missing;  // <img> files hires.txt names that are not in the folder
+  std::vector<std::string> skipped;  // other files it names that are absent (the core skips them)
+  std::string problem;               // missingHires, formatTooNew, missingFiles, archiveDamaged, noTextures
+};
+
+inline bool PNGSize(const std::string& path, uint32_t* width, uint32_t* height) {
+  NeoTextureArchive::File file;
+  unsigned char head[24] = {0};
+  static const unsigned char png[8] = {137, 80, 78, 71, 13, 10, 26, 10};
+  if (!file.open(path) || file.length() < 24 || !file.read(0, head, 24) || std::memcmp(head, png, 8) || std::memcmp(head + 12, "IHDR", 4))
+    return false;
+  *width = uint32_t(head[16]) << 24 | uint32_t(head[17]) << 16 | uint32_t(head[18]) << 8 | head[19];
+  *height = uint32_t(head[20]) << 24 | uint32_t(head[21]) << 16 | uint32_t(head[22]) << 8 | head[23];
+  return *width && *height && *width <= 32768 && *height <= 32768;
+}
+
+inline MesenPack CheckMesenPack(const std::string& folder) {
+  MesenPack pack;
+  NeoTextureArchive::File file;
+  if (!file.open(folder + "/hires.txt") || file.length() > (64ULL << 20)) { pack.problem = "missingHires"; return pack; }
+  std::string text(size_t(file.length()), '\0');
+  if (!text.empty() && !file.read(0, &text[0], text.size())) { pack.problem = "missingHires"; return pack; }
+  std::set<std::string> roms, images, backgrounds, others;
+  // Field `index` of a comma-separated tag value, with Mesen's '\' -> '/'.
+  auto field = [](const std::string& value, size_t index) {
+    size_t start = 0;
+    for (size_t i = 0; i < index; ++i) {
+      start = value.find(',', start);
+      if (start == std::string::npos) return std::string();
+      ++start;
+    }
+    const size_t end = value.find(',', start);
+    std::string part = value.substr(start, end == std::string::npos ? std::string::npos : end - start);
+    std::replace(part.begin(), part.end(), '\\', '/');
+    return part;
+  };
+  std::istringstream lines(text);
+  for (std::string line; std::getline(lines, line);) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
+    // A [condition] prefix applies to the tag that follows it.
+    if (!line.empty() && line.front() == '[') {
+      const size_t close = line.find(']');
+      if (close == std::string::npos) continue;
+      line = line.substr(close + 1);
+    }
+    auto value = [&](const char* tag, std::string* out) {
+      const size_t n = std::strlen(tag);
+      if (line.compare(0, n, tag) != 0) return false;
+      *out = line.substr(n);
+      return true;
+    };
+    std::string rest;
+    if (value("<ver>", &rest)) pack.version = std::atoi(rest.c_str());
+    else if (value("<scale>", &rest)) pack.scale = std::max(1, std::atoi(rest.c_str()));
+    else if (value("<img>", &rest)) { std::replace(rest.begin(), rest.end(), '\\', '/'); images.insert(rest); }
+    else if (value("<background>", &rest)) backgrounds.insert(field(rest, 0));
+    else if (value("<patch>", &rest)) {
+      others.insert(field(rest, 0));
+      const std::string hash = UpperCase(field(rest, 1));
+      if (Matches(hash, "^[0-9A-F]{40}$")) roms.insert(hash);
+    } else if (value("<bgm>", &rest) || value("<sfx>", &rest)) others.insert(field(rest, 2));
+    else if (value("<supportedRom>", &rest)) {
+      const std::string hash = UpperCase(rest.substr(0, std::min<size_t>(40, rest.size())));
+      if (Matches(hash, "^[0-9A-F]{40}$")) roms.insert(hash);
+    }
+  }
+  pack.roms.assign(roms.begin(), roms.end());
+  if (pack.version > kMesenFormatVersion) { pack.problem = "formatTooNew"; return pack; }
+  struct stat st {};
+  auto present = [&](const std::string& relative) {
+    if (relative.empty() || relative.front() == '/') return false;
+    for (const auto& part : Split(relative)) if (part == "..") return false;
+    return ::lstat((folder + "/" + relative).c_str(), &st) == 0 && S_ISREG(st.st_mode);
+  };
+  for (const auto& image : images) {
+    if (!present(image)) { pack.missing.push_back(image); continue; }
+    uint32_t width = 0, height = 0;
+    if (!PNGSize(folder + "/" + image, &width, &height)) { pack.problem = "archiveDamaged"; return pack; }
+    pack.decodedBytes += uint64_t(width) * height * 4;
+  }
+  for (const auto& background : backgrounds) {
+    uint32_t width = 0, height = 0;
+    if (present(background) && PNGSize(folder + "/" + background, &width, &height)) pack.decodedBytes += uint64_t(width) * height * 4;
+    else if (!background.empty()) pack.skipped.push_back(background);
+  }
+  for (const auto& other : others)
+    if (!other.empty() && !present(other)) pack.skipped.push_back(other);
+  if (images.empty()) pack.problem = "noTextures";
+  else if (!pack.missing.empty()) pack.problem = "missingFiles";
+  return pack;
 }
 
 // One folder of a pack: the archive subtree `from` (prefix, "" = root)
@@ -318,6 +432,23 @@ inline Layout Detect(Engine engine, const std::vector<std::string>& files, const
         layout.otherRegion = compact != current;
       }
     }
+    return finish(root, current);
+  }
+  if (engine == Engine::mesen) {
+    // HdPacks/<content name>/: the folder of the shallowest hires.txt (an
+    // alternative hires.txt in a subfolder is a variant the pack's author
+    // offers, never read by Mesen).
+    std::string root;
+    bool have = false;
+    for (const auto& file : files) {
+      if (Basename(file) != "hires.txt") continue;
+      const std::string prefix = file.substr(0, file.size() - 9);
+      if (!have || Split(prefix).size() < Split(root).size() || (Split(prefix).size() == Split(root).size() && prefix < root)) {
+        root = prefix;
+        have = true;
+      }
+    }
+    if (!have) { layout.problem = "missingHires"; return layout; }
     return finish(root, current);
   }
   if (engine == Engine::beetle) {

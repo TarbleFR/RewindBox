@@ -647,3 +647,53 @@ PT = {
     'actionImportVerified': 'Importar o arquivo baixado',
     'error.notVerifiedFile': 'Este não é o arquivo verificado para este pacote (o tamanho ou o SHA-256 é diferente). Confira a versão na página do autor; outro arquivo compactado ainda pode ser importado pela página do jogo.',
 }
+
+# Mesen (NES HD packs).
+ES.update({
+    'error.missingHires': 'Este paquete HD de Mesen no tiene hires.txt en su raíz.',
+    'error.formatTooNew': 'Este paquete HD está hecho para Mesen 2 (un formato más reciente que 106): el motor Mesen de NeoStation no puede leerlo.',
+    'error.missingFiles': 'Faltan en el archivo imágenes que nombra el hires.txt de este paquete.',
+    'error.memoryTooLarge': 'Este paquete HD necesita más memoria de la que este dispositivo puede darle: Mesen carga todas las imágenes del paquete al iniciar el juego.',
+    'error.mesenNotSelected': 'No se pudo elegir Mesen para este juego. Elige Mesen en los ajustes del juego (Emulador) y luego activa el paquete.',
+    'activation.mesenEngine': 'Al activarlo, este juego también se iniciará con Mesen: Nestopia, el motor de NES predeterminado, no lee paquetes HD.',
+    'identity.contentName': 'El nombre del archivo del juego no puede usarse como nombre de carpeta de texturas.',
+    'firstLaunchNotice.mesen': 'Mesen carga todas las imágenes del paquete al iniciar el juego: un paquete grande alarga el inicio y usa más memoria.',
+    'engineNotice.mesen': 'Los paquetes HD de NES los lee el motor Mesen; los hechos para Mesen 2 (un formato superior a 106) no. El motor de un juego se cambia en sus ajustes (Emulador).',
+    'importHelp.mesen': 'Usa un paquete HD de Mesen hecho para este archivo ROM: hires.txt con sus imágenes PNG (un ZIP, 7z o carpeta). Se instala en {folder}.',
+})
+DE.update({
+    'error.missingHires': 'Diesem Mesen-HD-Paket fehlt die hires.txt im Hauptordner.',
+    'error.formatTooNew': 'Dieses HD-Paket ist für Mesen 2 gemacht (ein neueres Format als 106): Die Mesen-Engine von NeoStation kann es nicht lesen.',
+    'error.missingFiles': 'Im Archiv fehlen Bilder, die die hires.txt dieses Pakets nennt.',
+    'error.memoryTooLarge': 'Dieses HD-Paket braucht mehr Speicher, als dieses Gerät ihm geben kann: Mesen lädt beim Spielstart alle Bilder des Pakets.',
+    'error.mesenNotSelected': 'Mesen konnte für dieses Spiel nicht gewählt werden. Wähle Mesen in den Spieleinstellungen (Emulator) und schalte dann das Paket ein.',
+    'activation.mesenEngine': 'Beim Einschalten startet dieses Spiel auch mit Mesen: Nestopia, die Standard-Engine für das NES, liest keine HD-Pakete.',
+    'identity.contentName': 'Der Dateiname des Spiels kann nicht als Name eines Texturordners verwendet werden.',
+    'firstLaunchNotice.mesen': 'Mesen lädt beim Spielstart alle Bilder des Pakets: Ein großes Paket verlängert den Start und belegt mehr Speicher.',
+    'engineNotice.mesen': 'NES-HD-Pakete liest die Mesen-Engine; für Mesen 2 gemachte Pakete (ein Format über 106) nicht. Die Engine eines Spiels lässt sich in seinen Einstellungen (Emulator) ändern.',
+    'importHelp.mesen': 'Verwende ein Mesen-HD-Paket für genau diese ROM-Datei: hires.txt mit ihren PNG-Bildern (als ZIP, 7z oder Ordner). Installiert in {folder}.',
+})
+IT.update({
+    'error.missingHires': 'Questo pacchetto HD di Mesen non ha hires.txt nella cartella principale.',
+    'error.formatTooNew': 'Questo pacchetto HD è fatto per Mesen 2 (un formato più recente di 106): il motore Mesen di NeoStation non può leggerlo.',
+    'error.missingFiles': 'Nell’archivio mancano immagini indicate dal hires.txt di questo pacchetto.',
+    'error.memoryTooLarge': 'Questo pacchetto HD richiede più memoria di quanta questo dispositivo possa dargli: Mesen carica tutte le immagini del pacchetto all’avvio del gioco.',
+    'error.mesenNotSelected': 'Impossibile scegliere Mesen per questo gioco. Scegli Mesen nelle impostazioni del gioco (Emulatore), poi attiva il pacchetto.',
+    'activation.mesenEngine': 'Attivandolo, questo gioco si avvierà anche con Mesen: Nestopia, il motore NES predefinito, non legge pacchetti HD.',
+    'identity.contentName': 'Il nome del file del gioco non può essere usato come nome di una cartella di texture.',
+    'firstLaunchNotice.mesen': 'Mesen carica tutte le immagini del pacchetto all’avvio del gioco: un pacchetto grande allunga l’avvio e usa più memoria.',
+    'engineNotice.mesen': 'I pacchetti HD NES sono letti dal motore Mesen; quelli fatti per Mesen 2 (un formato oltre 106) no. Il motore di un gioco si cambia nelle sue impostazioni (Emulatore).',
+    'importHelp.mesen': 'Usa un pacchetto HD di Mesen fatto per questo file ROM: hires.txt con le sue immagini PNG (ZIP, 7z o cartella). Installato in {folder}.',
+})
+PT.update({
+    'error.missingHires': 'Este pacote HD do Mesen não tem hires.txt na raiz.',
+    'error.formatTooNew': 'Este pacote HD foi feito para o Mesen 2 (um formato mais novo que 106): o motor Mesen do NeoStation não consegue lê-lo.',
+    'error.missingFiles': 'Faltam no arquivo imagens citadas pelo hires.txt deste pacote.',
+    'error.memoryTooLarge': 'Este pacote HD precisa de mais memória do que este dispositivo pode lhe dar: o Mesen carrega todas as imagens do pacote ao iniciar o jogo.',
+    'error.mesenNotSelected': 'Não foi possível escolher o Mesen para este jogo. Escolha o Mesen nos ajustes do jogo (Emulador) e depois ative o pacote.',
+    'activation.mesenEngine': 'Ao ativar, este jogo também passa a iniciar com o Mesen: o Nestopia, motor de NES padrão, não lê pacotes HD.',
+    'identity.contentName': 'O nome do arquivo do jogo não pode ser usado como nome de pasta de texturas.',
+    'firstLaunchNotice.mesen': 'O Mesen carrega todas as imagens do pacote ao iniciar o jogo: um pacote grande deixa o início mais lento e usa mais memória.',
+    'engineNotice.mesen': 'Os pacotes HD de NES são lidos pelo motor Mesen; os feitos para o Mesen 2 (um formato acima de 106) não. O motor de um jogo pode ser trocado nos ajustes dele (Emulador).',
+    'importHelp.mesen': 'Use um pacote HD do Mesen feito para este arquivo ROM: hires.txt com suas imagens PNG (um ZIP, 7z ou pasta). Instalado em {folder}.',
+})

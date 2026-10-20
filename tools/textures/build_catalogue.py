@@ -47,9 +47,9 @@ SOURCES = HERE / 'sources'
 VERIFIED = HERE / 'verified.jsonl'
 HOSTED = ROOT / 'native/textures/catalogue/manifest.json.gz'
 BUNDLED = ROOT / 'packages/neo_texture_catalog/ios/Resources/manifest.json.gz'
-CONSOLES = ['ps2', 'gc', 'wii', 'psp', '3ds', 'n64', 'ps1']
+CONSOLES = ['ps2', 'gc', 'wii', 'psp', '3ds', 'n64', 'ps1', 'nes']
 ENGINE = {'ps2': 'armsx2', 'gc': 'dolphin', 'wii': 'dolphin', 'psp': 'ppsspp', '3ds': 'azahar', 'n64': 'mupen64plus',
-          'ps1': 'beetle'}
+          'ps1': 'beetle', 'nes': 'mesen'}
 KEEP = ('id', 'system', 'systems', 'engine', 'title', 'version', 'games', 'authors', 'page_url', 'source_id',
         'licence', 'credits', 'requirements', 'notes')
 # Verification problems that leave a usable page for the user (the file exists but
@@ -71,6 +71,8 @@ def folder_id(engine, identity):
         return 'Game-texture-replacements'  # named after the loaded file in the app (verify_packs.folder_for)
     if engine == 'mupen64plus':
         return bytes.fromhex(identity['value']).decode('ascii')  # the ROM header name, in hexadecimal
+    if engine == 'mesen':
+        return 'Game'  # named after the loaded ROM file in the app (verify_packs.folder_for)
     value = identity['value'].upper()
     if engine == 'ppsspp':
         return value.replace('-', '')
@@ -316,7 +318,7 @@ def validate(index):
 
 CONSOLE_NAMES = {'ps2': 'PlayStation 2 (ARMSX2)', 'gc': 'GameCube (Dolphin)', 'wii': 'Wii (Dolphin)',
                  'psp': 'PSP (PPSSPP)', '3ds': 'Nintendo 3DS (Azahar)', 'n64': 'Nintendo 64 (Mupen64Plus-Next, GLideN64)',
-                 'ps1': 'PlayStation (Beetle PSX HW, Vulkan)'}
+                 'ps1': 'PlayStation (Beetle PSX HW, Vulkan)', 'nes': 'NES / Famicom (Mesen)'}
 
 
 def cell(text):
