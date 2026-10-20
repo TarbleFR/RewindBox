@@ -31,8 +31,8 @@ import hdtex489_delivery as catalogue_gate
 base=previous.base  # unified_cheats_delivery: command, api, successful_run, ROOT
 
 # Build 494 source and its delivery run (checks/native reused, cold Release).
-DELIVERED=''
-DELIVERED_RUN=None
+DELIVERED='f61e1b9ab41bbf09eef478346b131890285f4700'
+DELIVERED_RUN=39382565199
 # The 35-core package: built by libretro-cores.yml on this commit (Mesen added to the delivered 34).
 CORES_SOURCE='4c2186204ce06b50b989689a9c2322068f523a58'
 CORES_RUN=39366986940
