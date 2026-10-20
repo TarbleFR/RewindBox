@@ -122,6 +122,60 @@
         "Switch": 18
       },
       "limits": "Most additional Wii/GC entries are paid Bl4ckH4nd packs or known references. Terabox mirrors are not used; the Fire Emblem rows add no new validated free original PoR/RD source. Switch rows are discovery metadata only."
+    },
+    "remaining_batch_1": {
+      "run": 39416625497,
+      "records": 34,
+      "native_ok": 6,
+      "promoted_without_reverification": [
+        "ps2-ktx-monster-hunter-toolatenate",
+        "ps2-ktx-onimusha-3-demon-siege-teodor-max",
+        "ps2-ktx-tenchu-fatal-shadows-sombertwilight"
+      ],
+      "note": "MH flat archive is attested by the original creator’s explicit SLUS-20896 instructions. SVR2007 ZIP cannot be published as the earlier game. Basara/SH3 use corrected actual IDs only after new verification. All three corrected targets passed run 39420495984 on the same original bytes; wrong earlier observations are retained in superseded history.",
+      "corrected_target_run": 39420495984,
+      "corrected_target_passed": [
+        "ps2-ktx-sengoku-basara-2-heroes-i-emu-play",
+        "ps2-ktx-silent-hill-3-curse-arms",
+        "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers"
+      ]
+    },
+    "onedrive_public_api_check": {
+      "checked_at": "2026-10-20",
+      "api": "https://api.onedrive.com/v1.0/shares/{encoded-public-link}/root",
+      "files": [
+        {
+          "url": "https://1drv.ms/u/s!ApJOQlD7y1v-kQt6geUpBAx2HccT?e=3gv30c",
+          "status": 401,
+          "code": "unauthenticated"
+        },
+        {
+          "url": "https://1drv.ms/u/s!ApJOQlD7y1v-kQNglYuqcNA0YjBQ?e=OMDflX",
+          "status": 401,
+          "code": "unauthenticated"
+        }
+      ],
+      "decision": "Stop; no account token, alternate endpoint, copied file or download attempted. An API requiring authentication is not proof that the original sharing page is private."
+    },
+    "additional_primary_page_sample": {
+      "pages": [
+        "https://gbatemp.net/threads/bionicle-heroes-pcsx2-hd-texture.675440/",
+        "https://gbatemp.net/threads/kinetica-pcsx2-hd-texture.669715/",
+        "https://gbatemp.net/threads/killzone-pcsx2-hd-texture.665500/",
+        "https://gbatemp.net/threads/007-quantum-of-solace-ps2-texture-remaster-hd-pack-sles-55345.675365/",
+        "https://gbatemp.net/threads/crash-bandicoot-nitro-kart-hd-textures.650401/",
+        "https://gbatemp.net/threads/disgaea-hour-of-darkness-texture-pack.679826/"
+      ],
+      "decision": "No original downloadable archive was resolved: three pages inaccessible to the research tool; Killzone links a Ko-fi page rather than a public file, Quantum of Solace an ouo.io shortener with inconsistent SLES numbers, Disgaea no resolved archive. These source references do not become installable by counting the announcements."
+    },
+    "additional_dolphin_sources": {
+      "rogue_leader_original_forum": "https://forums.dolphin-emu.org/Thread-hd-texture-star-wars-rogue-leader-rebel-strike-jedi-knight-15th-feb-2016",
+      "result": "Official Dolphin wiki references original Rogue Leader/Rebel Strike/Jedi Knight texture work, but the forum returns a bot challenge. No file or current-hash proof obtained; no bypass.",
+      "f_zero_original_forums": [
+        "https://forums.dolphin-emu.org/Thread-f-zero-gx-hd-05-01-2022",
+        "https://forums.dolphin-emu.org/Thread-f-zero-gx-hd-texture-pack?highlight=F-zero+gx&pid=370439"
+      ],
+      "f_zero_result": "Both official-wiki-linked original creator threads return bot challenges; no additional file or native import inferred."
     }
   },
   "entries": [
@@ -408,8 +462,9 @@
       "title": "Daxter HD HUD (unfinished)",
       "page_url": "https://forums.ppsspp.org/showthread.php?tid=26567",
       "download_url": "https://drive.google.com/file/d/1JKGud9yGDj1KubM4aIajI-OvOkInVnal/view?usp=sharing",
-      "disposition": "sign-in-wall-not-runtime",
-      "reason": "Creator-made partial English HUD, missing icons and cutscene fonts. Original Drive link shows a sign-in wall, so no archive identity was verified and no login or bypass is attempted."
+      "disposition": "original-archive-native-import-verified",
+      "reason": "The earlier text-only Drive viewer exposed a sign-in navigation link, which did not prove that the file required login. Standard anonymous original-file download succeeds without credentials or bypass; native import validates TEXTURES/UCUS98618/, 47 PNGs and a quick-hash INI. Creator specifies partial English HUD; other languages and iPhone rendering remain unvalidated.",
+      "verified_run": 39420074282
     },
     {
       "id": "psp-toukiden-kiwami-saramagrean-link-review",
@@ -758,11 +813,85 @@
       "title": "ThatTextureGuy PoR alpha 0.0.1 — original regional and format evidence",
       "page_url": "https://feuniverse.us/t/fe9-high-resolution-texture-pack-for-dolphin/6057",
       "disposition": "known-usa-alpha-rar-no-new-installable-family",
-      "reason": "The creator explicitly requires GFEE01. March 2020 reply says Europe was untested and expected not to work; Radiant Dawn remained a todo item. Both additional creator Drive links are labelled RAR/torrent and present a sign-in wall. No login, torrent, download or mirror is attempted. This strengthens the original USA/alpha limits; it is not another pack.",
+      "reason": "The creator explicitly requires GFEE01. March 2020 reply says Europe was untested and expected not to work; Radiant Dawn remained a todo item. Additional creator Drive links are labelled RAR/torrent; their text-only viewers expose sign-in navigation without establishing anonymous download access. Neither unsupported format is fetched, and no login or torrent is used. This strengthens USA/alpha and RAR limits; it is not another pack.",
       "original_links": [
         "https://drive.google.com/open?id=1lVIVQXKAEzX_0zml7KPdrwVH2WptR2f4",
         "https://drive.google.com/open?id=1Pw0-FWj0RL6dnjzM34j7hZTgKjoflSsb"
       ]
+    },
+    {
+      "id": "gc-resident-evil-code-veronica-juancho-1-4",
+      "system": "gc",
+      "title": "Resident Evil: Code Veronica X 1.4 — JuanchoTexHD",
+      "page_url": "https://gbatemp.net/threads/gc-resident-evil-code-veronica-x-1-4-full-release-all-regions.668307/",
+      "disposition": "multipart-original-archives-require-review",
+      "reason": "Primary author release provides two DDS volumes and two PNG volumes, 18.2/16.5 GB expanded. JP text incomplete and acknowledged color-gradation conversion defects. CI host verification accepts one original file, not an assumed complete multi-volume pack; format, all volumes, exact regional folders and the optional material maps remain unverified. No partial volume is promoted as the whole pack. No original archive downloaded."
+    },
+    {
+      "id": "gc-spider-man2-project-xxl-bussareas",
+      "system": "gc",
+      "title": "Spider-Man 2 Project XXL — Bussareas",
+      "page_url": "https://gbatemp.net/threads/gc-spider-man-2-2004-project-xxl-ntsc-u.683919/",
+      "original_page": "https://www.nexusmods.com/spiderman2/mods/71?tab=description",
+      "disposition": "original-download-and-engine-validation-pending",
+      "reason": "Primary author page confirms NTSC-U, DDS BC7, 8x–32x textures, and warns of Vulkan/OpenGL renderer requirements. Nexus Files page inaccessible to the research tool. Do not infer an account wall from a global navigation sign-in link, or compatibility with the embedded iOS backend from a creator PC screenshot. No reupload, optional distance cheat, conversion or download performed."
+    },
+    {
+      "id": "wii-system-menu-4k-travtube2006",
+      "system": "wii",
+      "title": "Wii System Menu / channels 4K — travtube2006",
+      "page_url": "https://github.com/travtube2006/Wii4KTexturePacks",
+      "disposition": "system-menu-adaptation-required",
+      "reason": "Creator README targets USA System Menu 4.3U and folder 0000000100000002. The many games listed are channel banners inside that system menu, not separate in-game HD texture families. Requires a future system-title adapter and validation; do not manufacture one family per listed game. No runtime entry or NAND download added."
+    },
+    {
+      "id": "wii-radiant-dawn-clean-items-search-lead",
+      "system": "wii",
+      "title": "Fire Emblem: Radiant Dawn clean item textures",
+      "page_url": "https://forums.dolphin-emu.org/archive/index.php?forum-42-6.html=",
+      "disposition": "original-file-unresolved",
+      "reason": "Primary Dolphin forum listing identifies a separate old thread with eight replies. Actual index request returns a bot challenge; no thread ID, author, downloadable file, modern texture hashes or regional support can be established. No challenge bypass or runtime entry."
+    },
+    {
+      "id": "3ds-etrian-odyssey-nexus-furizu",
+      "system": "3ds",
+      "title": "Etrian Odyssey Nexus HD v2 — Furizu",
+      "page_url": "https://gamebanana.com/mods/608253",
+      "disposition": "multipart-rar-external-extraction-required",
+      "reason": "Primary GameBanana API returns four original RAR volumes (IDs 1487091, 1487097, 1487100, 1487101); creator states 4x upscaling through Labyrinth 13 and PlayStation prompts. The app does not import RAR volumes. This separate partial project is not the existing rikimtasu portrait/text packs, but no native family is counted and no volume downloaded."
+    },
+    {
+      "id": "wii-fire-emblem-radiant-dawn-fr-tengu314",
+      "system": "wii",
+      "title": "Fire Emblem: Radiant Dawn — French supplement announced by TenGu314",
+      "page_url": "https://www.youtube.com/watch?v=9mnue34Apsg",
+      "published_at": "2026-06-10",
+      "disposition": "french-announcement-unavailable-original-file-and-permission-unverified",
+      "reason": "Search-indexed primary video description credits a Bl4ckH4nd base plus the uploader’s French additions and mentions Gofile/1fichier links without exposing usable URLs. An ordinary anonymous request to the original YouTube watch page returns HTTP 200 but player status ERROR: video unavailable because its associated account was closed. No archive, game ID, DDS format, modern hashes or upstream redistribution permission verified; no file downloaded, rehost used or runtime entry added."
+    },
+    {
+      "id": "gc-lotr-two-towers-128rebits-moddb-original",
+      "system": "gc",
+      "title": "The Two Towers HD — The128ReBits original ModDB release",
+      "page_url": "https://www.moddb.com/mods/the-two-towers-textures-4k-ai-remaster/addons/the-two-towers-textures-4k-ai-remaster-lite-version-175gb",
+      "disposition": "same-project-original-rar-external-extraction-required",
+      "reason": "Independent creator publication confirms Spanish PAL GLOS69 and an original Lite RAR of 1,502,903,915 bytes; Native is also RAR. This is the same already referenced project, not another family. The creator’s other GameFront ZIP reference was unavailable in the earlier verification. Do not relabel this RAR as the unverified ZIP or invent matching hashes. Original RAR was not downloaded."
+    },
+    {
+      "id": "gc-lotr-return-king-128rebits-moddb-original",
+      "system": "gc",
+      "title": "The Return of the King HD — The128ReBits original ModDB release",
+      "page_url": "https://www.moddb.com/mods/the-lord-of-the-rings-the-return-of-the-king-hd-texture-remaster/addons/the-return-of-the-king-hd-remastered-lite-version",
+      "disposition": "same-project-original-rar-external-extraction-required",
+      "reason": "Independent creator publication confirms Spanish PAL GKLS69, Lite filename RETURN_OF_THE_KING_TEXTURE_REMASTERED_LITE_VERSION.2.rar and size 1,238,159,577 bytes. Same already referenced project, not a new family or a verified native archive. External extraction plus existing folder import still needs payload/hash review; no original RAR downloaded."
+    },
+    {
+      "id": "gc-f-zero-gx-squadaloo",
+      "system": "gc",
+      "title": "F-Zero GX high resolution AI upscale — Squadaloo",
+      "page_url": "https://www.reddit.com/r/Fzero/comments/phyj4n/massive_ai_upscaled_high_resolution_texture_pack/",
+      "disposition": "known-gameplay-failure-requires-engine-validation",
+      "reason": "Primary creator release has a ZIP and original Drive link, but creator and users report races failing, off-course errors, clipping below the track and random crashes with textures enabled. The creator cannot offer a fix. Do not promote an archive merely because extraction could pass; compatibility and gameplay on the embedded engine need independent validation first. No archive downloaded."
     }
   ],
   "region_database_evidence": {

@@ -467,6 +467,21 @@
       "artifact_name": "hdtex-hosts-{console}-{run}"
     },
     {
+      "run": 39416625497,
+      "source": "ba76f09f93ff74885d7b82146e46388ca70fcece",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 34,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, remaining-only batch 1/3, no completed test repeated)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-sengoku-basara-2-heroes-i-emu-play": 39420495984,
+        "ps2-ktx-silent-hill-3-curse-arms": 39420495984,
+        "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers": 39420495984
+      }
+    },
+    {
       "run": 39417046479,
       "source": "c5e552ca10e7cd243b5b1cadabe3629d14c99c36",
       "consoles": [
@@ -474,6 +489,56 @@
       ],
       "records": 2,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, corrected USA targets for Devil Kings and Akirus DBZ Tenkaichi 3)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39420074282,
+      "source": "aa496897886661e45d1a0d9ea803950c66c19c04",
+      "consoles": [
+        "psp"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original Daxter HUD ZIP; viewer navigation did not establish an access wall)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39420495984,
+      "source": "39998c43c5241cfe3fdeafc65ffbc46a194adcb2",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, corrected original-archive targets: Basara JP, Silent Hill 3 USA, WWE SVR 2007 USA)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39423463863,
+      "source": "1c72df49d772dd3f3ed9eb1ebc8d23affb598bdc",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original Panda_Venom Wave Race 7z; protected, not promoted)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39423064189,
+      "source": "999d441354929635b0c6c248ae5433bb093d888c",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, first original public Yandex files: Prince of Persia installs; God of War times out)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39424078919,
+      "source": "fb4eccda541b142db636a054ad3a18783fb217b7",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original creator PAL Alone in the Dark archive)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]

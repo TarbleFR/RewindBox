@@ -363,7 +363,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Original creator explicitly targets PAL SLES-50185 and publishes this Google Drive archive, with a separate creator MEGA mirror. Archive format, contents and native import are pending. Coverage is conservatively partial until attested; no additional regional edition or iPhone rendering is claimed. Manual original-author download only, no redistribution.",
+  "notes": "Original creator explicitly targets PAL SLES-50185. Production import of the original Google Drive 7z passes: 17,406 BC3 DDS textures, 18,153,546,496 bytes installed. Flat archive has no internal serial, so only the creator-attested target is retained. Coverage remains conservatively partial; no additional regional edition or iPhone rendering is claimed. Manual original-author download only, no redistribution. Prefetch settings are unchanged.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/alone-in-the-dark-the-new-nightmare-hd-texture-pack.639825/",
@@ -4779,7 +4779,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI-enhanced textures. The original creator explicitly identifies SCUS-97399 and publishes this Yandex Disk file. Public-resource metadata confirms a single archive file and SHA-256. Native import and coverage are pending; no European or French edition is asserted. Original author-hosted file only; manual import, no redistribution.",
+  "notes": "Original creator explicitly targets USA SCUS-97399 and publishes a public Yandex ZIP. Provider metadata confirms filename, size and SHA-256, but the original download timed out on CI run 39423064189; no archive contents or native installation validated. Kept unavailable for verified import; no retry, redistribution, European/French support or iPhone rendering claim.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/god-of-war-remastered-project-ps2-4k-texture-pack-ai-enhanced.669144/",
@@ -8982,7 +8982,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI-enhanced textures. The original creator explicitly identifies SLUS-20743 and publishes this Yandex Disk file. Public-resource metadata confirms a single archive file and SHA-256. Native import and coverage are pending; no European or French edition is asserted. Original author-hosted file only; manual import, no redistribution.",
+  "notes": "Original creator explicitly targets USA SLUS-20743. The original Yandex 7z passed production import: 2,151 BC7 DDS textures, 5,985,281,516 bytes installed. Flat archive has no serial; the target is attested by the creator’s opening post. Coverage is conservatively partial. Original file SHA-256 agrees with public provider metadata. Manual download only; no European/French edition or iPhone rendering is asserted. Prefetch settings remain unchanged.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/prince-of-persia-the-sands-of-time-remastered-project-pcsx2-texture-pack.670289/",
@@ -12110,7 +12110,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original creator/filename identifies SLPM-66848; inferred other regions and reissues are removed. Availability awaits verification for this corrected target. Corrected game target verified on CI run 39420495984; original archive SHA-256 unchanged. No iPhone rendering was tested.",
+  "notes": "AI upscale. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original creator/filename identifies SLPM-66848; inferred other regions and reissues are removed. Corrected game target verified on CI run 39420495984; original archive SHA-256 unchanged. No iPhone rendering was tested.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/sengoku-basara-2-heroes-hd-textures.641712/",
@@ -12736,7 +12736,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original creator/filename identifies SLUS-20622; inferred other regions and reissues are removed. Availability awaits verification for this corrected target. Corrected game target verified on CI run 39420495984; original archive SHA-256 unchanged. No iPhone rendering was tested.",
+  "notes": "AI upscale, complete. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original creator/filename identifies SLUS-20622; inferred other regions and reissues are removed. Corrected game target verified on CI run 39420495984; original archive SHA-256 unchanged. No iPhone rendering was tested.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",

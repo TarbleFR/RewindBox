@@ -4,10 +4,10 @@
   "baseline_revision": "2026-10-20.809cfd2df68f",
   "baseline_families": 295,
   "checkpoint": true,
-  "revision": "2026-10-20.9f979ceb1a08",
-  "manifest_sha256": "8d4eb7813cd61a6e672a680487fa12217087e51a3117f69e54c7125bc2bfe7bb",
-  "runtime_entries": 1080,
-  "sources": 437,
+  "revision": "2026-10-20.11f9dcd38dec",
+  "manifest_sha256": "f7b1307354915f5f123ff9d119173e32dbef99fd7702540cd87324489158c9f6",
+  "runtime_entries": 1082,
+  "sources": 439,
   "counts": {
     "gc": {
       "distinct": 77,
@@ -43,26 +43,26 @@
       "games": 54
     },
     "psp": {
-      "distinct": 89,
-      "entries": 103,
+      "distinct": 90,
+      "entries": 104,
       "variants": 14,
       "complete": 62,
       "partial": 11,
-      "ui": 16,
+      "ui": 17,
       "oneTapFamilies": 57,
-      "manualVerifiedFamilies": 32,
-      "games": 107
+      "manualVerifiedFamilies": 33,
+      "games": 108
     },
     "ps2": {
-      "distinct": 61,
-      "entries": 75,
+      "distinct": 69,
+      "entries": 83,
       "variants": 14,
-      "complete": 39,
-      "partial": 13,
+      "complete": 43,
+      "partial": 17,
       "ui": 9,
       "oneTapFamilies": 33,
-      "manualVerifiedFamilies": 28,
-      "games": 72
+      "manualVerifiedFamilies": 36,
+      "games": 80
     },
     "n64": {
       "distinct": 14,
@@ -98,18 +98,18 @@
       "games": 4
     },
     "total": {
-      "distinct": 335,
-      "entries": 420,
+      "distinct": 344,
+      "entries": 429,
       "variants": 85,
-      "complete": 211,
-      "partial": 55,
-      "ui": 69,
+      "complete": 215,
+      "partial": 59,
+      "ui": 70,
       "oneTapFamilies": 161,
-      "manualVerifiedFamilies": 174,
-      "games": 334
+      "manualVerifiedFamilies": 183,
+      "games": 343
     }
   },
-  "exact_ci_records": 152,
+  "exact_ci_records": 194,
   "artifacts": [
     {
       "run": 39407659263,
@@ -230,6 +230,42 @@
       "artifact": 12260944867,
       "console": "ps2",
       "sha256": "22ad012d719333022964d29b65a63ac90132bd7aed7bbadb6f167f164249164f"
+    },
+    {
+      "run": 39416625497,
+      "artifact": 12263297343,
+      "console": "ps2",
+      "sha256": "5aa9b3a1f2ac488acff2701bf922ab894b926ca597f52d5eb4f09acdd7d68a01"
+    },
+    {
+      "run": 39420074282,
+      "artifact": 12262508351,
+      "console": "psp",
+      "sha256": "3af5825730df12c3cc1f1a92db99a6b427440e268707d0ef6c385e489471635e"
+    },
+    {
+      "run": 39420495984,
+      "artifact": 12263821659,
+      "console": "ps2",
+      "sha256": "3f81c4523cc518149ee33efc29ffd90b10d8b488b9121ca26cb314bf1835182b"
+    },
+    {
+      "run": 39423463863,
+      "artifact": 12264458102,
+      "console": "dolphin",
+      "sha256": "525b3ab1b3415ab44fb5f36ed7fdca782a5c51d03516a021c96344d86e58c899"
+    },
+    {
+      "run": 39423064189,
+      "artifact": 12264608869,
+      "console": "ps2",
+      "sha256": "a7bf18d4372dd6232e4375f13ad841278b5b1db3f73d669aa4c0864e3b346c16"
+    },
+    {
+      "run": 39424078919,
+      "artifact": 12265009304,
+      "console": "ps2",
+      "sha256": "456452057d127eb07e230fb7847a383464d3042b9d53ca08bc79dd2a09351751"
     }
   ],
   "research_artifacts": [
@@ -255,7 +291,6 @@
     }
   ],
   "ps2_pending_runs": [
-    39416625497,
     39416632997,
     39416642896
   ],
@@ -272,10 +307,10 @@
     "targeted_checks": "texture_verify_checks_test.py passed with the changed verifier import; Python compilation passed. Full unchanged app/core suites not repeated.",
     "real_archive_reverification_run": 39411315570
   },
-  "new_installable_families": 40,
-  "new_installable_profiles": 43,
-  "current_candidate_records": 141,
-  "superseded_records": 11,
+  "new_installable_families": 49,
+  "new_installable_profiles": 52,
+  "current_candidate_records": 180,
+  "superseded_records": 14,
   "baseline_installable_pack_objects_unchanged": true,
   "baseline_verification_records_unchanged": true,
   "switch_future_references": 4,
@@ -294,5 +329,25 @@
     "regression": "test/texture_catalogue_publication_test.py: PASS locally on the actual old Akirus CI observation, both corrected USA records and the existing NCAA pack-name control. No archive test repeated.",
     "ci": "The existing host-check job runs the new regression before Flutter setup; no unchanged app/core suite is rerun for this change.",
     "manifest_bytes_changed_by_guard": false
+  },
+  "public_file_host_extension": {
+    "provider": "Yandex Disk",
+    "source": "999d441354929635b0c6c248ae5433bb093d888c",
+    "access": "Standard anonymous public-resource metadata and download API; one file only. No accounts, folder copying or quota workarounds. Temporary CDN links are not retained. Provider SHA-256 checked against actual bytes.",
+    "local_test": "test/texture_yandex_host_test.py: 7 tests passed; texture_verify_checks_test.py: 16 checks passed with the changed host import.",
+    "real_original_archive_run": 39423064189,
+    "result": "Prince of Persia passes native import with provider-matching SHA-256; God of War times out and is not promoted."
+  },
+  "observation_status_counts": {
+    "ok": 66,
+    "tooLarge": 2,
+    "protected": 53,
+    "unsupportedArchive": 40,
+    "gone": 19,
+    "html": 3,
+    "quota": 7,
+    "install": 1,
+    "unsupported": 1,
+    "network": 2
   }
 }

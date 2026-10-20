@@ -421,6 +421,153 @@
         "system": "ps2",
         "verified_at": "2026-10-20"
       }
+    },
+    {
+      "run": 39416625497,
+      "superseded_by": 39420495984,
+      "record": {
+        "download_seconds": 77.5,
+        "expanded": {
+          "bytes": 3043451076,
+          "files": 4589
+        },
+        "file_name": "SLPM-66848.7z",
+        "format": "7z",
+        "host": "mega",
+        "id": "ps2-ktx-sengoku-basara-2-heroes-i-emu-play",
+        "installed": [
+          {
+            "bytes": 3043451076,
+            "exclude": [],
+            "files": 4589,
+            "formats": {
+              "png": "4589"
+            },
+            "from": "",
+            "to": "SLKA-25412/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "6a44d041b0dcf00898215bcdb704ab3f79f092848e0c5d8113e1aa0419fa24ed",
+            "size": 2898489391,
+            "url": "https://mega.nz/file/lPRmTQaA#XB6DlwyGZD0Ym9QEtLCFTODF-aNE79SNs2-IZ0Pnl2U"
+          }
+        ],
+        "plan": {
+          "bytes": "3043451076",
+          "error": "",
+          "excluded": "0",
+          "files": "4589",
+          "match": "noSerial",
+          "pack": "",
+          "regionConflict": "0",
+          "serials": "",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39416625497,
+      "superseded_by": 39420495984,
+      "record": {
+        "download_seconds": 74.8,
+        "expanded": {
+          "bytes": 18106204931,
+          "files": 4199
+        },
+        "file_name": "Silent Hill 3 (USA) [SLUS-20622] HD Remaster.7z",
+        "format": "7z",
+        "host": "gdrive",
+        "id": "ps2-ktx-silent-hill-3-curse-arms",
+        "installed": [
+          {
+            "bytes": 18106204931,
+            "exclude": [],
+            "files": 4199,
+            "formats": {
+              "ddsBc3": "4198",
+              "png": "1"
+            },
+            "from": "",
+            "to": "SLES-51434/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "c7e22d5c1a7c7d8e885e2bd6bf379f2ea13403aca57d1dad6f529cdc4068f1b1",
+            "size": 5011382759,
+            "url": "https://drive.usercontent.google.com/download?id=1l3QAcvaZRWdZ1dn43NRTxE4_txSA_Ip5&export=download&authuser=0"
+          }
+        ],
+        "plan": {
+          "bytes": "18106204931",
+          "error": "",
+          "excluded": "0",
+          "files": "4199",
+          "match": "otherSerial",
+          "pack": "SLUS-20622",
+          "regionConflict": "1",
+          "serials": "SLUS-20622,",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39416625497,
+      "superseded_by": 39420495984,
+      "record": {
+        "download_seconds": 5.3,
+        "file_name": "SVR2007 HD Texture by MininGaming.zip",
+        "format": "zip",
+        "host": "gdrive",
+        "id": "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers",
+        "installed": [
+          {
+            "bytes": 509525321,
+            "exclude": [],
+            "files": 2493,
+            "formats": {
+              "png": "2493"
+            },
+            "from": "",
+            "to": "SLES-52781/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "2b90c81f79f19c135b29a6c0b5185299fae3d5ad714aea927618046fb61c7fed",
+            "size": 509877379,
+            "url": "https://drive.google.com/file/d/14dLlinaNIZHUHaO4zjqi19e3Za35XUQZ/view"
+          }
+        ],
+        "plan": {
+          "bytes": "509525321",
+          "error": "",
+          "excluded": "0",
+          "files": "2493",
+          "match": "noSerial",
+          "pack": "",
+          "regionConflict": "0",
+          "serials": "",
+          "skipped": "1"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
     }
   ]
 }

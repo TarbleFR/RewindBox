@@ -367,6 +367,6 @@
   },
   "scope": "ui",
   "family": "psp-daxter-hud-armm1998",
-  "notes": "Creator-made partial English HUD. Several icons and cutscene fonts remain missing; the creator expects other languages not to work. The Drive viewer exposes the original ZIP name and a sign-in navigation link, which does not establish whether anonymous original-file download works. Native archive/INI inspection must establish the actual game ID before availability. No French or iPhone rendering claim."
+  "notes": "Creator-made partial English HUD: 47 PNGs and a quick-hash INI under the original UCUS98618 folder. The creator leaves several icons and cutscene fonts unfinished and expects other languages not to work. Normal anonymous download of the creator’s 4,551,203-byte ZIP succeeds; the Drive viewer’s sign-in navigation link was not an access wall. USA only; no French or iPhone rendering claim."
  }
 ]

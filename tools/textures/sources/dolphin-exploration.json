@@ -199,12 +199,12 @@
   },
   "download": {
    "automatable": false,
-   "page": "https://www.gamefront.com/games/the-lord-of-the-rings-the-two-towers/file/the-lord-of-the-rings-the-two-towers-hd-textures-for-dolphin-lite",
-   "file_name": "1791233541-the-lord-of-the-rings-the-two-towers-gamecube-dolphin-hd-textures-lite-the128rebits.zip"
+   "page": "https://www.moddb.com/mods/the-two-towers-textures-4k-ai-remaster/addons/the-two-towers-textures-4k-ai-remaster-lite-version-175gb",
+   "file_name": "El_Seor_de_Los_anillos_Las_2_Torres_HD_TEXTURES_LITE_VERSION_175GB.rar"
   },
   "scope": "complete",
   "family": "gc-lotr-two-towers-the128rebits",
-  "notes": "Author-published ZIP, approximately 1.49 GiB, with Dolphin Load/Textures/GLOS69. PAL Spain only; renaming does not establish French or other regional compatibility. Native and Lite are alternatives of one family. The author page and ZIP filename are live; the host refuses automated fetching, so archive contents and native installation remain unverified."
+  "notes": "Creator’s original ModDB Lite release is RAR (1,502,903,915 bytes), explicitly Spanish PAL GLOS69. The older GameFront ZIP reference was unavailable; these are not interchangeable files or hashes. Native RAR import is unsupported. External extraction and existing folder import require review of the payload; neither this archive nor iPhone rendering was verified. Native/Lite remain one project family. No additional European or French edition is inferred."
  },
  {
   "id": "gc-lotr-return-king-the128rebits",
@@ -238,12 +238,12 @@
   },
   "download": {
    "automatable": false,
-   "page": "https://www.gamefront.com/games/the-lord-of-the-rings-the-return-of-the-king/file/the-lord-of-the-rings-the-return-of-the-king-hd-textures-for-dolphin-lite",
-   "file_name": "1791232583-the-lord-of-the-rings-the-return-of-the-king-gamecube-dolphin-hd-textures-lite-the128rebits.zip"
+   "page": "https://www.moddb.com/mods/the-lord-of-the-rings-the-return-of-the-king-hd-texture-remaster/addons/the-return-of-the-king-hd-remastered-lite-version",
+   "file_name": "RETURN_OF_THE_KING_TEXTURE_REMASTERED_LITE_VERSION.2.rar"
   },
   "scope": "complete",
   "family": "gc-lotr-return-king-the128rebits",
-  "notes": "Author-published ZIP, approximately 1.26 GiB, with Dolphin Load/Textures/GKLS69. PAL Spain only; French and other editions are not validated. Native and Lite are alternatives of one family. The author page and ZIP filename are live; the host refuses automated fetching, so archive contents and native installation remain unverified."
+  "notes": "Creator’s original ModDB Lite release is RAR (1,238,159,577 bytes), explicitly Spanish PAL GKLS69. The older GameFront ZIP reference was unavailable; these are not interchangeable files or hashes. Native RAR import is unsupported. External extraction and existing folder import require review of the payload; neither this archive nor iPhone rendering was verified. Native/Lite remain one project family. No additional European or French edition is inferred."
  },
  {
   "id": "wii-fit-plus-hd-gmans626",
