@@ -297,6 +297,57 @@ static NSString *Fixtures(void) { return NSProcessInfo.processInfo.environment[@
   [self dismiss];
 }
 
+- (void)testNESPackSwitchStartsTheGameWithMesenOnlyWhenNeoStationRecordsIt {
+  NSString *system = [self.work stringByAppendingPathComponent:@"Libretro/System"], *config = [self.work stringByAppendingPathComponent:@"Libretro/Config"];
+  NSMutableArray<NSString *> *asked = [NSMutableArray array];
+  __block BOOL accept = NO;
+  BOOL (^selector)(NSString *, NSString *) = ^BOOL(NSString *gameKey, NSString *core) {
+    @synchronized(asked) { [asked addObject:[NSString stringWithFormat:@"%@ %@", gameKey, core]]; }
+    return accept;
+  };
+  // Contra (USA): the SHA-1 of the whole file (iNES header included) that Contra 80s names.
+  UIViewController *page = [self present:@{@"system": @"nes", @"libretroSystem": system, @"libretroConfig": config,
+                                           @"gameID": @"C9EA66BB7CB30AD5343F1721B1D4D3219859319B", @"gameKey": @"nes/Contra (USA)",
+                                           @"libretroCore": @"nestopia", @"title": @"Contra", @"locale": @"fr", @"coreSelector": selector}];
+  XCTAssertTrue([self until:^BOOL { return Row(page, @"neoTexturePack.nes-contra-80s-tastic") != nil; } timeout:20], @"%@", [Rows(page) valueForKey:@"identifier"]);
+  XCTAssertNil(Row(page, @"neoTexturePack.nes-pac-man-4x-pepcodes"), @"another game's pack is not offered: %@", [Rows(page) valueForKey:@"identifier"]);
+  // The game starts with Nestopia, which reads no HD pack: the switch is off and says why.
+  NSString *reason = [self label:@"activation.mesenEngine" language:@"fr"];
+  XCTAssertTrue([self until:^BOOL { return [[Row(page, @"neoTextureEnable") valueForKey:@"detail"] isEqual:reason]; } timeout:20],
+                @"%@", [Row(page, @"neoTextureEnable") valueForKey:@"detail"]);
+  id toggle = Row(page, @"neoTextureEnable");
+  XCTAssertEqualObjects([toggle valueForKey:@"toggle"], @NO);
+  BOOL explained = NO;
+  for (id section in Sections(page)) explained |= [[section valueForKey:@"footer"] containsString:[self label:@"engineNotice.mesen" language:@"fr"]];
+  XCTAssertTrue(explained, @"%@", [Sections(page) valueForKey:@"footer"]);
+  NSString *games = [config stringByAppendingPathComponent:@"Games/Mesen.json"];
+  NSDictionary *(^entry)(void) = ^NSDictionary *(void) {
+    NSData *json = [NSData dataWithContentsOfFile:games];
+    return (json ? [NSJSONSerialization JSONObjectWithData:json options:0 error:nil] : nil)[@"games"][@"nes/Contra (USA)"];
+  };
+  // NeoStation does not record Mesen for the game: nothing is written, the switch stays off, the error is shown.
+  void (^switched)(BOOL) = [toggle valueForKey:@"switched"];
+  switched(YES);
+  XCTAssertTrue([self until:^BOOL { return [page.navigationController.presentedViewController ?: page.presentedViewController isKindOfClass:UIAlertController.class]; } timeout:10]);
+  XCTAssertEqualObjects(asked, (@[@"nes/Contra (USA) mesen"]));
+  XCTAssertNil(entry(), @"%@", [NSString stringWithContentsOfFile:games encoding:NSUTF8StringEncoding error:nil]);
+  XCTAssertEqualObjects([Row(page, @"neoTextureEnable") valueForKey:@"toggle"], @NO);
+  UIViewController *alert = page.navigationController.presentedViewController ?: page.presentedViewController;
+  XCTestExpectation *closed = [self expectationWithDescription:@"alert closed"];
+  [alert.presentingViewController dismissViewControllerAnimated:NO completion:^{ [closed fulfill]; }];
+  [self waitForExpectations:@[closed] timeout:10];
+  // Recorded: the game's own option is written (this game only) and the switch is on, with no reason left.
+  accept = YES;
+  switched = [Row(page, @"neoTextureEnable") valueForKey:@"switched"];
+  switched(YES);
+  XCTAssertTrue([self until:^BOOL { return [entry()[@"mesen_hdpacks"] isEqual:@"enabled"]; } timeout:10],
+                @"%@", [NSString stringWithContentsOfFile:games encoding:NSUTF8StringEncoding error:nil]);
+  XCTAssertTrue([self until:^BOOL { return [[Row(page, @"neoTextureEnable") valueForKey:@"toggle"] isEqual:@YES]; } timeout:10]);
+  XCTAssertNil([Row(page, @"neoTextureEnable") valueForKey:@"detail"]);
+  XCTAssertEqual(asked.count, 2u);
+  [self dismiss];
+}
+
 - (void)testVerifiedManualPackInstallsOnlyFromItsImportedFile {
   // The bundled index plus one manual pack whose author's file was verified on CI.
   NSData *bundled = [NSData dataWithContentsOfURL:[NSBundle.mainBundle URLForResource:@"manifest.json" withExtension:@"gz"]];
@@ -418,7 +469,8 @@ def native():
             '-maximum-test-execution-time-allowance', '240', '-resultBundlePath', str(result),
             'CODE_SIGNING_ALLOWED=YES', 'CODE_SIGN_IDENTITY=-', 'DEVELOPMENT_TEAM='], check=True, timeout=1500)
     print('PASS: unified HD textures page on UIKit with the bundled catalogue (GameCube disc, candidate/exact matching, console '
-          'library, failed refresh, PS2 store, PSP/3DS/N64 core options, PS1 Beetle engine report and options, verified manual '
+          'library, failed refresh, PS2 store, PSP/3DS/N64 core options, PS1 Beetle engine report and options, NES switch through '
+          'the Mesen engine choice, verified manual '
           'pack import, twelve languages)', flush=True)
 
 
