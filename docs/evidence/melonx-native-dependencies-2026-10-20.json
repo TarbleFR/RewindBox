@@ -1064,7 +1064,9 @@
     "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs": "30fed620e084dea0d4657468eb0e7bc3f0bb17778032d20285e338b323073174",
     "src/Ryujinx.Graphics.Vulkan/MoltenVK/MoltenVkMetalInterop.cs": "cc08f3a3be6eac6da71bd11f578b37b048b5f1b71f401a77d1adbd330e221cd2",
     "src/Ryujinx.Graphics.Nvdec.FFmpeg/Native/FFmpegApi.cs": "997932fba5b568af38949a1af890b0fddbedccd0628894e9eed1d58aed2d0645",
-    "src/Ryujinx.Input.Native/NativeGamepad.cs": "ef4c63720ad867262f39a6d1931a549cee3e007c7698a3bb7d07b15b6fcbb900"
+    "src/Ryujinx.Input.Native/NativeGamepad.cs": "ef4c63720ad867262f39a6d1931a549cee3e007c7698a3bb7d07b15b6fcbb900",
+    "src/Ryujinx.Memory/DonatedMemory.cs": "8e8e94f110a0434cbd3134ac3e3a43da7f08f5c1707b3b23a714bfca12f6c887",
+    "src/Ryujinx.Memory/MachJitWorkaround.cs": "a5d12404599ed582a81ef5195a136c005197feda4fd1b721595f4442b51eb8e8"
   },
   "findings": {
     "strongVersionedSystemFrameworkPaths": [
@@ -1084,7 +1086,9 @@
     "ffmpegFrameworkIdentitiesNeedAnExplicitResolver": true,
     "binaryPresenceDoesNotProveCorrespondingBuildSource": true,
     "nativeGamepadDisposeAlsoDisconnectsSharedDriverObject": true,
-    "nativeGamepadConfigurationCurrentlyDisposesThatSharedObject": true
+    "nativeGamepadConfigurationCurrentlyDisposesThatSharedObject": true,
+    "donatedMemoryOfferAndWithdrawResetLiveAllocationOwnership": true,
+    "unrecognizedSharedMemoryReleaseFallsBackToVmDeallocate": true
   },
   "copiedIntoNeoStation": false,
   "packagingApproved": false,

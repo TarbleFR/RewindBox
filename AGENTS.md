@@ -8,24 +8,26 @@
   host resources. Partial execution failure quarantines the process. A late
   stop cannot close the next game. Input drivers remain process-owned; window
   managers and bindings are per-session. Do not restore upstream double disposal.
-- Engine source `c49ef51a488f30fc9a79aecb18dd0127fa439f80`, run `39509076583`,
-  job `118925262461`, artifact `12305056007` passed. Independent ZIP/Mach-O/input
+- Engine source `65f957e7278da94dee601d51e5c2265e64c60fdc`, run `39510222541`,
+  job `118929099331`, artifact `12304554717` passed. Independent ZIP/Mach-O/input
   verification: 37,353,112 bytes, SHA-256
-  `93e5e57f4da8ff64688a529d33b2526542826661440cbc3bc0f97d4fd82e6b71`,
+  `7a37793779d5014d8686d34a9f6c7f9cddfcb5817372d6dd15b9b9d1dab882c5`,
   22 required exports. The previous bootstrap-only binary remains historical.
 - Swift native host and CAMetalLayer presentation primitive exist under
   `packages/melonx_internal_bridge/ios/Classes`; they are not yet registered as
   a Flutter plugin or packaged in Runner. They retain the render layer and
-  report active until synchronous native run really returns. Do not mark the
+  report active through clean native return. Quarantined hosts/layers remain
+  rooted and active until process exit, including after UI release. Do not mark the
   Switch route available from these source files or ABI compatibility alone.
-- Run `39509399261`, source `f04e265ffb5d0fe573aba4dd891e7393ef6bb70e`,
-  job `118926352842`, artifact `12304433388`: iPhone SDK type-check and 19
+- Run `39510222562`, source `65f957e7278da94dee601d51e5c2265e64c60fdc`,
+  job `118929099480`, artifact `12304664296`: iPhone SDK type-check and 20
   executable Swift/native-ABI-double cases passed. These use a native double
   on the macOS runner, not the actual emulator or an iPhone guest session.
 - Run `39508485894` passed 15 storage and 20 production session/window-owner
   cases, then failed at a C# visibility error. The visibility error is corrected
-  in c49ef51; its later successful engine run reuses those exact tests only
-  after checking their inputs and SDK/runtime. Do not count the initial full
+  in c49ef51, which passed and reused those exact tests after input/SDK checks.
+  The final 65f957e reruns the changed 20 session cases for quarantine retention;
+  it reuses the unchanged 15 storage cases. Do not count the initial full
   run as successful, or rerun unchanged tests. LibHac's existing 5-test package
   proof is reused. Receipts: `docs/evidence/melonx-native-session-2026-10-20.json`.
 - Eleven committed ARM64/iOS dependencies are inventoried, not embedded:
@@ -41,6 +43,10 @@
   NeoSwap integration remain unfinished. Do not install upstream's broad
   SIGTRAP-skipping handler over the existing engines' handlers. No firmware,
   keys or games bundled; no device/gameplay/IPA claim; no public release.
+- Keep native context/window resources rooted on execution failure. Failed guest
+  termination must skip GPU release and refuse window disposal. The upstream
+  DonatedMemory Offer/Withdraw reset live-loan ownership; do not connect a live
+  NeoSwap loan to that API without a broker ownership adapter.
 - Detailed continuation: `docs/melonx-native-session-2026-10-20.md`. This block
   supersedes the bootstrap-only readiness description immediately below.
 

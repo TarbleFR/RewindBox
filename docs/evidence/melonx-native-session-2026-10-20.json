@@ -1,10 +1,10 @@
 {
-  "source": "c49ef51a488f30fc9a79aecb18dd0127fa439f80",
-  "run": 39509076583,
-  "job": 118925262461,
-  "artifact": 12305056007,
-  "zipSha256": "dac395b9fb9443682cfc7ba1e5a6484ada421fe956cdcd5cabfd32d8022407b0",
-  "coreSha256": "93e5e57f4da8ff64688a529d33b2526542826661440cbc3bc0f97d4fd82e6b71",
+  "source": "65f957e7278da94dee601d51e5c2265e64c60fdc",
+  "run": 39510222541,
+  "job": 118929099331,
+  "artifact": 12304554717,
+  "zipSha256": "35a79c666657289e3ab4926f8a673f25192fddd379f3a257f9fab128a592be07",
+  "coreSha256": "7a37793779d5014d8686d34a9f6c7f9cddfcb5817372d6dd15b9b9d1dab882c5",
   "coreBytes": 37353112,
   "macho": {
     "fileType": 6,
@@ -59,9 +59,9 @@
     "native/melonx/EmbeddedInitializationState.cs": "b563680eab89d135cf33bd5353db403404e3719089d854f76945a4e3c9531b36",
     "native/melonx/EmbeddedSession.cs": "76844ce2937475cbdc6590645c32c1276a00372a1da8b96ee2a6aa214993c1f7",
     "native/melonx/EmbeddedSessionCoordinator.cs": "47a206ac3994fe5eb83c813c55e17e2dfd1fac9192b5414cba90aaba568b012d",
-    "native/melonx/EmbeddedWindowLifetime.cs": "49f0bf33e5d326010f0b42d052693e3d84ca651f3b20f57f685104958c1d8fd6",
+    "native/melonx/EmbeddedWindowLifetime.cs": "446ffdd2070780ec4126d7f6db59536ca632a545a1c0d61b92dd262e40ad0c6b",
     "build-utils/melonx/prepare_embedded.py": "f137656d36e2bd4fe03ed1a5985e3559d344758867ef1dda3854beb6c3efa470",
-    "build-utils/melonx/adapt_session.py": "251c2ffe784b7ed7aaca7a1fc806eb96bacb5fe96d3977ae159b668e826d58c6"
+    "build-utils/melonx/adapt_session.py": "d2ad84b36a05690325066c6779f546cf76674d2b5f82ece357af54a22ea99a2f"
   },
   "currentNativeInputsMatch": true,
   "bootstrapChecks": {
@@ -82,21 +82,16 @@
     "inputsUnchanged": true
   },
   "sessionChecks": {
-    "source": "90ac4ab188690c1130d58848ed7ad5f436e1101c",
+    "source": "65f957e7278da94dee601d51e5c2265e64c60fdc",
     "passedCases": 20,
-    "reexecuted": false,
+    "reexecuted": true,
     "sdk": "10.0.401",
     "runtime": "8.0.32",
     "inputs": {
-      "test/melonx_session_test.py": "b991c7a992045f9b4927f02c3ae3bd6f4d958c8846d226e87adbe7c71c00aca9",
+      "test/melonx_session_test.py": "a5a7d05d2d427cfbf33459c34277e7de04ca0df2d3a82aa91186c9af5c9c18e0",
       "native/melonx/EmbeddedSessionCoordinator.cs": "47a206ac3994fe5eb83c813c55e17e2dfd1fac9192b5414cba90aaba568b012d",
-      "native/melonx/EmbeddedWindowLifetime.cs": "49f0bf33e5d326010f0b42d052693e3d84ca651f3b20f57f685104958c1d8fd6"
-    },
-    "run": 39508485894,
-    "job": 118923327110,
-    "phase": "Execute session ownership and render teardown",
-    "originalRunConclusion": "failure",
-    "inputsUnchanged": true
+      "native/melonx/EmbeddedWindowLifetime.cs": "446ffdd2070780ec4126d7f6db59536ca632a545a1c0d61b92dd262e40ad0c6b"
+    }
   },
   "libHacReuse": {
     "hostSource": "56aeec6722a93f07bbdc05a4576e71cebc93702b",
@@ -116,24 +111,25 @@
   "appRegistered": false,
   "ipaProduced": false,
   "deviceGameplayTested": false,
+  "engineRunConclusion": "success",
+  "hostRunConclusion": "success",
   "host": {
-    "source": "f04e265ffb5d0fe573aba4dd891e7393ef6bb70e",
+    "source": "65f957e7278da94dee601d51e5c2265e64c60fdc",
     "inputs": {
       "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": "c0708ec5048ae7718bc40424913cef2e0db6c7276ddcd4b8b36c5acf30972bb3",
-      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "2e05680ed0fa6b25606db1355e41763102a4b677405eb667522b302fa3d1ea5a",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "8ebd7555d81cca97f60a48aa7fa7b5d5eaba7bae28ef1c8630c8635be0cd9209",
       "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h": "3c79b74ed48292533c369885846f5942c854fc0ad43028247ad4b6daa6c3beef",
-      "test/melonx_session_host_test.py": "a93d5e60ea2171d99abc147a57df5314245f06a081d3955d705a71b6d85e47f9"
+      "test/melonx_session_host_test.py": "8484646f75435408cdae3ac16215c96d43bed35ff8da4e9bdfd8f23557af63b1"
     },
     "iphoneSDKTypecheck": true,
     "nativeABIDouble": true,
     "gameplayTested": false,
-    "result": "Swift embedded session host: 19 cases passed.",
-    "run": 39509399261,
-    "job": 118926352842,
-    "artifact": 12304433388,
-    "zipSha256": "cdeb9c3b3ca6037d120faf8d8d6d7a6b0999c93713252fcd4fca06ec4a6ad6df",
+    "result": "Swift embedded session host: 20 cases passed.",
+    "run": 39510222562,
+    "job": 118929099480,
+    "artifact": 12304664296,
+    "zipSha256": "1d63ae5ca340b740e01d81ede675f0aca5f93c6732681c53bc36f6ea705899a8",
     "currentInputsMatch": true
   },
-  "engineRunConclusion": "success",
-  "hostRunConclusion": "success"
+  "quarantinedResourcesRetainedUntilProcessExit": true
 }

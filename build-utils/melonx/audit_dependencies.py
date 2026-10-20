@@ -53,7 +53,8 @@ surfaces = ['src/Ryujinx.Library/Library.cs', 'src/Ryujinx.Memory/DualMappedJitA
             'src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs',
             'src/Ryujinx.Graphics.Vulkan/MoltenVK/MoltenVkMetalInterop.cs',
             'src/Ryujinx.Graphics.Nvdec.FFmpeg/Native/FFmpegApi.cs',
-            'src/Ryujinx.Input.Native/NativeGamepad.cs']
+            'src/Ryujinx.Input.Native/NativeGamepad.cs',
+            'src/Ryujinx.Memory/DonatedMemory.cs', 'src/Ryujinx.Memory/MachJitWorkaround.cs']
 report = dict(engineRepository=pin['repository'], engineRevision=pin['revision'], binaries=binaries,
               inspectedSourceInputs={p: hashlib.sha256((source / p).read_bytes()).hexdigest() for p in surfaces},
               findings={
@@ -64,6 +65,8 @@ report = dict(engineRepository=pin['repository'], engineRevision=pin['revision']
                   'binaryPresenceDoesNotProveCorrespondingBuildSource': True,
                   'nativeGamepadDisposeAlsoDisconnectsSharedDriverObject': True,
                   'nativeGamepadConfigurationCurrentlyDisposesThatSharedObject': True,
+                  'donatedMemoryOfferAndWithdrawResetLiveAllocationOwnership': True,
+                  'unrecognizedSharedMemoryReleaseFallsBackToVmDeallocate': True,
               }, copiedIntoNeoStation=False, packagingApproved=False, deviceLoaded=False)
 out = Path(sys.argv[2]).resolve()
 out.parent.mkdir(parents=True, exist_ok=True)
