@@ -326,5 +326,47 @@
   "scope": "ui",
   "family": "psp-gow-ghost-sparta-hud-skydr4gon",
   "notes": "Small creator-made HUD improvements and Xbox button prompts, published as the original forum ZIP attachment. Creator explicitly specifies UCES01401. This is an interface pack, not a complete texture overhaul. No altered game image or extra emulator settings. No French-text coverage or iPhone rendering claim."
+ },
+ {
+  "id": "psp-daxter-hud-armm1998",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Daxter — ArMM1998 HD HUD (unfinished)",
+  "version": "2020-06-13",
+  "games": [
+   {
+    "title": "Daxter",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98618"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "ArMM1998"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=26567",
+  "source_id": "ppsspp:26567",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Original creator-linked download only; NeoStation does not host, repackage or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=26567",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1JKGud9yGDj1KubM4aIajI-OvOkInVnal/view?usp=sharing"
+   }
+  },
+  "scope": "ui",
+  "family": "psp-daxter-hud-armm1998",
+  "notes": "Creator-made partial English HUD. Several icons and cutscene fonts remain missing; the creator expects other languages not to work. The Drive viewer exposes the original ZIP name and a sign-in navigation link, which does not establish whether anonymous original-file download works. Native archive/INI inspection must establish the actual game ID before availability. No French or iPhone rendering claim."
  }
 ]
