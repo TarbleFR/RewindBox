@@ -172,6 +172,12 @@ def build(entries, records):
                 packs.append(pack)
             excluded.append((entry, record))
             continue
+        # A confirmed import of another disc proves extraction only. Explicit
+        # serial evidence requires verification for the correct target first.
+        plan = record.get('plan') or {}
+        if entry['engine'] == 'armsx2' and plan.get('match') == 'otherSerial' and plan.get('serials'):
+            fail(f'{entry["id"]}: archive identifies another disc ({plan["serials"]}); '
+                 'review the game identities and verify the corrected target before publication')
         parts = record['parts']
         expected = [download['verify']] if hosted else download['parts']
         if len(parts) != len(expected) or any(a['url'] != b['url'] for a, b in zip(parts, expected)):

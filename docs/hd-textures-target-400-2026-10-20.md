@@ -77,7 +77,7 @@ Flat Frogger and God of War II archives are matched by explicit creator serial s
 
 LOTR Return of the King by MaximoCapcom **does install 1,078 PNGs**, but neither its flat ZIP nor the creator's PAL-only description identifies the exact PAL edition. It remains a manual reference without verified availability and **does not count**. Armored Core Last Raven exceeds the verification job's 12 GiB download bound; its archive is not promoted. Dragon Quest VII's original creator download returns HTTP 403 and stays research only.
 
-The production checks exposed a CI-record omission: ARMSX2's verifier applied the source's excluded folders but did not write those exclusions into its result. The existing catalogue builder therefore could not preserve the three distinct Ace Combat game profiles. `verify_packs.py` now retains that field. A two-game ZIP regression through the unchanged production installer and a new verification of all three real game profiles pass; their manifests retain the exclusions and still count as one family. No app/native installer change is needed.
+The production checks exposed a CI-record omission: ARMSX2's verifier applied the source's excluded folders but did not write those exclusions into its result. The existing catalogue builder therefore could not preserve the three distinct Ace Combat game profiles. `verify_packs.py` now retains that field. A two-game ZIP regression through the unchanged production installer and a new verification of all three real game profiles pass; their manifests retain the exclusions and still count as one family. No app/native installer change is needed. The publication boundary additionally rejects an ARMSX2 success whose plan explicitly identifies another disc. The regression replays the original wrong-target Akirus result, accepts both corrected USA results and retains the existing NCAA pack-name control; it downloads no archive again and is wired into the existing host-check job.
 
 ## Research and the remaining gap
 
@@ -102,7 +102,7 @@ The production checks exposed a CI-record omission: ARMSX2's verifier applied th
 
 The original [HDPacks Engage project](https://www.hdpacks.com/news/fire-emblem-engage-4k-texture-pack) is additionally documented for future Switch evaluation: v0.9b, advertised 11 GiB, paid early access. Payload, engine dependencies, game versions and language coverage are unverified; no paid file is downloaded. All four Switch references remain disabled.
 
-Switch remains research metadata only, with **zero runtime packs**, no engine activation, and no claim of installability. No application code, emulator, native adapter, dependency or build number changes; the sole verification-script change retains already applied exclusion rules in the evidence. No IPA or GitHub release is produced.
+Switch remains research metadata only, with **zero runtime packs**, no engine activation, and no claim of installability. No application code, emulator, native adapter, dependency or build number changes; the verification script retains applied exclusion rules, and the catalogue generator rejects a native success for an explicitly different disc. No IPA or GitHub release is produced.
 
 ## Checkpoint verification
 

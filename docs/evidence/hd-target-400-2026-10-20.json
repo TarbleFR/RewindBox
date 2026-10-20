@@ -287,5 +287,12 @@
     "unseen_candidates_in_three_batches": 102,
     "already_checked_in_later_original_archive_runs": 4,
     "no_completed_tests_repeated": true
+  },
+  "publication_identity_guard": {
+    "file": "tools/textures/build_catalogue.py",
+    "rule": "Reject an otherwise successful ARMSX2 record when its native plan explicitly identifies another disc serial. Correct the source identities and verify the actual target before publication.",
+    "regression": "test/texture_catalogue_publication_test.py: PASS locally on the actual old Akirus CI observation, both corrected USA records and the existing NCAA pack-name control. No archive test repeated.",
+    "ci": "The existing host-check job runs the new regression before Flutter setup; no unchanged app/core suite is rerun for this change.",
+    "manifest_bytes_changed_by_guard": false
   }
 }

@@ -751,6 +751,18 @@
       "page_url": "https://gbatemp.net/threads/drakengard-1-hd-texture-pack.653456/",
       "disposition": "region-conflict-withheld",
       "reason": "Partial replacement of ground-battle environments and some late aerial missions, using textures from other games/mods; characters, enemies and weapons stay original. Creator opening post says For NTSC, whereas the recovered flat original archive is named SLES-52322.7z (PAL) and has no internal serial. This region contradiction is unresolved; no verified availability or inferred cross-region support. NeoStation links the creator only and does not redistribute the assets."
+    },
+    {
+      "id": "gc-fe-por-thattextureguy-additional-primary-review",
+      "system": "gc",
+      "title": "ThatTextureGuy PoR alpha 0.0.1 — original regional and format evidence",
+      "page_url": "https://feuniverse.us/t/fe9-high-resolution-texture-pack-for-dolphin/6057",
+      "disposition": "known-usa-alpha-rar-no-new-installable-family",
+      "reason": "The creator explicitly requires GFEE01. March 2020 reply says Europe was untested and expected not to work; Radiant Dawn remained a todo item. Both additional creator Drive links are labelled RAR/torrent and present a sign-in wall. No login, torrent, download or mirror is attempted. This strengthens the original USA/alpha limits; it is not another pack.",
+      "original_links": [
+        "https://drive.google.com/open?id=1lVIVQXKAEzX_0zml7KPdrwVH2WptR2f4",
+        "https://drive.google.com/open?id=1Pw0-FWj0RL6dnjzM34j7hZTgKjoflSsb"
+      ]
     }
   ],
   "region_database_evidence": {
