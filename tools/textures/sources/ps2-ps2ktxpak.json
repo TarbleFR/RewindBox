@@ -2007,15 +2007,19 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Creator original post explicitly identifies SLUS-21047. Original public Pixeldrain file link, fetched through its standard download API; no mirror or rehost. Creator describes an AI upscale; exact contents and native import are pending. No other region or iPhone rendering is inferred.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/cold-fear-slus-21047-hd-texture-pack.682778/"
+   "page": "https://gbatemp.net/threads/cold-fear-slus-21047-hd-texture-pack.682778/",
+   "verify": {
+    "url": "https://pixeldrain.com/api/file/AGSfUwQi"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/yamijpg.628098/"
+  "source_url": "https://gbatemp.net/members/yamijpg.628098/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-cold-winter-mvp899",
@@ -5007,15 +5011,19 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Creator original post explicitly identifies SCES-54206. Original public Pixeldrain file link, fetched through its standard download API; no mirror or rehost. Creator describes an AI upscale; exact contents and native import are pending. No other region or iPhone rendering is inferred.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/god-of-war-2-sces-54206-hd-texture-pack.683758/"
+   "page": "https://gbatemp.net/threads/god-of-war-2-sces-54206-hd-texture-pack.683758/",
+   "verify": {
+    "url": "https://pixeldrain.com/api/file/VYbosyNJ"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/yamijpg.628098/"
+  "source_url": "https://gbatemp.net/members/yamijpg.628098/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-gran-turismo-3-a-spec-gtafan",
@@ -8376,15 +8384,19 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Creator original post explicitly identifies SLUS-20492. Original public Pixeldrain file link, fetched through its standard download API; no mirror or rehost. Incomplete, currently partial coverage. No other region or iPhone rendering is inferred.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ninja-assault-hd-texture-pack-slus-20492.678175/"
+   "page": "https://gbatemp.net/threads/ninja-assault-hd-texture-pack-slus-20492.678175/",
+   "verify": {
+    "url": "https://pixeldrain.com/api/file/VyCD3kwM"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/joekoh27.696520/"
+  "source_url": "https://gbatemp.net/members/joekoh27.696520/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-obscure-curse-arms",
