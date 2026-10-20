@@ -23,6 +23,9 @@ FOUNDATION_EXPORT NSObject *const FlutterMethodNotImplemented;
 @interface FlutterMethodChannel : NSObject
 + (instancetype)methodChannelWithName:(NSString *)name binaryMessenger:(NSObject<FlutterBinaryMessenger> *)messenger;
 - (void)invokeMethod:(NSString *)method arguments:(id _Nullable)arguments;
+// FlutterChannels.h (Flutter 3.47.2): a call to Dart that waits for its answer
+// (neo_texture_catalog asks Dart to start an NES game with Mesen).
+- (void)invokeMethod:(NSString *)method arguments:(id _Nullable)arguments result:(FlutterResult _Nullable)callback;
 @end
 // FlutterCodecs.h (Flutter 3.47.2): PNG previews and refused arguments.
 @interface FlutterStandardTypedData : NSObject

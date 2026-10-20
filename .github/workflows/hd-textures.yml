@@ -11,6 +11,8 @@ on:
       - test/texture_*
       - test/native/texture_*
       - test/build486_targeted_test.py
+      # The Flutter declaration stub the iPhone syntax checks compile the plugins with.
+      - test/libretro_host/stubs/**
       - test/validate_hd_textures_ipa_test.py
       - build-utils/validate_hd_textures_ipa.py
       - .github/workflows/hd-textures.yml
