@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 
 import 'package:neostation/l10n/game_box_locale.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
+import 'package:neostation/services/game_box/game_box_preferences.dart';
+import 'package:neostation/services/game_box/game_box_sharp_scan.dart';
 import 'package:neostation/services/game_service.dart' show GamepadNavigationManager;
 import 'package:neostation/utils/gamepad_nav.dart';
 
@@ -13,9 +15,11 @@ import 'package:neostation/utils/gamepad_nav.dart';
 /// "Recenter" to fit it again.
 ///
 /// The decode already made for the box is shown at once; the full scan (up to
-/// [fullWidth] px wide) replaces it when ready. A scan is never enlarged past
-/// what it holds: the zoom stops at about two and a half screen pixels per
-/// pixel of the scan, and a low-resolution scan is said to be one.
+/// [fullWidth] px wide) replaces it when ready. At each zoom the scan is then
+/// shown as made for that exact size, lightly sharpened unless "Sharp text"
+/// is off (docs/game-box-3d.md § 12). A scan is never enlarged past what it
+/// holds: the zoom stops at about two and a half screen pixels per pixel of
+/// the scan, and a low-resolution scan is said to be one.
 class GameBoxScanViewer extends StatefulWidget {
   const GameBoxScanViewer({super.key, required this.path, required this.title, this.preview});
 
@@ -42,6 +46,14 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
   Size _viewport = Size.zero;
   double _maxScale = 4;
   bool _fullReady = false;
+  late final GameBoxSharpTexture _sharp = GameBoxSharpTexture(onChanged: () {
+    if (mounted) setState(() {});
+  });
+  bool _sharpText = true;
+
+  /// Width of the scan on the screen at zoom 1, in physical pixels.
+  double _shownWidthPx = 0;
+  bool _sharpScheduled = false;
 
   @override
   void initState() {
@@ -52,11 +64,17 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
       onRightBumper: () => _zoomBy(1.5),
       onSelectItem: _recenter,
       onLeftStickClick: _recenter,
+      onXButton: _toggleSharp,
       onNavigateLeft: () => _pan(const Offset(1, 0)),
       onNavigateRight: () => _pan(const Offset(-1, 0)),
       onNavigateUp: () => _pan(const Offset(0, 1)),
       onNavigateDown: () => _pan(const Offset(0, -1)),
     );
+    GameBoxPreferences.sharpText().then((v) {
+      if (!mounted || v == _sharpText) return;
+      setState(() => _sharpText = v);
+      _requestSharp();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _gamepadNav.initialize();
@@ -75,12 +93,31 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
     _gamepadNav.dispose();
     _transform.dispose();
     _full.evict();
+    _sharp.dispose();
     super.dispose();
   }
 
   double get _scale => _transform.value.getMaxScaleOnAxis();
 
-  void _recenter() => setState(() => _transform.value = Matrix4.identity());
+  void _recenter() {
+    setState(() => _transform.value = Matrix4.identity());
+    _requestSharp();
+  }
+
+  /// The scan made for the width it is shown at now.
+  void _requestSharp() {
+    if (_shownWidthPx <= 0) return;
+    _sharp.request(widget.path, _shownWidthPx * _scale, sharpen: _sharpText);
+  }
+
+  void _toggleSharp() {
+    setState(() {
+      _sharpText = !_sharpText;
+      _sharp.clear();
+    });
+    GameBoxPreferences.setSharpText(_sharpText);
+    _requestSharp();
+  }
 
   void _zoomBy(double factor) {
     final target = (_scale * factor).clamp(1.0, _maxScale);
@@ -91,6 +128,7 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
       ..scaleByDouble(k, k, 1, 1)
       ..translateByDouble(-c.dx, -c.dy, 0, 1);
     setState(() => _transform.value = m.multiplied(_transform.value));
+    _requestSharp();
   }
 
   void _pan(Offset direction) {
@@ -110,6 +148,15 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            key: const ValueKey('game_box_sharp_toggle'),
+            isSelected: _sharpText,
+            tooltip: GameBoxLocale.text(context, GameBoxLocale.sharpText),
+            color: Colors.white,
+            icon: const Icon(Icons.auto_fix_off),
+            selectedIcon: const Icon(Icons.auto_fix_high),
+            onPressed: _toggleSharp,
+          ),
           TextButton.icon(
             onPressed: _recenter,
             style: TextButton.styleFrom(foregroundColor: Colors.white),
@@ -139,12 +186,21 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
               final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 2;
               // Screen pixels per scan pixel at scale k: fit · k · dpr.
               _maxScale = (2.5 / (fit * dpr)).clamp(1.0, 8.0).toDouble();
+              _shownWidthPx = size.width * fit * dpr;
+              if (!_sharpScheduled) {
+                _sharpScheduled = true;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _sharpScheduled = false;
+                  if (mounted) _requestSharp();
+                });
+              }
             }
             return GestureDetector(
               onDoubleTap: () => _scale > 1.05 ? _recenter() : _zoomBy(2.5),
               child: InteractiveViewer(
                 transformationController: _transform,
                 maxScale: _maxScale,
+                onInteractionEnd: (_) => _requestSharp(),
                 child: SizedBox.expand(
                   child: Stack(fit: StackFit.expand, children: [
                     if (widget.preview != null && !_fullReady)
@@ -173,6 +229,26 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
                         ),
                       ),
                     ),
+                    if (size != null)
+                      ValueListenableBuilder<Matrix4>(
+                        valueListenable: _transform,
+                        builder: (context, m, _) {
+                          final sharp = _sharp.providerFor(widget.path, sharpen: _sharpText);
+                          if (sharp == null) return const SizedBox.shrink();
+                          // Hidden while it would be enlarged: the full scan
+                          // shows meanwhile, until the closer one is ready.
+                          final shown = math.min(_shownWidthPx * m.getMaxScaleOnAxis(),
+                              math.min(size.width, GameBoxSharpScan.maxWidth.toDouble()));
+                          if (sharp.width < shown * 0.85) return const SizedBox.shrink();
+                          return Image(
+                            key: const ValueKey('game_box_scan_sharp'),
+                            image: sharp,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.medium,
+                            gaplessPlayback: true,
+                          );
+                        },
+                      ),
                   ]),
                 ),
               ),

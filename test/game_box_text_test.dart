@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -131,6 +132,39 @@ void main() {
       final zhHant = await BoxTextService.translate(again, 'zh_Hant');
       expect(zhHant.units.single, startsWith('[zh-Hant] '));
       expect(calls, ['translate']);
+    });
+
+    test('a transcript cached before small print was read is recognised again once', () async {
+      final first = await BoxTextService.transcript(scan.path, scanRegion: 'jp');
+      await BoxTextService.translate(first, 'fr');
+      // The cache of Build 493 (version 1), made with Vision's default
+      // minimum text height, holding only part of the text.
+      final file = File(p.join(dir.path, 'cache', first.imageSha256, 'transcript.json'));
+      final old = Map<String, dynamic>.from(first.toJson())
+        ..['version'] = 1
+        ..['lines'] = [
+          {'text': '冒険が始まる', 'confidence': 0.9, 'x': 0.1, 'y': 0.135, 'w': 0.5, 'h': 0.03},
+        ];
+      file.writeAsStringSync(jsonEncode(old));
+      final fr = File(p.join(dir.path, 'cache', first.imageSha256, 'fr.json'));
+      final oldFr = Map<String, dynamic>.from(jsonDecode(fr.readAsStringSync()) as Map)
+        ..['sourceUnits'] = ['冒険が始まる']
+        ..['units'] = ['[fr] 冒険が始まる'];
+      fr.writeAsStringSync(jsonEncode(oldFr));
+
+      calls.clear();
+      final again = await BoxTextService.transcript(scan.path, scanRegion: 'jp');
+      expect(again.fromCache, isFalse, reason: 'version 1 is not reused');
+      expect(again.document.units, ['ゲームの説明です。冒険が始まる']);
+      final frAgain = await BoxTextService.translate(again, 'fr');
+      expect(frAgain.fromCache, isFalse, reason: 'its translation was made from the shorter text');
+      expect(calls, ['recognize', 'detectLanguage', 'translate']);
+      expect((jsonDecode(file.readAsStringSync()) as Map)['version'], BoxTranscript.version);
+
+      calls.clear();
+      final third = await BoxTextService.transcript(scan.path, scanRegion: 'jp');
+      expect(third.fromCache, isTrue, reason: 'only once');
+      expect(calls, isEmpty);
     });
 
     test('a different scan never reuses the text of another one', () async {

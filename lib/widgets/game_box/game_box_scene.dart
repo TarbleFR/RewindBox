@@ -71,10 +71,10 @@ class GameBoxArt {
 
   bool get backHasJewelSpines => (backAspect ?? 0) >= 1.22;
 
-  GameBoxArt copyWith({bool? gloss, ui.Image? bookletCover}) => GameBoxArt(
+  GameBoxArt copyWith({bool? gloss, ui.Image? bookletCover, ImageProvider? back}) => GameBoxArt(
         title: title,
         front: front,
-        back: back,
+        back: back ?? this.back,
         spine: spine,
         support: support,
         spineLandscape: spineLandscape,

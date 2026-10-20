@@ -20,6 +20,7 @@ import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_preferences.dart';
 import 'package:neostation/services/game_box/game_box_profile.dart';
 import 'package:neostation/services/game_box/game_box_regions.dart';
+import 'package:neostation/services/game_box/game_box_sharp_scan.dart';
 import 'package:neostation/services/game_launch_manager.dart';
 import 'package:neostation/services/game_manual_service.dart';
 import 'package:neostation/services/game_service.dart' show GamepadNavigationManager;
@@ -171,6 +172,14 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   Color? _edge;
   bool _detailed = false;
 
+  // The back made for the size it is shown at (docs/game-box-3d.md § 12).
+  late final GameBoxSharpTexture _sharp = GameBoxSharpTexture(onChanged: () {
+    if (mounted) setState(() {});
+  });
+  bool _sharpText = true;
+  bool _sharpScheduled = false;
+  bool _gesture = false;
+
   String? _readingPref;
   String _readingLanguage = 'en';
   String? _backPath;
@@ -213,6 +222,9 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       ..addListener(() => setState(() => _pose = _pose.copyWith(yaw: _spin.value)));
     _open = AnimationController(vsync: this, duration: const Duration(milliseconds: 1750));
     _loadMedia();
+    GameBoxPreferences.sharpText().then((v) {
+      if (mounted && v != _sharpText) setState(() => _sharpText = v);
+    });
     _gamepadNav = GamepadNavigation(
       onNavigateLeft: () => _turn(_isOpen ? 0.2 : math.pi / 4),
       onNavigateRight: () => _turn(_isOpen ? -0.2 : -math.pi / 4),
@@ -275,6 +287,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     _transient.clear();
     _manualPage?.dispose();
     _artSet.evictDetailed();
+    _sharp.dispose();
     if (_phase != GameBoxInspectorPhase.inspecting) GameBoxLaunchGate.leave();
     super.dispose();
   }
@@ -336,6 +349,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       if (path != null) {
         _media = GameBoxMediaStore(widget.subject.fileProvider).read(_game, widget.subject.systemFolder);
         _artSet.evictDetailed();
+        _sharp.clear();
         _artSet = GameBoxArtSet(media: _media, title: _game.name);
         _backPath = path;
       } else {
@@ -429,6 +443,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   void _onScaleStart(ScaleStartDetails d) {
     if (!_interactive) return;
     _stopMotion();
+    _gesture = true;
     _gestureStart = _pose;
     _gestureFocal = d.focalPoint;
     _rotating = d.pointerCount < 2 && _pose.zoom <= 1.05;
@@ -461,6 +476,8 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   }
 
   void _onScaleEnd(ScaleEndDetails d) {
+    // The box is still again: the back can be made for its new size.
+    if (_gesture) setState(() => _gesture = false);
     if (!_interactive || _inside != GameBoxInsideState.closed || !_rotating || _reduceMotion) return;
     final width = math.max(200.0, _viewport.width);
     final v = -d.velocity.pixelsPerSecond.dx * 3.4 / width;
@@ -561,6 +578,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     setState(() {
       _fetching = false;
       _artSet.evictDetailed();
+      _sharp.clear();
       for (final path in [_media.back, _media.spine, _media.support]) {
         if (path != null) GameBoxImageSize.evict(path);
       }
@@ -592,21 +610,24 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       builder: (_) => GameBoxScanViewer(
         path: path,
         title: GameBoxLocale.text(context, GameBoxLocale.readerTitle),
-        preview: _artSet.art(detailed: _detailed, backPath: path).back,
+        preview: _sharp.providerFor(path, sharpen: _sharpText) ?? _artSet.art(detailed: _detailed, backPath: path).back,
       ),
-    ));
+    )).then((_) => _reloadSharpText());
   }
 
   Future<void> _showOptions() async {
     if (!_interactive) return;
     var animation = await GameBoxPreferences.openingAnimation();
+    var sharp = _sharpText;
     if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      // Scrolls when the options are taller than the sheet (landscape).
+      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) {
         return SafeArea(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+          child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
             SwitchListTile(
               value: animation,
               title: Text(GameBoxLocale.text(ctx, GameBoxLocale.openingAnimation)),
@@ -614,6 +635,21 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
               onChanged: (v) {
                 setSheet(() => animation = v);
                 GameBoxPreferences.setOpeningAnimation(v);
+              },
+            ),
+            SwitchListTile(
+              key: const ValueKey('game_box_sharp_text'),
+              value: sharp,
+              title: Text(GameBoxLocale.text(ctx, GameBoxLocale.sharpText)),
+              subtitle: Text(GameBoxLocale.text(ctx, GameBoxLocale.sharpTextDesc)),
+              onChanged: (v) {
+                setSheet(() => sharp = v);
+                GameBoxPreferences.setSharpText(v);
+                if (!mounted) return;
+                setState(() {
+                  _sharpText = v;
+                  _sharp.clear();
+                });
               },
             ),
             if (widget.subject.appSystemId != null)
@@ -638,7 +674,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
                   _downloadManual();
                 },
               ),
-          ]),
+          ])),
         );
       }),
     );
@@ -827,6 +863,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     // While the manual is read the box is not drawn and its large images
     // are released.
     _artSet.evictDetailed();
+    _sharp.clear();
     setState(() {
       _readingManual = true;
       _detailed = false;
@@ -1009,6 +1046,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     });
     // Large decodes are released before the emulator starts.
     _artSet.evictDetailed();
+    _sharp.clear();
     _manualPage?.dispose();
     _manualPage = null;
     final manager = GameLaunchManager();
@@ -1079,7 +1117,10 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
               final panel = AnimatedOpacity(
                 opacity: controlsVisible ? 1 : 0,
                 duration: const Duration(milliseconds: 160),
-                child: IgnorePointer(ignoring: !controlsVisible, child: _panel(theme, landscape)),
+                child: IgnorePointer(
+                  ignoring: !controlsVisible,
+                  child: _panel(theme, landscape, maxHeight: c.maxHeight * portraitPanelShare),
+                ),
               );
               if (landscape) {
                 return Row(children: [
@@ -1133,6 +1174,63 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     );
   }
 
+  /// Asks, once the box is still, for the back made for its size on screen.
+  void _scheduleSharpBack(Size viewport) {
+    final path = _backPath;
+    if (path == null || _sharpScheduled || _gesture || _poseAnim.isAnimating || _spin.isAnimating) return;
+    _sharpScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _sharpScheduled = false;
+      if (!mounted || path != _backPath || !_facingBack || _inside != GameBoxInsideState.closed) return;
+      final width = backScreenWidth(viewport);
+      if (width == null) return;
+      _sharp.request(path, width * MediaQuery.devicePixelRatioOf(context), sharpen: _sharpText);
+    });
+  }
+
+  /// Width on the screen, in logical pixels, of the whole back scan, or null
+  /// when the back is not seen.
+  @visibleForTesting
+  double? backScreenWidth(Size viewport) {
+    final path = _backPath;
+    final projector = _projector(viewport);
+    if (path == null || projector == null) return null;
+    // The back panel itself: the widest face of the back surface (its
+    // corner facets share the surface).
+    double? width;
+    for (final f in projector.project()) {
+      if (f.face.surface != BoxSurface.back) continue;
+      final q = projector.faceQuad(f.face.id);
+      if (q == null) continue;
+      final w = math.max((q[1] - q[0]).distance, (q[2] - q[3]).distance);
+      if (width == null || w > width) width = w;
+    }
+    if (width == null) return null;
+    // A jewel inlay scanned with its spines shows only its middle there.
+    final size = GameBoxImageSize.of(path);
+    final spines = _profile?.caseKind == GameBoxCaseKind.jewelCase &&
+        size != null &&
+        size.height > 0 &&
+        size.width / size.height >= 1.22;
+    return spines ? width / (1 - 2 * GameBoxArt.jewelSpineFraction) : width;
+  }
+
+  Future<void> _reloadSharpText() async {
+    final v = await GameBoxPreferences.sharpText();
+    if (mounted && v != _sharpText) {
+      setState(() {
+        _sharpText = v;
+        _sharp.clear();
+      });
+    }
+  }
+
+  /// The render of the back kept now, if any, and the box area (tests).
+  @visibleForTesting
+  GameBoxRenderedScan? get sharpBack => _sharp.current;
+  @visibleForTesting
+  Size get viewport => _viewport;
+
   Widget _boxArea() {
     final profile = _profile;
     return LayoutBuilder(builder: (context, c) {
@@ -1150,9 +1248,14 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
         gloss: !_facingBack && _pose.zoom <= 1.1 && _inside == GameBoxInsideState.closed,
         bookletCover: _manualPage?.image,
       );
+      // Read straight on, the back is the render made for its size.
+      final readingBack =
+          _facingBack && _phase == GameBoxInspectorPhase.inspecting && _inside == GameBoxInsideState.closed;
+      final sharpBack = readingBack ? _sharp.providerFor(_backPath, sharpen: _sharpText) : null;
+      if (readingBack && _detailed) _scheduleSharpBack(c.biggest);
       final scene = GameBoxScene(
         model: model,
-        art: art,
+        art: sharpBack == null ? art : art.copyWith(back: sharpBack),
         pose: _shownPose,
         opening: _opening,
         outlineBlend: _outline,
@@ -1237,35 +1340,47 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     return GameBoxLocale.text(context, key);
   }
 
-  Widget _panel(ThemeData theme, bool landscape) {
+  /// Largest share of the height the panel takes in portrait: the rest is
+  /// the box's, so that its back is drawn large enough to be read (the
+  /// panel scrolls; Play stays at its bottom).
+  static const double portraitPanelShare = 0.36;
+
+  Widget _panel(ThemeData theme, bool landscape, {required double maxHeight}) {
     final info = _infoLines(context);
     final language = _readingLanguage;
     final closed = _inside == GameBoxInsideState.closed;
     final open = _inside != GameBoxInsideState.closed;
     final opens = _profile?.opens ?? false;
-    final children = <Widget>[
-      Row(children: [
-        // Leaves room for the Back button above the box in portrait.
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            _game.name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.titleMedium,
-          ),
+    final playButton = FilledButton.icon(
+      onPressed: _inside == GameBoxInsideState.moving || _inside == GameBoxInsideState.taking ? null : play,
+      icon: const Icon(Icons.play_arrow_rounded),
+      label: Text(GameBoxLocale.text(context, GameBoxLocale.play)),
+    );
+    final title = Row(children: [
+      // Leaves room for the Back button above the box in portrait.
+      const SizedBox(width: 12),
+      Expanded(
+        child: Text(
+          _game.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleMedium,
         ),
-        IconButton(
-          tooltip: GameBoxLocale.text(context, GameBoxLocale.options),
-          onPressed: _showOptions,
-          icon: const Icon(Icons.tune),
-        ),
-      ]),
+      ),
+      IconButton(
+        tooltip: GameBoxLocale.text(context, GameBoxLocale.options),
+        onPressed: _showOptions,
+        icon: const Icon(Icons.tune),
+      ),
+    ]);
+    final infoLines = <Widget>[
       for (final line in info)
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
           child: Text(line, style: theme.textTheme.bodySmall),
         ),
+    ];
+    final progress = <Widget>[
       if (_downloadingLanguage != null)
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
@@ -1292,107 +1407,127 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
             LinearProgressIndicator(value: _manualProgress > 0 ? _manualProgress : null),
           ]),
         ),
-      const SizedBox(height: 8),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          alignment: WrapAlignment.center,
-          children: [
-            if (closed) ...[
-              OutlinedButton.icon(
-                onPressed: () => _goTo(BoxPose.front),
-                icon: const Icon(Icons.flip_to_front),
-                label: Text(GameBoxLocale.text(context, GameBoxLocale.front)),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _goTo(BoxPose.back),
-                icon: const Icon(Icons.flip_to_back),
-                label: Text(GameBoxLocale.text(context, GameBoxLocale.back)),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _goTo(BoxPose.rest),
-                icon: const Icon(Icons.threed_rotation),
-                label: Text(GameBoxLocale.text(context, GameBoxLocale.reset)),
-              ),
-              if (_facingBack && _backPath != null)
-                OutlinedButton.icon(
-                  onPressed: _openFlatBack,
-                  icon: const Icon(Icons.crop_free),
-                  label: Text(GameBoxLocale.text(context, GameBoxLocale.flatView)),
-                ),
-              Tooltip(
-                message: GameBoxLocale.text(context, GameBoxLocale.readingLanguage),
-                child: OutlinedButton.icon(
-                  onPressed: _chooseLanguage,
-                  icon: const Icon(Icons.translate),
-                  label: Text(GameBoxLocale.languageName(context, language)),
-                ),
-              ),
-              if (widget.subject.appSystemId != null && _missingFaces)
-                OutlinedButton.icon(
-                  onPressed: _fetching ? null : _fetchFaces,
-                  icon: const Icon(Icons.download_outlined),
-                  label: Text(GameBoxLocale.text(context, GameBoxLocale.fetchFaces)),
-                ),
-              FilledButton.tonalIcon(
-                onPressed: _read,
-                icon: const Icon(Icons.chrome_reader_mode_outlined),
-                label: Text(GameBoxLocale.text(context, GameBoxLocale.read)),
-              ),
-              if (opens)
-                FilledButton.tonalIcon(
-                  key: const ValueKey('game_box_open'),
-                  onPressed: openBox,
-                  icon: const Icon(Icons.inventory_2_outlined),
-                  label: Text(GameBoxLocale.text(context, GameBoxLocale.openBox)),
-                ),
-            ],
-            if (open) ...[
-              OutlinedButton.icon(
-                key: const ValueKey('game_box_close'),
-                onPressed: _isOpen ? closeBox : null,
-                icon: const Icon(Icons.inventory_2),
-                label: Text(GameBoxLocale.text(context, GameBoxLocale.closeBox)),
-              ),
-              if (_manualPath != null)
-                FilledButton.tonalIcon(
-                  key: const ValueKey('game_box_read_manual'),
-                  onPressed: _isOpen ? takeManual : null,
-                  icon: const Icon(Icons.menu_book_rounded),
-                  label: Text(GameBoxLocale.text(context, GameBoxLocale.readManual)),
-                )
-              else if (_canDownloadManual)
-                OutlinedButton.icon(
-                  key: const ValueKey('game_box_download_manual'),
-                  onPressed: _isOpen ? _downloadManual : null,
-                  icon: const Icon(Icons.download_outlined),
-                  label: Text(GameBoxLocale.text(context, GameBoxLocale.downloadManual)),
-                ),
-            ],
-            if (_zoomed)
-              OutlinedButton.icon(
-                onPressed: _recenter,
-                icon: const Icon(Icons.center_focus_strong_outlined),
-                label: Text(GameBoxLocale.text(context, GameBoxLocale.recenter)),
-              ),
-            FilledButton.icon(
-              onPressed: _inside == GameBoxInsideState.moving || _inside == GameBoxInsideState.taking ? null : play,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: Text(GameBoxLocale.text(context, GameBoxLocale.play)),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 12),
     ];
-    final column = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
+    final actions = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: [
+          if (closed) ...[
+            OutlinedButton.icon(
+              onPressed: () => _goTo(BoxPose.front),
+              icon: const Icon(Icons.flip_to_front),
+              label: Text(GameBoxLocale.text(context, GameBoxLocale.front)),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _goTo(BoxPose.back),
+              icon: const Icon(Icons.flip_to_back),
+              label: Text(GameBoxLocale.text(context, GameBoxLocale.back)),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _goTo(BoxPose.rest),
+              icon: const Icon(Icons.threed_rotation),
+              label: Text(GameBoxLocale.text(context, GameBoxLocale.reset)),
+            ),
+            if (_facingBack && _backPath != null)
+              OutlinedButton.icon(
+                onPressed: _openFlatBack,
+                icon: const Icon(Icons.crop_free),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.flatView)),
+              ),
+            Tooltip(
+              message: GameBoxLocale.text(context, GameBoxLocale.readingLanguage),
+              child: OutlinedButton.icon(
+                onPressed: _chooseLanguage,
+                icon: const Icon(Icons.translate),
+                label: Text(GameBoxLocale.languageName(context, language)),
+              ),
+            ),
+            if (widget.subject.appSystemId != null && _missingFaces)
+              OutlinedButton.icon(
+                onPressed: _fetching ? null : _fetchFaces,
+                icon: const Icon(Icons.download_outlined),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.fetchFaces)),
+              ),
+            FilledButton.tonalIcon(
+              onPressed: _read,
+              icon: const Icon(Icons.chrome_reader_mode_outlined),
+              label: Text(GameBoxLocale.text(context, GameBoxLocale.read)),
+            ),
+            if (opens)
+              FilledButton.tonalIcon(
+                key: const ValueKey('game_box_open'),
+                onPressed: openBox,
+                icon: const Icon(Icons.inventory_2_outlined),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.openBox)),
+              ),
+          ],
+          if (open) ...[
+            OutlinedButton.icon(
+              key: const ValueKey('game_box_close'),
+              onPressed: _isOpen ? closeBox : null,
+              icon: const Icon(Icons.inventory_2),
+              label: Text(GameBoxLocale.text(context, GameBoxLocale.closeBox)),
+            ),
+            if (_manualPath != null)
+              FilledButton.tonalIcon(
+                key: const ValueKey('game_box_read_manual'),
+                onPressed: _isOpen ? takeManual : null,
+                icon: const Icon(Icons.menu_book_rounded),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.readManual)),
+              )
+            else if (_canDownloadManual)
+              OutlinedButton.icon(
+                key: const ValueKey('game_box_download_manual'),
+                onPressed: _isOpen ? _downloadManual : null,
+                icon: const Icon(Icons.download_outlined),
+                label: Text(GameBoxLocale.text(context, GameBoxLocale.downloadManual)),
+              ),
+          ],
+          if (_zoomed)
+            OutlinedButton.icon(
+              onPressed: _recenter,
+              icon: const Icon(Icons.center_focus_strong_outlined),
+              label: Text(GameBoxLocale.text(context, GameBoxLocale.recenter)),
+            ),
+          if (landscape) playButton,
+        ],
+      ),
     );
-    return landscape ? SingleChildScrollView(child: column) : column;
+    if (landscape) {
+      return SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          title,
+          ...infoLines,
+          ...progress,
+          const SizedBox(height: 8),
+          actions,
+          const SizedBox(height: 12),
+        ]),
+      );
+    }
+    // Portrait: the title and any progress, then the buttons and the notes
+    // scrolling under them, Play always shown at the bottom.
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        title,
+        ...progress,
+        Flexible(
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              const SizedBox(height: 4),
+              actions,
+              const SizedBox(height: 6),
+              ...infoLines,
+            ]),
+          ),
+        ),
+        Padding(padding: const EdgeInsets.fromLTRB(8, 6, 8, 10), child: Center(child: playButton)),
+      ]),
+    );
   }
 
   bool get _missingFaces =>

@@ -24,7 +24,9 @@ class BoxTranscript {
     this.fromCache = false,
   });
 
-  static const int version = 1;
+  /// 2: small print is recognised (Build 494); a version 1 transcript, made
+  /// without it, is recognised again once.
+  static const int version = 2;
 
   /// SHA-256 of the scan: a different picture never reuses this text.
   final String imageSha256;

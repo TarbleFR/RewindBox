@@ -42,6 +42,44 @@ public enum BoxTextRecognizer {
         return (try? request.supportedRecognitionLanguages()) ?? []
     }
 
+    /// Smallest line of text Vision is asked to find, in pixels of the image
+    /// it is given. Vision's default (1/32 of the image height) skips the
+    /// body text, feature lists and legal print of a box back.
+    static let smallestLinePixels = 6.0
+
+    /// Scans whose longest side is shorter than this are enlarged before
+    /// recognition (high-quality interpolation, at most twice): Vision misses
+    /// glyphs only a few pixels tall. The enlarged copy is only read, never
+    /// shown or stored.
+    static let enlargeBelow = 1800
+    static let enlargeTarget = 2400.0
+
+    /// Minimum text height for Vision, relative to the image height.
+    static func minimumTextHeight(imageHeight: Int) -> Float {
+        guard imageHeight > 0 else { return 1.0 / 32 }
+        return Float(min(1.0 / 32, max(smallestLinePixels / Double(imageHeight), 0.001)))
+    }
+
+    /// Enlargement factor applied to a scan of [width] × [height] before
+    /// recognition (1 when it is large enough).
+    static func enlargement(width: Int, height: Int) -> Double {
+        let longest = max(width, height)
+        guard longest > 0, longest < enlargeBelow else { return 1 }
+        return min(2, enlargeTarget / Double(longest))
+    }
+
+    static func enlarged(_ image: CGImage, factor: Double) -> CGImage? {
+        guard factor > 1.001 else { return image }
+        let w = Int((Double(image.width) * factor).rounded())
+        let h = Int((Double(image.height) * factor).rounded())
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.interpolationQuality = .high
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return ctx.makeImage()
+    }
+
     /// Loads a scan, downscaled so that its longest side is at most
     /// [maxDimension] pixels (Vision gains nothing beyond, memory does).
     static func loadImage(path: String, maxDimension: Int) -> CGImage? {
@@ -61,12 +99,15 @@ public enum BoxTextRecognizer {
     /// [languages] are hints from the region of the scan (`ja-JP` first for
     /// a Japanese edition). Without usable hints, or when the hinted pass
     /// finds almost nothing, Vision's automatic language detection runs and
-    /// the richer result is kept. Nothing is ever invented: only what Vision
-    /// returns is passed on, with its confidence.
+    /// the richer result is kept. Small print is looked for down to
+    /// [smallestLinePixels], and a small scan is enlarged for Vision only.
+    /// Nothing is ever invented: only what Vision returns is passed on, with
+    /// its confidence.
     public static func recognize(path: String, languages: [String], maxDimension: Int = 4096) throws -> BoxTextRecognition {
-        guard let image = loadImage(path: path, maxDimension: maxDimension) else {
+        guard let scan = loadImage(path: path, maxDimension: maxDimension) else {
             throw BoxTextRecognizerError.unreadableImage
         }
+        let image = enlarged(scan, factor: enlargement(width: scan.width, height: scan.height)) ?? scan
         let supported = Set(supportedLanguages())
         let hints = languages.filter { supported.contains($0) }
         var best = try run(image: image, languages: hints)
@@ -85,6 +126,7 @@ public enum BoxTextRecognizer {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
+        request.minimumTextHeight = minimumTextHeight(imageHeight: image.height)
         if languages.isEmpty {
             request.automaticallyDetectsLanguage = true
         } else {

@@ -49,6 +49,25 @@ class GameBoxPreferences {
     }
   }
 
+  static const sharpTextKey = 'NeoStation.GameBox.SharpText';
+
+  /// Light sharpening of the back's print, shown at screen size
+  /// (docs/game-box-3d.md § 12). On by default; off shows the scan only
+  /// resampled.
+  static Future<bool> sharpText() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(sharpTextKey) ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  static Future<void> setSharpText(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(sharpTextKey, value);
+  }
+
   static Future<double> readerTextScale() async {
     try {
       final prefs = await SharedPreferences.getInstance();
