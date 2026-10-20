@@ -26,21 +26,8 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get --enforce-lockfile
-      - name: Reuse successful app analysis and analyze the adjusted tests
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          git diff --exit-code 127b527f2eb773598b025072cd9dbbfaad275bb2 HEAD -- lib 'packages/*/lib' pubspec.yaml pubspec.lock analysis_options.yaml
-          python3 - <<'PY'
-          import json, subprocess
-          job = json.loads(subprocess.check_output(['gh', 'api', 'repos/TarbleFR/neostation-ios/actions/jobs/118896956043']))
-          assert job['head_sha'] == '127b527f2eb773598b025072cd9dbbfaad275bb2'
-          step = next(s for s in job['steps'] if s['name'] == 'Run flutter analyze --no-fatal-infos')
-          assert step['conclusion'] == 'success', step
-          print('Reused successful app analysis from job 118896956043 on identical app and Dart dependency inputs.')
-          PY
-          flutter analyze --no-fatal-infos test/console_manager_test.dart test/dolphin_isolation_contract_test.dart test/melonx_embedded_route_test.dart
+      - name: Analyze the final app and retired locale-key removal
+        run: flutter analyze --no-fatal-infos
       - name: Exercise the adjusted console and retirement scenarios
         run: >-
           flutter test test/melonx_embedded_route_test.dart
