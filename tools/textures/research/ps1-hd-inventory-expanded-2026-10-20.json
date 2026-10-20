@@ -6,12 +6,12 @@
   "read_baseline_commit": "64e73bcfdcaa66067b7a8edfea0e8852faa0d43a",
   "scope": "Renewed PS1-only research, conservative family grouping, creator attribution and source-qualified engine variants. Runtime publication is read from the exact current manifest; no additional archive success is inferred.",
   "counts": {
-    "research_project_families": 180,
+    "research_project_families": 179,
     "previous_research_project_families": 159,
-    "additional_qualified_research_families": 21,
+    "additional_qualified_research_families": 20,
     "inventory_rows": 216,
     "beetle_named_projects": 52,
-    "duckstation_named_projects": 110,
+    "duckstation_named_projects": 109,
     "projects_with_both_engine_variants": 9,
     "unique_game_titles_researched_with_projects": 140,
     "runtime_ps1_references_before": 2,
@@ -24,7 +24,7 @@
     "new_archives_installed_in_canonical_ci": 6,
     "new_archive_protection_refusals": 13,
     "physical_iphone_render_tests": 0,
-    "uncounted_inventory_rows": 36,
+    "uncounted_inventory_rows": 37,
     "new_unconfirmed_assembly_catalogue_rows": 23,
     "category_C_future_projects": 4,
     "engine_unconfirmed_projects": 23,
@@ -39,8 +39,8 @@
     "unique_game_titles_baseline_preserving_special_edition": 125,
     "creator_attribution_groups": 46,
     "documented_project_evidence_urls": 246,
-    "documented_urls_including_downloads": 302,
-    "explicitly_logged_consultation_urls": 261,
+    "documented_urls_including_downloads": 303,
+    "explicitly_logged_consultation_urls": 269,
     "canonical_ps1_observations_total": 21,
     "canonical_ps1_observations_since_initial_two": 19,
     "runtime_unique_games_or_editions": 35,
@@ -1680,11 +1680,13 @@
       "newly_discovered": true,
       "source_urls": [
         "https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing",
-        "https://gbatemp.net/threads/my-ps2-packs.621422/page-24"
+        "https://gbatemp.net/threads/my-ps2-packs.621422/page-24",
+        "https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation"
       ],
       "notes": [
         "Listed in the PS1 section of the creator-linked inventory; engine, exact archive and regional support require per-file verification.",
-        "Forum post #463 explicitly releases these four games for DuckStation. Already-counted creator/game family; engine metadata enrichment only."
+        "Forum post #463 explicitly releases these four games for DuckStation. Already-counted creator/game family; engine metadata enrichment only.",
+        "EstudioCases credits Bl4ckH4nd for its Tekken 2 HD texture integration. Related localisation package v2.0 is not a new texture family or proof of a separate public texture-only archive."
       ],
       "last_reviewed": "2026-10-20",
       "runtime_profile_ids": [],
@@ -4227,15 +4229,22 @@
         "https://drive.usercontent.google.com/download?authuser=0&export=download&id=1nYJVsvA6IfnspBX6sDmmGYv-f6AQ5kE5"
       ],
       "version": null,
-      "publication_date": null,
-      "last_updated": null,
+      "publication_date": "2026-03-23",
+      "last_updated": "2026-03-28",
       "engines": [
         "DuckStation"
       ],
       "category": "B",
-      "disc_ids": [],
-      "regions": [],
-      "discs": null,
+      "disc_ids": [
+        "SLUS-00892",
+        "SLUS-00908",
+        "SLUS-00909",
+        "SLUS-00910"
+      ],
+      "regions": [
+        "USA (author declaration; untested)"
+      ],
+      "discs": "Discs 1–4 declared by author; not validated in game",
       "texture_formats": [],
       "installation_structure": null,
       "compressed_bytes": null,
@@ -4245,7 +4254,7 @@
       "texture_count": null,
       "resolution": null,
       "memory_notes": null,
-      "project_state": "partial_or_unestablished",
+      "project_state": "partial_with_known_dumping_and_edge_artifact_limitations",
       "licence": "No explicit standalone licence established",
       "distribution_conditions": "Original author links only; no rehosting or assumption of redistribution permission.",
       "verification_status": "file_landing_page_only",
@@ -4259,7 +4268,8 @@
       ],
       "notes": [
         "Creator PS1 inventory; no Beetle compatibility. Revisions of this project are merged.",
-        "Original author link resolves to a public Google Drive download landing page; archive bytes and format not verified. Size is the host display, not an exact byte measurement."
+        "Original author link resolves to a public Google Drive download landing page; archive bytes and format not verified. Size is the host display, not an exact byte measurement.",
+        "Author post #104 dated 2026-03-23, edited 2026-03-28, specifies four USA disc folder names. This is declared coverage, not a four-disc play test. The author excludes many backgrounds, fonts, effects, cards and complete character coverage and reports edge artifacts."
       ],
       "last_reviewed": "2026-10-20",
       "archive_name_reported": "FF8_HDQCX530VZ.rar",
@@ -6943,7 +6953,8 @@
       "creator": "TheSoulTear",
       "project_url": "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163",
       "download_urls": [
-        "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163"
+        "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163",
+        "https://www.moddb.com/addons/start/317315"
       ],
       "version": "1.0",
       "publication_date": "2026-09-25",
@@ -6962,14 +6973,14 @@
       "texture_formats": [],
       "installation_structure": null,
       "compressed_bytes": 470667042,
-      "compressed_size_reported": null,
+      "compressed_size_reported": "470667042 bytes (448.86 MiB), ModDB listing; payload not inspected",
       "expanded_bytes": null,
       "installed_bytes": null,
       "texture_count": null,
       "resolution": null,
       "memory_notes": null,
       "project_state": "not_established",
-      "licence": "Proprietary (ModDB listing)",
+      "licence": "Proprietary (ModDB file listing)",
       "distribution_conditions": "Original author links only; no rehosting or assumption of redistribution permission.",
       "verification_status": "file_listing_only",
       "evidence_level": "creator_page",
@@ -6980,13 +6991,16 @@
         "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163"
       ],
       "notes": [
-        "Published archive SCUS-94163.7z; actual payload not downloaded, all-disc coverage not inferred."
+        "Published archive SCUS-94163.7z; actual payload not downloaded, all-disc coverage not inferred.",
+        "Author file listing rechecked: DuckStation v1.0, English/Russian, battlefields, portraits, font and UI. Published 2026-09-25. File size and MD5 are author/host metadata, not a downloaded-archive verification. SCUS-94163 is named; all-disc and PAL support remain unverified."
       ],
       "last_reviewed": "2026-10-20",
       "runtime_profile_ids": [],
       "runtime_publication_mode": "research_only",
       "counted_as_family": true,
-      "creator_id": "credit:thesoultear"
+      "creator_id": "credit:thesoultear",
+      "host_reported_md5": "789f63465d160311bd00c592e72ad152",
+      "host_reported_compressed_bytes": 470667042
     },
     {
       "id": "ps1-isaac3030-metal-gear-solid",
@@ -7409,7 +7423,8 @@
         "https://www.estudiocases.com/post/tekken-1-de-psx-con-doblaje-en-castellano-ahora-con-texturas-hd"
       ],
       "notes": [
-        "Original project combines localisation/voice work and HD textures; separate texture-only authorised download and derivation from other packs need verification."
+        "Original project combines localisation/voice work and HD textures; separate texture-only authorised download and derivation from other packs need verification.",
+        "Rechecked original credit: Big Deal made the improved textures; EstudioCases adapted/integrated them and Steven Castro handled localisation/programming. This does not establish Big Deal as an alias of Bl4ckH4nd or NoBigDeal La. No combined game/localisation bundle downloaded."
       ],
       "last_reviewed": "2026-10-20",
       "runtime_profile_ids": [],
@@ -7419,14 +7434,14 @@
     },
     {
       "id": "ps1-big-deal-estudiocases-steven-castro-tekken-2",
-      "family": "ps1-big-deal-estudiocases-steven-castro-tekken-2",
-      "pack_name": "Tekken 2 — Big Deal / EstudioCases / Steven Castro",
+      "family": "ps1-bl4ckh4nd-tekken-2",
+      "pack_name": "Tekken 2 — Bl4ckH4nd, EstudioCases integration",
       "game": "Tekken 2",
       "games": [
         "Tekken 2"
       ],
       "console": "PS1",
-      "creator": "Big Deal / EstudioCases / Steven Castro",
+      "creator": "Bl4ckH4nd",
       "project_url": "https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation",
       "download_urls": [],
       "version": "2.0",
@@ -7451,7 +7466,7 @@
       "project_state": "creator_claimed_full",
       "licence": "No explicit standalone licence established",
       "distribution_conditions": "Original author links only; no rehosting or assumption of redistribution permission.",
-      "verification_status": "author_publication_bundle_unchecked",
+      "verification_status": "documented_integration_of_existing_creator_pack_not_new_family",
       "evidence_level": "creator_page",
       "neostation_compatible": false,
       "neostation_runtime_catalogue": false,
@@ -7460,13 +7475,25 @@
         "https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation"
       ],
       "notes": [
-        "Original project combines localisation/voice work and HD textures; separate texture-only authorised download and derivation from other packs need verification."
+        "Original project combines localisation/voice work and HD textures; separate texture-only authorised download and derivation from other packs need verification.",
+        "EstudioCases explicitly credits bl4ckh4nd for these textures and permission to integrate them. Count under the existing Bl4ckH4nd Tekken 2 family; no evidence of an independently different graphical edition. The combined localisation installer was not downloaded; standalone authorised texture-only access remains unverified."
       ],
       "last_reviewed": "2026-10-20",
       "runtime_profile_ids": [],
       "runtime_publication_mode": "research_only",
-      "counted_as_family": true,
-      "creator_id": "credit:big-deal-estudiocases-steven-castro"
+      "counted_as_family": false,
+      "creator_id": "credit:bl4ckh4nd",
+      "prior_qualification_before_major_franchise_review": {
+        "family": "ps1-big-deal-estudiocases-steven-castro-tekken-2",
+        "creator": "Big Deal / EstudioCases / Steven Castro",
+        "creator_id": "credit:big-deal-estudiocases-steven-castro",
+        "counted_as_family": true,
+        "pack_name": "Tekken 2 — Big Deal / EstudioCases / Steven Castro",
+        "verification_status": "author_publication_bundle_unchecked"
+      },
+      "original_texture_creator": "Bl4ckH4nd",
+      "integration_team": "EstudioCases / Steven Castro",
+      "version_scope": "2.0 is the EstudioCases package version; original texture archive version not established"
     },
     {
       "id": "ps1-ryuubu-evil-zone-texture-dumping",
@@ -10253,12 +10280,13 @@
       "category": "B",
       "disc_ids": [],
       "regions": [],
-      "project_state": "work_in_progress_no_release",
+      "project_state": "WIP_HUD_only_no_public_archive_confirmed",
       "verification_status": "creator_page_only_archive_unverified",
       "evidence_level": "creator_page",
       "count_as_project_family": true,
       "notes": [
-        "Actual author screenshots and dialogue demonstrate custom high-resolution HUD/font/portrait work, with collaborator and BandiCraft TTF reference. Saving screen resets HD font; no release or original download found. WIP project, never installable reference."
+        "Actual author screenshots and dialogue demonstrate custom high-resolution HUD/font/portrait work, with collaborator and BandiCraft TTF reference. Saving screen resets HD font; no release or original download found. WIP project, never installable reference.",
+        "Supplemental primary post explicitly demonstrates DuckStation replacements. HUD/sprite work only; no public archive recovered. A later search-indexed creator comment still describes an unfinished HUD. Technical references to Warped/CTR are not separate released packs."
       ],
       "web_refs": [
         "turn84view0",
@@ -10312,12 +10340,13 @@
       "category": "B",
       "disc_ids": [],
       "regions": [],
-      "project_state": "work_in_progress_no_release",
+      "project_state": "WIP_character_icons_only_no_public_archive_confirmed",
       "verification_status": "creator_page_only_archive_unverified",
       "evidence_level": "creator_page",
       "count_as_project_family": true,
       "notes": [
-        "Actual author icons replaced in-game; screenshots demonstrate texture work, not just request. Filtering causes issues; no release or original download found. WIP, not installable."
+        "Actual author icons replaced in-game; screenshots demonstrate texture work, not just request. Filtering causes issues; no release or original download found. WIP, not installable.",
+        "Rechecked as an icon replacement demonstration; no release/archive established. Do not imply all levels or models are remastered."
       ],
       "web_refs": [
         "turn88view0"
@@ -16725,6 +16754,121 @@
       "url": "https://www.youtube.com/watch?v=VsndQym8ExI",
       "status": "matrix_documents_explicit_primary_followup",
       "research_log": "game-matrix-next.json"
+    },
+    {
+      "url": "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163",
+      "status": "page_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://www.moddb.com/addons/start/317315",
+      "status": "download_start_page_no_archive_retrieved",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://gbatemp.net/threads/my-hd-remaster-packs.630347/page-6",
+      "status": "page_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://www.reddit.com/r/crashbandicoot/comments/1rzl4sy/updates_regarding_texture_replacements/",
+      "status": "page_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://www.reddit.com/r/crashbandicoot/comments/1rwvq52/transparent_texture_replacement_figured_out_on_nd/",
+      "status": "page_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://www.reddit.com/r/crashbandicoot/comments/1rc94rq/finally_successful_hd_textures_and_bad_news/",
+      "status": "search_indexed_primary_post",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/",
+      "status": "page_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://gbatemp.net/threads/tekken-3-texture.681116/",
+      "status": "page_read_request_only_not_pack",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://www.estudiocases.com/post/tekken-1-de-psx-con-doblaje-en-castellano-ahora-con-texturas-hd",
+      "status": "page_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation",
+      "status": "page_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://www.tombraiderxtra.com/downloads.php",
+      "status": "page_read_PC_only_excluded_from_PS1_families",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://sites.google.com/view/hub-of-faospark/project-kyaro",
+      "status": "page_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://github.com/stenzek/duckstation/wiki/Texture-Replacement",
+      "status": "technical_documentation_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://docs.libretro.com/library/beetle_psx_hw/",
+      "status": "technical_documentation_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://gbatemp.net/threads/my-ps2-packs.621422/page-24",
+      "status": "page_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://gbatemp.net/threads/my-hd-remaster-packs.630347/",
+      "status": "page_read",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://www.reddit.com/r/crashbandicoot/comments/1umm36i/i_will_just_leave_this_here_and_will_keep_you/",
+      "status": "page_read_off_platform_coop_not_texture_pack",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://www.reddit.com/r/crashbandicoot/comments/1wq5tw0/my_wip_native_mac_port_of_crash_bandicoot_1_with/",
+      "status": "no_page_content_retrieved_indexed_comment_only",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review"
+    },
+    {
+      "url": "https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/",
+      "status": "direct_request_HTTP403_stopped_no_retry",
+      "date": "2026-10-20",
+      "wave": "major_franchise_priority_review",
+      "notes": "Public indexed text was readable separately. Subsequent normal direct HTML request returned403 and was stopped; embedded author download not recovered."
     }
   ],
   "catalogue_commit": "015e40b70cff8f853709cc6e5cf0a4050c5e3b7f",
@@ -17096,25 +17240,6 @@
       ],
       "games": [
         "Tekken"
-      ],
-      "engines": [
-        "DuckStation"
-      ],
-      "category": "B",
-      "counted_as_family": true,
-      "aggregation_note": null
-    },
-    {
-      "family": "ps1-big-deal-estudiocases-steven-castro-tekken-2",
-      "primary_counted_row_id": "ps1-big-deal-estudiocases-steven-castro-tekken-2",
-      "row_ids": [
-        "ps1-big-deal-estudiocases-steven-castro-tekken-2"
-      ],
-      "creators": [
-        "Big Deal / EstudioCases / Steven Castro"
-      ],
-      "games": [
-        "Tekken 2"
       ],
       "engines": [
         "DuckStation"
@@ -17696,7 +17821,8 @@
       "family": "ps1-bl4ckh4nd-tekken-2",
       "primary_counted_row_id": "ps1-bl4ckh4nd-tekken-2",
       "row_ids": [
-        "ps1-bl4ckh4nd-tekken-2"
+        "ps1-bl4ckh4nd-tekken-2",
+        "ps1-big-deal-estudiocases-steven-castro-tekken-2"
       ],
       "creators": [
         "Bl4ckH4nd"
@@ -17709,7 +17835,7 @@
       ],
       "category": "B",
       "counted_as_family": true,
-      "aggregation_note": null
+      "aggregation_note": "Author-credited integration grouped with original project; no format interchangeability inferred."
     },
     {
       "family": "ps1-bl4ckh4nd-tekken-3",
@@ -19215,7 +19341,7 @@
       ],
       "category": "A+B",
       "counted_as_family": true,
-      "aggregation_note": "Union of per-row declarations; multiple engines do not establish file interchangeability."
+      "aggregation_note": "Author-credited integration grouped with original project; no format interchangeability inferred."
     },
     {
       "family": "ps1-ironhulk33-strikers-1945",
@@ -20913,12 +21039,10 @@
             "Big Deal / EstudioCases / Steven Castro"
           ],
           "family_ids": [
-            "ps1-big-deal-estudiocases-steven-castro-tekken",
-            "ps1-big-deal-estudiocases-steven-castro-tekken-2"
+            "ps1-big-deal-estudiocases-steven-castro-tekken"
           ],
           "row_ids": [
-            "ps1-big-deal-estudiocases-steven-castro-tekken",
-            "ps1-big-deal-estudiocases-steven-castro-tekken-2"
+            "ps1-big-deal-estudiocases-steven-castro-tekken"
           ]
         },
         {
@@ -20968,6 +21092,7 @@
             "ps1-bubsy-3d-bl4ckh4nd"
           ],
           "row_ids": [
+            "ps1-big-deal-estudiocases-steven-castro-tekken-2",
             "ps1-bl4ckh4nd-alien-resurrection",
             "ps1-bl4ckh4nd-ape-escape",
             "ps1-bl4ckh4nd-apocalypse",
@@ -21165,7 +21290,7 @@
           ]
         },
         {
-          "key": "djhexy",
+          "key": "djhexy (u/djhexy)",
           "creator_id": "credit:djhexy",
           "labels": [
             "DjHeXy (u/djhexy)"
@@ -21474,7 +21599,7 @@
           ]
         },
         {
-          "key": "palmeroides",
+          "key": "palmeroides (jose manuel fdz)",
           "creator_id": "credit:palmeroides",
           "labels": [
             "palmeroides (Jose Manuel Fdz)"
@@ -23157,11 +23282,9 @@
             "Tekken 2"
           ],
           "family_ids": [
-            "ps1-big-deal-estudiocases-steven-castro-tekken-2",
             "ps1-bl4ckh4nd-tekken-2"
           ],
           "creator_labels": [
-            "Big Deal / EstudioCases / Steven Castro",
             "Bl4ckH4nd"
           ]
         },
@@ -23559,12 +23682,12 @@
       "documented_project_evidence_urls_all_rows": 246,
       "documented_project_evidence_urls_counted_families": 211,
       "project_page_url_fields_counted_families": 118,
-      "documented_original_download_url_fields": 60,
-      "documented_reference_and_download_union": 302,
-      "explicitly_logged_consulted_url_count": 261,
-      "logged_consultation_observations": 325,
-      "documented_urls_also_in_explicit_consultation_log": 156,
-      "documented_urls_without_explicit_log": 90,
+      "documented_original_download_url_fields": 61,
+      "documented_reference_and_download_union": 303,
+      "explicitly_logged_consulted_url_count": 269,
+      "logged_consultation_observations": 344,
+      "documented_urls_also_in_explicit_consultation_log": 159,
+      "documented_urls_without_explicit_log": 87,
       "documented_evidence_urls": [
         "https://boosty.to/crazy_ivan",
         "https://boosty.to/crazy_ivan/posts/29d51af5-1a58-45a9-89dd-ae012f53b217",
@@ -23870,6 +23993,7 @@
         "https://www.mediafire.com/file/vusqaemhnryj7z7/DOA_HD_TX_by_Nobigdeal_la.zip/file",
         "https://www.mediafire.com/file_premium/uzc9tqy8pwr3iq9/MediEvil_2.7z/file",
         "https://www.mediafire.com/folder/k8yncbpnlckw3/ironhulk33#2ie0qajlodjxz",
+        "https://www.moddb.com/addons/start/317315",
         "https://www.moddb.com/games/resident-evil/addons/biohazard-director-cut-jap-psx",
         "https://www.moddb.com/games/resident-evil/addons/resident-evil-dc-ai-overhaul-duckstation",
         "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163",
@@ -24005,6 +24129,7 @@
         "https://gbatemp.net/threads/resident-evil-3-nemesis-duckstation-hd-textures.671314/",
         "https://gbatemp.net/threads/silent-hill-duckstation-hd-textures-2-0.672174/",
         "https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/",
+        "https://gbatemp.net/threads/tekken-3-texture.681116/",
         "https://gbatemp.net/threads/texture-packs-complete-list.655702/",
         "https://gbatemp.net/threads/texture-upscale-tutorial-for-ps1.665161/",
         "https://gbatemp.net/threads/the-crow-city-of-angels-slus-00242-psx-duckstation-hd-texture-pack.667169/",
@@ -24051,6 +24176,7 @@
         "https://www.mediafire.com/folder/itrvbm8xd6rf7/PS1",
         "https://www.moddb.com/addons/slimebuck-xenogears-ui-hd-ai-upscaled-textures",
         "https://www.moddb.com/addons/slimebuck-xenogears-ui-hd-ai-upscaled-textures-version-1",
+        "https://www.moddb.com/addons/start/317315",
         "https://www.moddb.com/downloads/slimebuckxenohd",
         "https://www.moddb.com/games/duke-nukem-3d/addons/duke-nukem-upscale-pack-for-total-meltdown",
         "https://www.moddb.com/games/resident-evil/addons/biohazard-director-cut-jap-psx",
@@ -24102,6 +24228,11 @@
         "https://www.reddit.com/r/GameUpscale/comments/grtmuc/chrono_cross_upscale_wip/",
         "https://www.reddit.com/r/RetroArch/",
         "https://www.reddit.com/r/XenoGears/comments/ro151t/xenogears_ai_upscale_texture_pack_beta_has_now/",
+        "https://www.reddit.com/r/crashbandicoot/comments/1rc94rq/finally_successful_hd_textures_and_bad_news/",
+        "https://www.reddit.com/r/crashbandicoot/comments/1rwvq52/transparent_texture_replacement_figured_out_on_nd/",
+        "https://www.reddit.com/r/crashbandicoot/comments/1rzl4sy/updates_regarding_texture_replacements/",
+        "https://www.reddit.com/r/crashbandicoot/comments/1umm36i/i_will_just_leave_this_here_and_will_keep_you/",
+        "https://www.reddit.com/r/crashbandicoot/comments/1wq5tw0/my_wip_native_mac_port_of_crash_bandicoot_1_with/",
         "https://www.reddit.com/r/duckstation/",
         "https://www.reddit.com/r/psx/",
         "https://www.reddit.com/r/recomps/comments/1x50o15/hercules_recompiled_disneys_hercules_psx_1997_as/",
@@ -24111,6 +24242,7 @@
         "https://www.tapatalk.com/groups/legendsofmodding/wwe-smackdown-shock-value-v1-0-out-now-t1084-s1230.html",
         "https://www.tapatalk.com/groups/legendsofmodding/wwe-smackdown-shock-value-v1-0-out-now-t1084-s1280.html",
         "https://www.tapatalk.com/groups/legendsofmodding/wwe-smackdown-shock-value-v1-0-out-now-t1084.html",
+        "https://www.tombraiderxtra.com/downloads.php",
         "https://www.youtube.com/watch?v=0qXHY_87XDw",
         "https://www.youtube.com/watch?v=2FDaAESRbHA",
         "https://www.youtube.com/watch?v=4BrjHBs_ydg",
@@ -28799,5 +28931,32 @@
     "zip_sha256": "9962e69a3fa9970baa388080c8675f5715640dc03c2874693c3952a062dd82dd",
     "result": "passed",
     "frozen_build_499_unchanged": true
+  },
+  "major_franchise_review": {
+    "date": "2026-10-20",
+    "baseline_commit": "15a4d990b308d2da91cee17f838aa601ad163745",
+    "baseline_families": 180,
+    "families_after": 179,
+    "new_pack_families": 0,
+    "deduplication_delta": -1,
+    "new_verified_installable_profiles": 0,
+    "new_games_covered": 0,
+    "query_count": 44,
+    "priority_matrix": "tools/textures/research/ps1-major-franchises-2026-10-20.json",
+    "scope": "Crash PS1 series, Final Fantasy PS1 releases, Suikoden I/II, Tekken1/2/3 and Tomb Raider1–5. Major franchises take precedence over catalogue volume. No core/UI/IPA changes.",
+    "deduplication": {
+      "preserved_row_id": "ps1-big-deal-estudiocases-steven-castro-tekken-2",
+      "canonical_family": "ps1-bl4ckh4nd-tekken-2",
+      "evidence_url": "https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation"
+    },
+    "changed_project_ids": [
+      "ps1-thesoultear-final-fantasy-vii-hd-remaster",
+      "ps1-curse-arms-final-fantasy-viii",
+      "ps1-stud44-crash-bandicoot-hd-hud",
+      "ps1-stud44-crash-bash-hd-icons",
+      "ps1-bl4ckh4nd-tekken-2",
+      "ps1-big-deal-estudiocases-steven-castro-tekken-2",
+      "ps1-big-deal-estudiocases-steven-castro-tekken"
+    ]
   }
 }

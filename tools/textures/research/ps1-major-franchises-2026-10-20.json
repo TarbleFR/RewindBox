@@ -1,0 +1,1470 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-20",
+  "repository": "TarbleFR/neostation-ios",
+  "branch": "Claude",
+  "baseline_commit": "15a4d990b308d2da91cee17f838aa601ad163745",
+  "user_priority": "Major PS1 titles first: Crash series, Final Fantasy, Suikoden, Tekken, Tomb Raider. Catalogue volume is secondary.",
+  "counts": {
+    "priority_games": 19,
+    "new_project_families_discovered": 0,
+    "new_verified_downloads": 0,
+    "priority_games_with_existing_verified_download": 1,
+    "priority_games_with_documented_projects": 8,
+    "research_families_before": 180,
+    "research_families_after": 179,
+    "duplicate_family_correction": -1,
+    "inventory_rows_preserved": 216,
+    "search_queries_this_pass": 44,
+    "runtime_ps1_references_unchanged": 37,
+    "runtime_verified_downloads_unchanged": 8
+  },
+  "technical_qualification": {
+    "duckstation": "Identifiers include texture-data and palette hashes, original upload dimensions and subtexture offsets; game-specific VRAM/page settings alter dumps.",
+    "beetle": "Own dump identities, flat game-filename texture-replacements folder and supported PNG sizes; replacement depends on Vulkan.",
+    "adaptation": "Possible subject to source assets and author conditions. Requires matching target dumps, potentially composing/splitting images, checking palette/transparency/animation and testing actual game editions; no generic renaming converter validated.",
+    "disc_patches": "A patch that modifies the game image itself is a separate mechanism; compatibility depends on the patch, base disc and core accuracy.",
+    "sources": [
+      "https://github.com/stenzek/duckstation/wiki/Texture-Replacement",
+      "https://docs.libretro.com/library/beetle_psx_hw/"
+    ],
+    "core_migration_or_conversion_implemented": false
+  },
+  "games": [
+    {
+      "id": "ps1-priority-crash-bandicoot",
+      "game": "Crash Bandicoot",
+      "series": "Crash",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "duckstation_HUD_WIP_no_release",
+      "search_scope": "title_specific_queries",
+      "project_ids": [
+        "ps1-stud44-crash-bandicoot-hd-hud"
+      ],
+      "counted_families": [
+        "ps1-stud44-crash-bandicoot-hd-hud"
+      ],
+      "creators": [
+        "StuD44"
+      ],
+      "engines": [
+        "DuckStation"
+      ],
+      "source_urls": [
+        "https://www.reddit.com/r/crashbandicoot/comments/1rzl4sy/updates_regarding_texture_replacements/",
+        "https://www.reddit.com/r/crashbandicoot/comments/1rwvq52/transparent_texture_replacement_figured_out_on_nd/"
+      ],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "HUD, fonts and icons demonstrated; save-screen font reset reported. No public archive confirmed. Not a complete game retexture."
+    },
+    {
+      "id": "ps1-priority-crash-bandicoot-2-cortex-strikes-back",
+      "game": "Crash Bandicoot 2: Cortex Strikes Back",
+      "series": "Crash",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "no_qualified_PS1_pack_identified",
+      "search_scope": "title_specific_queries",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "Search results included resolution/filter demonstrations and a separate native recompilation; no PS1 replacement archive established."
+    },
+    {
+      "id": "ps1-priority-crash-bandicoot-3-warped",
+      "game": "Crash Bandicoot 3: Warped",
+      "series": "Crash",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "technical_lead_without_separate_pack",
+      "search_scope": "title_specific_queries",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "StuD44 mentions sprite/model texture sharing, but this is not a separate released project or a verified downloadable pack."
+    },
+    {
+      "id": "ps1-priority-crash-team-racing",
+      "game": "Crash Team Racing",
+      "series": "Crash",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "no_qualified_PS1_pack_identified",
+      "search_scope": "title_specific_queries",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "Grey HUD colourisation and a separate CTR-tools viewer do not establish a DuckStation/Beetle HD pack. Nitro-Fueled and widescreen patches excluded."
+    },
+    {
+      "id": "ps1-priority-crash-bash",
+      "game": "Crash Bash",
+      "series": "Crash",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "duckstation_icons_WIP_no_release",
+      "search_scope": "title_specific_queries",
+      "project_ids": [
+        "ps1-stud44-crash-bash-hd-icons"
+      ],
+      "counted_families": [
+        "ps1-stud44-crash-bash-hd-icons"
+      ],
+      "creators": [
+        "StuD44"
+      ],
+      "engines": [
+        "DuckStation"
+      ],
+      "source_urls": [
+        "https://www.reddit.com/r/crashbandicoot/comments/1rc94rq/finally_successful_hd_textures_and_bad_news/"
+      ],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "Character icon upscale demonstration only; no public author archive confirmed."
+    },
+    {
+      "id": "ps1-priority-final-fantasy-vii",
+      "game": "Final Fantasy VII",
+      "series": "Final Fantasy",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "duckstation_author_release_archive_uninspected",
+      "search_scope": "title_specific_queries",
+      "project_ids": [
+        "ps1-thesoultear-final-fantasy-vii-hd-remaster"
+      ],
+      "counted_families": [
+        "ps1-thesoultear-final-fantasy-vii-hd-remaster"
+      ],
+      "creators": [
+        "TheSoulTear"
+      ],
+      "engines": [
+        "DuckStation"
+      ],
+      "source_urls": [
+        "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163"
+      ],
+      "author_download_urls": [
+        "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163",
+        "https://www.moddb.com/addons/start/317315"
+      ],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "TheSoulTear v1.0; original listing470667042 bytes, English/Russian, SCUS-94163. Four-region/all-disc support and Beetle support not established."
+    },
+    {
+      "id": "ps1-priority-final-fantasy-viii",
+      "game": "Final Fantasy VIII",
+      "series": "Final Fantasy",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "duckstation_author_release_partial",
+      "search_scope": "title_specific_queries",
+      "project_ids": [
+        "ps1-curse-arms-final-fantasy-viii"
+      ],
+      "counted_families": [
+        "ps1-curse-arms-final-fantasy-viii"
+      ],
+      "creators": [
+        "Curse_Arms"
+      ],
+      "engines": [
+        "DuckStation"
+      ],
+      "source_urls": [
+        "https://gbatemp.net/threads/my-hd-remaster-packs.630347/",
+        "https://gbatemp.net/threads/my-hd-remaster-packs.630347/page-6"
+      ],
+      "author_download_urls": [
+        "https://drive.usercontent.google.com/download?authuser=0&export=download&id=1nYJVsvA6IfnspBX6sDmmGYv-f6AQ5kE5"
+      ],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "Curse_Arms declares USA discs1–4; numerous backgrounds/fonts/effects/cards and full character coverage are missing. No Beetle version established."
+    },
+    {
+      "id": "ps1-priority-final-fantasy-ix",
+      "game": "Final Fantasy IX",
+      "series": "Final Fantasy",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "no_qualified_PS1_pack_identified",
+      "search_scope": "title_specific_queries",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "Moguri/Memoria and Steam texture mods are PC resources and do not establish a replacement pack for the PS1 release."
+    },
+    {
+      "id": "ps1-priority-final-fantasy-tactics",
+      "game": "Final Fantasy Tactics",
+      "series": "Final Fantasy",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "no_qualified_PS1_pack_identified",
+      "search_scope": "title_specific_queries",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "War of the Lions PPSSPP packs target the PSP release and are excluded from this PS1 inventory."
+    },
+    {
+      "id": "ps1-priority-suikoden",
+      "game": "Suikoden",
+      "series": "Suikoden",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "no_qualified_PS1_pack_identified",
+      "search_scope": "title_specific_queries",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "Generic HD gameplay and the modern I&II remaster do not establish a PS1 replacement pack."
+    },
+    {
+      "id": "ps1-priority-suikoden-ii",
+      "game": "Suikoden II",
+      "series": "Suikoden",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "beetle_original_archive_installation_verified",
+      "search_scope": "title_specific_queries",
+      "project_ids": [
+        "ps1-faospark-suikoden-ii-project-kyaro"
+      ],
+      "counted_families": [
+        "ps1-faospark-suikoden-ii-project-kyaro"
+      ],
+      "creators": [
+        "Faospark"
+      ],
+      "engines": [
+        "Beetle PSX HW"
+      ],
+      "source_urls": [
+        "https://sites.google.com/view/hub-of-faospark/project-kyaro"
+      ],
+      "author_download_urls": [
+        "https://www.dropbox.com/s/uvnteyqqavkxwq2/Suikoden%20II%20%28USA%29-texture-replacements.zip?dl=1"
+      ],
+      "runtime_profile_ids": [
+        "ps1-faospark-suikoden-ii-project-kyaro"
+      ],
+      "verified_neostation_download": true,
+      "physical_iphone_render_verified": false,
+      "note": "Project Kyaro2.6 already available in NeoStation:437 PNGs, UI/portraits and selected backgrounds; USA evidence, PAL candidate requires confirmation. No whole-game or physical-iPhone rendering claim."
+    },
+    {
+      "id": "ps1-priority-tekken",
+      "game": "Tekken",
+      "series": "Tekken",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "duckstation_publication_standalone_file_unverified",
+      "search_scope": "title_specific_queries",
+      "project_ids": [
+        "ps1-big-deal-estudiocases-steven-castro-tekken",
+        "ps1-electronic-rave-now-deleted-forum-account-tekken"
+      ],
+      "counted_families": [
+        "ps1-big-deal-estudiocases-steven-castro-tekken",
+        "ps1-electronic-rave-now-deleted-forum-account-tekken"
+      ],
+      "creators": [
+        "Big Deal / EstudioCases / Steven Castro",
+        "Electronic_Rave (now deleted forum account)"
+      ],
+      "engines": [
+        "DuckStation"
+      ],
+      "source_urls": [
+        "https://www.estudiocases.com/post/tekken-1-de-psx-con-doblaje-en-castellano-ahora-con-texturas-hd",
+        "https://gbatemp.net/threads/my-ps1-packs-for-dukstation-updated-28-05-2025.668845/page-2"
+      ],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "Big Deal textures adapted by EstudioCases; combined localisation installer not downloaded. Electronic_Rave release historical. No verified Beetle archive."
+    },
+    {
+      "id": "ps1-priority-tekken-2",
+      "game": "Tekken 2",
+      "series": "Tekken",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "duckstation_author_pack_and_integration_same_family",
+      "search_scope": "title_specific_queries",
+      "project_ids": [
+        "ps1-bl4ckh4nd-tekken-2",
+        "ps1-big-deal-estudiocases-steven-castro-tekken-2"
+      ],
+      "counted_families": [
+        "ps1-bl4ckh4nd-tekken-2"
+      ],
+      "creators": [
+        "Bl4ckH4nd"
+      ],
+      "engines": [
+        "DuckStation"
+      ],
+      "source_urls": [
+        "https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing",
+        "https://gbatemp.net/threads/my-ps2-packs.621422/page-24",
+        "https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation"
+      ],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "EstudioCases explicitly credits Bl4ckH4nd. Both references count as one texture family; package2.0 is not an original texture version. No standalone archive validated."
+    },
+    {
+      "id": "ps1-priority-tekken-3",
+      "game": "Tekken 3",
+      "series": "Tekken",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "duckstation_author_projects_archive_unverified",
+      "search_scope": "title_specific_queries",
+      "project_ids": [
+        "ps1-bl4ckh4nd-tekken-3",
+        "ps1-curse-arms-tekken-3"
+      ],
+      "counted_families": [
+        "ps1-bl4ckh4nd-tekken-3",
+        "ps1-curse-arms-tekken-3"
+      ],
+      "creators": [
+        "Bl4ckH4nd",
+        "Curse_Arms"
+      ],
+      "engines": [
+        "DuckStation"
+      ],
+      "source_urls": [
+        "https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing",
+        "https://gbatemp.net/threads/my-ps2-packs.621422/page-24",
+        "https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/"
+      ],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "Two credited projects; Curse_Arms forum title explicit. A separate2026 thread merely requests a link. Direct HTML403 stopped; no archive recovered."
+    },
+    {
+      "id": "ps1-priority-tomb-raider",
+      "game": "Tomb Raider",
+      "series": "Tomb Raider",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "no_qualified_PS1_pack_identified",
+      "search_scope": "title_specific_queries",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "No Beetle/DuckStation author archive established. Tomb Raider Xtra targets PC Glidos/TombATI; modern remasters and standalone remakes are not PS1 packs."
+    },
+    {
+      "id": "ps1-priority-tomb-raider-ii",
+      "game": "Tomb Raider II",
+      "series": "Tomb Raider",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "no_qualified_PS1_pack_identified",
+      "search_scope": "title_specific_queries",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "No Beetle/DuckStation author archive established. Tomb Raider Xtra targets PC Glidos/TombATI; modern remasters and standalone remakes are not PS1 packs."
+    },
+    {
+      "id": "ps1-priority-tomb-raider-iii",
+      "game": "Tomb Raider III",
+      "series": "Tomb Raider",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "no_qualified_PS1_pack_identified",
+      "search_scope": "series_level_queries_not_exhaustive_title_review",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "No Beetle/DuckStation author archive established. Tomb Raider Xtra targets PC Glidos/TombATI; modern remasters and standalone remakes are not PS1 packs."
+    },
+    {
+      "id": "ps1-priority-tomb-raider-the-last-revelation",
+      "game": "Tomb Raider: The Last Revelation",
+      "series": "Tomb Raider",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "no_qualified_PS1_pack_identified",
+      "search_scope": "series_level_queries_not_exhaustive_title_review",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "No Beetle/DuckStation author archive established. Tomb Raider Xtra targets PC Glidos/TombATI; modern remasters and standalone remakes are not PS1 packs."
+    },
+    {
+      "id": "ps1-priority-tomb-raider-chronicles",
+      "game": "Tomb Raider: Chronicles",
+      "series": "Tomb Raider",
+      "console": "PS1",
+      "priority": 1,
+      "review_date": "2026-10-20",
+      "status": "no_qualified_PS1_pack_identified",
+      "search_scope": "series_level_queries_not_exhaustive_title_review",
+      "project_ids": [],
+      "counted_families": [],
+      "creators": [],
+      "engines": [],
+      "source_urls": [],
+      "author_download_urls": [],
+      "runtime_profile_ids": [],
+      "verified_neostation_download": false,
+      "physical_iphone_render_verified": false,
+      "note": "No Beetle/DuckStation author archive established. Tomb Raider Xtra targets PC Glidos/TombATI; modern remasters and standalone remakes are not PS1 packs."
+    }
+  ],
+  "related_non_PS1_resources": [
+    {
+      "project": "Tomb Raider Xtra",
+      "game": "Tomb Raider I PC",
+      "platform": "PC; excluded from PS1 family count",
+      "engines": [
+        "Glidos",
+        "GLRage/TombATI"
+      ],
+      "project_url": "https://www.tombraiderxtra.com/downloads.php",
+      "authors": [
+        "Antonijadis",
+        "JC",
+        "Matthew Hill",
+        "Silverlok"
+      ],
+      "archive_format": "Windows self-extracting EXE; not executed or downloaded",
+      "qualification": "Author-hosted PC texture collections, some complete and some partial. Not mapped to PS1 dump identifiers; PC coverage is not PS1 compatibility. No redistribution licence inferred."
+    }
+  ],
+  "rejected_or_unconfirmed_leads": [
+    {
+      "url": "https://gbatemp.net/threads/tekken-3-texture.681116/",
+      "reason": "Download request, not a new pack or creator."
+    },
+    {
+      "url": "https://www.reddit.com/r/crashbandicoot/comments/1umm36i/i_will_just_leave_this_here_and_will_keep_you/",
+      "reason": "Wrath of Cortex GameCube/PS2 cooperative modification; off platform and not a PS1 HD pack."
+    },
+    {
+      "url": "https://www.reddit.com/r/crashbandicoot/comments/1wq5tw0/my_wip_native_mac_port_of_crash_bandicoot_1_with/",
+      "reason": "No page content retrieved. Indexed creator comment says unfinished HUD; not evidence of a new release."
+    },
+    {
+      "url": "https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/",
+      "reason": "Normal direct HTML request403; stopped without retry or alternate retrieval of embedded file."
+    }
+  ],
+  "search_log": {
+    "search_batches": [
+      {
+        "batch": "majorSearch0",
+        "engine": "system2",
+        "queries": [
+          "\"Crash Bandicoot\" \"texture pack\" DuckStation",
+          "\"Crash Bandicoot 2\" textures HD DuckStation",
+          "\"Crash Bandicoot 3\" \"texture\" \"pack\"",
+          "\"Crash Team Racing\" \"texture pack\" PS1"
+        ],
+        "indexed_urls": [
+          "https://www.planetminecraft.com/texture-pack/texture-pack-crash-bandicoot-x128-152/",
+          "https://www.youtube.com/watch?v=6cTwSEB-BRA",
+          "https://www.youtube.com/watch?v=R-sWJCSS-eo",
+          "https://gbatemp.net/threads/request-texture-packs-here-video-game.655674/",
+          "https://www.planetminecraft.com/project/crash-bandicoot-3-warped/",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=3575722331",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=868554778",
+          "https://www.reddit.com/r/crashbandicoot/comments/1v2wv47/n_sane_crate_textures_for_wrath_of_cortex_pcsx2/",
+          "https://forums.appleinsider.com/discussion/236637/how-to-emulate-the-original-playstation-and-nintendo-64-on-mac",
+          "https://www.planetminecraft.com/member/el_templo_del_bandicoot/",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=3558478992",
+          "https://www.nexusmods.com/supermarketsimulator/mods/777",
+          "https://forums.libretro.com/t/crt-guest-advanced-hd-and-ntsc-for-reshade/41880/82",
+          "https://forums.libretro.com/t/crt-guest-advanced-hd-and-ntsc-for-reshade/41880/79",
+          "https://forums.libretro.com/t/crt-guest-advanced-hd-and-ntsc-for-reshade/41880?page=5",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=3582200686",
+          "https://www.cgtrader.com/3d-model-packs/14-hallowen-masks-pack-character-costume-pbr",
+          "https://forums.pcsx2.net/Thread-PSOne-Widescreen-Patches?pid=640294",
+          "https://gbatemp.net/threads/4-games-wip.648405/",
+          "https://hothardware.com/news/duckstation-update-makes-playstation-emulation-smoother-than-ever",
+          "https://appleinsider.com/inside/apple-silicon/tips/how-to-emulate-the-original-playstation-and-nintendo-64-on-mac/amp/",
+          "https://www.reddit.com/r/decomps/comments/1wanx4o/crash_bandicoot_2_recomp_preview/",
+          "https://www.planetminecraft.com/member/mrlpsupermarcel/",
+          "https://gbatemp.net/threads/suggestions.635161/page-2",
+          "https://wegamans.net/?_=%2Ftopics%2Fdecomp%23BaQ2cyRFYLjlNnovzyRV7wK9",
+          "https://www.reddit.com/r/DefJamFightForNY/comments/1w4ske0/dlss_5_mod_with_hd_textures_pack/",
+          "https://p.atoshin.com/index.php?u=aHR0cHM6Ly9naXRodWIuY29tL3RvcGljcy9kZWNvbXA%3D",
+          "https://github.com/Cedric-M/crash-bandicoot-2d",
+          "https://www.resetera.com/threads/decompilation-projects-ot-free-next-gen-update-for-your-favorite-classics.682687/page-8",
+          "https://www.nexusmods.com/crashbandicoot4itsabouttime/mods/95",
+          "https://www.planetminecraft.com/project/crash-bandicoot-4-the-wrath-of-cortex-in-minecraft/",
+          "https://forum.plutonium.pw/user/soykappy/posts?page=4",
+          "https://gbatemp.net/threads/my-hd-remaster-packs.630347/page-5",
+          "https://www.speedrun.com/users/PeteThePlayer/comments",
+          "https://www.patreon.com/cw/ironhulk33/sitemap",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=2958797086",
+          "https://www.turbosquid.com/Search/3D-Models/crash-bandicoot?enhanced_licenses=true&low_poly=true",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=3706198466",
+          "https://www.scribd.com/document/919172097/chtdb",
+          "https://gbatemp.net/threads/any-request-update.666030/page-2",
+          "https://www.patreon.com/cw/ironhulk33/sitemap?l=es-ES",
+          "https://www.speedrun.com/ja-JP/users/PeteThePlayer/comments",
+          "https://www.planetminecraft.com/project/crash-bandicoot-a-new-day/",
+          "https://all-things-andy-gavin.com/tag/crash-bandicoot-3-warped/",
+          "https://gbatemp.net/threads/crash-bandicoot-the-wrath-of-cortex-hd-full-textures.658602/",
+          "https://www.planetminecraft.com/project/crash-bandicoot-4-it-s-about-time-map-work-in-progress/",
+          "https://4pda.to/forum/index.php?showtopic=1006788&st=860",
+          "https://duckstationz.com/duckstation-emulator-setup-guide/",
+          "https://fr.wikipedia.org/wiki/Crash_Bandicoot_%28jeu_vid%C3%A9o%29",
+          "https://githubhelp.com/CRASHARKI/cttr-tp",
+          "https://www.spaziogames.it/notizie/playstation-store-le-classifiche-del-mese-di-gennaio-322823",
+          "https://www.reddit.com/r/EmulationOnAndroid/comments/sui67g",
+          "https://www.reddit.com/r/SBCGaming/comments/1rrc29g/duckstation_20_ps1_games_tested_with_overclocking/",
+          "https://www.reddit.com/r/ANBERNIC/comments/1rs1o5h/better_ps1_emulation_with_duckstation_20_ps1/",
+          "https://www.reddit.com/r/GameUpscale/comments/17h9sx8",
+          "https://support.activision.com/servlet/servlet.FileDownload?file=00P0B00000q4DmbUAE&retURL=%2Fapex%2Fmanuals",
+          "https://en.wikipedia.org/wiki/Crash_Bandicoot_%28video_game%29",
+          "https://sol.sbc.org.br/index.php/sbgames_estendido/article/download/27795/27605/",
+          "https://support.activision.com/servlet/servlet.FileDownload?file=00P0B00000q4DmlUAE&retURL=%2Fapex%2Fmanuals",
+          "https://www.reddit.com/r/EmulationOnAndroid/comments/1bmhif3",
+          "https://www.reddit.com/r/GoldenAgeMinecraft/comments/1e1gmsy",
+          "https://www.reddit.com/r/crashbandicoot/comments/1il472i"
+        ]
+      },
+      {
+        "batch": "majorSearch1",
+        "engine": "system2",
+        "queries": [
+          "\"Final Fantasy VII\" \"Beetle\" \"textures\"",
+          "\"Final Fantasy VIII\" \"DuckStation\" textures pack",
+          "\"Final Fantasy IX\" \"DuckStation\" texture pack",
+          "\"Suikoden\" \"Beetle\" texture pack"
+        ],
+        "indexed_urls": [
+          "https://sites.google.com/view/hub-of-faospark/project-kyaro",
+          "https://gbatemp.net/threads/my-hd-remaster-packs.630347/page-6",
+          "https://github.com/DrGlaucous/retroarch-docs/blob/master/docs/library/beetle_psx_hw.md",
+          "https://www.youtube.com/watch?v=2HllhZrIVC4",
+          "https://www.youtube.com/watch?v=bjBA7l-Tigo",
+          "https://github.com/duckstation/old-releases/blob/master/data/resources/discsets.yaml",
+          "https://preservetube.com/watch?v=rvRcawBqsH4",
+          "https://www.nexusmods.com/finalfantasy8/mods/26",
+          "https://forums.libretro.com/t/beetle-psx-hw-broken-texture-filterring-with-ir-more-than-1x/17488",
+          "https://romtail.net/jeux/final-fantasy-viii-playstation/",
+          "https://gbatemp.net/threads/ps2-hd-texture-packs-request.668841/",
+          "https://github.com/stenzek/duckstation/wiki/Texture-Replacement/8bd669024f947c602010a60ac9514d887128e6b0",
+          "https://www.reddit.com/r/AynThor/comments/1r3s2ei/esde_duckstation_multi_discs_and_sbi_files/",
+          "https://www.reddit.com/r/RetroArch/comments/xceos7",
+          "https://emulation.gametechwiki.com/index.php/Texture_Packs",
+          "https://github.com/stenzek/duckstation/wiki/Texture-Replacement",
+          "https://www.resetera.com/threads/ps1-emulation-can-do-amazing-things-nowadays-ffvii.109469/page-3",
+          "https://github.com/stenzek/duckstation/wiki/Difficult-to-Emulate-Games",
+          "https://github.com/stenzek/duckstation/wiki/Difficult-to-Emulate-Games/05444a4f6897f2fba6bc5067776ec098c1e0c0e2",
+          "https://retroachievements.org/forums/topic/15809",
+          "https://www.nexusmods.com/finalfantasy8/mods/top",
+          "https://www.reddit.com/r/EmuDeck/comments/1uwiul6/can_anyone_help_me_with_ffix_rom_hack/",
+          "https://alfaexploit.com/en/posts/r36s_psx_rom_conversion_multidisc_games/",
+          "https://steamcommunity.com/app/1932640/discussions/0/828204828240951101/?ctp=2",
+          "https://www.blendswap.com/search?keyword=free&page=1",
+          "https://gbatemp.net/threads/ps1-duckstation-texture-packs-are-now-a-thing-vagrant-story.662541/",
+          "https://www.reddit.com/r/duckstation/comments/1to1w1c/mobile_white_lines_around_textures/",
+          "https://github.com/libretro/docs/blob/master/docs/library/beetle_psx_hw.md?plain=1",
+          "https://www.blueroms.ws/game/ps1/final_fantasy_viii",
+          "https://steamcommunity.com/app/1932640/discussions/0/828204828240951101/?ctp=2&l=latam",
+          "https://www.speedrun.com/fr-FR/ff9/resources/djlgo",
+          "https://alfaexploit.com/es/posts/r36s_psx_rom_conversion_multidisc_games/",
+          "https://www.rpgamers.fr/rom-699-final-fantasy-9.html",
+          "https://barotto.github.io/libretro-docs/library/beetle_psx_hw/",
+          "https://www.reddit.com/r/EmulationOnAndroid/comments/1q64dob/duckstation_1080p_ps1_upscale_settings_for_retro/",
+          "https://gamehacking.org/game/88857?hacker=Unicorngoulash",
+          "https://www.reddit.com/r/FinalFantasyIX/comments/14v4g53",
+          "https://github.com/sgiannop/libretro-docs/blob/master/docs/library/beetle_psx_hw.md",
+          "https://forums.qhimm.com/index.php?topic=14914.6275",
+          "https://docs.libretro.com/library/beetle_psx_hw/",
+          "https://www.reddit.com/r/SteamDeck/comments/y8cjt4/removed/",
+          "https://store.steampowered.com/search/?l=koreana&publisher=KONAMI",
+          "https://t.me/s/manuthagaming/787?q=%23GamingCommunity",
+          "https://libretro6.rssing.com/chan-65807879/all_p1.html",
+          "https://github.com/libretro/beetle-psx-libretro/issues/544",
+          "https://warosu.org/vr/thread/9519948",
+          "https://store.steampowered.com/oldnews/?appgroupname=SQUARE+ENIX%2C+Eidos+Interactive&appids=202170%2C202370%2C28050%2C8190%2C6910%2C6850%2C6980%2C6860%2C40100%2C35130%2C39160%2C8000%2C7000%2C8140%2C6920%2C6900%2C35020%2C23310%2C8170%2C23380%2C28000%2C43000%2C34600%2C35000%2C39110%2C6870%2C7010%2C35070%2C23300%2C8100%2C8160%2C8080%2C7020%2C6880%2C35110%2C201280%2C6950%2C40140%2C5627%2C5622%2C35150%2C5549%2C5535%2C5508%2C5492%2C5653%2C5654%2C5655%2C5652%2C5612%2C5611%2C5610%2C5608%2C8030%2C5283%2C40135%2C7030%2C8150%2C950%2C35136%2C43011%2C35137%2C35138%2C35135%2C43006%2C900800%2C23330%2C43005%2C43014%2C43013%2C8180%2C5227%2C35102%2C5915%2C35090%2C39100%2C5861%2C35083%2C35080%2C5878%2C35091%2C35089%2C35101%2C5864%2C5855%2C5773%2C5774%2C5768%2C5761%2C5754%2C5749%2C28020%2C28012%2C28011%2C28010%2C5379%2C5377%2C5361%2C5363%2C35050%2C5801%2C5799%2C5281%2C5718%2C5543%2C5540%2C5539%2C5642%2C6940%2C7050%2C5387%2C5135%2C5134%2C5347%2C5348%2C5321%2C5320%2C5319%2C23320%2C5670%2C8090%2C99012%2C955%2C988%2C976%2C975%2C956%2C951%2C6930%2C901028%2C5601&feed=pcgamer",
+          "https://forums.libretro.com/t/ff8-psx-crashing/20950",
+          "https://www.speedrun.com/ff9/guides/sy8j6",
+          "https://retroachievements.org/forums/topic/5570?comment=72204",
+          "https://www.reddit.com/r/FinalFantasyIX/comments/1vubcql/unpopular_opinion_moguri_is_worst_than_og/",
+          "https://www.reddit.com/r/SteamDeck/comments/1j6kiq9",
+          "https://www.speedrun.com/fr-FR/ff9/guides/sy8j6",
+          "https://forums.libretro.com/t/new-swapping-disc-method-does-not-work-on-beetle-psx/26255",
+          "https://steamcommunity.com/app/1932640/discussions/0/828204828240951101/?l=indonesian",
+          "https://www.reddit.com/r/duckstation/comments/1ctxh2m",
+          "https://www.reddit.com/r/batocera/comments/104m1cp",
+          "https://www.resetera.com/threads/ffvii-on-a-ps1-is-still-absolutely-gorgeous.184626/page-8",
+          "https://beruanglaut.com/rom/final-fantasy-ix-bahasa-indonesia/"
+        ]
+      },
+      {
+        "batch": "majorSearch2",
+        "engine": "system2",
+        "queries": [
+          "\"Tekken\" \"Beetle\" texture pack",
+          "\"Tekken 2\" \"texture pack\" PS1",
+          "\"Tekken 3\" \"Beetle\" textures",
+          "\"Tomb Raider\" PS1 DuckStation texture pack"
+        ],
+        "indexed_urls": [
+          "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954",
+          "https://tekkenmods.com/mod/2486/",
+          "https://tekkenmods.com/mod/1104/yoshimitsu-legacy-pack",
+          "https://tekkenmods.com/mod/1104/",
+          "https://github.com/libretro/beetle-psx-libretro/issues/544",
+          "https://www.tombraiderforums.com/showthread.php?t=227257",
+          "https://github.com/libretro/beetle-psx-libretro/issues/864",
+          "https://github.com/libretro/beetle-psx-libretro/issues/921",
+          "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/",
+          "https://www.reddit.com/r/TombRaider/comments/1prf033/vanilla_1996_in_2025/",
+          "https://www.libretro.com/index.php/mednafenbeetle-psx-hw-alpha-version/",
+          "https://www.glidos.net/install.html",
+          "https://github.com/libretro/beetle-psx-libretro/pull/938",
+          "https://forums.libretro.com/t/beetle-psx-software-or-hardware-which-to-choose/12259",
+          "https://www.jeuxvideo.com/forums/42-32844-38443368-16-0-1-0-jouer-aux-vieux-tomb-raider-1-a-6-sur-un-pc-recent.htm",
+          "https://www.libretro.com/index.php/category/playstation/",
+          "https://www.glidos.net/install-gog.html?lang=en",
+          "https://gbatemp.net/threads/my-ps2-packs.621422/page-24",
+          "https://www.tombraiderforums.com/showthread.php?t=226737",
+          "https://www.reddit.com/r/TombRaider/comments/wzuts6",
+          "https://www.reddit.com/r/TombRaider/comments/t5y1fm",
+          "https://www.neogaf.com/threads/what-playstation-one-emulators-do-you-use.1564035/page-5",
+          "https://www.tombraiderfrance.com/recap-2021-deuxieme-semestre/",
+          "https://www.youtube.com/watch?v=679Avk86aUs",
+          "https://gbatemp.net/download/tekken-3-complete-save.37020/",
+          "https://retrovault.ch/rom/tomb-raider-sur-les-traces-de-lara-croft-c1",
+          "https://forums.libretro.com/t/mednafen-beetle-psx-how-to-improve-visuals/12867",
+          "https://forums.libretro.com/t/please-show-off-what-crt-shaders-can-do/19193?page=7",
+          "https://www.tombraiderxtra.com/downloads.php",
+          "https://www.pvsm.ru/3d/448181",
+          "https://www.psxrenzukoken.com/nk2/download/tomb-raider-2-the-golden-mask-e-us-fanmade/",
+          "https://www.youtube.com/watch?v=hZqbxTmQAoA",
+          "https://www.reddit.com/r/RetroArch/comments/fpxdf0",
+          "https://www.reddit.com/r/EmulationOnPC/comments/ogw9fh/duckstation_tomb_raider_black_screen/",
+          "https://www.eurekalert.org/multimedia/577951",
+          "https://www.reddit.com/r/MiSTerFPGA/comments/x1ohiv",
+          "https://www.reddit.com/r/Stereo3Dgaming/comments/1bm0w8l",
+          "https://knowyourmeme.com/photos/2837902-tekken",
+          "https://gbatemp.net/threads/my-ps1-packs-for-dukstation-updated-28-05-2025.668845/page-2",
+          "https://www.reddit.com/r/TombRaider/comments/ym2dii",
+          "https://gbatemp.net/threads/ps2-psvita-callofcthuloos-hd-texture-packs.679327/",
+          "https://www.reddit.com/r/EmulationOnPC/comments/c2xkq2",
+          "https://www.reddit.com/r/TombRaider/comments/1983i7y",
+          "https://emulation.gametechwiki.com/index.php/Texture_Packs",
+          "https://arcadebelgium.be/ab.php?d=2004-11-21&l=fr&p=news&r=new",
+          "https://www.reddit.com/r/RG35XX_H/comments/1du3izo",
+          "https://www.reddit.com/r/TombRaider/comments/1u1drbx/which_version_of_tomb_raider_1_is_this_from/",
+          "https://tombraiderfc.wordpress.com/wp-content/uploads/2018/09/readme-french-core-tr1.pdf",
+          "https://www.libretro.com/index.php/category/beetle-psx/",
+          "https://www.pushsquare.com/news/2015/03/minecraft_enters_orbit_with_mass_effect_dlc_this_week",
+          "https://www.tombraiderchronicles.com/tr3/tomb-raider-iii-overview-2.1.pdf",
+          "https://manuals.plus/m/c523d0d61954d9d17637fb35ceafded897e4fb3ef2abdae4ce126a3fee636c65.pdf",
+          "https://gbatemp.net/threads/my-ps2-packs.621422/page-4",
+          "https://github.com/Swordpdf/PS5SX2",
+          "https://gbatemp.net/threads/sombershrouds-hd-textures-megamix.637948/",
+          "https://descargasdd.org/archive/index.php/t-343930.html?s=033bba1e12b2decc8e2a24bd6cfe737a",
+          "https://www.uog.edu/_resources/files/research/2015-research-booklet-052915_web.pdf",
+          "https://gbatemp.net/threads/my-ps2-packs.621422/page-28",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=2992543811",
+          "https://guaminsects.net/anr/sites/default/files/pec2015-improved-traps.pdf",
+          "https://www.scribd.com/document/571281159/Odin-CommunitySheet-845-Android",
+          "https://en.wikipedia.org/wiki/Tomb_Raider_%281996_video_game%29",
+          "https://fr.wikipedia.org/wiki/Tomb_Raider_%28jeu_vid%C3%A9o%2C_1996%29"
+        ]
+      },
+      {
+        "batch": "majorSearch4",
+        "engine": "system2",
+        "queries": [
+          "\"Crash Bandicoot\" \"texture\" \"StuD44\" download",
+          "\"Crash Bandicoot 2\" \"DuckStation\" \"textures\" -Wrath -PCSX2",
+          "\"Crash Team Racing\" \"texture replacement\" pack",
+          "\"Tomb Raider\" \"Beetle\" \"texture-replacements\""
+        ],
+        "indexed_urls": [
+          "https://www.reddit.com/r/GameUpscale/comments/17h9sx8",
+          "https://forums.pcsx2.net/Thread-PSOne-Widescreen-Patches?pid=640294",
+          "https://www.nexusmods.com/crashbandicoot4itsabouttime/mods/236",
+          "https://githubhelp.com/CRASHARKI/cttr-tp",
+          "https://forums.appleinsider.com/discussion/236637/how-to-emulate-the-original-playstation-and-nintendo-64-on-mac",
+          "https://www.nexusmods.com/crashbandicoot4itsabouttime/mods/236?tab=docs",
+          "https://www.libretro.com/index.php/category/beetle-psx/",
+          "https://www.youtube.com/watch?v=TAVKQs-U3as",
+          "https://gbatemp.net/forums/pcsx2-hd-texture-pack-group.549/page-3",
+          "https://4pda.to/forum/index.php?showtopic=1006788&st=6460",
+          "https://appleinsider.com/inside/apple-silicon/tips/how-to-emulate-the-original-playstation-and-nintendo-64-on-mac/amp/",
+          "https://www.youtube.com/watch?v=gqh1ZvM-V44",
+          "https://github.com/CTR-tools/CTR-tools/blob/master/ctr-tools/ctrviewer/readme.md",
+          "https://packagehub.suse.com/packages/ppsspp/1_9_3-git20191218-bp152_1_1/",
+          "https://www.reddit.com/r/decomps/comments/1wanx4o/crash_bandicoot_2_recomp_preview/",
+          "https://brutalismgame.com/the-legend-of-zelda-twilight-princess-pc-port-receives-major-140-update",
+          "https://rpmfind.net/linux/RPM/opensuse/16.0/noarch/ppsspp-common-1.17.1-bp160.1.9.noarch.html",
+          "https://duckstationz.com/duckstation-emulator-setup-guide/",
+          "https://gbatemp.net/threads/my-hd-remaster-packs.630347/page-5",
+          "https://www.dsogaming.com/patches/the-legend-of-zelda-twilight-princess-pc-update-1-2-0-released/",
+          "https://recompendium.com/en/",
+          "https://github-wiki-see.page/m/CTR-tools/CTR-tools/wiki/CTRFramework.Vram",
+          "https://www.retroreversing.com/source-code/decompiled-retail-console-games",
+          "https://www.tumgik.com/tag/those%20being%20ps2%20wii%20and%20now%20pc",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=2855081168&l=schinese",
+          "https://sonichits.com/video/Retro_Renew/Remastering_PS2_Games",
+          "https://www.tumgik.com/tag/n64%20recomps",
+          "https://ctrcustomtracks.com/",
+          "https://warosu.org/vr/thread/9519948",
+          "https://recompsoftware.com/games/",
+          "https://www.reddit.com/r/psx/comments/1tt3em9/i_love_the_ps1_3d_aesthetic/",
+          "https://lobbypelago.lovable.app/apworlds",
+          "https://milkandhate.wordpress.com/2024/04/29/crash-bandicoot-n-sane-trilogy/",
+          "https://www.recompsoftware.com/projects/",
+          "https://recompsoftware.com/projects/",
+          "https://4pda.to/forum/index.php?showtopic=423822&st=20900"
+        ]
+      },
+      {
+        "batch": "majorSearch5",
+        "engine": "system2",
+        "queries": [
+          "\"Suikoden 1\" \"texture\" \"Beetle\"",
+          "\"Suikoden\" \"DuckStation\" \"HD\" -III -IV -V",
+          "\"Final Fantasy IX\" \"texture\" \"Beetle\"",
+          "\"Final Fantasy Tactics\" \"texture pack\" \"DuckStation\""
+        ],
+        "indexed_urls": [
+          "https://www.youtube.com/watch?v=ukz7vXJlMak",
+          "https://gbatemp.net/threads/ps1-duckstation-texture-packs-are-now-a-thing-vagrant-story.662541/",
+          "https://github.com/libretro/docs/blob/master/docs/library/beetle_psx_hw.md?plain=1",
+          "https://www.romhacking.net.br/index.php?topic=2863.0",
+          "https://steamcommunity.com/app/1932640/discussions/0/600772666094305031/",
+          "https://steamcommunity.com/app/1932640/discussions/0/600772666094305031/?l=turkish",
+          "https://www.youtube.com/watch?v=GKmKvv6OzL4",
+          "https://sologamingguide.com/best-retro-jrpg-emulate-android-philippines-2026/",
+          "https://steamcommunity.com/app/1932640/discussions/0/600772666094305031/?l=latam",
+          "https://www.reddit.com/r/duckstation/comments/1mxrw49",
+          "https://www.reddit.com/r/Suikoden/comments/12pw4xd/suikoden_2s_original_pc_port_in_china_was/",
+          "https://steamcommunity.com/app/1932640/discussions/0/604149321630289180/?ctp=11&l=english",
+          "https://4pda.to/forum/index.php?showtopic=1006788&st=3300",
+          "https://steamcommunity.com/app/377840/discussions/0/1741105805743188237/?ctp=89&l=polish",
+          "https://steamcommunity.com/app/377840/discussions/0/1741105805743188237/?ctp=89&l=latam",
+          "https://forum.ffa.hr/d/802/81",
+          "https://steamcommunity.com/app/1932640/discussions/0/604149321630289180/?ctp=2&l=indonesian",
+          "https://himanekoblog.hatenablog.com/entry/20260617/1781647953",
+          "https://steamcommunity.com/app/1932640/discussions/0/570417328562410763/?l=brazilian",
+          "https://www.reddit.com/r/Suikoden/comments/xqdkk2",
+          "https://github-wiki-see.page/m/Mystro256/wiisxr/wiki/Compatibility",
+          "https://www.reddit.com/r/RetroArch/comments/xceos7",
+          "https://www.resetera.com/threads/chrono-cross-ai-upscaled-running-beetle-psx.228793/page-2",
+          "https://github.laiyagushi.com/topics/ppsspp",
+          "https://github.com/topics/ppsspp?o=desc",
+          "https://steamcommunity.com/app/1932640/discussions/0/828204828240951101/?ctp=2",
+          "https://steamcommunity.com/app/1932640/discussions/0/828204828240951101/?ctp=2&l=latam",
+          "https://www.positioniseverything.net/the-7-most-accurate-retroarch-cores-for-gaming-like-you-remember/",
+          "https://newreleases.io/project/github/SynoPiia/PSXS5/release/v2.2.0",
+          "https://steamcommunity.com/app/1932640/discussions/0/828204828240951101/?l=indonesian",
+          "https://www.vierockhd.ca/",
+          "https://www.reddit.com/r/silenthill/comments/q5ldcs",
+          "https://www.reddit.com/r/Suikoden/comments/17japnv",
+          "https://docs.libretro.com/library/beetle_psx_hw/",
+          "https://www.tumgik.com/torathorsmonsters",
+          "https://pulsegeek.com/articles/best-emulator-cores-for-retroid-pocket-reliability/",
+          "https://barotto.github.io/libretro-docs/library/beetle_psx_hw/",
+          "https://techpickstream.com/gaming/nvidia-shield-tv-pro-2023-review",
+          "https://sites.google.com/view/hub-of-faospark/project-kyaro",
+          "https://www.reddit.com/r/JRPG/comments/1qin9ty/so_i_got_all_this_retro_jrpgs/",
+          "https://github.com/libretro/docs/blob/master/docs/library/beetle_psx.md",
+          "https://www.reddit.com/r/EmulationOnAndroid/comments/1aylbmn",
+          "https://fabledcartridge.com/best-way-to-play/",
+          "https://docs-test-retroa.readthedocs.io/en/latest/library/beetle_psx_hw/",
+          "https://steamcommunity.com/app/1932640/discussions/0/828204828240951101/",
+          "https://docs-test-retroa.readthedocs.io/en/latest/library/beetle_psx/",
+          "https://www.reddit.com/r/retroid/comments/1huwqiq",
+          "https://www.reddit.com/r/Suikoden/comments/1jx7xdg",
+          "https://www.reddit.com/r/OdinHandheld/comments/1m5rrba",
+          "https://www.reddit.com/r/FinalFantasyIX/comments/ibztv1",
+          "https://id.unstore.io/discover/best-apps-for-classic-jrpg-emulation-desktop/",
+          "https://thegamingemporium.com/genres/rpg/"
+        ]
+      },
+      {
+        "batch": "majorSearch6",
+        "engine": "system2",
+        "queries": [
+          "\"Tomb Raider II\" \"texture pack\" \"DuckStation\"",
+          "\"Tomb Raider\" \"pack\" \"Beetle PSX HW\"",
+          "\"Tomb Raider\" \"texturas\" \"DuckStation\"",
+          "\"Tomb Raider\" \"textures\" \"PS1\" \"download\""
+        ],
+        "indexed_urls": [
+          "https://www.tomb-of-ash.com/tr5-trle/",
+          "https://www.nexusmods.com/tombraidertrilogyremastered/mods/54?tab=files",
+          "https://github.com/LostArtefacts/TRX",
+          "https://www.tombraiderforums.com/showthread.php?t=194134",
+          "https://github.com/eikehein/TR1X/",
+          "https://www.tombraiderforums.com/showthread.php?t=174359",
+          "https://github.com/LorenzoSapora/TR1X/",
+          "https://github.com/LostArtefacts/TRX/",
+          "https://tecnoblog.net/noticias/duckstation-emulador-de-ps1-agora-roda-jogos-no-xbox-series-xs/",
+          "https://www.voltris.com.br/guias/duckstation-emulador-ps1-graficos-melhorados-pgxp",
+          "https://www.tombraiderforums.com/showthread.php?page=3&t=225849",
+          "https://forum.hardware.fr/hfr/JeuxVideo/Consoles/topikunik-playstation-classic-sujet_198463_13.htm",
+          "https://www.nexusmods.com/tombraidertrilogyremastered/mods/54",
+          "https://core-design.com/community_tr123r_ps1vhsaesthethicreshade.html",
+          "https://www.nexusmods.com/tombraidertrilogyremastered/mods/270",
+          "https://www.reddit.com/r/TombRaider/comments/lg9jj4",
+          "https://www.reddit.com/r/ps1graphics/comments/1s4kcjv/where_to_get_started/",
+          "https://www.xataka.com.mx/videojuegos/juegos-ps1-a-4k-a-60-fps-este-youtuber-logro-xbox-series-s-emulador",
+          "https://www.letsplayindex.com/channels/859543-eric-nascimento-gameplays",
+          "https://forums.launchbox-app.com/topic/43574-beetle-psx-hw-core-settings-advice/",
+          "https://salda.ws/video.php?id=LvGv2cvcx_I",
+          "https://www.elotrolado.net/hilo_duckstation-o-swanstation_2493626_s100",
+          "https://www.elotrolado.net/hilo_pcsxr-pgxp-emulador-que-aplica-correccion-de-perspectiva-y-otras-mejoras-graficas_2361651",
+          "https://www.elotrolado.net/hilo_novedades-libretro-cores-retroarch_2307403_s900",
+          "https://www.reddit.com/r/EmulationOnPC/comments/ffjkx4",
+          "https://www.reddit.com/r/TombRaider/comments/1563i4q",
+          "https://www.elotrolado.net/hilo_saturn-era-mas-potente-que-psx_2471944_s1350",
+          "https://docs.libretro.com/guides/core-list/",
+          "https://www.reddit.com/r/miniSNESmods/comments/10821ep",
+          "https://foro.elchapuzasinformatico.com/threads/juegos-que-teneis-cuantos-de-ellos-os-habeis-pasado-y-cuantos-solo-se-probaron-y-ya.137263/",
+          "https://www.reddit.com/r/psx/comments/1tnzcge/dime_los_mejores_juegos_que_puedes_jugar_en_la_ps1/",
+          "https://www.libretro.com/index.php/category/beetle-psx/",
+          "https://www.elotrolado.net/hilo_ho-pops-emulador-de-psx-para-ps2_1874054_s7250",
+          "https://www.segasaturno.com/portal/printview.php?f=8&sid=1bfe5ddf7184d437b06ec57994acf8cc&start=0&t=10455",
+          "https://github.com/libretro/docs/blob/master/docs/guides/core-list.md",
+          "https://en.wikipedia.org/wiki/High-definition_remasters_for_PlayStation_consoles",
+          "https://variatkowo.pl/forum/history/kabson/?part=4",
+          "https://www.reddit.com/r/TombRaider/comments/16ikcqa",
+          "https://retrodeck.readthedocs.io/en/cooker/wiki_emulator_guides/retroarch/retroarch-guide/",
+          "https://www.reddit.com/r/SegaSaturn/comments/171lcdc",
+          "https://www.reddit.com/r/TombRaider/comments/16ms0wf",
+          "https://www.elotrolado.net/hilo_novedades-libretro-cores-retroarch_2307403_s1050",
+          "https://4pda.to/forum/index.php?showtopic=423822&st=5440",
+          "https://www.reddit.com/r/Games/comments/1g195mh/tomb_raider_ivvi_remastered_announce_trailer/",
+          "https://www.reddit.com/r/crashbandicoot/comments/kzkm9j",
+          "https://4pda.to/forum/index.php?showtopic=423822&st=16220",
+          "https://www.elotrolado.net/hilo_ho-pops-emulador-de-psx-para-ps2_1874054_s4750",
+          "https://thegamingemporium.com/search/",
+          "https://www.reddit.com/r/TombRaider/comments/1rsyrjc/i_heard_that_this_has_arrived_on_mobile/",
+          "https://thegamingemporium.com/all/"
+        ]
+      },
+      {
+        "batch": "majorSearch7",
+        "engine": "system2",
+        "queries": [
+          "\"Crash Bandicoot\" \"pack de textures\"",
+          "\"Crash Bandicoot\" \"pacote\" \"DuckStation\"",
+          "\"Crash Bandicoot\" \"texturas\" \"DuckStation\"",
+          "\"鉄拳3\" \"テクスチャ\" \"DuckStation\""
+        ],
+        "indexed_urls": [
+          "https://www.youtube.com/watch?v=ZTsgDkU6eJI",
+          "https://www.minecraft-france.fr/tous-les-articles/page/27/",
+          "https://grospixels.com/phpBB/viewtopic.php?forum=1.&start=60&topic=13077",
+          "https://www.emudesc.com/threads/recomienden-juegos-ps1.722284/",
+          "https://www.passadefase.com/dlss-5-no-playstation-1-duckstation-vira-laboratorio-para-graficos-de-outra-geracao/",
+          "https://cdroms.me/game/crash-bandicoot-2",
+          "https://forum.hardware.fr/hfr/JeuxVideo/Consoles/series-augmentation-tarifs-sujet_175671_3042.htm",
+          "https://www.xataka.com.mx/videojuegos/juegos-ps1-a-4k-a-60-fps-este-youtuber-logro-xbox-series-s-emulador",
+          "https://www.minecraft-france.fr/page/19/",
+          "https://tecnobits.net/programas-imprescindibles-para-estrenar-tu-nuevo-pc-gamer/",
+          "https://backloggd.com/u/Natanael_DSII/",
+          "https://www.windowsnoticias.com/mejores-apps-para-emular-consolas-retro-en-tu-pc/",
+          "https://xboxplay.games/es/news/los-mejores-emuladores-para-pc-en-2026-como-jugar-clasicos-retro-a-4k-71059",
+          "https://stage.gpdstore.net/es/blog/best-emulators-for-gpd-handheld-gaming-pcs/",
+          "https://tecnobits.net/los-mejores-emuladores-para-android-nes-atari-sega-y-mas/",
+          "https://gpdstore.net/es/best-emulators-for-gpd-handheld-gaming-pcs/",
+          "https://pspstation.org/duckstation-android-emulador-ps1-movil/",
+          "https://www.andjoy.org/usine/dlink-sony-ps4.php",
+          "https://www.reddit.com/r/Argaming/comments/1t96mtv/qu%C3%A9_juego_remasterizar%C3%ADas_yo_dino_crisis/",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=2270881269&l=schinese",
+          "https://www.emu-france.com/?idFile=1987&page=fichiers&paged=182",
+          "https://arkade.com.br/o-dlss-5-chegou-ao-duckstation-e-os-jogos-de-playstation-ganharam-uma-nova-cara-com-a-tecnologia/",
+          "https://lojageekstore.com.br/collections/roms/products/mega-pack-roms-playstation-1-edicao-definitiva-ptbr",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=3450826493&l=english",
+          "https://www.jeuxvideo.com/forums/1-6687-6375671-15-0-1-0-0.htm",
+          "https://medaka.5ch.io/test/read.cgi/gameurawaza/1301108478/67-n",
+          "https://www.darty.com/vdk/ps4-slim",
+          "https://gamerdasantigas.com/blog/crash-bandicoot-ps1/",
+          "https://www.cine-media.fr/test-jeu-video-max-mustard-1712075671.html",
+          "https://www.reddit.com/r/jeuxvideo/comments/1w7ufi4/les_graphismes_ne_sont_plus_un_crit%C3%A8re_de_qualit%C3%A9/",
+          "https://forum.hardware.fr/hfr/JeuxVideo/PC/joueurs-valor-mortis-sujet_177180_19316.htm",
+          "https://medaka.5ch.io/test/read.cgi/gameurawaza/1301108478/229-n",
+          "https://medaka.5ch.io/test/read.cgi/gameurawaza/1301108478/444-n",
+          "https://ja.androidguias.com/%E6%9C%80%E9%AB%98%E3%81%AEpsxandroid%E3%82%A8%E3%83%9F%E3%83%A5%E3%83%AC%E3%83%BC%E3%82%BF%E3%83%BC/"
+        ]
+      },
+      {
+        "batch": "majorSearch8",
+        "engine": "system1",
+        "queries": [
+          "\"Crash\" \"StuD44\" textures"
+        ],
+        "indexed_urls": [
+          "https://steamcommunity.com/profiles/76561198984338814/recommended/304240",
+          "https://www.reddit.com/r/crashbandicoot/comments/1wyx24f/official_update/",
+          "https://steamcommunity.com/profiles/76561198984338814/recommended",
+          "https://www.amazon.in/Products-11668-Non-Insulated-Locking-Terminals/dp/B005GDG3V6",
+          "https://community.acer.com/en/discussion/732152/acer-nitro-n60-641-ub21-black-screening-and-fan-ramp-while-gaming/p1",
+          "https://www.facebook.com/groups/971647030146953/posts/1418045202173798/",
+          "https://www.amazon.in/Morris-Products-11764-Insulated-Terminals/dp/B005GDG6JU",
+          "https://www.amazon.in/Products-11708-Insulated-Locking-Terminals/dp/B005GDG4KG"
+        ]
+      },
+      {
+        "batch": "majorSearch9",
+        "engine": "system2",
+        "queries": [
+          "site:reddit.com/r/crashbandicoot \"texture\" \"StuD44\"",
+          "\"Tomb Raider\" \"HD textures\" \"PSX\"",
+          "\"Final Fantasy IX\" \"DuckStation\" \"pack\" -Steam -Moguri -Androidguias",
+          "\"Tekken 3\" \"texture\" \"Beetle\" \"pack\""
+        ],
+        "indexed_urls": [
+          "https://www.filmweb.pl/videogame/Tomb%2BRaider%2BII-1997-606910/discussion/Ostatni%2Bboss%2Bzbyt%2B%C5%82atwy%2Bw%2Bpor%C3%B3wnaniu%2Bz%2Bjedynk%C4%85%2C2914190",
+          "https://www.psx-place.com/threads/psx-undither.44299/",
+          "https://www.gry-online.pl/gry/tomb-raider-i/komentarze/z915ba",
+          "https://psxbrasil.com.br/tomb-raider-i-iii-remastered-recebe-primeira-atualizacao-patch-notes/",
+          "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954",
+          "https://www.filmweb.pl/videogame/Tomb%2BRaider-1996-606909/discussion/Legenda%2C2071105",
+          "https://www.tombraiderforums.com/showthread.php?page=2&s=4e0e1003b679e2bc727fe33e4cc73389&t=225217",
+          "https://www.tombraiderforums.com/showthread.php?page=363&t=214325",
+          "https://www.tombraiderforums.com/showthread.php?page=19&t=225845",
+          "https://steamcommunity.com/app/2478970/discussions/0/7434950195644719183/?l=italian",
+          "https://www.reddit.com/r/N64Homebrew/comments/rgcmqw",
+          "https://www.tombraiderforums.com/showthread.php?page=14&pp=40&s=915466daf22005fe2a5db7f4088f5227&t=228819",
+          "https://www.tombraiderforums.com/showthread.php?page=14&pp=40&s=14d99a4ac6875e016cfdbdbe89b07c49&t=228819",
+          "https://steamcommunity.com/app/2478970/discussions/0/7434950195644719183/?l=czech",
+          "https://gbatemp.net/threads/my-ps2-packs.621422/page-24",
+          "https://github.com/duckstation/old-releases/blob/master/data/resources/discsets.yaml",
+          "https://www.elotrolado.net/hilo_emulacion_2451254_s1650",
+          "https://www.planetemu.net/news/01-12-2025-epsxe-duckstation-cheats-pack-v3-0-numbers-z%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20",
+          "https://gbatemp.net/threads/ps2-hd-texture-packs-request.668841/",
+          "https://www.planetemu.net/en/news/01-12-2025-epsxe-duckstation-cheats-pack-v3-0-numbers-z",
+          "https://www.libretro.com/index.php/category/playstation/",
+          "https://www.vierockhd.ca/",
+          "https://forums.libretro.com/t/cyberlab-death-to-pixels-shader-preset-packs/35606/215",
+          "https://www.scribd.com/document/740602776/EGM2-Issue-33-March-1997",
+          "https://www.libretro.com/index.php/author/dante-alighieri/page/21/",
+          "https://www.libretro.com/index.php/category/beetle-psx/",
+          "https://forums.libretro.com/t/cyberlab-death-to-pixels-shader-preset-packs/35606/210",
+          "https://www.libretro.com/index.php/category/retroarch/page/12/",
+          "https://www.planetemu.net/news/01-12-2025-duckstation-v0-1-10320",
+          "https://www.resetera.com/threads/final-fantasy-ix-moguri-mod-v8-0-released-redrawn-upscaled-backgrounds-objects-worldmap-battle-backgrounds-npcs-ui-30fps-fmvs-and-more.213141/page-6",
+          "https://www.reddit.com/r/FreePhotoshopRequests/comments/1rxl9cu/hey_guys_im_working_on_an_hd_hud_mod_for_a_ps1/",
+          "https://forums.libretro.com/t/cyberlab-death-to-pixels-shader-preset-packs/35606/217",
+          "https://www.jeuxmangas.com/tutoriels/23796-comment-utiliser-les-fichiers-sbi-pour-resoudre-les-problemes-de-libcrypt-avec-les-jeux-psx",
+          "https://www.reddit.com/r/psx/comments/1cgggb0/what_ps1_games_do_you_think_hold_up_graphically/",
+          "https://www.retrogamenest.com/articles/tekken-3-playstation-fighting-king/",
+          "https://www.reddit.com/r/psx/comments/1ngwnf3",
+          "https://libretro6.rssing.com/chan-65807879/all_p1.html",
+          "https://tech-insider.org/duckstation-setup-2026/",
+          "https://www.planetemu.net/news/07-12-2025-gimlids-v1-5f",
+          "https://www.planetemu.net/news/01-12-2025-epsxe-duckstation-cheats-pack-v3-0-numbers-z"
+        ]
+      },
+      {
+        "batch": "majorSearch10",
+        "engine": "system2",
+        "queries": [
+          "\"StuD44\" \"texture replacements\"",
+          "\"Crash Bandicoot\" \"HD HUD\" download",
+          "\"Crash Bash\" \"HD\" \"textures\" download",
+          "\"Tekken 3\" \"IceBullet\" texture download"
+        ],
+        "indexed_urls": [
+          "https://theredwall66.artstation.com/projects/Y6qXq",
+          "https://www.reddit.com/r/crashbandicoot/comments/1rc94rq/finally_successful_hd_textures_and_bad_news/",
+          "https://polycount.com/discussion/181595/what-are-you-working-on-2017/p23",
+          "https://gbatemp.net/threads/any-request-update.666030/page-2",
+          "https://www.reddit.com/r/crashbandicoot/comments/1ip5gbt",
+          "https://www.reddit.com/r/crashbandicoot/comments/1rzl4sy/updates_regarding_texture_replacements/",
+          "https://www.nexusmods.com/crashbandicoot4itsabouttime/mods/top?offset=124",
+          "https://www.reddit.com/r/crashbandicoot/comments/1wq5tw0/my_wip_native_mac_port_of_crash_bandicoot_1_with/",
+          "https://shadowgraph.io/Matteo842/CrashBandicoot-Launcher",
+          "https://www.planetemu.net/en/news/11-11-2023-caprice-forever-v23-11",
+          "https://www.planetemu.net/news/11-11-2023-caprice-forever-v23-11",
+          "https://www.planetemu.net/en/news/16-11-2023-gameex-et-gameex-arcade-edition-v18-53",
+          "https://www.reddit.com/r/crashbandicoot/comments/vu54to/anyone_else_impressed_how_well_crash_ps1_models/",
+          "https://www.nexusmods.com/crashbandicoot4itsabouttime/mods/top?offset=99",
+          "https://www.nexusmods.com/crashbandicoot4itsabouttime/mods/top?offset=114",
+          "https://forum.darkspyro.net/spyro/viewposts.php?page=10&topic=137561",
+          "https://www.nexusmods.com/crashbandicoot4itsabouttime/mods/top?offset=110",
+          "https://www.nexusmods.com/crashbandicoot4itsabouttime/mods/top?offset=111",
+          "https://sonichits.com/video/Retro_Renew/Remastering_PS2_Games",
+          "https://www.nexusmods.com/crashbandicoot4itsabouttime/mods/top?offset=116",
+          "https://www.spriters-resource.com/profile/teh_supar_hackr/",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=955445343&l=japanese",
+          "https://www.nexusmods.com/mods/newrecently?page=8",
+          "https://www.tumgik.com/tag/%28secret%20third%20plot%20option%20unlocked%29",
+          "https://emulation.gametechwiki.com/index.php/Notable_ports"
+        ]
+      },
+      {
+        "batch": "majorSearch11",
+        "engine": "system2",
+        "queries": [
+          "\"Crash Bandicoot\" \"高清材质包\"",
+          "\"Tomb Raider\" \"高清材质\" PS1",
+          "\"Final Fantasy VII\" \"HD текстуры\" DuckStation",
+          "\"Suikoden\" \"texturas HD\" PS1"
+        ],
+        "indexed_urls": [
+          "https://steamcommunity.com/id/zegoteck/recommended/",
+          "https://store.steampowered.com/app/1932640/_III_HD/?curator_clanid=44900613&l=latam",
+          "https://bbs.luryl.com/thread-4786299-1-1.html",
+          "https://4pda.to/forum/index.php?showtopic=1006788&st=3780",
+          "https://4pda.to/forum/index.php?showtopic=1006788&st=4300",
+          "https://dtf.ru/id343786/843313-obzor-igry-final-fantasy-vii-remake",
+          "https://www.elotrolado.net/wiki/PCSX-Reloaded_y_lista_de_compatibilidad.",
+          "https://4pda.to/forum/index.php?showtopic=1006788&st=7240",
+          "https://store.steampowered.com/app/1932640/_III_HD/?curator_clanid=33500409&l=latam",
+          "https://descargasdd.org/archive/index.php/t-343930.html?s=033bba1e12b2decc8e2a24bd6cfe737a",
+          "https://www.playground.ru/final_fantasy_7/news/vypuscheno_novoe_video_dlya_final_fantasy_7_remako_hd_graphics_mod_versii_2_0-722353",
+          "https://4pda.to/forum/index.php?showtopic=1006788&st=1140",
+          "https://store.steampowered.com/app/1932640/Suikoden_III_HD_Remaster_Gate_Rune_and_Dunan_Unification_Wars/?curator_clanid=45160298&l=latam",
+          "https://4pda.to/forum/index.php?showtopic=1006788&st=5840",
+          "https://4pda.to/forum/index.php?showtopic=1006788&st=8060",
+          "https://store.steampowered.com/app/1932640/?curator_clanid=4777282&l=latam",
+          "https://steamcommunity.com/sharedfiles/filedetails/?id=3599213209&l=latam",
+          "https://descargasdd.org/printthread.php?pp=40&t=343930",
+          "https://store.steampowered.com/app/1932640/_III_HD/?curator_clanid=43569653&l=latam",
+          "https://www.2023game.com/pcgame/2018yx/index_6.html",
+          "https://www.elotrolado.net/hilo_super-nintendo-vs-playstation_1748313_s200",
+          "https://dtf.ru/games/1413333-optimalnye-nastroiki-grafiki-v-25-igrah-dlya-vladelcev-gtx-1080-ti-i-wqhd-monitorov",
+          "https://steamcommunity.com/id/PixelPasha/",
+          "https://4pda.to/forum/index.php?showtopic=1006788&st=7520",
+          "https://www.old-games.ru/forum/threads/delimsja-ssylkami.37447/page-9",
+          "https://steamcommunity.com/app/391220/guides/?browsefilter=toprated&browsesort=toprated&l=schinese&p=1&requiredtags%5B0%5D=schinese",
+          "https://www.elotrolado.net/hilo_novedades-estilo-retro-para-plataformas-actuales_2496760_s100",
+          "https://fliphtml5.com/lputc/jcms/hbcon392librolandia1313/",
+          "https://m.fwvv.net/game/96854.html",
+          "https://www.reddit.com/r/Argaming/comments/uu63sl",
+          "https://post.smzdm.com/p/axkev0l4/",
+          "https://games.sina.com.cn/t/n/2016-11-19/fxxwrwk1416168.shtml",
+          "https://www.j9p.com/soft/643064.html",
+          "https://game.gofanli.cn/",
+          "https://share.xfsub.org/buch/isbn/user-39-8.html"
+        ]
+      },
+      {
+        "batch": "majorStrongSearch0",
+        "engine": "system1",
+        "queries": [
+          "\"Crash Bandicoot\" \"DuckStation\" \"texture\" \"StuD44\"",
+          "\"Final Fantasy IX\" \"PS1\" \"texture pack\"",
+          "\"Tomb Raider\" \"Beetle PSX\" textures"
+        ],
+        "quality_note": "Relevant first-query result only; unrelated results from the other queries were rejected.",
+        "indexed_urls": []
+      }
+    ],
+    "source_observations": [
+      {
+        "response_ref": "turn447view0",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://www.reddit.com/r/crashbandicoot/comments/1rzl4sy/updates_regarding_texture_replacements/",
+          "lineno": null
+        },
+        "extracted_lines": 473,
+        "record_group": "majorPrimary0",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn447view1",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://www.reddit.com/r/crashbandicoot/comments/1rwvq52/transparent_texture_replacement_figured_out_on_nd/",
+          "lineno": null
+        },
+        "extracted_lines": 466,
+        "record_group": "majorPrimary0",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn447view2",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163",
+          "lineno": null
+        },
+        "extracted_lines": 209,
+        "record_group": "majorPrimary0",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn448view0",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://gbatemp.net/threads/my-hd-remaster-packs.630347/",
+          "lineno": null
+        },
+        "extracted_lines": 1729,
+        "record_group": "majorPrimary1",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn448view1",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/",
+          "lineno": null
+        },
+        "extracted_lines": 736,
+        "record_group": "majorPrimary1",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn448view2",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://sites.google.com/view/hub-of-faospark/project-kyaro",
+          "lineno": null
+        },
+        "extracted_lines": 147,
+        "record_group": "majorPrimary1",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn449view0",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://gbatemp.net/threads/my-hd-remaster-packs.630347/page-6",
+          "lineno": null
+        },
+        "extracted_lines": 1508,
+        "record_group": "majorFollow1",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn449view1",
+        "operation": "click",
+        "source": {
+          "ref_id": "turn448view1",
+          "id": 77
+        },
+        "extracted_lines": 679,
+        "record_group": "majorFollow1",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn449view2",
+        "operation": "click",
+        "source": {
+          "ref_id": "turn447view0",
+          "id": 37
+        },
+        "extracted_lines": 610,
+        "record_group": "majorFollow1",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn449view3",
+        "operation": "click",
+        "source": {
+          "ref_id": "turn447view2",
+          "id": 69
+        },
+        "extracted_lines": 1,
+        "record_group": "majorFollow1",
+        "status": "no_page_content_retrieved"
+      },
+      {
+        "response_ref": "turn449view4",
+        "operation": "find",
+        "source": {
+          "ref_id": "turn447view2",
+          "pattern": "Duck"
+        },
+        "extracted_lines": 209,
+        "record_group": "majorFollow1",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn449view5",
+        "operation": "find",
+        "source": {
+          "ref_id": "turn448view1",
+          "pattern": "Tekken 3 Texture"
+        },
+        "extracted_lines": 736,
+        "record_group": "majorFollow1",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn451view0",
+        "operation": "open",
+        "source": {
+          "ref_id": "turn449view1",
+          "lineno": 115
+        },
+        "extracted_lines": 676,
+        "record_group": "majorFollow2",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn451view1",
+        "operation": "open",
+        "source": {
+          "ref_id": "turn449view2",
+          "lineno": 40
+        },
+        "extracted_lines": 610,
+        "record_group": "majorFollow2",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn451view2",
+        "operation": "open",
+        "source": {
+          "ref_id": "turn447view2",
+          "lineno": 64
+        },
+        "extracted_lines": 209,
+        "record_group": "majorFollow2",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn458view0",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://www.reddit.com/r/crashbandicoot/comments/1wq5tw0/my_wip_native_mac_port_of_crash_bandicoot_1_with/",
+          "lineno": null
+        },
+        "extracted_lines": 1,
+        "record_group": "majorPrimary3",
+        "status": "no_page_content_retrieved"
+      },
+      {
+        "response_ref": "turn458view1",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://www.tombraiderxtra.com/downloads.php",
+          "lineno": null
+        },
+        "extracted_lines": 62,
+        "record_group": "majorPrimary3",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn458view2",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation",
+          "lineno": null
+        },
+        "extracted_lines": 88,
+        "record_group": "majorPrimary3",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn459view0",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://www.estudiocases.com/post/tekken-1-de-psx-con-doblaje-en-castellano-ahora-con-texturas-hd",
+          "lineno": null
+        },
+        "extracted_lines": 92,
+        "record_group": "majorPrimary4",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn459view1",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://gbatemp.net/threads/my-ps2-packs.621422/page-24",
+          "lineno": null
+        },
+        "extracted_lines": 1684,
+        "record_group": "majorPrimary4",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn459view2",
+        "operation": "find",
+        "source": {
+          "ref_id": "turn449view1",
+          "pattern": "texture"
+        },
+        "extracted_lines": 676,
+        "record_group": "majorPrimary4",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn459view3",
+        "operation": "find",
+        "source": {
+          "ref_id": "turn449view0",
+          "pattern": "Final Fantasy VIII"
+        },
+        "extracted_lines": 1508,
+        "record_group": "majorPrimary4",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn461view0",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://github.com/stenzek/duckstation/wiki/Texture-Replacement",
+          "lineno": null
+        },
+        "extracted_lines": 289,
+        "record_group": "majorTech",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn461view1",
+        "operation": "open",
+        "source": {
+          "ref_id": "https://docs.libretro.com/library/beetle_psx_hw/",
+          "lineno": null
+        },
+        "extracted_lines": 973,
+        "record_group": "majorTech",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn462view0",
+        "operation": "find",
+        "source": {
+          "ref_id": "turn461view1",
+          "pattern": "Texture replacements (Vulkan only)"
+        },
+        "extracted_lines": 973,
+        "record_group": "majorTech2",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn462view1",
+        "operation": "find",
+        "source": {
+          "ref_id": "turn461view1",
+          "pattern": "-texture-replacements"
+        },
+        "extracted_lines": 973,
+        "record_group": "majorTech2",
+        "status": "public_text_retrieved"
+      },
+      {
+        "response_ref": "turn462view2",
+        "operation": "find",
+        "source": {
+          "ref_id": "turn461view0",
+          "pattern": "AAAA"
+        },
+        "extracted_lines": 289,
+        "record_group": "majorTech2",
+        "status": "public_text_retrieved"
+      }
+    ],
+    "quality_note": "Search results are discovery leads only. No archive inspection or installation is inferred from search snippets or page access."
+  },
+  "limits": [
+    "No claim that absent search results prove no pack exists.",
+    "Search results, failed pages, PC textures and per-disc folders are not counted as new packs.",
+    "No new archive installation, core build, engine change, UI change or IPA in this pass.",
+    "Build500 already delivered remains unchanged."
+  ]
+}

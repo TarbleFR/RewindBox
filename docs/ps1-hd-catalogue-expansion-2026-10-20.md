@@ -1,8 +1,8 @@
 # Recherche PS1 HD et catalogue — 20 octobre 2026
 
-**180 familles de projets documentées**, contre 159 à la vague précédente ; 216 fiches et 140 titres / éditions de jeux normalisés. Le catalogue PS1 contient **37 références : 8 téléchargements vérifiés et 29 pages d’auteurs sans installation validée**.
+**179 familles de projets documentées**, contre 159 à la vague précédente ; 216 fiches et 140 titres / éditions de jeux normalisés. Le catalogue PS1 contient **37 références : 8 téléchargements vérifiés et 29 pages d’auteurs sans installation validée**.
 
-**Les 37 références sont intégrées sur Claude pour la prochaine livraison après la 499.** La livraison 499 est déjà figée avec le catalogue précédent de 34 références PS1. Cette mission n’a produit aucune IPA.
+**Les37 références sont incluses dans l’IPA500 déjà livrée.** La499 conserve son catalogue34. La nouvelle passe de recherche ne modifie aucun binaire et n’ajoute aucun téléchargement vérifié. Priorités et correction du doublon Tekken2 : [grandes séries](ps1-major-franchises-2026-10-20.md).
 
 La base originale comptait deux références PS1. La nouvelle vague passe de 34 à 37 références : deux pages manuelles SomberTwilight et 1 téléchargement vérifié supplémentaire (Gran Turismo 2 de CAC). Les familles de recherche ne sont pas un total de packs installables.
 
@@ -10,15 +10,15 @@ La base originale comptait deux références PS1. La nouvelle vague passe de 34 
 
 | Indicateur | Valeur |
 |---|---:|
-| Familles retenues | 180 |
+| Familles retenues | 179 |
 | Fiches de recherche | 216 |
-| Fiches hors décompte | 36 |
+| Fiches hors décompte | 37 |
 | Titres / éditions normalisés | 140 |
 | Créateurs / équipes attribués | 46 |
 | URLs de provenance des familles | 211 |
 | URLs de provenance de toutes les fiches | 246 |
-| URLs de preuve avec les liens d’archives | 302 |
-| URLs de consultation consignées, y compris échecs | 261 |
+| URLs de preuve avec les liens d’archives | 303 |
+| URLs de consultation consignées, y compris échecs | 269 |
 | Références NeoStation PS1 | 37 |
 | Jeux / éditions au catalogue PS1 | 35 |
 | Téléchargements vérifiés | 8 |
@@ -36,11 +36,11 @@ Les URLs de consultation proviennent d’un journal distinct : elles ne s’ajou
 |---|---:|
 | A · Beetle PSX HW | 43 |
 | A+B · deux variantes HD | 9 |
-| B · DuckStation | 101 |
+| B · DuckStation | 100 |
 | C · projet graphique futur | 4 |
 | Moteur non confirmé | 23 |
 
-52 familles nomment Beetle, 110 DuckStation ; 9 familles communes restent comptées une seule fois.
+52 familles nomment Beetle, 109 DuckStation ; 9 familles communes restent comptées une seule fois.
 
 ## Références publiées dans NeoStation
 
@@ -150,14 +150,13 @@ Une page auteur ne dispose pas d’un plan d’installation publié. Une archive
 | Sesame Street games (Beetle collection) / Sesame Street: Elmo’s Letter Adventure | ironhulk33 | Page auteur ; archive non validée | [Source](https://gbatemp.net/threads/my-texture-packs.661159/) |
 | Dead or Alive | SomberTwilight | Archive originale protégée ; téléchargement arrêté | [Source](https://gbatemp.net/threads/sombers-duckstation-collection-guess-were-doing-this-now.666305/) |
 
-### B · DuckStation — 101 familles
+### B · DuckStation — 100 familles
 
 | Jeu / projet | Créateur | État | Source originale |
 |---|---|---|---|
 | The Legend of Dragoon | 1vierock | Publication DuckStation ; voir la preuve de compatibilité | [Source](https://www.vierockhd.com/ps1/legend-of-dragoon) |
 | Dino Crisis 2 | Actual-Dragonfruit27 / vergil1876 | Publication retrouvée ; archive non récupérée | [Source](https://www.reddit.com/r/DinoCrisis/comments/1q2yesh/dino_crisis_2_texture_replacement_duckstation/) |
 | Tekken | Big Deal / EstudioCases / Steven Castro | Publication de l’auteur ; archive à vérifier | [Source](https://www.estudiocases.com/post/tekken-1-de-psx-con-doblaje-en-castellano-ahora-con-texturas-hd) |
-| Tekken 2 | Big Deal / EstudioCases / Steven Castro | Publication de l’auteur ; archive à vérifier | [Source](https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation) |
 | Harry Potter and the Chamber of Secrets | Bl4ckH4nd | Publication de l’auteur ; archive à vérifier | [Source](https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing) |
 | Harry Potter and the Sorcerer's Stone | Bl4ckH4nd | Publication de l’auteur ; archive à vérifier | [Source](https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing) |
 | MediEvil | Bl4ckH4nd | Publication de l’auteur ; archive à vérifier | [Source](https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing) |
@@ -2246,37 +2245,7 @@ Sources :
 Notes :
 
 - Original project combines localisation/voice work and HD textures; separate texture-only authorised download and derivation from other packs need verification.
-
-### Tekken 2 — Big Deal / EstudioCases / Steven Castro
-
-Famille : `ps1-big-deal-estudiocases-steven-castro-tekken-2` · B · DuckStation · author_publication_bundle_unchecked.
-
-Sources :
-
-- [https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation](https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation)
-
-| Champ | Valeur consignée |
-|---|---|
-| Version | 2.0 |
-| Publication | Non établi |
-| Mise à jour annoncée | Non établi |
-| Moteurs | DuckStation |
-| Régions | Non établi |
-| Identifiants de disque | Non établi |
-| Formats | Non établi |
-| Structure | Non établi |
-| Archive, octets | Non établi |
-| Taille annoncée | Non établi |
-| Installé, octets | Non établi |
-| Textures | Non établi |
-| Résolution déclarée | Non établi |
-| SHA-256 de l’archive vérifiée | Non établi |
-| Licence | No explicit standalone licence established |
-| Diffusion | Original author links only; no rehosting or assumption of redistribution permission. |
-
-Notes :
-
-- Original project combines localisation/voice work and HD textures; separate texture-only authorised download and derivation from other packs need verification.
+- Rechecked original credit: Big Deal made the improved textures; EstudioCases adapted/integrated them and Steven Castro handled localisation/programming. This does not establish Big Deal as an alias of Bl4ckH4nd or NoBigDeal La. No combined game/localisation bundle downloaded.
 
 ### Harry Potter and the Chamber of Secrets — Bl4ckH4nd
 
@@ -2570,12 +2539,13 @@ Notes :
 
 ### Tekken 2 — Bl4ckH4nd
 
-Famille : `ps1-bl4ckh4nd-tekken-2` · B · DuckStation · creator_list_only.
+Famille : `ps1-bl4ckh4nd-tekken-2` · B · DuckStation · creator_list_only · documented_integration_of_existing_creator_pack_not_new_family.
 
 Sources :
 
 - [https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing](https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing)
 - [https://gbatemp.net/threads/my-ps2-packs.621422/page-24](https://gbatemp.net/threads/my-ps2-packs.621422/page-24)
+- [https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation](https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation)
 
 | Champ | Valeur consignée |
 |---|---|
@@ -2600,6 +2570,31 @@ Notes :
 
 - Listed in the PS1 section of the creator-linked inventory; engine, exact archive and regional support require per-file verification.
 - Forum post #463 explicitly releases these four games for DuckStation. Already-counted creator/game family; engine metadata enrichment only.
+- EstudioCases credits Bl4ckH4nd for its Tekken 2 HD texture integration. Related localisation package v2.0 is not a new texture family or proof of a separate public texture-only archive.
+
+| Champ | Valeur consignée |
+|---|---|
+| Version | 2.0 |
+| Publication | Non établi |
+| Mise à jour annoncée | Non établi |
+| Moteurs | DuckStation |
+| Régions | Non établi |
+| Identifiants de disque | Non établi |
+| Formats | Non établi |
+| Structure | Non établi |
+| Archive, octets | Non établi |
+| Taille annoncée | Non établi |
+| Installé, octets | Non établi |
+| Textures | Non établi |
+| Résolution déclarée | Non établi |
+| SHA-256 de l’archive vérifiée | Non établi |
+| Licence | No explicit standalone licence established |
+| Diffusion | Original author links only; no rehosting or assumption of redistribution permission. |
+
+Notes :
+
+- Original project combines localisation/voice work and HD textures; separate texture-only authorised download and derivation from other packs need verification.
+- EstudioCases explicitly credits bl4ckh4nd for these textures and permission to integrate them. Count under the existing Bl4ckH4nd Tekken 2 family; no evidence of an independently different graphical edition. The combined localisation installer was not downloaded; standalone authorised texture-only access remains unverified.
 
 ### Tekken 3 — Bl4ckH4nd
 
@@ -3242,11 +3237,11 @@ Archives d’origine déclarées, sans présumer de leur disponibilité :
 | Champ | Valeur consignée |
 |---|---|
 | Version | Non établi |
-| Publication | Non établi |
-| Mise à jour annoncée | Non établi |
+| Publication | 2026-03-23 |
+| Mise à jour annoncée | 2026-03-28 |
 | Moteurs | DuckStation |
-| Régions | Non établi |
-| Identifiants de disque | Non établi |
+| Régions | USA (author declaration; untested) |
+| Identifiants de disque | SLUS-00892 · SLUS-00908 · SLUS-00909 · SLUS-00910 |
 | Formats | Non établi |
 | Structure | Non établi |
 | Archive, octets | Non établi |
@@ -3262,6 +3257,7 @@ Notes :
 
 - Creator PS1 inventory; no Beetle compatibility. Revisions of this project are merged.
 - Original author link resolves to a public Google Drive download landing page; archive bytes and format not verified. Size is the host display, not an exact byte measurement.
+- Author post #104 dated 2026-03-23, edited 2026-03-28, specifies four USA disc folder names. This is declared coverage, not a four-disc play test. The author excludes many backgrounds, fonts, effects, cards and complete character coverage and reports edge artifacts.
 
 ### Legacy of Kain: Soul Reaver — Curse_Arms
 
@@ -5402,6 +5398,7 @@ Sources :
 Notes :
 
 - Actual author screenshots and dialogue demonstrate custom high-resolution HUD/font/portrait work, with collaborator and BandiCraft TTF reference. Saving screen resets HD font; no release or original download found. WIP project, never installable reference.
+- Supplemental primary post explicitly demonstrates DuckStation replacements. HUD/sprite work only; no public archive recovered. A later search-indexed creator comment still describes an unfinished HUD. Technical references to Warped/CTR are not separate released packs.
 
 ### Crash Bash — StuD44
 
@@ -5433,6 +5430,7 @@ Sources :
 Notes :
 
 - Actual author icons replaced in-game; screenshots demonstrate texture work, not just request. Filtering causes issues; no release or original download found. WIP, not installable.
+- Rechecked as an icon replacement demonstration; no release/archive established. Do not imply all levels or models are remastered.
 
 ### Bust a Groove — thecoolpup
 
@@ -5485,6 +5483,7 @@ Sources :
 Archives d’origine déclarées, sans présumer de leur disponibilité :
 
 - [https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163](https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163)
+- [https://www.moddb.com/addons/start/317315](https://www.moddb.com/addons/start/317315)
 
 | Champ | Valeur consignée |
 |---|---|
@@ -5497,17 +5496,18 @@ Archives d’origine déclarées, sans présumer de leur disponibilité :
 | Formats | Non établi |
 | Structure | Non établi |
 | Archive, octets | 470 667 042 |
-| Taille annoncée | Non établi |
+| Taille annoncée | 470667042 bytes (448.86 MiB), ModDB listing; payload not inspected |
 | Installé, octets | Non établi |
 | Textures | Non établi |
 | Résolution déclarée | Non établi |
 | SHA-256 de l’archive vérifiée | Non établi |
-| Licence | Proprietary (ModDB listing) |
+| Licence | Proprietary (ModDB file listing) |
 | Diffusion | Original author links only; no rehosting or assumption of redistribution permission. |
 
 Notes :
 
 - Published archive SCUS-94163.7z; actual payload not downloaded, all-disc coverage not inferred.
+- Author file listing rechecked: DuckStation v1.0, English/Russian, battlefields, portraits, font and UI. Published 2026-09-25. File size and MD5 are author/host metadata, not a downloaded-archive verification. SCUS-94163 is named; all-disc and PAL support remain unverified.
 
 ### Tomba! 2 / Tombi! 2 — uck
 
@@ -6438,13 +6438,13 @@ Sources :
 | Crazy Ivan | 3 | Countdown Vampires · Parasite Eve II · Resident Evil (1996) |
 | NapoleonGaming | 3 | Kirikou · Rugrats Studio Tour · Toy Story Racer |
 | NR74W | 3 | WipEout · WipEout 2097 / XL · Wip3out |
-| Big Deal / EstudioCases / Steven Castro | 2 | Tekken · Tekken 2 |
 | Bussareas | 2 | Spider-Man 2: Enter Electro · Tenchu 2: Birth of the Stealth Assassins |
 | JuanchoTexHD | 2 | Resident Evil Director’s Cut — A.I. Overhaul · Silent Hill |
 | NoBigDeal La | 2 | Dead or Alive · Rage Racer |
 | palmeroides (Jose Manuel Fdz) | 2 | Ridge Racer · Ridge Racer Revolution |
 | StuD44 | 2 | Crash Bandicoot · Crash Bash |
 | Actual-Dragonfruit27 / vergil1876 | 1 | Dino Crisis 2 |
+| Big Deal / EstudioCases / Steven Castro | 1 | Tekken |
 | CAC GAMER | 1 | Gran Turismo 2 |
 | Coinwarangel | 1 | Lunar: Silver Star Story Complete — Portrait Pack |
 | diodiogod | 1 | Vagrant Story |
@@ -6535,7 +6535,7 @@ Ces conclusions sont conservées dans leur contexte historique ; les vérificati
 | S176 Castlevania Tarrantx | Both cross-posts readable; one family; no downloadable archive link recovered; 10 GB / ~100k files reported. |
 | S177 WipEout | Old repository GitHub API 404 confirmed. WipEout-Mods public but focused on PSP; no authorised exact PS1 replacement payload validated. |
 
-### 36 fiches hors décompte
+### 37 fiches hors décompte
 
 | Piste / jeu | Auteur | État | Source |
 |---|---|---|---|
@@ -6567,6 +6567,7 @@ Ces conclusions sont conservées dans leur contexte historique ; les vérificati
 | Syphon Filter | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/44240ade-9ae0-4bce-af27-9aed2b8b0845) |
 | Syphon Filter 2 | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/f8d10d7f-6ff3-4b49-9266-add5824cf2f9) |
 | T.R.A.G.: Mission of Mercy / Hard Edge | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/ea99c281-f815-4789-a750-f4043300d666) |
+| Tekken 2 | Bl4ckH4nd | documented_integration_of_existing_creator_pack_not_new_family | [Source](https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation) |
 | Tekken 3 | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/bf75bb0a-0d59-4e44-a7bd-ab26b8b6f8f4) |
 | Tenchu: Stealth Assassins | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/48d11f08-9c6e-4d9b-95be-ddd4034edaec) |
 | Tomba recomp example HD pack | mstan | research_only_not_counted | [Source](https://github.com/mstan/TombaRecomp) |

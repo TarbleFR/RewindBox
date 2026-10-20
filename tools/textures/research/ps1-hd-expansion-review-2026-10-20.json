@@ -6723,12 +6723,12 @@
     "runtime_archive_results": "Owned by root canonical CI reconciliation. This metadata consolidation does not infer successful downloads from links, PNG names, or author engine claims."
   },
   "current_counts": {
-    "research_project_families": 180,
+    "research_project_families": 179,
     "previous_research_project_families": 159,
-    "additional_qualified_research_families": 21,
+    "additional_qualified_research_families": 20,
     "inventory_rows": 216,
     "beetle_named_projects": 52,
-    "duckstation_named_projects": 110,
+    "duckstation_named_projects": 109,
     "projects_with_both_engine_variants": 9,
     "unique_game_titles_researched_with_projects": 140,
     "runtime_ps1_references_before": 2,
@@ -6741,7 +6741,7 @@
     "new_archives_installed_in_canonical_ci": 6,
     "new_archive_protection_refusals": 13,
     "physical_iphone_render_tests": 0,
-    "uncounted_inventory_rows": 36,
+    "uncounted_inventory_rows": 37,
     "new_unconfirmed_assembly_catalogue_rows": 23,
     "category_C_future_projects": 4,
     "engine_unconfirmed_projects": 23,
@@ -6756,8 +6756,8 @@
     "unique_game_titles_baseline_preserving_special_edition": 125,
     "creator_attribution_groups": 46,
     "documented_project_evidence_urls": 246,
-    "documented_urls_including_downloads": 302,
-    "explicitly_logged_consultation_urls": 261,
+    "documented_urls_including_downloads": 303,
+    "explicitly_logged_consultation_urls": 269,
     "canonical_ps1_observations_total": 21,
     "canonical_ps1_observations_since_initial_two": 19,
     "runtime_unique_games_or_editions": 35,
@@ -14620,12 +14620,10 @@
           "Big Deal / EstudioCases / Steven Castro"
         ],
         "family_ids": [
-          "ps1-big-deal-estudiocases-steven-castro-tekken",
-          "ps1-big-deal-estudiocases-steven-castro-tekken-2"
+          "ps1-big-deal-estudiocases-steven-castro-tekken"
         ],
         "row_ids": [
-          "ps1-big-deal-estudiocases-steven-castro-tekken",
-          "ps1-big-deal-estudiocases-steven-castro-tekken-2"
+          "ps1-big-deal-estudiocases-steven-castro-tekken"
         ]
       },
       {
@@ -14675,6 +14673,7 @@
           "ps1-bubsy-3d-bl4ckh4nd"
         ],
         "row_ids": [
+          "ps1-big-deal-estudiocases-steven-castro-tekken-2",
           "ps1-bl4ckh4nd-alien-resurrection",
           "ps1-bl4ckh4nd-ape-escape",
           "ps1-bl4ckh4nd-apocalypse",
@@ -14872,7 +14871,7 @@
         ]
       },
       {
-        "key": "djhexy",
+        "key": "djhexy (u/djhexy)",
         "creator_id": "credit:djhexy",
         "labels": [
           "DjHeXy (u/djhexy)"
@@ -15181,7 +15180,7 @@
         ]
       },
       {
-        "key": "palmeroides",
+        "key": "palmeroides (jose manuel fdz)",
         "creator_id": "credit:palmeroides",
         "labels": [
           "palmeroides (Jose Manuel Fdz)"
@@ -16864,11 +16863,9 @@
           "Tekken 2"
         ],
         "family_ids": [
-          "ps1-big-deal-estudiocases-steven-castro-tekken-2",
           "ps1-bl4ckh4nd-tekken-2"
         ],
         "creator_labels": [
-          "Big Deal / EstudioCases / Steven Castro",
           "Bl4ckH4nd"
         ]
       },
@@ -50565,12 +50562,12 @@
     "documented_project_evidence_urls_all_rows": 246,
     "documented_project_evidence_urls_counted_families": 211,
     "project_page_url_fields_counted_families": 118,
-    "documented_original_download_url_fields": 60,
-    "documented_reference_and_download_union": 302,
-    "explicitly_logged_consulted_url_count": 261,
-    "logged_consultation_observations": 325,
-    "documented_urls_also_in_explicit_consultation_log": 156,
-    "documented_urls_without_explicit_log": 90,
+    "documented_original_download_url_fields": 61,
+    "documented_reference_and_download_union": 303,
+    "explicitly_logged_consulted_url_count": 269,
+    "logged_consultation_observations": 344,
+    "documented_urls_also_in_explicit_consultation_log": 159,
+    "documented_urls_without_explicit_log": 87,
     "qualification": "Primary-project-page metadata and explicit consultation logs are distinct. Older logs and newer strands have incomplete visit journals; no claim that every documented URL was opened or every source was primary."
   },
   "decisions_promotions_dedup": [
@@ -51447,5 +51444,76 @@
       "result": "passed",
       "frozen_build_499_unchanged": true
     }
+  },
+  "counts_before_major_franchise_review": {
+    "research_project_families": 180,
+    "previous_research_project_families": 159,
+    "additional_qualified_research_families": 21,
+    "inventory_rows": 216,
+    "beetle_named_projects": 52,
+    "duckstation_named_projects": 110,
+    "projects_with_both_engine_variants": 9,
+    "unique_game_titles_researched_with_projects": 140,
+    "runtime_ps1_references_before": 2,
+    "runtime_ps1_references_after": 37,
+    "new_runtime_references": 35,
+    "new_verified_one_tap_packs": 6,
+    "new_manual_author_references": 29,
+    "runtime_verified_one_tap_before": 2,
+    "runtime_verified_one_tap_after": 8,
+    "new_archives_installed_in_canonical_ci": 6,
+    "new_archive_protection_refusals": 13,
+    "physical_iphone_render_tests": 0,
+    "uncounted_inventory_rows": 36,
+    "new_unconfirmed_assembly_catalogue_rows": 23,
+    "category_C_future_projects": 4,
+    "engine_unconfirmed_projects": 23,
+    "runtime_manual_author_references_after": 29,
+    "previous_runtime_references": 34,
+    "additional_runtime_references_this_wave": 3,
+    "additional_verified_downloads_this_wave": 1,
+    "additional_canonical_observations_this_wave": 3,
+    "archive_successes_this_wave": 1,
+    "archive_protection_refusals_this_wave": 2,
+    "unique_game_titles_researched_legacy_baseline": 124,
+    "unique_game_titles_baseline_preserving_special_edition": 125,
+    "creator_attribution_groups": 46,
+    "documented_project_evidence_urls": 246,
+    "documented_urls_including_downloads": 302,
+    "explicitly_logged_consultation_urls": 261,
+    "canonical_ps1_observations_total": 21,
+    "canonical_ps1_observations_since_initial_two": 19,
+    "runtime_unique_games_or_editions": 35,
+    "runtime_verified_unique_games_or_editions": 8,
+    "initial_runtime_unique_games_or_editions": 2,
+    "new_runtime_unique_games_or_editions": 33,
+    "new_verified_unique_games_or_editions": 6
+  },
+  "major_franchise_review": {
+    "date": "2026-10-20",
+    "baseline_commit": "15a4d990b308d2da91cee17f838aa601ad163745",
+    "baseline_families": 180,
+    "families_after": 179,
+    "new_pack_families": 0,
+    "deduplication_delta": -1,
+    "new_verified_installable_profiles": 0,
+    "new_games_covered": 0,
+    "query_count": 44,
+    "priority_matrix": "tools/textures/research/ps1-major-franchises-2026-10-20.json",
+    "scope": "Crash PS1 series, Final Fantasy PS1 releases, Suikoden I/II, Tekken1/2/3 and Tomb Raider1–5. Major franchises take precedence over catalogue volume. No core/UI/IPA changes.",
+    "deduplication": {
+      "preserved_row_id": "ps1-big-deal-estudiocases-steven-castro-tekken-2",
+      "canonical_family": "ps1-bl4ckh4nd-tekken-2",
+      "evidence_url": "https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation"
+    },
+    "changed_project_ids": [
+      "ps1-thesoultear-final-fantasy-vii-hd-remaster",
+      "ps1-curse-arms-final-fantasy-viii",
+      "ps1-stud44-crash-bandicoot-hd-hud",
+      "ps1-stud44-crash-bash-hd-icons",
+      "ps1-bl4ckh4nd-tekken-2",
+      "ps1-big-deal-estudiocases-steven-castro-tekken-2",
+      "ps1-big-deal-estudiocases-steven-castro-tekken"
+    ]
   }
 }

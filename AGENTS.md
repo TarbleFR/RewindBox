@@ -1,5 +1,11 @@
 # Consignes permanentes — stabilité NeoStation iOS
 
+## Priorité PS1 HD aux grandes séries — 20 octobre 2026
+
+- Demande du mainteneur : chercher essentiellement Crash PS1, Final Fantasy, Suikoden, Tekken, Tomb Raider et autres grands titres. Priorité aux titres couverts et aux archives réellement compatibles, pas au volume. Matrice19 jeux /44 requêtes : `tools/textures/research/ps1-major-franchises-2026-10-20.json` ; rapport `docs/ps1-major-franchises-2026-10-20.md`.
+- Correction de crédits : EstudioCases attribue ses textures Tekken2 à Bl4ckH4nd ; conserver les deux IDs mais une seule famille. État corrigé **179 familles,216 fiches,37 hors décompte,140 jeux/éditions,46 groupes crédités** ;52 familles nomment Beetle,109 DuckStation,9 communes. L’ancien total180 reste historique. Aucun nouveau téléchargement vérifié dans cette passe ; catalogue37/8/29 et IPA500 inchangés.
+- SuikodenII Kyaro est déjà vérifié. FFVII/VIII et Tekken sont essentiellement DuckStation ; Crash1/Bash HUD/icônes sans archive publique confirmée ; pas de pack PS1 Tomb Raider qualifié. Les ressources PC Glidos/TombATI ne comptent pas comme PS1. Les fichiers DuckStation ne deviennent pas Beetle par renommage ; adaptation à étudier avec dumps, palettes et essais, aucun moteur modifié ici.
+
 ## Build 500 livrée — Core RPCS3 499 et dernier catalogue PS1, 20 octobre 2026
 
 - Le mainteneur demande explicitement la dernière IPA NeoStation avec le Core PS3 terminé **et** les derniers catalogues PS1. La499 figée (34 références) ne satisfait pas ce nouvel assemblage ; candidate unique **500**, surClaude, sans release publique.

@@ -1170,6 +1170,8 @@ Credits stated by the packs:
 
 ## PlayStation (Beetle PSX HW, Vulkan)
 
+Priorité aux grandes séries PS1 : [matrice19 jeux et limites de compatibilité](ps1-major-franchises-2026-10-20.md). La passe supplémentaire corrige un doublon Tekken2 et documente les projets DuckStation séparément ;37 références dont8 téléchargements vérifiés restent inchangées.
+
 | Pack | Game IDs | Version | Authors | Download | Installed | Formats | Terms | Verified |
 |---|---|---|---|---:|---:|---|---|---|
 | [Ballistic HD — ironhulk33](https://www.mediafire.com/file/unbhejetyrrcho3/Ballistic%20%28USA%29.zip/file) | SLUS-00966 (to confirm) | author archive (version unstated) | ironhulk33 | manual | — | — | No redistribution licence stated by the author. | — |
