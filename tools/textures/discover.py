@@ -8,12 +8,15 @@ tools/textures/verify_packs.py installed the author's real file.
 
   discover.py github --out build/hdtex/candidates.jsonl
       Searches GitHub (repository search and topics, then code search for
-      the files each engine reads: textures.ini, pack.json), and for every
+      the files each engine reads: textures.ini, pack.json, Mesen's
+      hires.txt), and for every
       repository reads its file tree, its releases and its README. It reports
       the engine signals it found (tex1_ names, textures.ini, pack.json,
-      PCSX2 replacements folders), the game identifiers written in folder
-      names or in the README (PS2 serials, Dolphin Game IDs, PSP DISC_IDs,
-      3DS Title IDs), the release files, Git LFS pointers and the licence
+      PCSX2 replacements folders, GLideN64 names, Mesen hires.txt with its
+      <ver>, <scale> and <supportedRom> lines), the game identifiers written
+      in folder names or in the README (PS2 serials, Dolphin Game IDs, PSP
+      DISC_IDs, 3DS Title IDs, the NES ROM SHA-1 of a hires.txt), the release
+      files, Git LFS pointers and the licence
       GitHub detected, and whether the repository is already catalogued or
       was reviewed and left out.
 
@@ -27,7 +30,8 @@ tools/textures/verify_packs.py installed the author's real file.
 
   discover.py summarize --candidates build/hdtex/candidates.jsonl --out build/hdtex/summary.jsonl
       One short line per candidate whose files an engine reads (tex1_ names,
-      textures.ini, pack.json, PCSX2 replacements) or that names a game
+      textures.ini, pack.json, PCSX2 replacements, GLideN64 names, hires.txt)
+      or that names a game
       identifier: the review list without unrelated texture packs.
 
 Every mode prints one line per result between DISCOVER_BEGIN and
@@ -61,13 +65,17 @@ REPOSITORY_QUERIES = [
     'texture replacement pack', 'remastered textures', 'hd remaster textures', 'retexture', 'texturepack',
     'ppsspp texture', 'pcsx2 texture', 'dolphin-emu texture', 'citra texture', 'ui hd texture', 'hd ui pack',
     'hd font texture', 'esrgan texture pack', 'texture upscale pack',
+    'mesen hd pack', 'mesen hdpack', 'mesen hd', 'hdnes', 'hdnes pack', 'nes hd pack', 'hd pack nes', 'nes hd graphics',
+    'famicom hd pack', 'nes 16-bit graphics pack',
 ]
 TOPICS = ['texture-pack', 'hd-texture-pack', 'custom-textures', 'texture-packs', 'hd-textures', 'texturepack',
           'texture-replacement', 'ppsspp', 'pcsx2', 'dolphin-emu', 'dolphin-emulator', 'citra', 'citra-emu',
-          'azahar', 'gamecube', 'nintendo-3ds', 'psp', 'ps2', 'upscaling', 'esrgan']
+          'azahar', 'gamecube', 'nintendo-3ds', 'psp', 'ps2', 'upscaling', 'esrgan', 'mesen', 'hdpack', 'hd-pack', 'hdnes',
+          'mesen-hd-pack', 'hdpacks']
 # Code searches for the files an engine reads at the root of a pack.
 CODE_QUERIES = ['filename:textures.ini hash', 'filename:textures.ini "[hashes]"', 'filename:pack.json skip_mipmap',
-                'filename:pack.json use_new_hash', 'filename:textures.ini ppsspp']
+                'filename:pack.json use_new_hash', 'filename:textures.ini ppsspp', 'filename:hires.txt "<tile>"',
+                'filename:hires.txt supportedRom']
 
 PS2_SERIAL = re.compile(r'\b(S[CL][AEKPU][ACDMSX]|PAPX|PBPX|SCAJ|SCKA|SCPS|SLKA|SRPM|SCED|TCES|TCPS|TLES)[-_ ]?(\d{3})\.?(\d{2})\b')
 PSP_ID = re.compile(r'\b((?:UL|UC|NP)[EJUAKHS][SMHBGJZ]|NPEZ|NPUZ|NPJJ|NPHG|NPEG|NPUG|NPJG)[-_ ]?(\d{5})\b')
@@ -77,12 +85,17 @@ TITLE_ID = re.compile(r'\b(0004000[0-9A-Fa-f]{9})\b')
 TEX1 = re.compile(r'(^|/)tex1_[0-9]+x[0-9]+_', re.I)
 # GLideN64 (Mupen64Plus-Next) hi-res names: <ROM name>#<crc>#<fmt>#<siz>[#<palette crc>]_<kind>.png
 RICE = re.compile(r'#[0-9a-f]{8}#[0-4]#[0-3](#[0-9a-f]{8})?_(all|ciByRGBA|allciByRGBA|rgb|a)\.(png|bmp)$', re.I)
+# Mesen HD packs: hires.txt at the pack root, the format version the core reads
+# (libretro Mesen: 106 at most) and the SHA-1 of the whole ROM file it targets.
+HIRES_VER = re.compile(r'^<ver>\s*(\d+)', re.M)
+HIRES_SCALE = re.compile(r'^<scale>\s*(\d+)', re.M)
+HIRES_ROM = re.compile(r'<supportedRom>\s*([0-9A-Fa-f]{40})', re.I)
 PCSX2_HASH = re.compile(r'(^|/)[0-9a-f]{16}-[0-9a-f]{8}(-[0-9a-f]{8})?\.(png|dds)$', re.I)
 ARCHIVE = re.compile(r'\.(zip|7z|rar|tar|tar\.gz|tgz|tar\.zst|zst)(\.\d{3})?$', re.I)
 # A search result is described only when its name, description or topics speak
 # of textures (topic searches such as "ppsspp" also return emulators and tools).
 TEXTURE_WORDS = re.compile(r'textur|retex|upscal|remaster|\bhd\b|[^a-z]hd[^a-z]|^hd|hd$|4k|2k|8k|\bui\b|font|esrgan|'
-                           r'gigapixel|材质|纹理|高清|テクスチャ|hires|hi-res|high.?res|pack', re.I)
+                           r'gigapixel|材质|纹理|高清|テクスチャ|hires|hi-res|high.?res|pack|mesen|hdnes', re.I)
 
 
 def log(line):
@@ -171,7 +184,7 @@ def ids_in(text):
 def tree_signals(paths):
     """What the file tree says: which engine reads it, and for which games."""
     signals = {'tex1': 0, 'textures_ini': [], 'pack_json': [], 'replacements': set(), 'pcsx2_hash': 0, 'rice': 0,
-               'png': 0, 'dds': 0, 'ktx': 0, 'lfs': False, 'archives': []}
+               'hires_txt': [], 'png': 0, 'dds': 0, 'ktx': 0, 'lfs': False, 'archives': []}
     ids = {'ps2': set(), 'psp': set(), 'dolphin': set(), '3ds': set()}
     folders = set()
     for path in paths:
@@ -183,6 +196,8 @@ def tree_signals(paths):
             signals['textures_ini'].append(path)
         if name.lower() == 'pack.json':
             signals['pack_json'].append(path)
+        if name.lower() == 'hires.txt':
+            signals['hires_txt'].append(path)
         if PCSX2_HASH.search(path):
             signals['pcsx2_hash'] += 1
         if RICE.search(name):
@@ -212,6 +227,7 @@ def tree_signals(paths):
     signals['replacements'] = sorted(signals['replacements'])[:10]
     signals['textures_ini'] = signals['textures_ini'][:20]
     signals['pack_json'] = signals['pack_json'][:20]
+    signals['hires_txt'] = sorted(signals['hires_txt'], key=lambda item: (item.count('/'), item))[:20]
     signals['archives'] = signals['archives'][:20]
     return signals, {kind: sorted(values)[:40] for kind, values in ids.items() if values}
 
@@ -229,7 +245,22 @@ def engine_guess(signals, text):
         guesses.append('dolphin')
     if signals.get('rice') or any(word in text for word in ('gliden64', 'mupen64', 'hires_texture', 'nintendo 64', ' n64')):
         guesses.append('mupen64plus')
+    if signals.get('hires_txt') or any(word in text for word in ('mesen', 'hdnes', 'hd pack', 'hdpack')):
+        guesses.append('mesen')
     return guesses
+
+
+def hires_lines(gh, full_name, branch, paths):
+    """<ver>, <scale> and <supportedRom> of the shallowest hires.txt files (three at most)."""
+    described = []
+    for path in paths[:3]:
+        data = gh.get(f'https://raw.githubusercontent.com/{full_name}/{urllib.parse.quote(branch)}/{urllib.parse.quote(path)}', raw=True) or b''
+        text = data[:262144].decode('utf-8', 'replace')
+        version, scale = HIRES_VER.search(text), HIRES_SCALE.search(text)
+        described.append({'path': path, 'ver': int(version.group(1)) if version else None,
+                          'scale': int(scale.group(1)) if scale else None,
+                          'roms': sorted({rom.upper() for rom in HIRES_ROM.findall(text)})[:12]})
+    return described
 
 
 def search_repositories(gh, queries, topics, limit):
@@ -293,6 +324,11 @@ def describe(gh, full_name, item, known, left_out, code_paths):
         signals['lfs'] = b'filter=lfs' in attributes
         signals.pop('gitattributes')
     record['signals'] = signals
+    if signals['hires_txt'] and not signals.get('lfs'):
+        record['hires'] = hires_lines(gh, full_name, branch, signals['hires_txt'])
+        roms = sorted({rom for entry in record['hires'] for rom in entry['roms']})
+        if roms:
+            ids['nes'] = roms[:40]
     text = ''
     readme = next((path for path in sorted(paths, key=len) if '/' not in path and path.lower().startswith('readme')), None)
     if readme:
@@ -318,7 +354,7 @@ def promising(record):
     """Texture files in the tree, an engine file, a game identifier or a release archive."""
     signals = record.get('signals') or {}
     textures = signals.get('tex1') or signals.get('textures_ini') or signals.get('pack_json') or signals.get('replacements') \
-        or signals.get('pcsx2_hash') or signals.get('rice') or (signals.get('png', 0) + signals.get('dds', 0) + signals.get('ktx', 0)) >= 20
+        or signals.get('pcsx2_hash') or signals.get('rice') or signals.get('hires_txt') or (signals.get('png', 0) + signals.get('dds', 0) + signals.get('ktx', 0)) >= 20
     archives = any(ARCHIVE.search(asset[0]) for release in record.get('releases') or [] for asset in release['assets'])
     return bool(textures or archives or record.get('ids') or signals.get('archives'))
 
@@ -331,9 +367,9 @@ def mode_github(args, gh, emit):
              if TEXTURE_WORDS.search(' '.join([item['full_name'], item.get('description') or '', ' '.join(item.get('topics') or [])]))}
     log(f'# {len(found)} repositories speak of textures')
     code = {}
-    if not args.skip_code:
+    if args.code_query or not args.skip_code:
         try:
-            code = search_code(gh, CODE_QUERIES)
+            code = search_code(gh, args.code_query or CODE_QUERIES)
         except urllib.error.HTTPError as error:
             log(f'# code search unavailable: HTTP {error.code}')
     for lower, entry in code.items():
@@ -462,7 +498,7 @@ def engine_relevant(record):
     """A repository whose files an engine reads, or that names a game identifier."""
     signals = record.get('signals') or {}
     return bool(signals.get('tex1') or signals.get('textures_ini') or signals.get('pack_json') or signals.get('replacements') or signals.get('rice')
-                or signals.get('pcsx2_hash') or record.get('ids'))
+                or signals.get('pcsx2_hash') or signals.get('hires_txt') or record.get('ids'))
 
 
 def mode_summarize(args, gh, emit):
@@ -480,7 +516,8 @@ def mode_summarize(args, gh, emit):
         emit({'repo': record['repo'], 'engines': record.get('engines'), 'ids': {k: v[:5] for k, v in (record.get('ids') or {}).items()},
               'tex1': signals.get('tex1'), 'ini': (signals.get('textures_ini') or [])[:3], 'packjson': (signals.get('pack_json') or [])[:2],
               'repl': (signals.get('replacements') or [])[:2], 'pcsx2': signals.get('pcsx2_hash'), 'rice': signals.get('rice'), 'png': signals.get('png'),
-              'dds': signals.get('dds'), 'lfs': signals.get('lfs'), 'fork': record.get('fork'), 'files': record.get('files'),
+              'dds': signals.get('dds'), 'hires': [[entry['path'], entry['ver'], entry['scale'], len(entry['roms'])]
+                                                    for entry in record.get('hires') or []][:3], 'lfs': signals.get('lfs'), 'fork': record.get('fork'), 'files': record.get('files'),
               'stars': record.get('stargazers_count'), 'licence': record.get('licence'), 'pushed': (record.get('pushed_at') or '')[:10],
               'assets': assets, 'top': (record.get('top') or [])[:8], 'desc': (record.get('description') or '')[:90]})
         kept += 1
@@ -497,6 +534,7 @@ def main():
     parser.add_argument('--repo', action='append', help='also describe this owner/name')
     parser.add_argument('--limit', type=int, default=3000, help='stop searching after this many repositories')
     parser.add_argument('--skip-code', action='store_true')
+    parser.add_argument('--code-query', action='append', help='replace the built-in code searches (run even with --skip-code)')
     parser.add_argument('--all', action='store_true', help='also report catalogued and reviewed repositories')
     parser.add_argument('--only', default='', help='links: only these pack ids')
     parser.add_argument('--shard', default='', help='github: describe only the repositories i, i+n... (i/n)')

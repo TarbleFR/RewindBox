@@ -30,7 +30,7 @@ on:
         type: string
         default: ''
       queries:
-        description: 'discover: searches replacing the built-in ones, separated by | (topics after a #, e.g. n64 texture pack|gliden64#gliden64)'
+        description: 'discover: searches replacing the built-in ones, separated by | (topics after a #, code searches after a second #, e.g. n64 texture pack|gliden64#gliden64#filename:hires.txt "<tile>")'
         type: string
         default: ''
       research:
@@ -213,10 +213,12 @@ jobs:
           set -euo pipefail
           args=()
           if [ -n "$QUERIES" ]; then
-            searches="${QUERIES%%#*}"; topics=""
+            searches="${QUERIES%%#*}"; topics=""; code=""
             case "$QUERIES" in *'#'*) topics="${QUERIES#*#}" ;; esac
+            case "$topics" in *'#'*) code="${topics#*#}"; topics="${topics%%#*}" ;; esac
             IFS='|' read -ra items <<< "$searches"; for item in "${items[@]}"; do [ -n "$item" ] && args+=(--query "$item"); done
             IFS='|' read -ra items <<< "$topics"; for item in "${items[@]}"; do [ -n "$item" ] && args+=(--topic "$item"); done
+            IFS='|' read -ra items <<< "$code"; for item in "${items[@]}"; do [ -n "$item" ] && args+=(--code-query "$item"); done
             args+=(--skip-code)
           fi
           python3 tools/textures/discover.py github "${args[@]}" --out build/hdtex/candidates.jsonl
