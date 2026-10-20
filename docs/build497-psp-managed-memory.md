@@ -96,3 +96,34 @@ branch history and is outside this IPA's frozen source tree. The workflow dispat
 commit `e999a5fdc98a42f5d1995ca85fdfa04479d7f77a`. Every shell step verifies that
 checkout and records both workflow and source commits before passing the source
 SHA to the existing build scripts. No tag or GitHub release is created.
+
+
+## Verified delivery
+
+IPA **0.0.8 (497)** was built from frozen source
+`e999a5fdc98a42f5d1995ca85fdfa04479d7f77a` by workflow commit
+`9319dc98176dcfd89dca3489569b1dbf23fd3ba4`, run `39458674086`.
+Checks, native evidence and the cold Release job passed; the optional warm
+benchmark was skipped. The cold job took 12 minutes 28 seconds.
+The temporary immutable-checkout driver is restored to the ordinary workflow
+after this delivery so later candidates cannot accidentally compile source 497.
+The full receipt is `docs/evidence/psprelaunch497-delivery.json`.
+
+`NeoStation-Build497-PSP-HD.ipa`: **168,217,798 bytes**, SHA-256
+`3481881ea6f880595f736b7bebfed240def38887bae69f5972e9a420c81f58eb`.
+This equals the exported checksum, signed-payload record and final structure
+report. Independent inspection verifies every one of the 75 Mach-O payload
+fingerprints, all six bundle versions, the exact 355-family catalogue, the
+managed-memory bridge/core exports and the new PSP payload against its tested
+core artifact. The other 34 libretro core payloads are identical to Build 496.
+The CI verifies every ad hoc signature against the final exported IPA bytes;
+installation uses the maintainer's usual SideStore Apple re-signing.
+
+This is a source-level correction with successful native and Simulator
+regressions, not physical-device gameplay confirmation. No tag or public release
+was created. Do not reuse build number 497.
+
+The identical IPA is also copied to the maintainer PC at
+`C:\Users\Coren\Downloads\NeoStation-Build497-PSP-HD.ipa`; its final checksum
+and size were verified there. The ephemeral delivery private key and transfer
+password were removed after successful handover.

@@ -1,11 +1,13 @@
 # Consignes permanentes — stabilité NeoStation iOS
 
-## Build 497 candidate — PSP relaunch still fails on the iPhone, 20 October 2026
+## Build 497 — verified IPA, PSP memory ownership, 20 October 2026
 
 - The maintainer's new app log confirms Build 496 did not fix the observed close/reopen failure. Do not describe 496 as device-confirmed. At 15:30 UTC the core's backing arena occupies its own intended RAM destination (`0x17c000000`, remap from offset `0x204000` fails with kernel error 3).
 - Replace the allocator-placement assumption with a versioned host/core memory-ownership contract. Rebuild only PPSSPP from the same upstream `1bd28b0d634d4ec31acb7092563f3e1e247d1e9c`; retain all other pinned cores. Include the final verified 355-family catalogue published concurrently at `730e065f` (revision `2026-10-20.8a38a79c72f0`), superseding the 352-family freeze for this new delivery. Details: `docs/build497-psp-managed-memory.md`.
 - Validate exact collision reproduction, owned mappings under concurrent allocation, 32/64/76 MiB and failed-start cleanup, then real-core relaunches with a crowded address window. Reuse unchanged Dart/catalogue/other-core evidence. Deliver a new testable IPA; no public release and no external device-log request.
 - Targeted core/session source `ab9361c29f7c9ab769c4263dd8b7427fc4f4c036`, run `39455712245`, passed: six PSP sessions and an intervening other-core session; native 18-cycle/iPhone SDK evidence reused by exact input identity. The IPA source is frozen before subsequent installer development; preserve that work on Claude and dispatch on Claude with an explicit immutable checkout of the delivery commit, without creating a release.
+
+- Delivered: frozen source `e999a5fdc98a42f5d1995ca85fdfa04479d7f77a`, workflow commit `9319dc98176dcfd89dca3489569b1dbf23fd3ba4`, run `39458674086` (checks/native/cold succeeded). IPA 0.0.8 (497), 168,217,798 bytes, SHA-256 `3481881ea6f880595f736b7bebfed240def38887bae69f5972e9a420c81f58eb`. Receipt: `docs/evidence/psprelaunch497-delivery.json`. Final IPA independently matches the tested PSP payload, all 34 unchanged other cores and the exact 355-family catalogue. Temporary frozen-checkout driver restored after delivery; later candidates must use their own validated source. SideStore re-signing remains required; commercial-game and physical-iPhone GLES relaunch remain unconfirmed. No tag or public release. Do not reuse 497.
 
 ## Build 496 — verified IPA, PSP relaunch and frozen HD catalogue, 20 October 2026
 

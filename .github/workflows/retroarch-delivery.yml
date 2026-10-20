@@ -1,6 +1,6 @@
 name: NeoStation RetroArch • Build 497 • SideStore
 # The closed evidence reader captures historical ANSI-bearing logs privately.
-run-name: NeoStation Build ${{ inputs.build_number || '497' }} • e999a5fdc98a42f5d1995ca85fdfa04479d7f77a • embedded libretro
+run-name: NeoStation Build ${{ inputs.build_number || '497' }} • ${{ github.sha }} • embedded libretro
 'on':
   push:
     branches:
@@ -34,9 +34,6 @@ permissions:
 concurrency:
   group: neostation-retroarch-delivery-${{ github.ref }}
   cancel-in-progress: true
-defaults:
-  run:
-    shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
 jobs:
   checks:
     if: ${{ github.event_name == 'workflow_dispatch' || (contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message, '[retroarch-relaunch-only]') && !contains(github.event.head_commit.message, '[retroarch-source-proof]') && !contains(github.event.head_commit.message, '[retroarch-receiver-ipa]')) }}
@@ -52,7 +49,6 @@ jobs:
       name: Checkout exact candidate
       uses: actions/checkout@v4
       with:
-        ref: e999a5fdc98a42f5d1995ca85fdfa04479d7f77a
         fetch-depth: 0
         persist-credentials: false
     - name: Reuse successful unchanged Dart validation
@@ -167,7 +163,7 @@ jobs:
         # do not repeat successful unchanged checks during IPA compilation.
     - name: Validate only changed RPCS3 and NeoSwap contracts
       if: ${{ inputs.validation_scope == 'rpcs3_neoswap' }}
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         flutter pub get --enforce-lockfile
@@ -189,7 +185,7 @@ jobs:
         PYTHON
     - name: Validate changed library covers and the closed delivery gate
       if: ${{ inputs.validation_scope == 'library_covers' }}
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         flutter pub get --enforce-lockfile
@@ -214,7 +210,7 @@ jobs:
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '497' }}-validation-e999a5fdc98a42f5d1995ca85fdfa04479d7f77a
+        name: NeoStation-${{ inputs.build_number || '497' }}-validation-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -272,7 +268,7 @@ jobs:
       if: ${{ inputs.validation_scope == 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '497' }}-native-reuse-e999a5fdc98a42f5d1995ca85fdfa04479d7f77a
+        name: NeoStation-${{ inputs.build_number || '497' }}-native-reuse-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -286,7 +282,7 @@ jobs:
         echo 'reused=true' >> "$GITHUB_OUTPUT"
     - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane
       if: ${{ inputs.validation_scope != 'library_covers' && steps.neoswap-evidence.outputs.reused != 'true' }}
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         mkdir -p build/delivery/neoswap "$RUNNER_TEMP/neoswap-delivery-include"
@@ -420,7 +416,7 @@ jobs:
       if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '497' }}-neoswap-native-e999a5fdc98a42f5d1995ca85fdfa04479d7f77a
+        name: NeoStation-${{ inputs.build_number || '497' }}-neoswap-native-${{ github.sha }}
         path: build/delivery/neoswap/
         if-no-files-found: error
         retention-days: 14
@@ -491,7 +487,7 @@ jobs:
         cache: true
     - name: Compile every external display plugin source for iPhone
       if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         mkdir -p build/delivery/external-display
@@ -536,7 +532,7 @@ jobs:
       BUILD_NUMBER: ${{ inputs.build_number || '497' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '497' }}-e999a5fdc98a42f5d1995ca85fdfa04479d7f77a-cold
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '497' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -559,7 +555,6 @@ jobs:
     - name: Checkout exact candidate
       uses: actions/checkout@v4
       with:
-        ref: e999a5fdc98a42f5d1995ca85fdfa04479d7f77a
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
@@ -586,7 +581,7 @@ jobs:
       uses: actions/cache/restore@v4
       with:
         path: .ci-cache
-        key: neostation-device-v2-${{ runner.os }}-${{ runner.arch }}-xcode26.3-flutter3.47.2-e999a5fdc98a42f5d1995ca85fdfa04479d7f77a-${{ env.BUILD_NUMBER }}-${{ hashFiles('pubspec.lock',
+        key: neostation-device-v2-${{ runner.os }}-${{ runner.arch }}-xcode26.3-flutter3.47.2-${{ github.sha }}-${{ env.BUILD_NUMBER }}-${{ hashFiles('pubspec.lock',
           'build-utils/Gemfile.dolphin') }}-${{ env.CACHE_NAMESPACE }}
     - name: Assert the benchmark device cache is empty
       if: ${{ inputs.benchmark == true || contains(github.event.head_commit.message, '[benchmark-build]') }}
@@ -594,21 +589,21 @@ jobs:
     - name: Resolve locked Dart dependencies
       run: python3 build-utils/delivery_metrics.py dart_dependencies flutter pub get --enforce-lockfile
     - name: Prepare lightweight build tools
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         export BUNDLE_PATH="$GITHUB_WORKSPACE/build/ruby-gems"
         echo "BUNDLE_PATH=$BUNDLE_PATH" >> "$GITHUB_ENV"
         python3 build-utils/delivery_metrics.py ruby_dependencies bundle install
     - name: Generate iOS host
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         flutter config --no-enable-swift-package-manager
         test ! -d ios
         python3 build-utils/delivery_metrics.py host_scaffold_and_registrant python3 packages/dolphin_internal_bridge/ci/build_support.py scaffold
     - name: Download validated Build 350 native donor without KartPad
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         # Artifact 10932894067 (run 36323843067) was purged on 7 October 2026.
@@ -622,7 +617,7 @@ jobs:
           --report build/native-donor/subset-report.json
         python3 build-utils/game_content_gate.py build/native-donor/NeoStation.ipa
     - name: Reuse validated native runtimes
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         # Core/resource bootstrap only. JIT comes exclusively from source below.
@@ -638,7 +633,7 @@ jobs:
         key: stikjit-interfaces-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.3-${{ hashFiles('build-utils/stikjit/source.json','build-utils/patch_stikjit_rpcs3.py','build-utils/patch_stikjit_compat.py','build-utils/install_patched_stikjit.py','build-utils/build_patched_stikjit.py')
           }}-37844950677
     - name: Build canonical StikJIT from pinned sources for iOS 18 26 and 27
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         command -v xcodegen || brew install xcodegen
@@ -649,7 +644,7 @@ jobs:
       if: ${{ steps.stik.outputs.cache-hit == 'true' }}
       run: python3 build-utils/install_patched_stikjit.py build/stikjit-current/StikJIT.xcframework
     - name: Require completed exact NeoSwap Core before artifact download
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -677,7 +672,7 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/rpcs3-native
     - name: Verify and install passive RPCS3 Core
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         SOURCE=dist/rpcs3-native/libRPCS3Core.dylib
@@ -837,7 +832,7 @@ jobs:
         assert not forbidden, f'Retired RPCS3 Core exports: {sorted(forbidden)}'
         PY
     - name: Verify retained stable Dolphin Core
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         CORE="packages/dolphin_internal_bridge/ios/Frameworks/DolphinCore.framework/DolphinCore"
@@ -914,7 +909,7 @@ jobs:
           grep -q " $symbol$" build/dolphin-native-exports.txt
         done
     - name: Require completed exact ARMSX2 2.6 Core and remove its donor bootstrap
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -936,7 +931,7 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/armsx2
     - name: Verify pinned ARMSX2 Core identity
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         test -f dist/armsx2/ARMSX2Core.framework/ARMSX2Core
@@ -1040,7 +1035,7 @@ jobs:
     - name: Check BIOS names, OpenBIOS option and bundled PPSSPP files against the pinned cores
       run: python3 test/libretro_bios_requirements_test.py --cores dist/libretro
     - name: Prepare emulator build definitions
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         python3 - <<'PY'
@@ -1060,7 +1055,7 @@ jobs:
 
         python3 build-utils/delivery_benchmark.py record-inputs
     - name: Configure release host
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         python3 build-utils/configure_neoswap_storage.py
@@ -1120,7 +1115,7 @@ jobs:
     - name: Align application and extension versions to the pubspec version
       run: python3 build-utils/stamp_host_version.py
     - name: Compile Release device binary with measured AOT and Xcode phases
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         python3 build-utils/delivery_metrics.py xcode_build xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
@@ -1134,7 +1129,7 @@ jobs:
           -jobs "$(python3 -c 'import os; print(os.cpu_count())')" -showBuildTimingSummary build \
           2>&1 | tee "$RUNNER_TEMP/neostation-fast-xcodebuild.log"
     - name: Embed NeoPlay source identity and dependency acknowledgements
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         python3 - <<'NEOPLAY'
@@ -1149,14 +1144,14 @@ jobs:
         shutil.copyfile(notices, app / 'NeoPlay-Pods-acknowledgements.plist')
         NEOPLAY
     - name: Embed verified RPCS3 Core and signing metadata
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         python3 build-utils/embed_rpcs3_core_lazy.py
         python3 build-utils/embed_rpcs3_host_entitlements.py
         python3 build-utils/embed_neoswap_donor_entitlements.py
     - name: Embed lazy-loaded ARMSX2 Core framework
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
@@ -1182,7 +1177,7 @@ jobs:
         cp dist/libretro/identity.json "$APP/Libretro-native-identity.json"
         ls "$APP/Frameworks" | grep -c '_libretro.framework'
     - name: Embed legal, license and source notices
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
@@ -1191,7 +1186,7 @@ jobs:
           --build-number "$BUILD_NUMBER" \
           --dolphin-sha "$DOLPHIN_SHA"
     - name: Package and validate NeoStation IPA
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         git diff --check
@@ -1299,7 +1294,7 @@ jobs:
       uses: actions/cache/save@v4
       with:
         path: .ci-cache
-        key: neostation-device-v2-${{ runner.os }}-${{ runner.arch }}-xcode26.3-flutter3.47.2-e999a5fdc98a42f5d1995ca85fdfa04479d7f77a-${{ env.BUILD_NUMBER }}-${{ hashFiles('pubspec.lock',
+        key: neostation-device-v2-${{ runner.os }}-${{ runner.arch }}-xcode26.3-flutter3.47.2-${{ github.sha }}-${{ env.BUILD_NUMBER }}-${{ hashFiles('pubspec.lock',
           'build-utils/Gemfile.dolphin') }}-${{ env.CACHE_NAMESPACE }}
     - name: Upload encrypted IPA and verification reports
       uses: actions/upload-artifact@v4
@@ -1327,7 +1322,7 @@ jobs:
         retention-days: 14
     - name: Remove temporary secrets
       if: always()
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: rm -f .dart-defines.json
   warm:
     name: Release device build • warm
@@ -1339,7 +1334,7 @@ jobs:
       BUILD_NUMBER: ${{ inputs.build_number || '497' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '497' }}-e999a5fdc98a42f5d1995ca85fdfa04479d7f77a-warm
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '497' }}-${{ github.sha }}-warm
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -1362,7 +1357,6 @@ jobs:
     - name: Checkout exact candidate
       uses: actions/checkout@v4
       with:
-        ref: e999a5fdc98a42f5d1995ca85fdfa04479d7f77a
         fetch-depth: 0
         persist-credentials: false
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
@@ -1387,7 +1381,7 @@ jobs:
       uses: actions/cache/restore@v4
       with:
         path: .ci-cache
-        key: neostation-device-v2-${{ runner.os }}-${{ runner.arch }}-xcode26.3-flutter3.47.2-e999a5fdc98a42f5d1995ca85fdfa04479d7f77a-${{ env.BUILD_NUMBER }}-${{ hashFiles('pubspec.lock',
+        key: neostation-device-v2-${{ runner.os }}-${{ runner.arch }}-xcode26.3-flutter3.47.2-${{ github.sha }}-${{ env.BUILD_NUMBER }}-${{ hashFiles('pubspec.lock',
           'build-utils/Gemfile.dolphin') }}-${{ env.CACHE_NAMESPACE }}
     - name: Require actual cache reuse
       run: |
@@ -1400,7 +1394,7 @@ jobs:
     - name: Verify locked CocoaPods graph after cache restoration
       run: python3 build-utils/delivery_metrics.py cocoa_pods env -u BUNDLE_GEMFILE -u BUNDLE_PATH pod install --deployment --project-directory=ios
     - name: Prepare emulator build definitions
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         python3 - <<'PY'
@@ -1420,7 +1414,7 @@ jobs:
 
         python3 build-utils/delivery_benchmark.py record-inputs
     - name: Compile Release device binary with measured AOT and Xcode phases
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         python3 build-utils/delivery_metrics.py xcode_build xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
@@ -1434,7 +1428,7 @@ jobs:
           -jobs "$(python3 -c 'import os; print(os.cpu_count())')" -showBuildTimingSummary build \
           2>&1 | tee "$RUNNER_TEMP/neostation-fast-xcodebuild.log"
     - name: Embed NeoPlay source identity and dependency acknowledgements
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         python3 - <<'NEOPLAY'
@@ -1449,14 +1443,14 @@ jobs:
         shutil.copyfile(notices, app / 'NeoPlay-Pods-acknowledgements.plist')
         NEOPLAY
     - name: Embed verified RPCS3 Core and signing metadata
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         python3 build-utils/embed_rpcs3_core_lazy.py
         python3 build-utils/embed_rpcs3_host_entitlements.py
         python3 build-utils/embed_neoswap_donor_entitlements.py
     - name: Embed lazy-loaded ARMSX2 Core framework
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
@@ -1482,7 +1476,7 @@ jobs:
         cp dist/libretro/identity.json "$APP/Libretro-native-identity.json"
         ls "$APP/Frameworks" | grep -c '_libretro.framework'
     - name: Embed legal, license and source notices
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
@@ -1491,7 +1485,7 @@ jobs:
           --build-number "$BUILD_NUMBER" \
           --dolphin-sha "$DOLPHIN_SHA"
     - name: Package and validate NeoStation IPA
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: |
         set -euo pipefail
         git diff --check
@@ -1599,7 +1593,7 @@ jobs:
       uses: actions/cache/save@v4
       with:
         path: .ci-cache
-        key: neostation-device-v2-${{ runner.os }}-${{ runner.arch }}-xcode26.3-flutter3.47.2-e999a5fdc98a42f5d1995ca85fdfa04479d7f77a-${{ env.BUILD_NUMBER }}-${{ hashFiles('pubspec.lock',
+        key: neostation-device-v2-${{ runner.os }}-${{ runner.arch }}-xcode26.3-flutter3.47.2-${{ github.sha }}-${{ env.BUILD_NUMBER }}-${{ hashFiles('pubspec.lock',
           'build-utils/Gemfile.dolphin') }}-${{ env.CACHE_NAMESPACE }}
     - name: Upload encrypted IPA and verification reports
       uses: actions/upload-artifact@v4
@@ -1627,6 +1621,6 @@ jobs:
         retention-days: 14
     - name: Remove temporary secrets
       if: always()
-      shell: "python3 -c \"import os,sys,subprocess,json,pathlib; expected='e999a5fdc98a42f5d1995ca85fdfa04479d7f77a'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(); assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2)); os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])\" {0}"
+      shell: bash
       run: rm -f .dart-defines.json
     if: ${{ inputs.benchmark == true || contains(github.event.head_commit.message, '[benchmark-build]') }}
