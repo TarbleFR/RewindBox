@@ -61,13 +61,23 @@ on:
       - 'test/rpcs3_source_archive_test.py'
       - 'test/native/rpcs3_source_archive_client_test.cpp'
   workflow_dispatch:
+    inputs:
+      phase:
+        description: Build the reviewed Core, or compose the pinned private IPA
+        type: choice
+        options: [core, delivery499]
+        default: core
+      recipient:
+        description: Public PEM for the dedicated Build 499 delivery
+        type: string
+        default: build-utils/delivery-499-recipient.pem
 permissions:
   contents: read
 jobs:
   build:
     # The host integration reuses the already built, provenance-checked Core;
     # ios-ci validates its unchanged source, recipe, ABI, and binary identity.
-    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-host-integration]') }}
+    if: ${{ inputs.phase != 'delivery499' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') }}
     # A host-only push must not cancel the exact Core referenced by its IPA.
     # Keep distinct source revisions independent and never cancel a running build.
     concurrency:
@@ -117,6 +127,8 @@ jobs:
           git -C "$STORAGE_SRC" fetch --depth 1 origin 22f1152783cef1f7e04af7b1c895173e28fd5b03
           git -C "$STORAGE_SRC" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$STORAGE_SRC"
+          CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
+            python3 test/rpcs3_build499_spu_audit_test.py "$STORAGE_SRC" 2>&1 | tee build/rpcs3-build499-proof.txt
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_spu_warmup_test.py "$STORAGE_SRC" --sanitize
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_build435_core_delta_test.py "$STORAGE_SRC" --sanitize
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_shader_storage_test.py "$STORAGE_SRC"
@@ -209,6 +221,7 @@ jobs:
           print(json.dumps(identity,indent=2))
           PY
           cp dist/rpcs3/identity.json build/rpcs3-core-diagnostics/identity.json
+          cp build/rpcs3-build499-proof.txt build/rpcs3-core-diagnostics/build499-proof.txt
       - name: Upload RPCS3 recovery Core
         uses: actions/upload-artifact@v4
         with:
@@ -224,3 +237,11 @@ jobs:
           path: build/rpcs3-core-diagnostics/
           if-no-files-found: warn
           retention-days: 14
+
+  delivery499:
+    if: ${{ inputs.phase == 'delivery499' }}
+    uses: ./.github/workflows/rpcs3-audit-delivery.yml
+    with:
+      build_number: '499'
+      recipient: ${{ inputs.recipient || 'build-utils/delivery-499-recipient.pem' }}
+    secrets: inherit

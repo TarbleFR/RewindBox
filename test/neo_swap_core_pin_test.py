@@ -17,7 +17,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = '22f1152783cef1f7e04af7b1c895173e28fd5b03'
-PATCH_SHA256 = '61e41b7df09d77b016cddbceebff14a14502632ea714af70ea5ace1b76ea975e'
+PATCH_SHA256 = '6a88c3f5046bbbbd52113ba691cc2f9074e4ebc260f195c1e73776a8c9f876e1'
 BACKPORTS = (
     '8bd938e9de9ff6455f312cdf8bd64bd37a064c4e',
     '1d13d1e6bbabfbb7a873f2c608c52525ff470e25',
@@ -92,6 +92,8 @@ CORE_INPUTS = (
     'test/rpcs3_build483_llvm_pipeline_test.py',
     'test/native/rpcs3_llvm_pipeline_harness.cpp',
     # NEOSTATION_BUILD487_DIAGNOSTICS_V1: executed by the Core preflight.
+    'test/rpcs3_build499_spu_audit_test.py',
+    'test/native/rpcs3_build499_spu_audit_test.cpp',
     'test/rpcs3_build487_core_diagnostics_test.py',
     'test/native/rpcs3_build487_profiler_helpers_test.cpp',
     'test/native/rpcs3_build487_boot_diagnostics_test.cpp',
@@ -133,7 +135,7 @@ def validate_core_scheduling(workflow: str) -> None:
             'Workflow-level concurrency can cancel a pinned Core even when the build job is skipped')
     require('    concurrency:\n      group: neostation-rpcs3-core-${{ github.sha }}\n      cancel-in-progress: false\n' in workflow,
             'Core job must preserve running builds and isolate immutable source SHAs')
-    require("    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-host-integration]') }}" in workflow,
+    require("    if: ${{ inputs.phase != 'delivery499' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') }}" in workflow,
             'Host-only integration must not rebuild the referenced Core')
 
 

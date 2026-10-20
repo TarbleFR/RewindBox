@@ -727,6 +727,8 @@ jobs:
           test/native/rpcs3_spu_object_relocation_test.cpp \
           test/rpcs3_build483_llvm_pipeline_test.py \
           test/native/rpcs3_llvm_pipeline_harness.cpp \
+          test/rpcs3_build499_spu_audit_test.py \
+          test/native/rpcs3_build499_spu_audit_test.cpp \
           test/rpcs3_build487_core_diagnostics_test.py \
           test/native/rpcs3_build487_profiler_helpers_test.cpp \
           test/native/rpcs3_build487_boot_diagnostics_test.cpp \

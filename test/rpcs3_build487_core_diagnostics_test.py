@@ -102,14 +102,22 @@ BUILD483_CODEGEN = {
     'rpcs3/Emu/Cell/SPURecompiler.h': '0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07',
 }
 for relative, digest in BUILD483_CODEGEN.items():
-    require(lf_sha256(relative) == digest, f'{relative} differs from Build 483: code generation must not change')
+    if relative == 'rpcs3/Emu/Cell/SPULLVMRecompiler.cpp':
+        # Build 499 intentionally fixes one SHUFB mask and compile diagnostics.
+        # Undo exactly those edits, then retain the full historical SHA check.
+        # The new Core preflight executes both revisions against scalar results.
+        from rpcs3_build499_spu_audit_test import reference_translator
+        require(hashlib.sha256(reference_translator(read(relative)).encode()).hexdigest() == digest,
+                'SPULLVMRecompiler.cpp changed beyond the independently tested Build 499 delta')
+    else:
+        require(lf_sha256(relative) == digest, f'{relative} differs from Build 483: code generation must not change')
 KEY_LINES = re.compile(r'fold\(|fold_string\(|settings \+=|arm64_ir_passes|obj_name')
 for relative, digest in (('rpcs3/Emu/Cell/SPUCommonRecompiler.cpp', '98523ee8a93967b143c652cc634c5ab428b0549014c83e893104dc33b7818f2b'),
                          ('rpcs3/Emu/Cell/PPUThread.cpp', '1cba19d9c6ff59aa07543c410b0b4deda194d01c64396c4e44bdddcade6f184c')):
     lines = ''.join(line.lstrip() + '\n' for line in read(relative).splitlines() if KEY_LINES.search(line))
     require(hashlib.sha256(lines.encode()).hexdigest() == digest,
             f'{relative}: object-cache key/name lines differ from Build 483')
-print('PASS unchanged: 10 code-generation sources and the SPU key / PPU object name lines equal Build 483')
+print('PASS: historical codegen hashes retained after exact Build 499 delta reversal; SPU key / PPU object name lines equal Build 483')
 
 # --- 3. wiring -------------------------------------------------------------------
 files = {

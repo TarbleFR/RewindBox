@@ -1,5 +1,14 @@
 # Consignes permanentes — stabilité NeoStation iOS
 
+
+## Build 499 candidate — selective ARMSX3 22348 / RPCS3 audit, 20 October 2026
+
+- The maintainer supplies `ARMSX3-22348-bbe9ce84.ipa` and explicitly requests a deep comparison, selective improvements, a rebuilt RPCS3 Core and a private test IPA on `Claude`. No main push or official release. Preserve the delivered 498 PSP/catalogue/native-RAR product and every unrelated core.
+- The supplied IPA has SHA-256 `0db92aea054b716863eeea486d2102656f20e9a58f8872742ae405deeb43385d`; its private `bbe9ce84` revision does not resolve in the public ARMSX3 repository. Do not equate public master with that exact iOS binary or infer FPS from symbols.
+- Port two independently identified, public upstream fixes: SHUFB u64 insertion mask (`d7f4c350`, ARMSX3 `e99467b5`), conditional branch targets taken-first (`9c8e4349`, ARMSX3 `ddd902e7`). Independently gate decrementer disassembly behind explicit SPU debug and move ordinary per-block build lines to trace; preserve error, JITPROF and SPUPROF diagnostics. Add SPUThread.cpp and SPUOpcodes.h to the SPU codegen digest.
+- ABI 30, NeoSwap, guest mappings, memory limits, PPU pipeline, JIT/VPN route and deferred-SPU prohibition remain unchanged. New SPU object identity recompiles once; PPU codegen inputs are unchanged. Tests execute production snippets and all 30 SHUFB masks against a scalar reference, actual branch decoding and exact pre-499 controls. No physical-device/FPS claim.
+- Candidate number 499. Use the dedicated reusable `rpcs3-audit-delivery.yml` through registered `rpcs3-core.yml` phase `delivery499` after the Core succeeds, reusing exact 498 host/Dart/other-core evidence. The old 498 delivery source/workflow stays immutable.
+
 ## Build 498 livrée — catalogue téléchargeable et RAR natif, 20 octobre 2026
 
 - Le mainteneur renouvelle la demande d’élargir le catalogue jusqu’à **400 packs téléchargeables depuis l’application**, puis demande l’extraction et l’installation RAR intégrées. Le gel HD des cycles 496/497 ne s’applique pas à ce nouveau cycle ; la livraison 497 reste figée sur `e999a5fdc98a42f5d1995ca85fdfa04479d7f77a` et ne doit pas être modifiée ni annulée.
