@@ -312,5 +312,44 @@
   "scope": "ui",
   "family": "wii-nsmbw-hd-title-tjshah",
   "notes": "HD title-screen artwork only, not a full-game texture pack. Standalone replacement; installing it replaces the currently selected pack. To combine it with a base HD set, merge on a computer and import one folder. Region/language coverage is not attested by the author."
+ },
+ {
+  "id": "gc-naruto-gnt4-hd-chris-margroff",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Naruto: Gekitou Ninja Taisen! 4 — HD UI / English",
+  "version": "e4e72d66ec54 (2021-12-24)",
+  "games": [
+   {
+    "title": "Naruto: Gekitou Ninja Taisen! 4",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G4NJDA"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Chris Margroff (TrueVision / sora3087)"
+  ],
+  "page_url": "https://gitlab.com/sora3087/ninja",
+  "source_id": "gitlab:sora3087/ninja",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gitlab.com/sora3087/ninja",
+   "verify": {
+    "url": "https://gitlab.com/sora3087/ninja/-/archive/e4e72d66ec547bf00a8838ddae5e0052881fe9dc/ninja-e4e72d66ec547bf00a8838ddae5e0052881fe9dc.zip"
+   },
+   "file_name": "ninja-e4e72d66ec547bf00a8838ddae5e0052881fe9dc.zip"
+  },
+  "scope": "ui",
+  "family": "gc-naruto-gnt4-hd-chris-margroff",
+  "notes": "Early hand-drawn UI, translated menus and placeholder upscales. Japanese original G4NJDA only. The creator's GitLab tree is pinned; source PSD files are not installed. It is not the separate Super Gekitou Ninja Taisen 4 ROM hack and not a complete HD overhaul."
  }
 ]
