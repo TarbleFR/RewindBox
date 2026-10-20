@@ -138,7 +138,7 @@ DART_TESTS = [
     'test/console_manager_test.dart',
     'test/rpcs3_preload_and_dolphin_delete_contract_test.dart',
     'test/rpcs3_regular_arena_dolphin_multidelete_contract_test.dart',
-    'test/dusklight_ports_stage1_test.dart',
+    'test/retired_ports_launch_test.dart',
     'test/libretro_core_catalog_test.dart',
     'test/libretro_resolution_test.dart',
     'test/libretro_beetle_vulkan_fallback_test.dart',

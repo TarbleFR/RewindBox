@@ -250,7 +250,7 @@ jobs:
           retention-days: 14
 
   cores:
-    name: Texture replacement in the pinned libretro cores (N64, PS1, NES)
+    name: Texture replacement in the pinned libretro cores (N64, PS1, NES) and in Mesen on the buildbot
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'cores' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -267,11 +267,15 @@ jobs:
         run: |
           find dist/libretro -maxdepth 3 | head -60
           python3 tools/textures/probe_cores.py --cores dist/libretro --out build/hdtex/cores.json
+      - name: Cores NeoStation does not ship yet, read from the libretro buildbot (Mesen, NES HD packs)
+        run: python3 tools/textures/probe_cores.py --buildbot mesen --out build/hdtex/buildbot.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: hdtex-cores-${{ github.sha }}
-          path: build/hdtex/cores.json
+          path: |
+            build/hdtex/cores.json
+            build/hdtex/buildbot.json
           if-no-files-found: warn
           retention-days: 14
 
