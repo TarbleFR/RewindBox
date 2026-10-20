@@ -1,30 +1,32 @@
 # Recherche PS1 HD et catalogue — 20 octobre 2026
 
-**179 familles de projets documentées**, contre 159 à la vague précédente ; 216 fiches et 140 titres / éditions de jeux normalisés. Le catalogue PS1 contient **37 références : 8 téléchargements vérifiés et 29 pages d’auteurs sans installation validée**.
+**180 familles de projets documentées**, contre 179 avant cette continuation ; 228 fiches et 141 titres / éditions de jeux normalisés. Le catalogue PS1 contient **38 références : 8 téléchargements vérifiés et 30 pages d’auteurs sans installation validée**.
 
-**Les37 références sont incluses dans l’IPA500 déjà livrée.** La499 conserve son catalogue34. La nouvelle passe de recherche ne modifie aucun binaire et n’ajoute aucun téléchargement vérifié. Priorités et correction du doublon Tekken2 : [grandes séries](ps1-major-franchises-2026-10-20.md).
+**Les 38 références sont intégrées sur Claude pour la prochaine livraison après la 500.** La livraison 500 est déjà figée avec le catalogue précédent de 37 références PS1. Cette mission n’a produit aucune IPA.
 
-La base originale comptait deux références PS1. La nouvelle vague passe de 34 à 37 références : deux pages manuelles SomberTwilight et 1 téléchargement vérifié supplémentaire (Gran Turismo 2 de CAC). Les familles de recherche ne sont pas un total de packs installables.
+La base originale comptait deux références PS1. La continuation passe de 37 à 38 références : une page auteur Resident Evil: Survivor HQ de LeigiBoy, aucun téléchargement vérifié supplémentaire et onze pistes hors décompte. Les familles de recherche ne sont pas un total de packs installables.
+
+Consulter aussi le [journal de continuation](../tools/textures/research/ps1-continued-research-2026-10-20.json) et le [bilan de cette passe](ps1-hd-continued-research-2026-10-20.md).
 
 ## Indicateurs exacts
 
 | Indicateur | Valeur |
 |---|---:|
-| Familles retenues | 179 |
-| Fiches de recherche | 216 |
-| Fiches hors décompte | 37 |
-| Titres / éditions normalisés | 140 |
-| Créateurs / équipes attribués | 46 |
-| URLs de provenance des familles | 211 |
-| URLs de provenance de toutes les fiches | 246 |
-| URLs de preuve avec les liens d’archives | 303 |
-| URLs de consultation consignées, y compris échecs | 269 |
-| Références NeoStation PS1 | 37 |
-| Jeux / éditions au catalogue PS1 | 35 |
+| Familles retenues | 180 |
+| Fiches de recherche | 228 |
+| Fiches hors décompte | 48 |
+| Titres / éditions normalisés | 141 |
+| Créateurs / équipes attribués | 47 |
+| URLs de provenance des familles | 220 |
+| URLs de provenance de toutes les fiches | 261 |
+| URLs de preuve avec les liens d’archives | 319 |
+| URLs de consultation consignées, y compris échecs | 298 |
+| Références NeoStation PS1 | 38 |
+| Jeux / éditions au catalogue PS1 | 36 |
 | Téléchargements vérifiés | 8 |
 | Jeux / éditions avec téléchargement vérifié | 8 |
 | Nouveaux jeux vérifiés depuis les deux initiaux | 6 |
-| Pages manuelles | 29 |
+| Pages manuelles | 30 |
 | Essais sur iPhone physique | 0 |
 
 Les URLs de consultation proviennent d’un journal distinct : elles ne s’ajoutent pas aux URLs de preuve et peuvent comprendre des accès en échec. Les URLs de preuve incluant les téléchargements ne représentent pas des archives toutes disponibles ou vérifiées.
@@ -34,13 +36,13 @@ Les URLs de consultation proviennent d’un journal distinct : elles ne s’ajou
 
 | Catégorie exclusive | Familles |
 |---|---:|
-| A · Beetle PSX HW | 43 |
+| A · Beetle PSX HW | 44 |
 | A+B · deux variantes HD | 9 |
 | B · DuckStation | 100 |
 | C · projet graphique futur | 4 |
 | Moteur non confirmé | 23 |
 
-52 familles nomment Beetle, 109 DuckStation ; 9 familles communes restent comptées une seule fois.
+53 familles nomment Beetle, 109 DuckStation ; 9 familles communes restent comptées une seule fois.
 
 ## Références publiées dans NeoStation
 
@@ -62,6 +64,7 @@ Une page auteur ne dispose pas d’un plan d’installation publié. Une archive
 | [Namco Museum Vol. 1 HD — ironhulk33](https://www.mediafire.com/file/ovc9phx9d23uly7/Namco%20Museum%20Vol.%201%20%28USA%29.zip/file) | ironhulk33 | Page auteur uniquement ; édition à confirmer |
 | [Namco Museum Vol. 2 HD — ironhulk33](https://www.mediafire.com/file/l9dmknu9y64ybum/Namco%20Museum%20Vol.%202%20%28USA%29.7z/file) | ironhulk33 | Page auteur uniquement ; édition à confirmer |
 | [Parasite Eve HD — 1vierock](https://www.vierockhd.com/ps1/parasite-eve-hd) | 1vierock | Page auteur uniquement ; édition à confirmer |
+| [Resident Evil: Survivor HQ — LeigiBoy](https://www.moddb.com/mods/re-survivor-hq-texture-pack) | LeigiBoy | Page auteur uniquement ; édition à confirmer |
 | [SaGa Frontier 2 HD — 1vierock](https://www.vierockhd.com/ps1/saga-frontier-2-hd) | 1vierock | Page auteur uniquement ; édition à confirmer |
 | [Scooby-Doo and the Cyber Chase HD — ironhulk33](https://www.mediafire.com/file/bafhu64kemeyz1t/Scooby-Doo%20and%20the%20Cyber%20Chase%20%28USA%29.7z/file) | ironhulk33 | Page auteur uniquement ; édition à confirmer |
 | [Sesame Street - Elmo's Letter Adventure HD — ironhulk33](https://www.mediafire.com/file/lgqz3dd4czn2se4/Sesame%20Street%20-%20Elmo%27s%20Letter%20Adventure%20%28USA%29.7z/file) | ironhulk33 | Page auteur uniquement ; édition à confirmer |
@@ -88,7 +91,7 @@ Une page auteur ne dispose pas d’un plan d’installation publié. Une archive
 
 ## Toutes les familles, par catégorie et créateur
 
-### A · Beetle PSX HW — 43 familles
+### A · Beetle PSX HW — 44 familles
 
 | Jeu / projet | Créateur | État | Source originale |
 |---|---|---|---|
@@ -121,6 +124,7 @@ Une page auteur ne dispose pas d’un plan d’installation publié. Une archive
 | Strikers 1945 | ironhulk33 | Page auteur ; archive non validée | [Source](https://gbatemp.net/threads/my-texture-packs.661159/) |
 | Koudelka | Janley | Qualification documentée dans la fiche | [Source](https://gbatemp.net/threads/ps1-remastering-pre-rendered-backgrounds.624333/) |
 | Silent Hill | JuanchoTexHD | Fichier original indisponible | [Source](https://gbatemp.net/threads/psx-silent-hill-ntsc-eng-ntsc-spa-patched-beta-beetle-psx-hw-retroarch.663745/) |
+| Resident Evil: Survivor | LeigiBoy | Page auteur ; archive non validée | [Source](https://www.moddb.com/mods/re-survivor-hq-texture-pack) |
 | Xenogears Perfect ART Works | linnaealyn | Archive installée et contrôlée en CI | [Source](https://scientia.godsibb.net/t/xenogears-perfect-art-works-paw-retroarch-texture-pack/1158) |
 | Wip3out Special Edition | Matsilagi | Référence déjà au catalogue | [Source](https://github.com/Matsilagi/WO3-Beta-Texturepack/tree/d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69) |
 | WWF SmackDown! 2: Know Your Role | NMCM; KendrickSD2; vctr_nkmncr/code_nkmncr; ERI619 | Qualification documentée dans la fiche | [Source](https://www.tapatalk.com/groups/legendsofmodding/wwe-smackdown-shock-value-v1-0-out-now-t1084.html) |
@@ -253,7 +257,7 @@ Une page auteur ne dispose pas d’un plan d’installation publié. Une archive
 | Crash Bash | StuD44 | Publication documentée ; archive non vérifiée | [Source](https://www.reddit.com/r/crashbandicoot/comments/1rc94rq/finally_successful_hd_textures_and_bad_news/) |
 | Bust a Groove | thecoolpup | Piste indexée ; page complète non consultée | [Source](https://gbatemp.net/threads/bust-a-groove-hd-texture-pack-duckstation.674440/) |
 | Final Fantasy VII HD Remaster | TheSoulTear | Page de fichier ; archive non inspectée | [Source](https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163) |
-| Tomba! 2 / Tombi! 2 | uck | Publication de l’auteur ; archive à vérifier | [Source](https://gbatemp.net/threads/tombi-2-tomba-2-multiregion-duckstation-hd-texture-pack.682042/) |
+| Tomba! 2 / Tombi! 2 / Tomba! 2 — USA title/font component | uck / NoBigDeal La | Publication retrouvée ; archive non récupérée | [Source](https://gbatemp.net/threads/tombi-2-tomba-2-multiregion-duckstation-hd-texture-pack.682042/) |
 
 ### C · projet graphique futur — 4 familles
 
@@ -1282,6 +1286,52 @@ Notes :
 
 - Creator states Beetle version, English and Latin Spanish patched game; PNG optimisation and seams remain. Separate DuckStation version mentioned in replies; not automatically interchangeable.
 - Original author Drive file returned HTTP 404. No archive downloaded; no runtime promotion.
+
+### Resident Evil: Survivor — LeigiBoy
+
+Famille : `ps1-leigiboy-resident-evil-survivor-hq` · A · Beetle PSX HW · runtime_manual_reference_archive_unverified.
+
+Sources :
+
+- [https://www.moddb.com/mods/re-survivor-hq-texture-pack](https://www.moddb.com/mods/re-survivor-hq-texture-pack)
+- [https://www.moddb.com/mods/re-survivor-hq-texture-pack/downloads/re-survivor-hq-textures](https://www.moddb.com/mods/re-survivor-hq-texture-pack/downloads/re-survivor-hq-textures)
+- [https://www.patreon.com/LGBoy/posts/resident-evil-hq-138105621](https://www.patreon.com/LGBoy/posts/resident-evil-hq-138105621)
+- [https://www.patreon.com/LGBoy/posts/resident-evil-hq-93929166](https://www.patreon.com/LGBoy/posts/resident-evil-hq-93929166)
+- [https://www.patreon.com/LGBoy/posts/resident-evil-hq-105401982](https://www.patreon.com/LGBoy/posts/resident-evil-hq-105401982)
+- [https://www.patreon.com/LGBoy/posts/remake-demake-v0-153805776](https://www.patreon.com/LGBoy/posts/remake-demake-v0-153805776)
+
+Archives d’origine déclarées, sans présumer de leur disponibilité :
+
+- [https://www.moddb.com/mods/re-survivor-hq-texture-pack/downloads/re-survivor-hq-textures](https://www.moddb.com/mods/re-survivor-hq-texture-pack/downloads/re-survivor-hq-textures)
+- [https://www.moddb.com/downloads/start/297863](https://www.moddb.com/downloads/start/297863)
+
+| Champ | Valeur consignée |
+|---|---|
+| Version | Non établi |
+| Publication | 2025-10-09 |
+| Mise à jour annoncée | Non établi |
+| Moteurs | Beetle PSX HW |
+| Régions | USA (filename declaration; edition to confirm) |
+| Identifiants de disque | SLUS-01087 |
+| Formats | Non établi |
+| Structure | Author says place the texture-replacements folder next to the game image; actual archive uninspected. |
+| Archive, octets | Non établi |
+| Taille annoncée | 718086365 bytes (684.82 MiB), author-hosted ModDB listing |
+| Installé, octets | Non établi |
+| Textures | Non établi |
+| Résolution déclarée | Non établi |
+| SHA-256 de l’archive vérifiée | Non établi |
+| Licence | No standalone redistribution licence established |
+| Diffusion | Original public sources only; no rehosting or private file access. |
+
+Notes :
+
+- Original author public ModDB release and dated Patreon final-update identify a real PS1 HW Beetle texture project. It is not the Windows game port.
+- Author reports missing characters/enemies and problematic animated screens, switches and changing palettes. Do not infer full visual coverage from the host Full Version label.
+- Host lists Resident_Evil_-_Survivor_USA-texture-replacements.1.rar,718086365 bytes and MD5a0b7a129df594bfebc10cf901fac6d3f. These are listing metadata; archive bytes, contents, unpacked size and PNG count were not checked.
+- The cached signed ModDB redirect returned410 Gone; no archive was transferred. An expired redirect does not establish that the original file or project disappeared. No alternate transfer, rehost or private Patreon file fetched.
+- A later public Patreon post mentions a DuckStation update in development, while the ModDB description says no DuckStation port currently available. No public DuckStation archive recovered; engine portability is not inferred.
+- USA filename matched to the public PS1 game database SLUS-01087 as an edition candidate only. Exact archive serial mapping and PAL/French support remain unverified.
 
 ### Xenogears Perfect ART Works — linnaealyn
 
@@ -3768,6 +3818,7 @@ Famille : `ps1-curse-arms-tekken-3` · B · DuckStation · author_publication.
 Sources :
 
 - [https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/](https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/)
+- [https://www.patreon.com/geniusbug/posts/how-to-install-3-138154326](https://www.patreon.com/geniusbug/posts/how-to-install-3-138154326)
 
 | Champ | Valeur consignée |
 |---|---|
@@ -3791,6 +3842,7 @@ Sources :
 Notes :
 
 - Creator PS1 inventory; no Beetle compatibility. Revisions of this project are merged.
+- Secondary public GeniusBug tutorial recovered a Drive reference attributed to the existing author post. No new project or archive verification; prior direct403 remains respected.
 
 ### The Lost World: Jurassic Park — Curse_Arms
 
@@ -5509,13 +5561,14 @@ Notes :
 - Published archive SCUS-94163.7z; actual payload not downloaded, all-disc coverage not inferred.
 - Author file listing rechecked: DuckStation v1.0, English/Russian, battlefields, portraits, font and UI. Published 2026-09-25. File size and MD5 are author/host metadata, not a downloaded-archive verification. SCUS-94163 is named; all-disc and PAL support remain unverified.
 
-### Tomba! 2 / Tombi! 2 — uck
+### Tomba! 2 / Tombi! 2 / Tomba! 2 — USA title/font component — uck / NoBigDeal La
 
-Famille : `ps1-uck-tomba-2-tombi-2` · B · DuckStation · author_publication.
+Famille : `ps1-uck-tomba-2-tombi-2` · B · DuckStation · author_publication · creator_indexed_component_no_download.
 
 Sources :
 
 - [https://gbatemp.net/threads/tombi-2-tomba-2-multiregion-duckstation-hd-texture-pack.682042/](https://gbatemp.net/threads/tombi-2-tomba-2-multiregion-duckstation-hd-texture-pack.682042/)
+- [https://www.youtube.com/watch?v=KVGNgvse4kk](https://www.youtube.com/watch?v=KVGNgvse4kk)
 
 | Champ | Valeur consignée |
 |---|---|
@@ -5539,6 +5592,29 @@ Sources :
 Notes :
 
 - config.yml revision and all regions counted as one project. Public rendered spoiler does not expose a download URL here.
+
+| Champ | Valeur consignée |
+|---|---|
+| Version | Non établi |
+| Publication | Non établi |
+| Mise à jour annoncée | Non établi |
+| Moteurs | DuckStation |
+| Régions | Non établi |
+| Identifiants de disque | Non établi |
+| Formats | Non établi |
+| Structure | Non établi |
+| Archive, octets | Non établi |
+| Taille annoncée | Non établi |
+| Installé, octets | Non établi |
+| Textures | Non établi |
+| Résolution déclarée | Non établi |
+| SHA-256 de l’archive vérifiée | Non établi |
+| Licence | No standalone redistribution licence established |
+| Diffusion | Original public sources only; no rehosting or private file access. |
+
+Notes :
+
+- Indexed author description claims a USA HD title background and fonts, explicitly without a download link. Component grouped conservatively under the existing Tomba2 family, not counted as another whole-game pack.
 
 ### Disney's Hercules — obaidr1
 
@@ -5792,6 +5868,7 @@ Famille : `ps1-bl4ckh4nd-gex-2-enter-the-gecko` · Moteur non confirmé · creat
 Sources :
 
 - [https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing](https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing)
+- [https://steamcommunity.com/app/3183970/discussions/0/528723987504598263/](https://steamcommunity.com/app/3183970/discussions/0/528723987504598263/)
 
 | Champ | Valeur consignée |
 |---|---|
@@ -5815,6 +5892,7 @@ Sources :
 Notes :
 
 - Listed in the PS1 section of the creator-linked inventory; engine, exact archive and regional support require per-file verification.
+- Bl4ck H4nd publicly mentions a PS1 texture pack in the Gex Trilogy discussion, without identifying a separate Gex3 project. No extra family inferred.
 
 ### Medal of Honor — Bl4ckH4nd
 
@@ -6437,10 +6515,10 @@ Sources :
 | SomberTwilight | 8 | Tenchu: Stealth Assassins · Thrill Kill · Clock Tower: The First Fear · Dead or Alive · Silent Hill · Soul Blade · Rittai Ninja Katsugeki Tenchu: Shinobi Hyakusen · Xena: Warrior Princess |
 | Crazy Ivan | 3 | Countdown Vampires · Parasite Eve II · Resident Evil (1996) |
 | NapoleonGaming | 3 | Kirikou · Rugrats Studio Tour · Toy Story Racer |
+| NoBigDeal La | 3 | Dead or Alive · Rage Racer · Tomba! 2 / Tombi! 2 / Tomba! 2 — USA title/font component |
 | NR74W | 3 | WipEout · WipEout 2097 / XL · Wip3out |
 | Bussareas | 2 | Spider-Man 2: Enter Electro · Tenchu 2: Birth of the Stealth Assassins |
 | JuanchoTexHD | 2 | Resident Evil Director’s Cut — A.I. Overhaul · Silent Hill |
-| NoBigDeal La | 2 | Dead or Alive · Rage Racer |
 | palmeroides (Jose Manuel Fdz) | 2 | Ridge Racer · Ridge Racer Revolution |
 | StuD44 | 2 | Crash Bandicoot · Crash Bash |
 | Actual-Dragonfruit27 / vergil1876 | 1 | Dino Crisis 2 |
@@ -6454,6 +6532,7 @@ Sources :
 | Hecthor Kastro | 1 | Driver 2 |
 | Janley | 1 | Koudelka |
 | kupo-on-gbatem | 1 | Grandia |
+| LeigiBoy | 1 | Resident Evil: Survivor |
 | linnaealyn | 1 | Xenogears Perfect ART Works |
 | Matsilagi | 1 | Wip3out Special Edition |
 | NMCM; KendrickSD2; vctr_nkmncr/code_nkmncr; ERI619 | 1 | WWF SmackDown! 2: Know Your Role |
@@ -6471,7 +6550,7 @@ Sources :
 | theflyingzamboni; Zychronix; Mr. Scentless | 1 | The Legend of Dragoon |
 | TheSoulTear | 1 | Final Fantasy VII HD Remaster |
 | Tiriosaurus / stoofin | 1 | Chrono Cross — Upscale WIP |
-| uck | 1 | Tomba! 2 / Tombi! 2 |
+| uck | 1 | Tomba! 2 / Tombi! 2 / Tomba! 2 — USA title/font component |
 | Unchiga, X@nder | 1 | Yu-Gi-Oh! Forbidden Memories |
 | zeak-z | 1 | Shadow Tower |
 
@@ -6515,7 +6594,7 @@ Statuts conservés de l’audit initial. Une page consultée ne signifie pas l�
 
 ## Historique, refus et exclusions
 
-- Deux nouveaux originaux SomberTwilight (Dead or Alive et Clock Tower) : refus anti-robot en CI, pages manuelles.
+- Deux originaux SomberTwilight de la vague précédente (Dead or Alive et Clock Tower) : refus anti-robot en CI, pages manuelles.
 - Thrill Kill et dix archives ironhulk33 : protégés, sans installation validée.
 - Shining Red : 403 ; Chrono Cross : MEGA EBLOCKED ; Lunar : ENOENT ; Silent Hill Juancho : Drive 404 ; Tarrantx : arrêt après Drive 429.
 - Shadow Tower : JPEG portant une extension PNG ; archive non réparée et non activée.
@@ -6535,21 +6614,27 @@ Ces conclusions sont conservées dans leur contexte historique ; les vérificati
 | S176 Castlevania Tarrantx | Both cross-posts readable; one family; no downloadable archive link recovered; 10 GB / ~100k files reported. |
 | S177 WipEout | Old repository GitHub API 404 confirmed. WipEout-Mods public but focused on PSP; no authorised exact PS1 replacement payload validated. |
 
-### 37 fiches hors décompte
+### 48 fiches hors décompte
 
 | Piste / jeu | Auteur | État | Source |
 |---|---|---|---|
 | Alien: Resurrection | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/83c46b2f-4cf8-48ae-9de7-a6a132ee3709) |
 | Bloody Roar 1 / 2 requests | dorkasaurusrex | research_only_not_counted | [Source](https://gbatemp.net/threads/bloody-roar-1-and-2.683094/) |
+| Bugs Bunny: Lost in Time — loading screens | CRASHARKI | indexed_author_publication_HTTP403_unverified | [Source](https://www.deviantart.com/crasharki/art/Bugs-Bunny-Lost-in-Time-LoadingScreen-Texture-Pack-1204591971) |
 | C-12: Final Resistance | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/d8123efc-1379-41b3-a14f-c2c1e9df70c3) |
+| Chrono Cross — unattributed download reference | Kabson (publisher; original texture authorship unconfirmed) | unattributed_file_reference_possible_existing_project | [Source](https://variatkowo.pl/forum/temat/chrono-cross-hd-texture-pack/) |
 | Crusaders of Might and Magic | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/be021745-03e2-4175-bb3b-cc5cf0050064) |
 | Dino Crisis | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/3ed41ade-1fc7-4e01-bc3f-517c0d76386c) |
 | Dino Crisis 2 | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/cc913275-8701-458d-92b2-630c46a288bb) |
+| Dino Crisis — DuckScaler demonstration | Kabson | tool_demonstration_not_a_released_pack | [Source](https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/) |
 | Evil Zone texture dumping | Ryuubu | research_only_not_counted | [Source](https://gbatemp.net/threads/psx-evil-zone-cant-figure-out-how-to-dump-some-textures-any-ideas-bounty-inside.684630/) |
 | Fighting Force | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/29d51af5-1a58-45a9-89dd-ae012f53b217) |
+| Harvest Moon — PS1 tests | Kupo91 | historical_dump_or_upscale_experiment_not_released_pack | [Source](https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000) |
 | Hogs of War | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/ff50f19d-6017-4f49-9174-81231660fafd) |
+| Legend of Legaia | MissNewtype | historical_dump_or_upscale_experiment_not_released_pack | [Source](https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000) |
 | Metal Gear Solid | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/7d5e711d-0142-4458-bffc-db017a7ed08a) |
 | Nightmare Creatures | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/98a4c4a9-0f81-4edd-943a-4050027b55fc) |
+| PaRappa the Rapper — HD Xbox button pack | Author not established | indexed_public_listing_engine_and_dependency_unverified | [Source](https://gamebanana.com/mods/641163) |
 | Parasite Eve | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/d0c0e096-1541-4e2f-9715-5e408400a098) |
 | Parasite Eve II background upscale | barbeariadofefo (unconfirmed) | research_only_not_counted | [Source](https://rutube.ru/video/d17844b763a3245af3426b52042d290c/) |
 | Parasite Eve II native remaster | faligame | research_only_not_counted | [Source](https://github.com/faligame/Parasite-Eve-2-HD-Remaster) |
@@ -6570,16 +6655,21 @@ Ces conclusions sont conservées dans leur contexte historique ; les vérificati
 | Tekken 2 | Bl4ckH4nd | documented_integration_of_existing_creator_pack_not_new_family | [Source](https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation) |
 | Tekken 3 | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/bf75bb0a-0d59-4e44-a7bd-ab26b8b6f8f4) |
 | Tenchu: Stealth Assassins | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/48d11f08-9c6e-4d9b-95be-ddd4034edaec) |
+| Thousand Arms | OTFree | historical_dump_or_upscale_experiment_not_released_pack | [Source](https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000) |
+| Tomb Raider — DuckScaler demonstration | Kabson | tool_demonstration_not_a_released_pack | [Source](https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/) |
 | Tomba recomp example HD pack | mstan | research_only_not_counted | [Source](https://github.com/mstan/TombaRecomp) |
+| Tomba! 2 — USA title/font component | NoBigDeal La | creator_indexed_component_no_download | [Source](https://www.youtube.com/watch?v=KVGNgvse4kk) |
+| Toy Story 2 — DuckScaler demonstration | Kabson | tool_demonstration_not_a_released_pack | [Source](https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/) |
 | Vagrant Story | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/44f3afbc-2893-48f6-9269-e42374654fff) |
 | Vagrant Story — IceBullet-attributed pack | IceBullet (attribution unresolved) | secondary_attribution_unresolved | [Source](https://gbatemp.net/threads/ps1-duckstation-texture-packs-are-now-a-thing-vagrant-story.662541/) |
 | Vampire Hunter D | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/f6a60c77-7cb3-4f22-96a5-91b15ced9052) |
+| WipEout series — font/UI rework | SinkPrestigious3317 | creator_demo_game_edition_and_independence_unconfirmed | [Source](https://www.reddit.com/r/WipeOut/comments/1rtke8i/duckstation_texture_replacement_is_awesome/) |
 | X-Men: Mutant Academy 2 recomp texture tooling | GTTeancum | research_only_not_counted | [Source](https://github.com/GTTeancum/xmen-mutant-academy-2-pc) |
 | Xena: Warrior Princess | Crazy Ivan (publisher; original texture authorship unconfirmed) | assembly_catalogue_originality_unconfirmed | [Source](https://boosty.to/crazy_ivan/posts/cd66b396-0863-40bb-abdc-1773150df430) |
 
 ## Méthode et bornes
 
-Les sept vagues couvrent listes, créateurs, jeux, recherche multilingue, liens historiques, consolidation et pistes secondaires. Le volet principal consigne 247 termes racine, complétés par les journaux spécialisés. Ce n’est ni un nombre de documents intégralement lus, ni un nombre de packs distincts, ni une mesure de toutes les recherches exécutées. Les pages consultées et extraits indexés sont distingués dans les registres. Les langues comprennent notamment français, anglais, russe, chinois, japonais, portugais et espagnol.
+Les sept vagues couvrent listes, créateurs, jeux, recherche multilingue, liens historiques, consolidation et pistes secondaires. Le journal historique consigne 247 termes racine. La continuation consigne séparément 97 requêtes web et 14 recherches de dépôts GitHub. Ce n’est ni un nombre de documents intégralement lus, ni un nombre de packs distincts, ni une mesure de toutes les recherches exécutées. Les pages consultées et extraits indexés sont distingués dans les registres. Les langues comprennent notamment français, anglais, russe, chinois, japonais, portugais et espagnol.
 
 Le résultat est une borne basse datée, sans prétention d’exhaustivité absolue. Les projets privés, liens morts, sources non indexées et attributions incertaines limitent la couverture. Les objectifs200/300 ne sont revendiqués que si les familles sont étayées. Aucun contenu PS2/PSP/Dreamcast n’est assimilé à un pack PS1. Aucun jeu/ROM/ISO/BIN/CUE n’est fourni ; aucun réhébergement ou contournement de paywall, quota ou anti-robot.
 
@@ -6589,17 +6679,15 @@ Beetle PSX HW utilise Vulkan/MoltenVK pour les remplacements. Le repli logiciel 
 
 ## Preuves et exports
 
-Catalogue : `2026-10-20.56904c72933f`. SHA-256 gzip : `cd05e0ebd8c1783768f7dbc94f94abe9adce61b376ecc058961ca2e39a2c48a7`. Index global : 1123 références, 424 familles installables, 509 profils vérifiés. Source finale : [015e40b70cff8f853709cc6e5cf0a4050c5e3b7f](https://github.com/TarbleFR/neostation-ios/commit/015e40b70cff8f853709cc6e5cf0a4050c5e3b7f).
+Catalogue : `2026-10-20.cb9ec63ce729`. SHA-256 gzip : `80b1284294d7ac29d4a64f5512af1b3ffd61f26753df898ee28e2eab7f633453`. Index global : 1124 références, 424 familles installables, 509 profils vérifiés. Source finale : [b5207313a5ac9458b9ea765daf72d04a781b937e](https://github.com/TarbleFR/neostation-ios/commit/b5207313a5ac9458b9ea765daf72d04a781b937e).
 
 - [CI Somber39482826008](https://github.com/TarbleFR/neostation-ios/actions/runs/39482826008) : source `0cd67e5830f271a7dc6010b55a893c74af2c01be`, deux refus protégés.
 - [CI Gran Turismo 2 CAC39483666586](https://github.com/TarbleFR/neostation-ios/actions/runs/39483666586) : source `fba188684d75867808eaa2de9c122fc19fcfdad3`, archive originale installée,233PNG valides, zéro PNG invalide ; édition USA Arcade v1.1 à confirmer.
-- [Validation de publication 39484361864](https://github.com/TarbleFR/neostation-ios/actions/runs/39484361864)
+- [Validation de publication 39496716743](https://github.com/TarbleFR/neostation-ios/actions/runs/39496716743)
 - [Inventaire JSON complet](https://github.com/TarbleFR/neostation-ios/blob/Claude/tools/textures/research/ps1-hd-inventory-expanded-2026-10-20.json) · [Export CSV](https://github.com/TarbleFR/neostation-ios/blob/Claude/tools/textures/research/ps1-hd-inventory-expanded-2026-10-20.csv) · [Registre des qualifications](https://github.com/TarbleFR/neostation-ios/blob/Claude/tools/textures/research/ps1-hd-expansion-review-2026-10-20.json).
 - [Anciennes exclusions PS1](https://github.com/TarbleFR/neostation-ios/blob/Claude/tools/textures/sources/excluded-ps1-489.json) · [Contraintes du projet](https://github.com/TarbleFR/neostation-ios/blob/Claude/AGENTS.md) · [Branche Claude](https://github.com/TarbleFR/neostation-ios/tree/Claude).
 
 Aucun Core, moteur, fichier Dart ou interface produit n’est modifié par la recherche. Aucune IPA produite pour ce chantier.
 
-187 contrôles Foundation, 0 échec. [Rapport de contrôle du catalogue](https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/evidence/ps1-hd-catalogue-checks.json). La porte de la prochaine mise à jour après la livraison 499 est validée. [Résultat de la porte de livraison](https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/evidence/ps1-hd-delivery-guard.json).
-
-[Porte de la prochaine mise à jour après la 499 : 39484758626](https://github.com/TarbleFR/neostation-ios/actions/runs/39484758626) : réussie. Aucune IPA n’a été produite par cette mission.
+189 contrôles Foundation, 0 échec. [Rapport de contrôle du catalogue](https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/evidence/ps1-hd-catalogue-checks.json). Aucune nouvelle IPA demandée. La porte conservée ci-dessous concerne l’ancien catalogue de 37 références ; elle ne valide pas une livraison du catalogue courant de 38 références. [Résultat de la porte de livraison](https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/evidence/ps1-hd-delivery-guard.json).
 

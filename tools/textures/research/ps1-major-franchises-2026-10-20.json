@@ -412,7 +412,10 @@
       "runtime_profile_ids": [],
       "verified_neostation_download": false,
       "physical_iphone_render_verified": false,
-      "note": "Two credited projects; Curse_Arms forum title explicit. A separate2026 thread merely requests a link. Direct HTML403 stopped; no archive recovered."
+      "note": "Two credited projects; Curse_Arms forum title explicit. A separate2026 thread merely requests a link. Direct HTML403 stopped; no archive recovered. A public GeniusBug tutorial repeats a Drive reference for Curse_Arms; secondary attribution only, no archive downloaded or compatibility promoted.",
+      "secondary_tutorial_sources": [
+        "https://www.patreon.com/geniusbug/posts/how-to-install-3-138154326"
+      ]
     },
     {
       "id": "ps1-priority-tomb-raider",
@@ -421,7 +424,7 @@
       "console": "PS1",
       "priority": 1,
       "review_date": "2026-10-20",
-      "status": "no_qualified_PS1_pack_identified",
+      "status": "duckstation_tool_demo_without_published_pack",
       "search_scope": "title_specific_queries",
       "project_ids": [],
       "counted_families": [],
@@ -432,7 +435,13 @@
       "runtime_profile_ids": [],
       "verified_neostation_download": false,
       "physical_iphone_render_verified": false,
-      "note": "No Beetle/DuckStation author archive established. Tomb Raider Xtra targets PC Glidos/TombATI; modern remasters and standalone remakes are not PS1 packs."
+      "note": "Kabson demonstrates Tomb Raider textures with the DuckScaler Windows/DuckStation upscaling tool. Its attachment is the program, not an author-published game pack. No separate Beetle/DuckStation archive established. PC Glidos/TombATI packs and remasters remain distinct.",
+      "related_uncounted_project_ids": [
+        "ps1-kabson-duckscaler-tomb-raider-demo"
+      ],
+      "related_source_urls": [
+        "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/"
+      ]
     },
     {
       "id": "ps1-priority-tomb-raider-ii",
@@ -1466,5 +1475,19 @@
     "Search results, failed pages, PC textures and per-disc folders are not counted as new packs.",
     "No new archive installation, core build, engine change, UI change or IPA in this pass.",
     "Build500 already delivered remains unchanged."
-  ]
+  ],
+  "continued_research": {
+    "date": "2026-10-20",
+    "journal_path": "tools/textures/research/ps1-continued-research-2026-10-20.json",
+    "web_queries": 97,
+    "github_repository_queries": 14,
+    "new_verified_downloads": 0,
+    "new_counted_priority_game_projects": 0,
+    "new_counted_general_projects": 1,
+    "research_families_current": 180,
+    "runtime_references_current": 38,
+    "runtime_verified_current": 8,
+    "runtime_manual_current": 30,
+    "note": "The counts section above preserves the prior 44-query pass. The current additional family is Resident Evil: Survivor HQ, outside the 19-game matrix; Tomb Raider tool demos do not establish a released pack."
+  }
 }

@@ -6,47 +6,47 @@
   "read_baseline_commit": "64e73bcfdcaa66067b7a8edfea0e8852faa0d43a",
   "scope": "Renewed PS1-only research, conservative family grouping, creator attribution and source-qualified engine variants. Runtime publication is read from the exact current manifest; no additional archive success is inferred.",
   "counts": {
-    "research_project_families": 179,
-    "previous_research_project_families": 159,
-    "additional_qualified_research_families": 20,
-    "inventory_rows": 216,
-    "beetle_named_projects": 52,
+    "research_project_families": 180,
+    "previous_research_project_families": 179,
+    "additional_qualified_research_families": 1,
+    "inventory_rows": 228,
+    "beetle_named_projects": 53,
     "duckstation_named_projects": 109,
     "projects_with_both_engine_variants": 9,
-    "unique_game_titles_researched_with_projects": 140,
+    "unique_game_titles_researched_with_projects": 141,
     "runtime_ps1_references_before": 2,
-    "runtime_ps1_references_after": 37,
-    "new_runtime_references": 35,
+    "runtime_ps1_references_after": 38,
+    "new_runtime_references": 36,
     "new_verified_one_tap_packs": 6,
-    "new_manual_author_references": 29,
+    "new_manual_author_references": 30,
     "runtime_verified_one_tap_before": 2,
     "runtime_verified_one_tap_after": 8,
     "new_archives_installed_in_canonical_ci": 6,
     "new_archive_protection_refusals": 13,
     "physical_iphone_render_tests": 0,
-    "uncounted_inventory_rows": 37,
+    "uncounted_inventory_rows": 48,
     "new_unconfirmed_assembly_catalogue_rows": 23,
     "category_C_future_projects": 4,
     "engine_unconfirmed_projects": 23,
-    "runtime_manual_author_references_after": 29,
-    "previous_runtime_references": 34,
-    "additional_runtime_references_this_wave": 3,
-    "additional_verified_downloads_this_wave": 1,
-    "additional_canonical_observations_this_wave": 3,
-    "archive_successes_this_wave": 1,
-    "archive_protection_refusals_this_wave": 2,
+    "runtime_manual_author_references_after": 30,
+    "previous_runtime_references": 37,
+    "additional_runtime_references_this_wave": 1,
+    "additional_verified_downloads_this_wave": 0,
+    "additional_canonical_observations_this_wave": 0,
+    "archive_successes_this_wave": 0,
+    "archive_protection_refusals_this_wave": 0,
     "unique_game_titles_researched_legacy_baseline": 124,
     "unique_game_titles_baseline_preserving_special_edition": 125,
-    "creator_attribution_groups": 46,
-    "documented_project_evidence_urls": 246,
-    "documented_urls_including_downloads": 303,
-    "explicitly_logged_consultation_urls": 269,
+    "creator_attribution_groups": 47,
+    "documented_project_evidence_urls": 261,
+    "documented_urls_including_downloads": 319,
+    "explicitly_logged_consultation_urls": 298,
     "canonical_ps1_observations_total": 21,
     "canonical_ps1_observations_since_initial_two": 19,
-    "runtime_unique_games_or_editions": 35,
+    "runtime_unique_games_or_editions": 36,
     "runtime_verified_unique_games_or_editions": 8,
     "initial_runtime_unique_games_or_editions": 2,
-    "new_runtime_unique_games_or_editions": 33,
+    "new_runtime_unique_games_or_editions": 34,
     "new_verified_unique_games_or_editions": 6
   },
   "counting_rules": [
@@ -645,10 +645,12 @@
       "neostation_runtime_catalogue": false,
       "newly_discovered": true,
       "source_urls": [
-        "https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing"
+        "https://docs.google.com/spreadsheets/d/1IX8k_4HU6xvbkod0ZrhlRd1DumgTLVS0NJFmW42hPxw/edit?usp=sharing",
+        "https://steamcommunity.com/app/3183970/discussions/0/528723987504598263/"
       ],
       "notes": [
-        "Listed in the PS1 section of the creator-linked inventory; engine, exact archive and regional support require per-file verification."
+        "Listed in the PS1 section of the creator-linked inventory; engine, exact archive and regional support require per-file verification.",
+        "Bl4ck H4nd publicly mentions a PS1 texture pack in the Gex Trilogy discussion, without identifying a separate Gex3 project. No extra family inferred."
       ],
       "last_reviewed": "2026-10-20",
       "runtime_profile_ids": [],
@@ -2613,10 +2615,12 @@
       "neostation_runtime_catalogue": false,
       "newly_discovered": true,
       "source_urls": [
-        "https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/"
+        "https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/",
+        "https://www.patreon.com/geniusbug/posts/how-to-install-3-138154326"
       ],
       "notes": [
-        "Creator PS1 inventory; no Beetle compatibility. Revisions of this project are merged."
+        "Creator PS1 inventory; no Beetle compatibility. Revisions of this project are merged.",
+        "Secondary public GeniusBug tutorial recovered a Drive reference attributed to the existing author post. No new project or archive verification; prior direct403 remains respected."
       ],
       "last_reviewed": "2026-10-20",
       "runtime_profile_ids": [],
@@ -2626,6 +2630,13 @@
       "creator_aliases": [
         "Curse_Arms",
         "IceBullet"
+      ],
+      "secondary_download_references": [
+        {
+          "url": "https://drive.usercontent.google.com/download?id=1FQ9irFfa1Mcncd_YRlobUMlP9EDsieWq&export=download&authuser=0",
+          "source_url": "https://www.patreon.com/geniusbug/posts/how-to-install-3-138154326",
+          "qualification": "Public tutorial credits the known original Curse_Arms forum. Link not verified against author archive; not downloaded and not an installable Beetle pack."
+        }
       ]
     },
     {
@@ -14505,6 +14516,642 @@
         "palmeroides",
         "Jose Manuel Fdz"
       ]
+    },
+    {
+      "id": "ps1-leigiboy-resident-evil-survivor-hq",
+      "family": "ps1-leigiboy-resident-evil-survivor-hq",
+      "pack_name": "Resident Evil: Survivor HQ — LeigiBoy",
+      "game": "Resident Evil: Survivor",
+      "games": [
+        "Resident Evil: Survivor"
+      ],
+      "console": "PS1",
+      "creator": "LeigiBoy",
+      "project_url": "https://www.moddb.com/mods/re-survivor-hq-texture-pack",
+      "download_urls": [
+        "https://www.moddb.com/mods/re-survivor-hq-texture-pack/downloads/re-survivor-hq-textures",
+        "https://www.moddb.com/downloads/start/297863"
+      ],
+      "version": null,
+      "publication_date": "2025-10-09",
+      "last_updated": null,
+      "engines": [
+        "Beetle PSX HW"
+      ],
+      "category": "A",
+      "disc_ids": [
+        "SLUS-01087"
+      ],
+      "regions": [
+        "USA (filename declaration; edition to confirm)"
+      ],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": "Author says place the texture-replacements folder next to the game image; actual archive uninspected.",
+      "compressed_bytes": null,
+      "compressed_size_reported": "718086365 bytes (684.82 MiB), author-hosted ModDB listing",
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "published_partial_with_known_core_limitations",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "runtime_manual_reference_archive_unverified",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": "manual_author_reference_archive_unverified",
+      "neostation_runtime_catalogue": true,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://www.moddb.com/mods/re-survivor-hq-texture-pack",
+        "https://www.moddb.com/mods/re-survivor-hq-texture-pack/downloads/re-survivor-hq-textures",
+        "https://www.patreon.com/LGBoy/posts/resident-evil-hq-138105621",
+        "https://www.patreon.com/LGBoy/posts/resident-evil-hq-93929166",
+        "https://www.patreon.com/LGBoy/posts/resident-evil-hq-105401982",
+        "https://www.patreon.com/LGBoy/posts/remake-demake-v0-153805776"
+      ],
+      "notes": [
+        "Original author public ModDB release and dated Patreon final-update identify a real PS1 HW Beetle texture project. It is not the Windows game port.",
+        "Author reports missing characters/enemies and problematic animated screens, switches and changing palettes. Do not infer full visual coverage from the host Full Version label.",
+        "Host lists Resident_Evil_-_Survivor_USA-texture-replacements.1.rar,718086365 bytes and MD5a0b7a129df594bfebc10cf901fac6d3f. These are listing metadata; archive bytes, contents, unpacked size and PNG count were not checked.",
+        "The cached signed ModDB redirect returned410 Gone; no archive was transferred. An expired redirect does not establish that the original file or project disappeared. No alternate transfer, rehost or private Patreon file fetched.",
+        "A later public Patreon post mentions a DuckStation update in development, while the ModDB description says no DuckStation port currently available. No public DuckStation archive recovered; engine portability is not inferred.",
+        "USA filename matched to the public PS1 game database SLUS-01087 as an edition candidate only. Exact archive serial mapping and PAL/French support remain unverified."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [
+        "ps1-leigiboy-resident-evil-survivor-hq"
+      ],
+      "runtime_publication_mode": "manual_author_page_only",
+      "counted_as_family": true,
+      "creator_id": "credit:leigiboy",
+      "host_reported_compressed_bytes": 718086365,
+      "host_reported_md5": "a0b7a129df594bfebc10cf901fac6d3f",
+      "archive_name_reported": "Resident_Evil_-_Survivor_USA-texture-replacements.1.rar",
+      "creator_aliases": [
+        "LeigiBoy",
+        "Leigiboy"
+      ]
+    },
+    {
+      "id": "ps1-parappa-xbox-buttons-gamebanana-unqualified",
+      "family": "ps1-parappa-xbox-buttons-gamebanana-unqualified",
+      "pack_name": "PaRappa the Rapper — HD Xbox button pack — Author not established",
+      "game": "PaRappa the Rapper — HD Xbox button pack",
+      "games": [
+        "PaRappa the Rapper — HD Xbox button pack"
+      ],
+      "console": "PS1",
+      "creator": "Author not established",
+      "project_url": "https://gamebanana.com/mods/641163",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [],
+      "category": "unconfirmed",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "indexed_public_listing_engine_and_dependency_unverified",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "indexed_public_listing_engine_and_dependency_unverified",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": null,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://gamebanana.com/mods/641163"
+      ],
+      "notes": [
+        "Public title/category says PS1 HD Xbox button textures. Author, base-pack dependency, engine, archive and installation structure not recovered.",
+        "Normal public API request returned403; stopped. Button-layout variant is not counted as an independent HD family.",
+        "A later indexed category result also lists a PPSSPP beta pack. The PS1 category alone cannot establish that this Xbox-button variant targets the PS1 release; leave the platform/engine qualification pending."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:author-not-established"
+    },
+    {
+      "id": "ps1-crasharki-bugs-bunny-loading-screens-unqualified",
+      "family": "ps1-crasharki-bugs-bunny-loading-screens-unqualified",
+      "pack_name": "Bugs Bunny: Lost in Time — loading screens — CRASHARKI",
+      "game": "Bugs Bunny: Lost in Time — loading screens",
+      "games": [
+        "Bugs Bunny: Lost in Time — loading screens"
+      ],
+      "console": "PS1",
+      "creator": "CRASHARKI",
+      "project_url": "https://www.deviantart.com/crasharki/art/Bugs-Bunny-Lost-in-Time-LoadingScreen-Texture-Pack-1204591971",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [],
+      "category": "unconfirmed",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "indexed_author_publication_HTTP403_unverified",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "indexed_author_publication_HTTP403_unverified",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": null,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://www.deviantart.com/crasharki/art/Bugs-Bunny-Lost-in-Time-LoadingScreen-Texture-Pack-1204591971"
+      ],
+      "notes": [
+        "Indexed creator title names a loading-screen texture pack; original page403, stopped. Engine, archive and exact game edition remain unverified."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:crasharki"
+    },
+    {
+      "id": "ps1-sinkprestigious3317-wipeout-font-ui-wip",
+      "family": "ps1-sinkprestigious3317-wipeout-font-ui-wip",
+      "pack_name": "WipEout series — font/UI rework — SinkPrestigious3317",
+      "game": "WipEout series — font/UI rework",
+      "games": [],
+      "console": "PS1",
+      "creator": "SinkPrestigious3317",
+      "project_url": "https://www.reddit.com/r/WipeOut/comments/1rtke8i/duckstation_texture_replacement_is_awesome/",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [
+        "DuckStation"
+      ],
+      "category": "B",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "creator_demo_game_edition_and_independence_unconfirmed",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "creator_demo_game_edition_and_independence_unconfirmed",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": false,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://www.reddit.com/r/WipeOut/comments/1rtke8i/duckstation_texture_replacement_is_awesome/"
+      ],
+      "notes": [
+        "Creator shows manually aligned text using NR74W fonts plus ML upscales; incomplete, no public archive confirmed.",
+        "Exact game/edition and relationship to the existing NR74W project remain unconfirmed; conservatively excluded from the independent family count."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:sinkprestigious3317"
+    },
+    {
+      "id": "ps1-kabson-duckscaler-tomb-raider-demo",
+      "family": "ps1-kabson-duckscaler-tomb-raider-demo",
+      "pack_name": "Tomb Raider — DuckScaler demonstration — Kabson",
+      "game": "Tomb Raider — DuckScaler demonstration",
+      "games": [
+        "Tomb Raider"
+      ],
+      "console": "PS1",
+      "creator": "Kabson",
+      "project_url": "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [
+        "DuckStation"
+      ],
+      "category": "B",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "tool_demonstration_not_a_released_pack",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "tool_demonstration_not_a_released_pack",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": false,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/"
+      ],
+      "notes": [
+        "Tool author identifies this game among tests and shows comparisons. The downloadable attachment is DuckScaler, not a game texture pack; no standalone pack established."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:kabson"
+    },
+    {
+      "id": "ps1-kabson-duckscaler-dino-crisis-demo",
+      "family": "ps1-kabson-duckscaler-dino-crisis-demo",
+      "pack_name": "Dino Crisis — DuckScaler demonstration — Kabson",
+      "game": "Dino Crisis — DuckScaler demonstration",
+      "games": [
+        "Dino Crisis"
+      ],
+      "console": "PS1",
+      "creator": "Kabson",
+      "project_url": "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [
+        "DuckStation"
+      ],
+      "category": "B",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "tool_demonstration_not_a_released_pack",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "tool_demonstration_not_a_released_pack",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": false,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/"
+      ],
+      "notes": [
+        "Tool author identifies this game among tests and shows comparisons. The downloadable attachment is DuckScaler, not a game texture pack; no standalone pack established."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:kabson"
+    },
+    {
+      "id": "ps1-kabson-duckscaler-toy-story-2-demo",
+      "family": "ps1-kabson-duckscaler-toy-story-2-demo",
+      "pack_name": "Toy Story 2 — DuckScaler demonstration — Kabson",
+      "game": "Toy Story 2 — DuckScaler demonstration",
+      "games": [
+        "Toy Story 2"
+      ],
+      "console": "PS1",
+      "creator": "Kabson",
+      "project_url": "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [
+        "DuckStation"
+      ],
+      "category": "B",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "tool_demonstration_not_a_released_pack",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "tool_demonstration_not_a_released_pack",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": false,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/"
+      ],
+      "notes": [
+        "Tool author identifies this game among tests and shows comparisons. The downloadable attachment is DuckScaler, not a game texture pack; no standalone pack established."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:kabson"
+    },
+    {
+      "id": "ps1-missnewtype-legend-of-legaia-dump-attempt",
+      "family": "ps1-missnewtype-legend-of-legaia-dump-attempt",
+      "pack_name": "Legend of Legaia — MissNewtype",
+      "game": "Legend of Legaia",
+      "games": [
+        "Legend of Legaia"
+      ],
+      "console": "PS1",
+      "creator": "MissNewtype",
+      "project_url": "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [
+        "Beetle PSX HW"
+      ],
+      "category": "A",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "historical_dump_or_upscale_experiment_not_released_pack",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "historical_dump_or_upscale_experiment_not_released_pack",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": null,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000"
+      ],
+      "notes": [
+        "Historical creator discussion of dumping, palette or transparency problems. No distributed pack established; kept outside the count."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:missnewtype"
+    },
+    {
+      "id": "ps1-otfree-thousand-arms-dump-attempt",
+      "family": "ps1-otfree-thousand-arms-dump-attempt",
+      "pack_name": "Thousand Arms — OTFree",
+      "game": "Thousand Arms",
+      "games": [
+        "Thousand Arms"
+      ],
+      "console": "PS1",
+      "creator": "OTFree",
+      "project_url": "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [
+        "Beetle PSX HW"
+      ],
+      "category": "A",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "historical_dump_or_upscale_experiment_not_released_pack",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "historical_dump_or_upscale_experiment_not_released_pack",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": null,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000"
+      ],
+      "notes": [
+        "Historical creator discussion of dumping, palette or transparency problems. No distributed pack established; kept outside the count."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:otfree"
+    },
+    {
+      "id": "ps1-kupo91-harvest-moon-tests",
+      "family": "ps1-kupo91-harvest-moon-tests",
+      "pack_name": "Harvest Moon — PS1 tests — Kupo91",
+      "game": "Harvest Moon — PS1 tests",
+      "games": [
+        "Harvest Moon — PS1 tests"
+      ],
+      "console": "PS1",
+      "creator": "Kupo91",
+      "project_url": "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [
+        "Beetle PSX HW"
+      ],
+      "category": "A",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "historical_dump_or_upscale_experiment_not_released_pack",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "historical_dump_or_upscale_experiment_not_released_pack",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": null,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000"
+      ],
+      "notes": [
+        "Historical creator discussion of dumping, palette or transparency problems. No distributed pack established; kept outside the count."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:kupo91"
+    },
+    {
+      "id": "ps1-kabson-chrono-cross-unattributed-link",
+      "family": "ps1-kabson-chrono-cross-unattributed-link",
+      "pack_name": "Chrono Cross — unattributed download reference — Kabson (publisher; original texture authorship unconfirmed)",
+      "game": "Chrono Cross — unattributed download reference",
+      "games": [
+        "Chrono Cross"
+      ],
+      "console": "PS1",
+      "creator": "Kabson (publisher; original texture authorship unconfirmed)",
+      "project_url": "https://variatkowo.pl/forum/temat/chrono-cross-hd-texture-pack/",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [
+        "Beetle PSX HW"
+      ],
+      "category": "A",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "unattributed_file_reference_possible_existing_project",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "unattributed_file_reference_possible_existing_project",
+      "evidence_level": "primary_public_metadata",
+      "neostation_compatible": null,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://variatkowo.pl/forum/temat/chrono-cross-hd-texture-pack/"
+      ],
+      "notes": [
+        "Public2023 forum post links a Beetle archive without identifying its original texture author. Possible duplicate or rehost of the known Chrono Cross work.",
+        "MEGA fileldAnSITQ was not accessed: original authorship and distribution permission are not established. No substitute for the previously blocked original archive."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:kabson-publisher-original-texture-authorship-unconfirmed"
+    },
+    {
+      "id": "ps1-nobigdeal-la-tomba2-title-font-component",
+      "family": "ps1-uck-tomba-2-tombi-2",
+      "pack_name": "Tomba! 2 — USA title/font component — NoBigDeal La",
+      "game": "Tomba! 2 — USA title/font component",
+      "games": [
+        "Tomba! 2 / Tombi! 2"
+      ],
+      "console": "PS1",
+      "creator": "NoBigDeal La",
+      "project_url": "https://www.youtube.com/watch?v=KVGNgvse4kk",
+      "download_urls": [],
+      "version": null,
+      "publication_date": null,
+      "last_updated": null,
+      "engines": [
+        "DuckStation"
+      ],
+      "category": "B",
+      "disc_ids": [],
+      "regions": [],
+      "discs": null,
+      "texture_formats": [],
+      "installation_structure": null,
+      "compressed_bytes": null,
+      "compressed_size_reported": null,
+      "expanded_bytes": null,
+      "installed_bytes": null,
+      "texture_count": null,
+      "resolution": null,
+      "memory_notes": null,
+      "project_state": "creator_indexed_component_no_download",
+      "licence": "No standalone redistribution licence established",
+      "distribution_conditions": "Original public sources only; no rehosting or private file access.",
+      "verification_status": "creator_indexed_component_no_download",
+      "evidence_level": "primary_creator_search_excerpt",
+      "neostation_compatible": false,
+      "neostation_runtime_catalogue": false,
+      "newly_discovered": true,
+      "source_urls": [
+        "https://www.youtube.com/watch?v=KVGNgvse4kk"
+      ],
+      "notes": [
+        "Indexed author description claims a USA HD title background and fonts, explicitly without a download link. Component grouped conservatively under the existing Tomba2 family, not counted as another whole-game pack."
+      ],
+      "last_reviewed": "2026-10-20",
+      "runtime_profile_ids": [],
+      "runtime_publication_mode": "research_only",
+      "counted_as_family": false,
+      "creator_id": "credit:nobigdeal-la"
     }
   ],
   "priority_source_audit": [
@@ -16869,9 +17516,258 @@
       "date": "2026-10-20",
       "wave": "major_franchise_priority_review",
       "notes": "Public indexed text was readable separately. Subsequent normal direct HTML request returned403 and was stopped; embedded author download not recovered."
+    },
+    {
+      "url": "https://gbatemp.net/forums/sony.738/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://gbatemp.net/threads/sombers-duckstation-collection-guess-were-doing-this-now.666305/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://www.reddit.com/r/WipeOut/comments/1rtke8i/duckstation_texture_replacement_is_awesome/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://steamcommunity.com/app/3183970/discussions/0/528723987504598263/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954?page=2",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://www.patreon.com/geniusbug/posts/how-to-install-3-138154326",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=2801558466&l=english",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://variatkowo.pl/forum/history/kabson/?part=2",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://variatkowo.pl/pobieralnia/vrp/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "click"
+    },
+    {
+      "url": "https://variatkowo.pl/forum/temat/chrono-cross-hd-texture-pack/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "click"
+    },
+    {
+      "url": "https://variatkowo.pl/forum/temat/podmiana-tekstur-w-emulatorze-playstation-one/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "click"
+    },
+    {
+      "url": "https://variatkowo.pl/pobieralnia/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "click"
+    },
+    {
+      "url": "https://variatkowo.pl/forum/history/kabson/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://variatkowo.pl/pobieralnia/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "find"
+    },
+    {
+      "url": "https://variatkowo.pl/forum/temat/podmiana-tekstur-w-emulatorze-playstation-one/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "find"
+    },
+    {
+      "url": "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://sites.google.com/view/vierockretrohd/ps1/vagrant-story-hd",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://www.vierockhd.com/ps1/breath-of-fire-3",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://www.vierockhd.com/ps1/breath-of-fire-iv-hd",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://www.reddit.com/r/duckstation/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://gamebanana.com/mods/641163",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://gamebanana.com/mods/cats/21852",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://www.moddb.com/mods/re-survivor-hq-texture-pack",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://www.moddb.com/mods/re-survivor-hq-texture-pack/downloads/re-survivor-hq-textures",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "click"
+    },
+    {
+      "url": "https://www.patreon.com/LGBoy/posts/remake-demake-v0-153805776",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://www.patreon.com/LGBoy/posts/resident-evil-hq-138105621",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://www.patreon.com/LGBoy/posts/resident-evil-hq-93929166",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://www.patreon.com/LGBoy/posts/resident-evil-hq-105401982",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "open"
+    },
+    {
+      "url": "https://steamcommunity.com/sharedfiles/filedetails/?id=2801558466&l=english",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "find"
+    },
+    {
+      "url": "https://steamcommunity.com/app/3183970/discussions/0/528723987504598263/",
+      "status": "public_text_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "find"
+    },
+    {
+      "url": "https://www.moddb.com/downloads/start/297863",
+      "status": "no_page_content_retrieved",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research",
+      "operation": "click"
+    },
+    {
+      "url": "https://gamebanana.com/apiv11/Mod/641163?_csvProperties=_idRow,_sName,_sText,_aFiles,_aCredits,_aSubmitter,_aSuperCategory,_aCategory,_tsDateAdded,_tsDateModified,_aGame",
+      "status": "HTTP403_stopped",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research"
+    },
+    {
+      "url": "https://github.com/Drm1986/Faithful-Remaster/blob/main/README.md",
+      "status": "github_connector_public_readme_read",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research"
+    },
+    {
+      "url": "https://www.deviantart.com/crasharki/art/Bugs-Bunny-Lost-in-Time-LoadingScreen-Texture-Pack-1204591971",
+      "status": "HTTP403_stopped",
+      "date": "2026-10-20",
+      "wave": "continued_major_franchises_research"
     }
   ],
-  "catalogue_commit": "015e40b70cff8f853709cc6e5cf0a4050c5e3b7f",
+  "catalogue_commit": "b5207313a5ac9458b9ea765daf72d04a781b937e",
   "previous_inventory": "tools/textures/research/ps1-hd-inventory-2026-10-20.json",
   "previous_exclusion_review": [
     {
@@ -16909,9 +17805,9 @@
     "Silent Hill Juancho": "Original Drive file HTTP 404; no runtime promotion."
   },
   "research_baseline_commit": "388f5c5194c5ace2e26ee2753ce1ab221756c512",
-  "catalogue_revision": "2026-10-20.56904c72933f",
-  "catalogue_sha256": "cd05e0ebd8c1783768f7dbc94f94abe9adce61b376ecc058961ca2e39a2c48a7",
-  "current_publication_validation_run": 39484361864,
+  "catalogue_revision": "2026-10-20.cb9ec63ce729",
+  "catalogue_sha256": "80b1284294d7ac29d4a64f5512af1b3ffd61f26753df898ee28e2eab7f633453",
+  "current_publication_validation_run": 39496716743,
   "current_research_new_project_ids": [
     "ps1-napoleongaming-toy-story-racer",
     "ps1-napoleongaming-rugrats-studio-tour",
@@ -17835,7 +18731,7 @@
       ],
       "category": "B",
       "counted_as_family": true,
-      "aggregation_note": "Author-credited integration grouped with original project; no format interchangeability inferred."
+      "aggregation_note": "Engine/component variants are grouped; no file conversion inferred."
     },
     {
       "family": "ps1-bl4ckh4nd-tekken-3",
@@ -19341,7 +20237,7 @@
       ],
       "category": "A+B",
       "counted_as_family": true,
-      "aggregation_note": "Author-credited integration grouped with original project; no format interchangeability inferred."
+      "aggregation_note": "Engine/component variants are grouped; no file conversion inferred."
     },
     {
       "family": "ps1-ironhulk33-strikers-1945",
@@ -19591,6 +20487,25 @@
         "Severed Chains (current)"
       ],
       "category": "C",
+      "counted_as_family": true,
+      "aggregation_note": null
+    },
+    {
+      "family": "ps1-leigiboy-resident-evil-survivor-hq",
+      "primary_counted_row_id": "ps1-leigiboy-resident-evil-survivor-hq",
+      "row_ids": [
+        "ps1-leigiboy-resident-evil-survivor-hq"
+      ],
+      "creators": [
+        "LeigiBoy"
+      ],
+      "games": [
+        "Resident Evil: Survivor"
+      ],
+      "engines": [
+        "Beetle PSX HW"
+      ],
+      "category": "A",
       "counted_as_family": true,
       "aggregation_note": null
     },
@@ -20246,9 +21161,11 @@
       "family": "ps1-uck-tomba-2-tombi-2",
       "primary_counted_row_id": "ps1-uck-tomba-2-tombi-2",
       "row_ids": [
-        "ps1-uck-tomba-2-tombi-2"
+        "ps1-uck-tomba-2-tombi-2",
+        "ps1-nobigdeal-la-tomba2-title-font-component"
       ],
       "creators": [
+        "NoBigDeal La",
         "uck"
       ],
       "games": [
@@ -20259,7 +21176,7 @@
       ],
       "category": "B",
       "counted_as_family": true,
-      "aggregation_note": null
+      "aggregation_note": "Engine/component variants are grouped; no file conversion inferred."
     },
     {
       "family": "ps1-unchiga-xander-forbidden-memories-hd",
@@ -20981,8 +21898,8 @@
   },
   "count_audit": {
     "creators": {
-      "attribution_groups": 46,
-      "named_credited_creators_or_teams": 46,
+      "attribution_groups": 47,
+      "named_credited_creators_or_teams": 47,
       "groups": [
         {
           "key": "1vierock",
@@ -21485,6 +22402,19 @@
           ]
         },
         {
+          "key": "leigiboy",
+          "creator_id": "credit:leigiboy",
+          "labels": [
+            "LeigiBoy"
+          ],
+          "family_ids": [
+            "ps1-leigiboy-resident-evil-survivor-hq"
+          ],
+          "row_ids": [
+            "ps1-leigiboy-resident-evil-survivor-hq"
+          ]
+        },
+        {
           "key": "linnaealyn",
           "creator_id": "credit:linnaealyn",
           "labels": [
@@ -21548,11 +22478,13 @@
           ],
           "family_ids": [
             "ps1-nobigdeal-la-dead-or-alive",
-            "ps1-nobigdeal-la-rage-racer-hd-demo"
+            "ps1-nobigdeal-la-rage-racer-hd-demo",
+            "ps1-uck-tomba-2-tombi-2"
           ],
           "row_ids": [
             "ps1-nobigdeal-la-dead-or-alive",
-            "ps1-nobigdeal-la-rage-racer-hd-demo"
+            "ps1-nobigdeal-la-rage-racer-hd-demo",
+            "ps1-nobigdeal-la-tomba2-title-font-component"
           ]
         },
         {
@@ -21894,7 +22826,7 @@
     },
     "games": {
       "definition": "Normalized base-game titles, preserving Wip3out Special Edition; component titles only when explicitly present in games arrays.",
-      "count": 140,
+      "count": 141,
       "groups": [
         {
           "key": "air-combat",
@@ -22923,6 +23855,18 @@
           ]
         },
         {
+          "key": "resident-evil-survivor",
+          "titles": [
+            "Resident Evil: Survivor"
+          ],
+          "family_ids": [
+            "ps1-leigiboy-resident-evil-survivor-hq"
+          ],
+          "creator_labels": [
+            "LeigiBoy"
+          ]
+        },
+        {
           "key": "ridge-racer",
           "titles": [
             "Ridge Racer"
@@ -23439,6 +24383,7 @@
             "ps1-uck-tomba-2-tombi-2"
           ],
           "creator_labels": [
+            "NoBigDeal La",
             "uck"
           ]
         },
@@ -23679,15 +24624,15 @@
       ]
     },
     "sources": {
-      "documented_project_evidence_urls_all_rows": 246,
-      "documented_project_evidence_urls_counted_families": 211,
-      "project_page_url_fields_counted_families": 118,
-      "documented_original_download_url_fields": 61,
-      "documented_reference_and_download_union": 303,
-      "explicitly_logged_consulted_url_count": 269,
-      "logged_consultation_observations": 344,
-      "documented_urls_also_in_explicit_consultation_log": 159,
-      "documented_urls_without_explicit_log": 87,
+      "documented_project_evidence_urls_all_rows": 261,
+      "documented_project_evidence_urls_counted_families": 220,
+      "project_page_url_fields_counted_families": 120,
+      "documented_original_download_url_fields": 63,
+      "documented_reference_and_download_union": 319,
+      "explicitly_logged_consulted_url_count": 298,
+      "logged_consultation_observations": 380,
+      "documented_urls_also_in_explicit_consultation_log": 176,
+      "documented_urls_without_explicit_log": 85,
       "documented_evidence_urls": [
         "https://boosty.to/crazy_ivan",
         "https://boosty.to/crazy_ivan/posts/29d51af5-1a58-45a9-89dd-ae012f53b217",
@@ -23720,6 +24665,8 @@
         "https://dtf.ru/games/4055805-obnovlennaya-trilogiya-resident-evil-1-2-3?comment=56542159",
         "https://dtf.ru/id1631717/comments",
         "https://forums.duke4.net/topic/10473-release-duke-nukem-3d-upscale-pack/page__st__120",
+        "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000",
+        "https://gamebanana.com/mods/641163",
         "https://gbatemp.net/download/kings-field-3-hd-texture-pack-60.39022/",
         "https://gbatemp.net/forums/sony.738/page-2",
         "https://gbatemp.net/threads/akuji-the-heartless-duckstation-hd-textures.668864/",
@@ -23827,9 +24774,13 @@
         "https://scientia.godsibb.net/t/xenogears-perfect-art-works-paw-retroarch-texture-pack/1158",
         "https://sites.google.com/view/hub-of-faospark/project-kyaro",
         "https://sites.google.com/view/vierockretrohd/ps1/xenogears",
+        "https://steamcommunity.com/app/3183970/discussions/0/528723987504598263/",
         "https://theancientsden.blogspot.com/p/soul-reaver-hd-texture-pack.html",
+        "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/",
+        "https://variatkowo.pl/forum/temat/chrono-cross-hd-texture-pack/",
         "https://www.bilibili.com/video/BV1DhGd6kEBy/",
         "https://www.bilibili.com/video/BV1reV96dEBZ/",
+        "https://www.deviantart.com/crasharki/art/Bugs-Bunny-Lost-in-Time-LoadingScreen-Texture-Pack-1204591971",
         "https://www.emutalk.net/threads/lunar-silver-star-story-complete-portrait-texture-pack.57511/",
         "https://www.emutalk.net/threads/the-state-of-playstation-texture-replacement.57487/",
         "https://www.estudiocases.com/post/tekken-1-de-psx-con-doblaje-en-castellano-ahora-con-texturas-hd",
@@ -23852,6 +24803,8 @@
         "https://www.moddb.com/games/resident-evil/addons/resident-evil-dc-ai-overhaul-duckstation",
         "https://www.moddb.com/mods/dntm/downloads/duke-nukem-total-meltdown-tc-v103",
         "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163",
+        "https://www.moddb.com/mods/re-survivor-hq-texture-pack",
+        "https://www.moddb.com/mods/re-survivor-hq-texture-pack/downloads/re-survivor-hq-textures",
         "https://www.patreon.com/Bl4ckH4nd/posts/few-more-packs-110325292",
         "https://www.patreon.com/Bl4ckH4nd/posts/few-new-packs-148912894",
         "https://www.patreon.com/Bl4ckH4nd/posts/new-and-redone-130761674",
@@ -23869,8 +24822,13 @@
         "https://www.patreon.com/Bl4ckH4nd/posts/two-new-packs-152866039",
         "https://www.patreon.com/Bl4ckH4nd/posts/two-new-packs-155750584",
         "https://www.patreon.com/Bl4ckH4nd/posts/update-122418455",
+        "https://www.patreon.com/LGBoy/posts/remake-demake-v0-153805776",
+        "https://www.patreon.com/LGBoy/posts/resident-evil-hq-105401982",
+        "https://www.patreon.com/LGBoy/posts/resident-evil-hq-138105621",
+        "https://www.patreon.com/LGBoy/posts/resident-evil-hq-93929166",
         "https://www.patreon.com/ShiningRed/posts/xenogears-hd-1-0-41942032",
         "https://www.patreon.com/cw/ironhulk33",
+        "https://www.patreon.com/geniusbug/posts/how-to-install-3-138154326",
         "https://www.patreon.com/ironhulk33/posts/namco-museum-psx-129476305",
         "https://www.patreon.com/libretro/posts/preview-of-pack-39002191",
         "https://www.reddit.com/r/DinoCrisis/comments/1q2yesh/dino_crisis_2_texture_replacement_duckstation/",
@@ -23878,6 +24836,7 @@
         "https://www.reddit.com/r/KingsField/comments/18d4r3q",
         "https://www.reddit.com/r/KingsField/comments/18e7h3r",
         "https://www.reddit.com/r/ResidentEvil1Point5/comments/1ojrdgc/resident_evil_15_birkin_higher_quality_textures/",
+        "https://www.reddit.com/r/WipeOut/comments/1rtke8i/duckstation_texture_replacement_is_awesome/",
         "https://www.reddit.com/r/crashbandicoot/comments/1rc94rq/finally_successful_hd_textures_and_bad_news/",
         "https://www.reddit.com/r/crashbandicoot/comments/1rwvq52/transparent_texture_replacement_figured_out_on_nd/",
         "https://www.reddit.com/r/crashbandicoot/comments/1rzl4sy/updates_regarding_texture_replacements/",
@@ -23912,6 +24871,7 @@
         "https://www.youtube.com/watch?v=DlFNJiz0pYY",
         "https://www.youtube.com/watch?v=GqwVf9HWit0",
         "https://www.youtube.com/watch?v=KUC5Euz3ZVY",
+        "https://www.youtube.com/watch?v=KVGNgvse4kk",
         "https://www.youtube.com/watch?v=MyYbDC5ZlE4",
         "https://www.youtube.com/watch?v=ODTsRspIcWA",
         "https://www.youtube.com/watch?v=Pkuv27uVe48",
@@ -23994,9 +24954,11 @@
         "https://www.mediafire.com/file_premium/uzc9tqy8pwr3iq9/MediEvil_2.7z/file",
         "https://www.mediafire.com/folder/k8yncbpnlckw3/ironhulk33#2ie0qajlodjxz",
         "https://www.moddb.com/addons/start/317315",
+        "https://www.moddb.com/downloads/start/297863",
         "https://www.moddb.com/games/resident-evil/addons/biohazard-director-cut-jap-psx",
         "https://www.moddb.com/games/resident-evil/addons/resident-evil-dc-ai-overhaul-duckstation",
         "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163",
+        "https://www.moddb.com/mods/re-survivor-hq-texture-pack/downloads/re-survivor-hq-textures",
         "https://www.patreon.com/file?h=41942032&m=97947423"
       ],
       "explicitly_logged_consulted_urls": [
@@ -24058,8 +25020,13 @@
         "https://fabledcartridge.com/games/legend-of-legaia/",
         "https://forums.duke4.net/topic/10473-release-duke-nukem-3d-upscale-pack/page__st__120",
         "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954",
+        "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954/1000",
+        "https://forums.libretro.com/t/beetle-psx-hw-texture-replacement-testing-feedback/28954?page=2",
         "https://gamebanana.com/apiv11/Mod/641163",
+        "https://gamebanana.com/apiv11/Mod/641163?_csvProperties=_idRow,_sName,_sText,_aFiles,_aCredits,_aSubmitter,_aSuperCategory,_aCategory,_tsDateAdded,_tsDateModified,_aGame",
         "https://gamebanana.com/apiv11/Mod/644656",
+        "https://gamebanana.com/mods/641163",
+        "https://gamebanana.com/mods/cats/21852",
         "https://gbatemp.net/download/categories/ps1.1449/",
         "https://gbatemp.net/download/kings-field-3-hd-texture-pack-60.39022/",
         "https://gbatemp.net/forums/pcsx2-hd-texture-pack-group.549/",
@@ -24128,6 +25095,7 @@
         "https://gbatemp.net/threads/resident-evil-2-duckstation-hd-textures.673541/",
         "https://gbatemp.net/threads/resident-evil-3-nemesis-duckstation-hd-textures.671314/",
         "https://gbatemp.net/threads/silent-hill-duckstation-hd-textures-2-0.672174/",
+        "https://gbatemp.net/threads/sombers-duckstation-collection-guess-were-doing-this-now.666305/",
         "https://gbatemp.net/threads/tekken-3-hd-textures-duckstation.666371/",
         "https://gbatemp.net/threads/tekken-3-texture.681116/",
         "https://gbatemp.net/threads/texture-packs-complete-list.655702/",
@@ -24139,6 +25107,7 @@
         "https://gbatemp.net/threads/update-on-where-ive-been.662015/",
         "https://gbatemp.net/threads/valkyrie-profile-duckstation-hd-textures.670037/",
         "https://gbatemp.net/threads/xenogears-duckstation-hd-textures.671735/",
+        "https://github.com/Drm1986/Faithful-Remaster/blob/main/README.md",
         "https://github.com/Matsilagi/WO3-Beta-Texturepack",
         "https://github.com/NR74W/WipEout-HD-Texture-Pack",
         "https://github.com/NR74W/WipEout-Mods",
@@ -24160,10 +25129,21 @@
         "https://scientia.godsibb.net/t/xenogears-perfect-art-works-paw-retroarch-texture-pack/1158",
         "https://sites.google.com/view/hub-of-faospark/project-kyaro",
         "https://sites.google.com/view/vierockretrohd/accueil",
+        "https://sites.google.com/view/vierockretrohd/ps1/vagrant-story-hd",
         "https://sites.google.com/view/vierockretrohd/ps1/xenogears",
         "https://snes-projects.de/forum/index.php?pageNo=4&thread/3454-breath-of-fire-iv-beta/=",
+        "https://steamcommunity.com/app/3183970/discussions/0/528723987504598263/",
+        "https://steamcommunity.com/sharedfiles/filedetails/?id=2801558466&l=english",
+        "https://variatkowo.pl/autoit/nasze-skrypty/duckscaler/",
+        "https://variatkowo.pl/forum/history/kabson/",
+        "https://variatkowo.pl/forum/history/kabson/?part=2",
+        "https://variatkowo.pl/forum/temat/chrono-cross-hd-texture-pack/",
+        "https://variatkowo.pl/forum/temat/podmiana-tekstur-w-emulatorze-playstation-one/",
+        "https://variatkowo.pl/pobieralnia/",
+        "https://variatkowo.pl/pobieralnia/vrp/",
         "https://www.bilibili.com/video/BV1DhGd6kEBy/",
         "https://www.bilibili.com/video/BV1reV96dEBZ/",
+        "https://www.deviantart.com/crasharki/art/Bugs-Bunny-Lost-in-Time-LoadingScreen-Texture-Pack-1204591971",
         "https://www.emutalk.net/forums/high-resolution-textures.126/",
         "https://www.emutalk.net/threads/lunar-silver-star-story-complete-portrait-texture-pack.57511/",
         "https://www.estudiocases.com/blog",
@@ -24178,11 +25158,14 @@
         "https://www.moddb.com/addons/slimebuck-xenogears-ui-hd-ai-upscaled-textures-version-1",
         "https://www.moddb.com/addons/start/317315",
         "https://www.moddb.com/downloads/slimebuckxenohd",
+        "https://www.moddb.com/downloads/start/297863",
         "https://www.moddb.com/games/duke-nukem-3d/addons/duke-nukem-upscale-pack-for-total-meltdown",
         "https://www.moddb.com/games/resident-evil/addons/biohazard-director-cut-jap-psx",
         "https://www.moddb.com/games/resident-evil/addons/resident-evil-dc-ai-overhaul-duckstation",
         "https://www.moddb.com/mods/dntm/downloads/duke-nukem-total-meltdown-tc-v103",
         "https://www.moddb.com/mods/final-fantasy-vii-hd-remaster/addons/scus-94163",
+        "https://www.moddb.com/mods/re-survivor-hq-texture-pack",
+        "https://www.moddb.com/mods/re-survivor-hq-texture-pack/downloads/re-survivor-hq-textures",
         "https://www.moddb.com/tags/xenogears",
         "https://www.patreon.com/Bl4ckH4nd/posts/3-new-packs-159281611",
         "https://www.patreon.com/Bl4ckH4nd/posts/added-some-new-103345333",
@@ -24208,10 +25191,15 @@
         "https://www.patreon.com/Bl4ckH4nd/posts/update-122418455",
         "https://www.patreon.com/Bl4ckH4nd/sitemap",
         "https://www.patreon.com/HermanDudeModTools/posts/duckstation-ai-148534996",
+        "https://www.patreon.com/LGBoy/posts/remake-demake-v0-153805776",
+        "https://www.patreon.com/LGBoy/posts/resident-evil-hq-105401982",
+        "https://www.patreon.com/LGBoy/posts/resident-evil-hq-138105621",
+        "https://www.patreon.com/LGBoy/posts/resident-evil-hq-93929166",
         "https://www.patreon.com/ShiningRed/posts/xenogears-hd-1-0-41942032",
         "https://www.patreon.com/cw/HermanDudeModTools/sitemap",
         "https://www.patreon.com/cw/ironhulk33/sitemap",
         "https://www.patreon.com/cw/ironhulk33/sitemap?year=2025",
+        "https://www.patreon.com/geniusbug/posts/how-to-install-3-138154326",
         "https://www.patreon.com/ironhulk33/posts/august-update-165944204",
         "https://www.patreon.com/ironhulk33/posts/end-of-september-170542684",
         "https://www.patreon.com/ironhulk33/posts/games-being-and-154457536",
@@ -24227,6 +25215,7 @@
         "https://www.reddit.com/r/GameUpscale/",
         "https://www.reddit.com/r/GameUpscale/comments/grtmuc/chrono_cross_upscale_wip/",
         "https://www.reddit.com/r/RetroArch/",
+        "https://www.reddit.com/r/WipeOut/comments/1rtke8i/duckstation_texture_replacement_is_awesome/",
         "https://www.reddit.com/r/XenoGears/comments/ro151t/xenogears_ai_upscale_texture_pack_beta_has_now/",
         "https://www.reddit.com/r/crashbandicoot/comments/1rc94rq/finally_successful_hd_textures_and_bad_news/",
         "https://www.reddit.com/r/crashbandicoot/comments/1rwvq52/transparent_texture_replacement_figured_out_on_nd/",
@@ -24243,6 +25232,8 @@
         "https://www.tapatalk.com/groups/legendsofmodding/wwe-smackdown-shock-value-v1-0-out-now-t1084-s1280.html",
         "https://www.tapatalk.com/groups/legendsofmodding/wwe-smackdown-shock-value-v1-0-out-now-t1084.html",
         "https://www.tombraiderxtra.com/downloads.php",
+        "https://www.vierockhd.com/ps1/breath-of-fire-3",
+        "https://www.vierockhd.com/ps1/breath-of-fire-iv-hd",
         "https://www.youtube.com/watch?v=0qXHY_87XDw",
         "https://www.youtube.com/watch?v=2FDaAESRbHA",
         "https://www.youtube.com/watch?v=4BrjHBs_ydg",
@@ -24286,11 +25277,11 @@
       "new_installable_claims_without_archive_validation": 0
     },
     "runtime": {
-      "references": 37,
-      "research_families_represented": 34,
-      "distinct_games_preserving_special_edition": 35,
+      "references": 38,
+      "research_families_represented": 35,
+      "distinct_games_preserving_special_edition": 36,
       "verified_download_profiles": 8,
-      "manual_author_references": 29,
+      "manual_author_references": 30,
       "distinct_games_with_verified_downloads": 8,
       "initial_references": 2,
       "initial_distinct_games": 2,
@@ -24309,6 +25300,7 @@
         "namco-museum-vol-1",
         "namco-museum-vol-2",
         "parasite-eve",
+        "resident-evil-survivor",
         "saga-frontier-2",
         "scooby-doo-and-the-cyber-chase",
         "sesame-street-elmo-s-letter-adventure",
@@ -24699,6 +25691,22 @@
           "serials": [
             "SLUS-00662",
             "SLUS-00668"
+          ]
+        },
+        {
+          "key": "resident-evil-survivor",
+          "titles": [
+            "Resident Evil: Survivor"
+          ],
+          "profile_ids": [
+            "ps1-leigiboy-resident-evil-survivor-hq"
+          ],
+          "verified_profile_ids": [],
+          "manual_profile_ids": [
+            "ps1-leigiboy-resident-evil-survivor-hq"
+          ],
+          "serials": [
+            "SLUS-01087"
           ]
         },
         {
@@ -28911,27 +29919,6 @@
       "query_journal": "research-cache/games-next-query-log.json"
     }
   },
-  "publication_validation": {
-    "run": 39484361864,
-    "source": "015e40b70cff8f853709cc6e5cf0a4050c5e3b7f",
-    "jobs_succeeded": 2,
-    "native_foundation_checks": 187,
-    "native_failures": 0,
-    "registered_observations_matched": 691,
-    "canonical_ledger_ids": 701,
-    "publication_artifact": 12292173601,
-    "publication_zip_sha256": "a4df9f2cd24d43fd993d38d5209ad5e6bb6c52a9c43b3008552aec1dded1c9b0",
-    "native_artifact": 12292108757,
-    "native_zip_sha256": "9eab6be26c27e5c7f197d279d663967475a051b7f35c079a76efd7964a5737d0"
-  },
-  "delivery_validation": {
-    "run": 39484758626,
-    "source": "299cbd90d45a2148d60608df307e5fa4948fbe21",
-    "artifact": 12291804847,
-    "zip_sha256": "9962e69a3fa9970baa388080c8675f5715640dc03c2874693c3952a062dd82dd",
-    "result": "passed",
-    "frozen_build_499_unchanged": true
-  },
   "major_franchise_review": {
     "date": "2026-10-20",
     "baseline_commit": "15a4d990b308d2da91cee17f838aa601ad163745",
@@ -28958,5 +29945,132 @@
       "ps1-big-deal-estudiocases-steven-castro-tekken-2",
       "ps1-big-deal-estudiocases-steven-castro-tekken"
     ]
+  },
+  "continued_research": {
+    "date": "2026-10-20",
+    "baseline_commit": "88a3074ce5debea90c7696954b686ba50a3a1d80",
+    "new_qualified_family_ids": [
+      "ps1-leigiboy-resident-evil-survivor-hq"
+    ],
+    "new_uncounted_candidate_ids": [
+      "ps1-parappa-xbox-buttons-gamebanana-unqualified",
+      "ps1-crasharki-bugs-bunny-loading-screens-unqualified",
+      "ps1-sinkprestigious3317-wipeout-font-ui-wip",
+      "ps1-kabson-duckscaler-tomb-raider-demo",
+      "ps1-kabson-duckscaler-dino-crisis-demo",
+      "ps1-kabson-duckscaler-toy-story-2-demo",
+      "ps1-missnewtype-legend-of-legaia-dump-attempt",
+      "ps1-otfree-thousand-arms-dump-attempt",
+      "ps1-kupo91-harvest-moon-tests",
+      "ps1-kabson-chrono-cross-unattributed-link",
+      "ps1-nobigdeal-la-tomba2-title-font-component"
+    ],
+    "new_verified_archives": 0,
+    "new_runtime_manual_references": 1,
+    "runtime_source_commit": "b5207313a5ac9458b9ea765daf72d04a781b937e",
+    "web_queries": 97,
+    "github_repository_queries": 14,
+    "journal_path": "tools/textures/research/ps1-continued-research-2026-10-20.json",
+    "baseline_counts": {
+      "research_project_families": 179,
+      "previous_research_project_families": 159,
+      "additional_qualified_research_families": 20,
+      "inventory_rows": 216,
+      "beetle_named_projects": 52,
+      "duckstation_named_projects": 109,
+      "projects_with_both_engine_variants": 9,
+      "unique_game_titles_researched_with_projects": 140,
+      "runtime_ps1_references_before": 2,
+      "runtime_ps1_references_after": 37,
+      "new_runtime_references": 35,
+      "new_verified_one_tap_packs": 6,
+      "new_manual_author_references": 29,
+      "runtime_verified_one_tap_before": 2,
+      "runtime_verified_one_tap_after": 8,
+      "new_archives_installed_in_canonical_ci": 6,
+      "new_archive_protection_refusals": 13,
+      "physical_iphone_render_tests": 0,
+      "uncounted_inventory_rows": 37,
+      "new_unconfirmed_assembly_catalogue_rows": 23,
+      "category_C_future_projects": 4,
+      "engine_unconfirmed_projects": 23,
+      "runtime_manual_author_references_after": 29,
+      "previous_runtime_references": 34,
+      "additional_runtime_references_this_wave": 3,
+      "additional_verified_downloads_this_wave": 1,
+      "additional_canonical_observations_this_wave": 3,
+      "archive_successes_this_wave": 1,
+      "archive_protection_refusals_this_wave": 2,
+      "unique_game_titles_researched_legacy_baseline": 124,
+      "unique_game_titles_baseline_preserving_special_edition": 125,
+      "creator_attribution_groups": 46,
+      "documented_project_evidence_urls": 246,
+      "documented_urls_including_downloads": 303,
+      "explicitly_logged_consultation_urls": 269,
+      "canonical_ps1_observations_total": 21,
+      "canonical_ps1_observations_since_initial_two": 19,
+      "runtime_unique_games_or_editions": 35,
+      "runtime_verified_unique_games_or_editions": 8,
+      "initial_runtime_unique_games_or_editions": 2,
+      "new_runtime_unique_games_or_editions": 33,
+      "new_verified_unique_games_or_editions": 6
+    },
+    "qualification": "A published Beetle author project is documented; its archive and iPhone rendering remain unverified. Tool demos, components and unproven candidates are not extra packs.",
+    "publication_validation": {
+      "run": 39496716743,
+      "source": "b5207313a5ac9458b9ea765daf72d04a781b937e",
+      "status": "success",
+      "jobs_succeeded": 2,
+      "native_foundation_checks": 189,
+      "native_failures": 0,
+      "registered_observations_matched": 691,
+      "canonical_ledger_ids": 701,
+      "publication_artifact": 12297523218,
+      "publication_zip_sha256": "91ff0e101a041aa051542f5d63926e2c8eb5b4be112e8ccb311a4c5506bf7c03",
+      "native_artifact": 12297338171,
+      "native_zip_sha256": "9e866c382a5437fd70131d5b55eeff42a795c328429b0a844692615d7f1de846",
+      "input_hashes_reconciled": 19
+    }
+  },
+  "current_publication_validation_status": "success",
+  "publication_validation_before_continued_research": {
+    "run": 39484361864,
+    "source": "015e40b70cff8f853709cc6e5cf0a4050c5e3b7f",
+    "jobs_succeeded": 2,
+    "native_foundation_checks": 187,
+    "native_failures": 0,
+    "registered_observations_matched": 691,
+    "canonical_ledger_ids": 701,
+    "publication_artifact": 12292173601,
+    "publication_zip_sha256": "a4df9f2cd24d43fd993d38d5209ad5e6bb6c52a9c43b3008552aec1dded1c9b0",
+    "native_artifact": 12292108757,
+    "native_zip_sha256": "9eab6be26c27e5c7f197d279d663967475a051b7f35c079a76efd7964a5737d0"
+  },
+  "previous_delivery_validation": {
+    "run": 39484758626,
+    "source": "299cbd90d45a2148d60608df307e5fa4948fbe21",
+    "artifact": 12291804847,
+    "zip_sha256": "9962e69a3fa9970baa388080c8675f5715640dc03c2874693c3952a062dd82dd",
+    "result": "passed",
+    "frozen_build_499_unchanged": true
+  },
+  "delivery_validation": {
+    "status": "not_requested",
+    "reason": "Research/catalogue only; no new IPA. Build500 remains frozen with37 references."
+  },
+  "publication_validation": {
+    "run": 39496716743,
+    "source": "b5207313a5ac9458b9ea765daf72d04a781b937e",
+    "status": "success",
+    "jobs_succeeded": 2,
+    "native_foundation_checks": 189,
+    "native_failures": 0,
+    "registered_observations_matched": 691,
+    "canonical_ledger_ids": 701,
+    "publication_artifact": 12297523218,
+    "publication_zip_sha256": "91ff0e101a041aa051542f5d63926e2c8eb5b4be112e8ccb311a4c5506bf7c03",
+    "native_artifact": 12297338171,
+    "native_zip_sha256": "9e866c382a5437fd70131d5b55eeff42a795c328429b0a844692615d7f1de846",
+    "input_hashes_reconciled": 19
   }
 }

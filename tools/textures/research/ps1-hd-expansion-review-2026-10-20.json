@@ -6723,47 +6723,47 @@
     "runtime_archive_results": "Owned by root canonical CI reconciliation. This metadata consolidation does not infer successful downloads from links, PNG names, or author engine claims."
   },
   "current_counts": {
-    "research_project_families": 179,
-    "previous_research_project_families": 159,
-    "additional_qualified_research_families": 20,
-    "inventory_rows": 216,
-    "beetle_named_projects": 52,
+    "research_project_families": 180,
+    "previous_research_project_families": 179,
+    "additional_qualified_research_families": 1,
+    "inventory_rows": 228,
+    "beetle_named_projects": 53,
     "duckstation_named_projects": 109,
     "projects_with_both_engine_variants": 9,
-    "unique_game_titles_researched_with_projects": 140,
+    "unique_game_titles_researched_with_projects": 141,
     "runtime_ps1_references_before": 2,
-    "runtime_ps1_references_after": 37,
-    "new_runtime_references": 35,
+    "runtime_ps1_references_after": 38,
+    "new_runtime_references": 36,
     "new_verified_one_tap_packs": 6,
-    "new_manual_author_references": 29,
+    "new_manual_author_references": 30,
     "runtime_verified_one_tap_before": 2,
     "runtime_verified_one_tap_after": 8,
     "new_archives_installed_in_canonical_ci": 6,
     "new_archive_protection_refusals": 13,
     "physical_iphone_render_tests": 0,
-    "uncounted_inventory_rows": 37,
+    "uncounted_inventory_rows": 48,
     "new_unconfirmed_assembly_catalogue_rows": 23,
     "category_C_future_projects": 4,
     "engine_unconfirmed_projects": 23,
-    "runtime_manual_author_references_after": 29,
-    "previous_runtime_references": 34,
-    "additional_runtime_references_this_wave": 3,
-    "additional_verified_downloads_this_wave": 1,
-    "additional_canonical_observations_this_wave": 3,
-    "archive_successes_this_wave": 1,
-    "archive_protection_refusals_this_wave": 2,
+    "runtime_manual_author_references_after": 30,
+    "previous_runtime_references": 37,
+    "additional_runtime_references_this_wave": 1,
+    "additional_verified_downloads_this_wave": 0,
+    "additional_canonical_observations_this_wave": 0,
+    "archive_successes_this_wave": 0,
+    "archive_protection_refusals_this_wave": 0,
     "unique_game_titles_researched_legacy_baseline": 124,
     "unique_game_titles_baseline_preserving_special_edition": 125,
-    "creator_attribution_groups": 46,
-    "documented_project_evidence_urls": 246,
-    "documented_urls_including_downloads": 303,
-    "explicitly_logged_consultation_urls": 269,
+    "creator_attribution_groups": 47,
+    "documented_project_evidence_urls": 261,
+    "documented_urls_including_downloads": 319,
+    "explicitly_logged_consultation_urls": 298,
     "canonical_ps1_observations_total": 21,
     "canonical_ps1_observations_since_initial_two": 19,
-    "runtime_unique_games_or_editions": 35,
+    "runtime_unique_games_or_editions": 36,
     "runtime_verified_unique_games_or_editions": 8,
     "initial_runtime_unique_games_or_editions": 2,
-    "new_runtime_unique_games_or_editions": 33,
+    "new_runtime_unique_games_or_editions": 34,
     "new_verified_unique_games_or_editions": 6
   },
   "inventory_output": {
@@ -14562,8 +14562,8 @@
     }
   },
   "creator_attribution_audit": {
-    "attribution_groups": 46,
-    "named_credited_creators_or_teams": 46,
+    "attribution_groups": 47,
+    "named_credited_creators_or_teams": 47,
     "groups": [
       {
         "key": "1vierock",
@@ -15066,6 +15066,19 @@
         ]
       },
       {
+        "key": "leigiboy",
+        "creator_id": "credit:leigiboy",
+        "labels": [
+          "LeigiBoy"
+        ],
+        "family_ids": [
+          "ps1-leigiboy-resident-evil-survivor-hq"
+        ],
+        "row_ids": [
+          "ps1-leigiboy-resident-evil-survivor-hq"
+        ]
+      },
+      {
         "key": "linnaealyn",
         "creator_id": "credit:linnaealyn",
         "labels": [
@@ -15129,11 +15142,13 @@
         ],
         "family_ids": [
           "ps1-nobigdeal-la-dead-or-alive",
-          "ps1-nobigdeal-la-rage-racer-hd-demo"
+          "ps1-nobigdeal-la-rage-racer-hd-demo",
+          "ps1-uck-tomba-2-tombi-2"
         ],
         "row_ids": [
           "ps1-nobigdeal-la-dead-or-alive",
-          "ps1-nobigdeal-la-rage-racer-hd-demo"
+          "ps1-nobigdeal-la-rage-racer-hd-demo",
+          "ps1-nobigdeal-la-tomba2-title-font-component"
         ]
       },
       {
@@ -15475,7 +15490,7 @@
   },
   "game_coverage_audit": {
     "definition": "Normalized base-game titles, preserving Wip3out Special Edition; component titles only when explicitly present in games arrays.",
-    "count": 140,
+    "count": 141,
     "groups": [
       {
         "key": "air-combat",
@@ -16504,6 +16519,18 @@
         ]
       },
       {
+        "key": "resident-evil-survivor",
+        "titles": [
+          "Resident Evil: Survivor"
+        ],
+        "family_ids": [
+          "ps1-leigiboy-resident-evil-survivor-hq"
+        ],
+        "creator_labels": [
+          "LeigiBoy"
+        ]
+      },
+      {
         "key": "ridge-racer",
         "titles": [
           "Ridge Racer"
@@ -17020,6 +17047,7 @@
           "ps1-uck-tomba-2-tombi-2"
         ],
         "creator_labels": [
+          "NoBigDeal La",
           "uck"
         ]
       },
@@ -50559,15 +50587,15 @@
     "scope": "Consultation logs include metadata reads and failed access observations, not necessarily full primary-page reads. Indexed-only URLs are returned search results, not inspected packs. These are source counts, never project counts."
   },
   "source_reference_counts": {
-    "documented_project_evidence_urls_all_rows": 246,
-    "documented_project_evidence_urls_counted_families": 211,
-    "project_page_url_fields_counted_families": 118,
-    "documented_original_download_url_fields": 61,
-    "documented_reference_and_download_union": 303,
-    "explicitly_logged_consulted_url_count": 269,
-    "logged_consultation_observations": 344,
-    "documented_urls_also_in_explicit_consultation_log": 159,
-    "documented_urls_without_explicit_log": 87,
+    "documented_project_evidence_urls_all_rows": 261,
+    "documented_project_evidence_urls_counted_families": 220,
+    "project_page_url_fields_counted_families": 120,
+    "documented_original_download_url_fields": 63,
+    "documented_reference_and_download_union": 319,
+    "explicitly_logged_consulted_url_count": 298,
+    "logged_consultation_observations": 380,
+    "documented_urls_also_in_explicit_consultation_log": 176,
+    "documented_urls_without_explicit_log": 85,
     "qualification": "Primary-project-page metadata and explicit consultation logs are distinct. Older logs and newer strands have incomplete visit journals; no claim that every documented URL was opened or every source was primary."
   },
   "decisions_promotions_dedup": [
@@ -51298,6 +51326,235 @@
     }
   ],
   "runtime_validation": {
+    "publication_run": 39496716743,
+    "publication_source": "b5207313a5ac9458b9ea765daf72d04a781b937e",
+    "publication_validation_status": "success",
+    "publication_evidence": {
+      "run": 39496716743,
+      "source": "b5207313a5ac9458b9ea765daf72d04a781b937e",
+      "status": "success",
+      "jobs_succeeded": 2,
+      "native_foundation_checks": 189,
+      "native_failures": 0,
+      "registered_observations_matched": 691,
+      "canonical_ledger_ids": 701,
+      "publication_artifact": 12297523218,
+      "publication_zip_sha256": "91ff0e101a041aa051542f5d63926e2c8eb5b4be112e8ccb311a4c5506bf7c03",
+      "native_artifact": 12297338171,
+      "native_zip_sha256": "9e866c382a5437fd70131d5b55eeff42a795c328429b0a844692615d7f1de846",
+      "input_hashes_reconciled": 19
+    },
+    "catalogue_revision": "2026-10-20.cb9ec63ce729",
+    "catalogue_sha256": "80b1284294d7ac29d4a64f5512af1b3ffd61f26753df898ee28e2eab7f633453",
+    "runtime_references": 38,
+    "verified_downloads": 8,
+    "manual_references": 30,
+    "new_archive_verifications_this_pass": 0,
+    "ipa_produced": false,
+    "physical_iphone_render_validated": false
+  },
+  "counts_before_major_franchise_review": {
+    "research_project_families": 180,
+    "previous_research_project_families": 159,
+    "additional_qualified_research_families": 21,
+    "inventory_rows": 216,
+    "beetle_named_projects": 52,
+    "duckstation_named_projects": 110,
+    "projects_with_both_engine_variants": 9,
+    "unique_game_titles_researched_with_projects": 140,
+    "runtime_ps1_references_before": 2,
+    "runtime_ps1_references_after": 37,
+    "new_runtime_references": 35,
+    "new_verified_one_tap_packs": 6,
+    "new_manual_author_references": 29,
+    "runtime_verified_one_tap_before": 2,
+    "runtime_verified_one_tap_after": 8,
+    "new_archives_installed_in_canonical_ci": 6,
+    "new_archive_protection_refusals": 13,
+    "physical_iphone_render_tests": 0,
+    "uncounted_inventory_rows": 36,
+    "new_unconfirmed_assembly_catalogue_rows": 23,
+    "category_C_future_projects": 4,
+    "engine_unconfirmed_projects": 23,
+    "runtime_manual_author_references_after": 29,
+    "previous_runtime_references": 34,
+    "additional_runtime_references_this_wave": 3,
+    "additional_verified_downloads_this_wave": 1,
+    "additional_canonical_observations_this_wave": 3,
+    "archive_successes_this_wave": 1,
+    "archive_protection_refusals_this_wave": 2,
+    "unique_game_titles_researched_legacy_baseline": 124,
+    "unique_game_titles_baseline_preserving_special_edition": 125,
+    "creator_attribution_groups": 46,
+    "documented_project_evidence_urls": 246,
+    "documented_urls_including_downloads": 302,
+    "explicitly_logged_consultation_urls": 261,
+    "canonical_ps1_observations_total": 21,
+    "canonical_ps1_observations_since_initial_two": 19,
+    "runtime_unique_games_or_editions": 35,
+    "runtime_verified_unique_games_or_editions": 8,
+    "initial_runtime_unique_games_or_editions": 2,
+    "new_runtime_unique_games_or_editions": 33,
+    "new_verified_unique_games_or_editions": 6
+  },
+  "major_franchise_review": {
+    "date": "2026-10-20",
+    "baseline_commit": "15a4d990b308d2da91cee17f838aa601ad163745",
+    "baseline_families": 180,
+    "families_after": 179,
+    "new_pack_families": 0,
+    "deduplication_delta": -1,
+    "new_verified_installable_profiles": 0,
+    "new_games_covered": 0,
+    "query_count": 44,
+    "priority_matrix": "tools/textures/research/ps1-major-franchises-2026-10-20.json",
+    "scope": "Crash PS1 series, Final Fantasy PS1 releases, Suikoden I/II, Tekken1/2/3 and Tomb Raider1–5. Major franchises take precedence over catalogue volume. No core/UI/IPA changes.",
+    "deduplication": {
+      "preserved_row_id": "ps1-big-deal-estudiocases-steven-castro-tekken-2",
+      "canonical_family": "ps1-bl4ckh4nd-tekken-2",
+      "evidence_url": "https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation"
+    },
+    "changed_project_ids": [
+      "ps1-thesoultear-final-fantasy-vii-hd-remaster",
+      "ps1-curse-arms-final-fantasy-viii",
+      "ps1-stud44-crash-bandicoot-hd-hud",
+      "ps1-stud44-crash-bash-hd-icons",
+      "ps1-bl4ckh4nd-tekken-2",
+      "ps1-big-deal-estudiocases-steven-castro-tekken-2",
+      "ps1-big-deal-estudiocases-steven-castro-tekken"
+    ]
+  },
+  "counts_before_continued_research": {
+    "research_project_families": 179,
+    "previous_research_project_families": 159,
+    "additional_qualified_research_families": 20,
+    "inventory_rows": 216,
+    "beetle_named_projects": 52,
+    "duckstation_named_projects": 109,
+    "projects_with_both_engine_variants": 9,
+    "unique_game_titles_researched_with_projects": 140,
+    "runtime_ps1_references_before": 2,
+    "runtime_ps1_references_after": 37,
+    "new_runtime_references": 35,
+    "new_verified_one_tap_packs": 6,
+    "new_manual_author_references": 29,
+    "runtime_verified_one_tap_before": 2,
+    "runtime_verified_one_tap_after": 8,
+    "new_archives_installed_in_canonical_ci": 6,
+    "new_archive_protection_refusals": 13,
+    "physical_iphone_render_tests": 0,
+    "uncounted_inventory_rows": 37,
+    "new_unconfirmed_assembly_catalogue_rows": 23,
+    "category_C_future_projects": 4,
+    "engine_unconfirmed_projects": 23,
+    "runtime_manual_author_references_after": 29,
+    "previous_runtime_references": 34,
+    "additional_runtime_references_this_wave": 3,
+    "additional_verified_downloads_this_wave": 1,
+    "additional_canonical_observations_this_wave": 3,
+    "archive_successes_this_wave": 1,
+    "archive_protection_refusals_this_wave": 2,
+    "unique_game_titles_researched_legacy_baseline": 124,
+    "unique_game_titles_baseline_preserving_special_edition": 125,
+    "creator_attribution_groups": 46,
+    "documented_project_evidence_urls": 246,
+    "documented_urls_including_downloads": 303,
+    "explicitly_logged_consultation_urls": 269,
+    "canonical_ps1_observations_total": 21,
+    "canonical_ps1_observations_since_initial_two": 19,
+    "runtime_unique_games_or_editions": 35,
+    "runtime_verified_unique_games_or_editions": 8,
+    "initial_runtime_unique_games_or_editions": 2,
+    "new_runtime_unique_games_or_editions": 33,
+    "new_verified_unique_games_or_editions": 6
+  },
+  "continued_research": {
+    "date": "2026-10-20",
+    "baseline_commit": "88a3074ce5debea90c7696954b686ba50a3a1d80",
+    "new_qualified_family_ids": [
+      "ps1-leigiboy-resident-evil-survivor-hq"
+    ],
+    "new_uncounted_candidate_ids": [
+      "ps1-parappa-xbox-buttons-gamebanana-unqualified",
+      "ps1-crasharki-bugs-bunny-loading-screens-unqualified",
+      "ps1-sinkprestigious3317-wipeout-font-ui-wip",
+      "ps1-kabson-duckscaler-tomb-raider-demo",
+      "ps1-kabson-duckscaler-dino-crisis-demo",
+      "ps1-kabson-duckscaler-toy-story-2-demo",
+      "ps1-missnewtype-legend-of-legaia-dump-attempt",
+      "ps1-otfree-thousand-arms-dump-attempt",
+      "ps1-kupo91-harvest-moon-tests",
+      "ps1-kabson-chrono-cross-unattributed-link",
+      "ps1-nobigdeal-la-tomba2-title-font-component"
+    ],
+    "new_verified_archives": 0,
+    "new_runtime_manual_references": 1,
+    "runtime_source_commit": "b5207313a5ac9458b9ea765daf72d04a781b937e",
+    "web_queries": 97,
+    "github_repository_queries": 14,
+    "journal_path": "tools/textures/research/ps1-continued-research-2026-10-20.json",
+    "baseline_counts": {
+      "research_project_families": 179,
+      "previous_research_project_families": 159,
+      "additional_qualified_research_families": 20,
+      "inventory_rows": 216,
+      "beetle_named_projects": 52,
+      "duckstation_named_projects": 109,
+      "projects_with_both_engine_variants": 9,
+      "unique_game_titles_researched_with_projects": 140,
+      "runtime_ps1_references_before": 2,
+      "runtime_ps1_references_after": 37,
+      "new_runtime_references": 35,
+      "new_verified_one_tap_packs": 6,
+      "new_manual_author_references": 29,
+      "runtime_verified_one_tap_before": 2,
+      "runtime_verified_one_tap_after": 8,
+      "new_archives_installed_in_canonical_ci": 6,
+      "new_archive_protection_refusals": 13,
+      "physical_iphone_render_tests": 0,
+      "uncounted_inventory_rows": 37,
+      "new_unconfirmed_assembly_catalogue_rows": 23,
+      "category_C_future_projects": 4,
+      "engine_unconfirmed_projects": 23,
+      "runtime_manual_author_references_after": 29,
+      "previous_runtime_references": 34,
+      "additional_runtime_references_this_wave": 3,
+      "additional_verified_downloads_this_wave": 1,
+      "additional_canonical_observations_this_wave": 3,
+      "archive_successes_this_wave": 1,
+      "archive_protection_refusals_this_wave": 2,
+      "unique_game_titles_researched_legacy_baseline": 124,
+      "unique_game_titles_baseline_preserving_special_edition": 125,
+      "creator_attribution_groups": 46,
+      "documented_project_evidence_urls": 246,
+      "documented_urls_including_downloads": 303,
+      "explicitly_logged_consultation_urls": 269,
+      "canonical_ps1_observations_total": 21,
+      "canonical_ps1_observations_since_initial_two": 19,
+      "runtime_unique_games_or_editions": 35,
+      "runtime_verified_unique_games_or_editions": 8,
+      "initial_runtime_unique_games_or_editions": 2,
+      "new_runtime_unique_games_or_editions": 33,
+      "new_verified_unique_games_or_editions": 6
+    },
+    "qualification": "A published Beetle author project is documented; its archive and iPhone rendering remain unverified. Tool demos, components and unproven candidates are not extra packs.",
+    "publication_validation": {
+      "run": 39496716743,
+      "source": "b5207313a5ac9458b9ea765daf72d04a781b937e",
+      "status": "success",
+      "jobs_succeeded": 2,
+      "native_foundation_checks": 189,
+      "native_failures": 0,
+      "registered_observations_matched": 691,
+      "canonical_ledger_ids": 701,
+      "publication_artifact": 12297523218,
+      "publication_zip_sha256": "91ff0e101a041aa051542f5d63926e2c8eb5b4be112e8ccb311a4c5506bf7c03",
+      "native_artifact": 12297338171,
+      "native_zip_sha256": "9e866c382a5437fd70131d5b55eeff42a795c328429b0a844692615d7f1de846",
+      "input_hashes_reconciled": 19
+    }
+  },
+  "runtime_validation_before_continued_research": {
     "publication_source": "015e40b70cff8f853709cc6e5cf0a4050c5e3b7f",
     "publication_run": 39484361864,
     "publication_validation_status": "success",
@@ -51444,76 +51701,5 @@
       "result": "passed",
       "frozen_build_499_unchanged": true
     }
-  },
-  "counts_before_major_franchise_review": {
-    "research_project_families": 180,
-    "previous_research_project_families": 159,
-    "additional_qualified_research_families": 21,
-    "inventory_rows": 216,
-    "beetle_named_projects": 52,
-    "duckstation_named_projects": 110,
-    "projects_with_both_engine_variants": 9,
-    "unique_game_titles_researched_with_projects": 140,
-    "runtime_ps1_references_before": 2,
-    "runtime_ps1_references_after": 37,
-    "new_runtime_references": 35,
-    "new_verified_one_tap_packs": 6,
-    "new_manual_author_references": 29,
-    "runtime_verified_one_tap_before": 2,
-    "runtime_verified_one_tap_after": 8,
-    "new_archives_installed_in_canonical_ci": 6,
-    "new_archive_protection_refusals": 13,
-    "physical_iphone_render_tests": 0,
-    "uncounted_inventory_rows": 36,
-    "new_unconfirmed_assembly_catalogue_rows": 23,
-    "category_C_future_projects": 4,
-    "engine_unconfirmed_projects": 23,
-    "runtime_manual_author_references_after": 29,
-    "previous_runtime_references": 34,
-    "additional_runtime_references_this_wave": 3,
-    "additional_verified_downloads_this_wave": 1,
-    "additional_canonical_observations_this_wave": 3,
-    "archive_successes_this_wave": 1,
-    "archive_protection_refusals_this_wave": 2,
-    "unique_game_titles_researched_legacy_baseline": 124,
-    "unique_game_titles_baseline_preserving_special_edition": 125,
-    "creator_attribution_groups": 46,
-    "documented_project_evidence_urls": 246,
-    "documented_urls_including_downloads": 302,
-    "explicitly_logged_consultation_urls": 261,
-    "canonical_ps1_observations_total": 21,
-    "canonical_ps1_observations_since_initial_two": 19,
-    "runtime_unique_games_or_editions": 35,
-    "runtime_verified_unique_games_or_editions": 8,
-    "initial_runtime_unique_games_or_editions": 2,
-    "new_runtime_unique_games_or_editions": 33,
-    "new_verified_unique_games_or_editions": 6
-  },
-  "major_franchise_review": {
-    "date": "2026-10-20",
-    "baseline_commit": "15a4d990b308d2da91cee17f838aa601ad163745",
-    "baseline_families": 180,
-    "families_after": 179,
-    "new_pack_families": 0,
-    "deduplication_delta": -1,
-    "new_verified_installable_profiles": 0,
-    "new_games_covered": 0,
-    "query_count": 44,
-    "priority_matrix": "tools/textures/research/ps1-major-franchises-2026-10-20.json",
-    "scope": "Crash PS1 series, Final Fantasy PS1 releases, Suikoden I/II, Tekken1/2/3 and Tomb Raider1–5. Major franchises take precedence over catalogue volume. No core/UI/IPA changes.",
-    "deduplication": {
-      "preserved_row_id": "ps1-big-deal-estudiocases-steven-castro-tekken-2",
-      "canonical_family": "ps1-bl4ckh4nd-tekken-2",
-      "evidence_url": "https://www.estudiocases.com/post/tekken-2-psx-se-actualiza-a-la-versi%C3%B3n-2-0-con-texturas-hd-para-duckstation"
-    },
-    "changed_project_ids": [
-      "ps1-thesoultear-final-fantasy-vii-hd-remaster",
-      "ps1-curse-arms-final-fantasy-viii",
-      "ps1-stud44-crash-bandicoot-hd-hud",
-      "ps1-stud44-crash-bash-hd-icons",
-      "ps1-bl4ckh4nd-tekken-2",
-      "ps1-big-deal-estudiocases-steven-castro-tekken-2",
-      "ps1-big-deal-estudiocases-steven-castro-tekken"
-    ]
   }
 }
