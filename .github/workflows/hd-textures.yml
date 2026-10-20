@@ -390,7 +390,7 @@ jobs:
           build/hd-direct400/venv/bin/python test/texture_catalog_ios_syntax_test.py
       - name: Small real original files through the native download and install path
         if: success()
-        run: build/hd-direct400/venv/bin/python test/texture_direct_network_test.py --input tools/textures/research/direct400-network-probes.json
+        run: build/hd-direct400/venv/bin/python test/texture_direct_network_test.py --input tools/textures/research/direct400-network-probes.json --out build/hd-direct400/native-network-results.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
