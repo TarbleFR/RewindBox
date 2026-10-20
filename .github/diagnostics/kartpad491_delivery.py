@@ -102,13 +102,25 @@ def tested_source():
     return base.command(['git','rev-parse','HEAD'])
 
 
-def proofs(source):
-    # The latest completed, successful run of the targeted workflow on this exact commit.
-    runs=base.api(f'actions/workflows/{WORKFLOW}/runs?head_sha={source}&status=success&per_page=20')['workflow_runs']
-    runs=[r for r in runs if r['head_sha']==source and r['conclusion']=='success']
-    if not runs:raise ValueError('No successful '+WORKFLOW+' run on '+source)
-    run=max(runs,key=lambda r:r['run_number']*100+r['run_attempt'])['id']
-    return {part:(run,source,job) for part,job in JOBS.items()}
+def records_only(path):
+    # Documentation and delivery records: never packaged, never a tested input.
+    return path.startswith('docs/') or path in DELIVERY_ONLY
+
+
+def proofs(head):
+    """The latest successful build491-checks.yml run on HEAD, or on an ancestor of
+    HEAD when every commit since only touched documentation or delivery wiring
+    (the delivery records written after the checks). evidence() still compares
+    every verdict input with the files of HEAD, byte for byte."""
+    runs=base.api(f'actions/workflows/{WORKFLOW}/runs?status=success&per_page=50')['workflow_runs']
+    for run in sorted(runs,key=lambda r:r['run_number']*100+r['run_attempt'],reverse=True):
+        source=run['head_sha']
+        if run['conclusion']!='success':continue
+        if subprocess.run(['git','merge-base','--is-ancestor',source,head],cwd=base.ROOT).returncode!=0:continue
+        since=set(base.command(['git','diff','--name-only',source,head]).splitlines())
+        if all(records_only(path) for path in since):
+            return {part:(run['id'],source,job) for part,job in JOBS.items()}
+    raise ValueError('No successful '+WORKFLOW+' run on '+head+' or on an ancestor differing only by records')
 
 
 def source_closure():
@@ -204,6 +216,7 @@ def main():
         return
     records,receipts,PROOFS=evidence()
     closure['targetedRuns']={part:{'run':run,'source':source,'job':job} for part,(run,source,job) in PROOFS.items()}
+    closure['testedSource']=PROOFS['host'][1]
     record={'result':'passed','testedSHA':closure['testedSource'],'candidateSHA':base.command(['git','rev-parse','HEAD']),
         'validationWasReused':True,'sourceClosure':closure,'reusedEvidence':records,'receiptSHA256':receipts,
         'deviceGameplayValidated':False,'coreRebuilt':False}
