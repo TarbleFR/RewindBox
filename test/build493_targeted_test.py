@@ -32,9 +32,8 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'build/build493'
 BUILD = 493
-# Build 492 source (Dusklight and Ports removal, another session); updated to the
-# delivered 492 commit once its delivery run is recorded.
-BASE = 'b1ca2a97bd212594d9602929b725742c42891787'
+# Delivered Build 492 source (Dusklight and Ports removal, run 39356466695).
+BASE = '3349513abfee315ef5dc40400f2b8d222cf15776'
 DELIVERY = '.github/workflows/retroarch-delivery.yml'
 DART_SUITE_STEP = 'Validate changed library, callback, launch and restart behavior'
 

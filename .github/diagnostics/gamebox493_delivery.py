@@ -23,10 +23,11 @@ from pathlib import Path
 import portsremoval492_delivery as previous
 base=previous.base  # unified_cheats_delivery: command, api, successful_run, ROOT
 
-# Build 492 source (Dusklight and Ports removal, another session) and its delivery
-# run (checks/native, cold Release): pinned once that delivery is recorded.
-DELIVERED='b1ca2a97bd212594d9602929b725742c42891787'
-DELIVERED_RUN=None
+# Build 492 source (Dusklight and Ports removal, another session: the checked
+# b1ca2a97 product plus the 491 delivery records) and its delivery run
+# (checks/native, cold Release).
+DELIVERED='3349513abfee315ef5dc40400f2b8d222cf15776'
+DELIVERED_RUN=39356466695
 # Every change of this cycle is counted from the delivered 492 source.
 BASE=DELIVERED
 WORKFLOW='build493-checks.yml'

@@ -30,7 +30,11 @@ Dans la session (Linux, Flutter 3.47.2 installé dans le conteneur) :
 
 Contrôles ciblés en CI : `.github/workflows/build493-checks.yml` (`test/build493_targeted_test.py --part host`) — couverture des fichiers modifiés depuis la 492, générateur des textes, `flutter analyze`, la suite Dart de livraison lue dans `retroarch-delivery.yml`, les suites des boîtiers et des vues, les contrats Python (textes, douze langues, fichiers 419, sources des médias, routes). Aucune partie native : aucune entrée native ne change (vérifié par le lanceur et par la porte). Le contrôle macOS de la lecture du dos (`game-box-checks.yml`, Vision/Translation) n'est plus relancé par une poussée tant que le plugin et son lanceur ne changent pas.
 
-Résultats CI, livraison et identités : § 4.
+Résultat : run `build493-checks.yml` `39356719105` sur `ccf64b632ec288efb95dc0de63ee519ef22c7940` (déclenché par la poussée de ses propres fichiers), job `118413081181` (Ubuntu 24.04, Flutter 3.47.2, 02:02:17 → 02:10:31 UTC) **réussi** : couverture, catalogue des textes, `flutter analyze` complet, suite Dart de livraison, suites des boîtiers et des vues, contrats Python ; « host: passed, 53 inputs recorded » ; artefact du verdict `12235312822` (`build493-host-ccf64b63…`, 12 237 octets, zip SHA-256 `619d11f665c852b7eb2a30fd7f346f31b0d6fb431da0b0c7c288e6ce96027028`).
+
+Poussées : le commit produit `f181a123` a été poussé seul avec `[skip ci]`, puis `ccf64b63` (contrôles) : seuls les contrôles 493 ont démarré. `libretro-checks.yml`, qui se déclenche sur `my_games_list.dart`, n'a pas été relancé : ses tests Dart sont dans la suite de livraison exécutée ci-dessus, et ses parties natives (pont libretro, pression des skins) ont des entrées inchangées. Les deux poussées ont été faites après que la livraison 492 de l'autre session a été lancée et figée sur `3349513a` ; rien n'a touché `retroarch-delivery.yml` pendant cette livraison (son groupe de concurrence annule le run en cours).
+
+Livraison et identités : § 4.
 
 ## 4. Livraison
 
