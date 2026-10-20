@@ -117,14 +117,15 @@
   "source_id": "web:ostrichmods.com/acx.html",
   "licence": {
    "summary": "No licence stated by the creator",
-   "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
    "page": "https://ostrichmods.com/acx.html",
    "verify": {
     "url": "https://drive.google.com/uc?export=download&id=1hdqV6oN_550A-8sLGR9QHS17V3WmwwaQ"
-   }
+   },
+   "in_app": true
   },
   "scope": "partial",
   "family": "psp-ace-combat-x-ostrich",
@@ -188,14 +189,15 @@
   "source_id": "web:ostrichmods.com/acx2.html",
   "licence": {
    "summary": "No licence stated by the creator",
-   "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
    "page": "https://ostrichmods.com/acx2.html",
    "verify": {
     "url": "https://drive.google.com/uc?export=download&id=1AaCLuG59A3-u7AvnOnv9CvfSqcBpL6s7"
-   }
+   },
+   "in_app": true
   },
   "scope": "partial",
   "family": "psp-ace-combat-joint-assault-ostrich",
@@ -230,14 +232,15 @@
   "source_id": "ppsspp:26458",
   "licence": {
    "summary": "No licence stated by the creator",
-   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
    "page": "https://forums.ppsspp.org/showthread.php?tid=26458",
    "verify": {
     "url": "https://dl.dropbox.com/s/9qxg5v3e7huydm3/ULUS10308.zip"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "psp-disgaea-ui-metaltxus",
@@ -272,14 +275,15 @@
   "source_id": "ppsspp:26509",
   "licence": {
    "summary": "No licence stated by the creator",
-   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
    "page": "https://forums.ppsspp.org/showthread.php?tid=26509",
    "verify": {
     "url": "https://dl.dropboxusercontent.com/s/1twcrcmapeuogyj/Disgaea%202%20PSP%20HD%20texture%20pack.zip"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "psp-disgaea2-ui-metaltxus",
@@ -314,14 +318,15 @@
   "source_id": "ppsspp:26040",
   "licence": {
    "summary": "No licence stated by the creator",
-   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
    "page": "https://forums.ppsspp.org/showthread.php?tid=26040",
    "verify": {
     "url": "https://forums.ppsspp.org/attachment.php?aid=16713"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "psp-gow-ghost-sparta-hud-skydr4gon",
@@ -356,14 +361,15 @@
   "source_id": "ppsspp:26567",
   "licence": {
    "summary": "No licence stated by the creator",
-   "redistribution": "Original creator-linked download only; NeoStation does not host, repackage or redistribute the files."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
    "page": "https://forums.ppsspp.org/showthread.php?tid=26567",
    "verify": {
     "url": "https://drive.google.com/file/d/1JKGud9yGDj1KubM4aIajI-OvOkInVnal/view?usp=sharing"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "psp-daxter-hud-armm1998",

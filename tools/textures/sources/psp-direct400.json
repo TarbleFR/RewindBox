@@ -15,15 +15,19 @@
             "value": "ULES00277"
           }
         ],
-        "regions": ["Europe"]
+        "regions": [
+          "Europe"
+        ]
       }
     ],
-    "authors": ["SomberTwilight"],
+    "authors": [
+      "SomberTwilight"
+    ],
     "page_url": "https://gbatemp.net/threads/tenchu-time-of-the-assassins-last-round-ppsspp.684191/",
     "source_id": "gbatemp:684191",
     "licence": {
       "summary": "No licence stated by the creator",
-      "redistribution": "Download the creator's original public archive unchanged. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+      "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
     },
     "download": {
       "automatable": false,

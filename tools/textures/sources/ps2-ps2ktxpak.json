@@ -600,7 +600,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The inspected original ARC_HDZQRT683.rar identifies SCUS-97231 (USA) and contains 9,596 PNG textures. The creator's April 2026 post links this exact archive and says the title screen, chapter-loading screens, character icons, some backgrounds and some fonts cannot be upscaled. This entry covers the USA archive; the former Japanese/Korean identities were database associations, not verified pack editions. Archive verification does not establish in-game coverage or iPhone rendering.",
   "download": {
@@ -1312,7 +1312,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -2020,9 +2020,9 @@
   "source_id": "creator:yamijpg",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
-  "notes": "Original creator post and downloaded file identify SLUS-21047. Published as RAR; native direct RAR import is unsupported. Extract externally and import the texture folder. Not counted as an installable verified archive; no iPhone rendering is claimed.",
+  "notes": "The creator post and unchanged original RAR identify USA SLUS-21047. Native extraction and installation of this exact archive into SLUS-21047/replacements pass; no other edition, iPhone rendering or performance is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/cold-fear-slus-21047-hd-texture-pack.682778/",
@@ -2147,7 +2147,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -2827,7 +2827,7 @@
   "source_id": "creator:Sal9im",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -3376,7 +3376,7 @@
   "source_id": "creator:GVNGNIR",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -3504,7 +3504,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -3940,7 +3940,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -4270,7 +4270,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -4550,7 +4550,7 @@
   "source_id": "creator:mvp899",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -5084,9 +5084,9 @@
   "source_id": "creator:yamijpg",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
-  "notes": "Original creator post and downloaded file identify SCES-54206. Published as RAR; native direct RAR import is unsupported. Extract externally and import the texture folder. Not counted as an installable verified archive; no iPhone rendering is claimed.",
+  "notes": "The creator post and unchanged original RAR identify Europe SCES-54206. Native extraction and installation of this exact archive into SCES-54206/replacements pass; no other edition, iPhone rendering or performance is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/god-of-war-2-sces-54206-hd-texture-pack.683758/",
@@ -5301,7 +5301,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -5980,7 +5980,7 @@
   "source_id": "creator:GVNGNIR",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The inspected original HULK 2003.rar identifies SLUS-20422 (USA) and contains 3,170 DDS textures (BC1/BC3). This entry covers that USA archive only; the former PAL identity was a database association, not verified pack compatibility. The creator describes an extensive upscale with manual edits, leaves FMVs unchanged and reports some distant-texture flickering. No iPhone rendering or performance is established by archive verification.",
   "download": {
@@ -6025,7 +6025,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -6236,7 +6236,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The creator explicitly identifies the pack as SLUS-20309 (USA) in https://gbatemp.net/threads/jade-cocoon-2-hd-textures.632975/. The inspected Jade Cocoon_2_HD_Textures.rar is a flat archive containing 6,425 BC3 DDS textures, so the game identity comes from that creator statement rather than an archive serial folder. The creator reports some temple images may not replace correctly and requires keeping the black images. The former PAL identity was a database association; PAL compatibility and iPhone rendering are unverified.",
   "download": {
@@ -6281,7 +6281,7 @@
   "source_id": "creator:Marcelus",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The inspected JAK2_hd_hud.rar identifies SCUS-97265 (USA); its PCSX2 component contains 36 PNG textures for the HUD/interface. The creator separately includes an OpenGOAL component with more textures, which is not installed as a PS2 texture pack. This is a UI pack, not a full-game remaster. The former PAL identity was a database association; PAL compatibility is unverified.",
   "download": {
@@ -6534,7 +6534,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The native RAR check identifies SCUS-97402; this profile is limited to that installed edition. Additional database editions are not verified by this archive check.",
   "download": {
@@ -6694,9 +6694,9 @@
   "source_id": "creator:mzzvxm",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
-  "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "The creator's original post explicitly targets PAL SLES-55135 and describes a Real-ESRGAN 4x_BSRGAN upscale. Work in progress with known character-face issues; coverage remains partial. The flat original RAR has no internal serial, so only the creator-attested SLES-55135 edition is retained. Native extraction and import passed for this exact target; no iPhone rendering is claimed. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/ps2-lego-batman-the-videogame-sles-55135-hd-textures.664769/",
@@ -6952,7 +6952,7 @@
   "source_id": "creator:Marcelus",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, partial. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -7142,7 +7142,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -7408,7 +7408,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -7531,7 +7531,7 @@
   "source_id": "creator:mvp899",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -7891,7 +7891,7 @@
   "source_id": "creator:mvp899",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -8078,7 +8078,7 @@
   "source_id": "creator:Sal9im",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -8162,7 +8162,7 @@
   "source_id": "creator:Sal9im",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -8567,7 +8567,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -8945,7 +8945,7 @@
   "source_id": "creator:mvp899",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -8990,7 +8990,7 @@
   "source_id": "creator:yamijpg",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -9415,7 +9415,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -9460,7 +9460,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -9783,7 +9783,7 @@
   "source_id": "creator:reddyxd",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The native RAR check identifies SCUS-97353; this profile is limited to that installed edition. Additional database editions are not verified by this archive check.",
   "download": {
@@ -10057,7 +10057,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -10102,7 +10102,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -10338,7 +10338,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -10470,7 +10470,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -10558,7 +10558,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The native RAR check identifies SLUS-21111; this profile is limited to that installed edition. Additional database editions are not verified by this archive check.",
   "download": {
@@ -12035,7 +12035,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -12292,7 +12292,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale; this profile is limited to USA disc 1, SLUS-21041. Native installation verifies 6,142 files (5,636,256,010 bytes). The original archive also contains SLUS-21044, but its 5,999 disc-2 files are excluded by this verified installation; disc 2 is not offered by this profile. No iPhone rendering has been verified.",
   "download": {
@@ -12527,7 +12527,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The inspected original SOTC_HD_Textures.rar identifies SCUS-97472 (USA) and contains 1,750 PNG textures. The creator's My HD Remaster Packs post links the Shadow of the Colossus video whose description publishes this exact Drive file. This entry covers that USA archive only; the former PAL identity was a database association. The creator credits Maori-Jigglypuff for an included graphics patch and notes emulator flickering; archive verification does not establish PAL compatibility or iPhone rendering.",
   "download": {
@@ -23339,7 +23339,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The native RAR check identifies SCUS-97316; this profile is limited to that installed edition. Additional database editions are not verified by this archive check.",
   "download": {
@@ -23571,7 +23571,7 @@
   "source_id": "creator:Alufolie69",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The native RAR check identifies SLES-53393; this profile is limited to that installed edition. Additional database editions are not verified by this archive check.",
   "download": {
@@ -24894,9 +24894,9 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
-  "notes": "AI upscale. The original creator archive explicitly identifies USA SLUS-20885; the former inferred European target is removed. Publication requires a new native installation check for this exact corrected target. No other edition or iPhone rendering is claimed.",
+  "notes": "AI upscale. The original creator archive explicitly identifies USA SLUS-20885; the former inferred European target is removed. Native RAR extraction and installation are verified for SLUS-20885: 867 PNG textures, 283,939,488 installed bytes, matching serial and no region conflict. No other edition or iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/the-red-star-hd-textures.669283/",
@@ -25025,7 +25025,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
@@ -25954,7 +25954,7 @@
   "source_id": "creator:Curse_Arms",
   "licence": {
    "summary": "Free on the creator's page; no licence recorded",
-   "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The inspected original W40000_FW_HD_30089.rar identifies SLUS-20597 (USA) and contains 5,849 PNG textures. The creator's original post links this exact archive, says the main screen and extra option cannot be upscaled, and requires keeping the black images for replacements to work. This entry covers the USA archive; the former PAL identity was a database association, not verified pack compatibility. No iPhone rendering or performance is established by archive verification.",
   "download": {

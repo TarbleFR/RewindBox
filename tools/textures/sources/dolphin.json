@@ -1279,7 +1279,7 @@
   "source_id": "github:iZePlayzYT/SuperMarioSpectral-TexturePack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The creator explicitly supports vanilla Super Mario Galaxy 2 as well as the named ROM hack. Use DDS release files with texture prefetch disabled. NeoStation installs the plain texture subset only, not a ROM hack. Spectral and Galaxy 63 variants count as one iZePlayz SMG2 family. DDS import remains conditional on the device BC texture support.",
   "requirements": "Author: Load Custom Textures on, Prefetch Custom Textures off.",
@@ -1288,7 +1288,8 @@
    "page": "https://github.com/iZePlayzYT/SuperMarioSpectral-TexturePack",
    "verify": {
     "url": "https://www.dropbox.com/scl/fi/g55owa2afbxmciq4ejxj5/SuperMarioSpectral_-SMG2-_4K-TexturePack_v1.0.0.zip?rlkey=exi1rrqml2sbikfi3ra1a3d8n&dl=0"
-   }
+   },
+   "in_app": true
   },
   "engine": "dolphin",
   "availability": "manual",
@@ -1321,7 +1322,7 @@
   "source_id": "github:iZePlayzYT/SuperMarioGalaxy63-TexturePack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The creator explicitly supports vanilla Super Mario Galaxy 2 as well as the named ROM hack. Use DDS release files with texture prefetch disabled. NeoStation installs the plain texture subset only, not a ROM hack. Spectral and Galaxy 63 variants count as one iZePlayz SMG2 family. DDS import remains conditional on the device BC texture support.",
   "requirements": "Author: Load Custom Textures on, Prefetch Custom Textures off.",
@@ -1330,7 +1331,8 @@
    "page": "https://github.com/iZePlayzYT/SuperMarioGalaxy63-TexturePack",
    "verify": {
     "url": "https://www.dropbox.com/scl/fi/esu3fjw9nued6nnjar6lz/SuperMarioGalaxy63_-SMG2-_4K-TexturePack_v3.0.0.zip?rlkey=q3ff5ky3fqeikcl37ytfbog1w&dl=0"
-   }
+   },
+   "in_app": true
   },
   "engine": "dolphin",
   "availability": "manual",

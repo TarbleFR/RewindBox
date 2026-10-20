@@ -28,14 +28,15 @@
   "source_id": "gbatemp:678534",
   "licence": {
    "summary": "No licence stated by the creator",
-   "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/gc-super-monkey-ball-2-hd-textures-ntsc-u.678534/",
    "verify": {
     "url": "https://mega.nz/file/3FdnUL6T#jInYcjezyVj1AzyDMyrq30q9OoPDoeTfmr88fgwvkvE"
-   }
+   },
+   "in_app": true
   },
   "family": "gc-super-monkey-ball2-kuledawg",
   "scope": "complete",
@@ -124,7 +125,7 @@
   "source_id": "gamebanana:503551",
   "licence": {
    "summary": "CC BY-NC-ND 4.0; creator checklist explicitly allows downloading and installing",
-   "redistribution": "Manual download from the creator’s original GameBanana file. NeoStation does not rehost, modify or redistribute it; no permission for derivative redistribution is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -132,7 +133,8 @@
    "file_name": "krtdl_hd.zip",
    "verify": {
     "url": "https://gamebanana.com/dl/1539498"
-   }
+   },
+   "in_app": true
   },
   "family": "wii-kirby-return-to-dream-land-vicmuller",
   "scope": "partial",

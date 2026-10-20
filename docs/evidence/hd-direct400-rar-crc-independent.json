@@ -1,0 +1,229 @@
+{
+  "schema": 1,
+  "date": "2026-10-20",
+  "repository": "TarbleFR/neostation-ios",
+  "purpose": "Independent read-only CRC diagnosis of three unchanged original RARs rejected by the new native reader; not a native installation or catalogue publication.",
+  "run": 39461538186,
+  "source": "d8a11a7dc2f6273dc2a845fb076049301cd4e9c2",
+  "branch": "Claude",
+  "workflow": ".github/workflows/hd-textures.yml",
+  "parts": "research",
+  "research_arguments": "probe --test-archive --file tools/textures/research/direct400-rar-crc-review.json --max-gb 4",
+  "job": {
+    "id": 118761975886,
+    "name": "Reference pages of the maintainer's list (review list, nothing published)",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "artifact": {
+    "id": 12283970224,
+    "name": "hdtex-research-39461538186",
+    "size_in_bytes": 3705,
+    "sha256": "1f1c9d84345acc80ac96151b658d1cd6d6f3058181c67275a9dcc8272b41a4a8",
+    "sha256_validated": true,
+    "created_at": "2026-10-20T16:57:51Z",
+    "expires_at": "2026-11-03T16:57:50Z",
+    "zip_path": "build/hd-direct400/ci/39461538186/12283970224/artifact.zip",
+    "jsonl_path": "build/hd-direct400/ci/39461538186/12283970224/research.jsonl",
+    "jsonl_sha256": "99b8f954d99fce5a71397dc7459abb448871b91a34f1d218c8fafd6694628cc9",
+    "jsonl_bytes": 27236,
+    "jsonl_records": 3
+  },
+  "decoder": {
+    "executable": "/usr/bin/7z",
+    "version": "7-Zip 23.01 (x64), 2023-06-20",
+    "rar_decoder_module": "/usr/lib/7zip/Codecs/Rar.so",
+    "decoder_available": true,
+    "compressed_rar4_and_rar5_controls_passed": true,
+    "version_and_formats": {
+      "exit_code": 0,
+      "timed_out": false,
+      "output": "\n7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\n 64-bit locale=C.UTF-8 Threads:4 OPEN_MAX:65536\n\n\nLibs:\n 0 : 23.01 : /usr/lib/7zip/7z.so\n 1 : 23.01 : /usr/lib/7zip/Codecs/Rar.so\n\nFormats:\n 0 C...F..........c.a.m+.. w...0  7z       7z            7 z BC AF ' 1C\n 0  ......................  APFS     apfs img      offset=32 N X S B 00\n 0  ......................  APM      apm           E R\n 0  ......................  Ar       ar a deb udeb lib ! < a r c h > 0A\n 0  ......................  Arj      arj           ` EA\n 0  K.....O.....X.........  Base64   b64           \n 0  ......O...............  COFF     obj           \n 0  ...F..................  Cab      cab           M S C F 00 00 00 00\n 0  ......................  Chm      chm chi chq chw I T S F 03 00 00 00 ` 00 00 00\n 0  ......................  Compound msi msp doc xls ppt D0 CF 11 E0 A1 B1 1A E1\n 0  ....M.................  Cpio     cpio          0 7 0 7 0  ||  C7 q  ||  q C7\n 0  ......................  CramFS   cramfs        offset=16 C o m p r e s s e d 20 R O M F S\n 0  .....G..B.............  Dmg      dmg           k o l y 00 00 00 04 00 00 02 00\n 0  .........E............  ELF      elf            E L F\n 0  ......................  Ext      ext ext2 ext3 ext4 img offset=1080 S EF\n 0  ......................  FAT      fat img       offset=510 U AA\n 0  ......................  FLV      flv           F L V 01\n 0  ......................  GPT      gpt mbr       offset=512 E F I 20 P A R T 00 00 01 00\n 0  ....M.................  HFS      hfs hfsx      offset=1024 B D  ||  H + 00 04  ||  H X 00 05\n 0  ...F..................  Hxs      hxs hxi hxr hxq hxw lit I T O L I T L S 01 00 00 00 ( 00 00 00\n 0  ......O...............  IHex     ihex          \n 0  ......................  Iso      iso img       offset=32769 C D 0 0 1\n 0  ......................  LP       lpimg img     offset=4096 g D l a 4 00 00 00\n 0  ......................  Lzh      lzh lha       offset=2 - l h\n 0  .......P..............  MBR      mbr           \n 0  ....M....E............  MachO    macho         CE FA ED FE  ||  CF FA ED FE  ||  FE ED FA CE  ||  FE ED FA CF\n 0  ......................  MsLZ     mslz          S Z D D 88 F0 ' 3 A\n 0  ....M.................  Mub      mub           CA FE BA BE 00 00 00  ||  B9 FA F1 0E\n 0  ......................  NTFS     ntfs img      offset=3 N T F S 20 20 20 20 00\n 0  ...F.G................  Nsis     nsis          offset=4 EF BE AD DE N u l l s o f t I n s t\n 0  .........E............  PE       exe dll sys   M Z\n 0  ......................  Ppmd     pmd           8F AF AC 84\n 0  ......................  QCOW     qcow qcow2 qcow2c Q F I FB 00 00 00\n 0  ...F..................  Rar      rar r00       R a r ! 1A 07 00\n 0  ...F..................  Rar5     rar r00       R a r ! 1A 07 01 00\n 0  ......................  Rpm      rpm           ED AB EE DB\n 0  K.....................  SWF      swf           F W S\n 0  ....M.................  SWFc     swf (~.swf)   C W S  ||  Z W S\n 0  ......................  Sparse   simg img      : FF & ED 01 00\n 0  ......................  Split    001           \n 0  ....M.................  SquashFS squashfs      h s q s  ||  s q s h  ||  s h s q  ||  q s h s\n 0  .........E............  TE       te            V Z\n 0  ...FM.................  UEFIc    scap          BD 86 f ; v 0D 0 @ B7 0E B5 Q 9E / C5 A0  ||  8B A6 < J # w FB H 80 = W 8C C1 FE C4 M  ||  B9 82 91 S B5 AB 91 C B6 9A E3 A9 C F7 / CC\n 0  ...FM.................  UEFIf    uefif         offset=16 D9 T 93 z h 04 J D 81 CE 0B F6 17 D8 90 DF  ||  x E5 8C 8C = 8A 1C O 99 5 89 a 85 C3 - D3\n 0  ....M.O...............  Udf      udf iso img   offset=32768 00 B E A 0 1 01 00  ||  01 C D 0 0 1\n 0  ......................  VDI      vdi           offset=64  10 DA BE\n 0  .....G................  VHD      vhd           c o n e c t i x 00 00\n 0  ......................  VHDX     vhdx avhdx    v h d x f i l e\n 0  ......................  VMDK     vmdk          K D M V\n 0  ......................  Xar      xar pkg xip   x a r ! 00 1C\n 0  ......................  Z        z taz (.tar)  1F 9D\n 0 CK.....................  bzip2    bz2 bzip2 tbz2 (.tar) tbz (.tar) B Z h\n 0 CK.................m+.. .u..1  gzip     gz gzip tgz (.tar) tpz (.tar) apk (.tar) 1F 8B 08\n 0  K.....O...............  lzma     lzma          \n 0  K.....................  lzma86   lzma86        \n 0 C......O...LH......m+.. wu.n1  tar      tar ova       offset=257 u s t a r\n 0 C.SN.......LH..c.a.m+.. w...0  wim      wim swm esd ppkg M S W I M 00 00 00\n 0 CK.....................  xz       xz txz (.tar) FD 7 z X Z 00\n 0 C...FMG........c.a.m+.. wud.0  zip      zip z01 zipx jar xpi odt ods docx xlsx epub ipa apk appx P K 03 04  ||  P K 05 06  ||  P K 06 06  ||  P K 07 08 P K  ||  P K 0 0 P K\n   CK.....O.....XC........  Hash     sha256 sha512 sha224 sha384 sha1 sha md5 crc32 crc64 asc cksum \n\nCodecs:\n 0  EDF  6F00181 AES256CBC\n 0  EDF  6F10701 7zAES\n 0  ED     30401 PPMD\n 0  ED     30101 LZMA\n 0  ED        21 LZMA2\n 0  EDF        3 Delta\n 0  ED     40108 Deflate\n 0  ED     40109 Deflate64\n 0  ED         0 Copy\n 0  ED     40202 BZip2\n 0  EDF    20302 Swap2\n 0  EDF    20304 Swap4\n 0  EDF  3030205 PPC\n 0  EDF  3030401 IA64\n 0  EDF  3030501 ARM\n 0  EDF  3030701 ARMT\n 0  EDF  3030805 SPARC\n 0  EDF        A ARM64\n 0  EDF  3030103 BCJ\n 0 4ED   303011B BCJ2\n 1   D     40301 Rar1\n 1   D     40302 Rar2\n 1   D     40303 Rar3\n 1   D     40305 Rar5\n\nHashers:\n      4        1 CRC32\n 0   32      202 BLAKE2sp\n 0    8        4 CRC64\n 0   32        A SHA256\n 0   20      201 SHA1\n 0    4        1 CRC32\n",
+      "output_bytes": 5564,
+      "output_truncated": false,
+      "diagnostic_flags": {
+        "unsupported_or_encrypted": false,
+        "checksum_error": false,
+        "success": false
+      }
+    },
+    "controls": [
+      {
+        "fixture": "test_read_format_rar_compress_normal.rar",
+        "exit_code": 0,
+        "timed_out": false,
+        "output": "\n7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\n 64-bit locale=C.UTF-8 Threads:4 OPEN_MAX:65536\n\nScanning the drive for archives:\n1 file, 14617 bytes (15 KiB)\n\nTesting archive: /home/runner/work/_temp/archive-controls-npqmzr1y/test_read_format_rar_compress_normal.rar\n--\nPath = /home/runner/work/_temp/archive-controls-npqmzr1y/test_read_format_rar_compress_normal.rar\nType = Rar\nPhysical Size = 14617\nSolid = -\nBlocks = 6\nMultivolume = -\nVolumes = 1\n\nEverything is Ok\n\nFolders: 2\nFiles: 4\nSize:       40267\nCompressed: 14617\n",
+        "output_bytes": 548,
+        "output_truncated": false,
+        "diagnostic_flags": {
+          "unsupported_or_encrypted": false,
+          "checksum_error": false,
+          "success": true
+        },
+        "status": "archive_test_passed",
+        "crc_valid": true
+      },
+      {
+        "fixture": "test_read_format_rar5_compressed.rar",
+        "exit_code": 0,
+        "timed_out": false,
+        "output": "\n7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\n 64-bit locale=C.UTF-8 Threads:4 OPEN_MAX:65536\n\nScanning the drive for archives:\n1 file, 436 bytes (1 KiB)\n\nTesting archive: /home/runner/work/_temp/archive-controls-npqmzr1y/test_read_format_rar5_compressed.rar\n--\nPath = /home/runner/work/_temp/archive-controls-npqmzr1y/test_read_format_rar5_compressed.rar\nType = Rar5\nPhysical Size = 436\nSolid = -\nBlocks = 1\nEncrypted = -\nMultivolume = -\nVolumes = 1\n\nEverything is Ok\n\nSize:       1200\nCompressed: 436\n",
+        "output_bytes": 527,
+        "output_truncated": false,
+        "diagnostic_flags": {
+          "unsupported_or_encrypted": true,
+          "checksum_error": false,
+          "success": true
+        },
+        "status": "archive_test_passed",
+        "crc_valid": true
+      }
+    ]
+  },
+  "results": [
+    {
+      "id": "ps2-ktx-ms-saga-a-new-dawn-curse-arms",
+      "original_url": "https://drive.usercontent.google.com/download?id=1la7LcGiPrwdEvF9xFzPkk9X2mSb32kWA&export=download&authuser=0",
+      "host": "gdrive",
+      "file_name": "MS_Saga_HD.rar",
+      "expected_size": 3966706904,
+      "actual_size": 3966706904,
+      "expected_sha256": "cf1100c0a2ab292672c12473d9b6cac9b9b8842360eab1de1a94646f8b20cdfb",
+      "actual_sha256": "cf1100c0a2ab292672c12473d9b6cac9b9b8842360eab1de1a94646f8b20cdfb",
+      "sha256_pin_matched": true,
+      "format": "rar5",
+      "encrypted": false,
+      "multivolume": false,
+      "solid": false,
+      "seven_zip_files": 17259,
+      "seven_zip_folders": 2,
+      "seven_zip_blocks": 17261,
+      "seven_zip_uncompressed_bytes": 4102427766,
+      "seven_zip_physical_bytes": 3966706904,
+      "status": "archive_test_passed",
+      "crc_valid": true,
+      "archive_test": {
+        "exit_code": 0,
+        "timed_out": false,
+        "output": "\n7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\n 64-bit locale=C.UTF-8 Threads:4 OPEN_MAX:65536\n\nScanning the drive for archives:\n1 file, 3966706904 bytes (3783 MiB)\n\nTesting archive: /home/runner/work/_temp/archive-crc-seqjhnq_/original.rar\n--\nPath = /home/runner/work/_temp/archive-crc-seqjhnq_/original.rar\nType = Rar5\nPhysical Size = 3966706904\nSolid = -\nBlocks = 17261\nEncrypted = -\nMultivolume = -\nVolumes = 1\n\nEverything is Ok\n\nFolders: 2\nFiles: 17259\nSize:       4102427766\nCompressed: 3966706904\n",
+        "output_bytes": 527,
+        "output_truncated": false,
+        "diagnostic_flags": {
+          "unsupported_or_encrypted": true,
+          "checksum_error": false,
+          "success": true
+        }
+      },
+      "previous_native_observation": {
+        "run": 39456534062,
+        "artifact": 12281359688,
+        "status": "install",
+        "output": "result=stage status=crc problem=\n"
+      },
+      "native_installation": false,
+      "repacked": false,
+      "promoted_to_catalogue": false,
+      "interpretation": "Valid for 7-Zip 23.01; currently unsupported by NeoStation's native reader. Requires a corrected native reader and a new exact-archive native installation check before promotion."
+    },
+    {
+      "id": "ps2-ktx-crash-twinsanity-yamijpg",
+      "original_url": "https://drive.google.com/file/d/1mamMXY99dikFfWiRNpqxdsSrtDxkb0FF/view",
+      "host": "gdrive",
+      "file_name": "Crash Twinsanity [SLES-52568] by YAMI.rar",
+      "expected_size": 1881925191,
+      "actual_size": 1881925191,
+      "expected_sha256": "639965eb9e8e30e42355cca815c88d197a9d40285fcf30de9071cb3e2f150954",
+      "actual_sha256": "639965eb9e8e30e42355cca815c88d197a9d40285fcf30de9071cb3e2f150954",
+      "sha256_pin_matched": true,
+      "format": "rar5",
+      "encrypted": false,
+      "multivolume": false,
+      "solid": false,
+      "seven_zip_files": 8216,
+      "seven_zip_folders": 3,
+      "seven_zip_blocks": 8219,
+      "seven_zip_uncompressed_bytes": 2223865936,
+      "seven_zip_physical_bytes": 1881925191,
+      "status": "archive_test_passed",
+      "crc_valid": true,
+      "archive_test": {
+        "exit_code": 0,
+        "timed_out": false,
+        "output": "\n7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\n 64-bit locale=C.UTF-8 Threads:4 OPEN_MAX:65536\n\nScanning the drive for archives:\n1 file, 1881925191 bytes (1795 MiB)\n\nTesting archive: /home/runner/work/_temp/archive-crc-95f8j0tx/original.rar\n--\nPath = /home/runner/work/_temp/archive-crc-95f8j0tx/original.rar\nType = Rar5\nPhysical Size = 1881925191\nSolid = -\nBlocks = 8219\nEncrypted = -\nMultivolume = -\nVolumes = 1\n\nEverything is Ok\n\nFolders: 3\nFiles: 8216\nSize:       2223865936\nCompressed: 1881925191\n",
+        "output_bytes": 525,
+        "output_truncated": false,
+        "diagnostic_flags": {
+          "unsupported_or_encrypted": true,
+          "checksum_error": false,
+          "success": true
+        }
+      },
+      "previous_native_observation": {
+        "run": 39456551008,
+        "artifact": 12282650977,
+        "status": "install",
+        "output": "result=stage status=crc problem=\n"
+      },
+      "native_installation": false,
+      "repacked": false,
+      "promoted_to_catalogue": false,
+      "interpretation": "Valid for 7-Zip 23.01; currently unsupported by NeoStation's native reader. Requires a corrected native reader and a new exact-archive native installation check before promotion."
+    },
+    {
+      "id": "ps2-ktx-valkyrie-profile-2-silmeria-curse-arms",
+      "original_url": "https://drive.usercontent.google.com/download?id=1D9TOM4mEPld4FGlp2mUcY2igJ4iYip1v&export=download&authuser=0",
+      "host": "gdrive",
+      "file_name": "Valkyrie_Profile_2_HD_Textures.rar",
+      "expected_size": 1093401381,
+      "actual_size": 1093401381,
+      "expected_sha256": "db97c9ee2c2752210da0b57538381ba0f4cd091897ad68a2de0340238d3e74bd",
+      "actual_sha256": "db97c9ee2c2752210da0b57538381ba0f4cd091897ad68a2de0340238d3e74bd",
+      "sha256_pin_matched": true,
+      "format": "rar5",
+      "encrypted": false,
+      "multivolume": false,
+      "solid": false,
+      "seven_zip_files": 2868,
+      "seven_zip_folders": 2,
+      "seven_zip_blocks": 2870,
+      "seven_zip_uncompressed_bytes": 2861925556,
+      "seven_zip_physical_bytes": 1093401381,
+      "status": "archive_test_passed",
+      "crc_valid": true,
+      "archive_test": {
+        "exit_code": 0,
+        "timed_out": false,
+        "output": "\n7-Zip 23.01 (x64) : Copyright (c) 1999-2023 Igor Pavlov : 2023-06-20\n 64-bit locale=C.UTF-8 Threads:4 OPEN_MAX:65536\n\nScanning the drive for archives:\n1 file, 1093401381 bytes (1043 MiB)\n\nTesting archive: /home/runner/work/_temp/archive-crc-d2b5nwri/original.rar\n--\nPath = /home/runner/work/_temp/archive-crc-d2b5nwri/original.rar\nType = Rar5\nPhysical Size = 1093401381\nSolid = -\nBlocks = 2870\nEncrypted = -\nMultivolume = -\nVolumes = 1\n\nEverything is Ok\n\nFolders: 2\nFiles: 2868\nSize:       2861925556\nCompressed: 1093401381\n",
+        "output_bytes": 525,
+        "output_truncated": false,
+        "diagnostic_flags": {
+          "unsupported_or_encrypted": true,
+          "checksum_error": false,
+          "success": true
+        }
+      },
+      "previous_native_observation": {
+        "run": 39456551008,
+        "artifact": 12282650977,
+        "status": "install",
+        "output": "result=stage status=crc problem=\n"
+      },
+      "native_installation": false,
+      "repacked": false,
+      "promoted_to_catalogue": false,
+      "interpretation": "Valid for 7-Zip 23.01; currently unsupported by NeoStation's native reader. Requires a corrected native reader and a new exact-archive native installation check before promotion."
+    }
+  ],
+  "summary": {
+    "independent_crc_passed": 3,
+    "independent_crc_rejected": 0,
+    "inconclusive": 0,
+    "native_installations": 0,
+    "catalogue_packs_added": 0,
+    "reruns_dispatched_by_collector": 0,
+    "packs_downloaded_by_collector": 0
+  },
+  "interpretation": "The three exact original RAR5 archives are valid for 7-Zip 23.01 and are currently unsupported by NeoStation's native reader. They remain excluded from native availability until a corrected reader passes an exact-archive native installation check. This diagnosis does not establish the failing native implementation detail or validate device rendering.",
+  "raw_flag_note": "The raw unsupported_or_encrypted keyword flag is true on RAR5 output because it contains the negative field Encrypted = -. Exact output, exit code 0, untruncated completion and Everything is Ok establish successful unencrypted tests. Raw flags are retained unchanged.",
+  "publication_policy": "Keep these archives excluded from native availability until a corrected native reader passes a new exact-archive installation check. No source, manifest or verification registry is modified by this receipt."
+}

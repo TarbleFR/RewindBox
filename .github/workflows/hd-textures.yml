@@ -29,7 +29,7 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories, releases, hosts, discover, links, cores, summarize, research, direct, direct-native]
+        options: [all, host, native, uikit, repositories, releases, hosts, discover, links, cores, summarize, research, direct, direct-native, delivery498]
         default: all
       only:
         description: 'repositories/releases/hosts: pack ids; direct-native: providers,store,sdk,network checks'
@@ -405,3 +405,12 @@ jobs:
             build/hd-direct400/*.log
           if-no-files-found: warn
           retention-days: 14
+
+  delivery498:
+    name: Private HD native IPA delivery
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'delivery498' }}
+    uses: ./.github/workflows/hd-native-delivery.yml
+    with:
+      build_number: '498'
+      recipient: build-utils/delivery-498-recipient.pem
+    secrets: inherit

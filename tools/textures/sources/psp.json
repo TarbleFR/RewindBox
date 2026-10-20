@@ -4725,7 +4725,7 @@
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10401 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULUS10401 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "notes": "The author's original ULUS10401.24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for USA ULUS10401. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -4770,7 +4770,7 @@
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCJS10008 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its UCJS10008 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "notes": "The author's original UCJS10008-24bits.rar from release v1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Japan UCJS10008. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -4814,7 +4814,7 @@
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCJS10017 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its UCJS10017 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "notes": "The author's original UCJS10017-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Japan UCJS10017. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -4859,7 +4859,7 @@
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10081 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULUS10081 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "notes": "The author's original ULUS10081-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for USA ULUS10081. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -4904,7 +4904,7 @@
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULES00789 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULES00789 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "notes": "The author's original ULES00789-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Europe ULES00789. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -4948,7 +4948,7 @@
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a NPJH50699 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its NPJH50699 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "notes": "The author's original NPJH50699-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Japan NPJH50699. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -4992,7 +4992,7 @@
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10518 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULUS10518 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "notes": "The author's original ULUS10518-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for USA ULUS10518. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -5037,7 +5037,7 @@
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULES01088 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULES01088 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "notes": "The author's original ULES01088-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Europe ULES01088. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -5081,7 +5081,7 @@
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCES00842 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its UCES00842 folder from Files. The release also carries the original dumps and PS3 remaster assets, which are not a pack.",
+  "notes": "The author's original UCES00842-upscale_pure_psp.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Europe UCES00842. The selected pure-PSP PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Vivid and KTX2 alternatives are not covered by this verification; original dumps and PS3 remaster assets are not an HD pack.",
   "download": {
    "automatable": true,
    "format": "rar",

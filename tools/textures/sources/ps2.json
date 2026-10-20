@@ -496,7 +496,7 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "The author publishes RAR archives (v1.5: SLUS-21410.rar): extract it on a computer, then import the SLUS-21410 folder from Files. Only the original v1.5 release has an actual archive asset as checked 20 October 2026; newer empty release pages are not a downloadable version.",
+  "notes": "The author's original SLUS-21410.rar from release v1.5 was verified with NeoStation's native RAR extraction and PNG installation into SLUS-21410/replacements for USA. Only the original v1.5 release has an actual archive asset as checked 20 October 2026; newer empty release pages are not a downloadable version.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -1209,7 +1209,7 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its SLUS-20795 folder from Files.",
+  "notes": "The author's original SLUS-20795-DDS.rar from release 1.0 was verified with NeoStation's native RAR extraction and BC3 DDS installation into SLUS-20795/replacements for USA. Only this DDS variant was verified; PNG and Vivid alternatives belong to the same project.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -1253,7 +1253,7 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its SLUS-20822 folder from Files.",
+  "notes": "The author's original SLUS-20822-DDS.rar from release 1.0 was verified with NeoStation's native RAR extraction and BC3 DDS installation into SLUS-20822/replacements for USA. Only this DDS variant was verified; PNG and Vivid alternatives belong to the same project.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -1297,7 +1297,7 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its SLUS-21193 folder from Files.",
+  "notes": "The author's original SLUS-21193-DDS.rar from release 1.0 was verified with NeoStation's native RAR extraction and BC3 DDS installation into SLUS-21193/replacements for USA. Only this DDS variant was verified; PNG and Vivid alternatives belong to the same project.",
   "download": {
    "automatable": true,
    "format": "rar",
@@ -1341,7 +1341,7 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its SLES-51865 folder from Files.",
+  "notes": "The author's original SLES-51865-DDS.rar from release 1.0 was verified with NeoStation's native RAR extraction and BC3 DDS installation into SLES-51865/replacements for Europe. Only this DDS variant was verified; PNG and Vivid alternatives belong to the same project.",
   "download": {
    "automatable": true,
    "format": "rar",

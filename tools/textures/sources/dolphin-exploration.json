@@ -111,7 +111,7 @@
   "source_id": "serenesforest:93389",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -125,7 +125,7 @@
   },
   "scope": "partial",
   "family": "gc-fe-por-hd-appleboi",
-  "notes": "ESRGAN upscales of most textures, including backgrounds and portraits. USA folder GFEE01; no PAL/French validation. The author recommends 4:3 and reports seams with high anti-aliasing. RAR: extract on a computer and import the resulting texture folder; direct RAR import is unsupported. No iPhone rendering has been verified. CI fetched the actual 1,878,929,765-byte RAR and independently listed 4,470 tex1 DDS files under GFEE01. This proves archive structure, not native RAR installation or rendering; DDS compression headers were not inspected."
+  "notes": "ESRGAN upscales of most textures, including backgrounds and portraits. USA folder GFEE01 only; no PAL/French validation. The author recommends 4:3 and reports seams with high anti-aliasing. The unchanged original 1,878,929,765-byte RAR passes native extraction and installation for GFEE01: 4,470 texture files, comprising 3,985 BC7 DDS and 485 PNG files. The corrected case-insensitive header check inspects every DDS; the original raw observation with an empty DDS diagnostic is retained separately. BC7 requires the existing Dolphin device-capability guard, and texture prefetch/memory protections remain unchanged. No iPhone rendering or performance has been verified."
  },
  {
   "id": "gc-fe-por-upscaled-thattextureguy",
@@ -273,7 +273,7 @@
   "source_id": "gamebanana:wip:93626",
   "licence": {
    "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
-   "redistribution": "Manual author-page download only. NeoStation does not host or redistribute these files."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -281,7 +281,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1453076"
    },
-   "file_name": "wii_fit_plus_hd_v01.zip"
+   "file_name": "wii_fit_plus_hd_v01.zip",
+   "in_app": true
   },
   "scope": "partial",
   "family": "wii-fit-plus-hd-gmans626",
@@ -313,7 +314,7 @@
   "source_id": "gamebanana:417752",
   "licence": {
    "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
-   "redistribution": "Manual author-page download only. NeoStation does not host or redistribute these files."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -321,7 +322,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/908195"
    },
-   "file_name": "nsmbw_custom_hd_title.zip"
+   "file_name": "nsmbw_custom_hd_title.zip",
+   "in_app": true
   },
   "scope": "ui",
   "family": "wii-nsmbw-hd-title-tjshah",

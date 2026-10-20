@@ -27,7 +27,7 @@
   "source_id": "gamebanana:643796",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Made on the European disc (SLES-50044).",
   "download": {
@@ -37,7 +37,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1594236",
     "sha256": "812ccdbc44a0e8766b33bb3718b2b8d7463d5d91136b381c61f7974ddadb6bd1"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [

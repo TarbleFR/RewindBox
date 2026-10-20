@@ -77,7 +77,7 @@
   "source_id": "gamebanana:399589",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Made for Sonic Riders DX (the patched USA game). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -87,7 +87,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/858144",
     "sha256": "6c0b0fe7dec5cac81f076100d4f1f14e4f2ef71ceec8c8f2c6fbc32a539cf582"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -129,7 +130,7 @@
   "source_id": "gamebanana:399589",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The author's recommended size. Made for Sonic Riders DX (the patched USA game). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -139,7 +140,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/858145",
     "sha256": "e7464d3800258e5c86ad53c53d6b34a4f4a6047a9ad718c2f567c0f4ba604c27"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -181,7 +183,7 @@
   "source_id": "gamebanana:399589",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Made for Sonic Riders DX (the patched USA game). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -191,7 +193,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/858146",
     "sha256": "730f658cef2ae3ffcf290cdd887c3e076090938ce0edfa63aa7d4eb9fea24478"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -232,7 +235,7 @@
   "source_id": "dolphin-forum:65252",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale.",
   "download": {
@@ -242,7 +245,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1aV1msO7eAg3EcOOYVu1cBzQ82ad1EMjB/view?usp=drive_link",
     "sha256": "821f8519cdfbb859672595f0d70eaf7648b0b0a31eed6f720702eae583a5bb76"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -280,7 +284,7 @@
   "source_id": "dolphin-forum:super-monkey-ball-ai-hd-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -290,7 +294,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1dutViancEkJ2VKKBq73Q8wI5iYtK9d-_/view?usp=sharing",
     "sha256": "5f79318f2c226e8cf40258d4d759515ed1ea3df8bbaba52482752f82caeeaf4c"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -328,7 +333,7 @@
   "source_id": "dolphin-forum:super-monkey-ball-ai-hd-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, PNG version (larger, works on every GPU).",
   "download": {
@@ -338,7 +343,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/11i4CeDhL80l6uoOvTRGvwzfLLQQjzcKP/view?usp=sharing",
     "sha256": "ecb4f0aba78389b4f1a383cea865370966cae123cd1979f9adb1ae8a4cead6b1"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -376,7 +382,7 @@
   "source_id": "dolphin-forum:super-monkey-ball-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "BC7 textures need a GPU that samples BC formats.",
   "download": {
@@ -386,7 +392,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1yOmKsGRP1wJ-UjTyHIFek7OlWBLpDhZD/view?usp=sharing",
     "sha256": "a333b6d54dac2a18b20e6bc5165e000e98dae273155345efac8f595640d014fb"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -424,7 +431,7 @@
   "source_id": "gamebanana:648584",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Published as a Dolphin resource pack: only its textures/GRH folder is installed.",
   "download": {
@@ -434,7 +441,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1610256",
     "sha256": "c30dcc521c2d9a882c10fa85a7bbdef10b583459f4097dff4ceee618f2be0248"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -472,7 +480,7 @@
   "source_id": "gamebanana:648584",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "HUD add-on of the HD pack, one button style per pack. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
   "download": {
@@ -482,7 +490,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1610252",
     "sha256": "6fa243a6c4b05008813a6d3392d9b2b7d2ada011c16d507dcb182bec106a0b5e"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -520,7 +529,7 @@
   "source_id": "gamebanana:648584",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "HUD add-on of the HD pack, one button style per pack. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
   "download": {
@@ -530,7 +539,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1610254",
     "sha256": "5ee969c5b05d9ce0e877d1f0fec242068b3aaafb1ff90c688fb40dd5cbeb7de7"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -568,7 +578,7 @@
   "source_id": "gamebanana:648584",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "HUD add-on of the HD pack, one button style per pack. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
   "download": {
@@ -578,7 +588,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1610253",
     "sha256": "516884fa08dcf45cba33665011bc5d3f7f3db6b1259041f54aec59a6d28ca60b"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -616,7 +627,7 @@
   "source_id": "gamebanana:648585",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Published as a Dolphin resource pack: only its textures/GRY folder is installed.",
   "download": {
@@ -626,7 +637,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1610258",
     "sha256": "4ca28d2390dbb4e5536be1f51944ad28f65c95f55e671d4ffaa2b54f5945c40a"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -664,7 +676,7 @@
   "source_id": "dolphin-forum:wario-world-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -673,7 +685,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1uJPZfdQeUVUJwk_j5nBrc6VB_47iKOJT/view?usp=sharing",
     "sha256": "b69dede46c516ab01b2df9bec86e853b9833b0449aaa345830de89e29a072543"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -712,7 +725,7 @@
   "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
   "licence": {
    "summary": "No licence stated by the authors",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -721,7 +734,8 @@
    "verify": {
     "url": "https://mega.nz/file/u8UgQRrQ#oVeQcpbKA_rFxG1cMV6AVdb0cbVXgGhCeAZU2Vumzk0",
     "sha256": "1938e2019bb583d167993734febe6937ec67c0f0c04471770d72e09d19dd9005"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -759,7 +773,7 @@
   "source_id": "dolphin-forum:eternal-darkness-hd",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -769,7 +783,8 @@
    "verify": {
     "url": "https://mega.nz/file/6m5TQToI#v09Y_gYdtZ24WTT6BlfCeM5uvw1nRs3QozcYZkUVVqg",
     "sha256": "5b9e1f01b912b82f697b73c9cf9e84e5365283046eb0a2ab8ca61fb52412cc19"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -807,7 +822,7 @@
   "source_id": "dolphin-forum:animal-crossing-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -817,7 +832,8 @@
    "verify": {
     "url": "https://drive.google.com/open?id=1Z8-pMx20xO8q3caiqy4NOrSNVT1veDSk",
     "sha256": "d72d160d6c29ea34a764e991e219f6158425f6dbf26535d4fca19da6e8975132"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -855,7 +871,7 @@
   "source_id": "dolphin-forum:animal-crossing-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "For the Animal Crossing Deluxe fan modification (Game ID GAD), not the original disc. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -865,7 +881,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1tv-sXC3pO1QRmGbj3acgmXji6YJVskBc/view?usp=drive_link",
     "sha256": "3db3cf9de8bae07c1052c902b12b9c2800d3de0338394272bd6cb7152f0c0bac"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -906,7 +923,7 @@
   "source_id": "github:rapka/dolphin-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -916,7 +933,8 @@
    "verify": {
     "url": "https://mega.nz/#!2JEDHIQT!9UVh6ML_DH8zSjZbukqiNuReDkdKFwsDz8V2xQiQST4",
     "sha256": "5bc499fd4127f5a0db40109e5038132510260090103b2b61837e0bb487d55f58"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -957,7 +975,7 @@
   "source_id": "github:rapka/dolphin-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -967,7 +985,8 @@
    "verify": {
     "url": "https://mega.nz/#!Wd8CUSYC!4kXspst7w3DJbcNqvns1XdJQKqZL0Z7u39NfcMoEDmg",
     "sha256": "194e68c37efdc33e41e6da8d2d44a90b21dcae26e28f942f6b69a13b99861210"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1008,7 +1027,7 @@
   "source_id": "github:rapka/dolphin-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -1018,7 +1037,8 @@
    "verify": {
     "url": "https://mega.nz/#!LAs0nSYY!sfFojNtdYaSgXC5T73kgiTDBB6UPxWZEqdSA0FlQ-Ks",
     "sha256": "97e68deadac58b4b36dadd71b64c36d385cc961e76d7a10cf5b30ebcb14981f9"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1059,7 +1079,7 @@
   "source_id": "github:rapka/dolphin-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -1069,7 +1089,8 @@
    "verify": {
     "url": "https://mega.nz/#!PNs3FAoA!sa2_hbDf46EvowN6zHKs1XQRAPzX0NF3MKOAm_WA3Do",
     "sha256": "2ad8934bf52186b28911989a31aff4f44adc9d4774bce0d2009bb40a9c42ab7e"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1110,7 +1131,7 @@
   "source_id": "github:rapka/dolphin-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -1120,7 +1141,8 @@
    "verify": {
     "url": "https://mega.nz/#!DE9EFaSa!sZ3UwrdmyLKKh2IM3J6AR4J5OmUfy90rv21hPeWlNOc",
     "sha256": "684da8bc899e98bf3c56b15293a462108a36d40a2e508bd94ba74a9b61444669"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1161,7 +1183,7 @@
   "source_id": "github:rapka/dolphin-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -1171,7 +1193,8 @@
    "verify": {
     "url": "https://mega.nz/#!OZ1RUKAQ!l225vo2KmIg6yCRUNQQqeeVgyK6RT4zxKxIHpwgSipY",
     "sha256": "2b0a4d27a3b242be9055642b636f931d75c902e37eedda0b2a3f7c268e4c95bd"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1212,7 +1235,7 @@
   "source_id": "github:rapka/dolphin-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -1222,7 +1245,8 @@
    "verify": {
     "url": "https://mega.nz/#!TJ0jjIZA!UQh8r_luF9RekfPbOfNa-Cj9Qgjxj83uOjCPfhXNsgQ",
     "sha256": "d73167cfeeac9e8ae27c61668a4a993acdef9fa2c3bca5508cfdc5edfe6fc0c6"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1263,7 +1287,7 @@
   "source_id": "github:rapka/dolphin-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -1273,7 +1297,8 @@
    "verify": {
     "url": "https://mega.nz/#!uBFV0KRZ!9M6SROjZJ5Z3RlGMJu9UHSp1RYIZk4KfmGnssGwDkWg",
     "sha256": "9670b6548291a9e0079710f58a4aa60ee96f912937673911beaafa8a1067433f"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1342,7 +1367,7 @@
   "source_id": "github:thelostgrimm/Dolphin-HD-Texture-Packs",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Upscaled with HDCube4; the author's archive.org upload. Its GVS folder also applies to other games whose ID starts with GVS.",
   "download": {
@@ -1352,7 +1377,8 @@
    "verify": {
     "url": "https://archive.org/download/gchdtexturepacks/Virtua%20Striker%202002%20%28GVS%29%202x.zip",
     "sha256": "b0268857b665bac02f9022d77b9c4d7494d588533ea623c3173cb1e18deea7fb"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1421,7 +1447,7 @@
   "source_id": "github:thelostgrimm/Dolphin-HD-Texture-Packs",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Upscaled with HDCube4; the author's archive.org upload. Its GVS folder also applies to other games whose ID starts with GVS.",
   "download": {
@@ -1431,7 +1457,8 @@
    "verify": {
     "url": "https://archive.org/download/gchdtexturepacks/Virtua%20Striker%202002%20%28GVS%29%203x.zip",
     "sha256": "cf2ccd047c7a18b30c9dceb2193c4a1c88e2fac0df9c780fbdd0c47866a361d7"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1472,7 +1499,7 @@
   "source_id": "dolphin-forum:the-last-story-hd-gui-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1481,7 +1508,8 @@
    "verify": {
     "url": "https://mega.nz/file/0UFQCRTB#OleUc9nRP7Qp21nGB3A1sZo_7WNCG6YW-GLNSsH_sAg",
     "sha256": "6d3e59d6c84d5d8bd9746492c593372aa473f6dcd106de2f2e23f9eb2154edaa"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1519,7 +1547,7 @@
   "source_id": "dolphin-forum:mario-kart-wii-hd-remaster",
   "licence": {
    "summary": "No licence stated by the authors",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only its RMC folder is installed (the separate folder of Moukrea's replaced textures stays out).",
   "download": {
@@ -1529,7 +1557,8 @@
    "verify": {
     "url": "https://drive.google.com/open?id=1lVWj49rZHE3Uz9wf1DxMAYVOUivK1Mkv",
     "sha256": "e1329f6e0fb204daa351687e268df9a67e7354754de196bb2286552437054d62"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1567,7 +1596,7 @@
   "source_id": "dolphin-forum:new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1576,7 +1605,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1gcPQ2u_GXl3IpziEVvIsVzS90-mar2ZM/view?usp=drive_link",
     "sha256": "acd46f6490d02acbcb871f3e0a20b4b9f8534367e32a4535b364a51ef874b1d2"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1617,7 +1647,7 @@
   "source_id": "dolphin-forum:plusnine-s-punch-out-wii-hd-ready-project-updated-september-8-2016",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1626,7 +1656,8 @@
    "verify": {
     "url": "https://drive.google.com/open?id=0B8FvW480wj7CWE1NbllRNGxxN28",
     "sha256": "f3afa9fb3aa9b0eacc647f4e701ade72d318712412b933b50c228b63448a3644"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1664,7 +1695,7 @@
   "source_id": "dolphin-forum:skies-of-arcadia-hd-v0-06-june-27-2020",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Work in progress (v0.06): characters, skies and part of the environments.",
   "download": {
@@ -1674,7 +1705,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1b8yUtU5DNYz1C5mimY28fUdP30rOZiQW/view?usp=sharing",
     "sha256": "025e4a286b95963570a75142ff74b123df0416c9dd0cbcb3c30d42b4bd7b53fe"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1715,7 +1747,7 @@
   "source_id": "dolphin-forum:san-francisco-rush-2049-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "San Francisco Rush 2049 is played from Midway Arcade Treasures 3 (USA disc GE3E5D). The text files and nested archives of the folder are not installed.",
   "download": {
@@ -1725,7 +1757,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1i_NZTt_S2dZT4zGQ7AffVvM2_P1-1fZX/view",
     "sha256": "2291ba65378108a7b134f9c3b185edf39dbfd5943f0b737dc2e188eadcd61a73"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1766,7 +1799,7 @@
   "source_id": "dolphin-forum:crash-nitro-kart-hd-texture-fixes",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Corrected and sharper versions of a selection of textures (245 files).",
   "download": {
@@ -1776,7 +1809,8 @@
    "verify": {
     "url": "https://mega.nz/#!D8gChAYY!mvymsLDE-J-HCDIrVEIsXARE8VqyFpELFX3IF8cKMsQ",
     "sha256": "8521f45dd50b59c695f20bb7d035a7b21f11f2ad995f94025641da0e92caadb3"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1814,7 +1848,7 @@
   "source_id": "dolphin-forum:star-fox-adventures-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The optional health-bar colours (Alternate Health folder) are not installed. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -1824,7 +1858,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1ZACU71Riaphm9Ki6YroHBcbiO0uquSci/view?usp=sharing",
     "sha256": "541a4b1c23a62989f7a1dad3edaf688db4c506e495478c8dd3fa73560ffb0eb4"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1865,7 +1900,7 @@
   "source_id": "dolphin-forum:luigi-s-mansion-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1874,7 +1909,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1sKatVd969lI1749kxWpUs8r-ApmzXwaz/view?usp=sharing",
     "sha256": "acefb8e8a75db750ef5613935ce4422f2cb54ad72017c069bf9c65dca88f60af"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1915,7 +1951,7 @@
   "source_id": "dolphin-forum:spyro-a-hero-s-tail-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1924,7 +1960,8 @@
    "verify": {
     "url": "https://mega.nz/file/vkASHQja#B9nyivElRghhjgLK66HADcqKFI9EQmOxGZi0tDZPHpE",
     "sha256": "249888cf08c6de30a644b7d2d60fc6903eb6ed0434c6d9f74d39bb20a036d17a"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1965,7 +2002,7 @@
   "source_id": "dolphin-forum:gauntlet-dark-legacy-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The textures' folder is named for the USA disc (GUNE5D). The author's instructions also apply a patch of theirs to the game; NeoStation installs the textures only.",
   "download": {
@@ -1975,7 +2012,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1zhLTYNhxg3XrXG_fDkZHvMYrzT4uBwzm/view",
     "sha256": "2667195680ef70e09c3e6761d1458a9302fd069defb19cb770c1e650be8c7572"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2013,7 +2051,7 @@
   "source_id": "henrikomagnifico:pikmin-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop Dolphin settings.",
   "download": {
@@ -2023,7 +2061,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1eZQmHBen1EuZcIUzfAEZUJl7TeL93ClX/view",
     "sha256": "1bf6c06cb89d575e2e61834dc806929c310d768ce32b65c611fb049edbd3aa80"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "gc-pikmin-4k-henriko"
@@ -2093,7 +2132,7 @@
   "source_id": "henrikomagnifico:pikmin-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The author's edition for Android and iOS. Only the textures are installed, not its Dolphin settings.",
   "download": {
@@ -2103,7 +2142,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1870dA11T9FpuLQDnI3axoCJ_Eh5ptgWP/view",
     "sha256": "5d9254b4f1ca46fee93b57ce17e888521884634bc1fae4bc7a4cf22af7e2551b"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "gc-pikmin-4k-henriko"
@@ -2133,7 +2173,7 @@
   "source_id": "henrikomagnifico:super-mario-sunshine-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the widescreen patch tools of the archive are not.",
   "download": {
@@ -2143,7 +2183,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1t-pqwzmPvIUIpkqCX1qmqjuC87fusQ-Z/view",
     "sha256": "7d8ada037bd16dc1cd76a8dbf980d128c463f89d92e343f864a0f0c06538b90a"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "gc-sms-4k-henriko"
@@ -2173,7 +2214,7 @@
   "source_id": "henrikomagnifico:super-mario-sunshine-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the widescreen patch tools of the archive are not.",
   "download": {
@@ -2183,7 +2224,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1GYu4wq_qOFsFQSoQ-MBjGsN940uDDsuI/view",
     "sha256": "cd25a44cb47a1d72af16ca42bf07fe0c89fa57aac4da4a3ddb6e63f74c12c61e"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "gc-sms-4k-henriko"
@@ -2213,7 +2255,7 @@
   "source_id": "henrikomagnifico:super-mario-sunshine-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The author's mobile edition. Only the textures are installed; the widescreen patch tools of the archive are not.",
   "download": {
@@ -2223,7 +2265,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1B2AsshhhjB4mAMSv-6jGseXvjjsDgtCP/view",
     "sha256": "56ec57e4fd80852a25c2e465af000be23c7cd7cb8997a21a60e03c1426bfdb9e"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "gc-sms-4k-henriko"
@@ -2253,7 +2296,7 @@
   "source_id": "dolphin-forum:mario-party-4-7-hd-ai-24-11-2022",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale. The textures shared by Mario Party 4 to 7 are a separate file of the author (Mario Party Shared 4-7 HD); A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -2263,7 +2306,8 @@
    "verify": {
     "url": "https://mega.nz/folder/q1tkWSTZ#eTtBixQ40IaBYmP_s8kDEA/file/CxlFgQzI",
     "sha256": "4a9ddf10af4c0360ab6d1cee69bd8ce2f524cb204ef67e13b3d4e4285409976a"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2301,7 +2345,7 @@
   "source_id": "dolphin-forum:mario-party-4-7-hd-ai-24-11-2022",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale. The textures shared by Mario Party 4 to 7 are a separate file of the author (Mario Party Shared 4-7 HD); A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -2311,7 +2355,8 @@
    "verify": {
     "url": "https://mega.nz/folder/q1tkWSTZ#eTtBixQ40IaBYmP_s8kDEA/file/b5tFlCwS",
     "sha256": "f8f595c65836475c00c48caa420e6e218ab49eca125cca698bedd340d670910a"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2349,7 +2394,7 @@
   "source_id": "dolphin-forum:mario-party-4-7-hd-ai-24-11-2022",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale. The textures shared by Mario Party 4 to 7 are a separate file of the author (Mario Party Shared 4-7 HD); A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -2359,7 +2404,8 @@
    "verify": {
     "url": "https://mega.nz/folder/q1tkWSTZ#eTtBixQ40IaBYmP_s8kDEA/file/r5ljEQKS",
     "sha256": "4cae8cd4ba2b165ad368f28ebfe53a75385fe154f2408c90c49a68bfcf84ef16"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2397,7 +2443,7 @@
   "source_id": "dolphin-forum:mario-party-4-7-hd-ai-24-11-2022",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale. The textures shared by Mario Party 4 to 7 are a separate file of the author (Mario Party Shared 4-7 HD); A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -2407,7 +2453,8 @@
    "verify": {
     "url": "https://mega.nz/folder/q1tkWSTZ#eTtBixQ40IaBYmP_s8kDEA/file/r1lzXaxR",
     "sha256": "2e3542d3d6e81d8a359a437a0a0d724df08201ca51a3795e99c1117c3a01c370"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2445,7 +2492,7 @@
   "source_id": "dolphin-forum:sonic-heroes-ai-hd-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale.",
   "download": {
@@ -2455,7 +2502,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1tLuPJW-UAxxExOR0LFyjuhNjZ6MUm5Dn/view?usp=drive_link",
     "sha256": "7a382ea40d21423cb1ad5c61f44dd3848951cf367b7e433139875ba9e4c68d67"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2493,7 +2541,7 @@
   "source_id": "dolphin-forum:wario-world-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "DDS edition of the same pack. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -2503,7 +2551,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1irZDLaBWWoe_XOIPU5_z_RoAdu6nJkbD/view?usp=sharing",
     "sha256": "3f206eb8d06ce7598fe73a8f20f84d9eaff47a54de61a7fe0a2c40e23b7a0d5b"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "gc-wario-world-hd-calebthegeek"
@@ -2533,7 +2582,7 @@
   "source_id": "dolphin-forum:super-monkey-ball-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "PNG edition of the same pack.",
   "download": {
@@ -2543,7 +2592,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1ZmCffIxIz8JYhrfzCIPxK-iOIdPBSJAW/view?usp=sharing",
     "sha256": "e6c18e00b89e965d9590f77c946db7ba602a7c5db74207a921a281743a66b98c"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2582,7 +2632,7 @@
   "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "DDS edition of the same pack (a Dolphin resource pack: its manifest and logo are not installed). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -2592,7 +2642,8 @@
    "verify": {
     "url": "https://mega.nz/file/L9kRna4Y#ICoijr8GS4t1PKsaFtiS66FDcIhEcsfyMz6lNFEtgjo",
     "sha256": "c0d34a724122d8bfe6776cda640b8b5c7e6626a4978225bfbbfbeacf4b1bf5b1"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2640,7 +2691,7 @@
   "source_id": "dolphin-forum:texture-pack-for-harvest-moon-a-nother-wonderful-life-v1-1",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "One folder for both games, recognised by their game-ID marker files.",
   "download": {
@@ -2650,7 +2701,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1W-OuwaDEll8sHeUcn4exmPgXwibCnzdA/view",
     "sha256": "9fe47581641745c7d701bd496de1a350e3e7bd3b94680a0e0db5d8f591254e45"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2698,7 +2750,7 @@
   "source_id": "dolphin-forum:texture-pack-for-harvest-moon-a-nother-wonderful-life-v1-1",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "One folder for both games, recognised by their game-ID marker files. Its button images (Dynamic Input Textures) are not installed. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -2708,7 +2760,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1RsKnizQr9B7g-6Nuek5-hbScs6IWK0L1/view",
     "sha256": "238acc64584f4bf76a4b97bb635c3f4e6187f780d071c60008a62d5743f9acd2"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2746,7 +2799,7 @@
   "source_id": "admentus64:textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Early release (v0.1). For the Wii Virtual Console release; the files named for N64 emulators in the archive are not installed.",
   "download": {
@@ -2756,7 +2809,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1gWzXCCtphiNBjt-a862P8_EZFprMsnqX/view",
     "sha256": "7f2bd5b2274a8bc3627a0a578afd5f17b0290c24f1d24a066961a301910be223"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2794,7 +2848,7 @@
   "source_id": "admentus64:textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Early release (v0.1). For the Wii Virtual Console release. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -2804,7 +2858,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1QlZ_uY-jL-GcclNIPQ_fhOlo_xnQyAfM/view",
     "sha256": "55a6df70227cce50663f27fa801cb933d6a833061c2a6a631c26b59e7dfe9bb2"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2842,7 +2897,7 @@
   "source_id": "henrikomagnifico:wii-sports-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds a desktop Dolphin build and its settings.",
   "download": {
@@ -2852,7 +2907,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1R3HxqixJAUGsYAIWBlxe0Jg6ag1O5X0q/view",
     "sha256": "33de5e8d8c8c0481ebe8bd2a979fbf5c002bad4a378857e588cdf18c97c7da78"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "wii-wii-sports-4k-henriko"
@@ -2882,7 +2938,7 @@
   "source_id": "henrikomagnifico:wii-sports-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The author's edition for Android and iOS. Only the textures are installed, not its Dolphin settings.",
   "download": {
@@ -2892,7 +2948,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/14D1E83H3SR9JGuElKvII_qdJ_GJRM7y0/view",
     "sha256": "703e0d890e1e840a4dd0cc7528b3bf3283897927de69a6026459b95a1dc7e287"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "wii-wii-sports-4k-henriko"
@@ -2925,7 +2982,7 @@
   "source_id": "dolphin-forum:high-resolution-texture-pack-for-samurai-heroes-wii-ntsc-uhd-4k-optimized",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "4.3 GB.",
   "download": {
@@ -2935,7 +2992,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1EfQbTQ6eDe4Qp8sH8UNnQoVIWvk21a8n/view?usp=drive_link",
     "sha256": "2079d4fa63e959085a5b9168abc12a6858bdfc673b1b9b9077bede413ff8cc02"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -2973,7 +3031,7 @@
   "source_id": "dolphin-forum:new-super-mario-bros-wii-exclusive-nvidia-shields-china-release-ported-ui",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of the NVIDIA Shield release, made to go with Bighead's NSMBW HD pack; the archive's patch for that pack is not installed. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -2983,7 +3041,8 @@
    "verify": {
     "url": "https://drive.google.com/open?id=1Befhor-y9u9iFDZbhdClbxzxfufvyfv6",
     "sha256": "b9bc915da6b19c65baf69b384a8ee0d282c408b6b568072bf343e7b319ac6fec"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3021,7 +3080,7 @@
   "source_id": "dolphin-forum:new-super-mario-bros-wii-exclusive-nvidia-shields-china-release-ported-ui",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of the NVIDIA Shield release, made to go with Bighead's NSMBW HD pack; the archive's patch for that pack is not installed. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -3031,7 +3090,8 @@
    "verify": {
     "url": "https://drive.google.com/open?id=1N4LczMwVa9whV7xvudCdwBmjGnll2NeH",
     "sha256": "3e3cdcff05be5a46f5ce25612f20a97abd3cf021aa1b1e4b354bb0bf12be35a7"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3072,7 +3132,7 @@
   "source_id": "dolphin-forum:the-last-story-hd-gui-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "DDS edition of the same pack. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -3082,7 +3142,8 @@
    "verify": {
     "url": "https://mega.nz/file/sZUGRbrI#eQMQcGR9U2GBZbLscAXauSxnwgD9b4xmGgfOUsZ3pgI",
     "sha256": "1a1a448503f78d2a4e8aa09e7d257fcce9e183531fb114705d8266321d507a74"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3120,7 +3181,7 @@
   "source_id": "dolphin-forum:new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "DDS edition of the same pack. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -3130,7 +3191,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1JVihF4NSPWi7fsZOVWJ4K6TZMaA47eGI/view?usp=drive_link",
     "sha256": "f4c78b15a81f46948a485475c9ef0294f876c02d61807e9f3f992d9268c3c713"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3168,7 +3230,7 @@
   "source_id": "gamebanana:166202",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The optional Shadow colours of the archive are not installed.",
   "download": {
@@ -3178,7 +3240,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/561990",
     "sha256": "f6bbd4633ca767eee2805f5d25b0d81c104d9bed60bcacf2147cd00a74cc37f9"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3219,7 +3282,7 @@
   "source_id": "gamebanana:648591",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Textures of the Xbox release brought to the GameCube game (a Dolphin resource pack: its manifest and logo are not installed).",
   "download": {
@@ -3229,7 +3292,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1610272",
     "sha256": "9bbc3b7f0ae6a79a9d5f6db41e9aa81f322d9018e4bb94d20128a32cd353bb8b"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3270,7 +3334,7 @@
   "source_id": "gamebanana:648590",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Textures of the Xbox release brought to the GameCube game (a Dolphin resource pack: its manifest and logo are not installed).",
   "download": {
@@ -3280,7 +3344,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1610263",
     "sha256": "03e0f7992e8a0cbc45b65808748bcbf52aa5e19f23f0f6b494c610fbb757a0bc"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3321,7 +3386,7 @@
   "source_id": "gamebanana:40698",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -3330,7 +3395,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1210",
     "sha256": "9d98d615406800aebef0f12736a5ca812bb3230daf977ebd8b79588d99929bba"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3368,7 +3434,7 @@
   "source_id": "gamebanana:615525",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "AI upscale, DDS edition. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -3378,7 +3444,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1502748",
     "sha256": "44430c7cb71ebffb99dd68d301f14eb04d7788ea4fd51b85b68356ef78e3081d"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3416,7 +3483,7 @@
   "source_id": "gamebanana:355396",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Three coin icons. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -3426,7 +3493,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/741765",
     "sha256": "7e4a153199a6d28f479b8a6f6e07cf40303fa2de4c6c4be0bd234c6c2fcf2a5a"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "gc-sms-modern-hd-coin-icons-rileychan6"
@@ -3456,7 +3524,7 @@
   "source_id": "gamebanana:461217",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -3466,7 +3534,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1113605",
     "sha256": "78557ab88a5206ac8bc7e74e5e0d6d6620a64b5d7a0a5e6fbced80f5cd72e27c"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "wii-nsmbw-buttons-floweygaming"
@@ -3496,7 +3565,7 @@
   "source_id": "gamebanana:461217",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -3506,7 +3575,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1113607",
     "sha256": "cf3f151a79192efe506476ddf4a7ee7200b6e62f93bfa3e7110c08b5c5a92482"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "wii-nsmbw-buttons-floweygaming"
@@ -3536,7 +3606,7 @@
   "source_id": "gamebanana:461217",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -3546,7 +3616,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1113606",
     "sha256": "fff2fbeede2e5d46c540a71468c128035710f4b8739976a6075548bfd818306e"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "wii-nsmbw-buttons-floweygaming"
@@ -3576,7 +3647,7 @@
   "source_id": "gamebanana:489929",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -3586,7 +3657,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1206351",
     "sha256": "9825d96f62193c329170e24518deebd8b1cd1be8e8c63845847b135f48fe12e0"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "wii-mkwii-buttons-floweygaming"
@@ -3616,7 +3688,7 @@
   "source_id": "gamebanana:489929",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -3626,7 +3698,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1206350",
     "sha256": "af5a5bf694a884a9adb13849e7a52b608f4c2a4ffdb3fd388bb853c0be54db54"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "wii-mkwii-buttons-floweygaming"
@@ -3656,7 +3729,7 @@
   "source_id": "gamebanana:489929",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -3666,7 +3739,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1206349",
     "sha256": "e176a8163e3d306cc5e29980f0d3dc5228fc247b2f4bb294ec9710d968016512"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "wii-mkwii-buttons-floweygaming"
@@ -3699,7 +3773,7 @@
   "source_id": "gamebanana:532419",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Custom textures for a set of characters (v6, the latest of the author's three versions).",
   "download": {
@@ -3709,7 +3783,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1265360",
     "sha256": "12908d690b8dc8c5b3babe48d4fa5066b3ae347e01a82cf9483499c705e76abf"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3747,7 +3822,7 @@
   "source_id": "henrikomagnifico:luigis-mansion-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds a widescreen patch, ReShade presets and desktop settings.",
   "download": {
@@ -3757,7 +3832,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1wPvjgurh3Xsj8a-NCtNnVUX46Sk-7zCY/view",
     "sha256": "a93c4c2aa2caecb6e0935312658374586a57d68623c5c42b5dece0593dff53f8"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "gc-luigis-mansion-4k-henriko"
@@ -3787,7 +3863,7 @@
   "source_id": "henrikomagnifico:luigis-mansion-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds a widescreen patch, ReShade presets and desktop settings.",
   "download": {
@@ -3797,7 +3873,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1BgOcWF1SEsThx0Ers8m8hWgrIqE4TsJ5/view",
     "sha256": "1975fecdef0bd6623ee1463564ec323887cc467a8b2d569964a5581bd81c558c"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "gc-luigis-mansion-4k-henriko"
@@ -3827,7 +3904,7 @@
   "source_id": "henrikomagnifico:luigis-mansion-4k",
   "licence": {
    "summary": "CC BY 4.0 (licence file in the archive)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The author's edition for phones (fewer, lighter textures). Only the textures are installed, not its Dolphin settings.",
   "download": {
@@ -3837,7 +3914,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1FtTyPXvC7zqvMfFjdQpNh7poLjPBkO71/view",
     "sha256": "f1b93386bc0638f429ceab546cbf41ae9a66ab1950d7f40ea1c076925a904358"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "gc-luigis-mansion-4k-henriko"
@@ -3867,7 +3945,7 @@
   "source_id": "dolphin-forum:star-fox-assault-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Made on the USA disc (GF7E01); players report wrong fonts with the PAL disc (GF7P01) in the thread. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -3877,7 +3955,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1RL0ABqryRXaIk4A1Qdn2LJff4bkOrC_L/view?usp=sharing",
     "sha256": "38ada98044590ef288b19f88c2381e67bac812a01079d94f8aab133ba8d86a2d"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3915,7 +3994,7 @@
   "source_id": "dolphin-forum:metroid-prime-trilogy-hd-interface-textures",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Hand-made HUD, visor and menu textures for the USA and PAL discs. The PrimeHack keyboard and mouse icons of the archive are not installed. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -3925,7 +4004,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/17ayP-PEx3n8YlPty56y14kKxWJjL2uKp",
     "sha256": "e2e31e39b6fe8e1c532e99d550701926893a34f34bc40c39c5cecb54d0c18ec7"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -3966,7 +4046,7 @@
   "source_id": "gamebanana:701356",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -3976,7 +4056,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1776640",
     "sha256": "8eb752b790bee0d6413a333951cd204d647be57a7fd391e86af72a9aacd7063d"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4017,7 +4098,7 @@
   "source_id": "gamebanana:334855",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -4027,7 +4108,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/690486",
     "sha256": "0de3c95d991fe00469e9690ae91d0b42e2fe1e52e3e608235f5f918a5929f1c6"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4065,7 +4147,7 @@
   "source_id": "gamebanana:588015",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -4075,7 +4157,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1420518",
     "sha256": "4db696f4d37b7a4255e4a3345caa4c2109ec8a6af2b23480490c8a1ae57291c3"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4113,7 +4196,7 @@
   "source_id": "gamebanana:689283",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -4123,7 +4206,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1738399",
     "sha256": "54a6a082eeca5faadb485858451e7ed3a4fc717daa57611b664e6799a70e07e4"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4164,7 +4248,7 @@
   "source_id": "gamebanana:399249",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "First part of a pack in progress.",
   "download": {
@@ -4174,7 +4258,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/857297",
     "sha256": "23badeae65fd6576080da1dcbd91e00e32ed6bf941292053a0315ca65d54d4ec"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4215,7 +4300,7 @@
   "source_id": "gamebanana:390496",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds Dolphin controller and game settings. Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -4225,7 +4310,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1756030",
     "sha256": "d38d7b2b78c834c54df3edc56ea6a0883f6b7d4c7e0d1fd9ff7278358fc52af5"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4263,7 +4349,7 @@
   "source_id": "gamebanana:34057",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -4273,7 +4359,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/549303",
     "sha256": "6ddfd6ef7fa51edd6ea34e3371706e2bd5ceab1d9d11d2f0b6406accf6090c8e"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4314,7 +4401,7 @@
   "source_id": "gamebanana:633937",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Made on the European disc (GKYP01). DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -4324,7 +4411,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1563167",
     "sha256": "919ed298771c2db042d64cefed82092a429c4a56bd876fd251b0165ee806aa3b"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4365,7 +4453,7 @@
   "source_id": "gamebanana:592742",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "A repaint of the game's textures (1,894 files), made on the USA disc.",
   "download": {
@@ -4375,7 +4463,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1434052",
     "sha256": "c0ae3dd5944ac375ab805f37d9e48eb2a275d6a50e0df80dc9e155a86aedd040"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4413,7 +4502,7 @@
   "source_id": "gamebanana:558945",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Character icons in the style of the Nintendo Switch Mario Party games.",
   "download": {
@@ -4423,7 +4512,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1332056",
     "sha256": "ba0e18c28f56b75126084dc0a9fcc902c2e9d84456eb6d3d477c28c5188be669"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4461,7 +4551,7 @@
   "source_id": "gamebanana:49298",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -4471,7 +4561,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/441690",
     "sha256": "769166a1b06785557de8c6bb74302cbef4ee68dea0b72c6ae73ebb9160635a24"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4509,7 +4600,7 @@
   "source_id": "gamebanana:412130",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -4519,7 +4610,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/891427",
     "sha256": "35dff865183d40318267c93930612da18fee1f9d29bb949f0ab0448ff0e9cd03"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4557,7 +4649,7 @@
   "source_id": "gamebanana:659216",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The game font redrawn at high resolution (English, French, German, Spanish and Italian; USA and European discs).",
   "download": {
@@ -4567,7 +4659,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1645551",
     "sha256": "8d272cb2c4eb0f4d3d54a5a6560cf36182f81c3bc5e1a929cc566f6700e13568"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4605,7 +4698,7 @@
   "source_id": "gamebanana:34058",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The optional alternate character icons of the archive are not installed; the controller profile it carries is not used.",
   "download": {
@@ -4615,7 +4708,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/660360",
     "sha256": "7c8a901faf33894183a522ba61cd666104fbcb4024ddbd05bb272f1c3bc3cecf"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4656,7 +4750,7 @@
   "source_id": "gamebanana:676960",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result. DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -4666,7 +4760,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1700759",
     "sha256": "7e794987a5a1f4d6434230892af2cab9c548586369e147a5d80da30a7939c824"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4707,7 +4802,7 @@
   "source_id": "dolphin-forum:hd-project-animal-crossing-city-folk-ruue01",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "First release (49 textures). Its few files in the old pre-2015 naming are not read by Dolphin and not installed.",
   "download": {
@@ -4717,7 +4812,8 @@
    "verify": {
     "url": "https://www.dropbox.com/s/d9kxmyrns5qsyku/RUUE01HDv0.1.7z?dl=0",
     "sha256": "ff7db23f1de332143418066ff8f3eca26fa2ab639cbc1eccc77c65d40bbc4730"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4755,7 +4851,7 @@
   "source_id": "dolphin-forum:endless-ocean-blue-world-hd-project-v2-0-may-28-2019",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "DDS textures need a GPU that samples BC formats.",
   "download": {
@@ -4765,7 +4861,8 @@
    "verify": {
     "url": "https://mega.nz/file/9BVSzbrK#0KTFsA2wmSbv2YMlFnav2XXtM2hRosp0Z06Y8QzMInc",
     "sha256": "a319d31753c3ac0c6f797c3effae546e5c49ce9622392619bd79146fa391c0ad"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4806,7 +4903,7 @@
   "source_id": "dolphin-forum:super-mario-strikers-hd-texture-pack",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Made on the USA disc (G4QE01).",
   "download": {
@@ -4816,7 +4913,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1GNQ4x15g6YnlNBDTDKmpjdC2cj5BpCvI/view?usp=sharing",
     "sha256": "39cf39eeca685600b149b3c4146fbbe9391e3c66c29c9ca673e6783b7bd6fb65"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4854,7 +4952,7 @@
   "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -4864,7 +4962,8 @@
    "verify": {
     "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/m8l1EAwZ",
     "sha256": "168b06c5d5b5789e2feb0def8fb261b3f159b5f30a52ef81d52a76b75c3257ef"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4902,7 +5001,7 @@
   "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -4912,7 +5011,8 @@
    "verify": {
     "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/uw8hECAb",
     "sha256": "383cbb1a0add55eb8626c3b576e34e96266fe66a0d31338c8b7d1d92091033c9"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4950,7 +5050,7 @@
   "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -4960,7 +5060,8 @@
    "verify": {
     "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/q1thAAoC",
     "sha256": "105192062bb7789b2922eb4f8d280f977a03abd8cdaaaba74fee4ab1333cfc1c"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -4999,7 +5100,7 @@
   "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -5009,7 +5110,8 @@
    "verify": {
     "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/D90TnAKC",
     "sha256": "ac3025a3b2a3207582298a84d0e14a96dfb3327c11a8cdd48df6a27f649f5661"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -5048,7 +5150,7 @@
   "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -5058,7 +5160,8 @@
    "verify": {
     "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/ep8FAbrA",
     "sha256": "99370b31fd710dee5db3b10622faf6acf8fb87a01c0519d99ae224baeef0004f"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -5096,7 +5199,7 @@
   "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -5106,7 +5209,8 @@
    "verify": {
     "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/2h1BEY5B",
     "sha256": "bda079571cc43b820be657d8660c5e612fd7e4d720a1357c2959bd06a355b7e9"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -5144,7 +5248,7 @@
   "source_id": "gamebanana:489929",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -5154,7 +5258,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1121035",
     "sha256": "cee86ef4d6839847d6d45761b7576a7cd7b9df4c8edaf7766c6cde9e15581e9c"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -5192,7 +5297,7 @@
   "source_id": "gamebanana:489929",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -5202,7 +5307,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1121036",
     "sha256": "81f32956e3a2bf8d379e92d1c6ec09d1df0824b8abfd28bef2036b57b7ab0671"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -5240,7 +5346,7 @@
   "source_id": "gamebanana:489929",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
   "download": {
@@ -5250,7 +5356,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1206353",
     "sha256": "acb7f6e2e06be563c59d854c246312b42359ea5d6f305772c53133a542254c96"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [

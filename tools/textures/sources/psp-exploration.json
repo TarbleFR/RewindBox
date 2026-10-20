@@ -82,7 +82,7 @@
   "source_id": "github:BioTes/Star-Wars-Battlefront-2-Ultimate-Collection-PC-and-PS2-texture-port-for-PSP",
   "licence": {
    "summary": "No licence stated; includes assets ported from PC/PS2 releases and a credited font",
-   "redistribution": "Manual author-page download only; NeoStation does not host or redistribute the files."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -90,7 +90,8 @@
    "file_name": "ULUS10053_FINAL.7z",
    "verify": {
     "url": "https://github.com/BioTes/Star-Wars-Battlefront-2-Ultimate-Collection-PC-and-PS2-texture-port-for-PSP/releases/download/Another-Small-Update/ULUS10053_FINAL.7z"
-   }
+   },
+   "in_app": true
   },
   "scope": "partial",
   "family": "psp-swbf2-pc-ps2-textures-biotes",
@@ -160,7 +161,7 @@
   "source_id": "ppsspp-forum:42180",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -174,6 +175,6 @@
   },
   "scope": "partial",
   "family": "psp-yugioh-tag-force2-spanish-brahian",
-  "notes": "Spanish texture replacements, with selectable TCG/OCG/anime variants. EUR ULES00925 only. Author credits chrisfand, Angel105 and Yugipedia. RAR requires external extraction and one folder import; no onward redistribution permission is established. CI listed 11,209 PNGs and four textures.ini files under ULES00925. Select one TCG/OCG/anime configuration and place its textures.ini at the game folder root before importing; this is not an automatic variant selector."
+  "notes": "Spanish texture replacements for EUR ULES00925 only. Author credits chrisfand, Angel105 and Yugipedia. The unchanged original RAR passes native installation: 11,209 PNGs and its default root textures.ini (xxh64); three listed replacement targets are absent and retain the game's original textures. Optional nested TCG/OCG/anime configuration INIs are not installed, merged or selected automatically. No onward redistribution permission or iPhone rendering validation is established."
  }
 ]

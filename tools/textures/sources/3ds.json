@@ -833,9 +833,9 @@
   "source_id": "web:ostrichmods.com",
   "licence": {
    "summary": "No licence stated (credits only)",
-   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
-  "notes": "The author's Google Drive file (v0.9.2), linked from the author's page: download it there and import it.",
+  "notes": "The author's Google Drive file (v0.9.2), linked from the author's page.",
   "download": {
    "automatable": false,
    "page": "https://ostrichmods.com/ac3d.html",
@@ -843,7 +843,8 @@
    "verify": {
     "url": "https://drive.google.com/uc?export=download&id=1zthUs7Cj4ShvEffe-QZMqPACUOlv4KVf",
     "sha256": "d37d0770b459258bdc323bce97dd51ab3e2b93e9d7afa45c6df414941379acfa"
-   }
+   },
+   "in_app": true
   },
   "system": "3ds",
   "engine": "azahar",

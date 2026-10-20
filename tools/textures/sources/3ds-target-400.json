@@ -28,7 +28,7 @@
   "source_id": "gbatemp:656525",
   "licence": {
    "summary": "No licence stated by the creator",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute the files; no redistribution permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -36,7 +36,8 @@
    "verify": {
     "url": "https://pixeldrain.com/api/file/873AKcBf"
    },
-   "file_name": "E.X. Troopers HD Texture Pack.zip"
+   "file_name": "E.X. Troopers HD Texture Pack.zip",
+   "in_app": true
   },
   "scope": "complete",
   "family": "3ds-ex-troopers-hd-pdragon128",

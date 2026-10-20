@@ -296,7 +296,12 @@
       ],
       "records": 10,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, exploration candidates including manual RAR downloads)",
-      "artifact_name": "hdtex-hosts-{console}-{run}"
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "gc-fe-por-hd-appleboi": 39458288578,
+        "psp-yugioh-tag-force2-spanish-brahian": 39456541876,
+        "3ds-radiant-historia-serbagz": 39456551008
+      }
     },
     {
       "run": 39403548138,
@@ -332,7 +337,33 @@
         "ps2-ktx-bujingai-the-forsaken-city-darthdarklord": 39408412029,
         "ps2-ktx-maximo-ghosts-to-glory-maximocapcom": 39408412029,
         "ps2-ktx-devil-kings-i-emu-play": 39417046479,
-        "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-akirus": 39417046479
+        "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-akirus": 39417046479,
+        "ps2-ktx-disney-s-kim-possible-what-s-the-switch-sal9im": 39456534062,
+        "ps2-ktx-dynasty-warriors-3-xtreme-legends-gvngnir": 39456534062,
+        "ps2-ktx-final-fantasy-x-international-curse-arms": 39456534062,
+        "ps2-ktx-final-fight-streetwise-curse-arms": 39456534062,
+        "ps2-ktx-gauntlet-seven-sorrows-mvp899-2": 39456534062,
+        "ps2-ktx-hulk-gvngnir": 39461093167,
+        "ps2-ktx-maximo-ghosts-to-glory-marcelus": 39456534062,
+        "ps2-ktx-metal-arms-glitch-in-the-system-curse-arms": 39456534062,
+        "ps2-ktx-blood-will-tell-curse-arms": 39456541876,
+        "ps2-ktx-colosseum-road-to-freedom-curse-arms": 39456541876,
+        "ps2-ktx-gregory-horror-show-curse-arms": 39456541876,
+        "ps2-ktx-hungry-ghosts-curse-arms": 39456541876,
+        "ps2-ktx-michigan-report-from-hell-curse-arms": 39456541876,
+        "ps2-ktx-arc-the-lad-twilight-of-the-spirits-curse-arms": 39461093167,
+        "ps2-ktx-crash-twinsanity-yamijpg": 39456551008,
+        "ps2-ktx-eternal-poison-curse-arms": 39456551008,
+        "ps2-ktx-final-fantasy-x-2-curse-arms": 39456551008,
+        "ps2-ktx-forbidden-siren-2-curse-arms": 39456551008,
+        "ps2-ktx-god-of-war-ii-mvp899": 39456551008,
+        "ps2-ktx-jade-cocoon-2-curse-arms": 39461093167,
+        "ps2-ktx-jak-2-renegade-marcelus": 39461093167,
+        "ps2-ktx-killzone-curse-arms": 39456551008,
+        "ps2-ktx-lego-batman-the-videogame-mzzvxm": 39456551008,
+        "ps2-ktx-metal-gear-solid-2-sons-of-liberty-curse-arms": 39456551008,
+        "ps2-ktx-metal-gear-solid-3-subsistence-curse-arms": 39456551008,
+        "ps2-ktx-midnight-club-street-racing-mvp899": 39456551008
       },
       "partial_run": true,
       "conclusion": "cancelled after 104 completed records; always-upload artifact preserved every completed observation"
@@ -412,7 +443,11 @@
       ],
       "records": 3,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original Pixeldrain Ninja Assault/God of War II/Cold Fear archives)",
-      "artifact_name": "hdtex-hosts-{console}-{run}"
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-god-of-war-ii-yamijpg": 39456534062,
+        "ps2-ktx-cold-fear-yamijpg": 39456541876
+      }
     },
     {
       "run": 39414433422,
@@ -478,7 +513,19 @@
       "superseded": {
         "ps2-ktx-sengoku-basara-2-heroes-i-emu-play": 39420495984,
         "ps2-ktx-silent-hill-3-curse-arms": 39420495984,
-        "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers": 39420495984
+        "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers": 39420495984,
+        "ps2-ktx-ms-saga-a-new-dawn-curse-arms": 39456534062,
+        "ps2-ktx-raiden-iii-curse-arms": 39456534062,
+        "ps2-ktx-ratchet-clank-up-your-arsenal-reddyxd": 39456534062,
+        "ps2-ktx-second-sight-curse-arms": 39456534062,
+        "ps2-ktx-shadow-of-the-colossus-curse-arms": 39461093167,
+        "ps2-ktx-sly-2-band-of-thieves-curse-arms": 39456534062,
+        "ps2-ktx-spartan-total-warrior-alufolie69": 39456534062,
+        "ps2-ktx-rogue-trooper-curse-arms": 39456541876,
+        "ps2-ktx-scarface-the-world-is-yours-curse-arms": 39456541876,
+        "ps2-ktx-the-sword-of-etheria-curse-arms": 39456541876,
+        "ps2-ktx-star-wars-bounty-hunter-curse-arms": 39456551008,
+        "ps2-ktx-wild-arms-3-curse-arms": 39456551008
       }
     },
     {
@@ -559,7 +606,18 @@
       ],
       "records": 34,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, remaining-only batch 2/3; six native successes, four genuine HD families retained)",
-      "artifact_name": "hdtex-hosts-{console}-{run}"
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-mx-unleashed-mvp899": 39456534062,
+        "ps2-ktx-naruto-shippuden-ultimate-ninja-4-sal9im": 39456541876,
+        "ps2-ktx-police-24-7-mvp899": 39456541876,
+        "ps2-ktx-red-faction-ii-mvp899": 39456541876,
+        "ps2-ktx-samurai-western-curse-arms": 39456541876,
+        "ps2-ktx-the-red-star-curse-arms": 39462581049,
+        "ps2-ktx-obscure-curse-arms": 39456551008,
+        "ps2-ktx-valkyrie-profile-2-silmeria-curse-arms": 39456551008,
+        "ps2-ktx-warhammer-40-000-fire-warrior-curse-arms": 39461093167
+      }
     },
     {
       "run": 39416642896,
@@ -571,7 +629,16 @@
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, remaining-only batch 3; cancelled after 33 completed records, final MEGA transfer unverified)",
       "artifact_name": "hdtex-hosts-{console}-{run}",
       "superseded": {
-        "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight": 39431381794
+        "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight": 39431381794,
+        "ps2-ktx-naruto-uzumaki-chronicles-2-sal9im": 39456534062,
+        "ps2-ktx-project-zero-2-crimson-butterfly-curse-arms": 39456534062,
+        "ps2-ktx-resident-evil-dead-aim-curse-arms": 39456541876,
+        "ps2-ktx-rygar-the-legendary-adventure-curse-arms": 39456541876,
+        "ps2-ktx-shadow-hearts-covenant-curse-arms": 39456541876,
+        "ps2-ktx-tom-clancy-s-splinter-cell-chaos-theory-curse-arms": 39456541876,
+        "ps2-ktx-tsugunai-atonement-curse-arms": 39456541876,
+        "ps2-ktx-power-rangers-super-legends-yamijpg": 39456551008,
+        "ps2-ktx-ratchet-clank-trippypit": 39456551008
       }
     },
     {
@@ -604,6 +671,105 @@
       "records": 1,
       "workflow": ".github/workflows/hd-textures.yml (parts: releases, original Alpha Sapphire v0.0.3 creator ZIP; repository-only no-op run not counted)",
       "artifact_prefix": "hdtex486-releases"
+    },
+    {
+      "run": 39456452641,
+      "source": "bd9e76909805473be9b3cc9173349ffe268f1c38",
+      "consoles": [
+        "dolphin",
+        "ps2",
+        "psp"
+      ],
+      "records": 15,
+      "workflow": ".github/workflows/hd-textures.yml (parts: releases; original creator archives verified with the native RAR reader)",
+      "artifact_prefix": "hdtex486-releases"
+    },
+    {
+      "run": 39456534062,
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "consoles": [
+        "dolphin",
+        "ps2"
+      ],
+      "records": 20,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "gc-fe-por-hd-appleboi": 39458288578,
+        "ps2-ktx-hulk-gvngnir": 39461093167,
+        "ps2-ktx-shadow-of-the-colossus-curse-arms": 39461093167
+      }
+    },
+    {
+      "run": 39456541876,
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "consoles": [
+        "psp",
+        "ps2"
+      ],
+      "records": 20,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-the-red-star-curse-arms": 39462581049
+      }
+    },
+    {
+      "run": 39456551008,
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "consoles": [
+        "3ds",
+        "ps2"
+      ],
+      "records": 21,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-arc-the-lad-twilight-of-the-spirits-curse-arms": 39461093167,
+        "ps2-ktx-jade-cocoon-2-curse-arms": 39461093167,
+        "ps2-ktx-jak-2-renegade-marcelus": 39461093167,
+        "ps2-ktx-warhammer-40-000-fire-warrior-curse-arms": 39461093167
+      }
+    },
+    {
+      "run": 39456603817,
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "consoles": [
+        "psp"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39458288578,
+      "source": "1912a6de8d487437da53e97d0c88e872c84b300e",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39461093167,
+      "source": "a8515db878bde6df67070a0289d443d334f049eb",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 6,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39462581049,
+      "source": "67eb1a385c9e03b67e5d7efbd5eef156197f0af6",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]
 }

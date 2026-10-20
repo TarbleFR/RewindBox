@@ -1,0 +1,861 @@
+{
+  "date": "2026-10-20",
+  "goal_direct_installable_families": 400,
+  "target_reached": true,
+  "baseline_commit": "730e065ffb5d1b66735f6e440cbdbedc886c8163",
+  "baseline_revision": "2026-10-20.8a38a79c72f0",
+  "catalogue_revision": "2026-10-20.28541bbfe23e",
+  "catalogue_sha256": "c1fd3b7ccf3e36164bcaa39c50be5c9818f27b00f0347a96688929030761dd19",
+  "runtime_entries_before": 1086,
+  "runtime_entries_after": 1088,
+  "previous_runtime_ids_retained": true,
+  "new_runtime_ids": [
+    "gc-pso-notum-hd-hud-font-eleriaqueen",
+    "psp-tenchu-tota-last-round-sombertwilight"
+  ],
+  "counts_before": {
+    "gc": {
+      "distinct": 77,
+      "entries": 102,
+      "variants": 25,
+      "complete": 53,
+      "partial": 8,
+      "ui": 16,
+      "oneTapFamilies": 23,
+      "legacyOneTapFamilies": 23,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 54,
+      "games": 54
+    },
+    "wii": {
+      "distinct": 43,
+      "entries": 65,
+      "variants": 22,
+      "complete": 24,
+      "partial": 6,
+      "ui": 13,
+      "oneTapFamilies": 14,
+      "legacyOneTapFamilies": 14,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 29,
+      "games": 33
+    },
+    "3ds": {
+      "distinct": 49,
+      "entries": 55,
+      "variants": 6,
+      "complete": 17,
+      "partial": 16,
+      "ui": 16,
+      "oneTapFamilies": 17,
+      "legacyOneTapFamilies": 17,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 32,
+      "games": 56
+    },
+    "psp": {
+      "distinct": 91,
+      "entries": 105,
+      "variants": 14,
+      "complete": 62,
+      "partial": 12,
+      "ui": 17,
+      "oneTapFamilies": 58,
+      "legacyOneTapFamilies": 58,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 33,
+      "games": 109
+    },
+    "ps2": {
+      "distinct": 76,
+      "entries": 90,
+      "variants": 14,
+      "complete": 48,
+      "partial": 19,
+      "ui": 9,
+      "oneTapFamilies": 33,
+      "legacyOneTapFamilies": 33,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 43,
+      "games": 87
+    },
+    "n64": {
+      "distinct": 14,
+      "entries": 21,
+      "variants": 7,
+      "complete": 12,
+      "partial": 2,
+      "ui": 0,
+      "oneTapFamilies": 14,
+      "legacyOneTapFamilies": 14,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 0,
+      "games": 11
+    },
+    "ps1": {
+      "distinct": 2,
+      "entries": 2,
+      "variants": 0,
+      "complete": 1,
+      "partial": 1,
+      "ui": 0,
+      "oneTapFamilies": 2,
+      "legacyOneTapFamilies": 2,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "nes": {
+      "distinct": 5,
+      "entries": 5,
+      "variants": 0,
+      "complete": 5,
+      "partial": 0,
+      "ui": 0,
+      "oneTapFamilies": 5,
+      "legacyOneTapFamilies": 5,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "total": {
+      "distinct": 355,
+      "entries": 440,
+      "variants": 85,
+      "complete": 220,
+      "partial": 64,
+      "ui": 71,
+      "oneTapFamilies": 164,
+      "legacyOneTapFamilies": 164,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 191,
+      "games": 354
+    }
+  },
+  "counts_after": {
+    "gc": {
+      "distinct": 79,
+      "entries": 104,
+      "variants": 25,
+      "complete": 53,
+      "partial": 9,
+      "ui": 17,
+      "oneTapFamilies": 79,
+      "legacyOneTapFamilies": 43,
+      "nativeCapabilityFamilies": 36,
+      "manualVerifiedFamilies": 0,
+      "games": 56
+    },
+    "wii": {
+      "distinct": 43,
+      "entries": 65,
+      "variants": 22,
+      "complete": 24,
+      "partial": 6,
+      "ui": 13,
+      "oneTapFamilies": 43,
+      "legacyOneTapFamilies": 30,
+      "nativeCapabilityFamilies": 13,
+      "manualVerifiedFamilies": 0,
+      "games": 33
+    },
+    "3ds": {
+      "distinct": 50,
+      "entries": 56,
+      "variants": 6,
+      "complete": 17,
+      "partial": 17,
+      "ui": 16,
+      "oneTapFamilies": 50,
+      "legacyOneTapFamilies": 40,
+      "nativeCapabilityFamilies": 10,
+      "manualVerifiedFamilies": 0,
+      "games": 57
+    },
+    "psp": {
+      "distinct": 102,
+      "entries": 116,
+      "variants": 14,
+      "complete": 71,
+      "partial": 14,
+      "ui": 17,
+      "oneTapFamilies": 102,
+      "legacyOneTapFamilies": 64,
+      "nativeCapabilityFamilies": 38,
+      "manualVerifiedFamilies": 0,
+      "games": 120
+    },
+    "ps2": {
+      "distinct": 125,
+      "entries": 139,
+      "variants": 14,
+      "complete": 90,
+      "partial": 24,
+      "ui": 11,
+      "oneTapFamilies": 125,
+      "legacyOneTapFamilies": 41,
+      "nativeCapabilityFamilies": 84,
+      "manualVerifiedFamilies": 0,
+      "games": 134
+    },
+    "n64": {
+      "distinct": 14,
+      "entries": 21,
+      "variants": 7,
+      "complete": 12,
+      "partial": 2,
+      "ui": 0,
+      "oneTapFamilies": 14,
+      "legacyOneTapFamilies": 14,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 0,
+      "games": 11
+    },
+    "ps1": {
+      "distinct": 2,
+      "entries": 2,
+      "variants": 0,
+      "complete": 1,
+      "partial": 1,
+      "ui": 0,
+      "oneTapFamilies": 2,
+      "legacyOneTapFamilies": 2,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "nes": {
+      "distinct": 5,
+      "entries": 5,
+      "variants": 0,
+      "complete": 5,
+      "partial": 0,
+      "ui": 0,
+      "oneTapFamilies": 5,
+      "legacyOneTapFamilies": 5,
+      "nativeCapabilityFamilies": 0,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "total": {
+      "distinct": 418,
+      "entries": 503,
+      "variants": 85,
+      "complete": 271,
+      "partial": 73,
+      "ui": 74,
+      "oneTapFamilies": 418,
+      "legacyOneTapFamilies": 237,
+      "nativeCapabilityFamilies": 181,
+      "manualVerifiedFamilies": 0,
+      "games": 415
+    }
+  },
+  "new_distinct_families": [
+    "3ds-radiant-historia-serbagz",
+    "gc-fe-por-hd-appleboi",
+    "gc-pso-hd-ui-eleriaqueen",
+    "ps2-arc-the-lad-twilight-of-the-spirits-curse-arms",
+    "ps2-blood-will-tell-curse-arms",
+    "ps2-bloody-roar-4-meskh4h4",
+    "ps2-cold-fear-yamijpg",
+    "ps2-colosseum-road-to-freedom-curse-arms",
+    "ps2-disney-s-kim-possible-what-s-the-switch-sal9im",
+    "ps2-dynasty-warriors-3-xtreme-legends-gvngnir",
+    "ps2-eternal-poison-curse-arms",
+    "ps2-final-fantasy-x-2-curse-arms",
+    "ps2-forbidden-siren-2-curse-arms",
+    "ps2-galactic-wrestling-featuring-ultimate-muscle-meskh4h4",
+    "ps2-god-of-war-ii-yamijpg",
+    "ps2-gregory-horror-show-curse-arms",
+    "ps2-heartbeat-boxing-meskh4h4",
+    "ps2-hulk-gvngnir",
+    "ps2-hungry-ghosts-curse-arms",
+    "ps2-inuyasha-feudal-combat-meskh4h4",
+    "ps2-jade-cocoon-2-curse-arms",
+    "ps2-jak-2-renegade-marcelus",
+    "ps2-killzone-curse-arms",
+    "ps2-ktx-gauntlet-seven-sorrows-mvp899",
+    "ps2-lego-batman-the-videogame-mzzvxm",
+    "ps2-maximo-ghosts-to-glory-marcelus",
+    "ps2-metal-arms-glitch-in-the-system-curse-arms",
+    "ps2-michigan-report-from-hell-curse-arms",
+    "ps2-midnight-club-street-racing-mvp899",
+    "ps2-mk-armageddon-ckiscxrsed",
+    "ps2-mx-unleashed-mvp899",
+    "ps2-naruto-shippuden-ultimate-ninja-4-sal9im",
+    "ps2-naruto-uzumaki-chronicles-2-sal9im",
+    "ps2-obscure-curse-arms",
+    "ps2-police-24-7-mvp899",
+    "ps2-power-rangers-super-legends-yamijpg",
+    "ps2-project-zero-2-crimson-butterfly-curse-arms",
+    "ps2-raiden-iii-curse-arms",
+    "ps2-ratchet-clank-up-your-arsenal-reddyxd",
+    "ps2-resident-evil-dead-aim-curse-arms",
+    "ps2-rogue-trooper-curse-arms",
+    "ps2-rygar-the-legendary-adventure-curse-arms",
+    "ps2-samurai-western-curse-arms",
+    "ps2-scarface-the-world-is-yours-curse-arms",
+    "ps2-second-sight-curse-arms",
+    "ps2-shadow-hearts-covenant-curse-arms",
+    "ps2-shadow-of-the-colossus-curse-arms",
+    "ps2-sly-2-band-of-thieves-curse-arms",
+    "ps2-spartan-total-warrior-alufolie69",
+    "ps2-the-red-star-curse-arms",
+    "ps2-the-sword-of-etheria-curse-arms",
+    "ps2-warhammer-40-000-fire-warrior-curse-arms",
+    "psp-bleach-heat-the-soul-2-meskh4h4",
+    "psp-bleach-heat-the-soul-meskh4h4",
+    "psp-dragon-ball-z-shin-budokai-2-meskh4h4",
+    "psp-dragon-ball-z-shin-budokai-meskh4h4",
+    "psp-god-of-war-chains-of-olympus-meskh4h4",
+    "psp-naruto-shippuden-ultimate-ninja-heroes-3-meskh4h4",
+    "psp-naruto-ultimate-ninja-heroes-2-meskh4h4",
+    "psp-saint-seiya-omega-ultimate-cosmo-meskh4h4",
+    "psp-samurai-shodown-anthology-meskh4h4",
+    "psp-tenchu-tota-hd-sombertwilight",
+    "psp-yugioh-tag-force2-spanish-brahian"
+  ],
+  "new_rar_families": [
+    "3ds-radiant-historia-serbagz",
+    "gc-fe-por-hd-appleboi",
+    "ps2-arc-the-lad-twilight-of-the-spirits-curse-arms",
+    "ps2-blood-will-tell-curse-arms",
+    "ps2-bloody-roar-4-meskh4h4",
+    "ps2-cold-fear-yamijpg",
+    "ps2-colosseum-road-to-freedom-curse-arms",
+    "ps2-disney-s-kim-possible-what-s-the-switch-sal9im",
+    "ps2-dynasty-warriors-3-xtreme-legends-gvngnir",
+    "ps2-eternal-poison-curse-arms",
+    "ps2-final-fantasy-x-2-curse-arms",
+    "ps2-forbidden-siren-2-curse-arms",
+    "ps2-galactic-wrestling-featuring-ultimate-muscle-meskh4h4",
+    "ps2-god-of-war-ii-yamijpg",
+    "ps2-gregory-horror-show-curse-arms",
+    "ps2-heartbeat-boxing-meskh4h4",
+    "ps2-hulk-gvngnir",
+    "ps2-hungry-ghosts-curse-arms",
+    "ps2-inuyasha-feudal-combat-meskh4h4",
+    "ps2-jade-cocoon-2-curse-arms",
+    "ps2-jak-2-renegade-marcelus",
+    "ps2-killzone-curse-arms",
+    "ps2-ktx-gauntlet-seven-sorrows-mvp899",
+    "ps2-lego-batman-the-videogame-mzzvxm",
+    "ps2-maximo-ghosts-to-glory-marcelus",
+    "ps2-metal-arms-glitch-in-the-system-curse-arms",
+    "ps2-michigan-report-from-hell-curse-arms",
+    "ps2-midnight-club-street-racing-mvp899",
+    "ps2-mk-armageddon-ckiscxrsed",
+    "ps2-mx-unleashed-mvp899",
+    "ps2-naruto-shippuden-ultimate-ninja-4-sal9im",
+    "ps2-naruto-uzumaki-chronicles-2-sal9im",
+    "ps2-obscure-curse-arms",
+    "ps2-police-24-7-mvp899",
+    "ps2-power-rangers-super-legends-yamijpg",
+    "ps2-project-zero-2-crimson-butterfly-curse-arms",
+    "ps2-raiden-iii-curse-arms",
+    "ps2-ratchet-clank-up-your-arsenal-reddyxd",
+    "ps2-resident-evil-dead-aim-curse-arms",
+    "ps2-rogue-trooper-curse-arms",
+    "ps2-rygar-the-legendary-adventure-curse-arms",
+    "ps2-samurai-western-curse-arms",
+    "ps2-scarface-the-world-is-yours-curse-arms",
+    "ps2-second-sight-curse-arms",
+    "ps2-shadow-hearts-covenant-curse-arms",
+    "ps2-shadow-of-the-colossus-curse-arms",
+    "ps2-sly-2-band-of-thieves-curse-arms",
+    "ps2-spartan-total-warrior-alufolie69",
+    "ps2-the-red-star-curse-arms",
+    "ps2-the-sword-of-etheria-curse-arms",
+    "ps2-warhammer-40-000-fire-warrior-curse-arms",
+    "psp-bleach-heat-the-soul-2-meskh4h4",
+    "psp-bleach-heat-the-soul-meskh4h4",
+    "psp-dragon-ball-z-shin-budokai-2-meskh4h4",
+    "psp-dragon-ball-z-shin-budokai-meskh4h4",
+    "psp-god-of-war-chains-of-olympus-meskh4h4",
+    "psp-naruto-shippuden-ultimate-ninja-heroes-3-meskh4h4",
+    "psp-naruto-ultimate-ninja-heroes-2-meskh4h4",
+    "psp-saint-seiya-omega-ultimate-cosmo-meskh4h4",
+    "psp-samurai-shodown-anthology-meskh4h4",
+    "psp-yugioh-tag-force2-spanish-brahian"
+  ],
+  "new_nonrar_families": [
+    "gc-pso-hd-ui-eleriaqueen",
+    "psp-tenchu-tota-hd-sombertwilight"
+  ],
+  "old_manual_profiles_promoted": 231,
+  "old_manual_families_promoted": 191,
+  "legacy_clients_direct_families": 237,
+  "native_client_direct_families": 418,
+  "native_build_required": 498,
+  "canonical_record_count": 682,
+  "retained_baseline_canonical_ids": 666,
+  "ingestion": {
+    "new_artifacts": 13,
+    "observations": 85,
+    "unique_reverified_or_new_ids": 77,
+    "new_canonical_ids": 16,
+    "replaced_baseline_records": 61,
+    "history_records": 69,
+    "statuses": {
+      "install": 10,
+      "ok": 67
+    }
+  },
+  "original_record_provenance": {
+    "matched_prior_records": 61,
+    "canonical_snapshot_sha256": "8de73db6038fade92820045fc19b2b76c2124ed9e642a9dec01206772ae0dab7",
+    "prior_artifacts": [
+      {
+        "artifact": 12256080679,
+        "run": 39401863622,
+        "console": "3ds",
+        "sha256": "df23d6fe1bb5664bc0c59ba11743c5da5d53df73dcdbd66b81d33f2a2365377b",
+        "zip": "build/hd-direct400/old-ci/39401863622/12256080679/artifact.zip",
+        "zip_bytes": 973,
+        "jsonl": "build/hd-direct400/old-ci/39401863622/12256080679/verified-hosts-3ds.jsonl",
+        "jsonl_bytes": 1997,
+        "jsonl_sha256": "fb3c6e8af3bed1dd00d922550d15710961f11232caf90f5bca32a7884860f1e1",
+        "records": 4,
+        "digest_validated": true,
+        "matched_target_ids": []
+      },
+      {
+        "artifact": 12255427191,
+        "run": 39403154413,
+        "console": "dolphin",
+        "sha256": "a3e8b4ea607a46f65bf08ae1a4385400324802ff041bd43c3306507e4ee149d9",
+        "zip": "build/hd-direct400/old-ci/39403154413/12255427191/artifact.zip",
+        "zip_bytes": 959,
+        "jsonl": "build/hd-direct400/old-ci/39403154413/12255427191/verified-hosts-dolphin.jsonl",
+        "jsonl_bytes": 1654,
+        "jsonl_sha256": "5133126b8709023bc5191cffc438351b02ea763463a71208fcaec703a2b3282d",
+        "records": 4,
+        "digest_validated": true,
+        "matched_target_ids": [
+          "gc-fe-por-hd-appleboi"
+        ]
+      },
+      {
+        "artifact": 12255667092,
+        "run": 39403154413,
+        "console": "psp",
+        "sha256": "7920d0030771f29d7d13f88ec2e5d78453508ac96922bf39479386072a302e0a",
+        "zip": "build/hd-direct400/old-ci/39403154413/12255667092/artifact.zip",
+        "zip_bytes": 481,
+        "jsonl": "build/hd-direct400/old-ci/39403154413/12255667092/verified-hosts-psp.jsonl",
+        "jsonl_bytes": 415,
+        "jsonl_sha256": "f7a3d6ea070a71fc87c39e978bb591173be0a813fd0cc1c346c23d7a81347b87",
+        "records": 1,
+        "digest_validated": true,
+        "matched_target_ids": [
+          "psp-yugioh-tag-force2-spanish-brahian"
+        ]
+      },
+      {
+        "artifact": 12255711919,
+        "run": 39403154413,
+        "console": "3ds",
+        "sha256": "11de43cf100af4f612f763f01ec8aef46e6e0cb26fa1efa2a9c91a0b3b3dafa9",
+        "zip": "build/hd-direct400/old-ci/39403154413/12255711919/artifact.zip",
+        "zip_bytes": 1018,
+        "jsonl": "build/hd-direct400/old-ci/39403154413/12255711919/verified-hosts-3ds.jsonl",
+        "jsonl_bytes": 1974,
+        "jsonl_sha256": "b998a69916955dc50cec53a3c384f5b83b7432a023613cf7360ac6d053d88bb5",
+        "records": 5,
+        "digest_validated": true,
+        "matched_target_ids": [
+          "3ds-radiant-historia-serbagz"
+        ]
+      },
+      {
+        "artifact": 12261972376,
+        "run": 39406754238,
+        "console": "ps2",
+        "sha256": "d225fda8feb58a881c48bcd26481683adba4ea0fcfc41aaa691ed231a71cb377",
+        "zip": "build/hd-direct400/old-ci/39406754238/12261972376/artifact.zip",
+        "zip_bytes": 8726,
+        "jsonl": "build/hd-direct400/old-ci/39406754238/12261972376/verified-hosts-ps2.jsonl",
+        "jsonl_bytes": 34593,
+        "jsonl_sha256": "119fbabff4f48cdd9e95f21c364bc1ed095694f575f7133e6a2872d089325085",
+        "records": 104,
+        "digest_validated": true,
+        "matched_target_ids": [
+          "ps2-ktx-arc-the-lad-twilight-of-the-spirits-curse-arms",
+          "ps2-ktx-blood-will-tell-curse-arms",
+          "ps2-ktx-colosseum-road-to-freedom-curse-arms",
+          "ps2-ktx-crash-twinsanity-yamijpg",
+          "ps2-ktx-disney-s-kim-possible-what-s-the-switch-sal9im",
+          "ps2-ktx-dynasty-warriors-3-xtreme-legends-gvngnir",
+          "ps2-ktx-eternal-poison-curse-arms",
+          "ps2-ktx-final-fantasy-x-2-curse-arms",
+          "ps2-ktx-final-fantasy-x-international-curse-arms",
+          "ps2-ktx-final-fight-streetwise-curse-arms",
+          "ps2-ktx-forbidden-siren-2-curse-arms",
+          "ps2-ktx-gauntlet-seven-sorrows-mvp899-2",
+          "ps2-ktx-god-of-war-ii-mvp899",
+          "ps2-ktx-gregory-horror-show-curse-arms",
+          "ps2-ktx-hulk-gvngnir",
+          "ps2-ktx-hungry-ghosts-curse-arms",
+          "ps2-ktx-jade-cocoon-2-curse-arms",
+          "ps2-ktx-jak-2-renegade-marcelus",
+          "ps2-ktx-killzone-curse-arms",
+          "ps2-ktx-lego-batman-the-videogame-mzzvxm",
+          "ps2-ktx-maximo-ghosts-to-glory-marcelus",
+          "ps2-ktx-metal-arms-glitch-in-the-system-curse-arms",
+          "ps2-ktx-metal-gear-solid-2-sons-of-liberty-curse-arms",
+          "ps2-ktx-metal-gear-solid-3-subsistence-curse-arms",
+          "ps2-ktx-michigan-report-from-hell-curse-arms",
+          "ps2-ktx-midnight-club-street-racing-mvp899"
+        ]
+      },
+      {
+        "artifact": 12259822609,
+        "run": 39412734596,
+        "console": "ps2",
+        "sha256": "af09fac78d51148267212241d9fd6989c8844f67a8bf7adf302d78a3f7baa10d",
+        "zip": "build/hd-direct400/old-ci/39412734596/12259822609/artifact.zip",
+        "zip_bytes": 869,
+        "jsonl": "build/hd-direct400/old-ci/39412734596/12259822609/verified-hosts-ps2.jsonl",
+        "jsonl_bytes": 1461,
+        "jsonl_sha256": "c5b5d9b10f0204a32380aafb8b04f8cab48f551a29ac331cd4fb60173ba8440e",
+        "records": 3,
+        "digest_validated": true,
+        "matched_target_ids": [
+          "ps2-ktx-cold-fear-yamijpg",
+          "ps2-ktx-god-of-war-ii-yamijpg"
+        ]
+      },
+      {
+        "artifact": 12263297343,
+        "run": 39416625497,
+        "console": "ps2",
+        "sha256": "5aa9b3a1f2ac488acff2701bf922ab894b926ca597f52d5eb4f09acdd7d68a01",
+        "zip": "build/hd-direct400/old-ci/39416625497/12263297343/artifact.zip",
+        "zip_bytes": 3720,
+        "jsonl": "build/hd-direct400/old-ci/39416625497/12263297343/verified-hosts-ps2.jsonl",
+        "jsonl_bytes": 12275,
+        "jsonl_sha256": "de518a0ff6f37d4db2abb0d155b19c09e6d6a42376d04979844368f5927fa319",
+        "records": 34,
+        "digest_validated": true,
+        "matched_target_ids": [
+          "ps2-ktx-ms-saga-a-new-dawn-curse-arms",
+          "ps2-ktx-raiden-iii-curse-arms",
+          "ps2-ktx-ratchet-clank-up-your-arsenal-reddyxd",
+          "ps2-ktx-rogue-trooper-curse-arms",
+          "ps2-ktx-scarface-the-world-is-yours-curse-arms",
+          "ps2-ktx-second-sight-curse-arms",
+          "ps2-ktx-shadow-of-the-colossus-curse-arms",
+          "ps2-ktx-sly-2-band-of-thieves-curse-arms",
+          "ps2-ktx-spartan-total-warrior-alufolie69",
+          "ps2-ktx-star-wars-bounty-hunter-curse-arms",
+          "ps2-ktx-the-sword-of-etheria-curse-arms",
+          "ps2-ktx-wild-arms-3-curse-arms"
+        ]
+      },
+      {
+        "artifact": 12266241858,
+        "run": 39416632997,
+        "console": "ps2",
+        "sha256": "69c442e92969ea3e56a8120f8b5eeab23a91d061bf7f7a21b9b463c437d1fdd5",
+        "zip": "build/hd-direct400/old-ci/39416632997/12266241858/artifact.zip",
+        "zip_bytes": 3845,
+        "jsonl": "build/hd-direct400/old-ci/39416632997/12266241858/verified-hosts-ps2.jsonl",
+        "jsonl_bytes": 12220,
+        "jsonl_sha256": "1f1b3a08df3803c2071fb3dcf62d09ac4ab24b226c6481abf645c338731c4e16",
+        "records": 34,
+        "digest_validated": true,
+        "matched_target_ids": [
+          "ps2-ktx-mx-unleashed-mvp899",
+          "ps2-ktx-naruto-shippuden-ultimate-ninja-4-sal9im",
+          "ps2-ktx-obscure-curse-arms",
+          "ps2-ktx-police-24-7-mvp899",
+          "ps2-ktx-red-faction-ii-mvp899",
+          "ps2-ktx-samurai-western-curse-arms",
+          "ps2-ktx-the-red-star-curse-arms",
+          "ps2-ktx-valkyrie-profile-2-silmeria-curse-arms",
+          "ps2-ktx-warhammer-40-000-fire-warrior-curse-arms"
+        ]
+      },
+      {
+        "artifact": 12268085981,
+        "run": 39416642896,
+        "console": "ps2",
+        "sha256": "e8572ead1b79de8c44a3ef03ebb85847dc1c2524fc6ebfe6b962e9fa77cde57e",
+        "zip": "build/hd-direct400/old-ci/39416642896/12268085981/artifact.zip",
+        "zip_bytes": 3672,
+        "jsonl": "build/hd-direct400/old-ci/39416642896/12268085981/verified-hosts-ps2.jsonl",
+        "jsonl_bytes": 11464,
+        "jsonl_sha256": "f8eae32357a6a1b536397633c8e86f543b12c7bfb633221637221428aef6d6dc",
+        "records": 33,
+        "digest_validated": true,
+        "matched_target_ids": [
+          "ps2-ktx-naruto-uzumaki-chronicles-2-sal9im",
+          "ps2-ktx-power-rangers-super-legends-yamijpg",
+          "ps2-ktx-project-zero-2-crimson-butterfly-curse-arms",
+          "ps2-ktx-ratchet-clank-trippypit",
+          "ps2-ktx-resident-evil-dead-aim-curse-arms",
+          "ps2-ktx-rygar-the-legendary-adventure-curse-arms",
+          "ps2-ktx-shadow-hearts-covenant-curse-arms",
+          "ps2-ktx-tom-clancy-s-splinter-cell-chaos-theory-curse-arms",
+          "ps2-ktx-tsugunai-atonement-curse-arms"
+        ]
+      }
+    ]
+  },
+  "withheld_flat_archive_profiles": [
+    {
+      "id": "ps2-ktx-god-of-war-ii-mvp899",
+      "reason": "No exact disc edition attested by the creator or archive",
+      "original_candidate_download": {
+        "automatable": false,
+        "page": "https://gbatemp.net/threads/god-of-war-2-kratos-god-armor.643454/",
+        "verify": {
+          "url": "https://mega.nz/file/yIVAGZKZ#o3tzyKaqa8N4mwCs3waK4DDR61vwK4WVYgZHYvYjqCQ",
+          "sha256": "c61bda2de9a0659ef8fdc110ec34798cc56584963067c8bdf9d98ec414fba701"
+        },
+        "in_app": true
+      }
+    },
+    {
+      "id": "ps2-ktx-star-wars-bounty-hunter-curse-arms",
+      "reason": "No exact disc edition attested by the creator or archive",
+      "original_candidate_download": {
+        "automatable": false,
+        "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+        "verify": {
+          "url": "https://drive.usercontent.google.com/download?id=1rJxhQIS1DduZBmbAu-nsDVxoIktQR_NC&export=download&authuser=0",
+          "sha256": "19638f42dba067f13d7f8a0e5e5fe82463cd8051df64b0067645d988a9b884a9"
+        },
+        "in_app": true
+      }
+    },
+    {
+      "id": "ps2-ktx-wild-arms-3-curse-arms",
+      "reason": "No exact disc edition attested by the creator or archive",
+      "original_candidate_download": {
+        "automatable": false,
+        "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+        "verify": {
+          "url": "https://drive.google.com/file/d/15GY9HMUE8eUbwG0Vol_ypjgECILEZAO-/view",
+          "sha256": "6ee4018cb5e08e556d9335144b1be8eb9d9c0f671967c937114a6cb72ca2d793"
+        },
+        "in_app": true
+      }
+    },
+    {
+      "id": "ps2-ktx-tom-clancy-s-splinter-cell-chaos-theory-curse-arms",
+      "reason": "No exact disc edition attested by the creator or archive",
+      "original_candidate_download": {
+        "automatable": false,
+        "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
+        "verify": {
+          "url": "https://drive.google.com/file/d/1Udmi3x-C0Fiir_e5cDj0j-ynJfXNaX-X/view?usp=share_link",
+          "sha256": "970b79ce52f218270043e15df9eb9fd6fc99342c6b0721ea3ab118309086d5da"
+        },
+        "in_app": true
+      }
+    }
+  ],
+  "new_native_failures": [
+    {
+      "download_seconds": 32.6,
+      "file_name": "Crash Twinsanity [SLES-52568] by YAMI.rar",
+      "format": "rar",
+      "host": "gdrive",
+      "id": "ps2-ktx-crash-twinsanity-yamijpg",
+      "manual": true,
+      "output": "result=stage status=crc problem=\n",
+      "parts": [
+        {
+          "sha256": "639965eb9e8e30e42355cca815c88d197a9d40285fcf30de9071cb3e2f150954",
+          "size": 1881925191,
+          "url": "https://drive.google.com/file/d/1mamMXY99dikFfWiRNpqxdsSrtDxkb0FF/view"
+        }
+      ],
+      "status": "install",
+      "system": "ps2",
+      "verified_at": "2026-10-20"
+    },
+    {
+      "download_seconds": 45.1,
+      "file_name": "FFX_HD_Textures.rar",
+      "format": "rar",
+      "host": "gdrive",
+      "id": "ps2-ktx-final-fantasy-x-international-curse-arms",
+      "manual": true,
+      "output": "result=stage status=unsupported problem=\n",
+      "parts": [
+        {
+          "sha256": "c0c6d2377dcc7f86d4a006d31eacbcaae771609a3f7209010253292cb7cea602",
+          "size": 3243605919,
+          "url": "https://drive.usercontent.google.com/download?id=1VU5CDcEZG4UHBeNOKSmGK_segZ12I7LS&export=download&authuser=0"
+        }
+      ],
+      "status": "install",
+      "system": "ps2",
+      "verified_at": "2026-10-20"
+    },
+    {
+      "download_seconds": 6.4,
+      "file_name": "Final Fight_HD_Textures.rar",
+      "format": "rar",
+      "host": "gdrive",
+      "id": "ps2-ktx-final-fight-streetwise-curse-arms",
+      "manual": true,
+      "output": "result=stage status=unsupported problem=\n",
+      "parts": [
+        {
+          "sha256": "fa2de000fe33171b9379652bc53d3934b6c2fe796a5b2eeb61828bda11712753",
+          "size": 277089860,
+          "url": "https://drive.usercontent.google.com/download?id=1zKv5uQ8WOeKL2AZ-PhNLyiEdh2uW4syC&export=download&authuser=0"
+        }
+      ],
+      "status": "install",
+      "system": "ps2",
+      "verified_at": "2026-10-20"
+    },
+    {
+      "download_seconds": 72.2,
+      "file_name": "MGS2_HDOPOTY.rar",
+      "format": "rar",
+      "host": "gdrive",
+      "id": "ps2-ktx-metal-gear-solid-2-sons-of-liberty-curse-arms",
+      "manual": true,
+      "output": "result=stage status=unsupported problem=\n",
+      "parts": [
+        {
+          "sha256": "b52766c1cc0496f0af682b1fe2746dc4b687c313392e6414bd343869cd17c66c",
+          "size": 5449245592,
+          "url": "https://drive.usercontent.google.com/download?id=1lMimK9Pb5tu5n9KC-qOCj9PYQtfxhKys&export=download&authuser=0"
+        }
+      ],
+      "status": "install",
+      "system": "ps2",
+      "verified_at": "2026-10-20"
+    },
+    {
+      "download_seconds": 23.6,
+      "file_name": "MGS3_Subsistence HD Textures.rar",
+      "format": "rar",
+      "host": "gdrive",
+      "id": "ps2-ktx-metal-gear-solid-3-subsistence-curse-arms",
+      "manual": true,
+      "output": "result=stage status=unsupported problem=\n",
+      "parts": [
+        {
+          "sha256": "b29cc85a9e98e2f2114d62ce874987ed16249b566d2caeca73aa0eea97682e41",
+          "size": 1408327391,
+          "url": "https://drive.usercontent.google.com/download?id=1aJZlKwGuofgaQm-IY3JPHTNZc_6NEtWt&export=download"
+        }
+      ],
+      "status": "install",
+      "system": "ps2",
+      "verified_at": "2026-10-20"
+    },
+    {
+      "download_seconds": 43.5,
+      "file_name": "MS_Saga_HD.rar",
+      "format": "rar",
+      "host": "gdrive",
+      "id": "ps2-ktx-ms-saga-a-new-dawn-curse-arms",
+      "manual": true,
+      "output": "result=stage status=crc problem=\n",
+      "parts": [
+        {
+          "sha256": "cf1100c0a2ab292672c12473d9b6cac9b9b8842360eab1de1a94646f8b20cdfb",
+          "size": 3966706904,
+          "url": "https://drive.usercontent.google.com/download?id=1la7LcGiPrwdEvF9xFzPkk9X2mSb32kWA&export=download&authuser=0"
+        }
+      ],
+      "status": "install",
+      "system": "ps2",
+      "verified_at": "2026-10-20"
+    },
+    {
+      "download_seconds": 1024.4,
+      "file_name": "Red Faction II.rar",
+      "format": "rar",
+      "host": "mega",
+      "id": "ps2-ktx-red-faction-ii-mvp899",
+      "manual": true,
+      "output": "result=stage status=crc problem=\n",
+      "parts": [
+        {
+          "sha256": "f0f9b139d1bc5e7d323c054b9090fa61a0e777099561948e1924f3b96ba32cd0",
+          "size": 5504330321,
+          "url": "https://mega.nz/file/U80GyILQ#Vag_AtrLgIUQOTT2979MPsPV5n5kPWoEXhxNT9IFp1g"
+        }
+      ],
+      "status": "install",
+      "system": "ps2",
+      "verified_at": "2026-10-20"
+    },
+    {
+      "download_seconds": 26.8,
+      "file_name": "Valkyrie_Profile_2_HD_Textures.rar",
+      "format": "rar",
+      "host": "gdrive",
+      "id": "ps2-ktx-valkyrie-profile-2-silmeria-curse-arms",
+      "manual": true,
+      "output": "result=stage status=crc problem=\n",
+      "parts": [
+        {
+          "sha256": "db97c9ee2c2752210da0b57538381ba0f4cd091897ad68a2de0340238d3e74bd",
+          "size": 1093401381,
+          "url": "https://drive.usercontent.google.com/download?id=1D9TOM4mEPld4FGlp2mUcY2igJ4iYip1v&export=download&authuser=0"
+        }
+      ],
+      "status": "install",
+      "system": "ps2",
+      "verified_at": "2026-10-20"
+    },
+    {
+      "download_seconds": 45.9,
+      "file_name": "SCUS-97199.rar",
+      "format": "rar",
+      "host": "gdrive",
+      "id": "ps2-ktx-ratchet-clank-trippypit",
+      "manual": true,
+      "output": "result=stage status=unsupported problem=\n",
+      "parts": [
+        {
+          "sha256": "ab416e572ad4994866e2758adb9eddbaeaf98b822b88c82586369527a12fd0f0",
+          "size": 4710610328,
+          "url": "https://drive.google.com/file/d/1ambWzexqMfe3f8BT9LiS0Z4ENC_3E2A1/view?usp=drive_link"
+        }
+      ],
+      "status": "install",
+      "system": "ps2",
+      "verified_at": "2026-10-20"
+    },
+    {
+      "download_seconds": 25.2,
+      "file_name": "TSU_HDqsRX67.rar",
+      "format": "rar",
+      "host": "gdrive",
+      "id": "ps2-ktx-tsugunai-atonement-curse-arms",
+      "manual": true,
+      "output": "result=stage status=unsupported problem=\n",
+      "parts": [
+        {
+          "sha256": "a8f0f07c4faaaf0c41bfde7249eda5a4ee0863bbc8e39f1db8afaaabe3f2d82e",
+          "size": 1501465809,
+          "url": "https://drive.usercontent.google.com/download?id=1TRufbnbKP4-jQRmIX03oDCFMtaN457DL&export=download&authuser=0"
+        }
+      ],
+      "status": "install",
+      "system": "ps2",
+      "verified_at": "2026-10-20"
+    }
+  ],
+  "proofs": "docs/evidence/hd-direct400-native-proofs.json",
+  "ci_artifacts": "docs/evidence/hd-direct400-ci-artifacts.json",
+  "baseline_installable_preservation_checks": "test/texture_direct400_preservation_test.py",
+  "switch_runtime_entries": 0,
+  "cores_rebuilt_for_this_cycle": [],
+  "reused_psp_core_source": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+  "physical_device_rendering_validated": false,
+  "ipa_produced": false,
+  "public_release_published": false
+}

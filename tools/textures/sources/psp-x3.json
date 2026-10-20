@@ -27,7 +27,7 @@
   "source_id": "ppsspp-forum:28838",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -36,7 +36,8 @@
    "verify": {
     "url": "https://mega.nz/file/ndgwUYjS#30dJKpDToFQu9HX_8BkVhcqERyoK1EdLw58a8D-Jd8o",
     "sha256": "dd6616591ebcb9b3b2968438f40f75773bd086f4807f2648685e7154318f2172"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -77,7 +78,7 @@
   "source_id": "ppsspp-forum:26691",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -86,7 +87,8 @@
    "verify": {
     "url": "https://mega.nz/file/qBBwhRAC#lHcH_Fz7jP5154Ei6_UldV5NcovnwSfUDF2F0-eEDKA",
     "sha256": "025bc1d090480deee00b80ff78c25eeefa7c4ed364f38a8a4a437cecf66a196f"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -127,7 +129,7 @@
   "source_id": "ppsspp-forum:24959",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -136,7 +138,8 @@
    "verify": {
     "url": "https://drive.google.com/open?id=1nyq5fAXgb_7uCS8tBpwUGncA3rfrieBy",
     "sha256": "a0e9391333b21c885d23920179ffc9266dc5885612e12c0e02c14f28cd04b98f"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -177,7 +180,7 @@
   "source_id": "ppsspp-forum:26873",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -186,7 +189,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1RmwugfsppuOpyHz7HalAYvpCgpgpwy3j/view?usp=sharing",
     "sha256": "ad0953b0008f8a03e6c644cb5de9eb93b68f574f31dd63da63cd6dd99debbe8b"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -227,7 +231,7 @@
   "source_id": "ppsspp-forum:40782",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Installed as published: one textures.zip that PPSSPP reads in place.",
   "download": {
@@ -237,7 +241,8 @@
    "verify": {
     "url": "https://mega.nz/file/I4Zx0QRQ#6tolo7QvACmpWiCw1VsoBll7sryeF-ZjcTqrSwh4AcU",
     "sha256": "4c383acb169980b3618a2b97e7ff1cc9f41d3d4ec978d0af6d84cac83330d99e"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -278,7 +283,7 @@
   "source_id": "ppsspp-forum:38996",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Installed as published: one textures.zip that PPSSPP reads in place.",
   "download": {
@@ -288,7 +293,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1Cfz8yqXRoPYxhdAv21o2Xrr8sH9_kQQT/view",
     "sha256": "3cbf03661bfc0250d479c2ec0a5e7e8c2b5d924054b4d3d62ae2ad1c90a4d73e"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -329,7 +335,7 @@
   "source_id": "ppsspp-forum:25019",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -338,7 +344,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1inQF0pWEvwwZ1PeEo3Q1Mj6r7lyoOA2Z/view?usp=sharing",
     "sha256": "8872dc4c3e9d3de65f78f7309509d8c0b27d34af0eeaf41157de30fcb6d4b545"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -430,7 +437,7 @@
   "source_id": "ppsspp-forum:35573",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -439,7 +446,8 @@
    "verify": {
     "url": "https://mega.nz/file/lNgm1KwB#GsQYzVlhh4RWBkTLqZcMJ1bViVTZ4-8eqf-HA4kNTpg",
     "sha256": "01713e19bdc45596698acc6f9a85809875a0839b59ba6663798ca574171ad1f6"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -480,7 +488,7 @@
   "source_id": "ppsspp-forum:26806",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -489,7 +497,8 @@
    "verify": {
     "url": "https://mega.nz/file/OZYm3R7Z#HOKChP0ascd17k4G93mToYknZmzrAnREHwFvGpeg1Aw",
     "sha256": "eaecaed12858b82b1a22c2804257bc47dd19f8e256bba0d7c5e9002dee4da547"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -530,7 +539,7 @@
   "source_id": "ppsspp-forum:25052",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -539,7 +548,8 @@
    "verify": {
     "url": "https://drive.google.com/open?id=1ZmBKjuZGDCFDul-tPgu--MOomr7g4ULf",
     "sha256": "a1b8ed7316a314b55682257148ff922426667d2bc634643ebd01d08482a05d58"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -580,7 +590,7 @@
   "source_id": "ppsspp-forum:35005",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -589,7 +599,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1lXDeH0jbu7wJALRJmShzpDGHm2E4DyNg/view?usp=drive_link",
     "sha256": "816746034a9b626df844f3be219753e2677cdd551f38ccf735c0061084ac9351"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -630,7 +641,7 @@
   "source_id": "ppsspp-forum:26691",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -639,7 +650,8 @@
    "verify": {
     "url": "https://mega.nz/file/XEgTUBAZ#XJ8vtxgoIobAHblf1AAbG_WtEVJHNcYJn8pYZi6A8b8",
     "sha256": "b4c49c377c6e5b016dee8bae947f4983ca5651a9a29f320b16988eeb50aaf08d"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -680,7 +692,7 @@
   "source_id": "ppsspp-forum:28443",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "English card artwork (for the English patch of this Japanese release).",
   "download": {
@@ -690,7 +702,8 @@
    "verify": {
     "url": "https://drive.google.com/uc?id=1K-1Nkdw32waE2XSICQKfn_DlgzSl1N3s&export=download",
     "sha256": "a0a67743a02a9a6d51d9aa4b90f2b0d5f9f703c66b7615086f9a5b03f90d3e39"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -731,7 +744,7 @@
   "source_id": "ppsspp-forum:29826",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The archive offers several fonts in \"!_please_select_a_font\": copy the one you prefer as instructed by the author.",
   "download": {
@@ -741,7 +754,8 @@
    "verify": {
     "url": "https://mega.nz/file/7UxSVLoB#SLCjPmboZO-NxVJceQjLq6D2wVdJTzabaE0fZyEynAc",
     "sha256": "0942cd4ec237309b62464b479a7face42f514b1ddb174daa6ea8120ed870d359"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -783,7 +797,7 @@
   "source_id": "ppsspp-forum:26493",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The author's KTX2 file names this game ID; its textures.ini lists the IDs it serves.",
   "download": {
@@ -793,7 +807,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1-8-vnH7vqXLxZHg7cXki5X-wkRXvnqZa/view?usp=sharing",
     "sha256": "89fae6c934fadc2f4a5a62a97b2eea802484bb618f8772b0868a5c9221e92bd6"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -835,7 +850,7 @@
   "source_id": "ppsspp-forum:26493",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "PNG edition of the same textures (2020); the KTX2 edition is newer.",
   "download": {
@@ -845,7 +860,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/155B-nl1e07TcCFzqPi2LtIJPeJa0RDSx/view?usp=sharing",
     "sha256": "713cc58001f1515b894835f57885a4562a7384dd4a36259bdd9a2b42929ef309"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -886,7 +902,7 @@
   "source_id": "ppsspp-forum:29640",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "4.1 GB.",
   "download": {
@@ -896,7 +912,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/18JUwHSzNvTl29ysarNv3TFtEa2mbaYmb/view?usp=sharing",
     "sha256": "14783a16884a7a47918b047eaecdbf765a41764e3f2658508fe7fa149737925a"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -937,7 +954,7 @@
   "source_id": "ppsspp-forum:29011",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -946,7 +963,8 @@
    "verify": {
     "url": "https://mega.nz/file/fc9A1BoY#Yc98aKrsWK6XENSnn69uv8hAbZGtuqTTtMCKskNObX4",
     "sha256": "14cb9e8be6261518ee291a3dc7f440bb4138acdef89353c56e221c6883849ffd"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -987,7 +1005,7 @@
   "source_id": "ppsspp-forum:34071",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -996,7 +1014,8 @@
    "verify": {
     "url": "https://mega.nz/file/Mm4QlDSK#mjTG-5EohoGFrwiHo-2kNSiJT_KtbiylX-w0rK5DZxI",
     "sha256": "6c2b86390109f447592a4b54f90316210ac4caf199eadf4a60e7b4105c1fb344"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1037,7 +1056,7 @@
   "source_id": "ppsspp-forum:26729",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Made on the European disc (ULES00502).",
   "download": {
@@ -1047,7 +1066,8 @@
    "verify": {
     "url": "https://mega.nz/file/K0pjFISC#5mWOpqyY7jC-DkUKYmvIIbVeMxnkkk8k4iK8InxKCrA",
     "sha256": "d6e2222e9bddeade75986d915950ffea2f2798325d5588b33d34586cae64db90"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1088,7 +1108,7 @@
   "source_id": "ppsspp-forum:29321",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Includes the Roboto font of its interface (Apache licence file in the archive).",
   "download": {
@@ -1098,7 +1118,8 @@
    "verify": {
     "url": "https://dl.dropbox.com/s/yjx571hjtgfc9mz/Digimon%20World%20Re-Digitize%20HD%20UI%20Pack%20v0.0.1%20%28NPJH50588%29.zip",
     "sha256": "bd9b2ade99ac3cb865c1ef94b5ec8d27b9533164d83a382fd44a770828e028cd"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1139,7 +1160,7 @@
   "source_id": "ppsspp-forum:26350",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Counted once with the GitHub HD pack of this game: the forum thread may be the same work.",
   "download": {
@@ -1149,7 +1170,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/10xUxPZouHVgIaO8CA9a5kIwQ4an_oD6s/view?usp=drivesdk",
     "sha256": "8314924bb9699e5b37ba755f7c589301d92f6116fa4643e499567c79d508b84e"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1190,7 +1212,7 @@
   "source_id": "ppsspp-forum:29886",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "KTX2 textures.",
   "download": {
@@ -1200,7 +1222,8 @@
    "verify": {
     "url": "https://mega.nz/file/uAEAAQYa#Tmr2sAa4m8MrNNgpBJulKI7VhyoozMZ9TQZ-3nEIjIw",
     "sha256": "0868f6b9370be8ca53157192e2c8e98453a99bc1e05b3288c9a7c7632367ead4"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1241,7 +1264,7 @@
   "source_id": "ppsspp-forum:26648",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "KTX2 textures.",
   "download": {
@@ -1251,7 +1274,8 @@
    "verify": {
     "url": "https://mega.nz/file/aFcBBSbb#bcgZ6NGr4GTyXouLNx_SGIJxw2hPGdnEyrzeOhWVFjg",
     "sha256": "a97a6e2fb049b18383993a597697f80355c86159f345ffec59ddbbbd50347491"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1292,7 +1316,7 @@
   "source_id": "ppsspp-forum:26547",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Work in progress.",
   "download": {
@@ -1302,7 +1326,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1cBjGvwkOElwnScUNPy0-OnlskBjClBMy/view",
     "sha256": "34063f6b0626c3ab57cd5ef0d2b2183ee456cb8bab75c9399766016cb552b8d1"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1343,7 +1368,7 @@
   "source_id": "ppsspp-forum:29020",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1352,7 +1377,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1maBRZIzp6pF9jWYXQyLElnUto5Gxmy23",
     "sha256": "dee96cded3663a564af45af628a67e2a6f7dd67f8c922670eb876ddec3115bf7"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1393,7 +1419,7 @@
   "source_id": "ppsspp-forum:28786",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Includes the Roboto font of its interface (Apache licence file in the archive).",
   "download": {
@@ -1403,7 +1429,8 @@
    "verify": {
     "url": "https://dl.dropbox.com/s/tw44cij1wfhbrd9/Crisis%20Core%20-%20Final%20Fantasy%20VII%20-%20texture%20pack%20v1.0.0%20%28ULUS10336%29.zip",
     "sha256": "dd129c5a42936efaf40fcc2351694f8bc4ba7b79ccdbdc00665260896854b644"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1444,7 +1471,7 @@
   "source_id": "ppsspp-forum:29487",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1453,7 +1480,8 @@
    "verify": {
     "url": "https://mega.nz/file/pdxnSYpb#NJSU2NaMXYJX5R6NTbLf7qUp75JbsyNt-Iv5EKVwJ8U",
     "sha256": "cb521e3981a7632777f96b8e1c0bba18d8ccab52c0c70b2340c0599896879674"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [

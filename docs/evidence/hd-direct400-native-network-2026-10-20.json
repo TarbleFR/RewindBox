@@ -1,0 +1,104 @@
+{
+  "native_store" : true,
+  "results" : [
+    {
+      "id" : "wii-nsmbw-hd-title-tjshah",
+      "activated" : false,
+      "provider" : "gamebanana",
+      "physical_device_rendering" : false,
+      "size_sha_verified_by_store" : true,
+      "seconds" : 0.92458605766296387,
+      "installed" : [
+        "SMN"
+      ],
+      "installed_bytes" : 1310528,
+      "expected_archive_bytes" : 40935,
+      "expected_archive_sha256" : "15d18795766167c738c8df6e814f4676e0aa5458f4d435ecebbdea2d89224914",
+      "status" : "ok",
+      "installed_files" : 1
+    },
+    {
+      "id" : "wii-nsmbw-shield-ui-moukrea-x2",
+      "activated" : false,
+      "provider" : "gdrive",
+      "physical_device_rendering" : false,
+      "size_sha_verified_by_store" : true,
+      "seconds" : 4.0878990888595581,
+      "installed" : [
+        "SMN"
+      ],
+      "installed_bytes" : 1585168,
+      "expected_archive_bytes" : 1492083,
+      "expected_archive_sha256" : "3e3cdcff05be5a46f5ce25612f20a97abd3cf021aa1b1e4b354bb0bf12be35a7",
+      "status" : "ok",
+      "installed_files" : 72
+    },
+    {
+      "id" : "gc-ttyd-xbox360-ms-buttons-jvook",
+      "activated" : false,
+      "provider" : "mega",
+      "physical_device_rendering" : false,
+      "size_sha_verified_by_store" : true,
+      "seconds" : 1.6204220056533813,
+      "installed" : [
+        "G8M"
+      ],
+      "installed_bytes" : 300404,
+      "expected_archive_bytes" : 311694,
+      "expected_archive_sha256" : "383cbb1a0add55eb8626c3b576e34e96266fe66a0d31338c8b7d1d92091033c9",
+      "status" : "ok",
+      "installed_files" : 25
+    },
+    {
+      "id" : "psp-digimon-world-redigitize-hd-ui",
+      "activated" : false,
+      "provider" : "dropbox",
+      "physical_device_rendering" : false,
+      "size_sha_verified_by_store" : true,
+      "seconds" : 0.89253997802734375,
+      "installed" : [
+        "NPJH50588"
+      ],
+      "installed_bytes" : 1097429,
+      "expected_archive_bytes" : 1095028,
+      "expected_archive_sha256" : "bd9b2ade99ac3cb865c1ef94b5ec8d27b9533164d83a382fd44a770828e028cd",
+      "status" : "ok",
+      "installed_files" : 43
+    },
+    {
+      "id" : "psp-gow-ghost-sparta-hud-skydr4gon",
+      "activated" : false,
+      "provider" : "direct",
+      "physical_device_rendering" : false,
+      "size_sha_verified_by_store" : true,
+      "seconds" : 1.2824480533599854,
+      "installed" : [
+        "UCES01401"
+      ],
+      "installed_bytes" : 786762,
+      "expected_archive_bytes" : 776517,
+      "expected_archive_sha256" : "60e514469b208884f0efbfe14ded9199fc655b9e3b269475e599431cb6854b10",
+      "status" : "ok",
+      "installed_files" : 16
+    },
+    {
+      "id" : "gc-crash-nitro-kart-hd-fixes-john30011887",
+      "activated" : true,
+      "provider" : "mega",
+      "physical_device_rendering" : false,
+      "size_sha_verified_by_store" : true,
+      "seconds" : 4.4516369104385376,
+      "installed" : [
+        "GCNE7D"
+      ],
+      "installed_bytes" : 5664844,
+      "expected_archive_bytes" : 3543762,
+      "expected_archive_sha256" : "8521f45dd50b59c695f20bb7d035a7b21f11f2ad995f94025641da0e92caadb3",
+      "status" : "ok",
+      "installed_files" : 245
+    }
+  ],
+  "automatic_retries" : 0,
+  "schema" : 1,
+  "network" : true
+}

@@ -1,5 +1,14 @@
 # Consignes permanentes — stabilité NeoStation iOS
 
+## Build 498 candidate — catalogue téléchargeable et RAR natif, 20 octobre 2026
+
+- Le mainteneur renouvelle la demande d’élargir le catalogue jusqu’à **400 packs téléchargeables depuis l’application**, puis demande l’extraction et l’installation RAR intégrées. Le gel HD des cycles 496/497 ne s’applique pas à ce nouveau cycle ; la livraison 497 reste figée sur `e999a5fdc98a42f5d1995ca85fdfa04479d7f77a` et ne doit pas être modifiée ni annulée.
+- Candidate de ce cycle : **498**, sans publication publique et sans reconstruire les cœurs. Conserver le package PPSSPP 497 vérifié, les autres cœurs, les réglages, bibliothèques et sauvegardes. Une recette de livraison distincte, déclenchée explicitement, évite le groupe d’annulation de la 497.
+- Le client ajoute libarchive 3.8.10 en lecture seule (RAR4 non solide et RAR5, symboles préfixés et mémoire bornée), les résolveurs publics Drive/Yandex/MEGA et les imports RAR par les installateurs existants. Les archives chiffrées, multi-volumes et RAR4 solides restent refusées. Aucun fichier de pack n’est réhébergé ou reconstitué.
+- Les descripteurs `download.in_app` sont activés seulement par le nouveau client après validation du fichier exact. Les anciens builds gardent le repli manuel/page ; une simple actualisation du catalogue ne leur ajoute pas ces fonctions natives. Les familles et variantes conservent la méthode de comptage existante. Registre CI canonique unique ; anciennes observations remplacées conservées exactement dans les preuves et runs explicitement supersédés.
+- Catalogue `2026-10-20.28541bbfe23e` : **418 familles directement installables**, 503 profils/85 variantes ; les 1 086 anciens IDs sont conservés (1 088 au total). Les 209 anciens profils directs et les archives/plans/identités des 231 anciens profils manuels sont préservés. Preuve native finale `d8a11a7d`, run `39461533070` : résolveurs223, MEGA76, compatibilité20, Store125, Foundation169 et 36 sources liées pour iPhone. Six vrais téléchargements antérieurs sont réutilisés uniquement par identité du code HTTP/crypto ; aucune preuve de rendu physique. Bilan et limites : `docs/hd-direct400-rar-native.md`. La livraison 498 utilise sa recette séparée et les cœurs497 inchangés.
+
+
 ## Build 497 — verified IPA, PSP memory ownership, 20 October 2026
 
 - The maintainer's new app log confirms Build 496 did not fix the observed close/reopen failure. Do not describe 496 as device-confirmed. At 15:30 UTC the core's backing arena occupies its own intended RAM destination (`0x17c000000`, remap from offset `0x204000` fails with kernel error 3).

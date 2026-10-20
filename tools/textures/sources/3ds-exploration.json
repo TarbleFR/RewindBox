@@ -33,7 +33,7 @@
   "source_id": "gamebanana:400809",
   "licence": {
    "summary": "CC BY-NC-ND 4.0; author checklist requires permission for redistribution",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -41,7 +41,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1UYdPOB-Ztpv6aSY83djEoATMFYGHxw74/view?usp=sharing"
    },
-   "file_name": "AAHD-P1.zip"
+   "file_name": "AAHD-P1.zip",
+   "in_app": true
   },
   "scope": "partial",
   "family": "3ds-fe-awakening-aahd-l498",
@@ -107,7 +108,7 @@
   "source_id": "gamebanana:351105",
   "licence": {
    "summary": "CC BY-NC-ND 4.0; author checklist forbids redistribution on other sites",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -115,7 +116,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1ny1XiVV0UKa_RyY4hvC_jICi6BxaxBjD/view?usp=drive_web"
    },
-   "file_name": "Character Artwork.zip"
+   "file_name": "Character Artwork.zip",
+   "in_app": true
   },
   "scope": "partial",
   "family": "3ds-fe-fates-combined-hd",
@@ -193,7 +195,7 @@
   "source_id": "gamebanana:712346",
   "licence": {
    "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
-   "redistribution": "Manual author-page download only; NeoStation does not host or redistribute these files."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -201,7 +203,8 @@
    "file_name": "sonipro.zip",
    "verify": {
     "url": "https://gamebanana.com/dl/1810423"
-   }
+   },
+   "in_app": true
   },
   "scope": "partial",
   "family": "3ds-sonipro-hd-cybertokyo",
@@ -273,7 +276,7 @@
   "source_id": "citra-archive:183853",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -281,7 +284,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1CpBB_nO8317oNQp9j72HMLjg7MxOjb92/view?usp=sharing"
    },
-   "file_name": "4x upscaled textures.zip"
+   "file_name": "4x upscaled textures.zip",
+   "in_app": true
   },
   "scope": "partial",
   "family": "3ds-fantasy-life-kapila-lttim",
@@ -355,7 +359,7 @@
   "source_id": "gamebanana:373806",
   "licence": {
    "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
-   "redistribution": "Manual author-page download only. NeoStation does not host or redistribute these files."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -369,7 +373,7 @@
   },
   "scope": "partial",
   "family": "3ds-radiant-historia-serbagz",
-  "notes": "USA 4x UI, fonts, portraits, CGs, world and battle textures, with DLC chibi portraits and some artwork unfinished. Sprites largely retain original resolution. RAR must be extracted on a computer before importing its 00040000001C8F00 folder. EU font add-on is not proof that the full USA pack works in Europe/French. Optional classic portraits and other authors' mirrored fonts are not separate complete packs. CI listed 2,442 tex1 PNGs under that USA title folder plus four optional nested archives. Import the base title folder after extraction; nested bonus archives are not installed automatically."
+  "notes": "USA 4x UI, fonts, portraits, CGs, world and battle textures, with DLC chibi portraits and some artwork unfinished. Sprites largely retain original resolution. The unchanged original RAR passes native installation of 2,442 PNG textures into USA folder 00040000001C8F00, using the legacy texture hashes (no pack.json). Four nested bonus archives are excluded; optional classic portraits and other authors' mirrored fonts are not separate complete packs. The EU font add-on does not establish that the full USA pack works in Europe/French. No iPhone rendering has been verified."
  },
  {
   "id": "3ds-smt-strange-journey-merkava",
@@ -399,7 +403,7 @@
   "source_id": "reddit:merkava2k15-sjr",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -407,7 +411,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1cPKg1RUhHO-PNnbegTtoizFVr4-5b5eS/view?usp=drive_web"
    },
-   "file_name": "SMT-SJR HD 1.50.7z"
+   "file_name": "SMT-SJR HD 1.50.7z",
+   "in_app": true
   },
   "scope": "partial",
   "family": "3ds-smt-strange-journey-merkava",

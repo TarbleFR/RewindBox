@@ -27,7 +27,7 @@
   "source_id": "pastebin:45Pu5HQP",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "About 11.6 GB. The author asks for the game's v1.1 update. The author's later 'Latest-Rollup' update is not included.",
   "download": {
@@ -37,7 +37,8 @@
    "verify": {
     "url": "https://www.dropbox.com/scl/fi/bv4dl386g9z5vnc1mfia4/0004000000126100.7z?rlkey=qbzqadzfl6l33rpa206zfnh5m&st=9ujozyi7&dl=0",
     "sha256": "fc4754f72b6f685ed310bfa3c25a7f39a101becab696a88e383da4e177014192"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -78,7 +79,7 @@
   "source_id": "pastebin:45Pu5HQP",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "About 11.6 GB. The author asks for the game's v1.1 update. The author's later 'Latest-Rollup' update is not included.",
   "download": {
@@ -88,7 +89,8 @@
    "verify": {
     "url": "https://www.dropbox.com/scl/fi/azn0yh82si223p9lieam2/0004000000126300.7z?rlkey=yl5gcv8jsgdc70t4osqun8e74&st=6jyt7oew&dl=0",
     "sha256": "2d2974867eb5c9978b3827747de8959558d73149a8baef61c53520df1e5eb17a"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -129,7 +131,7 @@
   "source_id": "gamebanana:601858",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -138,7 +140,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1565718",
     "sha256": "3ac80d63e3d3c223ee9ea4e10508c1a12e9dc4cd0c4dc6021ba9b302451428db"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -193,7 +196,7 @@
   "source_id": "gamebanana:651730",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -202,7 +205,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1624922",
     "sha256": "e5ad874d6ab9da8655702b4a9ef819fa47c838405a4ec555df3d932612c2f4cd"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -257,7 +261,7 @@
   "source_id": "gamebanana:651730",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button add-on of the HD pack. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
   "download": {
@@ -267,7 +271,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1623188",
     "sha256": "e86b11594fde41d66541567ca3e37d17268b7dccd06a9daf6512d16ed3682610"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -322,7 +327,7 @@
   "source_id": "gamebanana:651730",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Button add-on of the HD pack (confirm/cancel flipped). A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
   "download": {
@@ -332,7 +337,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1623189",
     "sha256": "73ffecff06360808701d4ae25bce5943c6de7383f4df5ec989c7ca5de8176968"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -387,7 +393,7 @@
   "source_id": "gamebanana:40630",
   "licence": {
    "summary": "Download and install allowed (GameBanana permissions); upscaled with nmkd's UltraYandere model (WTFPL)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Character portraits only.",
   "download": {
@@ -397,7 +403,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/777985",
     "sha256": "5191ef037bdd5fa79d53c2b99216a0fdb536ab28f8facb77a2fee2ac1c312915"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -452,7 +459,7 @@
   "source_id": "gamebanana:40630",
   "licence": {
    "summary": "Download and install allowed (GameBanana permissions)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Text textures only. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
   "download": {
@@ -462,7 +469,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/507221",
     "sha256": "cc39ae29b40d9c7d39813d38c416281787028ca1c472d1da6d9f3e5790200bb6"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -517,7 +525,7 @@
   "source_id": "gamebanana:592686",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -526,7 +534,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1437957",
     "sha256": "3fadf9861c9251d8145f53aeb51e9d99fa76b56cb804c83f56ee4bef4b739901"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -581,7 +590,7 @@
   "source_id": "gamebanana:592686",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -590,7 +599,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1437956",
     "sha256": "cb92a1396967226d6789d83d55923f5dd574ef5f58617c7097d0ad6130a205a6"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -646,7 +656,7 @@
   "source_id": "gamebanana:542115",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The edition the textures were made from is not stated: confirm against your game.",
   "download": {
@@ -656,7 +666,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1469099",
     "sha256": "0b2afcb89a215f4a8e524486682b1fbfe2402ccb5b5977ce001b5a189981af0c"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -711,7 +722,7 @@
   "source_id": "gamebanana:489556",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -720,7 +731,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1124054",
     "sha256": "2ea5660f03eae9c5b1c8061d39853820936922f836bd9b268d3ce0e52a9d1c74"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -775,7 +787,7 @@
   "source_id": "gamebanana:489556",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Restores censored party and equipment textures (18 textures). A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
   "download": {
@@ -785,7 +797,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1119809",
     "sha256": "8189bfddc57d3fd7a6e5121ba4b8ca01399545e71d4e9d300fb036289a278f6e"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -840,7 +853,7 @@
   "source_id": "gamebanana:489556",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Restores censored party and equipment textures (18 textures). A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
   "download": {
@@ -850,7 +863,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1238587",
     "sha256": "419835913e4471483e7fd6d9b4cb3f032dd2f1e9b9389d898b847cab0887dd2c"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -934,7 +948,7 @@
   "source_id": "gamebanana:494239",
   "licence": {
    "summary": "CC BY-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The edition the textures were made from (original or Welcome amiibo) is not stated: confirm against your game.",
   "download": {
@@ -944,7 +958,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1389792",
     "sha256": "aa5f2770d1682d8973a02224b3553c40968722fb99078493f19a73e4a132c47e"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1002,7 +1017,7 @@
   "source_id": "gamebanana:619599",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1011,7 +1026,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1516435",
     "sha256": "883c01b9110741022cfae6901c9bf614bf843804e6a1109e65d981bc18207bf5"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1052,7 +1068,7 @@
   "source_id": "gdrive:183ZskbSqv2d8DquyOgOhtCPCwtstS4Iy",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Published as incomplete by its author.",
   "download": {
@@ -1062,7 +1078,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/183ZskbSqv2d8DquyOgOhtCPCwtstS4Iy/view?usp=embed_facebook",
     "sha256": "ec4999c5bb79cdff8c692d36383b4aebc11543b6c4870112602a1ae5bc6610ec"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1103,7 +1120,7 @@
   "source_id": "gamebanana:626409",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1112,7 +1129,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1537017",
     "sha256": "6b1b7c71de46c4ef86c3b93e04937fbd6f9890e06f5f5d73f922c5dc85a6dae6"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1167,7 +1185,7 @@
   "source_id": "gamebanana:604806",
   "licence": {
    "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Demon and boss textures.",
   "download": {
@@ -1177,7 +1195,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1471216",
     "sha256": "55f52710706c1d80da9b6c9ca3107a659c22660feaa2850b7ce90f1dedee6e01"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1320,7 +1339,7 @@
   "source_id": "henrikomagnifico:zelda-majoras-mask-3d-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
   "download": {
@@ -1330,7 +1349,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1I_QuBQX-_TTKCkS0MHho73ApKFfyckh6/view",
     "sha256": "ceaee06385ab09231dd9fde7813d055492dda942e95ca3b4486aa05c5b7e59d4"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "3ds-mm3d-4k-henriko"
@@ -1363,7 +1383,7 @@
   "source_id": "henrikomagnifico:zelda-majoras-mask-3d-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings. 3.7 GB.",
   "download": {
@@ -1373,7 +1393,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1dvDvcKDXuW2pBQI7r1ZX5n3B8_QmqInZ/view",
     "sha256": "04f46c121d15b01caf272f3e0c508da877c573c1f2e206bfda336fccd866037e"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "3ds-mm3d-4k-henriko"
@@ -1406,7 +1427,7 @@
   "source_id": "henrikomagnifico:super-mario-3d-land-hd",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
   "download": {
@@ -1416,7 +1437,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1J0aEd7K6DUkNHcYsU42SBmxpNcZpC2Wd/view",
     "sha256": "3e395856dcc9df28406002ecec2a5112294087ae003a7494fa82c6109c03e631"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "3ds-sm3dl-4k-henriko"
@@ -1449,7 +1471,7 @@
   "source_id": "henrikomagnifico:super-mario-3d-land-hd",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
   "download": {
@@ -1459,7 +1481,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1EG2kf2-_i1k5VCN9foHnS6DkQtdwz80Y/view",
     "sha256": "4f989bd08ec6379a06487d8a6a7432730e9dab305cddcfbdf5ea3496b715f759"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "3ds-sm3dl-4k-henriko"
@@ -1492,7 +1515,7 @@
   "source_id": "henrikomagnifico:zelda-a-link-between-worlds-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
   "download": {
@@ -1502,7 +1525,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1ZdzR-yEY_91WCEeoEr30wlUgQ-2EjVy7/view",
     "sha256": "880a8ea8827a4422bb25568134fdfe595a0612fac1764a01358e7564c8567376"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "3ds-albw-4k-henriko"
@@ -1535,7 +1559,7 @@
   "source_id": "henrikomagnifico:zelda-a-link-between-worlds-4k",
   "licence": {
    "summary": "Free download linked from the author's own site; no redistribution licence",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop settings.",
   "download": {
@@ -1545,7 +1569,8 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1pA7ybLO1rTagKeDeC_yCoot6BmaqYFhb/view",
     "sha256": "ee1782ba94171226fa328b6e8ced6b3bc5987dc61784b6b5276240d6037592b2"
-   }
+   },
+   "in_app": true
   },
   "scope": "complete",
   "family": "3ds-albw-4k-henriko"
@@ -1578,7 +1603,7 @@
   "source_id": "gamebanana:420384",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1587,7 +1612,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/915725",
     "sha256": "df89a32cecf813989f8e5b20e283c80c662c3b7d796f1cffb2267bcfaa413bc0"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1643,7 +1669,7 @@
   "source_id": "gamebanana:394597",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The author names no region: Title IDs from a games database, NeoStation asks you to confirm your game.",
   "download": {
@@ -1653,7 +1679,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1276654",
     "sha256": "865c527b040b9db19b2084d08488d788a3293ce65d1601aa713adf27a117f17c"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1694,7 +1721,7 @@
   "source_id": "gamebanana:485700",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "Restyles the game with classic Mario & Luigi looks (182 textures).",
   "download": {
@@ -1704,7 +1731,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1108047",
     "sha256": "2cac0bf599842923e13ad5e434e7f131e541c126d6dcf3cfe1f37aeb60844000"
-   }
+   },
+   "in_app": true
   },
   "scope": "partial",
   "family": "3ds-mario-luigi-paper-jam-classic-juggling-gamer"
@@ -1752,7 +1780,7 @@
   "source_id": "gamebanana:647819",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The author names no region: Title IDs from a games database, NeoStation asks you to confirm your game.",
   "download": {
@@ -1762,7 +1790,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1607769",
     "sha256": "35d48e3438f27f14d34804ca8896ed4b60dd6c304d222997e5b8850bf3d65970"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
@@ -1803,7 +1832,7 @@
   "source_id": "gamebanana:9572",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "download": {
    "automatable": false,
@@ -1812,7 +1841,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/462053",
     "sha256": "9828547ae063bda84d2c67eed18740c84989cde6b65018cbfa37b6515386f97d"
-   }
+   },
+   "in_app": true
   },
   "scope": "ui",
   "family": "3ds-xenoblade-3d-hd-title-miguel92398"
@@ -1860,7 +1890,7 @@
   "source_id": "gamebanana:515472",
   "licence": {
    "summary": "Published on GameBanana; no licence checked here (see its page)",
-   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
   },
   "notes": "The author names no region: Title IDs from a games database, NeoStation asks you to confirm your game.",
   "download": {
@@ -1870,7 +1900,8 @@
    "verify": {
     "url": "https://gamebanana.com/dl/1200345",
     "sha256": "d4dac7be9f84f9bd1df15322693feb82d637df273c4d5b2932bba0838672cccc"
-   }
+   },
+   "in_app": true
   },
   "install": {
    "folders": [
