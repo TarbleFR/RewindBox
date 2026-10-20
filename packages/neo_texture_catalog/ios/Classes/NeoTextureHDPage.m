@@ -557,6 +557,8 @@ static NSString *HostName(NSString *host) {
 @property(nonatomic, assign) BOOL loaded, refreshing, importing, reloadQueued, pickingFolder;
 // A game opened by path (library) or by what the running engine reported.
 @property(nonatomic, copy) NSString *gamePath, *gameKey;
+/// The libretro core the game starts with (Mesen's switch depends on it).
+@property(nonatomic, copy) NSString *libretroCore;
 @property(nonatomic, copy) NSDictionary *pendingIdentity;
 @property(nonatomic, assign) BOOL resolving;
 // Console page: the console's games in the library, identified in the background.
@@ -608,6 +610,15 @@ static NSString *AbsolutePath(id value) {
       [NeoTextureEngines setLibretroSessionReader:options[@"sessionReader"] writer:options[@"sessionWriter"] forEngine:engine];
     return engine;
   }
+  // Mesen reads its HD packs below the libretro system directory too.
+  if ([engineID isEqualToString:@"mesen"]) {
+    NSString *system = AbsolutePath(options[@"libretroSystem"]);
+    id selector = options[@"coreSelector"];
+    if (system && config) engine = [NeoTextureEngines mesenWithSystemDirectory:system configDirectory:config coreSelector:selector];
+    if (engine && (options[@"sessionReader"] || options[@"sessionWriter"]))
+      [NeoTextureEngines setLibretroSessionReader:options[@"sessionReader"] writer:options[@"sessionWriter"] forEngine:engine];
+    return engine;
+  }
   if (!saves || !config) return nil;
   // The libretro session gives each core <Saves>/<library name> as its save
   // directory: PPSSPP's memory stick, and Azahar's user folder below it.
@@ -632,6 +643,7 @@ static NSString *AbsolutePath(id value) {
   if (options[@"engineStatus"]) page.engineStatus = options[@"engineStatus"];
   page.gamePath = AbsolutePath(options[@"gamePath"]);
   page.gameKey = NeoTexString(options[@"gameKey"]).length ? options[@"gameKey"] : nil;
+  page.libretroCore = NeoTexString(options[@"libretroCore"]).length ? options[@"libretroCore"] : nil;
   page.pendingIdentity = [options[@"identity"] isKindOfClass:NSDictionary.class] ? options[@"identity"] : nil;
   // What a running engine reports, in its own terms: game ID (or serial, disc
   // ID, program ID), revision and executable CRC.
@@ -701,7 +713,7 @@ static NSString *AbsolutePath(id value) {
 // engine recorded at an earlier boot, else the file itself.
 - (void)resolveGame {
   NSDictionary *pending = self.pendingIdentity;
-  NSString *path = self.gamePath, *system = self.system, *title = self.gameTitle, *gameKey = self.gameKey;
+  NSString *path = self.gamePath, *system = self.system, *title = self.gameTitle, *gameKey = self.gameKey, *core = self.libretroCore;
   id<NeoTextureEngine> engine = self.engine;
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
     NSString *problem = nil;
@@ -720,6 +732,7 @@ static NSString *AbsolutePath(id value) {
     if (identity) {
       if (path) identity[@"path"] = path;
       if (gameKey) identity[@"gameKey"] = gameKey;
+      if (core) identity[@"libretroCore"] = core;
       if (title.length && !NeoTexString(identity[@"title"]).length) identity[@"title"] = title;
       if (!identity[@"system"]) identity[@"system"] = system;
     }
@@ -756,6 +769,7 @@ static NSString *AbsolutePath(id value) {
           identity[@"path"] = path;
           identity[@"title"] = title.length ? title : NeoTexString(identity[@"title"]);
           if (NeoTexString(game[@"gameKey"]).length) identity[@"gameKey"] = game[@"gameKey"];
+          if (NeoTexString(game[@"libretroCore"]).length) identity[@"libretroCore"] = game[@"libretroCore"];
           [found addObject:identity];
         }
       }
@@ -882,7 +896,8 @@ static NSString *AbsolutePath(id value) {
   toggle.identifier = @"neoTextureEnable";
   toggle.toggle = @([activation[@"enabled"] boolValue]);
   toggle.disabled = !activation || ![activation[@"known"] boolValue] || self.importing;
-  if (activation && ![activation[@"known"] boolValue])
+  // Why the switch is unavailable, or what turning it on also does (Mesen: selects that engine).
+  if (activation && (![activation[@"known"] boolValue] || NeoTexString(activation[@"reason"]).length))
     toggle.detail = [self t:[@"activation." stringByAppendingString:NeoTexString(activation[@"reason"]) ?: @""]];
   __weak typeof(self) weakSelf = self;
   toggle.switched = ^(BOOL on) { [weakSelf switchTextures:on]; };
@@ -904,6 +919,9 @@ static NSString *AbsolutePath(id value) {
   // GLideNHQ reads a whole new pack before the game's first frame (then reuses its cache).
   if ([self.engine.engineID isEqualToString:@"mupen64plus"])
     section.footer = [NSString stringWithFormat:@"%@\n\n%@", section.footer, [self t:@"firstLaunchNotice.mupen64plus"]];
+  // Mesen decodes the whole pack when the game starts; Nestopia reads none.
+  if ([self.engine.engineID isEqualToString:@"mesen"])
+    section.footer = [NSString stringWithFormat:@"%@\n\n%@\n\n%@", section.footer, [self t:@"firstLaunchNotice.mesen"], [self t:@"engineNotice.mesen"]];
   return section;
 }
 

@@ -25,6 +25,12 @@
 //    <texture root>/<content name>-texture-replacements/<hash>-<palette>.<ext>,
 //    the root being the core's save directory (HD Texture Folder "save",
 //    locked by NeoStation). Switch: Track + Replace Textures, per game.
+//  Mesen libretro (libretro/Mesen 0102910, HdPackLoader.cpp, libretro.cpp):
+//    <system>/HdPacks/<loaded file name without extension>/hires.txt, the
+//    PNG, OGG and IPS/UPS/BPS files it names; format <ver> 106 at most.
+//    Switch: core option mesen_hdpacks (enabled by default), per game. The
+//    NES default engine (Nestopia) reads no HD pack: switching a pack on
+//    selects Mesen for that game, through NeoStation's own engine choice.
 #import "Public/NeoTextureEngine.h"
 #import "Public/NeoTextureCatalog.h"
 #import "NeoTextureSupport.h"
@@ -32,6 +38,10 @@
 #include "NeoTextureINI.h"
 #include "NeoTextureInstall.h"
 #include <sys/stat.h>
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+#include <os/proc.h>
+#endif
 #import <objc/message.h>
 
 static NSString *const kPPSSPPOption = @"ppsspp_texture_replacement";
@@ -39,6 +49,7 @@ static NSString *const kAzaharOption = @"citra_custom_textures";
 static NSString *const kMupen64plusOption = @"mupen64plus-txHiresEnable";
 static NSString *const kBeetleReplaceOption = @"beetle_psx_hw_replace_textures";
 static NSString *const kBeetleTrackOption = @"beetle_psx_hw_track_textures";
+static NSString *const kMesenOption = @"mesen_hdpacks";
 
 NSString *NeoTextureINIValue(NSString *text, NSString *section, NSString *key) {
   const auto value = NeoTextureINI::Value(text.UTF8String ?: "", section.UTF8String, key.UTF8String);
@@ -551,7 +562,7 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 }
 @end
 
-#pragma mark - Libretro (PPSSPP, Azahar, Mupen64Plus-Next)
+#pragma mark - Libretro (PPSSPP, Azahar, Mupen64Plus-Next; Beetle and Mesen below)
 
 @interface NeoTextureLibretro : NSObject <NeoTextureEngine>
 @property(nonatomic, copy) NSString *identifier, *coreLibrary, *optionKey, *root, *configDirectory;
@@ -561,6 +572,7 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 @property(nonatomic, copy) NSDictionary<NSString *, NSString *> *companions;
 @property(nonatomic, copy) NSString *_Nullable (^sessionReader)(NSString *key, NSString *gameKey);
 @property(nonatomic, copy) BOOL (^sessionWriter)(NSString *key, NSString *value, NSString *gameKey);
+- (nullable NSString *)valueForOption:(NSString *)key gameKey:(NSString *)gameKey scope:(NSString *_Nullable *_Nullable)scope;
 @end
 @implementation NeoTextureLibretro
 - (NSString *)engineID { return self.identifier; }
@@ -620,6 +632,17 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 }
 - (NSString *)gameStorePath { return [self.configDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"Games/%@.json", self.coreLibrary]]; }
 - (NSString *)coreStorePath { return [self.configDirectory stringByAppendingPathComponent:[NSString stringWithFormat:@"%@.json", self.coreLibrary]]; }
+/// A core option for one game: the running session's value, the game's, then the core's (nil: the core's default).
+- (NSString *)valueForOption:(NSString *)key gameKey:(NSString *)gameKey scope:(NSString **)scope {
+  NSString *value = self.sessionReader ? self.sessionReader(key, gameKey) : nil;
+  if (value) { if (scope) *scope = @"game"; return value; }
+  NSDictionary *games = NeoTexJSONDictionary(NeoTexReadBounded(self.gameStorePath, 4 << 20))[@"games"];
+  id entry = [games isKindOfClass:NSDictionary.class] ? games[gameKey] : nil;
+  if ([entry isKindOfClass:NSDictionary.class] && [entry[key] isKindOfClass:NSString.class]) { if (scope) *scope = @"game"; return entry[key]; }
+  NSDictionary *core = NeoTexJSONDictionary(NeoTexReadBounded(self.coreStorePath, 4 << 20))[@"values"];
+  if ([core isKindOfClass:NSDictionary.class] && [core[key] isKindOfClass:NSString.class]) return core[key];
+  return nil;
+}
 - (NSDictionary *)activationForIdentity:(NSDictionary *)identity {
   NSString *gameKey = NeoTexString(identity[@"gameKey"]);
   if (!gameKey.length) return @{@"known": @NO, @"reason": @"noGameKey", @"setting": self.optionKey};
@@ -698,16 +721,6 @@ static NSDictionary *Asking(NSDictionary *inspection) {
   if (!path.length || [self folderForIdentity:identity]) return nil;
   return [@[@"zip", @"7z"] containsObject:path.pathExtension.lowercaseString] ? @"zipContent" : @"contentName";
 }
-- (NSString *)valueForOption:(NSString *)key gameKey:(NSString *)gameKey scope:(NSString **)scope {
-  NSString *value = self.sessionReader ? self.sessionReader(key, gameKey) : nil;
-  if (value) { if (scope) *scope = @"game"; return value; }
-  NSDictionary *games = NeoTexJSONDictionary(NeoTexReadBounded(self.gameStorePath, 4 << 20))[@"games"];
-  id entry = [games isKindOfClass:NSDictionary.class] ? games[gameKey] : nil;
-  if ([entry isKindOfClass:NSDictionary.class] && [entry[key] isKindOfClass:NSString.class]) { if (scope) *scope = @"game"; return entry[key]; }
-  NSDictionary *core = NeoTexJSONDictionary(NeoTexReadBounded(self.coreStorePath, 4 << 20))[@"values"];
-  if ([core isKindOfClass:NSDictionary.class] && [core[key] isKindOfClass:NSString.class]) return core[key];
-  return nil;
-}
 - (NSDictionary *)activationForIdentity:(NSDictionary *)identity {
   NSString *gameKey = NeoTexString(identity[@"gameKey"]);
   NSString *setting = [NSString stringWithFormat:@"%@ + %@", kBeetleTrackOption, kBeetleReplaceOption];
@@ -778,6 +791,74 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 }
 @end
 
+#pragma mark - Mesen (libretro)
+
+// Memory Mesen may take for a pack's decoded images: half of what the process
+// can still allocate outside a game (the core decodes the whole pack when the
+// game starts, with no lazy loading), a quarter of the device memory where
+// the system does not say.
+static uint64_t MesenMemoryBudget(void) {
+  uint64_t available = 0;
+#if TARGET_OS_IPHONE
+  if (@available(iOS 13.0, *)) available = (uint64_t)os_proc_available_memory();
+#endif
+  return available ? available / 2 : NSProcessInfo.processInfo.physicalMemory / 4;
+}
+
+@interface NeoTextureMesen : NeoTextureLibretro
+/// Selects an engine for a game in NeoStation's own engine choice (gameKey, core id) -> success.
+@property(nonatomic, copy) BOOL (^coreSelector)(NSString *gameKey, NSString *core);
+@property(nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *selectedCores;
+@end
+@implementation NeoTextureMesen
+- (NeoTextureInstall::Engine)installEngine { return NeoTextureInstall::Engine::mesen; }
+- (BOOL)supportsSystem:(NSString *)system { return [NeoTexCanonicalSystem(system) isEqualToString:@"nes"]; }
+- (NSString *)folderForIdentity:(NSDictionary *)identity {
+  NSString *content = NeoTexString(identity[@"content"]);
+  return content.length && NeoTexSafeRelativePath(content, 160, 1) ? content : nil;
+}
+- (NSString *)folderProblemForIdentity:(NSDictionary *)identity {
+  return NeoTexString(identity[@"path"]).length && ![self folderForIdentity:identity] ? @"contentName" : nil;
+}
+- (NSString *)problemWithStagedFolder:(NSString *)folder pack:(NSDictionary *)pack {
+  const NeoTextureInstall::MesenPack checked = NeoTextureInstall::CheckMesenPack(folder.fileSystemRepresentation ?: "");
+  if (!checked.problem.empty()) return [NSString stringWithUTF8String:checked.problem.c_str()];
+  return checked.decodedBytes > MesenMemoryBudget() ? @"memoryTooLarge" : nil;
+}
+/// The engine this game starts with: what this page selected, else what NeoStation gave it.
+- (NSString *)coreForIdentity:(NSDictionary *)identity {
+  NSString *gameKey = NeoTexString(identity[@"gameKey"]);
+  @synchronized(self) { if (gameKey.length && self.selectedCores[gameKey]) return self.selectedCores[gameKey]; }
+  return NeoTexString(identity[@"libretroCore"]);
+}
+- (NSDictionary *)activationForIdentity:(NSDictionary *)identity {
+  NSString *gameKey = NeoTexString(identity[@"gameKey"]);
+  if (!gameKey.length) return @{@"known": @NO, @"reason": @"noGameKey", @"setting": kMesenOption};
+  NSString *scope = @"default";
+  NSString *value = [self valueForOption:kMesenOption gameKey:gameKey scope:&scope];
+  // The core ships the option enabled: a pack folder of this game is read unless it is turned off.
+  BOOL enabled = !value || [value isEqualToString:@"enabled"];
+  NSString *core = [self coreForIdentity:identity];
+  if (core.length && ![core isEqualToString:@"mesen"])
+    return @{@"known": @YES, @"enabled": @NO, @"scope": scope, @"appliesAt": @"next-launch", @"setting": kMesenOption,
+             @"reason": @"mesenEngine"};
+  return @{@"known": @YES, @"enabled": @(enabled), @"scope": scope, @"appliesAt": @"next-launch", @"setting": kMesenOption};
+}
+- (BOOL)setActivation:(BOOL)enabled identity:(NSDictionary *)identity error:(NSError **)error {
+  NSString *gameKey = NeoTexString(identity[@"gameKey"]);
+  if (!gameKey.length || gameKey.length > 600) { if (error) *error = EngineError(@"noGameKey"); return NO; }
+  NSString *core = [self coreForIdentity:identity];
+  if (enabled && core.length && ![core isEqualToString:@"mesen"]) {
+    if (!self.coreSelector || !self.coreSelector(gameKey, @"mesen")) { if (error) *error = EngineError(@"mesenNotSelected"); return NO; }
+    @synchronized(self) {
+      if (!self.selectedCores) self.selectedCores = [NSMutableDictionary dictionary];
+      self.selectedCores[gameKey] = @"mesen";
+    }
+  }
+  return [super setActivation:enabled identity:identity error:error];
+}
+@end
+
 @implementation NeoTextureEngines
 + (id<NeoTextureEngine>)dolphinWithUserDirectory:(NSString *)userDirectory {
   NeoTextureDolphin *engine = [NeoTextureDolphin new];
@@ -838,6 +919,20 @@ static NSDictionary *Asking(NSDictionary *inspection) {
   engine.configDirectory = configDirectory.stringByStandardizingPath;
   return engine;
 }
++ (id<NeoTextureEngine>)mesenWithSystemDirectory:(NSString *)systemDirectory configDirectory:(NSString *)configDirectory
+                                     coreSelector:(BOOL (^)(NSString *, NSString *))coreSelector {
+  NeoTextureMesen *engine = [NeoTextureMesen new];
+  engine.identifier = @"mesen";
+  engine.coreLibrary = @"Mesen";
+  engine.optionKey = kMesenOption;
+  engine.onValue = @"enabled";
+  engine.offValue = @"disabled";
+  // FolderUtilities::SetHomeFolder(system directory), then GetHdPackFolder: <home>/HdPacks.
+  engine.root = [systemDirectory.stringByStandardizingPath stringByAppendingPathComponent:@"HdPacks"];
+  engine.configDirectory = configDirectory.stringByStandardizingPath;
+  engine.coreSelector = coreSelector;
+  return engine;
+}
 + (void)setLibretroSessionReader:(NSString * (^)(NSString *, NSString *))reader
                           writer:(BOOL (^)(NSString *, NSString *, NSString *))writer
                        forEngine:(id<NeoTextureEngine>)engine {
@@ -849,4 +944,5 @@ static NSDictionary *Asking(NSDictionary *inspection) {
 + (NSString *)azaharOptionKey { return kAzaharOption; }
 + (NSString *)mupen64plusOptionKey { return kMupen64plusOption; }
 + (NSArray<NSString *> *)beetleOptionKeys { return @[kBeetleTrackOption, kBeetleReplaceOption]; }
++ (NSString *)mesenOptionKey { return kMesenOption; }
 @end

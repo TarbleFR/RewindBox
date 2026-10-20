@@ -1,9 +1,10 @@
 # Embedded Libretro cores — current development source
 
 The published 0.0.7 / Build 455 release contained 14 cores. The current
-development tree and private Build 479 contain the 34 cores credited below.
+development tree contains the 35 cores credited below (34 in private Build 479;
+Mesen added on 20 October 2026).
 
-NeoStation packages 34 iOS ARM64 libretro core binaries, including the official
+NeoStation packages 35 iOS ARM64 libretro core binaries, including the official
 Azahar 2127.0-alpha1 release. RetroArch
 is a separate frontend; NeoStation embeds these cores using its own host.
 All original authors retain their rights. No endorsement or relicensing is implied.
@@ -45,6 +46,7 @@ All original authors retain their rights. No endorsement or relicensing is impli
 | FreeIntv | Intellivision | David Richardson; Oscar Toledo G. (PSG, STIC, savestates); Joe Zbiciak (Intellivoice); Jason Carr (keypad overlays) | [GPLv2](freeintv-LICENSE) |
 | O2EM | Magnavox Odyssey 2 / Videopac | Daniel Boris, O2EM contributors and libretro contributors | [Artistic License 2.0](o2em-COPYING) |
 | Beetle PC-FX | NEC PC-FX | Mednafen and libretro contributors | [GPLv2; component notices apply](beetle_pcfx-COPYING) |
+| Mesen | NES / Famicom (HD packs) | M. Bibaud (Sour) and libretro contributors | [GPLv3](mesen-LICENSE); [README](mesen-README.md) |
 
 ## Support libraries and resources
 
@@ -70,7 +72,10 @@ table above) carry GPL, MIT, zlib, ISC or public-domain terms; none of them
 adds a non-commercial condition. The four cores added after them the same
 day (FreeChaF to Beetle PC-FX) carry GPL or Artistic License 2.0 terms, add
 no non-commercial condition and embed no console firmware: FreeChaF's
-replacement for the Channel F BIOS is its own code.
+replacement for the Channel F BIOS is its own code. Mesen, added on 20
+October 2026 as the NES engine that reads HD packs, carries GPLv3 terms, adds
+no non-commercial condition and embeds no firmware (the Famicom Disk System
+BIOS stays a file the user provides).
 
 NeoStation ships no console BIOS or firmware. No packaged core embeds a
 manufacturer's BIOS; three embed free replacements written by their

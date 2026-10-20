@@ -13,7 +13,12 @@ byte-joined, as the app does), then install it with the app's own code:
            engine requires: Dolphin tex1_ names and DDS block formats; PPSSPP
            textures.ini (hash type, [hashes] targets, exact case as iOS
            reads folders); Azahar pack.json (the booleans the engine reads
-           without a fallback) and that every PNG decompresses.
+           without a fallback) and that every PNG decompresses;
+  Mupen64Plus-Next, Beetle PSX HW, Mesen
+           NeoTextureInstall, then the names their cores read and, for
+           Mesen, the adapter's own check (hires.txt format 106 at most,
+           every <img> present and a PNG, decoded image bytes, the ROM SHA-1s
+           it names against the catalogue's).
 
 One JSON line per pack goes to --out and to stdout (between VERIFY_BEGIN and
 VERIFY_END markers, so a CI log is enough to read the results). Nothing is
@@ -306,6 +311,36 @@ def check_beetle(folder):
     return report, problems
 
 
+def check_mesen(folder, driver, entry):
+    """Mesen (libretro Mesen 0102910, HdPackLoader): what the app's adapter checks
+    (format 106 at most, every <img> present and a PNG), the memory the pack's
+    images take once decoded, and the ROM SHA-1s hires.txt names, compared with
+    the catalogue's identities."""
+    report, problems = {}, []
+    code, output = run(driver, 'mesencheck', str(folder))
+    fields = {}
+    roms, missing = [], []
+    for line in output.splitlines():
+        key, _, value = line.partition('=')
+        if key == 'rom':
+            roms.append(value)
+        elif key == 'missingFile':
+            missing.append(value)
+        else:
+            fields[key] = value
+    report.update(version=int(fields.get('ver') or 0), scale=int(fields.get('scale') or 1),
+                  decodedBytes=int(fields.get('decoded') or 0), skipped=int(fields.get('skipped') or 0), roms=roms)
+    if missing:
+        report['missing'] = missing
+    if fields.get('problem'):
+        problems.append(fields['problem'])
+    named = {identity['value'].upper() for game in entry['games'] for identity in game['identities']
+             if identity.get('scheme') == 'nes-rom-sha1'}
+    if roms and named and not named & set(roms):
+        problems.append('otherRom')
+    return report, problems
+
+
 def verify(entry, driver, work, max_bytes):
     result = {'id': entry['id'], 'system': entry['system'], 'verified_at': time.strftime('%Y-%m-%d', time.gmtime())}
     spec = entry.get('download') or {}
@@ -400,7 +435,7 @@ def verify(entry, driver, work, max_bytes):
         count, size, formats = folder_stats(folder)
         installed.append({'from': source, 'to': target, 'exclude': excluded, 'files': count, 'bytes': size, 'formats': formats})
         checker = {'dolphin': check_dolphin, 'ppsspp': check_ppsspp, 'azahar': check_azahar, 'mupen64plus': check_mupen64plus,
-                   'beetle': check_beetle}[engine]
+                   'beetle': check_beetle, 'mesen': lambda path: check_mesen(path, driver, entry)}[engine]
         folder_report, folder_problems = checker(folder)
         report[target] = folder_report
         problems += folder_problems
@@ -430,6 +465,9 @@ def folder_for(engine, value):
     if engine == 'mupen64plus':
         # The catalogue writes the N64 ROM header name in hexadecimal; GLideN64 names the folder after the name.
         return bytes.fromhex(value).decode('ascii')
+    if engine == 'mesen':
+        # Mesen names the folder after the loaded ROM file; any file name will do here.
+        return 'Game'
     value = value.upper()
     if engine == 'ppsspp':
         return value.replace('-', '')

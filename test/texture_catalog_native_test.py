@@ -188,6 +188,20 @@ def main() -> int:
                                                   ('Castle-texture-replacements/variants/5e6f-0.png', png()), ('Castle-texture-replacements/readme.txt', b'x')])
         packs['beetle'] = pack('fixture-beetle', 'ps1', 'beetle', game('Synthetic Castle', 'serial', 'ps1-disc-serial', 'SLUS-00067', 'USA'),
                                serve('beetle.zip', beetle), beetle, [{'from': 'Castle-texture-replacements/', 'to': '{id}'}], 2)
+        # Mesen (NES): HdPacks/<ROM file name>/ with the pack's hires.txt and the images it names;
+        # the identity is the SHA-1 of the whole ROM file Mesen loads.
+        nes_rom = b'NES\x1a' + bytes([1, 1, 0, 0]) + bytes(8) + bytes((i * 7) & 255 for i in range(0x6000))
+        (fixtures / 'Synthetic Quest (USA).nes').write_bytes(nes_rom)
+        nes_sha = hashlib.sha1(nes_rom).hexdigest().upper()
+        hires = f'<ver>106\n<scale>2\n<supportedRom>{nes_sha.lower()}\n<img>tiles/tile.png\n<tile>0,0,0F161616,0,0,1,N\n'
+        mesen = zip_of(fixtures / 'mesen.zip', [('Pack/Synthetic Quest/hires.txt', hires.encode()), ('Pack/Synthetic Quest/tiles/tile.png', png(16, 16)),
+                                                 ('Pack/Synthetic Quest/notes.txt', b'x'), ('Pack/preview.png', png())])
+        packs['mesen'] = pack('fixture-mesen', 'nes', 'mesen', game('Synthetic Quest', 'sha1', 'nes-rom-sha1', nes_sha, 'USA'),
+                              serve('mesen.zip', mesen), mesen, [{'from': 'Pack/Synthetic Quest/', 'to': '{id}'}], 2)
+        mesen2 = zip_of(fixtures / 'mesen2.zip', [('Pack/Synthetic Quest/hires.txt', b'<ver>108\n<img>tile.png\n'),
+                                                   ('Pack/Synthetic Quest/tile.png', png())])
+        packs['mesen2'] = pack('fixture-mesen2', 'nes', 'mesen', game('Synthetic Quest', 'sha1', 'nes-rom-sha1', nes_sha, 'USA'),
+                               serve('mesen2.zip', mesen2), mesen2, [{'from': 'Pack/Synthetic Quest/', 'to': '{id}'}], 2)
         # A manual pack whose author's file (on a file host) was verified on CI: installed only from that exact file.
         hosted = zip_of(fixtures / 'hosted.zip', [('Pack/GALE01/tex1_m.png', png()), ('Pack/notes.txt', b'x')])
         verified = pack('fixture-verified-manual', 'gc', 'dolphin', game('Synthetic Melee', 'game_id', 'dolphin-disc-game-id', 'GALE01', 'USA'),
@@ -216,6 +230,7 @@ def main() -> int:
             'bundledManifest': str(BUNDLED), 'bundledPackCount': len(index['packs']),
             'bundledAvailableCount': sum(1 for p in index['packs'] if p['availability'] == 'available'),
             'matches': probes(index), 'served': served, 'packs': packs, 'gcDisc': str(disc), 'n64Rom': str(fixtures / 'kart.v64'),
+            'nesRom': str(fixtures / 'Synthetic Quest (USA).nes'),
             'hostedFile': str(hosted), 'otherFile': str(other),
         }
         (base / 'fixtures.json').write_text(json.dumps(description, indent=1))

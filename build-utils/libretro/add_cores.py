@@ -98,6 +98,10 @@ def add(base, output):
     for name, digest in identity['files'].items():
         if name not in changed and sha((output / name).read_bytes()) != digest:
             raise ValueError('base file changed while adding cores: ' + name)
+    # The base's own additions (lot 2 above lot 1, ...) stay in its history.
+    if identity.get('addedTo'):
+        identity.setdefault('earlierAdditions', []).append(
+            {'addedTo': identity['addedTo'], 'addedCores': identity.get('addedCores', [])})
     identity.update({
         'host_commit': os.environ['GITHUB_SHA'],
         'retrieved': datetime.datetime.now(datetime.timezone.utc).isoformat(),

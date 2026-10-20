@@ -4695,5 +4695,347 @@
    ]
   },
   "notes": "Tracks and Ridge Racer V track textures for the Japanese disc ULJS00080 (the folder ULJS00080 of the repository; the older copy at its root is not installed)."
+ },
+ {
+  "id": "psp-samurai-shodown-anthology-hd-meskh4h4",
+  "title": "Samurai Shodown Anthology HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Samurai Shodown Anthology",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10401"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Samurai-Showdown-Anthology/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Samurai-Showdown-Anthology",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10401 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULUS10401 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MESKH4H4/Samurai-Showdown-Anthology/releases/tag/1.0"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-bleach-heat-the-soul-hd-meskh4h4",
+  "title": "Bleach: Heat the Soul HD texture pack (8-bit and 24-bit variants)",
+  "version": "v1.0",
+  "games": [
+   {
+    "title": "Bleach: Heat the Soul",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10008"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Bleach-heat-and-soul-texture-pack/releases/tag/v1.0",
+  "source_id": "github:MESKH4H4/Bleach-heat-and-soul-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCJS10008 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its UCJS10008 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MESKH4H4/Bleach-heat-and-soul-texture-pack/releases/tag/v1.0"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-bleach-heat-the-soul-2-hd-meskh4h4",
+  "title": "Bleach: Heat the Soul 2 HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Bleach: Heat the Soul 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10017"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Bleach-Heat-The-Soul-2/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Bleach-Heat-The-Soul-2",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCJS10017 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its UCJS10017 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MESKH4H4/Bleach-Heat-The-Soul-2/releases/tag/1.0"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-dragon-ball-z-shin-budokai-hd-meskh4h4",
+  "title": "Dragon Ball Z: Shin Budokai HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Dragon Ball Z: Shin Budokai",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10081"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Dragon-Ball-Z-Shin-Budokai-1/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Dragon-Ball-Z-Shin-Budokai-1",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10081 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULUS10081 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MESKH4H4/Dragon-Ball-Z-Shin-Budokai-1/releases/tag/1.0"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-dragon-ball-z-shin-budokai-2-hd-meskh4h4",
+  "title": "Dragon Ball Z: Shin Budokai 2 HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Dragon Ball Z: Shin Budokai 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00789"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Dragon-ball-Z-Shin-Budokai-2/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Dragon-ball-Z-Shin-Budokai-2",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULES00789 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULES00789 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MESKH4H4/Dragon-ball-Z-Shin-Budokai-2/releases/tag/1.0"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-saint-seiya-omega-ultimate-cosmo-hd-meskh4h4",
+  "title": "Saint Seiya Omega: Ultimate Cosmo HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Saint Seiya Omega: Ultimate Cosmo",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50699"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Saint-Seiya-Omega-Ultimate-Cosmo/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Saint-Seiya-Omega-Ultimate-Cosmo",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a NPJH50699 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its NPJH50699 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MESKH4H4/Saint-Seiya-Omega-Ultimate-Cosmo/releases/tag/1.0"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-naruto-shippuden-ultimate-ninja-heroes-3-hd-meskh4h4",
+  "title": "Naruto Shippuden: Ultimate Ninja Heroes 3 HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Naruto Shippuden: Ultimate Ninja Heroes 3",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10518"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/naruto-shippuden-ultimate-ninja-heroes-3/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/naruto-shippuden-ultimate-ninja-heroes-3",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10518 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULUS10518 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MESKH4H4/naruto-shippuden-ultimate-ninja-heroes-3/releases/tag/1.0"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-naruto-ultimate-ninja-heroes-2-hd-meskh4h4",
+  "title": "Naruto: Ultimate Ninja Heroes 2 HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Naruto: Ultimate Ninja Heroes 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01088"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Naruto-Ultimate-Ninja-Heroes-2/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Naruto-Ultimate-Ninja-Heroes-2",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULES01088 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULES01088 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MESKH4H4/Naruto-Ultimate-Ninja-Heroes-2/releases/tag/1.0"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-god-of-war-chains-of-olympus-hd-meskh4h4",
+  "title": "God of War: Chains of Olympus HD texture pack (PNG and PNG \"Vivid\" variants (the KTX2 variants are not listed: their compression is not checked))",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "God of War: Chains of Olympus",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00842"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/God-of-War-Chains-of-Olympus/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/God-of-War-Chains-of-Olympus",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCES00842 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its UCES00842 folder from Files. The release also carries the original dumps and PS3 remaster assets, which are not a pack.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MESKH4H4/God-of-War-Chains-of-Olympus/releases/tag/1.0"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
  }
 ]

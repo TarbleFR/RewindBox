@@ -539,9 +539,9 @@ jobs:
       ARMSX2_CORE_RUN_ID: '39178893158'
       RPCS3_CORE_HOST_SHA: 1cf0219773d4c64922367151de3508f5dbcb9c8e
       RPCS3_CORE_RUN_ID: '39251938919'
-      LIBRETRO_CORES_HOST_SHA: c3408821b2b9c47c6e31ae25b45c113aa9fd3f74
-      LIBRETRO_CORES_VALIDATED_SHA: a518034e826258b1e2aa20f7abddb00d750411b4
-      LIBRETRO_CORES_RUN_ID: '39081741396'
+      LIBRETRO_CORES_HOST_SHA: 4c2186204ce06b50b989689a9c2322068f523a58
+      LIBRETRO_CORES_VALIDATED_SHA: 4c2186204ce06b50b989689a9c2322068f523a58
+      LIBRETRO_CORES_RUN_ID: '39366986940'
       HOMEBREW_NO_AUTO_UPDATE: '1'
       BUNDLE_GEMFILE: ${{ github.workspace }}/build-utils/Gemfile.dolphin
       SCREENSCRAPER_DEV_ID: ${{ secrets.SCREENSCRAPER_DEV_ID }}
@@ -982,7 +982,8 @@ jobs:
         endpoint = 'repos/TarbleFR/neostation-ios/actions/runs/' + os.environ['LIBRETRO_CORES_RUN_ID']
         result = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
         assert result['head_sha'] == os.environ['LIBRETRO_CORES_VALIDATED_SHA'], result
-        assert result['path'] == '.github/workflows/nestopia-bgcolor.yml', result
+        # The 35-core package (Mesen, lot 3) is add_cores.py's copy of the Nestopia-fixed package.
+        assert result['path'] in ('.github/workflows/nestopia-bgcolor.yml', '.github/workflows/libretro-cores.yml'), result
         assert result['status'] == 'completed' and result['conclusion'] == 'success', result
         shutil.rmtree('dist/libretro', ignore_errors=True)
         PY
@@ -1336,9 +1337,9 @@ jobs:
       ARMSX2_CORE_RUN_ID: '39178893158'
       RPCS3_CORE_HOST_SHA: 1cf0219773d4c64922367151de3508f5dbcb9c8e
       RPCS3_CORE_RUN_ID: '39251938919'
-      LIBRETRO_CORES_HOST_SHA: c3408821b2b9c47c6e31ae25b45c113aa9fd3f74
-      LIBRETRO_CORES_VALIDATED_SHA: a518034e826258b1e2aa20f7abddb00d750411b4
-      LIBRETRO_CORES_RUN_ID: '39081741396'
+      LIBRETRO_CORES_HOST_SHA: 4c2186204ce06b50b989689a9c2322068f523a58
+      LIBRETRO_CORES_VALIDATED_SHA: 4c2186204ce06b50b989689a9c2322068f523a58
+      LIBRETRO_CORES_RUN_ID: '39366986940'
       HOMEBREW_NO_AUTO_UPDATE: '1'
       BUNDLE_GEMFILE: ${{ github.workspace }}/build-utils/Gemfile.dolphin
       SCREENSCRAPER_DEV_ID: ${{ secrets.SCREENSCRAPER_DEV_ID }}

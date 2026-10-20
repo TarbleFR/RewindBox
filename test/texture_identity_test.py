@@ -3,12 +3,15 @@
 synthetic images built here: no commercial game is used. Each case checks the
 identifier the engine names its texture folder after.
 """
+import hashlib
+import io
 import os
 import shutil
 import struct
 import subprocess
 import sys
 import tempfile
+import zipfile
 import zlib
 from pathlib import Path
 
@@ -363,10 +366,45 @@ def main():
         check('n64', n64(b'\xc3\xa9TOILE'), {'problem': 'unsupportedRomName'}, ok=False)
         check('n64', bytes(0x1000), {'problem': 'unsupportedFormat'}, ok=False)
         check('n64', bytes.fromhex('80371240'), {'problem': 'unreadable'}, ok=False)
+
+        # NES (Mesen): the SHA-1 of the whole file Mesen loads (iNES header
+        # included, the hash of hires.txt's <supportedRom>) and its name
+        # without extension (HdPacks/<name>); in a ZIP, the first NES entry
+        # the libretro host extracts, by its own name.
+        def nes(name, data, expect, ok=True):
+            count[0] += 1
+            folder = temp / f'nes{count[0]}'
+            folder.mkdir()
+            (folder / name).write_bytes(data)
+            result = subprocess.run([str(driver), 'nes', str(folder / name)], capture_output=True, text=True)
+            assert 'runtime error' not in result.stderr and 'Sanitizer' not in result.stderr, result.stderr
+            fields = dict(item.split('=', 1) for item in result.stdout.split())
+            assert (result.returncode == 0) == ok, (name, result.stdout)
+            for key, value in expect.items():
+                assert fields.get(key) == value, (name, key, fields)
+
+        rom = b'NES\x1a' + bytes([1, 1, 0, 0]) + bytes(8) + os.urandom(0x6000)
+        sha = hashlib.sha1(rom).hexdigest().upper()
+        nes('Contra (U) [!].nes', rom, {'value': sha, 'folder': 'Contra+(U)+[!]', 'format': 'nes'})
+        nes('Side A.FDS', rom, {'value': sha, 'folder': 'Side+A', 'format': 'fds'})
+        other = b'NES\x1a' + bytes([2, 0, 0, 0]) + bytes(8) + os.urandom(0x8000)
+        zipped = io.BytesIO()
+        with zipfile.ZipFile(zipped, 'w', zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('readme.txt', b'not a ROM')
+            archive.writestr('roms/Mega Man (USA).nes', rom)
+            archive.writestr('other.nes', other)
+        nes('Mega Man pack.zip', zipped.getvalue(), {'value': sha, 'folder': 'Mega+Man+(USA)', 'format': 'zip'})
+        empty = io.BytesIO()
+        with zipfile.ZipFile(empty, 'w') as archive:
+            archive.writestr('readme.txt', b'no ROM here')
+        nes('nothing.zip', empty.getvalue(), {'problem': 'unsupportedFormat'}, ok=False)
+        nes('game.7z', b'7z\xbc\xaf\x27\x1c' + bytes(64), {'problem': 'unsupportedFormat'}, ok=False)
+        nes('.hidden.nes', rom, {'problem': 'contentName'}, ok=False)
         print(f'PASS texture identity: {count[0]} synthetic images (PS2 ISO/raw MODE1/MODE2/CSO/ZSO serial + ELF CRC; '
               'PS1 BIN/ISO/CUE/M3U/CCD SYSTEM.CNF serial, CHD/PBP/PS2 disc/no SYSTEM.CNF/escaping CUE refused; '
               'GC/Wii ISO/WBFS/CISO/WIA/RVZ/GCZ/WAD ID + revision; PSP ISO/CSO/ZSO/PBP/UMD_DATA disc ID; '
               '3DS NCSD/NCCH/CIA program ID, update refused; N64 z64/v64/n64 ROM name, unusable names refused; '
+              'NES ROM SHA-1 and content name, from the file or the first NES entry of a ZIP; '
               'unreadable inputs reported)')
 
 

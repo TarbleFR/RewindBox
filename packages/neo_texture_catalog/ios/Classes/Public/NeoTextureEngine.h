@@ -14,7 +14,7 @@ NS_ASSUME_NONNULL_BEGIN
 ///
 /// Every method may read or write files: call them off the main thread.
 @protocol NeoTextureEngine <NSObject>
-/// dolphin, armsx2, ppsspp, azahar, mupen64plus or beetle.
+/// dolphin, armsx2, ppsspp, azahar, mupen64plus, beetle or mesen.
 @property(nonatomic, copy, readonly) NSString *engineID;
 /// Folder whose children are the per-game texture folders the engine reads.
 @property(nonatomic, copy, readonly) NSString *texturesRoot;
@@ -118,6 +118,14 @@ NS_ASSUME_NONNULL_BEGIN
 /// Beetle PSX HW: root = the core's save directory (<Documents>/Libretro/Saves/Beetle PSX HW),
 /// where it reads <content name>-texture-replacements (HD Texture Folder "save").
 + (id<NeoTextureEngine>)beetleWithSaveDirectory:(NSString *)saveDirectory configDirectory:(NSString *)configDirectory;
+/// Mesen (NES): the libretro system directory, whose HdPacks/<ROM file name>
+/// folders Mesen reads; config = <Documents>/Libretro/Config. `coreSelector`
+/// (gameKey, core id) -> success selects the engine of a game in NeoStation's
+/// engine choice when a pack is switched on for a game that starts with
+/// another engine (Nestopia reads no HD pack); nil where it cannot be changed.
++ (id<NeoTextureEngine>)mesenWithSystemDirectory:(NSString *)systemDirectory
+                                 configDirectory:(NSString *)configDirectory
+                                    coreSelector:(nullable BOOL (^)(NSString *gameKey, NSString *core))coreSelector;
 /// Optional session hooks for libretro adapters: read (key, gameKey) -> value
 /// and write (key, value, gameKey) -> success. Used while that game runs.
 + (void)setLibretroSessionReader:(nullable NSString *_Nullable (^)(NSString *key, NSString *gameKey))reader
@@ -129,6 +137,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (NSString *)mupen64plusOptionKey;
 /// Beetle's switch: Track Textures, then Replace Textures (both per game).
 + (NSArray<NSString *> *)beetleOptionKeys;
+/// Mesen's switch (per game, enabled by default in the core).
++ (NSString *)mesenOptionKey;
 @end
 
 /// INI helpers of the Dolphin adapter: one key in one section, every other

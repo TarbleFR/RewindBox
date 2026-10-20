@@ -22,7 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SOURCES = ROOT / 'tools/textures/sources'
 INDEX = 'native/textures/catalogue/manifest.json.gz'
-CONSOLES = ['gc', 'wii', '3ds', 'psp', 'ps2', 'n64', 'ps1']
+CONSOLES = ['gc', 'wii', '3ds', 'psp', 'ps2', 'n64', 'ps1', 'nes']
 VARIANT_WORDS = {'4k', '1080', '1080p', '720p', '1440p', '2160p', 'dds', 'png', 'bc7', 'bc3', 'bc1', '2x', '3x', '4x', '8x', '16x',
                  'hd', 'uhd', 'ktx', 'ktx2', 'astc', 'light', 'pack', 'fullres', 'eu', 'us', 'jp'}
 # Older entries whose variants differ by more than a resolution word (style, region dump, aspect).

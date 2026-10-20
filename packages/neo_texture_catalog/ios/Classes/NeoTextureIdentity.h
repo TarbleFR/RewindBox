@@ -21,7 +21,17 @@
 //          NUL, trailing spaces removed) from .z64, .v64 or .n64 byte orders;
 //          the catalogue matches it in hexadecimal (identity values are
 //          [A-Za-z0-9-]); country code 0x3E (region), version 0x3F.
+//   NES:   what Mesen (libretro Mesen 0102910) names and checks an HD pack
+//          after: the SHA-1 of the whole ROM file it loads (VirtualFile::
+//          GetSha1Hash, iNES header included; the hash of hires.txt's
+//          <supportedRom> and <patch> lines) and the file's name without its
+//          extension (HdPacks/<name>). A ZIP is extracted by NeoStation's
+//          libretro host, which hands Mesen its first .nes/.fds/.unf/.unif
+//          entry: that entry's bytes and name count.
 #pragma once
+#include "NeoTextureArchive.h"
+#include <cstdio>
+#include <filesystem>
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -625,6 +635,114 @@ inline Result N64(const std::string& path) {
     case 'A': case 'C': r.region = "Asia"; break;
     default: break;
   }
+  return r;
+}
+
+// SHA-1 (FIPS 180-4), streamed: Mesen's identity of a ROM file.
+class SHA1 {
+ public:
+  void update(const unsigned char* data, size_t size) {
+    length_ += uint64_t(size) * 8;
+    while (size) {
+      const size_t take = std::min(size, size_t(64) - used_);
+      std::memcpy(block_ + used_, data, take);
+      used_ += take; data += take; size -= take;
+      if (used_ == 64) { compress(); used_ = 0; }
+    }
+  }
+  std::string hex() {
+    const uint64_t length = length_;
+    const unsigned char pad = 0x80, zero = 0;
+    update(&pad, 1);
+    while (used_ != 56) update(&zero, 1);
+    unsigned char tail[8];
+    for (int i = 0; i < 8; ++i) tail[i] = (unsigned char)(length >> (56 - 8 * i));
+    update(tail, 8);
+    static const char digits[] = "0123456789ABCDEF";
+    std::string out;
+    for (uint32_t word : h_)
+      for (int shift = 28; shift >= 0; shift -= 4) out += digits[(word >> shift) & 15];
+    return out;
+  }
+
+ private:
+  static uint32_t rotl(uint32_t v, int n) { return (v << n) | (v >> (32 - n)); }
+  void compress() {
+    uint32_t w[80];
+    for (int i = 0; i < 16; ++i) w[i] = BE32(block_ + 4 * i);
+    for (int i = 16; i < 80; ++i) w[i] = rotl(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+    uint32_t a = h_[0], b = h_[1], c = h_[2], d = h_[3], e = h_[4];
+    for (int i = 0; i < 80; ++i) {
+      const uint32_t f = i < 20 ? (b & c) | (~b & d) : i < 40 ? b ^ c ^ d : i < 60 ? (b & c) | (b & d) | (c & d) : b ^ c ^ d;
+      const uint32_t k = i < 20 ? 0x5A827999u : i < 40 ? 0x6ED9EBA1u : i < 60 ? 0x8F1BBCDCu : 0xCA62C1D6u;
+      const uint32_t t = rotl(a, 5) + f + e + k + w[i];
+      e = d; d = c; c = rotl(b, 30); b = a; a = t;
+    }
+    h_[0] += a; h_[1] += b; h_[2] += c; h_[3] += d; h_[4] += e;
+  }
+  uint32_t h_[5] = {0x67452301u, 0xEFCDAB89u, 0x98BADCFEu, 0x10325476u, 0xC3D2E1F0u};
+  unsigned char block_[64] = {0};
+  size_t used_ = 0;
+  uint64_t length_ = 0;
+};
+
+inline bool NESExtension(const std::string& extension) {
+  return extension == "nes" || extension == "fds" || extension == "unf" || extension == "unif";
+}
+
+inline Result NES(const std::string& path) {
+  Result r;
+  r.system = "nes"; r.type = "sha1"; r.scheme = "nes-rom-sha1";
+  constexpr uint64_t kMaxROM = 64ULL << 20;
+  const std::string extension = LowerExtension(path);
+  std::string file = path, name = path.substr(path.rfind('/') + 1);
+  std::string temporary;
+  struct Cleanup { std::string* path; ~Cleanup() { if (!path->empty()) ::unlink(path->c_str()); } } cleanup{&temporary};
+  if (extension == "zip") {
+    NeoTextureArchive::Zip zip;
+    if (zip.open(path) != NeoTextureArchive::Status::ok) { r.problem = "unreadable"; return r; }
+    const NeoTextureArchive::Entry* chosen = nullptr;
+    for (const auto& entry : zip.entries()) {
+      if (entry.directory) continue;
+      const std::string inner = LowerExtension(entry.name);
+      if (NESExtension(inner)) { chosen = &entry; break; }
+    }
+    if (!chosen) { r.problem = "unsupportedFormat"; return r; }
+    if (chosen->size > kMaxROM) { r.problem = "unsupportedFormat"; return r; }
+    std::error_code error;
+    const std::string directory = std::filesystem::temp_directory_path(error).string();
+    if (error) { r.problem = "unreadable"; return r; }
+    char pattern[64];
+    std::snprintf(pattern, sizeof(pattern), "/neostation-nes-%d-%p", int(::getpid()), (const void*)chosen);
+    temporary = directory + pattern;
+    ::unlink(temporary.c_str());
+    if (zip.extract(*chosen, temporary, [](uint64_t) { return true; }) != NeoTextureArchive::Status::ok) { r.problem = "unreadable"; return r; }
+    file = temporary;
+    name = chosen->name.substr(chosen->name.rfind('/') + 1);
+    r.format = "zip";
+  } else if (NESExtension(extension)) {
+    r.format = extension;
+  } else {
+    r.problem = "unsupportedFormat";
+    return r;
+  }
+  Reader reader(file);
+  if (!reader.good() || reader.length() > kMaxROM) { r.problem = "unreadable"; return r; }
+  SHA1 sha;
+  std::vector<unsigned char> buffer(1 << 16);
+  for (uint64_t at = 0; at < reader.length();) {
+    const size_t n = size_t(std::min<uint64_t>(buffer.size(), reader.length() - at));
+    if (!reader.read(at, buffer.data(), n)) { r.problem = "unreadable"; return r; }
+    sha.update(buffer.data(), n);
+    at += n;
+  }
+  // Mesen's folder: the loaded file's name without its last extension.
+  const size_t dot = name.rfind('.');
+  const std::string content = dot == std::string::npos ? name : name.substr(0, dot);
+  if (content.empty() || content.front() == '.' || content.find(':') != std::string::npos) { r.problem = "contentName"; return r; }
+  r.value = sha.hex();
+  r.folder = content;
+  r.title = content;
   return r;
 }
 

@@ -112,6 +112,9 @@ LOT2_CORES = ('freechaf', 'freeintv', 'o2em', 'mednafen_pcfx')
 # Build 489: Beetle PSX HW in Vulkan, run only with --beetle (build_beetle_content).
 BEETLE_CORE = 'mednafen_psx_hw'
 REAL_CORES = ('ppsspp', 'azahar', 'desmume') + LOT1_CORES + LOT2_CORES + (BEETLE_CORE,)
+# Mesen (NES HD packs, docs/hd-textures-nes-mesen.md), run only with --mesen
+# (build_mesen_content), from a core package that has it.
+MESEN_CORE = 'mesen'
 # Built here from test/libretro_host for the simulator.
 TEST_CORES = {'neotest': 'test_core.c', 'neovk': 'vulkan_test_core.c'}
 # Shader fixtures exercise the actual session and presenter; network bytes
@@ -399,6 +402,30 @@ SCENARIOS += [
      'probeOptions': {'beetle_psx_hw_track_textures': 'disabled', 'beetle_psx_hw_replace_textures': 'disabled'},
      'beetleTextures': {'replace': False, 'recognized': BEETLE_PACK}, 'requiredLog': BEETLE_LOG},
 ]
+
+# Mesen (run by their own CI job with --mesen): the real core on an NES test
+# program the probe writes (build_mesen_content: one background tile drawn
+# all over the screen) and an HD pack the probe writes too, for that program,
+# in the folder Mesen reads: <system>/HdPacks/<content name>/hires.txt with a
+# 2x image of the tile. Mesen draws 256x240 frames without a pack and 512x480
+# with it (retro_get_system_av_info: the pack's <scale>); the same content
+# under another name, and the pack switched off by mesen_hdpacks, stay 256x240.
+MESEN_LOG = ['load: content accepted', 'run: startup confirmed after']
+for run_index in (1, 2):
+    SCENARIOS += [
+        {'name': f'mesen-plain-{run_index}', 'core': MESEN_CORE, 'content': 'content/probe-nes-plain.nes',
+         'console': 'nes', 'expect': 'run', 'runSeconds': 3.0, 'default': False, 'mesen': True,
+         'requiredLog': MESEN_LOG + ['run: frame 256x240'], 'forbiddenLog': ['run: frame 512x480']},
+        {'name': f'mesen-hd-pack-{run_index}', 'core': MESEN_CORE, 'content': 'content/probe-nes-hd.nes',
+         'console': 'nes', 'expect': 'run', 'runSeconds': 3.0, 'default': False, 'mesen': True,
+         'probeOptions': {'mesen_hdpacks': 'enabled'}, 'requiredLog': MESEN_LOG + ['run: frame 512x480'],
+         'forbiddenLog': ['run: frame 256x240']},
+    ]
+SCENARIOS.append(
+    {'name': 'mesen-hd-pack-off', 'core': MESEN_CORE, 'content': 'content/probe-nes-hd.nes', 'console': 'nes',
+     'expect': 'run', 'runSeconds': 3.0, 'default': False, 'mesen': True,
+     'probeOptions': {'mesen_hdpacks': 'disabled'}, 'requiredLog': MESEN_LOG + ['run: frame 256x240'],
+     'forbiddenLog': ['run: frame 512x480']})
 
 # Real official catalog/downloads; the rendering is the actual embedded
 # bridge, with a software test core, a Vulkan test core and real DeSmuME.
@@ -713,6 +740,42 @@ def build_lot1_content(content):
     # Uzebox and Game & Watch: files that are not their formats.
     (content / 'probe-not-uze.uze').write_bytes(b'NOTUZE' + bytes(1024))
     (content / 'probe-not-mgw.mgw').write_bytes(b'not a game and watch package' + bytes(256))
+
+
+def build_mesen_content(content, system):
+    """An NROM test program and the HD pack made here for it (no third-party
+    content): the program fills the screen with background tile 0 (colour 1
+    of palette 0F 16 16 16) and loops; the pack gives that tile a 16x16 green
+    image at scale 2 (hires.txt format 106, the newest libretro Mesen reads)."""
+    from neo_shader_kit_test import png as rgba_png
+    prg = bytearray([0xEA]) * 0x4000
+    code = [0x78, 0xD8, 0xA2, 0xFF, 0x9A,             # SEI CLD LDX #$FF TXS
+            0x2C, 0x02, 0x20,                         # BIT $2002
+            0x2C, 0x02, 0x20, 0x10, 0xFB,             # vblank 1: BIT $2002 / BPL
+            0x2C, 0x02, 0x20, 0x10, 0xFB,             # vblank 2
+            0xA9, 0x3F, 0x8D, 0x06, 0x20, 0xA9, 0x00, 0x8D, 0x06, 0x20,   # PPUADDR $3F00
+            0xA9, 0x0F, 0x8D, 0x07, 0x20, 0xA9, 0x16, 0x8D, 0x07, 0x20,   # 0F 16
+            0x8D, 0x07, 0x20, 0x8D, 0x07, 0x20,                           # 16 16
+            0xA9, 0x20, 0x8D, 0x06, 0x20, 0xA9, 0x00, 0x8D, 0x06, 0x20,   # PPUADDR $2000
+            0xA2, 0x00, 0xA0, 0x04, 0xA9, 0x00,                           # 1 KiB of tile 0
+            0x8D, 0x07, 0x20, 0xE8, 0xD0, 0xFA, 0x88, 0xD0, 0xF7,
+            0xA9, 0x00, 0x8D, 0x05, 0x20, 0x8D, 0x05, 0x20,               # scroll 0, 0
+            0x8D, 0x00, 0x20, 0xA9, 0x0A, 0x8D, 0x01, 0x20,               # PPUCTRL 0, PPUMASK background
+            0x4C]                                                         # JMP to itself
+    loop = 0xC000 + len(code) - 1
+    code += [loop & 0xFF, loop >> 8, 0x40]                                # ...and an RTI for NMI/IRQ
+    prg[0:len(code)] = bytes(code)
+    rti = 0xC000 + len(code) - 1
+    struct.pack_into('<HHH', prg, 0x3FFA, rti, 0xC000, rti)
+    chr_rom = bytearray(0x2000)
+    chr_rom[0:8] = b'\xff' * 8                          # tile 0: plane 0 set, plane 1 clear = colour 1
+    rom = b'NES\x1a' + bytes([1, 1, 0, 0]) + bytes(8) + bytes(prg) + bytes(chr_rom)
+    (content / 'probe-nes-plain.nes').write_bytes(rom)
+    (content / 'probe-nes-hd.nes').write_bytes(rom)
+    pack = system / 'HdPacks' / 'probe-nes-hd'
+    pack.mkdir(parents=True, exist_ok=True)
+    (pack / 'probe-tile.png').write_bytes(rgba_png(16, 16, [[(0, 255, 0, 255)] * 16 for _ in range(16)]))
+    (pack / 'hires.txt').write_text('<ver>106\n<scale>2\n<img>probe-tile.png\n<tile>0,0,0F161616,0,0,1,N\n')
 
 
 def build_lot2_content(content, system):
@@ -1095,7 +1158,7 @@ def assemble(args, sources, work):
         (bundle / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier':'ai.neostation.cheats','CFBundlePackageType':'BNDL'}))
     build_test_cores(sdk, frameworks)
     cores = Path(args.cores)
-    for core in REAL_CORES:
+    for core in REAL_CORES + ((MESEN_CORE,) if getattr(args, 'mesen', False) else ()):
         source = cores / 'Frameworks' / f'{core}_libretro.framework'
         target = frameworks / source.name
         shutil.copytree(source, target)
@@ -1120,6 +1183,8 @@ def assemble(args, sources, work):
         build_lot2_content(content, app / 'LibretroSystem')
     if getattr(args, 'beetle', False):
         build_beetle_content(content, app / 'LibretroSystem')
+    if getattr(args, 'mesen', False):
+        build_mesen_content(content, app / 'LibretroSystem')
     if imports_shader_kit(sources):
         build_shader_fixtures(app, args.official_shaders)
     if imports_cheat_catalog(sources):
@@ -1140,6 +1205,9 @@ def assemble(args, sources, work):
         elif getattr(args, 'beetle', False):
             if not scenario.get('beetle'):
                 continue
+        elif getattr(args, 'mesen', False):
+            if not scenario.get('mesen'):
+                continue
         elif args.only and scenario['name'] not in args.only:
             continue
         elif not args.only and not scenario.get('default', True):
@@ -1147,7 +1215,7 @@ def assemble(args, sources, work):
         if bool(scenario.get('shaders', {}).get('official')) != args.official_shaders:
             continue
         entry = dict(scenario)
-        if scenario['core'] in REAL_CORES:
+        if scenario['core'] in REAL_CORES + (MESEN_CORE,):
             entry.update(core_settings(catalog, scenario['core']))
             # The product's locked options, then the probe's own (Beetle's dumping run).
             entry['lockedOptions'] = {**entry.get('lockedOptions', {}), **scenario.get('probeOptions', {})}
@@ -1383,6 +1451,9 @@ def evaluate(report, scenarios):
             for line in scenario.get('requiredLog', []):
                 if line not in result.get('journal', ''):
                     problems.append(f'{name}: the core log lacks "{line}"')
+            for line in scenario.get('forbiddenLog', []):
+                if line in result.get('journal', ''):
+                    problems.append(f'{name}: the core log has "{line}"')
             resolution = scenario.get('resolution')
             if resolution:
                 problems += resolution_problems(name, resolution, result, launch)
@@ -1910,6 +1981,8 @@ def main():
                             help='Run only the lot 2 cores (docs/libretro-consoles-lot2.md)')
     run_parser.add_argument('--beetle', action='store_true',
                             help='Run only the Beetle PSX HW Vulkan texture replacement scenarios (Build 489)')
+    run_parser.add_argument('--mesen', action='store_true',
+                            help='Run only the Mesen NES HD pack scenarios (needs a core package with Mesen)')
     run_parser.add_argument('--expect', choices=('fixed', 'unfixed'), default='fixed')
     run_parser.add_argument('--timeout', type=int, default=900)
     run_parser.add_argument('--official-shaders', action='store_true',

@@ -8,9 +8,12 @@
 //       NeoTextureInstall::Detect on the archive's names for the game folder
 //       <current> (the store's own layout rules): prints problem, rules, IDs.
 //   install <engine> <root> <archive> <from=to[!excluded/|...]>... | flat <from[!excluded/|...]>
-//       NeoTextureInstall::ExtractArchive (dolphin, ppsspp, azahar, beetle), the
+//       NeoTextureInstall::ExtractArchive (dolphin, ppsspp, azahar, mupen64plus, beetle, mesen), the
 //       signature check and the commit into <root>/<to>; "flat": the folder an
 //       engine with its own installer (ARMSX2) receives. Prints key=value.
+//   mesencheck <folder>
+//       NeoTextureInstall::CheckMesenPack on an installed Mesen folder: problem,
+//       hires.txt version and scale, decoded image bytes, ROM SHA-1s it names.
 //   armsx2 <dataRoot> <source> <serial> <sourceName> [move]
 //       the Build 485 store's own pipeline (ARMSX2TexturePackCore.h:
 //       OpenSource, BuildPlan, Judge, StageFiles, CommitStaged) on a ZIP, TAR
@@ -25,7 +28,8 @@ namespace A = NeoARMSX2Textures;
 
 static I::Engine Parse(const std::string& s) {
   return s == "dolphin" ? I::Engine::dolphin : s == "armsx2" ? I::Engine::armsx2 : s == "ppsspp" ? I::Engine::ppsspp
-       : s == "mupen64plus" ? I::Engine::mupen64plus : s == "beetle" ? I::Engine::beetle : I::Engine::azahar;
+       : s == "mupen64plus" ? I::Engine::mupen64plus : s == "beetle" ? I::Engine::beetle : s == "mesen" ? I::Engine::mesen
+       : I::Engine::azahar;
 }
 
 static int List(const std::string& path) {
@@ -88,9 +92,11 @@ static int Install(int argc, char** argv) {
   const bool flat = std::string(argv[5]) == "flat";
   std::vector<I::Rule> rules;
   std::vector<std::string> targets;
-  // "<rule>!a/|b/": the rule without the subfolders a/ and b/.
+  // "<rule>!a/|b/": the rule without the subfolders a/ and b/. In "from=to!...", the
+  // exclusions start after the "=" (a GoodNES folder name such as "Contra (U) [!]" holds a "!").
   auto split = [](const std::string& spec, std::vector<std::string>& exclude) {
-    const size_t bang = spec.find('!');
+    const size_t equals = spec.rfind('=');
+    const size_t bang = spec.find('!', equals == std::string::npos ? 0 : equals);
     if (bang == std::string::npos) return spec;
     std::string rest = spec.substr(bang + 1);
     for (size_t at = 0; at <= rest.size();) {
@@ -214,5 +220,14 @@ int main(int argc, char** argv) {
   if (command == "detect") return Detect(argc, argv);
   if (command == "install") return Install(argc, argv);
   if (command == "armsx2") return Armsx2(argc, argv);
+  if (command == "mesencheck") {
+    // What the Mesen adapter checks in a staged folder (NeoTextureInstall::CheckMesenPack).
+    const I::MesenPack pack = I::CheckMesenPack(argv[2]);
+    std::printf("problem=%s\nver=%d\nscale=%d\ndecoded=%llu\nmissing=%zu\nskipped=%zu\n", pack.problem.c_str(), pack.version,
+                pack.scale, (unsigned long long)pack.decodedBytes, pack.missing.size(), pack.skipped.size());
+    for (const auto& rom : pack.roms) std::printf("rom=%s\n", rom.c_str());
+    for (size_t i = 0; i < pack.missing.size() && i < 5; ++i) std::printf("missingFile=%s\n", pack.missing[i].c_str());
+    return 0;
+  }
   return 64;
 }

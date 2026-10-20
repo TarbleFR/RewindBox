@@ -57,6 +57,7 @@ static NSDictionary *Identity(NSString *system, NSString *type, NSString *scheme
     NSString *region = Str(NeoTextureIdentity::PS2Region(std::string(compact.UTF8String ?: "")));
     return Identity(s, @"serial", @"ps1-disc-serial", v, nil, nil, region, title, nil, nil);
   }
+  if ([s isEqualToString:@"nes"]) return Identity(s, @"sha1", @"nes-rom-sha1", v, nil, nil, nil, title, nil, nil);
   return Identity(s, @"title_id", @"3ds-title-id", v, nil, nil, nil, title, nil, nil);
 }
 
@@ -95,6 +96,7 @@ static NSDictionary *Identity(NSString *system, NSString *type, NSString *scheme
   else if ([s isEqualToString:@"3ds"]) r = NeoTextureIdentity::N3DS(file);
   else if ([s isEqualToString:@"n64"]) r = NeoTextureIdentity::N64(file);
   else if ([s isEqualToString:@"ps1"]) r = NeoTextureIdentity::PS1(file);
+  else if ([s isEqualToString:@"nes"]) r = NeoTextureIdentity::NES(file);
   else { if (problem) *problem = @"unsupportedFormat"; return nil; }
   NSDictionary *identity = nil;
   NSDictionary *record = nil;
@@ -102,6 +104,12 @@ static NSDictionary *Identity(NSString *system, NSString *type, NSString *scheme
     // PS2 folders and the store use SLUS-21050; PS1 the same form; Dolphin, PSP and 3DS the raw value.
     NSString *value = [s isEqualToString:@"ps2"] ? Str(r.folder) : Str(r.value);
     identity = Identity(s, Str(r.type), Str(r.scheme), value, Str(r.revision), Str(r.crc), Str(r.region), title, path, Str(r.format));
+    // NES: the name of the file Mesen loads (HdPacks/<name>), part of what the file says.
+    if ([s isEqualToString:@"nes"]) {
+      NSMutableDictionary *named = [identity mutableCopy];
+      named[@"content"] = Str(r.folder);
+      identity = named;
+    }
     NSMutableDictionary *stored = [identity mutableCopy];
     [stored removeObjectForKey:@"title"];
     [stored removeObjectForKey:@"path"];

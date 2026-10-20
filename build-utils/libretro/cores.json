@@ -215,6 +215,12 @@
       "license": "GPLv2",
       "source": "https://github.com/libretro/beetle-pcfx-libretro",
       "lot": 2
+    },
+    {
+      "id": "mesen",
+      "license": "GPLv3",
+      "source": "https://github.com/libretro/Mesen",
+      "lot": 3
     }
   ],
   "reuse": {
@@ -223,8 +229,8 @@
     "identitySha256": "f49155e4f5c46138663978ab1d0bd64736cabb04c4593baf8cd08d2f74ee33f4"
   },
   "base": {
-    "hostCommit": "df0124b86f14aa16e8d1bbfa4ba4a43b0a20abaf",
-    "runId": 38627332377,
+    "hostCommit": "c3408821b2b9c47c6e31ae25b45c113aa9fd3f74",
+    "runId": 39081741396,
     "coreIds": [
       "nestopia",
       "snes9x",
@@ -255,7 +261,11 @@
       "potator",
       "ardens",
       "wasm4",
-      "uzem"
+      "uzem",
+      "freechaf",
+      "freeintv",
+      "o2em",
+      "mednafen_pcfx"
     ]
   }
 }

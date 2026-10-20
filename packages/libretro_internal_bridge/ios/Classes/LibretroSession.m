@@ -3281,7 +3281,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 
 // Build 486: "HD textures" for the cores that replace textures (PPSSPP,
 // Azahar; Mupen64Plus-Next's GLideN64 since the N64 catalogue; Beetle PSX HW
-// since the Build 489), the page shared by every embedded engine
+// since the Build 489; Mesen's NES HD packs), the page shared by every embedded engine
 // (neo_texture_catalog, created by name so this pod does not link it). Its
 // switch is the core's own option for this game, written through the running
 // store: the session would otherwise rewrite the game's options when it next
@@ -3294,12 +3294,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 
 - (nullable LibretroMenuRow *)hdTexturesRow {
   NSString *coreId = _configuration.coreId;
-  if (![@[@"ppsspp", @"azahar", @"mupen64plus_next", @"mednafen_psx_hw"] containsObject:coreId ?: @""]) return nil;
+  if (![@[@"ppsspp", @"azahar", @"mupen64plus_next", @"mednafen_psx_hw", @"mesen"] containsObject:coreId ?: @""]) return nil;
   Class page = [self hdTexturesPageClass];
   SEL text = NSSelectorFromString(@"text:locale:");
   if (page == nil || ![page respondsToSelector:text] || _configuration.saveDirectory.length == 0 ||
       _configuration.optionsDirectory.length == 0 ||
-      ([coreId isEqualToString:@"mupen64plus_next"] && _configuration.systemDirectory.length == 0)) return nil;
+      (([coreId isEqualToString:@"mupen64plus_next"] || [coreId isEqualToString:@"mesen"]) && _configuration.systemDirectory.length == 0)) return nil;
   NSString *title = ((NSString * (*)(id, SEL, NSString *, NSString *))objc_msgSend)(page, text, @"title", _configuration.uiLocale ?: @"en");
   __weak LibretroSession *weakSelf = self;
   LibretroMenuRow *row = [LibretroMenuRow rowWithTitle:title
@@ -3328,9 +3328,12 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSString *coreId = _configuration.coreId ?: @"";
   const BOOL n64 = [coreId isEqualToString:@"mupen64plus_next"];
   const BOOL beetle = [coreId isEqualToString:@"mednafen_psx_hw"];
+  const BOOL mesen = [coreId isEqualToString:@"mesen"];
   NSMutableDictionary *arguments = [@{
-    @"system": n64 ? @"n64" : beetle ? @"ps1" : [_configuration.console isEqualToString:@"3ds"] ? @"3ds" : @"psp",
+    @"system": n64 ? @"n64" : beetle ? @"ps1" : mesen ? @"nes" : [_configuration.console isEqualToString:@"3ds"] ? @"3ds" : @"psp",
     @"engine": n64 ? @"mupen64plus" : beetle ? @"beetle" : coreId,
+    // The running core: Mesen's page needs no engine change for this game.
+    @"libretroCore": coreId,
     @"libretroSaves": _configuration.saveDirectory,
     @"libretroConfig": _configuration.optionsDirectory,
     @"libretroSystem": _configuration.systemDirectory ?: @"",

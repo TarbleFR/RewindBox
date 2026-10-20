@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "about": "Vendored subset of public libretro reference data (no BIOS bytes): firmware fields and notes md5 values of the 34 embedded cores, and the matching System.dat rows.",
+  "about": "Vendored subset of public libretro reference data (no BIOS bytes): firmware fields and notes md5 values of the 35 embedded cores, and the matching System.dat rows.",
   "coreInfo": {
     "repository": "https://github.com/libretro/libretro-core-info",
     "commit": "5a74858ab2f7a50cebb5a6330895bc38899531c0",
@@ -806,6 +806,21 @@
         ],
         "notes_md5": {
           "pcfx.rom": "08e36edbea28a017f79f8d4f7ff9b6d7"
+        }
+      },
+      "mesen": {
+        "corename": "Mesen",
+        "display_version": "0.9.9",
+        "supported_extensions": "nes|fds|unf|unif",
+        "firmware": [
+          {
+            "path": "disksys.rom",
+            "desc": "disksys.rom (Family Computer Disk System BIOS)",
+            "opt": true
+          }
+        ],
+        "notes_md5": {
+          "disksys.rom": "ca30b50f880eb660a320674ed365ef7a"
         }
       }
     }
