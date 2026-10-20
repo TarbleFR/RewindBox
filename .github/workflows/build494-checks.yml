@@ -1,0 +1,65 @@
+name: Build 494 targeted checks (legibility of the box backs)
+# Run on the delivery commit: the delivery gate .github/diagnostics/gamebox494_delivery.py
+# reads the verdicts of a successful run on that exact commit (or on an
+# ancestor differing only by records) and never reruns these suites. A new
+# workflow cannot be dispatched before it reaches the default branch (main,
+# not modified here): a push of its own files on Claude starts it, and so
+# does the tag build-494 (the delivered Build 493 + the Build 494 files only,
+# without the commits other sessions added to Claude meanwhile; the session's
+# Git proxy refuses tags, the maintainer's PC pushes it).
+on:
+  push:
+    branches: [Claude]
+    tags: [build-494]
+    paths:
+      - test/build494_targeted_test.py
+      - .github/workflows/build494-checks.yml
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+concurrency:
+  group: build494-checks-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  host:
+    name: Analysis, delivery Dart suite, sharp back and game box checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Changed inputs since Build 493, analysis, Dart and Python checks
+        run: python3 test/build494_targeted_test.py --part host
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build494-host-${{ github.sha }}
+          path: build/build494/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  native:
+    name: Vision small print (Build 493 control and Build 494) on macOS and the iOS Simulator; iPhone SDK type check
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Twelve languages, small print against Build 493, plugin type check
+        run: python3 test/build494_targeted_test.py --part native
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build494-native-${{ github.sha }}
+          path: build/build494/
+          if-no-files-found: ignore
+          retention-days: 14
