@@ -81,14 +81,14 @@
   },
   "scope": "partial",
   "family": "wii-ms-sensen-0079-hd-callofcthuloo",
-  "notes": "Characters, weapons, stages, menus and portraits. FMVs and most Combination Mode-exclusive assets are not replaced. Author reports support for the Japanese game and its English translation; no other region is claimed."
+  "notes": "Characters, weapons, stages, menus and portraits. FMVs and most Combination Mode-exclusive assets are not replaced. Author reports support for the Japanese game and its English translation; no other region is claimed. The MediaFire page did not expose a download to CI; the file and native installation remain unverified."
  },
  {
   "id": "gc-fe-por-hd-appleboi",
   "system": "gc",
   "engine": "dolphin",
   "title": "Fire Emblem: Path of Radiance HD (AppleBoi)",
-  "version": "2021-01-22",
+  "version": "author release (2020-12-06)",
   "games": [
    {
     "title": "Fire Emblem: Path of Radiance",
@@ -98,6 +98,9 @@
       "scheme": "dolphin-disc-game-id",
       "value": "GFEE01"
      }
+    ],
+    "regions": [
+     "USA"
     ]
    }
   ],
@@ -120,7 +123,7 @@
   },
   "scope": "partial",
   "family": "gc-fe-por-hd-appleboi",
-  "notes": "ESRGAN upscales of most textures, including backgrounds and portraits. USA folder GFEE01; no PAL/French validation. The author recommends 4:3 and reports seams with high anti-aliasing. RAR: extract on a computer and import the resulting texture folder; direct RAR import is unsupported. No iPhone rendering has been verified."
+  "notes": "ESRGAN upscales of most textures, including backgrounds and portraits. USA folder GFEE01; no PAL/French validation. The author recommends 4:3 and reports seams with high anti-aliasing. RAR: extract on a computer and import the resulting texture folder; direct RAR import is unsupported. No iPhone rendering has been verified. CI fetched the actual 1,878,929,765-byte RAR and independently listed 4,470 tex1 DDS files under GFEE01. This proves archive structure, not native RAR installation or rendering; DDS compression headers were not inspected."
  },
  {
   "id": "gc-fe-por-upscaled-thattextureguy",
@@ -137,6 +140,9 @@
       "scheme": "dolphin-disc-game-id",
       "value": "GFEE01"
      }
+    ],
+    "regions": [
+     "USA"
     ]
    }
   ],
@@ -159,7 +165,7 @@
   },
   "scope": "partial",
   "family": "gc-fe-por-upscaled-thattextureguy",
-  "notes": "Early 4x upscale of almost all dumped textures, with known facial artefacts. USA GFEE01 only. RAR: extract on a computer and import the texture folder; direct RAR import is unsupported. The later AppleBoi project is a separate author release, not another region of this pack."
+  "notes": "Early 4x upscale of almost all dumped textures, with known facial artefacts. USA GFEE01 only. RAR: extract on a computer and import the texture folder; direct RAR import is unsupported. The later AppleBoi project is a separate author release, not another region of this pack. The original file host currently refuses automated access; archive validation remains pending."
  },
  {
   "id": "gc-lotr-two-towers-the128rebits",
@@ -176,6 +182,9 @@
       "scheme": "dolphin-disc-game-id",
       "value": "GLOS69"
      }
+    ],
+    "regions": [
+     "Europe"
     ]
    }
   ],
@@ -212,6 +221,9 @@
       "scheme": "dolphin-disc-game-id",
       "value": "GKLS69"
      }
+    ],
+    "regions": [
+     "Europe"
     ]
    }
   ],
@@ -271,7 +283,7 @@
   },
   "scope": "partial",
   "family": "wii-fit-plus-hd-gmans626",
-  "notes": "Early WIP. The author instructions mistakenly call the folder RSP (Wii Sports), which is not Wii Fit Plus. Only use for Wii Fit Plus after the actual archive identity/layout has been verified; regions require confirmation."
+  "notes": "Early WIP. The published instructions contain RSP, but the actual ZIP has Wii Fit Plus HD v0.1/RFP/ with 262 PNG replacements; NeoStation installs that RFP subtree. Regional and language coverage beyond that family prefix require confirmation."
  },
  {
   "id": "wii-nsmbw-hd-title-tjshah",
@@ -328,6 +340,9 @@
       "scheme": "dolphin-disc-game-id",
       "value": "G4NJDA"
      }
+    ],
+    "regions": [
+     "Japan"
     ]
    }
   ],
@@ -350,6 +365,6 @@
   },
   "scope": "ui",
   "family": "gc-naruto-gnt4-hd-chris-margroff",
-  "notes": "Early hand-drawn UI, translated menus and placeholder upscales. Japanese original G4NJDA only. The creator's GitLab tree is pinned; source PSD files are not installed. It is not the separate Super Gekitou Ninja Taisen 4 ROM hack and not a complete HD overhaul."
+  "notes": "Early hand-drawn UI, translated menus and placeholder upscales. Japanese original G4NJDA only. The creator's GitLab tree is pinned; source PSD files are not installed. It is not the separate Super Gekitou Ninja Taisen 4 ROM hack and not a complete HD overhaul. The GitLab repository tree is publicly readable, but its ZIP download was refused on CI; native installation remains unverified."
  }
 ]

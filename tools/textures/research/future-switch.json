@@ -1,0 +1,110 @@
+{
+  "checked_at": "2026-10-20",
+  "purpose": "Future Switch research metadata only; not consumed by build_catalogue.py. Not a second installable catalogue.",
+  "runtime_enabled": false,
+  "engine_validated": false,
+  "entries": [
+    {
+      "id": "future-switch-fe-engage-vierock",
+      "system": "switch",
+      "game": "Fire Emblem Engage",
+      "title_id": "0100A6301214E000",
+      "identity_evidence": "https://github.com/Raytwo/Cobalt/blob/HEAD/Cargo.toml",
+      "title": "Texture Refinement Project",
+      "authors": [
+        "Vierock"
+      ],
+      "kind": "cobalt-texture-mod",
+      "scope": "partial",
+      "page_url": "https://www.vierockhd.com/",
+      "download_page": "https://1fichier.com/?rp7gkkvpya2wdpcgarmj=",
+      "format": "Cobalt mod ZIP; actual payload unverified",
+      "author_install_path": "sdcard/engage/mods/ (leave ZIP compressed)",
+      "dependencies": [
+        {
+          "name": "Cobalt",
+          "url": "https://github.com/Raytwo/Cobalt",
+          "version": "not yet pinned for NeoStation"
+        }
+      ],
+      "game_versions": [],
+      "languages": [],
+      "licence": "Not established; reference to creator only, no redistribution",
+      "notes": "Environment refinement and upscales plus PS5 icons. Not a generic Ryujinx/Yuzu texture-folder pack. Requires future engine and Cobalt compatibility validation.",
+      "runtime_enabled": false,
+      "engine_validated": false,
+      "availability": "future-reference",
+      "automatable": false
+    },
+    {
+      "id": "future-switch-fe-three-houses-outlines",
+      "system": "switch",
+      "game": "Fire Emblem: Three Houses",
+      "title_id": "010055D009F78000",
+      "identity_evidence": "https://github.com/masagrator/FPSLocker-Warehouse",
+      "title": "Outline Removal",
+      "authors": [
+        "MegaMagikarp (3096)",
+        "Raytwo (DisableOutline discovery)"
+      ],
+      "kind": "executable-graphics-patch",
+      "scope": "outline-removal",
+      "page_url": "https://gbatemp.net/threads/fire-emblem-three-houses-outline-removal-mod.548930/",
+      "format": "ZIP containing IPS/executable patches; IPSwitch source in author post",
+      "game_versions": [
+        {
+          "version": "1.0.2",
+          "nso_build_id_prefix": "19BA39BD3EE8131DE3EF55148CF0D590"
+        },
+        {
+          "version": "1.1.0",
+          "nso_build_id_prefix": "9454F2C47F827602152B098DFFBCEACD"
+        },
+        {
+          "version": "1.1.1",
+          "nso_build_id_prefix": "F0142D706FD2323BF4D91BFB4D3BDD29"
+        },
+        {
+          "version": "1.2.0",
+          "nso_build_id_prefix": "89048449BA238C8CF565518B83BF02D3"
+        }
+      ],
+      "dependencies": [
+        "Exact executable build match and a future executable-patch loader"
+      ],
+      "licence": "Not established; author-page reference only",
+      "notes": "Not an HD texture pack. Versions/build prefixes must match exactly; 60-fps patch data in the same post must not be silently enabled.",
+      "runtime_enabled": false,
+      "engine_validated": false,
+      "availability": "future-reference",
+      "automatable": false
+    },
+    {
+      "id": "future-switch-zelda-skyward-henriko",
+      "system": "switch",
+      "game": "The Legend of Zelda: Skyward Sword HD",
+      "title_id": "01002DA013484000",
+      "identity_evidence": "https://github.com/theboy181/switch-ptchtxt-mods",
+      "title": "Skyward Sword HD 4K textures",
+      "authors": [
+        "Henriko Magnifico"
+      ],
+      "version": "1.1.0c (2026-06-23)",
+      "kind": "emulator-custom-texture-injection",
+      "scope": "partial",
+      "page_url": "https://www.henrikomagnifico.com/zelda-skyward-sword-4k",
+      "download_page": "https://drive.google.com/drive/folders/1DPYbMoIkVdmmvz2UCiyAtsG4AS7TRusu?usp=sharing",
+      "format": "Creator distribution includes a specialised desktop Ryujinx build; actual archive unverified",
+      "dependencies": [
+        "Specific Ryujinx custom-textures fork; creator says regular Ryujinx/other Switch emulators are not supported"
+      ],
+      "regions": "Creator claims all regions/languages; not validated in NeoStation",
+      "licence": "Reference to creator only; no rehosting, repackaging or emulator redistribution",
+      "notes": "Separate from the older Wii pack. No desktop executable is included or installed by NeoStation. Future engine may not implement this injection mechanism.",
+      "runtime_enabled": false,
+      "engine_validated": false,
+      "availability": "future-reference",
+      "automatable": false
+    }
+  ]
+}

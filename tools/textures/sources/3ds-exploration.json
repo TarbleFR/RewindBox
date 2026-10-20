@@ -281,11 +281,11 @@
    "verify": {
     "url": "https://drive.google.com/file/d/1CpBB_nO8317oNQp9j72HMLjg7MxOjb92/view?usp=sharing"
    },
-   "file_name": "Fantasy Life 4x.zip"
+   "file_name": "4x upscaled textures.zip"
   },
   "scope": "partial",
   "family": "3ds-fantasy-life-kapila-lttim",
-  "notes": "Recovered author thread and its public download sheet. UI, text and world upscales are separate components of one project. This entry contains only the named component; merge desired components on a computer before importing one folder. Other regions/languages, including French, are unconfirmed."
+  "notes": "Recovered author thread and its public download sheet. UI, text and world upscales are separate components of one project. This entry contains only the named component; merge desired components on a computer before importing one folder. Other regions/languages, including French, are unconfirmed. The actual ZIP has 9,701 PNG files at its root; the title ID is attested by the archived author instructions, not by the ZIP folder name."
  },
  {
   "id": "3ds-devil-survivor-overclocked-kierk",
@@ -303,7 +303,10 @@
       "value": "0004000000038800"
      }
     ],
-    "confirm": true
+    "confirm": true,
+    "regions": [
+     "USA"
+    ]
    }
   ],
   "authors": [
@@ -364,47 +367,7 @@
   },
   "scope": "partial",
   "family": "3ds-radiant-historia-serbagz",
-  "notes": "USA 4x UI, fonts, portraits, CGs, world and battle textures, with DLC chibi portraits and some artwork unfinished. Sprites largely retain original resolution. RAR must be extracted on a computer before importing its 00040000001C8F00 folder. EU font add-on is not proof that the full USA pack works in Europe/French. Optional classic portraits and other authors' mirrored fonts are not separate complete packs."
- },
- {
-  "id": "3ds-toa-font-rikimtasu",
-  "system": "3ds",
-  "engine": "azahar",
-  "title": "Tales of the Abyss — upscaled font",
-  "version": "d0e6db357331",
-  "games": [
-   {
-    "title": "Tales of the Abyss",
-    "identities": [
-     {
-      "type": "title_id",
-      "scheme": "3ds-title-id",
-      "value": "0004000000061300"
-     }
-    ],
-    "confirm": true
-   }
-  ],
-  "authors": [
-   "rikimtasu"
-  ],
-  "page_url": "https://github.com/rikimtasu/toa-3ds-fontcustomtex",
-  "source_id": "github:rikimtasu/toa-3ds-fontcustomtex",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://github.com/rikimtasu/toa-3ds-fontcustomtex",
-   "verify": {
-    "url": "https://raw.githubusercontent.com/rikimtasu/toa-3ds-fontcustomtex/d0e6db35733105cbd16f128fd9d2d586eba3cff2/toa_font_texture_upscale.zip"
-   },
-   "file_name": "toa_font_texture_upscale.zip"
-  },
-  "scope": "ui",
-  "family": "3ds-toa-font-rikimtasu",
-  "notes": "Font component only. The repository publishes a ZIP but no licence or regional instructions. Game identity and layout require confirmation from the actual archive before runtime inclusion; no French coverage is inferred."
+  "notes": "USA 4x UI, fonts, portraits, CGs, world and battle textures, with DLC chibi portraits and some artwork unfinished. Sprites largely retain original resolution. RAR must be extracted on a computer before importing its 00040000001C8F00 folder. EU font add-on is not proof that the full USA pack works in Europe/French. Optional classic portraits and other authors' mirrored fonts are not separate complete packs. CI listed 2,442 tex1 PNGs under that USA title folder plus four optional nested archives. Import the base title folder after extraction; nested bonus archives are not installed automatically."
  },
  {
   "id": "3ds-smt-strange-journey-merkava",
@@ -421,6 +384,9 @@
       "scheme": "3ds-title-id",
       "value": "00040000001CD200"
      }
+    ],
+    "regions": [
+     "USA"
     ]
    }
   ],
@@ -444,156 +410,5 @@
   "scope": "partial",
   "family": "3ds-smt-strange-journey-merkava",
   "notes": "Complete 2D upscale according to the creator: menus, backgrounds, sprites, portraits and compendium. Environmental 3D textures are deliberately unchanged. Author reposts their own original download after the Citra forum closure. Created with the North American edition; other regions and French coverage are not validated. Disable texture filtering if graphical anomalies occur."
- },
- {
-  "id": "3ds-project-x-zone-png-pdragon128",
-  "system": "3ds",
-  "engine": "azahar",
-  "title": "Project X Zone HD (4x PNG)",
-  "version": "2025-08-31",
-  "games": [
-   {
-    "title": "Project X Zone",
-    "identities": [
-     {
-      "type": "title_id",
-      "scheme": "3ds-title-id",
-      "value": "00040000000C6400"
-     }
-    ],
-    "confirm": true,
-    "regions": [
-     "USA"
-    ]
-   },
-   {
-    "title": "Project X Zone",
-    "identities": [
-     {
-      "type": "title_id",
-      "scheme": "3ds-title-id",
-      "value": "00040000000DD700"
-     }
-    ],
-    "regions": [
-     "Europe"
-    ],
-    "confirm": true
-   },
-   {
-    "title": "Project X Zone",
-    "identities": [
-     {
-      "type": "title_id",
-      "scheme": "3ds-title-id",
-      "value": "0004000000073900"
-     }
-    ],
-    "regions": [
-     "Japan"
-    ],
-    "confirm": true
-   }
-  ],
-  "authors": [
-   "pdragon128"
-  ],
-  "page_url": "https://gbatemp.net/threads/3ds-project-x-zone-us-eur-jpn.674816/",
-  "source_id": "gbatemp:674816",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://gbatemp.net/threads/3ds-project-x-zone-us-eur-jpn.674816/",
-   "verify": {
-    "url": "https://www.mediafire.com/file/vlfyl587yeiomih/PXZ_png_x4_256.zip/file"
-   },
-   "file_name": "PXZ_png_x4_256.zip"
-  },
-  "scope": "complete",
-  "family": "3ds-project-x-zone-png-pdragon128",
-  "notes": "Author states US/EUR/Japan compatibility. PNG 4x edition only; the 9 GB DDS edition is not selected. Animation cut-ins can miss their first occurrence; the final stage can have replacement loading issues, and the author reports possible Vulkan crashes. No iPhone rendering or French-specific coverage is validated."
- },
- {
-  "id": "3ds-ml-superstar-saga-jxnnik0",
-  "system": "3ds",
-  "engine": "azahar",
-  "title": "Mario & Luigi: Superstar Saga + Bowser's Minions HD (WIP)",
-  "version": "2022-08",
-  "games": [
-   {
-    "title": "Mario & Luigi: Superstar Saga + Bowser's Minions",
-    "identities": [
-     {
-      "type": "title_id",
-      "scheme": "3ds-title-id",
-      "value": "00040000001B8F00"
-     }
-    ],
-    "confirm": true
-   }
-  ],
-  "authors": [
-   "Jxnnik0"
-  ],
-  "page_url": "https://www.reddit.com/r/Citra/comments/wnwdse/mario_luigi_superstar_saga_hd_texture_pack/",
-  "source_id": "reddit:jxnnik0-superstar-saga",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://www.reddit.com/r/Citra/comments/wnwdse/mario_luigi_superstar_saga_hd_texture_pack/",
-   "verify": {
-    "url": "https://www.mediafire.com/file/cwargrrlydie4np/Mario_%2526_Luigi_Superstar_Saga_HD_Texture_Pack.zip/file"
-   },
-   "file_name": "Mario & Luigi Superstar Saga HD Texture Pack.zip"
-  },
-  "scope": "partial",
-  "family": "3ds-ml-superstar-saga-jxnnik0",
-  "notes": "Main characters and early areas only, upscaled with chaiNNer and 4x-UltraSharp. The author does not specify a region. The listed USA identity is a verification candidate only and must be checked against the archive; no other region or language is inferred."
- },
- {
-  "id": "3ds-ml-bowsers-inside-story-jxnnik0",
-  "system": "3ds",
-  "engine": "azahar",
-  "title": "Mario & Luigi: Bowser's Inside Story + Bowser Jr.'s Journey HD (WIP)",
-  "version": "2022-08",
-  "games": [
-   {
-    "title": "Mario & Luigi: Bowser's Inside Story + Bowser Jr.'s Journey",
-    "identities": [
-     {
-      "type": "title_id",
-      "scheme": "3ds-title-id",
-      "value": "00040000001D1400"
-     }
-    ],
-    "confirm": true
-   }
-  ],
-  "authors": [
-   "Jxnnik0"
-  ],
-  "page_url": "https://www.reddit.com/r/GameUpscale/comments/wmv2nw/mario_luigi_bowsers_inside_story_hd_texture_pack/",
-  "source_id": "reddit:jxnnik0-bowsers-inside-story",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://www.reddit.com/r/GameUpscale/comments/wmv2nw/mario_luigi_bowsers_inside_story_hd_texture_pack/",
-   "verify": {
-    "url": "https://www.mediafire.com/file/8up17c90n0qahc2/Mario_%2526_Luigi_Bowsers_Inside_Story_HD_Texture_Pack.zip/file"
-   },
-   "file_name": "Mario & Luigi Bowsers Inside Story HD Texture Pack.zip"
-  },
-  "scope": "partial",
-  "family": "3ds-ml-bowsers-inside-story-jxnnik0",
-  "notes": "Main character models and early areas only (3DS remake, not Nintendo DS). chaiNNer/4x PixelPerfect upscale. Author advises disabling texture filtering for menu glitches. Region is not stated: USA is a verification candidate only, pending the archive identity."
  }
 ]

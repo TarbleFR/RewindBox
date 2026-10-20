@@ -54,60 +54,6 @@
   "notes": "1,171 textures upscaled 4x with colour and sharpness corrections. Both USA and Europe are identified by the author; languages are not individually verified."
  },
  {
-  "id": "psp-gow-gos-hd-huekage",
-  "system": "psp",
-  "engine": "ppsspp",
-  "title": "God of War: Ghost of Sparta HD (Huekage)",
-  "version": "1.1",
-  "games": [
-   {
-    "title": "God of War: Ghost of Sparta",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "UCUS98737"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   },
-   {
-    "title": "God of War: Ghost of Sparta",
-    "identities": [
-     {
-      "type": "disc_id",
-      "scheme": "psp-param-sfo-disc-id",
-      "value": "UCES01401"
-     }
-    ],
-    "regions": [
-     "Europe"
-    ]
-   }
-  ],
-  "authors": [
-   "Huekage"
-  ],
-  "page_url": "https://gbatemp.net/threads/psp-hd-textures-pack-god-of-war-ghost-of-sparta-ucus98737-ntsc-uces01401-pal.684787/",
-  "source_id": "gbatemp:684787",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://gbatemp.net/threads/psp-hd-textures-pack-god-of-war-ghost-of-sparta-ucus98737-ntsc-uces01401-pal.684787/",
-   "verify": {
-    "url": "https://www.mediafire.com/file/tuqgkh9pxeiggb8/PSP_HD_Textures_-_God_of_War_-_Ghost_of_Sparta_%28UCUS98737%29_%28NTSC%29_%26_%28UCES01401%29_%28PAL%29.zip/file"
-   }
-  },
-  "scope": "complete",
-  "family": "psp-gow-gos-hd-huekage",
-  "notes": "Over 9,000 textures upscaled 4x. Both USA and Europe are identified by the author; this is separate from ThePunisher009's HD Lite pack."
- },
- {
   "id": "psp-swbf2-pc-ps2-textures-biotes",
   "system": "psp",
   "engine": "ppsspp",
@@ -201,6 +147,9 @@
       "scheme": "psp-param-sfo-disc-id",
       "value": "ULES00925"
      }
+    ],
+    "regions": [
+     "Europe"
     ]
    }
   ],
@@ -223,6 +172,6 @@
   },
   "scope": "partial",
   "family": "psp-yugioh-tag-force2-spanish-brahian",
-  "notes": "Spanish texture replacements, with selectable TCG/OCG/anime variants. EUR ULES00925 only. Author credits chrisfand, Angel105 and Yugipedia. RAR requires external extraction and one folder import; no onward redistribution permission is established."
+  "notes": "Spanish texture replacements, with selectable TCG/OCG/anime variants. EUR ULES00925 only. Author credits chrisfand, Angel105 and Yugipedia. RAR requires external extraction and one folder import; no onward redistribution permission is established. CI listed 11,209 PNGs and four textures.ini files under ULES00925. Select one TCG/OCG/anime configuration and place its textures.ini at the game folder root before importing; this is not an automatic variant selector."
  }
 ]

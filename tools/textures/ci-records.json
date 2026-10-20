@@ -273,6 +273,50 @@
       "records": 5,
       "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only the four NES repository packs and Wip3out)",
       "artifact_prefix": "hdtex486-repositories"
+    },
+    {
+      "run": 39401863622,
+      "source": "5a700c59a0a8d3239e56cd5d2d4359eafc3044ba",
+      "consoles": [
+        "dolphin",
+        "3ds",
+        "psp"
+      ],
+      "records": 11,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, exploration candidates; failed downloads are recorded too)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39403154413,
+      "source": "b6a522ece7f1d9cb0f9427b7c0b5a21cd387b2ed",
+      "consoles": [
+        "dolphin",
+        "3ds",
+        "psp"
+      ],
+      "records": 10,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, exploration candidates including manual RAR downloads)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39403548138,
+      "source": "230c6b95f487e529650d4c383d128901bd035cd0",
+      "consoles": [
+        "3ds"
+      ],
+      "records": 4,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, recovered 3DS original creator downloads)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39403837549,
+      "source": "52edb48d2390fd51a0010729f89357ca7ff4f291",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, GitLab creator archive; host refusal is retained)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]
 }
