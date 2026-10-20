@@ -243,5 +243,89 @@
   "scope": "partial",
   "family": "psp-bleach-heat-soul7-hezi",
   "notes": "Creator-authored PPSSPP texture replacement: redrawn/translated UI, portraits, backgrounds and some upscaled UI assets. This is a partial graphical project, not a complete HD replacement or an ISO translation. The primary thread discusses Japanese UCJS10110 and Shuren v1.01 support; actual INI/layout still requires review. Optional cheats and DLC are not applied; no French support or iPhone rendering claim."
+ },
+ {
+  "id": "psp-jeanne-darc-robynoob",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Jeanne d’Arc — RobyNoob 4x textures / 8x UI",
+  "version": "1",
+  "games": [
+   {
+    "title": "Jeanne d’Arc",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98700"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "RobyNoob"
+  ],
+  "page_url": "https://gbatemp.net/threads/psp-jeanne-darc-ntsc-u-4x-upscaled-textures-8x-remade-ui.665156/",
+  "source_id": "gbatemp:665156",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/psp-jeanne-darc-ntsc-u-4x-upscaled-textures-8x-remade-ui.665156/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/ommcigdr8ensza2/JeanneDarc_NTSC-U_UCUS98700_v1.zip/file"
+   }
+  },
+  "family": "psp-jeanne-darc-robynoob",
+  "scope": "partial",
+  "notes": "Creator release v1: upscaled artwork and portraits, redrawn UI, softened shadows. Conversation/system-font text is not replaced; default Xbox prompts. The separately linked PSP system fonts and YouTube videos are not downloaded or installed. Only the creator-specified USA UCUS98700 identity is retained; no French patch or compatibility is implied. Game-icons.net icons are credited by the creator. No iPhone rendering claim."
+ },
+ {
+  "id": "psp-brave-story-robynoob",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Brave Story — RobyNoob 4x textures / 8x UI",
+  "version": "1",
+  "games": [
+   {
+    "title": "Brave Story: New Traveler",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10279"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "RobyNoob"
+  ],
+  "page_url": "https://gbatemp.net/threads/psp-brave-story-new-traveler-ntsc-u-4x-upscaled-textures-8x-remade-ui.665250/",
+  "source_id": "gbatemp:665250",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/psp-brave-story-new-traveler-ntsc-u-4x-upscaled-textures-8x-remade-ui.665250/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/52okvb882q30lwd/BraveStoryNewTraveler_NTSC-U_ULUS10279_v1.zip/file"
+   }
+  },
+  "family": "psp-brave-story-robynoob",
+  "scope": "partial",
+  "notes": "Creator release v1: upscaled textures, redrawn UI, menu portraits replaced with upscaled original artwork and default Xbox prompts. Some 256x1 model textures could not be reconstructed and remain original. Only the creator-specified USA ULUS10279 identity is retained. Game-icons.net icons are credited by the creator. No iPhone rendering claim."
  }
 ]

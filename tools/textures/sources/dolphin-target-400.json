@@ -1,0 +1,44 @@
+[
+ {
+  "id": "gc-super-monkey-ball2-kuledawg",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Monkey Ball 2 — Kuledawg HD",
+  "version": "2026-06-08",
+  "games": [
+   {
+    "title": "Super Monkey Ball 2",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GM2E8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Kuledawg"
+  ],
+  "page_url": "https://gbatemp.net/threads/gc-super-monkey-ball-2-hd-textures-ntsc-u.678534/",
+  "source_id": "gbatemp:678534",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/gc-super-monkey-ball-2-hd-textures-ntsc-u.678534/",
+   "verify": {
+    "url": "https://mega.nz/file/3FdnUL6T#jInYcjezyVj1AzyDMyrq30q9OoPDoeTfmr88fgwvkvE"
+   }
+  },
+  "family": "gc-super-monkey-ball2-kuledawg",
+  "scope": "complete",
+  "notes": "Creator reports UI/HUD, worlds 1–10, special levels, minigames, characters and cutscene elements complete. The original publication targets NTSC-U and installs GM2; no PAL or Japanese support is inferred from the shared folder. Optional HUD-removal and original-timer components are not additional families and must not be merged automatically. Intended for the game’s own 16:9 option; no widescreen patch or emulator setting is applied. No iPhone rendering claim."
+ }
+]
