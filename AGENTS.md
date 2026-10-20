@@ -1,5 +1,13 @@
 # Consignes permanentes — stabilité NeoStation iOS
 
+## Build 500 candidate — Core RPCS3 499 et dernier catalogue PS1, 20 octobre 2026
+
+- Le mainteneur demande explicitement la dernière IPA NeoStation avec le Core PS3 terminé **et** les derniers catalogues PS1. La499 figée (34 références) ne satisfait pas ce nouvel assemblage ; candidate unique **500**, surClaude, sans release publique.
+- Réutiliser le Core RPCS3 déjà construit et validé : source0b18a23460b0a9840406fda2e3d6da4c5cdb7273, run39472233521, SHA-25687bd77794232fc44b61d421e55d71bae3b2829a58b87ee36b2a176730d78004f, ABI30. Aucun nouveau build Core et aucune nouvelle modification moteur, NeoSwap, Dart ou interface. Les autres cœurs et le correctif PSP497 restent identiques.
+- Inclure exactement le catalogue PS1 2026-10-20.56904c72933f, SHA-256cd05e0ebd8c1783768f7dbc94f94abe9adce61b376ecc058961ca2e39a2c48a7 :37 références,8 téléchargements vérifiés,29 pages manuelles ; catalogue global424 familles installables/509 profils. Publication39484361864 et porte39484758626 déjà réussies,187 contrôles Foundation. Ne pas rejouer les tests Flutter ou reconstruire les cœurs inchangés.
+- Recette500 séparée de499, source d’assemblage figée et provenance explicite. Les deux manifestes sont les seules différences produit autorisées depuis499 ; emballage, numéro500, signature et vérification du contenu final restent nécessaires. La499 livrée reste immuable. SideStore requis pour la signature Apple ; aucune validation physique ou gain FPS inventé.
+
+
 ## Recherche PS1 HD — troisième extension intégrée, 20 octobre 2026
 
 - État courant : **180 familles documentées**, **216 fiches**, **140 jeux/éditions** et **46 créateurs ou équipes crédités**. Gain net de21 familles depuis159 :19 nouvelles lignes et3 promotions, moins1 regroupement conservateur Sesame Street ; tous les197 anciens IDs sont conservés.36 références restent hors décompte.52 familles mentionnent Beetle,110 DuckStation, dont9 communes ;4 projets C et23 moteurs non confirmés. Aucun seuil200/300 ni exhaustivité mondiale revendiqué.
@@ -844,4 +852,5 @@ Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appl
 - Six genuinely new project references: one verified now, four pending (Turok Evolution RAR, Wii Dawn of the Dragon, WaveLength Spider-Man 2, original Webbed Up live download 403), one future Switch MHGU project. Mirai and Tekken are two re-reviewed older exclusions, not new discoveries. Search-result rows, forks, region/controller/component variants and candidates are not families.
 - Correct the earlier Type-0 decoder/URL claim: the exact delivered PPSSPP binary supports KTX2/UASTC/Zstandard; raw `.basis` is distinct and unsupported. Type-0 stays outside availability pending its 11.2 GB payload and Skybladecloud v2 patched-game mapping. No new core was built or run for this static evidence.
 - Fire Emblem: no new verified family or French/PAL installation. Switch: five future references total, zero runtime entries, runtime/engine/automation flags false and no verified payload claimed. Report: `docs/hd-textures-final-review-2026-10-20.md`; evidence: `docs/evidence/hd-final-review-2026-10-20.json`; research: `tools/textures/research/hd-final-review-2026-10-20.json`. No iPhone rendering/performance test is claimed.
+
 
