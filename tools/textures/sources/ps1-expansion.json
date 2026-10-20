@@ -256,7 +256,7 @@
     },
     "credits": "SomberTwilight",
     "requirements": "Beetle PSX HW with Vulkan, Track Textures and Replace Textures. Exact game edition remains to confirm.",
-    "notes": "Author requires game image base name THRILL_KILL; expected THRILL_KILL-texture-replacements, not inspected yet. Original author archive candidate, not yet verified. Disc identity is a game candidate, not established regional coverage. No physical iPhone rendering test.",
+    "notes": "Author requires game image base name THRILL_KILL; expected THRILL_KILL-texture-replacements, not inspected yet. The original archive returned an anti-bot challenge in canonical CI. Manual author reference only, without a verified installation or download. Disc identity is a game candidate, not established regional coverage. No physical iPhone rendering test.",
     "download": {
       "automatable": false,
       "verify": {
@@ -283,7 +283,9 @@
             "value": "SLUS-00706"
           }
         ],
-        "regions": [],
+        "regions": [
+          "USA"
+        ],
         "confirm": true
       }
     ],
@@ -298,15 +300,25 @@
     },
     "credits": "SomberTwilight; item artwork credited by the author to Jhonat Alfred Schnaid",
     "requirements": "Beetle PSX HW with Vulkan, Track Textures and Replace Textures. Exact game edition remains to confirm.",
-    "notes": "Author describes 256 to 512 texture upscale and additional high-resolution item art credited to Jhonat Alfred Schnaid artstation.com/artwork/lV0w1O. Original author archive candidate, not yet verified. Disc identity is a game candidate, not established regional coverage. No physical iPhone rendering test.",
+    "notes": "Author describes 256 to 512 texture upscale and additional high-resolution item art credited to Jhonat Alfred Schnaid artstation.com/artwork/lV0w1O. Original author archive installed and all PNGs decoded by the production installer in canonical CI. Disc identity is a game candidate, not established regional coverage. No physical iPhone rendering test. The recovered archive explicitly names USA v1.1. Other revisions and regions are not established.",
     "download": {
       "automatable": false,
       "verify": {
-        "url": "https://drive.google.com/file/d/1RQKNW6h_OgYBlNXMlGdGHxk6jASWr4t-/view?usp=drive_link"
+        "url": "https://drive.google.com/file/d/1RQKNW6h_OgYBlNXMlGdGHxk6jASWr4t-/view?usp=drive_link",
+        "sha256": "18fc995c4856ce8203384d88548a2b952086eeabeeb4f4d1dc611b7cfa95d26e"
       },
-      "in_app": true
+      "in_app": true,
+      "file_name": "Tenchu - Stealth Assassins (USA) (v1.1)-texture-replacements.7z"
     },
     "scope": "partial",
-    "family": "ps1-somber-twilight-tenchu-stealth-assassins"
+    "family": "ps1-somber-twilight-tenchu-stealth-assassins",
+    "install": {
+      "folders": [
+        {
+          "from": "Tenchu - Stealth Assassins (USA) (v1.1)-texture-replacements/",
+          "to": "{id}"
+        }
+      ]
+    }
   }
 ]

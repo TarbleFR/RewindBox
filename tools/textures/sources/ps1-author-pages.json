@@ -519,5 +519,157 @@
       "automatable": false
     },
     "scope": "ui"
+  },
+  {
+    "id": "ps1-zeak-z-shadow-tower-upscale",
+    "family": "ps1-zeak-z-shadow-tower-upscale",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Shadow Tower HD — zeak-z",
+    "version": "author reference; archive not installable or not verified",
+    "games": [
+      {
+        "title": "Shadow Tower",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00863"
+          }
+        ],
+        "regions": [],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "zeak-z"
+    ],
+    "page_url": "https://github.com/zeak-z/ShadowTowerPSXTEX/tree/81a975ac19133d61a90bcdf797c5b5d99101f4c8",
+    "source_id": "author:zeak-z",
+    "licence": {
+      "summary": "No redistribution permission established; original author page only.",
+      "redistribution": "Original author distribution terms only; no rehosting or alternate protected download."
+    },
+    "credits": "zeak-z",
+    "requirements": "Author describes Beetle PSX HW / Vulkan. Read the stated limitations; no verified download or installation is supplied.",
+    "notes": "Partial Human World pack, USA Undub v1.0 folder. Archive rejected: 144 JPEG files use a PNG extension; 34 other files do not use the expected Beetle hash/palette naming. No corrected archive or verified installation published; do not rename or convert it. Undub requirements and exact regional coverage remain unverified. Disc identity is shown as a candidate requiring confirmation. No physical iPhone rendering test.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-bussareas-spider-man-2-enter-electro",
+    "family": "ps1-bussareas-spider-man-2-enter-electro",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Spider-Man 2: Enter Electro HD — Bussareas",
+    "version": "author reference; archive not installable or not verified",
+    "games": [
+      {
+        "title": "Spider-Man 2: Enter Electro",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-01378"
+          }
+        ],
+        "regions": [],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "Bussareas"
+    ],
+    "page_url": "https://www.youtube.com/watch?v=Pkuv27uVe48",
+    "source_id": "author:bussareas",
+    "licence": {
+      "summary": "No redistribution permission established; original author page only.",
+      "redistribution": "Original author distribution terms only; no rehosting or alternate protected download."
+    },
+    "credits": "Bussareas",
+    "requirements": "Author describes Beetle PSX HW / Vulkan. Read the stated limitations; no verified download or installation is supplied.",
+    "notes": "The author demonstrates a Beetle pack, then identifies the 2026 DuckStation release as a port. Original Beetle archive URL not recovered. Title screens, comics and storyboards are not replaced; the author reports that Beetle can forget replacements after mission reloads. The recovered DuckStation file is not a compatible substitute. Disc identity is shown as a candidate requiring confirmation. No physical iPhone rendering test.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-bussareas-tenchu-2-hd",
+    "family": "ps1-bussareas-tenchu-2-hd",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Tenchu 2 HD — Bussareas",
+    "version": "author reference; archive not installable or not verified",
+    "games": [
+      {
+        "title": "Tenchu 2: Birth of the Stealth Assassins",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00939"
+          }
+        ],
+        "regions": [],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "Bussareas"
+    ],
+    "page_url": "https://www.youtube.com/watch?v=AG6ja9fSO3U",
+    "source_id": "author:bussareas",
+    "licence": {
+      "summary": "No redistribution permission established; original author page only.",
+      "redistribution": "Original author distribution terms only; no rehosting or alternate protected download."
+    },
+    "credits": "Bussareas",
+    "requirements": "Author describes Beetle PSX HW / Vulkan. Read the stated limitations; no verified download or installation is supplied.",
+    "notes": "Author explicitly targets Beetle PSX HW, USA SLUS-00939; mission editor excluded. IMPORTANT: the author reports a crash in the mission before Jubei and instructs disabling Track Textures there. Original Beetle archive URL not recovered. The separate DuckStation version and its 4096 MiB hash cache recommendation are not an iOS compatibility proof. Disc identity is shown as a candidate requiring confirmation. No physical iPhone rendering test.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-tarrantx-castlevania-symphony-of-the-night-hd-x4",
+    "family": "ps1-tarrantx-castlevania-symphony-of-the-night-hd-x4",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Castlevania: Symphony of the Night HD x4 — Tarrantx",
+    "version": "author reference; archive not installable or not verified",
+    "games": [
+      {
+        "title": "Castlevania: Symphony of the Night",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00067"
+          }
+        ],
+        "regions": [],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "Tarrantx"
+    ],
+    "page_url": "https://gbatemp.net/threads/psx-castlevania-symphony-of-the-night-hd-x4-ntsc-us-slus-00067-beetle-psx-hw.685354/",
+    "source_id": "author:tarrantx",
+    "licence": {
+      "summary": "No redistribution permission established; original author page only.",
+      "redistribution": "Original author distribution terms only; no rehosting or alternate protected download."
+    },
+    "credits": "Tarrantx",
+    "requirements": "Author describes Beetle PSX HW / Vulkan. Read the stated limitations; no verified download or installation is supplied.",
+    "notes": "The 2026 author thread explicitly targets Beetle PSX HW and reports about 10 GB / 100000 files, not independently verified. The historical author video describes a different smaller WIP and must not supply metadata or an installation plan for this release. Public Drive metadata reached a rate limit during historical research; no retry or alternative transfer used. Page reference only. Disc identity is shown as a candidate requiring confirmation. No physical iPhone rendering test.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
   }
 ]

@@ -790,6 +790,16 @@
       "records": 10,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, only the new PS1 original archives)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39479736059,
+      "workflow": ".github/workflows/hd-textures.yml (parts: ps1-hosts, four original public PS1 archives only)",
+      "source": "0a2fdbabeaf3802b9abe7aa8e05d74f2c00f4d1b",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "consoles": [
+        "ps1"
+      ],
+      "records": 4
     }
   ]
 }

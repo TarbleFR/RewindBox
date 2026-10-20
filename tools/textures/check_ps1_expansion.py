@@ -20,15 +20,20 @@ import build_catalogue as catalogue
 import count_packs
 
 BASE = '64e73bcfdcaa66067b7a8edfea0e8852faa0d43a'
+PREVIOUS = '15f5317a83ec14ba66e66285065a99cee9e302f7'
 INDEX = 'native/textures/catalogue/manifest.json.gz'
 BUNDLED = 'packages/neo_texture_catalog/ios/Resources/manifest.json.gz'
 NEW_SOURCES = ['tools/textures/sources/ps1-expansion.json',
                'tools/textures/sources/ps1-ironhulk33.json',
                'tools/textures/sources/ps1-author-pages.json']
 SUCCESSES = {'ps1-linnaealyn-xenogears-perfect-art-works': 399,
-             'ps1-faospark-suikoden-ii-project-kyaro': 437}
+             'ps1-faospark-suikoden-ii-project-kyaro': 437,
+             'ps1-nr74w-wipeout': 100,
+             'ps1-nr74w-wipeout-2097-xl': 89,
+             'ps1-somber-twilight-tenchu-stealth-assassins': 1757}
 OBSERVATIONS = [(39475381324, '0ed658654bd6edbb44257762421d7867d79d26b7', 2),
-                (39475695835, '070557e734dec9c1aa064fea11967afc525b9148', 10)]
+                (39475695835, '070557e734dec9c1aa064fea11967afc525b9148', 10),
+                (39479736059, '0a2fdbabeaf3802b9abe7aa8e05d74f2c00f4d1b', 4)]
 
 
 def input_paths():
@@ -45,7 +50,7 @@ def git_bytes(path):
     return subprocess.check_output(['git', 'show', f'{BASE}:{path}'], cwd=ROOT)
 
 
-def verify(baseline_file=None):
+def verify(baseline_file=None, previous_file=None):
     old_raw = baseline_file.read_bytes() if baseline_file else git_bytes(INDEX)
     before = json.loads(gzip.decompress(old_raw))
     raw = (ROOT / INDEX).read_bytes()
@@ -57,28 +62,40 @@ def verify(baseline_file=None):
     assert not pending and catalogue.serialize(rebuilt)[1] == raw, 'Catalogue is stale or pending'
     old = {p['id']: p for p in before['packs']}
     new = {p['id']: p for p in after['packs']}
-    assert len(old) == 1088 and len(new) == len(after['packs']) == 1112
+    assert len(old) == 1088 and len(new) == len(after['packs']) == 1120
     assert all(new.get(key) == value for key, value in old.items()), 'A pre-existing pack changed'
+    previous_raw = previous_file.read_bytes() if previous_file else subprocess.check_output(
+        ['git', 'show', f'{PREVIOUS}:{INDEX}'], cwd=ROOT)
+    previous = json.loads(gzip.decompress(previous_raw))
+    assert len(previous['packs']) == 1112
+    assert all(new.get(p['id']) == p for p in previous['packs']), 'A previous 26-reference catalogue object changed'
     staged = [p for path in NEW_SOURCES for p in json.loads((ROOT / path).read_text())]
-    assert len(staged) == len({p['id'] for p in staged}) == 24
+    assert len(staged) == len({p['id'] for p in staged}) == 32
     assert set(new) - set(old) == {p['id'] for p in staged}, 'Unexpected addition outside PS1'
     assert all(p['system'] == 'ps1' and p['engine'] == 'beetle' for p in staged)
-    assert sum(p['system'] == 'ps1' for p in after['packs']) == 26
+    assert sum(p['system'] == 'ps1' for p in after['packs']) == 34
     direct = [p for p in staged if p['id'] in SUCCESSES]
-    assert len(direct) == 2
+    assert len(direct) == 5
     for entry in direct:
         identifier = entry['id']
         record, published = records[identifier], new[identifier]
-        assert record['status'] == 'ok' and published['availability'] == 'available'
-        assert published['download']['automatable'] is True
-        assert published['download']['parts'] == record['parts']
+        assert record['status'] == 'ok'
+        spec = published['download'].get('in_app') or published['download']
+        assert spec['automatable'] is True
+        assert [{k: part[k] for k in ('url', 'size', 'sha256')} for part in spec['parts']] == record['parts']
+        if record.get('host') in ('mega', 'gdrive'):
+            assert published['availability'] == 'manual' and published['download']['automatable'] is False
+            assert all(part['provider'] == record['host'] for part in spec['parts'])
+            assert all(game.get('confirm') is True for game in published['games'])
+        else:
+            assert published['availability'] == 'available'
         assert published['install']['files'] == SUCCESSES[identifier]
         assert published['install']['folders'][0]['to'] == '{id}'
         for checks in record['checks'].values():
             assert checks['textures'] == checks['pngChecked'] == SUCCESSES[identifier]
             assert checks['subfolders'] == 0 and not checks['badPng']
     manual = [p for p in staged if p['id'] not in SUCCESSES]
-    assert len(manual) == 22
+    assert len(manual) == 27
     for entry in manual:
         published = new[entry['id']]
         assert published['availability'] == 'manual'
@@ -99,25 +116,26 @@ def verify(baseline_file=None):
             assert record['id'] not in observed
             observed.add(record['id'])
             assert record['status'] == ('ok' if record['id'] in SUCCESSES else 'protected')
-    assert len(observed) == 12
+    assert len(observed) == 16
     if not baseline_file:
         current = (ROOT / 'tools/textures/verified.jsonl').read_bytes()
         assert current.startswith(git_bytes('tools/textures/verified.jsonl')), 'Original canonical records changed'
         old_runs = json.loads(git_bytes('tools/textures/ci-records.json'))['runs']
-        assert registered[:len(old_runs)] == old_runs and len(registered) == len(old_runs) + 2
+        assert registered[:len(old_runs)] == old_runs and len(registered) == len(old_runs) + 3
     counts = count_packs.count(after, count_packs.sources())
-    assert counts['ps1']['oneTapFamilies'] == counts['ps1']['distinct'] == 4
-    assert counts['total']['distinct'] == counts['total']['oneTapFamilies'] == 420
-    assert counts['total']['entries'] == 505
+    assert counts['ps1']['oneTapFamilies'] == counts['ps1']['distinct'] == 7
+    assert counts['total']['distinct'] == counts['total']['oneTapFamilies'] == 423
+    assert counts['total']['entries'] == 508
     return {
         'passed': True, 'baseline': BASE, 'revision': after['revision'],
         'catalogue_sha256': hashlib.sha256(raw).hexdigest(),
-        'existing_pack_objects_unchanged': len(old), 'new_ps1_references': 24,
-        'new_verified_one_tap': 2, 'new_manual_author_references': 22,
-        'ps1_total': 26, 'ps1_verified_one_tap_total': 4,
+        'existing_pack_objects_unchanged': len(old), 'previous_catalogue_objects_unchanged': 1112,
+        'new_ps1_references': 32,
+        'new_verified_one_tap': 5, 'new_manual_author_references': 27,
+        'ps1_total': 34, 'ps1_verified_one_tap_total': 7,
         'new_pngs_verified': sum(SUCCESSES.values()),
-        'archive_observations': {'ok': 2, 'protected': 10},
-        'total_one_tap_families': 420, 'total_installable_profiles': 505,
+        'archive_observations': {'ok': 5, 'protected': 11},
+        'total_one_tap_families': 423, 'total_installable_profiles': 508,
         'physical_device_validated': False,
         'source': os.environ.get('GITHUB_SHA'),
         'run': int(os.environ['GITHUB_RUN_ID']) if os.environ.get('GITHUB_RUN_ID') else None,
@@ -128,9 +146,10 @@ def verify(baseline_file=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--baseline-file', type=Path, help='Local read-only snapshot check, never used by CI/delivery')
+    parser.add_argument('--previous-file', type=Path, help='Local previous 26-reference snapshot, never used by CI/delivery')
     parser.add_argument('--output', type=Path)
     args = parser.parse_args()
-    report = verify(args.baseline_file)
+    report = verify(args.baseline_file, args.previous_file)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + '\n')

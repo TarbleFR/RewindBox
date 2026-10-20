@@ -126,6 +126,15 @@ def probes(index):
     probe(ps1('SLPS-01160', 'Xenogears'), 'beetle', exact=[paw])  # author explicitly includes JP
     probe(ps1('SCES-03922', 'Klonoa Beach Volleyball'), 'beetle',
           candidate=['ps1-ironhulk33-klonoa-beach-volleyball'])  # public listing, archive verification blocked
+    probe(ps1('SCES-00010', 'WipEout'), 'beetle', candidate=['ps1-nr74w-wipeout'])
+    probe(ps1('SLES-00327', 'WipEout 2097 / XL'), 'beetle', candidate=['ps1-nr74w-wipeout-2097-xl'])
+    probe(ps1('SLUS-00706', 'Tenchu: Stealth Assassins'), 'beetle',
+          candidate=['ps1-somber-twilight-tenchu-stealth-assassins'])  # verified USA v1.1 file, edition confirmation retained
+    probe(ps1('SLUS-00863', 'Shadow Tower'), 'beetle', candidate=['ps1-zeak-z-shadow-tower-upscale'])
+    probe(ps1('SLUS-01378', 'Spider-Man 2: Enter Electro'), 'beetle', candidate=['ps1-bussareas-spider-man-2-enter-electro'])
+    probe(ps1('SLUS-00939', 'Tenchu 2: Birth of the Stealth Assassins'), 'beetle', candidate=['ps1-bussareas-tenchu-2-hd'])
+    probe(ps1('SLUS-00067', 'Castlevania: Symphony of the Night'), 'beetle',
+          candidate=['ps1-tarrantx-castlevania-symphony-of-the-night-hd-x4'])
     return wanted
 
 
