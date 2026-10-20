@@ -1,5 +1,5 @@
 # Reusable recipe, invoked only by registered rpcs3-core phase delivery499.
-# Do not edit the frozen 497 workflow. Candidate C keeps {{FINAL_SOURCE}}; workflow-only W resolves it.
+# Do not edit the frozen 497 workflow. Candidate C keeps 4fc50a8701db627607821ab393a1522d21fd00c4; workflow-only W resolves it.
 # Core, host and expanded PS1 catalogue inputs are proved independently.
 name: NeoStation RPCS3 audit • Build 499 • reusable private delivery
 'on':
@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 defaults:
   run:
-    shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+    shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
       assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
       os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
       {0}
@@ -34,11 +34,11 @@ jobs:
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
-      HD_FINAL_SOURCE: '{{FINAL_SOURCE}}'
+      HD_FINAL_SOURCE: '4fc50a8701db627607821ab393a1522d21fd00c4'
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: '{{FINAL_SOURCE}}'
+        ref: '4fc50a8701db627607821ab393a1522d21fd00c4'
         fetch-depth: 0
         persist-credentials: false
     - name: Verify closed product inputs, exact PS1 catalogue and successful Core evidence
@@ -59,7 +59,7 @@ jobs:
       BUILD_NUMBER: ${{ inputs.build_number || '499' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '499' }}-{{FINAL_SOURCE}}-cold
+      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '499' }}-4fc50a8701db627607821ab393a1522d21fd00c4-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -78,12 +78,12 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUNDLE_PATH: ${{ github.workspace }}/build/ruby-gems
       DELIVERY_MODE: cold
-      HD_FINAL_SOURCE: '{{FINAL_SOURCE}}'
+      HD_FINAL_SOURCE: '4fc50a8701db627607821ab393a1522d21fd00c4'
     steps:
     - name: Checkout exact candidate
       uses: actions/checkout@v4
       with:
-        ref: '{{FINAL_SOURCE}}'
+        ref: '4fc50a8701db627607821ab393a1522d21fd00c4'
         fetch-depth: 0
         persist-credentials: false
     - name: Require the closed HD-native candidate and exact successful prior evidence
@@ -108,7 +108,7 @@ jobs:
     - name: Resolve locked Dart dependencies
       run: python3 build-utils/delivery_metrics.py dart_dependencies flutter pub get --enforce-lockfile
     - name: Prepare lightweight build tools
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -118,7 +118,7 @@ jobs:
         echo "BUNDLE_PATH=$BUNDLE_PATH" >> "$GITHUB_ENV"
         python3 build-utils/delivery_metrics.py ruby_dependencies bundle install
     - name: Generate iOS host
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -128,7 +128,7 @@ jobs:
         test ! -d ios
         python3 build-utils/delivery_metrics.py host_scaffold_and_registrant python3 packages/dolphin_internal_bridge/ci/build_support.py scaffold
     - name: Download validated Build 350 native donor without KartPad
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -145,7 +145,7 @@ jobs:
           --report build/native-donor/subset-report.json
         python3 build-utils/game_content_gate.py build/native-donor/NeoStation.ipa
     - name: Reuse validated native runtimes
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -162,7 +162,7 @@ jobs:
         key: stikjit-interfaces-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.3-${{ hashFiles('build-utils/stikjit/source.json','build-utils/patch_stikjit_rpcs3.py','build-utils/patch_stikjit_compat.py','build-utils/install_patched_stikjit.py','build-utils/build_patched_stikjit.py')
           }}-37844950677
     - name: Build canonical StikJIT from pinned sources for iOS 18 26 and 27
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -176,7 +176,7 @@ jobs:
       if: ${{ steps.stik.outputs.cache-hit == 'true' }}
       run: python3 build-utils/install_patched_stikjit.py build/stikjit-current/StikJIT.xcframework
     - name: Require completed exact NeoSwap Core before artifact download
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -207,7 +207,7 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/rpcs3-native
     - name: Verify and install passive RPCS3 Core
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -372,7 +372,7 @@ jobs:
         assert not forbidden, f'Retired RPCS3 Core exports: {sorted(forbidden)}'
         PY
     - name: Verify retained stable Dolphin Core
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -452,7 +452,7 @@ jobs:
           grep -q " $symbol$" build/dolphin-native-exports.txt
         done
     - name: Require completed exact ARMSX2 2.6 Core and remove its donor bootstrap
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -477,7 +477,7 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/armsx2
     - name: Verify pinned ARMSX2 Core identity
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -584,7 +584,7 @@ jobs:
     - name: Check BIOS names, OpenBIOS option and bundled PPSSPP files against the pinned cores
       run: python3 test/libretro_bios_requirements_test.py --cores dist/libretro
     - name: Prepare emulator build definitions
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -607,7 +607,7 @@ jobs:
 
         python3 build-utils/delivery_benchmark.py record-inputs
     - name: Configure release host
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -670,7 +670,7 @@ jobs:
     - name: Align application and extension versions to the pubspec version
       run: python3 build-utils/stamp_host_version.py
     - name: Compile Release device binary with measured AOT and Xcode phases
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -687,7 +687,7 @@ jobs:
           -jobs "$(python3 -c 'import os; print(os.cpu_count())')" -showBuildTimingSummary build \
           2>&1 | tee "$RUNNER_TEMP/neostation-fast-xcodebuild.log"
     - name: Embed NeoPlay source identity and dependency acknowledgements
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -705,7 +705,7 @@ jobs:
         shutil.copyfile(notices, app / 'NeoPlay-Pods-acknowledgements.plist')
         NEOPLAY
     - name: Embed verified RPCS3 Core and signing metadata
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -715,7 +715,7 @@ jobs:
         python3 build-utils/embed_rpcs3_host_entitlements.py
         python3 build-utils/embed_neoswap_donor_entitlements.py
     - name: Embed lazy-loaded ARMSX2 Core framework
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -744,7 +744,7 @@ jobs:
         cp dist/libretro/identity.json "$APP/Libretro-native-identity.json"
         ls "$APP/Frameworks" | grep -c '_libretro.framework'
     - name: Embed legal, license and source notices
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -756,7 +756,7 @@ jobs:
           --build-number "$BUILD_NUMBER" \
           --dolphin-sha "$DOLPHIN_SHA"
     - name: Package and validate NeoStation IPA
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
@@ -886,7 +886,7 @@ jobs:
         retention-days: 14
     - name: Remove temporary secrets
       if: always()
-      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='{{FINAL_SOURCE}}'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
+      shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='4fc50a8701db627607821ab393a1522d21fd00c4'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"
         {0}
