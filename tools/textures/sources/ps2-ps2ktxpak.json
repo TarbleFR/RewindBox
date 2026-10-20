@@ -163,8 +163,8 @@
  },
  {
   "id": "ps2-ktx-ace-combat-04-shattered-skies-superostrich",
-  "title": "Ace Combat 04: Shattered Skies",
-  "version": "See the creator's page",
+  "title": "Ace Combat 04 / 5 / Zero — Trilogy HD HUD",
+  "version": "1.2.1",
   "games": [
    {
     "title": "Ace Combat 04: Shattered Skies",
@@ -177,8 +177,33 @@
     ],
     "regions": [
      "USA"
+    ]
+   },
+   {
+    "title": "Ace Combat 5: The Unsung War",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20851"
+     }
     ],
-    "confirm": true
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Ace Combat Zero: The Belkan War",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21346"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
    }
   ],
   "authors": [
@@ -190,15 +215,21 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Hand-drawn in-mission HUD only. The same creator archive contains SLUS-20152, SLUS-20851 and SLUS-21346; one family for the trilogy, not three packs. Menus, briefings, title screens and other textures are outside its scope. No PAL or French-specific support is claimed.",
   "download": {
    "automatable": false,
-   "page": "https://ostrichmods.com/trilogy.html"
+   "page": "https://ostrichmods.com/trilogy.html",
+   "verify": {
+    "url": "https://drive.google.com/uc?export=download&id=1xhYvVMScGS1uVN18_V6qh_PKPuvts9Vy"
+   },
+   "file_name": "actrilogy-hud-upgrade-v1.2.1.zip"
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://forums.ppsspp.org/member.php?action=profile&uid=111485"
+  "source_url": "https://forums.ppsspp.org/member.php?action=profile&uid=111485",
+  "family": "ps2-ace-combat-trilogy-ostrich",
+  "scope": "ui"
  },
  {
   "id": "ps2-ktx-ace-combat-5-the-unsung-war-superostrich",
@@ -237,7 +268,9 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://forums.ppsspp.org/member.php?action=profile&uid=111485"
+  "source_url": "https://forums.ppsspp.org/member.php?action=profile&uid=111485",
+  "family": "ps2-ace-combat-trilogy-ostrich",
+  "scope": "ui"
  },
  {
   "id": "ps2-ktx-ace-combat-zero-the-belkan-war-superostrich",
@@ -276,7 +309,9 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://forums.ppsspp.org/member.php?action=profile&uid=111485"
+  "source_url": "https://forums.ppsspp.org/member.php?action=profile&uid=111485",
+  "family": "ps2-ace-combat-trilogy-ostrich",
+  "scope": "ui"
  },
  {
   "id": "ps2-ktx-alone-in-the-dark-the-new-nightmare-teodor-max",
@@ -597,15 +632,19 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Base 7z only; the author separately publishes a FIXES folder. Additional fixes must be merged externally before using the existing folder import; installing them as another pack would replace the base. USA SLUS-21338.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/armored-core-last-raven-hd-textures-pack-slus-21338.668820/"
+   "page": "https://gbatemp.net/threads/armored-core-last-raven-hd-textures-pack-slus-21338.668820/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1iVULsZueogPEPXzy5-gl_U_tXPBjbKUo/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ninebreaker.740327/"
+  "source_url": "https://gbatemp.net/members/ninebreaker.740327/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-armored-core-nexus-ninebreaker",
@@ -644,12 +683,16 @@
   "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/armored-core-nexus-hd-texture-pack-slus-20986.668534/"
+   "page": "https://gbatemp.net/threads/armored-core-nexus-hd-texture-pack-slus-20986.668534/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1Dr82UsYP0nDbDowAQ3j_QpXqNl7IletE/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ninebreaker.740327/"
+  "source_url": "https://gbatemp.net/members/ninebreaker.740327/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-armored-core-nine-breaker-mvp899",
@@ -3082,7 +3125,10 @@
   "notes": "Complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/dragon-quest-viii-de-en-es-fr-it-v0-9-6.618578/"
+   "page": "https://gbatemp.net/threads/dragon-quest-viii-de-en-es-fr-it-v0-9-6.618578/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1th-kflBDLEbXffwEKethyujQOjekmxx5/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4040,7 +4086,10 @@
   "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/flatout-2-pal-d.650174/"
+   "page": "https://gbatemp.net/threads/flatout-2-pal-d.650174/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1m9NyTEoeotFdzgMeaYb2SHUgAHAP2xMj/view"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24812,29 +24861,12 @@
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SLES-51693"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-52439"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-52531"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
       "value": "SLUS-20636"
      }
     ],
     "regions": [
-     "Europe",
      "USA"
-    ],
-    "confirm": true
+    ]
    }
   ],
   "authors": [
@@ -24846,15 +24878,19 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Work in progress. The creator folder publishes SLUS-20636.zip; only this USA edition is selected for archive verification. The previously inferred PAL identities are not attested by this file.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/the-suffering-hd-texture-pack-still-updating.680374/"
+   "page": "https://gbatemp.net/threads/the-suffering-hd-texture-pack-still-updating.680374/",
+   "verify": {
+    "url": "https://mega.nz/folder/NZtCwK7T#cgSaYa9PUjv_QmFSIM8zwA/file/UccVXJ6K"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/proxcore_2000.670302/"
+  "source_url": "https://gbatemp.net/members/proxcore_2000.670302/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-the-sword-of-etheria-curse-arms",
