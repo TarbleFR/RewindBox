@@ -1,11 +1,12 @@
 # Consignes permanentes — stabilité NeoStation iOS
 
-## Build 496 candidate — PSP relaunch and frozen HD catalogue, 20 October 2026
+## Build 496 — verified IPA, PSP relaunch and frozen HD catalogue, 20 October 2026
 
 - The maintainer requests stopping HD discovery, a recap, a PSP close/reopen fix and an IPA containing the latest catalogues. Build 495 already compiled successfully (`fee67e4d`, run `39384517903`); use 496 for this delivery, on `Claude`, no public release.
 - Freeze catalogue `2026-10-20.d64e1ff29d79` at 352 installable families (437 profiles, 161 one-tap / 191 verified manual); preserve both manifests and all source/region/format exclusions. No further pack discovery in this cycle.
 - PSP: the supplied app log reports `vm_remap failed (3)` and `Memory init failed` after closing a successful session. Fix ownership of unused memory-view pieces while a 32 MiB title runs, so its unused upper RAM view stays reserved for the next title. Never release or overwrite foreign mappings. No core rebuild, settings change, save deletion or retry workaround.
 - Targeted source `4b12e244d9093564a6d57a30b72900030f0733e5`, run `39444272536`: old/new native regression, iPhone SDK compile, seven alternating PSP/other-core Simulator sessions and final catalogue checks. Evidence and limits: `docs/build496-psp-hd-catalogue.md`; gate `.github/diagnostics/psprelaunch496_delivery.py`. Reuse unchanged Build 495 validations; do not claim physical-device confirmation from Simulator results.
+- Delivery source `b332bc2e59e4f44d4e820aa4879520a058bfd76b`, run `39445610738`: checks/native/cold Release succeeded. IPA 0.0.8 (496), 167,100,199 bytes, SHA-256 `466be74c72346f0a246f171dff0dd1b686a5bb0b229c254fdb93ed26ea9848ee`; exact receipt `docs/evidence/psprelaunch496-delivery.json`. The seven Simulator sessions used software rendering; commercial-game relaunch and iPhone OpenGLES remain unconfirmed. No public release.
 
 Ces règles expriment les exigences du mainteneur du 18 septembre 2026 et s'appliquent à toute intervention sur ce dépôt.
 

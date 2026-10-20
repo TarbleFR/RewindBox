@@ -82,4 +82,24 @@ run `39444272536` (`build496-checks.yml`).
   The delivery gate allows exactly the reservation source and two manifests
   as product changes; packaging/signature checks remain unchanged.
 
-Final run status, IPA identity and delivery hash are recorded after success.
+Delivery succeeded: source `b332bc2e59e4f44d4e820aa4879520a058bfd76b`,
+run `39445610738`, Build **0.0.8 (496)**. Checks, native evidence gate and
+cold iPhone Release build passed; the optional warm build was skipped.
+The final IPA is **167,100,199 bytes**, SHA-256
+`466be74c72346f0a246f171dff0dd1b686a5bb0b229c254fdb93ed26ea9848ee`.
+
+The downloaded encrypted artifact digest, final IPA digest, ZIP integrity,
+application and five extension versions, 35 pinned libretro cores, exact
+bundled catalogue bytes, and the bridge's new view-ownership symbol were
+checked. The build verified 78 ad hoc signatures, including a deep/strict
+verification after extracting the final ZIP; 75 compiled Mach-O images keep
+their code/data and ABI metadata unchanged through signing. SideStore must
+apply Apple provisioning when installing. No iPhone installation is claimed.
+
+All seven Simulator sessions passed with software rendering: OpenGLES texture
+creation was unavailable on that Simulator. This does not validate physical
+iPhone OpenGLES gameplay. The commercial-game close/reopen sequence remains
+to be confirmed on the maintainer's iPhone.
+
+Exact proof identities and limits: [delivery record](evidence/psprelaunch496-delivery.json).
+No public release was created.
