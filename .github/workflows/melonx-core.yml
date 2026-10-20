@@ -23,6 +23,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.100'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - name: Fetch exact MeloNX source
         run: |
           set -euo pipefail
@@ -30,8 +33,12 @@ jobs:
           git -C .native-sources/MeloNX remote add origin https://starforgejo.dev/projects/MeloNX.git
           git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
           git -C .native-sources/MeloNX checkout --detach FETCH_HEAD
+          git init .native-sources/LibHac
+          git -C .native-sources/LibHac remote add origin https://starforgejo.dev/archive/LibHac_Ryubing.git
+          git -C .native-sources/LibHac fetch --depth 1 origin 23e402ebb6dedc517e34a98a033078dc0f6fd478
+          git -C .native-sources/LibHac checkout --detach FETCH_HEAD
       - name: Compile NativeAOT library and verify exported ABI
-        run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX
+        run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
       - uses: actions/upload-artifact@v4
         if: always()
         with:

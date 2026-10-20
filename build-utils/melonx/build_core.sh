@@ -4,6 +4,7 @@ set -euo pipefail
 TASK_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SOURCE_DIR="${1:?MeloNX source directory required}"
 SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
+LIBHAC_DIR="$(cd "${2:?LibHac source directory required}" && pwd)"
 python3 - "$TASK_ROOT" "$SOURCE_DIR" <<'PY'
 import json, subprocess, sys
 from pathlib import Path
@@ -34,6 +35,7 @@ cd "$SOURCE_DIR"
 dotnet --info
 test "$(dotnet --version)" = '10.0.100'
 dotnet workload install mobile-librarybuilder --skip-manifest-update
+python3 "$TASK_ROOT/build-utils/melonx/build_libhac.py" "$SOURCE_DIR" "$LIBHAC_DIR"
 python3 - <<'PY_RESTORE'
 import subprocess
 # A dead service must not trigger unbounded retries across every project.

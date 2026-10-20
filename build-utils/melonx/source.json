@@ -3,6 +3,14 @@
   "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
   "dotnet": "10.0.100",
   "libHacFeed": "https://starforgejo.dev/api/packages/Ryulynx/nuget/index.json",
+  "libHac": {
+    "repository": "https://starforgejo.dev/archive/LibHac_Ryubing.git",
+    "revision": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+    "package": "Ryujinx.LibHac",
+    "version": "0.21.0-alpha.129",
+    "consumerChange": "cc6d2dc162ca00a3db9af09f176798a8297926ab",
+    "provenance": "Source reconstruction: matching NACP language-buffer change, ten minutes before the consumer moves from alpha.126 to alpha.129. Original NuGet package identity unavailable; byte equivalence is not asserted."
+  },
   "controller": {
     "repository": "https://github.com/stossy11/Melo-Controller.git",
     "revision": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
