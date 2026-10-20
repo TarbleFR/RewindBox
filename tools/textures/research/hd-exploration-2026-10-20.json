@@ -1,0 +1,94 @@
+{
+  "checked_at": "2026-10-20",
+  "purpose": "Research evidence only. This file is not consumed by build_catalogue.py and is not a second runtime catalogue.",
+  "entries": [
+    {
+      "id": "gc-fe-por-ui-link-to-the-past",
+      "system": "gc",
+      "engine": "dolphin",
+      "title": "Fire Emblem: Path of Radiance — upscaled 2D/UI (legacy)",
+      "version": "2015-02-26",
+      "games": [
+        {
+          "title": "Fire Emblem: Path of Radiance",
+          "identities": [
+            {
+              "type": "game_id",
+              "scheme": "dolphin-disc-game-id",
+              "value": "GFEE01"
+            }
+          ],
+          "regions": [
+            "USA"
+          ]
+        }
+      ],
+      "authors": [
+        "Link_to_the_past"
+      ],
+      "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+      "source_id": "dolphin-forum:fire-emblem-upscaled-ui",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+        "verify": {
+          "url": "https://www.mediafire.com/file/kwy3wb7acpc8g84/GFEE01.7z/file"
+        },
+        "file_name": "GFEE01.7z"
+      },
+      "scope": "ui",
+      "family": "gc-fe-por-ui-link-to-the-past",
+      "notes": "Legacy texture naming must pass the current Dolphin installer before this reference can become installable. The author identifies NTSC USA; PAL and French are not confirmed. UI and 2D elements only, with remaining omissions.",
+      "disposition": "adaptation-or-validation-required",
+      "reason": "Legacy Dolphin filename/hash scheme; the author advises PAL redumping/renaming. The CI host blocked the archive, so current tex1 compatibility cannot be attested. Not in the runtime catalogue."
+    },
+    {
+      "id": "wii-fe-rd-ui-link-to-the-past",
+      "system": "wii",
+      "engine": "dolphin",
+      "title": "Fire Emblem: Radiant Dawn — upscaled 2D/UI (legacy)",
+      "version": "2015-02-26",
+      "games": [
+        {
+          "title": "Fire Emblem: Radiant Dawn",
+          "identities": [
+            {
+              "type": "game_id",
+              "scheme": "dolphin-disc-game-id",
+              "value": "RFEE01"
+            }
+          ],
+          "regions": [
+            "USA"
+          ]
+        }
+      ],
+      "authors": [
+        "Link_to_the_past"
+      ],
+      "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+      "source_id": "dolphin-forum:fire-emblem-upscaled-ui",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+        "verify": {
+          "url": "https://www.mediafire.com/file/4g0b1h8bkpozo0h/RFEE01.7z/file"
+        },
+        "file_name": "RFEE01.7z"
+      },
+      "scope": "ui",
+      "family": "wii-fe-rd-ui-link-to-the-past",
+      "notes": "Legacy texture naming must pass the current Dolphin installer before this reference can become installable. The author identifies NTSC USA; PAL and French are not confirmed. UI and 2D elements only, with remaining omissions.",
+      "disposition": "adaptation-or-validation-required",
+      "reason": "Legacy Dolphin filename/hash scheme; the author advises PAL redumping/renaming. The CI host blocked the archive, so current tex1 compatibility cannot be attested. Not in the runtime catalogue."
+    }
+  ]
+}

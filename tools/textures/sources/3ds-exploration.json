@@ -98,10 +98,10 @@
    }
   ],
   "authors": [
+   "Zoran501",
    "tesla2105",
    "OmegaAvenger_HD",
-   "Serbagz",
-   "Combined HD Pack compiler (see author page)"
+   "Serbagz"
   ],
   "page_url": "https://gamebanana.com/mods/351105",
   "source_id": "gamebanana:351105",
@@ -206,5 +206,204 @@
   "scope": "partial",
   "family": "3ds-sonipro-hd-cybertokyo",
   "notes": "Early work in progress for the Japanese game. The author reports testing in AzaharPlus on Android. Texture replacement only; no translation, full-game coverage or iPhone rendering is claimed."
+ },
+ {
+  "id": "3ds-fantasy-life-hd-ui-kapila",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Fantasy Life — HD UI 0.5",
+  "version": "2020-03",
+  "games": [
+   {
+    "title": "Fantasy Life",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000113200"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Kapila / LtTim"
+  ],
+  "page_url": "https://web.archive.org/web/20240229193556/https://community.citra-emu.org/t/fantasy-life-hd-texture-pack-wip-03-07-20/183853",
+  "source_id": "citra-archive:183853",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://web.archive.org/web/20240229193556/https://community.citra-emu.org/t/fantasy-life-hd-texture-pack-wip-03-07-20/183853",
+   "verify": {
+    "url": "https://www.mediafire.com/file/74y751h89oy5s8s/%21v0.5.zip/file"
+   },
+   "file_name": "!v0.5.zip"
+  },
+  "scope": "ui",
+  "family": "3ds-fantasy-life-kapila-lttim",
+  "notes": "Recovered author thread and its public download sheet. UI, text and world upscales are separate components of one project. This entry contains only the named component; merge desired components on a computer before importing one folder. Other regions/languages, including French, are unconfirmed."
+ },
+ {
+  "id": "3ds-fantasy-life-4x-lttim",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Fantasy Life — 4x textures (LtTim)",
+  "version": "2020-03",
+  "games": [
+   {
+    "title": "Fantasy Life",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000113200"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Kapila / LtTim"
+  ],
+  "page_url": "https://web.archive.org/web/20240229193556/https://community.citra-emu.org/t/fantasy-life-hd-texture-pack-wip-03-07-20/183853",
+  "source_id": "citra-archive:183853",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://web.archive.org/web/20240229193556/https://community.citra-emu.org/t/fantasy-life-hd-texture-pack-wip-03-07-20/183853",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1CpBB_nO8317oNQp9j72HMLjg7MxOjb92/view?usp=sharing"
+   },
+   "file_name": "Fantasy Life 4x.zip"
+  },
+  "scope": "partial",
+  "family": "3ds-fantasy-life-kapila-lttim",
+  "notes": "Recovered author thread and its public download sheet. UI, text and world upscales are separate components of one project. This entry contains only the named component; merge desired components on a computer before importing one folder. Other regions/languages, including French, are unconfirmed."
+ },
+ {
+  "id": "3ds-devil-survivor-overclocked-kierk",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Shin Megami Tensei: Devil Survivor Overclocked HD",
+  "version": "1.1",
+  "games": [
+   {
+    "title": "Shin Megami Tensei: Devil Survivor Overclocked",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000038800"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Kierk (K1ERK)"
+  ],
+  "page_url": "https://web.archive.org/web/20240301170348/https://community.citra-emu.org/t/smt-devil-survivor-overclocked-hd-texture-pack/449665/",
+  "source_id": "citra-archive:449665",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://web.archive.org/web/20240301170348/https://community.citra-emu.org/t/smt-devil-survivor-overclocked-hd-texture-pack/449665/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/g924urgag0kz9mj/SMT-DS1_HD_1.1.zip/file"
+   },
+   "file_name": "SMT-DS1_HD_1.1.zip"
+  },
+  "scope": "partial",
+  "family": "3ds-devil-survivor-overclocked-kierk",
+  "notes": "Author US dump, incomplete route coverage (up to day 6 and selected endings). Some HD dialogue only matches when the protagonist is named Akira Masaru. DiZ0's add-on is a dependency/overlay, not another full pack. No other region or current Azahar rendering is assumed."
+ },
+ {
+  "id": "3ds-radiant-historia-serbagz",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Radiant Historia: Perfect Chronology HD (+extras)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Radiant Historia: Perfect Chronology",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001C8F00"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Serbagz"
+  ],
+  "page_url": "https://gamebanana.com/mods/373806",
+  "source_id": "gamebanana:373806",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
+   "redistribution": "Manual author-page download only. NeoStation does not host or redistribute these files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/373806",
+   "verify": {
+    "url": "https://gamebanana.com/dl/789815"
+   },
+   "file_name": "radiant_historia_hd_texture_pack_v10.rar"
+  },
+  "scope": "partial",
+  "family": "3ds-radiant-historia-serbagz",
+  "notes": "USA 4x UI, fonts, portraits, CGs, world and battle textures, with DLC chibi portraits and some artwork unfinished. Sprites largely retain original resolution. RAR must be extracted on a computer before importing its 00040000001C8F00 folder. EU font add-on is not proof that the full USA pack works in Europe/French. Optional classic portraits and other authors' mirrored fonts are not separate complete packs."
+ },
+ {
+  "id": "3ds-toa-font-rikimtasu",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Tales of the Abyss — upscaled font",
+  "version": "d0e6db357331",
+  "games": [
+   {
+    "title": "Tales of the Abyss",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000061300"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "rikimtasu"
+  ],
+  "page_url": "https://github.com/rikimtasu/toa-3ds-fontcustomtex",
+  "source_id": "github:rikimtasu/toa-3ds-fontcustomtex",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/rikimtasu/toa-3ds-fontcustomtex",
+   "verify": {
+    "url": "https://raw.githubusercontent.com/rikimtasu/toa-3ds-fontcustomtex/d0e6db35733105cbd16f128fd9d2d586eba3cff2/toa_font_texture_upscale.zip"
+   },
+   "file_name": "toa_font_texture_upscale.zip"
+  },
+  "scope": "ui",
+  "family": "3ds-toa-font-rikimtasu",
+  "notes": "Font component only. The repository publishes a ZIP but no licence or regional instructions. Game identity and layout require confirmation from the actual archive before runtime inclusion; no French coverage is inferred."
  }
 ]

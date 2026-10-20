@@ -42,90 +42,6 @@
   "notes": "UI, fonts, maps, backgrounds and characters; magic effects remain at original resolution. The author specifies USA, not PAL/French. DDS DXT5/BC7 requires BC texture support. NeoStation keeps prefetch disabled; no iPhone rendering has been verified."
  },
  {
-  "id": "gc-fe-por-ui-link-to-the-past",
-  "system": "gc",
-  "engine": "dolphin",
-  "title": "Fire Emblem: Path of Radiance — upscaled 2D/UI (legacy)",
-  "version": "2015-02-26",
-  "games": [
-   {
-    "title": "Fire Emblem: Path of Radiance",
-    "identities": [
-     {
-      "type": "game_id",
-      "scheme": "dolphin-disc-game-id",
-      "value": "GFEE01"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   }
-  ],
-  "authors": [
-   "Link_to_the_past"
-  ],
-  "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
-  "source_id": "gamebanana:Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
-   "verify": {
-    "url": "https://www.mediafire.com/file/kwy3wb7acpc8g84/GFEE01.7z/file"
-   },
-   "file_name": "GFEE01.7z"
-  },
-  "scope": "ui",
-  "family": "gc-fe-por-ui-link-to-the-past",
-  "notes": "Legacy texture naming must pass the current Dolphin installer before this reference can become installable. The author identifies NTSC USA; PAL and French are not confirmed. UI and 2D elements only, with remaining omissions."
- },
- {
-  "id": "wii-fe-rd-ui-link-to-the-past",
-  "system": "wii",
-  "engine": "dolphin",
-  "title": "Fire Emblem: Radiant Dawn — upscaled 2D/UI (legacy)",
-  "version": "2015-02-26",
-  "games": [
-   {
-    "title": "Fire Emblem: Radiant Dawn",
-    "identities": [
-     {
-      "type": "game_id",
-      "scheme": "dolphin-disc-game-id",
-      "value": "RFEE01"
-     }
-    ],
-    "regions": [
-     "USA"
-    ]
-   }
-  ],
-  "authors": [
-   "Link_to_the_past"
-  ],
-  "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
-  "source_id": "gamebanana:Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
-  "licence": {
-   "summary": "No licence stated by the author",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
-   "verify": {
-    "url": "https://www.mediafire.com/file/4g0b1h8bkpozo0h/RFEE01.7z/file"
-   },
-   "file_name": "RFEE01.7z"
-  },
-  "scope": "ui",
-  "family": "wii-fe-rd-ui-link-to-the-past",
-  "notes": "Legacy texture naming must pass the current Dolphin installer before this reference can become installable. The author identifies NTSC USA; PAL and French are not confirmed. UI and 2D elements only, with remaining omissions."
- },
- {
   "id": "wii-ms-sensen-0079-hd-png-callofcthuloo",
   "system": "wii",
   "engine": "dolphin",
@@ -166,5 +82,235 @@
   "scope": "partial",
   "family": "wii-ms-sensen-0079-hd-callofcthuloo",
   "notes": "Characters, weapons, stages, menus and portraits. FMVs and most Combination Mode-exclusive assets are not replaced. Author reports support for the Japanese game and its English translation; no other region is claimed."
+ },
+ {
+  "id": "gc-fe-por-hd-appleboi",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Fire Emblem: Path of Radiance HD (AppleBoi)",
+  "version": "2021-01-22",
+  "games": [
+   {
+    "title": "Fire Emblem: Path of Radiance",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GFEE01"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "AppleBoi"
+  ],
+  "page_url": "https://forums.serenesforest.net/topic/93389-fe-por-hd-texture-pack/",
+  "source_id": "serenesforest:93389",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.serenesforest.net/topic/93389-fe-por-hd-texture-pack/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1uclRYNWV4-bvI-4i5wOr3bSBJ3zFxohU/view?usp=sharing"
+   },
+   "file_name": "GFEE01.rar"
+  },
+  "scope": "partial",
+  "family": "gc-fe-por-hd-appleboi",
+  "notes": "ESRGAN upscales of most textures, including backgrounds and portraits. USA folder GFEE01; no PAL/French validation. The author recommends 4:3 and reports seams with high anti-aliasing. RAR: extract on a computer and import the resulting texture folder; direct RAR import is unsupported. No iPhone rendering has been verified."
+ },
+ {
+  "id": "gc-fe-por-upscaled-thattextureguy",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Fire Emblem: Path of Radiance 4x (ThatTextureGuy)",
+  "version": "alpha 0.0.1",
+  "games": [
+   {
+    "title": "Fire Emblem: Path of Radiance",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GFEE01"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "ThatTextureGuy"
+  ],
+  "page_url": "https://feuniverse.us/t/fe9-high-resolution-texture-pack-for-dolphin/6057",
+  "source_id": "feuniverse:6057",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://feuniverse.us/t/fe9-high-resolution-texture-pack-for-dolphin/6057",
+   "verify": {
+    "url": "https://f002.backblazeb2.com/file/TexturePacks/FE%20POR%20Upscaled%20Texture%20Pack.rar"
+   },
+   "file_name": "FE POR Upscaled Texture Pack.rar"
+  },
+  "scope": "partial",
+  "family": "gc-fe-por-upscaled-thattextureguy",
+  "notes": "Early 4x upscale of almost all dumped textures, with known facial artefacts. USA GFEE01 only. RAR: extract on a computer and import the texture folder; direct RAR import is unsupported. The later AppleBoi project is a separate author release, not another region of this pack."
+ },
+ {
+  "id": "gc-lotr-two-towers-the128rebits",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "The Lord of the Rings: The Two Towers HD (Lite)",
+  "version": "2026-10-05",
+  "games": [
+   {
+    "title": "The Lord of the Rings: The Two Towers",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GLOS69"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "The128ReBits"
+  ],
+  "page_url": "https://www.gamefront.com/games/the-lord-of-the-rings-the-two-towers/file/the-lord-of-the-rings-the-two-towers-hd-textures-for-dolphin-lite",
+  "source_id": "gamefront:the128rebits-two-towers",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.gamefront.com/games/the-lord-of-the-rings-the-two-towers/file/the-lord-of-the-rings-the-two-towers-hd-textures-for-dolphin-lite",
+   "file_name": "1791233541-the-lord-of-the-rings-the-two-towers-gamecube-dolphin-hd-textures-lite-the128rebits.zip"
+  },
+  "scope": "complete",
+  "family": "gc-lotr-two-towers-the128rebits",
+  "notes": "Author-published ZIP, approximately 1.49 GiB, with Dolphin Load/Textures/GLOS69. PAL Spain only; renaming does not establish French or other regional compatibility. Native and Lite are alternatives of one family. The author page and ZIP filename are live; the host refuses automated fetching, so archive contents and native installation remain unverified."
+ },
+ {
+  "id": "gc-lotr-return-king-the128rebits",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "The Lord of the Rings: The Return of the King HD (Lite)",
+  "version": "2026-10-05",
+  "games": [
+   {
+    "title": "The Lord of the Rings: The Return of the King",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GKLS69"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "The128ReBits"
+  ],
+  "page_url": "https://www.gamefront.com/games/the-lord-of-the-rings-the-return-of-the-king/file/the-lord-of-the-rings-the-return-of-the-king-hd-textures-for-dolphin-lite",
+  "source_id": "gamefront:the128rebits-return-king",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.gamefront.com/games/the-lord-of-the-rings-the-return-of-the-king/file/the-lord-of-the-rings-the-return-of-the-king-hd-textures-for-dolphin-lite",
+   "file_name": "1791232583-the-lord-of-the-rings-the-return-of-the-king-gamecube-dolphin-hd-textures-lite-the128rebits.zip"
+  },
+  "scope": "complete",
+  "family": "gc-lotr-return-king-the128rebits",
+  "notes": "Author-published ZIP, approximately 1.26 GiB, with Dolphin Load/Textures/GKLS69. PAL Spain only; French and other editions are not validated. Native and Lite are alternatives of one family. The author page and ZIP filename are live; the host refuses automated fetching, so archive contents and native installation remain unverified."
+ },
+ {
+  "id": "wii-fit-plus-hd-gmans626",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Wii Fit Plus HD (WIP)",
+  "version": "0.1",
+  "games": [
+   {
+    "title": "Wii Fit Plus",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RFP"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "g-mans626"
+  ],
+  "page_url": "https://gamebanana.com/wips/93626",
+  "source_id": "gamebanana:wip:93626",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
+   "redistribution": "Manual author-page download only. NeoStation does not host or redistribute these files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/wips/93626",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1453076"
+   },
+   "file_name": "wii_fit_plus_hd_v01.zip"
+  },
+  "scope": "partial",
+  "family": "wii-fit-plus-hd-gmans626",
+  "notes": "Early WIP. The author instructions mistakenly call the folder RSP (Wii Sports), which is not Wii Fit Plus. Only use for Wii Fit Plus after the actual archive identity/layout has been verified; regions require confirmation."
+ },
+ {
+  "id": "wii-nsmbw-hd-title-tjshah",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "New Super Mario Bros. Wii — custom HD title",
+  "version": "2022",
+  "games": [
+   {
+    "title": "New Super Mario Bros. Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SMN"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "TJShah"
+  ],
+  "page_url": "https://gamebanana.com/mods/417752",
+  "source_id": "gamebanana:417752",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
+   "redistribution": "Manual author-page download only. NeoStation does not host or redistribute these files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/417752",
+   "verify": {
+    "url": "https://gamebanana.com/dl/908195"
+   },
+   "file_name": "nsmbw_custom_hd_title.zip"
+  },
+  "scope": "ui",
+  "family": "wii-nsmbw-hd-title-tjshah",
+  "notes": "HD title-screen artwork only, not a full-game texture pack. Standalone replacement; installing it replaces the currently selected pack. To combine it with a base HD set, merge on a computer and import one folder. Region/language coverage is not attested by the author."
  }
 ]

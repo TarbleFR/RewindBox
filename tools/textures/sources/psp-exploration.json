@@ -148,6 +148,81 @@
   },
   "scope": "partial",
   "family": "psp-swbf2-pc-ps2-textures-biotes",
-  "notes": "Most maps and selected characters/menu elements, intended for Ultimate Collection but the author also reports use with the original game. USA only. Separate from jcoolarts' basic UI pack. No game or Ultimate Collection modification is included."
+  "notes": "Most maps and selected characters/menu elements, intended for Ultimate Collection but the author also reports use with the original game. USA only. Separate from jcoolarts' basic UI pack. No game or Ultimate Collection modification is included. The verified textures.ini references 15 absent files; those replacements remain unavailable."
+ },
+ {
+  "id": "psp-megpoid-hd-english-gui-natspectrum",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Megpoid the Music♯ — HD English GUI",
+  "version": "1",
+  "games": [
+   {
+    "title": "Megpoid the Music♯",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM06226"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "NatSpectrum"
+  ],
+  "page_url": "https://natspectrum.itch.io/megpoid-the-music-hd-english-gui-texture-pack",
+  "source_id": "itch:natspectrum-megpoid",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://natspectrum.itch.io/megpoid-the-music-hd-english-gui-texture-pack",
+   "file_name": "Megpoid the Music - HD English GUI v1.7z"
+  },
+  "scope": "ui",
+  "family": "psp-megpoid-hd-english-gui-natspectrum",
+  "notes": "Original vector/HD interface elements and English main-menu replacements, incomplete. Author identifies ULJM06226 and PPSSPP. Author-hosted 3.3 MB 7z exists on the page; automated access is refused, so the archive has not passed NeoStation's installer. Credits: GhostMirage (translation guide), Estoye (font identification), Fontfabric (VAL Stencil)."
+ },
+ {
+  "id": "psp-yugioh-tag-force2-spanish-brahian",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Yu-Gi-Oh! GX Tag Force 2 — HD Spanish",
+  "version": "2.0",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! GX Tag Force 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00925"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Brahian Cruz"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=42180",
+  "source_id": "ppsspp-forum:42180",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=42180",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1CBNtQxCM3yjDyOie7vE0gAyVwwgrITne/view?usp=drive_web"
+   },
+   "file_name": "ULES00925.rar"
+  },
+  "scope": "partial",
+  "family": "psp-yugioh-tag-force2-spanish-brahian",
+  "notes": "Spanish texture replacements, with selectable TCG/OCG/anime variants. EUR ULES00925 only. Author credits chrisfand, Angel105 and Yugipedia. RAR requires external extraction and one folder import; no onward redistribution permission is established."
  }
 ]
