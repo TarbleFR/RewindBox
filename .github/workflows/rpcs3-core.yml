@@ -65,7 +65,7 @@ on:
       phase:
         description: Build the reviewed Core, or compose the pinned private IPA
         type: choice
-        options: [core, delivery499]
+        options: [core, delivery499, delivery500]
         default: core
       recipient:
         description: Public PEM for the dedicated Build 499 delivery
@@ -78,7 +78,7 @@ jobs:
   build:
     # The host integration reuses the already built, provenance-checked Core;
     # ios-ci validates its unchanged source, recipe, ABI, and binary identity.
-    if: ${{ inputs.phase != 'delivery499' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') }}
+    if: ${{ inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') }}
     # A host-only push must not cancel the exact Core referenced by its IPA.
     # Keep distinct source revisions independent and never cancel a running build.
     concurrency:
@@ -245,4 +245,13 @@ jobs:
     with:
       build_number: '499'
       recipient: ${{ inputs.recipient || 'build-utils/delivery-499-recipient.pem' }}
+    secrets: inherit
+
+
+  delivery500:
+    if: ${{ inputs.phase == 'delivery500' }}
+    uses: ./.github/workflows/ps1-rpcs3-delivery500.yml
+    with:
+      build_number: '500'
+      recipient: build-utils/delivery-500-recipient.pem
     secrets: inherit
