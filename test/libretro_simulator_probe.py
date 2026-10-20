@@ -1158,7 +1158,8 @@ def assemble(args, sources, work):
         (bundle / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier':'ai.neostation.cheats','CFBundlePackageType':'BNDL'}))
     build_test_cores(sdk, frameworks)
     cores = Path(args.cores)
-    for core in REAL_CORES + ((MESEN_CORE,) if getattr(args, 'mesen', False) else ()):
+    # Derived probes replace REAL_CORES with a list or a tuple of their own cores.
+    for core in (*REAL_CORES, *((MESEN_CORE,) if getattr(args, 'mesen', False) else ())):
         source = cores / 'Frameworks' / f'{core}_libretro.framework'
         target = frameworks / source.name
         shutil.copytree(source, target)
@@ -1215,7 +1216,7 @@ def assemble(args, sources, work):
         if bool(scenario.get('shaders', {}).get('official')) != args.official_shaders:
             continue
         entry = dict(scenario)
-        if scenario['core'] in REAL_CORES + (MESEN_CORE,):
+        if scenario['core'] in (*REAL_CORES, MESEN_CORE):
             entry.update(core_settings(catalog, scenario['core']))
             # The product's locked options, then the probe's own (Beetle's dumping run).
             entry['lockedOptions'] = {**entry.get('lockedOptions', {}), **scenario.get('probeOptions', {})}
