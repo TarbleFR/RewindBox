@@ -52,6 +52,8 @@ int32_t neostation_melonx_pause(int64_t id,int32_t paused) { return id==generati
 int32_t neostation_melonx_cancel_prepared(int64_t id) { if(id!=generation || state!=1)return 2;state=0;return 0; }
 void set_native_window(void *p) { layer=p; }
 int test_arguments(void) { return !strcmp(game,"/tmp/Jeu été.nro") && !strcmp(locale,"fr-FR"); }
+const char *test_game(void) { return game; }
+const char *test_locale(void) { return locale; }
 void test_failure(int n) { failing=n; }
 ''')
     for variant, flags in [('good', []), ('bad', ['-DBAD_ABI'])]:
@@ -75,6 +77,8 @@ do { try api.initialize(root: URL(fileURLWithPath:"/tmp/other")); fatalError("Ac
 try api.initialize(root: URL(fileURLWithPath:"/tmp/MeloNX"))
 let handle = dlopen(url.path, RTLD_NOW | RTLD_LOCAL)!
 let arguments = unsafeBitCast(dlsym(handle,"test_arguments")!, to:(@convention(c) () -> Int32).self)
+let gameArgument = unsafeBitCast(dlsym(handle,"test_game")!, to:(@convention(c) () -> UnsafePointer<CChar>?).self)
+let localeArgument = unsafeBitCast(dlsym(handle,"test_locale")!, to:(@convention(c) () -> UnsafePointer<CChar>?).self)
 let fail = unsafeBitCast(dlsym(handle,"test_failure")!, to:(@convention(c) (Int32) -> Void).self)
 let host = MeloNXSessionHost(api:api)
 check(!host.isSessionActive)
@@ -93,7 +97,11 @@ try host.start(game:URL(fileURLWithPath:"/tmp/Jeu été.nro"),locale:"fr-FR",wid
 surface = nil
 check(host.isSessionActive && weakSurface != nil)
 awaitResult { api.state == 2 }
-check(arguments() == 1 && host.setPaused(true) && host.setPaused(false))
+// Apple may decompose accented filesystem names. Compare the actual borrowed
+// URL path semantically, including Unicode, rather than assume NFC C bytes.
+check(String(cString:gameArgument()!) == URL(fileURLWithPath:"/tmp/Jeu été.nro").path)
+check(String(cString:localeArgument()!) == "fr-FR")
+check(host.setPaused(true)); check(host.setPaused(false))
 do {
     try host.start(game:URL(fileURLWithPath:"/tmp/other.nro"),locale:"en",width:1280,height:720,
         surface:Surface(),pointer:UnsafeMutableRawPointer(bitPattern:1)!) { _ in fatalError("Duplicate completion") }
