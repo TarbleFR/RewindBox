@@ -47,10 +47,12 @@ subprocess.run(['dotnet', 'publish', 'src/Ryujinx.Library', '-c', 'Release', '-r
 PY_PUBLISH
 CORE="$SOURCE_DIR/src/Ryujinx.Library/bin/Release/net10.0/ios-arm64/native/Ryujinx.Library.dylib"
 test -s "$CORE"
-xcrun lipo -verify_arch arm64 "$CORE"
+# Retain the successfully compiled binary even if a subsequent audit fails.
+cp "$CORE" "$TASK_ROOT/dist/melonx/"
+xcrun lipo "$CORE" -verify_arch arm64
 xcrun nm -gU "$CORE" > "$TASK_ROOT/dist/melonx/exports.txt"
 otool -L "$CORE" > "$TASK_ROOT/dist/melonx/dependencies.txt"
-cp "$CORE" "$TASK_ROOT/dist/melonx/"
+xcrun vtool -show-build "$CORE" > "$TASK_ROOT/dist/melonx/platform.txt"
 cp LICENSE.txt "$TASK_ROOT/dist/melonx/MeloNX-LICENSE.txt"
 git archive HEAD | gzip > "$TASK_ROOT/dist/melonx/upstream-source.tar.gz"
 python3 - "$TASK_ROOT" "$CORE" <<'PY'
@@ -59,6 +61,8 @@ from pathlib import Path
 root, core = map(Path, sys.argv[1:])
 pin = json.loads((root / 'build-utils/melonx/source.json').read_text())
 exports = (root / 'dist/melonx/exports.txt').read_text()
+platform = (root / 'dist/melonx/platform.txt').read_text()
+assert 'platform IOS\n' in platform and 'platform IOSSIMULATOR' not in platform, platform
 required = ['initialize', 'main_ryujinx_sdl', 'set_native_window', 'stop_emulation', 'toggle_pause_emulation', 'load_keyset', 'install_firmware', 'installed_firmware_version', 'get_game_info', 'set_gamepad_button_state', 'set_gamepad_stick_axis', 'RegisterCallback', 'neostation_melonx_bootstrap_abi', 'neostation_melonx_initialize']
 symbols = {line.split()[-1] for line in exports.splitlines() if line.split()}
 assert all('_' + name in symbols for name in required), [name for name in required if '_' + name not in symbols]

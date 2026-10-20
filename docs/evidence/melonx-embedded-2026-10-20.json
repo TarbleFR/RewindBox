@@ -64,6 +64,25 @@
       "blockingError": "GitHub CLI log reader refused NUKE terminal escape sequences; adapted engine compile was not reached.",
       "engineBinaryProduced": false,
       "bootstrapChecksPassed": 15
+    },
+    {
+      "run": 39505386038,
+      "source": "97c1ac71d962e7dc54410f307b5393b269d3368a",
+      "status": "completed",
+      "conclusion": "failure",
+      "blockingError": "Reuse harness expected the engine SDK 10.0.100; host checks resolve SDK 10.0.401 outside global.json. No engine build was reached.",
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39505697548,
+      "source": "7bef4403694f1081096b50c569c68813889146f1",
+      "status": "completed",
+      "conclusion": "failure",
+      "blockingError": "NETSDK1112 remains with explicit Release/SelfContained restore followed by publish --no-restore.",
+      "bootstrapChecksReused": true,
+      "libHacLayoutChecksReused": true,
+      "artifact": 12303221310,
+      "engineBinaryProduced": false
     }
   ],
   "retirement": {
@@ -117,5 +136,14 @@
     "passedStep": "Execute the embedded storage boundary",
     "passedCases": 15,
     "scope": "Managed storage-root and initialization-state implementation; not a native game session or device test."
+  },
+  "libHacArchiveInspection": {
+    "artifact": 12302912762,
+    "zipSha256": "f31b5a53aa3ee5726a8fe593bca7940befa5f1b447d4e60dd1123f3f45ebf197",
+    "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+    "upstreamSourceSha256": "36e4cf34575a36e3844b55fd8cc3834bfb1cddc68ccebbb21fc0f7bb28e8373b",
+    "generatedSourceFiles": 3,
+    "bytesDownloadedAndChecked": true,
+    "originalPublishedPackageEquivalenceClaimed": false
   }
 }
