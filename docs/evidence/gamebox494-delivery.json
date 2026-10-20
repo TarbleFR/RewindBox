@@ -1,0 +1,200 @@
+{
+ "build": "0.0.8 (494)",
+ "decision": "docs/build494-plan.md",
+ "design": "docs/game-box-3d.md (§ 12)",
+ "base": {
+  "delivered493Source": "013d32ed0238922dcabe57aca407a6e4b49c82f5",
+  "delivered493Run": 39359025363,
+  "delivered493IpaSHA256": "23bf3020a604a58733f4cc24631df84248cb5e9bb5aa2d30e991b98d82924a7c"
+ },
+ "productCommits": [
+  "a37a1c72dd63b0e777505d0908dd0ea5cfb11b9e",
+  "7126f4a5b562f9f7aca2a74130fa09ae50216873"
+ ],
+ "deliverySource": "f61e1b9ab41bbf09eef478346b131890285f4700",
+ "deliverySourceTree": "1892154dbad1766294e309836f5fbc2e730d4e7b",
+ "deliverySourceNote": "tag build-494 = delivered Build 493 (013d32ed) + a37a1c72 (product) + ed887b13 (checks, gate, delivery settings) + 7126f4a5 (recognizer correction) + f61e1b9a (gate: GitHub's shortened job name); the later commits of the HD-texture session on Claude (Mesen NES core, libretro host callback order, Build 495) are not part of Build 494. The container's proxy refuses tags: the tag was pushed, then moved twice before any delivery (ed887b13 -> 7126f4a5 -> f61e1b9a), from the maintainer's PC, each time from a temporary blob-less clone after checking the commit's tree and parent.",
+ "targetedChecks": {
+  "workflow": ".github/workflows/build494-checks.yml",
+  "runner": "test/build494_targeted_test.py --part host | native",
+  "runs": [
+   {
+    "run": 39378255052,
+    "source": "ed887b13e51f4faeb5a026b8df3f215e014cd994",
+    "result": "failure",
+    "host": {
+     "job": 118481173282,
+     "result": "success"
+    },
+    "native": {
+     "job": 118481173159,
+     "result": "failure",
+     "reportArtifact": 12243644909,
+     "refusals": [
+      "macos en x1 legal (11 px): 0.750 < 0.85, and 0.977 with Build 493",
+      "iosSimulator fr x0.6 features (10.2 px): 0.902, 1.000 with Build 493 (last line \"d'aventure.\" lost)"
+     ],
+     "note": "first recognizer version: a single Vision pass with a 6 px minimum text height on small scans enlarged for Vision; it also read the 6.6 px legal print Build 493 misses on macOS (0.795, 0.907). No threshold was changed; the iPhone SDK type check was not reached."
+    }
+   },
+   {
+    "run": 39380576904,
+    "source": "7126f4a5b562f9f7aca2a74130fa09ae50216873",
+    "result": "success",
+    "usedByDeliveryGate": true,
+    "host": {
+     "job": 118488529474,
+     "result": "success",
+     "verdictArtifact": {
+      "id": 12245403763,
+      "name": "build494-host-7126f4a5b562f9f7aca2a74130fa09ae50216873",
+      "zipBytes": 12424,
+      "zipSHA256": "28c5dd50e4581de67c73a73a365e700be4c51605cbacb4c84ec5204b78700cd7"
+     }
+    },
+    "native": {
+     "job": 118488529101,
+     "result": "success",
+     "verdictArtifact": {
+      "id": 12245518390,
+      "name": "build494-native-7126f4a5b562f9f7aca2a74130fa09ae50216873",
+      "zipBytes": 237896,
+      "zipSHA256": "8d690580548ec0098b33e55062eba14f63ca69d578d84e03f0383604a07a8a00"
+     },
+     "twelveLanguages": "passed on macOS 15.7.9 and in the iOS 26.2 Simulator",
+     "smallPrint": {
+      "blocks": 60,
+      "belowBuild493": 0,
+      "gains": [
+       {
+        "platform": "macos",
+        "language": "en",
+        "scale": 0.6,
+        "block": "legal",
+        "fontPixels": 6.6,
+        "build493": 0.0,
+        "build494": 0.795
+       },
+       {
+        "platform": "macos",
+        "language": "fr",
+        "scale": 0.6,
+        "block": "legal",
+        "fontPixels": 6.6,
+        "build493": 0.0,
+        "build494": 0.907
+       }
+      ],
+      "iosSimulator": "all 30 blocks identical to Build 493 (no gain on these synthetic backs)"
+     },
+     "iphoneSDKTypeCheck": "passed (BoxTextRecognizer, BoxTranslator, NeoBoxReaderPlugin against the iPhone SDK and Flutter; two pre-existing await warnings in the unchanged BoxTranslator.swift)"
+    }
+   },
+   {
+    "run": 39382540613,
+    "source": "f61e1b9ab41bbf09eef478346b131890285f4700",
+    "result": "cancelled",
+    "note": "started by the tag move; its tested inputs are identical to 7126f4a5's"
+   }
+  ]
+ },
+ "delivery": {
+  "workflow": ".github/workflows/retroarch-delivery.yml",
+  "gate": ".github/diagnostics/gamebox494_delivery.py",
+  "attempts": [
+   {
+    "run": 39382247412,
+    "source": "7126f4a5b562f9f7aca2a74130fa09ae50216873",
+    "result": "failure",
+    "note": "stopped in the gate (checks and native jobs): GitHub lists a job whose name exceeds 100 characters under its first 97 and '...'; fixed by f61e1b9a (delivery wiring only)"
+   }
+  ],
+  "run": 39382565199,
+  "event": "workflow_dispatch",
+  "jobs": {
+   "checks": {
+    "job": 118494795178,
+    "result": "success",
+    "note": "Dart validation reused (exact locked input key); no suite rerun"
+   },
+   "native": {
+    "job": 118494794778,
+    "result": "success",
+    "note": "unchanged native evidence reused"
+   },
+   "cold": {
+    "job": 118495056333,
+    "result": "success",
+    "started": "2026-10-20T06:49:36Z",
+    "completed": "2026-10-20T07:05:27Z",
+    "releaseCompileSeconds": 343
+   },
+   "warm": "skipped"
+  },
+  "recipient": "build-utils/delivery-494-recipient.pem",
+  "recipientDerSHA256": "eb480accf3521ba3b896a162bd8ca35029eab96b03b8c3d499c734be320e961f",
+  "privateKey": "generated in the session container, never committed, destroyed after the handover",
+  "artifact": {
+   "id": 12246303875,
+   "name": "NeoStation-Build-494-f61e1b9ab41bbf09eef478346b131890285f4700-cold",
+   "zipBytes": 166168861,
+   "zipSHA256": "36a825d944e4fe6cfc9c507de9808432f8285cc4841e3b78bba22ba494445fd0",
+   "encryptedTarBytes": 166168096,
+   "encryptedTarSHA256": "a478fcc7e10ba896ce8047801de2838d17907103ba52c804402ca96d497e34ac",
+   "format": "AES-256-CBC PBKDF2 200000, key envelope RSA OAEP SHA256",
+   "expires": "2026-11-03"
+  },
+  "handover": "artifact downloaded on the maintainer's PC (gh), envelope opened in the session container, archive decrypted on the PC; the container cannot download artifacts (egress policy) and was not made to"
+ },
+ "ipa": {
+  "file": "NeoStation-Build494-f61e1b9ab41bbf09eef478346b131890285f4700-cold.ipa",
+  "bytes": 165924023,
+  "sha256": "8b2fbf5fb9ae7c9d06bdd3bc84ff44a9ffdd521b85929d42fe130d9a66770e29",
+  "equalTo": [
+   "SHA256SUMS",
+   "signed-payload-identity.json (ipaSha256, ipaBytes)",
+   "C:\\Users\\Coren\\Downloads\\NeoStation-Build494-f61e1b9a.ipa"
+  ],
+  "signedPayloadIdentity": {
+   "images": 74,
+   "allCompiledCodeAndDataSectionsUnchangedBySigning": true,
+   "abiMetadataUnchangedBySigning": true
+  },
+  "sideStoreAppleReSigningRequired": true
+ },
+ "independentInspection": {
+  "where": "maintainer's PC, PowerShell, against the delivered Build 493 IPA (23bf3020...)",
+  "members": {
+   "493": 4082,
+   "494": 4082,
+   "added": 0,
+   "removed": 0,
+   "changed": 29,
+   "changedCodeSignatureFiles": 8
+  },
+  "dusklightOrKartPadMemberNames": 0,
+  "bundles": "application and five extensions: 0.0.8, build 494 (no 493)",
+  "machO": {
+   "App.framework/App": "Dart AOT changed; markers present: GameBoxSharpScan, GameBoxSharpTexture, game_box_sharp_toggle, game_box_scan_sharp, game_box_sharp_text, NeoStation.GameBox.SharpText (portraitPanelShare is a constant folded into the compiled code, not present as text)",
+   "Runner": "39 sections differ: the neo_box_reader plugin is linked statically into Runner and its recognizer changed; the Vision selector setMinimumTextHeight: is present (absent from 493); PROJECT:Runner-494",
+   "bridgeStubs": "armsx2_internal_bridge (1,032), dolphin_internal_bridge (1,469), libretro_internal_bridge (2,349): only __stubs, __objc_stubs and the UUID differ; every stub decoded resolves to the same symbol or selector as in 493 (0 semantic differences); sources unchanged",
+   "identicalSections": [
+    "DolphinCore",
+    "ARMSX2JITHelper",
+    "DolphinJITHelper",
+    "NeoSwapDonor",
+    "NeoSwapPageRelay",
+    "RPCS3JITHelper"
+   ],
+   "note": "these six differ from 493 only by their signature and bundle version; every other member is byte-identical to 493 (34 libretro cores, ARMSX2Core, libRPCS3Core, MoltenVK, other frameworks)"
+  },
+  "otherChangedFiles": [
+   "Info.plist files (version 494)",
+   "Legal/BUILD_SOURCE_IDENTITY.json",
+   "NeoPlay-build-identity.json",
+   "flutter_assets/fonts/MaterialIcons-Regular.otf (Flutter icon tree-shaking output: the Sharp text button's icons auto_fix_high and auto_fix_off)"
+  ]
+ },
+ "coreRebuilt": false,
+ "deviceGameplayValidated": false
+}
