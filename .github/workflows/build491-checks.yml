@@ -1,0 +1,62 @@
+name: Build 491 targeted checks (Canvas ES-DE, KartPad removal)
+# Dispatched on the delivery commit (tag build-491): the delivery gate
+# .github/diagnostics/kartpad491_delivery.py reads the two verdicts of a
+# successful run on that exact commit and never reruns these suites.
+on:
+  workflow_dispatch:
+    inputs:
+      parts:
+        description: Parts to run
+        type: choice
+        options: [all, host, native]
+        default: all
+permissions: {contents: read, actions: read}
+concurrency:
+  group: build491-checks-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  host:
+    name: Analysis, delivery Dart suite, KartPad removal and Canvas checks
+    if: ${{ inputs.parts == 'all' || inputs.parts == 'host' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Changed inputs since Build 490, analysis, Dart and Python checks
+        run: python3 test/build491_targeted_test.py --part host
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build491-host-${{ github.sha }}
+          path: build/build491/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  native:
+    name: NeoPlay companion adapters in the iOS Simulator
+    if: ${{ inputs.parts == 'all' || inputs.parts == 'native' }}
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: NPCheck harness (every NeoPlay Swift source, companion tests)
+        run: python3 test/build491_targeted_test.py --part native
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build491-native-${{ github.sha }}
+          path: |
+            build/build491/native-verdict.json
+            build/build491/NPCheck.xcresult
+          if-no-files-found: ignore
+          retention-days: 14
