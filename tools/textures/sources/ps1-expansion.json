@@ -1,0 +1,124 @@
+[
+  {
+    "id": "ps1-linnaealyn-xenogears-perfect-art-works",
+    "family": "ps1-linnaealyn-xenogears-perfect-art-works",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Xenogears Perfect ART Works — linnaealyn",
+    "version": "1.8 AIO",
+    "games": [
+      {
+        "title": "Xenogears",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00664"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00669"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLPS-01160"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLPS-01161"
+          }
+        ],
+        "regions": [
+          "USA",
+          "Japan"
+        ]
+      }
+    ],
+    "authors": [
+      "linnaealyn"
+    ],
+    "page_url": "https://scientia.godsibb.net/t/xenogears-perfect-art-works-paw-retroarch-texture-pack/1158",
+    "source_id": "author:linnaealyn",
+    "licence": {
+      "summary": "No redistribution licence found; original download only.",
+      "redistribution": "Original author download only; no rehosting."
+    },
+    "credits": "linnaealyn",
+    "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
+    "notes": "Portrait and interface pack for the USA and Japanese editions. Installs the 399 default textures; optional alternatives are not mixed into them. The author warns against combining it with PWB face-resize, face-fix or PW Roni patches. Some new 1.8 UI replacements may require a newer Beetle core; full visual coverage on the embedded core has not been established.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://lifehold.godsibb.net/seafhttp/f/89ffdb1c690e48ac991f/?op=view",
+        "sha256": "f0ee62801b50c0f372be4b1f6e793b25dd26482917b6254aa89fc04a458aee15"
+      },
+      "in_app": true,
+      "file_name": "Xenogears-PAW-1.8-AIO.zip"
+    },
+    "install": {
+      "folders": [
+        {
+          "from": "[your .cue or .m3u file name here]-texture-replacements/",
+          "to": "{id}"
+        }
+      ]
+    },
+    "scope": "ui"
+  },
+  {
+    "id": "ps1-faospark-suikoden-ii-project-kyaro",
+    "family": "ps1-faospark-suikoden-ii-project-kyaro",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Suikoden II — Project Kyaro — Faospark",
+    "version": "2.6",
+    "games": [
+      {
+        "title": "Suikoden II",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00958"
+          }
+        ],
+        "regions": [
+          "USA"
+        ]
+      }
+    ],
+    "authors": [
+      "Faospark"
+    ],
+    "page_url": "https://sites.google.com/view/hub-of-faospark/project-kyaro",
+    "source_id": "author:faospark",
+    "licence": {
+      "summary": "No redistribution licence found; original download only.",
+      "redistribution": "Original author download only; no rehosting."
+    },
+    "credits": "Faospark",
+    "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
+    "notes": "The original PS1 Project Kyaro 2.6 portrait and interface pack for the USA edition. This is separate from the Project Kyaro Suite for the PC HD Remaster. Accented glyphs do not establish PAL compatibility.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://www.dropbox.com/s/uvnteyqqavkxwq2/Suikoden%20II%20%28USA%29-texture-replacements.zip?dl=1",
+        "sha256": "c39266d573fee304ef30fdb82f8358ec6a8d127b77401a127e984b7953168070"
+      },
+      "in_app": true,
+      "file_name": "Suikoden II (USA)-texture-replacements.zip"
+    },
+    "install": {
+      "folders": [
+        {
+          "from": "Suikoden II (USA)-texture-replacements/",
+          "to": "{id}"
+        }
+      ]
+    },
+    "scope": "partial"
+  }
+]
