@@ -141,6 +141,9 @@ def probes(index):
           candidate=['ps1-sombertwilight-clock-tower-the-first-fear'])  # identity candidate, no archive or translation proof
     probe(ps1('SCUS-94455', 'Gran Turismo 2'), 'beetle',
           candidate=['ps1-cac-gamer-gran-turismo-2-tahiti-x8'])  # verified partial archive, USA Arcade v1.1 confirmation retained
+    survivor = 'ps1-leigiboy-resident-evil-survivor-hq'
+    probe(ps1('SLUS-01087', 'Resident Evil: Survivor'), 'beetle', candidate=[survivor])  # author page, no installed archive
+    probe(ps1('SLES-02744', 'Resident Evil: Survivor'), 'beetle', candidate=[survivor])  # French edition is not established by USA filename
     return wanted
 
 

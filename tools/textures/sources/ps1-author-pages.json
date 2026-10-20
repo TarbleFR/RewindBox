@@ -671,5 +671,45 @@
       "automatable": false
     },
     "scope": "partial"
+  },
+  {
+    "id": "ps1-leigiboy-resident-evil-survivor-hq",
+    "family": "ps1-leigiboy-resident-evil-survivor-hq",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Resident Evil: Survivor HQ — LeigiBoy",
+    "version": "public file 2025-10-09; archive unverified",
+    "games": [
+      {
+        "title": "Resident Evil: Survivor",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-01087"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "LeigiBoy"
+    ],
+    "page_url": "https://www.moddb.com/mods/re-survivor-hq-texture-pack",
+    "source_id": "author:leigiboy",
+    "licence": {
+      "summary": "No redistribution licence established; original author page only.",
+      "redistribution": "Author-hosted ModDB release only; no rehosting or access to private Patreon files."
+    },
+    "credits": "LeigiBoy / Leigiboy",
+    "requirements": "Beetle PSX HW with Vulkan. Original author file listing only; no archive installation or physical iPhone rendering validated.",
+    "notes": "Author final-update post explicitly identifies HW Beetle. The public ModDB USA texture-replacements RAR is listed as 718086365 bytes. Retrieved download redirect returned HTTP410; archive contents and actual availability remain unverified. Author reports missing character/enemy replacements and problems with animated screens, palettes and switches. A later public Patreon post mentions a DuckStation update, without a recovered public DuckStation file; do not treat the engines as interchangeable. USA serial is a database candidate requiring edition confirmation; no PAL/French compatibility established.",
+    "download": {
+      "automatable": false
+    },
+    "scope": "partial"
   }
 ]
