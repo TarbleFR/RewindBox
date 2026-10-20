@@ -15,6 +15,7 @@ partial class Library
     private static readonly EmbeddedSessionCoordinator EmbeddedSessions = new();
     private static readonly object EmbeddedHostGate = new();
     private static Options EmbeddedPreparedOptions;
+    internal static void WithdrawEmbeddedControls() => EmbeddedSessions.WithdrawControls();
 
     [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_session_abi")]
     public static int EmbeddedSessionAbi() => 1;
@@ -58,17 +59,15 @@ partial class Library
                 string extension = Path.GetExtension(path).ToLowerInvariant();
                 if (extension != ".nro" && extension != ".nso" && extension != ".nsp" && extension != ".xci") return -2;
                 Options options = EmbeddedOptions(Path.GetFullPath(path), locale, width, height);
+                if (EmbeddedSessions.State != 0) return -1;
+                // Native Npad disposal disconnects its pad objects. A new
+                // host view reattaches fresh pads after this reservation.
+                foreach (var pad in ((NativeGamepadDriver)_inputManager.GamepadDriver).GetGamepads().ToArray())
+                    NativeGamepadDriver.DetachGamepad((nint)Convert.ToInt64(pad.Id, 16));
+                lock (inputConfigurationLock) _inputConfiguration.Clear();
+                NativeTouchDriver.ResetEmbeddedTouches();
                 long generation = EmbeddedSessions.Prepare();
-                if (generation > 0)
-                {
-                    // Native Npad disposal disconnects its pad objects. A new
-                    // host view reattaches fresh pads after this reservation.
-                    foreach (var pad in ((NativeGamepadDriver)_inputManager.GamepadDriver).GetGamepads().ToArray())
-                        NativeGamepadDriver.DetachGamepad((nint)Convert.ToInt64(pad.Id, 16));
-                    lock (inputConfigurationLock) _inputConfiguration.Clear();
-                    NativeTouchDriver.ResetEmbeddedTouches();
-                    EmbeddedPreparedOptions = options;
-                }
+                if (generation > 0) EmbeddedPreparedOptions = options;
                 return generation;
             }
         }

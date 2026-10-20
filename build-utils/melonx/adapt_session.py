@@ -148,7 +148,7 @@ def apply(source):
             InitializeWindow();
             _embeddedLifetime.Run(MainLoop, Render, () =>
             {
-                EmbeddedSessions.WithdrawControls();
+                Library.WithdrawEmbeddedControls();
                 _gpuCancellationTokenSource.Cancel();
                 Device.System.Dispose();
             }, () =>

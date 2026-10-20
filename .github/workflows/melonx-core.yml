@@ -35,10 +35,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 build-utils/melonx/check_bootstrap.py
       - name: Execute session ownership and render teardown
-        run: |
-          set -euo pipefail
-          mkdir -p dist/melonx
-          python3 test/melonx_session_test.py | tee dist/melonx/session-checks.log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 build-utils/melonx/check_session.py
       - uses: actions/download-artifact@v4
         with:
           name: MeloNX-engine-56aeec6722a93f07bbdc05a4576e71cebc93702b
