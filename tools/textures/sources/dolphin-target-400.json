@@ -136,6 +136,6 @@
   },
   "family": "wii-kirby-return-to-dream-land-vicmuller",
   "scope": "partial",
-  "notes": "Creator discontinued this incomplete upscale. Current original GameBanana ZIP reissues the unfinished textures with an updated tutorial; the older 7z and MediaFire links are not extra families. Creator instructions explicitly name USA SUKE01. Optional classic Poppy Bros Jr. and alternate Kirby styles must not be merged automatically. Archive structure and native import are pending. No complete-game, PAL, French or iPhone rendering claim."
+  "notes": "Creator discontinued this incomplete upscale. The current original GameBanana ZIP passed production import: only KRTDL HD/SUKE01/ is selected (153 tex1 PNGs, 21,538,573 bytes); optional classic Poppy Bros Jr. and alternate Kirby styles outside that subtree are not merged. Updated tutorial reissue is not a new family; old 7z/MediaFire versions are not listed again. Creator explicitly names USA SUKE01. No complete-game, PAL, French or iPhone rendering claim."
  }
 ]

@@ -175,7 +175,29 @@
         "https://forums.dolphin-emu.org/Thread-f-zero-gx-hd-05-01-2022",
         "https://forums.dolphin-emu.org/Thread-f-zero-gx-hd-texture-pack?highlight=F-zero+gx&pid=370439"
       ],
-      "f_zero_result": "Both official-wiki-linked original creator threads return bot challenges; no additional file or native import inferred."
+      "f_zero_result": "Both official-wiki-linked original creator threads return bot challenges; no additional file or native import inferred.",
+      "donkey_kong_country_returns": {
+        "creator": "CTCaer",
+        "primary_page": "https://forums.dolphin-emu.org/Thread-wii-fhd-donkey-kong-country-returns-hd-textures-mod-v1-4?page=16",
+        "result": "Official creator thread is protected; secondary directories identify v1.4 but no original archive URL/permission can be checked. Existing sinceohsix reupload remains excluded; no creator file or native installation inferred."
+      }
+    },
+    "remaining_batch_2": {
+      "run": 39416632997,
+      "records": 34,
+      "native_ok": 6,
+      "retained_hd": [
+        "ps2-ktx-room-zoom-race-for-impact-mehrdad-jamshidiha",
+        "ps2-ktx-silent-line-armored-core-ninebreaker",
+        "ps2-ktx-ssx-3-whitelightning76",
+        "ps2-ktx-the-x-files-resist-or-serve-teodor-max"
+      ],
+      "withheld": [
+        "ps2-ktx-ratchet-and-clank-up-your-arsenal-theblazingdiamond",
+        "ps2-ktx-tony-hawk-s-pro-skater-3-headfonehead"
+      ],
+      "additional_adaptation": "WWE HCTP LLP998 is specifically for nero619’s HCTP 2x game mod, with mutually exclusive High Fidelity/Remacri versions and duplicate texture paths in the combined ZIP. Native plan refuses duplicate names; never mix variants or present it as a base-game pack. No second archive test needed.",
+      "shadow_of_colossus_resolution": "Original creator now links Ko-fi shop; old resolver selected a spreadsheet instead of a pack. CI-only spreadsheet URL removed; current price/file/terms remain unverified, no checkout or alternate-host download attempted."
     }
   },
   "entries": [

@@ -540,6 +540,26 @@
       "records": 1,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original creator PAL Alone in the Dark archive)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39426288197,
+      "source": "97871b79e054d9fda75633f4deb08bc874142ba8",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original vicmuller Kirby Wii cancelled WIP ZIP)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39416632997,
+      "source": "ba76f09f93ff74885d7b82146e46388ca70fcece",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 34,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, remaining-only batch 2/3; six native successes, four genuine HD families retained)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]
 }

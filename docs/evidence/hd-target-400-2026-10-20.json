@@ -4,10 +4,10 @@
   "baseline_revision": "2026-10-20.809cfd2df68f",
   "baseline_families": 295,
   "checkpoint": true,
-  "revision": "2026-10-20.11f9dcd38dec",
-  "manifest_sha256": "f7b1307354915f5f123ff9d119173e32dbef99fd7702540cd87324489158c9f6",
-  "runtime_entries": 1082,
-  "sources": 439,
+  "revision": "2026-10-20.300615317c86",
+  "manifest_sha256": "e0c191992e47fc58682271908f7e2835b4c2f066936e567682fb1eb373a58216",
+  "runtime_entries": 1083,
+  "sources": 440,
   "counts": {
     "gc": {
       "distinct": 77,
@@ -21,15 +21,15 @@
       "games": 54
     },
     "wii": {
-      "distinct": 42,
-      "entries": 64,
+      "distinct": 43,
+      "entries": 65,
       "variants": 22,
       "complete": 24,
-      "partial": 5,
+      "partial": 6,
       "ui": 13,
       "oneTapFamilies": 14,
-      "manualVerifiedFamilies": 28,
-      "games": 32
+      "manualVerifiedFamilies": 29,
+      "games": 33
     },
     "3ds": {
       "distinct": 47,
@@ -54,15 +54,15 @@
       "games": 108
     },
     "ps2": {
-      "distinct": 69,
-      "entries": 83,
+      "distinct": 73,
+      "entries": 87,
       "variants": 14,
-      "complete": 43,
-      "partial": 17,
+      "complete": 45,
+      "partial": 19,
       "ui": 9,
       "oneTapFamilies": 33,
-      "manualVerifiedFamilies": 36,
-      "games": 80
+      "manualVerifiedFamilies": 40,
+      "games": 84
     },
     "n64": {
       "distinct": 14,
@@ -98,18 +98,18 @@
       "games": 4
     },
     "total": {
-      "distinct": 344,
-      "entries": 429,
+      "distinct": 349,
+      "entries": 434,
       "variants": 85,
-      "complete": 215,
-      "partial": 59,
+      "complete": 217,
+      "partial": 62,
       "ui": 70,
       "oneTapFamilies": 161,
-      "manualVerifiedFamilies": 183,
-      "games": 343
+      "manualVerifiedFamilies": 188,
+      "games": 348
     }
   },
-  "exact_ci_records": 194,
+  "exact_ci_records": 229,
   "artifacts": [
     {
       "run": 39407659263,
@@ -266,6 +266,18 @@
       "artifact": 12265009304,
       "console": "ps2",
       "sha256": "456452057d127eb07e230fb7847a383464d3042b9d53ca08bc79dd2a09351751"
+    },
+    {
+      "run": 39426288197,
+      "artifact": 12266735473,
+      "console": "dolphin",
+      "sha256": "e47d1cd28c9118507605b482b9147362e5d21e3d5aea1ad8b8f0b8fe1b2f3762"
+    },
+    {
+      "run": 39416632997,
+      "artifact": 12266241858,
+      "console": "ps2",
+      "sha256": "69c442e92969ea3e56a8120f8b5eeab23a91d061bf7f7a21b9b463c437d1fdd5"
     }
   ],
   "research_artifacts": [
@@ -291,7 +303,6 @@
     }
   ],
   "ps2_pending_runs": [
-    39416632997,
     39416642896
   ],
   "switch_runtime": 0,
@@ -307,9 +318,9 @@
     "targeted_checks": "texture_verify_checks_test.py passed with the changed verifier import; Python compilation passed. Full unchanged app/core suites not repeated.",
     "real_archive_reverification_run": 39411315570
   },
-  "new_installable_families": 49,
-  "new_installable_profiles": 52,
-  "current_candidate_records": 180,
+  "new_installable_families": 54,
+  "new_installable_profiles": 57,
+  "current_candidate_records": 215,
   "superseded_records": 14,
   "baseline_installable_pack_objects_unchanged": true,
   "baseline_verification_records_unchanged": true,
@@ -339,15 +350,15 @@
     "result": "Prince of Persia passes native import with provider-matching SHA-256; God of War times out and is not promoted."
   },
   "observation_status_counts": {
-    "ok": 66,
+    "ok": 73,
     "tooLarge": 2,
-    "protected": 53,
-    "unsupportedArchive": 40,
-    "gone": 19,
-    "html": 3,
-    "quota": 7,
-    "install": 1,
-    "unsupported": 1,
+    "protected": 64,
+    "unsupportedArchive": 49,
+    "gone": 23,
+    "html": 4,
+    "quota": 8,
+    "install": 2,
+    "unsupported": 2,
     "network": 2
   }
 }

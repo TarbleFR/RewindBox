@@ -704,7 +704,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Creator WIP, 8,992 PNG replacements. Actual archive and production import name SLUS-20986 only; no SLUS-21079 second-disc coverage is attested. USA only, no PAL or French compatibility inferred. No iPhone rendering validated.",
+  "notes": "Creator WIP, 8,992 PNG replacements. Actual archive and production import name SLUS-20986 only; no SLUS-21079 second-disc coverage is attested. USA only, no PAL or French compatibility inferred. No iPhone rendering validated. The verified target SLUS-20986 is Disc 1 in the official PCSX2 database; no second-disc target is validated.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/armored-core-nexus-hd-texture-pack-slus-20986.668534/",
@@ -9498,7 +9498,7 @@
  },
  {
   "id": "ps2-ktx-ratchet-and-clank-up-your-arsenal-theblazingdiamond",
-  "title": "Ratchet and Clank: Up Your Arsenal",
+  "title": "Ratchet & Clank: Up Your Arsenal — Robo’s Paint Job (palette edit, not HD)",
   "version": "See the creator's page",
   "games": [
    {
@@ -9508,11 +9508,6 @@
       "type": "serial",
       "scheme": "ps2-disc-serial",
       "value": "SCUS-97353"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SCUS-97518"
      }
     ],
     "regions": [
@@ -9530,19 +9525,16 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "The original creator explicitly says this is NOT an HD texture pack: it recolours weapons, gadgets and other assets to match the Robo Skin. Production import of 816 PNGs succeeds for the creator-attested USA SCUS-97353, but the verified HD availability is withheld because it is a palette modification. The inferred extra edition is removed. Kept as a clearly labelled reference, not counted toward the HD target.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/ps2-ratchet-and-clank-up-your-arsenal-ntsc-us-robos-paint-job-texture-pack.665855/",
-   "verify": {
-    "url": "https://drive.google.com/file/d/1OJ2rD21wYS0lPcmeFck5DUgznQZBUhFn/view?usp=sharing"
-   }
+   "page": "https://gbatemp.net/threads/ps2-ratchet-and-clank-up-your-arsenal-ntsc-us-robos-paint-job-texture-pack.665855/"
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/theblazingdiamond.736234/",
-  "scope": "complete"
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-ratchet-clank-ironhulk33-2",
@@ -10092,7 +10084,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original archive identifies SLES-52603; production import passes on CI run 39416632997 with no region conflict. No other region or iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/room-zoom-race-for-impact-hd-texture-pack.667832/",
@@ -12558,16 +12550,13 @@
   "page_url": "https://gbatemp.net/threads/shadow-of-the-colossus-usa-eu-origami-remaster.641597/",
   "source_id": "creator:Sad Origami",
   "licence": {
-   "summary": "Free on the creator's page; no licence recorded",
+   "summary": "Current original distribution points to the creator’s Ko-fi shop; price, exact file and terms unverified",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Original creator post updated 2026-03-12 points to the author’s Ko-fi shop and future Project Tribute work. The earlier resolver incorrectly selected a Google spreadsheet, not a downloadable texture archive; the failed probe remains evidence and its CI-only URL is removed. A directory’s old free label does not establish current shop terms. No file, game edition beyond the existing tentative PAL reference, or native import is verified.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/shadow-of-the-colossus-usa-eu-origami-remaster.641597/",
-   "verify": {
-    "url": "https://docs.google.com/spreadsheets/d/1sif8FeRGJRbytK8wFRXgF6Hke9V6GUFs/"
-   }
+   "page": "https://gbatemp.net/threads/shadow-of-the-colossus-usa-eu-origami-remaster.641597/"
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -12818,7 +12807,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original archive identifies SLUS-20644; production import passes on CI run 39416632997 with no region conflict. No other region or iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/armored-core-silent-line-hd-texture-slus-20644.667686/",
@@ -23823,7 +23812,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original archive identifies SLUS-20772; production import passes on CI run 39416632997 with no region conflict. No other region or iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/ssx-3-slus-20772.624220/",
@@ -25251,7 +25240,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The flat original archive is explicitly USA; the creator’s opening post identifies SLUS-20179. Production import passes on CI run 39416632997. No additional region or iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/the-x-files-resist-or-serve-hd-texture-pack.641203/",
@@ -25463,13 +25452,10 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Native import of 2,557 PNGs succeeds, but the flat ZIP has no serial, its filename specifies no region, and the original creator post provides no regional or exact disc evidence. The list’s inferred PAL/Japan/USA IDs do not prove coverage. Withheld from verified import and the family counter until the exact edition is attested; no arbitrary folder rename or new region claim.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/tony-hawk-pro-skater-3.625777/",
-   "verify": {
-    "url": "https://drive.google.com/file/d/1RmN7erLbTJtjKMTwCe-i1vZNHza5t8ik/view"
-   }
+   "page": "https://gbatemp.net/threads/tony-hawk-pro-skater-3.625777/"
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -26161,7 +26147,7 @@
  },
  {
   "id": "ps2-ktx-wwe-smackdown-here-comes-the-pain-llp998",
-  "title": "WWE SmackDown! Here Comes the Pain",
+  "title": "WWE SmackDown! Here Comes the Pain — HCTP 2x mod textures (adaptation required)",
   "version": "See the creator's page",
   "games": [
    {
@@ -26170,22 +26156,10 @@
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SLES-52036"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLKA-25116"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
       "value": "SLUS-20787"
      }
     ],
     "regions": [
-     "Europe",
-     "Korea",
      "USA"
     ],
     "confirm": true
@@ -26200,13 +26174,10 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, work in progress. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "The original creator explicitly requires nero619’s HCTP 2x game modification; this is not a vanilla-game HD pack. High Fidelity and Remacri are mutually exclusive alternatives. The original combined ZIP is refused by the production importer because it contains duplicate texture names; its native plan identifies SLUS-20787. Region metadata alone cannot detect the required game modification. Keep as an unavailable adaptation reference, not an installable family. No native limits are relaxed and no variants are silently combined.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/wwe-smackdown-here-comes-the-pain-upscaled-texture-pack-for-hctp-2x-mod-v2-coming-soon-read-post-for-more.680129/",
-   "verify": {
-    "url": "https://drive.google.com/file/d/1_eHocyq_GwlfJeoUqXSoAoUlm5ClZ1ab/view?usp=sharing"
-   }
+   "page": "https://gbatemp.net/threads/wwe-smackdown-here-comes-the-pain-upscaled-texture-pack-for-hctp-2x-mod-v2-coming-soon-read-post-for-more.680129/"
   },
   "system": "ps2",
   "engine": "armsx2",

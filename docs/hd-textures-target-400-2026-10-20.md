@@ -1,6 +1,6 @@
 # HD catalogue — progress toward 400 installable families
 
-The maintainer’s target is **400 installable families**, starting from **295** at catalogue `2026-10-20.809cfd2df68f`. The current verified result reaches **344** (+49 families, 52 installable archive profiles). Two original-archive batches remain in progress and contribute zero until their results and regional evidence are reviewed. The target is not yet reached; **56 families remain**.
+The maintainer’s target is **400 installable families**, starting from **295** at catalogue `2026-10-20.809cfd2df68f`. The current verified result reaches **349** (+54 families, 57 installable archive profiles). One original-archive batch remains in progress and contributes zero until its results and regional evidence are reviewed. The target is not yet reached; **51 families remain**.
 
 Only the existing unified catalogue is used. `count_packs.py` is unchanged: resolutions, formats, mirrors, regional folders and components of one project do not create extra families. A live author page, a RAR listing, a successful ZIP download without a valid installation, or a graphics patch is not an installable family.
 
@@ -99,6 +99,21 @@ The three corrected-target checks preserve the exact same original archive hashe
 
 Yandex support is limited to CI verification of an anonymously shared single file through its standard public-resource API. Provider size bounds and SHA-256 are checked; quotas, restrictions and folders stop the attempt, and temporary CDN URLs are discarded. Seven focused local tests pass, as do the existing sixteen verification-tool checks. The original Prince of Persia archive proves the successful path with the production importer; God of War’s original ZIP times out and is not promoted. The application still opens the author’s page for manual download.
 
+## Kirby Wii and remaining batch 2
+
+[Kirby’s Return to Dream Land — vicmuller](https://gamebanana.com/mods/503551) adds one partial Wii family. This cancelled project’s original updated ZIP installs only `KRTDL HD/SUKE01/`: 153 PNG textures, 21.54 MB. Optional Poppy Bros Jr. and Kirby variants are outside the selected subtree and are not merged. The original CC BY-NC-ND 4.0 / creator checklist allows downloading and installing; NeoStation does not rehost or modify the archive. Only USA `SUKE01` is attested.
+
+The second remaining PS2 batch completes 34 real observations. Four HD families are retained:
+
+| Project | Exact target | Native archive result |
+|---|---|---|
+| Room Zoom: Race for Impact — Mehrdad Jamshidiha | PAL `SLES-52603` | 8,328 PNGs, 2.73 GB installed; internal serial agrees; coverage partial. |
+| Silent Line: Armored Core — NineBreaker | USA `SLUS-20644` | 12,558 PNGs, 11.72 GB installed; internal serial agrees. |
+| SSX 3 — whitelightning76 | USA `SLUS-20772` | 545 PNGs, 351 MB installed; internal serial agrees; coverage partial. |
+| The X-Files: Resist or Serve — TEODOR_MAX | USA `SLUS-20179` | 7,830 RGBA DDS textures, 9.98 GB installed; flat original USA archive, exact serial attested by the original creator. |
+
+Two native successes stay outside the HD counter. TheBlazingDiamond explicitly describes Robo’s Paint Job as a palette recolouring, not an HD pack; its native 816-PNG import is evidence of extraction only, and the reference is relabelled accordingly. Headfonehead’s THPS3 ZIP installs 2,557 PNGs, but the flat archive and creator post provide no exact regional edition: the inferred PAL/Japan/USA list is not accepted as compatibility proof. The HCTP 2x pack is specifically for nero619’s game modification, has mutually exclusive High Fidelity/Remacri alternatives, and the combined ZIP triggers duplicate-path refusal; it requires adaptation and is not a vanilla-game installable family.
+
 ## Research and the remaining gap
 
 - The first large run was stopped after 104 completed JSONL observations to preserve the results before the job ceiling. The remaining 102 IDs with no completed observation were split into three batches of 34; four other IDs already had dedicated original-archive results. No known quota, protection or format failure is retried.
@@ -132,8 +147,8 @@ Switch remains research metadata only, with **zero runtime packs**, no engine ac
 
 ## Checkpoint verification
 
-The exact records match the downloaded GitHub artifact JSON and the listed artifact ZIP SHA-256 digests: **194 raw observations / 180 candidate IDs / 26 artifact ZIPs**, with **14 superseded observations** retained verbatim in research. Only **52 new installation profiles / 49 families** count. The first bulk run preserves 104 completed observations; remaining batch 1 preserves 34, with all three corrected targets verified separately. Batches 2 and 3 (`39416632997`, `39416642896`) remain pending and uncounted. Failed/protected/unsupported observations remain evidence; a download or simulated wrong-disc import does not become compatibility proof. Exact source revisions, artifact IDs and hashes are in the [evidence JSON](evidence/hd-target-400-2026-10-20.json).
+The exact records match the downloaded GitHub artifact JSON and the listed artifact ZIP SHA-256 digests: **229 raw observations / 215 candidate IDs / 28 artifact ZIPs**, with **14 superseded observations** retained verbatim in research. Only **57 new installation profiles / 54 families** count. The first bulk run preserves 104 completed observations; remaining batches 1 and 2 preserve 34 each, with three corrected targets verified separately. Batch 3 (`39416642896`) remains pending and uncounted. Failed, non-HD and region-ambiguous observations remain evidence rather than verified HD availability. Exact source revisions, artifact IDs and hashes are in the [evidence JSON](evidence/hd-target-400-2026-10-20.json).
 
-`build_catalogue.py --check` passes at this checkpoint. Both manifest copies are identical. Every baseline installable pack object (377 profiles), every original verification record and all 1,072 original IDs remain unchanged/present. The current generated revision is `2026-10-20.11f9dcd38dec`, with 1,082 entries and 439 sources. The 344 installable families comprise 161 one-tap and 183 verified manual families. The counter is unchanged. Targeted verifier/publication/provider tests cover changed Python code; unchanged application/core suites are not repeated. No iPhone rendering is validated.
+`build_catalogue.py --check` passes at this checkpoint. Both manifest copies are identical. Every baseline installable pack object (377 profiles), every original verification record and all 1,072 original IDs remain unchanged/present. The current generated revision is `2026-10-20.300615317c86`, with 1,083 entries and 440 sources. The 349 installable families comprise 161 one-tap and 188 verified manual families. The counter and native engine/adapter sources are unchanged from the 295-family baseline `4850653`. Targeted verifier/publication/provider tests cover changed Python code; unchanged application/core suites are not repeated. No iPhone rendering is validated.
 
 A Chicken Little candidate was found to duplicate an already verified baseline pack at the same creator commit; it was removed and its redundant run cancelled. The baseline pack and its original record are unchanged. No extra family is counted.
