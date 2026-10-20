@@ -29,10 +29,10 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories, releases, hosts, discover, links, cores, summarize, research, direct]
+        options: [all, host, native, uikit, repositories, releases, hosts, discover, links, cores, summarize, research, direct, direct-native]
         default: all
       only:
-        description: 'repositories, releases, hosts: comma-separated pack ids (empty: every pack without a record)'
+        description: 'repositories/releases/hosts: pack ids; direct-native: providers,store,sdk,network checks'
         type: string
         default: ''
       run:
@@ -366,7 +366,7 @@ jobs:
 
   direct_native:
     name: Public host resolvers, native installation and iPhone compilation
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'direct' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.parts == 'direct' || inputs.parts == 'direct-native') }}
     runs-on: macos-15
     timeout-minutes: 90
     steps:
@@ -379,6 +379,7 @@ jobs:
           python3 -m venv build/hd-direct400/venv
           build/hd-direct400/venv/bin/pip install --disable-pip-version-check cryptography
       - name: New provider, cryptography and compatibility fixtures
+        if: ${{ inputs.only == '' || contains(inputs.only, 'providers') }}
         run: |
           build/hd-direct400/venv/bin/python test/texture_host_resolver_test.py
           build/hd-direct400/venv/bin/python test/texture_mega_native_test.py
@@ -389,7 +390,7 @@ jobs:
           build/hd-direct400/venv/bin/python test/texture_catalog_native_test.py
           build/hd-direct400/venv/bin/python test/texture_catalog_ios_syntax_test.py
       - name: Small real original files through the native download and install path
-        if: success()
+        if: ${{ success() && (inputs.only == '' || contains(inputs.only, 'network')) }}
         run: build/hd-direct400/venv/bin/python test/texture_direct_network_test.py --input tools/textures/research/direct400-network-probes.json --out build/hd-direct400/native-network-results.json
       - uses: actions/upload-artifact@v4
         if: always()
