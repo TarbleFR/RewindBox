@@ -1,0 +1,76 @@
+{
+  "build": 491,
+  "version": "0.0.8 (491)",
+  "product": "delivered Build 490 (d152e5a2) + Canvas (ES-DE) System Art + complete KartPad removal",
+  "targetedChecks": {
+    "workflow": "build491-checks.yml",
+    "run": 39349740393,
+    "source": "59bec98c31741c010d827dd2b58949244eb93431",
+    "jobs": {
+      "host": 118390848595,
+      "native": 118390848905
+    },
+    "result": "success"
+  },
+  "undeliveredFirstDelivery": {
+    "run": 39350746416,
+    "source": "59bec98c31741c010d827dd2b58949244eb93431",
+    "artifact": 12233906099,
+    "artifactBytes": 186674077,
+    "artifactSHA256": "12f989d5f64f97665e166433b553a52a7bb6a30df74d8f9c19e248f583fb962c",
+    "recipient": "build-utils/delivery-424-recipient.pem",
+    "preSealIpaSHA256": "c02024fcfe3e19e9764ac7eb5b0ce3a79c050ca7b221798c9cb1947bc4d4f7a3",
+    "reason": "the maintainer deleted the 424 private key; this artifact cannot be decrypted"
+  },
+  "delivery": {
+    "workflow": "retroarch-delivery.yml",
+    "run": 39353891715,
+    "source": "9faa3f9b07f93b4fdca19a0a325a9180fe75b20f",
+    "jobs": {
+      "checks": 118404161815,
+      "native": 118404161606,
+      "cold": 118404417119
+    },
+    "warm": "skipped",
+    "gate": ".github/diagnostics/kartpad491_delivery.py",
+    "coreRebuilt": false,
+    "preSealIpaSHA256": "f64495cfdd1ca2dc359e74bd2df95a3881a4c79007cdcb524bb2993a4dfad9cc",
+    "preSealMembersInspected": 4521,
+    "artifact": 12235290471,
+    "artifactBytes": 186674205,
+    "artifactSHA256": "7d1c001cfe3488fa09a048c5d6c5ba9269a66c2769152c5e244995ac62285e64",
+    "artifactExpires": "2026-11-03",
+    "recipient": "build-utils/delivery-491-recipient.pem",
+    "privateKeyDeletedAfterHandover": true
+  },
+  "ipa": {
+    "name": "NeoStation-Build491-9faa3f9b07f93b4fdca19a0a325a9180fe75b20f-cold.ipa",
+    "bytes": 186428464,
+    "sha256": "ad3963793fc4ca19b89f46613f9cdf139ec5c5bfa202d0132e7698413aeb894e",
+    "matches": [
+      "SHA256SUMS",
+      "signed-payload-identity.json"
+    ],
+    "windowsCopy": "C:\\Users\\Coren\\Downloads\\NeoStation-Build491-9faa3f9b.ipa"
+  },
+  "independentInspection": {
+    "host": "maintainer PC, Python 3.13.7",
+    "validateNoKartPad": "passed, 4661 members",
+    "bundleVersions": "six bundles 0.0.8 (491)",
+    "frameworks": 72,
+    "dartMarkersPresent": [
+      "CanvasESDE",
+      "zenandiko/canvas-es-de",
+      "12d03b1856b892497a3fa1c943888c1f542f9236",
+      "kartpadRemoved"
+    ],
+    "dartMarkersAbsent": [
+      "neostation/kartpad_internal",
+      "ios_kartpad_internal"
+    ],
+    "negativeControl": "public 0.0.8 IPA (Build 480) refused by the same verifier",
+    "imageComparisonWith490": "not done: the Build 490 IPA no longer exists on the PC"
+  },
+  "deviceValidated": false,
+  "sideStoreResigningRequired": true
+}
