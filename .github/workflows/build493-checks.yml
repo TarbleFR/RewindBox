@@ -1,0 +1,41 @@
+name: Build 493 targeted checks (3D boxes in the three views, manual in the box)
+# Run on the delivery commit (Claude; the session cannot push tags): the delivery gate
+# .github/diagnostics/gamebox493_delivery.py reads the verdict of a successful
+# run on that exact commit (or on an ancestor differing only by records) and
+# never reruns these suites. A new workflow cannot be dispatched before it
+# reaches the default branch (main, not modified here): a push of its own
+# files on Claude starts it.
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - test/build493_targeted_test.py
+      - .github/workflows/build493-checks.yml
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+concurrency:
+  group: build493-checks-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  host:
+    name: Analysis, delivery Dart suite, game box and library view checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Changed inputs since Build 492, analysis, Dart and Python checks
+        run: python3 test/build493_targeted_test.py --part host
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build493-host-${{ github.sha }}
+          path: build/build493/
+          if-no-files-found: ignore
+          retention-days: 14
