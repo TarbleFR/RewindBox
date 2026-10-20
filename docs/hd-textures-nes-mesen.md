@@ -254,7 +254,9 @@ au § 7.
     `test/libretro_host/frontend/cheat_automatic_test.m` (lignes 78 et 108,
     triches PSX/FFVII de Beetle), identiques avant ce cycle (`e4b6802a`) ;
   - triches unifiées, run `39371944494` (`31222605`) : réussi, effets réels
-    des cœurs compris.
+    des cœurs compris ;
+  - stabilité NES (100 lancements, skin d'origine sur le vrai Nestopia,
+    sanitizers mémoire), run `39373940562` (`8d1429cf`) : réussi.
 - Porte de livraison `.github/diagnostics/hdtex495_delivery.py` : source
   testée `8d1429cf`, preuves ci-dessus ; la Build 494 livrée (source, run) y
   est épinglée quand elle existe.
