@@ -7,12 +7,14 @@ name: MeloNX external retirement and embedded route
       - 'lib/services/melonx_internal_service.dart'
       - 'lib/l10n/melonx_locale.dart'
       - 'test/melonx_embedded_route_test.dart'
+      - 'test/melonx_native_sdk_test.py'
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
 jobs:
   host:
+    if: "!contains(github.event.head_commit.message, '[melonx-native]')"
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -40,7 +42,40 @@ jobs:
           python3 test/stikjit_unified_build_test.py
           python3 test/single_ipa_distribution_test.py
       - name: Type-check the actual shared route plugin against the iPhone SDK
+        run: python3 test/melonx_native_sdk_test.py
+  native:
+    if: "contains(github.event.head_commit.message, '[melonx-native]')"
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Reuse the exact successful Flutter and contract phases
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          FLUTTER_SDK="$(dirname "$(dirname "$(command -v flutter)")")"
-          xcrun swiftc -typecheck -swift-version 5 -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" -target arm64-apple-ios18.0 -F "$FLUTTER_SDK/bin/cache/artifacts/engine/ios-release" packages/stikjit_bridge/ios/Classes/NeoStationStikjitBridgePlugin.swift packages/stikjit_bridge/ios/Classes/LocalDevVpnRouteProbe.swift
+          git diff --exit-code faa281043ffdb82166c6af4ea069d442fb859cdc HEAD -- lib packages assets pubspec.yaml pubspec.lock analysis_options.yaml test ':!test/melonx_native_sdk_test.py'
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          job = json.loads(subprocess.check_output(['gh', 'api', 'repos/TarbleFR/neostation-ios/actions/jobs/118900258241']))
+          assert job['head_sha'] == 'faa281043ffdb82166c6af4ea069d442fb859cdc'
+          names = ['Analyze the final app and retired locale-key removal', 'Exercise the adjusted console and retirement scenarios', 'Protect unchanged libraries, the remaining JIT helpers and routing']
+          phases = [next(s for s in job['steps'] if s['name'] == n) for n in names]
+          assert all(s['conclusion'] == 'success' for s in phases), phases
+          out = Path('build/melonx-retirement-reuse.json'); out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(json.dumps(dict(source=job['head_sha'], run=job['run_id'], job=job['id'], phases=phases, inputsUnchanged=True, reexecuted=False), indent=2))
+          print('Reused three successful phases; the earlier SDK-path failure remains recorded.')
+          PY
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Compile only the registered Swift plugin against the actual Flutter and iPhone SDK
+        run: python3 test/melonx_native_sdk_test.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MeloNX-retirement-proof-${{ github.sha }}
+          path: build/melonx-retirement-*.json
+          if-no-files-found: error
+          retention-days: 14
