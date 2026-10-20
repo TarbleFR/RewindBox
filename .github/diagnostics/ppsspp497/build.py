@@ -66,9 +66,10 @@ def main():
     ffmpeg += ' -DCMAKE_C_COMPILER=' + clang + ' -DCMAKE_CXX_COMPILER=' + clangxx
     # Upstream matches generic "arm64" before "ios". Select ios explicitly;
     # CC/CXX/target flags below select arm64 without taking its Linux branch.
-    command = ['make', '-C', source / 'libretro', '-j3', 'platform=ios', 'TARGET_ARCH=arm64',
+    command = ['make', '-C', source / 'libretro', '-j3', '-k', 'platform=ios', 'TARGET_ARCH=arm64',
                'DEBUG=0', 'IOSSDK=' + sdk, 'GIT_VERSION=1bd28b0-neostation-memory1',
-               'CC=' + clang, 'CXX=' + clangxx, 'PLATCFLAGS=' + target + ' -DHAVE_POSIX_MEMALIGN',
+               'CC=' + clang, 'CXX=' + clangxx,
+               'PLATCFLAGS=' + target + ' -DHAVE_POSIX_MEMALIGN -DMOBILE_DEVICE',
                'CPUFLAGS=-DARM64', 'FFMPEG_CMAKE_TOOLCHAIN=' + ffmpeg,
                # Make exports command-line flags. FFmpeg's configure probes
                # must not inherit the core's dylib link or not-yet-built libs.
@@ -78,7 +79,10 @@ def main():
         try:
             run(command, stdout=log, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError:
-            print((work / 'compile.log').read_text()[-18000:], flush=True)
+            diagnostic = (work / 'compile.log').read_text()
+            errors = [line for line in diagnostic.splitlines() if 'error:' in line or 'Error ' in line or 'Undefined symbols' in line]
+            print('\n'.join(errors[-120:]), flush=True)
+            print(diagnostic[-18000:], flush=True)
             raise
     binary = source / 'libretro/ppsspp_libretro_ios.dylib'
     info = package.macho(binary.read_bytes())
