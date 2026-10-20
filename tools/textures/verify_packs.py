@@ -399,7 +399,7 @@ def verify(entry, driver, work, max_bytes):
     result['download_seconds'] = round(time.time() - started, 1)
     kind = sniff(archive)
     result['format'] = kind
-    if kind not in ('zip', '7z'):
+    if kind not in ('zip', '7z', 'rar'):
         result['status'] = 'unsupportedArchive'
         return result
     engine = entry['engine']

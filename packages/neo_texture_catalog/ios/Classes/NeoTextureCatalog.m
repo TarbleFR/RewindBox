@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #import "Public/NeoTextureCatalog.h"
 #import "NeoTextureSupport.h"
+#import "NeoTextureHostResolver.h"
+#import "NeoTextureMega.h"
 #import <zlib.h>
 
 NSString *const NeoTextureCatalogErrorDomain = @"NeoTextureCatalog";
@@ -71,20 +73,61 @@ static BOOL ValidFolders(id value) {
   return YES;
 }
 
-static BOOL ValidDownload(NSDictionary *download, NSString *availability) {
+static BOOL ValidDownload(NSDictionary *download, NSString *availability, BOOL nativeCapability) {
   if (![download isKindOfClass:NSDictionary.class]) return NO;
   if (![download[@"automatable"] boolValue]) return ![availability isEqualToString:@"available"];
   NSArray *parts = download[@"parts"];
   NSString *format = NeoTexString(download[@"format"]);
-  if (![@[@"zip", @"7z"] containsObject:format] || ![parts isKindOfClass:NSArray.class] || !parts.count || parts.count > 16) return NO;
+  if (![(nativeCapability ? @[@"zip", @"7z", @"rar"] : @[@"zip", @"7z"]) containsObject:format] ||
+      ![parts isKindOfClass:NSArray.class] || !parts.count || parts.count > 16) return NO;
   unsigned long long total = 0;
   for (id part in parts) {
     if (![part isKindOfClass:NSDictionary.class] || !NeoTexHTTPS(part[@"url"]) || !NeoTexSHA256(part[@"sha256"]) ||
         !NeoTexPositive(part[@"size"], 64ULL << 30)) return NO;
+    if (part[@"provider"]) {
+      if (!nativeCapability) return NO;
+      NSString *provider = NeoTexString(part[@"provider"]);
+      if ([provider isEqualToString:@"mega"]) {
+        if (!NeoTexMegaPublicFileURL(NeoTexString(part[@"url"])) || !NeoTexPositive(part[@"size"], 16ULL << 30)) return NO;
+      } else if (![@[@"gdrive", @"yandex"] containsObject:provider] || !NeoTexValidHostPart(part)) {
+        return NO;
+      }
+    }
     total += [part[@"size"] unsignedLongLongValue];
   }
-  if (parts.count > 1 && (!NeoTexSHA256(download[@"sha256"]) || [download[@"size"] unsignedLongLongValue] != total)) return NO;
+  if (parts.count > 1 && (!NeoTexSHA256(download[@"sha256"]) || !NeoTexPositive(download[@"size"], 64ULL << 30) ||
+                        [download[@"size"] unsignedLongLongValue] != total)) return NO;
+  if (parts.count == 1 && ((download[@"size"] && (!NeoTexPositive(download[@"size"], 64ULL << 30) ||
+                           [download[@"size"] unsignedLongLongValue] != total)) ||
+                          (download[@"sha256"] && ![download[@"sha256"] isEqual:parts[0][@"sha256"]]))) return NO;
   return total <= (64ULL << 30);
+}
+
+// The base manifest is still usable by older app builds: they see a verified
+// manual pack and do not accidentally fetch a Drive/MEGA page as an archive.
+// Only a client implementing the native provider/RAR capability expands this
+// opt-in descriptor, and only when it describes the same exact verified file.
+static NSDictionary *ExpandedNativePack(NSDictionary *pack, BOOL *expanded) {
+  *expanded = NO;
+  NSDictionary *download = [pack[@"download"] isKindOfClass:NSDictionary.class] ? pack[@"download"] : nil;
+  id candidate = download[@"in_app"];
+  if (!candidate) return pack;
+  NSMutableDictionary *fallback = [pack mutableCopy], *manual = [download mutableCopy];
+  [manual removeObjectForKey:@"in_app"];
+  fallback[@"download"] = manual;
+  NSDictionary *file = NeoTexVerifiedFile(pack);
+  if (![pack[@"availability"] isEqual:@"manual"] || [download[@"automatable"] boolValue] || !file ||
+      ![candidate isKindOfClass:NSDictionary.class] || ![candidate[@"automatable"] isEqual:@YES] ||
+      ![candidate[@"format"] isEqual:file[@"format"]] || ![candidate[@"file_name"] isEqual:file[@"file_name"]] ||
+      !ValidDownload(candidate, @"available", YES)) return fallback;
+  NSArray *parts = candidate[@"parts"];
+  const unsigned long long size = parts.count > 1 ? [candidate[@"size"] unsignedLongLongValue] : [parts[0][@"size"] unsignedLongLongValue];
+  NSString *digest = parts.count > 1 ? NeoTexString(candidate[@"sha256"]) : NeoTexString(parts[0][@"sha256"]);
+  if (size != [file[@"size"] unsignedLongLongValue] || ![digest isEqualToString:file[@"sha256"]]) return fallback;
+  fallback[@"availability"] = @"available";
+  fallback[@"download"] = candidate;
+  *expanded = YES;
+  return fallback;
 }
 
 // The consoles a pack serves: "system", or "systems" when one download for
@@ -107,7 +150,8 @@ static BOOL ValidSystems(NSDictionary *pack, NSString *engine) {
 
 static NSDictionary *ValidatedPack(id value) {
   if (![value isKindOfClass:NSDictionary.class]) return nil;
-  NSDictionary *pack = value;
+  BOOL nativeCapability = NO;
+  NSDictionary *pack = ExpandedNativePack(value, &nativeCapability);
   NSString *system = NeoTexString(pack[@"system"]), *engine = NeoTexString(pack[@"engine"]);
   NSString *availability = NeoTexString(pack[@"availability"]);
   if (!NeoTexSafeToken(pack[@"id"], 120) || !NeoTexString(pack[@"version"]).length || NeoTexString(pack[@"version"]).length > 64 ||
@@ -116,7 +160,7 @@ static NSDictionary *ValidatedPack(id value) {
       ![@[@"available", @"manual", @"unavailable"] containsObject:availability] || !NeoTexHTTPS(pack[@"page_url"]) ||
       ![pack[@"authors"] isKindOfClass:NSArray.class] || ![pack[@"authors"] count] ||
       ![pack[@"games"] isKindOfClass:NSArray.class] || ![pack[@"games"] count] || [pack[@"games"] count] > 64 ||
-      ![pack[@"licence"] isKindOfClass:NSDictionary.class] || !ValidDownload(pack[@"download"], availability))
+      ![pack[@"licence"] isKindOfClass:NSDictionary.class] || !ValidDownload(pack[@"download"], availability, nativeCapability))
     return nil;
   for (id author in pack[@"authors"]) if (!NeoTexString(author).length || NeoTexString(author).length > 120) return nil;
   for (id game in pack[@"games"]) {
@@ -308,7 +352,11 @@ static NSDictionary *ValidatedPack(id value) {
         NSDictionary *index = error ? nil : [NeoTextureCatalog validatedIndex:data error:&error];
         NSMutableDictionary *state = [self->_state mutableCopy] ?: [NSMutableDictionary dictionary];
         if (index) {
-          if (!NeoTexWriteAtomic(NeoTexJSONData(index), self.cachedIndexPath, &error)) index = nil;
+          // Preserve the validated source descriptor, not the in-memory
+          // capability expansion. A later launch must validate/expand it
+          // again, and an older app must still see its manual fallback.
+          // validatedIndex accepts either source JSON or gzip on reload.
+          if (!NeoTexWriteAtomic(data, self.cachedIndexPath, &error)) index = nil;
         }
         if (index) {
           self->_index = index;

@@ -471,7 +471,7 @@
  {
   "id": "ps2-mk-armageddon-hd-ckiscxrsed",
   "title": "Mortal Kombat Armageddon HD Texture Pack",
-  "version": "Latest release (v1.6 on 19 October 2026)",
+  "version": "v1.5",
   "games": [
    {
     "title": "Mortal Kombat: Armageddon",
@@ -496,10 +496,16 @@
    "summary": "No licence stated by the author",
    "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
   },
-  "notes": "The author publishes RAR archives (v1.5: SLUS-21410.rar): extract it on a computer, then import the SLUS-21410 folder from Files.",
+  "notes": "The author publishes RAR archives (v1.5: SLUS-21410.rar): extract it on a computer, then import the SLUS-21410 folder from Files. Only the original v1.5 release has an actual archive asset as checked 20 October 2026; newer empty release pages are not a downloadable version.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/ckiscxrsed/Mortal-Kombat-Armageddon-HD-Textures/releases/latest"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "SLUS-21410.rar",
+   "parts": [
+    {
+     "url": "https://github.com/ckiscxrsed/Mortal-Kombat-Armageddon-HD-Textures/releases/download/v1.5/SLUS-21410.rar"
+    }
+   ]
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1205,8 +1211,15 @@
   },
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its SLUS-20795 folder from Files.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/Bloody-Roar-4/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "SLUS-20795-DDS.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Bloody-Roar-4/releases/download/1.0/SLUS-20795-DDS.rar",
+     "sha256": "faf526412a6919454496271385062a23309312af50e2a50e68aa49c5b0a7983f"
+    }
+   ]
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1242,8 +1255,15 @@
   },
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its SLUS-20822 folder from Files.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/Galactic-Wrestling-Featuring-Ultimate-Muscle/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "SLUS-20822-DDS.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Galactic-Wrestling-Featuring-Ultimate-Muscle/releases/download/1.0/SLUS-20822-DDS.rar",
+     "sha256": "0ba6fcbbb57498f91401c67c5950c4f5c5e8fd84040c9a7e50685ce737632968"
+    }
+   ]
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1279,8 +1299,15 @@
   },
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its SLUS-21193 folder from Files.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/InuYasha-Feudal-Combat/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "SLUS-21193-DDS.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/InuYasha-Feudal-Combat/releases/download/1.0/SLUS-21193-DDS.rar",
+     "sha256": "4c5c88efb06669c83752d598a2f62703cfd8aa6b5ad99bfa072d41d0ff77d185"
+    }
+   ]
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1316,8 +1343,15 @@
   },
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its SLES-51865 folder from Files.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/Heartbeat-Boxing/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "SLES-51865-DDS.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Heartbeat-Boxing/releases/download/1.0/SLES-51865-DDS.rar",
+     "sha256": "eb6546e63fb9ca187225428a5045838a79a9e3a2f5fddf9319ea08b0be4570ad"
+    }
+   ]
   },
   "system": "ps2",
   "engine": "armsx2",

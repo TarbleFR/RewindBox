@@ -16,21 +16,23 @@ from which the manual PlayStation 2 entries are derived.
   s.source = { :path => '.' }
   # The LZMA SDK sources (public domain) are compiled once, through
   # Classes/NeoTextureLZMA.c, with hidden visibility.
-  s.source_files = 'Classes/**/*.{h,m,mm,c}', 'ThirdParty/lzma/*.h'
+  s.source_files = 'Classes/**/*.{h,m,mm,c}', 'ThirdParty/lzma/*.h', 'ThirdParty/libarchive/*.{c,h}'
   s.public_header_files = 'Classes/Public/*.h'
-  s.private_header_files = 'Classes/*.h', 'ThirdParty/lzma/*.h'
-  s.preserve_paths = 'ThirdParty/lzma/*'
+  s.private_header_files = 'Classes/*.h', 'ThirdParty/lzma/*.h', 'ThirdParty/libarchive/*.h'
+  s.preserve_paths = 'ThirdParty/lzma/*', 'ThirdParty/libarchive/*'
   s.resource_bundles = { 'NeoTextureCatalog' => ['Resources/*.json', 'Resources/*.gz', 'Resources/*.txt'] }
   s.dependency 'Flutter'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.frameworks = 'Foundation', 'UIKit', 'UniformTypeIdentifiers', 'Metal'
-  s.libraries = 'z', 'c++'
+  s.libraries = 'z', 'c++', 'iconv'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'CLANG_ENABLE_OBJC_ARC' => 'YES',
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
-    'HEADER_SEARCH_PATHS' => '$(inherited) "${PODS_TARGET_SRCROOT}/ThirdParty/lzma"',
+    'GCC_C_LANGUAGE_STANDARD' => 'gnu11',
+    'HEADER_SEARCH_PATHS' => '$(inherited) "${PODS_TARGET_SRCROOT}/ThirdParty/lzma" "${PODS_TARGET_SRCROOT}/ThirdParty/libarchive"',
+    'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) HAVE_CONFIG_H=1',
     'OTHER_LDFLAGS' => '$(inherited) -ObjC'
   }
 end

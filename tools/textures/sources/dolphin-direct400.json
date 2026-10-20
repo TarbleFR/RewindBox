@@ -1,0 +1,54 @@
+[
+  {
+    "id": "gc-pso-notum-hd-hud-font-eleriaqueen",
+    "system": "gc",
+    "engine": "dolphin",
+    "title": "Phantasy Star Online Ep. I & II — Notum HD HUD font",
+    "version": "v1.0.2 asset / v1.0.1 release (2024-01-24)",
+    "games": [
+      {
+        "title": "Phantasy Star Online Episode I & II (including Plus)",
+        "identities": [
+          {
+            "type": "game_id",
+            "scheme": "dolphin-region-free-id",
+            "value": "GPO"
+          }
+        ]
+      }
+    ],
+    "authors": [
+      "MagicLuthee / eleriaqueen"
+    ],
+    "page_url": "https://www.pioneer2.net/community/threads/pso-gc-ep-1-2-notum-hd-hud-font.27968/",
+    "source_id": "github:eleriaqueen/pso-notum-hud-font",
+    "licence": {
+      "summary": "No licence stated for this font archive. The creator identifies the font as based on Dotum; Phantasy Star Online remains a SEGA trademark.",
+      "redistribution": "Downloaded unchanged from the creator's original GitHub release only. NeoStation does not host, modify or redistribute the archive."
+    },
+    "requirements": "Dolphin custom texture replacement. The creator's installation instructions explicitly name Load/Textures/GPO/.",
+    "notes": "Standalone high-resolution HUD font, not a complete game retexture. The creator identifies GameCube Episode I & II and Plus and explicitly supplies the region-free folder GPO; no additional disc ID, revision or French-language support is inferred. The release tag is v1.0.1 while its latest asset is named v1.0.2; release notes say v1.0.2 updates a texture hash for modern Dolphin. Five flat BC3 DDS sheets, each 1024x1024, are 4x or 8x their filename-declared native dimensions. The companion faithful/Dreamcube UI, older font, compatibility formats and style variants share this project's family and must not inflate the family count. Installing this font does not automatically merge another installed UI pack. No iPhone rendering test is claimed.",
+    "download": {
+      "automatable": true,
+      "format": "zip",
+      "file_name": "psogc-notum-font-v1.0.2.zip",
+      "parts": [
+        {
+          "url": "https://github.com/eleriaqueen/pso-notum-hud-font/releases/download/v1.0.1/psogc-notum-font-v1.0.2.zip",
+          "size": 270440,
+          "sha256": "876fb8b8654f12cdd4735ca7831b24b92d373ed4b4140c05034b2466b8736ac2"
+        }
+      ]
+    },
+    "install": {
+      "folders": [
+        {
+          "from": "",
+          "to": "{id}"
+        }
+      ]
+    },
+    "scope": "ui",
+    "family": "gc-pso-hd-ui-eleriaqueen"
+  }
+]

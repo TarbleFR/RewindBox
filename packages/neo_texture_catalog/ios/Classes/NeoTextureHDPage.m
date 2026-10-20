@@ -453,8 +453,10 @@ static NSString *HostName(NSString *host) {
     if (!page) return;
     void (^pick)(void) = ^{
       NSMutableArray<UTType *> *types = [NSMutableArray arrayWithObject:UTTypeZIP];
-      UTType *sevenZip = [UTType typeWithFilenameExtension:@"7z"];
-      if (sevenZip) [types addObject:sevenZip];
+      for (NSString *extension in @[@"7z", @"rar"]) {
+        UTType *type = [UTType typeWithFilenameExtension:extension];
+        if (type) [types addObject:type];
+      }
       UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:types asCopy:NO];
       picker.delegate = page;
       picker.allowsMultipleSelection = NO;
@@ -1132,7 +1134,7 @@ static NSString *AbsolutePath(id value) {
 - (void)pick:(BOOL)folder {
   NSMutableArray<UTType *> *types = [NSMutableArray arrayWithObject:folder ? UTTypeFolder : UTTypeZIP];
   if (!folder) {
-    for (NSString *extension in [self.engine.engineID isEqualToString:@"armsx2"] ? @[@"tar", @"zst", @"tzst"] : @[@"7z"]) {
+    for (NSString *extension in [self.engine.engineID isEqualToString:@"armsx2"] ? @[@"7z", @"rar", @"tar", @"zst", @"tzst"] : @[@"7z", @"rar"]) {
       UTType *type = [UTType typeWithFilenameExtension:extension];
       if (type) [types addObject:type];
     }

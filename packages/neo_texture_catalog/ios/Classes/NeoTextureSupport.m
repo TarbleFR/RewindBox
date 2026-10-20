@@ -61,7 +61,7 @@ NSDictionary *NeoTexVerifiedFile(NSDictionary *pack) {
   if (![pack isKindOfClass:NSDictionary.class] || ![pack[@"download"] isKindOfClass:NSDictionary.class]) return nil;
   NSDictionary *file = pack[@"download"][@"verified"];
   if (![file isKindOfClass:NSDictionary.class] || [pack[@"download"][@"automatable"] boolValue] ||
-      ![@[@"zip", @"7z"] containsObject:NeoTexString(file[@"format"])] || !NeoTexSHA256(file[@"sha256"]) ||
+      ![@[@"zip", @"7z", @"rar"] containsObject:NeoTexString(file[@"format"])] || !NeoTexSHA256(file[@"sha256"]) ||
       !NeoTexPositive(file[@"size"], 64ULL << 30) || !NeoTexString(file[@"file_name"]).length || NeoTexString(file[@"file_name"]).length > 200)
     return nil;
   return file;

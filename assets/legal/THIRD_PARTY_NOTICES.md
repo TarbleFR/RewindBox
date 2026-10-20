@@ -245,3 +245,18 @@ The release provides the complete source archive with dependencies:
 [azahar-unified-source-2127.0-alpha1.tar.xz](https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz).
 FastInterp is credited to warmenhoven and the Azahar contributors.
 The other embedded libretro cores retain their existing versions and licenses.
+
+
+## HD texture RAR reader
+
+The unified HD texture installer includes a read-only subset of
+[libarchive 3.8.10](https://github.com/libarchive/libarchive/releases/tag/v3.8.10),
+by Tim Kientzle and the libarchive contributors, for RAR4/RAR5 extraction.
+The vendored sources retain their copyright and permissive licence notices;
+BLAKE2's CC0 option is used where offered. The complete notices are bundled as
+`NeoTextureCatalog.bundle/libarchive-LICENSE.txt`. The exact source hashes,
+selected files and local integration changes are recorded in
+`packages/neo_texture_catalog/ios/ThirdParty/libarchive/`.
+NeoStation does not include WinRAR, the UnRAR SDK, a RAR writer or an external
+extraction executable. Textures continue to be downloaded from the original
+creator links, with their separate credits and distribution terms.

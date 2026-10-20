@@ -45,6 +45,11 @@ static int List(const std::string& path) {
     const auto status = reader.open(path, limits);
     if (status != NeoTextureArchive::Status::ok) { std::printf("error=%s\n", NeoTextureArchive::StatusName(status)); return 3; }
     dump(reader.entries());
+  } else if (!std::memcmp(magic, "Rar!", 4)) {
+    NeoTextureArchive::Rar reader;
+    const auto status = reader.open(path, limits);
+    if (status != NeoTextureArchive::Status::ok) { std::printf("error=%s\n", NeoTextureArchive::StatusName(status)); return 3; }
+    dump(reader.entries());
   } else if (magic[0] == 'P' && magic[1] == 'K') {
     NeoTextureArchive::Zip reader;
     const auto status = reader.open(path, limits);
@@ -69,6 +74,7 @@ static std::vector<std::string> Names(const std::string& path, std::string& erro
   };
   if (!std::memcmp(magic, "7z\xbc\xaf\x27\x1c", 6)) { NeoTextureArchive::SevenZip reader; collect(reader); }
   else if (magic[0] == 'P' && magic[1] == 'K') { NeoTextureArchive::Zip reader; collect(reader); }
+  else if (!std::memcmp(magic, "Rar!", 4)) { NeoTextureArchive::Rar reader; collect(reader); }
   else error = !std::memcmp(magic, "Rar!", 4) ? "rar" : "format";
   return names;
 }

@@ -1,0 +1,471 @@
+[
+  {
+    "pack": {
+      "id": "wii-nsmbw-hd-title-tjshah",
+      "system": "wii",
+      "engine": "dolphin",
+      "title": "New Super Mario Bros. Wii \u2014 custom HD title",
+      "version": "2022",
+      "games": [
+        {
+          "title": "New Super Mario Bros. Wii",
+          "identities": [
+            {
+              "type": "game_id",
+              "scheme": "dolphin-disc-game-id",
+              "value": "SMN"
+            }
+          ],
+          "confirm": true
+        }
+      ],
+      "authors": [
+        "TJShah"
+      ],
+      "page_url": "https://gamebanana.com/mods/417752",
+      "source_id": "gamebanana:417752",
+      "licence": {
+        "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
+        "redistribution": "Manual author-page download only. NeoStation does not host or redistribute these files."
+      },
+      "notes": "HD title-screen artwork only, not a full-game texture pack. Standalone replacement; installing it replaces the currently selected pack. To combine it with a base HD set, merge on a computer and import one folder. Region/language coverage is not attested by the author.",
+      "availability": "available",
+      "download": {
+        "automatable": true,
+        "format": "zip",
+        "file_name": "nsmbw_custom_hd_title.zip",
+        "parts": [
+          {
+            "url": "https://gamebanana.com/dl/908195",
+            "size": 40935,
+            "sha256": "15d18795766167c738c8df6e814f4676e0aa5458f4d435ecebbdea2d89224914"
+          }
+        ]
+      },
+      "install": {
+        "files": 1,
+        "bytes": 1310528,
+        "folders": [
+          {
+            "from": "Documents/Dolphin Emulator/Load/Textures/SMN/",
+            "to": "SMN"
+          }
+        ],
+        "formats": [
+          "dds"
+        ]
+      },
+      "verified_at": "2026-10-20"
+    },
+    "identity": {
+      "title": "New Super Mario Bros. Wii",
+      "identities": [
+        {
+          "type": "game_id",
+          "scheme": "dolphin-disc-game-id",
+          "value": "SMN"
+        }
+      ],
+      "confirm": true,
+      "system": "wii"
+    }
+  },
+  {
+    "pack": {
+      "id": "wii-nsmbw-shield-ui-moukrea-x2",
+      "system": "wii",
+      "engine": "dolphin",
+      "title": "New Super Mario Bros. Wii \u2014 NVIDIA Shield (China) UI port (x2)",
+      "version": "see page",
+      "games": [
+        {
+          "title": "New Super Mario Bros. Wii",
+          "identities": [
+            {
+              "type": "game_id",
+              "scheme": "dolphin-region-free-id",
+              "value": "SMN"
+            }
+          ]
+        }
+      ],
+      "authors": [
+        "Moukrea"
+      ],
+      "page_url": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-exclusive-nvidia-shield%E2%80%99s-china-release-ported-ui",
+      "source_id": "dolphin-forum:new-super-mario-bros-wii-exclusive-nvidia-shields-china-release-ported-ui",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+      },
+      "notes": "Button prompts of the NVIDIA Shield release, made to go with Bighead's NSMBW HD pack; the archive's patch for that pack is not installed. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+      "availability": "manual",
+      "download": {
+        "automatable": false,
+        "verified": {
+          "format": "7z",
+          "file_name": "PNG (x2).7z",
+          "size": 1492083,
+          "sha256": "3e3cdcff05be5a46f5ce25612f20a97abd3cf021aa1b1e4b354bb0bf12be35a7",
+          "host": "gdrive"
+        },
+        "in_app": {
+          "automatable": true,
+          "format": "7z",
+          "file_name": "PNG (x2).7z",
+          "parts": [
+            {
+              "url": "https://drive.google.com/open?id=1N4LczMwVa9whV7xvudCdwBmjGnll2NeH",
+              "provider": "gdrive",
+              "size": 1492083,
+              "sha256": "3e3cdcff05be5a46f5ce25612f20a97abd3cf021aa1b1e4b354bb0bf12be35a7"
+            }
+          ]
+        }
+      },
+      "install": {
+        "files": 72,
+        "bytes": 1585168,
+        "folders": [
+          {
+            "from": "SMN/",
+            "to": "SMN"
+          }
+        ],
+        "formats": [
+          "png"
+        ]
+      },
+      "verified_at": "2026-10-19"
+    },
+    "identity": {
+      "title": "New Super Mario Bros. Wii",
+      "identities": [
+        {
+          "type": "game_id",
+          "scheme": "dolphin-region-free-id",
+          "value": "SMN"
+        }
+      ],
+      "system": "wii"
+    }
+  },
+  {
+    "pack": {
+      "id": "gc-ttyd-xbox360-ms-buttons-jvook",
+      "system": "gc",
+      "engine": "dolphin",
+      "title": "Paper Mario TTYD \u2014 Xbox 360 buttons (Microsoft layout)",
+      "version": "see page",
+      "games": [
+        {
+          "title": "Paper Mario: The Thousand-Year Door",
+          "identities": [
+            {
+              "type": "game_id",
+              "scheme": "dolphin-region-free-id",
+              "value": "G8M"
+            }
+          ]
+        }
+      ],
+      "authors": [
+        "jvook"
+      ],
+      "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+      "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+      },
+      "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+      "availability": "manual",
+      "download": {
+        "automatable": false,
+        "verified": {
+          "format": "zip",
+          "file_name": "Paper Mario TTYD Xbox 360 (Microsoft Layout) by jvook.zip",
+          "size": 311694,
+          "sha256": "383cbb1a0add55eb8626c3b576e34e96266fe66a0d31338c8b7d1d92091033c9",
+          "host": "mega"
+        },
+        "in_app": {
+          "automatable": true,
+          "format": "zip",
+          "file_name": "Paper Mario TTYD Xbox 360 (Microsoft Layout) by jvook.zip",
+          "parts": [
+            {
+              "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/uw8hECAb",
+              "provider": "mega",
+              "size": 311694,
+              "sha256": "383cbb1a0add55eb8626c3b576e34e96266fe66a0d31338c8b7d1d92091033c9"
+            }
+          ]
+        }
+      },
+      "install": {
+        "files": 25,
+        "bytes": 300404,
+        "folders": [
+          {
+            "from": "textures/G8M/",
+            "to": "G8M"
+          }
+        ],
+        "formats": [
+          "dds"
+        ]
+      },
+      "verified_at": "2026-10-19"
+    },
+    "identity": {
+      "title": "Paper Mario: The Thousand-Year Door",
+      "identities": [
+        {
+          "type": "game_id",
+          "scheme": "dolphin-region-free-id",
+          "value": "G8M"
+        }
+      ],
+      "system": "gc"
+    }
+  },
+  {
+    "pack": {
+      "id": "psp-digimon-world-redigitize-hd-ui",
+      "system": "psp",
+      "engine": "ppsspp",
+      "title": "Digimon World Re:Digitize HD UI Pack",
+      "version": "0.0.1",
+      "games": [
+        {
+          "title": "Digimon World Re:Digitize",
+          "identities": [
+            {
+              "type": "disc_id",
+              "scheme": "psp-param-sfo-disc-id",
+              "value": "NPJH50588"
+            }
+          ],
+          "regions": [
+            "Japan"
+          ]
+        }
+      ],
+      "authors": [
+        "see the page"
+      ],
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=29321",
+      "source_id": "ppsspp-forum:29321",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+      },
+      "notes": "Includes the Roboto font of its interface (Apache licence file in the archive).",
+      "availability": "available",
+      "download": {
+        "automatable": true,
+        "format": "zip",
+        "file_name": "Digimon World Re?Digitize HD UI Pack v0.0.1 (NPJH50588).zip",
+        "parts": [
+          {
+            "url": "https://dl.dropbox.com/s/yjx571hjtgfc9mz/Digimon%20World%20Re-Digitize%20HD%20UI%20Pack%20v0.0.1%20%28NPJH50588%29.zip?dl=1",
+            "size": 1095028,
+            "sha256": "bd9b2ade99ac3cb865c1ef94b5ec8d27b9533164d83a382fd44a770828e028cd"
+          }
+        ]
+      },
+      "install": {
+        "files": 43,
+        "bytes": 1097429,
+        "folders": [
+          {
+            "from": "",
+            "to": "NPJH50588"
+          }
+        ],
+        "formats": [
+          "png"
+        ]
+      },
+      "verified_at": "2026-10-19"
+    },
+    "identity": {
+      "title": "Digimon World Re:Digitize",
+      "identities": [
+        {
+          "type": "disc_id",
+          "scheme": "psp-param-sfo-disc-id",
+          "value": "NPJH50588"
+        }
+      ],
+      "regions": [
+        "Japan"
+      ],
+      "system": "psp"
+    }
+  },
+  {
+    "pack": {
+      "id": "psp-gow-ghost-sparta-hud-skydr4gon",
+      "system": "psp",
+      "engine": "ppsspp",
+      "title": "God of War: Ghost of Sparta \u2014 SkyDR4GON HD HUD",
+      "version": "2020-01-29",
+      "games": [
+        {
+          "title": "God of War: Ghost of Sparta",
+          "identities": [
+            {
+              "type": "disc_id",
+              "scheme": "psp-param-sfo-disc-id",
+              "value": "UCES01401"
+            }
+          ],
+          "regions": [
+            "Europe"
+          ],
+          "confirm": true
+        }
+      ],
+      "authors": [
+        "SkyDR4GON"
+      ],
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=26040",
+      "source_id": "ppsspp:26040",
+      "licence": {
+        "summary": "No licence stated by the creator",
+        "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+      },
+      "notes": "Small creator-made HUD improvements and Xbox button prompts, published as the original forum ZIP attachment. Creator explicitly specifies UCES01401. This is an interface pack, not a complete texture overhaul. No altered game image or extra emulator settings. No French-text coverage or iPhone rendering claim.",
+      "availability": "available",
+      "download": {
+        "automatable": true,
+        "format": "zip",
+        "file_name": "TEXTURES.zip",
+        "parts": [
+          {
+            "url": "https://forums.ppsspp.org/attachment.php?aid=16713",
+            "size": 776517,
+            "sha256": "60e514469b208884f0efbfe14ded9199fc655b9e3b269475e599431cb6854b10"
+          }
+        ]
+      },
+      "install": {
+        "files": 16,
+        "bytes": 786762,
+        "folders": [
+          {
+            "from": "TEXTURES/UCES01401/",
+            "to": "UCES01401"
+          }
+        ],
+        "formats": [
+          "png"
+        ]
+      },
+      "verified_at": "2026-10-20"
+    },
+    "identity": {
+      "title": "God of War: Ghost of Sparta",
+      "identities": [
+        {
+          "type": "disc_id",
+          "scheme": "psp-param-sfo-disc-id",
+          "value": "UCES01401"
+        }
+      ],
+      "regions": [
+        "Europe"
+      ],
+      "confirm": true,
+      "system": "psp"
+    }
+  },
+  {
+    "pack": {
+      "id": "gc-crash-nitro-kart-hd-fixes-john30011887",
+      "system": "gc",
+      "engine": "dolphin",
+      "title": "Crash Nitro Kart HD Texture Fixes",
+      "version": "see page",
+      "games": [
+        {
+          "title": "Crash Nitro Kart",
+          "identities": [
+            {
+              "type": "game_id",
+              "scheme": "dolphin-disc-game-id",
+              "value": "GCNE7D"
+            }
+          ],
+          "regions": [
+            "USA"
+          ]
+        }
+      ],
+      "authors": [
+        "JOHN30011887"
+      ],
+      "page_url": "https://forums.dolphin-emu.org/Thread-crash-nitro-kart-hd-texture-fixes",
+      "source_id": "dolphin-forum:crash-nitro-kart-hd-texture-fixes",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+      },
+      "notes": "Corrected and sharper versions of a selection of textures (245 files).",
+      "availability": "manual",
+      "download": {
+        "automatable": false,
+        "verified": {
+          "format": "zip",
+          "file_name": "CNK Texture Fixes.zip",
+          "size": 3543762,
+          "sha256": "8521f45dd50b59c695f20bb7d035a7b21f11f2ad995f94025641da0e92caadb3",
+          "host": "mega"
+        },
+        "in_app": {
+          "automatable": true,
+          "format": "zip",
+          "file_name": "CNK Texture Fixes.zip",
+          "parts": [
+            {
+              "url": "https://mega.nz/#!D8gChAYY!mvymsLDE-J-HCDIrVEIsXARE8VqyFpELFX3IF8cKMsQ",
+              "provider": "mega",
+              "size": 3543762,
+              "sha256": "8521f45dd50b59c695f20bb7d035a7b21f11f2ad995f94025641da0e92caadb3"
+            }
+          ]
+        }
+      },
+      "install": {
+        "files": 245,
+        "bytes": 5664844,
+        "folders": [
+          {
+            "from": "GCNE7D/",
+            "to": "GCNE7D"
+          }
+        ],
+        "formats": [
+          "png"
+        ]
+      },
+      "verified_at": "2026-10-19"
+    },
+    "identity": {
+      "title": "Crash Nitro Kart",
+      "identities": [
+        {
+          "type": "game_id",
+          "scheme": "dolphin-disc-game-id",
+          "value": "GCNE7D"
+        }
+      ],
+      "regions": [
+        "USA"
+      ],
+      "system": "gc"
+    }
+  }
+]

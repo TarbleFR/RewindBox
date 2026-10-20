@@ -4727,8 +4727,15 @@
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10401 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULUS10401 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/Samurai-Showdown-Anthology/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "ULUS10401.24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Samurai-Showdown-Anthology/releases/download/1.0/ULUS10401.24bits.rar",
+     "sha256": "ea551b7eeec5ea690397dd087eea5b128b29bb2cb6881a20309125ea7148aa80"
+    }
+   ]
   },
   "system": "psp",
   "engine": "ppsspp",
@@ -4765,8 +4772,14 @@
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCJS10008 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its UCJS10008 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/Bleach-heat-and-soul-texture-pack/releases/tag/v1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "UCJS10008-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Bleach-heat-and-soul-texture-pack/releases/download/v1.0/UCJS10008-24bits.rar"
+    }
+   ]
   },
   "system": "psp",
   "engine": "ppsspp",
@@ -4803,8 +4816,15 @@
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCJS10017 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its UCJS10017 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/Bleach-Heat-The-Soul-2/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "UCJS10017-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Bleach-Heat-The-Soul-2/releases/download/1.0/UCJS10017-24bits.rar",
+     "sha256": "5618de6e44f0b74b55052130241b1b8f436ef661ad146a985b3cebbe956a9331"
+    }
+   ]
   },
   "system": "psp",
   "engine": "ppsspp",
@@ -4841,8 +4861,15 @@
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10081 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULUS10081 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/Dragon-Ball-Z-Shin-Budokai-1/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "ULUS10081-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Dragon-Ball-Z-Shin-Budokai-1/releases/download/1.0/ULUS10081-24bits.rar",
+     "sha256": "16f7163a65c46aa15637275bd7c13ce37c26ac0722b58150fe46d78a55756114"
+    }
+   ]
   },
   "system": "psp",
   "engine": "ppsspp",
@@ -4879,8 +4906,14 @@
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULES00789 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULES00789 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/Dragon-ball-Z-Shin-Budokai-2/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "ULES00789-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Dragon-ball-Z-Shin-Budokai-2/releases/download/1.0/ULES00789-24bits.rar"
+    }
+   ]
   },
   "system": "psp",
   "engine": "ppsspp",
@@ -4917,8 +4950,14 @@
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a NPJH50699 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its NPJH50699 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/Saint-Seiya-Omega-Ultimate-Cosmo/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "NPJH50699-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Saint-Seiya-Omega-Ultimate-Cosmo/releases/download/1.0/NPJH50699-24bits.rar"
+    }
+   ]
   },
   "system": "psp",
   "engine": "ppsspp",
@@ -4955,8 +4994,15 @@
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10518 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULUS10518 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/naruto-shippuden-ultimate-ninja-heroes-3/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "ULUS10518-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/naruto-shippuden-ultimate-ninja-heroes-3/releases/download/1.0/ULUS10518-24bits.rar",
+     "sha256": "b4317f3540e9a3b84aa4dd6d2279bc66174523bb8385e11b757e20b4324fabe3"
+    }
+   ]
   },
   "system": "psp",
   "engine": "ppsspp",
@@ -4993,8 +5039,14 @@
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULES01088 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its ULES01088 folder from Files. The release also carries the original dumped textures (dump), which are not a pack.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/Naruto-Ultimate-Ninja-Heroes-2/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "ULES01088-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Naruto-Ultimate-Ninja-Heroes-2/releases/download/1.0/ULES01088-24bits.rar"
+    }
+   ]
   },
   "system": "psp",
   "engine": "ppsspp",
@@ -5031,8 +5083,15 @@
   "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCES00842 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
   "notes": "Published as RAR archives (one per variant): extract the chosen one on a computer, then import its UCES00842 folder from Files. The release also carries the original dumps and PS3 remaster assets, which are not a pack.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/MESKH4H4/God-of-War-Chains-of-Olympus/releases/tag/1.0"
+   "automatable": true,
+   "format": "rar",
+   "file_name": "UCES00842-upscale_pure_psp.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/God-of-War-Chains-of-Olympus/releases/download/1.0/UCES00842-upscale_pure_psp.rar",
+     "sha256": "4cef261a296135ef7a9a07a9258f4ca0b43f6dcb43b44f87609c77ef67dd13bf"
+    }
+   ]
   },
   "system": "psp",
   "engine": "ppsspp",

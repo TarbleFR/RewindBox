@@ -166,9 +166,11 @@
    "automatable": false,
    "page": "https://forums.ppsspp.org/showthread.php?tid=42180",
    "verify": {
-    "url": "https://drive.google.com/file/d/1CBNtQxCM3yjDyOie7vE0gAyVwwgrITne/view?usp=drive_web"
+    "url": "https://drive.google.com/file/d/1CBNtQxCM3yjDyOie7vE0gAyVwwgrITne/view?usp=drive_web",
+    "sha256": "c60e6d442cf26a560a1ddd3e86f78be60adcc072885ade39a7d8c24ceeb6b36a"
    },
-   "file_name": "ULES00925.rar"
+   "file_name": "ULES00925.rar",
+   "in_app": true
   },
   "scope": "partial",
   "family": "psp-yugioh-tag-force2-spanish-brahian",

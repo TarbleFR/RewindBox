@@ -117,9 +117,11 @@
    "automatable": false,
    "page": "https://forums.serenesforest.net/topic/93389-fe-por-hd-texture-pack/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1uclRYNWV4-bvI-4i5wOr3bSBJ3zFxohU/view?usp=sharing"
+    "url": "https://drive.google.com/file/d/1uclRYNWV4-bvI-4i5wOr3bSBJ3zFxohU/view?usp=sharing",
+    "sha256": "9cc4a1c154cdca82fe7d9faccf6961cabf7058e3b2c4de43b5ba7c18ac4d81bc"
    },
-   "file_name": "GFEE01.rar"
+   "file_name": "GFEE01.rar",
+   "in_app": true
   },
   "scope": "partial",
   "family": "gc-fe-por-hd-appleboi",

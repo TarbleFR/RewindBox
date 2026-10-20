@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Counts the installable packs of an HD texture index the way the Build 489 request does.
 
-Installable = one tap (availability "available") or a manual pack whose exact file
+Installable = one tap (availability "available", or a validated download.in_app
+descriptor for a client with the new native provider/RAR support) or a manual pack whose exact file
 was verified on CI (download.verified). Resolutions, formats, updates, region dumps,
 mirrors and button/style variants of one pack count once: packs are grouped into
 families (the "family" of the source entry; for older entries the id without its
@@ -12,12 +13,16 @@ complete, partial (a part of the game) or ui (interface, fonts, buttons, icons).
 """
 import argparse
 import collections
+import contextlib
 import gzip
+import io
 import json
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+import build_catalogue
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCES = ROOT / 'tools/textures/sources'
@@ -57,6 +62,25 @@ def installable(pack):
     return pack['availability'] == 'available' or (pack['availability'] == 'manual' and (pack.get('download') or {}).get('verified'))
 
 
+def native_one_tap(pack):
+    """A native-capable client can expand only an exact, validated descriptor.
+
+    Older clients retain its manual import/page fallback. Count the project
+    once using the existing family method; descriptor/provider variants do
+    not create new families. Invalid capability metadata adds no one-tap pack.
+    """
+    if pack.get('availability') == 'available':
+        return True
+    if pack.get('availability') != 'manual' or not (pack.get('download') or {}).get('in_app'):
+        return False
+    try:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            build_catalogue.validate({'packs': [pack]})
+    except (SystemExit, KeyError, TypeError, ValueError, AttributeError):
+        return False
+    return True
+
+
 def sources():
     found = {}
     for path in SOURCES.glob('*.json'):
@@ -93,10 +117,12 @@ def count(index, entries):
                 continue
             item = per[console]
             item['entries'] += 1
-            item['families'].setdefault(name, {'scope': scope(pack, name, entries), 'variants': 0, 'manual': True})
+            item['families'].setdefault(name, {'scope': scope(pack, name, entries), 'variants': 0, 'manual': True, 'legacy_manual': True})
             item['families'][name]['variants'] += 1
-            if pack['availability'] == 'available':
+            if native_one_tap(pack):
                 item['families'][name]['manual'] = False
+            if pack['availability'] == 'available':
+                item['families'][name]['legacy_manual'] = False
             for game in pack['games']:
                 item['games'].add(game['identities'][0]['value'].upper()[:3 if console in ('gc', 'wii') else None])
     result = {}
@@ -106,6 +132,8 @@ def count(index, entries):
                            'variants': item['entries'] - len(item['families']),
                            'complete': scopes['complete'], 'partial': scopes['partial'], 'ui': scopes['ui'],
                            'oneTapFamilies': sum(1 for f in item['families'].values() if not f['manual']),
+                           'legacyOneTapFamilies': sum(1 for f in item['families'].values() if not f['legacy_manual']),
+                           'nativeCapabilityFamilies': sum(1 for f in item['families'].values() if not f['manual'] and f['legacy_manual']),
                            'manualVerifiedFamilies': sum(1 for f in item['families'].values() if f['manual']),
                            'games': len(item['games']), 'families': sorted(item['families'])}
     # A pack listed for two consoles (Wii Virtual Console packs that also serve the GameCube discs)
@@ -118,6 +146,8 @@ def count(index, entries):
     result['total'] = {'distinct': len(families), 'entries': entries_total, 'variants': entries_total - len(families),
                        'complete': scopes['complete'], 'partial': scopes['partial'], 'ui': scopes['ui'],
                        'oneTapFamilies': sum(1 for f in families.values() if not f['manual']),
+                       'legacyOneTapFamilies': sum(1 for f in families.values() if not f['legacy_manual']),
+                       'nativeCapabilityFamilies': sum(1 for f in families.values() if not f['manual'] and f['legacy_manual']),
                        'manualVerifiedFamilies': sum(1 for f in families.values() if f['manual']),
                        'games': len({g for item in per.values() for g in item['games']}), 'families': sorted(families)}
     return result
@@ -137,11 +167,12 @@ def main():
         print(json.dumps(result, indent=1))
         return
     print(f'index {index["revision"]}: installable packs counted once per family')
-    print(f'{"console":8} {"distinct":>8} {"entries":>8} {"variants":>8} {"complete":>8} {"partial":>8} {"ui":>4} {"oneTap":>7} {"manual✓":>8} {"games":>6}')
+    print('oneTap includes validated native capability descriptors; legacy is the HTTPS path older app builds can download')
+    print(f'{"console":8} {"distinct":>8} {"entries":>8} {"variants":>8} {"complete":>8} {"partial":>8} {"ui":>4} {"oneTap":>7} {"legacy":>7} {"native+":>7} {"manual✓":>8} {"games":>6}')
     for console in CONSOLES + ['total']:
         r = result[console]
         print(f'{console:8} {r["distinct"]:8} {r["entries"]:8} {r["variants"]:8} {r["complete"]:8} {r["partial"]:8} {r["ui"]:4} '
-              f'{r["oneTapFamilies"]:7} {r["manualVerifiedFamilies"]:8} {r["games"]:6}')
+              f'{r["oneTapFamilies"]:7} {r["legacyOneTapFamilies"]:7} {r["nativeCapabilityFamilies"]:7} {r["manualVerifiedFamilies"]:8} {r["games"]:6}')
 
 
 if __name__ == '__main__':

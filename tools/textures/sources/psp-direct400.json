@@ -1,0 +1,41 @@
+[
+  {
+    "id": "psp-tenchu-tota-last-round-sombertwilight",
+    "system": "psp",
+    "engine": "ppsspp",
+    "title": "Tenchu: Time of the Assassins — Last Round HD",
+    "version": "Last Round (2026-09-03)",
+    "games": [
+      {
+        "title": "Tenchu: Time of the Assassins",
+        "identities": [
+          {
+            "type": "disc_id",
+            "scheme": "psp-param-sfo-disc-id",
+            "value": "ULES00277"
+          }
+        ],
+        "regions": ["Europe"]
+      }
+    ],
+    "authors": ["SomberTwilight"],
+    "page_url": "https://gbatemp.net/threads/tenchu-time-of-the-assassins-last-round-ppsspp.684191/",
+    "source_id": "gbatemp:684191",
+    "licence": {
+      "summary": "No licence stated by the creator",
+      "redistribution": "Download the creator's original public archive unchanged. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+    },
+    "download": {
+      "automatable": false,
+      "page": "https://gbatemp.net/threads/tenchu-time-of-the-assassins-last-round-ppsspp.684191/",
+      "verify": {
+        "url": "https://mega.nz/file/4KNwwbgL#eGKRMssmjXVegrXbNbfQM3MFlO-gjsr9HCY7D6trj7M"
+      },
+      "in_app": true
+    },
+    "scope": "partial",
+    "family": "psp-tenchu-tota-hd-sombertwilight",
+    "requirements": "PPSSPP custom texture replacement. Camera and draw-distance modifications mentioned by the creator are separate from installing texture replacements.",
+    "notes": "The creator's Tenchu Projects hub explicitly labels this project TENCHU TOTA HD, Service: upscale, Platform: PPSSPP, and links its older original ULES00277.7z archive: https://somberstenchuhub.my.canva.site/tenchumodpacks . The latest original creator thread supplies this Last Round MEGA release and a screenshot named ULES00277_00002.jpg. Europe ULES00277 only; individual interface/dialogue languages, including French, have not been verified. Coverage remains partial until established from the release. The new archive still requires the native archive, textures.ini and install verification before publication; no successful device rendering is claimed. Older versions and optional modifications share this family."
+  }
+]

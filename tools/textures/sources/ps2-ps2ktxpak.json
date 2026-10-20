@@ -623,8 +623,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1HiYJOYZmw-AWjgw1Swt5QMKCkv8NKn6c&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1HiYJOYZmw-AWjgw1Swt5QMKCkv8NKn6c&export=download&authuser=0",
+    "sha256": "2811a8f730bb9a8a4f168eced4a2ae53ed5420dc9785eeeb84d84eb76441e61d"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -1331,8 +1333,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1yaHJGmU2CUR0vv-aVswg4qLg-04an86D&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1yaHJGmU2CUR0vv-aVswg4qLg-04an86D&export=download&authuser=0",
+    "sha256": "4d15e21f98833875eb54841ba171de67d6dca0aa0329aaca4e25b9c2d0ff4294"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2034,8 +2038,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/cold-fear-slus-21047-hd-texture-pack.682778/",
    "verify": {
-    "url": "https://pixeldrain.com/api/file/AGSfUwQi"
-   }
+    "url": "https://pixeldrain.com/api/file/AGSfUwQi",
+    "sha256": "9552a3c38e496337bb76f894698b57c45098c7f81b8dc96d95f574d4b65d234f"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2159,8 +2165,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1h-V8D9V04QRfvEeMHGBLUCaXR1KSRN_D&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1h-V8D9V04QRfvEeMHGBLUCaXR1KSRN_D&export=download&authuser=0",
+    "sha256": "bf616eef6910b0baf1434227763bcbfa54f3f43b8f8893e97d709ed7021b7d7d"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2284,8 +2292,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/crash-twinsanity-eur-sles-52568-texture-pack.669875/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1mamMXY99dikFfWiRNpqxdsSrtDxkb0FF/view"
-   }
+    "url": "https://drive.google.com/file/d/1mamMXY99dikFfWiRNpqxdsSrtDxkb0FF/view",
+    "sha256": "639965eb9e8e30e42355cca815c88d197a9d40285fcf30de9071cb3e2f150954"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -2833,8 +2843,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/disney-kim-possible-whats-the-switch-usa-slus-21437-upscaled-texture-pack.663768/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1CCv6zWw85ZdjMKw3h9hkHQjCls8Zf--r/view?usp=sharing"
-   }
+    "url": "https://drive.google.com/file/d/1CCv6zWw85ZdjMKw3h9hkHQjCls8Zf--r/view?usp=sharing",
+    "sha256": "3ac4b59587abdba6adc61a3643f8cfc87321a8e92290beaa850782a5bdf5101e"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3377,8 +3389,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/dynasty-warriors-3-3xl-expansive-hd-texture-mod-2-4k.666849/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1aixV-UMX7HpyGjrEZLTzQM2zGUWNNZsU/view"
-   }
+    "url": "https://drive.google.com/file/d/1aixV-UMX7HpyGjrEZLTzQM2zGUWNNZsU/view",
+    "sha256": "ae125e8b4321705a3a051b5f3b60d5f36026cf75da5f213aff19da2290e0054a"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3503,8 +3517,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=19sUjWK_JHGytpPZkEHdF06pd2OU-FwSA&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=19sUjWK_JHGytpPZkEHdF06pd2OU-FwSA&export=download&authuser=0",
+    "sha256": "7c2b390c6cd83a7e8e4fe379d11cd9b0e71376dbb98446efab345207eeb9d17e"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -3937,8 +3953,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1Mqy6UcoLNiLDTQ2cVzMJVuuZP1TPcKCh&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1Mqy6UcoLNiLDTQ2cVzMJVuuZP1TPcKCh&export=download&authuser=0",
+    "sha256": "b12355b39b889d38d10788b173d4d4459a1cfee1efad696da6be58f2b893feae"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4001,8 +4019,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1VU5CDcEZG4UHBeNOKSmGK_segZ12I7LS&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1VU5CDcEZG4UHBeNOKSmGK_segZ12I7LS&export=download&authuser=0",
+    "sha256": "c0c6d2377dcc7f86d4a006d31eacbcaae771609a3f7209010253292cb7cea602"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4097,8 +4117,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1zKv5uQ8WOeKL2AZ-PhNLyiEdh2uW4syC&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1zKv5uQ8WOeKL2AZ-PhNLyiEdh2uW4syC&export=download&authuser=0",
+    "sha256": "fa2de000fe33171b9379652bc53d3934b6c2fe796a5b2eeb61828bda11712753"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4260,8 +4282,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1q0v8miB7q8s4uOaKDc0nZxKC1LaaScFp&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1q0v8miB7q8s4uOaKDc0nZxKC1LaaScFp&export=download&authuser=0",
+    "sha256": "70ce039fda990fa1b76c2b8a53efa12926aae31d0584fe82f09a64a4274c194d"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -4536,8 +4560,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/gauntlet-seven-sorrows-pcsx2-hd-remaster.668343/",
    "verify": {
-    "url": "https://drive.google.com/file/d/11kcLOjlreYmRybd_xfCG9tcRIlKiHmIh/view?usp=sharing"
-   }
+    "url": "https://drive.google.com/file/d/11kcLOjlreYmRybd_xfCG9tcRIlKiHmIh/view?usp=sharing",
+    "sha256": "d6293f40d8daece29b543d3a4d66d068103c9c4f47295bb567ef6bc3f51dfaed"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5026,8 +5052,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/god-of-war-2-kratos-god-armor.643454/",
    "verify": {
-    "url": "https://mega.nz/file/yIVAGZKZ#o3tzyKaqa8N4mwCs3waK4DDR61vwK4WVYgZHYvYjqCQ"
-   }
+    "url": "https://mega.nz/file/yIVAGZKZ#o3tzyKaqa8N4mwCs3waK4DDR61vwK4WVYgZHYvYjqCQ",
+    "sha256": "c61bda2de9a0659ef8fdc110ec34798cc56584963067c8bdf9d98ec414fba701"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5069,8 +5097,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/god-of-war-2-sces-54206-hd-texture-pack.683758/",
    "verify": {
-    "url": "https://pixeldrain.com/api/file/VYbosyNJ"
-   }
+    "url": "https://pixeldrain.com/api/file/VYbosyNJ",
+    "sha256": "2f060d8c977688b846303b7bef351ed6ef676814b36e8d05f469f65ed22d093d"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5284,8 +5314,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1eVkyauicmtj4zdTRJOnbFCx8gYn1c43a&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1eVkyauicmtj4zdTRJOnbFCx8gYn1c43a&export=download&authuser=0",
+    "sha256": "a2779035f5cb42c68fe069fa6719cf64ca3697c515e70f95561a5f6400811e25"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -5965,8 +5997,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/hulk-2003-full-faithful-hd-texture-mod-4k-textures.667241/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1w4HS_2lKjxnSFsIwJ1RQgXJbWrfP42yJ/view"
-   }
+    "url": "https://drive.google.com/file/d/1w4HS_2lKjxnSFsIwJ1RQgXJbWrfP42yJ/view",
+    "sha256": "dcc9c79a1224c819cbb57cce74f8b86ff539e54cac58b30b312875a1dbf1b00b"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6008,8 +6042,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1CvknVvXlwZky70Vy1yQfXnOol5AktZvG&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1CvknVvXlwZky70Vy1yQfXnOol5AktZvG&export=download&authuser=0",
+    "sha256": "c054c4804660914f10daadde2a652172e10a56020579e553e2f1516fbd4e1c24"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6223,8 +6259,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.google.com/u/0/uc?id=1GC9eeH-tkgR-FBGF2cTzjiWMcFWp86zZ&export=download"
-   }
+    "url": "https://drive.google.com/u/0/uc?id=1GC9eeH-tkgR-FBGF2cTzjiWMcFWp86zZ&export=download",
+    "sha256": "d2a17404acb0abd2c5ceba77624848b7a40c21dadd7eb2ebde3be70697f52696"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6266,8 +6304,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/jak-2-hd-hud-pcsx2-open-goal.645980/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1zbCZofBzgUX1hTzvpC4ikZrTLnDsKPcG/view?pli=1"
-   }
+    "url": "https://drive.google.com/file/d/1zbCZofBzgUX1hTzvpC4ikZrTLnDsKPcG/view?pli=1",
+    "sha256": "33b399a25bea8862005f51172151af8bf1bee1d19aa95372a0e962635772bbc7"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6522,8 +6562,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1AG_TQ9W6AxVtWqBVkLaUVFcfpTijusMH&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1AG_TQ9W6AxVtWqBVkLaUVFcfpTijusMH&export=download&authuser=0",
+    "sha256": "b1360c5c6571becf9cfe2f61a8169da426316d263f243eb8eeaed02217849737"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6680,8 +6722,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/ps2-lego-batman-the-videogame-sles-55135-hd-textures.664769/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1Ez-JzJuSiFGI3SlI5uVNh6Fq9j3pTqsv/view"
-   }
+    "url": "https://drive.google.com/file/d/1Ez-JzJuSiFGI3SlI5uVNh6Fq9j3pTqsv/view",
+    "sha256": "a36961d105a1080eaba9e7aeba7ca75456aa58c1ddb2b3bdc024eec5494c1d14"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -6936,8 +6980,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/maximo-ghost-to-glory-hd-hud-us.646188/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1epEe0dN1ucgU560SAQLYKW05t4g2xX21/view?usp=sharing"
-   }
+    "url": "https://drive.google.com/file/d/1epEe0dN1ucgU560SAQLYKW05t4g2xX21/view?usp=sharing",
+    "sha256": "eaa5d423b9c042b957a2c7cb5d643d2355ab177a75e248e53cabbfde6dddd494"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7122,8 +7168,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=15fj3tK9YfVtcB2brZ7k_rnuAC76hoi8O&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=15fj3tK9YfVtcB2brZ7k_rnuAC76hoi8O&export=download&authuser=0",
+    "sha256": "310db3c39e27486045d38b1b89e0191bf0e4dec28441bab8a2655ea1bba06800"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7165,8 +7213,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/metal-gear-solid-2-sons-of-liberty-hd-textures.675280/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1lMimK9Pb5tu5n9KC-qOCj9PYQtfxhKys&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1lMimK9Pb5tu5n9KC-qOCj9PYQtfxhKys&export=download&authuser=0",
+    "sha256": "b52766c1cc0496f0af682b1fe2746dc4b687c313392e6414bd343869cd17c66c"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7257,8 +7307,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1aJZlKwGuofgaQm-IY3JPHTNZc_6NEtWt&export=download"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1aJZlKwGuofgaQm-IY3JPHTNZc_6NEtWt&export=download",
+    "sha256": "b29cc85a9e98e2f2114d62ce874987ed16249b566d2caeca73aa0eea97682e41"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7382,8 +7434,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1R21woDExK_jIZP27ON1VQG-fFEdc-baE&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1R21woDExK_jIZP27ON1VQG-fFEdc-baE&export=download&authuser=0",
+    "sha256": "aaa7b11504981dec30625b771bd26de2e85a1e7ef39ea47d5f9d423315548384"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7503,8 +7557,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/midnight-club-street-racing-pcsx2-hd-texture.668214/",
    "verify": {
-    "url": "https://drive.google.com/file/d/12263q2NKBPq54WgfM1h_le39dZDuflEq/view?usp=sharing"
-   }
+    "url": "https://drive.google.com/file/d/12263q2NKBPq54WgfM1h_le39dZDuflEq/view?usp=sharing",
+    "sha256": "c9e7088cf1ab204ce1466778db889f8b995d2149de81fbe6213f858aa07602f7"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7815,8 +7871,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1la7LcGiPrwdEvF9xFzPkk9X2mSb32kWA&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1la7LcGiPrwdEvF9xFzPkk9X2mSb32kWA&export=download&authuser=0",
+    "sha256": "cf1100c0a2ab292672c12473d9b6cac9b9b8842360eab1de1a94646f8b20cdfb"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -7858,8 +7916,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/mx-unleashed-hd-texture-pcsx2.664321/",
    "verify": {
-    "url": "https://mega.nz/file/hpVS0YIK#0gZl3AervKCGdMpU951lNLPBZn0hs1bKwObdTG6623s"
-   }
+    "url": "https://mega.nz/file/hpVS0YIK#0gZl3AervKCGdMpU951lNLPBZn0hs1bKwObdTG6623s",
+    "sha256": "875c3e2d5ba27a79e35b2f8c080dd8edaa99ab15da31b3d710610721bfd4414e"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8042,8 +8102,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/naruto-shippuden-ultimate-ninja-4-slus-21862-upscaled-texture-pack.663636/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1x4WRyr2jtcqnzKYIAuTub6MEES_DQf6w/view?usp=sharing"
-   }
+    "url": "https://drive.google.com/file/d/1x4WRyr2jtcqnzKYIAuTub6MEES_DQf6w/view?usp=sharing",
+    "sha256": "6d80a2168a720e248d3488e4c7cc5c3d0a1de5cd5e22a1400858d77a48c9fe77"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8124,8 +8186,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/naruto-uzumaki-chronicles-2-slus-21594-upscaled-texture-pack.664299/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1k13gL1V1Nl0sez5tiwSTfetTg-bhrTWn/view?usp=sharing"
-   }
+    "url": "https://drive.google.com/file/d/1k13gL1V1Nl0sez5tiwSTfetTg-bhrTWn/view?usp=sharing",
+    "sha256": "278b5703350fa18be6843c82dc553570d71ce8b04b66a6066551ee5d272ecab3"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8526,8 +8590,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1bPTqfBNBBdGmFQ_PZKAeuvLEnMsYkSYX&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1bPTqfBNBBdGmFQ_PZKAeuvLEnMsYkSYX&export=download&authuser=0",
+    "sha256": "56ff23f1da9b724a9b482e25171200bc80bcaffd960913dd910bf3abc36f733e"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8901,8 +8967,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/police-24-7-pcsx2-hd-texture.677396/",
    "verify": {
-    "url": "https://mega.nz/file/TLBGVbSB#L0cipsZ9woD2nxa8WDaj3fxiZVvBlWJh8zjUAendNgA"
-   }
+    "url": "https://mega.nz/file/TLBGVbSB#L0cipsZ9woD2nxa8WDaj3fxiZVvBlWJh8zjUAendNgA",
+    "sha256": "47e99b55028bea5229456467f9ec5836ac110217ecca9b69763f1b1e8fb9ffb5"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -8944,8 +9012,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/power-rangers-super-legends-slus-21679-texture-pack.669924/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1ZFdJm1u69us0mxntOsrfnq7dELK7ZRE-/view"
-   }
+    "url": "https://drive.google.com/file/d/1ZFdJm1u69us0mxntOsrfnq7dELK7ZRE-/view",
+    "sha256": "5a56d23cc8b8ac0cdddecc6428c9b54046cf46f34c8ade7df5ea9a90615d97cc"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9366,8 +9436,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=19yAW9RWNr5AeJDgel_aCxsA8jEYSBwTe&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=19yAW9RWNr5AeJDgel_aCxsA8jEYSBwTe&export=download&authuser=0",
+    "sha256": "6970e29e2f58e31bd7faddfc6833e6588cfa4080c82afe2451d8745b37ca38d6"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9409,8 +9481,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=10eW4XwCeVegm4MI6J0G-D5hdGyHJtfGF&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=10eW4XwCeVegm4MI6J0G-D5hdGyHJtfGF&export=download&authuser=0",
+    "sha256": "8891b3df81f1ddfcc58473fcf347a494a29df606dc98a39d22dd305f58d9d0d7"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9685,8 +9759,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/ratchet-and-clank-2002.657920/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1ambWzexqMfe3f8BT9LiS0Z4ENC_3E2A1/view?usp=drive_link"
-   }
+    "url": "https://drive.google.com/file/d/1ambWzexqMfe3f8BT9LiS0Z4ENC_3E2A1/view?usp=drive_link",
+    "sha256": "ab416e572ad4994866e2758adb9eddbaeaf98b822b88c82586369527a12fd0f0"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9733,8 +9809,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/ratchet-clank-up-your-arsenal-texture-pack-scus-97353.631588/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1aDn5n3-NxsnzVvfSBwh-y0KTz21ksiI-/view"
-   }
+    "url": "https://drive.google.com/file/d/1aDn5n3-NxsnzVvfSBwh-y0KTz21ksiI-/view",
+    "sha256": "df4ed5cc967e113d9c04df1582db871dc81720ac05683c777da283bd8a960577"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -9792,8 +9870,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/red-faction-ii-pcsx2-hd-texture.661484/",
    "verify": {
-    "url": "https://mega.nz/file/U80GyILQ#Vag_AtrLgIUQOTT2979MPsPV5n5kPWoEXhxNT9IFp1g"
-   }
+    "url": "https://mega.nz/file/U80GyILQ#Vag_AtrLgIUQOTT2979MPsPV5n5kPWoEXhxNT9IFp1g",
+    "sha256": "f0f9b139d1bc5e7d323c054b9090fa61a0e777099561948e1924f3b96ba32cd0"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -10003,8 +10083,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1Kk4PFkHsN8H9lGLF02sroAQZ1TsCp7vE&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1Kk4PFkHsN8H9lGLF02sroAQZ1TsCp7vE&export=download&authuser=0",
+    "sha256": "ec970f760d719789982fe843be661645b2a4ff3982d7b38724a541c9d9bb067b"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -10046,8 +10128,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/rogue-trooper-hd-textures.674567/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=10TTCQEWPlNFM7yDcFZVz_lO5yuUt6E7p&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=10TTCQEWPlNFM7yDcFZVz_lO5yuUt6E7p&export=download&authuser=0",
+    "sha256": "03ceb14ab2ed6442e9cf1d166fc796482cbc12744d1402c6a8c20206c67e6c1f"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -10279,8 +10363,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.google.com/u/0/uc?id=1v87mK0VqoYb5tgI4Iz1Sk-ThpexpDOM-&export=download"
-   }
+    "url": "https://drive.google.com/u/0/uc?id=1v87mK0VqoYb5tgI4Iz1Sk-ThpexpDOM-&export=download",
+    "sha256": "f19816151fca5dfba93d389961a4fed83eb439dd3a80a5e31374928f3efb2ea6"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -10409,8 +10495,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1GaqgbdZEbPh6uDbnuQYC85cwCYvEqj1y&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1GaqgbdZEbPh6uDbnuQYC85cwCYvEqj1y&export=download&authuser=0",
+    "sha256": "ba757a3a7bf2a2a6362775cf15012ef04f3905f45d59cefce8b1986cec504d80"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -10500,8 +10588,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1qqhBKRLskT-3ySJ4QCUeJWFE9e_0MHVe&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1qqhBKRLskT-3ySJ4QCUeJWFE9e_0MHVe&export=download&authuser=0",
+    "sha256": "e2f818564f63269201508edaa74ddf0668e4ff196dba3891f64191abb448138d"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -11975,8 +12065,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1xXI5PAYxZM18lFsfGeNObXr8S3ASQa5S&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1xXI5PAYxZM18lFsfGeNObXr8S3ASQa5S&export=download&authuser=0",
+    "sha256": "417de6dca2ee2bb08f06d61aaa2092e21624778451b713c0f531c12fccd6f84d"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -12234,8 +12326,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.google.com/u/0/uc?id=11M6bDg1hopDkhpL9AsIb0R-8YV82ysiP&export=download"
-   }
+    "url": "https://drive.google.com/u/0/uc?id=11M6bDg1hopDkhpL9AsIb0R-8YV82ysiP&export=download",
+    "sha256": "fe87938e36ff2a9c1813b294c1de9bc1d86b4de08954cfb52be34819ae5544dd"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -12473,8 +12567,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.google.com/u/0/uc?id=1G_FlX3Wi721zDuEZq5kQtZMnmCTqiQh1&export=download"
-   }
+    "url": "https://drive.google.com/u/0/uc?id=1G_FlX3Wi721zDuEZq5kQtZMnmCTqiQh1&export=download",
+    "sha256": "3422496c42f16259998ab3b42747a51407c190acfe3ed24add8360f74799a7f7"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23286,8 +23382,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=14kPdGpH2zA6PJ5yeMuUcU2aIFGE9wZ52&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=14kPdGpH2zA6PJ5yeMuUcU2aIFGE9wZ52&export=download&authuser=0",
+    "sha256": "1b698915eb48e7ae85f11b713e4da53ceac7443b6b1a35026b5c7d601120f70e"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23520,8 +23618,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/spartan-total-warrior-hd-textures.641317/",
    "verify": {
-    "url": "https://dropbox.com/scl/fi/hbgjgd3t2uns15gw5e7i6/SLES-53393.rar?rlkey=w0sdqzcn94j17kofd72ynn36o&dl=0"
-   }
+    "url": "https://dropbox.com/scl/fi/hbgjgd3t2uns15gw5e7i6/SLES-53393.rar?rlkey=w0sdqzcn94j17kofd72ynn36o&dl=0",
+    "sha256": "d6cc848cd3c3f66d0496fbbd5186ddb2b0f787a289f4bfde464b5aa41c03b39c"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23926,8 +24026,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1rJxhQIS1DduZBmbAu-nsDVxoIktQR_NC&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1rJxhQIS1DduZBmbAu-nsDVxoIktQR_NC&export=download&authuser=0",
+    "sha256": "19638f42dba067f13d7f8a0e5e5fe82463cd8051df64b0067645d988a9b884a9"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24845,8 +24947,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/the-red-star-hd-textures.669283/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1gnwqqIi5sYTQ1Utyb4NJSu3SDiO9Njsr&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1gnwqqIi5sYTQ1Utyb4NJSu3SDiO9Njsr&export=download&authuser=0",
+    "sha256": "fbfe5687fc1c2bd75525dfff213276d0136e12dc400e48f1110e06c4dbb1acba"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24973,8 +25077,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=16x-lF6lEdf0-po6h3UxTPQmps8MCe7IQ&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=16x-lF6lEdf0-po6h3UxTPQmps8MCe7IQ&export=download&authuser=0",
+    "sha256": "e273e1dfe5afcdc81b9c35161598e8625b0c0ffb04d07281ce88b82612d8d0f7"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25286,8 +25392,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.google.com/file/d/1Udmi3x-C0Fiir_e5cDj0j-ynJfXNaX-X/view?usp=share_link"
-   }
+    "url": "https://drive.google.com/file/d/1Udmi3x-C0Fiir_e5cDj0j-ynJfXNaX-X/view?usp=share_link",
+    "sha256": "970b79ce52f218270043e15df9eb9fd6fc99342c6b0721ea3ab118309086d5da"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25602,8 +25710,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1TRufbnbKP4-jQRmIX03oDCFMtaN457DL&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1TRufbnbKP4-jQRmIX03oDCFMtaN457DL&export=download&authuser=0",
+    "sha256": "a8f0f07c4faaaf0c41bfde7249eda5a4ee0863bbc8e39f1db8afaaabe3f2d82e"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25711,8 +25821,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1D9TOM4mEPld4FGlp2mUcY2igJ4iYip1v&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1D9TOM4mEPld4FGlp2mUcY2igJ4iYip1v&export=download&authuser=0",
+    "sha256": "db97c9ee2c2752210da0b57538381ba0f4cd091897ad68a2de0340238d3e74bd"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -25903,8 +26015,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/warhammer-40000-fire-warrior-hd-textures.671836/",
    "verify": {
-    "url": "https://drive.usercontent.google.com/download?id=1qXfIGsevhYDD1LJqPE_UXhbEDFdred2s&export=download&authuser=0"
-   }
+    "url": "https://drive.usercontent.google.com/download?id=1qXfIGsevhYDD1LJqPE_UXhbEDFdred2s&export=download&authuser=0",
+    "sha256": "80d7bd186ce7f0d2dedfaefa2da596e5fe5821c14e077e4d8cf00d418486b59d"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -26034,8 +26148,10 @@
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
    "verify": {
-    "url": "https://drive.google.com/file/d/15GY9HMUE8eUbwG0Vol_ypjgECILEZAO-/view"
-   }
+    "url": "https://drive.google.com/file/d/15GY9HMUE8eUbwG0Vol_ypjgECILEZAO-/view",
+    "sha256": "6ee4018cb5e08e556d9335144b1be8eb9d9c0f671967c937114a6cb72ca2d793"
+   },
+   "in_app": true
   },
   "system": "ps2",
   "engine": "armsx2",

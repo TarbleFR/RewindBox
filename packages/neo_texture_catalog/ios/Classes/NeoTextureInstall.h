@@ -6,6 +6,7 @@
 #pragma once
 #include "NeoTextureArchive.h"
 #include "NeoTextureSevenZip.h"
+#include "NeoTextureRAR.h"
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
@@ -624,9 +625,14 @@ inline Staged ExtractArchive(Engine engine, const std::string& root, const std::
     NeoTextureArchive::Zip reader;
     staged.status = reader.open(archive, archiveLimits);
     if (staged.status == NeoTextureArchive::Status::ok) staged.status = reader.extractAll(destination, progress);
+  } else if (!std::memcmp(magic, "Rar!", 4)) {
+    NeoTextureArchive::Rar reader;
+    staged.status = reader.open(archive, archiveLimits, progress);
+    if (staged.status == NeoTextureArchive::Status::ok) staged.status = reader.extractAll(destination, progress);
+    if (staged.status != NeoTextureArchive::Status::ok && staged.problem.empty()) staged.problem = reader.problem();
   } else {
     staged.status = NeoTextureArchive::Status::unsupported;
-    staged.problem = !std::memcmp(magic, "Rar!", 4) ? "rar" : "format";
+    staged.problem = "format";
   }
   return staged;
 }

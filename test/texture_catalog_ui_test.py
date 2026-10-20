@@ -423,20 +423,21 @@ def native():
         subprocess.run(['xcrun', 'simctl', 'boot', device['udid']], check=True, timeout=60)
     subprocess.run(['xcrun', 'simctl', 'bootstatus', device['udid'], '-b'], check=True, timeout=180)
     sources = sorted(str(p) for p in CLASSES.glob('*.m') if p.name != 'NeoTextureCatalogPlugin.m')
-    sources += sorted(str(p) for p in CLASSES.glob('*.mm')) + [str(CLASSES / 'NeoTextureLZMA.c'), str(ARMSX2 / 'ARMSX2TexturePackStore.mm')]
+    sources += sorted(str(p) for p in CLASSES.glob('*.mm')) + [str(CLASSES / 'NeoTextureLZMA.c'), str(CLASSES / 'NeoTextureRARMemory.c'), str(ARMSX2 / 'ARMSX2TexturePackStore.mm')]
+    sources += sorted(str(p) for p in (POD / 'ThirdParty/libarchive').glob('*.c'))
     with tempfile.TemporaryDirectory(prefix='texture-catalog-ui-') as folder:
         directory = Path(folder)
         (directory / 'main.m').write_text(APP)
         (directory / 'TextureCatalogPageTests.m').write_text(TESTS)
         sdk_dependencies = [{'sdk': 'UIKit.framework'}, {'sdk': 'Foundation.framework'}, {'sdk': 'Metal.framework'},
-                            {'sdk': 'libz.tbd'}, {'sdk': 'libc++.tbd'}, {'sdk': 'UniformTypeIdentifiers.framework'}]
-        search_paths = ' '.join(str(p) for p in (CLASSES, CLASSES / 'Public', POD / 'ThirdParty/lzma', ARMSX2))
+                            {'sdk': 'libz.tbd'}, {'sdk': 'libiconv.tbd'}, {'sdk': 'libc++.tbd'}, {'sdk': 'UniformTypeIdentifiers.framework'}]
+        search_paths = ' '.join(str(p) for p in (CLASSES, CLASSES / 'Public', POD / 'ThirdParty/lzma', POD / 'ThirdParty/libarchive', ARMSX2))
         project = {
             'name': 'TextureCatalog486',
             'options': {'deploymentTarget': {'iOS': '17.4'}},
             'settings': {'base': {'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_ENABLE_MODULES': 'YES', 'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',
                                   'CODE_SIGNING_ALLOWED': 'YES', 'CODE_SIGN_IDENTITY': '-', 'GENERATE_INFOPLIST_FILE': 'YES',
-                                  'HEADER_SEARCH_PATHS': search_paths}},
+                                  'HEADER_SEARCH_PATHS': search_paths, 'GCC_PREPROCESSOR_DEFINITIONS': '$(inherited) HAVE_CONFIG_H=1'}},
             'targets': {
                 'TextureCatalogHost': {'type': 'application', 'platform': 'iOS',
                     'sources': [str(directory / 'main.m')] + sources +

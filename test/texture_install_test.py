@@ -20,6 +20,8 @@ import texture_7z_writer as sz  # noqa: E402
 
 CLASSES = ROOT / 'packages/neo_texture_catalog/ios/Classes'
 LZMA = ROOT / 'packages/neo_texture_catalog/ios/ThirdParty/lzma'
+sys.path.insert(0, str(ROOT / 'tools/textures'))
+from build_rar_library import build as build_rar
 PNG = b'\x89PNG\r\n\x1a\n' + bytes(range(256)) * 64
 
 
@@ -40,10 +42,11 @@ def build(folder):
             continue
         lzma = folder / 'lzma.o'
         driver = folder / 'install'
+        rar = build_rar(folder / 'rar', cc=cxx, flags=['-fsanitize=address,undefined', '-fno-sanitize=alignment'])
         steps = [[cxx, '-x', 'c', '-c', '-O1', '-fsanitize=address,undefined', '-fno-sanitize=alignment', f'-I{LZMA}',
                   str(CLASSES / 'NeoTextureLZMA.c'), '-o', str(lzma)],
                  [cxx, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-fsanitize=address,undefined', f'-I{CLASSES}', f'-I{LZMA}',
-                  str(ROOT / 'test/native/texture_install_driver.cpp'), str(lzma), '-lz', '-o', str(driver)]]
+                  str(ROOT / 'test/native/texture_install_driver.cpp'), str(lzma), str(rar), '-lz', '-o', str(driver)]]
         result = None
         for step in steps:
             result = subprocess.run(step, capture_output=True, text=True)
@@ -311,7 +314,7 @@ def main():
         rar = temp / 'x.rar'
         rar.write_bytes(b'Rar!\x1a\x07\x00' + bytes(64))
         code, out = run('install', 'dolphin', dolphin, rar, 'GZ2E01/=GZ2E01')
-        assert code == 3 and 'rar' in out, out
+        assert code == 3 and 'stage invalid' in out, out  # malformed header, not a supported RAR pack
         dup = temp / 'dup.zip'
         with zipfile.ZipFile(dup, 'w') as z:
             z.writestr('GZ2E01/tex1_a.png', PNG)

@@ -23,9 +23,9 @@ def main():
     if sys.platform != 'darwin':
         raise SystemExit('The iPhone syntax check runs on macOS.')
     sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], text=True).strip()
-    sources = sorted((POD / 'Classes').glob('*.m')) + sorted((POD / 'Classes').glob('*.mm')) + [POD / 'Classes/NeoTextureLZMA.c']
+    sources = sorted((POD / 'Classes').glob('*.m')) + sorted((POD / 'Classes').glob('*.mm')) + [POD / 'Classes/NeoTextureLZMA.c', POD / 'Classes/NeoTextureRARMemory.c'] + sorted((POD / 'ThirdParty/libarchive').glob('*.c'))
     base = ['-target', TARGET, '-isysroot', sdk, '-Wall', '-Wno-unused-parameter', '-I', str(POD / 'Classes'),
-            '-I', str(POD / 'Classes/Public'), '-I', str(POD / 'ThirdParty/lzma'), '-I', str(ROOT / 'test/libretro_host/stubs')]
+            '-I', str(POD / 'Classes/Public'), '-DHAVE_CONFIG_H=1', '-I', str(POD / 'ThirdParty/libarchive'), '-I', str(POD / 'ThirdParty/lzma'), '-I', str(ROOT / 'test/libretro_host/stubs')]
     failed, objects = [], []
     with tempfile.TemporaryDirectory(prefix='texture-catalog-ios-') as temporary:
         directory = Path(temporary)
@@ -50,7 +50,7 @@ def main():
             raise SystemExit('iPhone compilation failed: ' + ', '.join(failed))
         library = directory / 'libneo_texture_catalog.dylib'
         command = ['xcrun', '--sdk', 'iphoneos', 'clang++', '-dynamiclib', '-target', TARGET, '-isysroot', sdk, '-fobjc-arc',
-                   *map(str, objects), '-lz', '-lc++', '-Wl,-undefined,dynamic_lookup', '-o', str(library)]
+                   *map(str, objects), '-lz', '-liconv', '-lc++', '-Wl,-undefined,dynamic_lookup', '-o', str(library)]
         for framework in FRAMEWORKS:
             command += ['-framework', framework]
         subprocess.run(command, check=True)

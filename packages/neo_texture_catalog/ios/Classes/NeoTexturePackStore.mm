@@ -2,10 +2,17 @@
 #import "Public/NeoTexturePackStore.h"
 #import "Public/NeoTextureCatalog.h"
 #import "NeoTextureSupport.h"
+#import "NeoTextureHostResolver.h"
+#import "NeoTextureMega.h"
 #import <CommonCrypto/CommonDigest.h>
 #include "NeoTextureInstall.h"
 #include <atomic>
+#include <cerrno>
+#include <cstdlib>
+#include <fcntl.h>
 #include <memory>
+#include <sys/stat.h>
+#include <unistd.h>
 
 NSString *const NeoTexturePackStoreErrorDomain = @"NeoTexturePackStore";
 
@@ -105,18 +112,27 @@ static NSError *DelegateError(NSDictionary *outcome) {
   return PackError(code, key, details);
 }
 
-@interface NeoTexturePackStore () <NSURLSessionDownloadDelegate> {
+@interface NeoTexturePackStore () <NSURLSessionDownloadDelegate, NSURLSessionDataDelegate> {
   dispatch_queue_t _queue;  // state
   dispatch_queue_t _work;   // hashing, extraction, file moves
   NSURLSession *_session;
   NSMutableDictionary<NSString *, NSMutableDictionary *> *_jobs;
-  NSURLSessionDownloadTask *_task;
+  NSURLSessionTask *_task;
   NSString *_taskPack;
   NSUInteger _taskPart;
   void (^_taskFinished)(NSError *);
   unsigned long long _taskBase;
+  id _partResolution;
+  BOOL _taskStream;
+  NSString *_streamPath;
+  int _streamFD;
+  unsigned long long _streamStart, _streamWritten, _streamExpected;
+  NSError *_streamError;
+  NSDictionary *_streamCrypto, *_streamPart;
+  std::shared_ptr<std::atomic<bool>> _taskCancel;
   std::shared_ptr<std::atomic<bool>> _cancel;
   NSString *_busyPack;
+  BOOL _discardOnFinish;
   NSTimeInterval _lastNotice;
 }
 @end
@@ -139,6 +155,7 @@ static NSError *DelegateError(NSDictionary *outcome) {
   _downloadDirectory = [caches stringByAppendingPathComponent:@"NeoStation/Textures/Downloads"];
   _freeSpace = ^unsigned long long(NSString *path) { return NeoTexFreeBytes(path); };
   _jobs = [NSMutableDictionary dictionary];
+  _streamFD = -1;
   return self;
 }
 
@@ -149,6 +166,8 @@ static NSError *DelegateError(NSDictionary *outcome) {
     configuration.timeoutIntervalForResource = 6 * 60 * 60;
     configuration.URLCache = nil;
     configuration.HTTPCookieStorage = nil;
+    configuration.HTTPShouldSetCookies = NO;
+    configuration.URLCredentialStorage = nil;
     NSOperationQueue *delegates = [NSOperationQueue new];
     delegates.maxConcurrentOperationCount = 1;
     _session = [NSURLSession sessionWithConfiguration:configuration delegate:self delegateQueue:delegates];
@@ -194,11 +213,12 @@ static NSError *DelegateError(NSDictionary *outcome) {
 - (void)finish:(NSString *)packID state:(NSString *)state error:(NSError *)error result:(NSDictionary *)result
     completion:(void (^)(NSDictionary *, NSError *))completion {
   dispatch_async(_queue, ^{
-    if ([self->_busyPack isEqualToString:packID]) self->_busyPack = nil;
-    NSMutableDictionary *values = [@{@"state": state} mutableCopy];
+    BOOL discarded = [self->_busyPack isEqualToString:packID] && self->_discardOnFinish;
+    if ([self->_busyPack isEqualToString:packID]) { self->_busyPack = nil; self->_discardOnFinish = NO; }
+    NSMutableDictionary *values = [@{@"state": discarded ? @"idle" : state} mutableCopy];
     values[@"error"] = error.userInfo[@"key"] ?: [NSNull null];
     [self update:packID values:values notify:YES];
-    if ([state isEqualToString:@"done"]) [self->_jobs removeObjectForKey:packID];
+    if (discarded || [state isEqualToString:@"done"]) [self->_jobs removeObjectForKey:packID];
     dispatch_async(dispatch_get_main_queue(), ^{ completion(result, error); });
   });
 }
@@ -304,6 +324,7 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
       }
     }
     self->_busyPack = packID;
+    self->_discardOnFinish = NO;
     self->_cancel = std::make_shared<std::atomic<bool>>(false);
     NSString *folder = [self folderForPack:pack];
     for (NSString *stale in [self downloadFoldersOf:packID])
@@ -357,6 +378,7 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
       }
     }
     self->_busyPack = packID;
+    self->_discardOnFinish = NO;
     self->_cancel = std::make_shared<std::atomic<bool>>(false);
     std::shared_ptr<std::atomic<bool>> cancel = self->_cancel;
     NSString *folder = [self folderForPack:pack], *archive = [self archiveForPack:pack];
@@ -477,10 +499,178 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
   });
 }
 
+// Resolve only the provider explicitly declared by the validated catalogue.
+// This private seam also lets the Store fixtures exercise cancellation without
+// requiring a real provider account or changing the production resolver.
+- (id)resolvePart:(NSDictionary *)part
+       completion:(void (^)(NSURL *, NSDictionary *, NSError *))completion {
+  if (NeoTexIsMegaPart(part)) return NeoTexResolveMegaPart(part, self.session, completion);
+  return NeoTexResolveHostPart(part, ^(NSURL *url, NSError *error) { completion(url, nil, error); });
+}
+
+static NSError *ResolutionError(NSError *error) {
+  NSString *key = NeoTexString(error.userInfo[@"key"]);
+  NeoTexturePackError code = [key isEqual:@"cancelled"] ? NeoTexturePackErrorCancelled
+      : [key isEqual:@"changed"] ? NeoTexturePackErrorChanged
+      : [key isEqual:@"htmlPage"] ? NeoTexturePackErrorHTML : NeoTexturePackErrorNetwork;
+  NSMutableDictionary *details = [NSMutableDictionary dictionary];
+  for (NSString *name in @[@"status", @"provider_code"])
+    if ([error.userInfo[name] isKindOfClass:NSNumber.class]) details[name] = error.userInfo[name];
+  return PackError(code, code == NeoTexturePackErrorNetwork ? @"network" : key, details);
+}
+
+static BOOL UnsignedHeader(NSString *text, unsigned long long *value) {
+  if (!text.length || text.length > 20 || [text rangeOfCharacterFromSet:
+      NSCharacterSet.decimalDigitCharacterSet.invertedSet].location != NSNotFound) return NO;
+  const char *begin = text.UTF8String;
+  char *end = nullptr;
+  errno = 0;
+  unsigned long long parsed = std::strtoull(begin, &end, 10);
+  if (errno || !end || end == begin || *end) return NO;
+  if (value) *value = parsed;
+  return YES;
+}
+
+// A suffix response must cover exactly the remaining verified byte interval.
+// Reject mismatched ranges before opening/appending the cache file.
+static BOOL MatchesRange(NSString *text, unsigned long long start, unsigned long long size) {
+  static NSRegularExpression *expression;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{ expression = [NSRegularExpression regularExpressionWithPattern:
+      @"^bytes ([0-9]+)-([0-9]+)/([0-9]+)$" options:0 error:nil]; });
+  NSTextCheckingResult *match = [expression firstMatchInString:text ?: @"" options:0 range:NSMakeRange(0, text.length)];
+  if (!match || !size) return NO;
+  unsigned long long a = 0, b = 0, total = 0;
+  return UnsignedHeader([text substringWithRange:[match rangeAtIndex:1]], &a) &&
+      UnsignedHeader([text substringWithRange:[match rangeAtIndex:2]], &b) &&
+      UnsignedHeader([text substringWithRange:[match rangeAtIndex:3]], &total) &&
+      a == start && b == size - 1 && total == size && a <= b;
+}
+
+- (void)completeResolvedPart:(NSDictionary *)part crypto:(NSDictionary *)crypto partial:(NSString *)partial
+                       into:(NSString *)path cancel:(std::shared_ptr<std::atomic<bool>>)cancel
+                 completion:(void (^)(NSError *))completion {
+  dispatch_async(_work, ^{
+    NSError *failure = nil;
+    NSString *candidate = partial;
+    if (cancel && cancel->load()) failure = PackError(NeoTexturePackErrorCancelled, @"cancelled", nil);
+    if (!failure && crypto) {
+      // Once decryption starts this file can no longer be resumed as ciphertext.
+      // Rename, then decrypt in place: no second archive-sized allocation on disk.
+      candidate = [path stringByAppendingPathExtension:@"decrypting"];
+      [NSFileManager.defaultManager removeItemAtPath:candidate error:nil];
+      if (![NSFileManager.defaultManager moveItemAtPath:partial toPath:candidate error:nil])
+        failure = PackError(NeoTexturePackErrorWrite, @"writeFailed", nil);
+      else failure = NeoTexDecryptMegaFile(candidate, part, crypto, [cancel] { return cancel && cancel->load(); });
+    }
+    if (!failure && cancel && cancel->load()) failure = PackError(NeoTexturePackErrorCancelled, @"cancelled", nil);
+    if (!failure && ![NSFileManager.defaultManager moveItemAtPath:candidate toPath:path error:nil])
+      failure = PackError(NeoTexturePackErrorWrite, @"writeFailed", nil);
+    // A failed/cancelled decryption must never leave mixed plaintext/ciphertext
+    // that a later Range request could accidentally append to.
+    if (crypto && failure && ![candidate isEqualToString:partial])
+      [NSFileManager.defaultManager removeItemAtPath:candidate error:nil];
+    dispatch_async(self->_queue, ^{ completion(failure); });
+  });
+}
+
+- (void)fetchResolvedPart:(NSDictionary *)part URL:(NSURL *)url crypto:(NSDictionary *)crypto
+                    pack:(NSDictionary *)pack index:(NSUInteger)index into:(NSString *)path
+                    base:(unsigned long long)base cancel:(std::shared_ptr<std::atomic<bool>>)cancel
+              completion:(void (^)(NSError *))completion {
+  if (cancel && cancel->load()) { completion(PackError(NeoTexturePackErrorCancelled, @"cancelled", nil)); return; }
+  if (![url.scheme.lowercaseString isEqual:@"https"] || url.user.length || url.password.length) {
+    completion(PackError(NeoTexturePackErrorNetwork, @"network", nil)); return;
+  }
+  NSString *partial = [path stringByAppendingPathExtension:crypto ? @"cipher.partial" : @"host.partial"];
+  // Dynamic signed URLs and NSURLSession resume plists are never persisted.
+  [NSFileManager.defaultManager removeItemAtPath:[path stringByAppendingPathExtension:@"resume"] error:nil];
+  [NSFileManager.defaultManager removeItemAtPath:[path stringByAppendingPathExtension:@"decrypting"] error:nil];
+  const unsigned long long expected = [part[@"size"] unsignedLongLongValue];
+  struct stat attributes {};
+  unsigned long long offset = 0;
+  if (::lstat(Std(partial).c_str(), &attributes) == 0) {
+    if (!S_ISREG(attributes.st_mode) || attributes.st_size < 0 || (unsigned long long)attributes.st_size > expected) {
+      [NSFileManager.defaultManager removeItemAtPath:partial error:nil];
+    } else offset = (unsigned long long)attributes.st_size;
+  }
+  if (offset == expected) {
+    [self completeResolvedPart:part crypto:crypto partial:partial into:path cancel:cancel completion:completion];
+    return;
+  }
+  if (self.transport) {
+    self.transport(url, partial, offset, ^(unsigned long long written) {
+      dispatch_async(self->_queue, ^{
+        if (cancel == self->_cancel && !cancel->load())
+          [self update:pack[@"id"] values:@{@"received": @(base + MIN(written, expected))} notify:NO];
+      });
+    }, ^(NSString *contentType, NSError *error) {
+      dispatch_async(self->_queue, ^{
+        if (cancel->load()) { completion(PackError(NeoTexturePackErrorCancelled, @"cancelled", nil)); return; }
+        if (error) { completion(PackError(NeoTexturePackErrorNetwork, @"network", @{@"resumable": @YES})); return; }
+        if ([contentType.lowercaseString hasPrefix:@"text/html"]) {
+          [NSFileManager.defaultManager removeItemAtPath:partial error:nil];
+          completion(PackError(NeoTexturePackErrorHTML, @"htmlPage", nil)); return;
+        }
+        unsigned long long actual = [[NSFileManager.defaultManager attributesOfItemAtPath:partial error:nil] fileSize];
+        if (actual != expected) {
+          [NSFileManager.defaultManager removeItemAtPath:partial error:nil];
+          completion(PackError(NeoTexturePackErrorChanged, @"changed", nil)); return;
+        }
+        [self completeResolvedPart:part crypto:crypto partial:partial into:path cancel:cancel completion:completion];
+      });
+    });
+    return;
+  }
+  NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+  [request setValue:@"NeoStation-iOS" forHTTPHeaderField:@"User-Agent"];
+  [request setValue:@"identity" forHTTPHeaderField:@"Accept-Encoding"];
+  if (offset) [request setValue:[NSString stringWithFormat:@"bytes=%llu-", offset] forHTTPHeaderField:@"Range"];
+  _taskStream = YES;
+  _streamPath = partial;
+  _streamExpected = expected;
+  _streamStart = offset;
+  _streamWritten = 0;
+  _streamFD = -1;
+  _streamError = nil;
+  _streamCrypto = crypto;
+  _streamPart = part;
+  _taskCancel = cancel;
+  _taskPack = pack[@"id"];
+  _taskPart = index;
+  _taskBase = base;
+  _taskFinished = [completion copy];
+  _task = [self.session dataTaskWithRequest:request];
+  _task.taskDescription = path;
+  [_task resume];
+}
+
 - (void)fetchPart:(NSDictionary *)pack index:(NSUInteger)index into:(NSString *)path base:(unsigned long long)base
        completion:(void (^)(NSError *))completion {
   NSString *packID = pack[@"id"];
-  NSURL *url = [NSURL URLWithString:pack[@"download"][@"parts"][index][@"url"]];
+  NSDictionary *part = pack[@"download"][@"parts"][index];
+  NSString *provider = NeoTexString(part[@"provider"]);
+  if (provider.length) {
+    if (!NeoTexIsMegaPart(part) && !NeoTexValidHostPart(part)) {
+      completion(PackError(NeoTexturePackErrorChanged, @"changed", nil)); return;
+    }
+    std::shared_ptr<std::atomic<bool>> cancel = _cancel;
+    _partResolution = [self resolvePart:part completion:^(NSURL *url, NSDictionary *crypto, NSError *error) {
+      dispatch_async(self->_queue, ^{
+        // Cancellation can race metadata completion; no late callback starts a download.
+        if (cancel == self->_cancel) self->_partResolution = nil;
+        if (cancel != self->_cancel || cancel->load() || ![self->_busyPack isEqual:packID]) {
+          completion(PackError(NeoTexturePackErrorCancelled, @"cancelled", nil)); return;
+        }
+        if (error || !url || (NeoTexIsMegaPart(part) && !crypto)) {
+          completion(error ? ResolutionError(error) : PackError(NeoTexturePackErrorNetwork, @"network", nil)); return;
+        }
+        [self fetchResolvedPart:part URL:url crypto:crypto pack:pack index:index into:path base:base cancel:cancel completion:completion];
+      });
+    }];
+    return;
+  }
+  NSURL *url = [NSURL URLWithString:part[@"url"]];
   NSString *resumePath = [path stringByAppendingPathExtension:@"resume"];
   if (self.transport) {
     // Test transport: the partial file itself is the resume state.
@@ -509,6 +699,7 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
   [NSFileManager.defaultManager removeItemAtPath:resumePath error:nil];
   NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
   [request setValue:@"NeoStation-iOS" forHTTPHeaderField:@"User-Agent"];
+  _taskStream = NO;
   _task = resume.length ? [self.session downloadTaskWithResumeData:resume] : [self.session downloadTaskWithRequest:request];
   _taskPack = packID;
   _taskPart = index;
@@ -516,6 +707,97 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
   _taskFinished = [completion copy];
   _task.taskDescription = path;
   [_task resume];
+}
+
+// Provider downloads are data tasks with a ciphertext/body-only partial file.
+// Unlike NSURLSession resumeData, this state contains no expiring CDN URL/key.
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)task didReceiveResponse:(NSURLResponse *)response
+ completionHandler:(void (^)(NSURLSessionResponseDisposition))completionHandler {
+  dispatch_async(_queue, ^{
+    if (task != self->_task || !self->_taskStream) { completionHandler(NSURLSessionResponseCancel); return; }
+    NSHTTPURLResponse *http = [response isKindOfClass:NSHTTPURLResponse.class] ? (NSHTTPURLResponse *)response : nil;
+    NSString *type = [http valueForHTTPHeaderField:@"Content-Type"].lowercaseString ?: @"";
+    NSString *encoding = [http valueForHTTPHeaderField:@"Content-Encoding"].lowercaseString ?: @"";
+    NSError *failure = nil;
+    if (self->_taskCancel && self->_taskCancel->load()) failure = PackError(NeoTexturePackErrorCancelled, @"cancelled", nil);
+    else if (!http || (http.statusCode != 200 && http.statusCode != 206))
+      failure = PackError(NeoTexturePackErrorNetwork, @"network", @{@"status": @(http.statusCode)});
+    else if ([type hasPrefix:@"text/html"])
+      failure = PackError(NeoTexturePackErrorHTML, @"htmlPage", nil);
+    else if ((encoding.length && ![encoding isEqual:@"identity"]) ||
+             (http.statusCode == 206 && !MatchesRange([http valueForHTTPHeaderField:@"Content-Range"], self->_streamStart, self->_streamExpected)) ||
+             (http.statusCode == 200 && [http valueForHTTPHeaderField:@"Content-Range"].length))
+      failure = PackError(NeoTexturePackErrorChanged, @"changed", nil);
+    // A server may legitimately ignore Range and send its full body. Truncate
+    // this candidate before writing, rather than appending a second copy.
+    if (!failure && http.statusCode == 200) self->_streamStart = 0;
+    const unsigned long long remaining = self->_streamExpected - self->_streamStart;
+    if (!failure && response.expectedContentLength >= 0 && (unsigned long long)response.expectedContentLength != remaining)
+      failure = PackError(NeoTexturePackErrorChanged, @"changed", nil);
+    if (!failure) {
+      int flags = O_WRONLY | O_CREAT | O_NOFOLLOW | (self->_streamStart ? O_APPEND : O_TRUNC);
+      self->_streamFD = ::open(Std(self->_streamPath).c_str(), flags, 0600);
+      struct stat attributes {};
+      if (self->_streamFD < 0 || ::fstat(self->_streamFD, &attributes) || !S_ISREG(attributes.st_mode) ||
+          attributes.st_size < 0 || (unsigned long long)attributes.st_size != self->_streamStart)
+        failure = PackError(NeoTexturePackErrorWrite, @"writeFailed", nil);
+    }
+    self->_streamError = failure;
+    if (failure && failure.code != NeoTexturePackErrorNetwork && failure.code != NeoTexturePackErrorCancelled)
+      [NSFileManager.defaultManager removeItemAtPath:self->_streamPath error:nil];
+    completionHandler(failure ? NSURLSessionResponseCancel : NSURLSessionResponseAllow);
+  });
+}
+
+- (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)task didReceiveData:(NSData *)data {
+  // The serial delegate waits for each bounded write: NSData callbacks cannot
+  // accumulate an archive-sized backlog on the state queue.
+  dispatch_sync(_queue, ^{
+    if (task != self->_task || !self->_taskStream || self->_streamError) return;
+    if (self->_taskCancel && self->_taskCancel->load()) {
+      self->_streamError = PackError(NeoTexturePackErrorCancelled, @"cancelled", nil); [task cancel]; return;
+    }
+    if (self->_streamFD < 0 || self->_streamStart + self->_streamWritten > self->_streamExpected ||
+        data.length > self->_streamExpected - self->_streamStart - self->_streamWritten) {
+      self->_streamError = PackError(NeoTexturePackErrorChanged, @"changed", nil); [task cancel]; return;
+    }
+    const unsigned char *bytes = (const unsigned char *)data.bytes;
+    NSUInteger at = 0;
+    while (at < data.length) {
+      // Each write is bounded even when the networking stack coalesces chunks.
+      ssize_t n = ::write(self->_streamFD, bytes + at, MIN(NSUInteger(1 << 20), data.length - at));
+      if (n < 0 && errno == EINTR) continue;
+      if (n <= 0) { self->_streamError = PackError(NeoTexturePackErrorWrite, @"writeFailed", nil); [task cancel]; return; }
+      at += NSUInteger(n);
+      self->_streamWritten += (unsigned long long)n;
+    }
+    [self update:self->_taskPack values:@{@"received": @(self->_taskBase + self->_streamStart + self->_streamWritten)} notify:NO];
+  });
+}
+
+- (void)completeStreamTask:(NSURLSessionTask *)task error:(NSError *)error {
+  NSError *failure = _streamError;
+  if (_streamFD >= 0) {
+    if (!failure && !error && ::fsync(_streamFD)) failure = PackError(NeoTexturePackErrorWrite, @"writeFailed", nil);
+    ::close(_streamFD); _streamFD = -1;
+  }
+  std::shared_ptr<std::atomic<bool>> cancel = _taskCancel;
+  if (cancel && cancel->load()) failure = PackError(NeoTexturePackErrorCancelled, @"cancelled", nil);
+  if (!failure && error) failure = PackError(NeoTexturePackErrorNetwork, @"network", nil);
+  if (!failure && _streamStart + _streamWritten != _streamExpected)
+    failure = PackError(NeoTexturePackErrorChanged, @"changed", nil);
+  NSString *partial = _streamPath, *path = task.taskDescription;
+  NSDictionary *crypto = _streamCrypto, *part = _streamPart;
+  void (^finished)(NSError *) = _taskFinished;
+  _task = nil; _taskFinished = nil; _taskStream = NO;
+  _streamPath = nil; _streamCrypto = nil; _streamPart = nil; _streamError = nil; _taskCancel.reset();
+  if (failure) {
+    if (failure.code != NeoTexturePackErrorNetwork && failure.code != NeoTexturePackErrorCancelled)
+      [NSFileManager.defaultManager removeItemAtPath:partial error:nil];
+    finished(failure);
+    return;
+  }
+  [self completeResolvedPart:part crypto:crypto partial:partial into:path cancel:cancel completion:finished];
 }
 
 - (void)URLSession:(NSURLSession *)session downloadTask:(NSURLSessionDownloadTask *)task didWriteData:(int64_t)written
@@ -542,6 +824,7 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
   dispatch_async(_queue, ^{
     if (task != self->_task) return;
+    if (self->_taskStream) { [self completeStreamTask:task error:error]; return; }
     void (^finished)(NSError *) = self->_taskFinished;
     NSString *path = task.taskDescription;
     self->_task = nil;
@@ -571,7 +854,23 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task willPerformHTTPRedirection:(NSHTTPURLResponse *)response
         newRequest:(NSURLRequest *)request completionHandler:(void (^)(NSURLRequest *))completionHandler {
-  completionHandler([request.URL.scheme.lowercaseString isEqualToString:@"https"] ? request : nil);
+  dispatch_async(_queue, ^{
+    BOOL allowed = [request.URL.scheme.lowercaseString isEqualToString:@"https"];
+    if (task == self->_task && self->_taskStream && (request.URL.user.length || request.URL.password.length)) allowed = NO;
+    completionHandler(allowed ? request : nil);
+  });
+}
+
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
+ completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition, NSURLCredential *))completionHandler {
+  dispatch_async(_queue, ^{
+    // Public provider files never authenticate an account. Keep the system's
+    // normal TLS certificate validation and refuse HTTP/client credentials.
+    BOOL provider = task == self->_task && self->_taskStream;
+    BOOL trust = [challenge.protectionSpace.authenticationMethod isEqual:NSURLAuthenticationMethodServerTrust];
+    completionHandler(provider && !trust ? NSURLSessionAuthChallengeCancelAuthenticationChallenge
+                                        : NSURLSessionAuthChallengePerformDefaultHandling, nil);
+  });
 }
 
 // One archive from verified parts (split archives are byte-concatenated).
@@ -616,14 +915,19 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
   dispatch_async(_queue, ^{
     if (![self->_busyPack isEqualToString:packID]) return;
     if (self->_cancel) self->_cancel->store(true);
-    if (self->_task) [self->_task cancelByProducingResumeData:^(NSData *resume) {}];
+    [self->_partResolution cancel];
+    if (self->_taskStream) [self->_task cancel];
+    else if ([self->_task isKindOfClass:NSURLSessionDownloadTask.class])
+      [(NSURLSessionDownloadTask *)self->_task cancelByProducingResumeData:^(NSData *resume) {}];
   });
 }
 
 - (void)cancelPack:(NSString *)packID {
   dispatch_async(_queue, ^{
     if ([self->_busyPack isEqualToString:packID]) {
+      self->_discardOnFinish = YES;
       if (self->_cancel) self->_cancel->store(true);
+      [self->_partResolution cancel];
       [self->_task cancel];
     }
     dispatch_async(self->_work, ^{
@@ -877,6 +1181,67 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
 
 #pragma mark - Import
 
+// ARMSX2's original installer reads ZIP/folders. Expand an ordinary user RAR
+// privately, then let that same installer inspect serial/CRC/region, ask for
+// confirmation and perform its normal rollback. No installed folder is changed
+// by this expansion, and no untrusted executable from the archive is copied.
+- (NSError *)expandRARImport:(NSURL *)url engine:(id<NeoTextureEngine>)engine
+                     cancel:(std::shared_ptr<std::atomic<bool>>)cancel expansion:(NSString **)expansion {
+  __block NSError *failure = nil;
+  __block NSString *expanded = nil;
+  NSError *coordination = nil;
+  const BOOL scoped = [url startAccessingSecurityScopedResource];
+  NSFileCoordinator *coordinator = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
+  [coordinator coordinateReadingItemAtURL:url options:NSFileCoordinatorReadingWithoutChanges error:&coordination byAccessor:^(NSURL *source) {
+    BOOL directory = NO;
+    if (![NSFileManager.defaultManager fileExistsAtPath:source.path isDirectory:&directory]) {
+      failure = PackError(NeoTexturePackErrorArchive, @"unreadable", nil); return;
+    }
+    if (directory) return;
+    NeoTextureArchive::File probe;
+    unsigned char magic[4]{};
+    if (!probe.open(Std(source.path)) || probe.length() < sizeof(magic) || !probe.read(0, magic, sizeof(magic))) {
+      failure = PackError(NeoTexturePackErrorArchive, @"unreadable", nil); return;
+    }
+    if (std::memcmp(magic, "Rar!", 4)) return;
+    NeoTextureArchive::Progress progress = [cancel](uint64_t) { return !(cancel && cancel->load()); };
+    NeoTextureArchive::Rar reader;
+    auto status = reader.open(Std(source.path), NeoTextureArchive::Limits{}, progress);
+    if (status != NeoTextureArchive::Status::ok) { failure = ArchiveError(status, reader.problem()); return; }
+    unsigned long long bytes = 0, files = 0;
+    const NeoTextureInstall::Limits limits;
+    for (const auto &entry : reader.entries()) {
+      if (entry.directory || !NeoTextureInstall::Accepts(EngineKind(engine), entry.name)) continue;
+      if (++files > limits.maxFiles || entry.size > limits.maxBytes - bytes) {
+        failure = PackError(NeoTexturePackErrorArchive, @"archiveTooLarge", nil); return;
+      }
+      bytes += entry.size;
+    }
+    if (!files) { failure = PackError(NeoTexturePackErrorLayout, @"noTextures", nil); return; }
+    NSString *root = engine.texturesRoot;
+    if (![NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:nil]) {
+      failure = PackError(NeoTexturePackErrorWrite, @"writeFailed", nil); return;
+    }
+    const unsigned long long free = self.freeSpace(root), needed = bytes + Headroom;
+    if (free < needed) {
+      failure = PackError(NeoTexturePackErrorSpace, @"space", @{@"required": @(needed), @"free": @(free)}); return;
+    }
+    std::vector<NeoTextureInstall::Rule> rules{{"", "", {}}};
+    const char *prefix = engine.expansionPrefix.length ? engine.expansionPrefix.UTF8String : NeoTextureInstall::kStagingPrefix;
+    auto staged = NeoTextureInstall::ExtractArchive(EngineKind(engine), Std(root), Std(source.path), rules, progress, {}, prefix, true);
+    if (staged.staging.empty()) failure = PackError(NeoTexturePackErrorWrite, @"writeFailed", nil);
+    else if (staged.status != NeoTextureArchive::Status::ok || !staged.problem.empty()) failure = ArchiveError(staged.status, staged.problem);
+    else if (!staged.files[0]) failure = PackError(NeoTexturePackErrorLayout, @"noTextures", nil);
+    if (failure) { if (!staged.staging.empty()) NeoTextureInstall::RemoveTree(staged.staging); }
+    else expanded = [NSString stringWithUTF8String:staged.staging.c_str()];
+  }];
+  if (scoped) [url stopAccessingSecurityScopedResource];
+  if (coordination && !failure) failure = PackError(NeoTexturePackErrorArchive, @"unreadable", nil);
+  if (failure && expanded) { NeoTextureInstall::RemoveTree(Std(expanded)); expanded = nil; }
+  if (expansion) *expansion = expanded;
+  return failure;
+}
+
 - (void)importURL:(NSURL *)url engine:(id<NeoTextureEngine>)engine identity:(NSDictionary *)identity
  allowOtherRegion:(BOOL)allowOtherRegion replace:(BOOL)replace completion:(void (^)(NSDictionary *, NSError *))completion {
   NSString *packID = @"import";
@@ -886,6 +1251,7 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
       return;
     }
     self->_busyPack = packID;
+    self->_discardOnFinish = NO;
     self->_cancel = std::make_shared<std::atomic<bool>>(false);
     std::shared_ptr<std::atomic<bool>> cancel = self->_cancel;
     [self update:packID values:@{@"state": @"installing", @"received": @0, @"total": @1, @"error": [NSNull null]} notify:YES];
@@ -901,11 +1267,23 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
                 result:nil completion:completion];
           return;
         }
-        NSDictionary *outcome = [engine importURL:url identity:identity confirmed:allowOtherRegion
-            progress:^(double fraction) {
-              dispatch_async(self->_queue, ^{ [self update:packID values:@{@"received": @(MIN(MAX(fraction, 0.0), 1.0) * 1000), @"total": @1000} notify:NO]; });
-            }
-            cancelled:^BOOL { return cancel && cancel->load(); }];
+        NSString *expansion = nil;
+        if ([engine.engineID isEqual:@"armsx2"]) {
+          NSError *error = [self expandRARImport:url engine:engine cancel:cancel expansion:&expansion];
+          if (error) { [self finish:packID state:@"failed" error:error result:nil completion:completion]; return; }
+        }
+        // The original archive name supplies the same serial/region hints as a
+        // normal import; this is not an exact catalogue match or a bypass.
+        struct Cleanup { std::string path; ~Cleanup() { if (!path.empty()) NeoTextureInstall::RemoveTree(path); } } cleanup{Std(expansion)};
+        void (^progress)(double) = ^(double fraction) {
+          dispatch_async(self->_queue, ^{ [self update:packID values:@{@"received": @(MIN(MAX(fraction, 0.0), 1.0) * 1000), @"total": @1000} notify:NO]; });
+        };
+        BOOL (^cancelled)(void) = ^BOOL { return cancel && cancel->load(); };
+        NSDictionary *outcome;
+        if (expansion) outcome = [engine installSource:expansion expanded:YES
+            pack:@{@"download": @{@"file_name": url.lastPathComponent ?: @""}} identity:identity
+            confirmed:allowOtherRegion progress:progress cancelled:cancelled];
+        else outcome = [engine importURL:url identity:identity confirmed:allowOtherRegion progress:progress cancelled:cancelled];
         if (![outcome[@"success"] boolValue]) {
           [self finish:packID state:@"failed" error:DelegateError(outcome ?: @{}) result:nil completion:completion];
           return;
@@ -980,7 +1358,13 @@ static NSDictionary *VerifiedPack(NSDictionary *pack) {
     NSError *error = nil;
     if (!std::memcmp(magic, "7z\xbc\xaf\x27\x1c", 6)) { NeoTextureArchive::SevenZip reader; error = collect(reader); }
     else if (magic[0] == 'P' && magic[1] == 'K') { NeoTextureArchive::Zip reader; error = collect(reader); }
-    else return PackError(NeoTexturePackErrorArchive, !std::memcmp(magic, "Rar!", 4) ? @"rarUnsupported" : @"archiveUnsupported", nil);
+    else if (!std::memcmp(magic, "Rar!", 4)) {
+      NeoTextureArchive::Rar reader;
+      const auto status = reader.open(Std(path), NeoTextureArchive::Limits{}, [cancel](uint64_t) { return !(cancel && cancel->load()); });
+      if (status != NeoTextureArchive::Status::ok) error = ArchiveError(status, reader.problem());
+      else for (const auto &entry : reader.entries()) if (!entry.directory) { names.push_back(entry.name); total += entry.size; }
+    }
+    else return PackError(NeoTexturePackErrorArchive, @"archiveUnsupported", nil);
     if (error) return error;
   }
   const NeoTextureInstall::Layout layout = NeoTextureInstall::Detect(EngineKind(engine), names, Std(current));

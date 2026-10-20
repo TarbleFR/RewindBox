@@ -20,24 +20,29 @@ A pack whose author does not publish a file the app can fetch is "manual"
 (page link). A pack whose verification failed is listed as manual with the
 reason, or left out when its file is gone.
 
-A manual pack published on a file host (MEGA, Google Drive, MediaFire,
-Dropbox, GameBanana: download.verify in its source) stays a page link, but
-when CI fetched the author's file once and installed it with the app's code
-(tools/textures/hosts.py, verify_packs.py --kind host) the index also carries
-download.verified (format, size, SHA-256) and the install layout: the app
-installs that exact file when the user imports it, and refuses any other.
+A pack published on a file host (download.verify in its source) normally
+stays a page link. When CI fetched the author's file and installed it with
+the app's code, download.verified also lets the app import that exact file.
+Explicitly reviewed download.in_app sources may instead use the existing
+HTTPS downloader: only stable original file URLs are emitted, including
+GameBanana's download endpoint and Dropbox's documented dl=1 shared link.
+Other providers and RAR use an additional native capability descriptor;
+older clients retain the manual fallback. Raw CI records and their original
+source URLs are never rewritten for promotion.
 
   python3 tools/textures/build_catalogue.py            writes both copies
   python3 tools/textures/build_catalogue.py --check    fails when they are stale
   python3 tools/textures/build_catalogue.py --inventory docs/...md   also writes the inventory table
 """
 import argparse
+import base64
 import gzip
 import hashlib
 import io
 import json
 import re
 import sys
+import urllib.parse
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -57,7 +62,8 @@ KEEP = ('id', 'system', 'systems', 'engine', 'title', 'version', 'games', 'autho
 MANUAL_REASONS = {
     'method:14': 'Its ZIP entries are compressed with LZMA (method 14), which the installers do not read: '
                  'extract it on a computer and import the folder.',
-    'rar': 'Published as a RAR archive: extract it on a computer and import the folder.',
+    'rar': 'This historical verification did not install its RAR archive. It stays unavailable until '
+           'a new verification with the current archive reader succeeds; external extraction and folder import remain possible.',
 }
 
 
@@ -109,6 +115,79 @@ def source_name(entry):
         return source[len('github:'):], 'https://github.com/' + source[len('github:'):]
     # A creator's own page (forum profile) names the source better than one of its packs.
     return source.split(':', 1)[-1], entry.get('source_url') or entry['page_url']
+
+
+def hosted_in_app_download(entry, record):
+    """A reviewed stable original URL, with a provider only when a resolver is needed.
+
+    Keep the stable creator URL in the source/CI observation, not a temporary
+    CDN redirect. The size/SHA-256 still come only from the successful native
+    archive verification. Dropbox's dl=1 switch is its documented download
+    action; this does not remove access restrictions or bypass a quota.
+    """
+    download = entry.get('download') or {}
+    if not download.get('in_app'):
+        return None
+    url = (download.get('verify') or {}).get('url') or ''
+    try:
+        parts = urllib.parse.urlsplit(url)
+        valid_port = parts.port in (None, 443)
+    except ValueError:
+        fail(f'{entry["id"]}: malformed in-app host URL')
+    host, provider = (parts.hostname or '').lower(), record.get('host')
+    allowed = len(url) <= 2048 and parts.scheme == 'https' and not parts.username and not parts.password and valid_port
+    if provider != 'mega':
+        allowed = allowed and not parts.fragment
+    if provider == 'gamebanana':
+        allowed = allowed and host in ('gamebanana.com', 'www.gamebanana.com') and bool(re.fullmatch(r'/dl/[0-9]+/?', parts.path))
+    elif provider == 'dropbox':
+        allowed = allowed and host in ('www.dropbox.com', 'dropbox.com', 'dl.dropbox.com', 'dl.dropboxusercontent.com') and \
+            bool(re.match(r'^/(?:s/[^/]+/|scl/fi/[^/]+/)', parts.path))
+        if allowed:
+            query = [(key, value) for key, value in urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+                     if key not in ('dl', 'raw')]
+            query.append(('dl', '1'))
+            url = urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query)))
+    elif provider == 'direct':
+        allowed = allowed and (
+            (host == 'archive.org' and bool(re.match(r'^/download/[^/]+/.+', parts.path))) or
+            (host == 'pixeldrain.com' and bool(re.fullmatch(r'/api/file/[A-Za-z0-9]+', parts.path))) or
+            (host == 'forums.ppsspp.org' and parts.path == '/attachment.php' and
+             bool(re.fullmatch(r'[0-9]+', dict(urllib.parse.parse_qsl(parts.query)).get('aid', '')))) or
+            (host == 'github.com' and bool(re.match(r'^/[^/]+/[^/]+/releases/download/[^/]+/.+', parts.path)))
+        )
+    elif provider == 'gdrive':
+        file_path = bool(re.fullmatch(r'/file/d/[A-Za-z0-9_-]{10,200}/?(?:view|edit)?/?', parts.path))
+        query = dict(urllib.parse.parse_qsl(parts.query))
+        query_id = query.get('id', '')
+        key_ok = not query.get('resourcekey') or bool(re.fullmatch(r'[A-Za-z0-9_-]{1,256}', query['resourcekey']))
+        id_path = parts.path in ('/uc', '/open', '/download') and bool(re.fullmatch(r'[A-Za-z0-9_-]{10,200}', query_id))
+        allowed = allowed and host in ('drive.google.com', 'docs.google.com', 'drive.usercontent.google.com') and key_ok and (file_path or id_path)
+    elif provider == 'mega':
+        file_link = bool(re.fullmatch(r'/file/[A-Za-z0-9_-]{8}', parts.path) and
+                         re.fullmatch(r'[A-Za-z0-9_-]{43}', parts.fragment))
+        folder_file = bool(re.fullmatch(r'/folder/[A-Za-z0-9_-]{8}', parts.path) and
+                           re.fullmatch(r'[A-Za-z0-9_-]{22}/file/[A-Za-z0-9_-]{8}', parts.fragment))
+        old_file = parts.path in ('', '/') and bool(re.fullmatch(r'![A-Za-z0-9_-]{8}![A-Za-z0-9_-]{43}', parts.fragment))
+        old_folder_file = parts.path in ('', '/') and bool(re.fullmatch(r'F![A-Za-z0-9_-]{8}![A-Za-z0-9_-]{22}![A-Za-z0-9_-]{8}', parts.fragment))
+        key = (parts.fragment.split('/')[0] if file_link or folder_file else
+               parts.fragment.split('!')[2] if old_file or old_folder_file else '')
+        try:
+            raw_key = base64.urlsafe_b64decode(key + '=' * (-len(key) % 4))
+            canonical_key = base64.urlsafe_b64encode(raw_key).decode().rstrip('=')
+            key_ok = len(raw_key) == (16 if folder_file or old_folder_file else 32) and canonical_key == key
+        except ValueError:
+            key_ok = False
+        allowed = allowed and host in ('mega.nz', 'www.mega.nz', 'mega.co.nz', 'www.mega.co.nz') and \
+            len(url) <= 512 and not parts.query and key_ok and (file_link or folder_file or old_file or old_folder_file)
+    elif provider == 'yandex':
+        allowed = allowed and host in ('disk.yandex.ru', 'disk.yandex.com', 'yadi.sk') and \
+            not parts.query and bool(re.fullmatch(r'/d/[A-Za-z0-9_-]+/?', parts.path))
+    else:
+        allowed = False
+    if not allowed:
+        fail(f'{entry["id"]}: in-app host URL is not a reviewed stable original download')
+    return {'url': url, **({'provider': provider} if provider in ('gdrive', 'mega', 'yandex') else {})}
 
 
 def load():
@@ -182,21 +261,34 @@ def build(entries, records):
         expected = [download['verify']] if hosted else download['parts']
         if len(parts) != len(expected) or any(a['url'] != b['url'] for a, b in zip(parts, expected)):
             fail(f'{entry["id"]}: verification record names other files')
-        if hosted:
+        host_download = hosted_in_app_download(entry, record) if hosted else None
+        if hosted and not host_download:
             name = download.get('file_name') or record.get('file_name') or f'{entry["id"]}.{record["format"]}'
             spec = {'automatable': False, 'verified': {'format': record['format'], 'file_name': name[:200],
                                                        'size': parts[0]['size'], 'sha256': parts[0]['sha256'], 'host': record.get('host', '')}}
         else:
-            spec = {'automatable': True, 'format': record['format'], 'file_name': download.get('file_name') or parts[0]['url'].rsplit('/', 1)[-1],
-                    'parts': [{'url': p['url'], 'size': p['size'], 'sha256': p['sha256']} for p in parts]}
+            spec = {'automatable': True, 'format': record['format'],
+                    'file_name': download.get('file_name') or (record.get('file_name') if host_download else None) or parts[0]['url'].rsplit('/', 1)[-1],
+                    'parts': [{**(host_download or {'url': p['url']}), 'size': p['size'], 'sha256': p['sha256']} for p in parts]}
         if len(parts) > 1:
             spec['size'] = record['size']
             spec['sha256'] = record['sha256']
         if download.get('repository'):
             spec['repository'] = download['repository']
+        # Older apps must keep a truthful manual action for a provider requiring
+        # a native resolver or for RAR. New clients validate and expand in_app;
+        # legacy clients retain the verified-file import/page fallback. The
+        # existing ZIP/7z HTTPS path remains directly available to every build.
+        if spec.get('automatable') and (record['format'] == 'rar' or (host_download or {}).get('provider')):
+            name = spec['file_name'][:200]
+            spec = {'automatable': False,
+                    'verified': {'format': record['format'], 'file_name': name,
+                                 'size': spec.get('size') or parts[0]['size'],
+                                 'sha256': spec.get('sha256') or parts[0]['sha256'], 'host': record.get('host', 'direct')},
+                    'in_app': {**spec, 'file_name': name}}
         # Identical packs (same file, same folders installed) are merged; variants
         # installing other folders of one archive (button styles...) are kept.
-        digest = (spec.get('sha256') or parts[0]['sha256'],
+        digest = ((spec.get('in_app') or spec).get('sha256') or parts[0]['sha256'],
                   json.dumps([[f['from'], sorted(f.get('exclude') or [])] for f in record['installed']]))
         if digest in digests:
             fail(f'{entry["id"]} and {digests[digest]} install the same files of the same download: merge them')
@@ -230,7 +322,7 @@ def build(entries, records):
                 notes.append('Its DDS files are ignored by Azahar without a pack.json.')
         if notes:
             pack['notes'] = ' '.join(notes)
-        pack['availability'] = 'manual' if hosted else 'available'
+        pack['availability'] = 'available' if spec.get('automatable') else 'manual'
         pack['download'] = spec
         pack['install'] = {'files': files, 'bytes': size, 'folders': folders,
                            'formats': formats_of(entry['engine'], record['installed'], record.get('checks'))}
@@ -291,18 +383,42 @@ def validate(index):
         download = pack['download']
         verified = download.get('verified')
         if verified is not None:
-            if pack['availability'] != 'manual' or download.get('automatable') or verified.get('format') not in ('zip', '7z') or \
+            if pack['availability'] != 'manual' or download.get('automatable') or verified.get('format') not in ('zip', '7z', 'rar') or \
                     not sha.match(verified.get('sha256', '')) or not 0 < verified.get('size', 0) <= 64 << 30 or \
                     not 0 < len(verified.get('file_name') or '') <= 200:
                 fail(f'{where}: verified file')
-        if pack['availability'] == 'available':
-            if download['format'] not in ('zip', '7z') or not 1 <= len(download['parts']) <= 16:
+        native = download.get('in_app')
+        if native is not None:
+            if not isinstance(native, dict) or native.get('automatable') is not True or verified is None or \
+                    pack['availability'] != 'manual' or native.get('format') != verified['format'] or \
+                    native.get('file_name') != verified['file_name']:
+                fail(f'{where}: native download capability')
+        effective = native if native is not None else download
+        if pack['availability'] == 'available' or native is not None:
+            if effective['format'] not in ('zip', '7z', 'rar') or not 1 <= len(effective['parts']) <= 16 or \
+                    (pack['availability'] == 'available' and effective['format'] == 'rar'):
                 fail(f'{where}: download format/parts')
-            for part in download['parts']:
+            for part in effective['parts']:
                 if not https.match(part['url']) or not sha.match(part['sha256']) or not 0 < part['size'] <= 64 << 30:
                     fail(f'{where}: part')
-            if len(download['parts']) > 1 and (not sha.match(download['sha256']) or download['size'] != sum(p['size'] for p in download['parts'])):
+                provider = part.get('provider')
+                if provider is not None:
+                    expected = hosted_in_app_download({'id': where, 'download': {'in_app': True, 'verify': {'url': part['url']}}},
+                                                      {'host': provider})
+                    if expected != {'url': part['url'], 'provider': provider}:
+                        fail(f'{where}: native provider')
+                    if provider == 'mega' and part['size'] > 16 << 30:
+                        fail(f'{where}: native MEGA size')
+            if len(effective['parts']) > 1 and (not sha.match(effective['sha256']) or effective['size'] != sum(p['size'] for p in effective['parts'])):
                 fail(f'{where}: joined parts')
+            if len(effective['parts']) == 1 and (('size' in effective and effective['size'] != effective['parts'][0]['size']) or
+                                               ('sha256' in effective and effective['sha256'] != effective['parts'][0]['sha256'])):
+                fail(f'{where}: conflicting single-part totals')
+            if native is not None:
+                effective_size = effective.get('size') or effective['parts'][0]['size']
+                effective_sha = effective.get('sha256') or effective['parts'][0]['sha256']
+                if effective_size != verified['size'] or effective_sha != verified['sha256']:
+                    fail(f'{where}: native download differs from verified file')
         if pack['availability'] == 'available' or verified is not None:
             install = pack['install']
             if not 0 < install['files'] <= 2000000 or not 0 < install['bytes'] <= 256 << 30 or not 1 <= len(install['folders']) <= 16:
@@ -363,23 +479,34 @@ def inventory(index, excluded, pending, entries):
         '(`packages/neo_texture_catalog/ios/Resources/ps2ktxpak-LICENSE.txt`). The packs themselves belong to their '
         'creators, under the terms shown on their pages.',
         '',
-        'A *manual, verified file* pack is a link to its author\'s page on a file host (MEGA, Google Drive, MediaFire, '
-        'Dropbox, GameBanana): the app never downloads from these hosts, but the author\'s file was fetched once on CI '
+        'A *manual, verified file* pack uses the author\'s file-host page or exact-file import in older app builds. '
+        'The author\'s file was fetched once on CI '
         '(`tools/textures/hosts.py`) and installed with the production code, and the app installs that exact file '
         '(size and SHA-256) when the user imports it from the pack\'s page.',
         '',
-        '| Console | One tap | Manual, verified file | Manual | Games |',
-        '|---|---:|---:|---:|---:|',
+        'Explicitly reviewed stable original HTTPS file links, GameBanana download links and Dropbox shared links '
+        'using the documented `dl=1` option can use the existing one-tap downloader. These are the creator\'s '
+        'original files, not copies hosted by NeoStation; signed temporary CDN links are never published. '
+        'Access restrictions, challenges and provider quotas are not bypassed.',
+        '',
+        'An additional `download.in_app` descriptor is enabled only by app builds implementing its native provider '
+        'or RAR reader. Those builds validate its original link, size, SHA-256 and install plan before offering '
+        'one-tap installation. Older builds retain the manual fallback. Legacy counts below describe the base '
+        'manifest; native-capability counts include these descriptors without counting the same family twice.',
+        '',
+        '| Console | HTTPS one tap (older builds) | One tap (new native client) | Remaining verified manual | Other manual | Games |',
+        '|---|---:|---:|---:|---:|---:|',
     ]
     for console in CONSOLES:
         packs = [p for p in index['packs'] if console in (p.get('systems') or [p['system']])]
         if not packs:
             continue
         available = sum(1 for p in packs if p['availability'] == 'available')
-        verified = sum(1 for p in packs if p['availability'] == 'manual' and p['download'].get('verified'))
-        manual = sum(1 for p in packs if p['availability'] == 'manual') - verified
+        capable = sum(1 for p in packs if p['download'].get('in_app'))
+        verified = sum(1 for p in packs if p['availability'] == 'manual' and p['download'].get('verified') and not p['download'].get('in_app'))
+        manual = sum(1 for p in packs if p['availability'] == 'manual') - verified - capable
         games = {i['value'].upper() for p in packs for g in p['games'] for i in g['identities']}
-        lines.append(f'| {CONSOLE_NAMES[console]} | {available} | {verified} | {manual} | {len(games)} |')
+        lines.append(f'| {CONSOLE_NAMES[console]} | {available} | {available + capable} | {verified} | {manual} | {len(games)} |')
     lines += ['', 'A pack serving GameCube discs and Wii Virtual Console titles is counted for both consoles.', '']
     for console in CONSOLES:
         packs = [p for p in index['packs'] if p['system'] == console]
@@ -400,7 +527,8 @@ def inventory(index, excluded, pending, entries):
                 verified = pack.get('verified_at', '')
             elif pack['download'].get('verified'):
                 file = pack['download']['verified']
-                download = f'manual, verified file {file["size"] / 1e6:,.1f} MB ({file.get("host") or "file host"})'
+                mode = 'one tap with native support' if pack['download'].get('in_app') else 'manual, verified file'
+                download = f'{mode} {file["size"] / 1e6:,.1f} MB ({file.get("host") or "file host"})'
                 installed = f'{pack["install"]["files"]:,} files, {pack["install"]["bytes"] / 1e6:,.1f} MB'
                 formats = ', '.join(pack['install']['formats'])
                 verified = pack.get('verified_at', '')

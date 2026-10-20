@@ -29,7 +29,7 @@ on:
       parts:
         description: Parts to run
         type: choice
-        options: [all, host, native, uikit, repositories, releases, hosts, discover, links, cores, summarize, research]
+        options: [all, host, native, uikit, repositories, releases, hosts, discover, links, cores, summarize, research, direct]
         default: all
       only:
         description: 'repositories, releases, hosts: comma-separated pack ids (empty: every pack without a record)'
@@ -146,15 +146,12 @@ jobs:
           df -h "$RUNNER_TEMP"
       - name: Build the verification driver (the app's installers)
         run: |
-          set -euo pipefail
-          mkdir -p build/hdtex486
-          gcc -O2 -c -I packages/neo_texture_catalog/ios/ThirdParty/lzma packages/neo_texture_catalog/ios/Classes/NeoTextureLZMA.c -o build/hdtex486/lzma.o
-          g++ -std=c++20 -O2 -Wall -Wextra -I packages/neo_texture_catalog/ios/Classes -I packages/neo_texture_catalog/ios/ThirdParty/lzma \
-            -I packages/armsx2_internal_bridge/ios/Classes tools/textures/native/texture_verify.cpp build/hdtex486/lzma.o -lz \
-            -o build/hdtex486/texture_verify
+          python3 tools/textures/build_verifier.py --out build/hdtex486/texture_verify
       - name: Download each original GitHub archive and install it with the app's code
         run: |
-          python3 tools/textures/verify_packs.py --sources tools/textures/sources/${{ matrix.console }}.json \
+          shopt -s nullglob
+          sources=(tools/textures/sources/${{ matrix.console }}*.json)
+          python3 tools/textures/verify_packs.py --sources "${sources[@]}" \
             --driver build/hdtex486/texture_verify --kind "$VERIFY_KIND" --work "$RUNNER_TEMP" --max-gb 12 \
             --skip-recorded tools/textures/verified.jsonl --only "$ONLY" \
             --out build/hdtex486/verified-${{ matrix.console }}.jsonl
@@ -192,12 +189,7 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q megatools p7zip-full python3-cryptography
       - name: Build the verification driver (the app's installers)
         run: |
-          set -euo pipefail
-          mkdir -p build/hdtex486
-          gcc -O2 -c -I packages/neo_texture_catalog/ios/ThirdParty/lzma packages/neo_texture_catalog/ios/Classes/NeoTextureLZMA.c -o build/hdtex486/lzma.o
-          g++ -std=c++20 -O2 -Wall -Wextra -I packages/neo_texture_catalog/ios/Classes -I packages/neo_texture_catalog/ios/ThirdParty/lzma \
-            -I packages/armsx2_internal_bridge/ios/Classes tools/textures/native/texture_verify.cpp build/hdtex486/lzma.o -lz \
-            -o build/hdtex486/texture_verify
+          python3 tools/textures/build_verifier.py --out build/hdtex486/texture_verify
       - name: Fetch each author's file from its host and install it with the app's code
         run: |
           shopt -s nullglob
@@ -346,5 +338,65 @@ jobs:
         with:
           name: hdtex-research-${{ github.run_id }}
           path: build/hdtex/research.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+
+
+  direct_readers:
+    name: RAR reader and direct-source publication boundaries
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'direct' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: New RAR decoder and affected installation dispatch
+        run: |
+          python3 test/texture_rar_test.py
+          python3 test/texture_install_test.py
+      - name: Direct download publication and unchanged family grouping
+        run: python3 test/texture_direct_host_publication_test.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-direct-readers-${{ github.sha }}
+          path: build/hd-direct400/
+          if-no-files-found: warn
+          retention-days: 14
+
+  direct_native:
+    name: Public host resolvers, native installation and iPhone compilation
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'direct' }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Independent encrypted-fixture dependency
+        run: |
+          python3 -m venv build/hd-direct400/venv
+          build/hd-direct400/venv/bin/pip install --disable-pip-version-check cryptography
+      - name: New provider, cryptography and compatibility fixtures
+        run: |
+          build/hd-direct400/venv/bin/python test/texture_host_resolver_test.py
+          build/hd-direct400/venv/bin/python test/texture_mega_native_test.py
+          build/hd-direct400/venv/bin/python test/texture_catalog_capability_test.py
+          build/hd-direct400/venv/bin/python test/texture_store_provider_test.py
+      - name: Affected Foundation store and iPhone SDK linkage
+        run: |
+          build/hd-direct400/venv/bin/python test/texture_catalog_native_test.py
+          build/hd-direct400/venv/bin/python test/texture_catalog_ios_syntax_test.py
+      - name: Small real original files through the native download and install path
+        if: success()
+        run: build/hd-direct400/venv/bin/python test/texture_direct_network_test.py --input tools/textures/research/direct400-network-probes.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-direct-native-${{ github.sha }}
+          path: |
+            build/hd-direct400/*.json
+            build/hd-direct400/*.log
           if-no-files-found: warn
           retention-days: 14

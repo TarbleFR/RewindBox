@@ -29,7 +29,9 @@ import zlib
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'test'))
+sys.path.insert(0, str(ROOT / 'tools/textures'))
 import texture_7z_writer as sz  # noqa: E402
+from count_packs import native_one_tap  # noqa: E402
 
 POD = ROOT / 'packages/neo_texture_catalog/ios'
 CLASSES = POD / 'Classes'
@@ -228,7 +230,7 @@ def main() -> int:
         disc.write_bytes(disc_header('GZ2E01', 2))
         description = {
             'bundledManifest': str(BUNDLED), 'bundledPackCount': len(index['packs']),
-            'bundledAvailableCount': sum(1 for p in index['packs'] if p['availability'] == 'available'),
+            'bundledAvailableCount': sum(1 for p in index['packs'] if native_one_tap(p)),
             'matches': probes(index), 'served': served, 'packs': packs, 'gcDisc': str(disc), 'n64Rom': str(fixtures / 'kart.v64'),
             'nesRom': str(fixtures / 'Synthetic Quest (USA).nes'),
             'hostedFile': str(hosted), 'otherFile': str(other),
@@ -241,7 +243,11 @@ def main() -> int:
                  ('objective-c', CLASSES / 'NeoTextureSupport.m'), ('objective-c++', CLASSES / 'NeoTextureEngines.mm'),
                  ('objective-c++', CLASSES / 'NeoTexturePackStore.mm'), ('objective-c++', CLASSES / 'NeoTextureIdentityReader.mm'),
                  ('objective-c++', ARMSX2 / 'ARMSX2TexturePackStore.mm'), ('objective-c++', ROOT / 'test/texture_catalog_store_test.mm')]
-        built = []
+        sys.path.insert(0, str(ROOT / 'tools/textures'))
+        from build_rar_library import build as build_rar
+        rar = build_rar(objects / 'rar', cc='xcrun clang', flags=['-isysroot', sdk])
+        units += [('objective-c', CLASSES / 'NeoTextureHostResolver.m'), ('objective-c++', CLASSES / 'NeoTextureMega.mm')]
+        built = [str(rar)]
         for language, source in units:
             output = objects / (source.stem + '.o')
             command = ['xcrun', 'clang++' if language.endswith('++') else 'clang', '-x', language, '-c', str(source), '-o', str(output), *common]
@@ -252,7 +258,7 @@ def main() -> int:
             subprocess.run(command, check=True)
             built.append(str(output))
         binary = base / 'store-test'
-        subprocess.run(['xcrun', 'clang++', '-isysroot', sdk, *built, '-lz', '-framework', 'Foundation', '-framework', 'Metal',
+        subprocess.run(['xcrun', 'clang++', '-isysroot', sdk, *built, '-lz', '-liconv', '-framework', 'Foundation', '-framework', 'Metal',
                         '-o', str(binary)], check=True)
         subprocess.run([str(binary), str(base / 'fixtures.json'), str(work)], check=True, timeout=600)
     return 0

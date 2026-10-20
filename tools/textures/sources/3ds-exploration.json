@@ -361,9 +361,11 @@
    "automatable": false,
    "page": "https://gamebanana.com/mods/373806",
    "verify": {
-    "url": "https://gamebanana.com/dl/789815"
+    "url": "https://gamebanana.com/dl/789815",
+    "sha256": "3a14c8d0b556ed0b2b2a01581ca7564829d93495ca6ea146b01e48f1e9926c38"
    },
-   "file_name": "radiant_historia_hd_texture_pack_v10.rar"
+   "file_name": "radiant_historia_hd_texture_pack_v10.rar",
+   "in_app": true
   },
   "scope": "partial",
   "family": "3ds-radiant-historia-serbagz",
