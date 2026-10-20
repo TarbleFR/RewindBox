@@ -5037,5 +5037,62 @@
   "system": "psp",
   "engine": "ppsspp",
   "availability": "manual"
+ },
+ {
+  "id": "psp-tekken6-hd-kharij",
+  "title": "Tekken 6 HD textures (Kharij, partial)",
+  "version": "2023-09-17 / 443b17fad860",
+  "games": [
+   {
+    "title": "Tekken 6",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10466"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Kharij"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=25479",
+  "source_id": "github:kharij/Tekken-6-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated. The creator explicitly distributes this pack only on their GitHub repository and the PPSSPP forums.",
+   "redistribution": "Downloaded directly from the creator's pinned repository archive; NeoStation does not host, modify or redistribute the files."
+  },
+  "requirements": "PPSSPP hardware renderer. Creator recommends Vulkan, texture scaling off and texture saving off. The embedded core includes the KTX2/UASTC transcoder; this does not imply support for raw .basis files.",
+  "notes": "Stages, effects, most UI and selected character textures. Work in progress; fonts, character coverage and mobile optimization are incomplete. The creator's official forum thread identifies ULUS10466; its installation paragraph contains the extra-letter typo ULUES10466, which is not used as a game ID. Other regions are not supported by the creator and are not inferred. Original GitHub commit pinned; KTX2 conversion occurred in August 2023. No in-game rendering or performance test on iPhone is claimed.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Tekken-6-HD-443b17fad860.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/kharij/Tekken-6-HD-Texture-Pack/zip/443b17fad860c6e72c902bea403dbc1e2076afec"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/kharij/Tekken-6-HD-Texture-Pack",
+    "commit": "443b17fad860c6e72c902bea403dbc1e2076afec"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Tekken-6-HD-Texture-Pack-443b17fad860c6e72c902bea403dbc1e2076afec/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "scope": "partial",
+  "family": "psp-tekken6-hd-kharij"
  }
 ]

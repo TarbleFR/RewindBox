@@ -1185,5 +1185,59 @@
   },
   "scope": "partial",
   "family": "3ds-metroid-samus-returns-custom-textures-sabre230"
+ },
+ {
+  "id": "3ds-mirai-dx-hd-ps-buttons-ayumi",
+  "title": "Project Mirai DX — HD PlayStation button icons (IA/VT style)",
+  "version": "2020-05-02 / fc8d371776a3",
+  "games": [
+   {
+    "title": "Hatsune Miku: Project Mirai DX",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000148C00"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "ayumi-chizuru189"
+  ],
+  "page_url": "https://github.com/ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style/tree/fc8d371776a3f70f1cb26857adacd1b458d7e8b7",
+  "source_id": "github:ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style",
+  "licence": {
+   "summary": "No licence stated by the creator.",
+   "redistribution": "Downloaded directly from the creator's pinned repository archive; NeoStation does not host, modify or redistribute the files."
+  },
+  "requirements": "Use the right button colours: A/circle red, B/cross blue, Y/square purple, X/triangle green (creator instructions).",
+  "notes": "Small unfinished HD interface pack: two button-icon sheets only. The 1024x128 source sheet is replaced by a 4096x512 PNG (4x), and the 256x256 sheet by a 512x512 PNG (2x). The creator explicitly names title ID 0004000000148C00; no additional region or French-language support is inferred. Only the Citra texture subtree is installed; the separate real3ds/Luma game-patching files are excluded. No pack.json: legacy Citra texture hashes. No iPhone rendering test is claimed.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Project-Mirai-DX-HD-PS-buttons-fc8d371776a3.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style/zip/fc8d371776a3f70f1cb26857adacd1b458d7e8b7"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style",
+    "commit": "fc8d371776a3f70f1cb26857adacd1b458d7e8b7"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "mirai-dx-ps-button-icons-ia-vt-style-fc8d371776a3f70f1cb26857adacd1b458d7e8b7/citra/0004000000148C00/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "scope": "ui",
+  "family": "3ds-mirai-dx-hd-ps-buttons-ayumi"
  }
 ]
