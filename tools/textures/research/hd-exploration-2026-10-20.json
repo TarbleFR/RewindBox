@@ -622,13 +622,13 @@
       "id": "psp-type0-exvesel",
       "title": "Final Fantasy Type-0 HD (EX-VES-EL)",
       "system": "psp",
-      "page_url": "https://gamebanana.com/mods/679101",
+      "page_url": "https://gbatemp.net/threads/psp-final-fantasy-type-0-ntsc-j-hd-textures-v1-0.679101/",
       "authors": [
         "EX-VES-EL"
       ],
       "kind": "basis-uastc-ktx2-textures",
-      "disposition": "adaptation-required",
-      "reason": "Uses UASTC KTX2 / Basis. The embedded PPSSPP path does not provide the required Basis texture decoder. Skybladecloud English v2/NPJH50443 requirement must be honoured; no native import is offered."
+      "disposition": "version-and-payload-verification-required",
+      "reason": "Final review correction: the delivered PPSSPP binary contains the KTX2/UASTC and Zstandard transcoder; only raw .basis containers are rejected. The earlier decoder-exclusion reason was incorrect. This creator specifies the Skybladecloud v2 English patch and NPJH50443, recommends Vulkan and publishes an 11.2 GB ZIP. Its exact payload, patched-game hashes, installation and phone rendering remain unverified; no compatibility with unmodified Japanese games or French text is inferred. No raw original-resolution texture dump is downloaded."
     },
     {
       "id": "psp-mhfu-shorter-grass",

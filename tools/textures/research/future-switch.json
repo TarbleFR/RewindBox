@@ -136,6 +136,63 @@
       "payload_verified": false,
       "availability": "future-reference",
       "automatable": false
+    },
+    {
+      "id": "future-switch-mhgu-monkbreh",
+      "system": "switch",
+      "game": "Monster Hunter Generations Ultimate / Monster Hunter XX",
+      "title": "MHGU HD Project",
+      "authors": [
+        "Monkbreh"
+      ],
+      "credits": [
+        "Luckyguess (ARC editor)",
+        "Kuriimu2 developers"
+      ],
+      "version": "v.2.4.5 (2023-04-22)",
+      "kind": "romfs-texture-mod",
+      "scope": "partial",
+      "page_url": "https://github.com/Monkbreh/MHGU-HD-Project",
+      "download_page": "https://github.com/Monkbreh/MHGU-HD-Project/releases/tag/v.2.4.5",
+      "format": "7z components for a RomFS overlay, not Azahar tex1 replacements",
+      "author_install_path": "sdcard:/atmosphere/content/[Game ID]/romfs/ (creator spelling); emulator mod folder with RomFS overlay",
+      "identity_evidence": "No exact title ID or game build established from the creator README; none inferred.",
+      "languages": [
+        "en",
+        "fr",
+        "de",
+        "es",
+        "it",
+        "zh-Hans",
+        "zh-Hant"
+      ],
+      "language_evidence": "Creator claims seven languages; release has Nintendo.Layout_fre.7z and six other language variants. No language tested in NeoStation.",
+      "components": [
+        {
+          "name": "Main.7z",
+          "advertised_bytes": 648332666
+        },
+        {
+          "name": "Monsters.7z",
+          "advertised_bytes": 252567318
+        },
+        {
+          "name": "Nintendo.Layout_fre.7z",
+          "advertised_bytes": 46648860
+        }
+      ],
+      "dependencies": [
+        "Future Switch engine",
+        "RomFS overlay loader",
+        "Exact title ID and game-version validation"
+      ],
+      "licence": "No redistribution grant established; original creator links only.",
+      "notes": "One project, not one pack per language/controller/component. ESRGAN upscales for selected low-resolution textures, UI, NPCs, armour, weapons and Palicoes; optional monster component has substantial untouched content. Although the README discusses low-resolution 3DS assets, this release targets the Switch game. Metadata inspected; archive bytes not downloaded or verified.",
+      "runtime_enabled": false,
+      "engine_validated": false,
+      "payload_verified": false,
+      "availability": "future-reference",
+      "automatable": false
     }
   ]
 }

@@ -583,6 +583,27 @@
       "records": 1,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, corrected USA Tenchu Wrath of Heaven target on unchanged original archive bytes)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39449348701,
+      "source": "d6fa85695f219ad0b66ef71bc9429d11c8e8abd9",
+      "consoles": [
+        "3ds",
+        "psp"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only Mirai DX HD buttons and Tekken 6; original pinned creator archives)",
+      "artifact_prefix": "hdtex486-repositories"
+    },
+    {
+      "run": 39450675080,
+      "source": "c6ebee7f407c2833e20914db9a16682228a13a92",
+      "consoles": [
+        "3ds"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: releases, original Alpha Sapphire v0.0.3 creator ZIP; repository-only no-op run not counted)",
+      "artifact_prefix": "hdtex486-releases"
     }
   ]
 }

@@ -112,7 +112,7 @@ The [research ledger](../tools/textures/research/hd-exploration-2026-10-20.json)
 - **Tales of the Abyss font:** the two-PNG archive passes the installer, but neither the ZIP nor creator instructions establishes the proposed USA identity. It is withheld from runtime matching despite that technical success.
 - **Mario & Luigi Superstar Saga / Bowser's Inside Story:** actual creator WIPs recovered, but archive challenges prevent regional identification; tentative USA matches are withheld. The latter is the **3DS remake**, not DS.
 - **Project X Zone PNG / Huekage Ghost of Sparta:** current creator download returns 404, so no working runtime entry is published. No challenged download was bypassed.
-- **Final Fantasy Type-0 EX-VES-EL:** UASTC KTX2/Basis requires a decoder not provided by the embedded PPSSPP path. **UniversalDynamicInput:** a different Dolphin feature already excluded, not 180 additional packs.
+- **Final Fantasy Type-0 EX-VES-EL — corrected in the final review:** the delivered core supports UASTC inside KTX2; the older decoder-exclusion claim confused that container with unsupported raw `.basis` files. The creator requires Skybladecloud English v2; exact payload and patched-game compatibility remain unverified. See [the correction and binary evidence](hd-textures-final-review-2026-10-20.md). **UniversalDynamicInput:** a different Dolphin feature already excluded, not 180 additional packs.
 - **X-Men Legends:** original Marvel Mods author found, but no current released archive link. **Harry Potter Chamber of Secrets:** optional paid beta with unconfirmed region; not a free available pack. Compilations of existing GTA packs and button variants are not counted as new game-wide projects.
 
 ## Reproducible checks and delivery scope

@@ -76,11 +76,6 @@
  },
  {
   "console": "psp",
-  "source": "kharij/Tekken-6-HD-Texture-Pack",
-  "reason": "The author names no Game ID for the folder: it cannot be matched to a game."
- },
- {
-  "console": "psp",
   "source": "The Sims 2 alternative button layouts, Patapon 2 \"unsorted tips\", MHP3rd Stormie optionals",
   "reason": "Add-ons copied over a base pack in the same folder."
  },

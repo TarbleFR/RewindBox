@@ -55,11 +55,6 @@
   "reason": "Split RAR volumes and KTX2 variants; textures.ini not checked in the archive index."
  },
  {
-  "console": "3ds",
-  "source": "ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style",
-  "reason": "Two button-icon textures: a cosmetic edit of a few textures."
- },
- {
   "console": "gc",
   "source": "Lucaspec72/Phantasy-Star-Online-HD",
   "reason": "No Game ID stated and the files are on a MediaFire folder (bot challenge)."

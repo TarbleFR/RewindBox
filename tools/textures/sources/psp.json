@@ -5067,7 +5067,7 @@
    "redistribution": "Downloaded directly from the creator's pinned repository archive; NeoStation does not host, modify or redistribute the files."
   },
   "requirements": "PPSSPP hardware renderer. Creator recommends Vulkan, texture scaling off and texture saving off. The embedded core includes the KTX2/UASTC transcoder; this does not imply support for raw .basis files.",
-  "notes": "Stages, effects, most UI and selected character textures. Work in progress; fonts, character coverage and mobile optimization are incomplete. The creator's official forum thread identifies ULUS10466; its installation paragraph contains the extra-letter typo ULUES10466, which is not used as a game ID. Other regions are not supported by the creator and are not inferred. Original GitHub commit pinned; KTX2 conversion occurred in August 2023. No in-game rendering or performance test on iPhone is claimed.",
+  "notes": "Stages, effects, most UI and selected character textures. Work in progress; fonts, character coverage and mobile optimization are incomplete. The creator's official forum thread identifies ULUS10466; its installation paragraph contains the extra-letter typo ULUES10466, which is not used as a game ID. Other regions are not supported by the creator and are not inferred. Original GitHub commit pinned; KTX2 conversion occurred in August 2023. No in-game rendering or performance test on iPhone is claimed. Exact archive check: 933 of 9,395 distinct INI targets are absent; those parts retain the original game textures. Case mismatches are reported separately by the catalogue. No creator file is repaired or repackaged.",
   "download": {
    "automatable": true,
    "format": "zip",
