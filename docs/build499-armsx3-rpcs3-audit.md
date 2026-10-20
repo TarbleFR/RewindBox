@@ -1,6 +1,6 @@
 # Build 499 — selective ARMSX3 / RPCS3 improvements
 
-Status: Core compiled and verified; private IPA composition pending. No physical-device validation or measured FPS gain.
+Status: Core and private IPA compiled and independently verified. No physical-device validation or measured FPS gain.
 
 The baseline is Claude `ef8b4b9db09ac142e801ee43e65221261d49cae4`, including delivered Build 498, its verified PSP memory contract, 418 directly installable HD families and native RAR/public-host support. Only the RPCS3 Core is rebuilt. The concurrently validated PS1 catalogue is included as required by the maintainer: revision 2026-10-20.169a7760ffbe, 34 PS1 references, seven verified downloads and 27 manual author pages without an installation claim. Publication CI 39480710051 validates the exact 17 inputs; all 1,088 original pack objects and all 1,112 objects from the first PS1 extension are preserved. Every other native and Dart product input remains byte-identical to 498.
 
@@ -29,7 +29,7 @@ Local production-snippet test: 30 masks x 1,024 independent random inputs, zero 
 
 The canonical patch was regenerated in bytes and reapplied on a pristine upstream clone, reproducing all 226 postimages. The existing Build 487 helper/metrics/boot/retention tests pass locally under ASan/UBSan; on this restricted Linux host LeakSanitizer cannot inspect /proc, so leak scanning was disabled only for that local rerun. The default macOS Core gate retains its sanitizer settings. No failure is presented as device proof.
 
-Core preflight and full iPhoneOS compilation succeeded in run 39472233521 on source 0b18a23460b0a9840406fda2e3d6da4c5cdb7273. The build step took 58 min 57 s. ABI 30, all 78 authentic inputs, exports and passive-load checks pass on the actual 76,953,968-byte binary. Core SHA-256: 87bd77794232fc44b61d421e55d71bae3b2829a58b87ee36b2a176730d78004f. PPU codegen cf1718033f6fda2d is unchanged from 498; SPU codegen is 42c4b3542f924d07. The corrected SHUFB record is present and the bad record absent in this binary. IPA composition and final artifact verification follow.
+Core preflight and full iPhoneOS compilation succeeded in run 39472233521 on source 0b18a23460b0a9840406fda2e3d6da4c5cdb7273. The build step took 58 min 57 s. ABI 30, all 78 authentic inputs, exports and passive-load checks pass on the actual 76,953,968-byte binary. Core SHA-256: 87bd77794232fc44b61d421e55d71bae3b2829a58b87ee36b2a176730d78004f. PPU codegen cf1718033f6fda2d is unchanged from 498; SPU codegen is 42c4b3542f924d07. The corrected SHUFB record is present and the bad record absent in this binary. The final IPA contains identical compiled Core sections after signing; the signed Core SHA-256 is 49033f06bcbe5bfb635a956783f87e35934f21d9be5fd3d84b4d902adb190a63.
 
 ## Credits and testing on device
 
@@ -46,3 +46,13 @@ For God of War III compare the same edition/update, firmware, settings and therm
 - The SPU branch-target routine is symbol-addressable at 0x100cb8ef0 in the supplied IPA. The public post-IPA fix is imported for its independently tested semantics; the unresolved private source is never represented as the public master tree.
 - The GPU conversion controls are public Adreno fixes, not evidence of an Apple-specific optimization. Android affinity, Turnip drivers, VRAM-cap increases and global compile pauses are rejected for the same reason: their benefit and correctness on this iPhone architecture are not demonstrated.
 - The NeoStation Core's legacy embedded build-information JSON still contains an older upstream identifier. Provenance here uses the canonical-source manifest, source input hashes and successful build artifact identity, rather than treating that legacy banner as the exact source revision.
+
+## Final delivery
+
+NeoStation **0.0.8 (499)**, source `4fc50a8701db627607821ab393a1522d21fd00c4`, workflow commit `e91ce81bd2ace6d7820d260cac31d32aca6798dd`. [Successful IPA run 39482319527](https://github.com/TarbleFR/neostation-ios/actions/runs/39482319527), with the Core reused from its successful dedicated run, not rebuilt. The native Release build took 208.143 seconds; signing and export took 31.062 seconds. These are CI construction times, not game performance.
+
+IPA: **168,388,839 bytes**, SHA-256 `fe0925f294addabd0a11c74c4af0db237e38a00d1d177348fa1e3ad58d4a1c4e`. Artifact `12292826550`, encrypted ZIP SHA-256 `8899a346956228bd69f065ada982001e85bacacf5679eaa14fb3974ce7058953`; diagnostics artifact `12292377071`, ZIP SHA-256 `e6d103d59fa7e59011df99e2f0eb0e4467d02a3f0e6ca3703756e8d171252d20`. The plaintext IPA digest matches SHA256SUMS and the final sealed-payload identity.
+
+Independent inspection: ZIP CRCs and paths valid, six bundles 0.0.8 (499), 4,609 members, none added/removed versus 498. All new RPCS3 compiled sections match its built Core artifact. Corrected SHUFB pattern present, old pattern absent, SPUCORE499 marker and both codegen identities present. Of 75 Mach-O images compared, 72 retain every compiled section. Only RPCS3, the Runner build constant/linkage stubs, and libretro bridge linkage stubs differ. All 10,110 linkage stubs were decoded and still resolve to the same symbol/Objective-C selector at every index; Runner constants differ only in Runner-498 → Runner-499. NeoSwap and all other cores preserve their compiled sections; the PPU codegen identity is unchanged. The exact 34-reference PS1 catalogue is included; later research staging on Claude does not modify this frozen IPA.
+
+Full machine-readable receipt: `docs/evidence/rpcs3audit499-delivery.json`. The delivered IPA needs Apple re-signing through SideStore or equivalent. No physical iPhone gameplay or FPS gain is claimed. Only Claude changed; no official release was created.
