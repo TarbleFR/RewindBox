@@ -54,7 +54,8 @@
       "freechaf": "libretro/FreeChaF 76c7a84f",
       "freeintv": "libretro/FreeIntv ef3e0fe3",
       "o2em": "libretro/libretro-o2em 679d6fec",
-      "mednafen_pcfx": "libretro/beetle-pcfx-libretro c1650bad"
+      "mednafen_pcfx": "libretro/beetle-pcfx-libretro c1650bad",
+      "mesen": "libretro/Mesen 0102910c"
     },
     "coreSourcesNote": "identity.json records no source commit: these are the last commits on or before the previous pinned cores run 37945318237 (2026-10-09); they were not re-derived for run 38195212647 (2026-10-12, upstream repositories unreachable from the work container), so the nightly binaries may be newer. test/libretro_bios_requirements_test.py --cores checks the file names against the pinned binaries.",
     "coreSourcesLot1Note": "Lot 1 cores (14 October 2026): the upstream heads read that day; identity.json of run 38627332377 records no source commit either.",
@@ -118,7 +119,7 @@
     {
       "id": "nes-fds",
       "consoles": ["nes"],
-      "cores": ["nestopia"],
+      "cores": ["nestopia", "mesen"],
       "names": ["disksys.rom"],
       "locations": ["system"],
       "level": "conditional",
@@ -133,9 +134,9 @@
       "knownDumps": [
         {"size": 8192, "crc": "5e607dcf", "md5": "ca30b50f880eb660a320674ed365ef7a", "sha1": "57fe1bdee955bb48d357e463ccbf129496930b62", "label": "Famicom Disk System BIOS", "source": "System.dat"}
       ],
-      "info": [{"core": "nestopia", "path": "disksys.rom"}],
-      "binaryStrings": {"nestopia": ["disksys.rom"]},
-      "sources": ["core-info nestopia firmware0", "nestopia libretro/libretro.cpp:2171-2196 (retro_load_game fails without it)", "docs.libretro.com/library/nestopia"]
+      "info": [{"core": "nestopia", "path": "disksys.rom"}, {"core": "mesen", "path": "disksys.rom"}],
+      "binaryStrings": {"nestopia": ["disksys.rom"], "mesen": ["disksys.rom"]},
+      "sources": ["core-info nestopia firmware0", "nestopia libretro/libretro.cpp:2171-2196 (retro_load_game fails without it)", "docs.libretro.com/library/nestopia", "core-info mesen firmware0", "Mesen Core/FdsLoader.cpp:54 (<system>/disksys.rom)"]
     },
     {
       "id": "nes-database",

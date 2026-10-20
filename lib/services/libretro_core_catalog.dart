@@ -156,6 +156,13 @@ abstract final class LibretroCoreCatalog {
       displayName: 'Nestopia',
       extensions: {'nes', 'fds', 'unf', 'unif', 'nsf'},
     ),
+    // Mesen: the NES engine that reads HD packs (hires.txt); a game is
+    // switched to it from the HD textures page or its Emulator settings.
+    'mesen': LibretroCore(
+      id: 'mesen',
+      displayName: 'Mesen',
+      extensions: {'nes', 'fds', 'unf', 'unif'},
+    ),
     'snes9x': LibretroCore(
       id: 'snes9x',
       displayName: 'Snes9x',
@@ -529,10 +536,10 @@ abstract final class LibretroCoreCatalog {
 
   static const Map<String, LibretroSystemBinding> systems =
       <String, LibretroSystemBinding>{
-    'nes': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', achievementsConsoleId: 7),
-    'fc': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', achievementsConsoleId: 7),
-    'nes-hacks': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', achievementsConsoleId: 7),
-    'fds': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', achievementsConsoleId: 7),
+    'nes': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', alternatives: ['mesen'], achievementsConsoleId: 7),
+    'fc': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', alternatives: ['mesen'], achievementsConsoleId: 7),
+    'nes-hacks': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', alternatives: ['mesen'], achievementsConsoleId: 7),
+    'fds': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', alternatives: ['mesen'], achievementsConsoleId: 7),
     'snes': LibretroSystemBinding(coreId: 'snes9x', console: 'snes', achievementsConsoleId: 3),
     'sfc': LibretroSystemBinding(coreId: 'snes9x', console: 'snes', achievementsConsoleId: 3),
     'snes-hacks': LibretroSystemBinding(coreId: 'snes9x', console: 'snes', achievementsConsoleId: 3),

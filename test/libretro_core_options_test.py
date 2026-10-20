@@ -59,6 +59,8 @@ PREFIXES = {
     'freeintv': ('freeintv_', 'default_p1_'),
     'o2em': ('o2em_',),
     'mednafen_pcfx': ('pcfx_',),
+    # Lot 3: Mesen, the NES engine that reads HD packs (docs/hd-textures-nes-mesen.md).
+    'mesen': ('mesen_',),
 }
 CODE_GENERATION = re.compile(r'dynarec|jit|recompil|cpucore|cpu_core|cpu_mode|(?:^|[_-])drc(?:$|[_-])', re.I)
 
