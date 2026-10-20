@@ -40,5 +40,59 @@
   "family": "gc-super-monkey-ball2-kuledawg",
   "scope": "complete",
   "notes": "Creator reports UI/HUD, worlds 1–10, special levels, minigames, characters and cutscene elements complete. The original publication targets NTSC-U and installs GM2; no PAL or Japanese support is inferred from the shared folder. Optional HUD-removal and original-timer components are not additional families and must not be merged automatically. Intended for the game’s own 16:9 option; no widescreen patch or emulator setting is applied. No iPhone rendering claim. Production import selects only GM2/ (3,196 PNGs / 2,865,044,795 bytes); optional folders outside that subtree are not applied. Prefetch remains unchanged."
+ },
+ {
+  "id": "gc-wave-race-blue-storm-panda-venom",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Wave Race: Blue Storm — Panda_Venom HD",
+  "version": "First release, 2024-08-03",
+  "games": [
+   {
+    "title": "Wave Race: Blue Storm",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GWRE01"
+     },
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GWRP01"
+     },
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GWRJ01"
+     }
+    ],
+    "regions": [
+     "USA",
+     "EUR",
+     "JPN"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Panda_Venom"
+  ],
+  "page_url": "https://gbatemp.net/threads/gc-wave-race-blue-storm-usa-eu-jap-hd-textures.659164/",
+  "source_id": "gbatemp:659164",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/gc-wave-race-blue-storm-usa-eu-jap-hd-textures.659164/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/fs60hiyti0zdnkf/GWR.7z/file"
+   }
+  },
+  "family": "gc-wave-race-blue-storm-panda-venom",
+  "scope": "partial",
+  "notes": "Original creator publication explicitly names USA/EU/JAP. UI, fonts, maps and characters are upscaled; some background textures remain missing. The shared GWR folder is not evidence for additional titles or a French-specific release. Original 7z download and native installation are pending; no iPhone rendering is claimed."
  }
 ]
