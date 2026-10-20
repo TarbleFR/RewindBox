@@ -163,6 +163,9 @@ DART_TESTS = [
     'test/libretro_consoles_tab_test.dart',
 ]
 NATIVE = [
+    # Build 495: the portable host against its test core (the video, audio and input callbacks
+    # after retro_init, as Mesen needs them), with the cheat catalogue pod it imports.
+    ['test/libretro_host_test.py'],
     ['test/texture_catalog_native_test.py'],
     ['test/texture_catalog_ios_syntax_test.py'],
     ['test/armsx2_texture_native_test.py'],
@@ -180,6 +183,9 @@ SUPPORT = [
     'test/armsx2_texture_pack_core_test.cpp', 'test/libretro_host/stubs/Flutter/Flutter.h',
     'test/touch_layout_support.py', 'test/libretro_ios_syntax_test.py', 'build-utils/validate_hd_textures_ipa.py',
     'test/fixtures/libretro_bios/core_info_5a74858a.json',
+    'test/libretro_host/host_test.m', 'test/libretro_host/test_core.c',
+    'packages/neo_cheat_catalog/ios/Classes/NeoUnifiedCheatCatalog.m',
+    'packages/neo_cheat_catalog/ios/Classes/Public/NeoUnifiedCheatCatalog.h',
 ]
 # Fail on the unchanged base in the development container and read a changed
 # file (pubspec.yaml, the Dolphin plugin): compared with the base on the CI host.

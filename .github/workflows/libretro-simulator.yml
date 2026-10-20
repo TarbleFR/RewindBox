@@ -205,8 +205,9 @@ jobs:
   # probe writes, without a pack (256x240), with it (512x480, read from
   # <system>/HdPacks/<content name>) and with mesen_hdpacks off. Needs the
   # core package that has Mesen (lot 3).
+  # Mesen (lot 3): on dispatch with mesen_only, or on every push with the package the delivery pins.
   mesen:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mesen_only }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.mesen_only) || github.event_name == 'push' }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -220,8 +221,9 @@ jobs:
     - name: Download the libretro cores with Mesen
       uses: actions/download-artifact@v4
       with:
-        name: LibretroCores-${{ inputs.cores_sha }}
-        run-id: ${{ inputs.cores_run }}
+        # retroarch-delivery.yml LIBRETRO_CORES_HOST_SHA and RUN_ID (35 cores, Mesen included).
+        name: LibretroCores-${{ inputs.cores_sha || '4c2186204ce06b50b989689a9c2322068f523a58' }}
+        run-id: ${{ inputs.cores_run || '39366986940' }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro
     - name: Fetch the pinned MoltenVK simulator slice and test content

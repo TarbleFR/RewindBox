@@ -7,6 +7,14 @@ on:
       - tools/textures/**
       - native/textures/**
       - lib/services/texture_catalog_service.dart
+      # The libretro bridge files the targeted runner lists (HD textures row, core host, Vulkan renderer).
+      - packages/libretro_internal_bridge/ios/Classes/LibretroSession.m
+      - packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.h
+      - packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.m
+      - packages/libretro_internal_bridge/ios/Classes/LibretroVulkanRenderer.h
+      - packages/libretro_internal_bridge/ios/Classes/LibretroVulkanRenderer.m
+      - test/libretro_host/**
+      - test/libretro_host_test.py
       - lib/l10n/texture_catalog_locale.dart
       - test/texture_*
       - test/native/texture_*

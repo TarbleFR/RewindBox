@@ -321,6 +321,11 @@ int main(int argc, const char *argv[]) {
     CHECK(hasReport && strcmp(report + 16, "fixed") == 0, "locked override read in retro_init, over everything");
     CHECK(hasReport && strcmp(report + 32, "neo") == 0, "NeoStation default read in retro_init");
     CHECK(hasReport && strcmp(report + 48, "beta") == 0, "NeoStation default does not replace a stored user value");
+    // RetroArch's order (runloop.c, core_init_libretro_cbs): the video, audio and input
+    // callbacks after retro_init. Mesen dereferences its console, created in retro_init,
+    // in retro_set_video_refresh: set before, it crashed the session (Build 495 probe).
+    CHECK(hasReport && report[81] == 0, "no video, audio or input callback is set before retro_init");
+    CHECK(hasReport && report[82] == 5, "the five video, audio and input callbacks are set after retro_init");
     CHECK(!configured.options.updatePending, "values given before retro_init are not flagged as updates");
     CHECK([configured.options isLockedKey:@"neotest_locked"] && ![configured.options isLockedKey:@"neotest_init"],
           "only locked overrides are locked");

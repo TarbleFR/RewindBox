@@ -840,11 +840,6 @@ static bool HostEnvironment(unsigned command, void *data) {
 
   gActiveHost = self;
   _symbols.retro_set_environment(HostEnvironment);
-  _symbols.retro_set_video_refresh(HostVideoRefresh);
-  _symbols.retro_set_audio_sample(HostAudioSample);
-  _symbols.retro_set_audio_sample_batch(HostAudioSampleBatch);
-  _symbols.retro_set_input_poll(HostInputPoll);
-  _symbols.retro_set_input_state(HostInputState);
   void (^optionsDeclared)(LibretroCoreOptions *) = self.optionsDeclared;
   if (optionsDeclared != nil) optionsDeclared(_options);
   if (managesPSPCheats) [_options applySessionOverrides:@{@"ppsspp_cheats":@"disabled"}];
@@ -854,6 +849,14 @@ static bool HostEnvironment(unsigned command, void *data) {
         [_options applySessionOverrides:@{option.key:option.values.firstObject}];
   }
   _symbols.retro_init();
+  // The video, audio and input callbacks after retro_init, as RetroArch sets them
+  // (runloop.c, core_init_libretro_cbs): Mesen dereferences its console, created in
+  // retro_init, in retro_set_video_refresh and the audio and input setters.
+  _symbols.retro_set_video_refresh(HostVideoRefresh);
+  _symbols.retro_set_audio_sample(HostAudioSample);
+  _symbols.retro_set_audio_sample_batch(HostAudioSampleBatch);
+  _symbols.retro_set_input_poll(HostInputPoll);
+  _symbols.retro_set_input_state(HostInputState);
   _coreInitialized = YES;
   [self appendLog:[NSString stringWithFormat:@"[HOST] loaded %@ %@", _libraryName, _libraryVersion]];
   return YES;

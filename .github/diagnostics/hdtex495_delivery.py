@@ -10,12 +10,17 @@ at the maintainer's request of 20 October 2026 (docs/hd-textures-nes-mesen.md):
   packs installed in System/HdPacks/<content name>, the core option
   mesen_hdpacks per game, a game switched to Mesen through NeoStation's own
   engine choice when its pack is switched on);
-- the expanded index (NES, PSP, PS2 and PS1 packs) and twelve-language texts.
+- the expanded index (NES, PSP, PS2 and PS1 packs) and twelve-language texts;
+- the libretro host sets the video, audio and input callbacks after
+  retro_init, as RetroArch does (runloop.c, core_init_libretro_cbs): Mesen
+  dereferences its console, created in retro_init, in those setters, and
+  crashed the first Simulator session (run 39370233922).
 No other Core is rebuilt: the RPCS3, ARMSX2 and Dolphin Cores and the 34 earlier
 libretro cores are the delivered ones, byte for byte. This gate reads CI
 evidence; it never reruns suites. The host, native, uikit and cores parts of
 .github/workflows/hd-textures.yml and the mesen job of
-.github/workflows/libretro-simulator.yml must have passed on the tested source,
+.github/workflows/libretro-simulator.yml (every core scenario: the host changed for
+all of them) must have passed on the tested source,
 every tested input must be byte-identical to that source, and the verdicts
 (BUILD 495) must cover every changed input.
 """
@@ -40,8 +45,10 @@ PROOFS={
 }
 # The delivered package's binaries against the option, folder and BIOS contracts (no verdict file: job result).
 CORES_PROOF=(None,TESTED_SOURCE,'Texture replacement in the pinned libretro cores (N64, PS1, NES) and in Mesen on the buildbot')
-# The real Mesen core in the Simulator: 256x240 without a pack, 512x480 with the probe's pack, 256x240 with it off.
+# The real Mesen core in the Simulator (256x240 without a pack, 512x480 with the probe's pack, 256x240 with it off)
+# and, the host's callback order having changed for every core, every other scenario job of the same push run.
 SIMULATOR=(None,TESTED_SOURCE,'mesen')
+SIMULATOR_JOBS=('mesen','probe','lot1','lot2','beetle','shaders','official-shaders')
 MESEN_SCENARIOS=('mesen-plain-1','mesen-hd-pack-1','mesen-plain-2','mesen-hd-pack-2','mesen-hd-pack-off')
 PARTS=('host','native','uikit')
 
@@ -57,6 +64,7 @@ PRODUCT={
     'lib/services/libretro_core_catalog.dart',
     'lib/services/texture_catalog_service.dart',
     'native/textures/catalogue/manifest.json.gz',
+    'packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.m',
     'packages/libretro_internal_bridge/ios/Classes/LibretroSession.m',
     'packages/neo_texture_catalog/ios/Classes/NeoTextureCatalogPlugin.m',
     'packages/neo_texture_catalog/ios/Classes/NeoTextureEngines.mm',
@@ -77,7 +85,8 @@ NATIVE_PRODUCT={path for path in PRODUCT if path.startswith(('packages/','native
 # The package: core list and the tool that adds cores to the delivered package (built once, on CORES_SOURCE).
 CORES_INPUTS={'build-utils/libretro/cores.json','build-utils/libretro/add_cores.py','.github/workflows/libretro-cores.yml'}
 # Inputs of the Simulator proof (the probe app, its scenarios and workflow).
-SIMULATOR_INPUTS={'test/libretro_simulator_probe.py','test/libretro_simulator/probe.m','.github/workflows/libretro-simulator.yml'}
+SIMULATOR_INPUTS={'test/libretro_simulator_probe.py','test/libretro_simulator/probe.m','.github/workflows/libretro-simulator.yml',
+    'test/libretro_host/test_core.c','test/libretro_host/vulkan_test_core.c'}
 TESTED=(set(targeted.PRODUCT)|set(targeted.SUPPORT)|set(targeted.HOST_PYTHON)|set(targeted.DART_TESTS)|set(targeted.PRE_EXISTING)
         |{command[0] for command in targeted.CATALOGUE+targeted.NATIVE+targeted.UIKIT}|SIMULATOR_INPUTS
         |{'tools/textures/probe_cores.py','.github/workflows/hd-textures.yml'})
@@ -177,7 +186,8 @@ def evidence():
         # The Simulator proof: the mesen job passed (every scenario's required and forbidden
         # frame-size lines), and its report holds the five Mesen scenarios.
         run,source,job=SIMULATOR
-        records.append(part_run(run,source,job))
+        for name in SIMULATOR_JOBS:
+            records.append(part_run(run,source,name))
         folder=Path(tmp)/'mesen'
         subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/neostation-ios',
             '--name','libretro-simulator-mesen-'+source,'--dir',str(folder)],check=True)
