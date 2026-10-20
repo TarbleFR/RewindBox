@@ -6519,11 +6519,6 @@
       "type": "serial",
       "scheme": "ps2-disc-serial",
       "value": "SCUS-97402"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SCUS-97517"
      }
     ],
     "regions": [
@@ -6541,7 +6536,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The native RAR check identifies SCUS-97402; this profile is limited to that installed edition. Additional database editions are not verified by this archive check.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
@@ -9773,11 +9768,6 @@
       "type": "serial",
       "scheme": "ps2-disc-serial",
       "value": "SCUS-97353"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SCUS-97518"
      }
     ],
     "regions": [
@@ -9795,7 +9785,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "Incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Incomplete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The native RAR check identifies SCUS-97353; this profile is limited to that installed edition. Additional database editions are not verified by this archive check.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/ratchet-clank-up-your-arsenal-texture-pack-scus-97353.631588/",
@@ -10553,11 +10543,6 @@
       "type": "serial",
       "scheme": "ps2-disc-serial",
       "value": "SLUS-21111"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLUS-21492"
      }
     ],
     "regions": [
@@ -10575,7 +10560,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The native RAR check identifies SLUS-21111; this profile is limited to that installed edition. Additional database editions are not verified by this archive check.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
@@ -12282,7 +12267,7 @@
  },
  {
   "id": "ps2-ktx-shadow-hearts-covenant-curse-arms",
-  "title": "Shadow Hearts: Covenant",
+  "title": "Shadow Hearts: Covenant — Disc 1 HD textures",
   "version": "See the creator's page",
   "games": [
    {
@@ -12292,11 +12277,6 @@
       "type": "serial",
       "scheme": "ps2-disc-serial",
       "value": "SLUS-21041"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLUS-21044"
      }
     ],
     "regions": [
@@ -12314,7 +12294,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale; this profile is limited to USA disc 1, SLUS-21041. Native installation verifies 6,142 files (5,636,256,010 bytes). The original archive also contains SLUS-21044, but its 5,999 disc-2 files are excluded by this verified installation; disc 2 is not offered by this profile. No iPhone rendering has been verified.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
@@ -12328,7 +12308,7 @@
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/curse_arms.619294/",
-  "scope": "complete"
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-shadow-hearts-curse-arms",
@@ -23344,11 +23324,6 @@
       "type": "serial",
       "scheme": "ps2-disc-serial",
       "value": "SCUS-97316"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SCUS-97519"
      }
     ],
     "regions": [
@@ -23366,7 +23341,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The native RAR check identifies SCUS-97316; this profile is limited to that installed edition. Additional database editions are not verified by this archive check.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
@@ -23581,11 +23556,6 @@
       "type": "serial",
       "scheme": "ps2-disc-serial",
       "value": "SLES-53393"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-53396"
      }
     ],
     "regions": [
@@ -23603,7 +23573,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The native RAR check identifies SLES-53393; this profile is limited to that installed edition. Additional database editions are not verified by this archive check.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/spartan-total-warrior-hd-textures.641317/",
@@ -24908,16 +24878,10 @@
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SLES-54581"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
       "value": "SLUS-20885"
      }
     ],
     "regions": [
-     "Europe",
      "USA"
     ],
     "confirm": true
@@ -24932,7 +24896,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale. The original creator archive explicitly identifies USA SLUS-20885; the former inferred European target is removed. Publication requires a new native installation check for this exact corrected target. No other edition or iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/the-red-star-hd-textures.669283/",
@@ -25380,15 +25344,10 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. The original RAR contains a flat texture layout without a disc serial. Extraction and import succeeded, but no exact edition is attested by the creator or archive; verified availability remains withheld. Database identities are candidates only.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/",
-   "verify": {
-    "url": "https://drive.google.com/file/d/1Udmi3x-C0Fiir_e5cDj0j-ynJfXNaX-X/view?usp=share_link",
-    "sha256": "970b79ce52f218270043e15df9eb9fd6fc99342c6b0721ea3ab118309086d5da"
-   },
-   "in_app": true
+   "page": "https://gbatemp.net/threads/my-hd-remaster-pack.630347/"
   },
   "system": "ps2",
   "engine": "armsx2",
