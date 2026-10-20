@@ -363,15 +363,19 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Original creator explicitly targets PAL SLES-50185 and publishes this Google Drive archive, with a separate creator MEGA mirror. Archive format, contents and native import are pending. Coverage is conservatively partial until attested; no additional regional edition or iPhone rendering is claimed. Manual original-author download only, no redistribution.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/alone-in-the-dark-the-new-nightmare-hd-texture-pack.639825/"
+   "page": "https://gbatemp.net/threads/alone-in-the-dark-the-new-nightmare-hd-texture-pack.639825/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1b7Kl6069KGSN_eEU8GO4452fKyBXwAHt/view?usp=sharing"
+   }
   },
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/teodor_max.672319/"
+  "source_url": "https://gbatemp.net/members/teodor_max.672319/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-america-s-10-most-wanted-sombershroud",
