@@ -1,0 +1,87 @@
+{
+  "build": "0.0.8 (493)",
+  "decision": "docs/build493-plan.md",
+  "design": "docs/game-box-3d.md (§ 3, § 11)",
+  "base": {
+    "delivered492Source": "3349513abfee315ef5dc40400f2b8d222cf15776",
+    "delivered492Run": 39356466695,
+    "delivered492IpaSHA256": "56eb53f31f3ee131ea7048ccac5f4f1f5ebd3ef23b41c282249932f7de3fbb79"
+  },
+  "productCommit": "f181a123ceaf588f9edb67fae5c2eda5dca4ecd1",
+  "deliverySource": "013d32ed0238922dcabe57aca407a6e4b49c82f5",
+  "deliverySourceNote": "013d32ed = fba57251 (Build 493 product, targeted checks, gate and pins) + the Build 492 receipt commit of the other session (docs/ and AGENTS.md only); the gate accepts the targeted run of fba57251 because every file changed since is a record.",
+  "targetedChecks": {
+    "workflow": ".github/workflows/build493-checks.yml",
+    "runner": "test/build493_targeted_test.py --part host",
+    "runs": [
+      {
+        "run": 39356719105,
+        "source": "ccf64b632ec288efb95dc0de63ee519ef22c7940",
+        "job": 118413081181,
+        "result": "success",
+        "verdictArtifact": {"id": 12235312822, "zipSHA256": "619d11f665c852b7eb2a30fd7f346f31b0d6fb431da0b0c7c288e6ce96027028"}
+      },
+      {
+        "run": 39358091668,
+        "source": "fba57251c5dce7d1240878405aef1a7582917b9e",
+        "job": 118417508989,
+        "result": "success",
+        "verdictArtifact": {"id": 12236461913, "name": "build493-host-fba57251c5dce7d1240878405aef1a7582917b9e", "zipBytes": 12147, "zipSHA256": "9f92490464476ae0c77ee4d57f13b520099099d9d227a5285d8499a88187e026"},
+        "usedByDeliveryGate": true
+      }
+    ],
+    "content": "coverage of every file changed since delivered Build 492 (closed PRODUCT list, no native or Core input changed), game box string catalogue check (123 texts x 12 languages), flutter analyze of the whole application, the delivery Dart suite read from retroarch-delivery.yml, the game box and library view suites (geometry and manual, inspector, manual in the box, grid and list views, strings), Python contracts (texts, twelve languages, 419-locked files, media sources, routes)",
+    "native": "none: no native input changed (checked by the runner and by the gate)"
+  },
+  "delivery": {
+    "workflow": ".github/workflows/retroarch-delivery.yml",
+    "run": 39359025363,
+    "event": "workflow_dispatch",
+    "gate": ".github/diagnostics/gamebox493_delivery.py",
+    "jobs": {
+      "checks": {"job": 118420545869, "result": "success", "note": "Dart tests validated at fba57251, exact locked input key verified; no suite rerun"},
+      "native": {"job": 118420545980, "result": "success", "note": "unchanged native evidence reused"},
+      "cold": {"job": 118420826553, "result": "success", "started": "2026-10-20T02:28:45Z", "completed": "2026-10-20T02:43:53Z"},
+      "warm": "skipped"
+    },
+    "toolchain": "Xcode 26.3 (17C529), iPhone SDK 26.2, Flutter 3.47.2 (d3b14c87), macOS 15.7.9",
+    "recipient": "build-utils/delivery-493-recipient.pem",
+    "recipientDerSHA256": "9b446a229a103db95fdc7c6374b745f4ee8ddb6a9d172aa5d3ba970540991348",
+    "privateKey": "generated in the session container, never committed, destroyed after the handover",
+    "artifact": {
+      "id": 12237335582,
+      "name": "NeoStation-Build-493-013d32ed0238922dcabe57aca407a6e4b49c82f5-cold",
+      "zipBytes": 166144285,
+      "zipSHA256": "58c25bb001ada416c132650398821e28b08043983ce610aee2c31c8d75d3aaf0",
+      "encryptedTarBytes": 166143520,
+      "encryptedTarSHA256": "18f109ede3422eefbb7efdd80b7746052a2ddc3b467492eef60adef8269fa2fe",
+      "format": "AES-256-CBC PBKDF2 200000, key envelope RSA OAEP SHA256",
+      "expires": "2026-11-03"
+    },
+    "handover": "artifact downloaded on the maintainer's PC (gh), envelope opened in the session container, archive decrypted on the PC; the container cannot download artifacts (egress policy) and was not made to"
+  },
+  "ipa": {
+    "file": "NeoStation-Build493-013d32ed0238922dcabe57aca407a6e4b49c82f5-cold.ipa",
+    "bytes": 165913805,
+    "sha256": "23bf3020a604a58733f4cc24631df84248cb5e9bb5aa2d30e991b98d82924a7c",
+    "equalTo": ["SHA256SUMS", "signed-payload-identity.json (ipaSha256, ipaBytes)", "C:\\Users\\Coren\\Downloads\\NeoStation-Build493-013d32ed.ipa"],
+    "signedPayloadIdentity": {"images": 74, "allCompiledCodeAndDataSectionsUnchangedBySigning": true, "abiMetadataUnchangedBySigning": true},
+    "sideStoreAppleReSigningRequired": true
+  },
+  "independentInspection": {
+    "where": "maintainer's PC, PowerShell, against the delivered Build 492 IPA (56eb53f3...)",
+    "members": {"492": 4082, "493": 4082, "added": 0, "removed": 0, "changed": 27, "changedCodeSignatureFiles": 8},
+    "dusklightOrKartPadMemberNames": 0,
+    "bundles": "application and five extensions: 0.0.8, build 493 (no 492)",
+    "machO": {
+      "App.framework/App": "Dart AOT changed (__text, __const, __unwind_info, UUID): the Build 493 product; markers present: game_box_back, game_box_open, game_box_manual_chip, game_box_read_manual, game_box_download_manual, game_box_scan_viewer, list_title_halo, GameBoxLibrary, GameManualService, GameBoxScanViewer, GameBoxManualCover, bookletTakeTarget",
+      "Runner": "only __TEXT,__const (2 bytes: PROJECT:Runner-492 -> Runner-493) and the UUID",
+      "armsx2_internal_bridge": "__stubs and __objc_stubs differ (GOT slot assignment by the linker); all 1,032 stubs decoded in both builds resolve identically: 218 symbol stubs to their own symbol, 814 Objective-C stubs to the same selector via _objc_msgSend; all other sections identical; sources unchanged since 492",
+      "identicalSections": ["DolphinCore", "ARMSX2JITHelper", "DolphinJITHelper", "NeoSwapDonor", "NeoSwapPageRelay", "RPCS3JITHelper"],
+      "note": "these six differ from 492 only by their signature and bundle version; every other image is byte-identical to 492 (34 libretro cores, ARMSX2Core, libRPCS3Core, MoltenVK, other frameworks)"
+    },
+    "otherChangedFiles": ["Info.plist files (version 493)", "Legal/BUILD_SOURCE_IDENTITY.json", "NeoPlay-build-identity.json", "flutter_assets/fonts/MaterialIcons-Regular.otf (Flutter icon tree-shaking output, which follows the icons the application uses)"]
+  },
+  "coreRebuilt": false,
+  "deviceGameplayValidated": false
+}
