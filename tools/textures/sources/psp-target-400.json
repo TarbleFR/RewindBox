@@ -29,15 +29,21 @@
   "source_id": "github:Daggerfly/burnout-upscaling-project",
   "licence": {
    "summary": "No licence stated by the creator",
-   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute the files; no redistribution permission is inferred."
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
   },
   "download": {
-   "automatable": false,
-   "page": "https://github.com/Daggerfly/burnout-upscaling-project",
-   "verify": {
-    "url": "https://codeload.github.com/Daggerfly/burnout-upscaling-project/zip/e33634e4c9dd59320ab51f8f70895f9cb0c823b3"
-   },
-   "file_name": "burnout-upscaling-project-e33634e4c9dd59320ab51f8f70895f9cb0c823b3.zip"
+   "automatable": true,
+   "format": "zip",
+   "file_name": "burnout-upscaling-project-e33634e4c9dd59320ab51f8f70895f9cb0c823b3.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Daggerfly/burnout-upscaling-project/zip/e33634e4c9dd59320ab51f8f70895f9cb0c823b3"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Daggerfly/burnout-upscaling-project",
+    "commit": "e33634e4c9dd59320ab51f8f70895f9cb0c823b3"
+   }
   },
   "install": {
    "folders": [
@@ -49,6 +55,6 @@
   },
   "scope": "partial",
   "family": "psp-burnout-dominator-bup-daggerfly",
-  "notes": "Incomplete community upscale/restoration, including UI, previews, Bushido Valley decals and effects. The author INI uses xxh64 and ignoreAddress; its comment identifies ULUS10236, while the [games] mapping is commented out. No European or French compatibility is inferred. Missing or mis-cased INI targets must be reviewed before publication as installable."
+  "notes": "Incomplete community upscale/restoration, including UI, previews, Bushido Valley decals and effects. The author INI uses xxh64 and ignoreAddress; its comment identifies ULUS10236, while the [games] mapping is commented out. No European or French compatibility is inferred. Production import verified 200 PNGs and all 119 INI targets, with no missing targets or case mismatches. No iPhone rendering has been validated."
  }
 ]

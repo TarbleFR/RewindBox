@@ -317,6 +317,28 @@
       "records": 1,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, GitLab creator archive; host refusal is retained)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39407659263,
+      "source": "ae1ef3719eb4f74008455665ec6cb4540ccc8764",
+      "consoles": [
+        "psp",
+        "3ds"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, targeted original author archives; additional PS2 job still pending)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39408412029,
+      "source": "c68eb845cb96be28abf54a4116ed5db8496d7f79",
+      "consoles": [
+        "3ds",
+        "dolphin"
+      ],
+      "records": 6,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, targeted original author archives; additional PS2 job still pending)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]
 }

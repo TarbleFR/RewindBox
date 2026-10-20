@@ -1,0 +1,166 @@
+{
+  "date": "2026-10-20",
+  "goal_installable_families": 400,
+  "baseline_revision": "2026-10-20.809cfd2df68f",
+  "baseline_families": 295,
+  "checkpoint": true,
+  "revision": "2026-10-20.5e85b0953f3a",
+  "manifest_sha256": "23fa43d11a5b67017d0e79e314159fa7c73a6e4e942ae15b88a2cc1c5a2e870c",
+  "runtime_entries": 1074,
+  "sources": 431,
+  "counts": {
+    "gc": {
+      "distinct": 76,
+      "entries": 101,
+      "variants": 25,
+      "complete": 52,
+      "partial": 8,
+      "ui": 16,
+      "oneTapFamilies": 23,
+      "manualVerifiedFamilies": 53,
+      "games": 53
+    },
+    "wii": {
+      "distinct": 42,
+      "entries": 64,
+      "variants": 22,
+      "complete": 24,
+      "partial": 5,
+      "ui": 13,
+      "oneTapFamilies": 14,
+      "manualVerifiedFamilies": 28,
+      "games": 32
+    },
+    "3ds": {
+      "distinct": 47,
+      "entries": 53,
+      "variants": 6,
+      "complete": 17,
+      "partial": 15,
+      "ui": 15,
+      "oneTapFamilies": 15,
+      "manualVerifiedFamilies": 32,
+      "games": 54
+    },
+    "psp": {
+      "distinct": 84,
+      "entries": 98,
+      "variants": 14,
+      "complete": 62,
+      "partial": 9,
+      "ui": 13,
+      "oneTapFamilies": 57,
+      "manualVerifiedFamilies": 27,
+      "games": 98
+    },
+    "ps2": {
+      "distinct": 34,
+      "entries": 46,
+      "variants": 12,
+      "complete": 26,
+      "partial": 1,
+      "ui": 7,
+      "oneTapFamilies": 33,
+      "manualVerifiedFamilies": 1,
+      "games": 45
+    },
+    "n64": {
+      "distinct": 14,
+      "entries": 21,
+      "variants": 7,
+      "complete": 12,
+      "partial": 2,
+      "ui": 0,
+      "oneTapFamilies": 14,
+      "manualVerifiedFamilies": 0,
+      "games": 11
+    },
+    "ps1": {
+      "distinct": 2,
+      "entries": 2,
+      "variants": 0,
+      "complete": 1,
+      "partial": 1,
+      "ui": 0,
+      "oneTapFamilies": 2,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "nes": {
+      "distinct": 5,
+      "entries": 5,
+      "variants": 0,
+      "complete": 5,
+      "partial": 0,
+      "ui": 0,
+      "oneTapFamilies": 5,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "total": {
+      "distinct": 302,
+      "entries": 385,
+      "variants": 83,
+      "complete": 197,
+      "partial": 41,
+      "ui": 64,
+      "oneTapFamilies": 161,
+      "manualVerifiedFamilies": 141,
+      "games": 297
+    }
+  },
+  "exact_ci_records": 8,
+  "artifacts": [
+    {
+      "run": 39407659263,
+      "artifact": 12258092463,
+      "console": "psp",
+      "sha256": "1c0a06733865862124f730a7480bd6b0f45c71e73bbb5714a517bb4d8258bf37"
+    },
+    {
+      "run": 39407659263,
+      "artifact": 12257329108,
+      "console": "3ds",
+      "sha256": "b431ecb85fea4d6003c2631f0872fdba7ce4c7555a8e422b419026d19ec3c1d9"
+    },
+    {
+      "run": 39408412029,
+      "artifact": 12258700366,
+      "console": "3ds",
+      "sha256": "c612ead78d4bb903b2a788fbe214ae4578c857aea8a3c10793a464f59efe019c"
+    },
+    {
+      "run": 39408412029,
+      "artifact": 12258119172,
+      "console": "dolphin",
+      "sha256": "f964a960c4e30fead8adc1c5e43e9c7cef82fbeca746c1520e1d83f38239d842"
+    }
+  ],
+  "research_artifacts": [
+    {
+      "run": 39406152144,
+      "artifact": 12257762456,
+      "sha256": "497836056ca3e24be0b526bfacc2e05f9eecaa5b566a1b8386dd9f14a83eac28"
+    },
+    {
+      "run": 39407069947,
+      "artifact": 12256888195,
+      "sha256": "6dc36e7c0156fc58d7b1acff7c4f8a901ccc87011f77cd1585fe45d248403615"
+    },
+    {
+      "run": 39409327497,
+      "artifact": 12257859720,
+      "sha256": "e4db13be2c5d5270b5d5a413c189d40573f21368ca2a06819c8250764edde2a6"
+    }
+  ],
+  "ps2_pending_runs": [
+    39406754238,
+    39407659263,
+    39408412029
+  ],
+  "switch_runtime": 0,
+  "native_inputs_changed": false,
+  "iphone_rendering_validated": false,
+  "ipa_produced": false,
+  "release_published": false
+}

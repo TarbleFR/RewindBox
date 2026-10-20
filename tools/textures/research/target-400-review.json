@@ -1,0 +1,158 @@
+{
+  "checked_at": "2026-10-20",
+  "purpose": "Research evidence only; this file is outside build_catalogue.py source globs. The goal is 400 genuinely installable families, never 400 links or archive variants.",
+  "baseline": {
+    "commit": "4850653",
+    "revision": "2026-10-20.809cfd2df68f",
+    "installable_families": 295
+  },
+  "counting": "Unchanged count_packs.py: available or manual with exact verified archive; resolutions, formats, mirrors, regions and components of a project count once. RAR, ROM patches, shaders, system fonts, announcements and unverified links do not count.",
+  "discovery": {
+    "primary_pages": 475,
+    "page_run": 39406152144,
+    "page_source": "49003de67f53350a3f4680bf48e451b30f68eb28",
+    "page_result": "475 HTTP 403; no protection bypass or invented download links.",
+    "folder_probes": 20,
+    "folder_run": 39407069947,
+    "folder_source": "136fa563ccb90108054c12ccdcae1fc3bc244feb",
+    "ps2_original_catalogue": "ps2ktxpak/catalog@807733e50aceb10ded2fa95620c2180efce8585a",
+    "ps2_file_candidates": 210,
+    "ps2_selection": "Only free file links recovered from existing source trails. Paid access, rehosts without established author distribution, password/split archives, folder/page-only links and creator warnings about old PCSX2 hashes were not promoted.",
+    "ps2_result": "Pending exact artifact review; candidates alone do not change availability."
+  },
+  "entries": [
+    {
+      "id": "psp-cod-roads-to-victory-search-400",
+      "system": "psp",
+      "title": "Call of Duty: Roads to Victory",
+      "sources": [
+        "https://www.moddb.com/members/amfanpokefanrefan/blogs/180-downloads-celebration",
+        "https://www.moddb.com/members/amfanpokefanrefan/addons",
+        "https://www.moddb.com/games/medal-of-honor-allied-assault/addons/82nd-airborne-texture-skin-for-medal-of-honor-heroes-2"
+      ],
+      "disposition": "no-downloadable-hd-pack-validated",
+      "reason": "The author's retrospective shows CoD beta/restoration/reskin experiments, not a published CoD texture archive. The 82nd Airborne download explicitly targets Medal of Honor Heroes 2. No validated CoD pack after English, French, Portuguese, Chinese, title and ULUS10218 searches; this is not a claim that none can exist."
+    },
+    {
+      "id": "3ds-new-style-boutique-3-p-tonino",
+      "system": "3ds",
+      "title": "New Style Boutique 3 / Style Savvy Styling Star — Improved Texture Pack",
+      "authors": [
+        "p_tonino"
+      ],
+      "page_url": "https://gbatemp.net/threads/fashion-boutique-3-style-savvy-styling-star-improved-texture-pack.673262/",
+      "download_url": "https://www.mediafire.com/file/qd7iazba5zv55cz/New_Style_Boutique_3_%28v1.0%29_Improved_Texture_Pack.zip/file",
+      "version": "1.0",
+      "disposition": "blocked-download-no-runtime-identity",
+      "reason": "Creator reports 62,421 textures / 8.94 GB, tested EUR v1.0.0 on Azahar, other regions untested. Exact archive inspection was stopped by HTTP 403 (research run 39409327497); no title ID or contents inferred. ReShade/OpenGL settings are separate PC effects. Preloading is explicitly discouraged by the creator."
+    },
+    {
+      "id": "3ds-srw-ux-pdragon128",
+      "system": "3ds",
+      "title": "Super Robot Wars UX HD",
+      "authors": [
+        "pdragon128"
+      ],
+      "page_url": "https://gbatemp.net/threads/3ds-super-robot-wars-ux-jpn-hd-texture-pack.656526/",
+      "disposition": "awaiting-full-author-link-and-archive",
+      "reason": "Known reference S132, not a new discovery. Original post marks Japanese upscale complete and links a 4.68 GB MEGA file. Accessible page extraction did not retain the complete file key; no key or compatible title ID is invented. Historical partial English translation is a different RomFS project."
+    },
+    {
+      "id": "3ds-dillon-pdragon128",
+      "system": "3ds",
+      "title": "Dillon's Dead-Heat Breakers HD",
+      "authors": [
+        "pdragon128"
+      ],
+      "page_url": "https://gbatemp.net/threads/3ds-dillons-dead-heat-breakers-usa-hd-texture-pack.656522/",
+      "disposition": "awaiting-full-author-link-and-archive",
+      "reason": "Known reference S131. Creator specifies USA and 3.12 GB, omitting Mii faces/animal variants, staff messages and jukebox assets. Full original MEGA file key and actual archive identity remain unverified; no whole-game or French support claim."
+    },
+    {
+      "id": "3ds-smm-hd-chs-andot",
+      "system": "3ds",
+      "title": "Super Mario Maker 3DS Chinese HD UI",
+      "page_url": "https://github.com/andot/smm3ds-hd-chs",
+      "disposition": "adaptation-required",
+      "reason": "2,928 PNGs under Japanese title 00040000001A0300, partial Chinese UI/font/Mashiko artwork. Requires an external Chinese 1.05 patch and system-font setup; repository includes NAND .app modules. Do not install system modules or treat this as a vanilla-game texture profile. No licence inferred."
+    },
+    {
+      "id": "psp-persona-fr-codebyhaamza",
+      "system": "psp",
+      "title": "Persona PSP French HD overlay",
+      "page_url": "https://github.com/CodeByHaamza/P1-FR-PSP",
+      "disposition": "overlay-and-iso-patch-not-new-hd-family",
+      "reason": "French translation requires a game patch. Optional script combines seven translated textures with Ryuubu's already catalogued HD UI; creator says that base pack cannot be redistributed. Not an independent HD family or a vanilla retail profile."
+    },
+    {
+      "id": "psp-jeanne-fr-gabin",
+      "system": "psp",
+      "title": "Jeanne d'Arc French translation",
+      "page_url": "https://github.com/Gabin-CC/jeanne-darc-psp-fr",
+      "disposition": "translation-patch-not-texture-pack",
+      "reason": "xdelta/ISO patch and native GIM assets for ULUS10261, not PPSSPP texture replacement. Outside the plain texture adapter."
+    },
+    {
+      "id": "psp-gt-atirutw",
+      "system": "psp",
+      "title": "Gran Turismo PSP HD project",
+      "page_url": "https://github.com/atirutw/Gran-Turismo-PSP-HD-Textures",
+      "disposition": "announcement-no-released-assets",
+      "reason": "Repository inspection found the project README without a usable released texture archive."
+    },
+    {
+      "id": "gc-skies-lewiswake",
+      "system": "gc",
+      "title": "Skies of Arcadia Legends HD continuation",
+      "page_url": "https://github.com/lewiswake/Skies-of-Arcadia-Legends-HD-Texture-Project",
+      "disposition": "work-in-progress-no-download",
+      "reason": "Creator describes 42,495 textures / 22.7 GB on the working machine and a continuation of Bighead/frozenwings. Public repository contains comparison-gallery images and documentation, not the proposed UI/character/environment texture releases. Existing Skies families are not recounted."
+    },
+    {
+      "id": "wii-other-m-mhbxyz",
+      "system": "wii",
+      "title": "Metroid Other M HD project",
+      "page_url": "https://github.com/mhbxyz/metroid-other-m-hd",
+      "disposition": "documentation-no-texture-release",
+      "reason": "Roadmap and documentation; no deployable texture archive. Redux/control patches are separate from PNG/DDS replacements."
+    },
+    {
+      "id": "gc-echoes-widescreen-nystrata",
+      "system": "gc",
+      "title": "Metroid Prime 2 Echoes widescreen HUD",
+      "page_url": "https://github.com/Nystrata/EchoesWidescreenHUD",
+      "disposition": "iso-patch-not-hd-texture-pack",
+      "reason": "Modifies GGuiSys.pak FRME/Standard.ntwk geometry for NTSC and experimental PAL. Uses other texture projects in screenshots; not a plain texture archive."
+    },
+    {
+      "id": "wii-wii-party-lucaspec72",
+      "system": "wii",
+      "title": "Wii Party HD",
+      "page_url": "https://github.com/Lucaspec72/Wii-Party-HD",
+      "disposition": "awaiting-author-archive",
+      "reason": "Repository holds screenshots and instructions pointing to a protected forum, not a texture archive. Screenshot disc IDs are not sufficient pack/region evidence."
+    },
+    {
+      "id": "psp-swbf2-uc-62-duplicate",
+      "system": "psp",
+      "title": "SWBF2:UC PC PS2 Texture Pack 6.2",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=42436",
+      "disposition": "already-integrated-project",
+      "reason": "PyroMann is BioTes, the same creator release integrated earlier today. No extra family is added for the forum announcement, UC use, version, or button choices."
+    },
+    {
+      "id": "cronic-future-multisystem",
+      "systems": [
+        "psp",
+        "gc",
+        "wii",
+        "ps2",
+        "ps1"
+      ],
+      "title": "CronicCanabis88 multi-system release announcement",
+      "page_url": "https://www.reddit.com/r/Flycast_texture_packs/comments/1qrcpdp/texture_pack_release_update_new_emulators_support/",
+      "disposition": "announcement-not-archive",
+      "reason": "Original creator announces future PPSSPP/PCSX2/Dolphin/DuckStation work and a public pCloud host, without establishing a specific compatible downloadable file in this post. Dreamcast or DuckStation files do not imply compatibility with the embedded adapters."
+    }
+  ]
+}

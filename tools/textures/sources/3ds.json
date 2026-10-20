@@ -564,16 +564,22 @@
   "source_id": "github:toruzz/ALBW-HD-Font",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
   },
   "notes": "One HD font image for each of the USA and Europe title IDs, explicitly named in the original repository. Both regional font folders are present in the creator ZIP. Font only; no other game artwork or French-specific rendering has been validated.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/toruzz/ALBW-HD-Font",
-   "verify": {
-    "url": "https://codeload.github.com/toruzz/ALBW-HD-Font/zip/c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea"
-   },
-   "file_name": "ALBW-HD-Font-c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea.zip"
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ALBW-HD-Font-c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/toruzz/ALBW-HD-Font/zip/c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/toruzz/ALBW-HD-Font",
+    "commit": "c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea"
+   }
   },
   "system": "3ds",
   "engine": "azahar",
@@ -619,16 +625,22 @@
   "source_id": "github:linuxkafe/3DS",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
   },
   "notes": "AI-upscaled 3x with Upscayl, optimised with pngquant. The author warns coverage may be incomplete. The ZIP contains three games; NeoStation imports only the selected game subtree. USA title ID is explicit in the creator repository; no other region or language is inferred.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/SF64",
-   "verify": {
-    "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
-   },
-   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip"
+   "automatable": true,
+   "format": "zip",
+   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/linuxkafe/3DS",
+    "commit": "5094b103ba9b2f84a234d339fd6665e928efd795"
+   }
   },
   "system": "3ds",
   "engine": "azahar",
@@ -670,16 +682,22 @@
   "source_id": "github:linuxkafe/3DS",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
   },
   "notes": "AI-upscaled 3x with Upscayl, optimised with pngquant. The author warns coverage may be incomplete. The ZIP contains three games; NeoStation imports only the selected game subtree. USA title ID is explicit in the creator repository; no other region or language is inferred.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/LM2",
-   "verify": {
-    "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
-   },
-   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip"
+   "automatable": true,
+   "format": "zip",
+   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/linuxkafe/3DS",
+    "commit": "5094b103ba9b2f84a234d339fd6665e928efd795"
+   }
   },
   "system": "3ds",
   "engine": "azahar",
@@ -721,16 +739,22 @@
   "source_id": "github:linuxkafe/3DS",
   "licence": {
    "summary": "No licence stated by the author",
-   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
   },
   "notes": "AI-upscaled 3x with Upscayl, optimised with pngquant. The author warns coverage may be incomplete. The ZIP contains three games; NeoStation imports only the selected game subtree. USA title ID is explicit in the creator repository; no other region or language is inferred.",
   "download": {
-   "automatable": false,
-   "page": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/ACNL",
-   "verify": {
-    "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
-   },
-   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip"
+   "automatable": true,
+   "format": "zip",
+   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/linuxkafe/3DS",
+    "commit": "5094b103ba9b2f84a234d339fd6665e928efd795"
+   }
   },
   "system": "3ds",
   "engine": "azahar",
