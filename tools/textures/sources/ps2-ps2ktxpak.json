@@ -7896,7 +7896,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original archive identifies SLUS-21104; production import passes in run 39416642896 with no region conflict. No additional region or iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/mx-vs-atv-unleashed-usa-texture-pack.649229/",
@@ -11132,13 +11132,10 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Original 4x-upscale ZIP imports 1,878 PNGs, but it is flat and has no disc ID. The creator says PAL without identifying its language edition. PCSX2 distinguishes SLES-51017 (English), 51018 (French) and 51019 (German). No exact edition is attested, so verified availability is withheld rather than inferring support from the list’s regional IDs.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/scooby-doo-night-of-100-frights-pal-upscale.675457/",
-   "verify": {
-    "url": "https://drive.google.com/file/d/1mhmHa5YXvPRgur467S8x8XQA6Jjfh305/view"
-   }
+   "page": "https://gbatemp.net/threads/scooby-doo-night-of-100-frights-pal-upscale.675457/"
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -23370,7 +23367,7 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "AI upscale, complete. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5. Original archive identifies SCUS-97198; production import passes in run 39416642896 with no region conflict. No additional region or iPhone rendering is claimed.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/sly-cooper-and-the-thievius-raccoonus-usa-uhd-remaster-definitive.638803/",
@@ -24199,36 +24196,10 @@
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SLES-53012"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-53013"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-53014"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-53015"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-53016"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
       "value": "SLUS-21129"
      }
     ],
     "regions": [
-     "Europe",
      "USA"
     ],
     "confirm": true
@@ -24243,13 +24214,10 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale and handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Alternative Last Round PC ZIP is named SLUS-21129 but the old simulated import targeted an inferred PAL edition. Corrected to the archive’s USA target; this alternative remains unavailable until verification of that target. The already verified USA Redux 7z remains available in the same family; no additional family is counted for a format/revision variant.",
   "download": {
    "automatable": false,
-   "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-wrath-of-heaven-last-round.684190/",
-   "verify": {
-    "url": "https://mega.nz/file/IC8SyJ6J#h5QE3kvIcLtRGJnPYvxSeoeVNEO5vFavbJy-Wydcf5o"
-   }
+   "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-wrath-of-heaven-last-round.684190/"
   },
   "system": "ps2",
   "engine": "armsx2",
@@ -24357,42 +24325,10 @@
      {
       "type": "serial",
       "scheme": "ps2-disc-serial",
-      "value": "SLES-50679"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-51400"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-51401"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-51402"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLES-51403"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
-      "value": "SLKA-25064"
-     },
-     {
-      "type": "serial",
-      "scheme": "ps2-disc-serial",
       "value": "SLUS-20397"
      }
     ],
     "regions": [
-     "Europe",
-     "Korea",
      "USA"
     ],
     "confirm": true
@@ -24407,12 +24343,13 @@
    "summary": "Free on the creator's page; no licence recorded",
    "redistribution": "Link only: NeoStation opens the creator's page and does not download, host or redistribute this pack."
   },
-  "notes": "AI upscale and handcrafted, complete. The creator's record names no serial: the serials are those of the game in PCSX2's database, to confirm against your disc. Listed in ps2ktxpak, ARMSX2's PS2 texture pack catalogue (MIT), commit 807733e5.",
+  "notes": "Original Last Round ZIP explicitly identifies USA SLUS-20397. Inferred PAL/Korean IDs are removed. Corrected target requires native reverification on the exact same original archive SHA-256; the older successful simulated PAL import does not establish compatibility. No file is renamed, rehosted or repackaged.",
   "download": {
    "automatable": false,
    "page": "https://gbatemp.net/threads/tenchu-fatal-shadows-wrath-of-heaven-last-round.684190/",
    "verify": {
-    "url": "https://mega.nz/file/UeE2lZ5Q#8cfwYSVugF-uKpDymen0ZWA4qE_F9tPmUxvugz1_ZmU"
+    "url": "https://mega.nz/file/UeE2lZ5Q#8cfwYSVugF-uKpDymen0ZWA4qE_F9tPmUxvugz1_ZmU",
+    "sha256": "5d28ed70e94ddb979181fa10bc34300ae1189b0087c8936cf2b8463d00bc324b"
    }
   },
   "system": "ps2",
