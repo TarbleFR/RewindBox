@@ -41,45 +41,5 @@
   "scope": "complete",
   "family": "3ds-ex-troopers-hd-pdragon128",
   "notes": "Author marks the texture set complete. Japanese title; optional English fan translation 1.0.1 is external and not installed by this pack. Translation 1.0.2 misses some textures including the title. An update CIA changes the custom-texture path; use the base game or the author-described Mods-folder translation. No French support or iPhone rendering is asserted."
- },
- {
-  "id": "3ds-dq7-hd-panda-venom",
-  "system": "3ds",
-  "engine": "azahar",
-  "title": "Dragon Quest VII — HD textures v2 (partial)",
-  "version": "2",
-  "games": [
-   {
-    "title": "Dragon Quest VII: Fragments of the Forgotten Past",
-    "identities": [
-     {
-      "type": "title_id",
-      "scheme": "3ds-title-id",
-      "value": "000400000018F000"
-     }
-    ],
-    "confirm": true
-   }
-  ],
-  "authors": [
-   "Panda_Venom"
-  ],
-  "page_url": "https://gbatemp.net/threads/3ds-dragon-quest-vii-fragments-of-the-forgotten-past-hd-textures.655732/",
-  "source_id": "gbatemp:655732",
-  "licence": {
-   "summary": "No licence stated by the creator",
-   "redistribution": "Manual original creator download only; NeoStation does not host, repackage or redistribute these texture files."
-  },
-  "download": {
-   "automatable": false,
-   "page": "https://gbatemp.net/threads/3ds-dragon-quest-vii-fragments-of-the-forgotten-past-hd-textures.655732/",
-   "verify": {
-    "url": "https://www.mediafire.com/file_premium/w91d8ev9yl5xxz4/000400000018F000_DQVII_v2.7z/file"
-   },
-   "file_name": "000400000018F000_DQVII_v2.7z"
-  },
-  "scope": "partial",
-  "family": "3ds-dq7-hd-panda-venom",
-  "notes": "Creator reports UI/fonts/items about 99%, backgrounds/monsters about 90% and character job artwork about 60%. Some world maps, dungeons and jobs are missing. The title ID is explicit in the creator download filename; no additional region or French support is inferred. Exact archive validation pending."
  }
 ]

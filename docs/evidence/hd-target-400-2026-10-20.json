@@ -4,8 +4,8 @@
   "baseline_revision": "2026-10-20.809cfd2df68f",
   "baseline_families": 295,
   "checkpoint": true,
-  "revision": "2026-10-20.5e85b0953f3a",
-  "manifest_sha256": "23fa43d11a5b67017d0e79e314159fa7c73a6e4e942ae15b88a2cc1c5a2e870c",
+  "revision": "2026-10-20.0d6a2ec5c39c",
+  "manifest_sha256": "72ba33396c6dea9e7cef3ac8fa35509f707bb2bc512c5a5ccaf736f60a3c4c32",
   "runtime_entries": 1074,
   "sources": 431,
   "counts": {
@@ -54,15 +54,15 @@
       "games": 98
     },
     "ps2": {
-      "distinct": 34,
-      "entries": 46,
-      "variants": 12,
-      "complete": 26,
-      "partial": 1,
-      "ui": 7,
+      "distinct": 45,
+      "entries": 59,
+      "variants": 14,
+      "complete": 29,
+      "partial": 8,
+      "ui": 8,
       "oneTapFamilies": 33,
-      "manualVerifiedFamilies": 1,
-      "games": 45
+      "manualVerifiedFamilies": 12,
+      "games": 58
     },
     "n64": {
       "distinct": 14,
@@ -98,18 +98,18 @@
       "games": 4
     },
     "total": {
-      "distinct": 302,
-      "entries": 385,
-      "variants": 83,
-      "complete": 197,
-      "partial": 41,
-      "ui": 64,
+      "distinct": 313,
+      "entries": 398,
+      "variants": 85,
+      "complete": 200,
+      "partial": 48,
+      "ui": 65,
       "oneTapFamilies": 161,
-      "manualVerifiedFamilies": 141,
-      "games": 297
+      "manualVerifiedFamilies": 152,
+      "games": 310
     }
   },
-  "exact_ci_records": 8,
+  "exact_ci_records": 30,
   "artifacts": [
     {
       "run": 39407659263,
@@ -134,6 +134,42 @@
       "artifact": 12258119172,
       "console": "dolphin",
       "sha256": "f964a960c4e30fead8adc1c5e43e9c7cef82fbeca746c1520e1d83f38239d842"
+    },
+    {
+      "run": 39407659263,
+      "artifact": 12259405441,
+      "console": "ps2",
+      "sha256": "0f9248a48805cc102d2f4f2e1804ba2b9d2c17ccfa0003be11b48cf4c6e8e270"
+    },
+    {
+      "run": 39408412029,
+      "artifact": 12258892413,
+      "console": "ps2",
+      "sha256": "fafd78ad2fff762e6ba9c2d18c494887b75aab6730b682b81db1e45a17bc6e14"
+    },
+    {
+      "run": 39410496846,
+      "artifact": 12259261788,
+      "console": "ps2",
+      "sha256": "d5f644fa9d6b0dec46ee56b9d999790efd27f9514208548d8e6d4230b89bfae5"
+    },
+    {
+      "run": 39411115471,
+      "artifact": 12259572218,
+      "console": "ps2",
+      "sha256": "836062a6ce651ababd61810dad43fd896c51ebbcb5c43099aa708bd3e22b7fe5"
+    },
+    {
+      "run": 39411115471,
+      "artifact": 12259382206,
+      "console": "3ds",
+      "sha256": "221796e9eaf3de4f0034c0f978eb8df0348544e0a4be711574585e1a794b6012"
+    },
+    {
+      "run": 39411315570,
+      "artifact": 12258939706,
+      "console": "ps2",
+      "sha256": "e1a6d00aa2c581a8c3a2414baf41ad4066eeb76ad496454aa76d5cefdc1479af"
     }
   ],
   "research_artifacts": [
@@ -155,12 +191,25 @@
   ],
   "ps2_pending_runs": [
     39406754238,
-    39407659263,
-    39408412029
+    39412734596
   ],
   "switch_runtime": 0,
   "native_inputs_changed": false,
   "iphone_rendering_validated": false,
   "ipa_produced": false,
-  "release_published": false
+  "release_published": false,
+  "verification_tool_fix": {
+    "source": "6996f35a09e9dd061a266855b7f084e170a88aee",
+    "file": "tools/textures/verify_packs.py",
+    "change": "Retain the actual ARMSX2 excluded folders in installed records, so the existing builder preserves distinct game subtrees and does not discard their exclusion rules. No native installer change.",
+    "regression": "Two-game ZIP through unchanged production texture_verify driver: excluded other-game folder absent from native plan, one file installed, recorded exclude list retained. PASS.",
+    "targeted_checks": "texture_verify_checks_test.py passed with the changed verifier import; Python compilation passed. Full unchanged app/core suites not repeated.",
+    "real_archive_reverification_run": 39411315570
+  },
+  "new_installable_families": 18,
+  "new_installable_profiles": 21,
+  "current_candidate_records": 24,
+  "superseded_records": 6,
+  "baseline_installable_pack_objects_unchanged": true,
+  "baseline_verification_records_unchanged": true
 }

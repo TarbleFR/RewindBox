@@ -39,7 +39,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/thomasweissenfluh.720616/"
+  "source_url": "https://gbatemp.net/members/thomasweissenfluh.720616/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-007-quantum-of-solace-texmaster",
@@ -120,7 +121,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-25-to-life-mvp899",
@@ -416,7 +418,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-ape-escape-2-armm1998",
@@ -458,7 +461,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/armm1998.388644/"
+  "source_url": "https://gbatemp.net/members/armm1998.388644/",
+  "scope": "ui"
  },
  {
   "id": "ps2-ktx-ape-escape-2-flooffluff",
@@ -500,7 +504,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/flooffluff.398173/"
+  "source_url": "https://gbatemp.net/members/flooffluff.398173/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-ape-escape-3-mvp899",
@@ -620,7 +625,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-armored-core-last-raven-ninebreaker",
@@ -792,7 +798,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/santins.651739/"
+  "source_url": "https://gbatemp.net/members/santins.651739/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-backyard-wrestling-2-there-goes-the-neighborhood-mvp899",
@@ -834,7 +841,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-barbie-in-the-12-dancing-princesses-mvp899",
@@ -876,7 +884,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-baroque-cckrizalid",
@@ -957,7 +966,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/callofcthuloo.718224/"
+  "source_url": "https://gbatemp.net/members/callofcthuloo.718224/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-battlefield-2-modern-combat-robin9608-2",
@@ -1000,7 +1010,8 @@
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/robin9608.735463/",
-  "family": "ps2-ktx-battlefield-2-modern-combat-robin9608"
+  "family": "ps2-ktx-battlefield-2-modern-combat-robin9608",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-battlefield-2-modern-combat-robin9608",
@@ -1043,7 +1054,8 @@
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/robin9608.735463/",
-  "family": "ps2-ktx-battlefield-2-modern-combat-robin9608"
+  "family": "ps2-ktx-battlefield-2-modern-combat-robin9608",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-ben-10-protector-of-earth-mvp899",
@@ -1085,7 +1097,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-bionicle-heroes-mvp899",
@@ -1204,7 +1217,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/huekage.804869/"
+  "source_url": "https://gbatemp.net/members/huekage.804869/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-black-johnazeitona",
@@ -1324,7 +1338,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-bloodrayne-2-cckrizalid",
@@ -1444,7 +1459,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/xxtherockoxx.602827/"
+  "source_url": "https://gbatemp.net/members/xxtherockoxx.602827/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-bloody-roar-4-yamijpg",
@@ -1486,7 +1502,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/yamijpg.628098/"
+  "source_url": "https://gbatemp.net/members/yamijpg.628098/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-bmx-xxx-mvp899",
@@ -1528,7 +1545,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-buffy-the-vampire-slayer-chaos-bleeds-cckrizalid",
@@ -1691,7 +1709,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ml87.669531/"
+  "source_url": "https://gbatemp.net/members/ml87.669531/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-burnout-dominator-ml87",
@@ -1733,7 +1752,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ml87.669531/"
+  "source_url": "https://gbatemp.net/members/ml87.669531/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-burnout-ml87",
@@ -1775,7 +1795,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ml87.669531/"
+  "source_url": "https://gbatemp.net/members/ml87.669531/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-call-of-duty-world-at-war-final-fronts-mvp899",
@@ -1856,7 +1877,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-capcom-vs-snk-2-mark-of-the-millennium-2001-sombershroud",
@@ -1976,7 +1998,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombertwilight.598523/"
+  "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-cold-fear-yamijpg",
@@ -2100,7 +2123,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-colosseum-road-to-freedom-curse-arms",
@@ -2142,7 +2166,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-crash-nitro-kart-moataz",
@@ -2223,7 +2248,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/crazyrabbitstyle.713498/"
+  "source_url": "https://gbatemp.net/members/crazyrabbitstyle.713498/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-crash-twinsanity-yamijpg",
@@ -2265,7 +2291,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/yamijpg.628098/"
+  "source_url": "https://gbatemp.net/members/yamijpg.628098/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-crazy-frog-racer-2-mironter",
@@ -2346,7 +2373,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-dead-or-alive-2-hardcore-mvp899",
@@ -2388,7 +2416,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-dead-to-rights-ii-mvp899",
@@ -2475,7 +2504,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/i_emu_play.673247/"
+  "source_url": "https://gbatemp.net/members/i_emu_play.673247/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-devil-may-cry-2-cckrizalid",
@@ -2644,7 +2674,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/xxtherockoxx.602827/"
+  "source_url": "https://gbatemp.net/members/xxtherockoxx.602827/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-digimon-world-4-sombershroud",
@@ -2815,7 +2846,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sal9im.672099/"
+  "source_url": "https://gbatemp.net/members/sal9im.672099/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-downhill-domination-johnazeitona",
@@ -2902,7 +2934,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/akirus.675026/"
+  "source_url": "https://gbatemp.net/members/akirus.675026/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-jamon",
@@ -2944,7 +2977,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/jamon.609762/"
+  "source_url": "https://gbatemp.net/members/jamon.609762/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-santins",
@@ -2986,7 +3020,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/santins.651739/"
+  "source_url": "https://gbatemp.net/members/santins.651739/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-sal9im",
@@ -3028,7 +3063,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sal9im.672099/"
+  "source_url": "https://gbatemp.net/members/sal9im.672099/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-dragon-ball-z-infinite-world-mvp899",
@@ -3070,7 +3106,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-dragon-ball-z-sagas-huekage",
@@ -3112,7 +3149,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/huekage.804869/"
+  "source_url": "https://gbatemp.net/members/huekage.804869/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-dragon-quest-viii-journey-of-the-cursed-king-kupo-on-gbatem",
@@ -3197,7 +3235,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/panda_venom.589533/"
+  "source_url": "https://gbatemp.net/members/panda_venom.589533/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-drakengard-irvinsmith",
@@ -3239,7 +3278,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/irvinsmith.700802/"
+  "source_url": "https://gbatemp.net/members/irvinsmith.700802/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-dynasty-warriors-2-gvngnir",
@@ -3359,7 +3399,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/gvngnir.736304/"
+  "source_url": "https://gbatemp.net/members/gvngnir.736304/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-dynasty-warriors-4-empires-sombertwilight",
@@ -3401,7 +3442,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombertwilight.598523/"
+  "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-dynasty-warriors-4-xtreme-legends-sombertwilight",
@@ -3443,7 +3485,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombertwilight.598523/"
+  "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-eternal-poison-curse-arms",
@@ -3485,7 +3528,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-evil-dead-a-fistful-of-boomstick-c0meg3ts0me",
@@ -3527,7 +3571,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/c0meg3ts0me.700496/"
+  "source_url": "https://gbatemp.net/members/c0meg3ts0me.700496/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-evil-dead-regeneration-c0meg3ts0me",
@@ -3569,7 +3614,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/c0meg3ts0me.700496/"
+  "source_url": "https://gbatemp.net/members/c0meg3ts0me.700496/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-evil-dead-regeneration-cckrizalid",
@@ -3705,7 +3751,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-fatal-frame-iii-the-tormented-panda-venom",
@@ -3747,7 +3794,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/panda_venom.589533/"
+  "source_url": "https://gbatemp.net/members/panda_venom.589533/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-fatal-frame-iii-the-tormented-teodor-max",
@@ -3789,7 +3837,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/teodor_max.672319/"
+  "source_url": "https://gbatemp.net/members/teodor_max.672319/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-fate-unlimited-codes-cckrizalid",
@@ -3870,7 +3919,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-final-fantasy-x-2-curse-arms",
@@ -3912,7 +3962,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-final-fantasy-x-international-curse-arms",
@@ -3975,7 +4026,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-final-fantasy-xii-international-zodiac-job-system-panda-venom",
@@ -4027,7 +4079,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/panda_venom.589533/"
+  "source_url": "https://gbatemp.net/members/panda_venom.589533/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-final-fight-streetwise-curse-arms",
@@ -4069,7 +4122,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-flatout-2-kupo-on-gbatem",
@@ -4231,7 +4285,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-ford-vs-chevy-mvp899",
@@ -4273,7 +4328,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-forgotten-realms-demon-stone-curse-arms",
@@ -4333,7 +4389,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-frogger-s-adventures-the-rescue-tylermods",
@@ -4375,7 +4432,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/tylermods.478205/"
+  "source_url": "https://gbatemp.net/members/tylermods.478205/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-futurama-dahu",
@@ -4417,7 +4475,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/dahu.395613/"
+  "source_url": "https://gbatemp.net/members/dahu.395613/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-futurama-sombershroud",
@@ -4459,7 +4518,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-gauntlet-seven-sorrows-mvp899-2",
@@ -4502,7 +4562,8 @@
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/mvp899.614826/",
-  "family": "ps2-ktx-gauntlet-seven-sorrows-mvp899"
+  "family": "ps2-ktx-gauntlet-seven-sorrows-mvp899",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-gauntlet-seven-sorrows-mvp899",
@@ -4545,7 +4606,8 @@
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/mvp899.614826/",
-  "family": "ps2-ktx-gauntlet-seven-sorrows-mvp899"
+  "family": "ps2-ktx-gauntlet-seven-sorrows-mvp899",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-genji-dawn-of-the-samurai-mvp899",
@@ -4665,7 +4727,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/santins.651739/"
+  "source_url": "https://gbatemp.net/members/santins.651739/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-ghost-rider-texmaster",
@@ -4822,7 +4885,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/huekage.804869/"
+  "source_url": "https://gbatemp.net/members/huekage.804869/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-god-of-war-ii-ewgeha",
@@ -4864,7 +4928,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ewgeha.731198/"
+  "source_url": "https://gbatemp.net/members/ewgeha.731198/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-god-of-war-ii-huekage",
@@ -4922,7 +4987,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/huekage.804869/"
+  "source_url": "https://gbatemp.net/members/huekage.804869/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-god-of-war-ii-mvp899",
@@ -4980,7 +5046,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-god-of-war-ii-yamijpg",
@@ -5146,7 +5213,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/nunyaofc.789431/"
+  "source_url": "https://gbatemp.net/members/nunyaofc.789431/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-grandia-iii-panda-venom",
@@ -5193,7 +5261,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/panda_venom.589533/"
+  "source_url": "https://gbatemp.net/members/panda_venom.589533/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-gregory-horror-show-curse-arms",
@@ -5235,7 +5304,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-guitar-hero-encore-rocks-the-80s-ops",
@@ -5277,7 +5347,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ops_.799791/"
+  "source_url": "https://gbatemp.net/members/ops_.799791/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-guitar-hero-lisao10",
@@ -5319,7 +5390,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/lisao10.627944/"
+  "source_url": "https://gbatemp.net/members/lisao10.627944/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-guitar-hero-sad-origami",
@@ -5361,7 +5433,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sadorigami.659683/"
+  "source_url": "https://gbatemp.net/members/sadorigami.659683/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-guitar-hero-sombershroud",
@@ -5403,7 +5476,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-gun-teodor-max",
@@ -5489,7 +5563,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/yamijpg.628098/"
+  "source_url": "https://gbatemp.net/members/yamijpg.628098/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-gungrave-overdose-cckrizalid",
@@ -5653,7 +5728,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/c0rexe.693833/"
+  "source_url": "https://gbatemp.net/members/c0rexe.693833/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-haunting-ground-juanchotexhd",
@@ -5701,7 +5777,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/juanchotexhd.594026/"
+  "source_url": "https://gbatemp.net/members/juanchotexhd.594026/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-headhunter-redemption-teodor-max",
@@ -5743,7 +5820,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/teodor_max.672319/"
+  "source_url": "https://gbatemp.net/members/teodor_max.672319/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-headhunter-sombershroud",
@@ -5785,7 +5863,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-heartbeat-boxing-meskh4h4",
@@ -5911,7 +5990,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/gvngnir.736304/"
+  "source_url": "https://gbatemp.net/members/gvngnir.736304/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-hungry-ghosts-curse-arms",
@@ -5953,7 +6033,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-ico-sad-origami",
@@ -6167,7 +6248,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-jak-2-renegade-marcelus",
@@ -6209,7 +6291,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/marcelus.685824/"
+  "source_url": "https://gbatemp.net/members/marcelus.685824/",
+  "scope": "ui"
  },
  {
   "id": "ps2-ktx-jak-and-daxter-the-lost-frontier-mvp899",
@@ -6290,7 +6373,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-jojo-no-kimyou-na-bouken-ougon-no-kaze-bennio-2",
@@ -6376,7 +6460,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/bnz94.690851/"
+  "source_url": "https://gbatemp.net/members/bnz94.690851/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-kill-switch-mvp899",
@@ -6462,7 +6547,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-kuon-curse-arms",
@@ -6521,7 +6607,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-legaia-2-duel-saga-curse-arms",
@@ -6575,7 +6662,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-lego-batman-the-videogame-mzzvxm",
@@ -6617,7 +6705,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mzzvxm.732617/"
+  "source_url": "https://gbatemp.net/members/mzzvxm.732617/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-mafia-mvp899",
@@ -6698,7 +6787,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-mana-khemia-2-fall-of-alchemy-hitorihoshi",
@@ -6779,7 +6869,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-manhunt-ironhulk33",
@@ -6827,7 +6918,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ironhulk33.721797/"
+  "source_url": "https://gbatemp.net/members/ironhulk33.721797/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-maximo-ghosts-to-glory-marcelus",
@@ -6869,7 +6961,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/marcelus.685824/"
+  "source_url": "https://gbatemp.net/members/marcelus.685824/",
+  "scope": "ui"
  },
  {
   "id": "ps2-ktx-maximo-ghosts-to-glory-maximocapcom",
@@ -6917,7 +7010,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/maximocapcom.770928/"
+  "source_url": "https://gbatemp.net/members/maximocapcom.770928/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-maximo-vs-army-of-zin-maximocapcom",
@@ -7010,7 +7104,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/santins.651739/"
+  "source_url": "https://gbatemp.net/members/santins.651739/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-metal-arms-glitch-in-the-system-curse-arms",
@@ -7052,7 +7147,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-metal-gear-solid-2-sons-of-liberty-curse-arms",
@@ -7094,7 +7190,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-metal-gear-solid-2-substance-lunerus",
@@ -7185,7 +7282,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-metal-slug-5-mvp899",
@@ -7227,7 +7325,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-metal-slug-6-mvp899",
@@ -7308,7 +7407,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-midnight-club-3-dub-edition-remix-moataz",
@@ -7428,7 +7528,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-mobile-suit-gundam-gundam-vs-zeta-gundam-raed-555",
@@ -7470,7 +7571,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/raed_555.603896/"
+  "source_url": "https://gbatemp.net/members/raed_555.603896/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-mobile-suit-gundam-zeonic-front-callofcthuloo",
@@ -7512,7 +7614,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/callofcthuloo.718224/"
+  "source_url": "https://gbatemp.net/members/callofcthuloo.718224/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-monster-hunter-toolatenate",
@@ -7554,7 +7657,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/toolatenate.590440/"
+  "source_url": "https://gbatemp.net/members/toolatenate.590440/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-mortal-kombat-armageddon-mvp899",
@@ -7650,7 +7754,8 @@
   },
   "system": "ps2",
   "engine": "armsx2",
-  "availability": "manual"
+  "availability": "manual",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-mortal-kombat-shaolin-monks-thesampaio",
@@ -7692,7 +7797,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/thesampaio.671890/"
+  "source_url": "https://gbatemp.net/members/thesampaio.671890/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-ms-saga-a-new-dawn-curse-arms",
@@ -7734,7 +7840,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-mx-unleashed-mvp899",
@@ -7776,7 +7883,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-mx-vs-atv-unleashed-sombershroud",
@@ -7818,7 +7926,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-mx-vs-atv-untamed-mvp899",
@@ -7860,7 +7969,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-mystic-heroes-freshie",
@@ -7957,7 +8067,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sal9im.672099/"
+  "source_url": "https://gbatemp.net/members/sal9im.672099/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-naruto-ultimate-ninja-3-knuxwtd",
@@ -8038,7 +8149,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sal9im.672099/"
+  "source_url": "https://gbatemp.net/members/sal9im.672099/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-naruto-uzumaki-chronicles-knuxwtd",
@@ -8119,7 +8231,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-need-for-speed-carbon-cckrizalid",
@@ -8438,7 +8551,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-okami-panda-venom",
@@ -8480,7 +8594,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/panda_venom.589533/"
+  "source_url": "https://gbatemp.net/members/panda_venom.589533/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-onimusha-3-demon-siege-mvp899",
@@ -8561,7 +8676,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/teodor_max.672319/"
+  "source_url": "https://gbatemp.net/members/teodor_max.672319/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-pac-man-world-3-pinky45",
@@ -8642,7 +8758,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-pac-man-world-rally-ironhulk33",
@@ -8723,7 +8840,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-phantasy-star-universe-ambition-of-the-illuminus-panda-venom",
@@ -8765,7 +8883,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/panda_venom.589533/"
+  "source_url": "https://gbatemp.net/members/panda_venom.589533/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-police-24-7-mvp899",
@@ -8807,7 +8926,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-power-rangers-super-legends-yamijpg",
@@ -8849,7 +8969,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/yamijpg.628098/"
+  "source_url": "https://gbatemp.net/members/yamijpg.628098/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-prince-of-persia-the-sands-of-time-ewgeha",
@@ -9164,7 +9285,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/pliskindev.768531/"
+  "source_url": "https://gbatemp.net/members/pliskindev.768531/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-pro-evolution-soccer-2014-mvp899",
@@ -9221,7 +9343,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-project-zero-2-crimson-butterfly-curse-arms",
@@ -9263,7 +9386,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-raiden-iii-curse-arms",
@@ -9305,7 +9429,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-ratatouille-ironhulk33",
@@ -9430,7 +9555,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/theblazingdiamond.736234/"
+  "source_url": "https://gbatemp.net/members/theblazingdiamond.736234/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-ratchet-clank-ironhulk33-2",
@@ -9587,7 +9713,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/trippypit.683003/"
+  "source_url": "https://gbatemp.net/members/trippypit.683003/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-ratchet-clank-up-your-arsenal-reddyxd",
@@ -9634,7 +9761,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/reddyxd.646988/"
+  "source_url": "https://gbatemp.net/members/reddyxd.646988/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-red-faction-ii-mvp899",
@@ -9692,7 +9820,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-red-faction-ii-sombershroud",
@@ -9734,7 +9863,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-resident-evil-code-veronica-x-ewgeha",
@@ -9815,7 +9945,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/juanchotexhd.594026/"
+  "source_url": "https://gbatemp.net/members/juanchotexhd.594026/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-resident-evil-code-veronica-x-s1nk0",
@@ -9857,7 +9988,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/s1nk0.624706/"
+  "source_url": "https://gbatemp.net/members/s1nk0.624706/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-resident-evil-dead-aim-curse-arms",
@@ -9899,7 +10031,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-rogue-trooper-curse-arms",
@@ -9941,7 +10074,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-room-zoom-race-for-impact-mehrdad-jamshidiha",
@@ -9983,7 +10117,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mehrdad_jamshidiha.741290/"
+  "source_url": "https://gbatemp.net/members/mehrdad_jamshidiha.741290/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-rule-of-rose-curse-arms",
@@ -10043,7 +10178,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-rule-of-rose-sombertwilight",
@@ -10085,7 +10221,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombertwilight.598523/"
+  "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-rumble-roses-asc53087",
@@ -10127,7 +10264,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/asc53087.601190/"
+  "source_url": "https://gbatemp.net/members/asc53087.601190/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-rygar-the-legendary-adventure-curse-arms",
@@ -10169,7 +10307,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-rygar-the-legendary-adventure-mvp899",
@@ -10255,7 +10394,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/panda_venom.589533/"
+  "source_url": "https://gbatemp.net/members/panda_venom.589533/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-samurai-western-curse-arms",
@@ -10297,7 +10437,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-scaler-sombershroud",
@@ -10339,7 +10480,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-scarface-the-world-is-yours-curse-arms",
@@ -10386,7 +10528,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-scarface-the-world-is-yours-mvp899",
@@ -10969,7 +11112,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/trippypit.683003/"
+  "source_url": "https://gbatemp.net/members/trippypit.683003/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-scooby-doo-night-of-100-frights-nordbo",
@@ -11021,7 +11165,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/nordbo.767899/"
+  "source_url": "https://gbatemp.net/members/nordbo.767899/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-scus-97101-xxtherockoxx",
@@ -11861,7 +12006,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-secret-weapons-over-normandy-mvp899",
@@ -11903,7 +12049,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-seek-and-destroy-tylermods",
@@ -11945,7 +12092,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/tylermods.478205/"
+  "source_url": "https://gbatemp.net/members/tylermods.478205/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-sengoku-basara-2-heroes-i-emu-play",
@@ -12003,7 +12151,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/i_emu_play.673247/"
+  "source_url": "https://gbatemp.net/members/i_emu_play.673247/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-serious-sam-next-encounter-mvp899",
@@ -12084,7 +12233,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-shadow-hearts-covenant-curse-arms",
@@ -12131,7 +12281,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-shadow-hearts-curse-arms",
@@ -12234,7 +12385,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-shadow-of-rome-trippypit",
@@ -12276,7 +12428,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/trippypit.683003/"
+  "source_url": "https://gbatemp.net/members/trippypit.683003/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-shadow-of-the-colossus-c0meg3ts0me",
@@ -12318,7 +12471,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/c0meg3ts0me.700496/"
+  "source_url": "https://gbatemp.net/members/c0meg3ts0me.700496/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-shadow-of-the-colossus-curse-arms",
@@ -12366,7 +12520,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-shadow-of-the-colossus-sad-origami-2",
@@ -12447,7 +12602,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sadorigami.659683/"
+  "source_url": "https://gbatemp.net/members/sadorigami.659683/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-shining-force-exa-sombershroud",
@@ -12578,7 +12734,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ironhulk33.721797/"
+  "source_url": "https://gbatemp.net/members/ironhulk33.721797/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-silent-hill-3-curse-arms",
@@ -12648,7 +12805,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-silent-hill-3-sad-origami",
@@ -12729,7 +12887,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ninebreaker.740327/"
+  "source_url": "https://gbatemp.net/members/ninebreaker.740327/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-silent-scope-embi",
@@ -12771,7 +12930,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/embi.636853/"
+  "source_url": "https://gbatemp.net/members/embi.636853/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-sles-50224-sombershroud",
@@ -23204,7 +23364,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-sly-3-honor-among-thieves-sombershroud",
@@ -23246,7 +23407,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-sly-cooper-and-the-thievius-raccoonus-santins",
@@ -23288,7 +23450,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/santins.651739/"
+  "source_url": "https://gbatemp.net/members/santins.651739/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-socom-ii-u-s-navy-seals-retrogamemaster",
@@ -23435,7 +23598,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/alufolie69.675464/"
+  "source_url": "https://gbatemp.net/members/alufolie69.675464/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-spartan-total-warrior-el-jefe-hd-packs",
@@ -23521,7 +23685,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-spider-man-tylermods",
@@ -23602,7 +23767,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-spyro-a-hero-s-tail-retrogenerica",
@@ -23683,7 +23849,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ahmed-d-77.761798/"
+  "source_url": "https://gbatemp.net/members/ahmed-d-77.761798/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-ssx-3-whitelightning76",
@@ -23725,7 +23892,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/whitelightning76.419793/"
+  "source_url": "https://gbatemp.net/members/whitelightning76.419793/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-star-wars-battlefront-ii-mvp899",
@@ -23767,7 +23935,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-star-wars-bounty-hunter-curse-arms",
@@ -23835,7 +24004,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-star-wars-jedi-starfighter-sombershroud",
@@ -23877,7 +24047,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-street-fighter-ex3-sombershroud",
@@ -23958,7 +24129,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-summoner-mvp899",
@@ -24000,7 +24172,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "ui"
  },
  {
   "id": "ps2-ktx-taito-legends-2-sombershroud",
@@ -24042,7 +24215,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-teenage-mutant-ninja-turtles-2-battle-nexus-sombershroud",
@@ -24150,7 +24324,8 @@
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
-  "family": "ps2-ktx-tenchu-fatal-shadows-sombertwilight"
+  "family": "ps2-ktx-tenchu-fatal-shadows-sombertwilight",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-tenchu-fatal-shadows-sombertwilight",
@@ -24193,7 +24368,8 @@
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
-  "family": "ps2-ktx-tenchu-fatal-shadows-sombertwilight"
+  "family": "ps2-ktx-tenchu-fatal-shadows-sombertwilight",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight-2",
@@ -24236,7 +24412,8 @@
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
-  "family": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight"
+  "family": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight",
@@ -24311,7 +24488,8 @@
   "engine": "armsx2",
   "availability": "manual",
   "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
-  "family": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight"
+  "family": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-test-drive-unlimited-mironter",
@@ -24403,7 +24581,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/teodor_max.672319/"
+  "source_url": "https://gbatemp.net/members/teodor_max.672319/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-the-getaway-sombershroud",
@@ -24445,7 +24624,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-the-godfather-the-game-mvp899",
@@ -24487,7 +24667,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-the-godfather-the-game-sombershroud",
@@ -24568,7 +24749,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/pliskindev.768531/"
+  "source_url": "https://gbatemp.net/members/pliskindev.768531/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-the-king-of-fighters-xi-mvp899",
@@ -24801,7 +24983,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-the-simpsons-game-sombershroud",
@@ -24843,7 +25026,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-the-suffering-proxcore-2000",
@@ -24927,7 +25111,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-the-thing-darthdarklord",
@@ -25135,7 +25320,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/teodor_max.672319/"
+  "source_url": "https://gbatemp.net/members/teodor_max.672319/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-timesplitters-future-perfect-mvp899",
@@ -25238,7 +25424,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-tony-hawk-s-pro-skater-3-beto818",
@@ -25280,7 +25467,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/beto818.762970/"
+  "source_url": "https://gbatemp.net/members/beto818.762970/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-tony-hawk-s-pro-skater-3-headfonehead",
@@ -25344,7 +25532,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/headfonehead.631533/"
+  "source_url": "https://gbatemp.net/members/headfonehead.631533/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-tony-hawk-s-pro-skater-4-beto818",
@@ -25386,7 +25575,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/beto818.762970/"
+  "source_url": "https://gbatemp.net/members/beto818.762970/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-transformers-the-game-cckrizalid",
@@ -25467,7 +25657,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/beto818.762970/"
+  "source_url": "https://gbatemp.net/members/beto818.762970/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-trapt-mvp899",
@@ -25509,7 +25700,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/mvp899.614826/"
+  "source_url": "https://gbatemp.net/members/mvp899.614826/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-tsugunai-atonement-curse-arms",
@@ -25551,7 +25743,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-urban-reign-sombershroud",
@@ -25616,7 +25809,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombershroud.668052/"
+  "source_url": "https://gbatemp.net/members/sombershroud.668052/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-valkyrie-profile-2-silmeria-curse-arms",
@@ -25658,7 +25852,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-virtua-fighter-4-evolution-fraudio",
@@ -25700,7 +25895,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/fraudio.623878/"
+  "source_url": "https://gbatemp.net/members/fraudio.623878/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-wacky-races-starring-dastardly-and-muttley-napoleongaming",
@@ -25799,7 +25995,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/ironhulk33.721797/"
+  "source_url": "https://gbatemp.net/members/ironhulk33.721797/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-warhammer-40-000-fire-warrior-curse-arms",
@@ -25847,7 +26044,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-warriors-orochi-2-mvp899",
@@ -25928,7 +26126,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/sombertwilight.598523/"
+  "source_url": "https://gbatemp.net/members/sombertwilight.598523/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-wild-arms-3-curse-arms",
@@ -25976,7 +26175,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/curse_arms.619294/"
+  "source_url": "https://gbatemp.net/members/curse_arms.619294/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-wipeout-pulse-cckrizalid",
@@ -26069,7 +26269,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/threads/wwe-smackdown-here-comes-the-pain-upscaled-texture-pack-for-hctp-2x-mod-v2-coming-soon-read-post-for-more.680129/"
+  "source_url": "https://gbatemp.net/threads/wwe-smackdown-here-comes-the-pain-upscaled-texture-pack-for-hctp-2x-mod-v2-coming-soon-read-post-for-more.680129/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-wwe-smackdown-here-comes-the-pain-moataz",
@@ -26112,7 +26313,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/moataz.683955/"
+  "source_url": "https://gbatemp.net/members/moataz.683955/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-wwe-smackdown-vs-raw-2011-moataz",
@@ -26205,7 +26407,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/emulationlovers.629462/"
+  "source_url": "https://gbatemp.net/members/emulationlovers.629462/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-wwe-smackdown-vs-raw-moataz",
@@ -26292,7 +26495,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/gvngnir.736304/"
+  "source_url": "https://gbatemp.net/members/gvngnir.736304/",
+  "scope": "complete"
  },
  {
   "id": "ps2-ktx-xenosaga-episode-ii-jenseits-von-gut-und-bose-panda-venom",
@@ -26339,7 +26543,8 @@
   "system": "ps2",
   "engine": "armsx2",
   "availability": "manual",
-  "source_url": "https://gbatemp.net/members/panda_venom.589533/"
+  "source_url": "https://gbatemp.net/members/panda_venom.589533/",
+  "scope": "partial"
  },
  {
   "id": "ps2-ktx-xiii-foxyausgames",

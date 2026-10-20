@@ -138,16 +138,6 @@
       "artifact_name": "hdtex-hosts-{console}-{run}"
     },
     {
-      "run": 39292473994,
-      "source": "b012c8fe4ae303dac6ad6f3105dde6ddad83d9ec",
-      "consoles": [
-        "dolphin"
-      ],
-      "records": 1,
-      "workflow": ".github/workflows/hd-textures.yml (parts: repositories)",
-      "artifact_prefix": "hdtex486-repositories"
-    },
-    {
       "run": 39292371113,
       "source": "a261f73bfd9c202e7e78e1b8bb257133e72db9dd",
       "consoles": [
@@ -157,6 +147,16 @@
       "records": 23,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39292473994,
+      "source": "b012c8fe4ae303dac6ad6f3105dde6ddad83d9ec",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories)",
+      "artifact_prefix": "hdtex486-repositories"
     },
     {
       "run": 39295194320,
@@ -323,21 +323,66 @@
       "source": "ae1ef3719eb4f74008455665ec6cb4540ccc8764",
       "consoles": [
         "psp",
-        "3ds"
+        "3ds",
+        "ps2"
       ],
-      "records": 2,
-      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, targeted original author archives; additional PS2 job still pending)",
-      "artifact_name": "hdtex-hosts-{console}-{run}"
+      "records": 8,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, targeted original author archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-ace-combat-04-shattered-skies-superostrich": 39410496846,
+        "ps2-ktx-flatout-2-kupo-on-gbatem": 39410496846
+      }
     },
     {
       "run": 39408412029,
       "source": "c68eb845cb96be28abf54a4116ed5db8496d7f79",
       "consoles": [
         "3ds",
-        "dolphin"
+        "dolphin",
+        "ps2"
       ],
-      "records": 6,
-      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, targeted original author archives; additional PS2 job still pending)",
+      "records": 13,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, targeted original author archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-the-lord-of-the-rings-the-two-towers-maximocapcom": 39411115471
+      }
+    },
+    {
+      "run": 39410496846,
+      "source": "428c4dcceb4a3617fa0a552a47c7330664d99698",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 4,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, isolated Ace Combat subtrees and corrected German FlatOut identity)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-ace-combat-04-shattered-skies-superostrich": 39411315570,
+        "ps2-ktx-ace-combat-5-the-unsung-war-superostrich": 39411315570,
+        "ps2-ktx-ace-combat-zero-the-belkan-war-superostrich": 39411315570
+      }
+    },
+    {
+      "run": 39411115471,
+      "source": "765bf57f4dbe995867f5ab200d2734099beee42f",
+      "consoles": [
+        "ps2",
+        "3ds"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, corrected Spanish Two Towers; DQ7 original creator archive)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39411315570,
+      "source": "6996f35a09e9dd061a266855b7f084e170a88aee",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, retain tested per-game exclusion rules in Ace Combat records)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]

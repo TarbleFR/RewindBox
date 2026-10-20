@@ -18,7 +18,17 @@
     "ps2_original_catalogue": "ps2ktxpak/catalog@807733e50aceb10ded2fa95620c2180efce8585a",
     "ps2_file_candidates": 210,
     "ps2_selection": "Only free file links recovered from existing source trails. Paid access, rehosts without established author distribution, password/split archives, folder/page-only links and creator warnings about old PCSX2 hashes were not promoted.",
-    "ps2_result": "Pending exact artifact review; candidates alone do not change availability."
+    "ps2_result": "Pending exact artifact review; candidates alone do not change availability.",
+    "scope_review": "Before promotion, candidate source completeness is retained explicitly: complete only when upstream marks complete, partial for WIP/unknown/partial; clearly named standalone UI/HUD projects are UI. This does not make a candidate available.",
+    "remaining_resolved_mapped_links": {
+      "total_not_in_first_bulk": 94,
+      "file": 37,
+      "folder": 27,
+      "unknown": 5,
+      "shop": 19,
+      "page": 6,
+      "limits": "Exclude 17 explicitly legacy-hash CCKrizalid files, paid shops, password/split bundles, Xbox format releases and already verified entries. OneDrive pages are not downloadable archives through the existing fetcher. Three original Pixeldrain candidates are verified separately."
+    }
   },
   "entries": [
     {
@@ -153,6 +163,132 @@
       "page_url": "https://www.reddit.com/r/Flycast_texture_packs/comments/1qrcpdp/texture_pack_release_update_new_emulators_support/",
       "disposition": "announcement-not-archive",
       "reason": "Original creator announces future PPSSPP/PCSX2/Dolphin/DuckStation work and a public pCloud host, without establishing a specific compatible downloadable file in this post. Dreamcast or DuckStation files do not imply compatibility with the embedded adapters."
+    },
+    {
+      "id": "ps2-maximo-region-evidence",
+      "system": "ps2",
+      "title": "Maximo Ghosts to Glory (MaximoCapcom)",
+      "page_url": "https://gbatemp.net/threads/maximo-ghosts-to-glory-ultimate-remaster-texture-pack.677505/",
+      "disposition": "verified-original-flat-archive-author-attests-all-versions",
+      "reason": "The flat ZIP has no serial. The original Spanish creator post explicitly claims all game versions; existing database identities retain confirmation. 1,340 PNGs passed native import. No region-specific rendering is claimed."
+    },
+    {
+      "id": "ps2-lotr-two-towers-spanish-region",
+      "system": "ps2",
+      "title": "LOTR Two Towers (MaximoCapcom)",
+      "page_url": "https://gbatemp.net/threads/lord-of-the-rings-the-two-towers-remastered-only-icons-and-characters.678338/",
+      "disposition": "corrected-region-awaiting-reverification",
+      "reason": "Creator specifies Spain PAL, not arbitrary PAL. PCSX2 GameIndex maps the Spanish edition to SLES-51256; the formerly inferred SLES-51252 profile is removed. Partial icons/characters/environments only."
+    },
+    {
+      "id": "ps2-lotr-return-king-region-unknown",
+      "system": "ps2",
+      "title": "LOTR Return of the King (MaximoCapcom)",
+      "page_url": "https://gbatemp.net/threads/the-lord-of-the-rings-the-return-of-the-king-texture-pack-only-icons-and-characters.679700/",
+      "disposition": "archive-installs-but-exact-pal-edition-unattested",
+      "reason": "1,078 PNGs pass native import, but the flat ZIP has no serial and creator only specifies PAL. No English/French/Spanish edition is inferred from the creator location. The manual reference is retained without verified availability."
+    },
+    {
+      "id": "ps1-sotn-tarrantx",
+      "system": "ps1",
+      "title": "Castlevania Symphony of the Night HD x4",
+      "authors": [
+        "Tarrantx"
+      ],
+      "page_url": "https://gbatemp.net/threads/psx-castlevania-symphony-of-the-night-hd-x4-ntsc-us-slus-00067-beetle-psx-hw.685355/",
+      "other_author_page": "https://gbatemp.net/threads/psx-castlevania-symphony-of-the-night-hd-x4-ntsc-us-slus-00067-beetle-psx-hw.685354/",
+      "disposition": "awaiting-author-archive-link",
+      "reason": "Recent original creator posts describe about 100,000 textures / 10 GB for SLUS-00067, explicitly Beetle PSX HW only. Experimental static extraction, reconstructed background tiles, recreated text and restyled characters. Accessible post content exposes no usable download URL; no file format, loader compatibility or installation is inferred from the announcement. This is not DuckStation data."
+    },
+    {
+      "id": "3ds-dq7-hd-panda-venom",
+      "system": "3ds",
+      "engine": "azahar",
+      "title": "Dragon Quest VII — HD textures v2 (partial)",
+      "version": "2",
+      "games": [
+        {
+          "title": "Dragon Quest VII: Fragments of the Forgotten Past",
+          "identities": [
+            {
+              "type": "title_id",
+              "scheme": "3ds-title-id",
+              "value": "000400000018F000"
+            }
+          ],
+          "confirm": true
+        }
+      ],
+      "authors": [
+        "Panda_Venom"
+      ],
+      "page_url": "https://gbatemp.net/threads/3ds-dragon-quest-vii-fragments-of-the-forgotten-past-hd-textures.655732/",
+      "source_id": "gbatemp:655732",
+      "licence": {
+        "summary": "No licence stated by the creator",
+        "redistribution": "Manual original creator download only; NeoStation does not host, repackage or redistribute these texture files."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://gbatemp.net/threads/3ds-dragon-quest-vii-fragments-of-the-forgotten-past-hd-textures.655732/",
+        "verify": {
+          "url": "https://www.mediafire.com/file_premium/w91d8ev9yl5xxz4/000400000018F000_DQVII_v2.7z/file"
+        },
+        "file_name": "000400000018F000_DQVII_v2.7z"
+      },
+      "scope": "partial",
+      "family": "3ds-dq7-hd-panda-venom",
+      "notes": "Creator reports UI/fonts/items about 99%, backgrounds/monsters about 90% and character job artwork about 60%. Some world maps, dungeons and jobs are missing. The title ID is explicit in the creator download filename; no additional region or French support is inferred. Exact archive validation pending.",
+      "disposition": "blocked-original-archive-no-runtime-entry",
+      "reason": "Original creator download returns HTTP 403 in run 39411115471. Exact contents and native import are unverified; not promoted to runtime or counted as installable."
+    },
+    {
+      "id": "ps2-chicken-little-duplicate-check",
+      "system": "ps2",
+      "page_url": "https://github.com/KyuGG/chicken-little-hd-textures",
+      "disposition": "already-available-no-new-family",
+      "reason": "Already present and verified as ps2-chicken-little-hd-kyugg at the same 0cb80eaf commit before this task. A redundant source candidate was caught by the builder duplicate-ID guard, removed and its verification run 39411635428 cancelled. Existing pack and original evidence are preserved; no new count or replacement verification record."
+    },
+    {
+      "id": "psp-cod-web-recomp-not-pack",
+      "system": "psp",
+      "title": "Call of Duty Roads to Victory Web Recomp",
+      "page_url": "https://github.com/3Samourai/psp-web-recomp-call-of",
+      "disposition": "web-port-not-ppsspp-texture-pack",
+      "reason": "Different WebAssembly/WebGL2 game runtime with higher internal rendering resolution. Not a released PPSSPP textures.ini/replacement archive; no runtime catalogue entry or family count."
     }
-  ]
+  ],
+  "region_database_evidence": {
+    "url": "https://github.com/PCSX2/pcsx2/blob/master/bin/resources/GameIndex.yaml",
+    "latest_file_commit": "67b9d18fbdbb9d8a2f3b971aa077fe074dca91fa",
+    "entries": {
+      "SLES-51256": {
+        "name": "El Señor de los Anillos - Las Dos Torres",
+        "region": "PAL-S"
+      },
+      "SLES-52020": {
+        "name": "El Señor de los Anillos - El Retorno del Rey",
+        "region": "PAL-S"
+      }
+    },
+    "limit": "The database maps a creator-attested edition to a serial; it does not establish pack compatibility by itself."
+  },
+  "additional_file_candidates": [
+    {
+      "id": "ps2-ktx-ninja-assault-joekoh27",
+      "original_url": "https://pixeldrain.com/u/VyCD3kwM",
+      "verification_url": "https://pixeldrain.com/api/file/VyCD3kwM"
+    },
+    {
+      "id": "ps2-ktx-god-of-war-ii-yamijpg",
+      "original_url": "https://pixeldrain.com/u/VYbosyNJ",
+      "verification_url": "https://pixeldrain.com/api/file/VYbosyNJ"
+    },
+    {
+      "id": "ps2-ktx-cold-fear-yamijpg",
+      "original_url": "https://pixeldrain.com/u/AGSfUwQi",
+      "verification_url": "https://pixeldrain.com/api/file/AGSfUwQi"
+    }
+  ],
+  "additional_file_candidate_note": "Same original public Pixeldrain file IDs, standard download API, original creator posts attest SLUS-20492 / SCES-54206 / SLUS-21047. Pending content and native import checks; not counted merely because the URLs are normalized."
 }
