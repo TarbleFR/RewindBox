@@ -62,16 +62,16 @@ void main() {
     }
   });
 
-  test('no external launcher, synchronization card or legacy JIT handler remains', () {
+  test('no external launch service, sync card or registered legacy JIT handler remains', () {
     for (final file in [
       'lib/services/melonx_library_service.dart',
       'lib/services/stikjit_melonx_service.dart',
       'lib/services/ios_shortcut_jit_launch_service.dart',
-      'packages/stikjit_bridge/ios/Classes/StikjitBridgePlugin.swift',
-      'packages/stikjit_bridge/ios/Classes/StikjitBridgePluginV2.swift',
     ]) {
       expect(File(file).existsSync(), isFalse, reason: file);
     }
+    final pod = File('packages/stikjit_bridge/ios/stikjit_bridge.podspec').readAsStringSync();
+    expect(pod, contains("s.exclude_files = ['Classes/StikjitBridgePlugin.swift', 'Classes/StikjitBridgePluginV2.swift']"));
     final directories = File('lib/screens/settings_screen/new_settings_options/directories_settings_content.dart').readAsStringSync();
     expect(directories, isNot(contains('_buildIOSMeloNXSection')));
     final startup = File('lib/main.dart').readAsStringSync();

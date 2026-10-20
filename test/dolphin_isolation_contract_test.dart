@@ -28,8 +28,8 @@ void main() {
     final shared = File('packages/stikjit_bridge/ios/Classes/NeoStationStikjitBridgePlugin.swift').readAsStringSync();
     expect(shared, contains('LocalDevVpnRouteProbe.probe'));
     expect(shared, isNot(contains('StikJIT.enableJIT')));
-    expect(File('packages/stikjit_bridge/ios/Classes/StikjitBridgePlugin.swift').existsSync(), isFalse);
-    expect(File('packages/stikjit_bridge/ios/Classes/StikjitBridgePluginV2.swift').existsSync(), isFalse);
+    final pod = File('packages/stikjit_bridge/ios/stikjit_bridge.podspec').readAsStringSync();
+    expect(pod, contains("s.exclude_files = ['Classes/StikjitBridgePlugin.swift', 'Classes/StikjitBridgePluginV2.swift']"));
 
   });
 

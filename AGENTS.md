@@ -12,10 +12,10 @@
   an engine available from an embedded flag or route alone: require the native
   runtime's report. Integration and a test IPA are not yet complete.
 - Retain the existing dedicated Dolphin/ARMSX2/RPCS3 helper identities and
-  source-built StikJIT framework. The removed external bridge's FFI export list
-  is preserved in `build-utils/stikjit/retained-dynamic-exports.json` solely to
-  check the unchanged delivered framework ABI; no core rebuild is needed for
-  this removal. Main.dart's exact removal-only exception is reconstructed in
+  source-built StikJIT framework. The two old Swift launcher source snapshots
+  remain only for the unchanged framework ABI/source verifier and are explicitly
+  excluded from CocoaPods compilation. Neither is registered by the app. No
+  StikJIT rebuild is needed for this removal. Main.dart's exact removal-only exception is reconstructed in
   the baseline test; other protected library bytes stay unchanged.
 - The Switch HD research entries remain research-only. No pack is installable
   until the actual engine adapter loads its format and exact target/version.

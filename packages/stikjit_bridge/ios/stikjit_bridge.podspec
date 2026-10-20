@@ -10,6 +10,9 @@ Shared StikJIT framework and read-only LocalDevVPN route probe. Embedded engines
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
+  # Frozen source snapshots used by the unchanged StikJIT ABI validator.
+  # Neither external launcher is compiled or registered in NeoStation.
+  s.exclude_files = ['Classes/StikjitBridgePlugin.swift', 'Classes/StikjitBridgePluginV2.swift']
   s.vendored_frameworks = 'Frameworks/StikJIT.xcframework'
   s.dependency 'Flutter'
   s.platform = :ios, '17.4'

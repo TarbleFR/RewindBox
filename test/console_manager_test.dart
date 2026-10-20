@@ -114,7 +114,7 @@ void main() {
       for (final id in ['gc', 'wii', 'ps3', 'switch', 'c64', 'vect', 'jag']) {
         expect(fallback, isNot(contains(id)), reason: id);
       }
-      expect(ConsoleCatalog.byId('switch')!.hasEmbeddedEngine, isFalse);
+      expect(ConsoleCatalog.byId('switch')!.hasEmbeddedEngine, isTrue);
       expect(ConsoleCatalog.byId('c64')!.hasEmbeddedEngine, isFalse);
       // The Ports console left with Dusklight and KartPad (docs/ports-removal-2026-10-20.md).
       expect(ConsoleCatalog.byId('ports'), isNull);

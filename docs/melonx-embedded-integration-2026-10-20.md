@@ -51,7 +51,9 @@ been added to NeoStation by this phase.
 - The shared StikJIT pod retains the read-only LocalDevVPN route probe and the
   same source-built framework ABI. The three other engines' dedicated helper
   sources and scripts are unchanged. The previous dynamic FFI export list is
-  retained as data for validating the unchanged framework, not as an app launcher.
+  retained in frozen source snapshots excluded from CocoaPods compilation. This
+  preserves the existing framework/source fingerprint and avoids rebuilding JIT;
+  the snapshots provide no registered or compiled external launcher.
 - Packaging removes and rejects the retired `melonx`/`atariemulator` query
   schemes. Switch engine availability requires a native runtime report; a Dart
   route declaration is not treated as an installed engine.
