@@ -12,10 +12,19 @@ pin = json.loads((root / 'build-utils/melonx/source.json').read_text())
 actual = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
 assert actual == pin['revision'], (actual, pin['revision'])
 assert not subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain'], text=True).strip()
+# Pin SDK resolution as well as the installation. Upstream's latestFeature
+# otherwise silently chooses the runner's preinstalled 10.0.401 SDK.
+global_json = json.loads((source / 'global.json').read_text())
+assert global_json['sdk']['version'] == pin['dotnet']
+assert global_json['sdk']['rollForward'] == 'latestFeature'
+global_json['sdk']['rollForward'] = 'disable'
+(source / 'global.json').write_text(json.dumps(global_json, indent=2) + '\n')
 PY
 mkdir -p "$TASK_ROOT/dist/melonx"
 cd "$SOURCE_DIR"
 dotnet --info
+test "$(dotnet --version)" = '10.0.100'
+dotnet workload install mobile-librarybuilder --skip-manifest-update
 dotnet publish src/Ryujinx.Library -c Release -r ios-arm64 --self-contained true -p:ExtraDefineConstants=DISABLE_UPDATER -p:NativeLib=Shared
 CORE="$SOURCE_DIR/src/Ryujinx.Library/bin/Release/net10.0/ios-arm64/native/Ryujinx.Library.dylib"
 test -s "$CORE"
