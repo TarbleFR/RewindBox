@@ -286,6 +286,141 @@
         "system": "ps2",
         "verified_at": "2026-10-20"
       }
+    },
+    {
+      "run": 39406754238,
+      "superseded_by": 39408412029,
+      "record": {
+        "error": "bot challenge",
+        "id": "ps2-ktx-007-from-russia-with-love-thomasweissenfluh",
+        "manual": true,
+        "status": "protected",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39406754238,
+      "superseded_by": 39408412029,
+      "record": {
+        "error": "bot challenge",
+        "id": "ps2-ktx-bujingai-the-forsaken-city-darthdarklord",
+        "manual": true,
+        "status": "protected",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39406754238,
+      "superseded_by": 39408412029,
+      "record": {
+        "error": "web page instead of a file",
+        "id": "ps2-ktx-maximo-ghosts-to-glory-maximocapcom",
+        "manual": true,
+        "status": "html",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39406754238,
+      "superseded_by": 39417046479,
+      "record": {
+        "download_seconds": 19.9,
+        "expanded": {
+          "bytes": 995926973,
+          "files": 1654
+        },
+        "file_name": "SLUS-21297.7z",
+        "format": "7z",
+        "host": "mega",
+        "id": "ps2-ktx-devil-kings-i-emu-play",
+        "installed": [
+          {
+            "bytes": 995926973,
+            "files": 1654,
+            "formats": {
+              "png": "1654"
+            },
+            "from": "",
+            "to": "SLES-53870/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "bad98855e9dbafd0c96476ffbe28a7e137b307067b7892beca577d96b2b08013",
+            "size": 964065204,
+            "url": "https://mega.nz/file/weJRHCBB#SWlEMnp0cO-ko6Ob6KqUA9cX5FEku-7ONPM62ATlgwo"
+          }
+        ],
+        "plan": {
+          "bytes": "995926973",
+          "error": "",
+          "excluded": "0",
+          "files": "1654",
+          "match": "noSerial",
+          "pack": "",
+          "regionConflict": "0",
+          "serials": "",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39406754238,
+      "superseded_by": 39417046479,
+      "record": {
+        "download_seconds": 6.7,
+        "expanded": {
+          "bytes": 1907374997,
+          "files": 2223
+        },
+        "file_name": "HD_169.7z",
+        "format": "7z",
+        "host": "gdrive",
+        "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-akirus",
+        "installed": [
+          {
+            "bytes": 1907374997,
+            "files": 2223,
+            "formats": {
+              "ddsBc3": "2221",
+              "png": "2"
+            },
+            "from": "",
+            "to": "SLES-54945/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "5b2f5f3fceaa1ee23155d1c35cf8399222c6e8864bac700cae960d57ed299e15",
+            "size": 219008991,
+            "url": "https://drive.google.com/file/d/1MyUzpU7D_4HiP3szxK8YhkkF--YSGZnd/view"
+          }
+        ],
+        "plan": {
+          "bytes": "1907374997",
+          "error": "",
+          "excluded": "0",
+          "files": "2223",
+          "match": "otherSerial",
+          "pack": "SLUS-21678",
+          "regionConflict": "0",
+          "serials": "SLUS-21678,",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
     }
   ]
 }

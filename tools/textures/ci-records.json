@@ -319,6 +319,25 @@
       "artifact_name": "hdtex-hosts-{console}-{run}"
     },
     {
+      "run": 39406754238,
+      "source": "0d9c46cf41241cad34934f14fae93547815845bb",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 104,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; first 104/210 candidates preserved before cancellation and split into remaining-only batches)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-007-from-russia-with-love-thomasweissenfluh": 39408412029,
+        "ps2-ktx-bujingai-the-forsaken-city-darthdarklord": 39408412029,
+        "ps2-ktx-maximo-ghosts-to-glory-maximocapcom": 39408412029,
+        "ps2-ktx-devil-kings-i-emu-play": 39417046479,
+        "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-akirus": 39417046479
+      },
+      "partial_run": true,
+      "conclusion": "cancelled after 104 completed records; always-upload artifact preserved every completed observation"
+    },
+    {
       "run": 39407659263,
       "source": "ae1ef3719eb4f74008455665ec6cb4540ccc8764",
       "consoles": [
@@ -383,6 +402,78 @@
       ],
       "records": 3,
       "workflow": ".github/workflows/hd-textures.yml (parts: hosts, retain tested per-game exclusion rules in Ace Combat records)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39412734596,
+      "source": "c4f51b134c1c70d976b06bfa13308ccab22aeb62",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original Pixeldrain Ninja Assault/God of War II/Cold Fear archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39414433422,
+      "source": "7b03a8c99ec0d16e37a9cc493632bcd3d30a0eb5",
+      "consoles": [
+        "psp"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, creator Ace Combat X/Joint Assault archives; Hezi Bleach original ZIP)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39414729610,
+      "source": "fc1bfd395d8b00e9ba37426e0b97c006831f7f6c",
+      "consoles": [
+        "psp",
+        "dolphin"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original Kuledawg Super Monkey Ball 2 and RobyNoob Jeanne/Brave Story archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39415047885,
+      "source": "ceb527e96f6b33605d3df8b17bf0548c389991b8",
+      "consoles": [
+        "psp",
+        "dolphin"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original MetalTxus Disgaea UI and PandaVenom Tales of Symphonia archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39415625937,
+      "source": "12a2ae8789d228c2031c31814aa1336e18b23033",
+      "consoles": [
+        "psp"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, SkyDR4GON original forum ZIP and DARK ARON GTA VCS 7z)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39415931085,
+      "source": "ba76f09f93ff74885d7b82146e46388ca70fcece",
+      "consoles": [
+        "psp"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, recent Huekage Chains of Olympus ZIP and PandaVenom Tetris 7z)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39417046479,
+      "source": "c5e552ca10e7cd243b5b1cadabe3629d14c99c36",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, corrected USA targets for Devil Kings and Akirus DBZ Tenkaichi 3)",
       "artifact_name": "hdtex-hosts-{console}-{run}"
     }
   ]

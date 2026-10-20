@@ -105,6 +105,37 @@
       "engine_validated": false,
       "availability": "future-reference",
       "automatable": false
+    },
+    {
+      "id": "future-switch-fe-engage-hdpacks",
+      "system": "switch",
+      "game": "Fire Emblem Engage",
+      "title_id": "0100A6301214E000",
+      "identity_evidence": "https://github.com/Raytwo/Cobalt/blob/HEAD/Cargo.toml",
+      "title": "Fire Emblem Engage 4K Textures",
+      "authors": [
+        "HDPacks.com"
+      ],
+      "version": "0.9b (2025-06-03)",
+      "kind": "switch-texture-pack-unverified-payload",
+      "scope": "partial",
+      "page_url": "https://www.hdpacks.com/news/fire-emblem-engage-4k-texture-pack",
+      "download_page": "https://www.hdpacks.com/downloads",
+      "advertised_download_gib": 11,
+      "access": "Paid Download Access+ / early access as checked 2026-10-20; no login, purchase or download attempted",
+      "format": "Unverified; creator advertises an almost complete 4K upscale, but the payload, hash scheme and install layout have not been inspected",
+      "game_versions": [],
+      "languages": [],
+      "dependencies": [
+        "Future Switch engine and pack-specific injection/format validation; compatibility with a generic texture loader is not established"
+      ],
+      "licence": "Creator reference only; no redistribution or repackaging permission established",
+      "notes": "A separate creator project from Vierock’s Cobalt refinement. Listed only for future evaluation; the current download page confirms v0.9b, 11 GiB and subscriber access. No build/version, French-language support, native installer or iPhone rendering is asserted. No paid or third-party mirror is used.",
+      "runtime_enabled": false,
+      "engine_validated": false,
+      "payload_verified": false,
+      "availability": "future-reference",
+      "automatable": false
     }
   ]
 }

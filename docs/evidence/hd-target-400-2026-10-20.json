@@ -4,21 +4,21 @@
   "baseline_revision": "2026-10-20.809cfd2df68f",
   "baseline_families": 295,
   "checkpoint": true,
-  "revision": "2026-10-20.0d6a2ec5c39c",
-  "manifest_sha256": "72ba33396c6dea9e7cef3ac8fa35509f707bb2bc512c5a5ccaf736f60a3c4c32",
-  "runtime_entries": 1074,
-  "sources": 431,
+  "revision": "2026-10-20.9f979ceb1a08",
+  "manifest_sha256": "8d4eb7813cd61a6e672a680487fa12217087e51a3117f69e54c7125bc2bfe7bb",
+  "runtime_entries": 1080,
+  "sources": 437,
   "counts": {
     "gc": {
-      "distinct": 76,
-      "entries": 101,
+      "distinct": 77,
+      "entries": 102,
       "variants": 25,
-      "complete": 52,
+      "complete": 53,
       "partial": 8,
       "ui": 16,
       "oneTapFamilies": 23,
-      "manualVerifiedFamilies": 53,
-      "games": 53
+      "manualVerifiedFamilies": 54,
+      "games": 54
     },
     "wii": {
       "distinct": 42,
@@ -43,26 +43,26 @@
       "games": 54
     },
     "psp": {
-      "distinct": 84,
-      "entries": 98,
+      "distinct": 89,
+      "entries": 103,
       "variants": 14,
       "complete": 62,
-      "partial": 9,
-      "ui": 13,
+      "partial": 11,
+      "ui": 16,
       "oneTapFamilies": 57,
-      "manualVerifiedFamilies": 27,
-      "games": 98
+      "manualVerifiedFamilies": 32,
+      "games": 107
     },
     "ps2": {
-      "distinct": 45,
-      "entries": 59,
+      "distinct": 61,
+      "entries": 75,
       "variants": 14,
-      "complete": 29,
-      "partial": 8,
-      "ui": 8,
+      "complete": 39,
+      "partial": 13,
+      "ui": 9,
       "oneTapFamilies": 33,
-      "manualVerifiedFamilies": 12,
-      "games": 58
+      "manualVerifiedFamilies": 28,
+      "games": 72
     },
     "n64": {
       "distinct": 14,
@@ -98,18 +98,18 @@
       "games": 4
     },
     "total": {
-      "distinct": 313,
-      "entries": 398,
+      "distinct": 335,
+      "entries": 420,
       "variants": 85,
-      "complete": 200,
-      "partial": 48,
-      "ui": 65,
+      "complete": 211,
+      "partial": 55,
+      "ui": 69,
       "oneTapFamilies": 161,
-      "manualVerifiedFamilies": 152,
-      "games": 310
+      "manualVerifiedFamilies": 174,
+      "games": 334
     }
   },
-  "exact_ci_records": 30,
+  "exact_ci_records": 152,
   "artifacts": [
     {
       "run": 39407659263,
@@ -170,6 +170,66 @@
       "artifact": 12258939706,
       "console": "ps2",
       "sha256": "e1a6d00aa2c581a8c3a2414baf41ad4066eeb76ad496454aa76d5cefdc1479af"
+    },
+    {
+      "run": 39412734596,
+      "artifact": 12259822609,
+      "console": "ps2",
+      "sha256": "af09fac78d51148267212241d9fd6989c8844f67a8bf7adf302d78a3f7baa10d"
+    },
+    {
+      "run": 39414433422,
+      "artifact": 12260159715,
+      "console": "psp",
+      "sha256": "ce9b2f6804c86d2c4d0b57893aa438e0dec38531bee00991ee47a323c2119076"
+    },
+    {
+      "run": 39414729610,
+      "artifact": 12261515659,
+      "console": "psp",
+      "sha256": "35c39c0db97dbcacf1b56bd88560931b0d1ca403e0fd115a5b3f2311fa7139c6"
+    },
+    {
+      "run": 39414729610,
+      "artifact": 12260946949,
+      "console": "dolphin",
+      "sha256": "470d035fb887345abcc8fc32569153d80ff4767e44cff36b2ce266ca1e453a2b"
+    },
+    {
+      "run": 39415047885,
+      "artifact": 12261026727,
+      "console": "psp",
+      "sha256": "ae4e310dbec63c43f4dfb016b49354a872864015ba855e145e64e3b5742a5a52"
+    },
+    {
+      "run": 39415047885,
+      "artifact": 12260997016,
+      "console": "dolphin",
+      "sha256": "b4e19fe19fc97f79587182ea445aafc858dda24b31d98be7b036666be41bccfd"
+    },
+    {
+      "run": 39415625937,
+      "artifact": 12261167298,
+      "console": "psp",
+      "sha256": "473b300e80ef9a023a5c327ec8790adf3d464f6dfbdd15bacb98977670a9962d"
+    },
+    {
+      "run": 39415931085,
+      "artifact": 12261167831,
+      "console": "psp",
+      "sha256": "83ceaef73be875e07456d04c75deff147a5a200207cfd6a061eafdc99df48340"
+    },
+    {
+      "run": 39406754238,
+      "artifact": 12261972376,
+      "console": "ps2",
+      "sha256": "d225fda8feb58a881c48bcd26481683adba4ea0fcfc41aaa691ed231a71cb377"
+    },
+    {
+      "run": 39417046479,
+      "artifact": 12260944867,
+      "console": "ps2",
+      "sha256": "22ad012d719333022964d29b65a63ac90132bd7aed7bbadb6f167f164249164f"
     }
   ],
   "research_artifacts": [
@@ -187,11 +247,17 @@
       "run": 39409327497,
       "artifact": 12257859720,
       "sha256": "e4db13be2c5d5270b5d5a413c189d40573f21368ca2a06819c8250764edde2a6"
+    },
+    {
+      "run": 39413582743,
+      "artifact": 12259704485,
+      "sha256": "e3d4ca4a3a9f61ecf2009b6ad270d9b02c1946284deb4728ba26d3a060874979"
     }
   ],
   "ps2_pending_runs": [
-    39406754238,
-    39412734596
+    39416625497,
+    39416632997,
+    39416642896
   ],
   "switch_runtime": 0,
   "native_inputs_changed": false,
@@ -206,10 +272,20 @@
     "targeted_checks": "texture_verify_checks_test.py passed with the changed verifier import; Python compilation passed. Full unchanged app/core suites not repeated.",
     "real_archive_reverification_run": 39411315570
   },
-  "new_installable_families": 18,
-  "new_installable_profiles": 21,
-  "current_candidate_records": 24,
-  "superseded_records": 6,
+  "new_installable_families": 40,
+  "new_installable_profiles": 43,
+  "current_candidate_records": 141,
+  "superseded_records": 11,
   "baseline_installable_pack_objects_unchanged": true,
-  "baseline_verification_records_unchanged": true
+  "baseline_verification_records_unchanged": true,
+  "switch_future_references": 4,
+  "bulk_progress": {
+    "original_candidates": 210,
+    "completed_first_batch": 104,
+    "cancelled_first_run": 39406754238,
+    "preserved_artifact": 12261972376,
+    "unseen_candidates_in_three_batches": 102,
+    "already_checked_in_later_original_archive_runs": 4,
+    "no_completed_tests_repeated": true
+  }
 }
