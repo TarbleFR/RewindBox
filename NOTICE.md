@@ -49,6 +49,22 @@ docs/RELEASE_0.0.8_SOURCE_MANIFEST.md. The next-release preparation and new
 notices are recorded in docs/RELEASE_NEXT_LICENSE_REVIEW.md. Updating this
 notice does not change a previously published signed/distributed IPA.
 
+SOURCE ACCESS AND DEPENDENCY RESOLUTION — NEXT-RELEASE PREPARATION
+
+Source access guide: docs/SOURCE_CODE_ACCESS.md.
+Exact locked package archives and local plugins: docs/PACKAGE_SOURCES_AND_LICENSES.md.
+Engine source/patch/recipe records: docs/ENGINE_CORRESPONDING_SOURCES.md.
+Rebuilt PSP source and actual compile inputs: docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md.
+
+Future packaging retains these records under Legal/Sources/ with the host
+commit, source-input hashes and the actual CocoaPods dependency resolution
+when available. Additional native package notices are in Legal/Packages/;
+identified engine dependency notices are in Legal/Engines/.
+The source collector verifies exact pub.dev archive hashes without executing
+package hooks. Source availability, copied notices and build correspondence
+are recorded separately; unresolved component rights and source obligations
+are not declared closed by this notice.
+
 SECOND SOURCE-RIGHTS REVIEW — 18 OCTOBER 2026
 
 Implementation follow-up: docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-18.md.

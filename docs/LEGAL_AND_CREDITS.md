@@ -250,6 +250,20 @@ under `Legal/Catalogs/`. Notice hashes are checked before packaging and against
 the resulting archive. Staged MeloNX references are not included as a delivered
 runtime's notice set. No existing IPA is rewritten by these changes.
 
+The continued source review adds `Legal/Packages/` for native package notices,
+`Legal/Engines/` for identified engine dependency notices and `Legal/Sources/`
+for exact source references and build-resolution evidence.
+The [source access guide](SOURCE_CODE_ACCESS.md) links all 157 locked hosted
+package archives, the local plugins and the engine-specific records. Future
+packaging retains matching CocoaPods locks, resolved podspecs and original
+acknowledgements when the build sandbox is present. The archive validator
+checks their retained hashes; it does not infer source correspondence for
+unidentified prebuilt dependencies. The independently inspected public 0.0.8
+IPA already contains Flutter and CocoaPods acknowledgements, including the
+root license texts of all 157 hosted packages; the native dependency
+supplements address separate gaps documented in
+[PACKAGE_SOURCES_AND_LICENSES.md](PACKAGE_SOURCES_AND_LICENSES.md).
+
 Builds up to the removal of Dusklight (20 October 2026) also carried
 Dusklight's CC0-1.0 text and its dependency notices.
 

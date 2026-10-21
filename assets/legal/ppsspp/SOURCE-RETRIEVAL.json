@@ -1,0 +1,336 @@
+{
+  "schema": 1,
+  "scope": "PPSSPP Build 497 source retrieval and historical compilation provenance. This is not a whole-application licensing clearance or a claim of bit-for-bit rebuild.",
+  "prepared_date": "2026-10-21",
+  "audit_host_revision": "fab5ecf3b119b4d84636ad4f4d03218a96279871",
+  "ppsspp": {
+    "repository": "https://github.com/hrydgard/ppsspp.git",
+    "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+    "git_tree": "6e0c04ba194dcdd955f8e7d560cc0a2cbe7b7031",
+    "archive_url": "https://github.com/hrydgard/ppsspp/archive/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c.tar.gz",
+    "archive_does_not_embed_submodules": true
+  },
+  "submodules": [
+    {
+      "path": "assets/debugger",
+      "revision": "9776332f720c854ef26f325a0cf9e32c02115a9c",
+      "initialized": false,
+      "url": "https://github.com/unknownbrackets/ppsspp-debugger.git",
+      "git_tree": null,
+      "compiled_units": 0,
+      "archive_url": "https://github.com/unknownbrackets/ppsspp-debugger/archive/9776332f720c854ef26f325a0cf9e32c02115a9c.tar.gz",
+      "git_source_url": "https://github.com/unknownbrackets/ppsspp-debugger/tree/9776332f720c854ef26f325a0cf9e32c02115a9c",
+      "observed_role": "not initialized by the historical iOS recipe; no source translation unit logged"
+    },
+    {
+      "path": "ext/OpenXR-SDK",
+      "revision": "be392bf6949adeeabad5082aa79d12aacbda781f",
+      "initialized": true,
+      "url": "https://github.com/KhronosGroup/OpenXR-SDK.git",
+      "git_tree": "833c5f7b62c6195f822d4e7ba2427dc616ddd102",
+      "compiled_units": 0,
+      "archive_url": "https://github.com/KhronosGroup/OpenXR-SDK/archive/be392bf6949adeeabad5082aa79d12aacbda781f.tar.gz",
+      "git_source_url": "https://github.com/KhronosGroup/OpenXR-SDK/tree/be392bf6949adeeabad5082aa79d12aacbda781f",
+      "observed_role": "headers included by compiled Common/VR sources; no OpenXR-SDK loader translation unit or loader library linked"
+    },
+    {
+      "path": "ext/SPIRV-Cross",
+      "revision": "4212eef67ed0ca048cb726a6767185504e7695e5",
+      "initialized": true,
+      "url": "https://github.com/KhronosGroup/SPIRV-Cross.git",
+      "git_tree": "ba2893fa4e0298d4d974e899449f37458e5b8470",
+      "compiled_units": 7,
+      "archive_url": "https://github.com/KhronosGroup/SPIRV-Cross/archive/4212eef67ed0ca048cb726a6767185504e7695e5.tar.gz",
+      "git_source_url": "https://github.com/KhronosGroup/SPIRV-Cross/tree/4212eef67ed0ca048cb726a6767185504e7695e5",
+      "observed_role": "source translation units recorded in the historical compile log; platform guards may remove portions"
+    },
+    {
+      "path": "ext/armips",
+      "revision": "62adab4ef30da765f5cf22a451eb08a59c54dc8b",
+      "initialized": true,
+      "url": "https://github.com/Kingcom/armips.git",
+      "git_tree": "6685a7012577a7fe2232694cd5c7fc70c3647cae",
+      "compiled_units": 55,
+      "archive_url": "https://github.com/Kingcom/armips/archive/62adab4ef30da765f5cf22a451eb08a59c54dc8b.tar.gz",
+      "git_source_url": "https://github.com/Kingcom/armips/tree/62adab4ef30da765f5cf22a451eb08a59c54dc8b",
+      "observed_role": "source translation units recorded in the historical compile log; platform guards may remove portions"
+    },
+    {
+      "path": "ext/armips/ext/filesystem",
+      "revision": "3f1c185ab414e764c694b8171d1c4d8c5c437517",
+      "initialized": true,
+      "url": "https://github.com/Kingcom/filesystem.git",
+      "git_tree": "5c7c9bfe9f06a0b2acbb9ba17e3f8ab57cd62c6e",
+      "compiled_units": 0,
+      "archive_url": "https://github.com/Kingcom/filesystem/archive/3f1c185ab414e764c694b8171d1c4d8c5c437517.tar.gz",
+      "git_source_url": "https://github.com/Kingcom/filesystem/tree/3f1c185ab414e764c694b8171d1c4d8c5c437517",
+      "observed_role": "initialized recursively; ARMIPS_USE_STD_FILESYSTEM selects the standard-library branch in Util/FileSystem.h"
+    },
+    {
+      "path": "ext/cpu_features",
+      "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+      "initialized": true,
+      "url": "https://github.com/google/cpu_features.git",
+      "git_tree": "2643bb06c4954bde4ad7bb6bf7ec99bfa0d8f216",
+      "compiled_units": 15,
+      "archive_url": "https://github.com/google/cpu_features/archive/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587.tar.gz",
+      "git_source_url": "https://github.com/google/cpu_features/tree/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+      "observed_role": "source translation units recorded in the historical compile log; platform guards may remove portions"
+    },
+    {
+      "path": "ext/freetype",
+      "revision": "063ed27f481f0bcd3962fd468e1546739d7d285a",
+      "initialized": true,
+      "url": "https://github.com/hrydgard/freetype.git",
+      "git_tree": "fbe7cb237b8bd87a7d2d6af92a893f2d42666f15",
+      "compiled_units": 0,
+      "archive_url": "https://github.com/hrydgard/freetype/archive/063ed27f481f0bcd3962fd468e1546739d7d285a.tar.gz",
+      "git_source_url": "https://github.com/hrydgard/freetype/tree/063ed27f481f0bcd3962fd468e1546739d7d285a",
+      "observed_role": "initialized by the historical recipe; no source translation unit logged and no new shipped library asserted"
+    },
+    {
+      "path": "ext/freetype/subprojects/dlg",
+      "revision": "395ccad2c1e0daae535c4d20bb0a3f2424648e17",
+      "initialized": true,
+      "url": "https://github.com/nyorain/dlg.git",
+      "git_tree": "2cb75941a2859cf0801048f5b613a1e02f500184",
+      "compiled_units": 0,
+      "archive_url": "https://github.com/nyorain/dlg/archive/395ccad2c1e0daae535c4d20bb0a3f2424648e17.tar.gz",
+      "git_source_url": "https://github.com/nyorain/dlg/tree/395ccad2c1e0daae535c4d20bb0a3f2424648e17",
+      "observed_role": "initialized by the historical recipe; no source translation unit logged and no new shipped library asserted"
+    },
+    {
+      "path": "ext/glslang",
+      "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+      "initialized": true,
+      "url": "https://github.com/hrydgard/glslang.git",
+      "git_tree": "cfca3d5614f06af80059eeafc5240ef0ca81ae98",
+      "compiled_units": 37,
+      "archive_url": "https://github.com/hrydgard/glslang/archive/50e0708ec3a5c16020c4f845c654b80b8edb80bd.tar.gz",
+      "git_source_url": "https://github.com/hrydgard/glslang/tree/50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+      "observed_role": "source translation units recorded in the historical compile log; platform guards may remove portions"
+    },
+    {
+      "path": "ext/libadrenotools",
+      "revision": "8fae8ce254dfc1344527e05301e43f37dea2df80",
+      "initialized": false,
+      "url": "https://github.com/bylaws/libadrenotools.git",
+      "git_tree": null,
+      "compiled_units": 0,
+      "archive_url": "https://github.com/bylaws/libadrenotools/archive/8fae8ce254dfc1344527e05301e43f37dea2df80.tar.gz",
+      "git_source_url": "https://github.com/bylaws/libadrenotools/tree/8fae8ce254dfc1344527e05301e43f37dea2df80",
+      "observed_role": "not initialized by the historical iOS recipe; no source translation unit logged"
+    },
+    {
+      "path": "ext/lua",
+      "revision": "7648485f14e8e5ee45e8e39b1eb4d3206dbd405a",
+      "initialized": true,
+      "url": "https://github.com/hrydgard/ppsspp-lua.git",
+      "git_tree": "b141d1551e26b3c9a5ad0e985466bfeb9787b7ed",
+      "compiled_units": 32,
+      "archive_url": "https://github.com/hrydgard/ppsspp-lua/archive/7648485f14e8e5ee45e8e39b1eb4d3206dbd405a.tar.gz",
+      "git_source_url": "https://github.com/hrydgard/ppsspp-lua/tree/7648485f14e8e5ee45e8e39b1eb4d3206dbd405a",
+      "observed_role": "source translation units recorded in the historical compile log; platform guards may remove portions"
+    },
+    {
+      "path": "ext/rapidjson",
+      "revision": "73063f5002612c6bf64fe24f851cd5cc0d83eef9",
+      "initialized": true,
+      "url": "https://github.com/Tencent/rapidjson.git",
+      "git_tree": "62d722d5e877a6465ce5e465197acc8ed5076c22",
+      "compiled_units": 0,
+      "archive_url": "https://github.com/Tencent/rapidjson/archive/73063f5002612c6bf64fe24f851cd5cc0d83eef9.tar.gz",
+      "git_source_url": "https://github.com/Tencent/rapidjson/tree/73063f5002612c6bf64fe24f851cd5cc0d83eef9",
+      "observed_role": "initialized by the historical recipe; no source translation unit logged and no new shipped library asserted"
+    },
+    {
+      "path": "ext/rapidjson/thirdparty/gtest",
+      "revision": "0a439623f75c029912728d80cb7f1b8b48739ca4",
+      "initialized": true,
+      "url": "https://github.com/google/googletest.git",
+      "git_tree": "fb39b50c555771d81f02301b4df090a73459a6fe",
+      "compiled_units": 0,
+      "archive_url": "https://github.com/google/googletest/archive/0a439623f75c029912728d80cb7f1b8b48739ca4.tar.gz",
+      "git_source_url": "https://github.com/google/googletest/tree/0a439623f75c029912728d80cb7f1b8b48739ca4",
+      "observed_role": "initialized by the historical recipe; no source translation unit logged and no new shipped library asserted"
+    },
+    {
+      "path": "frametests",
+      "revision": "a21764de0cce505241fb1f2a2277b844e4829115",
+      "initialized": false,
+      "url": "https://github.com/hrydgard/ppsspp-frametest-ci.git",
+      "git_tree": null,
+      "compiled_units": 0,
+      "archive_url": "https://github.com/hrydgard/ppsspp-frametest-ci/archive/a21764de0cce505241fb1f2a2277b844e4829115.tar.gz",
+      "git_source_url": "https://github.com/hrydgard/ppsspp-frametest-ci/tree/a21764de0cce505241fb1f2a2277b844e4829115",
+      "observed_role": "not initialized by the historical iOS recipe; no source translation unit logged"
+    },
+    {
+      "path": "pspautotests",
+      "revision": "587d52f2f8afc2d66a427723a3f36c189f6e14bc",
+      "initialized": false,
+      "url": "https://github.com/hrydgard/pspautotests.git",
+      "git_tree": null,
+      "compiled_units": 0,
+      "archive_url": "https://github.com/hrydgard/pspautotests/archive/587d52f2f8afc2d66a427723a3f36c189f6e14bc.tar.gz",
+      "git_source_url": "https://github.com/hrydgard/pspautotests/tree/587d52f2f8afc2d66a427723a3f36c189f6e14bc",
+      "observed_role": "not initialized by the historical iOS recipe; no source translation unit logged"
+    }
+  ],
+  "vendored_ffmpeg": {
+    "fork": "https://github.com/libretro-fork/ppsspp-ffmpeg",
+    "revision": "6c64b8f98ad0ca38f5360484618e2af6e44fcb3d",
+    "library_and_compat_files_compared": 2624,
+    "mismatches": []
+  },
+  "neostation": {
+    "repository": "https://github.com/TarbleFR/neostation-ios.git",
+    "revision": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+    "archive_url": "https://github.com/TarbleFR/neostation-ios/archive/ab9361c29f7c9ab769c4263dd8b7427fc4f4c036.tar.gz",
+    "files": [
+      {
+        "path": "native/ppsspp/source.json",
+        "historical_sha256": "edb5bd9212f99f114ed616e114556855763650a538c58d91aaf733f0c23d7be2",
+        "current_sha256": "edb5bd9212f99f114ed616e114556855763650a538c58d91aaf733f0c23d7be2",
+        "current_equals_historical": true,
+        "last_commit": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036 2026-10-20T18:14:37+02:00",
+        "repository": "https://github.com/TarbleFR/neostation-ios",
+        "revision": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "source_url": "https://github.com/TarbleFR/neostation-ios/blob/ab9361c29f7c9ab769c4263dd8b7427fc4f4c036/native/ppsspp/source.json"
+      },
+      {
+        "path": "native/ppsspp/managed-memory.patch",
+        "historical_sha256": "c273728f2a30ed8d3cddcc83e2731db5877d15f71030632c09dbf8967f40cb75",
+        "current_sha256": "c273728f2a30ed8d3cddcc83e2731db5877d15f71030632c09dbf8967f40cb75",
+        "current_equals_historical": true,
+        "last_commit": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036 2026-10-20T18:14:37+02:00",
+        "repository": "https://github.com/TarbleFR/neostation-ios",
+        "revision": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "source_url": "https://github.com/TarbleFR/neostation-ios/blob/ab9361c29f7c9ab769c4263dd8b7427fc4f4c036/native/ppsspp/managed-memory.patch"
+      },
+      {
+        "path": "packages/libretro_internal_bridge/ios/Classes/NeoStationPSPMemory.h",
+        "historical_sha256": "98fa6a6e0472dd71d1c114bcef98caf007128585ec07ea8f1e3979bacd568aaf",
+        "current_sha256": "98fa6a6e0472dd71d1c114bcef98caf007128585ec07ea8f1e3979bacd568aaf",
+        "current_equals_historical": true,
+        "last_commit": "ab9900b17a4ed21337c5b40f8b317711ef2ad06e 2026-10-20T17:43:57+02:00",
+        "repository": "https://github.com/TarbleFR/neostation-ios",
+        "revision": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "source_url": "https://github.com/TarbleFR/neostation-ios/blob/ab9361c29f7c9ab769c4263dd8b7427fc4f4c036/packages/libretro_internal_bridge/ios/Classes/NeoStationPSPMemory.h"
+      },
+      {
+        "path": ".github/diagnostics/ppsspp497/build.py",
+        "historical_sha256": "51b6ae04db9fed1ad7ebc486d0ba6c9250e090801252719fdfa2d363b2ebf3b0",
+        "current_sha256": "51b6ae04db9fed1ad7ebc486d0ba6c9250e090801252719fdfa2d363b2ebf3b0",
+        "current_equals_historical": true,
+        "last_commit": "8520e81a2a2dcc08099218428147eda3bc119ca4 2026-10-20T18:07:16+02:00",
+        "repository": "https://github.com/TarbleFR/neostation-ios",
+        "revision": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "source_url": "https://github.com/TarbleFR/neostation-ios/blob/ab9361c29f7c9ab769c4263dd8b7427fc4f4c036/.github/diagnostics/ppsspp497/build.py"
+      },
+      {
+        "path": "build-utils/libretro/build_cores.py",
+        "historical_sha256": "cccad8d97e3426181b43cce8a7b56c2dd6645e5e07ac3a1c1d5bc0c203200b05",
+        "current_sha256": "cccad8d97e3426181b43cce8a7b56c2dd6645e5e07ac3a1c1d5bc0c203200b05",
+        "current_equals_historical": true,
+        "last_commit": "70790764e15058271bbdc436ce94e3e802f75e9a 2026-10-19T23:51:40Z",
+        "repository": "https://github.com/TarbleFR/neostation-ios",
+        "revision": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "source_url": "https://github.com/TarbleFR/neostation-ios/blob/ab9361c29f7c9ab769c4263dd8b7427fc4f4c036/build-utils/libretro/build_cores.py"
+      },
+      {
+        "path": "build-utils/libretro/cores.json",
+        "historical_sha256": "1ae616d596408610d6929a1656fc4a5d491fa9266b4578de2b98da95f98b6dd4",
+        "current_sha256": "1ae616d596408610d6929a1656fc4a5d491fa9266b4578de2b98da95f98b6dd4",
+        "current_equals_historical": true,
+        "last_commit": "f49772e2614597f34dd159009d3cf8a1e4db413e 2026-10-20T03:57:00Z",
+        "repository": "https://github.com/TarbleFR/neostation-ios",
+        "revision": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "source_url": "https://github.com/TarbleFR/neostation-ios/blob/ab9361c29f7c9ab769c4263dd8b7427fc4f4c036/build-utils/libretro/cores.json"
+      },
+      {
+        "path": ".github/workflows/build497-checks.yml",
+        "historical_sha256": "0ba94cced9ae42fe1964c090e57f686e433f229383550a8bb29beca18bb783df",
+        "current_sha256": "0ba94cced9ae42fe1964c090e57f686e433f229383550a8bb29beca18bb783df",
+        "current_equals_historical": true,
+        "last_commit": "369890044d1bd3cfd75368943b4985f3f0fc9467 2026-10-20T17:57:41+02:00",
+        "repository": "https://github.com/TarbleFR/neostation-ios",
+        "revision": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "source_url": "https://github.com/TarbleFR/neostation-ios/blob/ab9361c29f7c9ab769c4263dd8b7427fc4f4c036/.github/workflows/build497-checks.yml"
+      }
+    ],
+    "patch_sha256": "c273728f2a30ed8d3cddcc83e2731db5877d15f71030632c09dbf8967f40cb75",
+    "added_abi_header_sha256": "98fa6a6e0472dd71d1c114bcef98caf007128585ec07ea8f1e3979bacd568aaf"
+  },
+  "historical_build": {
+    "workflow_run": 39455712245,
+    "workflow_run_url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39455712245",
+    "source_revision": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+    "compile_log_artifact": 12281188239,
+    "compile_log_artifact_zip_sha256": "4feb10b49949d26221aeaa393f0185568b7ae4195a032c890d23f4efbb891b43",
+    "compile_log_sha256": "eb2af6cbe7b3b2c4c1ecef97dd45361a40981bb4fcdaa8ee4b5e9bbc86356d7f",
+    "core_artifact": 12280822192,
+    "core_archive_sha256": "e06f641dd10409c815787fe1cf4ac6746920360a1023c83b23631b2bd693ba47",
+    "core_sha256": "a7d058581b657714e055dc9713e9a1252ad4acf6315b30610fcb2b1c81130b6f",
+    "core_bytes": 18024544,
+    "core_translation_units": 631,
+    "ffmpeg_translation_units": 273,
+    "ffmpeg_translation_units_by_library": {
+      "avutil": 63,
+      "avcodec": 145,
+      "avformat": 43,
+      "swresample": 8,
+      "swscale": 14
+    },
+    "xcode": "26.3 (17C529)",
+    "iphoneos_sdk": "26.2",
+    "deployment_target": "18.0",
+    "architecture": "arm64",
+    "compiler_identification_from_log": "AppleClang 17.0.0.17000604",
+    "cmake_executable_from_log": "/opt/homebrew/bin/cmake",
+    "cmake_version_recorded": false,
+    "compiled_or_executed_during_this_audit": false
+  },
+  "source_distribution_notice_overlay": {
+    "path": "assets/legal/ppsspp/SOURCE-MODIFICATION-NOTICES.patch",
+    "sha256": "b178b69c1b7c4379492589e41437b9aea34d8377af368aad9b05299277905380",
+    "comment_only": true,
+    "applied_to_product_build": false,
+    "historical_compiler_input": false,
+    "apply_after": [
+      "native/ppsspp/managed-memory.patch",
+      "copy NeoStationPSPMemory.h into Common/"
+    ],
+    "files": [
+      {
+        "path": "Common/MemArenaDarwin.cpp",
+        "historical_build_source_sha256": "477a7ea7fed11e02cdec3e0ce2381e8008742d67a0cc42f6127db5c4e9a95226",
+        "source_distribution_with_notice_sha256": "dacc3804187a7d8de4f07fc581025bffbff8e486d8363124ed5874ac2b657541"
+      },
+      {
+        "path": "Core/MemMap.cpp",
+        "historical_build_source_sha256": "4129ea25a006d5728ab78975129859038daceadcc1c3d2240606474cd9bfd74c",
+        "source_distribution_with_notice_sha256": "bf05e0107d092abe31cd1a573c5615b3e0241db949a60c355f1fce16ce642680"
+      },
+      {
+        "path": "libretro/Makefile.common",
+        "historical_build_source_sha256": "40795ed9fe01074d89334a53af356220dd1d7ce1efe680164e5601eb93b40218",
+        "source_distribution_with_notice_sha256": "2de8fbf6636b0c3ffb14819951f061b3e742154c1a00ecb13fff6deb62730349"
+      },
+      {
+        "path": "Common/NeoStationPSPMemory.h",
+        "historical_build_source_sha256": "98fa6a6e0472dd71d1c114bcef98caf007128585ec07ea8f1e3979bacd568aaf",
+        "source_distribution_with_notice_sha256": "c5c62d053d715d63224a52fc306a921c54e0759b3527403b8cddafb3f7dc28cf"
+      }
+    ]
+  },
+  "remaining_limits": [
+    "Fixed FFmpeg license string reports GPL version 2 or later while CONFIG_GPL, CONFIG_NONFREE and version3 flags are zero; no LGPL-only binary conclusion.",
+    "Generated FFmpeg config.h, CMakeCache.txt and per-object dependency files were not retained in the historical artifact. Fixed license switches are traceable to the template, but the full historical generated configuration is not available byte-for-byte.",
+    "The compiler log establishes translation units and a final link command, not the exact set of code paths retained after conditional preprocessing and static-library extraction.",
+    "The original packaging recipe also requires an existing 35-core base package. The PPSSPP source capsule does not contain that binary package or close other cores source provenance.",
+    "An exact CMake version is not recorded. No compilation or bit-for-bit reproduction was attempted.",
+    "Source-only dated notices are supplied as a separate overlay, not silently inserted into the historical functional patch or product source pin.",
+    "Publish or otherwise provide corresponding sources together with the future binary under the applicable terms; a local source capsule or remote upstream links alone are not a completed distribution step."
+  ]
+}

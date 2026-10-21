@@ -15,10 +15,28 @@
         "sha256": "c273728f2a30ed8d3cddcc83e2731db5877d15f71030632c09dbf8967f40cb75"
       },
       {
+        "path": "packages/libretro_internal_bridge/ios/Classes/NeoStationPSPMemory.h",
+        "sha256": "98fa6a6e0472dd71d1c114bcef98caf007128585ec07ea8f1e3979bacd568aaf"
+      },
+      {
         "path": ".github/diagnostics/ppsspp497/build.py",
         "sha256": "51b6ae04db9fed1ad7ebc486d0ba6c9250e090801252719fdfa2d363b2ebf3b0"
+      },
+      {
+        "path": "build-utils/libretro/build_cores.py",
+        "sha256": "cccad8d97e3426181b43cce8a7b56c2dd6645e5e07ac3a1c1d5bc0c203200b05"
+      },
+      {
+        "path": "build-utils/libretro/cores.json",
+        "sha256": "1ae616d596408610d6929a1656fc4a5d491fa9266b4578de2b98da95f98b6dd4"
+      },
+      {
+        "path": ".github/workflows/build497-checks.yml",
+        "sha256": "0ba94cced9ae42fe1964c090e57f686e433f229383550a8bb29beca18bb783df"
       }
-    ]
+    ],
+    "vendored_ffmpeg_repository": "https://github.com/libretro-fork/ppsspp-ffmpeg",
+    "source_retrieval_file": "SOURCE-RETRIEVAL.json"
   },
   "components": [
     {
@@ -885,7 +903,7 @@
       "files": [
         {
           "path": "BUILD-LICENSE-RECORD.md",
-          "sha256": "d0971fe1bc980480c7d8fd4b5e4cf1d0e6075df3daf0e283da57e4dedcbb9e3e",
+          "sha256": "4058f37b89fd30fc32126d21120dd7a11786d551cd13a26e5d92cd8b2695a875",
           "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
           "source_inputs": [
             {
@@ -942,9 +960,687 @@
               "path": "libretro/Makefile.common",
               "source_blob_sha": "8d32bc5ccbdf89e7ed8d939422216825b200ccf5",
               "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/Makefile.common"
+            },
+            {
+              "path": "ffmpeg/VENDORED.md",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ffmpeg/VENDORED.md"
             }
           ],
           "exact_copy": false
+        }
+      ]
+    },
+    {
+      "component": "Additional notices from FFmpeg units compiled in PPSSPP Build 497",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "FFmpeg-Additional-Notices.txt",
+          "sha256": "7c16e08960c6c949543e9c321a1a5fdfd51a47f04b9d495d26e60a7216929a38",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "exact_copy": false,
+          "extraction": "Complete original leading comment regions, copied byte-for-byte; byte-identical regions grouped by source path. Context headings added.",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ffmpeg/libavutil/adler32.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ffmpeg/libavutil/adler32.c",
+              "source_blob_sha": "64c8767ca09c9c0291c453e0d80dbe8bfd3c15af",
+              "source_excerpt_sha256": "0d5c7834c4f1ba4eb35295b9d8d6ee58b016429ccdab267197978b8fd20f4046"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ffmpeg/libavcodec/faandct.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ffmpeg/libavcodec/faandct.c",
+              "source_blob_sha": "b6830725d2184e1d4a73b7452acd47ca23b458c8",
+              "source_excerpt_sha256": "a5c555424d1538d2284dc7a1b2dcef275fa3fdb0714ad6424ac072f37f5bf89b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "component": "File-specific credits from PPSSPP Build 497 source inputs",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "Selected-Dependency-Notices.txt",
+          "sha256": "bb6e55c6a03ea0570bf8961f44538137eb2a48b4cfb6d4c11e49814678ee359a",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "exact_copy": false,
+          "extraction": "Complete original leading comment regions, copied byte-for-byte; byte-identical regions grouped by source path. Context headings added.",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/snappy/snappy-c.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/snappy/snappy-c.cpp",
+              "source_blob_sha": "473a0b097864f37e3ac4c474f7399a17675351c3",
+              "source_excerpt_sha256": "8e4cf7387cd0ab8d0c1e939b4d7752be5186d002a1f42e5ee9ae14be25572310"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/snappy/snappy-sinksource.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/snappy/snappy-sinksource.cpp",
+              "source_blob_sha": "8214964a7ec0144de6f5caa7db97fa4e8057cca9",
+              "source_excerpt_sha256": "14fb2576e8642b23d7bf11752cd6e446ff714c1ebaee9c5f247aefd2e3059c0e"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/snappy/snappy-stubs-internal.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/snappy/snappy-stubs-internal.cpp",
+              "source_blob_sha": "0bc8c2d34490ec85d2273638e5a803678a68f4f9",
+              "source_excerpt_sha256": "14fb2576e8642b23d7bf11752cd6e446ff714c1ebaee9c5f247aefd2e3059c0e"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/snappy/snappy.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/snappy/snappy.cpp",
+              "source_blob_sha": "2a89d49d2fc485abd92ef8b46ace52e5be7dffa7",
+              "source_excerpt_sha256": "32a41cf6d97b13b5692dcafa3217c58d4c94896a9546aa17e56b4af8bbbc72c5"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "OGLCompilersDLL/InitializeDll.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/OGLCompilersDLL/InitializeDll.cpp",
+              "source_blob_sha": "9d81f57878c7e5144e70c59d6295c08b1be4a04d",
+              "source_excerpt_sha256": "03a95636627c50fe5a90be48351824462bc3a1ddb4e77eb15aafa3c197a3ae7b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/GenericCodeGen/CodeGen.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/GenericCodeGen/CodeGen.cpp",
+              "source_blob_sha": "b3c7226dfa4e6ba3d8b0c9de4df81f2ac2b0904c",
+              "source_excerpt_sha256": "03a95636627c50fe5a90be48351824462bc3a1ddb4e77eb15aafa3c197a3ae7b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/GenericCodeGen/Link.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/GenericCodeGen/Link.cpp",
+              "source_blob_sha": "5e28405f046e0a479a8550064391beb90448b166",
+              "source_excerpt_sha256": "c46994fe26e10a64409b3ff04908eea9727bdb27a39433d750e11a3f5dfbfa9c"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/preprocessor/Pp.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/preprocessor/Pp.cpp",
+              "source_blob_sha": "aa1e0d74516343560e869f00fc8dd4b32f947058",
+              "source_excerpt_sha256": "af5e0668bfce18941debb29fc186e11fefff543e603d1dc3a109e5c0f9129556"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/preprocessor/PpAtom.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/preprocessor/PpAtom.cpp",
+              "source_blob_sha": "06c2333ef1048a7a008b0a2dcbb85d9a37021a12",
+              "source_excerpt_sha256": "5eb9c9f3a0705b0c9f81fe5183b98e11ab68eb1cc82076325a94a84dae6d3d4e"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/preprocessor/PpContext.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/preprocessor/PpContext.cpp",
+              "source_blob_sha": "70f511978c7feba4e9f81846ab231b620bada31e",
+              "source_excerpt_sha256": "af5e0668bfce18941debb29fc186e11fefff543e603d1dc3a109e5c0f9129556"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/preprocessor/PpScanner.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/preprocessor/PpScanner.cpp",
+              "source_blob_sha": "ad11792002ccba6b2bd7d47d1168bc62e8ee1c75",
+              "source_excerpt_sha256": "36da45f057dda98f08bd7bbaebd8b53a04e054862ac7d33a8d26aa55f6302507"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/preprocessor/PpTokens.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/preprocessor/PpTokens.cpp",
+              "source_blob_sha": "e17eeafda23458e3ceddb30aaedd596f5e383dc9",
+              "source_excerpt_sha256": "bf707b02274dccb281ae3008643b78150e3aef2c0e691b7209503f33373094d9"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/attribute.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/attribute.cpp",
+              "source_blob_sha": "df7fdc2a60fcb92635b1bffcbcb75c67989f151b",
+              "source_excerpt_sha256": "884222585d35f5c4f88dfa98a75a69eebe82f9d4fa09144f5ffe897692d61850"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/Constant.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/Constant.cpp",
+              "source_blob_sha": "f6916cbef6165051c4ca45cfeba372d2da144481",
+              "source_excerpt_sha256": "7590a0822c5236e3de340345080b3a94ae82db30b6a6dc6a38f5ade8bf501e4b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/InfoSink.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/InfoSink.cpp",
+              "source_blob_sha": "d00c4225666e5a82e6a71f2daf0252936efde925",
+              "source_excerpt_sha256": "03a95636627c50fe5a90be48351824462bc3a1ddb4e77eb15aafa3c197a3ae7b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/Initialize.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/Initialize.cpp",
+              "source_blob_sha": "16287dfd16aa6073f56045b4b6f485ea76c8856a",
+              "source_excerpt_sha256": "656af3ee26cfbc46199793de8d990e6562c1fc1035da756f927cb5ec20b8dc04"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/Intermediate.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/Intermediate.cpp",
+              "source_blob_sha": "e542f90c8f1ede5992e78b7cf0d1c9b1063c0177",
+              "source_excerpt_sha256": "a66361a27e0cfe5ac68990adfb1824aee817f5e009a1ea13c9553b48eb273df5"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/IntermTraverse.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/IntermTraverse.cpp",
+              "source_blob_sha": "553b1b5ff837151431d5bd644ba595332ed10142",
+              "source_excerpt_sha256": "3a7331512fa75acfe88884d5e9819d77addc26b20b1e11a192fc0a6d2feeaa83"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/ParseContextBase.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/ParseContextBase.cpp",
+              "source_blob_sha": "c34c04f6c7608a909bb8472673c72439194de850",
+              "source_excerpt_sha256": "db651e809dae13270e5a2d54e4c948351ac46b72b7858ca4b98a2d69a25e9389"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/ParseHelper.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/ParseHelper.cpp",
+              "source_blob_sha": "4b22c6cd40aea6e81e30c421da4b212193cd10a9",
+              "source_excerpt_sha256": "51ca63dc6ed556f1de6fd8f5028ce15a9ceae17b773451904cda39b5e8983f13"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/PoolAlloc.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/PoolAlloc.cpp",
+              "source_blob_sha": "c3a3928ce35b30b9ba87415c5b2655f68248cc8e",
+              "source_excerpt_sha256": "03a95636627c50fe5a90be48351824462bc3a1ddb4e77eb15aafa3c197a3ae7b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/RemoveTree.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/RemoveTree.cpp",
+              "source_blob_sha": "1d33bfd2035a1307adf61e6c155481933ebfa7c2",
+              "source_excerpt_sha256": "0c08506ca09fff2083ee79e07fb30c9452776141b22f201a4dbddc1e5dc367e0"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/Scan.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/Scan.cpp",
+              "source_blob_sha": "c20048a9ee1948068d62368e682eb452998248f3",
+              "source_excerpt_sha256": "d41cf8729327bd1a691e9d990f88f6022f4ee62cc89627986e8b60cf68d725f1"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/ShaderLang.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/ShaderLang.cpp",
+              "source_blob_sha": "5d16361cc4603288c62b8947bcfba3dc5e5a9292",
+              "source_excerpt_sha256": "40de67ec1d7043d84ab929e658c6ddc7a38a5c031927fb204c72d72833bf96cf"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/SymbolTable.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/SymbolTable.cpp",
+              "source_blob_sha": "f5f98a0b02a42eba008d41356abb03932aeb09ab",
+              "source_excerpt_sha256": "0d2dcd3f941818d490c79237b0876b818e0c7a47dd0455d2fc5e0ecac1a21d9b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/Versions.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/Versions.cpp",
+              "source_blob_sha": "bf5ce2f67fa41e81ad21a962f441f6bbca087fe3",
+              "source_excerpt_sha256": "fb15500f3ce81c58cfec3f0e66eeee61e6e3898125c51c8388227863c665396a"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/glslang_tab.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/glslang_tab.cpp",
+              "source_blob_sha": "5c17c8cea4ff827351f05a0df5f1e827ba7c2f97",
+              "source_excerpt_sha256": "5423984a21655561b0a70de6a4b231f4688107db6242edc1ebd9493e5c9b283e"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/intermOut.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/intermOut.cpp",
+              "source_blob_sha": "91d5b954eae857134c13b1ab6c36fc2eeddd44a3",
+              "source_excerpt_sha256": "c1e79175756e72b00d70f7c4d60e5d9cd6dd73b6ff972d025523d9df41d33cca"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/iomapper.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/iomapper.cpp",
+              "source_blob_sha": "0ae281d965ac6734670dfbc8f324f119f659d566",
+              "source_excerpt_sha256": "01094e6b3238ae9a5b3940d7b643e43d1ff21beb9ac3ca206701778175600ae2"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/limits.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/limits.cpp",
+              "source_blob_sha": "391570579da17e206ce9c10294162ad3a2639480",
+              "source_excerpt_sha256": "307084c1e55c50b9c8faa8debe64d102ede787f0b2df994a64d251a81aa76a43"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/linkValidate.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/linkValidate.cpp",
+              "source_blob_sha": "3a4cb567b1fbf82da979719ca4f50294f04c170a",
+              "source_excerpt_sha256": "bded45ba4e7419fd10eb1fb9878c6f07dc640eb28493ccc196365a4af8584591"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/parseConst.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/parseConst.cpp",
+              "source_blob_sha": "835097234ea5a66b21560a6ba7f87395864dd203",
+              "source_excerpt_sha256": "75ddec60134476156b72df33fee731de06f3b26225dfc61af07b2cadd7095cae"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/propagateNoContraction.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/propagateNoContraction.cpp",
+              "source_blob_sha": "a1aa5ea6b4b38a55ff50e74e55ab9f297a1528ef",
+              "source_excerpt_sha256": "ebc879e29c32dfe9b591a6c4737841f355fb96f50e8d5398e0a960f11b8325d3"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/reflection.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/reflection.cpp",
+              "source_blob_sha": "144f85bdb7a77edd80b5e786bddc6d921ad63d51",
+              "source_excerpt_sha256": "3995d73e7ec2a0f9cc4e883e016db78007f96b55f7a2d3aee0ad37348811d11b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/MachineIndependent/SpirvIntrinsics.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/MachineIndependent/SpirvIntrinsics.cpp",
+              "source_blob_sha": "6650f7d9eed3df2f1c6c4af7f3ac73bd525e5c04",
+              "source_excerpt_sha256": "f70d946541c4d3dbd4ffaa319f95b5c0693f5fa237bc68ac4137a8567e834e19"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "SPIRV/InReadableOrder.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/SPIRV/InReadableOrder.cpp",
+              "source_blob_sha": "9d9410be93c0b11a001039d5e342cc1637590ad1",
+              "source_excerpt_sha256": "8ebaa1eac0c5a27644ca00236cfbb7a17f1199bb2bd7255245d8752013162505"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "SPIRV/GlslangToSpv.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/SPIRV/GlslangToSpv.cpp",
+              "source_blob_sha": "713db67dfc9114193801397c820841aa6eb8dfdb",
+              "source_excerpt_sha256": "ce871e5c07233c1580f4f22c0fdd38689c8b22bb0484bef6cf65028e0ead9059"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "SPIRV/Logger.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/SPIRV/Logger.cpp",
+              "source_blob_sha": "cdc8469c44710b8435c21bb13438b9f44a6e851a",
+              "source_excerpt_sha256": "a4e229d0af9786c3cd4c9bcffe155a8883335504d2f29a1afdcbacd271b776a2"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "SPIRV/SpvBuilder.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/SPIRV/SpvBuilder.cpp",
+              "source_blob_sha": "764a88602e42a7fe9c1ee780ea72e42faccbc9f7",
+              "source_excerpt_sha256": "a0253055f9353e43dbce737bf47134a9e06c1b98c6cbd0829b84ff07f3bff1d1"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "SPIRV/SpvPostProcess.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/SPIRV/SpvPostProcess.cpp",
+              "source_blob_sha": "b185f61bb825226a01228c9c7dd0523da545d620",
+              "source_excerpt_sha256": "970eaba43a2f9d78592bfa1b5eb05f95adfc9c736a471b9aeb2c4fc940c620dc"
+            },
+            {
+              "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+              "revision": "4212eef67ed0ca048cb726a6767185504e7695e5",
+              "upstream_path": "spirv_cfg.cpp",
+              "source_url": "https://github.com/KhronosGroup/SPIRV-Cross/blob/4212eef67ed0ca048cb726a6767185504e7695e5/spirv_cfg.cpp",
+              "source_blob_sha": "932994798153712327fc5569093f5ddb9ef15f9f",
+              "source_excerpt_sha256": "b52f444ae7482fc450e3ad796d92d18a8dfa356cb47cf58e67681e5651004404"
+            },
+            {
+              "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+              "revision": "4212eef67ed0ca048cb726a6767185504e7695e5",
+              "upstream_path": "spirv_cross.cpp",
+              "source_url": "https://github.com/KhronosGroup/SPIRV-Cross/blob/4212eef67ed0ca048cb726a6767185504e7695e5/spirv_cross.cpp",
+              "source_blob_sha": "edc98f81e1d2630883ab43054dc471d8fbf546f9",
+              "source_excerpt_sha256": "d4358be6671e9b0039528ebaa2e5790c46898863aafe998045d7412fdb0d07d9"
+            },
+            {
+              "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+              "revision": "4212eef67ed0ca048cb726a6767185504e7695e5",
+              "upstream_path": "spirv_cross_util.cpp",
+              "source_url": "https://github.com/KhronosGroup/SPIRV-Cross/blob/4212eef67ed0ca048cb726a6767185504e7695e5/spirv_cross_util.cpp",
+              "source_blob_sha": "7cff010d1c1e9ae1ad02e14eab13b2db88eef069",
+              "source_excerpt_sha256": "d4358be6671e9b0039528ebaa2e5790c46898863aafe998045d7412fdb0d07d9"
+            },
+            {
+              "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+              "revision": "4212eef67ed0ca048cb726a6767185504e7695e5",
+              "upstream_path": "spirv_glsl.cpp",
+              "source_url": "https://github.com/KhronosGroup/SPIRV-Cross/blob/4212eef67ed0ca048cb726a6767185504e7695e5/spirv_glsl.cpp",
+              "source_blob_sha": "ef9ffde36a1aaa0ca64d1cc1db70c8de5a11687b",
+              "source_excerpt_sha256": "d4358be6671e9b0039528ebaa2e5790c46898863aafe998045d7412fdb0d07d9"
+            },
+            {
+              "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+              "revision": "4212eef67ed0ca048cb726a6767185504e7695e5",
+              "upstream_path": "spirv_hlsl.cpp",
+              "source_url": "https://github.com/KhronosGroup/SPIRV-Cross/blob/4212eef67ed0ca048cb726a6767185504e7695e5/spirv_hlsl.cpp",
+              "source_blob_sha": "19990b80cd80adee640435b596edcc1a12a728e8",
+              "source_excerpt_sha256": "4e86e492e3379fbdcbdb54edc02f249b48f572cdbbbce622ab6df5ca0d377c8a"
+            },
+            {
+              "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+              "revision": "4212eef67ed0ca048cb726a6767185504e7695e5",
+              "upstream_path": "spirv_parser.cpp",
+              "source_url": "https://github.com/KhronosGroup/SPIRV-Cross/blob/4212eef67ed0ca048cb726a6767185504e7695e5/spirv_parser.cpp",
+              "source_blob_sha": "01c2e381241405d1aa0c19ad878df67ad159ccea",
+              "source_excerpt_sha256": "893ba853a87b79640f005f16dff7847d369eb410619ab46909c86957d6a56c84"
+            },
+            {
+              "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+              "revision": "4212eef67ed0ca048cb726a6767185504e7695e5",
+              "upstream_path": "spirv_cross_parsed_ir.cpp",
+              "source_url": "https://github.com/KhronosGroup/SPIRV-Cross/blob/4212eef67ed0ca048cb726a6767185504e7695e5/spirv_cross_parsed_ir.cpp",
+              "source_blob_sha": "8d1acf69f973992f7b7b4eecd1f740338eb07911",
+              "source_excerpt_sha256": "893ba853a87b79640f005f16dff7847d369eb410619ab46909c86957d6a56c84"
+            },
+            {
+              "repository": "https://github.com/hrydgard/glslang",
+              "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+              "upstream_path": "glslang/OSDependent/Unix/ossource.cpp",
+              "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/glslang/OSDependent/Unix/ossource.cpp",
+              "source_blob_sha": "9a31a9aadb9fa125821c53b30f648986aaf2d1ea",
+              "source_excerpt_sha256": "1eca579624676372078db2d4b1f2f223077c8c410f84b8f0cde18c5cd1532bb1"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/filesystem.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/filesystem.c",
+              "source_blob_sha": "46c99066922c8eee41b2ac80e8ae654b270d4636",
+              "source_excerpt_sha256": "871fb933dc7905aab0f01c49d3418d139c8e56133256f9665817c36a12c569ba"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_aarch64_linux_or_android.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_aarch64_linux_or_android.c",
+              "source_blob_sha": "c0a764ccff61b88de5e8cf61caf0f616949ca3f2",
+              "source_excerpt_sha256": "871fb933dc7905aab0f01c49d3418d139c8e56133256f9665817c36a12c569ba"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_aarch64_windows.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_aarch64_windows.c",
+              "source_blob_sha": "f1039091b0ec03970d7ec2ae5780118bb5e26557",
+              "source_excerpt_sha256": "df61848bb0c7b757b1755e87db6db3b75f768cb255568e4c5b740f77f80e617e"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_arm_linux_or_android.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_arm_linux_or_android.c",
+              "source_blob_sha": "997ef936a850e8430d66e3c14f476e49b0adeaaa",
+              "source_excerpt_sha256": "871fb933dc7905aab0f01c49d3418d139c8e56133256f9665817c36a12c569ba"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_mips_linux_or_android.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_mips_linux_or_android.c",
+              "source_blob_sha": "2322ecf4ea949c31adf66eb74a9ad8c5bb773f50",
+              "source_excerpt_sha256": "2c179c028dcae092ae4ef0553292565b88ec62d9e39ad00ca103333643c68b04"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_ppc_linux.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_ppc_linux.c",
+              "source_blob_sha": "46a72d7796a519df8dc178fd23d66c0b1cc27c58",
+              "source_excerpt_sha256": "572f512ac2c840a01057e29156c1a06bf3629b5d5a2922f51f390288aaee6a33"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_riscv_linux.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_riscv_linux.c",
+              "source_blob_sha": "8abec6eb9cde4ad564525adda5ddf0fa1496962d",
+              "source_excerpt_sha256": "f8f4ef5de4eb953ce3877ccf7271dd002b0286c744a28fa2c25e8ded43b93c0e"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_s390x_linux.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_s390x_linux.c",
+              "source_blob_sha": "2b8b865d6931894aab325f91d417d5f99962e571",
+              "source_excerpt_sha256": "919e4a5f47e6ab0358b2b9ecc07161b2edca9d3a944bcca71d323ac1914be8e0"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_x86_freebsd.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_x86_freebsd.c",
+              "source_blob_sha": "ba6c6e33ccef19b4e524556ceabb0fa66840307e",
+              "source_excerpt_sha256": "871fb933dc7905aab0f01c49d3418d139c8e56133256f9665817c36a12c569ba"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_x86_linux_or_android.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_x86_linux_or_android.c",
+              "source_blob_sha": "a4d07f3e9b42ac7911ca1c79cfa6390b209848fb",
+              "source_excerpt_sha256": "871fb933dc7905aab0f01c49d3418d139c8e56133256f9665817c36a12c569ba"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_x86_macos.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_x86_macos.c",
+              "source_blob_sha": "e5a5c35a83c6d2384a251fbe22a517095fc0d775",
+              "source_excerpt_sha256": "871fb933dc7905aab0f01c49d3418d139c8e56133256f9665817c36a12c569ba"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/impl_x86_windows.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/impl_x86_windows.c",
+              "source_blob_sha": "8a82823af32078d64081315cc6e23953d4e91043",
+              "source_excerpt_sha256": "871fb933dc7905aab0f01c49d3418d139c8e56133256f9665817c36a12c569ba"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/stack_line_reader.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/stack_line_reader.c",
+              "source_blob_sha": "ffc778d31597913cb254248d6ee34c4f395a037d",
+              "source_excerpt_sha256": "871fb933dc7905aab0f01c49d3418d139c8e56133256f9665817c36a12c569ba"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/string_view.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/string_view.c",
+              "source_blob_sha": "2cac9da76f973894a5ec31910b9b29826af19672",
+              "source_excerpt_sha256": "871fb933dc7905aab0f01c49d3418d139c8e56133256f9665817c36a12c569ba"
+            },
+            {
+              "repository": "https://github.com/google/cpu_features",
+              "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+              "upstream_path": "src/hwcaps.c",
+              "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/src/hwcaps.c",
+              "source_blob_sha": "f44f6c39b4008f4ce6a2576ce2874a0ffbd7cdb5",
+              "source_excerpt_sha256": "871fb933dc7905aab0f01c49d3418d139c8e56133256f9665817c36a12c569ba"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/udis86/decode.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/udis86/decode.c",
+              "source_blob_sha": "44c3bdb4528545e968fdab7857c49f39cd230ef2",
+              "source_excerpt_sha256": "b3f35449497a3218c0db6097432a38302a36756b8138e8437165ae5f56a37990"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/udis86/syn-intel.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/udis86/syn-intel.c",
+              "source_blob_sha": "34e70fc50b14d847faf83e925954ad75e1fb0d7f",
+              "source_excerpt_sha256": "3fb547c55192b49a0d2303438e7e7f37237d59746fb57f582b9e626442aa5d0b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/udis86/syn.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/udis86/syn.c",
+              "source_blob_sha": "c66e2433bee8b6883c8b6caa8609e9e93131acad",
+              "source_excerpt_sha256": "b54edf7ab8500af57ac45e7d8d2b6e93d6841d3e5ae7d154f5515d5f3caabf9c"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/udis86/udis86.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/udis86/udis86.c",
+              "source_blob_sha": "ffc45733a34f848b2baae98fea7b17e6f9a65685",
+              "source_excerpt_sha256": "dc8e262bd46274652d0b348684b444c64de3a2dcf46241edffc32c5c56aee42f"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "Common/GPU/OpenGL/gl3stub.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/Common/GPU/OpenGL/gl3stub.c",
+              "source_blob_sha": "9f47314c35d3bdd3ef57722bee9d7499a6c17fe4",
+              "source_excerpt_sha256": "7e4563350bba26c1c1721f447b54757318e883602f66150195ea7cfe9206ddc7"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "Common/Arm64Emitter.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/Common/Arm64Emitter.cpp",
+              "source_blob_sha": "bcfa2297253ee77343cc0f4e124af5f9e4dace0d",
+              "source_excerpt_sha256": "46b19de2781095b509bfcee37cf09d43f99d2bb749f0696394571cbf479d4dab"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "Common/Arm64Emitter.h",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/Common/Arm64Emitter.h",
+              "source_blob_sha": "19fef737451260f9b525a9c0767c12e62a21e9a2",
+              "source_excerpt_sha256": "8b62646eb39fba5afe49db779bdab01c4b19830af26143989066e042923bc421"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "Common/ExceptionHandlerSetup.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/Common/ExceptionHandlerSetup.cpp",
+              "source_blob_sha": "3b7385ceaab47a48acc07bcd3979220f27f31b68",
+              "source_excerpt_sha256": "eb42c4f3d35fb94c256078b2c31f5098d6540ffae49b8d5e024a16b00a5b1e3c"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "Common/Crypto/md5.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/Common/Crypto/md5.cpp",
+              "source_blob_sha": "595db5e5c63ffd08c2c1e660707ee33b114a448c",
+              "source_excerpt_sha256": "cf2f87aeb46b78c438f57d54b6cfb130b79a78a84dfacb4b8840c0336e31cb97"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "Common/Crypto/sha1.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/Common/Crypto/sha1.cpp",
+              "source_blob_sha": "e7011aebd4eac2c254667cfcbe58be153bd7ebec",
+              "source_excerpt_sha256": "738134ab36a974a94295d94ba9e0897664f06fdf21c9a5a919df911d9d19da35"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "Common/Crypto/sha256.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/Common/Crypto/sha256.cpp",
+              "source_blob_sha": "9e863da1b847870425c1347ec0166e430413fa55",
+              "source_excerpt_sha256": "d2afdd9a1020d7448c9b46ea533489e3037eee45504d82df3612f9a968775bfc"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "component": "NeoStation PPSSPP modifications and source-distribution notice overlay",
+      "repository": "https://github.com/TarbleFR/neostation-ios",
+      "revision": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036 (functional changes); 2026-10-21 (notice preparation)",
+      "files": [
+        {
+          "path": "NEOSTATION-MODIFICATIONS.txt",
+          "sha256": "22c851945109ab27a228752c5f75c38a68c24d1371d187db3e0cec70c50c5d1c",
+          "source_url": "https://github.com/TarbleFR/neostation-ios/tree/ab9361c29f7c9ab769c4263dd8b7427fc4f4c036/native/ppsspp",
+          "exact_copy": false,
+          "scope_note": "NeoStation source-distribution notice; does not modify historical compiler inputs or product build recipe."
+        },
+        {
+          "path": "SOURCE-MODIFICATION-NOTICES.patch",
+          "sha256": "b178b69c1b7c4379492589e41437b9aea34d8377af368aad9b05299277905380",
+          "source_url": "https://github.com/TarbleFR/neostation-ios/tree/ab9361c29f7c9ab769c4263dd8b7427fc4f4c036/native/ppsspp",
+          "exact_copy": false,
+          "scope_note": "NeoStation source-distribution notice; does not modify historical compiler inputs or product build recipe."
+        }
+      ]
+    },
+    {
+      "component": "PPSSPP exact source retrieval record",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "SOURCE-RETRIEVAL.json",
+          "sha256": "7e60aa69c8d4290b0b4b2769e120ef1da6af8c3f12ea9c3a2992db5f3819b1ce",
+          "exact_copy": false,
+          "scope_note": "Retrieval instructions and audited provenance, not a whole-application licensing clearance."
         }
       ]
     }

@@ -1,0 +1,267 @@
+{
+  "schema": 1,
+  "review_date": "2026-10-21",
+  "reviewed_host_commit": "fab5ecf3b119b4d84636ad4f4d03218a96279871",
+  "scope": "Selected previously missing engine dependency notices at identified source revisions. This is not a declaration of complete Corresponding Source, complete dependency notice coverage, binary rebuildability, license compatibility or distribution approval.",
+  "source_audit": "docs/ENGINE_CORRESPONDING_SOURCES.md",
+  "components": [
+    {
+      "component": "librashader",
+      "repository": "https://github.com/SnowflakePowered/librashader",
+      "revision": "87e8a97b50516d997defeaa168173dcd185d4022",
+      "files": [
+        {
+          "path": "librashader-LICENSE.md",
+          "sha256": "69c15395f33bc9ce8e1d8b6cef42b7e49cdec4c6f5233d4b9cfc4bfa335f97f9",
+          "source_blob_sha": "1f55bf36504661f53d201b9973cbcc7ff1cbd908",
+          "upstream_path": "LICENSE.md",
+          "source_url": "https://github.com/SnowflakePowered/librashader/blob/87e8a97b50516d997defeaa168173dcd185d4022/LICENSE.md",
+          "exact_copy": true
+        },
+        {
+          "path": "librashader-LICENSE-GPL.md",
+          "sha256": "831e92808eb553250066261a1387a9323cbf300d4559a41f2c71fd3712bdb44a",
+          "source_blob_sha": "d2b23397c559f3bc9b86f916a365706a85f85a9b",
+          "upstream_path": "LICENSE-GPL.md",
+          "source_url": "https://github.com/SnowflakePowered/librashader/blob/87e8a97b50516d997defeaa168173dcd185d4022/LICENSE-GPL.md",
+          "exact_copy": true
+        }
+      ],
+      "scope": "The pinned ARMSX2 Metal C API declares MPL-2.0 OR GPL-3.0-only. Its Cargo dependencies retain their own terms; these two root licenses are not a complete Cargo dependency notice inventory."
+    },
+    {
+      "component": "LLVM for RPCS3",
+      "repository": "https://github.com/llvm/llvm-project",
+      "revision": "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
+      "files": [
+        {
+          "path": "RPCS3-LLVM-LICENSE.txt",
+          "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee",
+          "source_blob_sha": "fa6ac540007032cbd0ec772a1c72e6cb5527a4fe",
+          "upstream_path": "llvm/LICENSE.TXT",
+          "source_url": "https://github.com/llvm/llvm-project/blob/ca7933e47d3a3451d81e72ac174dcb5aa28b59d1/llvm/LICENSE.TXT",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "MoltenVK for RPCS3",
+      "repository": "https://github.com/KhronosGroup/MoltenVK",
+      "revision": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+      "files": [
+        {
+          "path": "RPCS3-MoltenVK-LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "source_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/KhronosGroup/MoltenVK/blob/db66022459ffb663aa2b50f6b018bc2e124f5edf/LICENSE",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "StikJIT upstream attribution and dependency scope",
+      "repository": "https://github.com/StikDebug/StikJIT",
+      "revision": "32287268fa5824f9edce4cb359f5833ce0cf7b00",
+      "files": [
+        {
+          "path": "StikJIT-Upstream-README.md",
+          "sha256": "38e607d8fd08141944b10c1b4da7bdd70ad558b0f0313072cebeffe25d267917",
+          "source_blob_sha": "5c72d1a7fe6004e0749ed848dfc38d66cc7516f0",
+          "upstream_path": "README.md",
+          "source_url": "https://github.com/StikDebug/StikJIT/blob/32287268fa5824f9edce4cb359f5833ce0cf7b00/README.md",
+          "exact_copy": true
+        }
+      ],
+      "scope": "README attribution only. The root MPL-2.0 text is already preserved as ../StikJIT-MPL-2.0.txt. This README explicitly gives the idevice FFI and bundled JavaScript separate license scope; it does not supply an exact idevice FFI source revision or permission for its precompiled static library."
+    },
+    {
+      "component": "FFmpeg for RPCS3",
+      "repository": "https://github.com/FFmpeg/FFmpeg",
+      "revision": "239f2c733de417201d7ad3b3b8b0d9b63285b2b1",
+      "files": [
+        {
+          "path": "RPCS3-FFmpeg-COPYING-GPLv2.txt",
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "source_blob_sha": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "upstream_path": "COPYING.GPLv2",
+          "source_url": "https://github.com/FFmpeg/FFmpeg/blob/239f2c733de417201d7ad3b3b8b0d9b63285b2b1/COPYING.GPLv2",
+          "exact_copy": true
+        },
+        {
+          "path": "RPCS3-FFmpeg-COPYING-GPLv3.txt",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+          "source_blob_sha": "94a9ed024d3859793618152ea559a168bbcbb5e2",
+          "upstream_path": "COPYING.GPLv3",
+          "source_url": "https://github.com/FFmpeg/FFmpeg/blob/239f2c733de417201d7ad3b3b8b0d9b63285b2b1/COPYING.GPLv3",
+          "exact_copy": true
+        },
+        {
+          "path": "RPCS3-FFmpeg-COPYING-LGPLv2-1.txt",
+          "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30",
+          "source_blob_sha": "40924c2a6da76a2b0c639f6fe7ef0b2d095a6adb",
+          "upstream_path": "COPYING.LGPLv2.1",
+          "source_url": "https://github.com/FFmpeg/FFmpeg/blob/239f2c733de417201d7ad3b3b8b0d9b63285b2b1/COPYING.LGPLv2.1",
+          "exact_copy": true
+        },
+        {
+          "path": "RPCS3-FFmpeg-COPYING-LGPLv3.txt",
+          "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+          "source_blob_sha": "65c5ca88a67c30becee01c5a8816d964b03862f9",
+          "upstream_path": "COPYING.LGPLv3",
+          "source_url": "https://github.com/FFmpeg/FFmpeg/blob/239f2c733de417201d7ad3b3b8b0d9b63285b2b1/COPYING.LGPLv3",
+          "exact_copy": true
+        },
+        {
+          "path": "RPCS3-FFmpeg-LICENSE-md.txt",
+          "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af",
+          "source_blob_sha": "371b0913ce7c199c4092d9344680c80f78ebeb2a",
+          "upstream_path": "LICENSE.md",
+          "source_url": "https://github.com/FFmpeg/FFmpeg/blob/239f2c733de417201d7ad3b3b8b0d9b63285b2b1/LICENSE.md",
+          "exact_copy": true
+        }
+      ],
+      "scope": "Exact license files at the commit behind the signed n8.1.1 release tag. The RPCS3 recipe separately pins the 8.1.1 source tarball by SHA-256. All root license alternatives are preserved without asserting that each optional feature is linked or that the resulting binary is LGPL-only."
+    },
+    {
+      "component": "Dolphin source license vocabulary",
+      "repository": "https://github.com/OatmealDome/dolphin-ios",
+      "revision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+      "files": [
+        {
+          "path": "Dolphin-BSD-3-Clause.txt",
+          "sha256": "42639b2e5507163d35069be166e37a784f48a5f17e3577c16eb48fab215247cd",
+          "source_blob_sha": "6c9eef8d8c8e513a0d828f33d9a7a8859e469312",
+          "upstream_path": "LICENSES/BSD-3-Clause.txt",
+          "source_url": "https://github.com/OatmealDome/dolphin-ios/blob/7cac54161659421ed95c2cd1c0b0746539a4cd38/LICENSES/BSD-3-Clause.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "Dolphin-CC0-1.0.txt",
+          "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+          "source_blob_sha": "0e259d42c996742e9e3cba14c677129b2c1b6311",
+          "upstream_path": "LICENSES/CC0-1.0.txt",
+          "source_url": "https://github.com/OatmealDome/dolphin-ios/blob/7cac54161659421ed95c2cd1c0b0746539a4cd38/LICENSES/CC0-1.0.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "Dolphin-GPL-2.0-or-later.txt",
+          "sha256": "aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3",
+          "source_blob_sha": "17cb286430a4d8094e473d06bd7f50f40438ddba",
+          "upstream_path": "LICENSES/GPL-2.0-or-later.txt",
+          "source_url": "https://github.com/OatmealDome/dolphin-ios/blob/7cac54161659421ed95c2cd1c0b0746539a4cd38/LICENSES/GPL-2.0-or-later.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "Dolphin-MIT.txt",
+          "sha256": "b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0",
+          "source_blob_sha": "2071b23b0e08594ea6bc99ac71129ef992abf498",
+          "upstream_path": "LICENSES/MIT.txt",
+          "source_url": "https://github.com/OatmealDome/dolphin-ios/blob/7cac54161659421ed95c2cd1c0b0746539a4cd38/LICENSES/MIT.txt",
+          "exact_copy": true
+        }
+      ],
+      "scope": "Exact LICENSES directory referenced by upstream COPYING. Per-file SPDX notices and separately licensed Externals remain part of their corresponding source; this vocabulary is not a complete attribution inventory of all external dependencies."
+    },
+    {
+      "component": "cereal for RPCS3 MoltenVK",
+      "repository": "https://github.com/USCiLab/cereal",
+      "revision": "a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+      "files": [
+        {
+          "path": "RPCS3-MoltenVK-cereal-LICENSE.txt",
+          "sha256": "58604a126af6a671ea390ee3d5b3e42228aa59b2858fb7af1d5b20b31739ccbb",
+          "source_blob_sha": "e3efbec440095e2a566493b3afc1f87a1236fa5e",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/USCiLab/cereal/blob/a56bad8bbb770ee266e930c95d37fff2a5be7fea/LICENSE",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "Volk for RPCS3 MoltenVK",
+      "repository": "https://github.com/zeux/volk",
+      "revision": "776893306c5d3b22b6185b5d4a258b81d94572bf",
+      "files": [
+        {
+          "path": "RPCS3-MoltenVK-Volk-LICENSE.md",
+          "sha256": "04a0693a84f19e53d281ca98bbb0c86ca77251ab13769c6168e6684feb9a1436",
+          "source_blob_sha": "b310a6e5604bdcb41ff72f47aceb0c9cbbf43768",
+          "upstream_path": "LICENSE.md",
+          "source_url": "https://github.com/zeux/volk/blob/776893306c5d3b22b6185b5d4a258b81d94572bf/LICENSE.md",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "SPIRV-Tools for RPCS3 MoltenVK",
+      "repository": "https://github.com/KhronosGroup/SPIRV-Tools",
+      "revision": "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+      "files": [
+        {
+          "path": "RPCS3-MoltenVK-SPIRV-Tools-LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "source_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/KhronosGroup/SPIRV-Tools/blob/0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55/LICENSE",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "SPIRV-Cross for RPCS3 MoltenVK",
+      "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+      "revision": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+      "files": [
+        {
+          "path": "RPCS3-MoltenVK-SPIRV-Cross-LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "source_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/KhronosGroup/SPIRV-Cross/blob/6c09849fe88c48eaed08413aa022aaa136a3a057/LICENSE",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "SPIRV-Headers for RPCS3 MoltenVK",
+      "repository": "https://github.com/KhronosGroup/SPIRV-Headers",
+      "revision": "29981f65241605e08b0ede4cfeb999fe3b723c6a",
+      "files": [
+        {
+          "path": "RPCS3-MoltenVK-SPIRV-Headers-LICENSE.txt",
+          "sha256": "ea43b1de38a6f90c488800d66dec1ed671e68cda530266bc96951fb5b6307613",
+          "source_blob_sha": "a63e9c620ee123267192113ab0be3814782ba909",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/KhronosGroup/SPIRV-Headers/blob/29981f65241605e08b0ede4cfeb999fe3b723c6a/LICENSE",
+          "exact_copy": true
+        }
+      ]
+    }
+  ],
+  "unresolved_binary_dependencies": [
+    {
+      "component": "StikJIT idevice/libidevice_ffi.a",
+      "container_repository": "https://github.com/StikDebug/StikJIT",
+      "container_revision": "32287268fa5824f9edce4cb359f5833ce0cf7b00",
+      "container_path": "idevice/libidevice_ffi.a",
+      "container_blob_sha": "3fb7e2dbfdb9db3d47bd6364a435bbc10d5581f9",
+      "binary_sha256": "4db23fe1d342927b9480bb9a8577f219994365621dc28aa0018e23ea1990ecc8",
+      "binary_bytes": 57017464,
+      "upstream_project_reference": "https://github.com/jkcoxson/idevice",
+      "matching_source_revision": null,
+      "matching_source_revision_attested": false,
+      "matching_dependency_lock_available": false,
+      "issue": "Pinned wrapper contains a precompiled Rust static library and headers, but no Cargo source/lock or source-build revision for that library. No arbitrary idevice HEAD license has been substituted for the missing matching source notices."
+    },
+    {
+      "component": "Libretro shared MoltenVK.framework",
+      "container_repository": "https://github.com/libretro/RetroArch",
+      "container_revision": "df16ef193cbe385b87e8a1cf27b66da35bf3c0e0",
+      "binary_sha256": "38de4212de99f7f6772f07406d6d0d37d5b81f95e714668ff3850422750cf70c",
+      "matching_source_revision": null,
+      "matching_source_revision_attested": false,
+      "issue": "The RetroArch commit identifies the vendored framework bytes, not its exact upstream MoltenVK build source. Do not conflate this framework with RPCS3 MoltenVK 1.4.2."
+    }
+  ]
+}

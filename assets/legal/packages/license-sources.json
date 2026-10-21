@@ -1,0 +1,756 @@
+{
+  "schema": 1,
+  "scope": "Supplementary package, plugin, native-library and font notices. Existing Flutter NOTICES.Z and CocoaPods acknowledgements remain required; this collection does not replace them.",
+  "review_date": "2026-10-21",
+  "source_audit": "docs/evidence/package-sources-license-audit-2026-10-21.json",
+  "components": [
+    {
+      "component": "Google Cast SDK 4.8.6: embedded open-source components",
+      "license_scope": "These notices apply to named open-source components. Google Cast SDK itself is declared Commercial by its CocoaPods specification.",
+      "source_url": "https://dl.google.com/dl/chromecast/sdk/ios/GoogleCastSDK-ios-4.8.6_static.zip",
+      "archive_sha256": "e1fe7fd6f2bf4b58e830d378fafc435d159bd755f7ee20fd3033aa1ce313cd6e",
+      "files": [
+        {
+          "path": "GoogleCast-4.8.6-OpenSourceLicenses.txt",
+          "sha256": "57b706490af55efa29e2a99380a45e9c3e4b854850928b1aa56adb94d403a5c2",
+          "bytes": 185916,
+          "upstream_path": "GoogleCastSDK-ios-4.8.6_static_xcframework/OpenSourceLicenses/oss_licenses.bin",
+          "exact_copy": true
+        },
+        {
+          "path": "GoogleCast-4.8.6-OpenSourceLicenses-index.plist",
+          "sha256": "3603c2239f8548fe3786aa610469375ce81f5783c3e6252721761cb93978a074",
+          "bytes": 771,
+          "upstream_path": "GoogleCastSDK-ios-4.8.6_static_xcframework/OpenSourceLicenses/oss_licenses_index.plist",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "PDFium chromium/7811 original iOS distribution and dependencies",
+      "repository": "https://github.com/bblanchon/pdfium-binaries",
+      "source_url": "https://github.com/bblanchon/pdfium-binaries/releases/download/chromium/7811/pdfium-ios-device-arm64.tgz",
+      "archive_sha256": "36f5b10feed4c88452517844902b5ba1530eae46dbb0d48ddd0519f841bb4224",
+      "correspondence": "All 15 non-zerofill Mach-O sections in the original iOS arm64 dylib match the repackaged PDFium xcframework; load commands differ. This is not a reproducible source-build proof.",
+      "files": [
+        {
+          "path": "PDFium-7811-builder-LICENSE.txt",
+          "sha256": "ba26c1263131696b86c10496b5066b918a20b7161822a80c274d0080105f6c93",
+          "bytes": 1177,
+          "upstream_path": "LICENSE",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-abseil.txt",
+          "sha256": "c79a7fea0e3cac04cd43f20e7b648e5a0ff8fa5344e644b0ee09ca1162b62747",
+          "bytes": 11361,
+          "upstream_path": "licenses/abseil.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-agg23.txt",
+          "sha256": "c110d3ea2ad77467ce0dcff7d3337e6c8be8049a5103f4b9bd5fd911a77972e5",
+          "bytes": 725,
+          "upstream_path": "licenses/agg23.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-fast_float.txt",
+          "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6",
+          "bytes": 1079,
+          "upstream_path": "licenses/fast_float.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-freetype.txt",
+          "sha256": "f4b133e25df1f86ad3ffea453aa0e613f0474f34778dbbb3e437e7b2724937d8",
+          "bytes": 6741,
+          "upstream_path": "licenses/freetype.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-icu.txt",
+          "sha256": "e55522d81edc687a341a4411e0776e54ca654e90147f354a90458aaced4116af",
+          "bytes": 27718,
+          "upstream_path": "licenses/icu.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-lcms.txt",
+          "sha256": "5132b7530ae5acab7058634da86470d3d38bb01d70c2b67ba10c96bc62ced1af",
+          "bytes": 1354,
+          "upstream_path": "licenses/lcms.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-libjpeg_turbo.ijg",
+          "sha256": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6",
+          "bytes": 12799,
+          "upstream_path": "licenses/libjpeg_turbo.ijg",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-libjpeg_turbo.md",
+          "sha256": "96f5b328adbb78eeaaec6980d73fd558cb1e4d62560ed615646bc3cf5e532430",
+          "bytes": 5620,
+          "upstream_path": "licenses/libjpeg_turbo.md",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-libopenjpeg.txt",
+          "sha256": "c5ab0890a737c2dfa7ba675036554f6d17741d98629b0c2a145354d00617e6b2",
+          "bytes": 1794,
+          "upstream_path": "licenses/libopenjpeg.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-libpng.txt",
+          "sha256": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526",
+          "bytes": 5345,
+          "upstream_path": "licenses/libpng.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-libtiff.txt",
+          "sha256": "92b72ba97e6c2749c2a94bc0ef646b47080217f1e772a482b33cf5a5f98a6506",
+          "bytes": 1139,
+          "upstream_path": "licenses/libtiff.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-llvm-libc.txt",
+          "sha256": "ebcd9bbf783a73d05c53ba4d586b8d5813dcdf3bbec50265860ccc885e606f47",
+          "bytes": 15140,
+          "upstream_path": "licenses/llvm-libc.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-pdfium.txt",
+          "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9",
+          "bytes": 12896,
+          "upstream_path": "licenses/pdfium.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-simdutf.txt",
+          "sha256": "fc8dbc04e03ad4efc08a647ffe7f995b811a95bc04c0e85a56d5277c6593fa5f",
+          "bytes": 1059,
+          "upstream_path": "licenses/simdutf.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "PDFium-7811-zlib.txt",
+          "sha256": "33fd641c9f3b0e0be64bc78fea9e94807674cdd70c48477599226cb8956565fe",
+          "bytes": 1332,
+          "upstream_path": "licenses/zlib.txt",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "flutter_soloud 4.0.12: SoLoud engine and native source notices",
+      "repository": "https://github.com/alnitak/flutter_soloud",
+      "source_url": "https://pub.dev/api/archives/flutter_soloud-4.0.12.tar.gz",
+      "archive_sha256": "5ffc8db6d9e5751ff2e8c3b7934b1973dc788fb541b9000561b1168c7798dae0",
+      "scope": "Includes notices in vendored source files, including conditional backends. Presence here does not assert every source reaches the iOS executable.",
+      "files": [
+        {
+          "path": "SoLoud-Zlib-LICENSE.txt",
+          "sha256": "27e5dfcca945edeff8ed2ac9808baf53ab6c34cfae5d87b48410181b5af57968",
+          "bytes": 1170,
+          "upstream_path": "src/soloud/LICENSE",
+          "exact_copy": true,
+          "ios_source_copy_identical": true
+        },
+        {
+          "path": "Signalsmith-Stretch-MIT-LICENSE.txt",
+          "sha256": "ee2ef82481ffb445ecdd4b3a4c1f82c0cddb2da8fe39d8e8dc384fffb3e7f06f",
+          "bytes": 1093,
+          "upstream_path": "src/filters/signalsmith-stretch/LICENSE.txt",
+          "exact_copy": true,
+          "ios_source_copy_identical": true
+        },
+        {
+          "path": "Signalsmith-Linear-MIT-LICENSE.txt",
+          "sha256": "072b5e9eb5b22880bdf6256324654cf3ce53dba828edb911921121e1be09d9c3",
+          "bytes": 1074,
+          "upstream_path": "src/filters/signalsmith-linear/LICENSE.txt",
+          "exact_copy": true,
+          "ios_source_copy_identical": true
+        },
+        {
+          "path": "PFFFT-FFTPACK-Notices.txt",
+          "sha256": "c52a1263204dc55b9c9e5b52834313811618aa9bda9afd918a9d56abac6c031f",
+          "bytes": 2242,
+          "upstream_path": "src/pffft/pffft.c",
+          "exact_comment_excerpt": true,
+          "source_file_sha256": "747a94e1637fe10c88c4917fedfefed42753d0c217058f2bd5d368e296a0daa3"
+        },
+        {
+          "path": "SoLoud-Embedded-Source-Notices.txt",
+          "sha256": "888693e16776ca22e4bb948b238026bff459c56d31ce711bbe7e545d01d64ee1",
+          "bytes": 59890,
+          "assembly": "Exact complete comment excerpts; filenames and separators added. Covers Jari Komppa, Petri Hakkinen, Tomas Pettersson, Ville-Matias Heikkila, Laurent de Soras, Takuya Ooura, SMT, David Reid, Sean Barrett, minimp3 and other notices actually present in these sources.",
+          "excerpts": [
+            {
+              "upstream_paths": [
+                "src/pffft/pffft.c"
+              ],
+              "excerpt_sha256": "02af535f170c3a3ec58ea74f7f0368a4f5ae554ce3243927c059624a26b4decf",
+              "bytes": 2241
+            },
+            {
+              "upstream_paths": [
+                "src/pffft/pffft.h"
+              ],
+              "excerpt_sha256": "4cf208bbbb2008e9576d6a7607f3a1c5f9d349d3266176c60d3ab71de331e720",
+              "bytes": 2026
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud.h",
+                "src/soloud/include/soloud_bus.h",
+                "src/soloud/include/soloud_echofilter.h",
+                "src/soloud/include/soloud_eqfilter.h",
+                "src/soloud/include/soloud_file_hack_off.h",
+                "src/soloud/include/soloud_file_hack_on.h",
+                "src/soloud/include/soloud_flangerfilter.h",
+                "src/soloud/include/soloud_freeverbfilter.h",
+                "src/soloud/include/soloud_lofifilter.h",
+                "src/soloud/src/backend/nosound/soloud_nosound.cpp",
+                "src/soloud/src/core/soloud.cpp",
+                "src/soloud/src/core/soloud_bus.cpp",
+                "src/soloud/src/filter/soloud_bassboostfilter.cpp",
+                "src/soloud/src/filter/soloud_echofilter.cpp",
+                "src/soloud/src/filter/soloud_eqfilter.cpp",
+                "src/soloud/src/filter/soloud_fftfilter.cpp",
+                "src/soloud/src/filter/soloud_flangerfilter.cpp",
+                "src/soloud/src/filter/soloud_freeverbfilter.cpp",
+                "src/soloud/src/filter/soloud_lofifilter.cpp",
+                "src/soloud/src/filter/soloud_waveshaperfilter.cpp"
+              ],
+              "excerpt_sha256": "5be6e69f03b37658baca59d20722d0a772ac547ec25ba5a880121bbe9c9317ad",
+              "bytes": 894
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_audiosource.h",
+                "src/soloud/include/soloud_bassboostfilter.h",
+                "src/soloud/include/soloud_dcremovalfilter.h",
+                "src/soloud/include/soloud_fft.h",
+                "src/soloud/include/soloud_fftfilter.h",
+                "src/soloud/include/soloud_file.h",
+                "src/soloud/include/soloud_internal.h",
+                "src/soloud/include/soloud_speech.h",
+                "src/soloud/src/backend/alsa/soloud_alsa.cpp",
+                "src/soloud/src/backend/null/soloud_null.cpp",
+                "src/soloud/src/backend/opensles/soloud_opensles.cpp",
+                "src/soloud/src/backend/sdl2_static/soloud_sdl2_static.cpp",
+                "src/soloud/src/core/soloud_core_3d.cpp",
+                "src/soloud/src/core/soloud_core_basicops.cpp",
+                "src/soloud/src/core/soloud_core_faderops.cpp",
+                "src/soloud/src/core/soloud_core_filterops.cpp",
+                "src/soloud/src/core/soloud_core_getters.cpp",
+                "src/soloud/src/core/soloud_core_setters.cpp",
+                "src/soloud/src/core/soloud_core_voicegroup.cpp",
+                "src/soloud/src/core/soloud_core_voiceops.cpp",
+                "src/soloud/src/core/soloud_thread.cpp"
+              ],
+              "excerpt_sha256": "1048fca22f8cca5b55a5c04bcc9edf2e04c046ff9ee9059cdf8b7c399e585962",
+              "bytes": 894
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_ay.h",
+                "src/soloud/src/audiosource/ay/soloud_ay.cpp"
+              ],
+              "excerpt_sha256": "b8fda672a0bf65225f809a69625c2d8cfde99a8c131219338ea0f1de5aabbb44",
+              "bytes": 903
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_biquadresonantfilter.h",
+                "src/soloud/include/soloud_error.h",
+                "src/soloud/include/soloud_fader.h",
+                "src/soloud/include/soloud_filter.h",
+                "src/soloud/include/soloud_thread.h",
+                "src/soloud/src/backend/openal/soloud_openal.cpp",
+                "src/soloud/src/backend/openal/soloud_openal_dll.c",
+                "src/soloud/src/backend/oss/soloud_oss.cpp",
+                "src/soloud/src/backend/portaudio/soloud_portaudio.cpp",
+                "src/soloud/src/backend/portaudio/soloud_portaudio_dll.c",
+                "src/soloud/src/backend/sdl/soloud_sdl1.cpp",
+                "src/soloud/src/backend/sdl/soloud_sdl1_dll.c",
+                "src/soloud/src/backend/sdl_static/soloud_sdl_static.cpp",
+                "src/soloud/src/backend/winmm/soloud_winmm.cpp",
+                "src/soloud/src/backend/xaudio2/soloud_xaudio2.cpp",
+                "src/soloud/src/core/soloud_audiosource.cpp",
+                "src/soloud/src/core/soloud_fader.cpp",
+                "src/soloud/src/core/soloud_filter.cpp"
+              ],
+              "excerpt_sha256": "cd763127bc2626ad275a4afc1a13fa663427712f766b7c950570e254a5b6d63c",
+              "bytes": 894
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_duckfilter.h",
+                "src/soloud/src/filter/soloud_duckfilter.cpp",
+                "src/synth/basic_wave.cpp",
+                "src/synth/basic_wave.h",
+                "src/synth/soloud_adsr.h"
+              ],
+              "excerpt_sha256": "d8f64b8153a360e45ad793f325a845c91def34b0ebdd08248dfb33d4755d02e0",
+              "bytes": 894
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_misc.h",
+                "src/soloud/include/soloud_noise.h",
+                "src/soloud/include/soloud_robotizefilter.h",
+                "src/soloud/src/audiosource/noise/soloud_noise.cpp",
+                "src/soloud/src/core/soloud_misc.cpp",
+                "src/soloud/src/filter/soloud_robotizefilter.cpp"
+              ],
+              "excerpt_sha256": "aa9479c0fe1432ace3216ea25c0c1034197e36b4b7512aff187fcff63fcf906d",
+              "bytes": 889
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_monotone.h",
+                "src/soloud/src/audiosource/monotone/soloud_monotone.cpp"
+              ],
+              "excerpt_sha256": "1ed4af2f963c75b682dc5d681b3b27cb8455346142476cef29dd2db331bee590",
+              "bytes": 914
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_openmpt.h",
+                "src/soloud/src/audiosource/openmpt/soloud_openmpt.cpp",
+                "src/soloud/src/audiosource/openmpt/soloud_openmpt_dll.c"
+              ],
+              "excerpt_sha256": "3cd28b18d0582fd6e34a042f05a319a3a1937b876760dc3aaae27d2f8a4e4a15",
+              "bytes": 908
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_queue.h",
+                "src/soloud/include/soloud_wav.h",
+                "src/soloud/include/soloud_waveshaperfilter.h",
+                "src/soloud/include/soloud_wavstream.h",
+                "src/soloud/src/audiosource/speech/soloud_speech.cpp",
+                "src/soloud/src/audiosource/wav/soloud_wav.cpp",
+                "src/soloud/src/audiosource/wav/soloud_wavstream.cpp",
+                "src/soloud/src/backend/sdl/soloud_sdl2.cpp",
+                "src/soloud/src/backend/sdl/soloud_sdl2_dll.c",
+                "src/soloud/src/core/soloud_fft.cpp",
+                "src/soloud/src/core/soloud_queue.cpp"
+              ],
+              "excerpt_sha256": "ce469287c1c7a2d6bd2562633c53362fdafcd7cee076e699007bc2b0696be660",
+              "bytes": 894
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_sfxr.h",
+                "src/soloud/src/audiosource/sfxr/soloud_sfxr.cpp"
+              ],
+              "excerpt_sha256": "2c651f5acfd062b5d70fb8c2ac112881c80fc43ccb6b4f39fba8cc22cee03cc7",
+              "bytes": 981
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_tedsid.h"
+              ],
+              "excerpt_sha256": "c1aae7274b36e2ed591289f78253e0d4ebe06044e0f9093beb428a2e60a8ff43",
+              "bytes": 913
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_vic.h",
+                "src/soloud/src/audiosource/vic/soloud_vic.cpp"
+              ],
+              "excerpt_sha256": "60f4ec83d1c3fd910d6781b3391ea4cbf74f294016b1131711e9bcceda778299",
+              "bytes": 958
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/soloud_vizsn.h",
+                "src/soloud/src/audiosource/vizsn/soloud_vizsn.cpp"
+              ],
+              "excerpt_sha256": "43c71c36977c9e027f946dd6242ba0defb1cf22e1cf936bad268520a9df1bbda",
+              "bytes": 302
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/include/zx7decompress.h"
+              ],
+              "excerpt_sha256": "a998a9aef8e9b2062bc06b98a512792c906f7cb308d1fbbbd5c942e92e39f17e",
+              "bytes": 280
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/audiosource/ay/sndchip.cpp",
+                "src/soloud/src/audiosource/ay/sndchip.h"
+              ],
+              "excerpt_sha256": "c8633a8e6bc553a6de008413bd3ae84f90b6473772e58c672dccbd099169bbae",
+              "bytes": 108
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/audiosource/ay/sndrender.cpp",
+                "src/soloud/src/audiosource/ay/sndrender.h"
+              ],
+              "excerpt_sha256": "c555dbcbada2d58c45401e33f87c7a4d21badb93833196c083334eddc7b67005",
+              "bytes": 112
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/audiosource/tedsid/soloud_tedsid.cpp"
+              ],
+              "excerpt_sha256": "7e820e3a54fb5a56f710b8d909e375db6705da0498ede3e83e7f5fd73faa2eb2",
+              "bytes": 913
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/audiosource/wav/dr_flac.h"
+              ],
+              "excerpt_sha256": "072f069dd4c980a706550f78edd36cbbcef7026dd9b47cfcf576998b20d1e75e",
+              "bytes": 214
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/audiosource/wav/dr_mp3.h"
+              ],
+              "excerpt_sha256": "e816c4a4afc65dc7bd7feaf50a505c488bcad5631806603dd41672cda5401582",
+              "bytes": 375
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/audiosource/wav/dr_wav.h"
+              ],
+              "excerpt_sha256": "a0d3203dbfc5d08c6167a83e837a42af20d7bcf909c82c6c01d55c29adf51989",
+              "bytes": 222
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/backend/coreaudio/soloud_coreaudio.cpp"
+              ],
+              "excerpt_sha256": "17518fa3b8383595323ceac4969ed064dcc8bce5a9b964f02c9ab62c5a8c3a9a",
+              "bytes": 957
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/backend/jack/soloud_jack.cpp"
+              ],
+              "excerpt_sha256": "bec358fb2db62e86b0ac6a6997747abc4797968277252f0ac9313b075f039467",
+              "bytes": 856
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/backend/miniaudio/miniaudio.h"
+              ],
+              "excerpt_sha256": "72090e7fe0213182ae64ed64b86f781a1162d101d339670a5f8fac8431443490",
+              "bytes": 315
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/backend/miniaudio/soloud_miniaudio.cpp",
+                "src/soloud/src/tools/sanity/sanity.cpp"
+              ],
+              "excerpt_sha256": "7a2738b082e3826f6261bd0cf08d5de456ce09689c278cf8bedad48dda9cb4fa",
+              "bytes": 870
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/backend/vita_homebrew/soloud_vita_homebrew.cpp"
+              ],
+              "excerpt_sha256": "08f27665d686a7ae659244a0e96ccb2eeeefa41c08beea10e7b29a779250bda6",
+              "bytes": 908
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/backend/wasapi/soloud_wasapi.cpp"
+              ],
+              "excerpt_sha256": "608e732ab0f92a8adf65b17bf4b86e0d9ad85ade8de8834c5c0a9fec8f1c10ec",
+              "bytes": 894
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/core/soloud_file.cpp",
+                "src/soloud/src/tools/lutgen/main.cpp"
+              ],
+              "excerpt_sha256": "c920b8268a3eba56e900412f17030aa22ccdd29eeaf9cbab0d780aa690b4b50c",
+              "bytes": 870
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/filter/soloud_biquadresonantfilter.cpp"
+              ],
+              "excerpt_sha256": "a23d3f8b0519d89d0d7ffb0ac7e8b8a156e195a6a946b3b510d27b1373fbfc75",
+              "bytes": 988
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/filter/soloud_dcremovalfilter.cpp"
+              ],
+              "excerpt_sha256": "7a4cfaef4e13684e3c3d9dd1e4dff12001ee0c511285264502d36fbb14799058",
+              "bytes": 889
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/tools/resamplerlab/main.cpp"
+              ],
+              "excerpt_sha256": "980afba9df5b13a069553e33b258ea07dcee75e8259c4f9a2484caea1fff2b30",
+              "bytes": 928
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/tools/resamplerlab/stb_image_write.h"
+              ],
+              "excerpt_sha256": "2aaf43651c9df5bb4018d1577c3727037e51822f1bc4849c3991cea9f4fc3b51",
+              "bytes": 3144
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/audiosource/wav/dr_flac.h (license footer)",
+                "src/soloud/src/audiosource/wav/dr_wav.h (license footer)",
+                "src/soloud/src/audiosource/wav/dr_mp3.h (license footer)"
+              ],
+              "excerpt_sha256": "6622f826e1e526110debad04b9fec7f6b542bb930690352e89536f28d31940e1",
+              "bytes": 2603
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/audiosource/wav/dr_mp3.h (license footer)"
+              ],
+              "excerpt_sha256": "4aac07d7da7d8c0e9ab3af6f5f99c6a10a6dc5a17e192ddf5cc97d9f1e0ee412",
+              "bytes": 10107
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/audiosource/wav/dr_mp3.h (license footer)"
+              ],
+              "excerpt_sha256": "c831d0537fe88d344bf5f51ef5ddf627421598b6bb036c6dca53b738cbfea07f",
+              "bytes": 323
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/audiosource/wav/stb_vorbis.c (license footer)"
+              ],
+              "excerpt_sha256": "10ed5a55912965c9846c947486fc42a537c6e7f92dbabd68bf26963da320e46d",
+              "bytes": 2673
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/backend/miniaudio/miniaudio.h (license footer)"
+              ],
+              "excerpt_sha256": "2ca19125fe0d68a91a1fe137c3125e954c541709da15506aad859e23f2b2f43f",
+              "bytes": 2603
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/core/soloud_fft.cpp"
+              ],
+              "excerpt_sha256": "ae542f132c07fbc0c66c547945e4e52933a22ea09cedb989d264554a35024336",
+              "bytes": 56
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/core/soloud_fft.cpp"
+              ],
+              "excerpt_sha256": "497d7d246ff2dc7cb71c9ce292ee48f38e0e086288571670816ac04326ce7a69",
+              "bytes": 278
+            },
+            {
+              "upstream_paths": [
+                "src/soloud/src/filter/soloud_freeverbfilter.cpp"
+              ],
+              "excerpt_sha256": "53fed57ad73640d6b0a4a1326f65c14ef4c576b40a89c741c49d63c3d94e5052",
+              "bytes": 234
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "component": "Xiph libraries supplied by flutter_soloud 4.0.12",
+      "provenance": "The package build recipe pins these commits. The distributed static libraries are hashed separately; source-to-binary reproducibility has not been demonstrated.",
+      "files": [
+        {
+          "path": "Xiph-ogg-COPYING.txt",
+          "sha256": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814",
+          "bytes": 1466,
+          "source_url": "https://raw.githubusercontent.com/xiph/ogg/db5c7a49ce7ebda47b15b78471e78fb7f2483e22/COPYING",
+          "upstream_revision": "db5c7a49ce7ebda47b15b78471e78fb7f2483e22",
+          "exact_copy": true
+        },
+        {
+          "path": "Xiph-vorbis-COPYING.txt",
+          "sha256": "ec1815db59fcd302846df949d7424876cb2e2dc5ed1606c5fb0b36787b1cf43a",
+          "bytes": 1470,
+          "source_url": "https://raw.githubusercontent.com/xiph/vorbis/84c023699cdf023a32fa4ded32019f194afcdad0/COPYING",
+          "upstream_revision": "84c023699cdf023a32fa4ded32019f194afcdad0",
+          "exact_copy": true
+        },
+        {
+          "path": "Xiph-opus-COPYING.txt",
+          "sha256": "01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551",
+          "bytes": 1945,
+          "source_url": "https://raw.githubusercontent.com/xiph/opus/c79a9bd1dd2898cd57bb793e037d58c937555c2c/COPYING",
+          "upstream_revision": "c79a9bd1dd2898cd57bb793e037d58c937555c2c",
+          "exact_copy": true
+        },
+        {
+          "path": "Xiph-flac-COPYING.Xiph.txt",
+          "sha256": "7866ee98760fc1f0156b4fe6bf530257e02be487ab3fd94e2b63799dd32d6b2c",
+          "bytes": 1509,
+          "source_url": "https://raw.githubusercontent.com/xiph/flac/9547dbc2ddfca06a70ea937dbb605bbe78ea5f90/COPYING.Xiph",
+          "upstream_revision": "9547dbc2ddfca06a70ea937dbb605bbe78ea5f90",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "Local Flutter plugin forks: original authors and licenses",
+      "scope": "These copies preserve upstream rights. NeoStation modifications do not replace upstream authorship or relicense the originals.",
+      "files": [
+        {
+          "path": "gamepads_platform_interface-MIT-LICENSE.txt",
+          "sha256": "1f8ac34f4b40ad238c8461ccc72fc80fef6dfacf5530e70473750b904b687af0",
+          "bytes": 1065,
+          "source_url": "https://pub.dev/api/archives/gamepads_platform_interface-0.1.2+1.tar.gz",
+          "upstream_path": "LICENSE",
+          "exact_copy": true
+        },
+        {
+          "path": "gamepads-MIT-and-Modification-Notice.txt",
+          "sha256": "f73820c095b63eb1f10ba2d6a2a6945308f19f58df06b84f7a13871fa5c59261",
+          "bytes": 1253,
+          "source_url": "https://github.com/TarbleFR/neostation-ios/blob/fab5ecf3b119b4d84636ad4f4d03218a96279871/packages/gamepads/LICENSE",
+          "upstream_path": "packages/gamepads/LICENSE",
+          "exact_copy": true
+        },
+        {
+          "path": "flutter_7zip-LGPL-2.1.txt",
+          "sha256": "814cf1a7e79dc6a3eda3d197fa7ded36c3b733917ed5da1e8cc135eb24f3ac09",
+          "bytes": 26525,
+          "source_url": "https://github.com/wgh136/flutter_7zip/blob/5ecef8aa66e930f50b06bbc89987adc9ddc5332e/LICENSE",
+          "upstream_path": "LICENSE",
+          "exact_copy_of_local_file": true,
+          "upstream_difference": "Local file differs from the compared upstream LICENSE only by a trailing newline."
+        }
+      ]
+    },
+    {
+      "component": "Khronos Vulkan Headers: complete MIT option",
+      "repository": "https://github.com/KhronosGroup/Vulkan-Headers",
+      "revision": "b5c8f996196ba4aa6d8f97e52b5d3b6e70f7e4e2",
+      "license_scope": "Selected headers declare Apache-2.0 OR MIT. The existing Vulkan-Headers-LICENSE.md is an index, not the complete MIT grant.",
+      "files": [
+        {
+          "path": "Vulkan-Headers-MIT.txt",
+          "sha256": "1ca3502222d967f3be5751c55f6b7ee735b5383909c3b501495f54b216dbf227",
+          "bytes": 1084,
+          "source_url": "https://github.com/KhronosGroup/Vulkan-Headers/blob/b5c8f996196ba4aa6d8f97e52b5d3b6e70f7e4e2/LICENSES/MIT.txt",
+          "upstream_path": "LICENSES/MIT.txt",
+          "exact_copy": true
+        },
+        {
+          "path": "Vulkan-Headers-Copyright-Notices.txt",
+          "sha256": "0695fba5d62d885625759ffb0666445cd39b665a5f623de3e2c02c14c9e65f33",
+          "bytes": 216,
+          "assembly": "Verbatim copyright and SPDX lines, deduplicated; no change to the original headers."
+        }
+      ]
+    },
+    {
+      "component": "rcheevos 12.5.0: nested MD5 and tiny-AES notices",
+      "repository": "https://github.com/RetroAchievements/rcheevos",
+      "revision": "1433173220a7eaede6a9ed7a18e94117be1821e0",
+      "existing_root_license": "assets/legal/libretro/rcheevos-LICENSE.txt",
+      "files": [
+        {
+          "path": "rcheevos-MD5-Notices.txt",
+          "sha256": "67250a958d063dace26ba34107a8bd7dc788b1ddd584d982bc48044b2f790da6",
+          "bytes": 1970,
+          "upstream_paths": [
+            "src/rhash/md5.c",
+            "src/rhash/md5.h"
+          ],
+          "exact_comment_excerpts": true
+        },
+        {
+          "path": "tiny-AES-c-Unlicense.txt",
+          "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
+          "bytes": 1211,
+          "source_url": "https://raw.githubusercontent.com/kokke/tiny-AES-c/f06ac37fc31dfdaca2e0d9bec83f90d5663c319b/unlicense.txt",
+          "upstream_revision": "f06ac37fc31dfdaca2e0d9bec83f90d5663c319b",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "libretro public API headers",
+      "repository": "https://github.com/libretro/RetroArch",
+      "revision": "df16ef193cbe385b87e8a1cf27b66da35bf3c0e0",
+      "files": [
+        {
+          "path": "libretro-API-Header-Notices.txt",
+          "sha256": "38d4c12cec96581bf7204b59664e2f8b3c6981d640868f72653dc79193aace3e",
+          "bytes": 2877,
+          "exact_comment_excerpts": true,
+          "upstream_paths": [
+            "libretro-common/include/libretro.h",
+            "libretro-common/include/libretro_vulkan.h"
+          ]
+        }
+      ]
+    },
+    {
+      "component": "Quiver 3.2.2: Apache NOTICE supplement",
+      "source_url": "https://pub.dev/api/archives/quiver-3.2.2.tar.gz",
+      "scope": "NOTICE is singular and is not one of the default root filenames read by Flutter LicenseCollector.",
+      "files": [
+        {
+          "path": "quiver-NOTICE.txt",
+          "sha256": "62fc4482b330e1b29a2f095d75202962f1b03e96e88eb766427c638b0f884b5b",
+          "bytes": 573,
+          "upstream_path": "NOTICE",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "Anta Regular font",
+      "repository": "https://github.com/Typedesigners/Anta-Regular",
+      "source_revision": "7ef14d1901946d317cb3bc136a895ff6c74c246c",
+      "license": "OFL-1.1",
+      "copyright": "Copyright 2019 The Anta Project Authors",
+      "designer": "Sergej Lebedev",
+      "scope": "The app requests Anta through google_fonts 8.1.0; the pinned network font was verified. No font binary is added by this audit.",
+      "files": [
+        {
+          "path": "Anta-OFL-1.1.txt",
+          "sha256": "b9ced72fbc4812b7dd2a67fe4df3ecbc0a75a7f43c0ffc4f0873a198d8b8431d",
+          "bytes": 4392,
+          "source_url": "https://raw.githubusercontent.com/google/fonts/d4c32fb590ca920dcaa125b98bda1f6a40cb6960/ofl/anta/OFL.txt",
+          "upstream_path": "ofl/anta/OFL.txt",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "SQLite 3.53.3 public-domain dedication",
+      "source_url": "https://sqlite.org/2026/sqlite-amalgamation-3530300.zip",
+      "archive_sha256": "646421e12aac110282ef8cc68f1a62d4bb15fc7b8f09da0b53e29ee690500431",
+      "files": [
+        {
+          "path": "SQLite-Public-Domain.txt",
+          "sha256": "85806d613cfda5901f848b3b5b4b04396c8c64e89c97c0af3706c42b0c44bb47",
+          "bytes": 1485,
+          "upstream_path": "sqlite-amalgamation-3530300/sqlite3.h",
+          "exact_comment_excerpt": true
+        }
+      ]
+    }
+  ]
+}

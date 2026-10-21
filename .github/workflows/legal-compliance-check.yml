@@ -22,6 +22,13 @@ on:
       - 'lib/widgets/setup_wizard.dart'
       - 'build-utils/embed_legal_bundle.py'
       - 'build-utils/validate_legal_bundle_ipa.py'
+      - 'build-utils/collect_build_source_evidence.py'
+      - 'build-utils/fetch_locked_package_sources.py'
+      - 'docs/SOURCE_CODE_ACCESS.md'
+      - 'docs/PACKAGE_SOURCES_AND_LICENSES.md'
+      - 'docs/ENGINE_CORRESPONDING_SOURCES.md'
+      - 'docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md'
+      - 'docs/evidence/*source*license*audit*.json'
       - 'build-utils/libretro/cores.json'
       - 'build-utils/*/source.json'
       - 'build-utils/rpcs3/canonical-source.json'
@@ -92,6 +99,8 @@ jobs:
           set -euo pipefail
           python3 -m py_compile             build-utils/embed_legal_bundle.py             build-utils/validate_legal_bundle_ipa.py
           python3 test/legal_bundle_preflight_test.py
+          python3 test/build_source_evidence_test.py
+          python3 test/locked_package_sources_test.py
           python3 tools/system_art/canvas_es_de.py --check
 
           python3 - <<'PY'
@@ -146,7 +155,8 @@ jobs:
         run: |
           set -euo pipefail
           APP="$RUNNER_TEMP/legal-test/Payload/Runner.app"
-          mkdir -p "$APP"
+          mkdir -p "$APP/Frameworks/App.framework/flutter_assets"
+          printf '%s\n' 'Synthetic Flutter notice fixture; no application build.' > "$APP/Frameworks/App.framework/flutter_assets/NOTICES.txt"
 
           GITHUB_SHA="$TEST_SHA" python3 build-utils/embed_legal_bundle.py             --app "$APP"             --build-number 350             --dolphin-sha 7cac54161659421ed95c2cd1c0b0746539a4cd38
 

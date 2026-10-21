@@ -11,7 +11,11 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
+
+sys.dont_write_bytecode = True
+from collect_build_source_evidence import collect as collect_source_evidence
 
 ROOT = Path(__file__).resolve().parents[1]
 LEGAL_ASSETS = ROOT / "assets" / "legal"
@@ -42,6 +46,8 @@ SHADER_COMPILERS_TAG = "vulkan-sdk-1.4.350.1"
 ADDITIONAL_NOTICE_COLLECTIONS = (
     ("textures", "Textures"),
     ("ppsspp", "PPSSPP"),
+    ("packages", "Packages"),
+    ("engines", "Engines"),
 )
 CATALOG_CREDIT_DOCUMENTS = (
     "CHEAT_CATALOG_SOURCES.md",
@@ -219,9 +225,13 @@ def main() -> None:
             raise SystemExit(f"Legal notice {name} does not match the vendored {folder}")
 
     if args.validate_only:
+        collect_source_evidence(ROOT, os.environ.get("GITHUB_SHA", ""))
         print("Validated all required notices and pinned revisions before compilation")
         return
 
+    source_files, source_evidence = collect_source_evidence(
+        ROOT, os.environ.get("GITHUB_SHA", ""), app
+    )
     destination = app / "Legal"
     if destination.exists():
         shutil.rmtree(destination)
@@ -244,11 +254,21 @@ def main() -> None:
     for name, (source, _) in additional_notices.items():
         copy_file(source, destination / name)
 
+    for name, data in source_files.items():
+        target = destination / "Sources" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+
     identity = {
         "schema": 1,
         "build_number": str(args.build_number),
         "host_commit": os.environ.get("GITHUB_SHA", ""),
         "source_repository": "https://github.com/TarbleFR/neostation-ios",
+        "build_source_evidence_sha256": hashlib.sha256(
+            source_files["BUILD_SOURCE_EVIDENCE.json"]
+        ).hexdigest(),
+        "corresponding_source_status": "reviewed references; unresolved components remain",
+        "cocoapods_resolution_status": source_evidence["cocoapods"]["status"],
         "additional_notice_sha256": {
             name: digest for name, (_, digest) in additional_notices.items()
         },

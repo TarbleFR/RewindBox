@@ -45,6 +45,9 @@ and adds these source-controlled collections:
 | --- | --- |
 | `Legal/Textures/` | Reader and catalogue-metadata notices plus their source/hash manifest |
 | `Legal/PPSSPP/` | Collected notices and configuration evidence for the rebuilt PSP integration |
+| `Legal/Packages/` | Supplementary native package and asset notices, with exact source/hash records |
+| `Legal/Engines/` | Additional notices recovered from identified engine dependency revisions; unresolved binary provenance remains explicit |
+| `Legal/Sources/` | Source inventories, immutable host references and the dependency resolution captured during future packaging |
 | `Legal/Cheats/` | The nine preserved supplementary notices, attribution README and original provenance record from the 18 October review |
 | `Legal/Catalogs/` | Complete cheat and overlay source registers, HD pack register and creator supplement |
 | `Legal/Libretro/` | Existing full core notice collection, including Mesen |
@@ -102,7 +105,7 @@ unfinished JIT, ownership, dependency loading, import and NeoSwap work.
 
 ### PPSSPP's FFmpeg configuration
 
-The rebuilt PPSSPP core pins FFmpeg to
+The rebuilt PPSSPP core pins the `libretro-fork/ppsspp-ffmpeg` source to
 `6c64b8f98ad0ca38f5360484618e2af6e44fcb3d`. Its actual CMake source selection
 and configuration evidence are recorded with the notices. The configuration
 disables `CONFIG_GPL`, `CONFIG_NONFREE` and `CONFIG_VERSION3`, but its
@@ -111,6 +114,34 @@ license must be determined from the actual compiled files and configuration;
 the label is not silently rewritten to LGPL-only. The LGPL/GPL texts and
 original notices are retained, including the Independent JPEG Group
 acknowledgment. Collecting them does not settle all source/relinking obligations.
+
+The [continued PPSSPP audit](PPSSPP_SOURCE_AND_LICENSE_AUDIT.md) also uses the
+original Build 497 compile/link log, identifies the exact parent and nested
+submodule sources, and records an independently reproducible source capsule.
+Additional notices include the compiled Adler-32 and `faandct` implementation
+headers. The capsule's dated modification notices are a source-delivery
+supplement; they do not rewrite the historical binary or its build receipt.
+
+### Continued package and source review
+
+The [source access guide](SOURCE_CODE_ACCESS.md) links the complete inventories
+for packages, engines and host changes. All **157 hosted package archives**
+were retrieved at their locked SHA-256 values. Their root license texts were
+already present in Flutter/CocoaPods notices in public 0.0.8; the new package
+collection supplements missing native and asset notices rather than claiming
+those existing notices were absent. A source retrieval tool downloads or
+reuses the exact compressed archives without running dependency code.
+
+Future packaging retains the actual CocoaPods locks, resolved local podspecs
+and original acknowledgements when a build sandbox is present, along with
+the Flutter package lock, source inventories and available SDK identity.
+The preflight rejects stale dependency declarations and mismatching CocoaPods
+locks. A built app must retain a recognized nonempty Flutter notice file,
+and archive validation rejects a missing or empty notice record as well.
+This records a future build's resolution; it does not retroactively
+establish the source of a historical prebuilt library. The engine inventory
+also separates reachable candidate revisions from confirmed source-build
+correspondence.
 
 ### Existing source and license boundaries
 
@@ -132,8 +163,10 @@ claimed by this preparation.
 
 ## Validation record
 
-Targeted packaging results and the exact changed-file/notice identities are
-recorded in [the preparation receipt](evidence/release-next-license-preparation-2026-10-21.json).
+The first preparation's targeted packaging results and notice identities
+remain in [its historical receipt](evidence/release-next-license-preparation-2026-10-21.json).
+The deeper package/source review and its targeted verification are recorded
+separately in [the continuation receipt](evidence/release-next-source-continuation-2026-10-21.json).
 The release and catalogue counts are checked against the current source files.
 Unchanged Flutter, emulator, JIT, PSP gameplay and catalogue-installer suites
 are not rerun. No new physical-device result is claimed.

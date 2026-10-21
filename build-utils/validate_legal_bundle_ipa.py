@@ -6,13 +6,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 import zipfile
 from pathlib import Path
+
+sys.dont_write_bytecode = True
+from collect_build_source_evidence import validate_archive as validate_source_archive
 
 from embed_legal_bundle import (
     REQUIRED_LEGAL_FILES,
     validate_additional_notices,
     validate_libretro_notices,
+    ROOT,
 )
 
 REQUIRED = (
@@ -84,6 +89,13 @@ def main() -> None:
             name: digest for name, (_, digest) in additional.items()
         }:
             raise SystemExit("Additional notice identity differs from packaged sources")
+
+        validate_source_archive(archive, names, prefix, args.commit, ROOT)
+        source_manifest = archive.read(prefix + "Sources/BUILD_SOURCE_EVIDENCE.json")
+        if hashlib.sha256(source_manifest).hexdigest() != identity.get("build_source_evidence_sha256"):
+            raise SystemExit("Build source evidence differs from the legal identity")
+        if json.loads(source_manifest)["cocoapods"]["status"] != identity.get("cocoapods_resolution_status"):
+            raise SystemExit("CocoaPods source status differs from the legal identity")
 
         notice = archive.read(prefix + "NeoStation-NOTICE.md").decode("utf-8")
         if "UPSTREAM NEOSTATION ATTRIBUTION" not in notice:

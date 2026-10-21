@@ -36,6 +36,15 @@ These changes do not attest that the additions are present in an already
 delivered IPA. The preparation record is:
 https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/RELEASE_NEXT_LICENSE_REVIEW.md
 
+Exact package archive sources, local modifications and engine source records:
+https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/SOURCE_CODE_ACCESS.md
+The continued review adds native package notices under `Legal/Packages/`,
+identified engine dependency notices under `Legal/Engines/` and source/build
+resolution evidence under `Legal/Sources/`. The existing
+Flutter notice collection and CocoaPods acknowledgements are retained. A
+Dart wrapper's license does not replace the licenses or terms of its native
+dependencies; the package-specific inventory preserves that distinction.
+
 
 ## Remote System Art
 

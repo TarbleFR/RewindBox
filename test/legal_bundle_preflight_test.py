@@ -23,6 +23,8 @@ class LegalBundlePreflightTests(unittest.TestCase):
         for name in (
             "build-utils/embed_legal_bundle.py",
             "build-utils/validate_legal_bundle_ipa.py",
+            "build-utils/collect_build_source_evidence.py",
+            "pubspec.yaml", "pubspec.lock",
             "build-utils/libretro/cores.json",
             "packages/neo_shader_kit/ios/ThirdParty/glslang/SOURCE.txt",
             "packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/SOURCE.txt",
@@ -33,9 +35,28 @@ class LegalBundlePreflightTests(unittest.TestCase):
             "docs/OVERLAY_SOURCES_AND_CREDITS.md",
             "docs/HD_TEXTURE_CATALOG_SOURCES.md",
             "docs/HD_TEXTURE_SOURCES_AND_CREDITS.md",
+            "docs/SOURCE_CODE_ACCESS.md",
+            "docs/PACKAGE_SOURCES_AND_LICENSES.md",
+            "docs/ENGINE_CORRESPONDING_SOURCES.md",
+            "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md",
+            "docs/evidence/package-sources-license-audit-2026-10-21.json",
+            "docs/evidence/engine-source-license-audit-2026-10-21.json",
+            "docs/evidence/ppsspp-source-license-audit-2026-10-21.json",
+            "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json",
             "packages/neo_texture_catalog/ios/Resources/libarchive-LICENSE.txt",
             "packages/neo_texture_catalog/ios/Resources/ps2ktxpak-LICENSE.txt",
         ):
+            target = self.root / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(ROOT / name, target)
+        package_audit = json.loads((ROOT / "docs/evidence/package-sources-license-audit-2026-10-21.json").read_text())
+        originals = set(package_audit["source_declaration_sha256"])
+        for manifest in (ROOT / "assets/legal").glob("*/license-sources.json"):
+            for component in json.loads(manifest.read_text()).get("components", []):
+                for entry in component.get("files", []):
+                    if entry.get("copied_from"):
+                        originals.add(entry["copied_from"])
+        for name in originals:
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, target)
@@ -46,6 +67,13 @@ class LegalBundlePreflightTests(unittest.TestCase):
              "--dolphin-sha", DOLPHIN, *args],
             capture_output=True, text=True, timeout=15,
         )
+
+    def make_app(self, name):
+        app = self.root / name
+        notices = app / "Frameworks/App.framework/flutter_assets/NOTICES.txt"
+        notices.parent.mkdir(parents=True)
+        notices.write_text("Synthetic Flutter notice fixture; no application build.\n")
+        return app
 
     def test_preflight_needs_no_app_and_writes_nothing(self):
         before = {str(p.relative_to(self.root)): p.read_bytes()
@@ -73,8 +101,7 @@ class LegalBundlePreflightTests(unittest.TestCase):
         self.assertFalse((self.root / "Legal").exists())
 
     def test_embedding_preserves_notice_and_records_current_sources(self):
-        app = self.root / "Runner.app"
-        app.mkdir()
+        app = self.make_app("Runner.app")
         stale = self.root / "dist/dusklight/licenses/aurora-LICENSE"
         stale.parent.mkdir(parents=True)
         stale.write_text("MIT")
@@ -99,7 +126,7 @@ class LegalBundlePreflightTests(unittest.TestCase):
             (app / "Legal/Textures/libarchive-LICENSE.txt").read_bytes(),
             (self.root / "packages/neo_texture_catalog/ios/Resources/libarchive-LICENSE.txt").read_bytes(),
         )
-        for folder, target in (("textures", "Textures"), ("ppsspp", "PPSSPP")):
+        for folder, target in (("textures", "Textures"), ("ppsspp", "PPSSPP"), ("packages", "Packages"), ("engines", "Engines")):
             manifest = json.loads((self.root / "assets/legal" / folder / "license-sources.json").read_text())
             for component in manifest["components"]:
                 for entry in component["files"]:
@@ -107,6 +134,9 @@ class LegalBundlePreflightTests(unittest.TestCase):
                         (app / "Legal" / target / entry["path"]).read_bytes(),
                         (self.root / "assets/legal" / folder / entry["path"]).read_bytes(),
                     )
+        self.assertEqual((app / "Legal/Sources/Build/pubspec.lock").read_bytes(), (self.root / "pubspec.lock").read_bytes())
+        source_identity = json.loads((app / "Legal/Sources/BUILD_SOURCE_EVIDENCE.json").read_text())
+        self.assertFalse(source_identity["complete_corresponding_source_attested"])
 
     def test_missing_and_changed_core_licenses_are_rejected(self):
         notice = self.root / "assets/legal/libretro/snes9x-LICENSE"
@@ -157,8 +187,7 @@ class LegalBundlePreflightTests(unittest.TestCase):
         self.assertIn("Stale copied notice", result.stderr)
 
     def test_ipa_validation_catches_lost_or_changed_notices(self):
-        app = self.root / "Payload/Runner.app"
-        app.mkdir(parents=True)
+        app = self.make_app("Payload/Runner.app")
         result = self.run_packager("--app", str(app), "--build-number", "455")
         self.assertEqual(result.returncode, 0, result.stderr)
         original = {str(p.relative_to(self.root)): p.read_bytes()
@@ -174,6 +203,8 @@ class LegalBundlePreflightTests(unittest.TestCase):
             ("Textures/ps2ktxpak-MIT.txt", b"incorrect license"),
             ("Cheats/Admentus-Enhancement-Codes-Credits.txt", b"missing author"),
             ("Catalogs/HD_TEXTURE_SOURCES_AND_CREDITS.md", None),
+            ("Sources/Build/pubspec.lock", b"packages: {changed: 1}"),
+            ("Sources/SOURCE_CODE_ACCESS.md", None),
         ):
             with self.subTest(name=name, replacement=replacement):
                 files = dict(original)

@@ -45,6 +45,8 @@ The [English announcement draft](docs/RELEASE_NEXT.md) covers the changes since
 3D game boxes and manuals, PS2 blending settings, and PSP/RPCS3 improvements.
 The [license preparation record](docs/RELEASE_NEXT_LICENSE_REVIEW.md) identifies
 the added notices, preserved source references and remaining questions.
+The [source access guide](docs/SOURCE_CODE_ACCESS.md) links the exact package
+archives, local modifications, engine sources and build dependency records.
 No new version, release asset or playable Switch integration is announced here.
 
 ## Unified cheats and patches

@@ -1,0 +1,38 @@
+NeoStation modifications to PPSSPP Build 497
+
+Upstream source: hrydgard/ppsspp
+Revision: 1bd28b0d634d4ec31acb7092563f3e1e247d1e9c
+Functional modification date: 2026-10-20
+NeoStation source commit: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
+
+The exact functional patch is native/ppsspp/managed-memory.patch:
+c273728f2a30ed8d3cddcc83e2731db5877d15f71030632c09dbf8967f40cb75 (SHA-256).
+
+Common/MemArenaDarwin.cpp: add a versioned host/core callback contract for
+owning the Darwin backing arena and memory views; retain host ownership
+through mapping/unmapping and cleanup, including failure paths.
+Core/MemMap.cpp: release the arena and clear the base after a failed setup.
+libretro/Makefile.common: include Adreno driver objects only for Android
+arm64, not for the iOS arm64 build.
+Common/NeoStationPSPMemory.h: exact additional C ABI header copied from the
+NeoStation host. SHA-256:
+98fa6a6e0472dd71d1c114bcef98caf007128585ec07ea8f1e3979bacd568aaf.
+
+The pinned FFmpeg files, dependency submodules and their license notices
+are not modified by this patch. This statement is specific to NeoStation's
+functional patch; it does not erase modifications made by the upstream forks.
+
+Source-distribution annotation overlay
+--------------------------------------
+SOURCE-MODIFICATION-NOTICES.patch adds dated, prominent comments to the four
+modified/added files after the exact functional patch and header copy.
+It preserves all original notices. This comment-only overlay was prepared
+on 2026-10-21 for source distribution. It is not part of the historical
+Build 497 compiler input and is not applied by the product build recipe.
+Use the before/after hashes in the source audit to distinguish that annotated
+source distribution from the exact historical compiler inputs. No existing
+binary, source pin or functional patch has been changed by this preparation.
+
+The changes and dates are retained to support the source-distribution notice
+requirements; a source archive, appropriate license terms and the complete
+build inputs must still accompany any future distribution as applicable.
