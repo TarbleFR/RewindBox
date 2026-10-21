@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 /// Texts of the PS3 RAP licence import (library Import menu, replace prompt
-/// and per-file report) in NeoStation's twelve languages. File names,
+/// and per-file report) in RewindBox's twelve languages. File names,
 /// content IDs, paths and raw system diagnostics stay untranslated and are
 /// shown apart from these texts.
 abstract final class Rpcs3RapLocale {
@@ -32,8 +32,8 @@ abstract final class Rpcs3RapLocale {
       'rapReasonConflictKept':
           'A different license is already installed for this content ID. It was kept.',
       'rapReasonStorageRedirected':
-          'RPCS3 storage (dev_hdd0) is redirected by Data/vfs.yml. NeoStation installs licenses only in its own RPCS3 folder.',
-      'rapReasonWriteFailed': 'NeoStation could not save this license.',
+          'RPCS3 storage (dev_hdd0) is redirected by Data/vfs.yml. RewindBox installs licenses only in its own RPCS3 folder.',
+      'rapReasonWriteFailed': 'RewindBox could not save this license.',
       'rapReplaceTitle': 'Replace installed licenses?',
       'rapReplaceBody':
           'Selected licenses that differ from the license installed for the same content ID: {count}. The previous files are kept as a backup.',
@@ -68,8 +68,8 @@ abstract final class Rpcs3RapLocale {
       'rapReasonConflictKept':
           'Ya hay instalada una licencia distinta para este ID de contenido. Se ha conservado.',
       'rapReasonStorageRedirected':
-          'El almacenamiento de RPCS3 (dev_hdd0) está redirigido por Data/vfs.yml. NeoStation solo instala licencias en su propia carpeta de RPCS3.',
-      'rapReasonWriteFailed': 'NeoStation no pudo guardar esta licencia.',
+          'El almacenamiento de RPCS3 (dev_hdd0) está redirigido por Data/vfs.yml. RewindBox solo instala licencias en su propia carpeta de RPCS3.',
+      'rapReasonWriteFailed': 'RewindBox no pudo guardar esta licencia.',
       'rapReplaceTitle': '¿Reemplazar las licencias instaladas?',
       'rapReplaceBody':
           'Licencias seleccionadas distintas de la instalada para el mismo ID de contenido: {count}. Los archivos anteriores se conservan como copia de seguridad.',
@@ -103,8 +103,8 @@ abstract final class Rpcs3RapLocale {
       'rapReasonConflictKept':
           'Для этого идентификатора контента уже установлена другая лицензия. Она сохранена.',
       'rapReasonStorageRedirected':
-          'Хранилище RPCS3 (dev_hdd0) перенаправлено файлом Data/vfs.yml. NeoStation устанавливает лицензии только в собственную папку RPCS3.',
-      'rapReasonWriteFailed': 'NeoStation не удалось сохранить эту лицензию.',
+          'Хранилище RPCS3 (dev_hdd0) перенаправлено файлом Data/vfs.yml. RewindBox устанавливает лицензии только в собственную папку RPCS3.',
+      'rapReasonWriteFailed': 'RewindBox не удалось сохранить эту лицензию.',
       'rapReplaceTitle': 'Заменить установленные лицензии?',
       'rapReplaceBody':
           'Выбранные лицензии, отличающиеся от установленной для того же идентификатора контента: {count}. Прежние файлы сохраняются как резервные копии.',
@@ -134,8 +134,8 @@ abstract final class Rpcs3RapLocale {
       'rapReasonSelectionConflict': '另一个所选文件的内容 ID 相同但内容不同。仅使用了第一个文件。',
       'rapReasonConflictKept': '此内容 ID 已安装了不同的许可证，已保留原许可证。',
       'rapReasonStorageRedirected':
-          'RPCS3 存储（dev_hdd0）已被 Data/vfs.yml 重定向。NeoStation 只会将许可证安装到其自己的 RPCS3 文件夹中。',
-      'rapReasonWriteFailed': 'NeoStation 无法保存此许可证。',
+          'RPCS3 存储（dev_hdd0）已被 Data/vfs.yml 重定向。RewindBox 只会将许可证安装到其自己的 RPCS3 文件夹中。',
+      'rapReasonWriteFailed': 'RewindBox 无法保存此许可证。',
       'rapReplaceTitle': '替换已安装的许可证？',
       'rapReplaceBody': '与同一内容 ID 已安装许可证不同的所选许可证：{count} 个。原文件将作为备份保留。',
       'rapReplace': '替换',
@@ -164,8 +164,8 @@ abstract final class Rpcs3RapLocale {
       'rapReasonSelectionConflict': '另一個所選檔案的內容 ID 相同但內容不同。僅使用了第一個檔案。',
       'rapReasonConflictKept': '此內容 ID 已安裝不同的授權檔，已保留原授權檔。',
       'rapReasonStorageRedirected':
-          'RPCS3 儲存空間（dev_hdd0）已被 Data/vfs.yml 重新導向。NeoStation 只會將授權檔安裝到自己的 RPCS3 資料夾。',
-      'rapReasonWriteFailed': 'NeoStation 無法儲存此授權檔。',
+          'RPCS3 儲存空間（dev_hdd0）已被 Data/vfs.yml 重新導向。RewindBox 只會將授權檔安裝到自己的 RPCS3 資料夾。',
+      'rapReasonWriteFailed': 'RewindBox 無法儲存此授權檔。',
       'rapReplaceTitle': '要取代已安裝的授權檔嗎？',
       'rapReplaceBody': '與同一內容 ID 已安裝授權檔不同的所選授權檔：{count} 個。原檔案將保留為備份。',
       'rapReplace': '取代',
@@ -199,9 +199,9 @@ abstract final class Rpcs3RapLocale {
       'rapReasonConflictKept':
           'Já está instalada uma licença diferente para este ID de conteúdo. Foi mantida.',
       'rapReasonStorageRedirected':
-          'O armazenamento do RPCS3 (dev_hdd0) está redirecionado por Data/vfs.yml. O NeoStation só instala licenças na sua própria pasta RPCS3.',
+          'O armazenamento do RPCS3 (dev_hdd0) está redirecionado por Data/vfs.yml. O RewindBox só instala licenças na sua própria pasta RPCS3.',
       'rapReasonWriteFailed':
-          'O NeoStation não conseguiu guardar esta licença.',
+          'O RewindBox não conseguiu guardar esta licença.',
       'rapReplaceTitle': 'Substituir as licenças instaladas?',
       'rapReplaceBody':
           'Licenças selecionadas diferentes da instalada para o mesmo ID de conteúdo: {count}. Os ficheiros anteriores são guardados como cópia de segurança.',
@@ -235,9 +235,9 @@ abstract final class Rpcs3RapLocale {
       'rapReasonConflictKept':
           'Une licence différente est déjà installée pour cet identifiant de contenu. Elle a été conservée.',
       'rapReasonStorageRedirected':
-          'Le stockage RPCS3 (dev_hdd0) est redirigé par Data/vfs.yml. NeoStation installe les licences uniquement dans son propre dossier RPCS3.',
+          'Le stockage RPCS3 (dev_hdd0) est redirigé par Data/vfs.yml. RewindBox installe les licences uniquement dans son propre dossier RPCS3.',
       'rapReasonWriteFailed':
-          'NeoStation n’a pas pu enregistrer cette licence.',
+          'RewindBox n’a pas pu enregistrer cette licence.',
       'rapReplaceTitle': 'Remplacer les licences installées ?',
       'rapReplaceBody':
           'Licences sélectionnées différentes de la licence installée pour le même identifiant de contenu : {count}. Les anciens fichiers sont conservés en sauvegarde.',
@@ -271,8 +271,8 @@ abstract final class Rpcs3RapLocale {
       'rapReasonConflictKept':
           'Für diese Content-ID ist bereits eine andere Lizenz installiert. Sie wurde beibehalten.',
       'rapReasonStorageRedirected':
-          'Der RPCS3-Speicher (dev_hdd0) wird durch Data/vfs.yml umgeleitet. NeoStation installiert Lizenzen nur in seinem eigenen RPCS3-Ordner.',
-      'rapReasonWriteFailed': 'NeoStation konnte diese Lizenz nicht speichern.',
+          'Der RPCS3-Speicher (dev_hdd0) wird durch Data/vfs.yml umgeleitet. RewindBox installiert Lizenzen nur in seinem eigenen RPCS3-Ordner.',
+      'rapReasonWriteFailed': 'RewindBox konnte diese Lizenz nicht speichern.',
       'rapReplaceTitle': 'Installierte Lizenzen ersetzen?',
       'rapReplaceBody':
           'Ausgewählte Lizenzen, die sich von der installierten Lizenz mit derselben Content-ID unterscheiden: {count}. Die bisherigen Dateien werden als Sicherung aufbewahrt.',
@@ -306,9 +306,9 @@ abstract final class Rpcs3RapLocale {
       'rapReasonConflictKept':
           'Per questo ID contenuto è già installata una licenza diversa. È stata mantenuta.',
       'rapReasonStorageRedirected':
-          'L’archivio di RPCS3 (dev_hdd0) è reindirizzato da Data/vfs.yml. NeoStation installa le licenze solo nella propria cartella RPCS3.',
+          'L’archivio di RPCS3 (dev_hdd0) è reindirizzato da Data/vfs.yml. RewindBox installa le licenze solo nella propria cartella RPCS3.',
       'rapReasonWriteFailed':
-          'NeoStation non è riuscito a salvare questa licenza.',
+          'RewindBox non è riuscito a salvare questa licenza.',
       'rapReplaceTitle': 'Sostituire le licenze installate?',
       'rapReplaceBody':
           'Licenze selezionate diverse da quella installata per lo stesso ID contenuto: {count}. I file precedenti vengono conservati come backup.',
@@ -342,8 +342,8 @@ abstract final class Rpcs3RapLocale {
       'rapReasonConflictKept':
           'Lisensi lain sudah terpasang untuk ID konten ini. Lisensi tersebut dipertahankan.',
       'rapReasonStorageRedirected':
-          'Penyimpanan RPCS3 (dev_hdd0) dialihkan oleh Data/vfs.yml. NeoStation hanya memasang lisensi di folder RPCS3 miliknya sendiri.',
-      'rapReasonWriteFailed': 'NeoStation tidak dapat menyimpan lisensi ini.',
+          'Penyimpanan RPCS3 (dev_hdd0) dialihkan oleh Data/vfs.yml. RewindBox hanya memasang lisensi di folder RPCS3 miliknya sendiri.',
+      'rapReasonWriteFailed': 'RewindBox tidak dapat menyimpan lisensi ini.',
       'rapReplaceTitle': 'Ganti lisensi yang terpasang?',
       'rapReplaceBody':
           'Lisensi terpilih yang berbeda dari lisensi terpasang untuk ID konten yang sama: {count}. File sebelumnya disimpan sebagai cadangan.',
@@ -376,8 +376,8 @@ abstract final class Rpcs3RapLocale {
       'rapReasonConflictKept':
           'このコンテンツ ID には別のライセンスが既にインストールされています。そのライセンスを保持しました。',
       'rapReasonStorageRedirected':
-          'RPCS3 のストレージ（dev_hdd0）が Data/vfs.yml によってリダイレクトされています。NeoStation は自身の RPCS3 フォルダにのみライセンスをインストールします。',
-      'rapReasonWriteFailed': 'NeoStation はこのライセンスを保存できませんでした。',
+          'RPCS3 のストレージ（dev_hdd0）が Data/vfs.yml によってリダイレクトされています。RewindBox は自身の RPCS3 フォルダにのみライセンスをインストールします。',
+      'rapReasonWriteFailed': 'RewindBox はこのライセンスを保存できませんでした。',
       'rapReplaceTitle': 'インストール済みのライセンスを置き換えますか？',
       'rapReplaceBody':
           '同じコンテンツ ID のインストール済みライセンスと異なる選択ライセンス: {count} 件。以前のファイルはバックアップとして保持されます。',
@@ -409,8 +409,8 @@ abstract final class Rpcs3RapLocale {
       'rapReasonConflictKept':
           '이 콘텐츠 ID에 다른 라이선스가 이미 설치되어 있습니다. 기존 라이선스를 유지했습니다.',
       'rapReasonStorageRedirected':
-          'RPCS3 저장소(dev_hdd0)가 Data/vfs.yml에 의해 다른 위치로 지정되어 있습니다. NeoStation은 자체 RPCS3 폴더에만 라이선스를 설치합니다.',
-      'rapReasonWriteFailed': 'NeoStation이 이 라이선스를 저장하지 못했습니다.',
+          'RPCS3 저장소(dev_hdd0)가 Data/vfs.yml에 의해 다른 위치로 지정되어 있습니다. RewindBox은 자체 RPCS3 폴더에만 라이선스를 설치합니다.',
+      'rapReasonWriteFailed': 'RewindBox이 이 라이선스를 저장하지 못했습니다.',
       'rapReplaceTitle': '설치된 라이선스를 교체할까요?',
       'rapReplaceBody':
           '같은 콘텐츠 ID로 설치된 라이선스와 다른 선택 라이선스: {count}개. 이전 파일은 백업으로 보관됩니다.',

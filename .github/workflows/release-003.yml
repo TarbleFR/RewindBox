@@ -1,4 +1,4 @@
-name: Package NeoStation 0.0.3 from verified Build 427
+name: Package RewindBox 0.0.3 from verified Build 427
 on:
   workflow_dispatch:
 permissions:

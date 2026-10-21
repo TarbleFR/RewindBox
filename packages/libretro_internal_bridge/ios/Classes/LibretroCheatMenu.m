@@ -302,7 +302,7 @@ static NSString *GameKey(NSDictionary *game) {
   NSMutableDictionary *record = [selected mutableCopy];
   record[@"code"] = [codes componentsJoinedByString:@"+"];
   record[@"handler"] = @0; record[@"enabled"] = @NO; record[@"selected"] = @NO;
-  record[@"source"] = @"NeoStation Unified"; record[@"provenance"] = provenance;
+  record[@"source"] = @"RewindBox Unified"; record[@"provenance"] = provenance;
   record[@"game"] = String(game[@"title"]); record[@"unifiedGameID"] = String(game[@"id"]);
   record[@"gameRevision"] = String(game[@"revision"]); record[@"regions"] = game[@"regions"] ?: @[];
   record[@"languages"] = game[@"languages"] ?: @[];

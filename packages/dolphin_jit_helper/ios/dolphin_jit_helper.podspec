@@ -1,12 +1,12 @@
 Pod::Spec.new do |s|
   s.name             = 'dolphin_jit_helper'
   s.version          = '0.1.0'
-  s.summary          = 'Out-of-process StikJIT legacy helper for NeoStation Dolphin.'
+  s.summary          = 'Out-of-process StikJIT legacy helper for RewindBox Dolphin.'
   s.description      = <<-DESC
 App-extension implementation used only by NeoStation's embedded GameCube/Wii
 engine. It attaches StikJIT 1.9.0 to the NeoStation host PID with legacy.js.
                        DESC
-  s.homepage         = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }

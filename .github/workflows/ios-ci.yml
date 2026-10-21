@@ -669,7 +669,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import json, os, shutil, subprocess
-          endpoint='repos/TarbleFR/neostation-ios/actions/runs/'+os.environ['ARMSX2_CORE_RUN_ID']
+          endpoint='repos/TarbleFR/RewindBox/actions/runs/'+os.environ['ARMSX2_CORE_RUN_ID']
           result=json.loads(subprocess.check_output(['gh','api',endpoint]))
           assert result['head_sha'] == os.environ['ARMSX2_CORE_HOST_SHA'], result
           assert result['path'] == '.github/workflows/armsx2-core.yml', result
@@ -963,7 +963,7 @@ jobs:
           for workflow in ('dolphin-pacing-check.yml','dolphin-motion-check.yml','cheats-media-check.yml'):
               deadline=time.monotonic()+1800
               while True:
-                  endpoint='repos/TarbleFR/neostation-ios/actions/workflows/'+workflow+'/runs?head_sha='+os.environ['GITHUB_SHA']+'&per_page=10'
+                  endpoint='repos/TarbleFR/RewindBox/actions/workflows/'+workflow+'/runs?head_sha='+os.environ['GITHUB_SHA']+'&per_page=10'
                   rows=json.loads(subprocess.check_output(['gh','api',endpoint]))['workflow_runs']
                   rows=[r for r in rows if r['head_sha']==os.environ['GITHUB_SHA']]
                   if rows and rows[0]['status']=='completed':
@@ -1094,7 +1094,7 @@ jobs:
 
           cat > "$RUNNER_TEMP/release-notes-0.0.2.md" <<'RELEASE_NOTES'
           <p align="center">
-            <img src="https://raw.githubusercontent.com/TarbleFR/neostation-ios/f4583c6a3083b8aed358da28b2f8f849256e0e8b/assets/images/fork-icon-valid.jpg" width="180" alt="NeoStation iOS logo">
+            <img src="https://raw.githubusercontent.com/TarbleFR/RewindBox/f4583c6a3083b8aed358da28b2f8f849256e0e8b/assets/images/fork-icon-valid.jpg" width="180" alt="NeoStation iOS logo">
           </p>
 
           <h1 align="center">🎮 NeoStation iOS — 0.0.2</h1>

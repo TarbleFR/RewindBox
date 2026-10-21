@@ -351,7 +351,7 @@ class KartPadInternalService {
       final game = File(gamePath);
       final gameBytes = await game.exists() ? await game.length() : -1;
       return <String>[
-        'NeoStation KartPad preflight:',
+        'RewindBox KartPad preflight:',
         'game=${path.basename(gamePath)} bytes=$gameBytes',
         'supportRoot=${root.path}',
         'preparedGameData=${await preparedRoot.exists()}',
@@ -360,7 +360,7 @@ class KartPadInternalService {
         ...preparedState,
       ].join('\n');
     } catch (error) {
-      return 'NeoStation KartPad preflight failed: $error';
+      return 'RewindBox KartPad preflight failed: $error';
     }
   }
 

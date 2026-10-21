@@ -1,6 +1,6 @@
-name: NeoStation RetroArch • Build 480 • SideStore
+name: RewindBox RetroArch • Build 480 • SideStore
 # The closed evidence reader captures historical ANSI-bearing logs privately.
-run-name: NeoStation Build ${{ inputs.build_number || '480' }} • ${{ github.sha }} • embedded libretro
+run-name: RewindBox Build ${{ inputs.build_number || '480' }} • ${{ github.sha }} • embedded libretro
 'on':
   push:
     branches:
@@ -436,8 +436,8 @@ jobs:
         same=same and subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-version']).decode().strip()=='26.2'
         reused=False
         if same:
-            run=json.loads(subprocess.check_output(['gh','api','repos/TarbleFR/neostation-ios/actions/runs/37844950677']))
-            jobs=json.loads(subprocess.check_output(['gh','api','repos/TarbleFR/neostation-ios/actions/runs/37844950677/jobs']))['jobs']
+            run=json.loads(subprocess.check_output(['gh','api','repos/TarbleFR/RewindBox/actions/runs/37844950677']))
+            jobs=json.loads(subprocess.check_output(['gh','api','repos/TarbleFR/RewindBox/actions/runs/37844950677/jobs']))['jobs']
             job=next(j for j in jobs if j['name']=='native')
             reused=run['head_sha']==reference and job['conclusion']=='success' and all(s['conclusion']=='success' for s in job['steps'])
         with open(os.environ['GITHUB_OUTPUT'],'a') as handle:handle.write('reused='+str(reused).lower()+'\n')
@@ -532,7 +532,7 @@ jobs:
       BUILD_NUMBER: ${{ inputs.build_number || '480' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '480' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '480' }}-${{ github.sha }}-cold
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'
@@ -655,7 +655,7 @@ jobs:
         set -euo pipefail
         python3 - <<'PYCOREWAIT'
         import json,os,subprocess,time
-        endpoint='repos/TarbleFR/neostation-ios/actions/runs/'+os.environ['RPCS3_CORE_RUN_ID']
+        endpoint='repos/TarbleFR/RewindBox/actions/runs/'+os.environ['RPCS3_CORE_RUN_ID']
         deadline=time.monotonic()+7200
         while True:
             result=json.loads(subprocess.check_output(['gh','api',endpoint]))
@@ -900,7 +900,7 @@ jobs:
         set -euo pipefail
         python3 - <<'PY'
         import json, os, shutil, subprocess
-        endpoint='repos/TarbleFR/neostation-ios/actions/runs/'+os.environ['ARMSX2_CORE_RUN_ID']
+        endpoint='repos/TarbleFR/RewindBox/actions/runs/'+os.environ['ARMSX2_CORE_RUN_ID']
         result=json.loads(subprocess.check_output(['gh','api',endpoint]))
         assert result['head_sha'] == os.environ['ARMSX2_CORE_HOST_SHA'], result
         assert result['path'] == '.github/workflows/armsx2-core.yml', result
@@ -963,7 +963,7 @@ jobs:
         set -euo pipefail
         python3 - <<'PY'
         import json, os, shutil, subprocess, time
-        endpoint = 'repos/TarbleFR/neostation-ios/actions/runs/' + os.environ['DUSKLIGHT_CORE_RUN_ID']
+        endpoint = 'repos/TarbleFR/RewindBox/actions/runs/' + os.environ['DUSKLIGHT_CORE_RUN_ID']
         deadline = time.monotonic() + 3600
         while True:
             result = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
@@ -1041,7 +1041,7 @@ jobs:
         set -euo pipefail
         python3 - <<'PY'
         import json, os, shutil, subprocess
-        endpoint = 'repos/TarbleFR/neostation-ios/actions/runs/' + os.environ['LIBRETRO_CORES_RUN_ID']
+        endpoint = 'repos/TarbleFR/RewindBox/actions/runs/' + os.environ['LIBRETRO_CORES_RUN_ID']
         result = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
         assert result['head_sha'] == os.environ['LIBRETRO_CORES_VALIDATED_SHA'], result
         assert result['path'] == '.github/workflows/nestopia-bgcolor.yml', result
@@ -1386,7 +1386,7 @@ jobs:
     - name: Prepare encrypted delivery and evidence
       run: |
         mkdir -p build/delivery-artifact
-        cp dist/NeoStation.ipa "build/delivery-artifact/NeoStation-Build${BUILD_NUMBER}-${GITHUB_SHA}-${DELIVERY_MODE}.ipa"
+        cp dist/NeoStation.ipa "build/delivery-artifact/RewindBox-Build${BUILD_NUMBER}-${GITHUB_SHA}-${DELIVERY_MODE}.ipa"
         cp build/delivery/*.json build/delivery-artifact/
         cp docs/retroarch-rollback-2026-10-08.md build/delivery-artifact/
         shasum -a 256 build/delivery-artifact/*.ipa > build/delivery-artifact/SHA256SUMS
@@ -1442,7 +1442,7 @@ jobs:
       BUILD_NUMBER: ${{ inputs.build_number || '480' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '480' }}-${{ github.sha }}-warm
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '480' }}-${{ github.sha }}-warm
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'
@@ -1709,7 +1709,7 @@ jobs:
     - name: Prepare encrypted delivery and evidence
       run: |
         mkdir -p build/delivery-artifact
-        cp dist/NeoStation.ipa "build/delivery-artifact/NeoStation-Build${BUILD_NUMBER}-${GITHUB_SHA}-${DELIVERY_MODE}.ipa"
+        cp dist/NeoStation.ipa "build/delivery-artifact/RewindBox-Build${BUILD_NUMBER}-${GITHUB_SHA}-${DELIVERY_MODE}.ipa"
         cp build/delivery/*.json build/delivery-artifact/
         cp docs/retroarch-rollback-2026-10-08.md build/delivery-artifact/
         shasum -a 256 build/delivery-artifact/*.ipa > build/delivery-artifact/SHA256SUMS

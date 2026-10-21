@@ -583,7 +583,7 @@ static bool HostEnvironment(unsigned command, void *data) {
       return true;
     }
     case RETRO_ENVIRONMENT_GET_USERNAME:
-      SetOutputString(data, "NeoStation");
+      SetOutputString(data, "RewindBox");
       return true;
     case RETRO_ENVIRONMENT_GET_LANGUAGE:
       if (data != NULL) *(unsigned *)data = host->_language;

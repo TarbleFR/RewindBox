@@ -94,7 +94,7 @@ class AboutSettingsContentState extends State<AboutSettingsContent> {
   void selectItem(int index) {
     switch (index) {
       case 0:
-        _launchUrl('https://github.com/TarbleFR/neostation-ios');
+        _launchUrl('https://github.com/TarbleFR/RewindBox');
         break;
       case 1:
         LegalCreditsDialog.show(context);
@@ -148,7 +148,7 @@ class AboutSettingsContentState extends State<AboutSettingsContent> {
                     ),
                     SizedBox(height: 6.r),
                     Text(
-                      'NeoStation Fork',
+                      'RewindBox',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         fontSize: 12.r,
@@ -185,7 +185,7 @@ class AboutSettingsContentState extends State<AboutSettingsContent> {
                         icon: Symbols.code_rounded,
                         title: ForkCreditLocale.title(context),
                         value: ForkCreditLocale.description(context),
-                        url: 'https://github.com/TarbleFR/neostation-ios',
+                        url: 'https://github.com/TarbleFR/RewindBox',
                         theme: theme,
                         isFocused:
                             widget.isContentFocused &&

@@ -41,11 +41,25 @@ NEOSWAP_DIRECT_444_REVIEWED = {
 }
 
 
+
+
+def restore_rewindbox_branding(data, name):
+    """Undo only reviewed display-text edits before historical hash checks."""
+    record = json.loads((ROOT / 'docs/rewindbox-branding-compatibility.json').read_text())
+    for change in record['locked_replacements'].get(name, []):
+        current = change['new'].encode('utf-8')
+        original = change['old'].encode('utf-8')
+        if data.count(current) != change['count']:
+            raise AssertionError('Unexpected branding edit: ' + name)
+        data = data.replace(current, original)
+    return data
+
+
 class RetroArchBaselineScope(unittest.TestCase):
     def test_library_is_the_recorded_build419_reference(self):
         for name, expected in MANIFEST['library_sha256'].items():
             with self.subTest(path=name):
-                data = (ROOT / name).read_bytes()
+                data = restore_rewindbox_branding((ROOT / name).read_bytes(), name)
                 if name == 'lib/services/ios_rom_library_root_resolver.dart':
                     # Reviewed linkage-only exception: Files returns a literal
                     # filesystem path, including spaces. Reconstruct exactly the
@@ -89,7 +103,7 @@ class RetroArchBaselineScope(unittest.TestCase):
         for name, expected in MANIFEST['native_sha256'].items():
             with self.subTest(path=name):
                 reviewed = NEOSWAP_DIRECT_444_REVIEWED.get(name, NEOSWAP_PREPARED_441_REVIEWED.get(name, NEOSWAP_MELONX_REVIEWED.get(name, expected)))
-                self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), reviewed)
+                self.assertEqual(hashlib.sha256(restore_rewindbox_branding((ROOT / name).read_bytes(), name)).hexdigest(), reviewed)
 
     def test_retired_repairs_are_outside_executable_app_sources(self):
         for name in ('embedded_library_recovery.dart', 'retroarch_folder_recovery.dart', 'retroarch_library_importer.dart'):

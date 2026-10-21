@@ -92,7 +92,7 @@ class StikJitMeloNxService {
 
       if (jit.gameUrlOpened != true) {
         _lastError =
-            'JIT succeeded, but NeoStation could not complete the direct MeloNX game handoff.';
+            'JIT succeeded, but RewindBox could not complete the direct MeloNX game handoff.';
         await _appendDiagnostic(
           'STATE: GAME_URL_POST_JIT_OPEN_FAILED\n'
           'Error: $_lastError\n',
@@ -102,7 +102,7 @@ class StikJitMeloNxService {
 
       await _appendDiagnostic(
         'STATE: GAME_URL_POST_JIT_OPENED\n'
-        'NeoStation regained the foreground after JIT and delivered the frontend URL to the already-JITed MeloNX process.\n',
+        'RewindBox regained the foreground after JIT and delivered the frontend URL to the already-JITed MeloNX process.\n',
       );
       return true;
     } catch (error, stackTrace) {

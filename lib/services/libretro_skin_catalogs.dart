@@ -708,7 +708,7 @@ class LibretroSkinCatalogs {
     conversion.info['sourceAttribution'] = <String, Object?>{
       'url': overlay.webURL, 'revision': overlay.commit, 'author': overlay.author,
       'license': overlay.license, 'licenseURI': overlay.licenseURI,
-      'modifications': 'Layout converted for NeoStation; selected images packaged. Original CFG and notices retained in source/.',
+      'modifications': 'Layout converted for RewindBox; selected images packaged. Original CFG and notices retained in source/.',
     };
     return LibretroOverlayConversion(info: conversion.info, files: conversion.files,
       problems: conversion.problems, droppedCommands: conversion.droppedCommands,

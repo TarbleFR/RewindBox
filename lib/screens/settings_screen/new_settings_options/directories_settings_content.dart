@@ -880,7 +880,7 @@ class DirectoriesSettingsContentState
             AppNotification.showNotification(
               context,
               'Already using the internal roms folder. Drop ROMs into it '
-              'via the Files app under "On My iPhone > NeoStation > roms".',
+              'via the Files app under "On My iPhone > RewindBox > roms".',
               type: NotificationType.info,
             );
           }

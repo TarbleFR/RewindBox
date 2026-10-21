@@ -95,7 +95,7 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     // In-process iOS runtimes keep receiving controller input while Flutter
     // remains alive behind their native window. Never let A/B/Enter leak into
     // the launch dialog and close the frontend session underneath gameplay.
-    // Their explicit native "Return to NeoStation" event owns teardown.
+    // Their explicit native "Return to RewindBox" event owns teardown.
     if (_isEmbeddedIOSSession) return false;
     if (Platform.isAndroid) return _canDismiss;
     return true;
@@ -267,7 +267,7 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
         (event) {
           if (_phase == GameLaunchPhase.playing && !_isClosing) {
             _log.i(
-              '[GameLaunchManager] Dusklight returned to NeoStation: '
+              '[GameLaunchManager] Dusklight returned to RewindBox: '
               '${event['reason']} (runtimeReleased=${event['runtimeReleased']})',
             );
             // A normal return now retains the suspended Dusklight runtime so

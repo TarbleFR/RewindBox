@@ -23,7 +23,7 @@ downloadRequiredMessage downloadNow availableCount backToEngine""".split()
 
 STRINGS = {
 "en": [
-"NeoStation cheats", "Download all catalogues", "Update all catalogues", "Retry failed downloads", "Downloading…", "Loading…", "{games} games available offline",
+"RewindBox cheats", "Download all catalogues", "Update all catalogues", "Retry failed downloads", "Downloading…", "Loading…", "{games} games available offline",
 "{done} / {total} catalogues processed", "{done} / {total}", "One download for all supported emulators. Codes remain disabled.", "{count} catalogues could not be downloaded. Completed downloads are kept.", "Catalogues are ready for offline use.",
 "The catalogue could not be loaded.", "Some catalogues could not be downloaded.", "The game search could not be completed.", "The codes could not be imported.", "Technical details", "Close",
 "Search for a game", "Search the unified catalogue for this console. Confirm the exact edition before importing.", "Searching…", "No matching edition was found.", "No complete code is compatible with this emulator. Other formats need an engine adapter or unresolved parameters.", "Confirm game edition",
@@ -34,7 +34,7 @@ STRINGS = {
 "Importing…", "Download required", "Category", "Exclusive choice group", "No catalogue is available yet.", "Download the catalogues",
 "Download the unified catalogues, then select this edition again.", "Download all", "{count} compatible programs", "Back to the emulator menu"],
 "fr": [
-"Cheats NeoStation", "Télécharger tous les catalogues", "Mettre tous les catalogues à jour", "Relancer les téléchargements échoués", "Téléchargement…", "Chargement…", "{games} jeux disponibles hors ligne",
+"Cheats RewindBox", "Télécharger tous les catalogues", "Mettre tous les catalogues à jour", "Relancer les téléchargements échoués", "Téléchargement…", "Chargement…", "{games} jeux disponibles hors ligne",
 "{done} / {total} catalogues traités", "{done} / {total}", "Un téléchargement pour tous les émulateurs pris en charge. Les codes restent désactivés.", "{count} catalogues n’ont pas pu être téléchargés. Les téléchargements terminés sont conservés.", "Les catalogues sont prêts à être utilisés hors ligne.",
 "Impossible de charger le catalogue.", "Certains catalogues n’ont pas pu être téléchargés.", "Impossible de terminer la recherche du jeu.", "Impossible d’importer les codes.", "Détails techniques", "Fermer",
 "Rechercher un jeu", "Recherchez dans le catalogue unifié de cette console. Confirmez l’édition exacte avant l’import.", "Recherche…", "Aucune édition correspondante trouvée.", "Aucun code complet n’est compatible avec cet émulateur. Les autres formats nécessitent un adaptateur moteur ou des paramètres à résoudre.", "Confirmer l’édition du jeu",
@@ -45,7 +45,7 @@ STRINGS = {
 "Import en cours…", "Téléchargement requis", "Catégorie", "Groupe de choix exclusifs", "Aucun catalogue n’est disponible pour le moment.", "Télécharger les catalogues",
 "Téléchargez les catalogues unifiés, puis sélectionnez à nouveau cette édition.", "Tout télécharger", "{count} programmes compatibles", "Revenir au menu de l’émulateur"],
 "es": [
-"Trucos de NeoStation", "Descargar todos los catálogos", "Actualizar todos los catálogos", "Reintentar descargas fallidas", "Descargando…", "Cargando…", "{games} juegos disponibles sin conexión",
+"Trucos de RewindBox", "Descargar todos los catálogos", "Actualizar todos los catálogos", "Reintentar descargas fallidas", "Descargando…", "Cargando…", "{games} juegos disponibles sin conexión",
 "{done} / {total} catálogos procesados", "{done} / {total}", "Una descarga para todos los emuladores compatibles. Los códigos permanecen desactivados.", "No se pudieron descargar {count} catálogos. Se conservan las descargas completadas.", "Los catálogos están listos para usarse sin conexión.",
 "No se pudo cargar el catálogo.", "No se pudieron descargar algunos catálogos.", "No se pudo completar la búsqueda del juego.", "No se pudieron importar los códigos.", "Detalles técnicos", "Cerrar",
 "Buscar un juego", "Busca en el catálogo unificado de esta consola. Confirma la edición exacta antes de importar.", "Buscando…", "No se encontró ninguna edición coincidente.", "Ningún código completo es compatible con este emulador. Otros formatos necesitan un adaptador del motor o parámetros pendientes.", "Confirmar edición del juego",
@@ -56,7 +56,7 @@ STRINGS = {
 "Importando…", "Descarga necesaria", "Categoría", "Grupo de opciones excluyentes", "Todavía no hay ningún catálogo disponible.", "Descargar los catálogos",
 "Descarga los catálogos unificados y vuelve a seleccionar esta edición.", "Descargar todo", "{count} programas compatibles", "Volver al menú del emulador"],
 "de": [
-"NeoStation-Cheats", "Alle Kataloge herunterladen", "Alle Kataloge aktualisieren", "Fehlgeschlagene Downloads wiederholen", "Wird heruntergeladen…", "Wird geladen…", "{games} Spiele offline verfügbar",
+"RewindBox-Cheats", "Alle Kataloge herunterladen", "Alle Kataloge aktualisieren", "Fehlgeschlagene Downloads wiederholen", "Wird heruntergeladen…", "Wird geladen…", "{games} Spiele offline verfügbar",
 "{done} / {total} Kataloge verarbeitet", "{done} / {total}", "Ein Download für alle unterstützten Emulatoren. Die Codes bleiben deaktiviert.", "{count} Kataloge konnten nicht heruntergeladen werden. Abgeschlossene Downloads bleiben erhalten.", "Die Kataloge sind offline verfügbar.",
 "Der Katalog konnte nicht geladen werden.", "Einige Kataloge konnten nicht heruntergeladen werden.", "Die Spielsuche konnte nicht abgeschlossen werden.", "Die Codes konnten nicht importiert werden.", "Technische Details", "Schließen",
 "Spiel suchen", "Suche im gemeinsamen Katalog dieser Konsole. Bestätige vor dem Import die genaue Ausgabe.", "Suche…", "Keine passende Ausgabe gefunden.", "Kein vollständiger Code ist mit diesem Emulator kompatibel. Andere Formate benötigen einen Engine-Adapter oder noch aufzulösende Parameter.", "Spielausgabe bestätigen",
@@ -67,7 +67,7 @@ STRINGS = {
 "Wird importiert…", "Download erforderlich", "Kategorie", "Gruppe sich ausschließender Optionen", "Noch kein Katalog verfügbar.", "Kataloge herunterladen",
 "Lade die gemeinsamen Kataloge herunter und wähle diese Ausgabe erneut aus.", "Alle herunterladen", "{count} kompatible Programme", "Zurück zum Emulator-Menü"],
 "it": [
-"Trucchi NeoStation", "Scarica tutti i cataloghi", "Aggiorna tutti i cataloghi", "Riprova i download non riusciti", "Download…", "Caricamento…", "{games} giochi disponibili offline",
+"Trucchi RewindBox", "Scarica tutti i cataloghi", "Aggiorna tutti i cataloghi", "Riprova i download non riusciti", "Download…", "Caricamento…", "{games} giochi disponibili offline",
 "{done} / {total} cataloghi elaborati", "{done} / {total}", "Un solo download per tutti gli emulatori supportati. I codici restano disattivati.", "Impossibile scaricare {count} cataloghi. I download completati vengono conservati.", "I cataloghi sono pronti per l’uso offline.",
 "Impossibile caricare il catalogo.", "Impossibile scaricare alcuni cataloghi.", "Impossibile completare la ricerca del gioco.", "Impossibile importare i codici.", "Dettagli tecnici", "Chiudi",
 "Cerca un gioco", "Cerca nel catalogo unificato di questa console. Conferma l’edizione esatta prima dell’importazione.", "Ricerca…", "Nessuna edizione corrispondente trovata.", "Nessun codice completo è compatibile con questo emulatore. Gli altri formati richiedono un adattatore del motore o parametri da risolvere.", "Conferma edizione del gioco",
@@ -78,7 +78,7 @@ STRINGS = {
 "Importazione…", "Download richiesto", "Categoria", "Gruppo di scelte esclusive", "Nessun catalogo è ancora disponibile.", "Scarica i cataloghi",
 "Scarica i cataloghi unificati, poi seleziona di nuovo questa edizione.", "Scarica tutto", "{count} programmi compatibili", "Torna al menu dell’emulatore"],
 "pt": [
-"Cheats do NeoStation", "Baixar todos os catálogos", "Atualizar todos os catálogos", "Tentar novamente os downloads com falha", "Baixando…", "Carregando…", "{games} jogos disponíveis offline",
+"Cheats do RewindBox", "Baixar todos os catálogos", "Atualizar todos os catálogos", "Tentar novamente os downloads com falha", "Baixando…", "Carregando…", "{games} jogos disponíveis offline",
 "{done} / {total} catálogos processados", "{done} / {total}", "Um download para todos os emuladores compatíveis. Os códigos permanecem desativados.", "Não foi possível baixar {count} catálogos. Os downloads concluídos são mantidos.", "Os catálogos estão prontos para uso offline.",
 "Não foi possível carregar o catálogo.", "Não foi possível baixar alguns catálogos.", "Não foi possível concluir a busca pelo jogo.", "Não foi possível importar os códigos.", "Detalhes técnicos", "Fechar",
 "Buscar um jogo", "Busque no catálogo unificado deste console. Confirme a edição exata antes de importar.", "Buscando…", "Nenhuma edição correspondente encontrada.", "Nenhum código completo é compatível com este emulador. Outros formatos exigem um adaptador do motor ou parâmetros a resolver.", "Confirmar edição do jogo",
@@ -89,7 +89,7 @@ STRINGS = {
 "Importando…", "Download necessário", "Categoria", "Grupo de escolhas exclusivas", "Nenhum catálogo está disponível ainda.", "Baixar os catálogos",
 "Baixe os catálogos unificados e selecione esta edição novamente.", "Baixar tudo", "{count} programas compatíveis", "Voltar ao menu do emulador"],
 "ru": [
-"Читы NeoStation", "Скачать все каталоги", "Обновить все каталоги", "Повторить неудачные загрузки", "Загрузка…", "Загрузка…", "Игр доступно без сети: {games}",
+"Читы RewindBox", "Скачать все каталоги", "Обновить все каталоги", "Повторить неудачные загрузки", "Загрузка…", "Загрузка…", "Игр доступно без сети: {games}",
 "Обработано каталогов: {done} / {total}", "{done} / {total}", "Одна загрузка для всех поддерживаемых эмуляторов. Коды остаются выключенными.", "Не удалось скачать каталогов: {count}. Завершённые загрузки сохранены.", "Каталоги готовы к использованию без сети.",
 "Не удалось загрузить каталог.", "Не удалось скачать некоторые каталоги.", "Не удалось завершить поиск игры.", "Не удалось импортировать коды.", "Технические сведения", "Закрыть",
 "Поиск игры", "Поиск в общем каталоге этой консоли. Перед импортом подтвердите точное издание.", "Поиск…", "Подходящее издание не найдено.", "Для этого эмулятора нет совместимых полных кодов. Другим форматам нужен адаптер движка или уточнение параметров.", "Подтвердите издание игры",
@@ -100,7 +100,7 @@ STRINGS = {
 "Импорт…", "Требуется загрузка", "Категория", "Группа взаимоисключающих вариантов", "Каталоги пока недоступны.", "Скачать каталоги",
 "Скачайте общие каталоги, затем снова выберите это издание.", "Скачать всё", "Совместимых программ: {count}", "Вернуться в меню эмулятора"],
 "id": [
-"Cheat NeoStation", "Unduh semua katalog", "Perbarui semua katalog", "Ulangi unduhan yang gagal", "Mengunduh…", "Memuat…", "{games} game tersedia offline",
+"Cheat RewindBox", "Unduh semua katalog", "Perbarui semua katalog", "Ulangi unduhan yang gagal", "Mengunduh…", "Memuat…", "{games} game tersedia offline",
 "{done} / {total} katalog diproses", "{done} / {total}", "Satu unduhan untuk semua emulator yang didukung. Kode tetap nonaktif.", "{count} katalog tidak dapat diunduh. Unduhan yang selesai tetap disimpan.", "Katalog siap digunakan offline.",
 "Katalog tidak dapat dimuat.", "Beberapa katalog tidak dapat diunduh.", "Pencarian game tidak dapat diselesaikan.", "Kode tidak dapat diimpor.", "Detail teknis", "Tutup",
 "Cari game", "Cari di katalog terpadu untuk konsol ini. Konfirmasikan edisi yang tepat sebelum mengimpor.", "Mencari…", "Tidak ditemukan edisi yang sesuai.", "Tidak ada kode lengkap yang kompatibel dengan emulator ini. Format lain memerlukan adaptor mesin atau parameter yang belum diselesaikan.", "Konfirmasi edisi game",
@@ -111,7 +111,7 @@ STRINGS = {
 "Mengimpor…", "Perlu diunduh", "Kategori", "Grup pilihan eksklusif", "Belum ada katalog yang tersedia.", "Unduh katalog",
 "Unduh katalog terpadu, lalu pilih edisi ini kembali.", "Unduh semua", "{count} program kompatibel", "Kembali ke menu emulator"],
 "zh": [
-"NeoStation 金手指", "下载全部目录", "更新全部目录", "重试失败的下载", "正在下载…", "正在加载…", "{games} 款游戏可离线使用",
+"RewindBox 金手指", "下载全部目录", "更新全部目录", "重试失败的下载", "正在下载…", "正在加载…", "{games} 款游戏可离线使用",
 "已处理 {done} / {total} 个目录", "{done} / {total}", "一次下载所有受支持模拟器的目录。代码保持禁用。", "{count} 个目录未能下载。已完成的下载将保留。", "目录已可离线使用。",
 "无法加载目录。", "部分目录未能下载。", "无法完成游戏搜索。", "无法导入代码。", "技术详情", "关闭",
 "搜索游戏", "在此主机的统一目录中搜索。导入前请确认确切版本。", "正在搜索…", "未找到匹配的游戏版本。", "没有完整代码与此模拟器兼容。其他格式需要引擎适配器或尚待确定的参数。", "确认游戏版本",
@@ -122,7 +122,7 @@ STRINGS = {
 "正在导入…", "需要下载", "类别", "互斥选项组", "目前没有可用目录。", "下载目录",
 "下载统一目录后，请再次选择此版本。", "全部下载", "{count} 个兼容程序", "返回模拟器菜单"],
 "zh_Hant": [
-"NeoStation 金手指", "下載全部目錄", "更新全部目錄", "重試失敗的下載", "正在下載…", "正在載入…", "{games} 款遊戲可離線使用",
+"RewindBox 金手指", "下載全部目錄", "更新全部目錄", "重試失敗的下載", "正在下載…", "正在載入…", "{games} 款遊戲可離線使用",
 "已處理 {done} / {total} 個目錄", "{done} / {total}", "一次下載所有支援模擬器的目錄。代碼保持停用。", "{count} 個目錄未能下載。已完成的下載將保留。", "目錄已可離線使用。",
 "無法載入目錄。", "部分目錄未能下載。", "無法完成遊戲搜尋。", "無法匯入代碼。", "技術詳細資訊", "關閉",
 "搜尋遊戲", "在此主機的統一目錄中搜尋。匯入前請確認確切版本。", "正在搜尋…", "找不到相符的遊戲版本。", "沒有完整代碼與此模擬器相容。其他格式需要引擎配接器或尚待確定的參數。", "確認遊戲版本",
@@ -133,7 +133,7 @@ STRINGS = {
 "正在匯入…", "需要下載", "類別", "互斥選項群組", "目前沒有可用目錄。", "下載目錄",
 "下載統一目錄後，請再次選擇此版本。", "全部下載", "{count} 個相容程式", "返回模擬器選單"],
 "ja": [
-"NeoStation チート", "すべてのカタログをダウンロード", "すべてのカタログを更新", "失敗したダウンロードを再試行", "ダウンロード中…", "読み込み中…", "{games} 本のゲームをオフラインで利用可能",
+"RewindBox チート", "すべてのカタログをダウンロード", "すべてのカタログを更新", "失敗したダウンロードを再試行", "ダウンロード中…", "読み込み中…", "{games} 本のゲームをオフラインで利用可能",
 "処理済みカタログ：{done} / {total}", "{done} / {total}", "すべての対応エミュレーターのカタログを一度にダウンロードします。コードは無効のままです。", "{count} 個のカタログをダウンロードできませんでした。完了した分は保持されます。", "カタログをオフラインで利用できます。",
 "カタログを読み込めませんでした。", "一部のカタログをダウンロードできませんでした。", "ゲームの検索を完了できませんでした。", "コードをインポートできませんでした。", "技術的な詳細", "閉じる",
 "ゲームを検索", "このゲーム機の統合カタログを検索します。インポート前に正確な版を確認してください。", "検索中…", "一致する版が見つかりませんでした。", "このエミュレーターに対応する完全なコードはありません。ほかの形式にはエンジンアダプターや未確定パラメーターの解決が必要です。", "ゲームの版を確認",
@@ -144,7 +144,7 @@ STRINGS = {
 "インポート中…", "ダウンロードが必要", "カテゴリー", "排他選択グループ", "利用できるカタログはまだありません。", "カタログをダウンロード",
 "統合カタログをダウンロードしてから、この版をもう一度選択してください。", "すべてダウンロード", "{count} 個の対応プログラム", "エミュレーターのメニューへ戻る"],
 "ko": [
-"NeoStation 치트", "모든 카탈로그 다운로드", "모든 카탈로그 업데이트", "실패한 다운로드 재시도", "다운로드 중…", "불러오는 중…", "게임 {games}개 오프라인 사용 가능",
+"RewindBox 치트", "모든 카탈로그 다운로드", "모든 카탈로그 업데이트", "실패한 다운로드 재시도", "다운로드 중…", "불러오는 중…", "게임 {games}개 오프라인 사용 가능",
 "처리한 카탈로그 {done} / {total}", "{done} / {total}", "지원되는 모든 에뮬레이터의 카탈로그를 한 번에 다운로드합니다. 코드는 비활성 상태로 유지됩니다.", "카탈로그 {count}개를 다운로드하지 못했습니다. 완료된 다운로드는 유지됩니다.", "카탈로그를 오프라인에서 사용할 수 있습니다.",
 "카탈로그를 불러올 수 없습니다.", "일부 카탈로그를 다운로드할 수 없습니다.", "게임 검색을 완료할 수 없습니다.", "코드를 가져올 수 없습니다.", "기술 세부 정보", "닫기",
 "게임 검색", "이 콘솔의 통합 카탈로그를 검색합니다. 가져오기 전에 정확한 판본을 확인하세요.", "검색 중…", "일치하는 판본을 찾지 못했습니다.", "이 에뮬레이터와 호환되는 완전한 코드가 없습니다. 다른 형식에는 엔진 어댑터 또는 미해결 매개변수 처리가 필요합니다.", "게임 판본 확인",

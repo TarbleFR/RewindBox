@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name             = 'dusklight_internal_bridge'
   s.version          = '0.1.0'
-  s.summary          = 'Lazy-loaded in-process Dusklight Core bridge for NeoStation iOS.'
+  s.summary          = 'Lazy-loaded in-process Dusklight Core bridge for RewindBox.'
   s.description      = <<-DESC
 Defines NeoStation's host-owned Dusklight session boundary. DusklightCore is
 opened only when a Ports title is launched; no standalone Dusklight app is

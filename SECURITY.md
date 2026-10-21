@@ -4,11 +4,11 @@ Security reports for this repository should be handled privately and responsibly
 
 ## Reporting a vulnerability
 
-If you believe you found a security vulnerability in NeoStation iOS, **do not open a public issue with exploit details**.
+If you believe you found a security vulnerability in RewindBox, **do not open a public issue with exploit details**.
 
 Use the repository's private GitHub Security Advisory flow:
 
-- [Report a vulnerability privately](https://github.com/TarbleFR/neostation-ios/security/advisories/new)
+- [Report a vulnerability privately](https://github.com/TarbleFR/RewindBox/security/advisories/new)
 
 If GitHub's private advisory flow is unavailable, contact the iOS-port maintainer, [@TarbleFR](https://github.com/TarbleFR), through a private channel before publishing technical details.
 

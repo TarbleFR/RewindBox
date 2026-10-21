@@ -1,6 +1,6 @@
 name: gamepads_darwin
 resolution: workspace
-description: iOS implementation of gamepads for NeoStation.
+description: iOS implementation of gamepads for RewindBox.
 version: 0.1.2+2
 publish_to: none
 

@@ -71,7 +71,7 @@ class SecondaryAppsService {
     }
   }
 
-  /// Opens Android's accessibility settings (deep-linked to NeoStation's own
+  /// Opens Android's accessibility settings (deep-linked to RewindBox's own
   /// service page) from the secondary-display engine. Used when the Screen
   /// Return service isn't enabled yet — launching an app without it would
   /// strand the user with no way back to Now Playing.

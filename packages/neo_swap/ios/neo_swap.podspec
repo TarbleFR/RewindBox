@@ -1,9 +1,9 @@
 Pod::Spec.new do |s|
   s.name = 'neo_swap'
   s.version = '0.1.0'
-  s.summary = 'Shared CPU data allocator and experimental memory donor for NeoStation.'
+  s.summary = 'Shared CPU data allocator and experimental memory donor for RewindBox.'
   s.description = 'One host broker, immutable C ABI, verified helper-owned shared memory, bounded file fallback and diagnostics.'
-  s.homepage = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage = 'https://github.com/TarbleFR/RewindBox'
   s.license = { :type => 'GPL-3.0' }
   s.author = { 'NeoStation iOS' => 'TarbleFR' }
   s.source = { :path => '.' }

@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name             = 'ui_refresh_rate'
   s.version          = '0.1.0'
-  s.summary          = 'NeoStation iOS 120 Hz interface setting.'
+  s.summary          = 'RewindBox 120 Hz interface setting.'
   s.description      = <<-DESC
 Applies the "120 Hz interface" preference to the Flutter engine only, by
 wrapping +[FlutterDisplayLinkManager displayRefreshRate] from +load, before
@@ -9,7 +9,7 @@ the first Flutter view exists. Enabled: the engine's own value (Build 437
 behaviour). Disabled: at most 60 Hz. CADisplayLink, UIScreen, the Info.plist
 and the emulators are not touched.
                        DESC
-  s.homepage         = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }

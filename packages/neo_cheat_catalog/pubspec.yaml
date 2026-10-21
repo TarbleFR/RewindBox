@@ -1,6 +1,6 @@
 name: neo_cheat_catalog
 resolution: workspace
-description: Verified, unified cheat catalogue shared by NeoStation's embedded engines.
+description: Verified, unified cheat catalogue shared by RewindBox's embedded engines.
 version: 0.1.0
 publish_to: none
 

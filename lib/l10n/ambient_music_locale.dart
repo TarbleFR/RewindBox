@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// Texts of the ambient music (Build 448) in NeoStation's twelve languages:
+/// Texts of the ambient music (Build 448) in RewindBox's twelve languages:
 /// Settings › General ("Ambient music", "Music volume") and the music card
 /// of Settings › Themes. Track names (the bundled "Once Upon a Time — TAD"
 /// or a file name) are inserted as they are, never translated.

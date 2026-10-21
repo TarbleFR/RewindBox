@@ -19,5 +19,8 @@ for path in paths:
     data=plistlib.loads(path.read_bytes())
     data['CFBundleShortVersionString']=name
     data['CFBundleVersion']=build
+    if path.parent.name == 'Runner':
+        data['CFBundleDisplayName'] = 'RewindBox'
+        data['CFBundleName'] = 'RewindBox'
     path.write_bytes(plistlib.dumps(data,fmt=plistlib.FMT_XML,sort_keys=False))
 print(f'App and {len(paths)-1} extensions stamped {name} ({build})')

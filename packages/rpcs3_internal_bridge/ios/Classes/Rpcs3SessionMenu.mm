@@ -315,7 +315,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   if (self.page == RPCS3MenuCheats) {
     if (row==0) {
       cell.textLabel.text=[self text:@"cheatCatalogue"];
-      cell.detailTextLabel.text=@"NeoStation · RPCS3 YAML";
+      cell.detailTextLabel.text=@"RewindBox · RPCS3 YAML";
       cell.accessibilityIdentifier=@"unifiedCheatCatalogue";
     } else {
       NSDictionary* item=self.cheatSnapshot[@"items"][row-1];

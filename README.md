@@ -1,25 +1,29 @@
 <div align="center">
 
-# NeoStation iOS
+# RewindBox
 
 ### Your games, consoles and library on iPhone and iPad
 
-[![Platform](https://img.shields.io/badge/iOS-18%2B-blue)](https://github.com/TarbleFR/neostation-ios/releases/latest)
+[![Platform](https://img.shields.io/badge/iOS-18%2B-blue)](https://github.com/TarbleFR/RewindBox/releases/latest)
 [![Frontend license](https://img.shields.io/badge/Frontend-GPLv3-blue)](LICENSE.md)
 
-![NeoStation iOS](assets/readme/neostation-ios-preview.png)
 
-**[Download 0.0.8](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.8)** · **[Credits and licenses](docs/LEGAL_AND_CREDITS.md)**
+**[Download 0.0.8](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.8)** · **[Credits and licenses](docs/LEGAL_AND_CREDITS.md)**
 
 </div>
 
-NeoStation iOS brings a game library, embedded emulators and game ports into
+**RewindBox is the independent iOS/iPadOS fork maintained by TarbleFR.**
+For help with this app, use [RewindBox Issues](https://github.com/TarbleFR/RewindBox/issues), not the upstream NeoStation support server.
+
+The project was renamed on 21 October 2026. Releases 0.0.1–0.0.8 retain their original compiled binaries: their installed name and Files folder can still say NeoStation. The RewindBox on-device name applies to the next compiled build. See [rebranding and compatibility](docs/REBRANDING.md).
+
+RewindBox brings a game library, embedded emulators and game ports into
 one sideloaded app. It is an independently maintained iOS/iPadOS fork of
 [NeoStation](https://github.com/misobadev/neostation-frontend), maintained by
 [@TarbleFR](https://github.com/TarbleFR).
 
-**RetroArch's Libretro cores are embedded directly in NeoStation.** Supported
-local games run inside the app, with NeoStation's own menu and controls.
+**RetroArch's Libretro cores are embedded directly in RewindBox.** Supported
+local games run inside the app, with RewindBox's own menu and controls.
 A separate RetroArch installation is not required. **MeloNX** remains a separate
 app for the Nintendo Switch integration.
 
@@ -35,7 +39,7 @@ app for the Nintendo Switch integration.
 - **Stability:** fixes for game startup, skins, shaders and closing games.
 - **First launch:** skip folder selection and add games later.
 
-[Read the release notes](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.8).
+[Read the release notes](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.8).
 
 ## Unified cheats and patches
 
@@ -51,7 +55,7 @@ the counts do not mean unique games or effects.
 
 **[Full source credits, pinned inputs and recorded license notices](docs/CHEAT_CATALOG_SOURCES.md)**
 credit the collections and original authors. Their data keeps its own terms;
-NeoStation’s frontend license does not relicense third-party codes.
+RewindBox’s frontend license does not relicense third-party codes.
 
 <details>
 <summary>51 historical source profiles (50 currently active)</summary>
@@ -134,7 +138,7 @@ features and performance depend on the game, core and device.
   a skin, including before importing games.
 - **Controller skins:** browse **Provenance, DeltaStyles, Delta Skins,
   PocketArch and Libretro overlays**. Compatible portrait and landscape layouts
-  can be chosen independently. Default NeoStation skins remain available.
+  can be chosen independently. Default RewindBox skins remain available.
 - **In-game controls:** touch controls, controllers, saves, save states, core
   settings and supported RetroAchievements features.
 - **AirPlay:** use **Settings → General → AirPlay and external screen**.
@@ -150,12 +154,12 @@ features and performance depend on the game, core and device.
   Portuguese, Russian, Indonesian, Japanese, Korean, Simplified Chinese and
   Traditional Chinese.
 
-[Skin compatibility and import guide](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/docs/SKINS.md)
+[Skin compatibility and import guide](https://github.com/TarbleFR/RewindBox/blob/0.0.7/docs/SKINS.md)
 
 ## BIOS, saves and storage
 
 Add your own Libretro BIOS/system files to
-**Files → On My iPhone/iPad → NeoStation → Libretro → System**.
+**Files → On My iPhone/iPad → RewindBox → Libretro → System**.
 Keep the expected filenames and subfolders; **System** uses a capital S.
 
 - **Settings → Tools → BIOS checker** identifies required and optional files.
@@ -185,8 +189,8 @@ All processes use the **same physical device RAM**. NeoSwap does not create
 extra physical memory, guarantee a fixed allocation, or guarantee higher FPS.
 Results depend on the game, device and allocation paths actually used.
 
-[Allocation details](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/docs/neoswap-build441.md)
-· [RPCS3 / NeoSwap / LLVM notes](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/docs/rpcs3-neoswap-llvm-build444-audit.md)
+[Allocation details](https://github.com/TarbleFR/RewindBox/blob/0.0.7/docs/neoswap-build441.md)
+· [RPCS3 / NeoSwap / LLVM notes](https://github.com/TarbleFR/RewindBox/blob/0.0.7/docs/rpcs3-neoswap-llvm-build444-audit.md)
 
 ## Requirements and installation
 
@@ -196,7 +200,7 @@ Results depend on the game, device and allocation paths actually used.
 - For embedded Dolphin, ARMSX2 and RPCS3: a valid pairing file, Developer Mode,
   suitable signing/provisioning and the supported StikJIT route. The current
   bridge checks a separately installed and activated **LocalDevVPN** route;
-  NeoStation does not bundle or activate that VPN.
+  RewindBox does not bundle or activate that VPN.
 - **MeloNX** only if you use the external Nintendo Switch integration.
 
 **LiveContainer is not supported for the embedded runtimes.**
@@ -216,8 +220,8 @@ The private Build 479 was compiled from `ff28cf2a63695400ad09d1c61538059d96992cc
 The release workflow uses **Flutter 3.47.2** and **Xcode 26.3**:
 
 ```bash
-git clone --branch 0.0.7 --single-branch https://github.com/TarbleFR/neostation-ios.git
-cd neostation-ios
+git clone --branch 0.0.7 --single-branch https://github.com/TarbleFR/RewindBox.git
+cd RewindBox
 flutter pub get --enforce-lockfile
 flutter config --no-enable-swift-package-manager
 python3 packages/dolphin_internal_bridge/ci/build_support.py scaffold
@@ -225,12 +229,12 @@ python3 packages/dolphin_internal_bridge/ci/build_support.py scaffold
 
 These steps prepare the checkout and iOS host. Native runtimes, extensions,
 packaging and signing also require the pinned inputs and steps in the
-[release workflow](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/.github/workflows/retroarch-delivery.yml).
+[release workflow](https://github.com/TarbleFR/RewindBox/blob/0.0.7/.github/workflows/retroarch-delivery.yml).
 Use the same source revision throughout. Keep `.env`, service credentials and
 signing material out of Git.
 
-[Build 455 checks and limits](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/docs/build455-plan.md)
-· [Build run](https://github.com/TarbleFR/neostation-ios/actions/runs/38393178533)
+[Build 455 checks and limits](https://github.com/TarbleFR/RewindBox/blob/0.0.7/docs/build455-plan.md)
+· [Build run](https://github.com/TarbleFR/RewindBox/actions/runs/38393178533)
 
 ## Credits and licenses
 
@@ -261,5 +265,5 @@ register; credits alone do not resolve these findings.
 
 See **[LICENSE.md](LICENSE.md)** and **[NOTICE.md](NOTICE.md)**. All trademarks
 and third-party artwork remain the property of their respective owners.
-NeoStation is not affiliated with the console manufacturers or upstream
+RewindBox is not affiliated with the console manufacturers or upstream
 projects unless explicitly stated.

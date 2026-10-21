@@ -1,13 +1,13 @@
 Pod::Spec.new do |s|
   s.name             = 'dolphin_internal_bridge'
   s.version          = '0.1.0'
-  s.summary          = 'Isolated in-process Dolphin Core bridge for NeoStation iOS.'
+  s.summary          = 'Isolated in-process Dolphin Core bridge for RewindBox.'
   s.description      = <<-DESC
 Links the pinned arm64 iOS Dolphin Core into NeoStation and exposes only the
 GameCube/Wii runtime, Metal surface, lifecycle, and Dolphin-specific StikJIT
 legacy gate. It does not replace or modify other emulator integrations.
                        DESC
-  s.homepage         = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }

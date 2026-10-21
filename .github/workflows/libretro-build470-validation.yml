@@ -14,11 +14,11 @@ jobs:
     timeout-minutes: 5
     env:
       GH_TOKEN: ${{ github.token }}
-      GH_REPO: TarbleFR/neostation-ios
+      GH_REPO: TarbleFR/RewindBox
     steps:
       - name: Verify branch identity and dispatch the existing exact-source suites
         run: |
-          test "$(gh api repos/TarbleFR/neostation-ios/branches/Claude --jq .commit.sha)" = "$GITHUB_SHA"
+          test "$(gh api repos/TarbleFR/RewindBox/branches/Claude --jq .commit.sha)" = "$GITHUB_SHA"
           # Scope the dispatch to the repaired historical compile controls.
           # Current-product 100-session and other-core evidence remains intact.
           gh workflow run libretro-simulator.yml --ref Claude -f legacy_only=true

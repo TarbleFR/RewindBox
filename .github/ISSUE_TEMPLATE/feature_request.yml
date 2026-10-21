@@ -1,12 +1,12 @@
 name: Feature Request
-description: Suggest a new feature or improvement for NeoStation iOS
+description: Suggest a new feature or improvement for RewindBox
 title: "[FEATURE] "
 labels: ["enhancement", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Tell us what would improve the NeoStation iOS experience. Requests specific to the original non-iOS project belong upstream.
+        Tell us what would improve the RewindBox experience. Requests specific to the original non-iOS project belong upstream.
 
   - type: textarea
     id: problem

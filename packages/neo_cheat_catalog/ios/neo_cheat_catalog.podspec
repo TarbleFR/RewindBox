@@ -1,8 +1,8 @@
 Pod::Spec.new do |s|
   s.name = 'neo_cheat_catalog'
   s.version = '0.1.0'
-  s.summary = 'Verified unified cheat downloads for NeoStation embedded engines.'
-  s.homepage = 'https://github.com/TarbleFR/neostation-ios'
+  s.summary = 'Verified unified cheat downloads for RewindBox embedded engines.'
+  s.homepage = 'https://github.com/TarbleFR/RewindBox'
   s.license = { :type => 'GPL-3.0' }
   s.author = { 'NeoStation iOS' => 'TarbleFR' }
   s.source = { :path => '.' }

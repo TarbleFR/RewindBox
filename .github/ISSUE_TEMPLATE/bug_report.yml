@@ -1,17 +1,17 @@
 name: Bug Report
-description: Report an error or unexpected behavior in NeoStation iOS
+description: Report an error or unexpected behavior in RewindBox
 title: "[BUG] "
 labels: ["bug", "triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for reporting a NeoStation iOS bug. Please include enough device/build information for the issue to be reproduced.
+        Thank you for reporting a RewindBox bug. Please include enough device/build information for the issue to be reproduced.
 
   - type: input
     id: version
     attributes:
-      label: NeoStation version / build
+      label: RewindBox version / build
       description: Check Settings > About.
       placeholder: "e.g. 0.9.9+129"
     validations:

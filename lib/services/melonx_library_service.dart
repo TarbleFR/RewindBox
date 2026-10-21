@@ -82,7 +82,7 @@ class MelonxLibraryService {
           'Request URL (raw): $rawUrl\n'
           'IMPORTANT: host must remain gameInfo (capital I).\n'
           'Callback expected: neostation://melonx?games=<base64url>\n\n'
-          'If this file still says REQUESTED after returning to NeoStation, '
+          'If this file still says REQUESTED after returning to RewindBox, '
           'MeloNX did not send the library callback.',
     );
 
@@ -204,11 +204,11 @@ class MelonxLibraryService {
         'melonx_sync_debug.txt',
         'STATE: IMPORTED\n'
             'MeloNX games: ${games.length}\n'
-            'NeoStation virtual Switch rows: ${importResult.virtualRows}\n'
+            'RewindBox virtual Switch rows: ${importResult.virtualRows}\n'
             'Existing physical Switch rows reused: ${importResult.physicalRows}\n'
             'MeloNX artwork files imported: ${importResult.artworkRows}\n'
             'Stale MeloNX rows removed: ${importResult.removedRows}\n'
-            'Switch rows now in NeoStation: ${importResult.totalSwitchRows}\n\n'
+            'Switch rows now in RewindBox: ${importResult.totalSwitchRows}\n\n'
             'Imported metadata (iconData omitted from this debug file):\n'
             '${const JsonEncoder.withIndent('  ').convert(debugGames)}',
       );
@@ -244,7 +244,7 @@ class MelonxLibraryService {
   })> _importIntoNeoStation(List<Map<String, dynamic>> games) async {
     final switchSystem = await SystemRepository.getSystemByFolderName('switch');
     if (switchSystem?.id == null) {
-      throw StateError('NeoStation Nintendo Switch system definition was not found');
+      throw StateError('RewindBox Nintendo Switch system definition was not found');
     }
 
     final systemId = switchSystem!.id!;
@@ -623,7 +623,7 @@ class MelonxLibraryService {
           'melonx_launch_debug.txt',
           'Virtual MeloNX library row.\n'
               'Strategy: StikDebug universal.js preflight, then single MeloNX game open.\n'
-              'Stored NeoStation URL: $storedUri\n'
+              'Stored RewindBox URL: $storedUri\n'
               'Opened URL: $rawLaunchUrl',
         );
         return await _openFrontendLaunchUrl(rawLaunchUrl);
@@ -674,7 +674,7 @@ class MelonxLibraryService {
       await _appendDebugFile(
         'melonx_launch_debug.txt',
         '\nStrategy: StikDebug universal.js preflight, then single MeloNX game open.\n'
-            'Stored NeoStation URL: $storedUri\n'
+            'Stored RewindBox URL: $storedUri\n'
             'Opened URL: $rawLaunchUrl',
       );
       return await _openFrontendLaunchUrl(rawLaunchUrl);

@@ -156,7 +156,7 @@ jobs:
           core=Path('dist/rpcs3/libRPCS3Core.dylib')
           identity={
             'schema_version':1,
-            'repository':'https://github.com/TarbleFR/neostation-ios',
+            'repository':'https://github.com/TarbleFR/RewindBox',
             'host_commit':os.environ['GITHUB_SHA'],
             'source_commit':Path('dist/rpcs3/RPCS3_SOURCE_COMMIT.txt').read_text().strip(),
             'abi_version':int(Path('dist/rpcs3/RPCS3_IOS_ABI.txt').read_text().strip()),

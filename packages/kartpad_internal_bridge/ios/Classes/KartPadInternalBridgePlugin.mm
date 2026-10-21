@@ -174,7 +174,7 @@ static void OnCoreEvent(void* context, int state, const char* message) {
       !_api->last_exit_reason) {
     _api = nullptr;
     _loadError = Failure(@"KARTPAD_ABI_MISMATCH", @"abi",
-                         @"KartPadCore does not expose the NeoStation ABI v1 contract.");
+                         @"KartPadCore does not expose the RewindBox ABI v1 contract.");
     return _loadError;
   }
 
@@ -434,7 +434,7 @@ static void OnCoreEvent(void* context, int state, const char* message) {
     NSLog(@"[NeoStation/KartPad] no foreground Flutter window (retained=%d registrar=%d)",
           _hostWindow != nil, _registrar.viewController != nil);
     NSMutableDictionary* failure = [Failure(@"KARTPAD_HOST_VIEW_MISSING", @"presentation",
-                   @"NeoStation has no active host view.") mutableCopy];
+                   @"RewindBox has no active host view.") mutableCopy];
     failure[@"hostWindowDiagnostics"] = state;
     _activeTransaction = 0;
     [self resolveLaunch:failure];

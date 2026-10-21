@@ -141,7 +141,7 @@ static void OnCoreEvent(void* context, int state, const char* message) {
     _loadError = Failure(
         @"DUSKLIGHT_ABI_MISMATCH",
         @"abi",
-        @"DusklightCore does not expose the NeoStation ABI v7 contract.");
+        @"DusklightCore does not expose the RewindBox ABI v7 contract.");
     return _loadError;
   }
   _api->set_event_callback(OnCoreEvent, (__bridge void*)self);
@@ -282,7 +282,7 @@ static void OnCoreEvent(void* context, int state, const char* message) {
   UIViewController* controller = ActiveViewController();
   if (controller == nil || controller.view == nil) {
     result(Failure(@"DUSKLIGHT_HOST_VIEW_MISSING", @"presentation",
-                   @"NeoStation has no active host view."));
+                   @"RewindBox has no active host view."));
     return;
   }
   _pendingLaunch = [result copy];

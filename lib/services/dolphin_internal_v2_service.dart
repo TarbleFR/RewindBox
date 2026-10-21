@@ -597,7 +597,7 @@ class DolphinInternalV2Service {
       return DolphinLaunchReport(
         ready: false,
         message:
-            'This game is not stored in NeoStation’s private Dolphin library.',
+            'This game is not stored in RewindBox’s private Dolphin library.',
         failedStage: 'route.path_rejected',
         logPath: logPath,
         gates: _emptyGates(),
@@ -637,7 +637,7 @@ class DolphinInternalV2Service {
       return DolphinLaunchReport(
         ready: false,
         message:
-            'Import a pairing file in NeoStation before launching Dolphin.',
+            'Import a pairing file in RewindBox before launching Dolphin.',
         failedStage: 'stikjit.pairing_missing',
         logPath: logPath,
         gates: _emptyGates(),
@@ -1044,7 +1044,7 @@ class DolphinInternalV2Service {
         await _appendLogTo(
           logPath,
           stage,
-          'NeoStation recovered an unclosed Dolphin session marker.',
+          'RewindBox recovered an unclosed Dolphin session marker.',
         );
       }
       await marker.rename(

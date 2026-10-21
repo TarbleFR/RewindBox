@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 /// Texts of Settings › General › "120 Hz interface" (Build 440) in
-/// NeoStation's twelve languages. Raw technical codes (hook status) are shown
+/// RewindBox's twelve languages. Raw technical codes (hook status) are shown
 /// separately through [technicalCode] and never translated.
 abstract final class UiRefreshRateLocale {
   static const title = 'title';
@@ -26,9 +26,9 @@ abstract final class UiRefreshRateLocale {
       title: '120 Hz interface',
       description: 'Makes menus and scrolling smoother on compatible screens.',
       unavailableScreen: 'Not available on this screen (maximum {hz} Hz).',
-      unavailableEngine: 'Not available in this version of NeoStation.',
+      unavailableEngine: 'Not available in this version of RewindBox.',
       restartRequired:
-          'Takes effect the next time NeoStation opens, after closing it from the app switcher.',
+          'Takes effect the next time RewindBox opens, after closing it from the app switcher.',
       limitedLowPower: 'Limited to 60 Hz by Low Power Mode.',
       limitedThermal: 'Limited by the device temperature.',
       measured: 'Measured rate: {hz} Hz',
@@ -47,9 +47,9 @@ abstract final class UiRefreshRateLocale {
       description:
           'Mejora la fluidez de los menús y del desplazamiento en pantallas compatibles.',
       unavailableScreen: 'No disponible en esta pantalla (máximo {hz} Hz).',
-      unavailableEngine: 'No disponible en esta versión de NeoStation.',
+      unavailableEngine: 'No disponible en esta versión de RewindBox.',
       restartRequired:
-          'Se aplicará la próxima vez que abras NeoStation, después de cerrarla desde el selector de apps.',
+          'Se aplicará la próxima vez que abras RewindBox, después de cerrarla desde el selector de apps.',
       limitedLowPower: 'Limitada a 60 Hz por el modo de bajo consumo.',
       limitedThermal: 'Limitada por la temperatura del dispositivo.',
       measured: 'Frecuencia medida: {hz} Hz',
@@ -67,9 +67,9 @@ abstract final class UiRefreshRateLocale {
       title: 'Интерфейс 120 Гц',
       description: 'Делает меню и прокрутку плавнее на совместимых экранах.',
       unavailableScreen: 'Недоступно на этом экране (максимум {hz} Гц).',
-      unavailableEngine: 'Недоступно в этой версии NeoStation.',
+      unavailableEngine: 'Недоступно в этой версии RewindBox.',
       restartRequired:
-          'Вступит в силу при следующем открытии NeoStation после закрытия приложения в переключателе приложений.',
+          'Вступит в силу при следующем открытии RewindBox после закрытия приложения в переключателе приложений.',
       limitedLowPower: 'Ограничено до 60 Гц режимом энергосбережения.',
       limitedThermal: 'Ограничено из-за температуры устройства.',
       measured: 'Измеренная частота: {hz} Гц',
@@ -88,8 +88,8 @@ abstract final class UiRefreshRateLocale {
       title: '120 Hz 界面',
       description: '在兼容的屏幕上让菜单和滚动更流畅。',
       unavailableScreen: '此屏幕不支持（最高 {hz} Hz）。',
-      unavailableEngine: '此版本的 NeoStation 不支持。',
-      restartRequired: '在应用切换器中关闭 NeoStation 后，下次打开时生效。',
+      unavailableEngine: '此版本的 RewindBox 不支持。',
+      restartRequired: '在应用切换器中关闭 RewindBox 后，下次打开时生效。',
       limitedLowPower: '低电量模式将其限制为 60 Hz。',
       limitedThermal: '因设备温度而受限。',
       measured: '实测刷新率：{hz} Hz',
@@ -106,8 +106,8 @@ abstract final class UiRefreshRateLocale {
       title: '120 Hz 介面',
       description: '在相容的螢幕上讓選單與捲動更流暢。',
       unavailableScreen: '此螢幕不支援（最高 {hz} Hz）。',
-      unavailableEngine: '此版本的 NeoStation 不支援。',
-      restartRequired: '在 App 切換器中關閉 NeoStation 後，下次開啟時生效。',
+      unavailableEngine: '此版本的 RewindBox 不支援。',
+      restartRequired: '在 App 切換器中關閉 RewindBox 後，下次開啟時生效。',
       limitedLowPower: '低耗電模式將其限制為 60 Hz。',
       limitedThermal: '因裝置溫度而受限。',
       measured: '實測更新率：{hz} Hz',
@@ -125,9 +125,9 @@ abstract final class UiRefreshRateLocale {
       description:
           'Melhora a fluidez dos menus e da rolagem em telas compatíveis.',
       unavailableScreen: 'Indisponível nesta tela (máximo de {hz} Hz).',
-      unavailableEngine: 'Indisponível nesta versão do NeoStation.',
+      unavailableEngine: 'Indisponível nesta versão do RewindBox.',
       restartRequired:
-          'Será aplicado na próxima vez que o NeoStation for aberto, depois de fechá-lo no seletor de apps.',
+          'Será aplicado na próxima vez que o RewindBox for aberto, depois de fechá-lo no seletor de apps.',
       limitedLowPower: 'Limitada a 60 Hz pelo Modo de Pouca Energia.',
       limitedThermal: 'Limitada pela temperatura do dispositivo.',
       measured: 'Taxa medida: {hz} Hz',
@@ -146,9 +146,9 @@ abstract final class UiRefreshRateLocale {
       description:
           'Améliore la fluidité des menus et du défilement sur les écrans compatibles.',
       unavailableScreen: 'Non disponible sur cet écran (maximum {hz} Hz).',
-      unavailableEngine: 'Non disponible dans cette version de NeoStation.',
+      unavailableEngine: 'Non disponible dans cette version de RewindBox.',
       restartRequired:
-          'Prendra effet à la prochaine ouverture de NeoStation, après l’avoir fermée depuis le sélecteur d’apps.',
+          'Prendra effet à la prochaine ouverture de RewindBox, après l’avoir fermée depuis le sélecteur d’apps.',
       limitedLowPower: 'Limité à 60 Hz par le mode Économie d’énergie.',
       limitedThermal: 'Limité par la température de l’appareil.',
       measured: 'Fréquence mesurée : {hz} Hz',
@@ -169,9 +169,9 @@ abstract final class UiRefreshRateLocale {
           'Macht Menüs und Scrollen auf kompatiblen Bildschirmen flüssiger.',
       unavailableScreen:
           'Auf diesem Bildschirm nicht verfügbar (maximal {hz} Hz).',
-      unavailableEngine: 'In dieser NeoStation-Version nicht verfügbar.',
+      unavailableEngine: 'In dieser RewindBox-Version nicht verfügbar.',
       restartRequired:
-          'Wird beim nächsten Öffnen von NeoStation wirksam, nachdem die App im App-Umschalter geschlossen wurde.',
+          'Wird beim nächsten Öffnen von RewindBox wirksam, nachdem die App im App-Umschalter geschlossen wurde.',
       limitedLowPower: 'Durch den Stromsparmodus auf 60 Hz begrenzt.',
       limitedThermal: 'Durch die Gerätetemperatur begrenzt.',
       measured: 'Gemessene Bildrate: {hz} Hz',
@@ -191,9 +191,9 @@ abstract final class UiRefreshRateLocale {
       description:
           'Rende più fluidi menu e scorrimento sugli schermi compatibili.',
       unavailableScreen: 'Non disponibile su questo schermo (massimo {hz} Hz).',
-      unavailableEngine: 'Non disponibile in questa versione di NeoStation.',
+      unavailableEngine: 'Non disponibile in questa versione di RewindBox.',
       restartRequired:
-          'Avrà effetto alla prossima apertura di NeoStation, dopo averla chiusa dal selettore delle app.',
+          'Avrà effetto alla prossima apertura di RewindBox, dopo averla chiusa dal selettore delle app.',
       limitedLowPower: 'Limitata a 60 Hz dalla modalità Risparmio energetico.',
       limitedThermal: 'Limitata dalla temperatura del dispositivo.',
       measured: 'Frequenza misurata: {hz} Hz',
@@ -212,9 +212,9 @@ abstract final class UiRefreshRateLocale {
       description:
           'Membuat menu dan pengguliran lebih mulus di layar yang kompatibel.',
       unavailableScreen: 'Tidak tersedia di layar ini (maksimum {hz} Hz).',
-      unavailableEngine: 'Tidak tersedia di versi NeoStation ini.',
+      unavailableEngine: 'Tidak tersedia di versi RewindBox ini.',
       restartRequired:
-          'Berlaku saat NeoStation dibuka lagi, setelah ditutup dari pengalih aplikasi.',
+          'Berlaku saat RewindBox dibuka lagi, setelah ditutup dari pengalih aplikasi.',
       limitedLowPower: 'Dibatasi ke 60 Hz oleh Mode Daya Rendah.',
       limitedThermal: 'Dibatasi oleh suhu perangkat.',
       measured: 'Laju terukur: {hz} Hz',
@@ -232,8 +232,8 @@ abstract final class UiRefreshRateLocale {
       title: '120Hz インターフェイス',
       description: '対応画面でメニューとスクロールをより滑らかにします。',
       unavailableScreen: 'この画面では利用できません（最大 {hz} Hz）。',
-      unavailableEngine: 'このバージョンの NeoStation では利用できません。',
-      restartRequired: 'App スイッチャーで NeoStation を閉じ、次に開いたときに有効になります。',
+      unavailableEngine: 'このバージョンの RewindBox では利用できません。',
+      restartRequired: 'App スイッチャーで RewindBox を閉じ、次に開いたときに有効になります。',
       limitedLowPower: '低電力モードにより 60 Hz に制限されています。',
       limitedThermal: 'デバイスの温度により制限されています。',
       measured: '測定したリフレッシュレート：{hz} Hz',
@@ -250,8 +250,8 @@ abstract final class UiRefreshRateLocale {
       title: '120Hz 인터페이스',
       description: '호환되는 화면에서 메뉴와 스크롤을 더 부드럽게 합니다.',
       unavailableScreen: '이 화면에서는 사용할 수 없습니다(최대 {hz}Hz).',
-      unavailableEngine: '이 버전의 NeoStation에서는 사용할 수 없습니다.',
-      restartRequired: '앱 전환기에서 NeoStation을 닫은 뒤 다음에 열 때 적용됩니다.',
+      unavailableEngine: '이 버전의 RewindBox에서는 사용할 수 없습니다.',
+      restartRequired: '앱 전환기에서 RewindBox을 닫은 뒤 다음에 열 때 적용됩니다.',
       limitedLowPower: '저전력 모드로 인해 60Hz로 제한됩니다.',
       limitedThermal: '기기 온도로 인해 제한됩니다.',
       measured: '측정된 주사율: {hz}Hz',

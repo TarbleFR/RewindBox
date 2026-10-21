@@ -1,13 +1,13 @@
 Pod::Spec.new do |s|
   s.name             = 'kartpad_internal_bridge'
   s.version          = '0.1.0'
-  s.summary          = 'Lazy-loaded in-process KartPad Core bridge for NeoStation iOS.'
+  s.summary          = 'Lazy-loaded in-process KartPad Core bridge for RewindBox.'
   s.description      = <<-DESC
 Defines NeoStation's host-owned KartPad session boundary. KartPadCore is opened
 only when Mario Kart Wii is launched from Ports; the standalone KartPad app is
 never linked or executed inside NeoStation.
                        DESC
-  s.homepage         = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }

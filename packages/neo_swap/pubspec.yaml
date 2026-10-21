@@ -1,6 +1,6 @@
 name: neo_swap
 resolution: workspace
-description: Shared file-backed CPU data broker for embedded NeoStation cores.
+description: Shared file-backed CPU data broker for embedded RewindBox cores.
 version: 0.1.0
 publish_to: none
 environment:

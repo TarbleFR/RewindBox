@@ -1,6 +1,6 @@
 name: kartpad_internal_bridge
 resolution: workspace
-description: Lazy in-process KartPad Core bridge for NeoStation iOS Ports.
+description: Lazy in-process KartPad Core bridge for RewindBox Ports.
 version: 0.1.0
 publish_to: none
 

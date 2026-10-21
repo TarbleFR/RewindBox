@@ -1,6 +1,6 @@
 name: ui_refresh_rate
 resolution: workspace
-description: NeoStation iOS "120 Hz interface" setting. Keeps or caps the refresh rate requested by the Flutter engine only; emulators are not touched.
+description: RewindBox "120 Hz interface" setting. Keeps or caps the refresh rate requested by the Flutter engine only; emulators are not touched.
 version: 0.1.0
 publish_to: none
 

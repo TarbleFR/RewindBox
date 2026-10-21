@@ -363,7 +363,7 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
                     }
                     guard grant != nil else {
                         throw NSError(domain: "NeoStationGameDelete", code: 1, userInfo: [NSLocalizedDescriptionKey:
-                            "The game's folder is no longer accessible. Relink its folder in NeoStation before deleting it."])
+                            "The game's folder is no longer accessible. Relink its folder in RewindBox before deleting it."])
                     }
                 }
                 // Refuse a library root/directory. Installed PS3 folders are

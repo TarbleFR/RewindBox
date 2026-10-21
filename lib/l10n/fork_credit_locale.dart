@@ -7,18 +7,18 @@ import 'package:flutter/widgets.dart';
 /// language offered by NeoStation.
 abstract final class ForkCreditLocale {
   static const Map<String, String> _titles = {
-    'de': 'NeoStation iOS-Fork',
-    'en': 'NeoStation iOS Fork',
-    'es': 'Fork de NeoStation para iOS',
-    'fr': 'Fork iOS de NeoStation',
-    'id': 'Fork iOS NeoStation',
-    'it': 'Fork iOS di NeoStation',
-    'ja': 'NeoStation iOS フォーク',
-    'ko': 'NeoStation iOS 포크',
-    'pt': 'Fork do NeoStation para iOS',
-    'ru': 'iOS-форк NeoStation',
-    'zh': 'NeoStation iOS 分支',
-    'zh_Hant': 'NeoStation iOS 分支',
+    'de': 'RewindBox',
+    'en': 'RewindBox',
+    'es': 'RewindBox',
+    'fr': 'RewindBox',
+    'id': 'RewindBox',
+    'it': 'RewindBox',
+    'ja': 'RewindBox',
+    'ko': 'RewindBox',
+    'pt': 'RewindBox',
+    'ru': 'RewindBox',
+    'zh': 'RewindBox',
+    'zh_Hant': 'RewindBox',
   };
 
   static const Map<String, String> _descriptions = {

@@ -1,12 +1,12 @@
 Pod::Spec.new do |s|
   s.name             = 'armsx2_internal_bridge'
   s.version          = '0.1.0'
-  s.summary          = 'Lazy-loaded embedded ARMSX2 Core bridge for NeoStation iOS.'
+  s.summary          = 'Lazy-loaded embedded ARMSX2 Core bridge for RewindBox.'
   s.description      = <<-DESC
 Loads ARMSX2Core.framework only after NeoStation's authenticated JIT helper has
 attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
                        DESC
-  s.homepage         = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }

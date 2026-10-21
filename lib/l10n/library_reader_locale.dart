@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 /// Texts of the Library readers (page reader, EPUB/TXT reader, PDF reader)
-/// in NeoStation's twelve languages. Product names (NeoStation, Kindle,
+/// in RewindBox's twelve languages. Product names (RewindBox, Kindle,
 /// RAR, 7-Zip, EPUB, CBZ, PDF, DRM) stay untranslated; raw technical
 /// details (URLs, HTTP codes, exception text) are shown separately and never
 /// come from this catalog.
@@ -20,15 +20,15 @@ abstract final class LibraryReaderLocale {
           'The site could not be reached. Check your internet connection.',
       'errorTimeout': 'The site took too long to respond.',
       'errorChallenge':
-          'The site requires a browser verification (anti-bot protection) that NeoStation cannot complete.',
+          'The site requires a browser verification (anti-bot protection) that RewindBox cannot complete.',
       'errorServerUnavailable': 'The site is temporarily unavailable.',
       'errorNotFound': 'This page no longer exists on the site.',
       'errorHttpStatus': 'The site refused the request.',
       'errorTooLarge': 'The site sent a response that is too large.',
       'errorInvalidResponse': 'The site sent an unexpected response.',
-      'errorSourceUnsupported': 'NeoStation cannot read this source.',
+      'errorSourceUnsupported': 'RewindBox cannot read this source.',
       'errorSiteChanged':
-          'The site has changed and NeoStation can no longer read this chapter.',
+          'The site has changed and RewindBox can no longer read this chapter.',
       'errorNoChapters': 'No chapters were found for this title.',
       'errorNoPages': 'No pages were found in this chapter.',
       'errorProtectedChapter':
@@ -51,7 +51,7 @@ abstract final class LibraryReaderLocale {
       'issuePasswordProtected': 'This PDF is protected by a password.',
       'issueEncryptedArchive': 'The archive is encrypted.',
       'issueUnsupportedCompression':
-          'The archive uses a compression method NeoStation cannot read.',
+          'The archive uses a compression method RewindBox cannot read.',
       'issueCorrupt': 'The file is damaged or incomplete.',
       'issueNoContent': 'There is nothing to display in this book.',
       'issueTooLarge': 'The book, or part of it, is too large to open safely.',
@@ -104,7 +104,7 @@ abstract final class LibraryReaderLocale {
       'image': 'Image',
       'imageUnavailable': 'Image unavailable',
       'openLinkTitle': 'Open this link?',
-      'openLinkBody': 'The link will open outside NeoStation, in your browser.',
+      'openLinkBody': 'The link will open outside RewindBox, in your browser.',
       'openLink': 'Open',
       'linkNotSecure': 'Only secure links (https) can be opened.',
       'linkUnavailable': 'This link points outside the book.',
@@ -162,7 +162,7 @@ abstract final class LibraryReaderLocale {
           'The two-page spread does not apply to vertical scrolling.',
       'curlDisabledZoom': 'Page curl is turned off while zoomed in.',
       'bookmarksLocalOnly':
-          'Bookmarks stay in NeoStation: they are not shared with other reading apps.',
+          'Bookmarks stay in RewindBox: they are not shared with other reading apps.',
       'bookSettingsActive': 'Settings specific to this book',
       'applyNavigationToAllBooks': 'Apply to all books',
       'navigationAppliedToAllBooks':
@@ -181,15 +181,15 @@ abstract final class LibraryReaderLocale {
           'No se pudo acceder al sitio. Comprueba tu conexión a internet.',
       'errorTimeout': 'El sitio tardó demasiado en responder.',
       'errorChallenge':
-          'El sitio exige una verificación del navegador (protección antibots) que NeoStation no puede completar.',
+          'El sitio exige una verificación del navegador (protección antibots) que RewindBox no puede completar.',
       'errorServerUnavailable': 'El sitio no está disponible temporalmente.',
       'errorNotFound': 'Esta página ya no existe en el sitio.',
       'errorHttpStatus': 'El sitio rechazó la solicitud.',
       'errorTooLarge': 'La respuesta del sitio es demasiado grande.',
       'errorInvalidResponse': 'El sitio envió una respuesta inesperada.',
-      'errorSourceUnsupported': 'NeoStation no puede leer esta fuente.',
+      'errorSourceUnsupported': 'RewindBox no puede leer esta fuente.',
       'errorSiteChanged':
-          'El sitio ha cambiado y NeoStation ya no puede leer este capítulo.',
+          'El sitio ha cambiado y RewindBox ya no puede leer este capítulo.',
       'errorNoChapters': 'No se encontraron capítulos para este título.',
       'errorNoPages': 'No se encontraron páginas en este capítulo.',
       'errorProtectedChapter':
@@ -212,7 +212,7 @@ abstract final class LibraryReaderLocale {
       'issuePasswordProtected': 'Este PDF está protegido con contraseña.',
       'issueEncryptedArchive': 'El archivo comprimido está cifrado.',
       'issueUnsupportedCompression':
-          'El archivo comprimido usa un método de compresión que NeoStation no puede leer.',
+          'El archivo comprimido usa un método de compresión que RewindBox no puede leer.',
       'issueCorrupt': 'El archivo está dañado o incompleto.',
       'issueNoContent': 'Este libro no tiene nada que mostrar.',
       'issueTooLarge':
@@ -267,7 +267,7 @@ abstract final class LibraryReaderLocale {
       'imageUnavailable': 'Imagen no disponible',
       'openLinkTitle': '¿Abrir este enlace?',
       'openLinkBody':
-          'El enlace se abrirá fuera de NeoStation, en tu navegador.',
+          'El enlace se abrirá fuera de RewindBox, en tu navegador.',
       'openLink': 'Abrir',
       'linkNotSecure': 'Solo se pueden abrir enlaces seguros (https).',
       'linkUnavailable': 'Este enlace apunta fuera del libro.',
@@ -326,7 +326,7 @@ abstract final class LibraryReaderLocale {
       'curlDisabledZoom':
           'El efecto de página que se dobla se desactiva durante el zoom.',
       'bookmarksLocalOnly':
-          'Los marcadores se quedan en NeoStation: no se intercambian con otras aplicaciones de lectura.',
+          'Los marcadores se quedan en RewindBox: no se intercambian con otras aplicaciones de lectura.',
       'bookSettingsActive': 'Ajustes propios de este libro',
       'applyNavigationToAllBooks': 'Aplicar a todos los libros',
       'navigationAppliedToAllBooks':
@@ -345,15 +345,15 @@ abstract final class LibraryReaderLocale {
           'Не удалось подключиться к сайту. Проверьте подключение к интернету.',
       'errorTimeout': 'Сайт слишком долго не отвечал.',
       'errorChallenge':
-          'Сайт требует проверку браузера (защиту от ботов), которую NeoStation пройти не может.',
+          'Сайт требует проверку браузера (защиту от ботов), которую RewindBox пройти не может.',
       'errorServerUnavailable': 'Сайт временно недоступен.',
       'errorNotFound': 'Этой страницы больше нет на сайте.',
       'errorHttpStatus': 'Сайт отклонил запрос.',
       'errorTooLarge': 'Ответ сайта слишком большой.',
       'errorInvalidResponse': 'Сайт прислал неожиданный ответ.',
-      'errorSourceUnsupported': 'NeoStation не умеет читать этот источник.',
+      'errorSourceUnsupported': 'RewindBox не умеет читать этот источник.',
       'errorSiteChanged':
-          'Сайт изменился, и NeoStation больше не может прочитать эту главу.',
+          'Сайт изменился, и RewindBox больше не может прочитать эту главу.',
       'errorNoChapters': 'Для этого тайтла не найдено ни одной главы.',
       'errorNoPages': 'В этой главе не найдено ни одной страницы.',
       'errorProtectedChapter':
@@ -375,7 +375,7 @@ abstract final class LibraryReaderLocale {
       'issuePasswordProtected': 'Этот PDF защищён паролем.',
       'issueEncryptedArchive': 'Архив зашифрован.',
       'issueUnsupportedCompression':
-          'Архив использует метод сжатия, который NeoStation не поддерживает.',
+          'Архив использует метод сжатия, который RewindBox не поддерживает.',
       'issueCorrupt': 'Файл повреждён или неполон.',
       'issueNoContent': 'В этой книге нечего показать.',
       'issueTooLarge':
@@ -429,7 +429,7 @@ abstract final class LibraryReaderLocale {
       'image': 'Изображение',
       'imageUnavailable': 'Изображение недоступно',
       'openLinkTitle': 'Открыть эту ссылку?',
-      'openLinkBody': 'Ссылка откроется вне NeoStation, в браузере.',
+      'openLinkBody': 'Ссылка откроется вне RewindBox, в браузере.',
       'openLink': 'Открыть',
       'linkNotSecure': 'Открывать можно только защищённые ссылки (https).',
       'linkUnavailable': 'Эта ссылка ведёт за пределы книги.',
@@ -486,7 +486,7 @@ abstract final class LibraryReaderLocale {
           'Разворот не применяется при вертикальной прокрутке.',
       'curlDisabledZoom': 'Загиб страницы отключается при масштабировании.',
       'bookmarksLocalOnly':
-          'Закладки хранятся только в NeoStation: они не передаются в другие приложения для чтения.',
+          'Закладки хранятся только в RewindBox: они не передаются в другие приложения для чтения.',
       'bookSettingsActive': 'Настройки только для этой книги',
       'applyNavigationToAllBooks': 'Применить ко всем книгам',
       'navigationAppliedToAllBooks':
@@ -503,14 +503,14 @@ abstract final class LibraryReaderLocale {
       'pageNumber': '第 {page} 页',
       'errorOffline': '无法访问该网站。请检查网络连接。',
       'errorTimeout': '网站响应时间过长。',
-      'errorChallenge': '该网站要求进行浏览器验证（反机器人保护），NeoStation 无法完成。',
+      'errorChallenge': '该网站要求进行浏览器验证（反机器人保护），RewindBox 无法完成。',
       'errorServerUnavailable': '该网站暂时无法使用。',
       'errorNotFound': '该页面在网站上已不存在。',
       'errorHttpStatus': '网站拒绝了请求。',
       'errorTooLarge': '网站返回的内容过大。',
       'errorInvalidResponse': '网站返回了意外的响应。',
-      'errorSourceUnsupported': 'NeoStation 无法读取此来源。',
-      'errorSiteChanged': '网站已改版，NeoStation 无法再读取此章节。',
+      'errorSourceUnsupported': 'RewindBox 无法读取此来源。',
+      'errorSiteChanged': '网站已改版，RewindBox 无法再读取此章节。',
       'errorNoChapters': '未找到该作品的任何章节。',
       'errorNoPages': '此章节中未找到任何页面。',
       'errorProtectedChapter': '此章节已被网站锁定（需要付费会员或解锁）。',
@@ -526,7 +526,7 @@ abstract final class LibraryReaderLocale {
       'issueDrmProtected': '这本书受 DRM 保护，无法打开。',
       'issuePasswordProtected': '此 PDF 受密码保护。',
       'issueEncryptedArchive': '压缩包已加密。',
-      'issueUnsupportedCompression': '压缩包使用了 NeoStation 无法读取的压缩方式。',
+      'issueUnsupportedCompression': '压缩包使用了 RewindBox 无法读取的压缩方式。',
       'issueCorrupt': '文件已损坏或不完整。',
       'issueNoContent': '这本书没有可显示的内容。',
       'issueTooLarge': '这本书或其中一部分过大，无法安全打开。',
@@ -578,7 +578,7 @@ abstract final class LibraryReaderLocale {
       'image': '图片',
       'imageUnavailable': '图片无法显示',
       'openLinkTitle': '打开此链接？',
-      'openLinkBody': '链接将在 NeoStation 之外的浏览器中打开。',
+      'openLinkBody': '链接将在 RewindBox 之外的浏览器中打开。',
       'openLink': '打开',
       'linkNotSecure': '只能打开安全链接（https）。',
       'linkUnavailable': '此链接指向书籍之外。',
@@ -629,7 +629,7 @@ abstract final class LibraryReaderLocale {
       'textPagesLimits': '简易排版：不支持断字，不处理孤行，仅使用系统字体。',
       'doublePageNotVertical': '双页显示不适用于垂直滚动。',
       'curlDisabledZoom': '缩放时会停用仿真翻页。',
-      'bookmarksLocalOnly': '书签仅保存在 NeoStation 中，不会与其他阅读器互通。',
+      'bookmarksLocalOnly': '书签仅保存在 RewindBox 中，不会与其他阅读器互通。',
       'bookSettingsActive': '本书专属设置',
       'applyNavigationToAllBooks': '应用到所有书籍',
       'navigationAppliedToAllBooks': '这些导航设置现已应用于所有没有专属设置的书籍。',
@@ -645,14 +645,14 @@ abstract final class LibraryReaderLocale {
       'pageNumber': '第 {page} 頁',
       'errorOffline': '無法連上該網站。請檢查網路連線。',
       'errorTimeout': '網站回應時間過長。',
-      'errorChallenge': '該網站要求進行瀏覽器驗證（防機器人保護），NeoStation 無法完成。',
+      'errorChallenge': '該網站要求進行瀏覽器驗證（防機器人保護），RewindBox 無法完成。',
       'errorServerUnavailable': '該網站暫時無法使用。',
       'errorNotFound': '此頁面已不存在於網站上。',
       'errorHttpStatus': '網站拒絕了請求。',
       'errorTooLarge': '網站回傳的內容過大。',
       'errorInvalidResponse': '網站回傳了非預期的回應。',
-      'errorSourceUnsupported': 'NeoStation 無法讀取此來源。',
-      'errorSiteChanged': '網站已改版，NeoStation 無法再讀取此章節。',
+      'errorSourceUnsupported': 'RewindBox 無法讀取此來源。',
+      'errorSiteChanged': '網站已改版，RewindBox 無法再讀取此章節。',
       'errorNoChapters': '找不到此作品的任何章節。',
       'errorNoPages': '此章節中找不到任何頁面。',
       'errorProtectedChapter': '此章節已被網站鎖定（需要付費會員或解鎖）。',
@@ -668,7 +668,7 @@ abstract final class LibraryReaderLocale {
       'issueDrmProtected': '這本書受 DRM 保護，無法開啟。',
       'issuePasswordProtected': '此 PDF 受密碼保護。',
       'issueEncryptedArchive': '壓縮檔已加密。',
-      'issueUnsupportedCompression': '壓縮檔使用了 NeoStation 無法讀取的壓縮方式。',
+      'issueUnsupportedCompression': '壓縮檔使用了 RewindBox 無法讀取的壓縮方式。',
       'issueCorrupt': '檔案已損毀或不完整。',
       'issueNoContent': '這本書沒有可顯示的內容。',
       'issueTooLarge': '這本書或其中一部分過大，無法安全開啟。',
@@ -720,7 +720,7 @@ abstract final class LibraryReaderLocale {
       'image': '圖片',
       'imageUnavailable': '無法顯示圖片',
       'openLinkTitle': '要開啟此連結嗎？',
-      'openLinkBody': '連結將在 NeoStation 以外的瀏覽器中開啟。',
+      'openLinkBody': '連結將在 RewindBox 以外的瀏覽器中開啟。',
       'openLink': '開啟',
       'linkNotSecure': '只能開啟安全連結（https）。',
       'linkUnavailable': '此連結指向書籍以外的位置。',
@@ -771,7 +771,7 @@ abstract final class LibraryReaderLocale {
       'textPagesLimits': '簡易排版：不支援斷字，不處理孤行，僅使用系統字體。',
       'doublePageNotVertical': '雙頁顯示不適用於垂直捲動。',
       'curlDisabledZoom': '縮放時會停用擬真翻頁。',
-      'bookmarksLocalOnly': '書籤只會保留在 NeoStation 中，不會與其他閱讀器互通。',
+      'bookmarksLocalOnly': '書籤只會保留在 RewindBox 中，不會與其他閱讀器互通。',
       'bookSettingsActive': '本書專屬設定',
       'applyNavigationToAllBooks': '套用到所有書籍',
       'navigationAppliedToAllBooks': '這些導覽設定現在會套用到所有沒有專屬設定的書籍。',
@@ -789,15 +789,15 @@ abstract final class LibraryReaderLocale {
           'Não foi possível acessar o site. Verifique sua conexão com a internet.',
       'errorTimeout': 'O site demorou demais para responder.',
       'errorChallenge':
-          'O site exige uma verificação do navegador (proteção antirrobô) que o NeoStation não consegue concluir.',
+          'O site exige uma verificação do navegador (proteção antirrobô) que o RewindBox não consegue concluir.',
       'errorServerUnavailable': 'O site está temporariamente indisponível.',
       'errorNotFound': 'Esta página não existe mais no site.',
       'errorHttpStatus': 'O site recusou a solicitação.',
       'errorTooLarge': 'A resposta do site é grande demais.',
       'errorInvalidResponse': 'O site enviou uma resposta inesperada.',
-      'errorSourceUnsupported': 'O NeoStation não consegue ler esta fonte.',
+      'errorSourceUnsupported': 'O RewindBox não consegue ler esta fonte.',
       'errorSiteChanged':
-          'O site mudou e o NeoStation não consegue mais ler este capítulo.',
+          'O site mudou e o RewindBox não consegue mais ler este capítulo.',
       'errorNoChapters': 'Nenhum capítulo foi encontrado para este título.',
       'errorNoPages': 'Nenhuma página foi encontrada neste capítulo.',
       'errorProtectedChapter':
@@ -820,7 +820,7 @@ abstract final class LibraryReaderLocale {
       'issuePasswordProtected': 'Este PDF é protegido por senha.',
       'issueEncryptedArchive': 'O arquivo compactado está criptografado.',
       'issueUnsupportedCompression':
-          'O arquivo compactado usa um método de compressão que o NeoStation não consegue ler.',
+          'O arquivo compactado usa um método de compressão que o RewindBox não consegue ler.',
       'issueCorrupt': 'O arquivo está danificado ou incompleto.',
       'issueNoContent': 'Este livro não tem nada para exibir.',
       'issueTooLarge':
@@ -875,7 +875,7 @@ abstract final class LibraryReaderLocale {
       'imageUnavailable': 'Imagem indisponível',
       'openLinkTitle': 'Abrir este link?',
       'openLinkBody':
-          'O link será aberto fora do NeoStation, no seu navegador.',
+          'O link será aberto fora do RewindBox, no seu navegador.',
       'openLink': 'Abrir',
       'linkNotSecure': 'Apenas links seguros (https) podem ser abertos.',
       'linkUnavailable': 'Este link aponta para fora do livro.',
@@ -933,7 +933,7 @@ abstract final class LibraryReaderLocale {
       'curlDisabledZoom':
           'O efeito de página que se dobra fica desativado durante o zoom.',
       'bookmarksLocalOnly':
-          'Os marcadores ficam no NeoStation: eles não são compartilhados com outros apps de leitura.',
+          'Os marcadores ficam no RewindBox: eles não são compartilhados com outros apps de leitura.',
       'bookSettingsActive': 'Ajustes próprios deste livro',
       'applyNavigationToAllBooks': 'Aplicar a todos os livros',
       'navigationAppliedToAllBooks':
@@ -952,15 +952,15 @@ abstract final class LibraryReaderLocale {
           'Impossible de joindre le site. Vérifiez votre connexion Internet.',
       'errorTimeout': 'Le site a mis trop de temps à répondre.',
       'errorChallenge':
-          'Le site exige une vérification du navigateur (protection anti-robots) que NeoStation ne peut pas effectuer.',
+          'Le site exige une vérification du navigateur (protection anti-robots) que RewindBox ne peut pas effectuer.',
       'errorServerUnavailable': 'Le site est temporairement indisponible.',
       'errorNotFound': 'Cette page n’existe plus sur le site.',
       'errorHttpStatus': 'Le site a refusé la requête.',
       'errorTooLarge': 'La réponse du site est trop volumineuse.',
       'errorInvalidResponse': 'Le site a envoyé une réponse inattendue.',
-      'errorSourceUnsupported': 'NeoStation ne sait pas lire cette source.',
+      'errorSourceUnsupported': 'RewindBox ne sait pas lire cette source.',
       'errorSiteChanged':
-          'Le site a changé et NeoStation ne peut plus lire ce chapitre.',
+          'Le site a changé et RewindBox ne peut plus lire ce chapitre.',
       'errorNoChapters': 'Aucun chapitre n’a été trouvé pour ce titre.',
       'errorNoPages': 'Aucune page n’a été trouvée dans ce chapitre.',
       'errorProtectedChapter':
@@ -983,7 +983,7 @@ abstract final class LibraryReaderLocale {
       'issuePasswordProtected': 'Ce PDF est protégé par un mot de passe.',
       'issueEncryptedArchive': 'L’archive est chiffrée.',
       'issueUnsupportedCompression':
-          'L’archive utilise une méthode de compression que NeoStation ne sait pas lire.',
+          'L’archive utilise une méthode de compression que RewindBox ne sait pas lire.',
       'issueCorrupt': 'Le fichier est endommagé ou incomplet.',
       'issueNoContent': 'Ce livre ne contient rien à afficher.',
       'issueTooLarge':
@@ -1038,7 +1038,7 @@ abstract final class LibraryReaderLocale {
       'imageUnavailable': 'Image indisponible',
       'openLinkTitle': 'Ouvrir ce lien ?',
       'openLinkBody':
-          'Le lien s’ouvrira en dehors de NeoStation, dans votre navigateur.',
+          'Le lien s’ouvrira en dehors de RewindBox, dans votre navigateur.',
       'openLink': 'Ouvrir',
       'linkNotSecure':
           'Seuls les liens sécurisés (https) peuvent être ouverts.',
@@ -1097,7 +1097,7 @@ abstract final class LibraryReaderLocale {
           'La double page ne s’applique pas au défilement vertical.',
       'curlDisabledZoom': 'Le pli de page est désactivé pendant le zoom.',
       'bookmarksLocalOnly':
-          'Les marque-pages restent dans NeoStation : ils ne sont pas échangés avec d’autres lecteurs.',
+          'Les marque-pages restent dans RewindBox : ils ne sont pas échangés avec d’autres lecteurs.',
       'bookSettingsActive': 'Réglages propres à ce livre',
       'applyNavigationToAllBooks': 'Appliquer à tous les livres',
       'navigationAppliedToAllBooks':
@@ -1116,7 +1116,7 @@ abstract final class LibraryReaderLocale {
           'Die Website ist nicht erreichbar. Prüfe deine Internetverbindung.',
       'errorTimeout': 'Die Website hat zu lange nicht geantwortet.',
       'errorChallenge':
-          'Die Website verlangt eine Browserprüfung (Bot-Schutz), die NeoStation nicht durchführen kann.',
+          'Die Website verlangt eine Browserprüfung (Bot-Schutz), die RewindBox nicht durchführen kann.',
       'errorServerUnavailable':
           'Die Website ist vorübergehend nicht verfügbar.',
       'errorNotFound': 'Diese Seite existiert auf der Website nicht mehr.',
@@ -1124,9 +1124,9 @@ abstract final class LibraryReaderLocale {
       'errorTooLarge': 'Die Antwort der Website ist zu groß.',
       'errorInvalidResponse':
           'Die Website hat eine unerwartete Antwort gesendet.',
-      'errorSourceUnsupported': 'NeoStation kann diese Quelle nicht lesen.',
+      'errorSourceUnsupported': 'RewindBox kann diese Quelle nicht lesen.',
       'errorSiteChanged':
-          'Die Website hat sich geändert, und NeoStation kann dieses Kapitel nicht mehr lesen.',
+          'Die Website hat sich geändert, und RewindBox kann dieses Kapitel nicht mehr lesen.',
       'errorNoChapters': 'Für diesen Titel wurden keine Kapitel gefunden.',
       'errorNoPages': 'In diesem Kapitel wurden keine Seiten gefunden.',
       'errorProtectedChapter':
@@ -1149,7 +1149,7 @@ abstract final class LibraryReaderLocale {
       'issuePasswordProtected': 'Dieses PDF ist durch ein Passwort geschützt.',
       'issueEncryptedArchive': 'Das Archiv ist verschlüsselt.',
       'issueUnsupportedCompression':
-          'Das Archiv verwendet eine Komprimierung, die NeoStation nicht lesen kann.',
+          'Das Archiv verwendet eine Komprimierung, die RewindBox nicht lesen kann.',
       'issueCorrupt': 'Die Datei ist beschädigt oder unvollständig.',
       'issueNoContent':
           'Dieses Buch enthält nichts, was angezeigt werden kann.',
@@ -1206,7 +1206,7 @@ abstract final class LibraryReaderLocale {
       'imageUnavailable': 'Bild nicht verfügbar',
       'openLinkTitle': 'Diesen Link öffnen?',
       'openLinkBody':
-          'Der Link wird außerhalb von NeoStation in deinem Browser geöffnet.',
+          'Der Link wird außerhalb von RewindBox in deinem Browser geöffnet.',
       'openLink': 'Öffnen',
       'linkNotSecure': 'Nur sichere Links (https) können geöffnet werden.',
       'linkUnavailable': 'Dieser Link führt aus dem Buch hinaus.',
@@ -1264,7 +1264,7 @@ abstract final class LibraryReaderLocale {
           'Die Doppelseite gilt nicht für vertikales Scrollen.',
       'curlDisabledZoom': 'Beim Zoomen biegt sich die Seite nicht.',
       'bookmarksLocalOnly':
-          'Lesezeichen bleiben in NeoStation: sie werden nicht mit anderen Lese-Apps ausgetauscht.',
+          'Lesezeichen bleiben in RewindBox: sie werden nicht mit anderen Lese-Apps ausgetauscht.',
       'bookSettingsActive': 'Eigene Einstellungen für dieses Buch',
       'applyNavigationToAllBooks': 'Auf alle Bücher anwenden',
       'navigationAppliedToAllBooks':
@@ -1283,16 +1283,16 @@ abstract final class LibraryReaderLocale {
           'Impossibile raggiungere il sito. Controlla la connessione a Internet.',
       'errorTimeout': 'Il sito ha impiegato troppo tempo a rispondere.',
       'errorChallenge':
-          'Il sito richiede una verifica del browser (protezione anti-bot) che NeoStation non può completare.',
+          'Il sito richiede una verifica del browser (protezione anti-bot) che RewindBox non può completare.',
       'errorServerUnavailable': 'Il sito non è temporaneamente disponibile.',
       'errorNotFound': 'Questa pagina non esiste più sul sito.',
       'errorHttpStatus': 'Il sito ha rifiutato la richiesta.',
       'errorTooLarge': 'La risposta del sito è troppo grande.',
       'errorInvalidResponse': 'Il sito ha inviato una risposta inattesa.',
       'errorSourceUnsupported':
-          'NeoStation non è in grado di leggere questa fonte.',
+          'RewindBox non è in grado di leggere questa fonte.',
       'errorSiteChanged':
-          'Il sito è cambiato e NeoStation non riesce più a leggere questo capitolo.',
+          'Il sito è cambiato e RewindBox non riesce più a leggere questo capitolo.',
       'errorNoChapters': 'Nessun capitolo trovato per questo titolo.',
       'errorNoPages': 'Nessuna pagina trovata in questo capitolo.',
       'errorProtectedChapter':
@@ -1315,7 +1315,7 @@ abstract final class LibraryReaderLocale {
       'issuePasswordProtected': 'Questo PDF è protetto da password.',
       'issueEncryptedArchive': 'L’archivio è crittografato.',
       'issueUnsupportedCompression':
-          'L’archivio usa un metodo di compressione che NeoStation non sa leggere.',
+          'L’archivio usa un metodo di compressione che RewindBox non sa leggere.',
       'issueCorrupt': 'Il file è danneggiato o incompleto.',
       'issueNoContent': 'Questo libro non contiene nulla da mostrare.',
       'issueTooLarge':
@@ -1369,7 +1369,7 @@ abstract final class LibraryReaderLocale {
       'image': 'Immagine',
       'imageUnavailable': 'Immagine non disponibile',
       'openLinkTitle': 'Aprire questo link?',
-      'openLinkBody': 'Il link verrà aperto fuori da NeoStation, nel browser.',
+      'openLinkBody': 'Il link verrà aperto fuori da RewindBox, nel browser.',
       'openLink': 'Apri',
       'linkNotSecure': 'Si possono aprire solo link sicuri (https).',
       'linkUnavailable': 'Questo link rimanda fuori dal libro.',
@@ -1428,7 +1428,7 @@ abstract final class LibraryReaderLocale {
       'curlDisabledZoom':
           'L’effetto pagina che si piega è disattivato durante lo zoom.',
       'bookmarksLocalOnly':
-          'I segnalibri restano in NeoStation: non vengono condivisi con altre app di lettura.',
+          'I segnalibri restano in RewindBox: non vengono condivisi con altre app di lettura.',
       'bookSettingsActive': 'Impostazioni specifiche di questo libro',
       'applyNavigationToAllBooks': 'Applica a tutti i libri',
       'navigationAppliedToAllBooks':
@@ -1447,15 +1447,15 @@ abstract final class LibraryReaderLocale {
           'Situs tidak dapat dijangkau. Periksa koneksi internet Anda.',
       'errorTimeout': 'Situs terlalu lama merespons.',
       'errorChallenge':
-          'Situs meminta verifikasi browser (perlindungan anti-bot) yang tidak dapat diselesaikan oleh NeoStation.',
+          'Situs meminta verifikasi browser (perlindungan anti-bot) yang tidak dapat diselesaikan oleh RewindBox.',
       'errorServerUnavailable': 'Situs untuk sementara tidak tersedia.',
       'errorNotFound': 'Halaman ini sudah tidak ada di situs.',
       'errorHttpStatus': 'Situs menolak permintaan.',
       'errorTooLarge': 'Respons dari situs terlalu besar.',
       'errorInvalidResponse': 'Situs mengirim respons yang tidak terduga.',
-      'errorSourceUnsupported': 'NeoStation tidak dapat membaca sumber ini.',
+      'errorSourceUnsupported': 'RewindBox tidak dapat membaca sumber ini.',
       'errorSiteChanged':
-          'Situs telah berubah dan NeoStation tidak dapat lagi membaca bab ini.',
+          'Situs telah berubah dan RewindBox tidak dapat lagi membaca bab ini.',
       'errorNoChapters': 'Tidak ada bab yang ditemukan untuk judul ini.',
       'errorNoPages': 'Tidak ada halaman yang ditemukan dalam bab ini.',
       'errorProtectedChapter':
@@ -1477,7 +1477,7 @@ abstract final class LibraryReaderLocale {
       'issuePasswordProtected': 'PDF ini dilindungi kata sandi.',
       'issueEncryptedArchive': 'Arsip ini dienkripsi.',
       'issueUnsupportedCompression':
-          'Arsip ini menggunakan metode kompresi yang tidak dapat dibaca oleh NeoStation.',
+          'Arsip ini menggunakan metode kompresi yang tidak dapat dibaca oleh RewindBox.',
       'issueCorrupt': 'File rusak atau tidak lengkap.',
       'issueNoContent': 'Tidak ada yang dapat ditampilkan dalam buku ini.',
       'issueTooLarge':
@@ -1531,7 +1531,7 @@ abstract final class LibraryReaderLocale {
       'image': 'Gambar',
       'imageUnavailable': 'Gambar tidak tersedia',
       'openLinkTitle': 'Buka tautan ini?',
-      'openLinkBody': 'Tautan akan dibuka di luar NeoStation, di browser Anda.',
+      'openLinkBody': 'Tautan akan dibuka di luar RewindBox, di browser Anda.',
       'openLink': 'Buka',
       'linkNotSecure': 'Hanya tautan aman (https) yang dapat dibuka.',
       'linkUnavailable': 'Tautan ini mengarah ke luar buku.',
@@ -1588,7 +1588,7 @@ abstract final class LibraryReaderLocale {
           'Tampilan dua halaman tidak berlaku untuk gulir vertikal.',
       'curlDisabledZoom': 'Efek halaman melengkung dinonaktifkan saat zoom.',
       'bookmarksLocalOnly':
-          'Penanda hanya disimpan di NeoStation: penanda tidak dibagikan dengan aplikasi baca lain.',
+          'Penanda hanya disimpan di RewindBox: penanda tidak dibagikan dengan aplikasi baca lain.',
       'bookSettingsActive': 'Pengaturan khusus untuk buku ini',
       'applyNavigationToAllBooks': 'Terapkan ke semua buku',
       'navigationAppliedToAllBooks':
@@ -1605,14 +1605,14 @@ abstract final class LibraryReaderLocale {
       'pageNumber': '{page} ページ',
       'errorOffline': 'サイトに接続できません。インターネット接続を確認してください。',
       'errorTimeout': 'サイトの応答に時間がかかりすぎました。',
-      'errorChallenge': 'サイトがブラウザ認証（ボット対策）を要求していますが、NeoStation では完了できません。',
+      'errorChallenge': 'サイトがブラウザ認証（ボット対策）を要求していますが、RewindBox では完了できません。',
       'errorServerUnavailable': 'サイトは一時的に利用できません。',
       'errorNotFound': 'このページはサイト上に存在しなくなりました。',
       'errorHttpStatus': 'サイトがリクエストを拒否しました。',
       'errorTooLarge': 'サイトからの応答が大きすぎます。',
       'errorInvalidResponse': 'サイトから予期しない応答が返されました。',
-      'errorSourceUnsupported': 'NeoStation はこのソースを読み込めません。',
-      'errorSiteChanged': 'サイトの構成が変わったため、NeoStation ではこの章を読み込めなくなりました。',
+      'errorSourceUnsupported': 'RewindBox はこのソースを読み込めません。',
+      'errorSiteChanged': 'サイトの構成が変わったため、RewindBox ではこの章を読み込めなくなりました。',
       'errorNoChapters': 'この作品の章が見つかりませんでした。',
       'errorNoPages': 'この章にページが見つかりませんでした。',
       'errorProtectedChapter': 'この章はサイトによってロックされています（プレミアムまたはアンロックが必要です）。',
@@ -1628,7 +1628,7 @@ abstract final class LibraryReaderLocale {
       'issueDrmProtected': 'この本は DRM で保護されているため開けません。',
       'issuePasswordProtected': 'この PDF はパスワードで保護されています。',
       'issueEncryptedArchive': 'アーカイブが暗号化されています。',
-      'issueUnsupportedCompression': 'アーカイブに NeoStation が読み込めない圧縮方式が使われています。',
+      'issueUnsupportedCompression': 'アーカイブに RewindBox が読み込めない圧縮方式が使われています。',
       'issueCorrupt': 'ファイルが破損しているか、不完全です。',
       'issueNoContent': 'この本には表示できる内容がありません。',
       'issueTooLarge': '本、またはその一部が大きすぎるため、安全に開けません。',
@@ -1680,7 +1680,7 @@ abstract final class LibraryReaderLocale {
       'image': '画像',
       'imageUnavailable': '画像を表示できません',
       'openLinkTitle': 'このリンクを開きますか？',
-      'openLinkBody': 'リンクは NeoStation の外部（ブラウザ）で開きます。',
+      'openLinkBody': 'リンクは RewindBox の外部（ブラウザ）で開きます。',
       'openLink': '開く',
       'linkNotSecure': '安全なリンク（https）のみ開くことができます。',
       'linkUnavailable': 'このリンクは本の外を指しています。',
@@ -1733,7 +1733,7 @@ abstract final class LibraryReaderLocale {
       'textPagesLimits': '簡易レイアウト：ハイフネーションなし、孤立行の調整なし、システムフォントのみ。',
       'doublePageNotVertical': '見開き表示は縦スクロールには適用されません。',
       'curlDisabledZoom': 'ズーム中は「紙のようにめくる」効果がオフになります。',
-      'bookmarksLocalOnly': 'しおりは NeoStation 内にのみ保存され、ほかの読書アプリとは共有されません。',
+      'bookmarksLocalOnly': 'しおりは RewindBox 内にのみ保存され、ほかの読書アプリとは共有されません。',
       'bookSettingsActive': 'この本だけの設定',
       'applyNavigationToAllBooks': 'すべての本に適用',
       'navigationAppliedToAllBooks':
@@ -1751,14 +1751,14 @@ abstract final class LibraryReaderLocale {
       'errorOffline': '사이트에 연결할 수 없습니다. 인터넷 연결을 확인하세요.',
       'errorTimeout': '사이트 응답 시간이 너무 오래 걸렸습니다.',
       'errorChallenge':
-          '사이트에서 브라우저 확인(봇 방지 보호)을 요구하지만 NeoStation에서는 완료할 수 없습니다.',
+          '사이트에서 브라우저 확인(봇 방지 보호)을 요구하지만 RewindBox에서는 완료할 수 없습니다.',
       'errorServerUnavailable': '사이트를 일시적으로 사용할 수 없습니다.',
       'errorNotFound': '이 페이지는 더 이상 사이트에 없습니다.',
       'errorHttpStatus': '사이트에서 요청을 거부했습니다.',
       'errorTooLarge': '사이트의 응답이 너무 큽니다.',
       'errorInvalidResponse': '사이트에서 예상하지 못한 응답을 보냈습니다.',
-      'errorSourceUnsupported': 'NeoStation에서 이 소스를 읽을 수 없습니다.',
-      'errorSiteChanged': '사이트가 변경되어 NeoStation에서 더 이상 이 챕터를 읽을 수 없습니다.',
+      'errorSourceUnsupported': 'RewindBox에서 이 소스를 읽을 수 없습니다.',
+      'errorSiteChanged': '사이트가 변경되어 RewindBox에서 더 이상 이 챕터를 읽을 수 없습니다.',
       'errorNoChapters': '이 작품의 챕터를 찾지 못했습니다.',
       'errorNoPages': '이 챕터에서 페이지를 찾지 못했습니다.',
       'errorProtectedChapter': '이 챕터는 사이트에서 잠겨 있습니다(프리미엄 또는 잠금 해제 필요).',
@@ -1775,7 +1775,7 @@ abstract final class LibraryReaderLocale {
       'issuePasswordProtected': '이 PDF는 암호로 보호되어 있습니다.',
       'issueEncryptedArchive': '압축 파일이 암호화되어 있습니다.',
       'issueUnsupportedCompression':
-          '압축 파일에 NeoStation이 읽을 수 없는 압축 방식이 사용되었습니다.',
+          '압축 파일에 RewindBox이 읽을 수 없는 압축 방식이 사용되었습니다.',
       'issueCorrupt': '파일이 손상되었거나 불완전합니다.',
       'issueNoContent': '이 책에는 표시할 내용이 없습니다.',
       'issueTooLarge': '책 또는 그 일부가 너무 커서 안전하게 열 수 없습니다.',
@@ -1827,7 +1827,7 @@ abstract final class LibraryReaderLocale {
       'image': '이미지',
       'imageUnavailable': '이미지를 표시할 수 없음',
       'openLinkTitle': '이 링크를 여시겠습니까?',
-      'openLinkBody': '링크는 NeoStation 밖의 브라우저에서 열립니다.',
+      'openLinkBody': '링크는 RewindBox 밖의 브라우저에서 열립니다.',
       'openLink': '열기',
       'linkNotSecure': '보안 링크(https)만 열 수 있습니다.',
       'linkUnavailable': '이 링크는 책 밖을 가리킵니다.',
@@ -1880,7 +1880,7 @@ abstract final class LibraryReaderLocale {
       'textPagesLimits': '간단한 페이지 구성: 하이픈 넣기 없음, 고립된 줄 처리 없음, 시스템 글꼴만 사용.',
       'doublePageNotVertical': '두 페이지 보기는 세로 스크롤에는 적용되지 않습니다.',
       'curlDisabledZoom': '확대/축소 중에는 페이지 말림이 꺼집니다.',
-      'bookmarksLocalOnly': '책갈피는 NeoStation에만 저장되며 다른 읽기 앱과 공유되지 않습니다.',
+      'bookmarksLocalOnly': '책갈피는 RewindBox에만 저장되며 다른 읽기 앱과 공유되지 않습니다.',
       'bookSettingsActive': '이 책 전용 설정',
       'applyNavigationToAllBooks': '모든 책에 적용',
       'navigationAppliedToAllBooks': '이제 이 탐색 설정이 전용 설정이 없는 모든 책에 적용됩니다.',

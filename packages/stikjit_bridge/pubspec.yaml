@@ -1,6 +1,6 @@
 name: stikjit_bridge
 resolution: workspace
-description: Experimental NeoStation iOS bridge for independent StikJIT emulator targets.
+description: Experimental RewindBox bridge for independent StikJIT emulator targets.
 version: 0.0.2
 publish_to: none
 

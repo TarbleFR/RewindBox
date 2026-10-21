@@ -114,7 +114,7 @@ class EsdeImportService {
       );
       if (system == null) {
         _log.i(
-          'ES-DE import: no NeoStation system for "$esdeDirName", skipping',
+          'ES-DE import: no RewindBox system for "$esdeDirName", skipping',
         );
         result = result._add(systemsUnmatched: 1);
         continue;

@@ -51,7 +51,7 @@ class LibretroEngineIdentityTile extends StatelessWidget {
   /// check is shown then, since that game opens the RetroArch app.
   final bool active;
 
-  /// "Embedded in NeoStation · Snes9x", or "Embedded in NeoStation ·
+  /// "Embedded in RewindBox · Snes9x", or "Embedded in NeoStation ·
   /// Genesis Plus GX (default)" when games of the system may choose another
   /// core. Core names are product names and stay untranslated.
   static String subtitle(BuildContext context, String systemKey) {

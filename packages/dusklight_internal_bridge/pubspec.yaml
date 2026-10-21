@@ -1,6 +1,6 @@
 name: dusklight_internal_bridge
 resolution: workspace
-description: Lazy in-process Dusklight Core bridge for NeoStation iOS Ports.
+description: Lazy in-process Dusklight Core bridge for RewindBox Ports.
 version: 0.1.0
 publish_to: none
 

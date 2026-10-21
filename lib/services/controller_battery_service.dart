@@ -6,7 +6,7 @@ import 'package:neoplay_bridge/neoplay_bridge.dart';
 import 'diagnostics_directory.dart';
 import 'logger_service.dart';
 
-/// The connected controllers' batteries (iOS), for NeoStation's header: one
+/// The connected controllers' batteries (iOS), for RewindBox's header: one
 /// native subscription shared by its listeners. Each change is also written
 /// to Files › NeoStation › Diagnostics › controller_battery.log with the level
 /// iOS reports, so a level that never moves can be told apart from a display

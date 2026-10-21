@@ -274,7 +274,7 @@ class LibraryCatalogService {
     if (addon.sourceKind == LibrarySourceKind.metadataOnly) {
       throw const LibraryAddonException(
         'This Tachiyomi/Mihon source is metadata-only on iOS. '
-        'Its Android extension runtime cannot execute inside NeoStation.',
+        'Its Android extension runtime cannot execute inside RewindBox.',
       );
     }
     if (addon.sourceKind == LibrarySourceKind.localLibrary) {
@@ -291,7 +291,7 @@ class LibraryCatalogService {
     final endpoint = addon.catalogEndpoint;
     if (endpoint == null) {
       throw const LibraryAddonException(
-        'This NeoStation source does not expose endpoints.catalog or endpoints.browse.',
+        'This RewindBox source does not expose endpoints.catalog or endpoints.browse.',
       );
     }
 

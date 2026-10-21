@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 /// Texts of Settings › General › "AirPlay and external screen" (Build 447)
-/// in NeoStation's twelve languages. Raw technical codes (plugin or scene
+/// in RewindBox's twelve languages. Raw technical codes (plugin or scene
 /// accessory status, platform error codes) are shown separately through
 /// [technicalCode] and never translated.
 abstract final class ExternalDisplayLocale {
@@ -33,7 +33,7 @@ abstract final class ExternalDisplayLocale {
     'en': {
       title: 'AirPlay and external screen',
       description:
-          'During a game, NeoStation shows the game full screen on the TV or the adapter, with the controls on the iPhone. Outside a game, iOS mirrors the iPhone.',
+          'During a game, RewindBox shows the game full screen on the TV or the adapter, with the controls on the iPhone. Outside a game, iOS mirrors the iPhone.',
       modeTitle: 'Picture format on the external screen',
       modeAutomatic: 'Automatic',
       modeFit: 'Fit to screen',
@@ -53,15 +53,15 @@ abstract final class ExternalDisplayLocale {
       unsupportedEngine:
           'This game’s engine does not use the external screen; iOS mirrors the iPhone.',
       mirroringOutsideGames:
-          'Outside a game, iOS mirrors the NeoStation interface of the iPhone.',
-      unavailable: 'Not available in this version of NeoStation.',
+          'Outside a game, iOS mirrors the RewindBox interface of the iPhone.',
+      unavailable: 'Not available in this version of RewindBox.',
       saveFailed: 'The setting could not be saved.',
       technicalCode: 'Technical code: {code}',
     },
     'es': {
       title: 'AirPlay y pantalla externa',
       description:
-          'Durante una partida, NeoStation muestra el juego a pantalla completa en el televisor o el adaptador, con los controles en el iPhone. Fuera del juego, iOS duplica el iPhone.',
+          'Durante una partida, RewindBox muestra el juego a pantalla completa en el televisor o el adaptador, con los controles en el iPhone. Fuera del juego, iOS duplica el iPhone.',
       modeTitle: 'Formato de imagen en la pantalla externa',
       modeAutomatic: 'Automático',
       modeFit: 'Ajustar a la pantalla',
@@ -84,15 +84,15 @@ abstract final class ExternalDisplayLocale {
       unsupportedEngine:
           'El motor de este juego no usa la pantalla externa; iOS duplica el iPhone.',
       mirroringOutsideGames:
-          'Fuera del juego, iOS duplica la interfaz de NeoStation del iPhone.',
-      unavailable: 'No disponible en esta versión de NeoStation.',
+          'Fuera del juego, iOS duplica la interfaz de RewindBox del iPhone.',
+      unavailable: 'No disponible en esta versión de RewindBox.',
       saveFailed: 'No se pudo guardar el ajuste.',
       technicalCode: 'Código técnico: {code}',
     },
     'ru': {
       title: 'AirPlay и внешний экран',
       description:
-          'Во время игры NeoStation выводит игру на весь экран телевизора или адаптера, а управление остаётся на iPhone. Вне игры iOS повторяет экран iPhone.',
+          'Во время игры RewindBox выводит игру на весь экран телевизора или адаптера, а управление остаётся на iPhone. Вне игры iOS повторяет экран iPhone.',
       modeTitle: 'Формат изображения на внешнем экране',
       modeAutomatic: 'Автоматически',
       modeFit: 'По размеру экрана',
@@ -112,15 +112,15 @@ abstract final class ExternalDisplayLocale {
       unsupportedEngine:
           'Движок этой игры не использует внешний экран; iOS повторяет экран iPhone.',
       mirroringOutsideGames:
-          'Вне игры iOS повторяет интерфейс NeoStation с экрана iPhone.',
-      unavailable: 'Недоступно в этой версии NeoStation.',
+          'Вне игры iOS повторяет интерфейс RewindBox с экрана iPhone.',
+      unavailable: 'Недоступно в этой версии RewindBox.',
       saveFailed: 'Не удалось сохранить настройку.',
       technicalCode: 'Технический код: {code}',
     },
     'zh': {
       title: 'AirPlay 与外接屏幕',
       description:
-          '游戏期间，NeoStation 在电视或转接器上全屏显示游戏，操作控件保留在 iPhone 上。未进行游戏时，iOS 镜像 iPhone。',
+          '游戏期间，RewindBox 在电视或转接器上全屏显示游戏，操作控件保留在 iPhone 上。未进行游戏时，iOS 镜像 iPhone。',
       modeTitle: '外接屏幕上的画面格式',
       modeAutomatic: '自动',
       modeFit: '适应屏幕',
@@ -136,15 +136,15 @@ abstract final class ExternalDisplayLocale {
       gameOnExternal: '游戏显示在外接屏幕上。',
       mirroringOff: '已关闭：iOS 镜像 iPhone 屏幕，带有黑边。',
       unsupportedEngine: '此游戏的引擎不使用外接屏幕；iOS 镜像 iPhone。',
-      mirroringOutsideGames: '未进行游戏时，iOS 镜像 iPhone 上的 NeoStation 界面。',
-      unavailable: '此版本的 NeoStation 不支持。',
+      mirroringOutsideGames: '未进行游戏时，iOS 镜像 iPhone 上的 RewindBox 界面。',
+      unavailable: '此版本的 RewindBox 不支持。',
       saveFailed: '无法保存该设置。',
       technicalCode: '技术代码：{code}',
     },
     'zh_Hant': {
       title: 'AirPlay 與外接螢幕',
       description:
-          '遊戲期間，NeoStation 在電視或轉接器上全螢幕顯示遊戲，操作控制保留在 iPhone 上。未進行遊戲時，iOS 鏡像輸出 iPhone。',
+          '遊戲期間，RewindBox 在電視或轉接器上全螢幕顯示遊戲，操作控制保留在 iPhone 上。未進行遊戲時，iOS 鏡像輸出 iPhone。',
       modeTitle: '外接螢幕上的畫面格式',
       modeAutomatic: '自動',
       modeFit: '符合螢幕',
@@ -160,15 +160,15 @@ abstract final class ExternalDisplayLocale {
       gameOnExternal: '遊戲顯示在外接螢幕上。',
       mirroringOff: '已關閉：iOS 鏡像輸出 iPhone 螢幕，帶有黑邊。',
       unsupportedEngine: '此遊戲的引擎不使用外接螢幕；iOS 鏡像輸出 iPhone。',
-      mirroringOutsideGames: '未進行遊戲時，iOS 鏡像輸出 iPhone 上的 NeoStation 介面。',
-      unavailable: '此版本的 NeoStation 不支援。',
+      mirroringOutsideGames: '未進行遊戲時，iOS 鏡像輸出 iPhone 上的 RewindBox 介面。',
+      unavailable: '此版本的 RewindBox 不支援。',
       saveFailed: '無法儲存此設定。',
       technicalCode: '技術代碼：{code}',
     },
     'pt': {
       title: 'AirPlay e tela externa',
       description:
-          'Durante um jogo, o NeoStation mostra o jogo em tela cheia na TV ou no adaptador, com os controles no iPhone. Fora do jogo, o iOS espelha o iPhone.',
+          'Durante um jogo, o RewindBox mostra o jogo em tela cheia na TV ou no adaptador, com os controles no iPhone. Fora do jogo, o iOS espelha o iPhone.',
       modeTitle: 'Formato da imagem na tela externa',
       modeAutomatic: 'Automático',
       modeFit: 'Ajustar à tela',
@@ -190,15 +190,15 @@ abstract final class ExternalDisplayLocale {
       unsupportedEngine:
           'O motor deste jogo não usa a tela externa; o iOS espelha o iPhone.',
       mirroringOutsideGames:
-          'Fora do jogo, o iOS espelha a interface do NeoStation do iPhone.',
-      unavailable: 'Indisponível nesta versão do NeoStation.',
+          'Fora do jogo, o iOS espelha a interface do RewindBox do iPhone.',
+      unavailable: 'Indisponível nesta versão do RewindBox.',
       saveFailed: 'Não foi possível salvar o ajuste.',
       technicalCode: 'Código técnico: {code}',
     },
     'fr': {
       title: 'AirPlay et écran externe',
       description:
-          'Pendant un jeu, NeoStation affiche le jeu en plein écran sur le téléviseur ou l’adaptateur, les commandes restant sur l’iPhone. Hors jeu, iOS recopie l’iPhone.',
+          'Pendant un jeu, RewindBox affiche le jeu en plein écran sur le téléviseur ou l’adaptateur, les commandes restant sur l’iPhone. Hors jeu, iOS recopie l’iPhone.',
       modeTitle: 'Format sur l’écran externe',
       modeAutomatic: 'Automatique',
       modeFit: 'Adapter à l’écran',
@@ -220,15 +220,15 @@ abstract final class ExternalDisplayLocale {
       unsupportedEngine:
           'Le moteur de ce jeu n’utilise pas l’écran externe ; iOS recopie l’iPhone.',
       mirroringOutsideGames:
-          'Hors jeu, iOS recopie l’interface NeoStation de l’iPhone.',
-      unavailable: 'Non disponible dans cette version de NeoStation.',
+          'Hors jeu, iOS recopie l’interface RewindBox de l’iPhone.',
+      unavailable: 'Non disponible dans cette version de RewindBox.',
       saveFailed: 'Le réglage n’a pas pu être enregistré.',
       technicalCode: 'Code technique : {code}',
     },
     'de': {
       title: 'AirPlay und externer Bildschirm',
       description:
-          'Während eines Spiels zeigt NeoStation das Spiel im Vollbild auf dem Fernseher oder Adapter, die Steuerung bleibt auf dem iPhone. Außerhalb eines Spiels spiegelt iOS das iPhone.',
+          'Während eines Spiels zeigt RewindBox das Spiel im Vollbild auf dem Fernseher oder Adapter, die Steuerung bleibt auf dem iPhone. Außerhalb eines Spiels spiegelt iOS das iPhone.',
       modeTitle: 'Bildformat auf dem externen Bildschirm',
       modeAutomatic: 'Automatisch',
       modeFit: 'An Bildschirm anpassen',
@@ -250,15 +250,15 @@ abstract final class ExternalDisplayLocale {
       unsupportedEngine:
           'Die Engine dieses Spiels nutzt den externen Bildschirm nicht; iOS spiegelt das iPhone.',
       mirroringOutsideGames:
-          'Außerhalb eines Spiels spiegelt iOS die NeoStation-Oberfläche des iPhone.',
-      unavailable: 'In dieser NeoStation-Version nicht verfügbar.',
+          'Außerhalb eines Spiels spiegelt iOS die RewindBox-Oberfläche des iPhone.',
+      unavailable: 'In dieser RewindBox-Version nicht verfügbar.',
       saveFailed: 'Die Einstellung konnte nicht gespeichert werden.',
       technicalCode: 'Technischer Code: {code}',
     },
     'it': {
       title: 'AirPlay e schermo esterno',
       description:
-          'Durante una partita, NeoStation mostra il gioco a schermo intero sul televisore o sull’adattatore, con i comandi sull’iPhone. Fuori dal gioco, iOS duplica l’iPhone.',
+          'Durante una partita, RewindBox mostra il gioco a schermo intero sul televisore o sull’adattatore, con i comandi sull’iPhone. Fuori dal gioco, iOS duplica l’iPhone.',
       modeTitle: 'Formato dell’immagine sullo schermo esterno',
       modeAutomatic: 'Automatico',
       modeFit: 'Adatta allo schermo',
@@ -282,15 +282,15 @@ abstract final class ExternalDisplayLocale {
       unsupportedEngine:
           'Il motore di questo gioco non usa lo schermo esterno; iOS duplica l’iPhone.',
       mirroringOutsideGames:
-          'Fuori dal gioco, iOS duplica l’interfaccia di NeoStation dell’iPhone.',
-      unavailable: 'Non disponibile in questa versione di NeoStation.',
+          'Fuori dal gioco, iOS duplica l’interfaccia di RewindBox dell’iPhone.',
+      unavailable: 'Non disponibile in questa versione di RewindBox.',
       saveFailed: 'Impossibile salvare l’impostazione.',
       technicalCode: 'Codice tecnico: {code}',
     },
     'id': {
       title: 'AirPlay dan layar eksternal',
       description:
-          'Selama bermain, NeoStation menampilkan game dalam layar penuh di TV atau adaptor, dengan kontrol tetap di iPhone. Di luar game, iOS mencerminkan iPhone.',
+          'Selama bermain, RewindBox menampilkan game dalam layar penuh di TV atau adaptor, dengan kontrol tetap di iPhone. Di luar game, iOS mencerminkan iPhone.',
       modeTitle: 'Format gambar di layar eksternal',
       modeAutomatic: 'Otomatis',
       modeFit: 'Sesuaikan dengan layar',
@@ -310,15 +310,15 @@ abstract final class ExternalDisplayLocale {
       unsupportedEngine:
           'Mesin game ini tidak menggunakan layar eksternal; iOS mencerminkan iPhone.',
       mirroringOutsideGames:
-          'Di luar game, iOS mencerminkan antarmuka NeoStation dari iPhone.',
-      unavailable: 'Tidak tersedia di versi NeoStation ini.',
+          'Di luar game, iOS mencerminkan antarmuka RewindBox dari iPhone.',
+      unavailable: 'Tidak tersedia di versi RewindBox ini.',
       saveFailed: 'Pengaturan tidak dapat disimpan.',
       technicalCode: 'Kode teknis: {code}',
     },
     'ja': {
       title: 'AirPlay と外部ディスプレイ',
       description:
-          'ゲーム中は、NeoStation がテレビやアダプタにゲームを全画面で表示し、操作は iPhone に残ります。ゲーム中以外は iOS が iPhone をミラーリングします。',
+          'ゲーム中は、RewindBox がテレビやアダプタにゲームを全画面で表示し、操作は iPhone に残ります。ゲーム中以外は iOS が iPhone をミラーリングします。',
       modeTitle: '外部ディスプレイでの画面フォーマット',
       modeAutomatic: '自動',
       modeFit: '画面に合わせる',
@@ -334,15 +334,15 @@ abstract final class ExternalDisplayLocale {
       gameOnExternal: 'ゲームは外部ディスプレイに表示されています。',
       mirroringOff: 'オフ：iOS が iPhone の画面を帯付きでミラーリングします。',
       unsupportedEngine: 'このゲームのエンジンは外部ディスプレイを使用しません。iOS が iPhone をミラーリングします。',
-      mirroringOutsideGames: 'ゲーム中以外は、iOS が iPhone の NeoStation 画面をミラーリングします。',
-      unavailable: 'このバージョンの NeoStation では利用できません。',
+      mirroringOutsideGames: 'ゲーム中以外は、iOS が iPhone の RewindBox 画面をミラーリングします。',
+      unavailable: 'このバージョンの RewindBox では利用できません。',
       saveFailed: '設定を保存できませんでした。',
       technicalCode: '技術コード：{code}',
     },
     'ko': {
       title: 'AirPlay 및 외부 화면',
       description:
-          '게임 중에는 NeoStation이 TV나 어댑터에 게임을 전체 화면으로 표시하고 조작은 iPhone에 남습니다. 게임 중이 아닐 때는 iOS가 iPhone을 미러링합니다.',
+          '게임 중에는 RewindBox이 TV나 어댑터에 게임을 전체 화면으로 표시하고 조작은 iPhone에 남습니다. 게임 중이 아닐 때는 iOS가 iPhone을 미러링합니다.',
       modeTitle: '외부 화면의 화면 형식',
       modeAutomatic: '자동',
       modeFit: '화면에 맞춤',
@@ -358,8 +358,8 @@ abstract final class ExternalDisplayLocale {
       gameOnExternal: '게임이 외부 화면에 표시됩니다.',
       mirroringOff: '꺼짐: iOS가 iPhone 화면을 띠와 함께 미러링합니다.',
       unsupportedEngine: '이 게임의 엔진은 외부 화면을 사용하지 않습니다. iOS가 iPhone을 미러링합니다.',
-      mirroringOutsideGames: '게임 중이 아닐 때는 iOS가 iPhone의 NeoStation 화면을 미러링합니다.',
-      unavailable: '이 버전의 NeoStation에서는 사용할 수 없습니다.',
+      mirroringOutsideGames: '게임 중이 아닐 때는 iOS가 iPhone의 RewindBox 화면을 미러링합니다.',
+      unavailable: '이 버전의 RewindBox에서는 사용할 수 없습니다.',
       saveFailed: '설정을 저장할 수 없습니다.',
       technicalCode: '기술 코드: {code}',
     },

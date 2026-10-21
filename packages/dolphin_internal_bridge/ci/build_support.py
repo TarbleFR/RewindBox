@@ -103,9 +103,10 @@ end
 ''', encoding='utf-8')
     info_path = ios / 'Runner/Info.plist'
     info = plist(info_path)
-    info['CFBundleDisplayName'] = 'NeoStation iOS'
+    info['CFBundleDisplayName'] = 'RewindBox'
+    info['CFBundleName'] = 'RewindBox'
     info['NSLocalNetworkUsageDescription'] = (
-        "NeoStation connects to this iPhone's LocalDevVPN Remote Pairing "
+        "RewindBox connects to this iPhone's LocalDevVPN Remote Pairing "
         "endpoint to enable JIT."
     )
     write_plist(info_path, info)

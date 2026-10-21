@@ -367,7 +367,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                           session->_thread = [[NSThread alloc] initWithTarget:session
                                                                      selector:@selector(threadMain)
                                                                        object:nil];
-                          session->_thread.name = @"NeoStation libretro";
+                          session->_thread.name = @"RewindBox libretro";
                           session->_thread.qualityOfService = NSQualityOfServiceUserInteractive;
                           session->_thread.stackSize = 16 * 1024 * 1024;
                           [session->_thread start];
@@ -433,7 +433,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [journal note:@"stop: dismissing the game view"];
   dispatch_block_t done = ^{
     LibretroRestoreAppOrientations(presenter);
-    [journal note:@"stop: game view dismissed, returning to NeoStation"];
+    [journal note:@"stop: game view dismissed, returning to RewindBox"];
     [journal noteLines:finalLog title:@"core log"];
     [journal finishWithOutcome:@"closed"];
     // A stop during UIKit presentation revokes its deferred start as well.
@@ -1982,7 +1982,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       return;
     }
     NSDictionary *bundle = NSBundle.mainBundle.infoDictionary;
-    [session->_journal note:[NSString stringWithFormat:@"shader: NeoStation %@ (%@), attempt %@, preset %@, core %@ %@ (%@), renderer %@",
+    [session->_journal note:[NSString stringWithFormat:@"shader: RewindBox %@ (%@), attempt %@, preset %@, core %@ %@ (%@), renderer %@",
                                                        bundle[@"CFBundleShortVersionString"] ?: @"unknown",
                                                        bundle[@"CFBundleVersion"] ?: @"unknown",
                                                        token, identifier, session->_host.libraryName ?: @"",
@@ -2503,7 +2503,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     [_journal note:[NSString stringWithFormat:@"load: resolution %@ of %@ does not apply (renderer %@)", inapplicable,
                                               _host.libraryName ?: @"", _loadedRenderer ?: @"unknown"]];
   } else if (capability == nil) {
-    [_journal note:[NSString stringWithFormat:@"load: %@ declares no internal resolution NeoStation offers",
+    [_journal note:[NSString stringWithFormat:@"load: %@ declares no internal resolution RewindBox offers",
                                               _host.libraryName ?: @""]];
   } else {
     NSMutableArray<NSString *> *values = [NSMutableArray array];

@@ -20,7 +20,7 @@ import 'package:neostation/utils/version_compare.dart';
 class UpdateService {
   /// GitHub Releases API endpoint for the latest production build.
   static const String _githubApiUrl =
-      'https://api.github.com/repos/misobadev/neostation-frontend/releases/latest';
+      'https://api.github.com/repos/TarbleFR/RewindBox/releases/latest';
 
   static final _log = LoggerService.instance;
 

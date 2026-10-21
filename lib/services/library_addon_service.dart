@@ -934,7 +934,7 @@ class LibraryAddonService {
     }
 
     throw const LibraryAddonException(
-      'Document root must be a NeoStation manifest or a supported Tachiyomi/Mihon repository.',
+      'Document root must be a RewindBox manifest or a supported Tachiyomi/Mihon repository.',
     );
   }
 
@@ -1142,7 +1142,7 @@ class LibraryAddonService {
     if (looksLikeObsidianPlugin) {
       throw const LibraryAddonException(
         'This is an Obsidian plugin manifest. Its minAppVersion targets '
-        'Obsidian, not NeoStation. A NeoStation source must declare '
+        'Obsidian, not RewindBox. A RewindBox source must declare '
         'schema "neostation.library.v1".',
       );
     }
@@ -1164,13 +1164,13 @@ class LibraryAddonService {
     final currentParts = _parseSemanticVersion(current);
     if (currentParts == null) {
       throw LibraryAddonException(
-        'Unable to compare the current NeoStation version "$current".',
+        'Unable to compare the current RewindBox version "$current".',
       );
     }
 
     if (_compareVersionParts(currentParts, requiredParts) < 0) {
       throw LibraryAddonException(
-        'This source requires NeoStation $minimum or newer. '
+        'This source requires RewindBox $minimum or newer. '
         'Installed version: $current.',
       );
     }

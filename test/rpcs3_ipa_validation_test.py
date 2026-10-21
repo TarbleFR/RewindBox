@@ -25,8 +25,8 @@ def _base_info(version: str) -> dict:
         'CFBundleExecutable': 'Runner',
         'CFBundleIdentifier': 'com.neogamelab.neostation',
         'CFBundleVersion': version,
-        'CFBundleName': 'neostation',
-        'CFBundleDisplayName': 'NeoStation iOS',
+        'CFBundleName': 'RewindBox',
+        'CFBundleDisplayName': 'RewindBox',
         'CFBundleIconName': 'AppIcon',
         'CFBundleIconFiles': list(validator.SPRINGBOARD_ICON_BASES),
         'CFBundleIcons': {

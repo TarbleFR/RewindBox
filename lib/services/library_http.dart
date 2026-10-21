@@ -487,7 +487,7 @@ class LibraryHttp {
   static const String defaultUserAgent =
       'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
       'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 '
-      'Mobile/15E148 Safari/604.1 NeoStation/1.0';
+      'Mobile/15E148 Safari/604.1 RewindBox/1.0';
   static const Duration defaultTimeout = Duration(seconds: 20);
   static const int defaultMaxBytes = 16 * 1024 * 1024;
 

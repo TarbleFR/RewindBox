@@ -1391,7 +1391,7 @@ _IndexSnapshot _readIndexFile(String path) {
   try {
     final json = jsonDecode(utf8.decode(bytes));
     if (json is! Map || json['version'] is! int) {
-      throw const FormatException('not a NeoStation library index');
+      throw const FormatException('not a RewindBox library index');
     }
     final books = <LibraryLocalBook>[];
     final ids = <String>{};

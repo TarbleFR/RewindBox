@@ -1,10 +1,10 @@
-# NeoStation iOS Architecture
+# RewindBox Architecture
 
-This document describes the architecture of the NeoStation Flutter application as maintained in this iOS-focused fork.
+This document describes the architecture of the RewindBox Flutter application as maintained in this iOS-focused fork.
 
 ## Overview
 
-NeoStation is a landscape-oriented Flutter emulation frontend. This repository is maintained primarily for **iOS / iPadOS 18+**, while retaining substantial upstream Android and desktop code plus vendored platform packages so shared Flutter logic remains close to the original project.
+RewindBox is a landscape-oriented Flutter emulation frontend. This repository is maintained primarily for **iOS / iPadOS 18+**, while retaining substantial upstream Android and desktop code plus vendored platform packages so shared Flutter logic remains close to the original project.
 
 The iOS port adds Apple-specific external-folder access, emulator discovery/launch integration, library synchronization, custom menu media, sideloading-oriented build support and iOS-specific first-run flows.
 
@@ -115,7 +115,7 @@ Important iOS-specific behavior includes:
 - RetroArch, MeloNX and ARMSX2 detection and deeplink/launch integration;
 - first-run setup adapted around iOS linking rather than desktop/Android directory flows;
 - custom Systems-menu backgrounds using static images, GIFs or local video containers;
-- optional main-menu music copied into NeoStation user data;
+- optional main-menu music copied into RewindBox user data;
 - landscape UI and gamepad-focused navigation;
 - unsigned IPA-friendly release builds for sideloading/signing outside the repository.
 

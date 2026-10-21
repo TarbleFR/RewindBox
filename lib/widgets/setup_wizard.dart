@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/rewindbox_wordmark.dart';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -373,8 +374,8 @@ class _SetupWizardState extends State<SetupWizard> with WidgetsBindingObserver {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Logo
-            Image.asset(
-              'assets/images/logo_transparent.png',
+            RewindBoxWordmark(
+              // Independent fork identity; upstream artwork remains credited.
               width: 120.r,
               height: 120.r,
             ),
@@ -442,8 +443,8 @@ class _SetupWizardState extends State<SetupWizard> with WidgetsBindingObserver {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'assets/images/logo_transparent.png',
+                  RewindBoxWordmark(
+                    // Independent fork identity; upstream artwork remains credited.
                     width: 64.r,
                     height: 64.r,
                   ),
@@ -2128,7 +2129,7 @@ class _SetupWizardState extends State<SetupWizard> with WidgetsBindingObserver {
       final roms = await ConfigService.getDefaultIOSRomsFolder();
       if (!mounted) return;
       setState(() {
-        _selectedFolder = 'NeoStation › ${libretroLibraryLocation(roms)}';
+        _selectedFolder = 'RewindBox › ${libretroLibraryLocation(roms)}';
         _isSelectingFolder = false;
         _currentStep++;
       });

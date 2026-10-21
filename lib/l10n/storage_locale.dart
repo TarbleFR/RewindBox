@@ -1,13 +1,13 @@
 import 'package:flutter/widgets.dart';
 
 /// Texts of Settings › Tools › "Storage analysis and cleanup" (chantier 5,
-/// `docs/storage-audit-cleanup.md` § 3.11 and § 7) in NeoStation's twelve
+/// `docs/storage-audit-cleanup.md` § 3.11 and § 7) in RewindBox's twelve
 /// languages.
 ///
 /// Sizes arrive already formatted (`Rpcs3SaveExchangeService.formatBytes`)
 /// and dates already localized. Paths, refusal codes, errno and SQLite texts
 /// and other raw diagnostics are inserted through placeholders or shown apart
-/// through [technicalCode], never translated. Product names (NeoStation,
+/// through [technicalCode], never translated. Product names (RewindBox,
 /// RPCS3, Dolphin, KartPad, Dusklight, ARMSX2, NeoSwap, RetroArch, libretro)
 /// are not catalog entries. No text names the Library sources folder: it is
 /// counted under [rootLibrary].
@@ -176,7 +176,7 @@ abstract final class StorageLocale {
     'en': {
       toolTitle: 'Storage analysis and cleanup',
       toolSubtitle:
-          'Measures the space used by NeoStation and its engines, then offers a cleanup with a preview.',
+          'Measures the space used by RewindBox and its engines, then offers a cleanup with a preview.',
       title: 'Storage',
       scanning: 'Analyzing…',
       scanAgain: 'Analyze again',
@@ -205,7 +205,7 @@ abstract final class StorageLocale {
       catUnknown: 'Other data (unidentified)',
       byRoot: 'By folder',
       rootLibrary: 'Library',
-      rootDocuments: 'NeoStation folder in Files',
+      rootDocuments: 'RewindBox folder in Files',
       rootSupport: 'Internal app data',
       rootCaches: 'App caches',
       rootTemporary: 'App temporary folder',
@@ -273,7 +273,7 @@ abstract final class StorageLocale {
       journalSaved: 'Log saved: {path}',
       refuseLink: 'Symbolic link: never followed or deleted.',
       refuseProtected: 'Protected item: never deleted.',
-      refuseOutside: 'Outside the folders analyzed by NeoStation.',
+      refuseOutside: 'Outside the folders analyzed by RewindBox.',
       refuseAccess: 'Access denied by the system.',
       refuseNotEmpty: 'Folder not empty: it still contains other files.',
       refuseChanged: 'Changed since the preview: left untouched.',
@@ -281,7 +281,7 @@ abstract final class StorageLocale {
       refuseRoot: 'Main folder: only its contents can be cleaned.',
       refuseCacheApi: 'The Library cache could not be cleared.',
       refuseRedirected:
-          'RPCS3 storage is redirected elsewhere: NeoStation leaves it untouched.',
+          'RPCS3 storage is redirected elsewhere: RewindBox leaves it untouched.',
       refuseUnknown: 'Refused for an unexpected reason.',
       export: 'Export report',
       exportDetailed: 'Detailed mode (relative paths)',
@@ -296,9 +296,9 @@ abstract final class StorageLocale {
       limitNeoSwap:
           'Unlinked NeoSwap memory cannot be measured: its files stay open while a game runs but appear in no folder.',
       limitExtensions:
-          'NeoStation cannot read the containers of its app extensions, so they are not measured.',
+          'RewindBox cannot read the containers of its app extensions, so they are not measured.',
       limitLinkedFolders:
-          'Folders linked from outside NeoStation are neither analyzed nor cleaned.',
+          'Folders linked from outside RewindBox are neither analyzed nor cleaned.',
       limitRpcs3Cache:
           'The RPCS3 cache is shown as a single block: its breakdown by game is unknown.',
       limitDolphinStates: 'Dolphin save states are not matched to their game.',
@@ -337,7 +337,7 @@ abstract final class StorageLocale {
     'es': {
       toolTitle: 'Análisis y limpieza del almacenamiento',
       toolSubtitle:
-          'Mide el espacio que usan NeoStation y sus motores, y luego propone una limpieza con vista previa.',
+          'Mide el espacio que usan RewindBox y sus motores, y luego propone una limpieza con vista previa.',
       title: 'Almacenamiento',
       scanning: 'Analizando…',
       scanAgain: 'Analizar de nuevo',
@@ -366,7 +366,7 @@ abstract final class StorageLocale {
       catUnknown: 'Otros datos (sin identificar)',
       byRoot: 'Por carpeta',
       rootLibrary: 'Biblioteca',
-      rootDocuments: 'Carpeta de NeoStation en Archivos',
+      rootDocuments: 'Carpeta de RewindBox en Archivos',
       rootSupport: 'Datos internos de la app',
       rootCaches: 'Cachés de la app',
       rootTemporary: 'Carpeta temporal de la app',
@@ -440,7 +440,7 @@ abstract final class StorageLocale {
       journalSaved: 'Registro guardado: {path}',
       refuseLink: 'Enlace simbólico: nunca se sigue ni se elimina.',
       refuseProtected: 'Elemento protegido: nunca se elimina.',
-      refuseOutside: 'Fuera de las carpetas que analiza NeoStation.',
+      refuseOutside: 'Fuera de las carpetas que analiza RewindBox.',
       refuseAccess: 'El sistema denegó el acceso.',
       refuseNotEmpty: 'Carpeta no vacía: todavía contiene otros archivos.',
       refuseChanged: 'Cambió desde la vista previa: se deja intacto.',
@@ -448,7 +448,7 @@ abstract final class StorageLocale {
       refuseRoot: 'Carpeta principal: solo se puede limpiar su contenido.',
       refuseCacheApi: 'No se pudo vaciar la caché de la Biblioteca.',
       refuseRedirected:
-          'El almacenamiento de RPCS3 está redirigido a otro lugar: NeoStation no lo toca.',
+          'El almacenamiento de RPCS3 está redirigido a otro lugar: RewindBox no lo toca.',
       refuseUnknown: 'Rechazado por un motivo inesperado.',
       export: 'Exportar el informe',
       exportDetailed: 'Modo detallado (rutas relativas)',
@@ -464,9 +464,9 @@ abstract final class StorageLocale {
       limitNeoSwap:
           'La memoria NeoSwap desvinculada no se puede medir: sus archivos siguen abiertos durante el juego, pero no aparecen en ninguna carpeta.',
       limitExtensions:
-          'NeoStation no puede leer los contenedores de las extensiones de la app, así que no se miden.',
+          'RewindBox no puede leer los contenedores de las extensiones de la app, así que no se miden.',
       limitLinkedFolders:
-          'Las carpetas vinculadas desde fuera de NeoStation no se analizan ni se limpian.',
+          'Las carpetas vinculadas desde fuera de RewindBox no se analizan ni se limpian.',
       limitRpcs3Cache:
           'La caché de RPCS3 se muestra como un solo bloque: se desconoce su reparto por juego.',
       limitDolphinStates:
@@ -506,7 +506,7 @@ abstract final class StorageLocale {
     'ru': {
       toolTitle: 'Анализ и очистка хранилища',
       toolSubtitle:
-          'Измеряет место, занятое NeoStation и его движками, затем предлагает очистку с предварительным просмотром.',
+          'Измеряет место, занятое RewindBox и его движками, затем предлагает очистку с предварительным просмотром.',
       title: 'Хранилище',
       scanning: 'Идёт анализ…',
       scanAgain: 'Повторить анализ',
@@ -535,7 +535,7 @@ abstract final class StorageLocale {
       catUnknown: 'Прочие данные (не опознаны)',
       byRoot: 'По папкам',
       rootLibrary: 'Библиотека',
-      rootDocuments: 'Папка NeoStation в «Файлах»',
+      rootDocuments: 'Папка RewindBox в «Файлах»',
       rootSupport: 'Внутренние данные приложения',
       rootCaches: 'Кэши приложения',
       rootTemporary: 'Временная папка приложения',
@@ -604,7 +604,7 @@ abstract final class StorageLocale {
       journalSaved: 'Журнал сохранён: {path}',
       refuseLink: 'Символическая ссылка: по ней не переходят и её не удаляют.',
       refuseProtected: 'Защищённый элемент: никогда не удаляется.',
-      refuseOutside: 'Вне папок, которые анализирует NeoStation.',
+      refuseOutside: 'Вне папок, которые анализирует RewindBox.',
       refuseAccess: 'Система запретила доступ.',
       refuseNotEmpty: 'Папка не пуста: в ней остались другие файлы.',
       refuseChanged: 'Изменено после предпросмотра: оставлено как есть.',
@@ -612,7 +612,7 @@ abstract final class StorageLocale {
       refuseRoot: 'Основная папка: очистить можно только её содержимое.',
       refuseCacheApi: 'Не удалось очистить кэш Библиотеки.',
       refuseRedirected:
-          'Хранилище RPCS3 перенаправлено в другое место: NeoStation его не трогает.',
+          'Хранилище RPCS3 перенаправлено в другое место: RewindBox его не трогает.',
       refuseUnknown: 'Отклонено по непредвиденной причине.',
       export: 'Экспорт отчёта',
       exportDetailed: 'Подробный режим (относительные пути)',
@@ -627,9 +627,9 @@ abstract final class StorageLocale {
       limitNeoSwap:
           'Отвязанную память NeoSwap измерить нельзя: её файлы открыты во время игры, но не видны ни в одной папке.',
       limitExtensions:
-          'NeoStation не может прочитать контейнеры расширений приложения, поэтому они не измеряются.',
+          'RewindBox не может прочитать контейнеры расширений приложения, поэтому они не измеряются.',
       limitLinkedFolders:
-          'Подключённые папки за пределами NeoStation не анализируются и не очищаются.',
+          'Подключённые папки за пределами RewindBox не анализируются и не очищаются.',
       limitRpcs3Cache:
           'Кэш RPCS3 показан одним блоком: его распределение по играм неизвестно.',
       limitDolphinStates: 'Состояния Dolphin не сопоставляются с играми.',
@@ -669,7 +669,7 @@ abstract final class StorageLocale {
     },
     'zh': {
       toolTitle: '存储空间分析与清理',
-      toolSubtitle: '测量 NeoStation 及其引擎占用的空间，然后提供可预览的清理方案。',
+      toolSubtitle: '测量 RewindBox 及其引擎占用的空间，然后提供可预览的清理方案。',
       title: '存储空间',
       scanning: '正在分析…',
       scanAgain: '重新分析',
@@ -698,7 +698,7 @@ abstract final class StorageLocale {
       catUnknown: '其他数据（未识别）',
       byRoot: '按文件夹',
       rootLibrary: '资料库',
-      rootDocuments: '“文件”App 中的 NeoStation 文件夹',
+      rootDocuments: '“文件”App 中的 RewindBox 文件夹',
       rootSupport: 'App 内部数据',
       rootCaches: 'App 缓存',
       rootTemporary: 'App 临时文件夹',
@@ -754,14 +754,14 @@ abstract final class StorageLocale {
       journalSaved: '日志已保存：{path}',
       refuseLink: '符号链接：从不跟随，也不删除。',
       refuseProtected: '受保护的项目：绝不删除。',
-      refuseOutside: '不在 NeoStation 分析的文件夹内。',
+      refuseOutside: '不在 RewindBox 分析的文件夹内。',
       refuseAccess: '系统拒绝访问。',
       refuseNotEmpty: '文件夹不为空：其中仍有其他文件。',
       refuseChanged: '预览后已变动：保持原样。',
       refuseNotInPlan: '不在预览范围内。',
       refuseRoot: '主文件夹：只能清理其中的内容。',
       refuseCacheApi: '无法清空资料库缓存。',
-      refuseRedirected: 'RPCS3 存储已重定向到其他位置：NeoStation 不会改动。',
+      refuseRedirected: 'RPCS3 存储已重定向到其他位置：RewindBox 不会改动。',
       refuseUnknown: '因意外原因被拒绝。',
       export: '导出报告',
       exportDetailed: '详细模式（相对路径）',
@@ -772,8 +772,8 @@ abstract final class StorageLocale {
       limitFfi: '此设备无法获取分配大小和剩余空间：显示的是逻辑大小。',
       limitFreeSpace: '剩余空间不包括 iOS 设置中计为“可用”的可清除空间。',
       limitNeoSwap: '无法测量已解除链接的 NeoSwap 内存：其文件在游戏期间保持打开，但不出现在任何文件夹中。',
-      limitExtensions: 'NeoStation 无法读取其 App 扩展的容器，因此不计入测量。',
-      limitLinkedFolders: '从 NeoStation 外部链接的文件夹既不分析也不清理。',
+      limitExtensions: 'RewindBox 无法读取其 App 扩展的容器，因此不计入测量。',
+      limitLinkedFolders: '从 RewindBox 外部链接的文件夹既不分析也不清理。',
       limitRpcs3Cache: 'RPCS3 缓存显示为一个整体：无法按游戏细分。',
       limitDolphinStates: 'Dolphin 的即时存档不会对应到具体游戏。',
       limitScannerOrphans: '孤立项是事后发现的：分析无法阻止其产生。',
@@ -800,7 +800,7 @@ abstract final class StorageLocale {
     },
     'zh_Hant': {
       toolTitle: '儲存空間分析與清理',
-      toolSubtitle: '測量 NeoStation 及其引擎佔用的空間，然後提供可預覽的清理方案。',
+      toolSubtitle: '測量 RewindBox 及其引擎佔用的空間，然後提供可預覽的清理方案。',
       title: '儲存空間',
       scanning: '分析中…',
       scanAgain: '重新分析',
@@ -829,7 +829,7 @@ abstract final class StorageLocale {
       catUnknown: '其他資料（未識別）',
       byRoot: '依資料夾',
       rootLibrary: '資料庫',
-      rootDocuments: '「檔案」App 中的 NeoStation 資料夾',
+      rootDocuments: '「檔案」App 中的 RewindBox 資料夾',
       rootSupport: 'App 內部資料',
       rootCaches: 'App 快取',
       rootTemporary: 'App 暫存資料夾',
@@ -885,14 +885,14 @@ abstract final class StorageLocale {
       journalSaved: '記錄檔已儲存：{path}',
       refuseLink: '符號連結：從不追蹤，也不刪除。',
       refuseProtected: '受保護的項目：絕不刪除。',
-      refuseOutside: '不在 NeoStation 分析的資料夾內。',
+      refuseOutside: '不在 RewindBox 分析的資料夾內。',
       refuseAccess: '系統拒絕存取。',
       refuseNotEmpty: '資料夾不是空的：其中仍有其他檔案。',
       refuseChanged: '預覽後已變動：維持原狀。',
       refuseNotInPlan: '不在預覽範圍內。',
       refuseRoot: '主資料夾：只能清理其中的內容。',
       refuseCacheApi: '無法清除資料庫快取。',
-      refuseRedirected: 'RPCS3 儲存空間已重新導向至其他位置：NeoStation 不會更動。',
+      refuseRedirected: 'RPCS3 儲存空間已重新導向至其他位置：RewindBox 不會更動。',
       refuseUnknown: '因非預期的原因遭拒。',
       export: '匯出報告',
       exportDetailed: '詳細模式（相對路徑）',
@@ -903,8 +903,8 @@ abstract final class StorageLocale {
       limitFfi: '此裝置無法取得配置大小與剩餘空間：顯示的是邏輯大小。',
       limitFreeSpace: '剩餘空間不包含 iOS 設定中算作「可用」的可清除空間。',
       limitNeoSwap: '無法測量已解除連結的 NeoSwap 記憶體：其檔案在遊戲期間保持開啟，但不會出現在任何資料夾中。',
-      limitExtensions: 'NeoStation 無法讀取其 App 延伸功能的容器，因此不列入測量。',
-      limitLinkedFolders: '從 NeoStation 外部連結的資料夾既不分析也不清理。',
+      limitExtensions: 'RewindBox 無法讀取其 App 延伸功能的容器，因此不列入測量。',
+      limitLinkedFolders: '從 RewindBox 外部連結的資料夾既不分析也不清理。',
       limitRpcs3Cache: 'RPCS3 快取顯示為一個整體：無法依遊戲細分。',
       limitDolphinStates: 'Dolphin 的即時存檔不會對應到具體遊戲。',
       limitScannerOrphans: '孤立項目是事後才發現的：分析無法防止其產生。',
@@ -932,7 +932,7 @@ abstract final class StorageLocale {
     'pt': {
       toolTitle: 'Análise e limpeza do armazenamento',
       toolSubtitle:
-          'Mede o espaço usado pelo NeoStation e por seus motores e, depois, propõe uma limpeza com pré-visualização.',
+          'Mede o espaço usado pelo RewindBox e por seus motores e, depois, propõe uma limpeza com pré-visualização.',
       title: 'Armazenamento',
       scanning: 'Analisando…',
       scanAgain: 'Analisar novamente',
@@ -961,7 +961,7 @@ abstract final class StorageLocale {
       catUnknown: 'Outros dados (não identificados)',
       byRoot: 'Por pasta',
       rootLibrary: 'Biblioteca',
-      rootDocuments: 'Pasta do NeoStation no app Arquivos',
+      rootDocuments: 'Pasta do RewindBox no app Arquivos',
       rootSupport: 'Dados internos do app',
       rootCaches: 'Caches do app',
       rootTemporary: 'Pasta temporária do app',
@@ -1034,7 +1034,7 @@ abstract final class StorageLocale {
       journalSaved: 'Registro salvo: {path}',
       refuseLink: 'Link simbólico: nunca é seguido nem excluído.',
       refuseProtected: 'Item protegido: nunca é excluído.',
-      refuseOutside: 'Fora das pastas analisadas pelo NeoStation.',
+      refuseOutside: 'Fora das pastas analisadas pelo RewindBox.',
       refuseAccess: 'Acesso negado pelo sistema.',
       refuseNotEmpty: 'Pasta não vazia: ainda contém outros arquivos.',
       refuseChanged: 'Alterado após a pré-visualização: mantido intacto.',
@@ -1042,7 +1042,7 @@ abstract final class StorageLocale {
       refuseRoot: 'Pasta principal: só o conteúdo dela pode ser limpo.',
       refuseCacheApi: 'Não foi possível limpar o cache da Biblioteca.',
       refuseRedirected:
-          'O armazenamento do RPCS3 está redirecionado para outro local: o NeoStation não mexe nele.',
+          'O armazenamento do RPCS3 está redirecionado para outro local: o RewindBox não mexe nele.',
       refuseUnknown: 'Recusado por um motivo inesperado.',
       export: 'Exportar relatório',
       exportDetailed: 'Modo detalhado (caminhos relativos)',
@@ -1057,9 +1057,9 @@ abstract final class StorageLocale {
       limitNeoSwap:
           'A memória NeoSwap desvinculada não pode ser medida: seus arquivos ficam abertos durante o jogo, mas não aparecem em nenhuma pasta.',
       limitExtensions:
-          'O NeoStation não consegue ler os contêineres das extensões do app, por isso eles não são medidos.',
+          'O RewindBox não consegue ler os contêineres das extensões do app, por isso eles não são medidos.',
       limitLinkedFolders:
-          'As pastas vinculadas de fora do NeoStation não são analisadas nem limpas.',
+          'As pastas vinculadas de fora do RewindBox não são analisadas nem limpas.',
       limitRpcs3Cache:
           'O cache do RPCS3 aparece como um único bloco: a divisão por jogo é desconhecida.',
       limitDolphinStates:
@@ -1099,7 +1099,7 @@ abstract final class StorageLocale {
     'fr': {
       toolTitle: 'Analyse et nettoyage du stockage',
       toolSubtitle:
-          'Mesure l’espace utilisé par NeoStation et ses moteurs, puis propose un nettoyage prévisualisé.',
+          'Mesure l’espace utilisé par RewindBox et ses moteurs, puis propose un nettoyage prévisualisé.',
       title: 'Stockage',
       scanning: 'Analyse en cours…',
       scanAgain: 'Analyser à nouveau',
@@ -1128,7 +1128,7 @@ abstract final class StorageLocale {
       catUnknown: 'Autres données (non identifiées)',
       byRoot: 'Par dossier',
       rootLibrary: 'Bibliothèque',
-      rootDocuments: 'Dossier NeoStation dans Fichiers',
+      rootDocuments: 'Dossier RewindBox dans Fichiers',
       rootSupport: 'Données internes de l’app',
       rootCaches: 'Caches de l’app',
       rootTemporary: 'Dossier temporaire de l’app',
@@ -1199,7 +1199,7 @@ abstract final class StorageLocale {
       journalSaved: 'Journal enregistré : {path}',
       refuseLink: 'Lien symbolique : jamais suivi ni supprimé.',
       refuseProtected: 'Élément protégé : jamais supprimé.',
-      refuseOutside: 'Hors des dossiers analysés par NeoStation.',
+      refuseOutside: 'Hors des dossiers analysés par RewindBox.',
       refuseAccess: 'Accès refusé par le système.',
       refuseNotEmpty:
           'Dossier non vide : il contient encore d’autres fichiers.',
@@ -1208,7 +1208,7 @@ abstract final class StorageLocale {
       refuseRoot: 'Dossier principal : seul son contenu peut être nettoyé.',
       refuseCacheApi: 'Le cache de la Bibliothèque n’a pas pu être vidé.',
       refuseRedirected:
-          'Le stockage RPCS3 est redirigé ailleurs : NeoStation n’y touche pas.',
+          'Le stockage RPCS3 est redirigé ailleurs : RewindBox n’y touche pas.',
       refuseUnknown: 'Refusé pour une raison inattendue.',
       export: 'Exporter le rapport',
       exportDetailed: 'Mode détaillé (chemins relatifs)',
@@ -1223,9 +1223,9 @@ abstract final class StorageLocale {
       limitNeoSwap:
           'La mémoire NeoSwap délinkée n’est pas mesurable : ses fichiers restent ouverts pendant le jeu mais n’apparaissent dans aucun dossier.',
       limitExtensions:
-          'Les conteneurs des extensions de l’app sont illisibles pour NeoStation et ne sont pas mesurés.',
+          'Les conteneurs des extensions de l’app sont illisibles pour RewindBox et ne sont pas mesurés.',
       limitLinkedFolders:
-          'Les dossiers liés hors de NeoStation ne sont ni analysés ni nettoyés.',
+          'Les dossiers liés hors de RewindBox ne sont ni analysés ni nettoyés.',
       limitRpcs3Cache:
           'Le cache RPCS3 apparaît d’un seul bloc : sa répartition par jeu n’est pas connue.',
       limitDolphinStates: 'Les états Dolphin ne sont pas rattachés à leur jeu.',
@@ -1265,7 +1265,7 @@ abstract final class StorageLocale {
     'de': {
       toolTitle: 'Speicheranalyse und -bereinigung',
       toolSubtitle:
-          'Misst den von NeoStation und seinen Engines belegten Speicher und schlägt dann eine Bereinigung mit Vorschau vor.',
+          'Misst den von RewindBox und seinen Engines belegten Speicher und schlägt dann eine Bereinigung mit Vorschau vor.',
       title: 'Speicher',
       scanning: 'Wird analysiert …',
       scanAgain: 'Erneut analysieren',
@@ -1294,7 +1294,7 @@ abstract final class StorageLocale {
       catUnknown: 'Sonstige Daten (nicht zugeordnet)',
       byRoot: 'Nach Ordner',
       rootLibrary: 'Bibliothek',
-      rootDocuments: 'NeoStation-Ordner in „Dateien“',
+      rootDocuments: 'RewindBox-Ordner in „Dateien“',
       rootSupport: 'Interne App-Daten',
       rootCaches: 'App-Caches',
       rootTemporary: 'Temporärer App-Ordner',
@@ -1366,7 +1366,7 @@ abstract final class StorageLocale {
       journalSaved: 'Protokoll gespeichert: {path}',
       refuseLink: 'Symbolischer Link: wird nie verfolgt oder gelöscht.',
       refuseProtected: 'Geschützter Eintrag: wird nie gelöscht.',
-      refuseOutside: 'Außerhalb der von NeoStation analysierten Ordner.',
+      refuseOutside: 'Außerhalb der von RewindBox analysierten Ordner.',
       refuseAccess: 'Zugriff vom System verweigert.',
       refuseNotEmpty: 'Ordner nicht leer: Er enthält noch andere Dateien.',
       refuseChanged: 'Seit der Vorschau geändert: unverändert gelassen.',
@@ -1374,7 +1374,7 @@ abstract final class StorageLocale {
       refuseRoot: 'Hauptordner: Nur sein Inhalt kann bereinigt werden.',
       refuseCacheApi: 'Der Cache der Bibliothek konnte nicht geleert werden.',
       refuseRedirected:
-          'Der RPCS3-Speicher ist an einen anderen Ort umgeleitet: NeoStation lässt ihn unverändert.',
+          'Der RPCS3-Speicher ist an einen anderen Ort umgeleitet: RewindBox lässt ihn unverändert.',
       refuseUnknown: 'Aus einem unerwarteten Grund abgelehnt.',
       export: 'Bericht exportieren',
       exportDetailed: 'Detailmodus (relative Pfade)',
@@ -1389,9 +1389,9 @@ abstract final class StorageLocale {
       limitNeoSwap:
           'NeoSwap-Speicher ohne Verzeichniseintrag lässt sich nicht messen: Seine Dateien bleiben während des Spiels geöffnet, erscheinen aber in keinem Ordner.',
       limitExtensions:
-          'NeoStation kann die Container seiner App-Erweiterungen nicht lesen; sie werden daher nicht gemessen.',
+          'RewindBox kann die Container seiner App-Erweiterungen nicht lesen; sie werden daher nicht gemessen.',
       limitLinkedFolders:
-          'Verknüpfte Ordner außerhalb von NeoStation werden weder analysiert noch bereinigt.',
+          'Verknüpfte Ordner außerhalb von RewindBox werden weder analysiert noch bereinigt.',
       limitRpcs3Cache:
           'Der RPCS3-Cache erscheint als ein einziger Block: Seine Aufteilung nach Spielen ist unbekannt.',
       limitDolphinStates: 'Dolphin-Zustände werden keinem Spiel zugeordnet.',
@@ -1433,7 +1433,7 @@ abstract final class StorageLocale {
     'it': {
       toolTitle: 'Analisi e pulizia dello spazio di archiviazione',
       toolSubtitle:
-          'Misura lo spazio usato da NeoStation e dai suoi motori, poi propone una pulizia con anteprima.',
+          'Misura lo spazio usato da RewindBox e dai suoi motori, poi propone una pulizia con anteprima.',
       title: 'Spazio di archiviazione',
       scanning: 'Analisi in corso…',
       scanAgain: 'Analizza di nuovo',
@@ -1462,7 +1462,7 @@ abstract final class StorageLocale {
       catUnknown: 'Altri dati (non identificati)',
       byRoot: 'Per cartella',
       rootLibrary: 'Biblioteca',
-      rootDocuments: 'Cartella NeoStation in File',
+      rootDocuments: 'Cartella RewindBox in File',
       rootSupport: 'Dati interni dell’app',
       rootCaches: 'Cache dell’app',
       rootTemporary: 'Cartella temporanea dell’app',
@@ -1534,7 +1534,7 @@ abstract final class StorageLocale {
       journalSaved: 'Log salvato: {path}',
       refuseLink: 'Collegamento simbolico: mai seguito né eliminato.',
       refuseProtected: 'Elemento protetto: mai eliminato.',
-      refuseOutside: 'Fuori dalle cartelle analizzate da NeoStation.',
+      refuseOutside: 'Fuori dalle cartelle analizzate da RewindBox.',
       refuseAccess: 'Accesso negato dal sistema.',
       refuseNotEmpty: 'Cartella non vuota: contiene ancora altri file.',
       refuseChanged: 'Modificato dopo l’anteprima: lasciato intatto.',
@@ -1542,7 +1542,7 @@ abstract final class StorageLocale {
       refuseRoot: 'Cartella principale: si può pulire solo il suo contenuto.',
       refuseCacheApi: 'Impossibile svuotare la cache della Biblioteca.',
       refuseRedirected:
-          'Lo spazio di archiviazione di RPCS3 è reindirizzato altrove: NeoStation non lo tocca.',
+          'Lo spazio di archiviazione di RPCS3 è reindirizzato altrove: RewindBox non lo tocca.',
       refuseUnknown: 'Rifiutato per un motivo imprevisto.',
       export: 'Esporta il rapporto',
       exportDetailed: 'Modalità dettagliata (percorsi relativi)',
@@ -1558,9 +1558,9 @@ abstract final class StorageLocale {
       limitNeoSwap:
           'La memoria NeoSwap scollegata non è misurabile: i suoi file restano aperti durante il gioco, ma non compaiono in nessuna cartella.',
       limitExtensions:
-          'NeoStation non può leggere i contenitori delle estensioni dell’app, quindi non vengono misurati.',
+          'RewindBox non può leggere i contenitori delle estensioni dell’app, quindi non vengono misurati.',
       limitLinkedFolders:
-          'Le cartelle collegate esterne a NeoStation non vengono né analizzate né pulite.',
+          'Le cartelle collegate esterne a RewindBox non vengono né analizzate né pulite.',
       limitRpcs3Cache:
           'La cache di RPCS3 appare come un unico blocco: la sua suddivisione per gioco non è nota.',
       limitDolphinStates:
@@ -1602,7 +1602,7 @@ abstract final class StorageLocale {
     'id': {
       toolTitle: 'Analisis dan pembersihan penyimpanan',
       toolSubtitle:
-          'Mengukur ruang yang dipakai NeoStation dan mesinnya, lalu menawarkan pembersihan dengan pratinjau.',
+          'Mengukur ruang yang dipakai RewindBox dan mesinnya, lalu menawarkan pembersihan dengan pratinjau.',
       title: 'Penyimpanan',
       scanning: 'Sedang menganalisis…',
       scanAgain: 'Analisis ulang',
@@ -1631,7 +1631,7 @@ abstract final class StorageLocale {
       catUnknown: 'Data lain (tidak dikenali)',
       byRoot: 'Menurut folder',
       rootLibrary: 'Perpustakaan',
-      rootDocuments: 'Folder NeoStation di app File',
+      rootDocuments: 'Folder RewindBox di app File',
       rootSupport: 'Data internal aplikasi',
       rootCaches: 'Cache aplikasi',
       rootTemporary: 'Folder sementara aplikasi',
@@ -1703,7 +1703,7 @@ abstract final class StorageLocale {
       journalSaved: 'Log disimpan: {path}',
       refuseLink: 'Tautan simbolik: tidak pernah diikuti atau dihapus.',
       refuseProtected: 'Item terlindungi: tidak pernah dihapus.',
-      refuseOutside: 'Di luar folder yang dianalisis NeoStation.',
+      refuseOutside: 'Di luar folder yang dianalisis RewindBox.',
       refuseAccess: 'Akses ditolak oleh sistem.',
       refuseNotEmpty: 'Folder tidak kosong: masih berisi file lain.',
       refuseChanged: 'Berubah sejak pratinjau: dibiarkan apa adanya.',
@@ -1711,7 +1711,7 @@ abstract final class StorageLocale {
       refuseRoot: 'Folder utama: hanya isinya yang dapat dibersihkan.',
       refuseCacheApi: 'Cache Perpustakaan tidak dapat dikosongkan.',
       refuseRedirected:
-          'Penyimpanan RPCS3 dialihkan ke tempat lain: NeoStation tidak menyentuhnya.',
+          'Penyimpanan RPCS3 dialihkan ke tempat lain: RewindBox tidak menyentuhnya.',
       refuseUnknown: 'Ditolak karena alasan yang tidak terduga.',
       export: 'Ekspor laporan',
       exportDetailed: 'Mode terperinci (jalur relatif)',
@@ -1726,9 +1726,9 @@ abstract final class StorageLocale {
       limitNeoSwap:
           'Memori NeoSwap yang sudah di-unlink tidak dapat diukur: file-nya tetap terbuka selama game berjalan, tetapi tidak muncul di folder mana pun.',
       limitExtensions:
-          'NeoStation tidak dapat membaca kontainer ekstensi aplikasinya, jadi kontainer itu tidak diukur.',
+          'RewindBox tidak dapat membaca kontainer ekstensi aplikasinya, jadi kontainer itu tidak diukur.',
       limitLinkedFolders:
-          'Folder tertaut di luar NeoStation tidak dianalisis dan tidak dibersihkan.',
+          'Folder tertaut di luar RewindBox tidak dianalisis dan tidak dibersihkan.',
       limitRpcs3Cache:
           'Cache RPCS3 ditampilkan sebagai satu blok: rinciannya per game tidak diketahui.',
       limitDolphinStates: 'Status Dolphin tidak dikaitkan dengan game-nya.',
@@ -1766,7 +1766,7 @@ abstract final class StorageLocale {
     },
     'ja': {
       toolTitle: 'ストレージの分析とクリーンアップ',
-      toolSubtitle: 'NeoStation とそのエンジンが使用している容量を測定し、プレビュー付きのクリーンアップを提案します。',
+      toolSubtitle: 'RewindBox とそのエンジンが使用している容量を測定し、プレビュー付きのクリーンアップを提案します。',
       title: 'ストレージ',
       scanning: '分析中…',
       scanAgain: '再分析',
@@ -1795,7 +1795,7 @@ abstract final class StorageLocale {
       catUnknown: 'その他のデータ（未識別）',
       byRoot: 'フォルダ別',
       rootLibrary: 'ライブラリ',
-      rootDocuments: '「ファイル」App の NeoStation フォルダ',
+      rootDocuments: '「ファイル」App の RewindBox フォルダ',
       rootSupport: 'App の内部データ',
       rootCaches: 'App のキャッシュ',
       rootTemporary: 'App の一時フォルダ',
@@ -1855,14 +1855,14 @@ abstract final class StorageLocale {
       journalSaved: 'ログを保存しました：{path}',
       refuseLink: 'シンボリックリンク：たどることも削除することもありません。',
       refuseProtected: '保護された項目：削除されません。',
-      refuseOutside: 'NeoStation が分析するフォルダの外にあります。',
+      refuseOutside: 'RewindBox が分析するフォルダの外にあります。',
       refuseAccess: 'システムによりアクセスが拒否されました。',
       refuseNotEmpty: 'フォルダが空ではありません：ほかのファイルが残っています。',
       refuseChanged: 'プレビュー後に変更されました：そのまま残しています。',
       refuseNotInPlan: 'プレビューに含まれていません。',
       refuseRoot: 'メインフォルダ：クリーンアップできるのは中身だけです。',
       refuseCacheApi: 'ライブラリのキャッシュを消去できませんでした。',
-      refuseRedirected: 'RPCS3 のストレージは別の場所にリダイレクトされています：NeoStation は変更しません。',
+      refuseRedirected: 'RPCS3 のストレージは別の場所にリダイレクトされています：RewindBox は変更しません。',
       refuseUnknown: '予期しない理由で拒否されました。',
       export: 'レポートをエクスポート',
       exportDetailed: '詳細モード（相対パス）',
@@ -1874,8 +1874,8 @@ abstract final class StorageLocale {
       limitFreeSpace: '空き容量には、iOS の設定で「利用可能」に含まれる削除可能な領域は含まれません。',
       limitNeoSwap:
           'リンク解除された NeoSwap のメモリは測定できません：そのファイルはゲーム中も開いたままですが、どのフォルダにも表示されません。',
-      limitExtensions: 'NeoStation は App の機能拡張のコンテナを読み取れないため、それらは測定されません。',
-      limitLinkedFolders: 'NeoStation の外部からリンクしたフォルダは、分析もクリーンアップもされません。',
+      limitExtensions: 'RewindBox は App の機能拡張のコンテナを読み取れないため、それらは測定されません。',
+      limitLinkedFolders: 'RewindBox の外部からリンクしたフォルダは、分析もクリーンアップもされません。',
       limitRpcs3Cache: 'RPCS3 のキャッシュは 1 つのまとまりとして表示されます：ゲームごとの内訳は不明です。',
       limitDolphinStates: 'Dolphin のステートセーブは、対応するゲームと関連付けられません。',
       limitScannerOrphans: '孤立データは後から検出されます：分析で発生を防ぐことはできません。',
@@ -1903,7 +1903,7 @@ abstract final class StorageLocale {
     },
     'ko': {
       toolTitle: '저장 공간 분석 및 정리',
-      toolSubtitle: 'NeoStation과 엔진이 사용하는 공간을 측정한 뒤, 미리 보기가 있는 정리를 제안합니다.',
+      toolSubtitle: 'RewindBox과 엔진이 사용하는 공간을 측정한 뒤, 미리 보기가 있는 정리를 제안합니다.',
       title: '저장 공간',
       scanning: '분석 중…',
       scanAgain: '다시 분석',
@@ -1932,7 +1932,7 @@ abstract final class StorageLocale {
       catUnknown: '기타 데이터(식별되지 않음)',
       byRoot: '폴더별',
       rootLibrary: '라이브러리',
-      rootDocuments: '파일 앱의 NeoStation 폴더',
+      rootDocuments: '파일 앱의 RewindBox 폴더',
       rootSupport: '앱 내부 데이터',
       rootCaches: '앱 캐시',
       rootTemporary: '앱 임시 폴더',
@@ -1992,14 +1992,14 @@ abstract final class StorageLocale {
       journalSaved: '로그 저장됨: {path}',
       refuseLink: '심볼릭 링크: 따라가거나 삭제하지 않습니다.',
       refuseProtected: '보호된 항목: 삭제하지 않습니다.',
-      refuseOutside: 'NeoStation이 분석하는 폴더 밖에 있습니다.',
+      refuseOutside: 'RewindBox이 분석하는 폴더 밖에 있습니다.',
       refuseAccess: '시스템이 접근을 거부했습니다.',
       refuseNotEmpty: '폴더가 비어 있지 않습니다. 다른 파일이 남아 있습니다.',
       refuseChanged: '미리 보기 이후 변경됨: 그대로 두었습니다.',
       refuseNotInPlan: '미리 보기에 포함되지 않은 항목입니다.',
       refuseRoot: '기본 폴더: 안의 내용만 정리할 수 있습니다.',
       refuseCacheApi: '라이브러리 캐시를 비울 수 없습니다.',
-      refuseRedirected: 'RPCS3 저장 공간이 다른 위치로 리디렉션되어 있어 NeoStation이 건드리지 않습니다.',
+      refuseRedirected: 'RPCS3 저장 공간이 다른 위치로 리디렉션되어 있어 RewindBox이 건드리지 않습니다.',
       refuseUnknown: '예상치 못한 이유로 거부되었습니다.',
       export: '보고서 내보내기',
       exportDetailed: '상세 모드(상대 경로)',
@@ -2011,8 +2011,8 @@ abstract final class StorageLocale {
       limitFreeSpace: '여유 공간에는 iOS 설정이 ‘사용 가능’으로 계산하는 제거 가능한 공간이 포함되지 않습니다.',
       limitNeoSwap:
           '링크 해제된 NeoSwap 메모리는 측정할 수 없습니다. 해당 파일은 게임 중에 열려 있지만 어떤 폴더에도 나타나지 않습니다.',
-      limitExtensions: 'NeoStation은 앱 확장 프로그램의 컨테이너를 읽을 수 없어 측정하지 않습니다.',
-      limitLinkedFolders: 'NeoStation 외부에서 연결한 폴더는 분석하거나 정리하지 않습니다.',
+      limitExtensions: 'RewindBox은 앱 확장 프로그램의 컨테이너를 읽을 수 없어 측정하지 않습니다.',
+      limitLinkedFolders: 'RewindBox 외부에서 연결한 폴더는 분석하거나 정리하지 않습니다.',
       limitRpcs3Cache: 'RPCS3 캐시는 하나로 묶어 표시되며 게임별 내역은 알 수 없습니다.',
       limitDolphinStates: 'Dolphin 상태 저장은 해당 게임과 연결되지 않습니다.',
       limitScannerOrphans: '고아 항목은 생긴 뒤에 발견되며, 분석으로 생기는 것을 막을 수는 없습니다.',

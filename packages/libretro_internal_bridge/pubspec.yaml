@@ -1,6 +1,6 @@
 name: libretro_internal_bridge
 resolution: workspace
-description: Embedded libretro host for NeoStation iOS, running the cores RetroArch uses inside NeoStation.
+description: Embedded libretro host for RewindBox, running the cores RetroArch uses inside RewindBox.
 version: 0.1.0
 publish_to: none
 

@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name             = 'external_display'
   s.version          = '0.1.0'
-  s.summary          = 'NeoStation iOS external display host (AirPlay, adapters).'
+  s.summary          = 'RewindBox external display host (AirPlay, adapters).'
   s.description      = <<-DESC
 Owns NeoStation's window on the external screen (scene role
 UIWindowSceneSessionRoleExternalDisplayNonInteractive, legacy UIScreen
@@ -10,7 +10,7 @@ view of the running emulator in it, with one placement policy (Automatic,
 Fit, Fill, Original). Emulator cores are not touched; the bridges adopt
 NeoExternalRenderHost and depend on this pod.
                        DESC
-  s.homepage         = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }

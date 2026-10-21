@@ -1,3 +1,7 @@
+RewindBox — independent iOS/iPadOS fork, maintained by TarbleFR.
+Renamed on 21 October 2026. The upstream authorship and original notices below are preserved.
+Support: https://github.com/TarbleFR/RewindBox/issues
+
 NeoStation - Emulation Hub
 Copyright (C) 2025-2026 Miguel Soto <miguelsotobaez@gmail.com>
 

@@ -18,18 +18,18 @@ abstract final class ForkOnboardingLocale {
   };
 
   static const Map<String, String> _welcomeTitles = {
-    'de': 'Willkommen bei NeoStation',
-    'en': 'Welcome to NeoStation',
-    'es': 'Bienvenido a NeoStation',
-    'fr': 'Bienvenue sur NeoStation',
-    'id': 'Selamat datang di NeoStation',
-    'it': 'Benvenuto in NeoStation',
-    'ja': 'NeoStation へようこそ',
-    'ko': 'NeoStation에 오신 것을 환영합니다',
-    'pt': 'Bem-vindo ao NeoStation',
-    'ru': 'Добро пожаловать в NeoStation',
-    'zh': '欢迎使用 NeoStation',
-    'zh_Hant': '歡迎使用 NeoStation',
+    'de': 'Willkommen bei RewindBox',
+    'en': 'Welcome to RewindBox',
+    'es': 'Bienvenido a RewindBox',
+    'fr': 'Bienvenue sur RewindBox',
+    'id': 'Selamat datang di RewindBox',
+    'it': 'Benvenuto in RewindBox',
+    'ja': 'RewindBox へようこそ',
+    'ko': 'RewindBox에 오신 것을 환영합니다',
+    'pt': 'Bem-vindo ao RewindBox',
+    'ru': 'Добро пожаловать в RewindBox',
+    'zh': '欢迎使用 RewindBox',
+    'zh_Hant': '歡迎使用 RewindBox',
   };
 
   static String continueLabel(BuildContext context) =>
