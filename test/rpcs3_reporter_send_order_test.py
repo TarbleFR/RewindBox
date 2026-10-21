@@ -26,7 +26,7 @@ assert lock < send < unlock < wait, (
     "Network.framework acknowledgement"
 )
 assert "defer { sendLock.unlock() }" not in control
-assert "Timed out writing control state to NeoStation." in source
+assert "Timed out writing control state to RewindBox." in source
 
 compiler = shutil.which("swiftc")
 if compiler is None:

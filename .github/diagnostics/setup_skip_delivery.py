@@ -74,7 +74,7 @@ def setup_evidence():
                and s.get('conclusion') == 'success' for s in jobs[0]['steps']):
         raise ValueError('Actual Flutter first-run tests did not pass')
     with tempfile.TemporaryDirectory(prefix='setup-skip-witness-') as tmp:
-        subprocess.run(['gh', 'run', 'download', str(SETUP_RUN), '--repo', 'TarbleFR/neostation-ios',
+        subprocess.run(['gh', 'run', 'download', str(SETUP_RUN), '--repo', 'TarbleFR/RewindBox',
                         '--name', 'setup-skip-' + SETUP_REF, '--dir', tmp], check=True)
         paths = list(Path(tmp).rglob('verdict.json'))
         if len(paths) != 1:

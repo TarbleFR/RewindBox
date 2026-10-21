@@ -6,11 +6,11 @@ source='940afd3971180286171dfc4964bcf701e6588d56'
 paths=['tools/cheats','test/cheats478_sources.py','test/cheats478_sources.mm','test/cheats478_pnach_accept.cpp',
     'native/cheats/catalogue','packages/neo_cheat_catalog/ios/Resources/manifest.json.gz']
 subprocess.run(['git','diff','--exit-code',source,'HEAD','--',*paths],cwd=root,check=True)
-def api(path):return json.loads(subprocess.check_output(['gh','api','repos/TarbleFR/neostation-ios/'+path],cwd=root,text=True))
+def api(path):return json.loads(subprocess.check_output(['gh','api','repos/TarbleFR/RewindBox/'+path],cwd=root,text=True))
 job=api('actions/jobs/117650930284');assert job['conclusion']=='success' and job['name']=='publish' and job['run_id']==39119129264
 parent=api('git/commits/'+source)['parents'][0]['sha']
 assert parent=='8bb5ea9d38c18b16ade86219d56e0cc71ea05c0a'
-log=subprocess.check_output(['gh','api','repos/TarbleFR/neostation-ios/actions/jobs/117650930284/logs','--allow-escape-sequences'],cwd=root,text=True)
+log=subprocess.check_output(['gh','api','repos/TarbleFR/RewindBox/actions/jobs/117650930284/logs','--allow-escape-sequences'],cwd=root,text=True)
 assert parent in log and 'Ran 8 tests' in log and 'Published 60 FPS selections:' in log
 receipt=json.loads((root/'docs/evidence/cheats478-sources.json').read_bytes())
 assert hashlib.sha256((root/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes()).hexdigest()==receipt['manifestSHA256']

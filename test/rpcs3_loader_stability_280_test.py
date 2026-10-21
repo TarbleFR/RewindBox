@@ -29,7 +29,7 @@ assert 'NEOSTATION_BUILD283_BOUNDED_CORE_LOG' in host
 assert 'pendingLogs < 32' in helper
 assert 'if event == "log"' in helper
 assert 'String(message.prefix(4096))' in helper
-assert 'Timed out writing control state to NeoStation.' in helper
+assert 'Timed out writing control state to RewindBox.' in helper
 assert '#import "Rpcs3Diagnostics.h"' in jit
 assert 'jit_helper_' in jit
 assert '_mutableLogs.count > 64' in jit

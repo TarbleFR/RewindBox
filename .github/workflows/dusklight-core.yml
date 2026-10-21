@@ -142,13 +142,13 @@ jobs:
           cp dist/dusklight/identity.json build/dusklight-diagnostics/identity.json
       - uses: actions/upload-artifact@v4
         with:
-          name: NeoStation-Dusklight-Core-${{ github.sha }}
+          name: RewindBox-Dusklight-Core-${{ github.sha }}
           path: dist/dusklight
           retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: NeoStation-Dusklight-Core-diagnostics-${{ github.sha }}
+          name: RewindBox-Dusklight-Core-diagnostics-${{ github.sha }}
           path: build/dusklight-diagnostics
           retention-days: 7
       - uses: actions/cache/save@v4

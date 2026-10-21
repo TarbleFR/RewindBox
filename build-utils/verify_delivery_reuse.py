@@ -2291,10 +2291,10 @@ def verify_neoswap_tree(reference=NEOSWAP_441_REFERENCE):
 def verify_neoswap_evidence():
     records = []
     for run_id, commit, workflow, required_jobs in NEOSWAP_441_EVIDENCE:
-        run = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/neostation-ios/actions/runs/{run_id}']))
+        run = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/RewindBox/actions/runs/{run_id}']))
         if run['head_sha'] != commit or run['conclusion'] != 'success' or run['path'] != workflow:
             raise ValueError('Build440 evidence is not successful at its exact reference: ' + str(run_id))
-        jobs = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/neostation-ios/actions/runs/{run_id}/jobs']))['jobs']
+        jobs = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/RewindBox/actions/runs/{run_id}/jobs']))['jobs']
         if required_jobs:
             for name in required_jobs:
                 if not any(job['name'] == name and job['conclusion'] == 'success' for job in jobs):
@@ -2363,7 +2363,7 @@ def verify_library_covers_tree(reference=LIBRARY_COVERS_REFERENCE):
 
 def verify_library_covers_evidence():
     """Require the successful exact Build442 jobs, including reused evidence."""
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{LIBRARY_COVERS_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{LIBRARY_COVERS_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != LIBRARY_COVERS_REFERENCE
             or run.get('status') != 'completed' or run.get('conclusion') != 'success'
@@ -2474,7 +2474,7 @@ DELTA |= CHEAT_RECIPE_INPUTS
 
 def verify_skin_loading_evidence():
     """Require the historical negative reproduction and current installed-skin tests."""
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_LOADING_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{SKIN_LOADING_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != SKIN_LOADING_REFERENCE or run.get('status') != 'completed'
             or run.get('conclusion') != 'success'
@@ -2495,7 +2495,7 @@ def verify_skin_loading_evidence():
 
 def verify_catalog_audit_evidence():
     """Require actual transport/filter tests and original-image native compositions."""
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{CATALOG_AUDIT_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{CATALOG_AUDIT_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != CATALOG_AUDIT_REFERENCE or run.get('status') != 'completed'
             or run.get('conclusion') != 'success'
@@ -2516,7 +2516,7 @@ def verify_catalog_audit_evidence():
 
 
 def verify_cheat_catalog_evidence():
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{CHEAT_CATALOG_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{CHEAT_CATALOG_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != CHEAT_CATALOG_REFERENCE or run.get('status') != 'completed'
             or run.get('conclusion') != 'success'
@@ -2538,7 +2538,7 @@ CHEAT_LAYOUT467_REFERENCE = '14e66cf20ca9c38154d2a26d39ca7705f95c1b4d'
 CHEAT_LAYOUT467_RUN = 38907359293
 
 def verify_cheat_layout467_evidence():
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{CHEAT_LAYOUT467_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{CHEAT_LAYOUT467_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != CHEAT_LAYOUT467_REFERENCE
             or run.get('status') != 'completed' or run.get('conclusion') != 'success'
@@ -2565,7 +2565,7 @@ def verify_cheat_layout467_evidence():
 
 def verify_nestopia_skin_stability468_evidence():
     """Require the complete real Nestopia + original author skin CI results."""
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_STABILITY468_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{SKIN_STABILITY468_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != SKIN_STABILITY468_REFERENCE
             or run.get('status') != 'completed' or run.get('conclusion') != 'success'
@@ -2610,7 +2610,7 @@ def validate_nestopia470_verdict(record, *, baseline=False, asan=False):
 
 def verify_nestopia_skin_stability470_evidence():
     """Require both successful jobs AND their actual bounded verdict files."""
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_STABILITY470_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{SKIN_STABILITY470_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != SKIN_STABILITY470_REFERENCE or run.get('status') != 'completed'
             or run.get('conclusion') != 'success'
@@ -2640,7 +2640,7 @@ def verify_nestopia_skin_stability470_evidence():
         for artifact, subfolder in (('nestopia-skin-stability-', 'normal'),
                                    ('nestopia-memory-sanitizers-', 'asan')):
             subprocess.run(['gh', 'run', 'download', str(SKIN_STABILITY470_RUN),
-                            '--repo', 'TarbleFR/neostation-ios', '--name', artifact + SKIN_STABILITY470_REFERENCE,
+                            '--repo', 'TarbleFR/RewindBox', '--name', artifact + SKIN_STABILITY470_REFERENCE,
                             '--dir', str(folder / subfolder)], check=True)
         normal = validate_nestopia470_verdict(json.loads(
             (folder / 'normal/skin-stability-verdict.json').read_text()))
@@ -2657,7 +2657,7 @@ def verify_nestopia_skin_stability470_evidence():
 
 def verify_skin_session_evidence():
     """Require the complete shared session suite from the engine workflow."""
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{SKIN_SESSION_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{SKIN_SESSION_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != SKIN_SESSION_REFERENCE or run.get('status') != 'completed'
             or run.get('path') != '.github/workflows/libretro-checks.yml'):
@@ -2679,7 +2679,7 @@ LIBRETRO_SKIN_PRESS_REFERENCE = SKIN_STABILITY470_REFERENCE
 LIBRETRO_SKIN_PRESS_RUN = 39071406958
 
 def verify_libretro_reuse_evidence():
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{LIBRETRO_SKIN_PRESS_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{LIBRETRO_SKIN_PRESS_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != LIBRETRO_SKIN_PRESS_REFERENCE or run.get('status') != 'completed'
             or run.get('conclusion') != 'success' or run.get('path') != '.github/workflows/libretro-checks.yml'):
@@ -2699,7 +2699,7 @@ DELIVERY460_DART_RUN = 38707150124
 
 def verify_delivery460_dart_evidence():
     """The Dart phases passed; a later, separate Python contract failed."""
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{DELIVERY460_DART_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{DELIVERY460_DART_RUN}'
     run = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
     if (run.get('head_sha') != DELIVERY460_DART_REFERENCE or run.get('status') != 'completed'
             or run.get('path') != '.github/workflows/retroarch-delivery.yml'):
@@ -2817,7 +2817,7 @@ def validate_targeted470_verdict(record, ownership):
 
 def verify_targeted470_evidence():
     # Never reinterpret the older successful runs as coverage of new Menu bytes.
-    endpoint = f'repos/TarbleFR/neostation-ios/actions/runs/{TARGETED470_RUN}'
+    endpoint = f'repos/TarbleFR/RewindBox/actions/runs/{TARGETED470_RUN}'
     run = json.loads(subprocess.check_output(['gh','api',endpoint]))
     if (run.get('head_sha') != TARGETED470_REFERENCE or run.get('status') != 'completed'
             or run.get('conclusion') != 'success' or run.get('path') != '.github/workflows/libretro-memory-ownership470.yml'):
@@ -2838,7 +2838,7 @@ def verify_targeted470_evidence():
     import tempfile
     with tempfile.TemporaryDirectory(prefix='targeted-470-proof-') as temporary:
         folder = Path(temporary)
-        subprocess.run(['gh','run','download',str(TARGETED470_RUN),'--repo','TarbleFR/neostation-ios',
+        subprocess.run(['gh','run','download',str(TARGETED470_RUN),'--repo','TarbleFR/RewindBox',
                         '--name','libretro-targeted-lifetime-'+TARGETED470_REFERENCE,'--dir',str(folder)],check=True)
         verdict = validate_targeted470_verdict(json.loads((folder/'memory-verdict.json').read_text()),
                                                json.loads((folder/'ownership-proof.json').read_text()))
@@ -2869,7 +2869,7 @@ def verify_delivery470_dart_evidence():
     # Its checks job passed completely before unrelated native/device jobs
     # were cancelled. Never require those jobs to execute unchanged Dart again.
     ref = 'fc1ef43a66b23a5e4c8be2cf790ba63b46e312a1'
-    endpoint = 'repos/TarbleFR/neostation-ios/actions/runs/38962439914'
+    endpoint = 'repos/TarbleFR/RewindBox/actions/runs/38962439914'
     run = json.loads(subprocess.check_output(['gh','api',endpoint]))
     if (run.get('head_sha') != ref or run.get('status') != 'completed'
             or run.get('path') != '.github/workflows/retroarch-delivery.yml'):
@@ -3017,14 +3017,14 @@ def main():
                   'onlineSuccessVerified': not args.offline}
     run = None
     if not args.offline:
-        run = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/neostation-ios/actions/runs/{REFERENCE_RUN}']))
+        run = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/RewindBox/actions/runs/{REFERENCE_RUN}']))
         if run['head_sha'] != REFERENCE or run['conclusion'] != 'success' or run['path'] != '.github/workflows/neoswap-ipa.yml':
             raise ValueError('Historical complete build was not successful at the exact reference')
-        jobs = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/neostation-ios/actions/runs/{REFERENCE_RUN}/jobs']))['jobs']
+        jobs = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/RewindBox/actions/runs/{REFERENCE_RUN}/jobs']))['jobs']
         build = next(j for j in jobs if 'private IPA' in j['name'])
         if build['conclusion'] != 'success' or any(s['conclusion'] != 'success' for s in build['steps']):
             raise ValueError('Historical build contains failed or skipped checks')
-        receiver_run = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/neostation-ios/actions/runs/{RECEIVER_RUN}']))
+        receiver_run = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/RewindBox/actions/runs/{RECEIVER_RUN}']))
         if (receiver_run['head_sha'] != RECEIVER_REFERENCE or receiver_run['conclusion'] != 'success'
                 or receiver_run['path'] != '.github/workflows/retroarch-source-proof.yml'):
             raise ValueError('Pinned receiver validation was not successful')

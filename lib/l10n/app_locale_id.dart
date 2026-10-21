@@ -643,7 +643,7 @@ const Map<String, dynamic> appLocaleId = {
   AppLocale.screenReturnAccessHint: 'Aktifkan RewindBox, lalu ketuk Izinkan',
   AppLocale.selectRomFolder: 'Pilih Folder ROM',
   AppLocale.romFolderSelected: 'Folder ROM dipilih!',
-  AppLocale.chooseRomFolderDesc: 'Pilih folder tempat file ROM Anda disimpan.\n\nNeoStation akan memindai folder ini untuk mencari game.',
+  AppLocale.chooseRomFolderDesc: 'Pilih folder tempat file ROM Anda disimpan.\n\nRewindBox akan memindai folder ini untuk mencari game.',
   AppLocale.setupComplete: 'Penyiapan selesai!',
   AppLocale.scanningRoms: 'Memindai ROM',
   AppLocale.foundSystemsWithGames: '{count} sistem dengan game ditemukan!',

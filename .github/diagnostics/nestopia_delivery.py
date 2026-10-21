@@ -15,7 +15,7 @@ DELIVERY_ONLY={'.github/workflows/retroarch-delivery.yml',
                '.github/diagnostics/nestopia_delivery.py','.github/diagnostics/nestopia_delivery_test.py',
                'docs/build471-nestopia-reset.md','AGENTS.md'}
 def command(args):return subprocess.check_output(args,cwd=ROOT,text=True).strip()
-def api(path):return json.loads(command(['gh','api','repos/TarbleFR/neostation-ios/'+path]))
+def api(path):return json.loads(command(['gh','api','repos/TarbleFR/RewindBox/'+path]))
 def validate_changed_paths(paths):
  invalid=set(paths)-DELIVERY_ONLY
  if invalid:raise ValueError('Unvalidated product or core recipe changes: '+', '.join(sorted(invalid)))
@@ -64,7 +64,7 @@ def evidence():
  if not required<={s['name'] for s in jobs[0]['steps'] if s.get('conclusion')=='success'}:
   raise ValueError('Targeted proof steps incomplete')
  with tempfile.TemporaryDirectory(prefix='nestopia-witness-') as tmp:
-  subprocess.run(['gh','run','download',str(CORE_RUN),'--repo','TarbleFR/neostation-ios',
+  subprocess.run(['gh','run','download',str(CORE_RUN),'--repo','TarbleFR/RewindBox',
                   '--name','nestopia-reset-proof-'+CORE_REF,'--dir',tmp],check=True)
   records={}
   for part in ('core','skin'):

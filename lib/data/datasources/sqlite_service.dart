@@ -2012,7 +2012,7 @@ class SqliteService {
         await txn.execute('''
           INSERT OR IGNORE INTO app_systems (id, screenscraper_id, ra_id, real_name, folder_name, launch_date, description)
           VALUES ('all', 0, 0, 'All Systems', 'all', '2024-01-01',
-                  'Collection of all systems available in NeoStation.')
+                  'Collection of all systems available in RewindBox.')
         ''');
       });
 

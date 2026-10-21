@@ -338,7 +338,7 @@ def validate_core_identity(
     actual_sha = hashlib.sha256(core_data).hexdigest()
     expected = {
         'schema_version': 1,
-        'repository': 'https://github.com/TarbleFR/neostation-ios',
+        'repository': 'https://github.com/TarbleFR/RewindBox',
         'host_commit': expected_host_commit,
         'source_commit': manifest['upstream_commit'],
         'source_patch_sha256': patch_sha,

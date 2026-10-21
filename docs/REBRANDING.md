@@ -17,3 +17,9 @@ Release presentation and downloadable filenames are renamed; original binary/sou
 ## Scope
 
 The GitHub repository and source are updated. This task does not redeploy the external Vercel installer or alter its environment overrides, rename external community accounts, or redesign the app icon. The startup/onboarding/default-display wordmark is now rendered as RewindBox text; original upstream artwork remains in its credited assets. Those surfaces must not be represented as already deployed or visually redesigned.
+
+## Follow-up audit and README screenshot
+
+The maintainer-provided console-library capture is displayed from `assets/readme/rewindbox-preview.png` without graphical changes. The second pass catches escaped-newline ROM help, uppercase fallback titles, generated motion privacy strings, the BIOS checker display prefix, and current provenance/helper repository endpoints. Existing storage paths and database rows are not migrated. Obsolete installer branch claims are removed; the live installer is still not redeployed. Historical recipes, original source notices and immutable identity evidence retain their recorded names. The original baseline digests remain unchanged; additional display-only substitutions are exactly reversible by the baseline check.
+
+The package-source audit is extended on the development branch with the original declaration hashes and independently verified branding-only replacements. Dependency versions, license fields and source revisions are unchanged; the strict packaging preflight remains enabled. The public main snapshot is promoted through a pull request with real required lint/Flutter analysis and affected tests, without overriding branch rules. No IPA job is part of that validation.

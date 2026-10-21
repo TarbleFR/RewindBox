@@ -97,5 +97,5 @@ workflow = (ROOT / '.github/workflows/neoswap-storage-prototype.yml').read_text(
 assert 'run_managed_validation.py' in workflow and '--ios-sdk' in workflow
 packaging = (ROOT / '.github/workflows/neoswap-ipa.yml').read_text()
 assert 'managed-swap.json' in packaging and 'validate_managed(managed,sha)' in packaging
-assert packaging.index('validate_managed(managed,sha)') < packaging.index('Package and validate NeoStation IPA')
+assert packaging.index('validate_managed(managed,sha)') < packaging.index('Package and validate RewindBox IPA')
 print('PASS public C ABI/canonical host copies and strict owned-swap SDK/Swift/source evidence refusal')

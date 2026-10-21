@@ -23,7 +23,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Loads the default (English) Material or Cupertino texts for any locale,
 /// like the app's FallbackMaterialLocalizationsDelegate, so the widgets can be
-/// pumped under every NeoStation locale, including `zh_Hant`.
+/// pumped under every RewindBox locale, including `zh_Hant`.
 class _AnyLocaleDelegate<T> extends LocalizationsDelegate<T> {
   const _AnyLocaleDelegate(this._load);
 
@@ -46,7 +46,7 @@ const _cupertinoTexts = _AnyLocaleDelegate<CupertinoLocalizations>(
   DefaultCupertinoLocalizations.load,
 );
 
-/// The twelve NeoStation locales as the app sets them (main.dart MapLocale).
+/// The twelve RewindBox locales as the app sets them (main.dart MapLocale).
 const _appLocales = <String>[
   'en', 'es', 'ru', 'zh', 'zh_Hant', 'pt', 'fr', 'de', 'it', 'id', 'ja', 'ko',
 ];
@@ -205,7 +205,7 @@ void main() {
     testWidgets('names the engine and the core like the other embedded engines', (tester) async {
       await _pump(tester, const LibretroEngineIdentityTile(systemKey: 'snes'));
       expect(find.text('Embedded RetroArch'), findsOneWidget);
-      expect(find.text('Embedded in NeoStation · Snes9x'), findsOneWidget);
+      expect(find.text('Embedded in RewindBox · Snes9x'), findsOneWidget);
       expect(find.byIcon(Icons.check_circle), findsOneWidget);
       // Same controller icon as DolphiniOS, ARMSX2, RPCS3 and Dusklight.
       final tile = tester.widget<ListTile>(find.byType(ListTile));
@@ -215,7 +215,7 @@ void main() {
     testWidgets('a system with alternative cores names its default core', (tester) async {
       await _pump(tester, const LibretroEngineIdentityTile(systemKey: 'md'), locale: const Locale('fr'));
       expect(find.text('RetroArch embarqué'), findsOneWidget);
-      expect(find.text('Embarqué dans NeoStation · Genesis Plus GX (par défaut)'), findsOneWidget);
+      expect(find.text('Embarqué dans RewindBox · Genesis Plus GX (par défaut)'), findsOneWidget);
     });
 
     testWidgets('a game still set to the RetroArch app shows no embedded check', (tester) async {
@@ -244,7 +244,7 @@ void main() {
       testWidgets('Traditional Chinese for ${locale.toLanguageTag()}', (tester) async {
         await _pump(tester, const LibretroEngineIdentityTile(systemKey: 'snes'), locale: locale);
         expect(find.text('內建 RetroArch'), findsOneWidget);
-        expect(find.text('內建於 NeoStation · Snes9x'), findsOneWidget);
+        expect(find.text('內建於 RewindBox · Snes9x'), findsOneWidget);
       });
     }
   });
@@ -538,11 +538,11 @@ void main() {
         );
       }
       expect(link['en'], 'Choose a folder that already holds your games, RetroArch’s for example. '
-          'NeoStation reads it in place, without copying or moving anything.');
-      expect(restart['en'], 'Your games folder is linked. Relaunch NeoStation to see your games here.');
+          'RewindBox reads it in place, without copying or moving anything.');
+      expect(restart['en'], 'Your games folder is linked. Relaunch RewindBox to see your games here.');
       expect(link['fr'], 'Choisissez un dossier qui contient déjà vos jeux, celui de RetroArch par exemple. '
-          'NeoStation le lit sur place, sans rien copier ni déplacer.');
-      expect(restart['fr'], 'Votre dossier de jeux est lié. Relancez NeoStation pour voir vos jeux ici.');
+          'RewindBox le lit sur place, sans rien copier ni déplacer.');
+      expect(restart['fr'], 'Votre dossier de jeux est lié. Relancez RewindBox pour voir vos jeux ici.');
       for (final code in _appLocales) {
         expect(link[code]!.trim(), isNotEmpty, reason: code);
         expect(restart[code]!.trim(), isNotEmpty, reason: code);

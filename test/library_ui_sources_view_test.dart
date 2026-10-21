@@ -241,12 +241,12 @@ void main() {
       findsOneWidget,
     );
 
-    // A NeoStation manifest is shown with its kind and no ladder.
+    // A RewindBox manifest is shown with its kind and no ladder.
     final booksRow = _rowOf(books.id);
     expect(
       find.descendant(
         of: booksRow,
-        matching: find.textContaining('NeoStation source'),
+        matching: find.textContaining('RewindBox source'),
       ),
       findsOneWidget,
     );
@@ -443,7 +443,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(
-      find.text('NeoStation has no reader for this source.'),
+      find.text('RewindBox has no reader for this source.'),
       findsOneWidget,
     );
     expect(find.text('This source does not work right now.'), findsOneWidget);

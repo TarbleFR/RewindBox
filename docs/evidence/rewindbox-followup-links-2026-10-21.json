@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-21",
+  "releaseCount": 8,
+  "originalAssetsVerified": 36,
+  "ipaCount": 8,
+  "verification": "Release API ids/sizes/SHA-256 digests compared to pre-rename snapshot; the eight renamed checksum files were downloaded and SHA-256 checked; IPA URLs checked with HEAD only (not eight new full IPA downloads).",
+  "integrityFailures": [],
+  "checksums": [
+    {
+      "tag": "0.0.8",
+      "status": 200,
+      "entries": 7,
+      "valid": true,
+      "digestVerified": true
+    },
+    {
+      "tag": "0.0.7",
+      "status": 200,
+      "entries": 3,
+      "valid": true,
+      "digestVerified": true
+    },
+    {
+      "tag": "0.0.6",
+      "status": 200,
+      "entries": 2,
+      "valid": true,
+      "digestVerified": true
+    },
+    {
+      "tag": "0.0.5",
+      "status": 200,
+      "entries": 2,
+      "valid": true,
+      "digestVerified": true
+    },
+    {
+      "tag": "0.0.4",
+      "status": 200,
+      "entries": 2,
+      "valid": true,
+      "digestVerified": true
+    },
+    {
+      "tag": "0.0.3",
+      "status": 200,
+      "entries": 10,
+      "valid": true,
+      "digestVerified": true
+    },
+    {
+      "tag": "0.0.2",
+      "status": 200,
+      "entries": 5,
+      "valid": true,
+      "digestVerified": true
+    },
+    {
+      "tag": "0.0.1",
+      "status": 200,
+      "entries": 5,
+      "valid": true,
+      "digestVerified": true
+    }
+  ],
+  "ipaLinks": [
+    {
+      "tag": "0.0.8",
+      "name": "RewindBox-0.0.8.ipa",
+      "status": 200
+    },
+    {
+      "tag": "0.0.7",
+      "name": "RewindBox-0.0.7.ipa",
+      "status": 200
+    },
+    {
+      "tag": "0.0.6",
+      "name": "RewindBox-0.0.6.ipa",
+      "status": 200
+    },
+    {
+      "tag": "0.0.5",
+      "name": "RewindBox-0.0.5.ipa",
+      "status": 200
+    },
+    {
+      "tag": "0.0.4",
+      "name": "RewindBox-0.0.4.ipa",
+      "status": 200
+    },
+    {
+      "tag": "0.0.3",
+      "name": "RewindBox-0.0.3.ipa",
+      "status": 200
+    },
+    {
+      "tag": "0.0.2",
+      "name": "RewindBox.ipa",
+      "status": 200
+    },
+    {
+      "tag": "0.0.1",
+      "name": "RewindBox.ipa",
+      "status": 200
+    }
+  ],
+  "releaseBodyBrokenLinks": [],
+  "correctedDocumentationLinks": [
+    {
+      "file": "docs/RELEASE_0.0.8.md",
+      "url": "https://github.com/TarbleFR/neostation-ios/releases/download/0.0.8/NeoStation-0.0.8-Licenses-and-Notices.zip",
+      "replacement": "RewindBox-0.0.8-Licenses-and-Notices.zip",
+      "corrected_url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.8/RewindBox-0.0.8-Licenses-and-Notices.zip"
+    }
+  ],
+  "noNewReleaseOrIpa": true
+}

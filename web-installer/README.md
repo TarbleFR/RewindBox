@@ -12,7 +12,7 @@ This folder contains a small private OTA installation portal intended for iPhone
 
 ## Important signing limitation
 
-The GitHub Actions IPA produced by RewindBox's current `feature/library-native` workflow is **unsigned**. An unsigned IPA cannot be installed by the web button.
+An IPA without a valid Apple distribution signature and provisioning profile cannot be installed by the web button. A build or ad-hoc preparation signature alone is not an OTA installation entitlement.
 
 For OTA installation, configure `IPA_SOURCE_URL` with an **already signed** IPA that the target device is allowed to install. The IPA and manifest must be reachable over HTTPS. Apple documents website-based installation using a manifest and a trusted signed app; distribution/profile requirements depend on the signing/distribution method being used.
 

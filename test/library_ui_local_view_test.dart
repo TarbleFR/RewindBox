@@ -276,7 +276,7 @@ void main() {
     expect(body.data, contains('.cbr file that is really a ZIP'));
     expect(
       body.data,
-      contains('Files › On My iPhone › NeoStation iOS › Library › Books'),
+      contains('Files › On My iPhone › RewindBox › Library › Books'),
     );
     expect(find.text('Import files'), findsNWidgets(2));
   });
@@ -353,7 +353,7 @@ void main() {
     expect(find.text('Already in the library as “Dune”.'), findsOneWidget);
     expect(
       find.text(
-        'RAR/CBR archive: it needs RAR support, which NeoStation does not '
+        'RAR/CBR archive: it needs RAR support, which RewindBox does not '
         'include. Convert it to CBZ.',
       ),
       findsOneWidget,
@@ -366,7 +366,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Protected by DRM: NeoStation cannot open it.'),
+      find.text('Protected by DRM: RewindBox cannot open it.'),
       findsOneWidget,
     );
     expect(find.text('This PDF is protected by a password.'), findsOneWidget);
@@ -402,7 +402,7 @@ void main() {
 
     expect(
       find.text(
-        'Only the title shown in NeoStation changes; the file keeps its '
+        'Only the title shown in RewindBox changes; the file keeps its '
         'name. Leave empty to restore the original title.',
       ),
       findsOneWidget,
@@ -493,7 +493,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       find.text(
-        "This file is outside NeoStation's Library folder and was not "
+        "This file is outside RewindBox's Library folder and was not "
         'deleted.',
       ),
       findsOneWidget,
@@ -554,7 +554,7 @@ void main() {
     await tester.tap(find.text('Information'));
     await tester.pumpAndSettle();
     expect(
-      find.text('On My iPhone › NeoStation iOS › Library › Books'),
+      find.text('On My iPhone › RewindBox › Library › Books'),
       findsOneWidget,
     );
     expect(find.text('EPUB'), findsWidgets);
@@ -568,7 +568,7 @@ void main() {
     await tester.tap(find.text('Information'));
     await tester.pumpAndSettle();
     expect(
-      find.text('On My iPhone › NeoStation iOS › Library › Downloads'),
+      find.text('On My iPhone › RewindBox › Library › Downloads'),
       findsOneWidget,
     );
     expect(find.text('5.0 MB'), findsOneWidget);
@@ -1068,7 +1068,7 @@ void _coveredSectionTests() {
     );
 
     // Another part of the app shows a page while the import runs (e.g.
-    // when NeoStation comes back from the file picker).
+    // when RewindBox comes back from the file picker).
     unawaited(
       Navigator.of(tester.element(find.byType(LibraryLocalView))).push<void>(
         MaterialPageRoute<void>(
