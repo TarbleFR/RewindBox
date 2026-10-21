@@ -73,7 +73,13 @@
     },
     "local_platform_limits": [
       "The POSIX archive/path and symlink test fixtures cannot pass under this Windows account. They are unchanged and will run on Linux CI. No Windows privilege or operating-system setting is changed."
-    ]
+    ],
+    "fixture_repair": {
+      "failed_run": 39622188343,
+      "reason": "Eight wordmark cases retained the explicitly acquired SemanticsHandle past the widget test verification; four BIOS cases still expected the old display prefix.",
+      "correction": "Dispose the test handle in finally before callback returns; update only BIOS display-path expectations. No product code or assertion is removed.",
+      "successful_components": "Reused only after exact repository-input comparison and observed successful test records from the actual preceding job. The failed overall runs stay failed."
+    }
   },
   "no_new_release_or_ipa": true,
   "package_declaration_review": {
