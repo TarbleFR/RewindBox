@@ -8,7 +8,7 @@ engine. It attaches StikJIT 1.9.0 to the NeoStation host PID with universal.js.
                        DESC
   s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
-  s.author           = { 'NeoStation iOS' => 'TarbleFR' }
+  s.author           = { 'RewindBox' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*.swift'
   s.resources        = 'Resources/*.js'

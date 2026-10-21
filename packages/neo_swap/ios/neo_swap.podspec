@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.description = 'One host broker, immutable C ABI, verified helper-owned shared memory, bounded file fallback and diagnostics.'
   s.homepage = 'https://github.com/TarbleFR/RewindBox'
   s.license = { :type => 'GPL-3.0' }
-  s.author = { 'NeoStation iOS' => 'TarbleFR' }
+  s.author = { 'RewindBox' => 'TarbleFR' }
   s.source = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.public_header_files = 'Classes/NeoSwap.h', 'Classes/NeoSwapPlugin.h', 'Classes/NeoSwapHost.h', 'Classes/NeoSwapDonationMetrics.h', 'Classes/NeoSwapClientStats.h', 'Classes/NeoSwapRelay.h', 'Classes/NeoSwapRelayService.h', 'Classes/NeoSwapStorageService.h', 'Classes/StorageABI.h', 'Classes/ManagedSwapABI.h', 'Classes/SourceABI.h', 'Classes/NeoSwapExperiment.h'

@@ -9,7 +9,7 @@ legacy gate. It does not replace or modify other emulator integrations.
                        DESC
   s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
-  s.author           = { 'NeoStation iOS' => 'TarbleFR' }
+  s.author           = { 'RewindBox' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
   s.private_header_files = 'Classes/DolphinRecordingTimeline.h', 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h', 'Classes/DOLCheatCatalogue.h', 'Classes/DolphinDisplayTrial.h', 'Classes/DolphinPacingLabels.h', 'Classes/DolphinPhoneShakeLabels.h', 'Classes/DolphinPhoneShakePreferences.h', 'Classes/DolphinExternalDisplayLayout.h', 'Classes/DolphinExternalDisplay.h', 'Classes/DOLTexture*.h', 'Classes/DOLShader*.h', 'Classes/TouchController/DolphinPhoneShakeBinding.h', 'Classes/TouchController/DolphinPhoneShakeRouting.h', 'Classes/TouchController/DolphinShakeAssignment.h'

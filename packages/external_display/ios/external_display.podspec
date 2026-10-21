@@ -12,7 +12,7 @@ NeoExternalRenderHost and depend on this pod.
                        DESC
   s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
-  s.author           = { 'NeoStation iOS' => 'TarbleFR' }
+  s.author           = { 'RewindBox' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*.{h,m}'
   # Everything a bridge imports as <external_display/Name.h>: with
