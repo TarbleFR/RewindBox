@@ -1,5 +1,7 @@
 # RewindBox iOS — Claude Max 20x ↔ Cursor workflow
 
+> **Updated for three assistants:** Read [AI_ORCHESTRATION.md](AI_ORCHESTRATION.md) for the maintainer's rule that Claude Code remains **principal coder**, with ChatGPT/Codex as coordinator and reviewer and Cursor as lightweight assistant. This document retains the detailed Claude ↔ Cursor fallback procedure.
+
 ## Purpose
 
 Use **Claude Code** as the primary coding assistant and **Cursor's native Agent** as an independent fallback when Claude's included usage is exhausted. Both agents operate against the **same RewindBox checkout**, on the existing `Claude` branch. This is a *manual* handoff: neither product automatically transfers chat history or switches agents when usage is exhausted.

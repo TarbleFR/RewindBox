@@ -1,9 +1,12 @@
 ---
-description: RewindBox iOS shared working rules for Cursor and Claude Code
+description: RewindBox iOS shared working rules for Cursor, Claude Code and Codex
 alwaysApply: true
 ---
 
 # RewindBox iOS — safe Cursor handoff
+
+- **Non-negotiable lead role:** Claude Code is RewindBox's principal coder and integrator. ChatGPT/Codex plans and reviews; Cursor Agent is responsible for light assistance or explicitly approved narrow fixes, not for taking ownership of complex native emulator work. Read `docs/AI_ORCHESTRATION.md` and `docs/AI_TASK_BOARD.md`.
+- For native Cursor Agent, use an included Cursor model; Claude and GPT as Cursor third-party models can require prepaid usage credits. Do not select them or enable paid top-ups automatically.
 
 - The repository's `AGENTS.md` is authoritative. Read it, `ARCHITECTURE.md`, `docs/AI_WORKFLOW_CURSOR_CLAUDE.md` and, for any continuation task, `docs/AI_HANDOFF.md` before proposing code changes. Do not assume Cursor has access to Claude's chat history.
 - Work only on the existing `Claude` branch per AGENTS.md. Do not create separate AI branches or change `main`, `backup`, baseline references, signing, or release settings without explicit approval.

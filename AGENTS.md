@@ -2,6 +2,12 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## AI coordination — maintainer rule, 21 October 2026
+
+**Claude Code must remain the principal coder and integrator for RewindBox iOS.** ChatGPT/Codex coordinates, investigates and reviews; Cursor Agent handles light assistance and explicitly authorized isolated small fixes. This is a manual three-agent workflow, not an autonomous cross-subscription orchestrator. See `docs/AI_ORCHESTRATION.md` and `docs/AI_TASK_BOARD.md`.
+
+Do not use separately billed API keys, extra credits, automatic top-ups or third-party Cursor models that require prepaid credits as a way around subscription quotas. All three agents must observe the existing `Claude` branch policy, single-writer checkout rule, targeted validation and explicit permission for pushes, GitHub Actions/IPA builds and releases. The maintainer approves the final result.
+
 # Consignes permanentes — stabilité NeoStation iOS
 
 ## MeloNX owned-session continuation — 20 October 2026

@@ -1,6 +1,6 @@
 # RewindBox iOS — AI task handoff
 
-This is the shared, **human-readable** task handoff for Claude Code and the native Cursor Agent. It is not a chat transcript or a replacement for `AGENTS.md`. Update **only when a handoff is requested**; the author must distinguish verified results from assumptions.
+This is the shared, **human-readable** task handoff for Claude Code, ChatGPT/Codex and the native Cursor Agent. It is not a chat transcript or a replacement for `AGENTS.md`. Update **only when a handoff is requested**; the author must distinguish verified results from assumptions.
 
 ## Current handoff
 
@@ -23,7 +23,7 @@ Copy/fill the following fields under `Current handoff`; do not erase history or 
 | Field | Accurate current information |
 | --- | --- |
 | Date/time | YYYY-MM-DD HH:mm timezone |
-| Outgoing / incoming agent | Claude Code / Cursor Agent or inverse |
+| Outgoing / incoming agent | Claude Code / Cursor Agent / ChatGPT-Codex, outgoing → incoming |
 | Task and desired outcome | ... |
 | Current branch and exact HEAD | ... |
 | Local changes and modified file paths | ... |
