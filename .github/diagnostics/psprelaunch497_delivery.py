@@ -79,6 +79,8 @@ BUILD_501_ALLOWED = {
     'build-utils/delivery-501-recipient.pem',
     '.github/diagnostics/psprelaunch497_delivery.py',
     'test/stikjit_scoped_host_test.py',
+    # CI-only repair: branding-aware strict JIT identity guard, no product edits.
+    'test/stikjit_unified_build_test.py',
 }
 BUILD_501_PRODUCT_TESTED = (
     'lib/services/neo_assets_service.dart',
