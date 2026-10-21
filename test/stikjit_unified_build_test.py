@@ -20,9 +20,26 @@ for lower,cls in [('rpcs3','Rpcs3'),('armsx2','Armsx2'),('dolphin','Dolphin')]:
     paths.append(f'packages/{lower}_jit_helper/ios/Classes/{cls}JITRequestHandlerBase.swift')
 for lower in ('rpcs3','armsx2'):
     paths.append(f'packages/{lower}_jit_helper/ios/Resources/{lower}-universal.js')
+# The RewindBox rebrand changed only these 39 reviewed user-visible JIT
+# diagnostics; code paths, public JIT interfaces and compatibility symbols are
+# still required to remain byte-for-byte identical to the pinned source.
+# A fixed count for each source prevents silently admitting further renames.
+BRANDING_LABEL_COUNTS = {
+    'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3JitBridgePlugin.mm': 4,
+    'packages/armsx2_internal_bridge/ios/Classes/Armsx2JitBridgePlugin.mm': 4,
+    'packages/stikjit_bridge/ios/Classes/StikjitBridgePluginV2.swift': 10,
+    'packages/rpcs3_jit_helper/ios/Classes/Rpcs3JITRequestHandlerBase.swift': 7,
+    'packages/armsx2_jit_helper/ios/Classes/Armsx2JITRequestHandlerBase.swift': 7,
+    'packages/dolphin_jit_helper/ios/Classes/DolphinJITRequestHandlerBase.swift': 7,
+}
 for path in paths:
     old=subprocess.check_output(['git','show',BASE+':'+path],cwd=ROOT).replace(b'\r\n',b'\n')
-    assert (ROOT/path).read_bytes().replace(b'\r\n',b'\n')==old,'Runtime JIT changed: '+path
+    current=(ROOT/path).read_bytes().replace(b'\r\n',b'\n')
+    expected_count=BRANDING_LABEL_COUNTS.get(path,0)
+    assert current.count(b'RewindBox')==expected_count, 'Unexpected JIT branding delta: '+path
+    # Normalize display-only labels back to their original wording, then
+    # verify that not one executable or interface byte has changed.
+    assert current.replace(b'RewindBox',b'NeoStation')==old, 'Runtime JIT changed: '+path
 for path in ('.github/workflows/ios-ci.yml','build-utils/prepare_fast_native_runtime.py',
              'packages/dolphin_internal_bridge/ci/build_support.py'):
     text=(ROOT/path).read_text()
@@ -55,4 +72,4 @@ if identity_path.is_file():
                   for file in ('StikjitBridgePlugin','StikjitBridgePluginV2'))
     exports=set(re.findall(r'Self.resolve\(\s*"([a-z][a-z0-9_]+)"',bridge))
     assert set(identity['dynamicFFIExports'])==exports
-print('PASS: canonical source build; no obsolete donor JIT; all 11 JIT runtime/patch files identical to Build363')
+print('PASS: canonical StikJIT source; 11 pinned runtime/patch files identical after 39 exact display-only RewindBox labels')
