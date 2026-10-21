@@ -36,7 +36,7 @@ class NeoAssetsPublicCatalog {
     if (!isSafeId(slug)) throw ArgumentError.value(slug, 'slug');
     return Uri.https(
       'api.neoassets.dev',
-      '/api/v1/packs/' + slug + (countInstall ? '/download' : ''),
+      '/api/v1/packs/$slug${countInstall ? '/download' : ''}',
     );
   }
 
@@ -52,8 +52,7 @@ class NeoAssetsPublicCatalog {
       for (var page = 0; page < 30; page++) {
         final response = await httpClient.get(_listUri(offset));
         if (response.statusCode != 200) {
-          throw StateError('NeoAssets catalogue HTTP ' +
-              response.statusCode.toString());
+          throw StateError('NeoAssets catalogue HTTP ${response.statusCode}');
         }
         final json = jsonDecode(response.body);
         if (json is! Map || json['themes'] is! List) {
