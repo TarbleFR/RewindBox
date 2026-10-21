@@ -27,7 +27,7 @@ jobs:
         ref='00285ba5cfec694d59e1ca2bcf9de31418fd4e1a'
         changes=subprocess.check_output(['git','diff','--name-only',ref,'HEAD','--','lib','packages','native','assets','pubspec.yaml','pubspec.lock'],text=True).splitlines()
         assert not changes, 'Product inputs changed: '+repr(changes)
-        run=json.loads(subprocess.check_output(['gh','api','repos/TarbleFR/neostation-ios/actions/runs/37847695065']))
+        run=json.loads(subprocess.check_output(['gh','api','repos/TarbleFR/RewindBox/actions/runs/37847695065']))
         assert run['head_sha']==ref and run['conclusion']=='success'
         print('Reused successful product evidence at identical inputs; no library/core rebuild or retest')
         PY

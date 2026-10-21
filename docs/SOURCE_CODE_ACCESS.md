@@ -2,15 +2,15 @@
 
 **Next-release preparation · 21 October 2026 · Unpublished**
 
-NeoStation's code, local changes, build recipes, dependency notices and source
+RewindBox's code, local changes, build recipes, dependency notices and source
 references must be kept together when preparing a binary distribution. This
 record provides access to the reviewed material and identifies what it does
 and does not establish. It does not assign a release number, publish an IPA,
 or claim that every component has complete corresponding-source coverage.
 
-## 1. NeoStation's source and the changes since 0.0.8
+## 1. RewindBox's source and the changes since 0.0.8
 
-The host repository is [TarbleFR/neostation-ios](https://github.com/TarbleFR/neostation-ios).
+The host repository is [TarbleFR/RewindBox](https://github.com/TarbleFR/RewindBox).
 Future app bundles record their exact host commit in
 `Legal/BUILD_SOURCE_IDENTITY.json` and in
 `Legal/Sources/BUILD_SOURCE_EVIDENCE.json`. The latter contains the immutable
@@ -39,7 +39,7 @@ does not identify the source used to compile a binary.
 | Collection | Source and license record | What is identified |
 | --- | --- | --- |
 | Dart/Flutter dependencies and local plugins | [Package sources](PACKAGE_SOURCES_AND_LICENSES.md) and [machine-readable inventory](evidence/package-sources-license-audit-2026-10-21.json) | Exact locked archives, their verified digests, repositories, copyright notices, local forks and native download boundaries |
-| Embedded engines and JIT helpers | [Engine source inventory](ENGINE_CORRESPONDING_SOURCES.md) and [evidence](evidence/engine-source-license-audit-2026-10-21.json) | Public source pins, NeoStation patches/recipes, available source archives, binary receipts and remaining gaps |
+| Embedded engines and JIT helpers | [Engine source inventory](ENGINE_CORRESPONDING_SOURCES.md) and [evidence](evidence/engine-source-license-audit-2026-10-21.json) | Public source pins, RewindBox patches/recipes, available source archives, binary receipts and remaining gaps |
 | Rebuilt PPSSPP integration | [Detailed PSP source audit](PPSSPP_SOURCE_AND_LICENSE_AUDIT.md) and [evidence](evidence/ppsspp-source-license-audit-2026-10-21.json) | Exact parent/submodule sources, local changes, actual historical compile/link inputs, dependency notices and license metadata discrepancy |
 | Native texture readers | [Notice/source manifest](../assets/legal/textures/license-sources.json) | libarchive, LZMA SDK, copied ARMSX2 reader headers and ps2ktxpak metadata |
 | Shader compilers | [glslang source record](../packages/neo_shader_kit/ios/ThirdParty/glslang/SOURCE.txt) and [SPIRV-Cross source record](../packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/SOURCE.txt) | Copied source files and exact upstream revisions, distinct from the PPSSPP versions |
@@ -49,25 +49,25 @@ The 162 entries in `pubspec.lock` comprise 157 hosted packages and five SDK
 packages. The lock is unchanged from the public 0.0.8 baseline; the audit also
 examines the 19 local workspace packages separately. SDK packages come from
 the matching Flutter/Dart SDK, not separate pub.dev archives. Local plugin
-changes are in NeoStation's source tree and retain any upstream authorship.
+changes are in RewindBox's source tree and retain any upstream authorship.
 
 Supplementary notices are collected under `Legal/Packages/`, `Legal/Engines/`
 and `Legal/PPSSPP/` in future app bundles. Their manifests identify the exact
 source of each retained notice and its SHA-256. The source-preparation archive
 `ppsspp497-source-capsule.tar.gz` is 37,917,399 bytes, SHA-256
 `b5a457f177951c9ed621d09358f64c2f4a82f4df42e6544a01cb4243163e003c`.
-It contains the pinned PSP sources, initialized submodules, NeoStation patch,
+It contains the pinned PSP sources, initialized submodules, RewindBox patch,
 ABI, build recipe, original compile log and a recreation script. The detailed
 PSP audit records exclusions and the historical configuration that was not
 retained. This archive has not been published as a release asset.
 
 ## 3. Retrieve the exact hosted package archives
 
-From the reviewed NeoStation checkout:
+From the reviewed RewindBox checkout:
 
 ```sh
 python3 build-utils/fetch_locked_package_sources.py --list
-python3 build-utils/fetch_locked_package_sources.py --output ../NeoStation-package-sources
+python3 build-utils/fetch_locked_package_sources.py --output ../RewindBox-package-sources
 ```
 
 The collector uses the exact public archive URLs in the inventory and checks

@@ -157,9 +157,9 @@ def validate_springboard_icons(app: Path, info: dict) -> dict:
            f'Packaged main app must be NeoStation.app, got {app.name}')
     demand(info.get('CFBundleExecutable') == 'Runner',
            f'Unexpected CFBundleExecutable: {info.get("CFBundleExecutable")!r}')
-    demand(str(info.get('CFBundleName', '')).lower() == 'neostation',
+    demand(str(info.get('CFBundleName', '')).lower() == 'rewindbox',
            f'Unexpected CFBundleName: {info.get("CFBundleName")!r}')
-    demand(info.get('CFBundleDisplayName') == 'NeoStation iOS',
+    demand(info.get('CFBundleDisplayName') == 'RewindBox',
            f'Unexpected CFBundleDisplayName: {info.get("CFBundleDisplayName")!r}')
     demand(info.get('CFBundleIconName') == 'AppIcon',
            f'CFBundleIconName must explicitly select AppIcon, got {info.get("CFBundleIconName")!r}')

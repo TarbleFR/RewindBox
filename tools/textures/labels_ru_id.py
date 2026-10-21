@@ -20,7 +20,7 @@ RU = {
     'installedSection': 'Установленный набор',
     'installedConsoleSection': 'Установленные наборы',
     'installedNone': 'Наборы не установлены',
-    'installedManual': 'Папка, установленная вне NeoStation',
+    'installedManual': 'Папка, установленная вне RewindBox',
     'installedVersion': 'Версия {version}',
     'installedSummary': 'Файлов: {files} · {size} · папка {folder}',
     'availableSection': 'Наборы для этой игры',
@@ -135,7 +135,7 @@ RU = {
     'loadedNotice': 'Скачан, установлен и загружен — это разные этапы: установленный набор находится в папке движка; движок загружает его при запуске игры. Только изображение игры (а для PS2 — сведения о движке) показывает, что текстуры действительно заменены.',
     'engineDetails': 'Сведения о движке',
     'engineDetailsDetail': 'Что движок распознал и загрузил для этой игры',
-    'installedImported': 'Набор, импортированный в предыдущей версии NeoStation',
+    'installedImported': 'Набор, импортированный в предыдущей версии RewindBox',
     'libraryGamesSection': 'Наборы для ваших игр',
     'libraryScanning': 'Чтение идентификаторов ваших игр… ({done} из {total})',
     'libraryNone': 'В каталоге нет наборов для игр этой консоли из вашей библиотеки.',
@@ -157,7 +157,7 @@ RU = {
     'stateUnavailable': 'Недоступен',
     'detailRequirements': 'Требования',
     'stateManualVerified': 'Ручная загрузка, проверенный файл',
-    'manualVerifiedHelp': 'Автор публикует этот набор на {host}. Откройте его страницу, скачайте {file} ({size}) и импортируйте файл здесь: NeoStation проверит, что это именно файл, проверенный для этого набора, и установит его как набор в одно касание.',
+    'manualVerifiedHelp': 'Автор публикует этот набор на {host}. Откройте его страницу, скачайте {file} ({size}) и импортируйте файл здесь: RewindBox проверит, что это именно файл, проверенный для этого набора, и установит его как набор в одно касание.',
     'actionImportVerified': 'Импортировать скачанный файл',
     'error.notVerifiedFile': 'Это не файл, проверенный для этого набора (размер или SHA-256 отличаются). Проверьте версию на странице автора; другой архив можно импортировать со страницы игры.',
 }
@@ -182,7 +182,7 @@ ID = {
     'installedSection': 'Paket terpasang',
     'installedConsoleSection': 'Paket terpasang',
     'installedNone': 'Belum ada paket terpasang',
-    'installedManual': 'Folder yang dipasang di luar NeoStation',
+    'installedManual': 'Folder yang dipasang di luar RewindBox',
     'installedVersion': 'Versi {version}',
     'installedSummary': '{files} file · {size} · folder {folder}',
     'availableSection': 'Paket untuk game ini',
@@ -297,7 +297,7 @@ ID = {
     'loadedNotice': 'Diunduh, dipasang, dan dimuat adalah langkah yang berbeda: paket terpasang ada di folder mesin; mesin memuatnya saat game dimulai. Hanya gambar game (atau, untuk PS2, detail mesin) yang menunjukkan bahwa tekstur benar-benar diganti.',
     'engineDetails': 'Detail mesin',
     'engineDetailsDetail': 'Apa yang dikenali dan dimuat mesin untuk game ini',
-    'installedImported': 'Paket yang diimpor dengan versi NeoStation sebelumnya',
+    'installedImported': 'Paket yang diimpor dengan versi RewindBox sebelumnya',
     'libraryGamesSection': 'Paket untuk game Anda',
     'libraryScanning': 'Membaca pengenal game Anda… ({done} dari {total})',
     'libraryNone': 'Tidak ada paket di katalog untuk game konsol ini di pustaka Anda.',
@@ -319,7 +319,7 @@ ID = {
     'stateUnavailable': 'Tidak tersedia',
     'detailRequirements': 'Persyaratan',
     'stateManualVerified': 'Unduhan manual, berkas terverifikasi',
-    'manualVerifiedHelp': 'Pembuat memublikasikan paket ini di {host}. Buka halamannya, unduh {file} ({size}), lalu impor di sini: NeoStation memeriksa bahwa itu tepat berkas yang diverifikasi untuk paket ini dan memasangnya seperti paket satu ketukan.',
+    'manualVerifiedHelp': 'Pembuat memublikasikan paket ini di {host}. Buka halamannya, unduh {file} ({size}), lalu impor di sini: RewindBox memeriksa bahwa itu tepat berkas yang diverifikasi untuk paket ini dan memasangnya seperti paket satu ketukan.',
     'actionImportVerified': 'Impor berkas yang diunduh',
     'error.notVerifiedFile': 'Ini bukan berkas yang diverifikasi untuk paket ini (ukuran atau SHA-256 berbeda). Periksa versinya di halaman pembuat; arsip lain tetap dapat diimpor dari halaman game.',
 }
@@ -327,7 +327,7 @@ ID = {
 # Mesen (NES HD packs).
 RU.update({
     'error.missingHires': 'В корне этого HD-пакета Mesen нет файла hires.txt.',
-    'error.formatTooNew': 'Этот HD-пакет создан для Mesen 2 (формат новее 106): движок Mesen в NeoStation не может его прочитать.',
+    'error.formatTooNew': 'Этот HD-пакет создан для Mesen 2 (формат новее 106): движок Mesen в RewindBox не может его прочитать.',
     'error.missingFiles': 'В архиве нет изображений, указанных в hires.txt этого пакета.',
     'error.memoryTooLarge': 'Этому HD-пакету нужно больше памяти, чем может выделить устройство: Mesen загружает все изображения пакета при запуске игры.',
     'error.mesenNotSelected': 'Не удалось выбрать Mesen для этой игры. Выберите Mesen в настройках игры (Эмулятор), затем включите пакет.',
@@ -339,7 +339,7 @@ RU.update({
 })
 ID.update({
     'error.missingHires': 'Paket HD Mesen ini tidak memiliki hires.txt di akarnya.',
-    'error.formatTooNew': 'Paket HD ini dibuat untuk Mesen 2 (format lebih baru dari 106): mesin Mesen di NeoStation tidak dapat membacanya.',
+    'error.formatTooNew': 'Paket HD ini dibuat untuk Mesen 2 (format lebih baru dari 106): mesin Mesen di RewindBox tidak dapat membacanya.',
     'error.missingFiles': 'Gambar yang disebut oleh hires.txt paket ini tidak ada di arsip.',
     'error.memoryTooLarge': 'Paket HD ini memerlukan lebih banyak memori daripada yang dapat diberikan perangkat ini: Mesen memuat semua gambar paket saat game dimulai.',
     'error.mesenNotSelected': 'Mesen tidak dapat dipilih untuk game ini. Pilih Mesen di pengaturan game (Emulator), lalu aktifkan paketnya.',

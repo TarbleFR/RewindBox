@@ -1,6 +1,7 @@
+import 'package:neostation/widgets/rewindbox_wordmark.dart';
 import 'package:flutter/material.dart';
 
-/// The full-color NeoStation logo with a soft light band sweeping across it.
+/// The RewindBox wordmark with a soft light band sweeping across it.
 ///
 /// Used as the minimal startup indicator while the initial config is applied
 /// and the ROM scan runs. The glyph keeps its brand gradient; a translucent
@@ -95,10 +96,9 @@ class _ShimmeringLogoState extends State<ShimmeringLogo>
           child: child,
         );
       },
-      child: Image.asset(
-        'assets/images/logo_transparent.png',
+      child: RewindBoxWordmark(
+        // Independent fork identity; upstream artwork remains credited.
         width: widget.width,
-        filterQuality: FilterQuality.medium,
       ),
     );
   }

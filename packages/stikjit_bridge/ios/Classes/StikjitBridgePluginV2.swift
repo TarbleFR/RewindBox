@@ -75,7 +75,7 @@ public final class StikjitBridgePluginV2: NSObject, FlutterPlugin {
         logs.append("MeloNX JIT PID retained: \(pid).")
       }
       logs.append(
-        "JIT detached. Re-acquiring NeoStation foreground before delivering the MeloNX frontend URL."
+        "JIT detached. Re-acquiring RewindBox foreground before delivering the MeloNX frontend URL."
       )
       response["logs"] = logs
 
@@ -109,13 +109,13 @@ public final class StikjitBridgePluginV2: NSObject, FlutterPlugin {
           activated["neoStationPid"] = Int(activatedPID)
           activatedLogs.append("STATE: NEOSTATION_FOREGROUND_REQUESTED")
           activatedLogs.append(
-            "process_control returned NeoStation PID \(activatedPID); local PID is \(getpid())."
+            "process_control returned RewindBox PID \(activatedPID); local PID is \(getpid())."
           )
           if activatedPID == UInt64(getpid()) {
             activatedLogs.append("STATE: NEOSTATION_SAME_PID_CONFIRMED")
           } else {
             activatedLogs.append(
-              "WARNING: process_control reported a different NeoStation PID. Continuing only if the current process becomes active."
+              "WARNING: process_control reported a different RewindBox PID. Continuing only if the current process becomes active."
             )
           }
           activated["logs"] = activatedLogs
@@ -132,7 +132,7 @@ public final class StikjitBridgePluginV2: NSObject, FlutterPlugin {
           var failed = response
           var failedLogs = failed["logs"] as? [String] ?? []
           failedLogs.append("STATE: NEOSTATION_FOREGROUND_FAILED")
-          failedLogs.append("NeoStation foreground re-acquisition failed: \(error.localizedDescription)")
+          failedLogs.append("RewindBox foreground re-acquisition failed: \(error.localizedDescription)")
           failed["logs"] = failedLogs
           failed["gameUrlOpened"] = false
 
@@ -169,7 +169,7 @@ public final class StikjitBridgePluginV2: NSObject, FlutterPlugin {
         var failedLogs = failed["logs"] as? [String] ?? []
         failedLogs.append("STATE: NEOSTATION_ACTIVE_TIMEOUT")
         failedLogs.append(
-          "NeoStation did not become active within 4 seconds, so the game URL was not sent from the background."
+          "RewindBox did not become active within 4 seconds, so the game URL was not sent from the background."
         )
         failed["logs"] = failedLogs
         failed["gameUrlOpened"] = false
@@ -183,7 +183,7 @@ public final class StikjitBridgePluginV2: NSObject, FlutterPlugin {
       openingLogs.append("STATE: NEOSTATION_ACTIVE")
       openingLogs.append("Post-JIT URL: \(gameUrl.absoluteString)")
       openingLogs.append(
-        "Opening MeloNX frontend URL from active NeoStation; the already-JITed MeloNX process must receive this request."
+        "Opening MeloNX frontend URL from active RewindBox; the already-JITed MeloNX process must receive this request."
       )
       opening["logs"] = openingLogs
 
@@ -194,12 +194,12 @@ public final class StikjitBridgePluginV2: NSObject, FlutterPlugin {
         if opened {
           completedLogs.append("STATE: GAME_URL_POST_JIT_OPENED")
           completedLogs.append(
-            "UIApplication.open accepted the MeloNX frontend URL after NeoStation foreground re-acquisition."
+            "UIApplication.open accepted the MeloNX frontend URL after RewindBox foreground re-acquisition."
           )
         } else {
           completedLogs.append("STATE: GAME_URL_POST_JIT_OPEN_FAILED")
           completedLogs.append(
-            "UIApplication.open rejected the MeloNX frontend URL even though NeoStation was active."
+            "UIApplication.open rejected the MeloNX frontend URL even though RewindBox was active."
           )
         }
         completed["logs"] = completedLogs
@@ -457,12 +457,12 @@ private final class NeoStationProcessActivator {
     }
     try check(
       activationError,
-      fallback: "Failed to return NeoStation to the foreground"
+      fallback: "Failed to return RewindBox to the foreground"
     )
 
     guard pid > 0 else {
       throw NeoStationActivationError.idevice(
-        "process_control returned an invalid NeoStation PID: \(pid)"
+        "process_control returned an invalid RewindBox PID: \(pid)"
       )
     }
     return pid

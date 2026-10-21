@@ -73,7 +73,7 @@ abstract final class Rpcs3ProfileLocale {
             Rpcs3ProfileFamily.balanced => 'balanced',
           };
     final origin = gameDatabase || individual
-        ? 'NeoStation GameDB'
+        ? 'RewindBox GameDB'
         : (_families['balanced']![locale] ?? _families['balanced']!['en']!);
     final prefix = _automatic[locale] ?? _automatic['en']!;
     final name = _families[familyKey]![locale] ?? _families[familyKey]!['en']!;

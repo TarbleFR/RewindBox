@@ -1,14 +1,14 @@
 Pod::Spec.new do |s|
   s.name             = 'rpcs3_internal_bridge'
   s.version          = '0.1.0'
-  s.summary          = 'Lazy-loaded in-process RPCS3 Core bridge for NeoStation iOS.'
+  s.summary          = 'Lazy-loaded in-process RPCS3 Core bridge for RewindBox.'
   s.description      = <<-DESC
 Exposes NeoStation's PlayStation 3 runtime bridge without linking RPCS3 Core
 into the application at process startup. The verified RPCS3 dylib is embedded
 as a dormant runtime resource and opened only when a PS3 session is requested.
 The standalone RPCS3 SwiftUI application is not embedded.
                        DESC
-  s.homepage         = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }

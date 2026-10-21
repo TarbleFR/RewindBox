@@ -104,7 +104,7 @@ static BOOL DOLSaveCredentials(NSDictionary* credentials) {
   request.HTTPBody = [body dataUsingEncoding:NSUTF8StringEncoding];
   [request setValue:@"application/x-www-form-urlencoded; charset=UTF-8" forHTTPHeaderField:@"Content-Type"];
   [request setValue:@"application/json" forHTTPHeaderField:@"Accept"];
-  [request setValue:@"NeoStation-iOS/267 (Dolphin account login)" forHTTPHeaderField:@"User-Agent"];
+  [request setValue:@"RewindBox-iOS/267 (Dolphin account login)" forHTTPHeaderField:@"User-Agent"];
   return request;
 }
 

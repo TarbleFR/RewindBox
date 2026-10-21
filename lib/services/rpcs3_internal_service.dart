@@ -188,11 +188,11 @@ class Rpcs3InternalService {
   /// (the Build 441 text promised an automatic consumption that no longer
   /// exists).
   static const String filesWorkspaceReadme =
-      'NeoStation - RPCS3 game saves (manual exchange)\n'
+      'RewindBox - RPCS3 game saves (manual exchange)\n'
       '\n'
       'Import/Game Saves : drop PS3 save folders (each holding PARAM.SFO,\n'
       '                    alone or under a parent folder) or ZIP archives\n'
-      '                    here, then open NeoStation > RPCS3 manager and\n'
+      '                    here, then open RewindBox > RPCS3 manager and\n'
       '                    tap "Import game saves". Nothing is read or\n'
       '                    removed from this folder automatically; the\n'
       '                    manager asks before replacing an existing save.\n'
@@ -202,7 +202,7 @@ class Rpcs3InternalService {
       'Import/Savestates, Export/Savestates : reserved; not used by these\n'
       '                    flows.\n'
       '\n'
-      'RPCS3 reads the saves from NeoStation\'s private RPCS3 folder; an\n'
+      'RPCS3 reads the saves from RewindBox\'s private RPCS3 folder; an\n'
       'imported save appears in RPCS3 without any further step.\n';
 
   /// `Documents/RPCS3` with its Import/Export folders and README. Only

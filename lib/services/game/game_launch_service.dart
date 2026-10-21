@@ -273,7 +273,7 @@ class GameLaunchService {
           RetiredPortsBackup.retiredFolderName) {
         return GameLaunchResult.failure(
           AppLocale.noEmulator.getString(context),
-          'The Ports playlist is not part of this NeoStation build: '
+          'The Ports playlist is not part of this RewindBox build: '
           '${game.romPath ?? game.name}',
         );
       }

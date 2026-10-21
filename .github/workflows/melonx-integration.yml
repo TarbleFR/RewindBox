@@ -59,7 +59,7 @@ jobs:
           python3 - <<'PY'
           import json, subprocess
           from pathlib import Path
-          job = json.loads(subprocess.check_output(['gh', 'api', 'repos/TarbleFR/neostation-ios/actions/jobs/118900258241']))
+          job = json.loads(subprocess.check_output(['gh', 'api', 'repos/TarbleFR/RewindBox/actions/jobs/118900258241']))
           assert job['head_sha'] == 'faa281043ffdb82166c6af4ea069d442fb859cdc'
           names = ['Analyze the final app and retired locale-key removal', 'Exercise the adjusted console and retirement scenarios', 'Protect unchanged libraries, the remaining JIT helpers and routing']
           phases = [next(s for s in job['steps'] if s['name'] == n) for n in names]

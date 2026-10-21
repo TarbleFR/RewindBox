@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/rewindbox_wordmark.dart';
 import 'package:neostation/providers/menu_app_provider.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/providers/sqlite_database_provider.dart';
@@ -323,7 +324,7 @@ void main() async {
 
   final log = LoggerService.instance;
   await log.init();
-  log.i('Starting NeoStation...');
+  log.i('Starting RewindBox...');
 
   await AudioPolicyService().initialize();
 
@@ -712,14 +713,14 @@ class _StartupScaffoldState extends State<_StartupScaffold> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Image.asset(
-                          'assets/images/logo_transparent.png',
+                        RewindBoxWordmark(
+                          // Independent fork identity; upstream artwork remains credited.
                           width: 112,
                           height: 112,
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'NeoStation',
+                          'RewindBox',
                           style: TextStyle(
                             color: _colors.foreground,
                             fontSize: 28,
@@ -1076,7 +1077,7 @@ class _MyAppState extends State<MyApp> {
                     child: MaterialApp(
                       navigatorKey: rootNavigatorKey,
                       debugShowCheckedModeBanner: false,
-                      title: 'NeoStation',
+                      title: 'RewindBox',
                       locale: _locale,
                       localizationsDelegates: [
                         const FallbackMaterialLocalizationsDelegate(),

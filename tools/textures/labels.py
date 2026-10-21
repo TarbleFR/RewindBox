@@ -9,7 +9,7 @@ lib/l10n/texture_catalog_locale.dart).
   python3 tools/textures/labels.py           writes both files
   python3 tools/textures/labels.py --check   fails when they are stale or invalid
 
-Checks: the twelve NeoStation languages (en, es, ru, zh, zh_Hant, pt, fr, de,
+Checks: the twelve RewindBox languages (en, es, ru, zh, zh_Hant, pt, fr, de,
 it, id, ja, ko) have exactly the English keys, no empty text, the same
 {placeholders} as English, and Traditional Chinese has its own text.
 """
@@ -120,7 +120,7 @@ def dart_source(labels):
     lines += [
         '  };',
         '',
-        '  /// The NeoStation catalogue key of a locale (zh_Hant for Taiwan, Hong Kong and Macao).',
+        '  /// The RewindBox catalogue key of a locale (zh_Hant for Taiwan, Hong Kong and Macao).',
         '  static String localeKey(Locale locale) {',
         '    final language = locale.languageCode.toLowerCase();',
         "    if (language == 'zh') {",

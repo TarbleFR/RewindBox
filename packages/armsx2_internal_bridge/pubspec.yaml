@@ -1,6 +1,6 @@
 name: armsx2_internal_bridge
 resolution: workspace
-description: Isolated in-process ARMSX2 Core bridge for NeoStation iOS PlayStation 2 routes.
+description: Isolated in-process ARMSX2 Core bridge for RewindBox PlayStation 2 routes.
 version: 0.1.0
 publish_to: none
 

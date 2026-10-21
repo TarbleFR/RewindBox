@@ -78,7 +78,7 @@ abstract final class TextureCatalogLocale {
     },
   };
 
-  /// The NeoStation catalogue key of a locale (zh_Hant for Taiwan, Hong Kong and Macao).
+  /// The RewindBox catalogue key of a locale (zh_Hant for Taiwan, Hong Kong and Macao).
   static String localeKey(Locale locale) {
     final language = locale.languageCode.toLowerCase();
     if (language == 'zh') {

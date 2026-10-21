@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/rewindbox_wordmark.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/l10n/app_locale.dart';
@@ -83,8 +84,8 @@ class _ForkFirstRunOnboardingState extends State<ForkFirstRunOnboarding> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  'assets/images/logo_transparent.png',
+                RewindBoxWordmark(
+                  // Independent fork identity; upstream artwork remains credited.
                   width: 96.r,
                   height: 96.r,
                 ),

@@ -130,7 +130,7 @@ class LibraryMetadataProviderService {
     }
     if (manifest['contentPolicy']?.toString() != 'metadata-only') {
       throw const FormatException(
-        'NeoStation metadata provider registry must remain metadata-only.',
+        'RewindBox metadata provider registry must remain metadata-only.',
       );
     }
     final rawProviders = manifest['providers'];

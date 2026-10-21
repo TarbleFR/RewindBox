@@ -1,9 +1,9 @@
 import 'package:flutter/widgets.dart';
 
-/// Localized labels for the NeoStation iOS legal/credits surface.
+/// Localized labels for the RewindBox legal/credits surface.
 ///
 /// Project names and license identifiers intentionally remain untranslated.
-/// The surrounding UI covers every locale offered by NeoStation.
+/// The surrounding UI covers every locale offered by RewindBox.
 abstract final class LegalCreditsLocale {
   static const Map<String, String> _embeddedCoreLicenses = {
     'de': 'Integrierte Kerne: Jeder Kern behält seine eigene Lizenz.',
@@ -69,18 +69,18 @@ abstract final class LegalCreditsLocale {
   };
 
   static const Map<String, String> _intros = {
-    'de': 'NeoStation iOS baut auf vielen Open-Source-Projekten auf. Jede Komponente behält ihre eigene Lizenz und Urheberschaft. Die Nennung bedeutet keine Empfehlung durch die jeweiligen Projekte.',
-    'en': 'NeoStation iOS builds on many open-source projects. Every component keeps its own license and authorship. Attribution does not imply endorsement by those projects.',
-    'es': 'NeoStation iOS se basa en numerosos proyectos de código abierto. Cada componente conserva su propia licencia y autoría. La atribución no implica respaldo de esos proyectos.',
-    'fr': 'NeoStation iOS s’appuie sur de nombreux projets open source. Chaque composant conserve sa propre licence et ses auteurs. Leur mention n’implique aucune approbation de leur part.',
-    'id': 'NeoStation iOS dibangun di atas banyak proyek sumber terbuka. Setiap komponen tetap memiliki lisensi dan kepengarangan masing-masing. Atribusi tidak berarti dukungan dari proyek tersebut.',
-    'it': 'NeoStation iOS si basa su numerosi progetti open source. Ogni componente conserva la propria licenza e paternità. L’attribuzione non implica approvazione da parte di tali progetti.',
-    'ja': 'NeoStation iOS は多くのオープンソースプロジェクトを基盤としています。各コンポーネントのライセンスと作者表記はそのまま維持され、記載は各プロジェクトによる承認を意味しません。',
-    'ko': 'NeoStation iOS는 여러 오픈 소스 프로젝트를 기반으로 합니다. 각 구성 요소의 라이선스와 저작자 표시는 그대로 유지되며, 표기는 해당 프로젝트의 보증을 의미하지 않습니다.',
-    'pt': 'O NeoStation iOS baseia-se em vários projetos de código aberto. Cada componente mantém sua própria licença e autoria. A atribuição não implica endosso desses projetos.',
-    'ru': 'NeoStation iOS использует множество проектов с открытым исходным кодом. Каждый компонент сохраняет свою лицензию и авторство. Указание авторства не означает одобрения со стороны этих проектов.',
-    'zh': 'NeoStation iOS 基于多个开源项目构建。每个组件均保留其自身许可和作者信息。署名并不代表相关项目对 NeoStation 的认可。',
-    'zh_Hant': 'NeoStation iOS 建構於多個開源專案之上。每個元件均保留其自身授權與作者資訊。署名不代表相關專案對 NeoStation 的認可。',
+    'de': 'RewindBox baut auf vielen Open-Source-Projekten auf. Jede Komponente behält ihre eigene Lizenz und Urheberschaft. Die Nennung bedeutet keine Empfehlung durch die jeweiligen Projekte.',
+    'en': 'RewindBox builds on many open-source projects. Every component keeps its own license and authorship. Attribution does not imply endorsement by those projects.',
+    'es': 'RewindBox se basa en numerosos proyectos de código abierto. Cada componente conserva su propia licencia y autoría. La atribución no implica respaldo de esos proyectos.',
+    'fr': 'RewindBox s’appuie sur de nombreux projets open source. Chaque composant conserve sa propre licence et ses auteurs. Leur mention n’implique aucune approbation de leur part.',
+    'id': 'RewindBox dibangun di atas banyak proyek sumber terbuka. Setiap komponen tetap memiliki lisensi dan kepengarangan masing-masing. Atribusi tidak berarti dukungan dari proyek tersebut.',
+    'it': 'RewindBox si basa su numerosi progetti open source. Ogni componente conserva la propria licenza e paternità. L’attribuzione non implica approvazione da parte di tali progetti.',
+    'ja': 'RewindBox は多くのオープンソースプロジェクトを基盤としています。各コンポーネントのライセンスと作者表記はそのまま維持され、記載は各プロジェクトによる承認を意味しません。',
+    'ko': 'RewindBox는 여러 오픈 소스 프로젝트를 기반으로 합니다. 각 구성 요소의 라이선스와 저작자 표시는 그대로 유지되며, 표기는 해당 프로젝트의 보증을 의미하지 않습니다.',
+    'pt': 'O RewindBox baseia-se em vários projetos de código aberto. Cada componente mantém sua própria licença e autoria. A atribuição não implica endosso desses projetos.',
+    'ru': 'RewindBox использует множество проектов с открытым исходным кодом. Каждый компонент сохраняет свою лицензию и авторство. Указание авторства не означает одобрения со стороны этих проектов.',
+    'zh': 'RewindBox 基于多个开源项目构建。每个组件均保留其自身许可和作者信息。署名并不代表相关项目对 RewindBox 的认可。',
+    'zh_Hant': 'RewindBox 建構於多個開源專案之上。每個元件均保留其自身授權與作者資訊。署名不代表相關專案對 RewindBox 的認可。',
   };
 
   static const Map<String, String> _fullRecords = {

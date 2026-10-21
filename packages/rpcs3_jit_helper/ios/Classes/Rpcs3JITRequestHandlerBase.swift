@@ -112,11 +112,11 @@ open class Rpcs3JITRequestHandlerBase: NSObject, NSExtensionRequestHandling {
       try reporter?.connect()
       try reporter?.send(
         event: "helper_connected",
-        message: "RPCS3 JIT helper connected to NeoStation."
+        message: "RPCS3 JIT helper connected to RewindBox."
       )
       try reporter?.send(
         event: "log",
-        message: "Preparing StikJIT 1.9.0 for NeoStation PID \(targetPID)."
+        message: "Preparing StikJIT 1.9.0 for RewindBox PID \(targetPID)."
       )
 
       // Validate binary plists structurally too. A readable file or a string
@@ -255,7 +255,7 @@ open class Rpcs3JITRequestHandlerBase: NSObject, NSExtensionRequestHandling {
     case .verifyingDDI:
       return "StikJIT: verifying the mounted DDI."
     case .ready:
-      return "StikJIT: device ready; attaching universal.js to NeoStation."
+      return "StikJIT: device ready; attaching universal.js to RewindBox."
     @unknown default:
       return "StikJIT: unknown preparation stage."
     }
@@ -274,7 +274,7 @@ private final class Rpcs3HelperReporter {
 
   init(port: UInt16, token: String) throws {
     guard let endpointPort = NWEndpoint.Port(rawValue: port) else {
-      throw Rpcs3HelperError.invalidRequest("Invalid NeoStation helper port.")
+      throw Rpcs3HelperError.invalidRequest("Invalid RewindBox helper port.")
     }
     self.token = token
     connection = NWConnection(
@@ -309,7 +309,7 @@ private final class Rpcs3HelperReporter {
 
     guard semaphore.wait(timeout: .now() + 20) == .success else {
       throw Rpcs3HelperError.connection(
-        "Timed out connecting to NeoStation."
+        "Timed out connecting to RewindBox."
       )
     }
     lock.lock()
@@ -317,7 +317,7 @@ private final class Rpcs3HelperReporter {
     if let connectionError { throw connectionError }
     if !isReady {
       throw Rpcs3HelperError.connection(
-        "NeoStation helper socket did not become ready."
+        "RewindBox helper socket did not become ready."
       )
     }
   }
@@ -377,7 +377,7 @@ private final class Rpcs3HelperReporter {
     sendLock.unlock()
     guard semaphore.wait(timeout: .now() + 20) == .success else {
       throw Rpcs3HelperError.connection(
-        "Timed out writing control state to NeoStation."
+        "Timed out writing control state to RewindBox."
       )
     }
     if let sendError { throw sendError }

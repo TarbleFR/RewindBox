@@ -21,7 +21,7 @@ EN = {
     'installedSection': 'Installed pack',
     'installedConsoleSection': 'Installed packs',
     'installedNone': 'No pack installed',
-    'installedManual': 'Folder installed outside NeoStation',
+    'installedManual': 'Folder installed outside RewindBox',
     'installedVersion': 'Version {version}',
     'installedSummary': '{files} files · {size} · folder {folder}',
     'availableSection': 'Packs for this game',
@@ -136,7 +136,7 @@ EN = {
     'loadedNotice': 'Downloaded, installed and loaded are different steps: an installed pack is in the engine’s folder; the engine loads it when the game starts. Only the game’s picture (or, for the PS2, the engine details) shows that textures are actually replaced.',
     'engineDetails': 'Engine details',
     'engineDetailsDetail': 'What the engine recognised and loaded for this game',
-    'installedImported': 'Pack imported with an earlier version of NeoStation',
+    'installedImported': 'Pack imported with an earlier version of RewindBox',
     'libraryGamesSection': 'Packs for your games',
     'libraryScanning': 'Reading your games’ identifiers… ({done} of {total})',
     'libraryNone': 'No pack in the catalogue for the games of this console in your library.',
@@ -158,7 +158,7 @@ EN = {
     'stateUnavailable': 'Unavailable',
     'detailRequirements': 'Requirements',
     'stateManualVerified': 'Manual download, verified file',
-    'manualVerifiedHelp': 'The author publishes this pack on {host}. Open their page, download {file} ({size}), then import it here: NeoStation checks that it is the exact file verified for this pack and installs it like a one-tap pack.',
+    'manualVerifiedHelp': 'The author publishes this pack on {host}. Open their page, download {file} ({size}), then import it here: RewindBox checks that it is the exact file verified for this pack and installs it like a one-tap pack.',
     'actionImportVerified': 'Import the downloaded file',
     'error.notVerifiedFile': 'This is not the file verified for this pack (its size or SHA-256 differs). Check the version on the author’s page; another archive can still be imported from the game’s page.',
 }
@@ -183,7 +183,7 @@ FR = {
     'installedSection': 'Pack installé',
     'installedConsoleSection': 'Packs installés',
     'installedNone': 'Aucun pack installé',
-    'installedManual': 'Dossier installé hors de NeoStation',
+    'installedManual': 'Dossier installé hors de RewindBox',
     'installedVersion': 'Version {version}',
     'installedSummary': '{files} fichiers · {size} · dossier {folder}',
     'availableSection': 'Packs pour ce jeu',
@@ -298,7 +298,7 @@ FR = {
     'loadedNotice': 'Téléchargé, installé et chargé sont des étapes distinctes : un pack installé est dans le dossier du moteur ; le moteur le charge au démarrage du jeu. Seule l’image du jeu (ou, pour la PS2, les détails du moteur) montre que les textures sont réellement remplacées.',
     'engineDetails': 'Détails du moteur',
     'engineDetailsDetail': 'Ce que le moteur a reconnu et chargé pour ce jeu',
-    'installedImported': 'Pack importé avec une version précédente de NeoStation',
+    'installedImported': 'Pack importé avec une version précédente de RewindBox',
     'libraryGamesSection': 'Packs pour vos jeux',
     'libraryScanning': 'Lecture des identifiants de vos jeux… ({done} sur {total})',
     'libraryNone': 'Aucun pack du catalogue pour les jeux de cette console dans votre bibliothèque.',
@@ -320,7 +320,7 @@ FR = {
     'stateUnavailable': 'Indisponible',
     'detailRequirements': 'Prérequis',
     'stateManualVerified': 'Téléchargement manuel, fichier vérifié',
-    'manualVerifiedHelp': 'L’auteur publie ce pack sur {host}. Ouvrez sa page, téléchargez {file} ({size}), puis importez-le ici : NeoStation vérifie qu’il s’agit exactement du fichier vérifié pour ce pack et l’installe comme un pack en un geste.',
+    'manualVerifiedHelp': 'L’auteur publie ce pack sur {host}. Ouvrez sa page, téléchargez {file} ({size}), puis importez-le ici : RewindBox vérifie qu’il s’agit exactement du fichier vérifié pour ce pack et l’installe comme un pack en un geste.',
     'actionImportVerified': 'Importer le fichier téléchargé',
     'error.notVerifiedFile': 'Ce n’est pas le fichier vérifié pour ce pack (sa taille ou son SHA-256 diffère). Vérifiez la version sur la page de l’auteur ; une autre archive peut toujours être importée depuis la page du jeu.',
 }
@@ -328,7 +328,7 @@ FR = {
 # Mesen (NES HD packs).
 EN.update({
     'error.missingHires': 'This Mesen HD pack has no hires.txt at its root.',
-    'error.formatTooNew': 'This HD pack is made for Mesen 2 (a format newer than 106): the Mesen engine of NeoStation cannot read it.',
+    'error.formatTooNew': 'This HD pack is made for Mesen 2 (a format newer than 106): the Mesen engine of RewindBox cannot read it.',
     'error.missingFiles': 'Images named by this pack’s hires.txt are missing from the archive.',
     'error.memoryTooLarge': 'This HD pack needs more memory than this device can give it: Mesen loads every image of the pack when the game starts.',
     'error.mesenNotSelected': 'Mesen could not be selected for this game. Choose Mesen in the game’s settings (Emulator), then switch the pack on.',
@@ -340,7 +340,7 @@ EN.update({
 })
 FR.update({
     'error.missingHires': 'Ce pack HD Mesen n’a pas de hires.txt à sa racine.',
-    'error.formatTooNew': 'Ce pack HD est conçu pour Mesen 2 (un format plus récent que 106) : le moteur Mesen de NeoStation ne peut pas le lire.',
+    'error.formatTooNew': 'Ce pack HD est conçu pour Mesen 2 (un format plus récent que 106) : le moteur Mesen de RewindBox ne peut pas le lire.',
     'error.missingFiles': 'Des images nommées par le hires.txt de ce pack manquent dans l’archive.',
     'error.memoryTooLarge': 'Ce pack HD demande plus de mémoire que cet appareil ne peut lui en donner : Mesen charge toutes les images du pack au démarrage du jeu.',
     'error.mesenNotSelected': 'Mesen n’a pas pu être choisi pour ce jeu. Choisissez Mesen dans les réglages du jeu (Émulateur), puis activez le pack.',

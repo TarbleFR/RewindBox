@@ -18,7 +18,7 @@ concurrency:
 jobs:
   cleanup:
     if: >-
-      github.repository == 'TarbleFR/neostation-ios' &&
+      github.repository == 'TarbleFR/RewindBox' &&
       github.ref == 'refs/heads/Claude' &&
       github.event_name == 'push' &&
       github.event.before == '1375d57eee0af2de47740843808761456a4dc3a2' &&

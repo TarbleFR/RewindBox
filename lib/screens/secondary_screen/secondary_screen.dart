@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/rewindbox_wordmark.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -1094,8 +1095,8 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
   }
 
   Widget _buildDefaultLogo() {
-    return Image.asset(
-      'assets/images/logo_transparent.png',
+    return RewindBoxWordmark(
+      // Independent fork identity; upstream artwork remains credited.
       width: 200.r,
       height: 200.r,
       fit: BoxFit.contain,

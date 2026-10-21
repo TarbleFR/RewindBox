@@ -1,4 +1,4 @@
-name: Libretro cores for NeoStation iOS
+name: Libretro cores for RewindBox
 'on':
   push:
     branches:

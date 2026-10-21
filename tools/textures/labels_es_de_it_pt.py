@@ -20,7 +20,7 @@ ES = {
     'installedSection': 'Paquete instalado',
     'installedConsoleSection': 'Paquetes instalados',
     'installedNone': 'Ningún paquete instalado',
-    'installedManual': 'Carpeta instalada fuera de NeoStation',
+    'installedManual': 'Carpeta instalada fuera de RewindBox',
     'installedVersion': 'Versión {version}',
     'installedSummary': '{files} archivos · {size} · carpeta {folder}',
     'availableSection': 'Paquetes para este juego',
@@ -135,7 +135,7 @@ ES = {
     'loadedNotice': 'Descargado, instalado y cargado son pasos distintos: un paquete instalado está en la carpeta del motor; el motor lo carga al iniciar el juego. Solo la imagen del juego (o, en PS2, los detalles del motor) muestra que las texturas se sustituyen de verdad.',
     'engineDetails': 'Detalles del motor',
     'engineDetailsDetail': 'Lo que el motor reconoció y cargó para este juego',
-    'installedImported': 'Paquete importado con una versión anterior de NeoStation',
+    'installedImported': 'Paquete importado con una versión anterior de RewindBox',
     'libraryGamesSection': 'Paquetes para tus juegos',
     'libraryScanning': 'Leyendo los identificadores de tus juegos… ({done} de {total})',
     'libraryNone': 'Ningún paquete del catálogo para los juegos de esta consola en tu biblioteca.',
@@ -157,7 +157,7 @@ ES = {
     'stateUnavailable': 'No disponible',
     'detailRequirements': 'Requisitos',
     'stateManualVerified': 'Descarga manual, archivo verificado',
-    'manualVerifiedHelp': 'El autor publica este paquete en {host}. Abre su página, descarga {file} ({size}) e impórtalo aquí: NeoStation comprueba que es exactamente el archivo verificado para este paquete y lo instala como un paquete de un toque.',
+    'manualVerifiedHelp': 'El autor publica este paquete en {host}. Abre su página, descarga {file} ({size}) e impórtalo aquí: RewindBox comprueba que es exactamente el archivo verificado para este paquete y lo instala como un paquete de un toque.',
     'actionImportVerified': 'Importar el archivo descargado',
     'error.notVerifiedFile': 'Este no es el archivo verificado para este paquete (su tamaño o su SHA-256 no coinciden). Comprueba la versión en la página del autor; otro archivo comprimido puede importarse desde la página del juego.',
 }
@@ -182,7 +182,7 @@ DE = {
     'installedSection': 'Installiertes Paket',
     'installedConsoleSection': 'Installierte Pakete',
     'installedNone': 'Kein Paket installiert',
-    'installedManual': 'Außerhalb von NeoStation installierter Ordner',
+    'installedManual': 'Außerhalb von RewindBox installierter Ordner',
     'installedVersion': 'Version {version}',
     'installedSummary': '{files} Dateien · {size} · Ordner {folder}',
     'availableSection': 'Pakete für dieses Spiel',
@@ -297,7 +297,7 @@ DE = {
     'loadedNotice': 'Heruntergeladen, installiert und geladen sind verschiedene Schritte: Ein installiertes Paket liegt im Ordner der Engine; die Engine lädt es beim Spielstart. Nur das Bild des Spiels (bei der PS2 auch die Engine-Details) zeigt, dass Texturen wirklich ersetzt werden.',
     'engineDetails': 'Engine-Details',
     'engineDetailsDetail': 'Was die Engine für dieses Spiel erkannt und geladen hat',
-    'installedImported': 'Mit einer früheren NeoStation-Version importiertes Paket',
+    'installedImported': 'Mit einer früheren RewindBox-Version importiertes Paket',
     'libraryGamesSection': 'Pakete für deine Spiele',
     'libraryScanning': 'Kennungen deiner Spiele werden gelesen… ({done} von {total})',
     'libraryNone': 'Kein Paket im Katalog für die Spiele dieser Konsole in deiner Bibliothek.',
@@ -319,7 +319,7 @@ DE = {
     'stateUnavailable': 'Nicht verfügbar',
     'detailRequirements': 'Voraussetzungen',
     'stateManualVerified': 'Manueller Download, geprüfte Datei',
-    'manualVerifiedHelp': 'Der Autor veröffentlicht dieses Paket auf {host}. Öffne seine Seite, lade {file} ({size}) herunter und importiere die Datei hier: NeoStation prüft, dass es genau die für dieses Paket geprüfte Datei ist, und installiert sie wie ein Paket mit einem Tippen.',
+    'manualVerifiedHelp': 'Der Autor veröffentlicht dieses Paket auf {host}. Öffne seine Seite, lade {file} ({size}) herunter und importiere die Datei hier: RewindBox prüft, dass es genau die für dieses Paket geprüfte Datei ist, und installiert sie wie ein Paket mit einem Tippen.',
     'actionImportVerified': 'Heruntergeladene Datei importieren',
     'error.notVerifiedFile': 'Das ist nicht die für dieses Paket geprüfte Datei (Größe oder SHA-256 weichen ab). Prüfe die Version auf der Seite des Autors; ein anderes Archiv lässt sich weiterhin über die Seite des Spiels importieren.',
 }
@@ -344,7 +344,7 @@ IT = {
     'installedSection': 'Pacchetto installato',
     'installedConsoleSection': 'Pacchetti installati',
     'installedNone': 'Nessun pacchetto installato',
-    'installedManual': 'Cartella installata fuori da NeoStation',
+    'installedManual': 'Cartella installata fuori da RewindBox',
     'installedVersion': 'Versione {version}',
     'installedSummary': '{files} file · {size} · cartella {folder}',
     'availableSection': 'Pacchetti per questo gioco',
@@ -459,7 +459,7 @@ IT = {
     'loadedNotice': 'Scaricato, installato e caricato sono passaggi diversi: un pacchetto installato è nella cartella del motore; il motore lo carica all’avvio del gioco. Solo l’immagine del gioco (o, per la PS2, i dettagli del motore) mostra che le texture vengono davvero sostituite.',
     'engineDetails': 'Dettagli del motore',
     'engineDetailsDetail': 'Ciò che il motore ha riconosciuto e caricato per questo gioco',
-    'installedImported': 'Pacchetto importato con una versione precedente di NeoStation',
+    'installedImported': 'Pacchetto importato con una versione precedente di RewindBox',
     'libraryGamesSection': 'Pacchetti per i tuoi giochi',
     'libraryScanning': 'Lettura degli identificativi dei tuoi giochi… ({done} di {total})',
     'libraryNone': 'Nessun pacchetto del catalogo per i giochi di questa console nella tua libreria.',
@@ -481,7 +481,7 @@ IT = {
     'stateUnavailable': 'Non disponibile',
     'detailRequirements': 'Requisiti',
     'stateManualVerified': 'Download manuale, file verificato',
-    'manualVerifiedHelp': 'L’autore pubblica questo pacchetto su {host}. Apri la sua pagina, scarica {file} ({size}) e importalo qui: NeoStation controlla che sia esattamente il file verificato per questo pacchetto e lo installa come un pacchetto con un tocco.',
+    'manualVerifiedHelp': 'L’autore pubblica questo pacchetto su {host}. Apri la sua pagina, scarica {file} ({size}) e importalo qui: RewindBox controlla che sia esattamente il file verificato per questo pacchetto e lo installa come un pacchetto con un tocco.',
     'actionImportVerified': 'Importa il file scaricato',
     'error.notVerifiedFile': 'Questo non è il file verificato per questo pacchetto (dimensione o SHA-256 diversi). Controlla la versione sulla pagina dell’autore; un altro archivio può comunque essere importato dalla pagina del gioco.',
 }
@@ -506,7 +506,7 @@ PT = {
     'installedSection': 'Pacote instalado',
     'installedConsoleSection': 'Pacotes instalados',
     'installedNone': 'Nenhum pacote instalado',
-    'installedManual': 'Pasta instalada fora do NeoStation',
+    'installedManual': 'Pasta instalada fora do RewindBox',
     'installedVersion': 'Versão {version}',
     'installedSummary': '{files} arquivos · {size} · pasta {folder}',
     'availableSection': 'Pacotes para este jogo',
@@ -621,7 +621,7 @@ PT = {
     'loadedNotice': 'Baixado, instalado e carregado são etapas diferentes: um pacote instalado está na pasta do motor; o motor o carrega quando o jogo começa. Só a imagem do jogo (ou, no PS2, os detalhes do motor) mostra que as texturas são realmente substituídas.',
     'engineDetails': 'Detalhes do motor',
     'engineDetailsDetail': 'O que o motor reconheceu e carregou para este jogo',
-    'installedImported': 'Pacote importado com uma versão anterior do NeoStation',
+    'installedImported': 'Pacote importado com uma versão anterior do RewindBox',
     'libraryGamesSection': 'Pacotes para os seus jogos',
     'libraryScanning': 'Lendo os identificadores dos seus jogos… ({done} de {total})',
     'libraryNone': 'Nenhum pacote do catálogo para os jogos deste console na sua biblioteca.',
@@ -643,7 +643,7 @@ PT = {
     'stateUnavailable': 'Indisponível',
     'detailRequirements': 'Requisitos',
     'stateManualVerified': 'Download manual, arquivo verificado',
-    'manualVerifiedHelp': 'O autor publica este pacote no {host}. Abra a página dele, baixe {file} ({size}) e importe-o aqui: o NeoStation verifica se é exatamente o arquivo verificado para este pacote e o instala como um pacote de um toque.',
+    'manualVerifiedHelp': 'O autor publica este pacote no {host}. Abra a página dele, baixe {file} ({size}) e importe-o aqui: o RewindBox verifica se é exatamente o arquivo verificado para este pacote e o instala como um pacote de um toque.',
     'actionImportVerified': 'Importar o arquivo baixado',
     'error.notVerifiedFile': 'Este não é o arquivo verificado para este pacote (o tamanho ou o SHA-256 é diferente). Confira a versão na página do autor; outro arquivo compactado ainda pode ser importado pela página do jogo.',
 }
@@ -651,7 +651,7 @@ PT = {
 # Mesen (NES HD packs).
 ES.update({
     'error.missingHires': 'Este paquete HD de Mesen no tiene hires.txt en su raíz.',
-    'error.formatTooNew': 'Este paquete HD está hecho para Mesen 2 (un formato más reciente que 106): el motor Mesen de NeoStation no puede leerlo.',
+    'error.formatTooNew': 'Este paquete HD está hecho para Mesen 2 (un formato más reciente que 106): el motor Mesen de RewindBox no puede leerlo.',
     'error.missingFiles': 'Faltan en el archivo imágenes que nombra el hires.txt de este paquete.',
     'error.memoryTooLarge': 'Este paquete HD necesita más memoria de la que este dispositivo puede darle: Mesen carga todas las imágenes del paquete al iniciar el juego.',
     'error.mesenNotSelected': 'No se pudo elegir Mesen para este juego. Elige Mesen en los ajustes del juego (Emulador) y luego activa el paquete.',
@@ -663,7 +663,7 @@ ES.update({
 })
 DE.update({
     'error.missingHires': 'Diesem Mesen-HD-Paket fehlt die hires.txt im Hauptordner.',
-    'error.formatTooNew': 'Dieses HD-Paket ist für Mesen 2 gemacht (ein neueres Format als 106): Die Mesen-Engine von NeoStation kann es nicht lesen.',
+    'error.formatTooNew': 'Dieses HD-Paket ist für Mesen 2 gemacht (ein neueres Format als 106): Die Mesen-Engine von RewindBox kann es nicht lesen.',
     'error.missingFiles': 'Im Archiv fehlen Bilder, die die hires.txt dieses Pakets nennt.',
     'error.memoryTooLarge': 'Dieses HD-Paket braucht mehr Speicher, als dieses Gerät ihm geben kann: Mesen lädt beim Spielstart alle Bilder des Pakets.',
     'error.mesenNotSelected': 'Mesen konnte für dieses Spiel nicht gewählt werden. Wähle Mesen in den Spieleinstellungen (Emulator) und schalte dann das Paket ein.',
@@ -675,7 +675,7 @@ DE.update({
 })
 IT.update({
     'error.missingHires': 'Questo pacchetto HD di Mesen non ha hires.txt nella cartella principale.',
-    'error.formatTooNew': 'Questo pacchetto HD è fatto per Mesen 2 (un formato più recente di 106): il motore Mesen di NeoStation non può leggerlo.',
+    'error.formatTooNew': 'Questo pacchetto HD è fatto per Mesen 2 (un formato più recente di 106): il motore Mesen di RewindBox non può leggerlo.',
     'error.missingFiles': 'Nell’archivio mancano immagini indicate dal hires.txt di questo pacchetto.',
     'error.memoryTooLarge': 'Questo pacchetto HD richiede più memoria di quanta questo dispositivo possa dargli: Mesen carica tutte le immagini del pacchetto all’avvio del gioco.',
     'error.mesenNotSelected': 'Impossibile scegliere Mesen per questo gioco. Scegli Mesen nelle impostazioni del gioco (Emulatore), poi attiva il pacchetto.',
@@ -687,7 +687,7 @@ IT.update({
 })
 PT.update({
     'error.missingHires': 'Este pacote HD do Mesen não tem hires.txt na raiz.',
-    'error.formatTooNew': 'Este pacote HD foi feito para o Mesen 2 (um formato mais novo que 106): o motor Mesen do NeoStation não consegue lê-lo.',
+    'error.formatTooNew': 'Este pacote HD foi feito para o Mesen 2 (um formato mais novo que 106): o motor Mesen do RewindBox não consegue lê-lo.',
     'error.missingFiles': 'Faltam no arquivo imagens citadas pelo hires.txt deste pacote.',
     'error.memoryTooLarge': 'Este pacote HD precisa de mais memória do que este dispositivo pode lhe dar: o Mesen carrega todas as imagens do pacote ao iniciar o jogo.',
     'error.mesenNotSelected': 'Não foi possível escolher o Mesen para este jogo. Escolha o Mesen nos ajustes do jogo (Emulador) e depois ative o pacote.',

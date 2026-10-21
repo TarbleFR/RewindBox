@@ -73,7 +73,7 @@ static NSString *JournalTimestamp(void) {
   journal->_previousSessionUnfinished = unfinished;
   journal->_path = [current copy];
   journal->_sessionIdentifier = NSUUID.UUID.UUIDString;
-  [journal writeText:[NSString stringWithFormat:@"NeoStation libretro session journal 1, started %@\n",
+  [journal writeText:[NSString stringWithFormat:@"RewindBox libretro session journal 1, started %@\n",
                                                 JournalTimestamp()]];
   static int crashDescriptor = -1;
   static dispatch_once_t captureOnce;

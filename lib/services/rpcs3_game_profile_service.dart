@@ -261,7 +261,7 @@ abstract final class Rpcs3GameProfileService {
       };
     }
     if (!profile.isManaged) {
-      _log.i('RPCS3 ${profile.serial}: using NeoStation global iOS profile.');
+      _log.i('RPCS3 ${profile.serial}: using RewindBox global iOS profile.');
       return <String, dynamic>{
         'success': true,
         'message': 'RPCS3 global iOS profile inherited for ${profile.serial}.',

@@ -196,7 +196,7 @@ static CGSize PreviewSize(LibretroSize reference, LibretroSkinOrientation orient
   return [self consoleScopeTitle];
 }
 
-/// "Set for this game", "Set for <console>" or "NeoStation default".
+/// "Set for this game", "Set for <console>" or "RewindBox default".
 - (NSString *)sourceTextForScope:(LibretroSettingScope)scope {
   switch (scope) {
     case LibretroSettingScopeGame:

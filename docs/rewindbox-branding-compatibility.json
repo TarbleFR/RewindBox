@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-21",
+  "application": "RewindBox",
+  "repository": "TarbleFR/RewindBox",
+  "base": "08103f719d72f97f16f184ba1e367711ab6c19fe",
+  "branch": "Claude",
+  "locked_replacements": {
+    "lib/main.dart": [
+      {
+        "old": "",
+        "new": "import 'package:neostation/widgets/rewindbox_wordmark.dart';\n",
+        "count": 1
+      },
+      {
+        "old": "  log.i('Starting NeoStation...');\n",
+        "new": "  log.i('Starting RewindBox...');\n",
+        "count": 1
+      },
+      {
+        "old": "                        Image.asset(\n                          'assets/images/logo_transparent.png',\n",
+        "new": "                        RewindBoxWordmark(\n                          // Independent fork identity; upstream artwork remains credited.\n",
+        "count": 1
+      },
+      {
+        "old": "                          'NeoStation',\n",
+        "new": "                          'RewindBox',\n",
+        "count": 1
+      },
+      {
+        "old": "                      title: 'NeoStation',\n",
+        "new": "                      title: 'RewindBox',\n",
+        "count": 1
+      }
+    ],
+    "native/armsx2_internal_helper/Info.plist": [
+      {
+        "old": "  <key>CFBundleDisplayName</key><string>NeoStation ARMSX2 JIT Helper</string>",
+        "new": "  <key>CFBundleDisplayName</key><string>RewindBox ARMSX2 JIT Helper</string>",
+        "count": 1
+      }
+    ],
+    "native/dolphin_internal_helper/Info.plist": [
+      {
+        "old": "  <string>NeoStation Dolphin JIT Helper</string>",
+        "new": "  <string>RewindBox Dolphin JIT Helper</string>",
+        "count": 1
+      }
+    ],
+    "native/rpcs3_internal_helper/Info.plist": [
+      {
+        "old": "  <string>NeoStation RPCS3 JIT Helper</string>",
+        "new": "  <string>RewindBox RPCS3 JIT Helper</string>",
+        "count": 1
+      }
+    ]
+  }
+}

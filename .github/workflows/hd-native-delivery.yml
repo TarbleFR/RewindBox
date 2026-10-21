@@ -1,7 +1,7 @@
 # Reusable recipe, invoked only by the registered hd-textures workflow dispatch delivery498.
 # Do not edit the frozen 497 workflow. Candidate C keeps 2617d176e091d0bff63820a5c46917b17dd4a943; workflow-only W resolves it.
 # Fill catalogue/provider/Store/SDK pins in the dedicated gate before committing C.
-name: NeoStation HD native • Build 498 • reusable private delivery
+name: RewindBox HD native • Build 498 • reusable private delivery
 'on':
   workflow_call:
     inputs:
@@ -101,7 +101,7 @@ jobs:
       BUILD_NUMBER: ${{ inputs.build_number || '498' }}
       DELIVERY_RECIPIENT: ${{ inputs.recipient }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: NeoStation-Build-${{ inputs.build_number || '498' }}-2617d176e091d0bff63820a5c46917b17dd4a943-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '498' }}-2617d176e091d0bff63820a5c46917b17dd4a943-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -228,7 +228,7 @@ jobs:
         set -euo pipefail
         python3 - <<'PYCOREWAIT'
         import json,os,subprocess,time
-        endpoint='repos/TarbleFR/neostation-ios/actions/runs/'+os.environ['RPCS3_CORE_RUN_ID']
+        endpoint='repos/TarbleFR/RewindBox/actions/runs/'+os.environ['RPCS3_CORE_RUN_ID']
         deadline=time.monotonic()+7200
         while True:
             result=json.loads(subprocess.check_output(['gh','api',endpoint]))
@@ -502,7 +502,7 @@ jobs:
         set -euo pipefail
         python3 - <<'PY'
         import json, os, shutil, subprocess
-        endpoint='repos/TarbleFR/neostation-ios/actions/runs/'+os.environ['ARMSX2_CORE_RUN_ID']
+        endpoint='repos/TarbleFR/RewindBox/actions/runs/'+os.environ['ARMSX2_CORE_RUN_ID']
         result=json.loads(subprocess.check_output(['gh','api',endpoint]))
         assert result['head_sha'] == os.environ['ARMSX2_CORE_HOST_SHA'], result
         assert result['path'] == '.github/workflows/armsx2-core.yml', result
@@ -568,7 +568,7 @@ jobs:
         set -euo pipefail
         python3 - <<'PY'
         import json, os, shutil, subprocess
-        endpoint = 'repos/TarbleFR/neostation-ios/actions/runs/' + os.environ['LIBRETRO_CORES_RUN_ID']
+        endpoint = 'repos/TarbleFR/RewindBox/actions/runs/' + os.environ['LIBRETRO_CORES_RUN_ID']
         result = json.loads(subprocess.check_output(['gh', 'api', endpoint]))
         assert result['head_sha'] == os.environ['LIBRETRO_CORES_VALIDATED_SHA'], result
         # Only PPSSPP is rebuilt; 34 cores and system assets retain their exact identity.
@@ -894,7 +894,7 @@ jobs:
     - name: Prepare encrypted delivery and evidence
       run: |
         mkdir -p build/delivery-artifact
-        cp dist/NeoStation.ipa "build/delivery-artifact/NeoStation-Build${BUILD_NUMBER}-${GITHUB_SHA}-${DELIVERY_MODE}.ipa"
+        cp dist/NeoStation.ipa "build/delivery-artifact/RewindBox-Build${BUILD_NUMBER}-${GITHUB_SHA}-${DELIVERY_MODE}.ipa"
         cp build/delivery/*.json build/delivery-artifact/
         cp docs/retroarch-rollback-2026-10-08.md build/delivery-artifact/
         shasum -a 256 build/delivery-artifact/*.ipa > build/delivery-artifact/SHA256SUMS

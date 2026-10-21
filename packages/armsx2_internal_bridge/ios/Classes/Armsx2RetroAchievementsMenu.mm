@@ -146,8 +146,8 @@ static UINavigationBarAppearance* ARMSX2RAModernNavigationAppearance(void) {
 
   UILabel* help = [UILabel new];
   help.text = ARMSX2RAText(
-      @"Connect the RetroAchievements account used by ARMSX2. The password is sent to the native ARMSX2 login flow and is never stored by NeoStation.",
-      @"Connectez le compte RetroAchievements utilisé par ARMSX2. Le mot de passe est transmis au flux de connexion natif ARMSX2 et n’est jamais enregistré par NeoStation.");
+      @"Connect the RetroAchievements account used by ARMSX2. The password is sent to the native ARMSX2 login flow and is never stored by RewindBox.",
+      @"Connectez le compte RetroAchievements utilisé par ARMSX2. Le mot de passe est transmis au flux de connexion natif ARMSX2 et n’est jamais enregistré par RewindBox.");
   help.numberOfLines = 0;
   help.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
   help.adjustsFontForContentSizeCategory = YES;

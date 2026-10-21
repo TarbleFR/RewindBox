@@ -20,7 +20,7 @@ ZH = {
     'installedSection': '已安装的纹理包',
     'installedConsoleSection': '已安装的纹理包',
     'installedNone': '未安装纹理包',
-    'installedManual': '在 NeoStation 之外安装的文件夹',
+    'installedManual': '在 RewindBox 之外安装的文件夹',
     'installedVersion': '版本 {version}',
     'installedSummary': '{files} 个文件 · {size} · 文件夹 {folder}',
     'availableSection': '此游戏的纹理包',
@@ -135,7 +135,7 @@ ZH = {
     'loadedNotice': '已下载、已安装和已加载是不同的步骤：已安装的纹理包位于引擎文件夹中；引擎在游戏启动时加载它。只有游戏画面（PS2 还可查看引擎详情）才能表明纹理确实已被替换。',
     'engineDetails': '引擎详情',
     'engineDetailsDetail': '引擎为此游戏识别并加载的内容',
-    'installedImported': '使用旧版 NeoStation 导入的纹理包',
+    'installedImported': '使用旧版 RewindBox 导入的纹理包',
     'libraryGamesSection': '适用于你的游戏的纹理包',
     'libraryScanning': '正在读取你的游戏标识符…（{done} / {total}）',
     'libraryNone': '目录中没有适用于你游戏库中此主机游戏的纹理包。',
@@ -157,7 +157,7 @@ ZH = {
     'stateUnavailable': '不可用',
     'detailRequirements': '要求',
     'stateManualVerified': '需手动下载，文件已验证',
-    'manualVerifiedHelp': '作者在 {host} 发布此纹理包。请打开其页面，下载 {file}（{size}），然后在此导入：NeoStation 会确认它正是为此纹理包验证过的文件，并像一键纹理包一样安装。',
+    'manualVerifiedHelp': '作者在 {host} 发布此纹理包。请打开其页面，下载 {file}（{size}），然后在此导入：RewindBox 会确认它正是为此纹理包验证过的文件，并像一键纹理包一样安装。',
     'actionImportVerified': '导入已下载的文件',
     'error.notVerifiedFile': '这不是为此纹理包验证过的文件（大小或 SHA-256 不同）。请在作者页面核对版本；其他压缩包仍可从游戏页面导入。',
 }
@@ -182,7 +182,7 @@ ZH_HANT = {
     'installedSection': '已安裝的材質包',
     'installedConsoleSection': '已安裝的材質包',
     'installedNone': '未安裝材質包',
-    'installedManual': '在 NeoStation 之外安裝的資料夾',
+    'installedManual': '在 RewindBox 之外安裝的資料夾',
     'installedVersion': '版本 {version}',
     'installedSummary': '{files} 個檔案 · {size} · 資料夾 {folder}',
     'availableSection': '此遊戲的材質包',
@@ -297,7 +297,7 @@ ZH_HANT = {
     'loadedNotice': '已下載、已安裝與已載入是不同的步驟：已安裝的材質包位於引擎資料夾中；引擎在遊戲啟動時載入它。只有遊戲畫面（PS2 另可查看引擎詳細資料）才能表明材質確實已被取代。',
     'engineDetails': '引擎詳細資料',
     'engineDetailsDetail': '引擎為此遊戲辨識並載入的內容',
-    'installedImported': '使用舊版 NeoStation 匯入的材質包',
+    'installedImported': '使用舊版 RewindBox 匯入的材質包',
     'libraryGamesSection': '適用於你的遊戲的材質包',
     'libraryScanning': '正在讀取你的遊戲識別碼…（{done} / {total}）',
     'libraryNone': '目錄中沒有適用於你遊戲庫中此主機遊戲的材質包。',
@@ -319,7 +319,7 @@ ZH_HANT = {
     'stateUnavailable': '無法使用',
     'detailRequirements': '需求',
     'stateManualVerified': '需手動下載，檔案已驗證',
-    'manualVerifiedHelp': '作者在 {host} 發布此材質包。請開啟其頁面，下載 {file}（{size}），再於此處匯入：NeoStation 會確認它正是為此材質包驗證過的檔案，並像一鍵材質包一樣安裝。',
+    'manualVerifiedHelp': '作者在 {host} 發布此材質包。請開啟其頁面，下載 {file}（{size}），再於此處匯入：RewindBox 會確認它正是為此材質包驗證過的檔案，並像一鍵材質包一樣安裝。',
     'actionImportVerified': '匯入已下載的檔案',
     'error.notVerifiedFile': '這不是為此材質包驗證過的檔案（大小或 SHA-256 不同）。請在作者頁面核對版本；其他壓縮檔仍可從遊戲頁面匯入。',
 }
@@ -344,7 +344,7 @@ JA = {
     'installedSection': 'インストール済みのパック',
     'installedConsoleSection': 'インストール済みのパック',
     'installedNone': 'パックはインストールされていません',
-    'installedManual': 'NeoStation 以外でインストールされたフォルダ',
+    'installedManual': 'RewindBox 以外でインストールされたフォルダ',
     'installedVersion': 'バージョン {version}',
     'installedSummary': '{files} ファイル · {size} · フォルダ {folder}',
     'availableSection': 'このゲームのパック',
@@ -459,7 +459,7 @@ JA = {
     'loadedNotice': 'ダウンロード済み、インストール済み、読み込み済みは別の段階です。インストール済みのパックはエンジンのフォルダにあり、エンジンはゲームの起動時にそれを読み込みます。テクスチャが実際に置き換わったことを示すのはゲームの画面（PS2ではエンジンの詳細も）だけです。',
     'engineDetails': 'エンジンの詳細',
     'engineDetailsDetail': 'このゲームでエンジンが認識して読み込んだもの',
-    'installedImported': '以前のバージョンのNeoStationで読み込んだパック',
+    'installedImported': '以前のバージョンのRewindBoxで読み込んだパック',
     'libraryGamesSection': 'お持ちのゲーム用のパック',
     'libraryScanning': 'お持ちのゲームの識別子を読み込み中…（{done} / {total}）',
     'libraryNone': 'ライブラリにあるこのゲーム機のゲーム用のパックはカタログにありません。',
@@ -481,7 +481,7 @@ JA = {
     'stateUnavailable': '利用不可',
     'detailRequirements': '必要条件',
     'stateManualVerified': '手動ダウンロード、検証済みファイル',
-    'manualVerifiedHelp': '作者はこのパックを {host} で公開しています。作者のページを開いて {file}（{size}）をダウンロードし、ここで読み込んでください：NeoStation はこのパック用に検証したファイルそのものであることを確認し、ワンタップのパックと同じようにインストールします。',
+    'manualVerifiedHelp': '作者はこのパックを {host} で公開しています。作者のページを開いて {file}（{size}）をダウンロードし、ここで読み込んでください：RewindBox はこのパック用に検証したファイルそのものであることを確認し、ワンタップのパックと同じようにインストールします。',
     'actionImportVerified': 'ダウンロードしたファイルを読み込む',
     'error.notVerifiedFile': 'このパック用に検証したファイルではありません（サイズまたは SHA-256 が異なります）。作者のページでバージョンを確認してください。別のアーカイブはゲームのページから読み込めます。',
 }
@@ -506,7 +506,7 @@ KO = {
     'installedSection': '설치된 팩',
     'installedConsoleSection': '설치된 팩',
     'installedNone': '설치된 팩 없음',
-    'installedManual': 'NeoStation 외부에서 설치한 폴더',
+    'installedManual': 'RewindBox 외부에서 설치한 폴더',
     'installedVersion': '버전 {version}',
     'installedSummary': '파일 {files}개 · {size} · 폴더 {folder}',
     'availableSection': '이 게임용 팩',
@@ -621,7 +621,7 @@ KO = {
     'loadedNotice': '다운로드, 설치, 불러오기는 서로 다른 단계입니다. 설치된 팩은 엔진 폴더에 있고, 엔진은 게임을 시작할 때 이를 불러옵니다. 텍스처가 실제로 교체되었는지는 게임 화면(PS2는 엔진 세부 정보도)에서만 확인할 수 있습니다.',
     'engineDetails': '엔진 세부 정보',
     'engineDetailsDetail': '엔진이 이 게임에서 인식하고 불러온 내용',
-    'installedImported': '이전 버전의 NeoStation으로 가져온 팩',
+    'installedImported': '이전 버전의 RewindBox으로 가져온 팩',
     'libraryGamesSection': '내 게임용 팩',
     'libraryScanning': '내 게임의 식별자를 읽는 중…({total}개 중 {done}개)',
     'libraryNone': '라이브러리에 있는 이 콘솔 게임용 팩이 카탈로그에 없습니다.',
@@ -643,7 +643,7 @@ KO = {
     'stateUnavailable': '사용 불가',
     'detailRequirements': '요구 사항',
     'stateManualVerified': '수동 다운로드, 검증된 파일',
-    'manualVerifiedHelp': '제작자가 이 팩을 {host}에 게시합니다. 제작자 페이지를 열어 {file}({size})을(를) 다운로드한 뒤 여기에서 가져오세요: NeoStation이 이 팩용으로 검증한 바로 그 파일인지 확인하고 한 번 탭 팩처럼 설치합니다.',
+    'manualVerifiedHelp': '제작자가 이 팩을 {host}에 게시합니다. 제작자 페이지를 열어 {file}({size})을(를) 다운로드한 뒤 여기에서 가져오세요: RewindBox이 이 팩용으로 검증한 바로 그 파일인지 확인하고 한 번 탭 팩처럼 설치합니다.',
     'actionImportVerified': '다운로드한 파일 가져오기',
     'error.notVerifiedFile': '이 팩용으로 검증한 파일이 아닙니다(크기 또는 SHA-256이 다름). 제작자 페이지에서 버전을 확인하세요. 다른 압축 파일은 게임 페이지에서 가져올 수 있습니다.',
 }
@@ -651,7 +651,7 @@ KO = {
 # Mesen (NES HD packs).
 ZH.update({
     'error.missingHires': '此 Mesen 高清包的根目录中没有 hires.txt。',
-    'error.formatTooNew': '此高清包是为 Mesen 2 制作的（格式新于 106）：NeoStation 的 Mesen 引擎无法读取。',
+    'error.formatTooNew': '此高清包是为 Mesen 2 制作的（格式新于 106）：RewindBox 的 Mesen 引擎无法读取。',
     'error.missingFiles': '归档中缺少此包的 hires.txt 列出的图像。',
     'error.memoryTooLarge': '此高清包所需的内存超出此设备能提供的范围：Mesen 会在游戏启动时载入包中的全部图像。',
     'error.mesenNotSelected': '无法为此游戏选择 Mesen。请在游戏设置（模拟器）中选择 Mesen，然后开启此包。',
@@ -663,7 +663,7 @@ ZH.update({
 })
 ZH_HANT.update({
     'error.missingHires': '此 Mesen 高畫質包的根目錄中沒有 hires.txt。',
-    'error.formatTooNew': '此高畫質包是為 Mesen 2 製作的（格式新於 106）：NeoStation 的 Mesen 引擎無法讀取。',
+    'error.formatTooNew': '此高畫質包是為 Mesen 2 製作的（格式新於 106）：RewindBox 的 Mesen 引擎無法讀取。',
     'error.missingFiles': '封存檔中缺少此包的 hires.txt 所列出的影像。',
     'error.memoryTooLarge': '此高畫質包所需的記憶體超出這部裝置能提供的範圍：Mesen 會在遊戲啟動時載入包內的所有影像。',
     'error.mesenNotSelected': '無法為此遊戲選擇 Mesen。請在遊戲設定（模擬器）中選擇 Mesen，然後開啟此包。',
@@ -675,7 +675,7 @@ ZH_HANT.update({
 })
 JA.update({
     'error.missingHires': 'このMesen HDパックのルートにhires.txtがありません。',
-    'error.formatTooNew': 'このHDパックはMesen 2用です（106より新しい形式）：NeoStationのMesenエンジンでは読み込めません。',
+    'error.formatTooNew': 'このHDパックはMesen 2用です（106より新しい形式）：RewindBoxのMesenエンジンでは読み込めません。',
     'error.missingFiles': 'このパックのhires.txtが指定している画像がアーカイブにありません。',
     'error.memoryTooLarge': 'このHDパックには、このデバイスが割り当てられる以上のメモリが必要です：Mesenはゲーム起動時にパックのすべての画像を読み込みます。',
     'error.mesenNotSelected': 'このゲームにMesenを選択できませんでした。ゲームの設定（エミュレーター）でMesenを選んでから、パックをオンにしてください。',
@@ -687,7 +687,7 @@ JA.update({
 })
 KO.update({
     'error.missingHires': '이 Mesen HD 팩의 최상위 폴더에 hires.txt가 없습니다.',
-    'error.formatTooNew': '이 HD 팩은 Mesen 2용입니다(106보다 새로운 형식). NeoStation의 Mesen 엔진은 읽을 수 없습니다.',
+    'error.formatTooNew': '이 HD 팩은 Mesen 2용입니다(106보다 새로운 형식). RewindBox의 Mesen 엔진은 읽을 수 없습니다.',
     'error.missingFiles': '이 팩의 hires.txt가 지정한 이미지가 압축 파일에 없습니다.',
     'error.memoryTooLarge': '이 HD 팩에는 이 기기가 내줄 수 있는 것보다 많은 메모리가 필요합니다. Mesen은 게임을 시작할 때 팩의 모든 이미지를 불러옵니다.',
     'error.mesenNotSelected': '이 게임에 Mesen을 선택할 수 없습니다. 게임 설정(에뮬레이터)에서 Mesen을 선택한 다음 팩을 켜세요.',

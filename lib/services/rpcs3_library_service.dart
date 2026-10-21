@@ -1009,7 +1009,7 @@ class Rpcs3LibraryService {
   ) async {
     final ps3 = await SystemRepository.getSystemByFolderName('ps3');
     if (ps3?.id == null) {
-      throw StateError('NeoStation PS3 system definition was not found.');
+      throw StateError('RewindBox PS3 system definition was not found.');
     }
 
     final systemId = ps3!.id!;
@@ -1459,7 +1459,7 @@ class Rpcs3LibraryService {
         'Existing physical PS3 rows reused: ${result.physicalRows}\n'
         'Artwork files written: ${result.artworkFiles}\n'
         'Stale RPCS3 rows removed: ${result.removedRows}\n'
-        'PS3 rows now in NeoStation: ${result.totalPs3Rows}\n\n'
+        'PS3 rows now in RewindBox: ${result.totalPs3Rows}\n\n'
         '${const JsonEncoder.withIndent('  ').convert(payload)}',
         flush: true,
       );

@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name             = 'neo_shader_kit'
   s.version          = '0.1.0'
-  s.summary          = 'Shader catalogs, downloads, profiles and Metal translation for NeoStation iOS.'
+  s.summary          = 'Shader catalogs, downloads, profiles and Metal translation for RewindBox.'
   s.description      = <<-DESC
 Shared by the embedded engines (libretro host, Dolphin): the official
 libretro/slang-shaders catalog and Dolphin post-processing catalog, verified
@@ -9,7 +9,7 @@ downloads, installed shaders, favourites and profiles, and the on-device
 translation of RetroArch slang presets and Dolphin post-processing shaders
 to Metal (glslang and SPIRV-Cross, vendored at vulkan-sdk-1.4.350.1).
                        DESC
-  s.homepage         = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }

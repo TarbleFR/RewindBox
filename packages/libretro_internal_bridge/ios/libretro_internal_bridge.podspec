@@ -1,13 +1,13 @@
 Pod::Spec.new do |s|
   s.name             = 'libretro_internal_bridge'
   s.version          = '0.1.0'
-  s.summary          = 'Embedded libretro host for NeoStation iOS.'
+  s.summary          = 'Embedded libretro host for RewindBox.'
   s.description      = <<-DESC
 Runs the libretro core of the launched game inside NeoStation. Cores are
 copied into Runner.app/Frameworks after the build and loaded only when a game
 starts; no external RetroArch application is involved.
                        DESC
-  s.homepage         = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }

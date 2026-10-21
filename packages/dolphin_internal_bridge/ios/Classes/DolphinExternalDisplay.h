@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Build 442: dedicated output on an external screen (AirPlay to an Apple TV,
-// Lightning/USB-C adapter). The session's Metal view moves to NeoStation's
+// Lightning/USB-C adapter). The session's Metal view moves to RewindBox's
 // window on that screen, scaled to the TV, while the touch controls, the menu
 // and the performance overlay stay on the iPhone. Dolphin keeps drawing into
 // the very same CAMetalLayer at the iPhone's size: no core change, no surface

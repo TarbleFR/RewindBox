@@ -36,7 +36,7 @@
       "packFormats": "Formats: {formats}",
       "packFor": "Pack for {serial}",
       "packSource": "From {source}",
-      "packExternal": "Copied into ARMSX2/textures without NeoStation",
+      "packExternal": "Copied into ARMSX2/textures without RewindBox",
       "packFolder": "Folder: {folder}",
       "packUnsupported": "{count} files the engine cannot read on this device",
       "enable": "Use HD textures for this game",
@@ -114,7 +114,7 @@
       "errChanged": "The pack changed during the import. Nothing was installed.",
       "errMissing": "There is no pack to remove.",
       "errFailed": "The operation failed. The previous pack was kept.",
-      "helpBody": "ARMSX2 replaces a game's textures with the images it finds in ARMSX2/textures/<serial>/replacements, for example ARMSX2/textures/SLUS-21137/replacements.\n\nA pack can be a folder or a ZIP or TAR archive (TAR.ZST from a game's pause menu) holding the textures directly, a folder named after the serial, or a textures/<serial>/replacements tree. NeoStation installs it in the right place and keeps its sub-folders.\n\nThe engine recognizes files by their name, a hash such as 1a2b3c4d5e6f7a8b-00004a2d.png. Usable formats: PNG, DDS (BC1–BC3, BC7, uncompressed), ASTC and KTX (ASTC).\n\nA pack is made for one game serial. A pack for another region or edition may work only in part.\n\nHD textures replace the game's own images. They are not shaders (filters applied to the whole picture), the internal resolution (the rendering size) or PNACH patches (code changes).\n\nTextures load in the background and stay within the memory limit of the device: a very large pack may only be partly loaded at a time.\n\nImporting replaces this game's previous pack. Games, saves and save states are never modified."
+      "helpBody": "ARMSX2 replaces a game's textures with the images it finds in ARMSX2/textures/<serial>/replacements, for example ARMSX2/textures/SLUS-21137/replacements.\n\nA pack can be a folder or a ZIP or TAR archive (TAR.ZST from a game's pause menu) holding the textures directly, a folder named after the serial, or a textures/<serial>/replacements tree. RewindBox installs it in the right place and keeps its sub-folders.\n\nThe engine recognizes files by their name, a hash such as 1a2b3c4d5e6f7a8b-00004a2d.png. Usable formats: PNG, DDS (BC1–BC3, BC7, uncompressed), ASTC and KTX (ASTC).\n\nA pack is made for one game serial. A pack for another region or edition may work only in part.\n\nHD textures replace the game's own images. They are not shaders (filters applied to the whole picture), the internal resolution (the rendering size) or PNACH patches (code changes).\n\nTextures load in the background and stay within the memory limit of the device: a very large pack may only be partly loaded at a time.\n\nImporting replaces this game's previous pack. Games, saves and save states are never modified."
     },
     "fr": {
       "title": "Textures HD",
@@ -137,7 +137,7 @@
       "packFormats": "Formats : {formats}",
       "packFor": "Pack prévu pour {serial}",
       "packSource": "Provenance : {source}",
-      "packExternal": "Copié dans ARMSX2/textures sans NeoStation",
+      "packExternal": "Copié dans ARMSX2/textures sans RewindBox",
       "packFolder": "Dossier : {folder}",
       "packUnsupported": "{count} fichiers illisibles par le moteur sur cet appareil",
       "enable": "Utiliser les textures HD pour ce jeu",
@@ -215,7 +215,7 @@
       "errChanged": "Le pack a changé pendant l’import. Rien n’a été installé.",
       "errMissing": "Il n’y a aucun pack à supprimer.",
       "errFailed": "L’opération a échoué. Le pack précédent a été conservé.",
-      "helpBody": "ARMSX2 remplace les textures d’un jeu par les images qu’il trouve dans ARMSX2/textures/<numéro de série>/replacements, par exemple ARMSX2/textures/SLUS-21137/replacements.\n\nUn pack peut être un dossier ou une archive ZIP ou TAR (TAR.ZST depuis le menu de pause d’un jeu) contenant directement les textures, un dossier portant le numéro de série, ou une arborescence textures/<numéro de série>/replacements. NeoStation l’installe au bon endroit et conserve ses sous-dossiers.\n\nLe moteur reconnaît les fichiers par leur nom, une empreinte comme 1a2b3c4d5e6f7a8b-00004a2d.png. Formats utilisables : PNG, DDS (BC1–BC3, BC7, non compressé), ASTC et KTX (ASTC).\n\nUn pack est conçu pour un numéro de série. Un pack prévu pour une autre région ou édition peut ne fonctionner qu’en partie.\n\nLes textures HD remplacent les images du jeu lui-même. Ce ne sont ni des shaders (filtres appliqués à toute l’image), ni la résolution interne (taille du rendu), ni des patchs PNACH (modifications du code).\n\nLes textures se chargent en arrière-plan et restent dans la limite de mémoire de l’appareil : un très gros pack peut n’être chargé qu’en partie à la fois.\n\nImporter remplace le pack précédent de ce jeu. Les jeux, sauvegardes et états sauvegardés ne sont jamais modifiés."
+      "helpBody": "ARMSX2 remplace les textures d’un jeu par les images qu’il trouve dans ARMSX2/textures/<numéro de série>/replacements, par exemple ARMSX2/textures/SLUS-21137/replacements.\n\nUn pack peut être un dossier ou une archive ZIP ou TAR (TAR.ZST depuis le menu de pause d’un jeu) contenant directement les textures, un dossier portant le numéro de série, ou une arborescence textures/<numéro de série>/replacements. RewindBox l’installe au bon endroit et conserve ses sous-dossiers.\n\nLe moteur reconnaît les fichiers par leur nom, une empreinte comme 1a2b3c4d5e6f7a8b-00004a2d.png. Formats utilisables : PNG, DDS (BC1–BC3, BC7, non compressé), ASTC et KTX (ASTC).\n\nUn pack est conçu pour un numéro de série. Un pack prévu pour une autre région ou édition peut ne fonctionner qu’en partie.\n\nLes textures HD remplacent les images du jeu lui-même. Ce ne sont ni des shaders (filtres appliqués à toute l’image), ni la résolution interne (taille du rendu), ni des patchs PNACH (modifications du code).\n\nLes textures se chargent en arrière-plan et restent dans la limite de mémoire de l’appareil : un très gros pack peut n’être chargé qu’en partie à la fois.\n\nImporter remplace le pack précédent de ce jeu. Les jeux, sauvegardes et états sauvegardés ne sont jamais modifiés."
     },
     "de": {
       "title": "HD-Texturen",
@@ -238,7 +238,7 @@
       "packFormats": "Formate: {formats}",
       "packFor": "Paket für {serial}",
       "packSource": "Aus {source}",
-      "packExternal": "Ohne NeoStation nach ARMSX2/textures kopiert",
+      "packExternal": "Ohne RewindBox nach ARMSX2/textures kopiert",
       "packFolder": "Ordner: {folder}",
       "packUnsupported": "{count} Dateien, die der Emulator auf diesem Gerät nicht lesen kann",
       "enable": "HD-Texturen für dieses Spiel verwenden",
@@ -316,7 +316,7 @@
       "errChanged": "Das Paket hat sich während des Imports geändert. Es wurde nichts installiert.",
       "errMissing": "Es gibt kein Paket zum Entfernen.",
       "errFailed": "Der Vorgang ist fehlgeschlagen. Das bisherige Paket bleibt erhalten.",
-      "helpBody": "ARMSX2 ersetzt die Texturen eines Spiels durch die Bilder in ARMSX2/textures/<Seriennummer>/replacements, zum Beispiel ARMSX2/textures/SLUS-21137/replacements.\n\nEin Paket kann ein Ordner oder ein ZIP- oder TAR-Archiv sein (TAR.ZST über das Pausenmenü eines Spiels), das die Texturen direkt enthält, ein nach der Seriennummer benannter Ordner oder eine Struktur textures/<Seriennummer>/replacements. NeoStation installiert es an der richtigen Stelle und behält die Unterordner bei.\n\nDer Emulator erkennt Dateien an ihrem Namen, einem Hash wie 1a2b3c4d5e6f7a8b-00004a2d.png. Nutzbare Formate: PNG, DDS (BC1–BC3, BC7, unkomprimiert), ASTC und KTX (ASTC).\n\nEin Paket ist für eine Seriennummer gemacht. Ein Paket für eine andere Region oder Edition funktioniert eventuell nur teilweise.\n\nHD-Texturen ersetzen die eigenen Bilder des Spiels. Sie sind weder Shader (Filter für das ganze Bild) noch die interne Auflösung (Rendergröße) noch PNACH-Patches (Codeänderungen).\n\nTexturen werden im Hintergrund geladen und bleiben innerhalb der Speichergrenze des Geräts: Ein sehr großes Paket ist eventuell nur teilweise gleichzeitig geladen.\n\nEin Import ersetzt das bisherige Paket dieses Spiels. Spiele, Spielstände und Savestates werden nie verändert."
+      "helpBody": "ARMSX2 ersetzt die Texturen eines Spiels durch die Bilder in ARMSX2/textures/<Seriennummer>/replacements, zum Beispiel ARMSX2/textures/SLUS-21137/replacements.\n\nEin Paket kann ein Ordner oder ein ZIP- oder TAR-Archiv sein (TAR.ZST über das Pausenmenü eines Spiels), das die Texturen direkt enthält, ein nach der Seriennummer benannter Ordner oder eine Struktur textures/<Seriennummer>/replacements. RewindBox installiert es an der richtigen Stelle und behält die Unterordner bei.\n\nDer Emulator erkennt Dateien an ihrem Namen, einem Hash wie 1a2b3c4d5e6f7a8b-00004a2d.png. Nutzbare Formate: PNG, DDS (BC1–BC3, BC7, unkomprimiert), ASTC und KTX (ASTC).\n\nEin Paket ist für eine Seriennummer gemacht. Ein Paket für eine andere Region oder Edition funktioniert eventuell nur teilweise.\n\nHD-Texturen ersetzen die eigenen Bilder des Spiels. Sie sind weder Shader (Filter für das ganze Bild) noch die interne Auflösung (Rendergröße) noch PNACH-Patches (Codeänderungen).\n\nTexturen werden im Hintergrund geladen und bleiben innerhalb der Speichergrenze des Geräts: Ein sehr großes Paket ist eventuell nur teilweise gleichzeitig geladen.\n\nEin Import ersetzt das bisherige Paket dieses Spiels. Spiele, Spielstände und Savestates werden nie verändert."
     },
     "es": {
       "title": "Texturas HD",
@@ -339,7 +339,7 @@
       "packFormats": "Formatos: {formats}",
       "packFor": "Paquete para {serial}",
       "packSource": "Origen: {source}",
-      "packExternal": "Copiado en ARMSX2/textures sin NeoStation",
+      "packExternal": "Copiado en ARMSX2/textures sin RewindBox",
       "packFolder": "Carpeta: {folder}",
       "packUnsupported": "{count} archivos que el emulador no puede leer en este dispositivo",
       "enable": "Usar texturas HD en este juego",
@@ -417,7 +417,7 @@
       "errChanged": "El paquete cambió durante la importación. No se ha instalado nada.",
       "errMissing": "No hay ningún paquete que eliminar.",
       "errFailed": "La operación ha fallado. Se ha conservado el paquete anterior.",
-      "helpBody": "ARMSX2 sustituye las texturas de un juego por las imágenes que encuentra en ARMSX2/textures/<número de serie>/replacements, por ejemplo ARMSX2/textures/SLUS-21137/replacements.\n\nUn paquete puede ser una carpeta o un archivo ZIP o TAR (TAR.ZST desde el menú de pausa de un juego) que contenga directamente las texturas, una carpeta con el número de serie o una estructura textures/<número de serie>/replacements. NeoStation lo instala en el lugar correcto y conserva sus subcarpetas.\n\nEl emulador reconoce los archivos por su nombre, un hash como 1a2b3c4d5e6f7a8b-00004a2d.png. Formatos utilizables: PNG, DDS (BC1–BC3, BC7, sin comprimir), ASTC y KTX (ASTC).\n\nUn paquete está hecho para un número de serie. Un paquete para otra región o edición puede funcionar solo en parte.\n\nLas texturas HD sustituyen las imágenes propias del juego. No son shaders (filtros aplicados a toda la imagen), ni la resolución interna (tamaño del renderizado), ni parches PNACH (cambios de código).\n\nLas texturas se cargan en segundo plano y respetan el límite de memoria del dispositivo: un paquete muy grande puede cargarse solo en parte a la vez.\n\nImportar sustituye el paquete anterior de este juego. Los juegos, partidas guardadas y estados guardados nunca se modifican."
+      "helpBody": "ARMSX2 sustituye las texturas de un juego por las imágenes que encuentra en ARMSX2/textures/<número de serie>/replacements, por ejemplo ARMSX2/textures/SLUS-21137/replacements.\n\nUn paquete puede ser una carpeta o un archivo ZIP o TAR (TAR.ZST desde el menú de pausa de un juego) que contenga directamente las texturas, una carpeta con el número de serie o una estructura textures/<número de serie>/replacements. RewindBox lo instala en el lugar correcto y conserva sus subcarpetas.\n\nEl emulador reconoce los archivos por su nombre, un hash como 1a2b3c4d5e6f7a8b-00004a2d.png. Formatos utilizables: PNG, DDS (BC1–BC3, BC7, sin comprimir), ASTC y KTX (ASTC).\n\nUn paquete está hecho para un número de serie. Un paquete para otra región o edición puede funcionar solo en parte.\n\nLas texturas HD sustituyen las imágenes propias del juego. No son shaders (filtros aplicados a toda la imagen), ni la resolución interna (tamaño del renderizado), ni parches PNACH (cambios de código).\n\nLas texturas se cargan en segundo plano y respetan el límite de memoria del dispositivo: un paquete muy grande puede cargarse solo en parte a la vez.\n\nImportar sustituye el paquete anterior de este juego. Los juegos, partidas guardadas y estados guardados nunca se modifican."
     },
     "it": {
       "title": "Texture HD",
@@ -440,7 +440,7 @@
       "packFormats": "Formati: {formats}",
       "packFor": "Pacchetto per {serial}",
       "packSource": "Origine: {source}",
-      "packExternal": "Copiato in ARMSX2/textures senza NeoStation",
+      "packExternal": "Copiato in ARMSX2/textures senza RewindBox",
       "packFolder": "Cartella: {folder}",
       "packUnsupported": "{count} file che l’emulatore non può leggere su questo dispositivo",
       "enable": "Usa le texture HD per questo gioco",
@@ -518,7 +518,7 @@
       "errChanged": "Il pacchetto è cambiato durante l’importazione. Non è stato installato nulla.",
       "errMissing": "Non c’è alcun pacchetto da rimuovere.",
       "errFailed": "Operazione non riuscita. Il pacchetto precedente è stato conservato.",
-      "helpBody": "ARMSX2 sostituisce le texture di un gioco con le immagini che trova in ARMSX2/textures/<numero di serie>/replacements, per esempio ARMSX2/textures/SLUS-21137/replacements.\n\nUn pacchetto può essere una cartella o un archivio ZIP o TAR (TAR.ZST dal menu di pausa di un gioco) che contiene direttamente le texture, una cartella con il numero di serie o una struttura textures/<numero di serie>/replacements. NeoStation lo installa nel posto giusto e mantiene le sottocartelle.\n\nL’emulatore riconosce i file dal nome, un hash come 1a2b3c4d5e6f7a8b-00004a2d.png. Formati utilizzabili: PNG, DDS (BC1–BC3, BC7, non compresso), ASTC e KTX (ASTC).\n\nUn pacchetto è fatto per un numero di serie. Un pacchetto per un’altra regione o edizione può funzionare solo in parte.\n\nLe texture HD sostituiscono le immagini del gioco stesso. Non sono shader (filtri applicati all’intera immagine), né la risoluzione interna (dimensione del rendering), né patch PNACH (modifiche al codice).\n\nLe texture si caricano in background e restano entro il limite di memoria del dispositivo: un pacchetto molto grande può essere caricato solo in parte alla volta.\n\nL’importazione sostituisce il pacchetto precedente di questo gioco. Giochi, salvataggi e stati salvati non vengono mai modificati."
+      "helpBody": "ARMSX2 sostituisce le texture di un gioco con le immagini che trova in ARMSX2/textures/<numero di serie>/replacements, per esempio ARMSX2/textures/SLUS-21137/replacements.\n\nUn pacchetto può essere una cartella o un archivio ZIP o TAR (TAR.ZST dal menu di pausa di un gioco) che contiene direttamente le texture, una cartella con il numero di serie o una struttura textures/<numero di serie>/replacements. RewindBox lo installa nel posto giusto e mantiene le sottocartelle.\n\nL’emulatore riconosce i file dal nome, un hash come 1a2b3c4d5e6f7a8b-00004a2d.png. Formati utilizzabili: PNG, DDS (BC1–BC3, BC7, non compresso), ASTC e KTX (ASTC).\n\nUn pacchetto è fatto per un numero di serie. Un pacchetto per un’altra regione o edizione può funzionare solo in parte.\n\nLe texture HD sostituiscono le immagini del gioco stesso. Non sono shader (filtri applicati all’intera immagine), né la risoluzione interna (dimensione del rendering), né patch PNACH (modifiche al codice).\n\nLe texture si caricano in background e restano entro il limite di memoria del dispositivo: un pacchetto molto grande può essere caricato solo in parte alla volta.\n\nL’importazione sostituisce il pacchetto precedente di questo gioco. Giochi, salvataggi e stati salvati non vengono mai modificati."
     },
     "pt": {
       "title": "Texturas HD",
@@ -541,7 +541,7 @@
       "packFormats": "Formatos: {formats}",
       "packFor": "Pacote para {serial}",
       "packSource": "Origem: {source}",
-      "packExternal": "Copiado para ARMSX2/textures sem o NeoStation",
+      "packExternal": "Copiado para ARMSX2/textures sem o RewindBox",
       "packFolder": "Pasta: {folder}",
       "packUnsupported": "{count} ficheiros que o emulador não consegue ler neste dispositivo",
       "enable": "Usar texturas HD neste jogo",
@@ -619,7 +619,7 @@
       "errChanged": "O pacote mudou durante a importação. Nada foi instalado.",
       "errMissing": "Não há nenhum pacote para remover.",
       "errFailed": "A operação falhou. O pacote anterior foi mantido.",
-      "helpBody": "O ARMSX2 substitui as texturas de um jogo pelas imagens que encontra em ARMSX2/textures/<número de série>/replacements, por exemplo ARMSX2/textures/SLUS-21137/replacements.\n\nUm pacote pode ser uma pasta ou um arquivo ZIP ou TAR (TAR.ZST a partir do menu de pausa de um jogo) que contenha diretamente as texturas, uma pasta com o número de série ou uma estrutura textures/<número de série>/replacements. O NeoStation instala-o no sítio certo e mantém as subpastas.\n\nO emulador reconhece os ficheiros pelo nome, um hash como 1a2b3c4d5e6f7a8b-00004a2d.png. Formatos utilizáveis: PNG, DDS (BC1–BC3, BC7, sem compressão), ASTC e KTX (ASTC).\n\nUm pacote é feito para um número de série. Um pacote para outra região ou edição pode funcionar só em parte.\n\nAs texturas HD substituem as imagens do próprio jogo. Não são shaders (filtros aplicados a toda a imagem), nem a resolução interna (tamanho da renderização), nem patches PNACH (alterações ao código).\n\nAs texturas carregam em segundo plano e respeitam o limite de memória do dispositivo: um pacote muito grande pode só estar carregado em parte de cada vez.\n\nImportar substitui o pacote anterior deste jogo. Os jogos, jogos guardados e estados guardados nunca são alterados."
+      "helpBody": "O ARMSX2 substitui as texturas de um jogo pelas imagens que encontra em ARMSX2/textures/<número de série>/replacements, por exemplo ARMSX2/textures/SLUS-21137/replacements.\n\nUm pacote pode ser uma pasta ou um arquivo ZIP ou TAR (TAR.ZST a partir do menu de pausa de um jogo) que contenha diretamente as texturas, uma pasta com o número de série ou uma estrutura textures/<número de série>/replacements. O RewindBox instala-o no sítio certo e mantém as subpastas.\n\nO emulador reconhece os ficheiros pelo nome, um hash como 1a2b3c4d5e6f7a8b-00004a2d.png. Formatos utilizáveis: PNG, DDS (BC1–BC3, BC7, sem compressão), ASTC e KTX (ASTC).\n\nUm pacote é feito para um número de série. Um pacote para outra região ou edição pode funcionar só em parte.\n\nAs texturas HD substituem as imagens do próprio jogo. Não são shaders (filtros aplicados a toda a imagem), nem a resolução interna (tamanho da renderização), nem patches PNACH (alterações ao código).\n\nAs texturas carregam em segundo plano e respeitam o limite de memória do dispositivo: um pacote muito grande pode só estar carregado em parte de cada vez.\n\nImportar substitui o pacote anterior deste jogo. Os jogos, jogos guardados e estados guardados nunca são alterados."
     },
     "ru": {
       "title": "HD-текстуры",
@@ -642,7 +642,7 @@
       "packFormats": "Форматы: {formats}",
       "packFor": "Пакет для {serial}",
       "packSource": "Источник: {source}",
-      "packExternal": "Скопирован в ARMSX2/textures без NeoStation",
+      "packExternal": "Скопирован в ARMSX2/textures без RewindBox",
       "packFolder": "Папка: {folder}",
       "packUnsupported": "Файлов, которые эмулятор не может прочитать на этом устройстве: {count}",
       "enable": "Использовать HD-текстуры в этой игре",
@@ -720,7 +720,7 @@
       "errChanged": "Пакет изменился во время импорта. Ничего не установлено.",
       "errMissing": "Нет пакета для удаления.",
       "errFailed": "Операция не удалась. Предыдущий пакет сохранён.",
-      "helpBody": "ARMSX2 заменяет текстуры игры изображениями из папки ARMSX2/textures/<серийный номер>/replacements, например ARMSX2/textures/SLUS-21137/replacements.\n\nПакет может быть папкой или архивом ZIP или TAR (TAR.ZST — из меню паузы игры), содержащим текстуры напрямую, папку с именем серийного номера или структуру textures/<серийный номер>/replacements. NeoStation устанавливает его в нужное место и сохраняет вложенные папки.\n\nЭмулятор распознаёт файлы по имени — хешу вроде 1a2b3c4d5e6f7a8b-00004a2d.png. Подходящие форматы: PNG, DDS (BC1–BC3, BC7, несжатый), ASTC и KTX (ASTC).\n\nПакет создаётся для одного серийного номера. Пакет для другого региона или издания может работать лишь частично.\n\nHD-текстуры заменяют собственные изображения игры. Это не шейдеры (фильтры для всего изображения), не внутреннее разрешение (размер рендеринга) и не патчи PNACH (изменения кода).\n\nТекстуры загружаются в фоне и не превышают лимит памяти устройства: очень большой пакет может быть загружен только частично.\n\nИмпорт заменяет предыдущий пакет этой игры. Игры, сохранения и сохранённые состояния никогда не изменяются."
+      "helpBody": "ARMSX2 заменяет текстуры игры изображениями из папки ARMSX2/textures/<серийный номер>/replacements, например ARMSX2/textures/SLUS-21137/replacements.\n\nПакет может быть папкой или архивом ZIP или TAR (TAR.ZST — из меню паузы игры), содержащим текстуры напрямую, папку с именем серийного номера или структуру textures/<серийный номер>/replacements. RewindBox устанавливает его в нужное место и сохраняет вложенные папки.\n\nЭмулятор распознаёт файлы по имени — хешу вроде 1a2b3c4d5e6f7a8b-00004a2d.png. Подходящие форматы: PNG, DDS (BC1–BC3, BC7, несжатый), ASTC и KTX (ASTC).\n\nПакет создаётся для одного серийного номера. Пакет для другого региона или издания может работать лишь частично.\n\nHD-текстуры заменяют собственные изображения игры. Это не шейдеры (фильтры для всего изображения), не внутреннее разрешение (размер рендеринга) и не патчи PNACH (изменения кода).\n\nТекстуры загружаются в фоне и не превышают лимит памяти устройства: очень большой пакет может быть загружен только частично.\n\nИмпорт заменяет предыдущий пакет этой игры. Игры, сохранения и сохранённые состояния никогда не изменяются."
     },
     "id": {
       "title": "Tekstur HD",
@@ -743,7 +743,7 @@
       "packFormats": "Format: {formats}",
       "packFor": "Paket untuk {serial}",
       "packSource": "Dari {source}",
-      "packExternal": "Disalin ke ARMSX2/textures tanpa NeoStation",
+      "packExternal": "Disalin ke ARMSX2/textures tanpa RewindBox",
       "packFolder": "Folder: {folder}",
       "packUnsupported": "{count} berkas yang tidak dapat dibaca emulator di perangkat ini",
       "enable": "Gunakan tekstur HD untuk game ini",
@@ -821,7 +821,7 @@
       "errChanged": "Paket berubah selama impor. Tidak ada yang dipasang.",
       "errMissing": "Tidak ada paket untuk dihapus.",
       "errFailed": "Operasi gagal. Paket sebelumnya dipertahankan.",
-      "helpBody": "ARMSX2 mengganti tekstur game dengan gambar yang ditemukannya di ARMSX2/textures/<nomor seri>/replacements, misalnya ARMSX2/textures/SLUS-21137/replacements.\n\nPaket dapat berupa folder atau arsip ZIP atau TAR (TAR.ZST dari menu jeda game) yang langsung berisi tekstur, folder bernama nomor seri, atau struktur textures/<nomor seri>/replacements. NeoStation memasangnya di tempat yang tepat dan mempertahankan subfoldernya.\n\nEmulator mengenali berkas dari namanya, sebuah hash seperti 1a2b3c4d5e6f7a8b-00004a2d.png. Format yang dapat digunakan: PNG, DDS (BC1–BC3, BC7, tanpa kompresi), ASTC, dan KTX (ASTC).\n\nPaket dibuat untuk satu nomor seri. Paket untuk wilayah atau edisi lain mungkin hanya berfungsi sebagian.\n\nTekstur HD mengganti gambar milik game itu sendiri. Tekstur HD bukan shader (filter untuk seluruh gambar), bukan resolusi internal (ukuran render), dan bukan patch PNACH (perubahan kode).\n\nTekstur dimuat di latar belakang dan tetap dalam batas memori perangkat: paket yang sangat besar mungkin hanya dimuat sebagian dalam satu waktu.\n\nImpor mengganti paket sebelumnya untuk game ini. Game, data simpanan, dan save state tidak pernah diubah."
+      "helpBody": "ARMSX2 mengganti tekstur game dengan gambar yang ditemukannya di ARMSX2/textures/<nomor seri>/replacements, misalnya ARMSX2/textures/SLUS-21137/replacements.\n\nPaket dapat berupa folder atau arsip ZIP atau TAR (TAR.ZST dari menu jeda game) yang langsung berisi tekstur, folder bernama nomor seri, atau struktur textures/<nomor seri>/replacements. RewindBox memasangnya di tempat yang tepat dan mempertahankan subfoldernya.\n\nEmulator mengenali berkas dari namanya, sebuah hash seperti 1a2b3c4d5e6f7a8b-00004a2d.png. Format yang dapat digunakan: PNG, DDS (BC1–BC3, BC7, tanpa kompresi), ASTC, dan KTX (ASTC).\n\nPaket dibuat untuk satu nomor seri. Paket untuk wilayah atau edisi lain mungkin hanya berfungsi sebagian.\n\nTekstur HD mengganti gambar milik game itu sendiri. Tekstur HD bukan shader (filter untuk seluruh gambar), bukan resolusi internal (ukuran render), dan bukan patch PNACH (perubahan kode).\n\nTekstur dimuat di latar belakang dan tetap dalam batas memori perangkat: paket yang sangat besar mungkin hanya dimuat sebagian dalam satu waktu.\n\nImpor mengganti paket sebelumnya untuk game ini. Game, data simpanan, dan save state tidak pernah diubah."
     },
     "ja": {
       "title": "HDテクスチャ",
@@ -844,7 +844,7 @@
       "packFormats": "形式：{formats}",
       "packFor": "{serial}用のパック",
       "packSource": "読み込み元：{source}",
-      "packExternal": "NeoStationを使わずにARMSX2/texturesへコピーされたパック",
+      "packExternal": "RewindBoxを使わずにARMSX2/texturesへコピーされたパック",
       "packFolder": "フォルダ：{folder}",
       "packUnsupported": "このデバイスでエミュレータが読めないファイル {count}個",
       "enable": "このゲームでHDテクスチャを使う",
@@ -922,7 +922,7 @@
       "errChanged": "読み込み中にパックが変更されました。何もインストールされていません。",
       "errMissing": "削除するパックがありません。",
       "errFailed": "操作に失敗しました。以前のパックはそのまま残っています。",
-      "helpBody": "ARMSX2は、ARMSX2/textures/<シリアル番号>/replacements（例：ARMSX2/textures/SLUS-21137/replacements）にある画像でゲームのテクスチャを置き換えます。\n\nパックには、テクスチャを直接含むフォルダまたはZIP・TARアーカイブ（TAR.ZSTはゲームのポーズメニューから）、シリアル番号の名前のフォルダ、textures/<シリアル番号>/replacementsの構成が使えます。NeoStationは正しい場所にインストールし、サブフォルダも保持します。\n\nエミュレータはファイルを名前（1a2b3c4d5e6f7a8b-00004a2d.pngのようなハッシュ）で認識します。使用できる形式：PNG、DDS（BC1–BC3、BC7、非圧縮）、ASTC、KTX（ASTC）。\n\nパックは1つのシリアル番号向けに作られています。別の地域やエディション用のパックは一部しか機能しない場合があります。\n\nHDテクスチャはゲーム自体の画像を置き換えるものです。シェーダー（画面全体へのフィルター）、内部解像度（描画サイズ）、PNACHパッチ（コードの変更）とは別の機能です。\n\nテクスチャはバックグラウンドで読み込まれ、デバイスのメモリ上限内に収まります。非常に大きなパックは一度に一部しか読み込まれない場合があります。\n\n読み込むと、このゲームの以前のパックは置き換えられます。ゲーム、セーブデータ、ステートセーブが変更されることはありません。"
+      "helpBody": "ARMSX2は、ARMSX2/textures/<シリアル番号>/replacements（例：ARMSX2/textures/SLUS-21137/replacements）にある画像でゲームのテクスチャを置き換えます。\n\nパックには、テクスチャを直接含むフォルダまたはZIP・TARアーカイブ（TAR.ZSTはゲームのポーズメニューから）、シリアル番号の名前のフォルダ、textures/<シリアル番号>/replacementsの構成が使えます。RewindBoxは正しい場所にインストールし、サブフォルダも保持します。\n\nエミュレータはファイルを名前（1a2b3c4d5e6f7a8b-00004a2d.pngのようなハッシュ）で認識します。使用できる形式：PNG、DDS（BC1–BC3、BC7、非圧縮）、ASTC、KTX（ASTC）。\n\nパックは1つのシリアル番号向けに作られています。別の地域やエディション用のパックは一部しか機能しない場合があります。\n\nHDテクスチャはゲーム自体の画像を置き換えるものです。シェーダー（画面全体へのフィルター）、内部解像度（描画サイズ）、PNACHパッチ（コードの変更）とは別の機能です。\n\nテクスチャはバックグラウンドで読み込まれ、デバイスのメモリ上限内に収まります。非常に大きなパックは一度に一部しか読み込まれない場合があります。\n\n読み込むと、このゲームの以前のパックは置き換えられます。ゲーム、セーブデータ、ステートセーブが変更されることはありません。"
     },
     "ko": {
       "title": "HD 텍스처",
@@ -945,7 +945,7 @@
       "packFormats": "형식: {formats}",
       "packFor": "{serial}용 팩",
       "packSource": "출처: {source}",
-      "packExternal": "NeoStation 없이 ARMSX2/textures에 복사된 팩",
+      "packExternal": "RewindBox 없이 ARMSX2/textures에 복사된 팩",
       "packFolder": "폴더: {folder}",
       "packUnsupported": "이 기기에서 에뮬레이터가 읽을 수 없는 파일 {count}개",
       "enable": "이 게임에서 HD 텍스처 사용",
@@ -1023,7 +1023,7 @@
       "errChanged": "가져오는 동안 팩이 변경되었습니다. 아무것도 설치하지 않았습니다.",
       "errMissing": "삭제할 팩이 없습니다.",
       "errFailed": "작업에 실패했습니다. 이전 팩은 그대로 유지됩니다.",
-      "helpBody": "ARMSX2는 ARMSX2/textures/<시리얼>/replacements(예: ARMSX2/textures/SLUS-21137/replacements)에 있는 이미지로 게임의 텍스처를 교체합니다.\n\n팩은 텍스처를 바로 담은 폴더나 ZIP 또는 TAR 압축 파일(TAR.ZST는 게임의 일시 정지 메뉴에서), 시리얼 이름의 폴더, 또는 textures/<시리얼>/replacements 구조일 수 있습니다. NeoStation은 올바른 위치에 설치하고 하위 폴더를 유지합니다.\n\n에뮬레이터는 1a2b3c4d5e6f7a8b-00004a2d.png 같은 해시 이름으로 파일을 인식합니다. 사용 가능한 형식: PNG, DDS(BC1–BC3, BC7, 비압축), ASTC, KTX(ASTC).\n\n팩은 하나의 시리얼용으로 만들어집니다. 다른 지역이나 에디션용 팩은 일부만 작동할 수 있습니다.\n\nHD 텍스처는 게임 자체의 이미지를 교체합니다. 셰이더(화면 전체에 적용하는 필터), 내부 해상도(렌더링 크기), PNACH 패치(코드 변경)와는 다릅니다.\n\n텍스처는 백그라운드에서 로드되며 기기의 메모리 한도를 넘지 않습니다. 매우 큰 팩은 한 번에 일부만 로드될 수 있습니다.\n\n가져오면 이 게임의 이전 팩이 교체됩니다. 게임, 저장 데이터, 상태 저장은 절대 변경되지 않습니다."
+      "helpBody": "ARMSX2는 ARMSX2/textures/<시리얼>/replacements(예: ARMSX2/textures/SLUS-21137/replacements)에 있는 이미지로 게임의 텍스처를 교체합니다.\n\n팩은 텍스처를 바로 담은 폴더나 ZIP 또는 TAR 압축 파일(TAR.ZST는 게임의 일시 정지 메뉴에서), 시리얼 이름의 폴더, 또는 textures/<시리얼>/replacements 구조일 수 있습니다. RewindBox은 올바른 위치에 설치하고 하위 폴더를 유지합니다.\n\n에뮬레이터는 1a2b3c4d5e6f7a8b-00004a2d.png 같은 해시 이름으로 파일을 인식합니다. 사용 가능한 형식: PNG, DDS(BC1–BC3, BC7, 비압축), ASTC, KTX(ASTC).\n\n팩은 하나의 시리얼용으로 만들어집니다. 다른 지역이나 에디션용 팩은 일부만 작동할 수 있습니다.\n\nHD 텍스처는 게임 자체의 이미지를 교체합니다. 셰이더(화면 전체에 적용하는 필터), 내부 해상도(렌더링 크기), PNACH 패치(코드 변경)와는 다릅니다.\n\n텍스처는 백그라운드에서 로드되며 기기의 메모리 한도를 넘지 않습니다. 매우 큰 팩은 한 번에 일부만 로드될 수 있습니다.\n\n가져오면 이 게임의 이전 팩이 교체됩니다. 게임, 저장 데이터, 상태 저장은 절대 변경되지 않습니다."
     },
     "zh": {
       "title": "HD纹理",
@@ -1046,7 +1046,7 @@
       "packFormats": "格式：{formats}",
       "packFor": "适用于{serial}的纹理包",
       "packSource": "来源：{source}",
-      "packExternal": "未经NeoStation直接复制到ARMSX2/textures",
+      "packExternal": "未经RewindBox直接复制到ARMSX2/textures",
       "packFolder": "文件夹：{folder}",
       "packUnsupported": "{count}个文件在此设备上无法被模拟器读取",
       "enable": "在此游戏中使用HD纹理",
@@ -1124,7 +1124,7 @@
       "errChanged": "导入期间纹理包发生了变化。未安装任何内容。",
       "errMissing": "没有可删除的纹理包。",
       "errFailed": "操作失败。已保留之前的纹理包。",
-      "helpBody": "ARMSX2会用ARMSX2/textures/<序列号>/replacements中的图像替换游戏纹理，例如ARMSX2/textures/SLUS-21137/replacements。\n\n纹理包可以是直接包含纹理的文件夹或ZIP、TAR压缩包（TAR.ZST需从游戏的暂停菜单导入），以序列号命名的文件夹，或textures/<序列号>/replacements结构。NeoStation会将其安装到正确位置并保留子文件夹。\n\n模拟器按文件名识别文件，文件名是一个哈希值，例如1a2b3c4d5e6f7a8b-00004a2d.png。可用格式：PNG、DDS（BC1–BC3、BC7、未压缩）、ASTC和KTX（ASTC）。\n\n纹理包是为一个序列号制作的。适用于其他地区或版本的纹理包可能只能部分生效。\n\nHD纹理替换的是游戏本身的图像。它不是着色器（作用于整个画面的滤镜），不是内部分辨率（渲染尺寸），也不是PNACH补丁（代码修改）。\n\n纹理在后台加载，并保持在设备的内存上限内：非常大的纹理包同一时间可能只加载一部分。\n\n导入会替换此游戏之前的纹理包。游戏、存档和即时存档绝不会被修改。"
+      "helpBody": "ARMSX2会用ARMSX2/textures/<序列号>/replacements中的图像替换游戏纹理，例如ARMSX2/textures/SLUS-21137/replacements。\n\n纹理包可以是直接包含纹理的文件夹或ZIP、TAR压缩包（TAR.ZST需从游戏的暂停菜单导入），以序列号命名的文件夹，或textures/<序列号>/replacements结构。RewindBox会将其安装到正确位置并保留子文件夹。\n\n模拟器按文件名识别文件，文件名是一个哈希值，例如1a2b3c4d5e6f7a8b-00004a2d.png。可用格式：PNG、DDS（BC1–BC3、BC7、未压缩）、ASTC和KTX（ASTC）。\n\n纹理包是为一个序列号制作的。适用于其他地区或版本的纹理包可能只能部分生效。\n\nHD纹理替换的是游戏本身的图像。它不是着色器（作用于整个画面的滤镜），不是内部分辨率（渲染尺寸），也不是PNACH补丁（代码修改）。\n\n纹理在后台加载，并保持在设备的内存上限内：非常大的纹理包同一时间可能只加载一部分。\n\n导入会替换此游戏之前的纹理包。游戏、存档和即时存档绝不会被修改。"
     },
     "zh_Hant": {
       "title": "HD紋理",
@@ -1147,7 +1147,7 @@
       "packFormats": "格式：{formats}",
       "packFor": "適用於{serial}的紋理包",
       "packSource": "來源：{source}",
-      "packExternal": "未經NeoStation直接複製到ARMSX2/textures",
+      "packExternal": "未經RewindBox直接複製到ARMSX2/textures",
       "packFolder": "資料夾：{folder}",
       "packUnsupported": "{count}個檔案在此裝置上無法被模擬器讀取",
       "enable": "在此遊戲中使用HD紋理",
@@ -1225,7 +1225,7 @@
       "errChanged": "匯入期間紋理包發生變化。未安裝任何內容。",
       "errMissing": "沒有可刪除的紋理包。",
       "errFailed": "操作失敗。已保留先前的紋理包。",
-      "helpBody": "ARMSX2會以ARMSX2/textures/<序號>/replacements中的影像取代遊戲紋理，例如ARMSX2/textures/SLUS-21137/replacements。\n\n紋理包可以是直接包含紋理的資料夾或ZIP、TAR壓縮檔（TAR.ZST需從遊戲的暫停選單匯入），以序號命名的資料夾，或textures/<序號>/replacements結構。NeoStation會將其安裝到正確位置並保留子資料夾。\n\n模擬器依檔名辨識檔案，檔名是一個雜湊值，例如1a2b3c4d5e6f7a8b-00004a2d.png。可用格式：PNG、DDS（BC1–BC3、BC7、未壓縮）、ASTC與KTX（ASTC）。\n\n紋理包是為一個序號製作的。適用於其他地區或版本的紋理包可能只能部分生效。\n\nHD紋理取代的是遊戲本身的影像。它不是著色器（作用於整個畫面的濾鏡），不是內部解析度（算繪尺寸），也不是PNACH修補程式（程式碼修改）。\n\n紋理在背景載入，並保持在裝置的記憶體上限內：非常大的紋理包同一時間可能只載入一部分。\n\n匯入會取代此遊戲先前的紋理包。遊戲、存檔與即時存檔絕不會被修改。"
+      "helpBody": "ARMSX2會以ARMSX2/textures/<序號>/replacements中的影像取代遊戲紋理，例如ARMSX2/textures/SLUS-21137/replacements。\n\n紋理包可以是直接包含紋理的資料夾或ZIP、TAR壓縮檔（TAR.ZST需從遊戲的暫停選單匯入），以序號命名的資料夾，或textures/<序號>/replacements結構。RewindBox會將其安裝到正確位置並保留子資料夾。\n\n模擬器依檔名辨識檔案，檔名是一個雜湊值，例如1a2b3c4d5e6f7a8b-00004a2d.png。可用格式：PNG、DDS（BC1–BC3、BC7、未壓縮）、ASTC與KTX（ASTC）。\n\n紋理包是為一個序號製作的。適用於其他地區或版本的紋理包可能只能部分生效。\n\nHD紋理取代的是遊戲本身的影像。它不是著色器（作用於整個畫面的濾鏡），不是內部解析度（算繪尺寸），也不是PNACH修補程式（程式碼修改）。\n\n紋理在背景載入，並保持在裝置的記憶體上限內：非常大的紋理包同一時間可能只載入一部分。\n\n匯入會取代此遊戲先前的紋理包。遊戲、存檔與即時存檔絕不會被修改。"
     }
   }
 }

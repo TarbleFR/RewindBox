@@ -1,7 +1,7 @@
-# NeoStation iOS — Legal, Licenses and Credits
+# RewindBox — Legal, Licenses and Credits
 
 This document is the central attribution and redistribution record for the
-NeoStation iOS fork. It supplements `LICENSE.md`, `NOTICE.md`, per-file SPDX
+RewindBox fork. It supplements `LICENSE.md`, `NOTICE.md`, per-file SPDX
 headers and the license files shipped by each upstream project.
 
 Attribution does **not** imply endorsement by any upstream project, creator,
@@ -16,7 +16,7 @@ Binary-source, funding and combined-license findings remain open.
 ## Current release and license review
 
 The current published GitHub release is
-[NeoStation iOS 0.0.8 / Build 480](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.8).
+[RewindBox 0.0.8 / Build 480](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.8).
 Its [source and packaging record](RELEASE_0.0.8_SOURCE_MANIFEST.md) identifies the
 compiled build and the later release packaging. The
 [next-release license preparation](RELEASE_NEXT_LICENSE_REVIEW.md) covers the
@@ -31,7 +31,7 @@ It records unresolved permission, fundraising, source-correspondence and notice
 preservation findings. This attribution record is not a statement that all
 included material is cleared for redistribution.
 
-**NeoSwap** is NeoStation's experimental memory-management integration for
+**NeoSwap** is RewindBox's experimental memory-management integration for
 the embedded RPCS3 workflow. Its guest-memory relay adapts a MIT-licensed
 Guest Page Relay prototype (see [the preserved notice](../assets/legal/Guest-Page-Relay-MIT.txt)). Its relay, donor, file-backed and cold-data
 mechanisms are described in the [README](../README.md#neoswap).
@@ -39,15 +39,15 @@ That description is not a claim to relicense RPCS3, borrowed libraries,
 platform APIs or other contributors' code. NeoSwap does not create additional
 physical memory or circumvent Apple's resource enforcement.
 
-## NeoStation and the iOS fork
+## RewindBox and the iOS fork
 
 - **NeoStation** — original frontend/project by Miguel Soto / @misobadev, with
   @androosio, @ItsRetroPup and all upstream contributors.
   Source: https://github.com/misobadev/neostation-frontend
-- **NeoStation iOS** — iOS/iPadOS fork, native integrations and maintenance by
+- **RewindBox** — iOS/iPadOS fork, native integrations and maintenance by
   @TarbleFR.
-  Source: https://github.com/TarbleFR/neostation-ios
-- NeoStation's upstream notice is GPL-3.0-or-later. NeoStation iOS preserves
+  Source: https://github.com/TarbleFR/RewindBox
+- RewindBox's upstream notice is GPL-3.0-or-later. RewindBox preserves
   that attribution and does not claim authorship of upstream work.
 
 ## Embedded runtimes and native components
@@ -56,7 +56,7 @@ physical memory or circumvent Apple's resource enforcement.
 | --- | --- | --- |
 | **Embedded Libretro cores** | Libretro/RetroArch and the individual emulator authors in [the core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) | Each of the 35 current development cores keeps its own license; public 0.0.8 / Build 480 contained 34. Mesen is the optional additional NES engine, licensed under GPLv3. |
 | **Dolphin / DolphiniOS** | Dolphin Emulator contributors; OatmealDome and DolphiniOS contributors | Most original Dolphin code is GPL-2.0-or-later. The exact fork states the aggregate repository is GPLv3-compatible; per-file SPDX and `LICENSES/` remain authoritative. |
-| **RPCS3 / XITRIX iOS fork** | RPCS3 contributors; XITRIX; upstream work credited by XITRIX including ARMSX3 and the iOS JIT community | The pinned XITRIX/rpcs3 source contains the RPCS3 GPL-2.0-only `LICENSE`. No relicensing by NeoStation is claimed. Preserve file-specific notices and third-party licenses. |
+| **RPCS3 / XITRIX iOS fork** | RPCS3 contributors; XITRIX; upstream work credited by XITRIX including ARMSX3 and the iOS JIT community | The pinned XITRIX/rpcs3 source contains the RPCS3 GPL-2.0-only `LICENSE`. No relicensing by RewindBox is claimed. Preserve file-specific notices and third-party licenses. |
 | **ARMSX2 / PCSX2** | ARMSX2 team and contributors; PCSX2 contributors | ARMSX2 distributes GPLv3 material and derives from PCSX2. Preserve the exact upstream notices and per-component licenses. |
 | **ARMSX2 texture pack readers** | ARMSX2 team and contributors | Since Build 485, `IOS/TexturePackPaths.h` and `IOS/TexturePackTar.h` of the ARMSX2 tag `iOSv2.6.0` (`9d989ca9`) are copied unmodified into `packages/armsx2_internal_bridge/ios/Classes/upstream/` (GPL-3.0-or-later, SPDX headers kept; SHA-256 pinned in `build-utils/armsx2/upstream-files.json`) so HD texture packs install to the same paths as in ARMSX2. |
 | **LZMA SDK (7-Zip)** | Igor Pavlov | Since Build 486, the 7z reader of the HD texture catalogue (`packages/neo_texture_catalog/ios/ThirdParty/lzma`, LZMA SDK 24.09) is compiled into that pod with hidden symbols. The LZMA SDK is placed in the public domain by its author; files are kept unmodified with their headers. |
@@ -64,15 +64,15 @@ physical memory or circumvent Apple's resource enforcement.
 | **ps2ktxpak catalogue metadata** | ps2ktxpak contributors | The MIT notice applies to the reused catalogue metadata. It does not license the separately authored texture archives. [Preserved notice](../assets/legal/textures/ps2ktxpak-MIT.txt). |
 | **Rebuilt PPSSPP dependencies** | Henrik Rydgård and PPSSPP contributors; FFmpeg, Independent JPEG Group and the authors named in each dependency notice | The pinned source notice collection includes the original copyright statements, full license texts, IJG acknowledgment and exact source references. The FFmpeg build-template license discrepancy remains open. [Notice manifest](../assets/legal/ppsspp/license-sources.json) and [configuration record](../assets/legal/ppsspp/BUILD-LICENSE-RECORD.md). |
 | **librashader** | Ronny Chan / SnowflakePowered and contributors | Native Metal shader chains used by ARMSX2 2.6. The pinned 0.12.0 C API declares MPL-2.0 OR GPL-3.0-only; preserve upstream notices. |
-| **Dusklight** (earlier builds only) | TwilitRealm/Dusklight contributors; Twilight Princess decompilation community; Aurora and Borealis contributors | Removed from NeoStation on 20 October 2026, with the Ports playlist; no other Twilight Princess port replaces it (Dolphin runs the GameCube and Wii versions). Credit kept for the earlier builds that embedded it. Dusklight's root work is CC0-1.0; its dependencies retain their own licenses. |
-| **KartPad / WiiCompiled** (earlier builds only) | KartPad by @chrissotraidis; WiiCompiled by @patchzyy | Removed from NeoStation on 19 October 2026: players build KartPad themselves as a separate app. Credit kept for the earlier builds that embedded it. KartPad-owned software and its WiiCompiled modifications are GPL-3.0-only where stated by KartPad; rights in game content are separate. |
+| **Dusklight** (earlier builds only) | TwilitRealm/Dusklight contributors; Twilight Princess decompilation community; Aurora and Borealis contributors | Removed from RewindBox on 20 October 2026, with the Ports playlist; no other Twilight Princess port replaces it (Dolphin runs the GameCube and Wii versions). Credit kept for the earlier builds that embedded it. Dusklight's root work is CC0-1.0; its dependencies retain their own licenses. |
+| **KartPad / WiiCompiled** (earlier builds only) | KartPad by @chrissotraidis; WiiCompiled by @patchzyy | Removed from RewindBox on 19 October 2026: players build KartPad themselves as a separate app. Credit kept for the earlier builds that embedded it. KartPad-owned software and its WiiCompiled modifications are GPL-3.0-only where stated by KartPad; rights in game content are separate. |
 | **StikJIT** | StikDebug / StikJIT contributors | MPL-2.0. Recipients of executable form must be informed how to obtain the covered source. |
 | **Dawn, SDL, Aurora, Borealis** (earlier builds only) | Their respective projects and contributors | Runtime dependencies of the removed Dusklight and KartPad ports; their individual license files and notices apply to the earlier builds that embedded them. |
 
 ### Historical source identities used by the 0.0.1 binary
 
 See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md). That
-file records the exact NeoStation packaging commit, workflow artifact identity
+file records the exact RewindBox packaging commit, workflow artifact identity
 and pinned upstream revisions used for the published Build 350 IPA.
 
 ## MeloNX / Ryujinx — development sources, not a released engine
@@ -90,13 +90,13 @@ The engine README also states GPLv3, which conflicts with assigning a blanket
 MIT label to the complete project. Its committed native dependencies still
 need matching source and build/license evidence. These files are staged
 reference notices; they are not evidence that a Switch runtime is packaged,
-redistributable as a whole or playable in NeoStation. See the
+redistributable as a whole or playable in RewindBox. See the
 [integration audit](melonx-embedded-integration-2026-10-20.md).
 
 ## External integrations
 
-The following applications/services are **not claimed as NeoStation-owned
-software** merely because NeoStation interoperates with them:
+The following applications/services are **not claimed as RewindBox-owned
+software** merely because RewindBox interoperates with them:
 
 - **ScreenScraper** — https://www.screenscraper.fr/
 - **RetroAchievements** — https://retroachievements.org/
@@ -108,22 +108,22 @@ Their own terms, licenses, privacy policies and service rules apply.
 
 ### NeoStation Assets
 
-NeoStation can fetch optional System Art from:
+RewindBox can fetch optional System Art from:
 
 https://github.com/misobadev/neostation-assets
 
 That repository states that its original artistic works, backgrounds and custom
-icons are licensed under **CC BY-NC-SA 4.0**. Attribution to the NeoStation
+icons are licensed under **CC BY-NC-SA 4.0**. Attribution to the RewindBox
 project is required, commercial use of those original assets is restricted by
 that license, and trademarked console logos remain owned by their respective
 holders.
 
 These assets are fetched/cached at runtime rather than being treated as
-NeoStation iOS-owned artwork.
+RewindBox-owned artwork.
 
 ### RiiSU / iiSU
 
-NeoStation also exposes the **RiiSU** System Art pack as a curated external
+RewindBox also exposes the **RiiSU** System Art pack as a curated external
 on-demand source:
 
 - RiiSU — https://github.com/mult1v4c/RiiSU
@@ -136,14 +136,14 @@ Network for the original inspiration. Its example metadata identifies the author
 as **iiSU Network**.
 
 No standalone license file was visible in the RiiSU repository when this
-integration was added. NeoStation therefore keeps the RiiSU artwork hosted by
+integration was added. RewindBox therefore keeps the RiiSU artwork hosted by
 the original project and downloads/cache it only when the user chooses that
 pack. Attribution does not invent redistribution rights that upstream has not
 published.
 
 ### Canvas (ES-DE)
 
-NeoStation also exposes **Canvas (ES-DE)** as a curated external on-demand
+RewindBox also exposes **Canvas (ES-DE)** as a curated external on-demand
 System Art source:
 
 - Canvas-Capsule Theme — Custom Edition, by zenandiko — https://github.com/zenandiko/canvas-es-de
@@ -152,7 +152,7 @@ System Art source:
 
 zenandiko's repository carries an MIT license file; its README states personal,
 non-commercial use only and that game artwork, logos and trademarks belong to
-their owners. Siddy212's original theme is CC BY-NC-SA. NeoStation keeps the
+their owners. Siddy212's original theme is CC BY-NC-SA. RewindBox keeps the
 artwork hosted by zenandiko's repository and downloads only the selected
 systems' capsules. Details: `docs/system-art/Canvas-ES-DE.md`.
 
@@ -160,34 +160,34 @@ systems' capsules. Details: `docs/system-art/Canvas-ES-DE.md`.
 
 ### GameDB / GameDB-PS3
 
-NeoStation thanks **Niema / @niemasd** for GameDB and GameDB-PS3:
+RewindBox thanks **Niema / @niemasd** for GameDB and GameDB-PS3:
 
 - https://github.com/niemasd/GameDB
 - https://github.com/niemasd/GameDB-PS3
 
 GameDB-PS3 also identifies **MiSTer Addons** and **Redump** as source datasets.
-NeoStation does not claim authorship of those datasets.
+RewindBox does not claim authorship of those datasets.
 
 ## KartPad / translated game-logic boundary
 
-NeoStation no longer includes KartPad (maintainer decision of 19 October 2026).
+RewindBox no longer includes KartPad (maintainer decision of 19 October 2026).
 Earlier builds embedded the official KartPad v0.5.1-experimental.1 runtime,
 which carries Mario Kart Wii logic translated ahead of time. Because that
 runtime contains code derived from the game, it is now left entirely to each
 player: whoever wants KartPad builds it with its own tools from their own disc
-and installs it as a separate app. NeoStation's sources, workflows and IPA no
+and installs it as a separate app. RewindBox's sources, workflows and IPA no
 longer contain KartPad, and the delivery checks refuse any file of game origin.
 
 KartPad's own rights document separates the GPL-covered software from rights
-in Nintendo-owned game content and from translated game logic. NeoStation never
+in Nintendo-owned game content and from translated game logic. RewindBox never
 stated that the GPL grants rights in Mario Kart Wii or relicenses Nintendo-owned
 code, data or assets.
 
 ## RPCS3 licensing boundary
 
-The exact pinned XITRIX/rpcs3 source used by NeoStation carries RPCS3's
-GPL-2.0-only license for most files. NeoStation's host licensing does not change
-that license. The RPCS3 core, NeoStation integration changes, file-specific
+The exact pinned XITRIX/rpcs3 source used by RewindBox carries RPCS3's
+GPL-2.0-only license for most files. RewindBox's host licensing does not change
+that license. The RPCS3 core, RewindBox integration changes, file-specific
 SPDX notices and third-party components must each retain their applicable
 terms.
 
@@ -202,11 +202,11 @@ they convey.
 For GPL- and MPL-covered components, attribution alone is not a substitute for
 source-code obligations.
 
-NeoStation release documentation therefore identifies:
+RewindBox release documentation therefore identifies:
 
-1. the exact NeoStation source commit used for the binary;
+1. the exact RewindBox source commit used for the binary;
 2. the exact upstream revisions used by embedded runtimes;
-3. NeoStation's integration patches and build scripts;
+3. RewindBox's integration patches and build scripts;
 4. the license and notice documents associated with those components.
 
 See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md) for the
@@ -222,19 +222,19 @@ Nintendo, PlayStation, Sony, Microsoft, Xbox, SEGA, Dolphin, RPCS3, PCSX2,
 ARMSX2, RetroArch, MeloNX, KartPad, StikJIT and all other referenced product
 names, logos and trademarks remain the property of their respective owners.
 
-NeoStation iOS is an independent project and is not affiliated with, sponsored
+RewindBox is an independent project and is not affiliated with, sponsored
 by or endorsed by those rights holders unless explicitly stated.
 
-NeoStation does not provide ROMs, ISOs, BIOS files, console firmware,
+RewindBox does not provide ROMs, ISOs, BIOS files, console firmware,
 encryption keys, commercial game assets or paid content. Users must provide
 legally obtained content required by the software they use.
 
 ## Binary packaging policy
 
-NeoStation iOS builds include a `Legal/` directory inside the
+RewindBox builds include a `Legal/` directory inside the
 application bundle containing:
 
-- the NeoStation GPL text and project notice;
+- the RewindBox GPL text and project notice;
 - this attribution record;
 - the build/source identity, with a separate release manifest when one exists;
 - Dolphin's COPYING notice;
@@ -290,7 +290,7 @@ the skyzyx OpenEmu database retains its Unlicense notice. The Luckysugar and
 authored Artemis PKG inputs preserve their respective MIT notices. Other entries
 keep the recorded original-author terms or explicitly unspecified data rights.
 Attribution alone is not permission to relicense unspecified material under
-NeoStation’s frontend GPL. Full license texts and per-program provenance remain
+RewindBox’s frontend GPL. Full license texts and per-program provenance remain
 part of the source records.
 
 The second review supplements incomplete frozen labels with verified upstream
@@ -313,7 +313,7 @@ distributed IPA. The official release remains 0.0.8 / Build 480.
 
 The "HD textures" page lists packs for ARMSX2, Dolphin, PPSSPP, Azahar,
 Mupen64Plus-Next, Beetle PSX HW and Mesen. Texture archives are not included in
-the NeoStation IPA or rehosted by this repository. Selected verified files are
+the RewindBox IPA or rehosted by this repository. Selected verified files are
 downloaded from their original hosts or imported by the player, with recorded
 size and SHA-256 checks. New clients support eligible public Google Drive,
 MEGA and Yandex files and a native RAR reader; host challenges, paywalls,
@@ -345,13 +345,13 @@ The RE4 PAL G4BP08 catalogue adapter fetches the author's public WIIRD topic
 on demand from gc-forever. Credits: **Ralf / Ralf@gc-forever** and any authors
 named beside each code. Source: https://www.gc-forever.com/forums/viewtopic.php?t=2145
 
-The catalogue is not bundled in NeoStation. Imported entries retain the author
+The catalogue is not bundled in RewindBox. Imported entries retain the author
 and source URL; attribution is not an endorsement or a claim to relicense the
 creator's work. The source does not specify a disc revision.
 
 ## Shader kit: glslang, SPIRV-Cross and the official shader catalogs
 
-Since Build 450, NeoStation's shader kit (`packages/neo_shader_kit`) compiles
+Since Build 450, RewindBox's shader kit (`packages/neo_shader_kit`) compiles
 shaders on the device with two Khronos Group projects, vendored unmodified at
 the SDK tag `vulkan-sdk-1.4.350.1` (each copied file is listed with its
 SHA-256 in `ThirdParty/*/SOURCE.txt`):
@@ -382,7 +382,7 @@ from **libretro/shader-previews** (commit
 with the Dolphin core in `Sys/Shaders` (Dolphin repository, GPL-2.0-or-later).
 
 Dolphin shaders a player imports (for example a Mattias CRT port) stay on the
-device; NeoStation neither bundles nor distributes them.
+device; RewindBox neither bundles nor distributes them.
 
 ## Controller skins and community catalogs
 
@@ -396,12 +396,12 @@ device; NeoStation neither bundles nor distributes them.
   by Riley Testut and contributors.
 - **Artwork:** the individual creators credited by each skin or catalog entry.
 
-NeoStation reads the external catalog at
+RewindBox reads the external catalog at
 https://provenance-emu.com/skins/catalog.json, with
 https://raw.githubusercontent.com/Provenance-Emu/skins/main/catalog.json as fallback.
 The catalog identifies skins; it does not transfer ownership of their artwork.
 
-The embedded Libretro frontend supplies NeoStation default skins and installs
+The embedded Libretro frontend supplies RewindBox default skins and installs
 community skins only at the user's request. Third-party skin packs are not
 bundled. Imports retain available catalogue-level author/license fields and the
 download URL, or identify a local file import. The Libretro overlay conversion
@@ -410,7 +410,7 @@ installation; existing imported copies require reimport/replacement.
 In particular, **RGPAD 1.5 is by DJM**, as stated in the
 [pinned original CFG](https://github.com/libretro/common-overlays/blob/42c21b99889468a8e77fd7f002229ec16e2f9fa2/gamepads/rgpad/rgpad_modern.cfg).
 The collection declares [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-NeoStation converts its layout format and packages selected images; these
+RewindBox converts its layout format and packages selected images; these
 adaptations do not erase the supplied creator credit or license conditions.
 A missing author or license
 must not be interpreted as a grant of redistribution rights; the application's
@@ -427,7 +427,7 @@ Usage, compatibility and source references:
   the OpenGameArt page of the work. CC0 asks for no attribution; the author is
   credited by courtesy.
 
-NeoStation bundles it as the default ambient music of the menus
+RewindBox bundles it as the default ambient music of the menus
 (`assets/sounds/once_upon_a_time_loop.ogg`, Build 448). The published MP3 was
 cut to its exact music samples, its first 32 samples were cross-faded for a
 seamless loop, and it was encoded as Ogg Vorbis by
@@ -437,26 +437,26 @@ copied to the device only and is never redistributed.
 
 ## Reading Library: Aidoku source catalogues and local books
 
-NeoStation's reading Library can import **Aidoku** source catalogues that the
+RewindBox's reading Library can import **Aidoku** source catalogues that the
 user adds by URL or file. It reads only their metadata: the repository index
 (`index.min.json` / `index.json`), `source.json`, and the source icon inside a
-`.aix` package. NeoStation never executes the WebAssembly code (`main.wasm`)
+`.aix` package. RewindBox never executes the WebAssembly code (`main.wasm`)
 shipped in an `.aix` package and does not bundle or redistribute any
 catalogue, package or source code.
 
 - **Formats:** [Aidoku](https://github.com/Aidoku/Aidoku) (GPL-3.0) and the
   [aidoku-rs](https://github.com/Aidoku/aidoku-rs) SDK (MIT) define the `.aix`,
-  `source.json` and repository index formats NeoStation recognises.
+  `source.json` and repository index formats RewindBox recognises.
 - **French source catalogue:**
   [Moomooo95/aidoku-french-sources](https://github.com/Moomooo95/aidoku-french-sources),
-  by Moomooo95. That repository declares no licence. NeoStation does not copy
+  by Moomooo95. That repository declares no licence. RewindBox does not copy
   its code or packages; the native Dart adapters for the sites it lists
   (Mangas Origines, LelscanFR, SushiScan, Sushi Scans, Manga Scantrad) are
   independent implementations written for the public websites. Credit for
   the original source list and site research goes to its author.
 - **Websites:** every title, cover, chapter and image shown from an online
   source is fetched at the user's request from that website and remains the
-  property of its owners. NeoStation does not host, mirror or provide content.
+  property of its owners. RewindBox does not host, mirror or provide content.
 
 Local books (EPUB, PDF, CBZ, TXT) are files the user imports from Files; the
 copies stay on the device. PDF rendering uses
@@ -469,27 +469,27 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 
 ## Contributor directory
 
-| Project | NeoStation iOS use / attribution |
+| Project | RewindBox use / attribution |
 | --- | --- |
 | **NeoStation** | Original frontend/project by [@misobadev](https://github.com/misobadev), with upstream co-maintainer [@androosio](https://github.com/androosio), collaborator [@ItsRetroPup](https://github.com/ItsRetroPup), and all upstream contributors. |
-| **NeoStation iOS** | iOS fork, native integrations and maintenance by [@TarbleFR](https://github.com/TarbleFR). |
+| **RewindBox** | iOS fork, native integrations and maintenance by [@TarbleFR](https://github.com/TarbleFR). |
 | **Dolphin / DolphiniOS** | Dolphin Emulator contributors and [DolphiniOS](https://github.com/OatmealDome/dolphin-ios) / OatmealDome contributors. |
 | **RPCS3 iOS / RPCS3** | iOS release/core work by [XITRIX](https://github.com/XITRIX/RPCS3-iOS-Releases), based on the [RPCS3](https://github.com/RPCS3/rpcs3) project. XITRIX also credits ARMSX3 and the wider iOS emulation/JIT community. |
 | **ARMSX2 / PCSX2** | [ARMSX2](https://github.com/ARMSX2/ARMSX2) team and contributors; ARMSX2 is based on the long-running [PCSX2](https://github.com/PCSX2/pcsx2) project. |
-| **Dusklight** (earlier builds only) | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. No longer included in NeoStation since 20 October 2026. |
-| **KartPad / WiiCompiled** (earlier builds only) | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). No longer included in NeoStation since 19 October 2026. |
+| **Dusklight** (earlier builds only) | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. No longer included in RewindBox since 20 October 2026. |
+| **KartPad / WiiCompiled** (earlier builds only) | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). No longer included in RewindBox since 19 October 2026. |
 | **MeloNX / Ryujinx** (development only) | [MeloNX](https://starforgejo.dev/projects/MeloNX) contributors, stossy11 and Ryujinx/Ryubing contributors; LibHac and Melo-Controller retain separate notices. The old external integration is retired; the embedded runtime is unfinished. |
-| **RetroArch / Libretro** | [RetroArch](https://github.com/libretro/RetroArch) and Libretro contributors, for the API, core ecosystem and buildbot distributions used by **Embedded RetroArch** inside NeoStation. Individual emulator authors are credited below. |
+| **RetroArch / Libretro** | [RetroArch](https://github.com/libretro/RetroArch) and Libretro contributors, for the API, core ecosystem and buildbot distributions used by **Embedded RetroArch** inside RewindBox. Individual emulator authors are credited below. |
 | **Provenance Skin Catalog** | [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins), maintained by the Provenance team and community contributors; one of the sources used to discover controller skins. |
 | **DeltaStyles / Delta Skins** | [DeltaStyles](https://deltastyles.com/), [Delta Skins](https://delta-skins.github.io/) and their individual skin creators, for compatible catalog entries and community layouts. |
-| **PocketArch / Libretro overlays** | [PocketArch](https://github.com/stunrelay/PocketArch) and [Libretro common-overlays](https://github.com/libretro/common-overlays) contributors, for compatible touch overlays converted for use inside NeoStation. |
+| **PocketArch / Libretro overlays** | [PocketArch](https://github.com/stunrelay/PocketArch) and [Libretro common-overlays](https://github.com/libretro/common-overlays) contributors, for compatible touch overlays converted for use inside RewindBox. |
 | **Delta / DeltaCore** | [Riley Testut and DeltaCore contributors](https://github.com/rileytestut/DeltaCore), for the controller-skin format referenced by compatible imports. |
 | **Community skin creators** | The original authors of each skin's artwork and layout. Available author and source credits are preserved; each creator's terms apply. |
 | **StikJIT** | [StikDebug/StikJIT](https://github.com/StikDebug/StikJIT) and its contributors. |
-| **NeoSwap memory research** | Stossy/MeloNX for the allocation ideas [studied and adapted](https://github.com/TarbleFR/neostation-ios/blob/0.0.7/docs/neoswap-melonx-2026-10-11.md), and Guest Page Relay contributors for the [MIT-licensed relay prototype](../assets/legal/Guest-Page-Relay-MIT.txt). |
+| **NeoSwap memory research** | Stossy/MeloNX for the allocation ideas [studied and adapted](https://github.com/TarbleFR/RewindBox/blob/0.0.7/docs/neoswap-melonx-2026-10-11.md), and Guest Page Relay contributors for the [MIT-licensed relay prototype](../assets/legal/Guest-Page-Relay-MIT.txt). |
 | **ScreenScraper** | [ScreenScraper.fr](https://www.screenscraper.fr/) metadata and media service. |
 | **RetroAchievements** | [RetroAchievements](https://retroachievements.org/) project, API and community. |
-| **GameDB / GameDB-PS3** | **Niema / [@niemasd](https://github.com/niemasd)**, creator of [GameDB](https://github.com/niemasd/GameDB) and [GameDB-PS3](https://github.com/niemasd/GameDB-PS3). NeoStation uses `PS3.titles.json` as a fallback title catalog. GameDB asks downstream projects to credit GameDB and its source datasets; GameDB-PS3 lists **MiSTer Addons** and **Redump** as sources. |
+| **GameDB / GameDB-PS3** | **Niema / [@niemasd](https://github.com/niemasd)**, creator of [GameDB](https://github.com/niemasd/GameDB) and [GameDB-PS3](https://github.com/niemasd/GameDB-PS3). RewindBox uses `PS3.titles.json` as a fallback title catalog. GameDB asks downstream projects to credit GameDB and its source datasets; GameDB-PS3 lists **MiSTer Addons** and **Redump** as sources. |
 | **NeoStation Assets** | Optional runtime-downloaded System Art from [misobadev/neostation-assets](https://github.com/misobadev/neostation-assets). Original creative assets are CC BY-NC-SA 4.0; trademarks remain with their owners. |
 | **RiiSU / iiSU** | [RiiSU](https://github.com/mult1v4c/RiiSU) credits [iiSU Interpreted for ES-DE](https://github.com/VictorUnlocked/iisu-interpreted-es-de) for system art icons and [iiSU Network](https://iisu.network/) for the original inspiration. RiiSU remains remotely hosted and is downloaded only when selected. |
 | **Canvas (ES-DE)** | [Canvas-Capsule custom edition](https://github.com/zenandiko/canvas-es-de) by zenandiko, from the [original Canvas theme](https://github.com/Siddy212/canvas-es-de) by Siddy212 (artwork and layouts credited to [fagnerpc](https://github.com/fagnerpc)). Remotely hosted and downloaded only when selected; upstream states personal, non-commercial use. |

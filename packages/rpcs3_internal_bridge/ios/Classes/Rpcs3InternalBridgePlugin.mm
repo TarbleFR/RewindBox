@@ -660,7 +660,7 @@ static void RPCS3Progress(void* context,
   if (_api.handle) {
     if (self.coreLoadedWithExpandedJit != expanded) {
       if (error) {
-        *error = @"RPCS3_CORE_MODE_MISMATCH: JIT arena policy cannot change after the Core is loaded; relaunch NeoStation.";
+        *error = @"RPCS3_CORE_MODE_MISMATCH: JIT arena policy cannot change after the Core is loaded; relaunch RewindBox.";
       }
       return NO;
     }
@@ -693,7 +693,7 @@ static void RPCS3Progress(void* context,
     }
   }
   if (![NSFileManager.defaultManager fileExistsAtPath:path]) {
-    if (error) *error = @"RPCS3_CORE_MISSING: libRPCS3Core.dylib is missing from NeoStation Frameworks.";
+    if (error) *error = @"RPCS3_CORE_MISSING: libRPCS3Core.dylib is missing from RewindBox Frameworks.";
     return NO;
   }
 

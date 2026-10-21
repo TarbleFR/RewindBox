@@ -32,17 +32,17 @@ The broader [source-access record](SOURCE_CODE_ACCESS.md),
 Automatically generated GitHub source archives contain tracked files from
 their own repository. They do **not** include the contents of Git submodules.
 For a modified engine, retain its upstream source, recursive dependencies,
-NeoStation patches/adapters, build recipe and actual dependency resolution
+RewindBox patches/adapters, build recipe and actual dependency resolution
 together. A binary hash, a source URL and a license text each answer different
 questions.
 
-| Component | Identified source and download | NeoStation build evidence | Concrete remaining boundary |
+| Component | Identified source and download | RewindBox build evidence | Concrete remaining boundary |
 | --- | --- | --- | --- |
-| RPCS3 / XITRIX | [`22f1152783ce`](https://github.com/XITRIX/rpcs3/tree/22f1152783cef1f7e04af7b1c895173e28fd5b03), [root source archive](https://github.com/XITRIX/rpcs3/archive/22f1152783cef1f7e04af7b1c895173e28fd5b03.tar.gz), 28 direct submodules | Core 499, ABI 30; [receipt](evidence/rpcs3audit499-core.json); [host source and patches](https://github.com/TarbleFR/neostation-ios/tree/0b18a23460b0a9840406fda2e3d6da4c5cdb7273/build-utils/rpcs3). Core 500 reuses it. | No consolidated export of the patched engine, recursive dependencies, LLVM changes and other actual source inputs. |
-| ARMSX2 / PCSX2 | [`9d989ca933a8`, iOSv2.6.0](https://github.com/ARMSX2/ARMSX2/tree/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe), [source archive](https://github.com/ARMSX2/ARMSX2/archive/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe.tar.gz) | Core 485, ABI 8; [receipt](evidence/hdtex485-delivery.json); [host patch and recipe](https://github.com/TarbleFR/neostation-ios/tree/1343906f05e33b40f10f7026a1a6e2327c338d0e/build-utils/armsx2) | Actual librashader Cargo resolution and dependency source collection were not retained with the binary. The existing host-source artifact does not contain the separately fetched engine. |
-| Dolphin / DolphiniOS | [`7cac54161659`](https://github.com/OatmealDome/dolphin-ios/tree/7cac54161659421ed95c2cd1c0b0746539a4cd38), [root source archive](https://github.com/OatmealDome/dolphin-ios/archive/7cac54161659421ed95c2cd1c0b0746539a4cd38.tar.gz), 27 direct submodules | Stable Core SHA-256 `7129d9c654fb…`; [record](dolphin-retro-rewind-online-audit-2026-10-20.md); [host patch](https://github.com/TarbleFR/neostation-ios/blob/ae7d46f90dff64ce698b8c18e0c12510dbae96fe/build-utils/patch_dolphin_internal_core_v2.py) | Source pins and patch are available, but the framework workflow does not export a consolidated recursive source collection. |
+| RPCS3 / XITRIX | [`22f1152783ce`](https://github.com/XITRIX/rpcs3/tree/22f1152783cef1f7e04af7b1c895173e28fd5b03), [root source archive](https://github.com/XITRIX/rpcs3/archive/22f1152783cef1f7e04af7b1c895173e28fd5b03.tar.gz), 28 direct submodules | Core 499, ABI 30; [receipt](evidence/rpcs3audit499-core.json); [host source and patches](https://github.com/TarbleFR/RewindBox/tree/0b18a23460b0a9840406fda2e3d6da4c5cdb7273/build-utils/rpcs3). Core 500 reuses it. | No consolidated export of the patched engine, recursive dependencies, LLVM changes and other actual source inputs. |
+| ARMSX2 / PCSX2 | [`9d989ca933a8`, iOSv2.6.0](https://github.com/ARMSX2/ARMSX2/tree/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe), [source archive](https://github.com/ARMSX2/ARMSX2/archive/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe.tar.gz) | Core 485, ABI 8; [receipt](evidence/hdtex485-delivery.json); [host patch and recipe](https://github.com/TarbleFR/RewindBox/tree/1343906f05e33b40f10f7026a1a6e2327c338d0e/build-utils/armsx2) | Actual librashader Cargo resolution and dependency source collection were not retained with the binary. The existing host-source artifact does not contain the separately fetched engine. |
+| Dolphin / DolphiniOS | [`7cac54161659`](https://github.com/OatmealDome/dolphin-ios/tree/7cac54161659421ed95c2cd1c0b0746539a4cd38), [root source archive](https://github.com/OatmealDome/dolphin-ios/archive/7cac54161659421ed95c2cd1c0b0746539a4cd38.tar.gz), 27 direct submodules | Stable Core SHA-256 `7129d9c654fb…`; [record](dolphin-retro-rewind-online-audit-2026-10-20.md); [host patch](https://github.com/TarbleFR/RewindBox/blob/ae7d46f90dff64ce698b8c18e0c12510dbae96fe/build-utils/patch_dolphin_internal_core_v2.py) | Source pins and patch are available, but the framework workflow does not export a consolidated recursive source collection. |
 | StikJIT | [`32287268fa58`, 1.9.0](https://github.com/StikDebug/StikJIT/tree/32287268fa5824f9edce4cb359f5833ce0cf7b00), [wrapper source archive](https://github.com/StikDebug/StikJIT/archive/32287268fa5824f9edce4cb359f5833ce0cf7b00.tar.gz) | [Source pin](../build-utils/stikjit/source.json), [build recipe](../build-utils/build_patched_stikjit.py), [compatibility patcher](../build-utils/patch_stikjit_compat.py) | The Swift wrapper links a precompiled Rust FFI archive whose exact source revision, Cargo lock and matching notices are not identified. |
-| Nestopia | [`135dfa6dfda5`](https://github.com/libretro/nestopia/tree/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3), [verified source archive](https://codeload.github.com/libretro/nestopia/tar.gz/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3) | [Source/patch identity](../native/nestopia/source.json), [NeoStation patch](../native/nestopia/reset-background.patch), [recipe](../.github/diagnostics/nestopia_bgcolor/build.py) | Original source and exact modification are available; retain them together with the historical build inputs. |
+| Nestopia | [`135dfa6dfda5`](https://github.com/libretro/nestopia/tree/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3), [verified source archive](https://codeload.github.com/libretro/nestopia/tar.gz/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3) | [Source/patch identity](../native/nestopia/source.json), [RewindBox patch](../native/nestopia/reset-background.patch), [recipe](../.github/diagnostics/nestopia_bgcolor/build.py) | Original source and exact modification are available; retain them together with the historical build inputs. |
 | Azahar | [`5f3306d13cab`, 2127.0-alpha1](https://github.com/azahar-emu/azahar/tree/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6), [verified unified source archive](https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz) | [Official binary release](https://github.com/azahar-emu/azahar/releases/tag/2127.0-alpha1), [recorded binary identity](evidence/build479-libretro-source-identity.json) | Unified archive includes submodule content. Upstream SBOM/attestation verification and reproducible-build proof are separate; this review does not claim them. |
 | PPSSPP | [`1bd28b0d634d`](https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c) | Source-built replacement, Core 497; [dedicated source/license audit](PPSSPP_SOURCE_AND_LICENSE_AUDIT.md) | Follow that audit for FFmpeg, dependency notices and exact modified-source requirements. |
 | MeloNX / LibHac | [MeloNX `13700519f3ab`](https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67), [LibHac `23e402ebb6de`](https://starforgejo.dev/archive/LibHac_Ryubing/src/commit/23e402ebb6dedc517e34a98a033078dc0f6fd478), [source pins](../build-utils/melonx/source.json) | [Historical native-session receipt](evidence/melonx-native-session-2026-10-20.json) | Staged only. Exact-commit API retrieval returned 403 in this review; native binary provenance and conflicting upstream license statements remain open. No playable runtime is registered or packaged. |
@@ -50,7 +50,7 @@ questions.
 ### RPCS3: retain the entire patched source chain
 
 The [canonical source manifest](../build-utils/rpcs3/canonical-source.json)
-identifies the upstream base and NeoStation patch; the core receipt retains
+identifies the upstream base and RewindBox patch; the core receipt retains
 input hashes and binary identity. The patch SHA-256 is
 `6a88c3f5046bbbbd52113ba691cc2f9074e4ebc260f195c1e73776a8c9f876e1`.
 The build also applies a separate LLVM AArch64 patch to
@@ -74,9 +74,9 @@ also identifies the following inputs:
   The [source revision `db66022459ff`](https://github.com/KhronosGroup/MoltenVK/tree/db66022459ffb663aa2b50f6b018bc2e124f5edf)
   pins seven external repositories in `ExternalRevisions`. Their full revisions
   and individual source-download links are retained in the audit JSON.
-- **NeoStation integration source**, including ABI, native adapter and NeoSwap
+- **RewindBox integration source**, including ABI, native adapter and NeoSwap
   files listed by the core receipt. Their historical
-  [host source archive](https://github.com/TarbleFR/neostation-ios/archive/0b18a23460b0a9840406fda2e3d6da4c5cdb7273.tar.gz)
+  [host source archive](https://github.com/TarbleFR/RewindBox/archive/0b18a23460b0a9840406fda2e3d6da4c5cdb7273.tar.gz)
   supplies the host side, separately from upstream engine dependencies.
 
 The inspected core workflow exposes two retained artifacts: binary/identity
@@ -108,13 +108,13 @@ does not pass `--locked` or `--frozen`, and the historical artifact does not
 retain the actual resolved build lock. This does not prove that Cargo changed
 the lock; it identifies the evidence that is missing. Future collection needs
 the resolved lock, the selected registry crate sources/notices and the actual
-patched source, together with the NeoStation adapter and build configuration.
+patched source, together with the RewindBox adapter and build configuration.
 
 The artifact named `ARMSX2-host-source-1343906…` is produced by archiving the
-**NeoStation host repository**. It does not archive the separately cloned
+**RewindBox host repository**. It does not archive the separately cloned
 ARMSX2 or librashader tree. It was still listed by GitHub during review, with
 expiry **22 October 2026 at 00:11:39 UTC** and three-day retention. The public
-[host Git archive](https://github.com/TarbleFR/neostation-ios/archive/1343906f05e33b40f10f7026a1a6e2327c338d0e.tar.gz)
+[host Git archive](https://github.com/TarbleFR/RewindBox/archive/1343906f05e33b40f10f7026a1a6e2327c338d0e.tar.gz)
 remains a useful resource, with that limited scope. Evidence:
 [workflow](../.github/workflows/armsx2-core.yml),
 [artifact metadata](evidence/engine-source-license-audit-2026-10-21.json).
@@ -138,7 +138,7 @@ Therefore the notice manifest records this missing correspondence explicitly;
 it does not copy a license from an arbitrary current idevice HEAD. Obtain the
 matching source, resolved lock, flags and notices for the existing library, or
 prepare a separately authorized replacement from known sources. Export the
-NeoStation-patched Swift/JavaScript wrapper as well: a source-identity JSON
+RewindBox-patched Swift/JavaScript wrapper as well: a source-identity JSON
 alone does not contain the modified source.
 
 ### Nestopia and Azahar: usable source downloads verified now
@@ -146,7 +146,7 @@ alone does not contain the modified source.
 Nestopia's original source archive was retrieved successfully and matches the
 SHA-256 in [source.json](../native/nestopia/source.json):
 `e1a8a853e919cb46a33b48702d703d2e8019d6bc8aff7c3fab88828f8e3c1619`.
-It has no Git submodules. Its NeoStation reset-background patch has SHA-256
+It has no Git submodules. Its RewindBox reset-background patch has SHA-256
 `53847d26b0f914e6fe7ae00415a91f93a5d9573a78453b4947b752b0f9e10d59`.
 The historical recipe checks the original and patched file hashes. Collecting
 that source and patch does not require rebuilding the core.

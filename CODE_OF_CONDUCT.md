@@ -36,7 +36,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior should be reported privately to the NeoStation iOS maintainer, [@TarbleFR](https://github.com/TarbleFR). Do not publish sensitive incident details in a public issue. Security vulnerabilities should instead follow [`SECURITY.md`](SECURITY.md).
+Instances of abusive, harassing, or otherwise unacceptable behavior should be reported privately to the RewindBox maintainer, [@TarbleFR](https://github.com/TarbleFR). Do not publish sensitive incident details in a public issue. Security vulnerabilities should instead follow [`SECURITY.md`](SECURITY.md).
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 

@@ -52,8 +52,8 @@ open class DolphinJITRequestHandlerBase: NSObject, NSExtensionRequestHandling {
       let targetPID = targetPIDNumber.int32Value
       reporter = try HelperReporter(port: portNumber.uint16Value, token: token)
       try reporter?.connect()
-      try reporter?.send(event: "helper_connected", message: "Dolphin JIT helper connected to NeoStation.")
-      try reporter?.send(event: "log", message: "Preparing StikJIT 1.9.0 for NeoStation PID \(targetPID).")
+      try reporter?.send(event: "helper_connected", message: "Dolphin JIT helper connected to RewindBox.")
+      try reporter?.send(event: "log", message: "Preparing StikJIT 1.9.0 for RewindBox PID \(targetPID).")
       let temporaryDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("NeoStationDolphinJIT", isDirectory: true)
       try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
       let pairingURL = temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("plist")
@@ -113,7 +113,7 @@ open class DolphinJITRequestHandlerBase: NSObject, NSExtensionRequestHandling {
     case .downloadingDDI(let fraction, let status): return "StikJIT: DDI download \(Int(fraction * 100))% — \(status)"
     case .mountingDDI(let fraction): return "StikJIT: mounting DDI \(Int(fraction * 100))%."
     case .verifyingDDI: return "StikJIT: verifying the mounted DDI."
-    case .ready: return "StikJIT: device ready; attaching legacy.js to NeoStation."
+    case .ready: return "StikJIT: device ready; attaching legacy.js to RewindBox."
     @unknown default: return "StikJIT: unknown preparation stage."
     }
   }
@@ -126,7 +126,7 @@ private final class HelperReporter {
   private let sendLock = NSLock()
   private var started = false
   init(port: UInt16, token: String) throws {
-    guard let endpointPort = NWEndpoint.Port(rawValue: port) else { throw HelperError.invalidRequest("Invalid NeoStation helper port.") }
+    guard let endpointPort = NWEndpoint.Port(rawValue: port) else { throw HelperError.invalidRequest("Invalid RewindBox helper port.") }
     self.token = token
     connection = NWConnection(host: NWEndpoint.Host("127.0.0.1"), port: endpointPort, using: .tcp)
   }
@@ -145,10 +145,10 @@ private final class HelperReporter {
     }
     connection.start(queue: queue)
     started = true
-    guard semaphore.wait(timeout: .now() + 20) == .success else { throw HelperError.connection("Timed out connecting to NeoStation.") }
+    guard semaphore.wait(timeout: .now() + 20) == .success else { throw HelperError.connection("Timed out connecting to RewindBox.") }
     lock.lock(); defer { lock.unlock() }
     if let connectionError { throw connectionError }
-    if !isReady { throw HelperError.connection("NeoStation helper socket did not become ready.") }
+    if !isReady { throw HelperError.connection("RewindBox helper socket did not become ready.") }
   }
   func send(event: String, message: String, success: Bool? = nil, targetPID: Int32? = nil) throws {
     sendLock.lock(); defer { sendLock.unlock() }
@@ -162,7 +162,7 @@ private final class HelperReporter {
     connection.send(content: data, completion: .contentProcessed { error in
       sendError = error; semaphore.signal()
     })
-    guard semaphore.wait(timeout: .now() + 20) == .success else { throw HelperError.connection("Timed out writing to NeoStation.") }
+    guard semaphore.wait(timeout: .now() + 20) == .success else { throw HelperError.connection("Timed out writing to RewindBox.") }
     if let sendError { throw sendError }
   }
   func close() { if started { connection.cancel() }; started = false }

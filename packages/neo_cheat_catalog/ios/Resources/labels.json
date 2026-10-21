@@ -1,6 +1,6 @@
 {
   "en": {
-    "title": "NeoStation cheats",
+    "title": "RewindBox cheats",
     "downloadAll": "Download all catalogues",
     "updateAll": "Update all catalogues",
     "retryDownloads": "Retry failed downloads",
@@ -88,7 +88,7 @@
     "fbneoUnmanagedOption": "This option is outside the verified catalogue installation. Import its complete program from the catalogue to use it safely."
   },
   "fr": {
-    "title": "Cheats NeoStation",
+    "title": "Cheats RewindBox",
     "downloadAll": "Télécharger tous les catalogues",
     "updateAll": "Mettre tous les catalogues à jour",
     "retryDownloads": "Relancer les téléchargements échoués",
@@ -176,7 +176,7 @@
     "fbneoUnmanagedOption": "Cette option ne fait pas partie de l’installation vérifiée du catalogue. Importez son programme complet depuis le catalogue pour l’utiliser en toute sécurité."
   },
   "es": {
-    "title": "Trucos de NeoStation",
+    "title": "Trucos de RewindBox",
     "downloadAll": "Descargar todos los catálogos",
     "updateAll": "Actualizar todos los catálogos",
     "retryDownloads": "Reintentar descargas fallidas",
@@ -264,7 +264,7 @@
     "fbneoUnmanagedOption": "Esta opción no pertenece a la instalación verificada del catálogo. Importa su programa completo desde el catálogo para usarla de forma segura."
   },
   "de": {
-    "title": "NeoStation-Cheats",
+    "title": "RewindBox-Cheats",
     "downloadAll": "Alle Kataloge herunterladen",
     "updateAll": "Alle Kataloge aktualisieren",
     "retryDownloads": "Fehlgeschlagene Downloads wiederholen",
@@ -352,7 +352,7 @@
     "fbneoUnmanagedOption": "Diese Option gehört nicht zur geprüften Kataloginstallation. Importiere ihr vollständiges Programm aus dem Katalog, um sie sicher zu verwenden."
   },
   "it": {
-    "title": "Trucchi NeoStation",
+    "title": "Trucchi RewindBox",
     "downloadAll": "Scarica tutti i cataloghi",
     "updateAll": "Aggiorna tutti i cataloghi",
     "retryDownloads": "Riprova i download non riusciti",
@@ -440,7 +440,7 @@
     "fbneoUnmanagedOption": "Questa opzione non fa parte dell’installazione verificata del catalogo. Importa il programma completo dal catalogo per usarla in sicurezza."
   },
   "pt": {
-    "title": "Cheats do NeoStation",
+    "title": "Cheats do RewindBox",
     "downloadAll": "Baixar todos os catálogos",
     "updateAll": "Atualizar todos os catálogos",
     "retryDownloads": "Tentar novamente os downloads com falha",
@@ -528,7 +528,7 @@
     "fbneoUnmanagedOption": "Esta opção não pertence à instalação verificada do catálogo. Importe o programa completo do catálogo para usá-la com segurança."
   },
   "ru": {
-    "title": "Читы NeoStation",
+    "title": "Читы RewindBox",
     "downloadAll": "Скачать все каталоги",
     "updateAll": "Обновить все каталоги",
     "retryDownloads": "Повторить неудачные загрузки",
@@ -616,7 +616,7 @@
     "fbneoUnmanagedOption": "Эта опция не входит в проверенную установку каталога. Для безопасного использования импортируйте её полную программу из каталога."
   },
   "id": {
-    "title": "Cheat NeoStation",
+    "title": "Cheat RewindBox",
     "downloadAll": "Unduh semua katalog",
     "updateAll": "Perbarui semua katalog",
     "retryDownloads": "Ulangi unduhan yang gagal",
@@ -704,7 +704,7 @@
     "fbneoUnmanagedOption": "Opsi ini berada di luar pemasangan katalog terverifikasi. Impor program lengkapnya dari katalog agar dapat digunakan dengan aman."
   },
   "zh": {
-    "title": "NeoStation 金手指",
+    "title": "RewindBox 金手指",
     "downloadAll": "下载全部目录",
     "updateAll": "更新全部目录",
     "retryDownloads": "重试失败的下载",
@@ -792,7 +792,7 @@
     "fbneoUnmanagedOption": "此选项不属于已验证的目录安装。请从目录导入其完整程序以安全使用。"
   },
   "zh_Hant": {
-    "title": "NeoStation 金手指",
+    "title": "RewindBox 金手指",
     "downloadAll": "下載全部目錄",
     "updateAll": "更新全部目錄",
     "retryDownloads": "重試失敗的下載",
@@ -880,7 +880,7 @@
     "fbneoUnmanagedOption": "此選項不屬於已驗證的目錄安裝。請從目錄匯入其完整程式以安全使用。"
   },
   "ja": {
-    "title": "NeoStation チート",
+    "title": "RewindBox チート",
     "downloadAll": "すべてのカタログをダウンロード",
     "updateAll": "すべてのカタログを更新",
     "retryDownloads": "失敗したダウンロードを再試行",
@@ -968,7 +968,7 @@
     "fbneoUnmanagedOption": "この設定は検証済みカタログのインストールに含まれていません。安全に使用するには、カタログから完全なプログラムをインポートしてください。"
   },
   "ko": {
-    "title": "NeoStation 치트",
+    "title": "RewindBox 치트",
     "downloadAll": "모든 카탈로그 다운로드",
     "updateAll": "모든 카탈로그 업데이트",
     "retryDownloads": "실패한 다운로드 재시도",

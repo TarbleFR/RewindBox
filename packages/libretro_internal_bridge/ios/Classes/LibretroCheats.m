@@ -804,7 +804,7 @@ static uint32_t ISO32(const uint8_t *p) {
     NSString *block = FBBlock(program); merged[[self digest:[block dataUsingEncoding:NSUTF8StringEncoding]]] = program;
   }
   if (merged.count > 4096) { if (error) *error = CheatError(@"FBNeo managed programme limit exceeded"); return nil; }
-  NSMutableString *text = [NSMutableString stringWithString:@"// NeoStation managed native cheats; activation is session-only.\n"];
+  NSMutableString *text = [NSMutableString stringWithString:@"// RewindBox managed native cheats; activation is session-only.\n"];
   NSMutableArray *records = [NSMutableArray array];
   for (NSString *key in [merged.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
     NSDictionary *program = merged[key]; [text appendString:FBBlock(program)]; [text appendString:@"\n"]; [records addObject:program];
@@ -856,7 +856,7 @@ static uint32_t ISO32(const uint8_t *p) {
     blocks[[self digest:[block dataUsingEncoding:NSUTF8StringEncoding]]] = block;
   }
   if (!blocks.count) return nil;
-  NSMutableString *native = [NSMutableString stringWithString:@"// NeoStation managed native cheats; activation is session-only.\n"];
+  NSMutableString *native = [NSMutableString stringWithString:@"// RewindBox managed native cheats; activation is session-only.\n"];
   for (NSString *key in [blocks.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
     [native appendString:blocks[key]]; [native appendString:@"\n"];
   }

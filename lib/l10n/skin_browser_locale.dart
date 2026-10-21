@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 /// Texts added by the skin pages of Build 448 (collapsible catalog filters,
-/// preview orientation selector, details of a catalog skin) in NeoStation's
+/// preview orientation selector, details of a catalog skin) in RewindBox's
 /// twelve languages. The other skin texts stay in LibretroLocale.
 abstract final class SkinBrowserLocale {
   static const filters = 'filters';

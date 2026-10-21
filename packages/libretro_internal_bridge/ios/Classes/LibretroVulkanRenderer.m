@@ -387,9 +387,9 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
   const char *extensions[1] = {VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME};
   VkApplicationInfo application = {
       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-      .pApplicationName = "NeoStation",
+      .pApplicationName = "RewindBox",
       .applicationVersion = 1,
-      .pEngineName = "NeoStation libretro",
+      .pEngineName = "RewindBox libretro",
       .engineVersion = 1,
       .apiVersion = VK_API_VERSION_1_1,
   };
@@ -541,9 +541,9 @@ static BOOL QueryOptimalTilingFeatures(VkFormat format, VkFormatFeatureFlags *fe
   }
   VkApplicationInfo fallback = {
       .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-      .pApplicationName = "NeoStation",
+      .pApplicationName = "RewindBox",
       .applicationVersion = 1,
-      .pEngineName = "NeoStation libretro",
+      .pEngineName = "RewindBox libretro",
       .engineVersion = 1,
       .apiVersion = VK_API_VERSION_1_1,
   };

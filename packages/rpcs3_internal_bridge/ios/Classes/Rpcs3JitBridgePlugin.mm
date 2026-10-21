@@ -275,7 +275,7 @@ static uint64_t RPCS3DebuggerProbe(uint64_t nonce) { return 0; }
         (int)(kRpcs3HelperConnectTimeout * 1000.0));
     if (pollResult <= 0) {
       [strongSelf markFinished:NO
-                       message:@"The RPCS3 JIT helper did not connect to NeoStation."];
+                       message:@"The RPCS3 JIT helper did not connect to RewindBox."];
       return;
     }
 
@@ -621,7 +621,7 @@ BOOL RPCS3JitConfirmCoreLoadHandoff(void) {
         @"logs": session.logs,
         @"message": success ? @"RPCS3 JIT arena prepared and helper detached." :
             (session.finalMessage.length ? session.finalMessage :
-             @"RPCS3 JIT helper did not confirm completion. Relaunch NeoStation before retrying."),
+             @"RPCS3 JIT helper did not confirm completion. Relaunch RewindBox before retrying."),
       };
       RPCS3Milestone(@"jit_completion_end", success ? @"detached" : @"failed or timed out");
       // A failed/incomplete handshake may still own a debugger. Keep the
@@ -660,7 +660,7 @@ BOOL RPCS3JitConfirmCoreLoadHandoff(void) {
   if (!RPCS3HostHasGetTaskAllow()) {
     result(@{
       @"success" : @NO,
-      @"message" : @"This NeoStation installation does not preserve get-task-allow.",
+      @"message" : @"This RewindBox installation does not preserve get-task-allow.",
     });
     return;
   }
@@ -793,7 +793,7 @@ BOOL RPCS3JitConfirmCoreLoadHandoff(void) {
     response[@"debugged"] = @(debugged);
     response[@"logs"] = session.logs;
     if (!debugged) {
-      response[@"message"] = @"StikJIT detached without leaving NeoStation JIT-enabled.";
+      response[@"message"] = @"StikJIT detached without leaving RewindBox JIT-enabled.";
       finish();
       return;
     }

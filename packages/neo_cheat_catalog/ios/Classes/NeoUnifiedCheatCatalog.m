@@ -371,7 +371,7 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   _readQueue=[NSOperationQueue new]; _readQueue.maxConcurrentOperationCount=2;
   _readQueue.qualityOfService=NSQualityOfServiceUtility;
   _programCache=[NSCache new];_programCache.totalCostLimit=8*1024*1024;_programCache.countLimit=16;
-  _manifestURL=[NSURL URLWithString:@"https://raw.githubusercontent.com/TarbleFR/neostation-ios/Claude/native/cheats/catalogue/manifest.json.gz"];
+  _manifestURL=[NSURL URLWithString:@"https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/native/cheats/catalogue/manifest.json.gz"];
   NSString *documents=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject ?: NSTemporaryDirectory();
   _storageDirectory=[documents stringByAppendingPathComponent:@"NeoStation/Cheats/Unified"];
   for (NSBundle *bundle in @[[NSBundle bundleForClass:self.class],NSBundle.mainBundle]) {

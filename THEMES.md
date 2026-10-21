@@ -1,6 +1,6 @@
-# NeoStation Theme and Menu Customization Guide
+# RewindBox Theme and Menu Customization Guide
 
-NeoStation separates three different customization systems:
+RewindBox separates three different customization systems:
 
 1. **UI color themes** — Flutter `ThemeData` definitions under `lib/themes/`.
 2. **System Art packs** — downloadable system-card artwork and logos managed by NeoAssets.
@@ -49,7 +49,7 @@ The primary Systems menu can use a user-selected background. Supported formats a
 - static/animated image: PNG, JPG/JPEG, WebP, GIF;
 - local video: MP4, M4V, MOV.
 
-The selected file is copied into NeoStation's user-data area. The background is deliberately scoped to the primary Systems menu; game playlists and other top-level screens keep their normal theme background.
+The selected file is copied into RewindBox's user-data area. The background is deliberately scoped to the primary Systems menu; game playlists and other top-level screens keep their normal theme background.
 
 The background widget is kept mounted across top-level tab changes so a decoded image can be shown immediately when returning to Systems instead of briefly exposing the underlying theme surface.
 
@@ -62,7 +62,7 @@ Theme settings also allow one user-selected menu-music track. Supported formats 
 - OGG;
 - FLAC.
 
-The selected track is copied into NeoStation user data and loops only while the primary Systems menu is active. Playback stops when the app leaves the menu or is backgrounded, and it yields when the normal music player is already playing.
+The selected track is copied into RewindBox user data and loops only while the primary Systems menu is active. Playback stops when the app leaves the menu or is backgrounded, and it yields when the normal music player is already playing.
 
 ## Contribution guidance
 

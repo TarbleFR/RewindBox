@@ -1,6 +1,6 @@
 name: rpcs3_internal_bridge
 resolution: workspace
-description: Isolated in-process RPCS3 Core bridge for NeoStation iOS PlayStation 3 routes.
+description: Isolated in-process RPCS3 Core bridge for RewindBox PlayStation 3 routes.
 version: 0.1.0
 publish_to: none
 

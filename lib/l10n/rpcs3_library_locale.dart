@@ -33,18 +33,18 @@ abstract final class Rpcs3LibraryLocale {
   };
 
   static const Map<String, String> _launchFailed = {
-    'de': 'RPCS3 konnte nicht über StikDebug gestartet werden. Prüfe rpcs3_launch_debug.txt in NeoStation.',
-    'en': 'RPCS3 could not be started through StikDebug. Check rpcs3_launch_debug.txt in NeoStation.',
-    'es': 'No se pudo iniciar RPCS3 mediante StikDebug. Consulta rpcs3_launch_debug.txt en NeoStation.',
-    'fr': 'RPCS3 n’a pas pu être lancé via StikDebug. Consultez rpcs3_launch_debug.txt dans NeoStation.',
-    'id': 'RPCS3 tidak dapat dijalankan melalui StikDebug. Periksa rpcs3_launch_debug.txt di NeoStation.',
-    'it': 'Impossibile avviare RPCS3 tramite StikDebug. Controlla rpcs3_launch_debug.txt in NeoStation.',
-    'ja': 'StikDebug 経由で RPCS3 を起動できませんでした。NeoStation の rpcs3_launch_debug.txt を確認してください。',
-    'ko': 'StikDebug를 통해 RPCS3를 실행하지 못했습니다. NeoStation의 rpcs3_launch_debug.txt를 확인하세요.',
-    'pt': 'Não foi possível iniciar o RPCS3 pelo StikDebug. Verifique rpcs3_launch_debug.txt no NeoStation.',
-    'ru': 'Не удалось запустить RPCS3 через StikDebug. Проверьте rpcs3_launch_debug.txt в NeoStation.',
-    'zh': '无法通过 StikDebug 启动 RPCS3。请查看 NeoStation 中的 rpcs3_launch_debug.txt。',
-    'zh_Hant': '無法透過 StikDebug 啟動 RPCS3。請查看 NeoStation 中的 rpcs3_launch_debug.txt。',
+    'de': 'RPCS3 konnte nicht über StikDebug gestartet werden. Prüfe rpcs3_launch_debug.txt in RewindBox.',
+    'en': 'RPCS3 could not be started through StikDebug. Check rpcs3_launch_debug.txt in RewindBox.',
+    'es': 'No se pudo iniciar RPCS3 mediante StikDebug. Consulta rpcs3_launch_debug.txt en RewindBox.',
+    'fr': 'RPCS3 n’a pas pu être lancé via StikDebug. Consultez rpcs3_launch_debug.txt dans RewindBox.',
+    'id': 'RPCS3 tidak dapat dijalankan melalui StikDebug. Periksa rpcs3_launch_debug.txt di RewindBox.',
+    'it': 'Impossibile avviare RPCS3 tramite StikDebug. Controlla rpcs3_launch_debug.txt in RewindBox.',
+    'ja': 'StikDebug 経由で RPCS3 を起動できませんでした。RewindBox の rpcs3_launch_debug.txt を確認してください。',
+    'ko': 'StikDebug를 통해 RPCS3를 실행하지 못했습니다. RewindBox의 rpcs3_launch_debug.txt를 확인하세요.',
+    'pt': 'Não foi possível iniciar o RPCS3 pelo StikDebug. Verifique rpcs3_launch_debug.txt no RewindBox.',
+    'ru': 'Не удалось запустить RPCS3 через StikDebug. Проверьте rpcs3_launch_debug.txt в RewindBox.',
+    'zh': '无法通过 StikDebug 启动 RPCS3。请查看 RewindBox 中的 rpcs3_launch_debug.txt。',
+    'zh_Hant': '無法透過 StikDebug 啟動 RPCS3。請查看 RewindBox 中的 rpcs3_launch_debug.txt。',
   };
 
   static String sync(BuildContext context) => _lookup(_sync, context);

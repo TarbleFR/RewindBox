@@ -1,23 +1,23 @@
 import 'package:flutter/widgets.dart';
 
-/// Small shared localization surface for emulators compiled into NeoStation.
+/// Small shared localization surface for emulators compiled into RewindBox.
 ///
 /// Keep emulator product names untranslated; only the embedded-status text is
-/// localized in the same twelve locales exposed by NeoStation.
+/// localized in the same twelve locales exposed by RewindBox.
 abstract final class EmbeddedEmulatorLocale {
   static const Map<String, String> _integrated = <String, String>{
-    'en': 'Embedded in NeoStation',
-    'fr': 'Embarqué dans NeoStation',
-    'de': 'In NeoStation integriert',
-    'es': 'Integrado en NeoStation',
-    'it': 'Integrato in NeoStation',
-    'pt': 'Integrado no NeoStation',
-    'ru': 'Встроен в NeoStation',
-    'id': 'Tersemat di NeoStation',
-    'ja': 'NeoStation に内蔵',
-    'ko': 'NeoStation에 내장됨',
-    'zh': '内置于 NeoStation',
-    'zh_Hant': '內建於 NeoStation',
+    'en': 'Embedded in RewindBox',
+    'fr': 'Embarqué dans RewindBox',
+    'de': 'In RewindBox integriert',
+    'es': 'Integrado en RewindBox',
+    'it': 'Integrato in RewindBox',
+    'pt': 'Integrado no RewindBox',
+    'ru': 'Встроен в RewindBox',
+    'id': 'Tersemat di RewindBox',
+    'ja': 'RewindBox に内蔵',
+    'ko': 'RewindBox에 내장됨',
+    'zh': '内置于 RewindBox',
+    'zh_Hant': '內建於 RewindBox',
   };
 
   static String integrated(BuildContext context) {

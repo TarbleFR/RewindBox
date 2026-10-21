@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
   s.name = 'neo_texture_catalog'
   s.version = '0.1.0'
-  s.summary = 'Unified HD texture pack catalogue for NeoStation embedded engines.'
+  s.summary = 'Unified HD texture pack catalogue for RewindBox embedded engines.'
   s.description = <<-DESC
 One catalogue, download store and "HD textures" page for the textures the
 embedded engines replace: ARMSX2 (through its own Build 485 store), Dolphin,
@@ -10,7 +10,7 @@ are fetched from their authors' own links when chosen; nothing is re-hosted.
 Resources/ps2ktxpak-LICENSE.txt is the MIT notice of the ps2ktxpak catalogue
 from which the manual PlayStation 2 entries are derived.
                   DESC
-  s.homepage = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage = 'https://github.com/TarbleFR/RewindBox'
   s.license = { :type => 'GPL-3.0' }
   s.author = { 'NeoStation iOS' => 'TarbleFR' }
   s.source = { :path => '.' }

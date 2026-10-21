@@ -614,7 +614,7 @@ static UIViewController* _Nullable DOLRootViewController(void) {
     struct pollfd descriptor = {strongSelf->_listener, POLLIN, 0};
     int pollResult = poll(&descriptor, 1, (int)(kHelperLaunchTimeout * 1000.0));
     if (pollResult <= 0) {
-      [strongSelf markFinished:NO message:@"The Dolphin JIT helper did not connect to NeoStation."];
+      [strongSelf markFinished:NO message:@"The Dolphin JIT helper did not connect to RewindBox."];
       return;
     }
 
@@ -1079,7 +1079,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
     }
     if (!DOLHostHasGetTaskAllow()) {
       fail(@"stikjit.entitlement_missing",
-           @"This NeoStation installation does not preserve get-task-allow; Dolphin JIT is blocked.");
+           @"This RewindBox installation does not preserve get-task-allow; Dolphin JIT is blocked.");
       return [self finishFailedLaunch:state];
     }
     NSData* pairingData = [[NSData alloc] initWithContentsOfFile:pairingPath options:NSDataReadingMappedIfSafe error:nil];
@@ -1165,13 +1165,13 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
     if (!DOLWaitForFreshDebuggerAttach(helper, kDebuggerAttachTimeout)) {
       NSString* reason = helper.finalMessage.length > 0
                              ? helper.finalMessage
-                             : @"StikJIT did not confirm a fresh attachment to this NeoStation session before timeout.";
+                             : @"StikJIT did not confirm a fresh attachment to this RewindBox session before timeout.";
       fail(@"stikjit.pid_attach_failed", reason);
       return [self finishFailedLaunch:state];
     }
     state[@"pidAttached"] = @YES;
     DOLAppendJSONLog(logPath, @"stikjit.pid_attached",
-                     @"The Dolphin legacy script is attached to the NeoStation PID.",
+                     @"The Dolphin legacy script is attached to the RewindBox PID.",
                      @{ @"pid" : @(getpid()) });
 
     int32_t jitFlags = neostation_dolphin_prepare_legacy_jit(logPath.fileSystemRepresentation);

@@ -1,4 +1,4 @@
-# NeoStation iOS — Next release draft
+# RewindBox — Next release draft
 
 **Unpublished draft · Prepared 21 October 2026 · Changes since 0.0.8**
 
@@ -12,7 +12,7 @@ This update brings a much larger HD texture catalogue, customizable touch
 controls and interactive 3D game boxes, alongside continued work on PS2, PSP
 and PS3 emulation.
 
-### 🎨 HD textures, directly in NeoStation
+### 🎨 HD textures, directly in RewindBox
 
 - **424 distinct downloadable texture-pack families** across PS2, GameCube,
   Wii, PSP, Nintendo 3DS, Nintendo 64, PlayStation and NES. Browse the catalogue
@@ -56,7 +56,7 @@ read an already-downloaded PDF manual. A dedicated Back control lets you
 return through the viewer without launching the game.
 
 Back-cover text benefits from sharper display and on-device text recognition,
-with translation into NeoStation's supported languages when the required
+with translation into RewindBox's supported languages when the required
 Apple language models are available. Manuals retain their original language.
 The selection glow is kept on the selected game title in List view.
 
@@ -75,7 +75,7 @@ The selection glow is kept on the selected game title in List view.
 ### Emulation and project credits
 
 **Dusklight, Mario Kart Pad and the Ports playlist have been removed.**
-Existing user files are preserved. NeoStation's development now focuses on
+Existing user files are preserved. RewindBox's development now focuses on
 its emulator integrations.
 
 The former external MeloNX launcher has also been retired. **The embedded
@@ -98,9 +98,9 @@ skin creators and everyone contributing fixes and feedback.
 ### Scope and evidence
 
 Reviewed source:
-[`dc46d73c6a42c5662ad3a863071edac0aa4081ad`](https://github.com/TarbleFR/neostation-ios/commit/dc46d73c6a42c5662ad3a863071edac0aa4081ad)
+[`dc46d73c6a42c5662ad3a863071edac0aa4081ad`](https://github.com/TarbleFR/RewindBox/commit/dc46d73c6a42c5662ad3a863071edac0aa4081ad)
 on `Claude`, compared with the public 0.0.8 source
-[`bcca4e4a4dc89a96b1dde05d66436af54efd327e`](https://github.com/TarbleFR/neostation-ios/commit/bcca4e4a4dc89a96b1dde05d66436af54efd327e).
+[`bcca4e4a4dc89a96b1dde05d66436af54efd327e`](https://github.com/TarbleFR/RewindBox/commit/bcca4e4a4dc89a96b1dde05d66436af54efd327e).
 This is a source-tree draft, not a description of an assembled future IPA.
 
 | Announcement item | Supporting implementation and existing evidence |
@@ -137,7 +137,7 @@ This is a source-tree draft, not a description of an assembled future IPA.
   checks do not guarantee pack completeness or permission to redistribute
   the creator's artwork.
 - **Do not announce unfinished engines.** MeloNX's compiled engine/session
-  foundation is not yet a packaged playable NeoStation integration. JIT,
+  foundation is not yet a packaged playable RewindBox integration. JIT,
   runtime dependencies, imports, original touch controls and NeoSwap work
   remain incomplete. The latest controller-ownership change must be matched
   to its own completed evidence; earlier successful engine artifacts do not

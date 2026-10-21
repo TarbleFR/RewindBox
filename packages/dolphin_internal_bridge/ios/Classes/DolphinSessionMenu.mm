@@ -668,7 +668,7 @@ static void DOLMenuOnMain(dispatch_block_t block) {
           [self.cheatsSnapshot[@"masterEnabled"] boolValue] ? @"on" : @"off"];
     } else if (row == 1) {
       cell.textLabel.text = [self text:@"downloadGecko"];
-      cell.detailTextLabel.text = @"NeoStation · Gecko · Action Replay";
+      cell.detailTextLabel.text = @"RewindBox · Gecko · Action Replay";
       cell.accessibilityIdentifier = @"unifiedCheatCatalogue";
     } else if (row == 2) {
       cell.textLabel.text = NeoCheatText(@"addCheat",self.labels[@"__locale"]);

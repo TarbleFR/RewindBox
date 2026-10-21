@@ -211,7 +211,7 @@ static NSDictionary *ValidatedPack(id value) {
 - (instancetype)init {
   if (!(self = [super init])) return nil;
   _queue = dispatch_queue_create("org.neostation.textures.catalogue", DISPATCH_QUEUE_SERIAL);
-  _manifestURL = [NSURL URLWithString:@"https://raw.githubusercontent.com/TarbleFR/neostation-ios/Claude/native/textures/catalogue/manifest.json.gz"];
+  _manifestURL = [NSURL URLWithString:@"https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/native/textures/catalogue/manifest.json.gz"];
   NSString *support = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES).firstObject ?: NSTemporaryDirectory();
   _storageDirectory = [support stringByAppendingPathComponent:@"NeoStation/Textures/Catalogue"];
   for (NSBundle *bundle in @[[NSBundle bundleForClass:self.class], NSBundle.mainBundle]) {

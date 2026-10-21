@@ -8,7 +8,7 @@ function safeEqual(a, b) {
 }
 
 function unauthorized(res) {
-  res.setHeader('WWW-Authenticate', 'Basic realm="NeoStation iOS Installer", charset="UTF-8"');
+  res.setHeader('WWW-Authenticate', 'Basic realm="RewindBox Installer", charset="UTF-8"');
   res.status(401).send('Authentication required.');
 }
 
@@ -67,7 +67,7 @@ module.exports = (req, res) => {
 
   const token = process.env.INSTALL_TOKEN;
   const ipaUrl = process.env.IPA_SOURCE_URL;
-  const appTitle = process.env.APP_TITLE || 'NeoStation iOS';
+  const appTitle = process.env.APP_TITLE || 'RewindBox';
   const version = process.env.APP_VERSION || 'Beta';
   const buildLabel = process.env.BUILD_LABEL || 'Private build';
 
@@ -129,12 +129,12 @@ module.exports = (req, res) => {
         <div class="pill"><div class="label">Distribution</div><div class="value">Sideload / OTA</div></div>
         <div class="pill"><div class="label">Status</div><div class="value ${ready ? 'ok' : 'bad'}">${ready ? 'Prêt à installer' : 'Configuration requise'}</div></div>
       </div>
-      <a class="install ${ready ? '' : 'disabled'}" href="${htmlEscape(installUrl)}">Installer NeoStation iOS</a>
+      <a class="install ${ready ? '' : 'disabled'}" href="${htmlEscape(installUrl)}">Installer RewindBox</a>
       ${ready ? '' : '<div class="warning">Le portail est protégé, mais aucune IPA signée HTTPS n’est encore configurée. Renseigne INSTALL_TOKEN et IPA_SOURCE_URL dans Vercel.</div>'}
       <p class="note">Ouvre cette page sur l’iPhone avec Chrome ou Safari, puis touche le bouton d’installation. iOS récupère ensuite le manifeste et l’IPA via HTTPS.</p>
       <p class="note"><strong>Important :</strong> une IPA non signée ne peut pas être installée par ce bouton. L’IPA publiée doit être signée avec un profil/certificat accepté par l’appareil.</p>
     </section>
-    <footer>NeoStation iOS · Private distribution portal · noindex</footer>
+    <footer>RewindBox · Private distribution portal · noindex</footer>
   </main>
 </body>
 </html>`;

@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.version = '0.1.0'
   s.summary = 'NeoPlay local H.264/AAC streaming'
   s.description = 'Opt-in ReplayKit capture, bounded local transports and independent receiver sessions.'
-  s.homepage = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage = 'https://github.com/TarbleFR/RewindBox'
   s.license = { :type => 'GPL-3.0-or-later', :file => '../../../LICENSE.md' }
   s.author = { 'NeoStation' => 'maintainers@neostation.invalid' }
   s.source = { :path => '.' }

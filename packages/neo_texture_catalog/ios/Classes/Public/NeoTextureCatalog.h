@@ -23,7 +23,7 @@ typedef void (^NeoTextureFetch)(NSURL *url, NSUInteger maximumBytes,
 /// the remote index. A refresh that fails never replaces a valid index.
 @interface NeoTextureCatalog : NSObject
 + (instancetype)sharedCatalog;
-/// Default: Claude/native/textures/catalogue/manifest.json.gz of TarbleFR/neostation-ios.
+/// Default: Claude/native/textures/catalogue/manifest.json.gz of TarbleFR/RewindBox.
 @property(nonatomic, strong) NSURL *manifestURL;
 /// Folder holding the bundled manifest.json(.gz); found in the pod resources.
 @property(nonatomic, copy, nullable) NSString *bundledDirectory;

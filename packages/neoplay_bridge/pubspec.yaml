@@ -1,5 +1,5 @@
 name: neoplay_bridge
-description: Isolated local game audio/video streaming for NeoStation.
+description: Isolated local game audio/video streaming for RewindBox.
 version: 0.1.0
 publish_to: none
 resolution: workspace

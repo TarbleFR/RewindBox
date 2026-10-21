@@ -91,7 +91,7 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     // In-process iOS runtimes keep receiving controller input while Flutter
     // remains alive behind their native window. Never let A/B/Enter leak into
     // the launch dialog and close the frontend session underneath gameplay.
-    // Their explicit native "Return to NeoStation" event owns teardown.
+    // Their explicit native "Return to RewindBox" event owns teardown.
     if (_isEmbeddedIOSSession) return false;
     if (Platform.isAndroid) return _canDismiss;
     return true;

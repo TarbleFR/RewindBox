@@ -1,3 +1,7 @@
+# Current application identity — RewindBox (21 October 2026)
+
+The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
+
 # Consignes permanentes — stabilité NeoStation iOS
 
 ## MeloNX owned-session continuation — 20 October 2026

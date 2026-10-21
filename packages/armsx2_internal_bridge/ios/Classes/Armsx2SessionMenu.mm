@@ -575,8 +575,8 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
     return [NSString stringWithFormat:@"%@\n\n%@",summary,help];
   }
   if (self.page == ARMSX2MenuControls)
-    return ARMSX2MenuText(@"Choose whether NeoStation's PS2 touch overlay is visible.",
-                          @"Choisissez si les commandes tactiles PS2 de NeoStation sont visibles.");
+    return ARMSX2MenuText(@"Choose whether RewindBox's PS2 touch overlay is visible.",
+                          @"Choisissez si les commandes tactiles PS2 de RewindBox sont visibles.");
   if (self.page == ARMSX2MenuTouchControls) return [self touchText:@"hideWithControllerHelp"];
   if ((self.page == ARMSX2MenuSaveStates || self.page == ARMSX2MenuLoadStates) &&
       self.stateMessage.length)
@@ -747,7 +747,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
           : ARMSX2MenuText(@"Open to scan patches and imported cheats", @"Ouvrir pour lire les patches et cheats importés");
     } else if (row == 4) {
       cell.textLabel.text = NeoCheatText(@"downloadCatalogs",self.localeIdentifier);
-      cell.detailTextLabel.text = @"NeoStation · PNACH · CRC";
+      cell.detailTextLabel.text = @"RewindBox · PNACH · CRC";
       cell.accessibilityIdentifier = @"unifiedCheatCatalogue";
     } else if (row == 3) {
       cell.textLabel.text=NeoCheatText(@"addCheat",self.localeIdentifier);
@@ -855,7 +855,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
   if (self.loading || !self.quitGame) return;
   UIAlertController* alert = [UIAlertController alertControllerWithTitle:
       ARMSX2MenuText(@"Quit Game", @"Quitter le jeu")
-      message:ARMSX2MenuText(@"Return to NeoStation?", @"Revenir à NeoStation ?")
+      message:ARMSX2MenuText(@"Return to RewindBox?", @"Revenir à RewindBox ?")
       preferredStyle:UIAlertControllerStyleAlert];
   [alert addAction:[UIAlertAction actionWithTitle:ARMSX2MenuText(@"Cancel", @"Annuler")
       style:UIAlertActionStyleCancel handler:nil]];

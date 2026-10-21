@@ -1,6 +1,6 @@
 name: dolphin_internal_bridge
 resolution: workspace
-description: Isolated in-process Dolphin Core bridge for NeoStation iOS GameCube and Wii routes.
+description: Isolated in-process Dolphin Core bridge for RewindBox GameCube and Wii routes.
 version: 0.1.0
 publish_to: none
 

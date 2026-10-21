@@ -31,7 +31,7 @@ import zlib
 from dataclasses import dataclass
 from pathlib import Path
 
-DONOR_URL = "https://github.com/TarbleFR/neostation-ios/releases/download/0.0.1/NeoStation.ipa"
+DONOR_URL = "https://github.com/TarbleFR/RewindBox/releases/download/0.0.1/RewindBox.ipa"
 DONOR_BYTES = 143538718
 CENTRAL_DIRECTORY_SHA256 = "777010fd3a2d5ae1b3b01d64ef6a99dbe77768948e7f94d8936b2e3e06d4311d"
 SELECTED_AGGREGATE_SHA256 = "2f73382bc15c56f425e19aa29afd11e6a29a4c547e1aa7f40f29547204a85536"

@@ -65,11 +65,11 @@ class PairingFileLocale {
       invalidExtension: 'Please select a .mobiledevicepairing file.',
       invalidFile: 'The selected Pairing File is empty or invalid.',
       remotePairingRequired:
-          'This is a legacy Lockdown file. NeoStation needs a current Remote Pairing file containing identifier, public_key and private_key. In iLoader, delete the saved RPPairing entry, pair again, then export the new file.',
+          'This is a legacy Lockdown file. RewindBox needs a current Remote Pairing file containing identifier, public_key and private_key. In iLoader, delete the saved RPPairing entry, pair again, then export the new file.',
       importFailed: 'The Pairing File could not be imported.',
       setupTitle: 'Pairing File',
       setupBody:
-          'The Pairing File is essential for launching emulators that require JIT, such as MeloNX, ARMSX2, RPCS3 and others. Import this iPhone’s .mobiledevicepairing file once. It is stored privately inside NeoStation and can be replaced later in Settings → Tools.',
+          'The Pairing File is essential for launching emulators that require JIT, such as MeloNX, ARMSX2, RPCS3 and others. Import this iPhone’s .mobiledevicepairing file once. It is stored privately inside RewindBox and can be replaced later in Settings → Tools.',
       chooseFile: 'Choose Pairing File',
       later: 'Later',
       checking: 'Checking Pairing File…',
@@ -94,7 +94,7 @@ class PairingFileLocale {
       importFailed: 'Die Pairing-Datei konnte nicht importiert werden.',
       setupTitle: 'Pairing-Datei',
       setupBody:
-          'Die Pairing-Datei ist erforderlich, um Emulatoren zu starten, die JIT benötigen, z. B. MeloNX, ARMSX2, RPCS3 und weitere. Importiere einmal die .mobiledevicepairing-Datei dieses iPhones. Sie wird privat in NeoStation gespeichert und kann später unter Einstellungen → Werkzeuge ersetzt werden.',
+          'Die Pairing-Datei ist erforderlich, um Emulatoren zu starten, die JIT benötigen, z. B. MeloNX, ARMSX2, RPCS3 und weitere. Importiere einmal die .mobiledevicepairing-Datei dieses iPhones. Sie wird privat in RewindBox gespeichert und kann später unter Einstellungen → Werkzeuge ersetzt werden.',
       chooseFile: 'Pairing-Datei auswählen',
       later: 'Später',
       checking: 'Pairing-Datei wird geprüft…',
@@ -120,7 +120,7 @@ class PairingFileLocale {
       importFailed: 'No se pudo importar el archivo de emparejamiento.',
       setupTitle: 'Archivo de emparejamiento',
       setupBody:
-          'El archivo de emparejamiento es esencial para iniciar emuladores que requieren JIT, como MeloNX, ARMSX2, RPCS3 y otros. Importa una vez el archivo .mobiledevicepairing de este iPhone. Se guardará de forma privada dentro de NeoStation y podrás reemplazarlo más tarde en Ajustes → Herramientas.',
+          'El archivo de emparejamiento es esencial para iniciar emuladores que requieren JIT, como MeloNX, ARMSX2, RPCS3 y otros. Importa una vez el archivo .mobiledevicepairing de este iPhone. Se guardará de forma privada dentro de RewindBox y podrás reemplazarlo más tarde en Ajustes → Herramientas.',
       chooseFile: 'Elegir archivo de emparejamiento',
       later: 'Más tarde',
       checking: 'Comprobando el archivo de emparejamiento…',
@@ -143,11 +143,11 @@ class PairingFileLocale {
       invalidExtension: 'Veuillez sélectionner un fichier .mobiledevicepairing.',
       invalidFile: 'Le Pairing File sélectionné est vide ou invalide.',
       remotePairingRequired:
-          'Ce fichier utilise l’ancien format Lockdown. NeoStation a besoin d’un fichier Remote Pairing récent contenant identifier, public_key et private_key. Dans iLoader, supprimez le RPPairing enregistré, refaites l’appairage, puis exportez le nouveau fichier.',
+          'Ce fichier utilise l’ancien format Lockdown. RewindBox a besoin d’un fichier Remote Pairing récent contenant identifier, public_key et private_key. Dans iLoader, supprimez le RPPairing enregistré, refaites l’appairage, puis exportez le nouveau fichier.',
       importFailed: 'Le Pairing File n’a pas pu être importé.',
       setupTitle: 'Pairing File',
       setupBody:
-          'Le Pairing File est essentiel pour lancer les émulateurs nécessitant le JIT, comme MeloNX, ARMSX2, RPCS3 et d’autres. Importez une seule fois le fichier .mobiledevicepairing de cet iPhone. Il sera conservé dans le stockage privé de NeoStation et pourra être remplacé plus tard dans Paramètres → Outils.',
+          'Le Pairing File est essentiel pour lancer les émulateurs nécessitant le JIT, comme MeloNX, ARMSX2, RPCS3 et d’autres. Importez une seule fois le fichier .mobiledevicepairing de cet iPhone. Il sera conservé dans le stockage privé de RewindBox et pourra être remplacé plus tard dans Paramètres → Outils.',
       chooseFile: 'Choisir le Pairing File',
       later: 'Plus tard',
       checking: 'Vérification du Pairing File…',
@@ -172,7 +172,7 @@ class PairingFileLocale {
       importFailed: 'File Pairing tidak dapat diimpor.',
       setupTitle: 'File Pairing',
       setupBody:
-          'File Pairing sangat penting untuk menjalankan emulator yang memerlukan JIT, seperti MeloNX, ARMSX2, RPCS3, dan lainnya. Impor file .mobiledevicepairing iPhone ini satu kali. File akan disimpan secara privat di dalam NeoStation dan dapat diganti nanti di Pengaturan → Alat.',
+          'File Pairing sangat penting untuk menjalankan emulator yang memerlukan JIT, seperti MeloNX, ARMSX2, RPCS3, dan lainnya. Impor file .mobiledevicepairing iPhone ini satu kali. File akan disimpan secara privat di dalam RewindBox dan dapat diganti nanti di Pengaturan → Alat.',
       chooseFile: 'Pilih File Pairing',
       later: 'Nanti',
       checking: 'Memeriksa File Pairing…',
@@ -198,7 +198,7 @@ class PairingFileLocale {
       importFailed: 'Impossibile importare il file di abbinamento.',
       setupTitle: 'File di abbinamento',
       setupBody:
-          'Il file di abbinamento è essenziale per avviare emulatori che richiedono JIT, come MeloNX, ARMSX2, RPCS3 e altri. Importa una sola volta il file .mobiledevicepairing di questo iPhone. Verrà conservato privatamente in NeoStation e potrà essere sostituito in seguito in Impostazioni → Strumenti.',
+          'Il file di abbinamento è essenziale per avviare emulatori che richiedono JIT, come MeloNX, ARMSX2, RPCS3 e altri. Importa una sola volta il file .mobiledevicepairing di questo iPhone. Verrà conservato privatamente in RewindBox e potrà essere sostituito in seguito in Impostazioni → Strumenti.',
       chooseFile: 'Scegli file di abbinamento',
       later: 'Più tardi',
       checking: 'Verifica del file di abbinamento…',
@@ -223,7 +223,7 @@ class PairingFileLocale {
       importFailed: 'ペアリングファイルを読み込めませんでした。',
       setupTitle: 'ペアリングファイル',
       setupBody:
-          'ペアリングファイルは、MeloNX、ARMSX2、RPCS3 など、JIT を必要とするエミュレーターを起動するために不可欠です。この iPhone の .mobiledevicepairing ファイルを一度読み込んでください。ファイルは NeoStation 内に非公開で保存され、後から「設定 → ツール」で置き換えられます。',
+          'ペアリングファイルは、MeloNX、ARMSX2、RPCS3 など、JIT を必要とするエミュレーターを起動するために不可欠です。この iPhone の .mobiledevicepairing ファイルを一度読み込んでください。ファイルは RewindBox 内に非公開で保存され、後から「設定 → ツール」で置き換えられます。',
       chooseFile: 'ペアリングファイルを選択',
       later: '後で',
       checking: 'ペアリングファイルを確認中…',
@@ -248,7 +248,7 @@ class PairingFileLocale {
       importFailed: '페어링 파일을 가져올 수 없습니다.',
       setupTitle: '페어링 파일',
       setupBody:
-          '페어링 파일은 MeloNX, ARMSX2, RPCS3 등 JIT가 필요한 에뮬레이터를 실행하는 데 필수입니다. 이 iPhone의 .mobiledevicepairing 파일을 한 번 가져오세요. 파일은 NeoStation 내부에 비공개로 저장되며 나중에 설정 → 도구에서 교체할 수 있습니다.',
+          '페어링 파일은 MeloNX, ARMSX2, RPCS3 등 JIT가 필요한 에뮬레이터를 실행하는 데 필수입니다. 이 iPhone의 .mobiledevicepairing 파일을 한 번 가져오세요. 파일은 RewindBox 내부에 비공개로 저장되며 나중에 설정 → 도구에서 교체할 수 있습니다.',
       chooseFile: '페어링 파일 선택',
       later: '나중에',
       checking: '페어링 파일 확인 중…',
@@ -274,7 +274,7 @@ class PairingFileLocale {
       importFailed: 'Não foi possível importar o arquivo de emparelhamento.',
       setupTitle: 'Arquivo de emparelhamento',
       setupBody:
-          'O arquivo de emparelhamento é essencial para iniciar emuladores que exigem JIT, como MeloNX, ARMSX2, RPCS3 e outros. Importe uma vez o arquivo .mobiledevicepairing deste iPhone. Ele será armazenado de forma privada no NeoStation e poderá ser substituído depois em Configurações → Ferramentas.',
+          'O arquivo de emparelhamento é essencial para iniciar emuladores que exigem JIT, como MeloNX, ARMSX2, RPCS3 e outros. Importe uma vez o arquivo .mobiledevicepairing deste iPhone. Ele será armazenado de forma privada no RewindBox e poderá ser substituído depois em Configurações → Ferramentas.',
       chooseFile: 'Escolher arquivo de emparelhamento',
       later: 'Mais tarde',
       checking: 'Verificando o arquivo de emparelhamento…',
@@ -299,7 +299,7 @@ class PairingFileLocale {
       importFailed: 'Не удалось импортировать файл сопряжения.',
       setupTitle: 'Файл сопряжения',
       setupBody:
-          'Файл сопряжения необходим для запуска эмуляторов, которым требуется JIT, например MeloNX, ARMSX2, RPCS3 и других. Один раз импортируйте файл .mobiledevicepairing этого iPhone. Он будет храниться в закрытом хранилище NeoStation, а позже его можно заменить в разделе Настройки → Инструменты.',
+          'Файл сопряжения необходим для запуска эмуляторов, которым требуется JIT, например MeloNX, ARMSX2, RPCS3 и других. Один раз импортируйте файл .mobiledevicepairing этого iPhone. Он будет храниться в закрытом хранилище RewindBox, а позже его можно заменить в разделе Настройки → Инструменты.',
       chooseFile: 'Выбрать файл сопряжения',
       later: 'Позже',
       checking: 'Проверка файла сопряжения…',
@@ -324,7 +324,7 @@ class PairingFileLocale {
       importFailed: '无法导入配对文件。',
       setupTitle: '配对文件',
       setupBody:
-          '配对文件是启动需要 JIT 的模拟器（如 MeloNX、ARMSX2、RPCS3 等）所必需的。只需导入一次此 iPhone 的 .mobiledevicepairing 文件。文件会私密保存在 NeoStation 中，之后可在“设置 → 工具”中替换。',
+          '配对文件是启动需要 JIT 的模拟器（如 MeloNX、ARMSX2、RPCS3 等）所必需的。只需导入一次此 iPhone 的 .mobiledevicepairing 文件。文件会私密保存在 RewindBox 中，之后可在“设置 → 工具”中替换。',
       chooseFile: '选择配对文件',
       later: '稍后',
       checking: '正在检查配对文件…',
@@ -348,7 +348,7 @@ class PairingFileLocale {
       importFailed: '無法匯入配對檔案。',
       setupTitle: '配對檔案',
       setupBody:
-          '配對檔案是啟動需要 JIT 的模擬器（例如 MeloNX、ARMSX2、RPCS3 等）所必需的。只需匯入一次此 iPhone 的 .mobiledevicepairing 檔案。檔案會私密儲存在 NeoStation 中，之後可在「設定 → 工具」中替換。',
+          '配對檔案是啟動需要 JIT 的模擬器（例如 MeloNX、ARMSX2、RPCS3 等）所必需的。只需匯入一次此 iPhone 的 .mobiledevicepairing 檔案。檔案會私密儲存在 RewindBox 中，之後可在「設定 → 工具」中替換。',
       chooseFile: '選擇配對檔案',
       later: '稍後',
       checking: '正在檢查配對檔案…',

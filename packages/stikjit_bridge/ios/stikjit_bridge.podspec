@@ -1,11 +1,11 @@
 Pod::Spec.new do |s|
   s.name             = 'stikjit_bridge'
   s.version          = '0.0.1'
-  s.summary          = 'Experimental NeoStation bridge for StikJIT.'
+  s.summary          = 'Experimental RewindBox bridge for StikJIT.'
   s.description      = <<-DESC
 Shared StikJIT framework and read-only LocalDevVPN route probe. Embedded engines own isolated JIT transactions.
                        DESC
-  s.homepage         = 'https://github.com/TarbleFR/neostation-ios'
+  s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'NeoStation iOS' => 'TarbleFR' }
   s.source           = { :path => '.' }

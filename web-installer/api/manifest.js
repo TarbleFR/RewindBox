@@ -33,7 +33,7 @@ module.exports = (req, res) => {
     return;
   }
 
-  const appTitle = process.env.APP_TITLE || 'NeoStation iOS';
+  const appTitle = process.env.APP_TITLE || 'RewindBox';
   const bundleId = process.env.APP_BUNDLE_ID || 'com.neogamelab.neostation';
   const version = process.env.APP_VERSION || '1.0';
   const host = req.headers['x-forwarded-host'] || req.headers.host;

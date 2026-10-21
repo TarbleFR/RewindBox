@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 class LegalCreditsDialog {
   static const _fullRecordUrl =
-      'https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/LEGAL_AND_CREDITS.md';
+      'https://github.com/TarbleFR/RewindBox/blob/Claude/docs/LEGAL_AND_CREDITS.md';
 
   static const List<_LegalEntry> _entries = [
     _LegalEntry(
@@ -16,10 +16,10 @@ class LegalCreditsDialog {
       'assets/legal/NeoStation-GPL-3.0.txt',
     ),
     _LegalEntry(
-      'NeoStation iOS',
+      'RewindBox',
       'TarbleFR; iOS fork and native integrations',
       'GPL-3.0; upstream rights preserved',
-      'https://github.com/TarbleFR/neostation-ios',
+      'https://github.com/TarbleFR/RewindBox',
       'assets/legal/NeoStation-GPL-3.0.txt',
     ),
     _LegalEntry(

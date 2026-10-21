@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "echo \"NeoStation private installer: no build step required\"",
+  "buildCommand": "echo \"RewindBox private installer: no build step required\"",
   "installCommand": "",
   "outputDirectory": "public",
   "rewrites": [

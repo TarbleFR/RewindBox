@@ -1,6 +1,6 @@
-# Contributing to NeoStation iOS
+# Contributing to RewindBox
 
-Thank you for your interest in contributing to the NeoStation iOS port.
+Thank you for your interest in contributing to the RewindBox port.
 
 This repository is maintained primarily for **iOS / iPadOS 18+**. The upstream NeoStation project remains the canonical home for general non-iOS platform development.
 
@@ -10,7 +10,7 @@ Before opening a report, search the existing issues to avoid duplicates.
 
 For an iOS-port bug, include:
 
-- NeoStation version/build number;
+- RewindBox version/build number;
 - iPhone or iPad model;
 - iOS/iPadOS version;
 - emulator involved, if relevant (RetroArch, MeloNX or ARMSX2);
@@ -18,7 +18,7 @@ For an iOS-port bug, include:
 - expected and actual behavior;
 - screenshots, screen recordings or logs when useful.
 
-If the issue reproduces only in the original non-iOS NeoStation project, report it upstream instead of opening it here.
+If the issue reproduces only in the original non-iOS RewindBox project, report it upstream instead of opening it here.
 
 ## Proposing features
 

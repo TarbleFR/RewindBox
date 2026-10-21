@@ -5,9 +5,9 @@
 This review prepares the [English release draft](RELEASE_NEXT.md) and the
 notices for the changes since public **0.0.8 / Build 480**. It neither creates
 a GitHub release nor assigns a new version, build or IPA. The public baseline
-is [`bcca4e4a4dc89a96b1dde05d66436af54efd327e`](https://github.com/TarbleFR/neostation-ios/commit/bcca4e4a4dc89a96b1dde05d66436af54efd327e);
+is [`bcca4e4a4dc89a96b1dde05d66436af54efd327e`](https://github.com/TarbleFR/RewindBox/commit/bcca4e4a4dc89a96b1dde05d66436af54efd327e);
 the development snapshot initially reviewed was
-[`dc46d73c6a42c5662ad3a863071edac0aa4081ad`](https://github.com/TarbleFR/neostation-ios/commit/dc46d73c6a42c5662ad3a863071edac0aa4081ad).
+[`dc46d73c6a42c5662ad3a863071edac0aa4081ad`](https://github.com/TarbleFR/RewindBox/commit/dc46d73c6a42c5662ad3a863071edac0aa4081ad).
 
 Existing delivery receipts remain historical. Added documents and notice files
 do not change Build 500 or any other previously delivered IPA. The final
@@ -25,7 +25,7 @@ release must identify its own assembled binary and matching source.
 | Mesen NES HD engine | **M. Bibaud (Sour)** and libretro contributors, GPLv3 | Existing full license and README retained; binary provenance is distinguished from its license-reference revision |
 | Recent RPCS3 fixes | RPCS3 authors, XITRIX and ARMSX3 contributors; original upstream commit lineage retained | [Canonical source record](../build-utils/rpcs3/canonical-source.json), [Build 499 analysis](build499-armsx3-rpcs3-audit.md) |
 | Expanded texture catalogue | Individual pack creators, original pages, derivative-work credits and recorded terms | [Pack register](HD_TEXTURE_CATALOG_SOURCES.md) and [creator supplement](HD_TEXTURE_SOURCES_AND_CREDITS.md) |
-| New game-box viewer | Original game artwork/manual rights, user files and ScreenScraper; Apple platform frameworks used for reading | Rendering or translating a scan does not transfer its rights to NeoStation |
+| New game-box viewer | Original game artwork/manual rights, user files and ScreenScraper; Apple platform frameworks used for reading | Rendering or translating a scan does not transfer its rights to RewindBox |
 | MeloNX work in progress | MeloNX, Ryujinx/Ryubing, LibHac and Melo-Controller; exact upstream notices preserved | [Staged references](../assets/legal/melonx/); no delivered Switch runtime is asserted |
 
 The README, project notice, central credits and Libretro inventory now describe

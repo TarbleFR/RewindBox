@@ -1,11 +1,11 @@
-# Controller skins in NeoStation iOS
+# Controller skins in RewindBox
 
-This guide describes the skin features included in **NeoStation iOS 0.0.4
+This guide describes the skin features included in **RewindBox 0.0.4
 (Build 435)**, source `90a4e513e3a97f642bc45963bfb689f7c4677d46`.
 
-Skins customize the on-screen controls and screen placement for NeoStation's
+Skins customize the on-screen controls and screen placement for RewindBox's
 **embedded Libretro consoles**. These are the emulation cores also used by
-RetroArch. NeoStation's **skin catalogs** gather the Provenance Skin Catalog,
+RetroArch. RewindBox's **skin catalogs** gather the Provenance Skin Catalog,
 the Delta Skins site and RetroArch touch overlays (PocketArch, libretro
 common-overlays), keeping only what can be played by touch on an iPhone (see
 [iPhone compatibility](#iphone-compatibility)). Skin choices here do not
@@ -25,7 +25,7 @@ configure the separate RetroArch application.
 
 You can also open **Skins** from an embedded console's game-list actions.
 
-Each of the 17 embedded console profiles has a **NeoStation default skin**,
+Each of the 17 embedded console profiles has a **RewindBox default skin**,
 inspired by the original console's controls. The defaults support iPhone and
 iPad in portrait and landscape. Catalog availability varies by console; an
 empty catalog does not remove the default skin.
@@ -42,7 +42,7 @@ skins individually.
 
 The importer checks the archive and console compatibility. Read any remarks
 shown after installation. If a skin with the same identifier already exists,
-NeoStation asks before replacing it. A file extension alone does not guarantee
+RewindBox asks before replacing it. A file extension alone does not guarantee
 that every layout or feature in that skin is supported.
 
 ## iPhone compatibility
@@ -69,14 +69,14 @@ before this check keep their files; their verdict is shown on the **Skins**
 page.
 
 During a game, if the selected skin has no touch-playable layout for the
-current orientation, NeoStation shows its default controls for that
+current orientation, RewindBox shows its default controls for that
 orientation and says so once (not when touch controls are off or a controller
 is connected).
 
 RetroArch overlays are converted on the device into the same skin format.
 Conversion covers buttons, D-pads, ABXY areas, sticks, menu and
 fast-forward commands, and the two DS screens. Overlays in pixel
-coordinates, and commands without a NeoStation equivalent (rewind,
+coordinates, and commands without a RewindBox equivalent (rewind,
 on-screen keyboard), are not converted; they are listed as reasons or
 remarks.
 
@@ -90,7 +90,7 @@ remarks.
 ## Portrait, landscape and game-specific choices
 
 Portrait and landscape selections are separate. If the selected skin has no
-layout for an orientation, NeoStation uses its default skin for that orientation.
+layout for an orientation, RewindBox uses its default skin for that orientation.
 Choose **Use the default skin** to reset the console selection.
 
 During a game, open **Display and controls → Skins**. The **Save for**
@@ -123,14 +123,14 @@ unavailable. Duplicates (the same file listed by several sources, or the same
 skin published twice) are shown once. Compatibility checks read only the end
 of each archive and its `info.json` (HTTP range requests) and are cached for
 30 days. A catalog entry must expose a supported direct archive download to be
-installed inside NeoStation. Web pages and store pages are not treated as skin
+installed inside RewindBox. Web pages and store pages are not treated as skin
 archives. Favorites are kept in `Documents/Libretro/SkinFavorites.json`.
 
-NeoStation supplies its own default skins. Community skin packs are downloaded
+RewindBox supplies its own default skins. Community skin packs are downloaded
 only when selected and are not included in the IPA. Installed skin details
 retain the available author and download URL, or identify an import from Files.
 Each creator's terms still apply. Catalog inclusion does not make artwork
-NeoStation-owned or grant permission to redistribute it.
+RewindBox-owned or grant permission to redistribute it.
 
 ## Files and implementation references
 
