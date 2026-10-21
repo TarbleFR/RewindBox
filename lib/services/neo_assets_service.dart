@@ -675,6 +675,19 @@ class NeoAssetsService {
     }
   }
 
+  /// Which catalogue produced an existing on-disk pack (for safe migration).
+  static Future<String> _readLocalThemeSource(String folder) async {
+    try {
+      final file = File(await themeMetadataCachePath(folder));
+      if (!await file.exists()) return '';
+      final data = jsonDecode(await file.readAsString());
+      if (data is Map) return data['source']?.toString() ?? '';
+    } catch (_) {
+      // A malformed old cache is handled by the normal reinstall path.
+    }
+    return '';
+  }
+
   /// Persists the theme metadata to the local cache.
   static Future<void> writeLocalThemeMetadata(
     String themeFolder,
@@ -802,12 +815,18 @@ class NeoAssetsService {
       systemFolderNames,
     );
 
-    final forceRedownload =
+    // NeoStation and RiiSU retain their old installation folder IDs, but
+    // their source may move from the historical GitHub host to NeoAssets CDN.
+    // Replace stale files and .missing markers on the first such migration.
+    final migratedSource = _neoAssetsSlugs.containsKey(themeFolder) &&
         localVersion != null &&
-        remoteVersion != null &&
-        localVersion.isNotEmpty &&
-        remoteVersion.isNotEmpty &&
-        localVersion != remoteVersion;
+        await _readLocalThemeSource(themeFolder) != 'neoassets';
+    final forceRedownload = migratedSource ||
+        (localVersion != null &&
+            remoteVersion != null &&
+            localVersion.isNotEmpty &&
+            remoteVersion.isNotEmpty &&
+            localVersion != remoteVersion);
 
     final totalAssetsToDownload = forceRedownload
         ? coveredSystems.length
