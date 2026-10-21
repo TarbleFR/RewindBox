@@ -10,10 +10,10 @@ void main() {
     test('iterates published pages and retains all approved packs', () async {
       final offsets = <String>[];
       final client = MockClient((request) async {
-        expect(request.uri.host, 'api.neoassets.dev');
-        expect(request.uri.path, '/api/v1/packs');
-        expect(request.uri.queryParameters['limit'], '100');
-        final offset = request.uri.queryParameters['offset']!;
+        expect(request.url.host, 'api.neoassets.dev');
+        expect(request.url.path, '/api/v1/packs');
+        expect(request.url.queryParameters['limit'], '100');
+        final offset = request.url.queryParameters['offset']!;
         offsets.add(offset);
         final packs = offset == '0'
             ? [
@@ -111,8 +111,8 @@ void main() {
     test('catalogue/detail never increment installs; counting is opt-in', () async {
       final paths = <String>[];
       final client = MockClient((request) async {
-        paths.add(request.uri.path);
-        if (request.uri.path.endsWith('/download')) {
+        paths.add(request.url.path);
+        if (request.url.path.endsWith('/download')) {
           return http.Response('{"folder":"wiird"}', 200);
         }
         return http.Response(
