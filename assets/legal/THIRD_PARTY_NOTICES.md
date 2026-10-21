@@ -48,6 +48,25 @@ dependencies; the package-specific inventory preserves that distinction.
 
 ## Remote System Art
 
+### NeoAssets public catalogue (current official source)
+
+System Art discovery now uses the official NeoAssets public API:
+https://neoassets.dev/app/sap
+https://api.neoassets.dev/api/v1/packs
+
+The official API publishes each approved pack's real author, source folder,
+individual system IDs and CDN file URLs. Only user-selected images are fetched
+from `https://cdn.neoassets.dev/` and cached on device; the IPA does not embed
+or mirror any of these community images. The public catalogue contained 20
+approved packs and 1,710 background files on 21 October 2026, including a
+mixed GIF/WebP pack. The full individual pack/author/source register is:
+`docs/system-art/NEOASSETS_SOURCES.md`
+
+No blanket image-redistribution license can be inferred from publication on
+NeoAssets. Original artists retain their rights and conditions; all console
+logos and trademarks remain protected independently. The app preserves the
+authors and AI flags published by the API.
+
 ### NeoStation Assets
 
 Optional System Art is fetched at runtime from:
