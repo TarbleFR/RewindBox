@@ -7,7 +7,7 @@ Shared StikJIT framework and read-only LocalDevVPN route probe. Embedded engines
                        DESC
   s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
-  s.author           = { 'NeoStation iOS' => 'TarbleFR' }
+  s.author           = { 'RewindBox' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
   # Frozen source snapshots used by the unchanged StikJIT ABI validator.

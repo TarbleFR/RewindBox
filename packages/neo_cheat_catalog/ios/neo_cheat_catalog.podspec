@@ -4,7 +4,7 @@ Pod::Spec.new do |s|
   s.summary = 'Verified unified cheat downloads for RewindBox embedded engines.'
   s.homepage = 'https://github.com/TarbleFR/RewindBox'
   s.license = { :type => 'GPL-3.0' }
-  s.author = { 'NeoStation iOS' => 'TarbleFR' }
+  s.author = { 'RewindBox' => 'TarbleFR' }
   s.source = { :path => '.' }
   s.source_files = 'Classes/**/*.{h,m}'
   s.public_header_files = 'Classes/Public/*.h', 'Classes/NeoUnifiedCheatBrowser.h'

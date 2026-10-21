@@ -12,7 +12,7 @@ from which the manual PlayStation 2 entries are derived.
                   DESC
   s.homepage = 'https://github.com/TarbleFR/RewindBox'
   s.license = { :type => 'GPL-3.0' }
-  s.author = { 'NeoStation iOS' => 'TarbleFR' }
+  s.author = { 'RewindBox' => 'TarbleFR' }
   s.source = { :path => '.' }
   # The LZMA SDK sources (public domain) are compiled once, through
   # Classes/NeoTextureLZMA.c, with hidden visibility.

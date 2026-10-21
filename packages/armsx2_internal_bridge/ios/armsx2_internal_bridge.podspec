@@ -8,7 +8,7 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
                        DESC
   s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
-  s.author           = { 'NeoStation iOS' => 'TarbleFR' }
+  s.author           = { 'RewindBox' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
   # Build 485: the HD texture pack store, page and bridge (C++ and the two
