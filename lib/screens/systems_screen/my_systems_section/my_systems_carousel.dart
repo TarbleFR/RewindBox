@@ -1035,7 +1035,7 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
     final allSystems = _getSystemsList();
     if (_currentIndex >= 0 && _currentIndex < allSystems.length) {
       final system = allSystems[_currentIndex];
-      final systemName = (system.shortName ?? system.title ?? "NEOSTATION")
+      final systemName = (system.shortName ?? system.title ?? "RewindBox")
           .toUpperCase();
 
       final folder = system.primaryFolderName ?? system.folderName ?? 'all';

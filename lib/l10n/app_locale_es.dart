@@ -648,7 +648,7 @@ const Map<String, dynamic> appLocaleEs = {
   AppLocale.screenReturnAccessHint: 'Activa RewindBox y toca Permitir',
   AppLocale.selectRomFolder: 'Seleccionar Carpeta de ROMs',
   AppLocale.romFolderSelected: '¡Carpeta de ROMs seleccionada!',
-  AppLocale.chooseRomFolderDesc: 'Elige la carpeta donde se encuentran tus archivos ROM.\n\nNeoStation escaneará esta carpeta en busca de juegos.',
+  AppLocale.chooseRomFolderDesc: 'Elige la carpeta donde se encuentran tus archivos ROM.\n\nRewindBox escaneará esta carpeta en busca de juegos.',
   AppLocale.setupComplete: '¡Configuración Completada!',
   AppLocale.scanningRoms: 'Escaneando ROMs',
   AppLocale.foundSystemsWithGames:

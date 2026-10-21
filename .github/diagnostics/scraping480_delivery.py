@@ -52,7 +52,7 @@ def evidence():
         previous.successful_run(RIGHTS_RUN,RIGHTS_SOURCE,['native','overlays']),
         previous.successful_run(APP_RUN,APP,['targeted'])]
     with tempfile.TemporaryDirectory(prefix='scraping480-proof-') as tmp:
-        subprocess.run(['gh','run','download',str(APP_RUN),'--repo','TarbleFR/neostation-ios',
+        subprocess.run(['gh','run','download',str(APP_RUN),'--repo','TarbleFR/RewindBox',
             '--name','scraping480-'+APP,'--dir',tmp],check=True)
         files=list(Path(tmp).rglob('verdict.json'))
         if len(files)!=1:raise ValueError('Ambiguous or missing actual MD5 verdict')

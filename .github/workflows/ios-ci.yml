@@ -1,5 +1,5 @@
-name: Neostation iOS 0.0.2 private • Build 365
-run-name: Neostation iOS 0.0.2 private • Build 365 • ${{ github.sha }}
+name: RewindBox 0.0.2 private • Build 365
+run-name: RewindBox 0.0.2 private • Build 365 • ${{ github.sha }}
 
 on:
   push:
@@ -37,13 +37,13 @@ jobs:
     # Core-only development commits validate their native engine separately,
     # not a mislabeled full NeoStation IPA.
     if: ${{ !contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message, '[neoswap-maintenance]') && !contains(github.event.head_commit.message, '[neoswap-ipa]') && !contains(github.event.head_commit.message, '[armsx2-core-only]') && !contains(github.event.head_commit.message, '[rpcs3-core-only]') && !contains(github.event.head_commit.message, '[rpcs3-host-only]') && !contains(github.event.head_commit.message, '[dolphin-core-only]') && !contains(github.event.head_commit.message, '[dusklight-core-only]') && !contains(github.event.head_commit.message, '[kartpad-ui-only]') && !contains(github.event.head_commit.message, '[kartpad-bridge-only]') && !contains(github.event.head_commit.message, '[kartpad-core-only]') }}
-    name: Neostation iOS 0.0.2 private IPA (365)
+    name: RewindBox 0.0.2 private IPA (365)
     runs-on: macos-15
     timeout-minutes: 90
     env:
       BUILD_NUMBER: ${{ inputs.build_number || '365' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: Neostation-iOS-0.0.2-Build-365-Private
+      ARTIFACT_NAME: RewindBox-iOS-0.0.2-Build-365-Private
       KARTPAD_CORE_RUN_ID: ${{ inputs.kartpad_core_run_id || '36322395443' }}
       KARTPAD_CORE_HOST_SHA: ${{ inputs.kartpad_core_host_sha || '3934ac9d333247d5374b9fb7d71f8ef49bbcd79e' }}
       KARTPAD_CANDIDATE: '1'

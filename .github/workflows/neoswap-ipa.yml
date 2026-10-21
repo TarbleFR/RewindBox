@@ -153,7 +153,7 @@ jobs:
     # Core-only development commits validate their native engine separately,
     # not a mislabeled full NeoStation IPA.
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[neoswap-ipa]') }}
-    name: Neostation iOS 0.0.2 private IPA (421)
+    name: RewindBox 0.0.2 private IPA (421)
     runs-on: macos-15
     timeout-minutes: 210
     env:
@@ -1119,7 +1119,7 @@ jobs:
       - name: Download pinned Dusklight 2.0.3 Core
         uses: actions/download-artifact@v4
         with:
-          name: NeoStation-Dusklight-Core-${{ env.DUSKLIGHT_CORE_HOST_SHA }}
+          name: RewindBox-Dusklight-Core-${{ env.DUSKLIGHT_CORE_HOST_SHA }}
           run-id: ${{ env.DUSKLIGHT_CORE_RUN_ID }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: dist/dusklight

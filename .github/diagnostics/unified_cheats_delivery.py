@@ -39,7 +39,7 @@ def command(args):
 
 
 def api(path, raw=False):
-    args = ['gh', 'api', 'repos/TarbleFR/neostation-ios/' + path]
+    args = ['gh', 'api', 'repos/TarbleFR/RewindBox/' + path]
     if raw:
         # Recent gh versions reject ANSI-bearing job logs by default. The
         # bytes are captured privately for exact evidence checks, not emitted.

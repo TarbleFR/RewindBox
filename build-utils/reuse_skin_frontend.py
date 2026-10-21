@@ -57,7 +57,7 @@ def phase_passed(run, jobs, iphone=False):
 
 
 def api(path):
-    request = urllib.request.Request('https://api.github.com/repos/TarbleFR/neostation-ios/' + path,
+    request = urllib.request.Request('https://api.github.com/repos/TarbleFR/RewindBox/' + path,
         headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
     with urllib.request.urlopen(request, timeout=30) as response:
         return json.load(response)

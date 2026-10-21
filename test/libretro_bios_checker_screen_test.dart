@@ -187,7 +187,7 @@ void main() {
     final decoration = tester.widget<Container>(find.descendant(of: badge, matching: find.byType(Container)).first).decoration as BoxDecoration;
     expect(decoration.color, Colors.green.shade600);
 
-    expect(inEntry('gb-boot', find.text(en('biosDetected', {'path': 'NeoStation/Libretro/System/gb_bios.bin'}))), findsOneWidget);
+    expect(inEntry('gb-boot', find.text(en('biosDetected', {'path': 'RewindBox/Libretro/System/gb_bios.bin'}))), findsOneWidget);
     expect(inEntry('gb-boot', find.text(english['biosLevelOptional']!)), findsOneWidget);
     expect(inEntry('mcd-na', find.text(english['biosStatusUnverified']!)), findsOneWidget);
     expect(inEntry('mcd-na', find.text(en('biosLevelConditional', {'condition': english['biosCondMegaCd']})) ), findsOneWidget);

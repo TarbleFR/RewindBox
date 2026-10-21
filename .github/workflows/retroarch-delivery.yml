@@ -210,7 +210,7 @@ jobs:
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '480' }}-validation-${{ github.sha }}
+        name: RewindBox-${{ inputs.build_number || '480' }}-validation-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -241,7 +241,7 @@ jobs:
       if: ${{ inputs.validation_scope == 'library_covers' }}
       uses: actions/download-artifact@v4
       with:
-        name: NeoStation-442-neoswap-native-e8808dd32301f71fdd421a70c0ac6be2ed6fba47
+        name: RewindBox-442-neoswap-native-e8808dd32301f71fdd421a70c0ac6be2ed6fba47
         run-id: 38170927050
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: build/delivery/build442-native
@@ -268,7 +268,7 @@ jobs:
       if: ${{ inputs.validation_scope == 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '480' }}-native-reuse-${{ github.sha }}
+        name: RewindBox-${{ inputs.build_number || '480' }}-native-reuse-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -416,7 +416,7 @@ jobs:
       if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: NeoStation-${{ inputs.build_number || '480' }}-neoswap-native-${{ github.sha }}
+        name: RewindBox-${{ inputs.build_number || '480' }}-neoswap-native-${{ github.sha }}
         path: build/delivery/neoswap/
         if-no-files-found: error
         retention-days: 14
@@ -985,7 +985,7 @@ jobs:
     - name: Download pinned Dusklight 2.0.3 Core
       uses: actions/download-artifact@v4
       with:
-        name: NeoStation-Dusklight-Core-${{ env.DUSKLIGHT_CORE_HOST_SHA }}
+        name: RewindBox-Dusklight-Core-${{ env.DUSKLIGHT_CORE_HOST_SHA }}
         run-id: ${{ env.DUSKLIGHT_CORE_RUN_ID }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/dusklight

@@ -195,7 +195,7 @@ extension _ThemeBackground on _SystemCardGridViewState {
       final backgroundColor = Theme.of(
         context,
       ).scaffoldBackgroundColor.toARGB32();
-      final systemName = (info.shortName ?? info.title ?? 'NEOSTATION')
+      final systemName = (info.shortName ?? info.title ?? 'RewindBox')
           .toUpperCase();
 
       _secondaryDisplayState?.updateState(
@@ -244,7 +244,7 @@ extension _ThemeBackground on _SystemCardGridViewState {
     }
 
     final backgroundColor = Theme.of(context).scaffoldBackgroundColor.toARGB32();
-    final systemName = (info.shortName ?? info.title ?? "NEOSTATION")
+    final systemName = (info.shortName ?? info.title ?? "RewindBox")
         .toUpperCase();
     _secondaryDisplayState?.updateState(
       systemName: systemName,

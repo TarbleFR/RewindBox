@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-21",
+  "branch": "main",
+  "base": "e199077bf62a72d8f38b570f994264f325e347b9",
+  "screenshot": {
+    "file": "assets/readme/rewindbox-preview.png",
+    "sha256": "1548185a5f36f6d98e9ea8061780e09ed0ec935c344ccf0259eec62fb332cc84",
+    "width": 2504,
+    "height": 1153,
+    "bytes": 5433099,
+    "origin": "Maintainer-supplied console-library screenshot; no graphical alteration"
+  },
+  "scope": [
+    "ROM folder help in twelve languages",
+    "Wii motion permission in twelve languages and canonical header",
+    "Fallback titles, fresh-database description and BIOS display path",
+    "Current build/provenance repository endpoints and workflow display labels",
+    "README screenshot and obsolete installer documentation"
+  ],
+  "preserved": [
+    "Existing database rows and storage paths",
+    "Bundle ids, method channels, preference keys and native ABI",
+    "Upstream source/license attribution",
+    "All catalogue payload bytes and original release binaries"
+  ],
+  "validation": {
+    "local": {
+      "success": false,
+      "scripts": [
+        {
+          "test": "test/retroarch_baseline_scope_test.py",
+          "status": 0
+        },
+        {
+          "test": "test/rewindbox_branding_test.py",
+          "status": 0
+        },
+        {
+          "test": "test/rewindbox_branding_followup_test.py",
+          "status": 0,
+          "prior_attempt_retained_in": "main-followup-tests-first.json"
+        },
+        {
+          "test": "test/dolphin_motion_localizations_test.py",
+          "status": 0
+        },
+        {
+          "test": "test/localization_12_locale_coverage_test.py",
+          "status": 0
+        },
+        {
+          "test": "test/legal_bundle_preflight_test.py",
+          "status": 1,
+          "prior_attempt_retained_in": "main-followup-tests-first.json"
+        },
+        {
+          "test": "test/rpcs3_ipa_validation_test.py",
+          "status": 0
+        }
+      ],
+      "initial_attempt": "Task-local embedded Python import isolation corrected; neutral ROM-help translations completed, without weakening checks."
+    },
+    "Flutter": "Actual analysis and affected tests configured in pull-request CI; not claimed passed until observed.",
+    "iPhone": "Not performed",
+    "legal_preflight": {
+      "status": 0,
+      "output": "Validated all required notices and pinned revisions before compilation\n"
+    },
+    "local_platform_limits": [
+      "The POSIX archive/path and symlink test fixtures cannot pass under this Windows account. They are unchanged and will run on Linux CI. No Windows privilege or operating-system setting is changed."
+    ]
+  },
+  "no_new_release_or_ipa": true,
+  "package_declaration_review": {
+    "updated_declarations": 0,
+    "original_license_and_dependency_bytes_unchanged": true
+  }
+}

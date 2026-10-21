@@ -594,7 +594,7 @@ const Map<String, dynamic> appLocaleKo = {
   AppLocale.selectRomFolder: 'ROM 폴더 선택',
   AppLocale.romFolderSelected: 'ROM 폴더가 선택되었습니다!',
   AppLocale.chooseRomFolderDesc:
-      'ROM 파일이 저장된 폴더를 선택하세요.\n\nNeoStation이 이 폴더에서 게임을 검색합니다.',
+      'ROM 파일이 저장된 폴더를 선택하세요.\n\nRewindBox이 이 폴더에서 게임을 검색합니다.',
   AppLocale.setupComplete: '설정 완료!',
   AppLocale.scanningRoms: 'ROM 스캔',
   AppLocale.foundSystemsWithGames: '게임이 있는 {count}개의 시스템을 찾았습니다!',

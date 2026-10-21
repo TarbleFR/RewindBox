@@ -649,7 +649,7 @@ const Map<String, dynamic> appLocaleRu = {
   AppLocale.screenReturnAccessHint: 'Включите RewindBox и нажмите «Разрешить»',
   AppLocale.selectRomFolder: 'Выбрать папку ROM',
   AppLocale.romFolderSelected: 'Папка ROM выбрана!',
-  AppLocale.chooseRomFolderDesc: 'Выберите папку, где хранятся ваши ROM.',
+  AppLocale.chooseRomFolderDesc: 'Выберите папку, где хранятся ваши ROM.\n\nRewindBox просканирует эту папку в поисках игр.',
   AppLocale.setupComplete: 'Настройка завершена!',
   AppLocale.scanningRoms: 'Сканирование ROM',
   AppLocale.foundSystemsWithGames: 'Найдено систем с играми: {count}',

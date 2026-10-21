@@ -188,7 +188,7 @@ def main() -> None:
         "schema": 1,
         "build_number": str(args.build_number),
         "host_commit": os.environ.get("GITHUB_SHA", ""),
-        "source_repository": "https://github.com/TarbleFR/neostation-ios",
+        "source_repository": "https://github.com/TarbleFR/RewindBox",
         "dolphin": {
             "repository": "https://github.com/OatmealDome/dolphin-ios",
             "revision": args.dolphin_sha,

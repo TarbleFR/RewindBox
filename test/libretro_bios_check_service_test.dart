@@ -140,7 +140,7 @@ void main() {
       var gb = result(await fixture.check(), 'gb-boot');
       expect(gb.status, LibretroBiosStatus.verified);
       expect(gb.matchedDump?.md5, crypto.md5.convert(good).toString());
-      expect(gb.found?.displayPath, 'NeoStation/Libretro/System/gb_bios.bin');
+      expect(gb.found?.displayPath, 'RewindBox/Libretro/System/gb_bios.bin');
       expect(gb.need, LibretroBiosNeed.optional);
       expect(gb.neededNow, isFalse);
 
