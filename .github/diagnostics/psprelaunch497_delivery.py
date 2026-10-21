@@ -127,7 +127,7 @@ def _private_501_rpc_core_view(pin):
         "'repository':'https://github.com/TarbleFR/neostation-ios'",
         "'repository':'https://github.com/TarbleFR/RewindBox'"
     )
-    expected += ("\n  delivery500:\n"
+    expected += ("\n\n  delivery500:\n"
                  "    if: ${{ inputs.phase == 'delivery500' }}\n"
                  "    uses: ./.github/workflows/ps1-rpcs3-delivery500.yml\n"
                  "    with:\n"
