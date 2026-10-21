@@ -159,6 +159,31 @@ Case("parallel stop requests are harmless", () => {
         () => { while (life.RenderAllowed) Thread.Yield(); }, () => {}, () => {});
     life.Dispose(() => {});
 });
+Case("generation gates prepared and stale input", () => {
+    var owner = new EmbeddedSessionCoordinator(); long id=owner.Prepare(); int writes=0;
+    Check(owner.WithInputs(id,()=>writes++) && !owner.WithInputs(id+1,()=>writes++));
+    owner.CancelPrepared(id); Check(!owner.WithInputs(id,()=>writes++));
+    long next=owner.Prepare(); Check(!owner.WithInputs(id,()=>writes++) && owner.WithInputs(next,()=>writes++));
+    Check(writes==2); owner.CancelPrepared(next);
+});
+Case("withdrawal and stop seal input before resource cleanup", () => {
+    var owner=new EmbeddedSessionCoordinator();long id=owner.Prepare();int writes=0;
+    Check(owner.Run(id,()=>{
+        owner.PublishControls(()=>{},_=>{}); Check(owner.WithInputs(id,()=>writes++));
+        owner.WithdrawControls(); Check(!owner.WithInputs(id,()=>writes++));
+        owner.PublishControls(()=>{},_=>{}); Check(owner.WithInputs(id,()=>writes++));
+        owner.Stop(id); Check(!owner.WithInputs(id,()=>writes++)); return 0;
+    })==0 && writes==2 && !owner.WithInputs(id,()=>writes++));
+});
+Case("stop waits for in-flight input to finish", () => {
+    var owner=new EmbeddedSessionCoordinator();long id=owner.Prepare();
+    using var entered=new ManualResetEventSlim();using var release=new ManualResetEventSlim();
+    using var stopping=new ManualResetEventSlim();
+    var input=Task.Run(()=>owner.WithInputs(id,()=>{entered.Set();Wait(release);}));Wait(entered);
+    var stop=Task.Run(()=>{stopping.Set();return owner.Stop(id);});Wait(stopping);Check(!stop.IsCompleted);
+    release.Set();Check(input.GetAwaiter().GetResult() && stop.GetAwaiter().GetResult());
+    Check(!owner.WithInputs(id,()=>throw new Exception()));owner.CancelPrepared(id);
+});
 Console.WriteLine($"Embedded session and window lifetime: {passed} cases passed.");
 ''')
     subprocess.run(['dotnet', 'run', '--project', str(work / 'Session.csproj'), '-c', 'Release'], check=True, timeout=120)

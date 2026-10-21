@@ -9,6 +9,7 @@ run-name: MeloNX engine • ${{ github.sha }}
       - 'native/melonx/**'
       - 'test/melonx_bootstrap_test.py'
       - 'test/melonx_session_test.py'
+      - 'test/melonx_input_test.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -55,6 +56,8 @@ jobs:
           git -C .native-sources/LibHac remote add origin https://starforgejo.dev/archive/LibHac_Ryubing.git
           git -C .native-sources/LibHac fetch --depth 1 origin 23e402ebb6dedc517e34a98a033078dc0f6fd478
           git -C .native-sources/LibHac checkout --detach FETCH_HEAD
+      - name: Execute production input driver ownership
+        run: python3 test/melonx_input_test.py .native-sources/MeloNX
       - name: Compile NativeAOT library and verify exported ABI
         env:
           MELONX_REUSE_LIBHAC: '1'

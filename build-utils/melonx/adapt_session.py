@@ -52,7 +52,8 @@ def apply(source):
                 if (OperatingSystem.IsWindows())
                     _windowsMultimediaTimerResolution = new WindowsMultimediaTimerResolution(1);
                 DisplaySleep.Prevent();
-                _window.Initialize(_emulationContext, _inputConfiguration, _enableKeyboard, _enableMouse);
+                lock (inputConfigurationLock)
+                    _window.Initialize(_emulationContext, _inputConfiguration, _enableKeyboard, _enableMouse);
                 EmbeddedSessions.PublishControls(_window.Exit, paused =>
                 {
                     _emulationContext.System.TogglePauseEmulation(paused);

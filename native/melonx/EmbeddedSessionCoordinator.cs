@@ -11,6 +11,7 @@ internal sealed class EmbeddedSessionCoordinator
     private int _state; // 0 idle, 1 prepared, 2 running, 3 stopping, 4 quarantined
     private bool _executing;
     private bool _stopRequested;
+    private bool _inputsOpen;
     private Action _stop;
     private Action<bool> _pause;
     internal string LastFailure { get; private set; }
@@ -24,6 +25,7 @@ internal sealed class EmbeddedSessionCoordinator
             _generation = checked(_generation + 1);
             _state = 1;
             _stopRequested = false;
+            _inputsOpen = true;
             LastFailure = null;
             return _generation;
         }
@@ -35,6 +37,7 @@ internal sealed class EmbeddedSessionCoordinator
         {
             if (generation != _generation || _executing || _state == 0 || _state == 4) return false;
             _state = 0;
+            _inputsOpen = false;
             return true;
         }
     }
@@ -45,6 +48,7 @@ internal sealed class EmbeddedSessionCoordinator
         {
             if (generation != _generation || _state == 0 || _state == 4) return false;
             _stopRequested = true;
+            _inputsOpen = false;
             _state = 3;
             _stop?.Invoke();
             return true;
@@ -63,6 +67,16 @@ internal sealed class EmbeddedSessionCoordinator
 
     internal bool IsStopping { get { lock (_gate) return _stopRequested; } }
 
+    internal bool WithInputs(long generation, Action input)
+    {
+        lock (_gate)
+        {
+            if (generation != _generation || !_inputsOpen || (_state != 1 && _state != 2)) return false;
+            input();
+            return true;
+        }
+    }
+
     // These callbacks must only signal live objects; never join or dispose.
     internal void PublishControls(Action stop, Action<bool> pause)
     {
@@ -71,13 +85,14 @@ internal sealed class EmbeddedSessionCoordinator
             if (!_executing) throw new InvalidOperationException("No session owner.");
             _stop = stop;
             _pause = pause;
+            _inputsOpen = !_stopRequested;
             if (_stopRequested) _stop();
         }
     }
 
     internal void WithdrawControls()
     {
-        lock (_gate) { _stop = null; _pause = null; }
+        lock (_gate) { _stop = null; _pause = null; _inputsOpen = false; }
     }
 
     internal int Run(long generation, Func<int> run)
@@ -103,6 +118,7 @@ internal sealed class EmbeddedSessionCoordinator
                 _stop = null;
                 _pause = null;
                 _executing = false;
+                _inputsOpen = false;
                 // A native/managed failure may have left partial engine state.
                 // Require a process restart instead of reusing unknown handles.
                 _state = failed ? 4 : 0;
