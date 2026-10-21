@@ -197,7 +197,7 @@ def simulator_job(run,source,name,folder):
         problems.append(found.group(1).strip())
     if not problems or not all(KNOWN_PROBE_LIMITATION.fullmatch(problem) for problem in problems):
         raise ValueError('The probe job failed for another reason: '+'; '.join(problems))
-    subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/neostation-ios',
+    subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/RewindBox',
         '--name','libretro-simulator-probe-'+source,'--dir',str(folder)],check=True)
     reports=list(Path(folder).rglob('probe.json'))
     if len(reports)!=1:raise ValueError('Ambiguous or missing probe report')
@@ -222,7 +222,7 @@ def evidence():
             run,source,job=PROOFS[part]
             records.append(part_run(run,source,job))
             folder=Path(tmp)/part
-            subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/neostation-ios',
+            subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/RewindBox',
                 '--name',f'build486-{part}-'+source,'--dir',str(folder)],check=True)
             files=list(folder.rglob(f'{part}-verdict.json'))
             if len(files)!=1:raise ValueError('Ambiguous or missing verdict: '+part)
@@ -234,7 +234,7 @@ def evidence():
         for name in SIMULATOR_JOBS:
             records.append(simulator_job(run,source,name,Path(tmp)/('job-'+name)))
         folder=Path(tmp)/'mesen'
-        subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/neostation-ios',
+        subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/RewindBox',
             '--name','libretro-simulator-mesen-'+source,'--dir',str(folder)],check=True)
         reports=list(folder.rglob('probe.json'))
         if len(reports)!=1:raise ValueError('Ambiguous or missing Simulator report')

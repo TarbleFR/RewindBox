@@ -27,7 +27,7 @@ jobs:
           gh release upload 0.0.8 release-output/*
       - uses: actions/upload-artifact@v4
         with:
-          name: NeoStation-0.0.8-release-evidence
+          name: RewindBox-0.0.8-release-evidence
           path: |
             release-output/*.json
             release-output/*SHA256SUMS.txt

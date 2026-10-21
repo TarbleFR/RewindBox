@@ -92,12 +92,12 @@ def evidence():
         base.successful_run(CORE_RUN,CORE_SOURCE,CORE_JOBS),
         base.successful_run(APP_RUN,TESTED_SOURCE,['targeted'])]
     with tempfile.TemporaryDirectory(prefix='hdtex485-proof-') as tmp:
-        subprocess.run(['gh','run','download',str(APP_RUN),'--repo','TarbleFR/neostation-ios',
+        subprocess.run(['gh','run','download',str(APP_RUN),'--repo','TarbleFR/RewindBox',
             '--name','build485-'+TESTED_SOURCE,'--dir',tmp],check=True)
         files=list(Path(tmp).rglob('verdict.json'))
         if len(files)!=1:raise ValueError('Ambiguous or missing targeted verdict')
         raw=files[0].read_bytes();verdict=json.loads(raw)
-        subprocess.run(['gh','run','download',str(CORE_RUN),'--repo','TarbleFR/neostation-ios',
+        subprocess.run(['gh','run','download',str(CORE_RUN),'--repo','TarbleFR/RewindBox',
             '--name','ARMSX2Core-diagnostics-'+CORE_SOURCE,'--dir',tmp+'/core'],check=True)
         identity=(Path(tmp)/'core'/'identity.txt').read_text()
     if verdict['result']!='passed' or verdict['source']!=TESTED_SOURCE or verdict['build']!=485:

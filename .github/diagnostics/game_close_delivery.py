@@ -72,7 +72,7 @@ def ui_evidence():
                and s.get('conclusion') == 'success' for s in jobs[0]['steps']):
         raise ValueError('Actual Flutter return-label tests did not pass')
     with tempfile.TemporaryDirectory(prefix='game-close-witness-') as tmp:
-        subprocess.run(['gh', 'run', 'download', str(UI_RUN), '--repo', 'TarbleFR/neostation-ios',
+        subprocess.run(['gh', 'run', 'download', str(UI_RUN), '--repo', 'TarbleFR/RewindBox',
                         '--name', 'game-close-status-' + UI_REF, '--dir', tmp], check=True)
         paths = list(Path(tmp).rglob('verdict.json'))
         if len(paths) != 1:

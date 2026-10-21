@@ -34,7 +34,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--runs', default=str(ROOT / 'tools/textures/ci-records.json'))
     parser.add_argument('--verified', default=str(ROOT / 'tools/textures/verified.jsonl'))
-    parser.add_argument('--repository', default='TarbleFR/neostation-ios')
+    parser.add_argument('--repository', default='TarbleFR/RewindBox')
     args = parser.parse_args()
     verified = records(args.verified)
     runs = json.loads(Path(args.runs).read_text(encoding='utf-8'))['runs']

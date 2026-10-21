@@ -590,7 +590,7 @@ const Map<String, dynamic> appLocaleJa = {
   AppLocale.selectRomFolder: 'ROMフォルダを選択',
   AppLocale.romFolderSelected: 'ROMフォルダが選択されました！',
   AppLocale.chooseRomFolderDesc:
-      'ROMファイルが保存されているフォルダを選択してください。\n\nNeoStationはこのフォルダ内のゲームをスキャンします。',
+      'ROMファイルが保存されているフォルダを選択してください。\n\nRewindBoxはこのフォルダ内のゲームをスキャンします。',
   AppLocale.setupComplete: 'セットアップ完了！',
   AppLocale.scanningRoms: 'ROMをスキャン中',
   AppLocale.foundSystemsWithGames: 'ゲームのあるシステムが{count}個見つかりました！',

@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 import plistlib
 import re
 
-REPOSITORY_URL = "https://github.com/TarbleFR/neostation-ios"
+REPOSITORY_URL = "https://github.com/TarbleFR/RewindBox"
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
     "PACKAGE_SOURCES_AND_LICENSES.md",

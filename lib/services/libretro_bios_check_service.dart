@@ -189,7 +189,7 @@ class LibretroBiosEnvironment {
   /// `Library/Caches/Libretro/bios-check-v1.json`, the only file written.
   final String cacheFile;
 
-  /// Shown as "NeoStation" (Files › On My iPhone › NeoStation).
+  /// Shown as "RewindBox" (Files › On My iPhone › RewindBox).
   final String? documentsDirectory;
 
   /// Cores packaged in this build; null when unknown (every core).
@@ -999,7 +999,7 @@ class _Scan {
   String _display(String path) {
     final documents = environment.documentsDirectory;
     if (documents != null && p.isWithin(documents, path)) {
-      return 'NeoStation/${p.relative(path, from: documents).replaceAll(r'\', '/')}';
+      return 'RewindBox/${p.relative(path, from: documents).replaceAll(r'\', '/')}';
     }
     return path;
   }

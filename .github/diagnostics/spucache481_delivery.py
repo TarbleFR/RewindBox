@@ -88,7 +88,7 @@ def evidence():
     records=[previous.successful_run(39132356516,DELIVERED,['checks','native','Release device build • cold']),
         previous.successful_run(CORE_RUN,CORE_SOURCE,[CORE_JOB])]
     with tempfile.TemporaryDirectory(prefix='spucache481-proof-') as tmp:
-        subprocess.run(['gh','run','download',str(CORE_RUN),'--repo','TarbleFR/neostation-ios',
+        subprocess.run(['gh','run','download',str(CORE_RUN),'--repo','TarbleFR/RewindBox',
             '--name','RPCS3Core-diagnostics-'+CORE_SOURCE,'--dir',tmp],check=True)
         proof=(Path(tmp)/'spu-object-cache-proof.txt').read_text()
         identity=json.loads((Path(tmp)/'identity.json').read_text())

@@ -89,7 +89,7 @@ def evidence():
     records=[base.successful_run(39157242359,DELIVERED,['checks','native','Release device build • cold']),
         base.successful_run(CORE_RUN,CORE_SOURCE,[CORE_JOB])]
     with tempfile.TemporaryDirectory(prefix='llvmpipe483-proof-') as tmp:
-        subprocess.run(['gh','run','download',str(CORE_RUN),'--repo','TarbleFR/neostation-ios',
+        subprocess.run(['gh','run','download',str(CORE_RUN),'--repo','TarbleFR/RewindBox',
             '--name','RPCS3Core-diagnostics-'+CORE_SOURCE,'--dir',tmp],check=True)
         cache_proof=(Path(tmp)/'spu-object-cache-proof.txt').read_text()
         pipeline_proof=(Path(tmp)/'llvm-pipeline-proof.txt').read_text()

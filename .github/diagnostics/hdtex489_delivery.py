@@ -140,7 +140,7 @@ def evidence():
             run,source,job=PROOFS[part]
             records.append(part_run(run,source,job))
             folder=Path(tmp)/part
-            subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/neostation-ios',
+            subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/RewindBox',
                 '--name',f'build486-{part}-'+source,'--dir',str(folder)],check=True)
             files=list(folder.rglob(f'{part}-verdict.json'))
             if len(files)!=1:raise ValueError('Ambiguous or missing verdict: '+part)
@@ -153,7 +153,7 @@ def evidence():
         run,source,job=SIMULATOR
         records.append(part_run(run,source,job))
         folder=Path(tmp)/'beetle'
-        subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/neostation-ios',
+        subprocess.run(['gh','run','download',str(run),'--repo','TarbleFR/RewindBox',
             '--name','libretro-simulator-beetle-'+source,'--dir',str(folder)],check=True)
         reports=list(folder.rglob('probe.json'))
         if len(reports)!=1:raise ValueError('Ambiguous or missing Simulator report')

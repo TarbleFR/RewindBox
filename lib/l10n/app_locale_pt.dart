@@ -648,7 +648,7 @@ const Map<String, dynamic> appLocalePt = {
   AppLocale.screenReturnAccessHint: 'Ative o RewindBox e toque em Permitir',
   AppLocale.selectRomFolder: 'Selecionar Pasta de ROMs',
   AppLocale.romFolderSelected: 'Pasta de ROMs selecionada!',
-  AppLocale.chooseRomFolderDesc: 'Escolha a pasta onde seus arquivos ROM estão armazenados.\n\nNeoStation varrerá esta pasta em busca de jogos.',
+  AppLocale.chooseRomFolderDesc: 'Escolha a pasta onde seus arquivos ROM estão armazenados.\n\nRewindBox varrerá esta pasta em busca de jogos.',
   AppLocale.setupComplete: 'Configuração concluída!',
   AppLocale.scanningRoms: 'Varrendo ROMs',
   AppLocale.foundSystemsWithGames: '{count} sistemas com jogos encontrados!',

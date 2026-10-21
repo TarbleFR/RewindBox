@@ -263,7 +263,7 @@ def main() -> None:
         "schema": 1,
         "build_number": str(args.build_number),
         "host_commit": os.environ.get("GITHUB_SHA", ""),
-        "source_repository": "https://github.com/TarbleFR/neostation-ios",
+        "source_repository": "https://github.com/TarbleFR/RewindBox",
         "build_source_evidence_sha256": hashlib.sha256(
             source_files["BUILD_SOURCE_EVIDENCE.json"]
         ).hexdigest(),

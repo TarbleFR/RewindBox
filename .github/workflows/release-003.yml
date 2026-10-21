@@ -39,7 +39,7 @@ jobs:
           gh release edit 0.0.3 --target "$GITHUB_SHA" --title 'NeoStation iOS 0.0.3' --notes-file docs/RELEASE_0.0.3.md
       - uses: actions/upload-artifact@v4
         with:
-          name: NeoStation-0.0.3-release-evidence
+          name: RewindBox-0.0.3-release-evidence
           path: |
             release-output/release-validation.json
             release-output/signature.json

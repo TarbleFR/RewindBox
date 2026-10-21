@@ -4,6 +4,8 @@
 
 ### Your games, consoles and library on iPhone and iPad
 
+<img src="assets/readme/rewindbox-preview.png" alt="RewindBox console library on iPhone" width="1100">
+
 [![Platform](https://img.shields.io/badge/iOS-18%2B-blue)](https://github.com/TarbleFR/RewindBox/releases/latest)
 [![Frontend license](https://img.shields.io/badge/Frontend-GPLv3-blue)](LICENSE.md)
 

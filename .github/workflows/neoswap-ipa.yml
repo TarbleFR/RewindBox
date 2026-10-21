@@ -139,7 +139,7 @@ jobs:
     # Core-only development commits validate their native engine separately,
     # not a mislabeled full NeoStation IPA.
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[neoswap-ipa]') }}
-    name: Neostation iOS 0.0.2 private IPA (421)
+    name: RewindBox 0.0.2 private IPA (421)
     runs-on: macos-15
     timeout-minutes: 210
     env:

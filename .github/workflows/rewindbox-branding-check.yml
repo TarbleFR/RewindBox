@@ -1,0 +1,72 @@
+name: RewindBox branding verification
+'on':
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rewindbox-branding-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Syntax, branding and immutable baseline checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check HEAD^ HEAD
+          python3 test/rewindbox_branding_test.py
+          python3 test/rewindbox_branding_followup_test.py
+          python3 test/retroarch_baseline_scope_test.py
+          python3 test/dolphin_motion_localizations_test.py
+          python3 test/localization_12_locale_coverage_test.py
+          python3 test/legal_bundle_preflight_test.py
+          python3 test/rpcs3_ipa_validation_test.py
+          if [ -f test/build_source_evidence_test.py ]; then python3 test/build_source_evidence_test.py; fi
+          python3 - <<'PY'
+          import ast, json, pathlib, subprocess
+          for name in subprocess.check_output(['git','diff','--name-only','HEAD^','HEAD'],text=True).splitlines():
+              path=pathlib.Path(name)
+              if not path.is_file(): continue
+              if path.suffix=='.py': ast.parse(path.read_text(encoding='utf-8'),filename=name)
+              if path.suffix=='.json': json.loads(path.read_text(encoding='utf-8'))
+          PY
+          node --check web-installer/api/index.js
+          node --check web-installer/api/manifest.js
+  flutter:
+    name: Lint, Analysis & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - name: Resolve locked packages
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze the complete application
+        run: flutter analyze --no-pub
+      - name: Test changed branding, paths, translations and credits
+        run: >-
+          flutter test --no-pub
+          test/rewindbox_wordmark_test.dart
+          test/libretro_bios_check_service_test.dart
+          test/libretro_bios_checker_screen_test.dart
+          test/startup_locale_test.dart
+          test/app_locale_ko_test.dart
+          test/legal_credits_dialog_test.dart

@@ -58,7 +58,7 @@ def command(args):
 
 
 def api(path):
-    return json.loads(command(['gh', 'api', 'repos/TarbleFR/neostation-ios/' + path]))
+    return json.loads(command(['gh', 'api', 'repos/TarbleFR/RewindBox/' + path]))
 
 
 def core_module():
@@ -167,7 +167,7 @@ def core_evidence():
     with tempfile.TemporaryDirectory(prefix='rpcs3-499-proof-') as tmp:
         path = Path(tmp) / 'diagnostics.zip'
         with path.open('wb') as handle:
-            subprocess.run(['gh', 'api', f"repos/TarbleFR/neostation-ios/actions/artifacts/{matches[0]['id']}/zip"], stdout=handle, check=True)
+            subprocess.run(['gh', 'api', f"repos/TarbleFR/RewindBox/actions/artifacts/{matches[0]['id']}/zip"], stdout=handle, check=True)
         with zipfile.ZipFile(path) as archive:
             for name, needle in [('build499-proof.txt', 'PASS: Build 499 SHUFB masks'),
                 ('spu-object-cache-proof.txt', 'PASS'), ('llvm-pipeline-proof.txt', 'PASS'),

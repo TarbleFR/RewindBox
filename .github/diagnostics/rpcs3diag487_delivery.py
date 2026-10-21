@@ -128,12 +128,12 @@ def evidence():
     records=[base.successful_run(DELIVERED_RUN,DELIVERED,['checks','native','Release device build • cold']),
         base.successful_run(CORE_RUN,CORE_SOURCE,[CORE_JOB])]
     with tempfile.TemporaryDirectory(prefix='rpcs3diag487-proof-') as tmp:
-        meta=json.loads(base.command(['gh','api',f'repos/TarbleFR/neostation-ios/actions/artifacts/{CORE_DIAGNOSTICS_ARTIFACT}']))
+        meta=json.loads(base.command(['gh','api',f'repos/TarbleFR/RewindBox/actions/artifacts/{CORE_DIAGNOSTICS_ARTIFACT}']))
         if meta['name']!='RPCS3Core-diagnostics-'+CORE_SOURCE or meta['workflow_run']['id']!=CORE_RUN or meta['expired']:
             raise ValueError('Pinned Core diagnostics artifact differs: '+json.dumps(meta)[:400])
         archive=Path(tmp)/'diagnostics.zip'
         with archive.open('wb') as handle:
-            subprocess.run(['gh','api',f'repos/TarbleFR/neostation-ios/actions/artifacts/{CORE_DIAGNOSTICS_ARTIFACT}/zip'],
+            subprocess.run(['gh','api',f'repos/TarbleFR/RewindBox/actions/artifacts/{CORE_DIAGNOSTICS_ARTIFACT}/zip'],
                 stdout=handle,check=True)
         import zipfile
         with zipfile.ZipFile(archive) as z:

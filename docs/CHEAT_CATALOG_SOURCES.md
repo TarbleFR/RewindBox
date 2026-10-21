@@ -2,7 +2,7 @@
 
 This attribution record covers the **51 contributing source entries** in the
 catalogue shipped with private **Builds 478 and 479**. It is documentation for
-the development source tree; the current official release remains **0.0.7 / Build 455**.
+the development source tree; the current official release is **RewindBox 0.0.8 / Build 480**.
 
 The catalogue contains **2,395,549 programs/edition variants**, **50,284 typed
 identity groups** and **51,652 transport records** in **874 packs**. Source

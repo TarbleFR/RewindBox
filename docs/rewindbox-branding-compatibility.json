@@ -52,6 +52,75 @@
         "new": "  <string>RewindBox RPCS3 JIT Helper</string>",
         "count": 1
       }
+    ],
+    "lib/data/datasources/sqlite_service.dart": [
+      {
+        "old": "                  'Collection of all systems available in NeoStation.')\n",
+        "new": "                  'Collection of all systems available in RewindBox.')\n",
+        "count": 1
+      }
+    ],
+    "native/dolphin_motion/strings.json": [
+      {
+        "old": "    \"usage\": \"NeoStation uses device motion to simulate Wii Remote shakes while you play.\",\n",
+        "new": "    \"usage\": \"RewindBox uses device motion to simulate Wii Remote shakes while you play.\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"NeoStation utilise les mouvements de l’appareil pour simuler les secousses de la Wiimote pendant le jeu.\",\n",
+        "new": "    \"usage\": \"RewindBox utilise les mouvements de l’appareil pour simuler les secousses de la Wiimote pendant le jeu.\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"NeoStation nutzt Gerätebewegungen, um beim Spielen das Schütteln der Wii-Fernbedienung zu simulieren.\",\n",
+        "new": "    \"usage\": \"RewindBox nutzt Gerätebewegungen, um beim Spielen das Schütteln der Wii-Fernbedienung zu simulieren.\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"NeoStation usa el movimiento del dispositivo para simular sacudidas del mando de Wii durante el juego.\",\n",
+        "new": "    \"usage\": \"RewindBox usa el movimiento del dispositivo para simular sacudidas del mando de Wii durante el juego.\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"NeoStation usa il movimento del dispositivo per simulare le scosse del telecomando Wii durante il gioco.\",\n",
+        "new": "    \"usage\": \"RewindBox usa il movimento del dispositivo per simulare le scosse del telecomando Wii durante il gioco.\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"O NeoStation usa os movimentos do aparelho para simular sacudidas do Wii Remote durante o jogo.\",\n",
+        "new": "    \"usage\": \"O RewindBox usa os movimentos do aparelho para simular sacudidas do Wii Remote durante o jogo.\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"NeoStation использует движение устройства для имитации встряхивания Wii Remote во время игры.\",\n",
+        "new": "    \"usage\": \"RewindBox использует движение устройства для имитации встряхивания Wii Remote во время игры.\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"NeoStation memakai gerakan perangkat untuk menyimulasikan goyangan Wii Remote saat bermain.\",\n",
+        "new": "    \"usage\": \"RewindBox memakai gerakan perangkat untuk menyimulasikan goyangan Wii Remote saat bermain.\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"NeoStationは本体の動きを使用して、プレイ中にWiiリモコンを振る操作を再現します。\",\n",
+        "new": "    \"usage\": \"RewindBoxは本体の動きを使用して、プレイ中にWiiリモコンを振る操作を再現します。\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"NeoStation은 기기의 움직임으로 게임 중 Wii 리모컨을 흔드는 동작을 재현합니다.\",\n",
+        "new": "    \"usage\": \"RewindBox은 기기의 움직임으로 게임 중 Wii 리모컨을 흔드는 동작을 재현합니다.\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"NeoStation使用设备运动来模拟游戏中的Wii遥控器摇动操作。\",\n",
+        "new": "    \"usage\": \"RewindBox使用设备运动来模拟游戏中的Wii遥控器摇动操作。\",\n",
+        "count": 1
+      },
+      {
+        "old": "    \"usage\": \"NeoStation使用裝置動作來模擬遊戲中的Wii遙控器搖動操作。\",\n",
+        "new": "    \"usage\": \"RewindBox使用裝置動作來模擬遊戲中的Wii遙控器搖動操作。\",\n",
+        "count": 1
+      }
     ]
   }
 }

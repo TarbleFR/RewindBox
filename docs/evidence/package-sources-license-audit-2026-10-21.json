@@ -8,14 +8,14 @@
   "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
   "source_declaration_sha256": {
     "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
-    "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec": "0f68b77ca91769be0588b21f4719a16e7a791e80f7d480fa2da27e9236b99316",
-    "packages/armsx2_internal_bridge/pubspec.yaml": "4cdf4ae8b944e552080a3f0dcdddb7ae72679869ffe887eb7735402d2dee361c",
-    "packages/armsx2_jit_helper/ios/armsx2_jit_helper.podspec": "acaec835e55742dc16828150a140de1f840f471138e0fbbe60074d3354d368db",
-    "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": "4d1a7a4d141d201a50571e62f50b0182aa88d5b0f7c51f712fe377184330fb59",
-    "packages/dolphin_internal_bridge/pubspec.yaml": "e570200a82570d586f0ccdfb6ff2b237f9d60e48b512146ae37c1c28fb197259",
-    "packages/dolphin_jit_helper/ios/dolphin_jit_helper.podspec": "92f5e475ddad5e9ef69a9cb8290e4ddb71defcd3e6910442936430b2d67d6f69",
-    "packages/external_display/ios/external_display.podspec": "b4cd79e3f82363911f1e6072f74133648e58383bc8778ef5ee7df59b05b41c44",
-    "packages/external_display/pubspec.yaml": "f4630a9182c40ce77a292d71ef7473b2e30c80eeec5c9fd35a3ab698e15917b8",
+    "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec": "0f8ffa61186c4c539bb8b11cd706a6f825b55c52a70cebaa07e19039e42343f1",
+    "packages/armsx2_internal_bridge/pubspec.yaml": "6e6b04bccb0e92b472dc60fca76976a689a669a03583a8be7e0731ff4e50773a",
+    "packages/armsx2_jit_helper/ios/armsx2_jit_helper.podspec": "78e07bad3c093625314e8e87c3f78b6c28e1ac4b2f17a375b9c494d95280a7cc",
+    "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": "36df673b046bd0eaf7eb6f0843f7c4d6f31e4b4c12e57d616fbc4b054fab799d",
+    "packages/dolphin_internal_bridge/pubspec.yaml": "fb54b382c1af42fd455617df5c472d4d83b3cbc0a0742d1f1394bf6e953a2b42",
+    "packages/dolphin_jit_helper/ios/dolphin_jit_helper.podspec": "dd30fc72c1eb9444313a2415cfddd9d777afc40d8755478887b1175d38725e5b",
+    "packages/external_display/ios/external_display.podspec": "43514d844f8cf7db7f9f26de9c2cef40bd661b6186e623dd5d83f40e66285919",
+    "packages/external_display/pubspec.yaml": "1d9e6cd26cabc165ad8d5137303ea5bc878c9611682381dfae1265706a7a4c5f",
     "packages/external_folder_access/ios/external_folder_access.podspec": "de75a4ef75f55d4bb3fe4c4230569815959e000d7fa65be12100c9a7efd802b5",
     "packages/external_folder_access/pubspec.yaml": "4d578af7472eb510a5045ba0b29adbc17377bf108a4d864bd4bd3790bbf33394",
     "packages/flutter_7zip/LICENSE": "814cf1a7e79dc6a3eda3d197fa7ded36c3b733917ed5da1e8cc135eb24f3ac09",
@@ -26,37 +26,37 @@
     "packages/gamepads/pubspec.yaml": "e03199aaa94f719789a549b110c3f5dc009a7d6e2c491d13bb71ae2d20ada10a",
     "packages/gamepads_darwin/LICENSE": "8a6d53ebf42673f22c631feb655f72d17ca72a44dc86c77c3d53a5edf6abb031",
     "packages/gamepads_darwin/ios/gamepads_darwin.podspec": "b263faa96cdcafbe4c9e3440de48b23291dcfc9608aea05f6d4db7a9209b48e0",
-    "packages/gamepads_darwin/pubspec.yaml": "64748ec90182a9d972327e723ddb8ddd9f71434f3af8f035e2f7671664f774a2",
+    "packages/gamepads_darwin/pubspec.yaml": "330adf3da02435a2985574a74e27e316af3a85ef6ecc2790c592cefd91477578",
     "packages/gamepads_platform_interface/pubspec.yaml": "7d6465b0612ad3ad228d789f3d1f83a5f684008f0cbde265e8574fc4a44d7c40",
     "packages/libretro_internal_bridge/ios/ThirdParty/include/libretro/SOURCE.txt": "ca755498f66af46d1b16be33a8fe61273ec0eb3e31a268dd169ad7696fa58d19",
     "packages/libretro_internal_bridge/ios/ThirdParty/include/vulkan/SOURCE.txt": "5f751c23fce52aa0b3250d5c7bff36a161106710796e08c20cc56e0d29492c04",
     "packages/libretro_internal_bridge/ios/ThirdParty/rcheevos/SOURCE.txt": "8ced90f0d91063b7bbd60bd2330b13bcfc2b8fc451fbf44478690c61e47316ec",
-    "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": "524d9b306d16a9e6905e4b55cf72ec7e1bc6cef3e2c2789ce792307621c31021",
-    "packages/libretro_internal_bridge/pubspec.yaml": "32cb5a8ba9f4e17dabc3d571f297fee3e3ed1012fe9b45502b131488b0979ff0",
-    "packages/neo_box_reader/ios/neo_box_reader.podspec": "571e03bc68469bf6d1b43ea1215120746bb457defebb5658e6de6cc88463801b",
+    "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": "1f6e51c0689b6e4935727624b18cf7657530bfaa0f50de0d7653b94ba0825890",
+    "packages/libretro_internal_bridge/pubspec.yaml": "3a036b3f6afee45d4b190c6e701eb761b2f39246e76ac0fb8086ddef515fc14b",
+    "packages/neo_box_reader/ios/neo_box_reader.podspec": "f370d75835c593d65622434d1f5dd9e39db6ceb9fa393d9dfee6be2c7a962da2",
     "packages/neo_box_reader/pubspec.yaml": "85092d8fafa6a20113030478639dc204a2d5870075c75c5093b792577a8d302c",
-    "packages/neo_cheat_catalog/ios/neo_cheat_catalog.podspec": "68da660d0c94e533a5a4f166f870927e925b0f51b767b8e192f1a3fa2e0321db",
-    "packages/neo_cheat_catalog/pubspec.yaml": "ed519161609953938481d1aa2e149b3f90744fd9a1b8d3af653759cd5df1e082",
+    "packages/neo_cheat_catalog/ios/neo_cheat_catalog.podspec": "a612ba4a989270dc2ed8cdfa0970c2b183a2217fa45beed62a588d3a7d9084f4",
+    "packages/neo_cheat_catalog/pubspec.yaml": "d355fbcf78c963206afb2bbaab34fd69887cd3b87647544274438d1adca354e9",
     "packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/SOURCE.txt": "6636f3bb09f5a3b50bc2cc36155accb6339ad7d53077f3dfd6cc19c5044ceb67",
     "packages/neo_shader_kit/ios/ThirdParty/glslang/SOURCE.txt": "dc3c8288c3bfe69c2451e885d8dda71a0474e5cdeb76c9644baeb210d580a778",
-    "packages/neo_shader_kit/ios/neo_shader_kit.podspec": "3b6e99f24ef547341514c17b733f9c87b6083895fe1b8d6e05afd70be24c97fe",
-    "packages/neo_shader_kit/pubspec.yaml": "6466195d36a40eda52323c4488e9ce2fb8eae4ec86ba0bc3fa9f4b910b3a3509",
-    "packages/neo_swap/ios/neo_swap.podspec": "527d5c46d5c11e8d0559195a150964243518def49f6dc036c8b58dbaf6db69de",
-    "packages/neo_swap/pubspec.yaml": "34c7e9828b3f613d0945783823ec133e447217ebc341b977d8049c0b9fb4d829",
-    "packages/neo_texture_catalog/ios/neo_texture_catalog.podspec": "560ae15d5b9b13bd334667f89a5f356eea0c836643e355f44c6e506c94b55805",
-    "packages/neo_texture_catalog/pubspec.yaml": "8335f56439e2c1c219f0e353aaa3c078c2892db0959d41aa87c39b9d76793369",
-    "packages/neo_touch_layout/ios/neo_touch_layout.podspec": "dc03a2eef47a82b78666486a43c10c3deaa7bddd21493ce38eb76e9719bb9d80",
-    "packages/neo_touch_layout/pubspec.yaml": "d6deb31fed10c9d7e9c2bd6c1ec7ae98912abe6724ac40bc6e85ee8de7730cab",
-    "packages/neoplay_bridge/ios/neoplay_bridge.podspec": "b0dd65993cb63b502ce1b6db7afe49aaad225c54c76e22902009529755edc166",
-    "packages/neoplay_bridge/pubspec.yaml": "7fe70b966b7f6992bf43bc65894f22485e054a86ffaf9d8ecb1589e9659886d7",
-    "packages/rpcs3_internal_bridge/ios/rpcs3_internal_bridge.podspec": "c98a0245428c53d2bdc3333bac1e4e64ee490e6c258484b83e50221940d04510",
-    "packages/rpcs3_internal_bridge/pubspec.yaml": "ace421f37f7d1e043f64bfb753422ca6bc3e24481b2e29faad05c14b4bd68299",
-    "packages/rpcs3_jit_helper/ios/rpcs3_jit_helper.podspec": "1c786a1c7b319db9f792512667c1578c34c6eccc74acecf9325756def23a6111",
-    "packages/stikjit_bridge/ios/stikjit_bridge.podspec": "6327dbf3255578b63ebbd1cd785fa97c95c5f6413c305f6df1d58b30f6410ab1",
-    "packages/stikjit_bridge/pubspec.yaml": "3e979582b1467a5284f2b7d9610cbd12a2b306f09f4692bbb0aa66ea0848cdd2",
-    "packages/ui_refresh_rate/ios/ui_refresh_rate.podspec": "4f286f1bf6d119a35182a7f7e34510748c753ec72b7a2b45449bca73f99bc710",
-    "packages/ui_refresh_rate/pubspec.yaml": "66eeda5a34d23e9cd771c764c8591ce2d63b02a0d17cbbb3cc56a18f0bee9dcb",
-    "pubspec.yaml": "bcd8449c7ddd364ca654c516b6b305e5ec10b9ef75fbc75af6404ea5a15121c3",
+    "packages/neo_shader_kit/ios/neo_shader_kit.podspec": "7357cecc906b087348972df016fd5da67108ea6b99a5a483f109c380a3bdc680",
+    "packages/neo_shader_kit/pubspec.yaml": "a967ba172ddf7784ae7e54443984b83e832db3f0657d9087c198cbacb67bda6e",
+    "packages/neo_swap/ios/neo_swap.podspec": "3e0e411267a82709dd25baf18c64d833bcd18e6f9e35c123389293fa5b87ae9f",
+    "packages/neo_swap/pubspec.yaml": "d3e883cc8a601da81ed8935ffafa5b9871ec77f76854001512906f443d8419c5",
+    "packages/neo_texture_catalog/ios/neo_texture_catalog.podspec": "499de71d44d05295a2a68999a0429de3e90dd0442aab97f4dacbed60324faf8f",
+    "packages/neo_texture_catalog/pubspec.yaml": "9c2a258009ddf30c29eec3a0b6d2a6d87b33b425b9c2a148d82608c1d446c9ee",
+    "packages/neo_touch_layout/ios/neo_touch_layout.podspec": "dec513375d1b4f395d1a28779dc57f759c2b2d17cad4897f509d867a62434474",
+    "packages/neo_touch_layout/pubspec.yaml": "08eb088e8647022257af6a2a79ac97810db7d527303564055b5bf187b35de1f1",
+    "packages/neoplay_bridge/ios/neoplay_bridge.podspec": "1ee514a08b4d136fefb7c589715990bbbaf56da587969c8d5cbe654d40532d7d",
+    "packages/neoplay_bridge/pubspec.yaml": "2402e9e96fdbcda4485eb78fb37b064d0c453941c3d9dcae2977625fd81e61cb",
+    "packages/rpcs3_internal_bridge/ios/rpcs3_internal_bridge.podspec": "7830e00754bc81ce3e5e6c013f88368efc75df75ad776880cddeec167b966a7c",
+    "packages/rpcs3_internal_bridge/pubspec.yaml": "e1588bf9869b8c6488adbf0974044c9454f7a51c9937cbf394a94d5919fe035e",
+    "packages/rpcs3_jit_helper/ios/rpcs3_jit_helper.podspec": "a2ccd002e1de024210b23fb4660a99ac1de237a34599a743d2c0a1de2e608ec0",
+    "packages/stikjit_bridge/ios/stikjit_bridge.podspec": "e5e8332e0bc011056b7e10111d6ad5fe632877876ce0bdcd2af78fc858bca55f",
+    "packages/stikjit_bridge/pubspec.yaml": "0e5bffb1dddf2412cf152c3db2847f4d5a9b286dc6db4082fabaa50deda46291",
+    "packages/ui_refresh_rate/ios/ui_refresh_rate.podspec": "dc38bce9457f988e014f1b79c43853044d0084fd5d0a31dd58db8b4e7cddde6b",
+    "packages/ui_refresh_rate/pubspec.yaml": "d9fe2b84c9d34a1851279f742b61ebc128359bfb8fbf3b9ad0810aba4628d842",
+    "pubspec.yaml": "cc9897ba289cb2531cd821b00d3aba7f77072533a380b24d8382bc098241e879",
     "pubspec_overrides.yaml": "392a1ad26ff8e4cdfa2c4035b56638e0923e0b91c2895bac2ad4b0527f65f3c5"
   },
   "summary": {
@@ -10720,5 +10720,194 @@
       "sha256": "dd7f70de8ba70474c6024c7a49c2f59e32c3d615b84470125fed13f34b5c1624",
       "bytes": 5198
     }
-  ]
+  ],
+  "branding_review": {
+    "date": "2026-10-21",
+    "previous_reviewed_head_preserved": "fab5ecf3b119b4d84636ad4f4d03218a96279871",
+    "original_declaration_commit": "08103f719d72f97f16f184ba1e367711ab6c19fe",
+    "reason": "Maintainer-requested NeoStation iOS to RewindBox rename. Every changed declaration is independently reconstructed from the original reviewed bytes using only display descriptions, fork author-label and same-repository URL substitutions. Dependency versions, constraints, license fields and actual source revisions are unchanged.",
+    "previous_source_declaration_sha256": {
+      "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec": "0f68b77ca91769be0588b21f4719a16e7a791e80f7d480fa2da27e9236b99316",
+      "packages/armsx2_internal_bridge/pubspec.yaml": "4cdf4ae8b944e552080a3f0dcdddb7ae72679869ffe887eb7735402d2dee361c",
+      "packages/armsx2_jit_helper/ios/armsx2_jit_helper.podspec": "acaec835e55742dc16828150a140de1f840f471138e0fbbe60074d3354d368db",
+      "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": "4d1a7a4d141d201a50571e62f50b0182aa88d5b0f7c51f712fe377184330fb59",
+      "packages/dolphin_internal_bridge/pubspec.yaml": "e570200a82570d586f0ccdfb6ff2b237f9d60e48b512146ae37c1c28fb197259",
+      "packages/dolphin_jit_helper/ios/dolphin_jit_helper.podspec": "92f5e475ddad5e9ef69a9cb8290e4ddb71defcd3e6910442936430b2d67d6f69",
+      "packages/external_display/ios/external_display.podspec": "b4cd79e3f82363911f1e6072f74133648e58383bc8778ef5ee7df59b05b41c44",
+      "packages/external_display/pubspec.yaml": "f4630a9182c40ce77a292d71ef7473b2e30c80eeec5c9fd35a3ab698e15917b8",
+      "packages/external_folder_access/ios/external_folder_access.podspec": "de75a4ef75f55d4bb3fe4c4230569815959e000d7fa65be12100c9a7efd802b5",
+      "packages/external_folder_access/pubspec.yaml": "4d578af7472eb510a5045ba0b29adbc17377bf108a4d864bd4bd3790bbf33394",
+      "packages/flutter_7zip/LICENSE": "814cf1a7e79dc6a3eda3d197fa7ded36c3b733917ed5da1e8cc135eb24f3ac09",
+      "packages/flutter_7zip/ios/flutter_7zip.podspec": "f2153c6a1d0e87b9c355bb0973245dca96c8896852b5d42b3ded6ca90fc3b9ac",
+      "packages/flutter_7zip/macos/flutter_7zip.podspec": "653d457ddcff5b538a6e85278b8259a7ca818f0a80fa9c07c7b76b957617b6da",
+      "packages/flutter_7zip/pubspec.yaml": "8daa1e0e84b78587830c2d040f110e26293ad260c02832b90b8856e2ffc42f99",
+      "packages/gamepads/LICENSE": "f73820c095b63eb1f10ba2d6a2a6945308f19f58df06b84f7a13871fa5c59261",
+      "packages/gamepads/pubspec.yaml": "e03199aaa94f719789a549b110c3f5dc009a7d6e2c491d13bb71ae2d20ada10a",
+      "packages/gamepads_darwin/LICENSE": "8a6d53ebf42673f22c631feb655f72d17ca72a44dc86c77c3d53a5edf6abb031",
+      "packages/gamepads_darwin/ios/gamepads_darwin.podspec": "b263faa96cdcafbe4c9e3440de48b23291dcfc9608aea05f6d4db7a9209b48e0",
+      "packages/gamepads_darwin/pubspec.yaml": "64748ec90182a9d972327e723ddb8ddd9f71434f3af8f035e2f7671664f774a2",
+      "packages/gamepads_platform_interface/pubspec.yaml": "7d6465b0612ad3ad228d789f3d1f83a5f684008f0cbde265e8574fc4a44d7c40",
+      "packages/libretro_internal_bridge/ios/ThirdParty/include/libretro/SOURCE.txt": "ca755498f66af46d1b16be33a8fe61273ec0eb3e31a268dd169ad7696fa58d19",
+      "packages/libretro_internal_bridge/ios/ThirdParty/include/vulkan/SOURCE.txt": "5f751c23fce52aa0b3250d5c7bff36a161106710796e08c20cc56e0d29492c04",
+      "packages/libretro_internal_bridge/ios/ThirdParty/rcheevos/SOURCE.txt": "8ced90f0d91063b7bbd60bd2330b13bcfc2b8fc451fbf44478690c61e47316ec",
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": "524d9b306d16a9e6905e4b55cf72ec7e1bc6cef3e2c2789ce792307621c31021",
+      "packages/libretro_internal_bridge/pubspec.yaml": "32cb5a8ba9f4e17dabc3d571f297fee3e3ed1012fe9b45502b131488b0979ff0",
+      "packages/neo_box_reader/ios/neo_box_reader.podspec": "571e03bc68469bf6d1b43ea1215120746bb457defebb5658e6de6cc88463801b",
+      "packages/neo_box_reader/pubspec.yaml": "85092d8fafa6a20113030478639dc204a2d5870075c75c5093b792577a8d302c",
+      "packages/neo_cheat_catalog/ios/neo_cheat_catalog.podspec": "68da660d0c94e533a5a4f166f870927e925b0f51b767b8e192f1a3fa2e0321db",
+      "packages/neo_cheat_catalog/pubspec.yaml": "ed519161609953938481d1aa2e149b3f90744fd9a1b8d3af653759cd5df1e082",
+      "packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/SOURCE.txt": "6636f3bb09f5a3b50bc2cc36155accb6339ad7d53077f3dfd6cc19c5044ceb67",
+      "packages/neo_shader_kit/ios/ThirdParty/glslang/SOURCE.txt": "dc3c8288c3bfe69c2451e885d8dda71a0474e5cdeb76c9644baeb210d580a778",
+      "packages/neo_shader_kit/ios/neo_shader_kit.podspec": "3b6e99f24ef547341514c17b733f9c87b6083895fe1b8d6e05afd70be24c97fe",
+      "packages/neo_shader_kit/pubspec.yaml": "6466195d36a40eda52323c4488e9ce2fb8eae4ec86ba0bc3fa9f4b910b3a3509",
+      "packages/neo_swap/ios/neo_swap.podspec": "527d5c46d5c11e8d0559195a150964243518def49f6dc036c8b58dbaf6db69de",
+      "packages/neo_swap/pubspec.yaml": "34c7e9828b3f613d0945783823ec133e447217ebc341b977d8049c0b9fb4d829",
+      "packages/neo_texture_catalog/ios/neo_texture_catalog.podspec": "560ae15d5b9b13bd334667f89a5f356eea0c836643e355f44c6e506c94b55805",
+      "packages/neo_texture_catalog/pubspec.yaml": "8335f56439e2c1c219f0e353aaa3c078c2892db0959d41aa87c39b9d76793369",
+      "packages/neo_touch_layout/ios/neo_touch_layout.podspec": "dc03a2eef47a82b78666486a43c10c3deaa7bddd21493ce38eb76e9719bb9d80",
+      "packages/neo_touch_layout/pubspec.yaml": "d6deb31fed10c9d7e9c2bd6c1ec7ae98912abe6724ac40bc6e85ee8de7730cab",
+      "packages/neoplay_bridge/ios/neoplay_bridge.podspec": "b0dd65993cb63b502ce1b6db7afe49aaad225c54c76e22902009529755edc166",
+      "packages/neoplay_bridge/pubspec.yaml": "7fe70b966b7f6992bf43bc65894f22485e054a86ffaf9d8ecb1589e9659886d7",
+      "packages/rpcs3_internal_bridge/ios/rpcs3_internal_bridge.podspec": "c98a0245428c53d2bdc3333bac1e4e64ee490e6c258484b83e50221940d04510",
+      "packages/rpcs3_internal_bridge/pubspec.yaml": "ace421f37f7d1e043f64bfb753422ca6bc3e24481b2e29faad05c14b4bd68299",
+      "packages/rpcs3_jit_helper/ios/rpcs3_jit_helper.podspec": "1c786a1c7b319db9f792512667c1578c34c6eccc74acecf9325756def23a6111",
+      "packages/stikjit_bridge/ios/stikjit_bridge.podspec": "6327dbf3255578b63ebbd1cd785fa97c95c5f6413c305f6df1d58b30f6410ab1",
+      "packages/stikjit_bridge/pubspec.yaml": "3e979582b1467a5284f2b7d9610cbd12a2b306f09f4692bbb0aa66ea0848cdd2",
+      "packages/ui_refresh_rate/ios/ui_refresh_rate.podspec": "4f286f1bf6d119a35182a7f7e34510748c753ec72b7a2b45449bca73f99bc710",
+      "packages/ui_refresh_rate/pubspec.yaml": "66eeda5a34d23e9cd771c764c8591ce2d63b02a0d17cbbb3cc56a18f0bee9dcb",
+      "pubspec.yaml": "bcd8449c7ddd364ca654c516b6b305e5ec10b9ef75fbc75af6404ea5a15121c3",
+      "pubspec_overrides.yaml": "392a1ad26ff8e4cdfa2c4035b56638e0923e0b91c2895bac2ad4b0527f65f3c5"
+    },
+    "reviewed_changes": {
+      "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec": {
+        "before": "0f68b77ca91769be0588b21f4719a16e7a791e80f7d480fa2da27e9236b99316",
+        "after": "0f8ffa61186c4c539bb8b11cd706a6f825b55c52a70cebaa07e19039e42343f1"
+      },
+      "packages/armsx2_internal_bridge/pubspec.yaml": {
+        "before": "4cdf4ae8b944e552080a3f0dcdddb7ae72679869ffe887eb7735402d2dee361c",
+        "after": "6e6b04bccb0e92b472dc60fca76976a689a669a03583a8be7e0731ff4e50773a"
+      },
+      "packages/armsx2_jit_helper/ios/armsx2_jit_helper.podspec": {
+        "before": "acaec835e55742dc16828150a140de1f840f471138e0fbbe60074d3354d368db",
+        "after": "78e07bad3c093625314e8e87c3f78b6c28e1ac4b2f17a375b9c494d95280a7cc"
+      },
+      "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": {
+        "before": "4d1a7a4d141d201a50571e62f50b0182aa88d5b0f7c51f712fe377184330fb59",
+        "after": "36df673b046bd0eaf7eb6f0843f7c4d6f31e4b4c12e57d616fbc4b054fab799d"
+      },
+      "packages/dolphin_internal_bridge/pubspec.yaml": {
+        "before": "e570200a82570d586f0ccdfb6ff2b237f9d60e48b512146ae37c1c28fb197259",
+        "after": "fb54b382c1af42fd455617df5c472d4d83b3cbc0a0742d1f1394bf6e953a2b42"
+      },
+      "packages/dolphin_jit_helper/ios/dolphin_jit_helper.podspec": {
+        "before": "92f5e475ddad5e9ef69a9cb8290e4ddb71defcd3e6910442936430b2d67d6f69",
+        "after": "dd30fc72c1eb9444313a2415cfddd9d777afc40d8755478887b1175d38725e5b"
+      },
+      "packages/external_display/ios/external_display.podspec": {
+        "before": "b4cd79e3f82363911f1e6072f74133648e58383bc8778ef5ee7df59b05b41c44",
+        "after": "43514d844f8cf7db7f9f26de9c2cef40bd661b6186e623dd5d83f40e66285919"
+      },
+      "packages/external_display/pubspec.yaml": {
+        "before": "f4630a9182c40ce77a292d71ef7473b2e30c80eeec5c9fd35a3ab698e15917b8",
+        "after": "1d9e6cd26cabc165ad8d5137303ea5bc878c9611682381dfae1265706a7a4c5f"
+      },
+      "packages/gamepads_darwin/pubspec.yaml": {
+        "before": "64748ec90182a9d972327e723ddb8ddd9f71434f3af8f035e2f7671664f774a2",
+        "after": "330adf3da02435a2985574a74e27e316af3a85ef6ecc2790c592cefd91477578"
+      },
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+        "before": "524d9b306d16a9e6905e4b55cf72ec7e1bc6cef3e2c2789ce792307621c31021",
+        "after": "1f6e51c0689b6e4935727624b18cf7657530bfaa0f50de0d7653b94ba0825890"
+      },
+      "packages/libretro_internal_bridge/pubspec.yaml": {
+        "before": "32cb5a8ba9f4e17dabc3d571f297fee3e3ed1012fe9b45502b131488b0979ff0",
+        "after": "3a036b3f6afee45d4b190c6e701eb761b2f39246e76ac0fb8086ddef515fc14b"
+      },
+      "packages/neo_box_reader/ios/neo_box_reader.podspec": {
+        "before": "571e03bc68469bf6d1b43ea1215120746bb457defebb5658e6de6cc88463801b",
+        "after": "f370d75835c593d65622434d1f5dd9e39db6ceb9fa393d9dfee6be2c7a962da2"
+      },
+      "packages/neo_cheat_catalog/ios/neo_cheat_catalog.podspec": {
+        "before": "68da660d0c94e533a5a4f166f870927e925b0f51b767b8e192f1a3fa2e0321db",
+        "after": "a612ba4a989270dc2ed8cdfa0970c2b183a2217fa45beed62a588d3a7d9084f4"
+      },
+      "packages/neo_cheat_catalog/pubspec.yaml": {
+        "before": "ed519161609953938481d1aa2e149b3f90744fd9a1b8d3af653759cd5df1e082",
+        "after": "d355fbcf78c963206afb2bbaab34fd69887cd3b87647544274438d1adca354e9"
+      },
+      "packages/neo_shader_kit/ios/neo_shader_kit.podspec": {
+        "before": "3b6e99f24ef547341514c17b733f9c87b6083895fe1b8d6e05afd70be24c97fe",
+        "after": "7357cecc906b087348972df016fd5da67108ea6b99a5a483f109c380a3bdc680"
+      },
+      "packages/neo_shader_kit/pubspec.yaml": {
+        "before": "6466195d36a40eda52323c4488e9ce2fb8eae4ec86ba0bc3fa9f4b910b3a3509",
+        "after": "a967ba172ddf7784ae7e54443984b83e832db3f0657d9087c198cbacb67bda6e"
+      },
+      "packages/neo_swap/ios/neo_swap.podspec": {
+        "before": "527d5c46d5c11e8d0559195a150964243518def49f6dc036c8b58dbaf6db69de",
+        "after": "3e0e411267a82709dd25baf18c64d833bcd18e6f9e35c123389293fa5b87ae9f"
+      },
+      "packages/neo_swap/pubspec.yaml": {
+        "before": "34c7e9828b3f613d0945783823ec133e447217ebc341b977d8049c0b9fb4d829",
+        "after": "d3e883cc8a601da81ed8935ffafa5b9871ec77f76854001512906f443d8419c5"
+      },
+      "packages/neo_texture_catalog/ios/neo_texture_catalog.podspec": {
+        "before": "560ae15d5b9b13bd334667f89a5f356eea0c836643e355f44c6e506c94b55805",
+        "after": "499de71d44d05295a2a68999a0429de3e90dd0442aab97f4dacbed60324faf8f"
+      },
+      "packages/neo_texture_catalog/pubspec.yaml": {
+        "before": "8335f56439e2c1c219f0e353aaa3c078c2892db0959d41aa87c39b9d76793369",
+        "after": "9c2a258009ddf30c29eec3a0b6d2a6d87b33b425b9c2a148d82608c1d446c9ee"
+      },
+      "packages/neo_touch_layout/ios/neo_touch_layout.podspec": {
+        "before": "dc03a2eef47a82b78666486a43c10c3deaa7bddd21493ce38eb76e9719bb9d80",
+        "after": "dec513375d1b4f395d1a28779dc57f759c2b2d17cad4897f509d867a62434474"
+      },
+      "packages/neo_touch_layout/pubspec.yaml": {
+        "before": "d6deb31fed10c9d7e9c2bd6c1ec7ae98912abe6724ac40bc6e85ee8de7730cab",
+        "after": "08eb088e8647022257af6a2a79ac97810db7d527303564055b5bf187b35de1f1"
+      },
+      "packages/neoplay_bridge/ios/neoplay_bridge.podspec": {
+        "before": "b0dd65993cb63b502ce1b6db7afe49aaad225c54c76e22902009529755edc166",
+        "after": "1ee514a08b4d136fefb7c589715990bbbaf56da587969c8d5cbe654d40532d7d"
+      },
+      "packages/neoplay_bridge/pubspec.yaml": {
+        "before": "7fe70b966b7f6992bf43bc65894f22485e054a86ffaf9d8ecb1589e9659886d7",
+        "after": "2402e9e96fdbcda4485eb78fb37b064d0c453941c3d9dcae2977625fd81e61cb"
+      },
+      "packages/rpcs3_internal_bridge/ios/rpcs3_internal_bridge.podspec": {
+        "before": "c98a0245428c53d2bdc3333bac1e4e64ee490e6c258484b83e50221940d04510",
+        "after": "7830e00754bc81ce3e5e6c013f88368efc75df75ad776880cddeec167b966a7c"
+      },
+      "packages/rpcs3_internal_bridge/pubspec.yaml": {
+        "before": "ace421f37f7d1e043f64bfb753422ca6bc3e24481b2e29faad05c14b4bd68299",
+        "after": "e1588bf9869b8c6488adbf0974044c9454f7a51c9937cbf394a94d5919fe035e"
+      },
+      "packages/rpcs3_jit_helper/ios/rpcs3_jit_helper.podspec": {
+        "before": "1c786a1c7b319db9f792512667c1578c34c6eccc74acecf9325756def23a6111",
+        "after": "a2ccd002e1de024210b23fb4660a99ac1de237a34599a743d2c0a1de2e608ec0"
+      },
+      "packages/stikjit_bridge/ios/stikjit_bridge.podspec": {
+        "before": "6327dbf3255578b63ebbd1cd785fa97c95c5f6413c305f6df1d58b30f6410ab1",
+        "after": "e5e8332e0bc011056b7e10111d6ad5fe632877876ce0bdcd2af78fc858bca55f"
+      },
+      "packages/stikjit_bridge/pubspec.yaml": {
+        "before": "3e979582b1467a5284f2b7d9610cbd12a2b306f09f4692bbb0aa66ea0848cdd2",
+        "after": "0e5bffb1dddf2412cf152c3db2847f4d5a9b286dc6db4082fabaa50deda46291"
+      },
+      "packages/ui_refresh_rate/ios/ui_refresh_rate.podspec": {
+        "before": "4f286f1bf6d119a35182a7f7e34510748c753ec72b7a2b45449bca73f99bc710",
+        "after": "dc38bce9457f988e014f1b79c43853044d0084fd5d0a31dd58db8b4e7cddde6b"
+      },
+      "packages/ui_refresh_rate/pubspec.yaml": {
+        "before": "66eeda5a34d23e9cd771c764c8591ce2d63b02a0d17cbbb3cc56a18f0bee9dcb",
+        "after": "d9fe2b84c9d34a1851279f742b61ebc128359bfb8fbf3b9ad0810aba4628d842"
+      },
+      "pubspec.yaml": {
+        "before": "bcd8449c7ddd364ca654c516b6b305e5ec10b9ef75fbc75af6404ea5a15121c3",
+        "after": "cc9897ba289cb2531cd821b00d3aba7f77072533a380b24d8382bc098241e879"
+      }
+    }
+  }
 }

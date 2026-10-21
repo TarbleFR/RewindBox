@@ -460,7 +460,7 @@ class MySystems extends StatelessWidget {
     final isOled = themeProvider.isOled;
 
     secondaryState.updateState(
-      systemName: system.title ?? "NEOSTATION",
+      systemName: system.title ?? "RewindBox",
       backgroundColor: Theme.of(context).scaffoldBackgroundColor.toARGB32(),
       systemLogo: systemLogo,
       isLogoAsset: isLogoAsset,

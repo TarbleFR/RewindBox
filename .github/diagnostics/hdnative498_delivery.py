@@ -90,7 +90,7 @@ def blob(source, path):
 
 
 def api(path):
-    return json.loads(command(['gh', 'api', 'repos/TarbleFR/neostation-ios/' + path]))
+    return json.loads(command(['gh', 'api', 'repos/TarbleFR/RewindBox/' + path]))
 
 
 def same_inputs(source, paths):
