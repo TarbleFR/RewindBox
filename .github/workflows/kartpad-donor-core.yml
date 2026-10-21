@@ -180,7 +180,7 @@ jobs:
             test/kartpad_main_runloop_test.mm -o "$RUNNER_TEMP/kartpad-main-runloop"
           "$RUNNER_TEMP/kartpad-main-runloop" 2>&1 | tee build/kartpad-donor/out/main-runloop-tests.txt
 
-      - name: Build NeoStation donor wrapper Core
+      - name: Build RewindBox donor wrapper Core
         shell: bash
         run: |
           set -euo pipefail

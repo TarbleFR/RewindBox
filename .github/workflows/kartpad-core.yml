@@ -129,7 +129,7 @@ jobs:
           git -C build/kartpad-upstream submodule update --init --depth=1             vendor/runtimes/ios
           test "$(git -C build/kartpad-upstream/vendor/runtimes/ios rev-parse HEAD)" =             "d0b8dec62a8c98dd45736a996ae18327ada8fe3f"
 
-      - name: Apply NeoStation patch to real upstream sources
+      - name: Apply RewindBox patch to real upstream sources
         run: |
           set -euo pipefail
           python3 build/kartpad-upstream/scripts/stage-maintained-runtime.py             ios build/kartpad-runtime
