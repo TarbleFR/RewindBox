@@ -77,6 +77,7 @@ BUILD_501_TESTED = '06b1dea13aba3f4fc9c68183a0f53390a8436e96'
 BUILD_501_TEST_RUN = 39660184247
 BUILD_501_ALLOWED = {
     'build-utils/delivery-501-recipient.pem',
+    'build-utils/delivery-501-chatgpt-recipient.pem',
     '.github/diagnostics/psprelaunch497_delivery.py',
     'test/stikjit_scoped_host_test.py',
     # CI-only repair: branding-aware strict JIT identity guard, no product edits.
