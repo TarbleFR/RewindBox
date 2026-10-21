@@ -58,6 +58,13 @@ class LegalCreditsDialog {
       'assets/legal/GameDB-PS3-GPL-3.0.txt',
     ),
     _LegalEntry(
+      'NeoAssets System Art catalogue',
+      'NeoAssets and credited community pack creators (20 published packs inventoried)',
+      'On-demand third-party artwork; individual creator rights and restrictions apply',
+      'https://neoassets.dev/app/sap',
+      'assets/legal/THIRD_PARTY_NOTICES.md',
+    ),
+    _LegalEntry(
       'NeoStation Assets',
       'NeoStation asset contributors; runtime-downloaded System Art catalog',
       'CC BY-NC-SA 4.0 for original creative assets; trademarks remain separate',
