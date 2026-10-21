@@ -5,9 +5,10 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw 'Git is not installed or not on PATH.'
 }
 
-$repoRoot = (& git rev-parse --show-toplevel 2>$null)
-if ($LASTEXITCODE -ne 0 -or -not $repoRoot) {
-    throw 'Run this command from inside the RewindBox repository.'
+# Resolve the repository relative to this script, even if invoked from elsewhere.
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+if (-not (Test-Path (Join-Path $repoRoot '.git'))) {
+    throw 'The RewindBox Git checkout could not be found beside this script.'
 }
 
 Push-Location $repoRoot
