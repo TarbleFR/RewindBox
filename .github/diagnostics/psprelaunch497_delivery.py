@@ -83,6 +83,88 @@ BUILD_501_ALLOWED = {
     # CI-only repair: branding-aware strict JIT identity guard, no product edits.
     'test/stikjit_unified_build_test.py',
 }
+# Build 501 ships the already-proven Build 499 RPCS3 Core; the historical
+# Build 487 validator's global CORE_SOURCE may not be used for this delivery.
+BUILD_501_RPC_CORE = '0b18a23460b0a9840406fda2e3d6da4c5cdb7273'
+BUILD_501_RPC_CORE_RUN = '39472233521'
+
+from contextlib import contextmanager
+
+@contextmanager
+def _private_501_rpc_core_view(pin):
+    """Validate every published Core byte using its original workflow inputs.
+
+    The newer host added only the delivery500 entry and renamed the repository
+    in the Core workflow. Restore that one published recipe *temporarily* in
+    the CI checkout, check all original source/test hashes, then restore the
+    current workflow byte-for-byte. Never rewrite a downloaded Core identity.
+    """
+    import subprocess
+    import sys
+    if pin != BUILD_501_RPC_CORE:
+        raise ValueError('Unexpected Build 501 RPCS3 Core pin: ' + str(pin))
+    if os.environ.get('RPCS3_CORE_RUN_ID') != BUILD_501_RPC_CORE_RUN:
+        raise ValueError('Unexpected Build 501 RPCS3 Core workflow run')
+    rel = '.github/workflows/rpcs3-core.yml'
+    current = (base.ROOT / rel).read_bytes()
+    reviewed = subprocess.check_output(
+        ['git','show',BUILD_501_SOURCE+':'+rel],cwd=base.ROOT)
+    if current != reviewed:
+        raise ValueError('Build 501 Core workflow differs from reviewed NeoAssets source')
+    pinned = subprocess.check_output(['git','show',pin+':'+rel],cwd=base.ROOT)
+    if current == pinned:
+        raise ValueError('Build 501 Core workflow isolation is no longer necessary; audit it')
+    # Guard the expected changes in the newer recipe before using the
+    # Core-published one. The other 77 Core inputs stay byte-exact.
+    old = pinned.decode('utf-8')
+    expected = old.replace(
+        'options: [core, delivery499]',
+        'options: [core, delivery499, delivery500]'
+    ).replace(
+        "inputs.phase != 'delivery499' && !contains",
+        "inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains"
+    ).replace(
+        "'repository':'https://github.com/TarbleFR/neostation-ios'",
+        "'repository':'https://github.com/TarbleFR/RewindBox'"
+    )
+    expected += ("\n  delivery500:\n"
+                 "    if: ${{ inputs.phase == 'delivery500' }}\n"
+                 "    uses: ./.github/workflows/ps1-rpcs3-delivery500.yml\n"
+                 "    with:\n"
+                 "      build_number: '500'\n"
+                 "      recipient: build-utils/delivery-500-recipient.pem\n"
+                 "    secrets: inherit\n")
+    if current != expected.encode('utf-8'):
+        raise ValueError('Unreviewed Build 501 RPCS3 Core workflow changes')
+    sys.path.insert(0,str(base.ROOT/'test'))
+    import neo_swap_core_pin_test as core
+    workflow = base.ROOT / rel
+    try:
+        workflow.write_bytes(pinned)
+        yield core
+    finally:
+        workflow.write_bytes(current)
+
+
+def _private_501_validate_core_pin(pin, paths):
+    if os.environ.get('GITHUB_REF_NAME') != 'build-501-system-art':
+        raise ValueError('Build 501 Core pin check invoked on unrelated branch')
+    with _private_501_rpc_core_view(pin) as core:
+        if len(paths) != len(core.CORE_INPUTS) or set(paths) != set(core.CORE_INPUTS):
+            raise ValueError('Build 501 Core input list differs from published Core')
+        core.validate_source_contract()
+        core.validate_exact_pin(pin,root=base.ROOT)
+    print('PASS Build 501 Core: all published inputs and exact 499 identity validated')
+
+
+def validate_rpc_core_identity(identity):
+    if os.environ.get('GITHUB_REF_NAME') != 'build-501-system-art':
+        return previous.validate_rpc_core_identity(identity)
+    with _private_501_rpc_core_view(identity['host_commit']) as core:
+        core.validate_core_input_identity(identity,root=base.ROOT)
+    print('PASS Build 501 Core: original published identity and ABI unchanged')
+
+
 BUILD_501_PRODUCT_TESTED = (
     'lib/services/neo_assets_service.dart',
     'lib/providers/neo_assets_provider.dart',
@@ -127,7 +209,7 @@ def _private_501_evidence(a):
                and j.get('conclusion') == 'success' for j in jobs):
         raise ValueError('Missing successful Flutter/legal CI job')
     if a.rpc_core_inputs:
-        validate_rpc_core_pin(a.rpc_core_inputs, a.core_paths)
+        _private_501_validate_core_pin(a.rpc_core_inputs, a.core_paths)
         return
     if a.source_only:
         print('PASS Build 501 immutable RewindBox source; NeoAssets tests reused')
