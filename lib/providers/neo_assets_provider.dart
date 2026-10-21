@@ -115,6 +115,16 @@ class NeoAssetsProvider extends ChangeNotifier {
         }
       }
 
+      // A pack is not installed merely because all HTTP attempts completed.
+      // Never replace the active selection with an empty or unavailable pack.
+      if (NeoAssetsService.isNeoAssetsPack(themeFolder) &&
+          !await NeoAssetsService.hasCachedThemeArt(
+            themeFolder,
+            plan.systemsToDownload,
+          )) {
+        throw StateError('No NeoAssets artwork was downloaded');
+      }
+
       if (plan.remoteMetadata != null) {
         await NeoAssetsService.writeLocalThemeMetadata(
           themeFolder,
@@ -124,6 +134,14 @@ class NeoAssetsProvider extends ChangeNotifier {
 
       _activeThemeFolder = themeFolder;
       await ConfigRepository.updateActiveTheme(themeFolder);
+
+      // /download is the official counting endpoint. A catalog/preview
+      // request must never increment statistics or redownload an old pack.
+      if (NeoAssetsService.isNeoAssetsPack(themeFolder) &&
+          plan.localVersion == null &&
+          plan.totalAssetsToDownload > 0) {
+        await NeoAssetsService.registerSuccessfulNeoAssetsInstall(themeFolder);
+      }
     } catch (e) {
       _log.e('Error downloading theme: $e');
     } finally {
