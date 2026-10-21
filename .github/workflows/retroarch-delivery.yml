@@ -1187,7 +1187,7 @@ jobs:
           --app "$APP" \
           --build-number "$BUILD_NUMBER" \
           --dolphin-sha "$DOLPHIN_SHA"
-    - name: Package and validate NeoStation IPA
+    - name: Package and validate RewindBox IPA
       shell: bash
       run: |
         set -euo pipefail
@@ -1486,7 +1486,7 @@ jobs:
           --app "$APP" \
           --build-number "$BUILD_NUMBER" \
           --dolphin-sha "$DOLPHIN_SHA"
-    - name: Package and validate NeoStation IPA
+    - name: Package and validate RewindBox IPA
       shell: bash
       run: |
         set -euo pipefail

@@ -282,7 +282,7 @@ jobs:
         run: |
           python3 test/libretro_core_options_test.py --cores dist/libretro
           python3 test/libretro_bios_requirements_test.py --cores dist/libretro
-      - name: Cores NeoStation does not ship yet, read from the libretro buildbot (Mesen, NES HD packs)
+      - name: Cores RewindBox does not ship yet, read from the libretro buildbot (Mesen, NES HD packs)
         if: ${{ github.event_name == 'workflow_dispatch' }}
         run: python3 tools/textures/probe_cores.py --buildbot mesen --out build/hdtex/buildbot.json
       - uses: actions/upload-artifact@v4

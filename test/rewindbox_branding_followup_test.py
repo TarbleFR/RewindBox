@@ -47,6 +47,6 @@ class RewindBoxFollowup(unittest.TestCase):
     def test_workflow_display_names(self):
         for path in (ROOT/'.github/workflows').glob('*.yml'):
             for line in path.read_text(encoding='utf-8').splitlines():
-                if re.match(r'^\s*(?:name|run-name|ARTIFACT_NAME):',line):
+                if re.match(r'^\s*(?:-\s*)?(?:name|run-name|ARTIFACT_NAME):',line):
                     self.assertNotRegex(line,r'(?i)\bneostation\b',path.name)
 if __name__=='__main__': unittest.main(verbosity=2)

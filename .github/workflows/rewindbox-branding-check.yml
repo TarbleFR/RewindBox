@@ -32,6 +32,8 @@ jobs:
           python3 test/localization_12_locale_coverage_test.py
           python3 test/legal_bundle_preflight_test.py
           python3 test/rpcs3_ipa_validation_test.py
+          python3 test/rpcs3_loader_stability_280_test.py
+          python3 test/neoswap_managed_swap_host_test.py
           if [ -f test/build_source_evidence_test.py ]; then python3 test/build_source_evidence_test.py; fi
           python3 - <<'PY'
           import ast, json, pathlib, subprocess
@@ -67,9 +69,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 test/rewindbox_branding_reuse.py
-      - name: Test corrected wordmark and BIOS fixtures
-        if: steps.passed.outputs.reused == 'true'
-        run: flutter test --no-pub test/rewindbox_wordmark_test.dart test/libretro_bios_check_service_test.dart
       - name: Test changed branding, paths, translations and credits
         if: steps.passed.outputs.reused != 'true'
         run: >-
@@ -80,3 +79,9 @@ jobs:
           test/startup_locale_test.dart
           test/app_locale_ko_test.dart
           test/legal_credits_dialog_test.dart
+      - name: Test remaining renamed library and embedded-engine labels
+        run: >-
+          flutter test --no-pub
+          test/library_ui_local_view_test.dart
+          test/library_ui_sources_view_test.dart
+          test/libretro_engine_settings_test.dart

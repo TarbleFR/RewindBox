@@ -795,7 +795,7 @@ jobs:
           --app "$APP" \
           --build-number "$BUILD_NUMBER" \
           --dolphin-sha "$DOLPHIN_SHA"
-    - name: Package and validate NeoStation IPA
+    - name: Package and validate RewindBox IPA
       shell: python3 -c "import os,sys,subprocess,json,pathlib; expected='2617d176e091d0bff63820a5c46917b17dd4a943'; actual=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip();
         assert actual==expected,(actual,expected); out=pathlib.Path('build/delivery'); out.mkdir(parents=True,exist_ok=True); (out/'workflow-checkout-identity.json').write_text(json.dumps(dict(workflowCommit=os.environ['GITHUB_SHA'],sourceCommit=expected,run=os.environ['GITHUB_RUN_ID']),indent=2));
         os.environ['NEOSTATION_WORKFLOW_SHA']=os.environ['GITHUB_SHA']; os.environ['GITHUB_SHA']=expected; os.execv('/bin/bash',['bash','--noprofile','--norc','-eo','pipefail',sys.argv[1]])"

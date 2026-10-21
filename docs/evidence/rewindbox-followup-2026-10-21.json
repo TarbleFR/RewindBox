@@ -79,6 +79,14 @@
       "reason": "Eight wordmark cases retained the explicitly acquired SemanticsHandle past the widget test verification; four BIOS cases still expected the old display prefix.",
       "correction": "Dispose the test handle in finally before callback returns; update only BIOS display-path expectations. No product code or assertion is removed.",
       "successful_components": "Reused only after exact repository-input comparison and observed successful test records from the actual preceding job. The failed overall runs stay failed."
+    },
+    "additional_label_contracts": {
+      "workflow_step_labels_corrected": 14,
+      "dart_test_files": 3,
+      "native_source_contracts": 3,
+      "production_code_changed": false,
+      "reused_successful_run": 39623253661,
+      "scope": "The dash-prefixed workflow step names and remaining display-text expectations are now checked. Native ABI, execution logic and persistent identifiers are unchanged."
     }
   },
   "no_new_release_or_ipa": true,
