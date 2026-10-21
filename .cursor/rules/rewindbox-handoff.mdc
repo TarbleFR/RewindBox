@@ -1,0 +1,15 @@
+---
+description: RewindBox iOS shared working rules for Cursor and Claude Code
+alwaysApply: true
+---
+
+# RewindBox iOS — safe Cursor handoff
+
+- The repository's `AGENTS.md` is authoritative. Read it, `ARCHITECTURE.md`, `docs/AI_WORKFLOW_CURSOR_CLAUDE.md` and, for any continuation task, `docs/AI_HANDOFF.md` before proposing code changes. Do not assume Cursor has access to Claude's chat history.
+- Work only on the existing `Claude` branch per AGENTS.md. Do not create separate AI branches or change `main`, `backup`, baseline references, signing, or release settings without explicit approval.
+- Before modifying files, inspect `git status --short`, `git branch --show-current`, `git rev-parse HEAD`, recent commits, and the relevant diff. Flag unrelated edits, a branch mismatch or an unfinished task before proceeding.
+- Only one agent at a time may write to the shared checkout. Never overwrite concurrent agent changes; no `git reset --hard`, `git clean`, force pushes, automatic merging, or silent conflict resolution.
+- On a takeover, summarize what is verified, what is uncertain, and the smallest next step. Obtain task-specific approval before destructive actions, pushes, CI builds or publishing a release. Never publish a release by default.
+- When requested to hand back to Claude, update `docs/AI_HANDOFF.md` with objective, files, diffs/commits, tests and next steps. Do not misstate local edits as remote commits.
+- Keep source documentation in English and user-facing translations aligned with the project's conventions. Preserve licensing and existing rebranding compatibility keys. Re-run only tests affected by changed code.
+- The native Cursor Agent is the fallback when Claude Code/Max reaches its limit. Choose an available **non-Claude model** through Cursor's model picker and use Cursor's own allowance. The Claude Code extension shares the Claude Max limits; never use a paid API key or enable extra billing automatically.
