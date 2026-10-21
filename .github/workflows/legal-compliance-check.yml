@@ -19,6 +19,7 @@ on:
       - 'lib/services/system_art/**'
       - 'tools/system_art/**'
       - 'test/services/neo_assets_service_external_pack_test.dart'
+      - 'test/services/neoassets_public_catalog_test.dart'
       - 'lib/widgets/setup_wizard.dart'
       - 'build-utils/embed_legal_bundle.py'
       - 'build-utils/validate_legal_bundle_ipa.py'
@@ -90,7 +91,8 @@ jobs:
             test/external_display_games_list_test.dart \
             test/secondary_background_fallback_test.dart \
             test/neo_swap_locale_test.dart \
-            test/services/neo_assets_service_external_pack_test.dart
+            test/services/neo_assets_service_external_pack_test.dart \
+            test/services/neoassets_public_catalog_test.dart
           python3 test/retroarch_baseline_scope_test.py
 
       - name: Validate legal scripts and source pins

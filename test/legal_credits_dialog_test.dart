@@ -74,6 +74,13 @@ void main() {
       find.text('RetroArch / libretro'), 250,
       scrollable: find.byType(Scrollable).first,
     );
+    // Newly credited sources can move this row under the dialog's bottom
+    // actions. Position it within the *visible* list before tapping.
+    await Scrollable.ensureVisible(
+      tester.element(find.text('RetroArch / libretro')),
+      alignment: 0.25,
+    );
+    await tester.pumpAndSettle();
     expect(find.textContaining('External integration; upstream licenses apply'), findsNothing);
     expect(find.textContaining('Embedded cores:'), findsOneWidget);
     await tester.runAsync(() async {
