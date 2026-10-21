@@ -111,7 +111,30 @@
     },
     {
       "check": "git diff --check",
-      "result": "passed"
+      "result": "passed",
+      "scope": "Existing tracked worktree changes before adding the new files; this command did not check then-untracked notice copies."
+    },
+    {
+      "check": "git diff --check fab5ecf3b119b4d84636ad4f4d03218a96279871 49c483ff8a159e9ddd86d14371a6a71acbb491a7",
+      "result": "reported_preserved_upstream_whitespace",
+      "exit_code": 2,
+      "files": [
+        "assets/legal/engines/RPCS3-LLVM-LICENSE.txt",
+        "assets/legal/engines/RPCS3-MoltenVK-SPIRV-Headers-LICENSE.txt",
+        "assets/legal/engines/librashader-LICENSE-GPL.md",
+        "assets/legal/engines/librashader-LICENSE.md",
+        "assets/legal/packages/Anta-OFL-1.1.txt",
+        "assets/legal/packages/GoogleCast-4.8.6-OpenSourceLicenses.txt",
+        "assets/legal/packages/PDFium-7811-abseil.txt",
+        "assets/legal/packages/PDFium-7811-lcms.txt",
+        "assets/legal/packages/SoLoud-Embedded-Source-Notices.txt",
+        "assets/legal/packages/libretro-API-Header-Notices.txt",
+        "assets/legal/packages/rcheevos-MD5-Notices.txt",
+        "assets/legal/ppsspp/FFmpeg-Additional-Notices.txt",
+        "assets/legal/ppsspp/SOURCE-MODIFICATION-NOTICES.patch",
+        "assets/legal/ppsspp/Selected-Dependency-Notices.txt"
+      ],
+      "explanation": "The reported trailing spaces and terminal blank lines are retained in exact upstream license files/source-comment extracts. Blank context lines in SOURCE-MODIFICATION-NOTICES.patch are also preserved. These bytes are bound by their source/hash manifests and were deliberately not normalized; no product implementation file is affected."
     }
   ],
   "independent_review_correction": "A built app must have a recognized nonempty Flutter runtime notice file. A source-only preflight record or an empty runtime notice record cannot validate as a packaged app.",
