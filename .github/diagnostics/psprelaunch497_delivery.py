@@ -167,13 +167,13 @@ def _private_501_evidence(a):
                       'packages/libretro_internal_bridge/ios/Classes/LibretroAddressSpace.h'])
         xcode = base.command(['xcodebuild','-version'])
         sdk = base.command(['xcrun','--sdk','iphoneos','--show-sdk-version'])
-        if xcode != 'Xcode 26.3\\nBuild version 17C529' or sdk != '26.2':
+        if xcode != 'Xcode 26.3\nBuild version 17C529' or sdk != '26.2':
             raise ValueError('Changed iOS toolchain')
         record.update(xcode=xcode, iphoneSDK=sdk,
                       nativeCoreInputsUnchanged=True)
     out = base.ROOT / a.output
     out.parent.mkdir(parents=True,exist_ok=True)
-    out.write_text(json.dumps(record,indent=2)+'\\n')
+    out.write_text(json.dumps(record,indent=2)+'\n')
     print('PASS Build 501 exact source and verified NeoAssets checks, no release')
 
 
