@@ -70,3 +70,4 @@ jobs:
           test/startup_locale_test.dart
           test/app_locale_ko_test.dart
           test/legal_credits_dialog_test.dart
+          test/libretro_skin_catalogs_test.dart

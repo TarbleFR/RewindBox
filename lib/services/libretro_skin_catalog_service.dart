@@ -83,7 +83,7 @@ class LibretroSkinCatalogEntry {
         ...platform.name.split('/'),
       ]) _systemKey(code),
     };
-    return <String>[...systems, if (gameTypeIdentifier != null) gameTypeIdentifier!]
+    return <String>[...systems, ?gameTypeIdentifier]
         .any((code) => codes.contains(_systemKey(code)));
   }
 
