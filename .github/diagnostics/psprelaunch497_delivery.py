@@ -70,6 +70,113 @@ def source_closure():
             'catalogueSHA256': hashlib.sha256(data).hexdigest(), 'rebuiltCores': ['ppsspp']}
 
 
+# Private Build 501: exact RewindBox source (NeoAssets System Art), isolated
+# from the closed Build 497 evidence recipe. This branch does not alter the app.
+BUILD_501_SOURCE = 'be9ea63b80a69249e418d35d4c52715e39db3961'
+BUILD_501_TESTED = '06b1dea13aba3f4fc9c68183a0f53390a8436e96'
+BUILD_501_TEST_RUN = 39660184247
+BUILD_501_ALLOWED = {
+    'build-utils/delivery-501-recipient.pem',
+    '.github/diagnostics/psprelaunch497_delivery.py',
+}
+BUILD_501_PRODUCT_TESTED = (
+    'lib/services/neo_assets_service.dart',
+    'lib/providers/neo_assets_provider.dart',
+    'lib/services/system_art/neoassets_public_catalog.dart',
+    'test/services/neoassets_public_catalog_test.dart',
+    'test/legal_credits_dialog_test.dart',
+    'lib/screens/settings_screen/legal_credits_dialog.dart',
+    'assets/legal/THIRD_PARTY_NOTICES.md',
+    'THEMES.md',
+)
+
+
+def _private_501_evidence(a):
+    """Recheck immutable code and successful focused CI; do not forge 497 reuse."""
+    if os.environ.get('GITHUB_REF_NAME') != 'build-501-system-art':
+        raise ValueError('Private 501 validation only allowed on its isolated branch')
+    if os.environ.get('GITHUB_EVENT_NAME') != 'workflow_dispatch':
+        raise ValueError('Build 501 must be explicitly dispatched')
+    changed = set(base.command(['git', 'diff', '--name-only',
+                                BUILD_501_SOURCE, 'HEAD']).splitlines())
+    if changed != BUILD_501_ALLOWED:
+        raise ValueError('Build 501 contains unexpected source changes: '
+                         + ', '.join(sorted(changed ^ BUILD_501_ALLOWED)))
+    # The exact System Art implementation was analyzed and tested before squash
+    # merge: compare the actual files, not their commit description.
+    base.command(['git', 'diff', '--exit-code', BUILD_501_TESTED,
+                  BUILD_501_SOURCE, '--', *BUILD_501_PRODUCT_TESTED])
+    import subprocess
+    run = json.loads(subprocess.check_output([
+        'gh', 'api',
+        'repos/TarbleFR/RewindBox/actions/runs/' + str(BUILD_501_TEST_RUN)
+    ], text=True))
+    if (run.get('head_sha') != BUILD_501_TESTED or
+            run.get('status') != 'completed' or
+            run.get('conclusion') != 'success'):
+        raise ValueError('Exact NeoAssets Flutter and legal checks not successful')
+    jobs = json.loads(subprocess.check_output([
+        'gh', 'api', 'repos/TarbleFR/RewindBox/actions/runs/'
+        + str(BUILD_501_TEST_RUN) + '/jobs'
+    ], text=True))['jobs']
+    if not any(j.get('name') == 'Validate legal bundle and UI'
+               and j.get('conclusion') == 'success' for j in jobs):
+        raise ValueError('Missing successful Flutter/legal CI job')
+    if a.rpc_core_inputs:
+        validate_rpc_core_pin(a.rpc_core_inputs, a.core_paths)
+        return
+    if a.source_only:
+        print('PASS Build 501 immutable RewindBox source; NeoAssets tests reused')
+        return
+    record = {
+        'result': 'passed',
+        'candidateSHA': base.command(['git','rev-parse','HEAD']),
+        'testedSHA': BUILD_501_TESTED,
+        'sourceClosure': {
+            'fixedSourceSHA': BUILD_501_SOURCE,
+            'modifiedSinceSource': sorted(changed),
+            'validatedApiAndLegalRun': BUILD_501_TEST_RUN,
+            'scope': 'NeoAssets System Art build only',
+        },
+        'reusedEvidence': [
+            {'run': BUILD_501_TEST_RUN, 'source': BUILD_501_TESTED,
+             'kind': 'Flutter analysis, System Art tests and legal checks'},
+        ],
+        'validationWasReused': True,
+        'unchangedDartSource': BUILD_501_TESTED,
+        'deviceGameplayValidated': False,
+        'rebuiltCores': [],
+    }
+    if a.dart_evidence:
+        record.update(key=os.environ['DART_VALIDATION_KEY'],
+                      tool='Flutter 3.47.2, Ubuntu 24.04')
+    if a.libretro_evidence:
+        # Reuse native validation only for *unchanged* NeoSwap/core inputs.
+        # The actual frontend is still freshly compiled in the cold IPA job.
+        base.command(['git', 'diff', '--exit-code',
+                      '9319dc98176dcfd89dca3489569b1dbf23fd3ba4',
+                      'HEAD', '--', 'packages/neo_swap/ios/Classes',
+                      'native/neoswap', 'native/neoswap-relay',
+                      'native/neoswap-donation'])
+        base.command(['git','diff','--exit-code',
+                      'ab9361c29f7c9ab769c4263dd8b7427fc4f4c036',
+                      'HEAD','--','build-utils/libretro/cores.json',
+                      'native/ppsspp/source.json',
+                      'packages/libretro_internal_bridge/ios/Classes/NeoStationPSPMemory.h',
+                      'packages/libretro_internal_bridge/ios/Classes/LibretroAddressSpace.m',
+                      'packages/libretro_internal_bridge/ios/Classes/LibretroAddressSpace.h'])
+        xcode = base.command(['xcodebuild','-version'])
+        sdk = base.command(['xcrun','--sdk','iphoneos','--show-sdk-version'])
+        if xcode != 'Xcode 26.3\\nBuild version 17C529' or sdk != '26.2':
+            raise ValueError('Changed iOS toolchain')
+        record.update(xcode=xcode, iphoneSDK=sdk,
+                      nativeCoreInputsUnchanged=True)
+    out = base.ROOT / a.output
+    out.parent.mkdir(parents=True,exist_ok=True)
+    out.write_text(json.dumps(record,indent=2)+'\\n')
+    print('PASS Build 501 exact source and verified NeoAssets checks, no release')
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--source-only', action='store_true')
@@ -81,6 +188,9 @@ def main():
     p.add_argument('--rpc-core-inputs')
     p.add_argument('core_paths', nargs='*')
     a = p.parse_args()
+    if os.environ.get('GITHUB_REF_NAME') == 'build-501-system-art':
+        _private_501_evidence(a)
+        return
     closure = source_closure()
     if a.rpc_core_inputs:
         validate_rpc_core_pin(a.rpc_core_inputs, a.core_paths)
