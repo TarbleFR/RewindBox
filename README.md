@@ -38,6 +38,15 @@ support is being integrated and is not yet available in a new test IPA.
 
 [Read the release notes](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.8).
 
+## Next release — in preparation
+
+The [English announcement draft](docs/RELEASE_NEXT.md) covers the changes since
+0.0.8: the expanded HD texture catalogue, RAR support, editable touch controls,
+3D game boxes and manuals, PS2 blending settings, and PSP/RPCS3 improvements.
+The [license preparation record](docs/RELEASE_NEXT_LICENSE_REVIEW.md) identifies
+the added notices, preserved source references and remaining questions.
+No new version, release asset or playable Switch integration is announced here.
+
 ## Unified cheats and patches
 
 Version **0.0.8** includes the unified catalogue and withholds the eight Pokémon France programs pending permission:
@@ -117,7 +126,7 @@ NeoStation’s frontend license does not relicense third-party codes.
 
 | Integration | Systems / purpose |
 | --- | --- |
-| **Libretro — 34 cores in the development tree** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
+| **Libretro — 35 cores in the development tree** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
 | **Dolphin / DolphiniOS** | GameCube and Wii |
 | **ARMSX2 / PCSX2** | PlayStation 2 |
 | **RPCS3 / XITRIX iOS fork** | PlayStation 3 |
@@ -131,8 +140,9 @@ installs it as a separate app. Twilight Princess remains playable from its
 GameCube or Wii version with Dolphin. Files already in NeoStation's
 `Ports/KartPad` and `Ports/Dusklight` folders are left untouched.
 
-The public Build 455 release contains 14 Libretro cores; the current source tree
-contains 34. [All current core credits and license references](assets/legal/libretro/LIBRETRO_CORES.md)
+Public 0.0.8 / Build 480 contains 34 Libretro cores; the current source tree
+contains 35, with Mesen added as an optional NES engine for compatible HD packs.
+[All current core credits and license references](assets/legal/libretro/LIBRETRO_CORES.md)
 are preserved. The number of cores differs from the number of console profiles. Compatibility,
 features and performance depend on the game, core and device.
 
@@ -246,17 +256,20 @@ ItsRetroPup** and upstream contributors. The iOS fork is independently
 maintained by **TarbleFR**. Upstream authorship is credited; known notice and
 source-availability gaps are recorded below. Attribution does not imply endorsement.
 
-Thanks to the emulator, port, Libretro, StikJIT, RetroAchievements, ScreenScraper,
-GameDB, skin, shader, reading-library and memory-research contributors.
+Thanks to the emulator, Libretro, StikJIT, RetroAchievements, ScreenScraper,
+GameDB, texture, skin, shader, reading-library and memory-research contributors.
+Historical port credits remain in the legal record for the builds that used them.
 **[Full credits and source records](docs/LEGAL_AND_CREDITS.md)** include the
-individual authors, **[all 34 current core license references](assets/legal/libretro/LIBRETRO_CORES.md)**
+individual authors, **[all 35 current core license references](assets/legal/libretro/LIBRETRO_CORES.md)**,
+**[HD texture creators and source credits](docs/HD_TEXTURE_SOURCES_AND_CREDITS.md)**
 and **[all 51 historical cheat source entries, 50 active](docs/CHEAT_CATALOG_SOURCES.md)**.
 
 The frontend's GPL license does **not** replace third-party terms.
 Some cores have non-commercial restrictions; exact source correspondence and
 combined-license questions remain documented in the
-**[0.0.7 license and packaging review](docs/RELEASE_0.0.7_LICENSE_REVIEW.md)**.
-The review distinguishes the published IPA from subsequent packaging fixes.
+**[next-release license review](docs/RELEASE_NEXT_LICENSE_REVIEW.md)** and the
+**[historical 0.0.7 review](docs/RELEASE_0.0.7_LICENSE_REVIEW.md)**.
+The reviews distinguish existing IPAs from subsequent packaging changes.
 
 **[Second source-rights review — 18 October 2026](docs/SOURCE_RIGHTS_REVIEW_2026-10-18.md):**
 full redistribution clearance has not been established. Open findings include

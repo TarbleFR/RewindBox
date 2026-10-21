@@ -1,0 +1,37 @@
+sfmt
+
+
+=== ext/sfmt19937/SFMT.h ===
+
+/**
+ * @file SFMT.h
+ *
+ * @brief SIMD oriented Fast Mersenne Twister(SFMT) pseudorandom
+ * number generator using C structure.
+ *
+ * @author Mutsuo Saito (Hiroshima University)
+ * @author Makoto Matsumoto (The University of Tokyo)
+ *
+ * Copyright (C) 2006, 2007 Mutsuo Saito, Makoto Matsumoto and Hiroshima
+ * University.
+ * Copyright (C) 2012 Mutsuo Saito, Makoto Matsumoto, Hiroshima
+ * University and The University of Tokyo.
+ * All rights reserved.
+ *
+ * The 3-clause BSD License is applied to this software, see
+ * LICENSE.txt
+ *
+ * @note We assume that your system has inttypes.h.  If your system
+ * doesn't have inttypes.h, you have to typedef uint32_t and uint64_t,
+ * and you have to define PRIu64 and PRIx64 in this file as follows:
+ * @verbatim
+ typedef unsigned int uint32_t
+ typedef unsigned long long uint64_t
+ #define PRIu64 "llu"
+ #define PRIx64 "llx"
+@endverbatim
+ * uint32_t must be exactly 32-bit unsigned integer type (no more, no
+ * less), and uint64_t must be exactly 64-bit unsigned integer type.
+ * PRIu64 and PRIx64 are used for printf function to print 64-bit
+ * unsigned int and 64-bit unsigned int in hexadecimal format.
+ */

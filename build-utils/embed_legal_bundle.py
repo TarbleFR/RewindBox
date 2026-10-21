@@ -37,6 +37,19 @@ REQUIRED_LEGAL_FILES = (
 # (packages/neo_shader_kit/ios/ThirdParty/*/SOURCE.txt).
 SHADER_COMPILERS_TAG = "vulkan-sdk-1.4.350.1"
 
+# Notices for components actually used by the delivered integration. MeloNX
+# remains staged source work and is deliberately absent from this collection.
+ADDITIONAL_NOTICE_COLLECTIONS = (
+    ("textures", "Textures"),
+    ("ppsspp", "PPSSPP"),
+)
+CATALOG_CREDIT_DOCUMENTS = (
+    "CHEAT_CATALOG_SOURCES.md",
+    "OVERLAY_SOURCES_AND_CREDITS.md",
+    "HD_TEXTURE_CATALOG_SOURCES.md",
+    "HD_TEXTURE_SOURCES_AND_CREDITS.md",
+)
+
 
 def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -95,6 +108,71 @@ def validate_libretro_notices() -> dict[str, str]:
     return hashes
 
 
+def validate_additional_notices() -> dict[str, tuple[Path, str]]:
+    """Collect exact notice bytes, not an assertion of binary/source identity."""
+    result: dict[str, tuple[Path, str]] = {}
+
+    def add(source: Path, target: str, expected: str | None = None) -> None:
+        if target in result:
+            raise SystemExit(f"Duplicate additional notice: {target}")
+        if not source.is_file() or not source.stat().st_size:
+            raise SystemExit(f"Missing or empty additional notice: {target}")
+        digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        if expected is not None and digest != expected:
+            raise SystemExit(f"Changed additional notice: {target}")
+        result[target] = (source, digest)
+
+    def filename(name: str) -> str:
+        if not name or Path(name).name != name or "\\" in name or name in (".", ".."):
+            raise SystemExit(f"Invalid additional notice path: {name}")
+        return name
+
+    for folder, target in ADDITIONAL_NOTICE_COLLECTIONS:
+        directory = LEGAL_ASSETS / folder
+        manifest_path = directory / "license-sources.json"
+        if not manifest_path.is_file():
+            raise SystemExit(f"Missing additional notice manifest: {folder}")
+        manifest = load_json(manifest_path)
+        if manifest.get("schema") != 1 or not manifest.get("components"):
+            raise SystemExit(f"Invalid additional notice manifest: {folder}")
+        for component in manifest["components"]:
+            if not component.get("files"):
+                raise SystemExit(f"Missing additional notice entries: {folder}")
+            for entry in component["files"]:
+                name = filename(entry["path"])
+                digest = entry.get("sha256")
+                if (not isinstance(digest, str) or len(digest) != 64
+                        or any(c not in "0123456789abcdef" for c in digest)):
+                    raise SystemExit(f"Invalid additional notice digest: {folder}/{name}")
+                add(directory / name, f"{target}/{name}", digest)
+                # Check duplicate notices against the existing native bundle
+                # when the manifest explicitly identifies that local original.
+                if entry.get("copied_from"):
+                    original = (ROOT / entry["copied_from"]).resolve()
+                    if not original.is_relative_to(ROOT) or not original.is_file():
+                        raise SystemExit(f"Missing original notice: {folder}/{name}")
+                    if hashlib.sha256(original.read_bytes()).hexdigest() != digest:
+                        raise SystemExit(f"Stale copied notice: {folder}/{name}")
+        add(manifest_path, f"{target}/license-sources.json")
+
+    cheat_directory = ROOT / "docs/licenses/cheats"
+    cheat_manifest = cheat_directory / "provenance.json"
+    if not cheat_manifest.is_file():
+        raise SystemExit("Missing additional notice manifest: cheats")
+    cheat_entries = load_json(cheat_manifest).get("files", [])
+    if not cheat_entries:
+        raise SystemExit("Missing additional notice entries: cheats")
+    for entry in cheat_entries:
+        name = filename(entry["local_file"])
+        add(cheat_directory / name, f"Cheats/{name}", entry["preserved_sha256"])
+    add(cheat_manifest, "Cheats/provenance.json")
+    add(cheat_directory / "README.md", "Cheats/README.md")
+
+    for name in CATALOG_CREDIT_DOCUMENTS:
+        add(ROOT / "docs" / name, f"Catalogs/{name}")
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", type=Path)
@@ -117,6 +195,7 @@ def main() -> None:
             raise SystemExit(f"Missing or empty legal bundle file: assets/legal/{name}")
 
     libretro_notices = validate_libretro_notices()
+    additional_notices = validate_additional_notices()
 
     rpcs3 = load_json(ROOT / "build-utils/rpcs3/canonical-source.json")
     armsx2 = load_json(ROOT / "build-utils/armsx2/source.json")
@@ -162,11 +241,17 @@ def main() -> None:
         copy_file(LEGAL_ASSETS / "libretro" / name,
                   destination / "Libretro" / name)
 
+    for name, (source, _) in additional_notices.items():
+        copy_file(source, destination / name)
+
     identity = {
         "schema": 1,
         "build_number": str(args.build_number),
         "host_commit": os.environ.get("GITHUB_SHA", ""),
         "source_repository": "https://github.com/TarbleFR/neostation-ios",
+        "additional_notice_sha256": {
+            name: digest for name, (_, digest) in additional_notices.items()
+        },
         "dolphin": {
             "repository": "https://github.com/OatmealDome/dolphin-ios",
             "revision": args.dolphin_sha,

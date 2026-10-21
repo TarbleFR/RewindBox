@@ -16,12 +16,14 @@ Binary-source, funding and combined-license findings remain open.
 ## Current release and license review
 
 The current published GitHub release is
-[NeoStation iOS 0.0.7 / Build 455](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.7).
-See the [Build 455 distribution and license review](RELEASE_0.0.7_LICENSE_REVIEW.md)
-for the checked IPA contents, exact release identity, known packaging gaps and
-license-compatibility questions. Credits and license-text presence do not alone
-certify full compliance or provide exact Corresponding Source for every bundled
-binary.
+[NeoStation iOS 0.0.8 / Build 480](https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.8).
+Its [source and packaging record](RELEASE_0.0.8_SOURCE_MANIFEST.md) identifies the
+compiled build and the later release packaging. The
+[next-release license preparation](RELEASE_NEXT_LICENSE_REVIEW.md) covers the
+subsequent additions on `Claude`; no new release is published by that work.
+The [Build 455 review](RELEASE_0.0.7_LICENSE_REVIEW.md) remains historical.
+Credits and license-text presence do not alone provide exact Corresponding
+Source for every bundled binary or resolve combined-license questions.
 
 The [second source-rights review, 18 October 2026](SOURCE_RIGHTS_REVIEW_2026-10-18.md)
 also examines the development catalogue and the actual private Build 479 IPA.
@@ -52,12 +54,15 @@ physical memory or circumvent Apple's resource enforcement.
 
 | Component | Authors / upstream | License / redistribution note |
 | --- | --- | --- |
-| **Embedded Libretro cores** | Libretro/RetroArch and the individual emulator authors in [the core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) | Each of the 34 current development cores keeps its own license; published Build 455 contained 14. |
+| **Embedded Libretro cores** | Libretro/RetroArch and the individual emulator authors in [the core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) | Each of the 35 current development cores keeps its own license; public 0.0.8 / Build 480 contained 34. Mesen is the optional additional NES engine, licensed under GPLv3. |
 | **Dolphin / DolphiniOS** | Dolphin Emulator contributors; OatmealDome and DolphiniOS contributors | Most original Dolphin code is GPL-2.0-or-later. The exact fork states the aggregate repository is GPLv3-compatible; per-file SPDX and `LICENSES/` remain authoritative. |
 | **RPCS3 / XITRIX iOS fork** | RPCS3 contributors; XITRIX; upstream work credited by XITRIX including ARMSX3 and the iOS JIT community | The pinned XITRIX/rpcs3 source contains the RPCS3 GPL-2.0-only `LICENSE`. No relicensing by NeoStation is claimed. Preserve file-specific notices and third-party licenses. |
 | **ARMSX2 / PCSX2** | ARMSX2 team and contributors; PCSX2 contributors | ARMSX2 distributes GPLv3 material and derives from PCSX2. Preserve the exact upstream notices and per-component licenses. |
 | **ARMSX2 texture pack readers** | ARMSX2 team and contributors | Since Build 485, `IOS/TexturePackPaths.h` and `IOS/TexturePackTar.h` of the ARMSX2 tag `iOSv2.6.0` (`9d989ca9`) are copied unmodified into `packages/armsx2_internal_bridge/ios/Classes/upstream/` (GPL-3.0-or-later, SPDX headers kept; SHA-256 pinned in `build-utils/armsx2/upstream-files.json`) so HD texture packs install to the same paths as in ARMSX2. |
 | **LZMA SDK (7-Zip)** | Igor Pavlov | Since Build 486, the 7z reader of the HD texture catalogue (`packages/neo_texture_catalog/ios/ThirdParty/lzma`, LZMA SDK 24.09) is compiled into that pod with hidden symbols. The LZMA SDK is placed in the public domain by its author; files are kept unmodified with their headers. |
+| **libarchive 3.8.10 / BLAKE2** | Tim Kientzle, libarchive contributors and the original authors named in its file headers | The native RAR reader includes selected libarchive files under their individual permissive terms; the offered CC0 option is used for BLAKE2. The aggregate notice is preserved in `NeoTextureCatalog.bundle/libarchive-LICENSE.txt` and the new `Legal/Textures/` collection. |
+| **ps2ktxpak catalogue metadata** | ps2ktxpak contributors | The MIT notice applies to the reused catalogue metadata. It does not license the separately authored texture archives. [Preserved notice](../assets/legal/textures/ps2ktxpak-MIT.txt). |
+| **Rebuilt PPSSPP dependencies** | Henrik Rydgård and PPSSPP contributors; FFmpeg, Independent JPEG Group and the authors named in each dependency notice | The pinned source notice collection includes the original copyright statements, full license texts, IJG acknowledgment and exact source references. The FFmpeg build-template license discrepancy remains open. [Notice manifest](../assets/legal/ppsspp/license-sources.json) and [configuration record](../assets/legal/ppsspp/BUILD-LICENSE-RECORD.md). |
 | **librashader** | Ronny Chan / SnowflakePowered and contributors | Native Metal shader chains used by ARMSX2 2.6. The pinned 0.12.0 C API declares MPL-2.0 OR GPL-3.0-only; preserve upstream notices. |
 | **Dusklight** (earlier builds only) | TwilitRealm/Dusklight contributors; Twilight Princess decompilation community; Aurora and Borealis contributors | Removed from NeoStation on 20 October 2026, with the Ports playlist; no other Twilight Princess port replaces it (Dolphin runs the GameCube and Wii versions). Credit kept for the earlier builds that embedded it. Dusklight's root work is CC0-1.0; its dependencies retain their own licenses. |
 | **KartPad / WiiCompiled** (earlier builds only) | KartPad by @chrissotraidis; WiiCompiled by @patchzyy | Removed from NeoStation on 19 October 2026: players build KartPad themselves as a separate app. Credit kept for the earlier builds that embedded it. KartPad-owned software and its WiiCompiled modifications are GPL-3.0-only where stated by KartPad; rights in game content are separate. |
@@ -70,12 +75,29 @@ See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md). That
 file records the exact NeoStation packaging commit, workflow artifact identity
 and pinned upstream revisions used for the published Build 350 IPA.
 
+## MeloNX / Ryujinx — development sources, not a released engine
+
+The external MeloNX integration has been retired on `Claude`. Embedded work
+uses [MeloNX at 13700519f3](https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67),
+with the exact LibHac and Melo-Controller revisions in
+[source.json](../build-utils/melonx/source.json). Credit MeloNX contributors,
+stossy11, Ryujinx/Ryubing contributors, LibHac contributors and the separate
+Melo-Controller authors.
+
+The pinned root MIT notice, upstream third-party notices and controller GPLv3
+text are preserved under [assets/legal/melonx](../assets/legal/melonx/).
+The engine README also states GPLv3, which conflicts with assigning a blanket
+MIT label to the complete project. Its committed native dependencies still
+need matching source and build/license evidence. These files are staged
+reference notices; they are not evidence that a Switch runtime is packaged,
+redistributable as a whole or playable in NeoStation. See the
+[integration audit](melonx-embedded-integration-2026-10-20.md).
+
 ## External integrations
 
 The following applications/services are **not claimed as NeoStation-owned
 software** merely because NeoStation interoperates with them:
 
-- **MeloNX** — https://github.com/nurtrino/MeloNX
 - **ScreenScraper** — https://www.screenscraper.fr/
 - **RetroAchievements** — https://retroachievements.org/
 - **LocalDevVPN** — user-installed external application when that route is used.
@@ -188,7 +210,11 @@ NeoStation release documentation therefore identifies:
 4. the license and notice documents associated with those components.
 
 See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md) for the
-first public GitHub release.
+first public GitHub release, [the 0.0.8 manifest](RELEASE_0.0.8_SOURCE_MANIFEST.md)
+for the current public IPA, and [the current/historical runtime inventory](EMBEDDED_RUNTIME_PROVENANCE.md)
+for the later rebuilt components. The RPCS3 source record retains both original
+RPCS3 and ARMSX3 commit lineage for the two Build 499 backports; it does not
+claim the private revision of the inspected ARMSX3 IPA is public source.
 
 ## Trademarks and commercial game content
 
@@ -210,25 +236,35 @@ application bundle containing:
 
 - the NeoStation GPL text and project notice;
 - this attribution record;
-- the exact release source manifest;
+- the build/source identity, with a separate release manifest when one exists;
 - Dolphin's COPYING notice;
 - the exact RPCS3 GPL-2.0 license text;
 - StikJIT's MPL-2.0 text;
 - additional dependency notices collected by embedded projects.
 
+The next-release preparation also packages the verified texture-reader notices
+under `Legal/Textures/`, the rebuilt PSP dependency notices under
+`Legal/PPSSPP/`, the preserved supplementary cheat notices under
+`Legal/Cheats/`, and the current texture, overlay and cheat attribution registers
+under `Legal/Catalogs/`. Notice hashes are checked before packaging and against
+the resulting archive. Staged MeloNX references are not included as a delivered
+runtime's notice set. No existing IPA is rewritten by these changes.
+
 Builds up to the removal of Dusklight (20 October 2026) also carried
 Dusklight's CC0-1.0 text and its dependency notices.
 
-The published 0.0.7 IPA contains the main notice bundle and a subset of Libretro
+The historical 0.0.7 IPA contains the main notice bundle and a subset of Libretro
 notices. The post-release correction embeds and checks every file in
 `assets/legal/libretro/` under `Legal/Libretro/` in future builds. It preserves the
 shader and music notices added after the earlier main-branch implementation.
 The published IPA is unchanged; the release review records that distinction.
 
-## Unified cheat catalogue — 51 contributing source entries
+## Unified cheat catalogue — 50 active profiles, 51 historical
 
-The development catalogue delivered in private Builds 478–479 credits **51 source
-entries**. [The complete attribution register](CHEAT_CATALOG_SOURCES.md) names every
+The catalogue delivered in private Builds 478–479 credited **51 source entries**.
+Public 0.0.8 and the current catalogue retain **50 active profiles** after
+withholding the eight Pokémon France programs pending permission.
+[The complete attribution register](CHEAT_CATALOG_SOURCES.md) names every
 collection, known excerpt author, upstream URL, exact input revision, SHA-256,
 recorded license notice and import scope. Profiles of the same collection are
 listed separately so source lineage is preserved, without calling them independent
@@ -249,25 +285,30 @@ Daniel Gerendasy/Artemis, chidreams and Ciro Bogea Fernandes/Tyler.
 [Full notices and provenance](licenses/cheats/README.md) are archived in this
 repository. Their inclusion here neither supplies missing third-party
 permissions nor repairs notice delivery in the existing IPA. In particular,
-Pokémon France's published reuse restriction and the mirror-authority questions
-remain open in the [review](SOURCE_RIGHTS_REVIEW_2026-10-18.md).
+Pokémon France remains excluded; attribution is retained for the historical
+use. The other permission and mirror-authority questions remain documented in
+the [review](SOURCE_RIGHTS_REVIEW_2026-10-18.md).
 
-The publication has 2,395,549 programs/edition variants in 50,284 typed identity
+The current publication has 2,395,541 programs/edition variants in 50,282 typed identity
 groups. [The research inventory](../native/cheats/catalogue/SOURCES.md) also lists
-excluded references, which are not counted among the 51 contributing entries.
+excluded references, which are not counted among the 50 active profiles.
 This source-tree update does not publish a release or change a previously
-distributed IPA. The official release remains 0.0.7 / Build 455.
+distributed IPA. The official release remains 0.0.8 / Build 480.
 
-## HD texture catalogue (Build 486)
+## HD texture catalogue — expanded since Build 486
 
-The "HD textures" page of the embedded ARMSX2, Dolphin, PPSSPP and Azahar
-engines lists packs published by their authors. **NeoStation does not host,
-mirror or redistribute any texture.** When the user chooses a pack, the app
-downloads the author's own file from the author's page (GitHub release asset or
-repository archive), checks its size and SHA-256 against the catalogue, and
-installs only the files the engine reads into that engine's folder for the
-game. Packs whose authors only publish elsewhere (MEGA, Google Drive, Dropbox,
-forums, GameBanana, Patreon) are listed as manual links, never fetched.
+The "HD textures" page lists packs for ARMSX2, Dolphin, PPSSPP, Azahar,
+Mupen64Plus-Next, Beetle PSX HW and Mesen. Texture archives are not included in
+the NeoStation IPA or rehosted by this repository. Selected verified files are
+downloaded from their original hosts or imported by the player, with recorded
+size and SHA-256 checks. New clients support eligible public Google Drive,
+MEGA and Yandex files and a native RAR reader; host challenges, paywalls,
+unverified archives and unsupported formats retain the manual/unavailable path.
+
+The reviewed catalogue has 424 installable families / 509 profiles among 1,124
+references. Its 38 PS1 references comprise eight verified downloads and 30
+author pages. Switch entries are research-only. Counts and verification do not
+establish a pack's completeness, on-device rendering or rights clearance.
 
 Every pack keeps its authors, version, credits and stated terms in the
 catalogue and on its page in the app. [The source inventory](HD_TEXTURE_CATALOG_SOURCES.md)
@@ -276,6 +317,13 @@ and the sources reviewed but left out with the reason. Most packs state no
 licence: that is recorded as such and is not a grant of any right. Textures
 derived from commercial games remain subject to their owners' rights; packs
 are for use with the user's own copy of the game.
+
+The [creator and source supplement](HD_TEXTURE_SOURCES_AND_CREDITS.md) records
+verified author corrections where frozen catalogue fields still contain
+placeholders. It also documents the limitation that generic README/license
+files are not systematically retained by the texture-only installation filter.
+The catalogue's terms and credits are not a replacement for such original
+notices. This preparation preserves the existing tested catalogue bytes.
 
 ## Optional cheat catalogue source
 
@@ -416,7 +464,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **ARMSX2 / PCSX2** | [ARMSX2](https://github.com/ARMSX2/ARMSX2) team and contributors; ARMSX2 is based on the long-running [PCSX2](https://github.com/PCSX2/pcsx2) project. |
 | **Dusklight** (earlier builds only) | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. No longer included in NeoStation since 20 October 2026. |
 | **KartPad / WiiCompiled** (earlier builds only) | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). No longer included in NeoStation since 19 October 2026. |
-| **MeloNX / Ryujinx** | [MeloNX](https://github.com/nurtrino/MeloNX) contributors; MeloNX describes itself as based on Ryujinx/Ryubing. |
+| **MeloNX / Ryujinx** (development only) | [MeloNX](https://starforgejo.dev/projects/MeloNX) contributors, stossy11 and Ryujinx/Ryubing contributors; LibHac and Melo-Controller retain separate notices. The old external integration is retired; the embedded runtime is unfinished. |
 | **RetroArch / Libretro** | [RetroArch](https://github.com/libretro/RetroArch) and Libretro contributors, for the API, core ecosystem and buildbot distributions used by **Embedded RetroArch** inside NeoStation. Individual emulator authors are credited below. |
 | **Provenance Skin Catalog** | [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins), maintained by the Provenance team and community contributors; one of the sources used to discover controller skins. |
 | **DeltaStyles / Delta Skins** | [DeltaStyles](https://deltastyles.com/), [Delta Skins](https://delta-skins.github.io/) and their individual skin creators, for compatible catalog entries and community layouts. |
@@ -431,11 +479,14 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **NeoStation Assets** | Optional runtime-downloaded System Art from [misobadev/neostation-assets](https://github.com/misobadev/neostation-assets). Original creative assets are CC BY-NC-SA 4.0; trademarks remain with their owners. |
 | **RiiSU / iiSU** | [RiiSU](https://github.com/mult1v4c/RiiSU) credits [iiSU Interpreted for ES-DE](https://github.com/VictorUnlocked/iisu-interpreted-es-de) for system art icons and [iiSU Network](https://iisu.network/) for the original inspiration. RiiSU remains remotely hosted and is downloaded only when selected. |
 | **Canvas (ES-DE)** | [Canvas-Capsule custom edition](https://github.com/zenandiko/canvas-es-de) by zenandiko, from the [original Canvas theme](https://github.com/Siddy212/canvas-es-de) by Siddy212 (artwork and layouts credited to [fagnerpc](https://github.com/fagnerpc)). Remotely hosted and downloaded only when selected; upstream states personal, non-commercial use. |
+| **HD texture creators** | Individual authors, original pages and additional upstream credits are preserved in the [pack register](HD_TEXTURE_CATALOG_SOURCES.md) and [creator supplement](HD_TEXTURE_SOURCES_AND_CREDITS.md). A verified download is not a permission grant. |
+| **libarchive, LZMA SDK and ps2ktxpak** | Tim Kientzle and libarchive/BLAKE2 contributors, Igor Pavlov, and ps2ktxpak contributors; [exact notice collection](../assets/legal/textures/license-sources.json). |
+| **3D game boxes and manuals** | Existing game scans, media and metadata from the player's files or ScreenScraper; original artwork remains with its creators and rights holders. Apple Vision, NaturalLanguage and Translation are system frameworks used for local text reading, not redistributed Apple model packages. |
 
 
 ## Individual embedded-core notices
 
-See [the 34-core development inventory](../assets/legal/libretro/LIBRETRO_CORES.md) and
+See [the 35-core development inventory](../assets/legal/libretro/LIBRETRO_CORES.md) and
 [the hashed source references](../assets/legal/libretro/license-sources.json).
 License snapshots are not proof of the matching source for every buildbot binary.
 Azahar 2127.0-alpha1 is pinned separately to its official release.

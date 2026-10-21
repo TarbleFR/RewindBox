@@ -1,0 +1,260 @@
+Additional pinned PPSSPP dependency notices
+
+
+=== ext/at3_standalone/atrac3.cpp ===
+
+/*
+ * ATRAC3 compatible decoder
+ * Copyright (c) 2006-2008 Maxim Poliakovski
+ * Copyright (c) 2006-2008 Benjamin Larsson
+ *
+ * This file is part of FFmpeg.
+ *
+ * FFmpeg is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * FFmpeg is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with FFmpeg; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ */
+
+=== ext/jpge/jpgd.cpp ===
+
+// jpgd.cpp - C++ class for JPEG decompression. Written by Richard Geldreich <richgel99@gmail.com> between 1994-2020.
+// Supports progressive and baseline sequential JPEG image files, and the most common chroma subsampling factors: Y, H1V1, H2V1, H1V2, and H2V2.
+// Supports box and linear chroma upsampling.
+//
+// Released under two licenses. You are free to choose which license you want:
+// License 1: 
+// Public Domain
+//
+// License 2:
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Alex Evans: Linear memory allocator (taken from jpge.h).
+// v1.04, May. 19, 2012: Code tweaks to fix VS2008 static code analysis warnings
+// v2.00, March 20, 2020: Fuzzed with zzuf and afl. Fixed several issues, converted most assert()'s to run-time checks. Added chroma upsampling. Removed freq. domain upsampling. gcc/clang warnings.
+//
+// Important:
+// #define JPGD_USE_SSE2 to 0 to completely disable SSE2 usage.
+//
+
+
+			// No arithmitic support - dumb patents!
+
+
+/* Arithmitic coding */
+
+=== ext/jpge/jpge.cpp ===
+
+// jpge.cpp - C++ class for JPEG compression. Richard Geldreich <richgel99@gmail.com>
+// Supports grayscale, H1V1, H2V1, and H2V2 chroma subsampling factors, one or two pass Huffman table optimization, libjpeg-style quality 1-100 quality factors.
+// Also supports using luma quantization tables for chroma.
+//
+// Released under two licenses. You are free to choose which license you want:
+// License 1: 
+// Public Domain
+//
+// License 2:
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// v1.01, Dec. 18, 2010 - Initial release
+// v1.02, Apr. 6, 2011 - Removed 2x2 ordered dither in H2V1 chroma subsampling method load_block_16_8_8(). (The rounding factor was 2, when it should have been 1. Either way, it wasn't helping.)
+// v1.03, Apr. 16, 2011 - Added support for optimized Huffman code tables, optimized dynamic memory allocation down to only 1 alloc.
+//                        Also from Alex Evans: Added RGBA support, linear memory allocator (no longer needed in v1.03).
+// v1.04, May. 19, 2012: Forgot to set m_pFile ptr to NULL in cfile_stream::close(). Thanks to Owen Kaluza for reporting this bug.
+//                       Code tweaks to fix VS2008 static code analysis warnings (all looked harmless).
+//                       Code review revealed method load_block_16_8_8() (used for the non-default H2V1 sampling mode to downsample chroma) somehow didn't get the rounding factor fix from v1.02.
+// v1.05, March 25, 2020: Added Apache 2.0 alternate license
+
+
+	// calculate_minimum_redundancy() originally written by: Alistair Moffat, alistair@cs.mu.oz.au, Jyrki Katajainen, jyrki@diku.dk, November 1996.
+
+
+	// Limits canonical Huffman code table's max code size to max_code_size.
+
+
+	// Emit JFIF marker
+
+
+	// Emit quantization tables
+
+
+	// Emit start of frame marker
+
+
+	// Emit Huffman table.
+
+
+	// Emit all Huffman tables.
+
+
+	// emit start of scan
+
+
+	// Emit all markers at beginning of image file.
+
+
+=== ext/disarm.cpp ===
+
+/* disarm -- a simple disassembler for ARM instructions
+ * (c) 2000 Gareth McCaughan
+ *
+ * This file may be distributed and used freely provided:
+ * 1. You do not distribute any version that lacks this
+ *    copyright notice (exactly as it appears here, extending
+ *    from the start to the end of the C-language comment
+ *    containing these words)); and,
+ * 2. If you distribute any modified version, its source
+ *    contains a clear description of the ways in which
+ *    it differs from the original version, and a clear
+ *    indication that the changes are not mine.
+ * There is no restriction on your permission to use and
+ * distribute object code or executable code derived from
+ * this.
+ *
+ * The original version of this file (or perhaps a later
+ * version by the original author) may or may not be
+ * available at http://web.ukonline.co.uk/g.mccaughan/g/software.html .
+ *
+ * Share and enjoy!    -- g
+ */
+
+	// Prevent linking errors with ArmEmitter which I've excluded on x86 android.
+
+
+/* instr_disassemble
+ * Disassemble a single instruction.
+ *
+ * args:   instr   a single ARM instruction
+ *         addr    the address it's presumed to have come from
+ *         opts    cosmetic preferences for our output
+ *
+ * reqs:   opts must be filled in right. In particular, it must contain
+ *         a list of register names.
+ *
+ * return: a pointer to a structure containing the disassembled instruction
+ *         and some other information about it.
+ *
+ * This is basically a replacement for the SWI Debugger_Disassemble,
+ * but it has the following advantages:
+ *
+ *   + it's 3-4 times as fast
+ *   + it's better at identifying undefined instructions,
+ *     and instructions not invariant under { disassemble; ObjAsm; }
+ *   + it provides some other useful information as well
+ *   + its output syntax is the same as ObjAsm's input syntax
+ *     (where possible)
+ *   + it doesn't disassemble FIX incorrectly unless you ask it to
+ *   + it's more configurable in some respects
+ *
+ * It also has the following disadvantages:
+ *
+ *   - it increases the size of ObjDism
+ *   - it doesn't provide so many `helpful' usage comments etc
+ *   - it's less configurable in some respects
+ *   - it doesn't (yet) know about ARMv4 instructions
+ *
+ * This function proceeds in two phases. The first is very simple:
+ * it works out what sort of instruction it's looking at and sets up
+ * three strings:
+ *   - |mnemonic|  (the basic mnemonic: LDR or whatever)
+ *   - |flagchars| (things to go after the cond code: B or whatever)
+ *   - |format|    (a string describing how to display the instruction)
+ * The second phase consists of interpreting |format|, character by
+ * character. Some characters (e.g., letters) just mean `append this
+ * character to the output string'; some mean more complicated things
+ * like `append the name of the register whose number is in bits 12..15'
+ * or, worse, `append a description of the <op2> field'.
+ *
+ * I'm afraid the magic characters in |format| are rather arbitrary.
+ * One criterion in choosing them was that they should form a contiguous
+ * subrange of the character set! Sorry.
+ *
+ * Things I still want to do:
+ *
+ *   - more configurability?
+ *   - make it much faster, if possible
+ *   - make it much smaller, if possible
+ *
+ * Format characters:
+ *
+ *   \01..\05 copro register number from nybble (\001 == nybble 0, sorry)
+ *   $        SWI number
+ *   %        register set for LDM/STM (takes note of bit 22 for ^)
+ *   &        address for B/BL
+ *   '        ! if bit 21 set, else nothing (mnemonic: half a !)
+ *   (        #regs for SFM (bits 22,15 = fpn, assumed already tweaked)
+ *   )        copro opcode in bits 20..23 (for CDP)
+ *   *        op2 (takes note of bottom 12 bits, and bit 25)
+ *   +        FP register or immediate value: bits 0..3
+ *   ,        comma or comma-space
+ *   -        copro extra info in bits 5..7 preceded by , omitted if 0
+ *   .        address in ADR instruction
+ *   /        address for LDR/STR (takes note of bit 23 & reg in bits 16..19)
+ *   0..4     register number from nybble
+ *   5..9     FP register number from nybble
+ *   :        copro opcode in bits 21..23 (for MRC/MCR)
+ *   ;        copro number in bits 8..11
+ *
+ *  ADDED BY HRYDGARD:
+ *   ^        16-bit immediate
+ *   >        5-bit immediate at 11..7 (lsb)
+ *   <        5-bit immediate at 20..16 with +1 or -lsb if bit 6 set
+ *
+ * NB that / takes note of bit 22, too, and does its own ! when
+ * appropriate.
+ *
+ * On typical instructions this seems to take about 100us on my ARM6;
+ * that's about 3000 cycles, which seems grossly excessive. I'm not
+ * sure where all those cycles are being spent. Perhaps it's possible
+ * to make it much, much faster. Most of this time is spent on phase 2.
+ */
+
+=== ext/sfmt19937/SFMT.c ===
+
+/**
+ * @file  SFMT.c
+ * @brief SIMD oriented Fast Mersenne Twister(SFMT)
+ *
+ * @author Mutsuo Saito (Hiroshima University)
+ * @author Makoto Matsumoto (Hiroshima University)
+ *
+ * Copyright (C) 2006, 2007 Mutsuo Saito, Makoto Matsumoto and Hiroshima
+ * University.
+ * Copyright (C) 2012 Mutsuo Saito, Makoto Matsumoto, Hiroshima
+ * University and The University of Tokyo.
+ * Copyright (C) 2013 Mutsuo Saito, Makoto Matsumoto and Hiroshima
+ * University.
+ * All rights reserved.
+ *
+ * The 3-clause BSD License is applied to this software, see
+ * LICENSE.txt
+ */

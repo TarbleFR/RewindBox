@@ -14,8 +14,9 @@ and preserved hashes, transformations and scope.
 
 NeoStation converts imported formats, selects executable complete programs and
 builds identity indexes. These changes do not remove original author rights.
-This directory is a repository archive; the current packager does not embed it.
-It does not repair notice delivery in Build 479 or earlier IPAs. Before further
+The next-release packager now embeds this archive under `Legal/Cheats/` and
+verifies the preserved notice hashes. This does not repair notice delivery in
+Build 479 or any other previously delivered IPA. Before further
 distribution, preserve the applicable notices with the converted data and
 resolve the permissions and source obligations recorded in the review.
 

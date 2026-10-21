@@ -1,0 +1,205 @@
+Independent JPEG Group code used by PPSSPP's FFmpeg
+
+This software is based in part on the work of the Independent JPEG Group.
+NeoStation's PPSSPP managed-memory patch makes no change to these three
+FFmpeg files; their existing upstream adaptations and notices are retained.
+
+
+=== ffmpeg/libavcodec/jfdctfst.c ===
+
+/*
+ * This file is part of the Independent JPEG Group's software.
+ *
+ * The authors make NO WARRANTY or representation, either express or implied,
+ * with respect to this software, its quality, accuracy, merchantability, or
+ * fitness for a particular purpose.  This software is provided "AS IS", and
+ * you, its user, assume the entire risk as to its quality and accuracy.
+ *
+ * This software is copyright (C) 1994-1996, Thomas G. Lane.
+ * All Rights Reserved except as specified below.
+ *
+ * Permission is hereby granted to use, copy, modify, and distribute this
+ * software (or portions thereof) for any purpose, without fee, subject to
+ * these conditions:
+ * (1) If any part of the source code for this software is distributed, then
+ * this README file must be included, with this copyright and no-warranty
+ * notice unaltered; and any additions, deletions, or changes to the original
+ * files must be clearly indicated in accompanying documentation.
+ * (2) If only executable code is distributed, then the accompanying
+ * documentation must state that "this software is based in part on the work
+ * of the Independent JPEG Group".
+ * (3) Permission for use of this software is granted only if the user accepts
+ * full responsibility for any undesirable consequences; the authors accept
+ * NO LIABILITY for damages of any kind.
+ *
+ * These conditions apply to any software derived from or based on the IJG
+ * code, not just to the unmodified library.  If you use our work, you ought
+ * to acknowledge us.
+ *
+ * Permission is NOT granted for the use of any IJG author's name or company
+ * name in advertising or publicity relating to this software or products
+ * derived from it.  This software may be referred to only as "the Independent
+ * JPEG Group's software".
+ *
+ * We specifically permit and encourage the use of this software as the basis
+ * of commercial products, provided that all warranty or liability claims are
+ * assumed by the product vendor.
+ *
+ * This file contains a fast, not so accurate integer implementation of the
+ * forward DCT (Discrete Cosine Transform).
+ *
+ * A 2-D DCT can be done by 1-D DCT on each row followed by 1-D DCT
+ * on each column.  Direct algorithms are also available, but they are
+ * much more complex and seem not to be any faster when reduced to code.
+ *
+ * This implementation is based on Arai, Agui, and Nakajima's algorithm for
+ * scaled DCT.  Their original paper (Trans. IEICE E-71(11):1095) is in
+ * Japanese, but the algorithm is described in the Pennebaker & Mitchell
+ * JPEG textbook (see REFERENCES section in file README).  The following code
+ * is based directly on figure 4-8 in P&M.
+ * While an 8-point DCT cannot be done in less than 11 multiplies, it is
+ * possible to arrange the computation so that many of the multiplies are
+ * simple scalings of the final outputs.  These multiplies can then be
+ * folded into the multiplications or divisions by the JPEG quantization
+ * table entries.  The AA&N method leaves only 5 multiplies and 29 adds
+ * to be done in the DCT itself.
+ * The primary disadvantage of this method is that with fixed-point math,
+ * accuracy is lost due to imprecise representation of the scaled
+ * quantization values.  The smaller the quantization table entry, the less
+ * precise the scaled value, so this implementation does worse with high-
+ * quality-setting files than with low-quality ones.
+ */
+
+/* We can gain a little more speed, with a further compromise in accuracy,
+ * by omitting the addition in a descaling shift.  This yields an incorrectly
+ * rounded result half the time...
+ */
+
+=== ffmpeg/libavcodec/jfdctint_template.c ===
+
+/*
+ * This file is part of the Independent JPEG Group's software.
+ *
+ * The authors make NO WARRANTY or representation, either express or implied,
+ * with respect to this software, its quality, accuracy, merchantability, or
+ * fitness for a particular purpose.  This software is provided "AS IS", and
+ * you, its user, assume the entire risk as to its quality and accuracy.
+ *
+ * This software is copyright (C) 1991-1996, Thomas G. Lane.
+ * All Rights Reserved except as specified below.
+ *
+ * Permission is hereby granted to use, copy, modify, and distribute this
+ * software (or portions thereof) for any purpose, without fee, subject to
+ * these conditions:
+ * (1) If any part of the source code for this software is distributed, then
+ * this README file must be included, with this copyright and no-warranty
+ * notice unaltered; and any additions, deletions, or changes to the original
+ * files must be clearly indicated in accompanying documentation.
+ * (2) If only executable code is distributed, then the accompanying
+ * documentation must state that "this software is based in part on the work
+ * of the Independent JPEG Group".
+ * (3) Permission for use of this software is granted only if the user accepts
+ * full responsibility for any undesirable consequences; the authors accept
+ * NO LIABILITY for damages of any kind.
+ *
+ * These conditions apply to any software derived from or based on the IJG
+ * code, not just to the unmodified library.  If you use our work, you ought
+ * to acknowledge us.
+ *
+ * Permission is NOT granted for the use of any IJG author's name or company
+ * name in advertising or publicity relating to this software or products
+ * derived from it.  This software may be referred to only as "the Independent
+ * JPEG Group's software".
+ *
+ * We specifically permit and encourage the use of this software as the basis
+ * of commercial products, provided that all warranty or liability claims are
+ * assumed by the product vendor.
+ *
+ * This file contains a slow-but-accurate integer implementation of the
+ * forward DCT (Discrete Cosine Transform).
+ *
+ * A 2-D DCT can be done by 1-D DCT on each row followed by 1-D DCT
+ * on each column.  Direct algorithms are also available, but they are
+ * much more complex and seem not to be any faster when reduced to code.
+ *
+ * This implementation is based on an algorithm described in
+ *   C. Loeffler, A. Ligtenberg and G. Moschytz, "Practical Fast 1-D DCT
+ *   Algorithms with 11 Multiplications", Proc. Int'l. Conf. on Acoustics,
+ *   Speech, and Signal Processing 1989 (ICASSP '89), pp. 988-991.
+ * The primary algorithm described there uses 11 multiplies and 29 adds.
+ * We use their alternate method with 12 multiplies and 32 adds.
+ * The advantage of this method is that no data path contains more than one
+ * multiplication; this allows a very simple and accurate implementation in
+ * scaled fixed-point arithmetic, with a minimal number of shifts.
+ */
+
+/* Odd part per figure 8 --- note paper omits factor of sqrt(2).
+     * cK represents cos(K*pi/16).
+     * i0..i3 in the paper are tmp4..tmp7 here.
+     */
+
+/* Odd part per figure 8 --- note paper omits factor of sqrt(2).
+     * cK represents cos(K*pi/16).
+     * i0..i3 in the paper are tmp4..tmp7 here.
+     */
+
+=== ffmpeg/libavcodec/jrevdct.c ===
+
+/*
+ * This file is part of the Independent JPEG Group's software.
+ *
+ * The authors make NO WARRANTY or representation, either express or implied,
+ * with respect to this software, its quality, accuracy, merchantability, or
+ * fitness for a particular purpose.  This software is provided "AS IS", and
+ * you, its user, assume the entire risk as to its quality and accuracy.
+ *
+ * This software is copyright (C) 1991, 1992, Thomas G. Lane.
+ * All Rights Reserved except as specified below.
+ *
+ * Permission is hereby granted to use, copy, modify, and distribute this
+ * software (or portions thereof) for any purpose, without fee, subject to
+ * these conditions:
+ * (1) If any part of the source code for this software is distributed, then
+ * this README file must be included, with this copyright and no-warranty
+ * notice unaltered; and any additions, deletions, or changes to the original
+ * files must be clearly indicated in accompanying documentation.
+ * (2) If only executable code is distributed, then the accompanying
+ * documentation must state that "this software is based in part on the work
+ * of the Independent JPEG Group".
+ * (3) Permission for use of this software is granted only if the user accepts
+ * full responsibility for any undesirable consequences; the authors accept
+ * NO LIABILITY for damages of any kind.
+ *
+ * These conditions apply to any software derived from or based on the IJG
+ * code, not just to the unmodified library.  If you use our work, you ought
+ * to acknowledge us.
+ *
+ * Permission is NOT granted for the use of any IJG author's name or company
+ * name in advertising or publicity relating to this software or products
+ * derived from it.  This software may be referred to only as "the Independent
+ * JPEG Group's software".
+ *
+ * We specifically permit and encourage the use of this software as the basis
+ * of commercial products, provided that all warranty or liability claims are
+ * assumed by the product vendor.
+ *
+ * This file contains the basic inverse-DCT transformation subroutine.
+ *
+ * This implementation is based on an algorithm described in
+ *   C. Loeffler, A. Ligtenberg and G. Moschytz, "Practical Fast 1-D DCT
+ *   Algorithms with 11 Multiplications", Proc. Int'l. Conf. on Acoustics,
+ *   Speech, and Signal Processing 1989 (ICASSP '89), pp. 988-991.
+ * The primary algorithm described there uses 11 multiplies and 29 adds.
+ * We use their alternate method with 12 multiplies and 32 adds.
+ * The advantage of this method is that no data path contains more than one
+ * multiplication; this allows a very simple and accurate implementation in
+ * scaled fixed-point arithmetic, with a minimal number of shifts.
+ *
+ * I've made lots of modifications to attempt to take advantage of the
+ * sparse nature of the DCT matrices we're getting.  Although the logic
+ * is cumbersome, it's straightforward and the resulting code is much
+ * faster.
+ *
+ * A better way to do this would be to pass in the DCT block as a sparse
+ * matrix, perhaps with the difference cases encoded.
+ */

@@ -26,23 +26,28 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 ---
 
-CURRENT PUBLIC IOS RELEASE — 0.0.7 / BUILD 455
+CURRENT PUBLIC IOS RELEASE — 0.0.8 / BUILD 480
 
 Latest published release:
-https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.7
+https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.8
 
-Release build source:
-a12f075906ef452885decbef78fefd6517ce0fe0
+Compiled build source:
+7493d9babe20be1b2939e21a1051a72da8fb5d01
+
+Release packaging source:
+bcca4e4a4dc89a96b1dde05d66436af54efd327e
 
 Successful Actions build:
-https://github.com/TarbleFR/neostation-ios/actions/runs/38393178533
+https://github.com/TarbleFR/neostation-ios/actions/runs/39132356516
 
-IPA asset: NeoStation-0.0.7.ipa
-IPA SHA-256: 13b7bfc70404b059089f027aad402772ed558d9eb03eeb4e29a3a4bb1019dd86
+IPA asset: NeoStation-0.0.8.ipa
+Final checksum and repackaging identity are preserved in that release's
+NeoStation-0.0.8-SHA256SUMS.txt and NeoStation-0.0.8-Packaging.json.
 
 The source and license observations for this release are recorded in
-docs/RELEASE_0.0.7_LICENSE_REVIEW.md. Updating this notice does not change
-the previously published signed/distributed IPA.
+docs/RELEASE_0.0.8_SOURCE_MANIFEST.md. The next-release preparation and new
+notices are recorded in docs/RELEASE_NEXT_LICENSE_REVIEW.md. Updating this
+notice does not change a previously published signed/distributed IPA.
 
 SECOND SOURCE-RIGHTS REVIEW — 18 OCTOBER 2026
 
@@ -64,8 +69,10 @@ RGPAD 1.5 overlay: DJM; Libretro common-overlays collection, CC BY 4.0.
 Original input:
 https://github.com/libretro/common-overlays/blob/42c21b99889468a8e77fd7f002229ec16e2f9fa2/gamepads/rgpad/rgpad_modern.cfg
 License: https://creativecommons.org/licenses/by/4.0/
-NeoStation converts the layout format and packages selected images. Installed
-conversion notice preservation remains an open finding in the review above.
+NeoStation converts the layout format and packages selected images. New
+conversions preserve the supplied CFG and applicable notices, as recorded in
+the implementation follow-up. Existing installations require reimport to
+acquire notices they did not previously retain.
 
 ---
 
@@ -273,18 +280,27 @@ commercial game content.
 
 ---
 
-MELONX / RYUJINX — EXTERNAL NINTENDO SWITCH INTEGRATION
+MELONX / RYUJINX — EMBEDDED INTEGRATION IN DEVELOPMENT
 
-MeloNX repository:
-https://github.com/nurtrino/MeloNX
+Current pinned source:
+https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67
 
-NeoStation integrates with MeloNX through library synchronization, URL schemes,
-media association and JIT-oriented handoff. NeoStation does not redistribute
-the MeloNX application as an embedded core.
+The old external launcher, library synchronization and external JIT handoff
+have been retired on Claude. The embedded engine and session work is not yet
+a packaged, playable Nintendo Switch integration in a NeoStation IPA.
 
-MeloNX describes itself as based on Ryujinx/Ryubing and preserves its own
-third-party attribution list. Preserve those upstream notices when
-redistributing MeloNX itself.
+Credit MeloNX contributors, stossy11, Ryujinx/Ryubing contributors, LibHac
+contributors and the separately maintained Melo-Controller authors. The exact
+source pins are in build-utils/melonx/source.json. Preserved upstream notices
+are staged in assets/legal/melonx/ for this development work.
+
+MeloNX's pinned root LICENSE.txt is the Ryujinx MIT notice, while its README
+states GPLv3; Melo-Controller is separately GPLv3. This record preserves that
+conflict rather than assigning a blanket license. The native dependencies'
+binary/source and license correspondence remains incomplete. Staged notices
+do not authorize or claim delivery of these binaries. See
+docs/melonx-embedded-integration-2026-10-20.md and
+docs/RELEASE_NEXT_LICENSE_REVIEW.md.
 
 ---
 
@@ -293,9 +309,10 @@ RETROARCH / LIBRETRO — EMBEDDED MULTI-SYSTEM ENGINE
 RetroArch:
 https://github.com/libretro/RetroArch
 
-In the current 0.0.7 / Build 455 release, Embedded RetroArch (Libretro) runs
-supported games directly inside NeoStation through its native host and 14
-bundled cores. A separate RetroArch installation is not required. RetroArch,
+In public 0.0.8 / Build 480, Embedded RetroArch (Libretro) runs supported games
+directly inside NeoStation through its native host and 34 bundled cores.
+The current development catalogue contains 35 cores, including the optional
+Mesen NES engine. A separate RetroArch installation is not required. RetroArch,
 Libretro and the individual cores remain independently maintained upstream
 projects with their own authors, licenses and notices.
 
@@ -303,7 +320,7 @@ Compatibility routes remain for earlier external RetroArch game settings and
 library entries that NeoStation cannot launch from an accessible local ROM.
 Since Build 440, the external app is no longer offered as a new per-game choice.
 
-The 14-core integration was introduced in release 0.0.3. Its authors, complete
+The initial 14-core integration was introduced in release 0.0.3. Current authors,
 license reference texts, non-commercial restrictions and source-provenance
 limitations are recorded in assets/legal/libretro/LIBRETRO_CORES.md. The host
 license does not relicense these components.
@@ -525,9 +542,11 @@ glslang, SPIRV-Cross, Libretro shader catalogs, Dolphin shaders,
 Each upstream work retains its original license, authorship and source record.
 
 
-UNIFIED CHEAT CATALOGUE — DEVELOPMENT BUILDS 478–479
+UNIFIED CHEAT CATALOGUE — CURRENT AND HISTORICAL SOURCE CREDITS
 
-The active publication has 51 contributing source entries. The complete source,
+The active publication has 50 contributing source entries; 51 profiles are
+retained in the historical record. The eight Pokemon France programs are
+withheld pending permission. The complete source,
 author, pinned-input and recorded-license register is:
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/CHEAT_CATALOG_SOURCES.md
 
@@ -539,8 +558,43 @@ their original MIT notices. Other inputs retain their own recorded notices
 and per-program attribution; unspecified data rights are not a GPL grant.
 
 Source entries are import profiles and can share the same upstream collection.
-Contributions overlap; neither 51 source entries nor 2,395,549 programs/variants
+Contributions overlap; neither 50 active profiles nor 2,395,541 programs/variants
 is a count of unique projects, unique effects or distinct commercial games.
 NeoStation's conversion/integration work does not claim authorship of codes
 created by others. Existing licenses and author notices must be preserved.
-This source-tree update does not alter the published 0.0.7 / Build 455 IPA.
+This source-tree update does not alter any previously delivered IPA.
+
+---
+
+ADDITIONS SINCE 0.0.8 — TEXTURES, CORES AND SOURCE CREDIT
+
+HD texture extraction uses libarchive 3.8.10 (Tim Kientzle and contributors;
+per-file permissive notices, with BLAKE2's CC0 option), the LZMA SDK 24.09
+(Igor Pavlov, public domain), and ARMSX2's GPL-3.0-or-later texture-reader
+headers. The ps2ktxpak catalogue metadata retains its MIT notice. Exact
+texts, original copyright headers and source references are preserved in
+assets/legal/textures/ and copied to Legal/Textures/ in future packaging.
+
+Texture packs, controller artwork, game scans and manuals retain their own
+authors' terms. Cataloguing or downloading them from an original host does
+not grant NeoStation ownership or a new license. See
+docs/HD_TEXTURE_SOURCES_AND_CREDITS.md for creators and remaining attribution
+gaps, and docs/HD_TEXTURE_CATALOG_SOURCES.md for the individual pack register.
+
+Mesen is by M. Bibaud (Sour) and contributors (GPLv3). PPSSPP is by Henrik
+Rydgård and contributors (GPLv2 or later). Their existing license texts are
+retained in assets/legal/libretro/. Source-built PPSSPP changes are identified
+separately from unmodified buildbot binaries in the provenance record.
+The rebuilt PSP dependency notices and configuration evidence are preserved
+in assets/legal/ppsspp/ and included under Legal/PPSSPP/ by future packaging.
+This software is based in part on the work of the Independent JPEG Group.
+The original IJG notice and FFmpeg's unresolved build-template license
+discrepancy are retained in that collection.
+
+The recent RPCS3 fixes preserve the original RPCS3 authorship and ARMSX3
+lineage. Public upstream backports d7f4c3507be3aaef631067aca9f0d0c8c89e9eea
+and 9c8e4349b7296c5e14d7fde9cc4d88a8b69f2fca are recorded alongside their
+ARMSX3 counterparts in build-utils/rpcs3/canonical-source.json. The inspected
+ARMSX3 22348 IPA's private revision is not claimed to be available source.
+
+Full preparation record: docs/RELEASE_NEXT_LICENSE_REVIEW.md.

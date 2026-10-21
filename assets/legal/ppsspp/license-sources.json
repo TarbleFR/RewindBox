@@ -1,0 +1,952 @@
+{
+  "schema": 1,
+  "scope": "Notice inventory for PPSSPP Build 497 source-build inputs; conditional code is identified without claiming it all reaches the shipped executable. The FFmpeg license/configuration inconsistency remains open.",
+  "source_build": {
+    "repository": "https://github.com/hrydgard/ppsspp",
+    "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+    "ffmpeg_upstream_marker": "6c64b8f98ad0ca38f5360484618e2af6e44fcb3d",
+    "neostation_inputs": [
+      {
+        "path": "native/ppsspp/source.json",
+        "sha256": "edb5bd9212f99f114ed616e114556855763650a538c58d91aaf733f0c23d7be2"
+      },
+      {
+        "path": "native/ppsspp/managed-memory.patch",
+        "sha256": "c273728f2a30ed8d3cddcc83e2731db5877d15f71030632c09dbf8967f40cb75"
+      },
+      {
+        "path": ".github/diagnostics/ppsspp497/build.py",
+        "sha256": "51b6ae04db9fed1ad7ebc486d0ba6c9250e090801252719fdfa2d363b2ebf3b0"
+      }
+    ]
+  },
+  "components": [
+    {
+      "component": "PPSSPP / PSPSDK",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "PPSSPP-LICENSE.txt",
+          "sha256": "ff265754cbb2e0d3b674f90a79ef5bbaa1f7f1075aec9f5e241524520e5049fa",
+          "upstream_path": "LICENSE.TXT",
+          "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/LICENSE.TXT",
+          "source_blob_sha": "1c3210d9d1eaf47cc33a1e0c451f4704a765852d",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "FFmpeg",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "FFmpeg-COPYING.LGPLv2.1.txt",
+          "sha256": "b634ab5640e258563c536e658cad87080553df6f34f62269a21d554844e58bfe",
+          "upstream_path": "ffmpeg/COPYING.LGPLv2.1",
+          "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ffmpeg/COPYING.LGPLv2.1",
+          "source_blob_sha": "58af0d3787aec7d6f8d833535d64879156e7ec23",
+          "exact_copy": true
+        },
+        {
+          "path": "FFmpeg-COPYING.GPLv2.txt",
+          "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+          "upstream_path": "ffmpeg/COPYING.GPLv2",
+          "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ffmpeg/COPYING.GPLv2",
+          "source_blob_sha": "d159169d1050894d3ea3b98e1c965c4058208fe1",
+          "exact_copy": true
+        },
+        {
+          "path": "FFmpeg-LICENSE.md",
+          "sha256": "2e06d5375e3ec10363d38f4ba0680d311ff4f2024ee7f9ddb1c7a2e2bb8a5585",
+          "upstream_path": "ffmpeg/LICENSE.md",
+          "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ffmpeg/LICENSE.md",
+          "source_blob_sha": "0c53d0f5a9a71b0e85e5192bd6d6d513881455d5",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "Independent JPEG Group code used by PPSSPP's FFmpeg",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "FFmpeg-IJG-Notices.txt",
+          "sha256": "b1cd772212cbcbca6a1053d0ab495c12a9030b063f784f845423ca57437f06b2",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ffmpeg/libavcodec/jfdctfst.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ffmpeg/libavcodec/jfdctfst.c",
+              "source_blob_sha": "bbcf5984901c89798e213eba631f16c11ed6d677"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ffmpeg/libavcodec/jfdctint_template.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ffmpeg/libavcodec/jfdctint_template.c",
+              "source_blob_sha": "3ea2f5dadc4e059093f1a872f40cdf8a3dc03d43"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ffmpeg/libavcodec/jrevdct.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ffmpeg/libavcodec/jrevdct.c",
+              "source_blob_sha": "55a7392e98deb568316232a22ad55235c5f619b5"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "cityhash-COPYING",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "cityhash-COPYING.txt",
+          "sha256": "3ed00dd93c75655599456c83cba2f69c6824fd53f24fc24206ba27b65057709d",
+          "upstream_path": "ext/cityhash/COPYING",
+          "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/cityhash/COPYING",
+          "source_blob_sha": "bf15194dd5a08b1a9bdac71ae19a3271d600089e",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "snappy-COPYING",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "snappy-COPYING.txt",
+          "sha256": "5221a36a801b981fbdfda7b87db64cff231a3b88223a066c325411b539df796f",
+          "upstream_path": "ext/snappy/COPYING",
+          "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/snappy/COPYING",
+          "source_blob_sha": "8d6bd9fed4e437af46e342ff161cb2bc11fa0c61",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "snappy-AUTHORS",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "snappy-AUTHORS.txt",
+          "sha256": "710c0a3a4681c8c40f5a59eb794f61093fa142935c647c92f46ea595f0591833",
+          "upstream_path": "ext/snappy/AUTHORS",
+          "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/snappy/AUTHORS",
+          "source_blob_sha": "4858b377c74b1de6389be2f57e768310a162f5bb",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "gason-LICENSE",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "gason-LICENSE.txt",
+          "sha256": "a9a5c0646d67d9cc2596fab2ee1cac35bdcd4057d9dea7745425bd3cfcab40f0",
+          "upstream_path": "ext/gason/LICENSE",
+          "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/gason/LICENSE",
+          "source_blob_sha": "0c4133a47ed3866e2ef3f2fbb682c8901338f232",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "udis86-LICENSE",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "udis86-LICENSE.txt",
+          "sha256": "1070640aab24327354da44507627d1db6c67482a6facc8375a758796a05e3dff",
+          "upstream_path": "ext/udis86/LICENSE",
+          "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/udis86/LICENSE",
+          "source_blob_sha": "580f35987f661f49431120ffaa66ab7448ef79b9",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "xxhash",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "xxhash-Notices.txt",
+          "sha256": "fd0db47106825c58e9a39b6f2605734b86024841b4e7d0f8e23d429b197c024e",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/xxhash.h",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/xxhash.h",
+              "source_blob_sha": "79ead5f89817f8405ea727786be0c1f1842bd7b1"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim leading copyright/license comment; documentation and code excluded."
+        }
+      ]
+    },
+    {
+      "component": "xbrz",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "xbrz-Notices.txt",
+          "sha256": "3c0ee5af225ad374b346373895b49140f14908aa8410282c020cfb50222adadf",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/xbrz/xbrz.h",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/xbrz/xbrz.h",
+              "source_blob_sha": "e1e57930bb9776e02d8f7724269608ec943cfe86"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "libkirk",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "libkirk-Notices.txt",
+          "sha256": "39acb5ad3592711cbd62724490461283af269e57db343cd770a5a23a4445f0ca",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/libkirk/kirk_engine.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/libkirk/kirk_engine.c",
+              "source_blob_sha": "59e2aff2bd751ed82e757259465890676d9102df"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "glew",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "glew-Notices.txt",
+          "sha256": "1c67841f55e57ead595a73c56143e2691d7263660bd596268ec1b92d46d05904",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/ext/glew/glew.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/ext/glew/glew.c",
+              "source_blob_sha": "b1da29289433e23d5e9ecbfa6d11e74f8bfc1e76"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "glslang-LICENSE",
+      "repository": "https://github.com/hrydgard/glslang",
+      "revision": "50e0708ec3a5c16020c4f845c654b80b8edb80bd",
+      "files": [
+        {
+          "path": "glslang-LICENSE.txt",
+          "sha256": "adb783e734e906d1f46db5df29991dbde84bdb0ceab502ac2febb44fe3c2b5f4",
+          "upstream_path": "LICENSE.txt",
+          "source_url": "https://github.com/hrydgard/glslang/blob/50e0708ec3a5c16020c4f845c654b80b8edb80bd/LICENSE.txt",
+          "source_blob_sha": "054e68a4614e3ee255f13730319b8c7a1fe10182",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "SPIRV-Cross-LICENSE",
+      "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+      "revision": "4212eef67ed0ca048cb726a6767185504e7695e5",
+      "files": [
+        {
+          "path": "SPIRV-Cross-LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/KhronosGroup/SPIRV-Cross/blob/4212eef67ed0ca048cb726a6767185504e7695e5/LICENSE",
+          "source_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "armips-LICENSE",
+      "repository": "https://github.com/Kingcom/armips",
+      "revision": "62adab4ef30da765f5cf22a451eb08a59c54dc8b",
+      "files": [
+        {
+          "path": "armips-LICENSE.txt",
+          "sha256": "791ff46884cdf62188f17cabf0f099b462e92ec68986033bab243b26573b7573",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/Kingcom/armips/blob/62adab4ef30da765f5cf22a451eb08a59c54dc8b/LICENSE",
+          "source_blob_sha": "349712e3fbad40dc780a1fd07de31dc32a49e9d3",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "cpu_features-LICENSE",
+      "repository": "https://github.com/google/cpu_features",
+      "revision": "fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587",
+      "files": [
+        {
+          "path": "cpu_features-LICENSE.txt",
+          "sha256": "af272c1b4dd08dd61d43e001d3134119d03ca7a2b057a64f7355fdf27fbea3dd",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/google/cpu_features/blob/fd4ffc1632db7b4e763bd28ffa6fc9d761cf3587/LICENSE",
+          "source_blob_sha": "a7043c6fdedacc991803384333201058ea1a8865",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "OpenXR-LICENSE",
+      "repository": "https://github.com/KhronosGroup/OpenXR-SDK",
+      "revision": "be392bf6949adeeabad5082aa79d12aacbda781f",
+      "files": [
+        {
+          "path": "OpenXR-LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/KhronosGroup/OpenXR-SDK/blob/be392bf6949adeeabad5082aa79d12aacbda781f/LICENSE",
+          "source_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "rapidjson-LICENSE",
+      "repository": "https://github.com/Tencent/rapidjson",
+      "revision": "73063f5002612c6bf64fe24f851cd5cc0d83eef9",
+      "files": [
+        {
+          "path": "rapidjson-LICENSE.txt",
+          "sha256": "a140e5d46fe734a1c78f1a3c3ef207871dd75648be71fdda8e309b23ab8b1f32",
+          "upstream_path": "license.txt",
+          "source_url": "https://github.com/Tencent/rapidjson/blob/73063f5002612c6bf64fe24f851cd5cc0d83eef9/license.txt",
+          "source_blob_sha": "7ccc161c84b243687498a0dae5043c1da6173ac4",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "lua",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "lua-Notices.txt",
+          "sha256": "2ae5bacf1dab0816ab3eb9c64549a3d11209de39855c2b0ae469da84dcd3e565",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp-lua",
+              "revision": "7648485f14e8e5ee45e8e39b1eb4d3206dbd405a",
+              "upstream_path": "lua.h",
+              "source_url": "https://github.com/hrydgard/ppsspp-lua/blob/7648485f14e8e5ee45e8e39b1eb4d3206dbd405a/lua.h",
+              "source_blob_sha": "f050dac0913175c9d01f3ccb6a47ca0e9ab5c06a"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "aemu-postoffice-LICENSE",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "aemu-postoffice-LICENSE.txt",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+          "upstream_path": "ext/aemu_postoffice_client/LICENSE.txt",
+          "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/aemu_postoffice_client/LICENSE.txt",
+          "source_blob_sha": "94a9ed024d3859793618152ea559a168bbcbb5e2",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "vma",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "vma-Notices.txt",
+          "sha256": "cd754935930fc5ce7444707f2d9f7a0e589153c05e627b356bda0bdaf9b6f4ea",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/vma/vk_mem_alloc.h",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/vma/vk_mem_alloc.h",
+              "source_blob_sha": "fdb3ce53fa68cf9314dd55f8e02d0caf2a94132f"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim leading copyright/license comment; documentation and code excluded."
+        }
+      ]
+    },
+    {
+      "component": "sfmt",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "sfmt-Notices.txt",
+          "sha256": "ef1f1dceee6bbe2237d2767451171b93c5ed86a05ab20c37a24500709f281d54",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/sfmt19937/SFMT.h",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/sfmt19937/SFMT.h",
+              "source_blob_sha": "5449ef646fd35b107af568ea45710744165bf360"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "armips-tinyformat",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "armips-tinyformat-Notices.txt",
+          "sha256": "061b0eb80bf05f70c9d471f40f25b22f710e18a1c198b118303653cbc76ce6bd",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/Kingcom/armips",
+              "revision": "62adab4ef30da765f5cf22a451eb08a59c54dc8b",
+              "upstream_path": "ext/tinyformat/tinyformat.h",
+              "source_url": "https://github.com/Kingcom/armips/blob/62adab4ef30da765f5cf22a451eb08a59c54dc8b/ext/tinyformat/tinyformat.h",
+              "source_blob_sha": "823a6097c525bf192574fec9b1621f89ff58c91c"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "basis",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "basis-Notices.txt",
+          "sha256": "e3a298610cc567ec9517d8a6b105273f2e4c06b70727d27b6498fa7463d8d2ab",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/basis_universal/basisu_transcoder.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/basis_universal/basisu_transcoder.cpp",
+              "source_blob_sha": "2a7304e2d8ff34894c867e4aa7cf964ec6a3cbab"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "armips filesystem",
+      "repository": "https://github.com/Kingcom/filesystem",
+      "revision": "3f1c185ab414e764c694b8171d1c4d8c5c437517",
+      "files": [
+        {
+          "path": "armips-filesystem-LICENSE.txt",
+          "sha256": "1b265537c97cfb422ffb52492c96979943f54fab8746a6dd38d8329953d487cc",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/Kingcom/filesystem/blob/3f1c185ab414e764c694b8171d1c4d8c5c437517/LICENSE",
+          "source_blob_sha": "8b24faa71df84f50f20be447162cad09ac3feefd",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "SFMT upstream license reference",
+      "repository": "https://github.com/MersenneTwister-Lab/SFMT",
+      "revision": "upstream license reference (Git blob 6f9c4a6d6a13aaf4a3cd667b484c591949d57e0a)",
+      "files": [
+        {
+          "path": "SFMT-Upstream-BSD-3-Clause.txt",
+          "sha256": "9d6db9b6702bf80c926b36d61f6282bf48d0a9a8044db2bd31e524aa08ccac0f",
+          "source_url": "https://api.github.com/repos/MersenneTwister-Lab/SFMT/git/blobs/6f9c4a6d6a13aaf4a3cd667b484c591949d57e0a",
+          "upstream_path": "LICENSE.txt",
+          "source_blob_sha": "6f9c4a6d6a13aaf4a3cd667b484c591949d57e0a",
+          "exact_copy": true,
+          "scope_note": "Canonical upstream license reference supplementing PPSSPP's retained BSD-3-Clause declarations; not a claim that the exact SFMT source revision in PPSSPP has been identified."
+        }
+      ]
+    },
+    {
+      "component": "Additional libkirk source notices",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "libkirk-Additional-Notices.txt",
+          "sha256": "a188b46f4418b9dd3ab46d1f6f1a6d37170f37d14e8c59332e2cbe4e4acea60e",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/libkirk/AES.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/libkirk/AES.c",
+              "source_blob_sha": "361269048ecbf32a3d91b7cda2678c8a187cc115"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/libkirk/SHA1.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/libkirk/SHA1.c",
+              "source_blob_sha": "af9c946e6526ef613e4a53f37925bde19fcb9855"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/libkirk/bn.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/libkirk/bn.c",
+              "source_blob_sha": "d0d859f3ba949db4ab7b3e4e832289c454127ed9"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/libkirk/ec.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/libkirk/ec.c",
+              "source_blob_sha": "7a4f7118b1b37dbe71bfd358bacc93f6d5b2ee21"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/libkirk/amctrl.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/libkirk/amctrl.c",
+              "source_blob_sha": "688f7fe1bd56d79d44d77e07a72a686df68bb306"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "Additional pinned PPSSPP dependency notices",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "Other-Vendored-Notices.txt",
+          "sha256": "a030122f494db496db80d53239485ee32bc9fcde9d80b912e9ffba36e92bfefd",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/at3_standalone/atrac3.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/at3_standalone/atrac3.cpp",
+              "source_blob_sha": "186dcff6f70f1bf41700cace79efe2739bf04eea"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/jpge/jpgd.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/jpge/jpgd.cpp",
+              "source_blob_sha": "baf6ea0484740c993d00f9a89c2bf2721e7d0541"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/jpge/jpge.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/jpge/jpge.cpp",
+              "source_blob_sha": "8448197b6609190f884503727dfb8af08c84b10b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/disarm.cpp",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/disarm.cpp",
+              "source_blob_sha": "45e01fdef29c0e15780a7da873e269c96e84b358"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "ext/sfmt19937/SFMT.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/sfmt19937/SFMT.c",
+              "source_blob_sha": "2652df7de2df517b10e2250743d71fd40d522bbb"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "Libretro common source notices used by PPSSPP's makefile",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "Libretro-Common-Notices.txt",
+          "sha256": "b826da9b56510b784f6399a529dd9ddd47d25b12c9b1a3e5856c3b74d8014afc",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_notices": [
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/compat/compat_posix_string.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/compat/compat_posix_string.c",
+              "source_blob_sha": "b0ea26a48b132b5e7f96cb2cde16dd600ec0be04"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/compat/fopen_utf8.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/compat/fopen_utf8.c",
+              "source_blob_sha": "e07edfe8034e417f45248edd750b07044909dd3b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/compat/compat_strl.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/compat/compat_strl.c",
+              "source_blob_sha": "879f30676a36817adfc0cdcf5f06eda3479512d7"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/encodings/encoding_utf.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/encodings/encoding_utf.c",
+              "source_blob_sha": "d9363665744d67b911f3ec43cda6298067960a7c"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/file/file_path.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/file/file_path.c",
+              "source_blob_sha": "d85289a4986d849b5a3933212de3a7014c5b3957"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/file/file_path_io.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/file/file_path_io.c",
+              "source_blob_sha": "a4db0821a489e2efb1f46d6c0f2fe032868fc566"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/streams/file_stream.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/streams/file_stream.c",
+              "source_blob_sha": "8d92481df13b82a5c78207fa52ff5c3cd5d56fd5"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/streams/file_stream_transforms.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/streams/file_stream_transforms.c",
+              "source_blob_sha": "b5edc49edfbbd0093989248368bf3d9d60869803"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/string/rstrtod.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/string/rstrtod.c",
+              "source_blob_sha": "9f5654ff697fb791aa415a83af61cad7fec036d3"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/vfs/vfs_implementation.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/vfs/vfs_implementation.c",
+              "source_blob_sha": "716309a78a0bf6e9ec3fe1f764e96df409b07147"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/encodings/encoding_crc32.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/encodings/encoding_crc32.c",
+              "source_blob_sha": "530c16efb6306d4ee739b73cabb4ca2033fa4653"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/encodings/encoding_deflate.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/encodings/encoding_deflate.c",
+              "source_blob_sha": "487b40d922de04b3097ec23bce33ac0ac4c6ea2b"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/encodings/encoding_huffman.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/encodings/encoding_huffman.c",
+              "source_blob_sha": "f448fa8cf9821617ab785f49adbd71a3738dd3d0"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/encodings/encoding_rzstd.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/encodings/encoding_rzstd.c",
+              "source_blob_sha": "522be08c7a24dda01aceecef24b72ef12ee01280"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/formats/7z/r7z_lzma.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/formats/7z/r7z_lzma.c",
+              "source_blob_sha": "ae8ad5592ea2c62825863cf575f5aa483ef0c8d1"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/formats/chd/rchd.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/formats/chd/rchd.c",
+              "source_blob_sha": "8f636b4670a93549d86cb7eb953448d45fca5440"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/formats/flac/rflac.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/formats/flac/rflac.c",
+              "source_blob_sha": "c0e360edbf6e06bb40c2f7669f3533272e6fe15e"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/formats/png/rpng.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/formats/png/rpng.c",
+              "source_blob_sha": "b3b615698e7acdf92b1a36bcb8769f957a372e40"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/formats/png/rpng_encode.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/formats/png/rpng_encode.c",
+              "source_blob_sha": "2310e924be536f3093dd586e49e026961f1ebe1c"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/formats/zip/rzip_archive.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/formats/zip/rzip_archive.c",
+              "source_blob_sha": "745363f02146d9f876ccc26c13d41530a7d338d5"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/streams/interface_stream.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/streams/interface_stream.c",
+              "source_blob_sha": "bf794eef71ce22794cdb88d7f748132b1b7086a6"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/streams/memory_stream.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/streams/memory_stream.c",
+              "source_blob_sha": "4e59906f52e91a323e2a4c2b92524fcadd01a1bf"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/streams/trans_stream.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/streams/trans_stream.c",
+              "source_blob_sha": "8d636b340b9f31ac2e8d6ab267c0600637cd054c"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/streams/trans_stream_deflate.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/streams/trans_stream_deflate.c",
+              "source_blob_sha": "728ac3fb9fa73d30fb48201169f3232bfb43acd2"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/streams/trans_stream_pipe.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/streams/trans_stream_pipe.c",
+              "source_blob_sha": "dfdaef0856b78ad4e63c2fabb15cd8bd91d72327"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/features/features_cpu.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/features/features_cpu.c",
+              "source_blob_sha": "40c7b0e6a3a4806f6b24d8f85c6290642fd6d693"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/queues/retro_spsc.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/queues/retro_spsc.c",
+              "source_blob_sha": "7d7d0dd5106c1ceb2a03ac479a728485a8ed19fa"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/queues/retro_waitable_spsc.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/queues/retro_waitable_spsc.c",
+              "source_blob_sha": "0e6ddd26125ff3249155b35be234b5f2907db93c"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/rthreads/retro_asym_eventcount.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/rthreads/retro_asym_eventcount.c",
+              "source_blob_sha": "6d7ec28abf8f92a16e08b15db3de4e0c57180c8e"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/rthreads/retro_eventcount.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/rthreads/retro_eventcount.c",
+              "source_blob_sha": "0da9cbc015ad17e790cad8b803403a944a2d3d62"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/rthreads/retro_procbarrier.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/rthreads/retro_procbarrier.c",
+              "source_blob_sha": "8b3838eb184881c3321ed31e6d7c1aba8ea50bee"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/rthreads/rthreads.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/rthreads/rthreads.c",
+              "source_blob_sha": "69c1a82c01f0e1d29a1917d3e86f9881fc948f13"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/rthreads/tpool.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/rthreads/tpool.c",
+              "source_blob_sha": "d1913921f2d26c3bc426b6a23d5ceac62b19ab29"
+            },
+            {
+              "repository": "https://github.com/hrydgard/ppsspp",
+              "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+              "upstream_path": "libretro/libretro-common/time/rtime.c",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/libretro-common/time/rtime.c",
+              "source_blob_sha": "b8639956554ebab81a309868f80895b085242cc6"
+            }
+          ],
+          "exact_copy": false,
+          "extraction": "Verbatim source comments with attribution/licensing statements; context headings added."
+        }
+      ]
+    },
+    {
+      "component": "PPSSPP build-license configuration record",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "files": [
+        {
+          "path": "BUILD-LICENSE-RECORD.md",
+          "sha256": "d0971fe1bc980480c7d8fd4b5e4cf1d0e6075df3daf0e283da57e4dedcbb9e3e",
+          "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+          "source_inputs": [
+            {
+              "path": "ext/ffmpeg-build/config.h.in",
+              "source_blob_sha": "e30b3608c06373c80bcc6ac190e02d78f198da17",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/ffmpeg-build/config.h.in"
+            },
+            {
+              "path": "ext/ffmpeg-build/CMakeLists.txt",
+              "source_blob_sha": "e35a644c34ea8edbda210a7c6b89a8851962970b",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/ffmpeg-build/CMakeLists.txt"
+            },
+            {
+              "path": "ext/ffmpeg-build/configure_checks.cmake",
+              "source_blob_sha": "2ef6f3e27c3ab04759bbb2ac2acc4110eceb6193",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/ffmpeg-build/configure_checks.cmake"
+            },
+            {
+              "path": "ext/ffmpeg-build/libs/libavcodec.cmake",
+              "source_blob_sha": "86926fc290e4b8ec907ecc6c905c7352031cef74",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/ffmpeg-build/libs/libavcodec.cmake"
+            },
+            {
+              "path": "ext/ffmpeg-build/libs/libavformat.cmake",
+              "source_blob_sha": "8fb25b42878687f52cdec1675fed60af8ed5f287",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/ffmpeg-build/libs/libavformat.cmake"
+            },
+            {
+              "path": "ext/ffmpeg-build/libs/libavutil.cmake",
+              "source_blob_sha": "ecc765e03b4bfebd4bd59ddbf32f5168e30f83ce",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/ffmpeg-build/libs/libavutil.cmake"
+            },
+            {
+              "path": "ext/ffmpeg-build/libs/libswresample.cmake",
+              "source_blob_sha": "ec5631fc118ccf69cf24fed60bede551ab83f16e",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/ffmpeg-build/libs/libswresample.cmake"
+            },
+            {
+              "path": "ext/ffmpeg-build/libs/libswscale.cmake",
+              "source_blob_sha": "35ad4c5f30a93922743d92ff819af9c87c3bb1af",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ext/ffmpeg-build/libs/libswscale.cmake"
+            },
+            {
+              "path": "ffmpeg/UPSTREAM_COMMIT",
+              "source_blob_sha": "8688e5cd640e1971386cffb20b3ebb5ac58a0bfd",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/ffmpeg/UPSTREAM_COMMIT"
+            },
+            {
+              "path": "libretro/Makefile",
+              "source_blob_sha": "bdb0dbf43c200227ebeae3024af98969b0cc2d7f",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/Makefile"
+            },
+            {
+              "path": "libretro/Makefile.common",
+              "source_blob_sha": "8d32bc5ccbdf89e7ed8d939422216825b200ccf5",
+              "source_url": "https://github.com/hrydgard/ppsspp/blob/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c/libretro/Makefile.common"
+            }
+          ],
+          "exact_copy": false
+        }
+      ]
+    }
+  ]
+}

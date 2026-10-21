@@ -19,6 +19,7 @@ class LegalBundlePreflightTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
         shutil.copytree(ROOT / "assets/legal", self.root / "assets/legal")
+        shutil.copytree(ROOT / "docs/licenses/cheats", self.root / "docs/licenses/cheats")
         for name in (
             "build-utils/embed_legal_bundle.py",
             "build-utils/validate_legal_bundle_ipa.py",
@@ -28,6 +29,12 @@ class LegalBundlePreflightTests(unittest.TestCase):
             "build-utils/rpcs3/canonical-source.json",
             "build-utils/armsx2/source.json",
             "LICENSE.md", "NOTICE.md", "docs/LEGAL_AND_CREDITS.md",
+            "docs/CHEAT_CATALOG_SOURCES.md",
+            "docs/OVERLAY_SOURCES_AND_CREDITS.md",
+            "docs/HD_TEXTURE_CATALOG_SOURCES.md",
+            "docs/HD_TEXTURE_SOURCES_AND_CREDITS.md",
+            "packages/neo_texture_catalog/ios/Resources/libarchive-LICENSE.txt",
+            "packages/neo_texture_catalog/ios/Resources/ps2ktxpak-LICENSE.txt",
         ):
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -87,6 +94,19 @@ class LegalBundlePreflightTests(unittest.TestCase):
         for source in expected.iterdir():
             self.assertEqual((app / "Legal/Libretro" / source.name).read_bytes(),
                              source.read_bytes(), source.name)
+        self.assertFalse((app / "Legal/MeloNX").exists())
+        self.assertEqual(
+            (app / "Legal/Textures/libarchive-LICENSE.txt").read_bytes(),
+            (self.root / "packages/neo_texture_catalog/ios/Resources/libarchive-LICENSE.txt").read_bytes(),
+        )
+        for folder, target in (("textures", "Textures"), ("ppsspp", "PPSSPP")):
+            manifest = json.loads((self.root / "assets/legal" / folder / "license-sources.json").read_text())
+            for component in manifest["components"]:
+                for entry in component["files"]:
+                    self.assertEqual(
+                        (app / "Legal" / target / entry["path"]).read_bytes(),
+                        (self.root / "assets/legal" / folder / entry["path"]).read_bytes(),
+                    )
 
     def test_missing_and_changed_core_licenses_are_rejected(self):
         notice = self.root / "assets/legal/libretro/snes9x-LICENSE"
@@ -111,6 +131,31 @@ class LegalBundlePreflightTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("coverage", result.stderr)
 
+    def test_missing_or_changed_additional_notices_fail_before_embedding(self):
+        for relative in (
+            "assets/legal/textures/libarchive-LICENSE.txt",
+            "docs/licenses/cheats/Admentus-Enhancement-Codes-LICENSE.txt",
+        ):
+            notice = self.root / relative
+            original = notice.read_bytes()
+            for replacement in (None, b"", b"changed copyright notice"):
+                with self.subTest(path=relative, replacement=replacement):
+                    if replacement is None:
+                        notice.unlink()
+                    else:
+                        notice.write_bytes(replacement)
+                    result = self.run_packager("--validate-only")
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("additional notice", result.stderr)
+                    notice.write_bytes(original)
+
+    def test_texture_notice_must_match_existing_native_bundle(self):
+        original = self.root / "packages/neo_texture_catalog/ios/Resources/libarchive-LICENSE.txt"
+        original.write_text("upstream notice changed")
+        result = self.run_packager("--validate-only")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Stale copied notice", result.stderr)
+
     def test_ipa_validation_catches_lost_or_changed_notices(self):
         app = self.root / "Payload/Runner.app"
         app.mkdir(parents=True)
@@ -125,6 +170,10 @@ class LegalBundlePreflightTests(unittest.TestCase):
             ("Dolphin-COPYING.txt", b""),
             ("Libretro/snes9x-LICENSE", None),
             ("Libretro/azahar-LICENSE.txt", b"incorrect license"),
+            ("Textures/libarchive-LICENSE.txt", None),
+            ("Textures/ps2ktxpak-MIT.txt", b"incorrect license"),
+            ("Cheats/Admentus-Enhancement-Codes-Credits.txt", b"missing author"),
+            ("Catalogs/HD_TEXTURE_SOURCES_AND_CREDITS.md", None),
         ):
             with self.subTest(name=name, replacement=replacement):
                 files = dict(original)

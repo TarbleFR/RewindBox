@@ -1,8 +1,8 @@
 # Embedded Libretro cores — current development source
 
-The published 0.0.7 / Build 455 release contained 14 cores. The current
-development tree contains the 35 cores credited below (34 in private Build 479;
-Mesen added on 20 October 2026).
+Public 0.0.8 / Build 480 contained 34 cores; the earlier 0.0.7 / Build 455
+contained 14. The current development tree contains the 35 cores credited
+below, with Mesen added on 20 October 2026.
 
 NeoStation packages 35 iOS ARM64 libretro core binaries, including the official
 Azahar 2127.0-alpha1 release. RetroArch
@@ -108,4 +108,12 @@ and build inputs before making such a claim.
 
 ## Actual binary source evidence
 
-The [34-core provenance inventory](../../../docs/EMBEDDED_RUNTIME_PROVENANCE.md) distinguishes the two delivery source pins, 23 upstream commit candidates resolved from binary version strings, and nine remaining cores without a resolved candidate. None of those version candidates is presented as complete Corresponding Source. The exact delivered identity JSON and primary commit lookups are preserved there; license-reference snapshots alone do not identify the source that produced a binary.
+The [current and historical provenance inventory](../../../docs/EMBEDDED_RUNTIME_PROVENANCE.md)
+preserves the original 34-core Build 479 evidence and separately identifies the
+later Mesen addition and source-built PPSSPP replacement. Exact upstream source
+revision evidence is recorded for Nestopia, Azahar and the rebuilt PPSSPP;
+32 of the current 35 cores lack a reviewed source-build attestation. Historical
+binary-version candidates remain candidates, not complete Corresponding
+Source. License-reference snapshots alone do not identify the source that
+produced a binary. The [next-release review](../../../docs/RELEASE_NEXT_LICENSE_REVIEW.md)
+also records the new dependency notices and remaining license questions.

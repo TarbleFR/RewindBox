@@ -1,0 +1,20 @@
+ARMSX2 texture archive readers
+
+Authors: ARMSX2 team and contributors; PCSX2 contributors.
+Pinned source: https://github.com/ARMSX2/ARMSX2/tree/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe
+
+TexturePackPaths.h and TexturePackTar.h are copied unmodified into the
+ARMSX2 bridge. Their original SPDX notices follow verbatim. GPL-3.0-or-later
+applies; the complete GPL version 3 text accompanies these notices in
+Legal/ARMSX2-GPL-3.0.txt (repository assets/legal/ARMSX2-GPL-3.0.txt).
+Source hashes: build-utils/armsx2/upstream-files.json.
+
+=== TexturePackPaths.h ===
+
+// TexturePackPaths.h — texture pack archive paths
+// SPDX-License-Identifier: GPL-3.0+
+
+=== TexturePackTar.h ===
+
+// TexturePackTar.h — the tar profile texture packs ship in
+// SPDX-License-Identifier: GPL-3.0+

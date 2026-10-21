@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "distribution_scope": "staged-reference-only",
+  "include_in_legal_bundle": false,
+  "runtime_packaging_approved": false,
+  "source_pin": "build-utils/melonx/source.json",
+  "source_pin_sha256": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+  "open_items": [
+    {
+      "component": "MeloNX",
+      "issue": "Root MIT license conflicts with README GPLv3 statements; unresolved, no blanket classification.",
+      "source_url": "https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67/README.md",
+      "source_blob_sha": "f36367ab166a8ba8ee0289a9789cfed026f5b4b7",
+      "source_lines": [
+        13,
+        218
+      ]
+    },
+    {
+      "component": "MeloNX native dependencies",
+      "issue": "Exact binary/source/build correspondence and all component notices must be completed before future staging. No native payload is packaged by this notice collection.",
+      "local_evidence": "docs/evidence/melonx-native-dependencies-2026-10-20.json"
+    }
+  ],
+  "components": [
+    {
+      "component": "MeloNX / Ryujinx",
+      "repository": "https://starforgejo.dev/projects/MeloNX.git",
+      "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "distribution_scope": "staged-reference-only-not-runtime-payload",
+      "files": [
+        {
+          "path": "MeloNX-Ryujinx-LICENSE.txt",
+          "sha256": "781bbdf040b7d0286c47cca6bffdb9148dfe751c0c9cabdf1a1752412a2e56b4",
+          "source_blob_sha": "818ddd76058d49f42eed9c0ecb580777c7f87d7e",
+          "source_url": "https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67/LICENSE.txt",
+          "upstream_path": "LICENSE.txt",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "MeloNX upstream third-party notices",
+      "repository": "https://starforgejo.dev/projects/MeloNX.git",
+      "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "distribution_scope": "staged-reference-only-not-runtime-payload",
+      "files": [
+        {
+          "path": "MeloNX-THIRDPARTY.md",
+          "sha256": "3d25343318ac33de9d0fb43cccadd610a228e167017a93a905632e0002fd1a99",
+          "source_blob_sha": "5caa0377199e2b77121f116cb008a814a53e7c60",
+          "source_url": "https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67/distribution/legal/THIRDPARTY.md",
+          "upstream_path": "distribution/legal/THIRDPARTY.md",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "Spv.Generator",
+      "repository": "https://starforgejo.dev/projects/MeloNX.git",
+      "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "distribution_scope": "staged-reference-only-not-runtime-payload",
+      "files": [
+        {
+          "path": "Spv-Generator-LICENSE.txt",
+          "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+          "source_blob_sha": "31aa79387f27e730e33d871925e152e35e428031",
+          "source_url": "https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67/src/Spv.Generator/LICENSE",
+          "upstream_path": "src/Spv.Generator/LICENSE",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "SDL3 header accompanying the staged MeloNX framework",
+      "repository": "https://starforgejo.dev/projects/MeloNX.git",
+      "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "distribution_scope": "staged-reference-only-not-runtime-payload",
+      "files": [
+        {
+          "path": "SDL3-COPYING.txt",
+          "sha256": "b5113ee040521690fecda79e1e00d078166d2ec2632153a8ee498f3bcbf40886",
+          "source_blob_sha": "dd9dbc7ee30a223326fe5d068a04d1fa2d325a60",
+          "source_url": "https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67/src/MeloNX/MeloNX/Dependencies/SDL3.xcframework/ios-arm64/SDL3.framework/Headers/SDL_copying.h",
+          "upstream_path": "src/MeloNX/MeloNX/Dependencies/SDL3.xcframework/ios-arm64/SDL3.framework/Headers/SDL_copying.h",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "LibHac (including hactool and XTSSharp notices)",
+      "repository": "https://starforgejo.dev/archive/LibHac_Ryubing.git",
+      "revision": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+      "distribution_scope": "staged-reference-only-not-runtime-payload",
+      "files": [
+        {
+          "path": "LibHac-LICENSE.txt",
+          "sha256": "1175541548a9058e9778d35e0cf854b73e20c4520e985790d014aaf7f2eb754d",
+          "source_blob_sha": "bfa12e172c44c8fbfc774971b7249680710f897b",
+          "source_url": "https://starforgejo.dev/archive/LibHac_Ryubing/src/commit/23e402ebb6dedc517e34a98a033078dc0f6fd478/LICENSE",
+          "upstream_path": "LICENSE",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "Melo-Controller",
+      "repository": "https://github.com/stossy11/Melo-Controller.git",
+      "revision": "c049ce88a5635bddcd88e1965c42aa8fc92fe961",
+      "distribution_scope": "staged-reference-only-not-runtime-payload",
+      "files": [
+        {
+          "path": "Melo-Controller-LICENSE.txt",
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "source_blob_sha": "f288702d2fa16d3cdf0035b15a9fcbc552cd88e7",
+          "source_url": "https://github.com/stossy11/Melo-Controller/blob/c049ce88a5635bddcd88e1965c42aa8fc92fe961/LICENSE",
+          "upstream_path": "LICENSE",
+          "exact_copy": true
+        }
+      ]
+    },
+    {
+      "component": "NeoStation reference-scope record",
+      "repository": "local NeoStation integration",
+      "revision": "source pins in build-utils/melonx/source.json",
+      "files": [
+        {
+          "path": "SCOPE.md",
+          "sha256": "f703b18009007b552bbee83486c4663070e76a068d1088f37546d193632e68bd",
+          "exact_copy": false
+        }
+      ]
+    }
+  ]
+}

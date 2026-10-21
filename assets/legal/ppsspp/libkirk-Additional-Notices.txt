@@ -1,0 +1,63 @@
+Additional libkirk source notices
+
+
+=== ext/libkirk/AES.c ===
+
+/**
+ * rijndael-alg-fst.c
+ *
+ * @version 3.0 (December 2000)
+ *
+ * Optimised ANSI C code for the Rijndael cipher (now AES)
+ *
+ * @author Vincent Rijmen <vincent.rijmen@esat.kuleuven.ac.be>
+ * @author Antoon Bosselaers <antoon.bosselaers@esat.kuleuven.ac.be>
+ * @author Paulo Barreto <paulo.barreto@terra.com.br>
+ *
+ * This code is hereby placed in the public domain.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ''AS IS'' AND ANY EXPRESS
+ * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+=== ext/libkirk/SHA1.c ===
+
+/*	This version written November 2000 by David Ireland of 
+	DI Management Services Pty Limited <code@di-mgt.com.au>
+
+	Adapted from code in the Python Cryptography Toolkit, 
+	version 1.0.0 by A.M. Kuchling 1995.
+*/
+
+=== ext/libkirk/bn.c ===
+
+// Copyright 2007-2022  Segher Boessenkool  <segher@kernel.crashing.org>
+// Licensed under the terms of the GNU GPL, either version 2 or version 3
+// https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+// https://www.gnu.org/licenses/gpl-3.0.html
+// Updated and simplified for use by Kirk Engine - July 2011
+
+
+=== ext/libkirk/ec.c ===
+
+// Copyright 2007-2022  Segher Boessenkool  <segher@kernel.crashing.org>
+// Licensed under the terms of the GNU GPL, either version 2 or version 3
+// https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+// https://www.gnu.org/licenses/gpl-3.0.html
+
+
+=== ext/libkirk/amctrl.c ===
+
+/*
+ *  amctrl.c  -- Reverse engineering of amctrl.prx
+ *               written by tpu.
+ */
