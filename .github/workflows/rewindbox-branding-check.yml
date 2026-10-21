@@ -5,6 +5,7 @@ name: RewindBox branding verification
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: rewindbox-branding-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -61,7 +62,16 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Analyze the complete application
         run: flutter analyze --no-pub
+      - name: Verify unchanged successful test components
+        id: passed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 test/rewindbox_branding_reuse.py
+      - name: Test corrected wordmark and BIOS fixtures
+        if: steps.passed.outputs.reused == 'true'
+        run: flutter test --no-pub test/rewindbox_wordmark_test.dart test/libretro_bios_check_service_test.dart
       - name: Test changed branding, paths, translations and credits
+        if: steps.passed.outputs.reused != 'true'
         run: >-
           flutter test --no-pub
           test/rewindbox_wordmark_test.dart

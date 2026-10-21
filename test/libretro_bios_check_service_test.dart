@@ -314,8 +314,8 @@ void main() {
       var na = result(await fixture.check(), 'psx-na');
       expect(na.status, LibretroBiosStatus.missingRequired);
       expect(na.notes, contains(const LibretroBiosNote('biosFoundElsewhere', <String, String>{
-        'path': 'NeoStation/Libretro/System/Scph5501.bin',
-        'expected': 'NeoStation/Libretro/System/scph5501.bin',
+        'path': 'RewindBox/Libretro/System/Scph5501.bin',
+        'expected': 'RewindBox/Libretro/System/scph5501.bin',
       })));
 
       fixture.put('Scph5501.bin', america);
@@ -360,7 +360,7 @@ void main() {
       fixture.put('BS-X.bin', synthetic(1024 * 1024, 12));
       var row = result(await fixture.check(), 'snes-bsx');
       expect(row.status, LibretroBiosStatus.presentUnverified);
-      expect(row.found?.displayPath, 'NeoStation/Libretro/System/BS-X.bin');
+      expect(row.found?.displayPath, 'RewindBox/Libretro/System/BS-X.bin');
 
       final local = fixture.put('satellaview/BS-X.bin', bsx, under: fixture.library);
       row = result(await fixture.check(), 'snes-bsx');
@@ -397,8 +397,8 @@ void main() {
       final ipl = result(await fixture.check(), 'n64-64dd');
       expect(ipl.status, LibretroBiosStatus.missingOptional);
       expect(ipl.notes, contains(const LibretroBiosNote('biosFoundElsewhere', <String, String>{
-        'path': 'NeoStation/Libretro/System/IPL.n64',
-        'expected': 'NeoStation/Libretro/System/Mupen64plus/IPL.n64',
+        'path': 'RewindBox/Libretro/System/IPL.n64',
+        'expected': 'RewindBox/Libretro/System/Mupen64plus/IPL.n64',
       })));
     });
 
@@ -482,7 +482,7 @@ void main() {
       expect(set.status, LibretroBiosStatus.verified);
       expect(set.need, LibretroBiosNeed.requiredFor);
       expect(keys(set), contains('biosMembersVerified'));
-      expect(set.found?.displayPath, 'NeoStation/Libretro/System/fbneo/neogeo.zip');
+      expect(set.found?.displayPath, 'RewindBox/Libretro/System/fbneo/neogeo.zip');
       expect(console(report, 'arcade').ready, isTrue);
     });
 
