@@ -14,4 +14,4 @@ Cheat availability depends on the game, region and revision. Updated credits and
 
 📦 Download **NeoStation-0.0.8.ipa** below and install it with your usual sideloading tool.
 
-[Source credits](https://github.com/TarbleFR/neostation-ios/blob/0.0.8/docs/CHEAT_CATALOG_SOURCES.md) · [Licenses and notices](https://github.com/TarbleFR/neostation-ios/releases/download/0.0.8/NeoStation-0.0.8-Licenses-and-Notices.zip) · [Source and packaging details](https://github.com/TarbleFR/neostation-ios/blob/0.0.8/docs/RELEASE_0.0.8_SOURCE_MANIFEST.md)
+[Source credits](https://github.com/TarbleFR/neostation-ios/blob/0.0.8/docs/CHEAT_CATALOG_SOURCES.md) · [Licenses and notices](https://github.com/TarbleFR/RewindBox/releases/download/0.0.8/RewindBox-0.0.8-Licenses-and-Notices.zip) · [Source and packaging details](https://github.com/TarbleFR/neostation-ios/blob/0.0.8/docs/RELEASE_0.0.8_SOURCE_MANIFEST.md)

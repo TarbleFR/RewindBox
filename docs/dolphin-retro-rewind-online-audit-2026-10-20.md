@@ -200,7 +200,7 @@ Ces éléments peuvent être préparés et testés maintenant, mais ils restent 
 - https://forums.dolphin-emu.org/Thread-wiimmfi-23918
 - https://forums.dolphin-emu.org/Thread-how-do-i-get-mario-kart-wii-working-online-on-dolphin-but-with-no-wii-console
 - https://bugs.dolphin-emu.org/issues/11455
-- https://github.com/TarbleFR/neostation-ios/releases/download/0.0.1/NeoStation.ipa (lecture partielle, Dolphin seulement)
+- https://github.com/TarbleFR/RewindBox/releases/download/0.0.1/RewindBox.ipa (lecture partielle, Dolphin seulement)
 - Dépôt NeoStation :
   - `build-utils/patch_dolphin_internal_core_v2.py` ;
   - `packages/dolphin_internal_bridge/` ;
