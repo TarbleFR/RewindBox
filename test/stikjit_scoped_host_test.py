@@ -21,6 +21,10 @@ for lower,cls in (('rpcs3','Rpcs3'),('armsx2','Armsx2')):
         new=new.replace('message ?: @"");\n\n}', 'message ?: @"");\n}',1)
     new=new.replace('          : [NSString stringWithFormat:@"JIT_PREPARATION_TIMEOUT: StikJIT did not complete preparation. Last stage: %@",\n              session.logs.lastObject ?: @"No helper stage received."];',
                     '          : @"StikJIT did not attach universal.js to NeoStation.";')
+    # RewindBox changed only four user-visible diagnostics on each JIT host.
+    # Normalize these reviewed labels; continue comparing the full machine.
+    assert new.count('RewindBox') == 4, p+' unexpected branding delta'
+    new = new.replace('RewindBox', 'NeoStation')
     assert old==new,p+' changed outside diagnostics'
 p='packages/dolphin_internal_bridge/ci/verify_ipa.py'
 new=(ROOT/p).read_text()
@@ -42,7 +46,18 @@ replacements = (
 for added, previous in replacements:
     assert new.count(added)==1, 'Unexpected NeoSwap packaging delta: '+added
     new=new.replace(added, previous)
+# The retired external MeloNX/Atari URL routes were removed after Build 497.
+# Normalize precisely the two reviewed policy declarations, not the validator.
+retired_new = "{'retroarch', 'shortcuts'} <= schemes"
+retired_old = "{'retroarch', 'shortcuts', 'melonx'} <= schemes"
+forbidden_new = "not schemes & {'dolphin', 'dolphinios', 'dolphin-emu', 'melonx', 'atariemulator'}, 'Retired external emulator query scheme found'"
+forbidden_old = "not schemes & {'dolphin', 'dolphinios', 'dolphin-emu'}, 'External Dolphin query scheme found'"
+assert new.count(retired_new)==1 and new.count(forbidden_new)==1
+new=new.replace(retired_new,retired_old).replace(forbidden_new,forbidden_old)
 assert new.replace("== '1.9.0', 'Wrong StikJIT version'", "== '1.5.0', 'Wrong StikJIT version'")==original(p)
 p='packages/dolphin_jit_helper/ios/Classes/DolphinJITRequestHandlerBase.swift'
-assert (ROOT/p).read_text().replace('StikJIT 1.9.0','StikJIT 1.5.0')==original(p)
+swift=(ROOT/p).read_text()
+assert swift.count('RewindBox')==7, 'Unreviewed Dolphin JIT branding delta'
+assert swift.replace('StikJIT 1.9.0','StikJIT 1.5.0').replace(
+    'RewindBox','NeoStation')==original(p)
 print('PASS: exact retained JIT host state machines; only timeout text/legacy log; Dolphin algorithm unchanged')
