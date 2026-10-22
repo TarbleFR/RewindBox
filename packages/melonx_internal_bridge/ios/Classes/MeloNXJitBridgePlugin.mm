@@ -14,7 +14,6 @@
 #import <sys/sysctl.h>
 #import <unistd.h>
 #import <mach/mach.h>
-#import <mach/mach_vm.h>
 #import <sys/mman.h>
 #import <libkern/OSCacheControl.h>
 
@@ -104,15 +103,15 @@ NSDictionary* MeloNXJitExecutableMappingProbe(void) {
   const size_t size = (size_t)getpagesize();
   void* rx = mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE | MAP_ANON, -1, 0);
   if (rx == MAP_FAILED) return @{@"success": @NO, @"message": @"The selected JIT method cannot allocate an executable mapping."};
-  mach_vm_address_t rw = 0;
+  vm_address_t rw = 0;
   vm_prot_t current = 0, maximum = 0;
-  kern_return_t result = mach_vm_remap(mach_task_self(), &rw, size, 0, VM_FLAGS_ANYWHERE,
-      mach_task_self(), (mach_vm_address_t)rx, FALSE, &current, &maximum, VM_INHERIT_NONE);
+  kern_return_t result = vm_remap(mach_task_self(), &rw, size, 0, VM_FLAGS_ANYWHERE,
+      mach_task_self(), (vm_address_t)rx, FALSE, &current, &maximum, VM_INHERIT_NONE);
   if (result != KERN_SUCCESS) {
     munmap(rx, size);
     return @{@"success": @NO, @"message": @"The selected JIT method cannot create the writable alias required by MeloNX."};
   }
-  result = mach_vm_protect(mach_task_self(), rw, size, FALSE, VM_PROT_READ | VM_PROT_WRITE);
+  result = vm_protect(mach_task_self(), rw, size, FALSE, VM_PROT_READ | VM_PROT_WRITE);
   BOOL executable = NO;
   if (result == KERN_SUCCESS) {
     // mov w0, #0x4d4c; ret. This page is real test code, not a RAM donation.
@@ -122,7 +121,7 @@ NSDictionary* MeloNXJitExecutableMappingProbe(void) {
     typedef uint32_t (*MeloNXProbeFunction)(void);
     executable = ((MeloNXProbeFunction)rx)() == 0x4d4c;
   }
-  mach_vm_deallocate(mach_task_self(), rw, size);
+  vm_deallocate(mach_task_self(), rw, size);
   munmap(rx, size);
   return @{@"success": @(executable), @"pid": @(getpid()),
       @"message": executable ? @"RewindBox executed code through distinct RX/RW aliases." : @"Executable alias validation failed."};

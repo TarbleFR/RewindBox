@@ -1,6 +1,10 @@
 using System;
 using System.Globalization;
 using System.IO;
+using Path = System.IO.Path;
+using LibHac.Fs.Shim;
+using LibHac.Tools.FsSystem;
+using LibHac.Tools.Ncm;
 using System.Text.Json;
 using System.Collections.Generic;
 using LibHac.Common;
