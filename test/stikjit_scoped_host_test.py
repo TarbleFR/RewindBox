@@ -59,5 +59,6 @@ new=new.replace(
 )
 assert new.replace("== '1.9.0', 'Wrong StikJIT version'", "== '1.5.0', 'Wrong StikJIT version'")==original(p)
 p='packages/dolphin_jit_helper/ios/Classes/DolphinJITRequestHandlerBase.swift'
-assert (ROOT/p).read_text().replace('StikJIT 1.9.0','StikJIT 1.5.0')==original(p)
+dolphin_helper=(ROOT/p).read_text().replace('RewindBox','NeoStation')
+assert dolphin_helper.replace('StikJIT 1.9.0','StikJIT 1.5.0')==original(p)
 print('PASS: exact retained JIT host state machines; only timeout text/legacy log; Dolphin algorithm unchanged')
