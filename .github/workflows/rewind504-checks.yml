@@ -34,6 +34,9 @@ jobs:
           git diff --exit-code 654263ac09ad192360064f92dedcb4f9442bde38 -- native packages assets ios build-utils/libretro pubspec.yaml pubspec.lock lib/l10n lib/services lib/repositories lib/models lib/providers lib/screens/system_games_list
           python3 test/retroarch_baseline_scope_test.py
           python3 test/rewindbox_branding_test.py
+      - name: Reuse unchanged successful native launch proof
+        if: ${{ contains(github.event.head_commit.message, '[startup-flutter-only]') }}
+        run: git diff --exit-code 409ee862ab61b5cc7bba76a96e686632c2d63c28 -- build-utils/configure_rewind_launch.py build-utils/rewind-motion test/rewind_launch_test.py
       - uses: subosito/flutter-action@v2
         with: {flutter-version: '3.47.2', channel: stable, cache: true}
       - run: flutter pub get --enforce-lockfile
@@ -54,6 +57,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
   native:
+    if: ${{ !contains(github.event.head_commit.message, '[startup-flutter-only]') }}
     name: Static launch geometry and iPhone storyboard
     runs-on: macos-15
     timeout-minutes: 10

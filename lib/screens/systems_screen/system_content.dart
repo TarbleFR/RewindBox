@@ -91,19 +91,27 @@ class _SystemContentState extends State<SystemContent> {
             ),
           );
         } else if (configProvider.error != null) {
-          phase = Center(child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(configProvider.error!, textAlign: TextAlign.center),
-          ));
+          phase = Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(configProvider.error!, textAlign: TextAlign.center),
+            ),
+          );
         } else {
           phase = const SizedBox.shrink(key: ValueKey('empty'));
         }
 
         final content = AnimatedSwitcher(
           duration: RewindStartupReady.pending(context)
-              ? Duration.zero : const Duration(milliseconds: 400),
-          child: !showSplash && (showInitialSetup || showContent || configProvider.error != null)
-              ? RewindStartupReady(key: phase.key, child: phase) : phase,
+              ? Duration.zero
+              : const Duration(milliseconds: 400),
+          child:
+              !showSplash &&
+                  (showInitialSetup ||
+                      showContent ||
+                      configProvider.error != null)
+              ? RewindStartupReady(key: phase.key, child: phase)
+              : phase,
         );
 
         // AppScreen owns the custom background so it stays mounted across
@@ -131,8 +139,12 @@ class _SystemContentState extends State<SystemContent> {
     return Stack(
       children: [
         if (!configProvider.isScanning)
-          const Center(child: SizedBox.square(dimension: 20,
-            child: CircularProgressIndicator(strokeWidth: 2))),
+          const Center(
+            child: SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
         if (configProvider.isScanning)
           Align(
             alignment: const Alignment(0, 0.55),

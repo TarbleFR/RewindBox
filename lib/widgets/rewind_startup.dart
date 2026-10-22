@@ -40,7 +40,11 @@ class RewindStartupReady extends StatefulWidget {
   const RewindStartupReady({super.key, required this.child});
   final Widget child;
   static bool pending(BuildContext context) =>
-      !(context.getInheritedWidgetOfExactType<_StartupScope>()?.controller.ready ?? true);
+      !(context
+              .getInheritedWidgetOfExactType<_StartupScope>()
+              ?.controller
+              .ready ??
+          true);
   @override
   State<RewindStartupReady> createState() => _RewindStartupReadyState();
 }
@@ -51,8 +55,10 @@ class _RewindStartupReadyState extends State<RewindStartupReady> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.getInheritedWidgetOfExactType<_StartupScope>()
-          ?.controller.contentReady();
+      context
+          .getInheritedWidgetOfExactType<_StartupScope>()
+          ?.controller
+          .contentReady();
     });
   }
 
@@ -72,13 +78,16 @@ class RewindStartupRoot extends StatefulWidget {
 class _RewindStartupRootState extends State<RewindStartupRoot>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _assembly = AnimationController(
-    vsync: this, duration: const Duration(milliseconds: 1120),
+    vsync: this,
+    duration: const Duration(milliseconds: 1120),
   );
   late final AnimationController _breath = AnimationController(
-    vsync: this, duration: const Duration(milliseconds: 1800),
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
   );
   late final AnimationController _opening = AnimationController(
-    vsync: this, duration: const Duration(milliseconds: 240),
+    vsync: this,
+    duration: const Duration(milliseconds: 240),
   );
   Timer? _activityTimer;
   bool _showActivity = false;
@@ -118,9 +127,13 @@ class _RewindStartupRootState extends State<RewindStartupRoot>
   }
 
   void _readAccessibility() {
-    final features = WidgetsBinding.instance.platformDispatcher.accessibilityFeatures;
-    _reduced = features.reduceMotion || features.disableAnimations ||
-        features.accessibleNavigation || (MediaQuery.maybeOf(context)?.disableAnimations ?? false);
+    final features =
+        WidgetsBinding.instance.platformDispatcher.accessibilityFeatures;
+    _reduced =
+        features.reduceMotion ||
+        features.disableAnimations ||
+        features.accessibleNavigation ||
+        (MediaQuery.maybeOf(context)?.disableAnimations ?? false);
     _updateMotion();
   }
 
@@ -156,8 +169,10 @@ class _RewindStartupRootState extends State<RewindStartupRoot>
 
   void _changed() {
     if (!mounted || _dismissed) return;
-    if (widget.controller.ready && widget.controller.issue == null &&
-        widget.controller.application != null && !_openingStarted) {
+    if (widget.controller.ready &&
+        widget.controller.issue == null &&
+        widget.controller.application != null &&
+        !_openingStarted) {
       _openingStarted = true;
       _assembly.stop();
       _breath.stop();
@@ -186,71 +201,102 @@ class _RewindStartupRootState extends State<RewindStartupRoot>
       controller: widget.controller,
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: Stack(fit: StackFit.expand, children: [
-          const ColoredBox(color: Colors.black),
-          if (widget.controller.application != null)
-            ExcludeSemantics(
-              excluding: !_dismissed,
-              child: IgnorePointer(
-                ignoring: !_dismissed,
-                child: ExcludeFocus(
-                  excluding: !_dismissed,
-                  child: widget.controller.application!,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const ColoredBox(color: Colors.black),
+            if (widget.controller.application != null)
+              ExcludeSemantics(
+                excluding: !_dismissed,
+                child: IgnorePointer(
+                  ignoring: !_dismissed,
+                  child: ExcludeFocus(
+                    excluding: !_dismissed,
+                    child: widget.controller.application!,
+                  ),
                 ),
               ),
-            ),
-          if (!_dismissed)
-            Positioned.fill(
-              child: AbsorbPointer(
-                key: const ValueKey('rewind-motion-intro'),
-                child: AnimatedBuilder(
-                  animation: Listenable.merge([_assembly, _breath, _opening]),
-                  builder: (context, _) {
-                    final exit = Curves.easeOutCubic.transform(_opening.value);
-                    return Opacity(
-                      opacity: 1 - exit,
-                      child: ColoredBox(
-                        color: Colors.black,
-                        child: Stack(fit: StackFit.expand, children: [
-                          Center(child: LayoutBuilder(builder: (context, constraints) {
-                            final side = math.min(232.0, math.min(constraints.maxWidth, constraints.maxHeight) * .58);
-                            return Transform.scale(
-                              scale: _reduced ? 1 : 1 + exit * .045 +
-                                  (_assembly.isCompleted && !_openingStarted ? _breath.value * .006 : 0),
-                              child: SizedBox.square(
-                                dimension: side,
-                                child: RepaintBoundary(child: CustomPaint(
-                                  painter: RewindMarkPainter(
-                                    progress: _assembly.value,
-                                    settle: exit,
-                                    reduced: _reduced,
-                                  ),
-                                )),
-                              ),
-                            );
-                          })),
-                          if (_showActivity && !_openingStarted && widget.controller.issue == null)
-                            Align(
-                              alignment: const Alignment(0, .55),
-                              child: SizedBox(width: 44, height: 2,
-                                child: LinearProgressIndicator(
-                                  value: _reduced ? 0.5 : null,
-                                  color: Colors.white54,
-                                  backgroundColor: Colors.white12,
-                                  minHeight: 2,
+            if (!_dismissed)
+              Positioned.fill(
+                child: AbsorbPointer(
+                  key: const ValueKey('rewind-motion-intro'),
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([_assembly, _breath, _opening]),
+                    builder: (context, _) {
+                      final exit = Curves.easeOutCubic.transform(
+                        _opening.value,
+                      );
+                      return Opacity(
+                        opacity: 1 - exit,
+                        child: ColoredBox(
+                          color: Colors.black,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Center(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final side = math.min(
+                                      232.0,
+                                      math.min(
+                                            constraints.maxWidth,
+                                            constraints.maxHeight,
+                                          ) *
+                                          .58,
+                                    );
+                                    return Transform.scale(
+                                      scale: _reduced
+                                          ? 1
+                                          : 1 +
+                                                exit * .045 +
+                                                (_assembly.isCompleted &&
+                                                        !_openingStarted
+                                                    ? _breath.value * .006
+                                                    : 0),
+                                      child: SizedBox.square(
+                                        dimension: side,
+                                        child: RepaintBoundary(
+                                          child: CustomPaint(
+                                            painter: RewindMarkPainter(
+                                              progress: _assembly.value,
+                                              settle: exit,
+                                              reduced: _reduced,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
-                            ),
-                        ]),
-                      ),
-                    );
-                  },
+                              if (_showActivity &&
+                                  !_openingStarted &&
+                                  widget.controller.issue == null)
+                                Align(
+                                  alignment: const Alignment(0, .55),
+                                  child: SizedBox(
+                                    width: 44,
+                                    height: 2,
+                                    child: LinearProgressIndicator(
+                                      value: _reduced ? 0.5 : null,
+                                      color: Colors.white54,
+                                      backgroundColor: Colors.white12,
+                                      minHeight: 2,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
-          // Recovery stays interactive and never looks like ongoing progress.
-          if (widget.controller.issue != null) widget.controller.issue!,
-        ]),
+            // Recovery stays interactive and never looks like ongoing progress.
+            if (widget.controller.issue != null) widget.controller.issue!,
+          ],
+        ),
       ),
     );
   }
@@ -259,7 +305,11 @@ class _RewindStartupRootState extends State<RewindStartupRoot>
 /// The two contours are a measured trace of the supplied mark, not a font or
 /// a redrawn approximation. Native PDF and Flutter use the same coordinates.
 class RewindMarkPainter extends CustomPainter {
-  const RewindMarkPainter({this.progress = 1, this.settle = 0, this.reduced = false});
+  const RewindMarkPainter({
+    this.progress = 1,
+    this.settle = 0,
+    this.reduced = false,
+  });
   final double progress;
   final double settle;
   final bool reduced;
@@ -268,15 +318,20 @@ class RewindMarkPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     canvas.save();
     canvas.scale(size.width / 2048, size.height / 2048);
-    final white = Paint()..color = (!reduced && progress > .82 && progress < 1)
-        ? const Color(0xFFE6E6E6) : Colors.white;
+    final white = Paint()
+      ..color = (!reduced && progress > .82 && progress < 1)
+          ? const Color(0xFFE6E6E6)
+          : Colors.white;
     if (reduced || progress == 0 || progress >= .82 || settle >= 1) {
       canvas.drawPath(rewindMarkPath, white);
     } else {
       for (var i = 0; i < 6; i++) {
         final local = ((progress - .10 - i * .018) / .62).clamp(0.0, 1.0);
         final appearance = (progress / .1).clamp(0.0, 1.0);
-        final displacement = (1 - Curves.elasticOut.transform(local)) * appearance * (1 - settle);
+        final displacement =
+            (1 - Curves.elasticOut.transform(local)) *
+            appearance *
+            (1 - settle);
         final dx = (i.isEven ? 1 : -1) * 210 * displacement;
         final dy = (i - 2.5) * 20 * displacement;
         final clip = Rect.fromLTWH(0, i * 2048 / 6, 2048, 2048 / 6 + .3);
@@ -287,9 +342,15 @@ class RewindMarkPainter extends CustomPainter {
           canvas.rotate(displacement * (i.isEven ? .035 : -.035));
           canvas.translate(-1024, -1024);
           canvas.clipRect(clip);
-          canvas.drawPath(rewindMarkPath, Paint()..color = Colors.white.withValues(
-            alpha: trail == 0 ? 1 : .065 * displacement.abs().clamp(0.0, 1.0),
-          ));
+          canvas.drawPath(
+            rewindMarkPath,
+            Paint()
+              ..color = Colors.white.withValues(
+                alpha: trail == 0
+                    ? 1
+                    : .065 * displacement.abs().clamp(0.0, 1.0),
+              ),
+          );
           canvas.restore();
         }
       }
@@ -299,15 +360,25 @@ class RewindMarkPainter extends CustomPainter {
       final x = (progress - .82) / .18 * 2200 - 300;
       canvas.save();
       canvas.clipPath(rewindMarkPath);
-      canvas.drawRect(const Rect.fromLTWH(0, 0, 2048, 2048), Paint()
-        ..shader = LinearGradient(colors: const [Colors.transparent, Color(0x28FFFFFF), Colors.transparent])
-            .createShader(Rect.fromLTWH(x, 0, 220, 2048)));
+      canvas.drawRect(
+        const Rect.fromLTWH(0, 0, 2048, 2048),
+        Paint()
+          ..shader = LinearGradient(
+            colors: const [
+              Colors.transparent,
+              Color(0x28FFFFFF),
+              Colors.transparent,
+            ],
+          ).createShader(Rect.fromLTWH(x, 0, 220, 2048)),
+      );
       canvas.restore();
     }
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(RewindMarkPainter oldDelegate) => progress != oldDelegate.progress ||
-      settle != oldDelegate.settle || reduced != oldDelegate.reduced;
+  bool shouldRepaint(RewindMarkPainter oldDelegate) =>
+      progress != oldDelegate.progress ||
+      settle != oldDelegate.settle ||
+      reduced != oldDelegate.reduced;
 }

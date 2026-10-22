@@ -11,7 +11,7 @@ import '../providers/sqlite_config_provider.dart';
 import '../screens/systems_screen/fork_first_run_onboarding.dart';
 import 'pairing_file_onboarding.dart';
 import 'setup_wizard.dart';
-import 'shimmering_logo.dart';
+import 'rewind_startup.dart';
 
 /// Checks the initial configuration and displays the first-run flow when needed.
 class PermissionCheckWrapper extends StatefulWidget {
@@ -271,26 +271,31 @@ class _PermissionCheckWrapperState extends State<PermissionCheckWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_isChecking || _isStartingRetroArchSync) {
-      return const Scaffold(body: Center(child: SizedBox.square(
-        dimension: 20, child: CircularProgressIndicator(strokeWidth: 2),
-      )));
+      return const Scaffold(
+        body: Center(
+          child: SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
     }
 
     if (_needsSetup) {
       if (_showForkWelcomeGate) {
-        return RewindStartupReady(child: Scaffold(
-          body: ForkFirstRunOnboarding(
-            onFinished: _completeForkWelcomeGate,
+        return RewindStartupReady(
+          child: Scaffold(
+            body: ForkFirstRunOnboarding(onFinished: _completeForkWelcomeGate),
           ),
-        ));
+        );
       }
 
       if (_showPairingFileGate) {
-        return RewindStartupReady(child: Scaffold(
-          body: PairingFileOnboarding(
-            onFinished: _completePairingFileGate,
+        return RewindStartupReady(
+          child: Scaffold(
+            body: PairingFileOnboarding(onFinished: _completePairingFileGate),
           ),
-        ));
+        );
       }
 
       return RewindStartupReady(child: SetupWizard(onComplete: _completeSetup));

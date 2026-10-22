@@ -215,7 +215,10 @@ Future<void> _cleanupRetiredThemePackages() async {
     for (final directoryName in directoryNames) {
       final retiredDirectory = Directory(path.join(dataPath, directoryName));
       // Never follow a link into other user data during an upgrade cleanup.
-      final type = await FileSystemEntity.type(retiredDirectory.path, followLinks: false);
+      final type = await FileSystemEntity.type(
+        retiredDirectory.path,
+        followLinks: false,
+      );
       if (type == FileSystemEntityType.directory) {
         await retiredDirectory.delete(recursive: true);
       } else if (type == FileSystemEntityType.link) {
@@ -296,7 +299,8 @@ Future<void> _prepareIosFilesWorkspaceAfterStartup() async {
   if (!Platform.isIOS) return;
   final log = LoggerService.instance;
   try {
-    final movedDiagnostics = await DiagnosticsDirectory.migrateLegacyRootFiles();
+    final movedDiagnostics =
+        await DiagnosticsDirectory.migrateLegacyRootFiles();
     final workspace = await Rpcs3InternalService.synchronizeFilesWorkspace();
     if (movedDiagnostics > 0) {
       log.i(
@@ -634,7 +638,9 @@ class _StartupScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const colors = StartupThemeColors(
-      background: Colors.black, foreground: Colors.white, primary: Colors.white,
+      background: Colors.black,
+      foreground: Colors.white,
+      primary: Colors.white,
     );
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -643,19 +649,29 @@ class _StartupScaffold extends StatelessWidget {
         backgroundColor: Colors.black,
         body: Focus(
           autofocus: onKeyEvent != null,
-          onKeyEvent: onKeyEvent == null ? null : (_, event) => onKeyEvent!(event),
-          child: SafeArea(child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(children: [
-                const SizedBox(height: 32),
-                const SizedBox.square(dimension: 112,
-                  child: CustomPaint(painter: RewindMarkPainter(reduced: true))),
-                const SizedBox(height: 24),
-                ...childrenBuilder(colors),
-              ]),
+          onKeyEvent: onKeyEvent == null
+              ? null
+              : (_, event) => onKeyEvent!(event),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 32),
+                    const SizedBox.square(
+                      dimension: 112,
+                      child: CustomPaint(
+                        painter: RewindMarkPainter(reduced: true),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ...childrenBuilder(colors),
+                  ],
+                ),
+              ),
             ),
-          )),
+          ),
         ),
       ),
     );
