@@ -164,9 +164,9 @@ class GameLaunchService {
         final allowed = await EmbeddedEnginePolicy.instance.allowsSystem(system);
         if (!context.mounted) return GameLaunchResult.failure('', '');
         if (!allowed) return _embeddedEngineOff(context, system);
-        GameSessionManager.registerGameLaunch(system, game, 'ios_melonx_internal');
-        final report = await MelonxInternalService.launch(gamePath: source, locale: locale.toLanguageTag());
+        final report = await MelonxInternalService.launch(gamePath: source, locale: locale.toLanguageTag(), context: context);
         if (report['success'] == true) {
+          GameSessionManager.registerGameLaunch(system, game, 'ios_melonx_internal');
           await FavoritesService.recordGamePlayed(game);
           return GameLaunchResult.success();
         }

@@ -8,13 +8,25 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+import os
 
 root = Path(__file__).resolve().parents[1]
 sources = sorted((root / 'packages/melonx_internal_bridge/ios/Classes').glob('*.swift'))
+controller_sources = sorted((root / 'packages/melonx_internal_bridge/ios/Controller').rglob('*.swift'))
+assert controller_sources, 'Materialize the pinned original controller first'
 header = root / 'packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h'
 sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], text=True).strip()
+flutter_root = Path(os.environ['FLUTTER_ROOT'])
+flutter = flutter_root / 'bin/cache/artifacts/engine/ios/Flutter.xcframework/ios-arm64'
+assert (flutter / 'Flutter.framework/Flutter').is_file(), flutter
+jit_header = header.with_name('MeloNXJitBridgePlugin.h')
 subprocess.run(['xcrun', 'swiftc', '-typecheck', '-swift-version', '5', '-sdk', sdk,
-                '-target', 'arm64-apple-ios17.4', *map(str, sources)], check=True)
+                '-target', 'arm64-apple-ios18.0', '-F',str(flutter),
+                '-import-objc-header',str(jit_header), '-module-name','melonx_internal_bridge',
+                *map(str, [*sources,*controller_sources])], check=True)
+subprocess.run(['xcrun','clang++','-fsyntax-only','-fobjc-arc','-std=c++20',
+                '-target','arm64-apple-ios18.0','-isysroot',sdk,'-F',str(flutter),
+                str(jit_header.with_suffix('.mm'))],check=True)
 with tempfile.TemporaryDirectory(prefix='melonx-host-') as temporary:
     work = Path(temporary)
     (work / 'double.c').write_text(r'''#include "MeloNXSessionABI.h"
@@ -116,6 +128,16 @@ try host.start(game:URL(fileURLWithPath:"/tmp/Jeu été.nro"),locale:"fr-FR",wid
 awaitResult { api.state == 2 }
 check(api.stop(1) == 2 && api.state == 2 && host.isSessionActive)
 check(host.requestStop()); awaitResult { completed == 2 }; check(!host.isSessionActive)
+var reservedGeneration: Int64 = 0
+var rejectedJit = false
+try host.start(game:URL(fileURLWithPath:"/tmp/Jeu été.nro"),locale:"fr-FR",width:1280,height:720,
+    surface:Surface(),pointer:UnsafeMutableRawPointer(bitPattern:1)!,
+    prepared:{ reservedGeneration = $0 },beforeRun:{ false }) { outcome in
+        if case .failure = outcome { rejectedJit = true }; completed += 1
+    }
+check(reservedGeneration > 2)
+awaitResult { completed == 3 }
+check(rejectedJit && !host.isSessionActive && api.state == 0)
 // The actual error buffer crosses the C ABI with UTF-8 intact.
 check(api.diagnostic == "échec natif témoin")
 fail(1)
@@ -129,7 +151,7 @@ try poisoned!.start(game:URL(fileURLWithPath:"/tmp/Jeu été.nro"),locale:"fr-FR
     completed += 1
 }
 failedSurface = nil
-awaitResult { completed == 3 }
+awaitResult { completed == 4 }
 check(failed && poisoned!.isSessionActive && api.state == 4)
 poisoned = nil
 check(weakPoisoned != nil && weakFailedSurface != nil)
@@ -149,7 +171,7 @@ print("Swift embedded session host: \(cases) cases passed.")
         print(result.stderr, flush=True)
         result.check_returncode()
 receipt = dict(source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
-               inputs={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [*sources,header,Path(__file__)]},
+               inputs={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [*sources,*controller_sources,header,jit_header,jit_header.with_suffix('.mm'),Path(__file__)]},
                iphoneSDKTypecheck=True, nativeABIDouble=True, gameplayTested=False, result=result.stdout.strip())
 out=root/'dist/melonx-host/checks.json';out.parent.mkdir(parents=True,exist_ok=True)
 out.write_text(json.dumps(receipt,indent=2)+'\n')

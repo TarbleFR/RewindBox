@@ -1,0 +1,38 @@
+{
+  "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.h": {
+    "source": "packages/armsx2_internal_bridge/ios/Classes/Armsx2JitBridgePlugin.h",
+    "sourceSha256": "c8672ff026968c617d78f4f85d0b0afdd28f2b441b9c4e68289bdc2638907d4a"
+  },
+  "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.mm": {
+    "source": "packages/armsx2_internal_bridge/ios/Classes/Armsx2JitBridgePlugin.mm",
+    "sourceSha256": "ac88c25d6c220eed9502ed2b14e0e6c9c5877cf264a572f8f2d2c46364b0f487"
+  },
+  "packages/melonx_jit_helper/ios/Classes/MeloNXJITRequestHandlerBase.swift": {
+    "source": "packages/rpcs3_jit_helper/ios/Classes/Rpcs3JITRequestHandlerBase.swift",
+    "sourceSha256": "7ffcf5dbd376cfc853f7a152ec9c147c92263d4e77d22742067cfc2a2580164d"
+  },
+  "packages/melonx_jit_helper/ios/Classes/MeloNXHelperJournal.swift": {
+    "source": "packages/rpcs3_jit_helper/ios/Classes/Rpcs3HelperJournal.swift",
+    "sourceSha256": "0c5ab07b04ba5f01d95d1e09a45c4c8fefcd35bf090683f42479472f0bd2982b"
+  },
+  "packages/melonx_jit_helper/ios/Resources/melonx-universal.js": {
+    "source": "packages/rpcs3_jit_helper/ios/Resources/rpcs3-universal.js",
+    "sourceSha256": "a57a40c181b8b8965a9ab98a08fdde861e48d00e818c76c3fc9cfd49057dbf51"
+  },
+  "packages/melonx_jit_helper/ios/melonx_jit_helper.podspec": {
+    "source": "packages/rpcs3_jit_helper/ios/rpcs3_jit_helper.podspec",
+    "sourceSha256": "a2ccd002e1de024210b23fb4660a99ac1de237a34599a743d2c0a1de2e608ec0"
+  },
+  "native/melonx_internal_helper/MeloNXJITExtensionEntry.swift": {
+    "source": "native/rpcs3_internal_helper/Rpcs3JITExtensionEntry.swift",
+    "sourceSha256": "95bf84f8b6847e677be236ff0cdea8cf18448c1b7aed5bcad0f4df6b5cd8466f"
+  },
+  "native/melonx_internal_helper/Info.plist": {
+    "source": "native/rpcs3_internal_helper/Info.plist",
+    "sourceSha256": "f043e5d40ae591043fe7ac51f6e5feaea0103b923f454ae93ea45b10b30825b2"
+  },
+  "build-utils/configure_melonx_ios.py": {
+    "source": "build-utils/configure_rpcs3_ios_v1.py",
+    "sourceSha256": "24a383243e30dc678740afd321a2818a67c66cd14f5ac9ab01e4635626fdaeb5"
+  }
+}

@@ -5,8 +5,15 @@ run-name: MeloNX engine • ${{ github.sha }}
     branches: [Claude, work/melonx-embedded-20261022]
     paths:
       - '.github/workflows/melonx-core.yml'
-      - 'build-utils/melonx/**'
-      - 'native/melonx/**'
+      - 'build-utils/melonx/source.json'
+      - 'build-utils/melonx/build_core.sh'
+      - 'build-utils/melonx/build_libhac.py'
+      - 'build-utils/melonx/libhac-reuse.json'
+      - 'build-utils/melonx/prepare_embedded.py'
+      - 'build-utils/melonx/adapt_session.py'
+      - 'build-utils/melonx/adapt_input.py'
+      - 'build-utils/melonx/adapt_runtime.py'
+      - 'native/melonx/*.cs'
       - 'test/melonx_bootstrap_test.py'
       - 'test/melonx_session_test.py'
       - 'test/melonx_input_test.py'
@@ -19,6 +26,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   core:
+    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[melonx-host-only]') }}
     runs-on: macos-26
     timeout-minutes: 90
     steps:

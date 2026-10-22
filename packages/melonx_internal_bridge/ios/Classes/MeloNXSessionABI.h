@@ -25,6 +25,19 @@ int32_t neostation_melonx_stop(int64_t generation);
 int32_t neostation_melonx_pause(int64_t generation, int32_t paused);
 int32_t neostation_melonx_cancel_prepared(int64_t generation);
 void set_native_window(void *metal_layer);
+/* Runtime ABI 1. Calls configure_native before initialize; absolute private
+ * Frameworks root. Content runs on a serial worker with a 64 KiB output. */
+int32_t neostation_melonx_runtime_abi(void);
+int32_t neostation_melonx_configure_native(const char *frameworks_utf8);
+int32_t neostation_melonx_configure_jit(int32_t universal);
+int32_t neostation_melonx_configure_graphics(const char *json_utf8);
+int32_t neostation_melonx_content(const char *path_utf8, int32_t operation, char *output, int32_t capacity);
+int32_t neostation_melonx_input_abi(void);
+int32_t neostation_melonx_input_attach(int64_t generation, int32_t pad, const char *name_utf8, int32_t player);
+int32_t neostation_melonx_input_detach(int64_t generation, int32_t pad);
+int32_t neostation_melonx_input_reset(int64_t generation, int32_t pad);
+int32_t neostation_melonx_input_button(int64_t generation, int32_t pad, int32_t button, int32_t pressed);
+int32_t neostation_melonx_input_stick(int64_t generation, int32_t pad, int32_t stick, float x, float y);
 #ifdef __cplusplus
 }
 #endif

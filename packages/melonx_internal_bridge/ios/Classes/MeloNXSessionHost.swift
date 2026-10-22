@@ -109,6 +109,8 @@ final class MeloNXSessionHost {
     // method. Keep the surface alive through teardown, even after a UI close.
     func start(game: URL, locale: String, width: Int32, height: Int32,
                surface: AnyObject, pointer: UnsafeMutableRawPointer,
+               prepared: ((Int64) -> Void)? = nil,
+               beforeRun: (() -> Bool)? = nil,
                completion: @escaping (Result<Void, MeloNXHostError>) -> Void) throws {
         lock.lock()
         guard generation == nil else { lock.unlock(); throw MeloNXHostError.busy }
@@ -118,15 +120,27 @@ final class MeloNXSessionHost {
         retainedSurface = surface
         api.setLayer(pointer)
         lock.unlock()
+        prepared?(id)
         queue.async { [self] in
-            let status = api.run(id)
-            let detail = status == 0 ? "" : api.diagnostic
+            let authorized = beforeRun?() ?? true
+            let status: Int32
+            if authorized { status = api.run(id) }
+            else {
+                let cancelled = api.cancel(id) == 0
+                // Stop may have arrived during JIT preflight. The owned
+                // coordinator drains that prepared/stopping generation
+                // without entering the guest; cancel alone cannot do so.
+                let drained = cancelled || (api.state == 3 && api.run(id) == 0)
+                if drained { api.setLayer(nil) }
+                status = drained ? 1 : 3
+            }
+            let detail = authorized ? (status == 0 ? "" : api.diagnostic) : "JIT authorization or executable mapping failed"
             // Report inactive only after run has joined and released resources.
             // Retain self and the surface until this main-thread completion.
             DispatchQueue.main.async { [self] in
                 lock.lock()
                 guard generation == id else { lock.unlock(); return }
-                let quarantined = api.state == 4
+                let quarantined = api.state != 0
                 if !quarantined {
                     generation = nil
                     retainedSurface = nil

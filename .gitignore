@@ -321,6 +321,8 @@ __pycache__/
 /packages/neo_swap/ios/Classes/Donation/
 # Materialized from the canonical guest relay sources before CocoaPods installation.
 /packages/neo_swap/ios/Classes/Relay/
+/packages/melonx_internal_bridge/ios/Controller/
+/packages/melonx_internal_bridge/ios/Frameworks/
 
 # Canonical storage host copies, generated before CocoaPods.
 packages/neo_swap/ios/Classes/Storage/
