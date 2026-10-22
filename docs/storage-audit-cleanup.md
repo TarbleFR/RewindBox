@@ -365,7 +365,7 @@ agrégé en `library`). Mode détaillé (préférence opt-in) : chemins relatifs
 ### 3.11 `lib/l10n/storage_locale.dart` (douze cartes, modèle `UiRefreshRateLocale`)
 
 Clés (~70) avec le français du mainteneur : `toolTitle` « Analyse et nettoyage du stockage », `toolSubtitle` « Mesure
-l'espace utilisé par NeoStation et ses moteurs, puis propose un nettoyage prévisualisé. », `title`, `scanning`
+l'espace utilisé par RewindBox et ses moteurs, puis propose un nettoyage prévisualisé. », `title`, `scanning`
 « Analyse en cours… », `scanAgain` « Analyser à nouveau », `scanFailed` (`{error}`), `cancel`, `summary`, `totalLogical`
 (`{size}`), `totalAllocated` (`{size}`), `freeSpace` (`{free}`, `{total}`), `freeSpaceUnavailable`, `gapExplanation`
 « L'écart avec les Réglages iOS vient des blocs APFS, du dossier temporaire purgé par iOS, de la mémoire NeoSwap
