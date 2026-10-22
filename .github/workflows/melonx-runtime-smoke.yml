@@ -2,35 +2,45 @@ name: MeloNX actual NativeAOT bootstrap
 run-name: MeloNX actual runtime • ${{ github.sha }}
 'on':
   push:
-    branches: [Claude, work/melonx-embedded-20261022]
-    paths: ['.github/workflows/melonx-runtime-smoke.yml', 'test/melonx_runtime_smoke.py', 'packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift']
-  workflow_dispatch:
-permissions: {contents: read, actions: read}
+    branches:
+    - Claude
+    - work/melonx-embedded-20261022
+    paths:
+    - .github/workflows/melonx-runtime-smoke.yml
+    - test/melonx_runtime_smoke.py
+    - packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift
+  workflow_dispatch: null
+permissions:
+  contents: read
+  actions: read
 jobs:
   actual-runtime:
     runs-on: macos-26
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-        with: {persist-credentials: false}
-      - uses: actions/download-artifact@v4
-        with:
-          name: MeloNX-engine-38d997064cd81c5f17de6187ab36d2c78b0ba97c
-          run-id: 39858967222
-          github-token: ${{ github.token }}
-          path: dist/melonx
-      - uses: actions/download-artifact@v4
-        with:
-          name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
-          run-id: 39854858591
-          github-token: ${{ github.token }}
-          path: dist/melonx-native
-      - name: Initialize actual NativeAOT with private native libraries in an ARM64 iOS app
-        run: python3 test/melonx_runtime_smoke.py
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: MeloNX-actual-runtime-${{ github.sha }}
-          path: dist/melonx-smoke
-          if-no-files-found: ignore
-          retention-days: 30
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/download-artifact@v4
+      with:
+        name: MeloNX-engine-38d997064cd81c5f17de6187ab36d2c78b0ba97c
+        run-id: 39858967222
+        github-token: ${{ github.token }}
+        path: dist/melonx
+    - uses: actions/download-artifact@v4
+      with:
+        name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
+        run-id: 39854858591
+        github-token: ${{ github.token }}
+        path: dist/melonx-native
+    - name: Initialize actual NativeAOT with private native libraries in an ARM64 iOS app
+      run: python3 test/melonx_runtime_smoke.py
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: MeloNX-actual-runtime-${{ github.sha }}
+        path: dist/melonx-smoke
+        if-no-files-found: ignore
+        retention-days: 30
+    if: ${{ github.event_name == 'workflow_dispatch' || (!contains(github.event.head_commit.message, '[retroarch-delivery]')
+      && !contains(github.event.head_commit.message, '[melonx-validated-integration]')) }}

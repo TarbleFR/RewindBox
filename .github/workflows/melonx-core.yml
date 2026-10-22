@@ -2,26 +2,28 @@ name: MeloNX embedded engine
 run-name: MeloNX engine • ${{ github.sha }}
 'on':
   push:
-    branches: [Claude, work/melonx-embedded-20261022]
+    branches:
+    - Claude
+    - work/melonx-embedded-20261022
     paths:
-      - '.github/workflows/melonx-core.yml'
-      - 'build-utils/melonx/source.json'
-      - 'build-utils/melonx/build_core.sh'
-      - 'build-utils/melonx/collect_managed_notices.py'
-      - 'build-utils/melonx/build_libhac.py'
-      - 'build-utils/melonx/libhac-reuse.json'
-      - 'build-utils/melonx/prepare_embedded.py'
-      - 'build-utils/melonx/adapt_session.py'
-      - 'build-utils/melonx/adapt_input.py'
-      - 'build-utils/melonx/adapt_runtime.py'
-      - 'build-utils/melonx/adapt_firmware.py'
-      - 'native/melonx/*.cs'
-      - 'test/melonx_bootstrap_test.py'
-      - 'test/melonx_session_test.py'
-      - 'test/melonx_input_test.py'
-      - 'test/melonx_firmware_transaction_test.py'
-      - 'test/melonx_game_header_test.py'
-  workflow_dispatch:
+    - .github/workflows/melonx-core.yml
+    - build-utils/melonx/source.json
+    - build-utils/melonx/build_core.sh
+    - build-utils/melonx/collect_managed_notices.py
+    - build-utils/melonx/build_libhac.py
+    - build-utils/melonx/libhac-reuse.json
+    - build-utils/melonx/prepare_embedded.py
+    - build-utils/melonx/adapt_session.py
+    - build-utils/melonx/adapt_input.py
+    - build-utils/melonx/adapt_runtime.py
+    - build-utils/melonx/adapt_firmware.py
+    - native/melonx/*.cs
+    - test/melonx_bootstrap_test.py
+    - test/melonx_session_test.py
+    - test/melonx_input_test.py
+    - test/melonx_firmware_transaction_test.py
+    - test/melonx_game_header_test.py
+  workflow_dispatch: null
 permissions:
   contents: read
   actions: read
@@ -30,64 +32,75 @@ concurrency:
   cancel-in-progress: false
 jobs:
   core:
-    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[melonx-host-only]') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (!contains(github.event.head_commit.message, '[melonx-host-only]')
+      && !contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message,
+      '[melonx-validated-integration]')) }}
     runs-on: macos-26
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.100'
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - uses: actions/download-artifact@v4
-        with:
-          name: MeloNX-engine-dc46d73c6a42c5662ad3a863071edac0aa4081ad
-          run-id: 39577903252
-          github-token: ${{ github.token }}
-          path: dist/melonx
-      - name: Execute the embedded storage boundary
-        env:
-          GH_TOKEN: ${{ github.token }}
-          MELONX_REUSE_SESSION_RUN: '39577903252'
-        run: python3 build-utils/melonx/check_bootstrap.py
-      - name: Execute session ownership and render teardown
-        env:
-          GH_TOKEN: ${{ github.token }}
-          MELONX_REUSE_SESSION_RUN: '39577903252'
-        run: python3 build-utils/melonx/check_session.py
-      - name: Execute the production firmware transaction with real files
-        run: python3 test/melonx_firmware_transaction_test.py
-      - name: Execute production game header and metadata bounds
-        run: python3 test/melonx_game_header_test.py
-      - name: Fetch exact MeloNX source
-        run: |
-          set -euo pipefail
-          git init .native-sources/MeloNX
-          git -C .native-sources/MeloNX remote add origin https://starforgejo.dev/projects/MeloNX.git
-          git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
-          git -C .native-sources/MeloNX checkout --detach FETCH_HEAD
-          git init .native-sources/LibHac
-          git -C .native-sources/LibHac remote add origin https://starforgejo.dev/archive/LibHac_Ryubing.git
-          git -C .native-sources/LibHac fetch --depth 1 origin 23e402ebb6dedc517e34a98a033078dc0f6fd478
-          git -C .native-sources/LibHac checkout --detach FETCH_HEAD
-      - name: Execute production input driver ownership
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 build-utils/melonx/check_input.py .native-sources/MeloNX
-      - name: Compile NativeAOT library and verify exported ABI
-        env:
-          MELONX_REUSE_LIBHAC: '1'
-          MELONX_BUILD_SIMULATOR: '1'
-          GH_TOKEN: ${{ github.token }}
-        run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: MeloNX-engine-${{ github.sha }}
-          path: dist/melonx/
-          if-no-files-found: ignore
-          retention-days: 14
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.100
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    - uses: actions/download-artifact@v4
+      with:
+        name: MeloNX-engine-dc46d73c6a42c5662ad3a863071edac0aa4081ad
+        run-id: 39577903252
+        github-token: ${{ github.token }}
+        path: dist/melonx
+    - name: Execute the embedded storage boundary
+      env:
+        GH_TOKEN: ${{ github.token }}
+        MELONX_REUSE_SESSION_RUN: '39577903252'
+      run: python3 build-utils/melonx/check_bootstrap.py
+    - name: Execute session ownership and render teardown
+      env:
+        GH_TOKEN: ${{ github.token }}
+        MELONX_REUSE_SESSION_RUN: '39577903252'
+      run: python3 build-utils/melonx/check_session.py
+    - name: Execute the production firmware transaction with real files
+      run: python3 test/melonx_firmware_transaction_test.py
+    - name: Execute production game header and metadata bounds
+      run: python3 test/melonx_game_header_test.py
+    - name: Fetch exact MeloNX source
+      run: 'set -euo pipefail
+
+        git init .native-sources/MeloNX
+
+        git -C .native-sources/MeloNX remote add origin https://starforgejo.dev/projects/MeloNX.git
+
+        git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
+
+        git -C .native-sources/MeloNX checkout --detach FETCH_HEAD
+
+        git init .native-sources/LibHac
+
+        git -C .native-sources/LibHac remote add origin https://starforgejo.dev/archive/LibHac_Ryubing.git
+
+        git -C .native-sources/LibHac fetch --depth 1 origin 23e402ebb6dedc517e34a98a033078dc0f6fd478
+
+        git -C .native-sources/LibHac checkout --detach FETCH_HEAD
+
+        '
+    - name: Execute production input driver ownership
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 build-utils/melonx/check_input.py .native-sources/MeloNX
+    - name: Compile NativeAOT library and verify exported ABI
+      env:
+        MELONX_REUSE_LIBHAC: '1'
+        MELONX_BUILD_SIMULATOR: '1'
+        GH_TOKEN: ${{ github.token }}
+      run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: MeloNX-engine-${{ github.sha }}
+        path: dist/melonx/
+        if-no-files-found: ignore
+        retention-days: 14

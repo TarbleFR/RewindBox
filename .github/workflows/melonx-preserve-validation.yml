@@ -1,0 +1,30 @@
+name: Preserve validated MeloNX components
+'on':
+  push:
+    branches: [Claude]
+    paths: ['.github/workflows/melonx-preserve-validation.yml']
+permissions: {contents: read, actions: write}
+jobs:
+  preserve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env: {GH_TOKEN: '${{ github.token }}'}
+    steps:
+      - name: Cancel only redundant component runs on the already validated integration source
+        run: |
+          python3 - <<'PY'
+          import json,subprocess
+          source='9512996a9aae0f6419fb3bf35323ae831e7fa71b'
+          selected={39860517441:'.github/workflows/melonx-core.yml',39860517330:'.github/workflows/melonx-integration.yml',39860517240:'.github/workflows/melonx-host.yml',39860517350:'.github/workflows/melonx-runtime-smoke.yml',39860517435:'.github/workflows/libretro-checks.yml'}
+          for run,path in selected.items():
+              endpoint=f'repos/TarbleFR/RewindBox/actions/runs/{run}'
+              data=json.loads(subprocess.check_output(['gh','api',endpoint],text=True))
+              assert data['head_sha']==source and data['head_branch']=='Claude' and data['path']==path
+              if data['status']=='completed':
+                  print(run, 'already complete; left unchanged');continue
+              result=subprocess.run(['gh','api','--method','POST',endpoint+'/cancel'],capture_output=True,text=True)
+              if result.returncode:
+                  current=json.loads(subprocess.check_output(['gh','api',endpoint],text=True))
+                  assert current['status']=='completed',f'Could not stop redundant run {run}'
+              print(run,'redundant component validation stopped; Build 506 delivery preserved')
+          PY

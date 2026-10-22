@@ -2,13 +2,15 @@ name: MeloNX private native dependencies
 run-name: MeloNX source-built dependencies • ${{ github.sha }}
 'on':
   push:
-    branches: [Claude, work/melonx-embedded-20261022]
+    branches:
+    - Claude
+    - work/melonx-embedded-20261022
     paths:
-      - '.github/workflows/melonx-native-dependencies.yml'
-      - 'build-utils/melonx/native-dependencies.json'
-      - 'build-utils/melonx/build_native_dependencies.py'
-      - 'native/melonx/jit/**'
-  workflow_dispatch:
+    - .github/workflows/melonx-native-dependencies.yml
+    - build-utils/melonx/native-dependencies.json
+    - build-utils/melonx/build_native_dependencies.py
+    - native/melonx/jit/**
+  workflow_dispatch: null
 permissions:
   contents: read
   actions: read
@@ -20,21 +22,23 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/download-artifact@v4
-        with:
-          name: MeloNX-native-dependencies-f76ec4e9488d6adbc5443ef180762a2d2fe61a54
-          run-id: 39850575802
-          github-token: ${{ github.token }}
-          path: dist/melonx-native
-      - name: Audit all source-built frameworks against the exact iOS SDK declarations
-        run: python3 build-utils/melonx/build_native_dependencies.py --audit-recovered
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: MeloNX-native-dependencies-${{ github.sha }}
-          path: dist/melonx-native
-          retention-days: 14
-          if-no-files-found: error
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/download-artifact@v4
+      with:
+        name: MeloNX-native-dependencies-f76ec4e9488d6adbc5443ef180762a2d2fe61a54
+        run-id: 39850575802
+        github-token: ${{ github.token }}
+        path: dist/melonx-native
+    - name: Audit all source-built frameworks against the exact iOS SDK declarations
+      run: python3 build-utils/melonx/build_native_dependencies.py --audit-recovered
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: MeloNX-native-dependencies-${{ github.sha }}
+        path: dist/melonx-native
+        retention-days: 14
+        if-no-files-found: error
+    if: ${{ github.event_name == 'workflow_dispatch' || (!contains(github.event.head_commit.message, '[retroarch-delivery]')
+      && !contains(github.event.head_commit.message, '[melonx-validated-integration]')) }}
