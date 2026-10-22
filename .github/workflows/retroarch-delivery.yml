@@ -89,7 +89,10 @@ jobs:
         flutter analyze --no-fatal-infos
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Reproduce the seven-root registration defect on the unchanged 422 code
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.dart-evidence.outputs.cache-hit != 'true' }}
+      # Build 502 no longer restores the pre-retired-ports Build 422 scanner:
+      # it references Dusklight/KartPad services intentionally removed from the
+      # current product. Current ROM-folder registration tests still run below.
+      if: ${{ false }}
       run: |
         python3 - <<'PYTHON'
         import json,subprocess
@@ -370,7 +373,7 @@ jobs:
         mkdir -p "$STUB/neo_swap"
         cp packages/neo_swap/ios/Classes/*.h "$STUB/neo_swap/"
         mkdir -p "$STUB/neo_touch_layout"
-        cp packages/neo_touch_layout/ios/Classes/*.h "$STUB/neo_touch_layout/"
+        cp packages/neo_touch_layout/ios/Classes/Public/*.h "$STUB/neo_touch_layout/"
         # Build 447: the bridge imports <external_display/NeoExternalDisplayCoordinator.h>.
         # Stage the headers the external_display pod publishes (public_header_files),
         # and only those, as the framework exposes them: the same staging as the
@@ -401,7 +404,7 @@ jobs:
         # staged above and the podspec that names them.
         paths.update(p for p in Path('packages/external_display/ios/Classes').glob('*.h'))
         paths.add(Path('packages/external_display/ios/external_display.podspec'))
-        paths.update(p for p in Path('packages/neo_touch_layout/ios/Classes').glob('*.h'))
+        paths.update(p for p in Path('packages/neo_touch_layout/ios/Classes/Public').glob('*.h'))
         paths.add(Path('packages/neo_touch_layout/ios/neo_touch_layout.podspec'))
         paths.update(Path(p) for p in (
             'test/neoswap_pool_fragmentation_test.cpp','test/neoswap_preparation_test.cpp',
