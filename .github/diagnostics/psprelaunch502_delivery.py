@@ -19,6 +19,10 @@ DELIVERY_ONLY = {
     '.github/diagnostics/psprelaunch502_delivery.py',
     '.github/workflows/retroarch-delivery.yml',
     'build-utils/delivery-502-chatgpt-recipient.pem',
+    'test/library_ui_details_screen_test.dart',
+    'test/library_ui_hub_test.dart',
+    'test/libretro_host/frontend/session_journal_test.m',
+    'test/libretro_frontend_test.py',
 }
 
 validate_rpc_core_identity = previous.validate_rpc_core_identity
