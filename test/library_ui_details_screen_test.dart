@@ -532,7 +532,7 @@ void main() {
     expect(find.text('This title could not be loaded.'), findsOneWidget);
     expect(
       find.text(
-        'The site requires a browser verification that NeoStation cannot '
+        'The site requires a browser verification that RewindBox cannot '
         'perform.',
       ),
       findsOneWidget,
