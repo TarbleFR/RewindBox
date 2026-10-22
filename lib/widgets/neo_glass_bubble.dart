@@ -45,9 +45,9 @@ abstract final class NeoBubbleStyle {
     ),
   );
 
-  static Color rim(BuildContext context, {bool selected = true}) => Theme.of(
-    context,
-  ).colorScheme.onSurface.withValues(alpha: selected ? 0.56 : 0.18);
+  static Color rim(BuildContext context, {bool selected = true}) =>
+      (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)
+          .withValues(alpha: selected ? 0.56 : 0.18);
 }
 
 /// A convex, translucent lens with a reflective rim and a soft lower lip.
@@ -225,8 +225,9 @@ class _NeoBubbleMotionState extends State<NeoBubbleMotion>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
-    if (!_foreground && _touchDown && mounted)
+    if (!_foreground && _touchDown && mounted) {
       setState(() => _touchDown = false);
+    }
     _syncMotion();
   }
 

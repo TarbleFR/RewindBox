@@ -146,8 +146,9 @@ class _ConsoleBubbleHost extends InheritedWidget {
 
 Rect? _rectOf(BuildContext? context) {
   final box = context?.findRenderObject();
-  if (box is! RenderBox || !box.attached || !box.hasSize || box.size.isEmpty)
+  if (box is! RenderBox || !box.attached || !box.hasSize || box.size.isEmpty) {
     return null;
+  }
   final rect = Rect.fromPoints(
     box.localToGlobal(Offset.zero),
     box.localToGlobal(box.size.bottomRight(Offset.zero)),
@@ -201,8 +202,9 @@ class _ConsoleBubbleAnchorState extends State<ConsoleBubbleAnchor> {
   void didUpdateWidget(ConsoleBubbleAnchor oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.identity != widget.identity ||
-        oldWidget.selected != widget.selected)
+        oldWidget.selected != widget.selected) {
       _register();
+    }
   }
 
   @override
@@ -328,12 +330,13 @@ class _ConsolePlaylistRoute<T> extends PageRoute<T> {
           final full = Offset.zero & size;
           final reduced = _reduced || origin == null;
           var source = (_returnRect ?? origin ?? full).shift(-offset);
-          if (!source.overlaps(full))
+          if (!source.overlaps(full)) {
             source = Rect.fromCenter(
               center: full.center,
               width: size.shortestSide * 0.55,
               height: size.shortestSide * 0.65,
             );
+          }
           final flight = reduced
               ? value
               : const Interval(
