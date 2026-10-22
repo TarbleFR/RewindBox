@@ -36,7 +36,7 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/.dolphin-ccache
 
     steps:
-      - name: Checkout exact RewindBox commit
+      - name: Checkout exact NeoStation commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
