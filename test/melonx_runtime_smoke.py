@@ -31,12 +31,15 @@ with tempfile.TemporaryDirectory(prefix='melonx-runtime-') as temporary:
  bundle='com.neogamelab.neostation.melonxsmoke'
  (app/'Info.plist').write_bytes(plistlib.dumps({'CFBundleExecutable':'MeloNXSmoke','CFBundleIdentifier':bundle,'CFBundleName':'MeloNXSmoke','CFBundlePackageType':'APPL','CFBundleVersion':'1','CFBundleShortVersionString':'1','MinimumOSVersion':'18.0','LSRequiresIPhoneOS':True,'UIDeviceFamily':[1,2],'UILaunchScreen':{}}))
  swift=work/'App.swift';swift.write_text(r'''import UIKit
+import Darwin
 @main final class Smoke: UIResponder, UIApplicationDelegate {
  var window: UIWindow?
  func application(_ app: UIApplication,didFinishLaunchingWithOptions options:[UIApplication.LaunchOptionsKey:Any]? = nil)->Bool {
    window=UIWindow(frame:UIScreen.main.bounds);window?.rootViewController=UIViewController();window?.makeKeyAndVisible()
    DispatchQueue.global(qos:.userInitiated).async {
      let documents=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
+     let log=documents.appendingPathComponent("native-runtime.log")
+     log.path.withCString { _ = freopen($0,"w",stderr) }
      var report:[String:Any]=["actualNativeAOT":true,"gameplayTested":false,"jitTested":false]
      do {
        let frameworks=Bundle.main.privateFrameworksURL!
@@ -73,6 +76,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-runtime-') as temporary:
   if not result.exists():
    (OUT/'simulator.log').write_text(run('xcrun','simctl','spawn',device,'log','show','--last','3m','--predicate','process == "MeloNXSmoke"'))
    raise RuntimeError('Actual NativeAOT bootstrap did not report completion')
+  native_log=container/'Documents/native-runtime.log'
+  if native_log.exists():
+   text=native_log.read_text(errors='replace');(OUT/'native-runtime.log').write_text(text[-1000000:]);print(text[-20000:],flush=True)
   report=json.loads(result.read_text());report['runtime']=runtime;report['coreSha256']=sha(core)
   report['inputs']={str(p.relative_to(ROOT)):sha(p) for p in [*sources,Path(__file__)]}
   (OUT/'actual-runtime.json').write_text(json.dumps(report,indent=2)+'\n')
