@@ -1,3 +1,6 @@
+#include <stdint.h>
+extern "C" void NeoSwapCompiler_Update(bool, bool, uint64_t);
+extern "C" uint64_t NeoSwapCompiler_Reserved();
 #import "NeoSwapPlugin.h"
 #import "NeoSwap.h"
 #include "NeoSwapHost.h"
@@ -156,6 +159,12 @@ static void NeoSwapDemandSignal(void*) {
     if (source) dispatch_source_merge_data(source, 1);
 }
 #endif
+
+extern "C" void NeoSwapCompilerBudgetChanged() {
+#if defined(NEOSWAP_RELAY)
+    NeoSwapDemandSignal(nullptr); // coalesced, never blocks a compiler worker
+#endif
+}
 
 @implementation NeoSwapPlugin
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
@@ -395,6 +404,7 @@ static void NeoSwapDemandSignal(void*) {
     [self advanceDonors];
 }
 - (uint64_t)nextDonationBudget {
+    if (NeoSwapCompiler_Reserved()) return 0; // defer speculative growth while LLVM owns a promise
     neostation::donation::PoolSnapshot pool{};
     neostation::donation::pool_snapshot(pool);
     if (pool.generation != self.donorEpoch || pool.retained_bytes >= pool.target_bytes) return 0;
@@ -915,6 +925,9 @@ static void NeoSwapDemandSignal(void*) {
     id archived = [NeoSwapStorage_Diagnostics() valueForKeyPath:@"sourceArchive.videoPixelLiveArchivedBytes"];
     if ([archived isKindOfClass:NSNumber.class]) in.storage_archived_live_bytes = [archived unsignedLongLongValue];
 #endif
+    in.compiler_working_set_estimate_bytes = NeoSwapCompiler_Reserved();
+    NeoSwapCompiler_Update(in.foreground, in.dispatch_warning || in.thermal_serious ||
+        in.system_pressure >= Pressure::warning, operational_reserve(in.physical_bytes, in.dispatch_warning || in.thermal_serious));
     const Decision previous = _budgetDecision;
     const Decision decision = decide(in, previous);
     _budgetInputs = in;
@@ -1139,6 +1152,7 @@ static void NeoSwapDemandSignal(void*) {
     NSDictionary* contribution = @{
         @"schema":@2,
         @"hostFootprintBytes":memoryValid ? @(memory.phys_footprint) : NSNull.null,
+        @"compilerWorkingSetEstimateBytes":@(in.compiler_working_set_estimate_bytes),
         @"hostAvailableBytes":in.host_available_valid ? @(in.host_available_bytes) : NSNull.null,
         @"donatedBytes":donated.valid ? @(donated.total_bytes) : NSNull.null,
         @"donatedGuestBytes":donated.valid ? @(donated.guest_bytes) : NSNull.null,

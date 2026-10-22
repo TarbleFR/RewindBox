@@ -1,0 +1,275 @@
+--- a/Utilities/JITLLVM.cpp
++++ b/Utilities/JITLLVM.cpp
+@@ -9,6 +9,7 @@
+ #include "util/vm.hpp"
+ #include "util/asm.hpp"
+ #include "Crypto/unzip.h"
++#include "JITObjectBuffer.h"
+ 
+ #ifdef RPCS3_IOS
+ #include "JITIOS.h"
+@@ -55,6 +56,7 @@
+ #include "llvm/ExecutionEngine/JITEventListener.h"
+ #include "llvm/Object/ObjectFile.h"
+ #include "llvm/Object/SymbolSize.h"
++#include "JITMinimalObject.h"
+ #ifdef _MSC_VER
+ #pragma warning(pop)
+ #else
+@@ -63,6 +65,85 @@
+ 
+ #ifdef ARCH_ARM64
+ #include "Emu/CPU/Backends/AArch64/AArch64Common.h"
++#endif
++
++#ifdef RPCS3_IOS
++#include <mutex>
++#include <sys/stat.h>
++namespace
++{
++struct object_file_identity
++{
++	std::string path;
++	std::uint64_t device{}, inode{}, size{};
++	std::int64_t modified{}, changed{}, modified_ns{}, changed_ns{};
++	bool valid = false;
++	bool operator==(const object_file_identity&) const = default;
++};
++object_file_identity object_identity(const std::string& path)
++{
++	object_file_identity result;
++	struct stat st{};
++	result.path = path + ".gz";
++	if (::stat(result.path.c_str(), &st) != 0)
++	{
++		result.path = path;
++		if (::stat(result.path.c_str(), &st) != 0) return result;
++	}
++	if (!S_ISREG(st.st_mode)) return result;
++	result.device = st.st_dev; result.inode = st.st_ino; result.size = st.st_size;
++#ifdef __APPLE__
++	result.modified = st.st_mtimespec.tv_sec; result.modified_ns = st.st_mtimespec.tv_nsec;
++	result.changed = st.st_ctimespec.tv_sec; result.changed_ns = st.st_ctimespec.tv_nsec;
++#else
++	result.modified = st.st_mtim.tv_sec; result.modified_ns = st.st_mtim.tv_nsec;
++	result.changed = st.st_ctim.tv_sec; result.changed_ns = st.st_ctim.tv_nsec;
++#endif
++	result.valid = true;
++	return result;
++}
++// Validation metadata is bounded to 4096 entries; at most 32 MiB of validated
++// object bytes survive until linking. No full-title decompressed cache.
++struct validated_object_window
++{
++	struct entry { object_file_identity identity; std::unique_ptr<llvm::MemoryBuffer> buffer; };
++	std::mutex mutex;
++	std::unordered_map<std::string, entry> entries;
++	std::size_t bytes = 0;
++	bool checked(const std::string& path, const object_file_identity& identity)
++	{
++		std::lock_guard lock(mutex);
++		const auto it = entries.find(path);
++		return identity.valid && it != entries.end() && it->second.identity == identity;
++	}
++	void remember(const std::string& path, object_file_identity identity, std::unique_ptr<llvm::MemoryBuffer> buffer)
++	{
++		if (!identity.valid) return;
++		std::lock_guard lock(mutex);
++		if (entries.size() >= 4096) { entries.clear(); bytes = 0; }
++		if (auto it = entries.find(path); it != entries.end() && it->second.buffer)
++			bytes -= it->second.buffer->getBufferSize();
++		if (buffer->getBufferSize() > 32 * 1024 * 1024 - bytes) buffer.reset();
++		if (buffer) bytes += buffer->getBufferSize();
++		entries[path] = {std::move(identity), std::move(buffer)};
++	}
++	std::unique_ptr<llvm::MemoryBuffer> take(const std::string& path, const object_file_identity& identity)
++	{
++		std::lock_guard lock(mutex);
++		const auto it = entries.find(path);
++		if (it == entries.end()) return nullptr;
++		if (it->second.buffer) bytes -= it->second.buffer->getBufferSize();
++		auto buffer = it->second.identity == identity && identity.valid ? std::move(it->second.buffer) : nullptr;
++		entries.erase(it);
++		return buffer;
++	}
++};
++validated_object_window& validated_objects()
++{
++	static validated_object_window window;
++	return window;
++}
++}
+ #endif
+ 
+ namespace
+@@ -678,6 +759,11 @@
+ 			return false;
+ 		}
+ 
++#ifdef ARCH_ARM64
++		if ((*object_file)->getArch() != llvm::Triple::aarch64) return false;
++#elif defined(ARCH_X64)
++		if ((*object_file)->getArch() != llvm::Triple::x86_64) return false;
++#endif
+ 		if (required_symbol.empty())
+ 		{
+ 			return true;
+@@ -778,36 +864,33 @@
+ 
+ 		if (fs::file cached{path + ".gz", fs::read})
+ 		{
+-			const std::vector<u8> cached_data = cached.to_vector<u8>();
+-
+-			if (cached_data.empty()) [[unlikely]]
++			const auto read_at = [&](std::uint64_t offset, void* data, std::size_t count) -> std::size_t
++			{
++				cached.seek(offset);
++				return cached.read(data, count);
++			};
++			const auto compressed_size = cached.size();
++			const auto output_size = jit_object_buffer::gzip_size(compressed_size, read_at);
++			if (!output_size) return nullptr;
++			auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(output_size);
++			if (!buf || !jit_object_buffer::inflate(compressed_size, read_at, buf->getBufferStart(), output_size))
++			{
++				jit_log.error("LLVM: Invalid or oversized gzip object: '%s'", path);
++				return nullptr;
++			}
++			phase_timer.bytes = output_size;
++			return buf;
++		}
++
++		if (fs::file cached{path, fs::read})
++		{
++			if (cached.size() == 0 || cached.size() > jit_object_buffer::maximum_object_bytes) [[unlikely]]
+ 			{
+ 				return nullptr;
+ 			}
+ 
+-			const std::vector<u8> out = unzip(cached_data);
+-
+-			if (out.empty())
+-			{
+-				jit_log.error("LLVM: Failed to unzip module: '%s'", path);
+-				return nullptr;
+-			}
+-
+-			auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(out.size());
+-			std::memcpy(buf->getBufferStart(), out.data(), out.size());
+-			phase_timer.bytes = out.size();
+-			return buf;
+-		}
+-
+-		if (fs::file cached{path, fs::read})
+-		{
+-			if (cached.size() == 0) [[unlikely]]
+-			{
+-				return nullptr;
+-			}
+-
+ 			auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(cached.size());
+-			cached.read(buf->getBufferStart(), buf->getBufferSize());
++			if (!buf || cached.read(buf->getBufferStart(), buf->getBufferSize()) != buf->getBufferSize()) return nullptr;
+ 			phase_timer.bytes = cached.size();
+ 			return buf;
+ 		}
+@@ -1103,6 +1186,17 @@
+ 	: m_context(new llvm::LLVMContext)
+ 	, m_cpu(cpu(_cpu))
+ {
++#ifdef RPCS3_IOS
++	static std::atomic<bool> announced{false};
++	if (!announced.exchange(true))
++	{
++		std::string feature_names;
++		for (const auto& feature : target_attributes()) { if (!feature_names.empty()) feature_names += ","; feature_names += feature; }
++		jit_log.notice("JITCPU selected=%s detected=%s ppu_triple=%s spu_triple=%s features=%s",
++			m_cpu, llvm::sys::getHostCPUName().str(), triple1(), triple2(), feature_names);
++	}
++#endif
++
+ 	[[maybe_unused]] static const bool s_install_llvm_error_handler = []()
+ 	{
+ 		llvm::remove_fatal_error_handler();
+@@ -1338,6 +1432,14 @@
+ 	return true;
+ }
+ 
++bool jit_compiler::try_add_minimal_object(jit_cached_object object, const std::string& entry,
++	const std::unordered_map<std::string, u64>& bindings, std::string& error)
++{
++	// Prototype only: callers must provide every patchpoint/helper symbol from
++	// this process. No address is read from or written to the persistent cache.
++	return jit_minimal_object::add(*m_engine, object.buffer, entry, bindings, error);
++}
++
+ void jit_compiler::add(std::unique_ptr<llvm::Module> _module)
+ {
+ 	const auto ptr = _module.get();
+@@ -1377,7 +1479,13 @@
+ bool jit_compiler::add(const std::string& path)
+ {
+ 	jit_phase::scope phase_timer(jit_phase::ppu_object_load, utils::get_tsc);
++	#ifdef RPCS3_IOS
++	auto cache = validated_objects().take(path, object_identity(path));
++	if (!cache) cache = ObjectCache::load(path);
++	else jit_memory::cache_buffer_hits.fetch_add(1, std::memory_order_relaxed);
++#else
+ 	auto cache = ObjectCache::load(path);
++#endif
+ 
+ 	if (!cache)
+ 	{
+@@ -1395,26 +1503,43 @@
+ 	}
+ 	else
+ 	{
++		llvm::consumeError(object_file.takeError());
+ 		jit_log.error("ObjectCache: Adding failed: %s", path);
+ 		return false;
+ 	}
+ }
+ 
++void jit_compiler::release_cached_object_buffers()
++{
++#ifdef RPCS3_IOS
++	auto& window = validated_objects();
++	std::lock_guard lock(window.mutex);
++	for (auto& [path, item] : window.entries) item.buffer.reset();
++	window.bytes = 0;
++#endif
++}
++
+ bool jit_compiler::check(const std::string& path)
+ {
++#ifdef RPCS3_IOS
++	const auto identity = object_identity(path);
++	if (validated_objects().checked(path, identity)) { jit_memory::cache_index_hits.fetch_add(1, std::memory_order_relaxed); return true; }
++#endif
+ 	if (auto cache = ObjectCache::load(path))
+ 	{
+-		if (auto object_file = llvm::object::ObjectFile::createObjectFile(*cache))
+-		{
++		if (ObjectCache::validate(*cache, {}))
++		{
++#ifdef RPCS3_IOS
++			// A changed/replaced file must be loaded and validated anew. The
++			// retained buffer itself is immutable and LLVM receives ownership.
++			if (identity == object_identity(path))
++				validated_objects().remember(path, identity, std::move(cache));
++#endif
+ 			return true;
+ 		}
+-
+-		if (fs::remove_file(path))
+-		{
+-			jit_log.error("ObjectCache: Removed damaged file: %s", path);
+-		}
+-	}
+-
++	}
++	fs::remove_file(path + ".gz");
++	fs::remove_file(path);
+ 	return false;
+ }
+ 

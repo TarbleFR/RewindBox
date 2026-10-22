@@ -8,13 +8,14 @@ import plistlib
 import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser();p.add_argument('ipa', type=Path);p.add_argument('--report',type=Path,required=True)
+p.add_argument('--build-number', type=int, default=507)
 a = p.parse_args()
 with zipfile.ZipFile(a.ipa) as z:
     names = z.namelist();assert len(names)==len(set(names)), 'Duplicate ZIP entries'
     info = [n for n in names if len(PurePosixPath(n).parts)==3 and n.startswith('Payload/') and n.endswith('.app/Info.plist')]
     assert len(info)==1, info
     prefix = info[0].removesuffix('Info.plist')
-    main = plistlib.loads(z.read(info[0])); assert str(main['CFBundleVersion'])=='507', main
+    main = plistlib.loads(z.read(info[0])); assert str(main['CFBundleVersion'])==str(a.build_number), main
     assets = prefix+'Frameworks/App.framework/flutter_assets/'
     digests = {}
     for relative in ['assets/data/mau-ali-tab-menu.lottie','assets/data/mau-ali-tab-motion.json',
@@ -34,8 +35,8 @@ with zipfile.ZipFile(a.ipa) as z:
     assert any(b'neostation/ui_refresh_rate/power' in data for _,data in native), 'Native power event channel is not linked'
     extensions=[n for n in names if n.startswith(prefix+'PlugIns/') and n.endswith('.appex/Info.plist')]
     assert len(extensions)==6, extensions
-    for name in extensions: assert str(plistlib.loads(z.read(name))['CFBundleVersion'])=='507', name
-record={'result':'passed','build':507,'ipaSHA256':hashlib.sha256(a.ipa.read_bytes()).hexdigest(),
+    for name in extensions: assert str(plistlib.loads(z.read(name))['CFBundleVersion'])==str(a.build_number), name
+record={'result':'passed','build':a.build_number,'ipaSHA256':hashlib.sha256(a.ipa.read_bytes()).hexdigest(),
         'assets':digests,'nativeLiquidViewLinked':True,'nativePowerChannelLinked':True,
         'compiledDartMotionPresent':True,'appAndSixExtensionVersionsMatched':True,'deviceTested':False}
 a.report.parent.mkdir(parents=True,exist_ok=True);a.report.write_text(json.dumps(record,indent=2)+'\n')

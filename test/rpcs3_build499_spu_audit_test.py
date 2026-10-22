@@ -37,6 +37,13 @@ REFERENCE_THREAD_SHA256 = 'b61d719ba055884c9bb9689ad7411fc57cd44eedd717d08b82256
 
 def reference_translator(text):
     """Undo only this cycle's three exact translator edits, then prove the old hash."""
+    # The memory audit adds admission before translation. Remove only that
+    # exact independently executed prelude for the historical full-file control.
+    prefix = '#ifdef RPCS3_IOS\n#include "ios/IOSCompileAdmission.h"\n#endif\n'
+    admission = '\t\trpcs3::ios::compile_admission admission(func.data.size() * sizeof(u32), [] { return Emu.IsStopped(); });\n\t\tif (!admission) return nullptr;\n\n'
+    if text.startswith(prefix):
+        assert text.count(admission) == 1
+        text = text[len(prefix):].replace(admission, '')
     assert text.count(NEW_LOG) == text.count(NEW_MASK) == text.count(DUMP_COMMENT) == 1
     text = text.replace(NEW_LOG, OLD_LOG).replace(NEW_MASK, OLD_MASK)
     start = text.index(DUMP_COMMENT)
@@ -74,7 +81,20 @@ def main():
     core = args.source.resolve()
     llvm = (core / 'rpcs3/Emu/Cell/SPULLVMRecompiler.cpp').read_text()
     thread = (core / 'rpcs3/Emu/Cell/SPUThread.cpp').read_text()
-    old_llvm, old_thread = reference_translator(llvm), reference_thread(thread)
+    control_llvm, control_thread = llvm, thread
+    prefix = '#ifdef RPCS3_IOS\n#include "ios/IOSCompileAdmission.h"\n#endif\n'
+    if control_llvm.startswith(prefix):
+        control_llvm = control_llvm[len(prefix):]
+        admission = '\t\trpcs3::ios::compile_admission admission(func.data.size() * sizeof(u32), [] { return Emu.IsStopped(); });\n\t\tif (!admission) return nullptr;\n\n'
+        assert control_llvm.count(admission) == 1
+        control_llvm = control_llvm.replace(admission, '')
+    fault = '\n#ifdef RPCS3_IOS\n\t\t// Resolve RSX readback before owning the line; fetch_op below revalidates rtime.\n\t\tif (accurate) utils::trigger_write_page_fault(vm::base(addr));\n#endif\n'
+    wrapped = '\n#ifndef RPCS3_IOS\n\t\telse\n\t\t{\n\t\t\tutils::trigger_write_page_fault(vm::base(addr));\n\t\t}\n#endif'
+    if fault in control_thread:
+        assert control_thread.count(fault) == control_thread.count(wrapped) == 1
+        control_thread = control_thread.replace(fault, '').replace(wrapped, '\n\t\telse\n\t\t{\n\t\t\tutils::trigger_write_page_fault(vm::base(addr));\n\t\t}')
+    old_llvm, old_thread = reference_translator(control_llvm), reference_thread(control_thread)
+
     cmake = (core / 'rpcs3/Emu/CMakeLists.txt').read_text()
     digest = cmake.split('foreach(NEOSTATION_SPU_CODEGEN_SOURCE IN ITEMS', 1)[1].split(')', 1)[0]
     assert all(name in digest for name in ('Cell/SPULLVMRecompiler.cpp', 'Cell/SPUThread.cpp', 'Cell/SPUOpcodes.h'))

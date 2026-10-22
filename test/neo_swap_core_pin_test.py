@@ -17,7 +17,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = '22f1152783cef1f7e04af7b1c895173e28fd5b03'
-PATCH_SHA256 = '6a88c3f5046bbbbd52113ba691cc2f9074e4ebc260f195c1e73776a8c9f876e1'
+PATCH_SHA256 = '179156b3c987132d5a98c967b4c277d9934da7ce3a49e69d95127c996c56604a'
 BACKPORTS = (
     '8bd938e9de9ff6455f312cdf8bd64bd37a064c4e',
     '1d13d1e6bbabfbb7a873f2c608c52525ff470e25',
@@ -34,6 +34,13 @@ V011_BACKPORTS = (
 # Core source, recipe, ABI and native acceptance evidence. NeoSwap.cpp,
 # NeoSwapHost.h, donation helpers and broker-only tests belong to the host.
 CORE_INPUTS = (
+    'test/fixtures/rpcs3_memory_audit/JITLLVM.diff',
+    '.github/workflows/rpcs3-memory-audit.yml',
+    'test/rpcs3_core_syntax_gate_test.py',
+    'test/rpcs3_memory_audit_test.py',
+    'test/native/rpcs3_memory_audit_test.cpp',
+    'packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h',
+    'packages/neo_swap/ios/Classes/NeoSwapCompilerBudget.h',
     'native/neoswap-storage/StorageABI.h',
     'native/neoswap-storage/Client.h',
     'native/neoswap-storage/ShaderKey.h',
@@ -135,7 +142,7 @@ def validate_core_scheduling(workflow: str) -> None:
             'Workflow-level concurrency can cancel a pinned Core even when the build job is skipped')
     require('    concurrency:\n      group: neostation-rpcs3-core-${{ github.sha }}\n      cancel-in-progress: false\n' in workflow,
             'Core job must preserve running builds and isolate immutable source SHAs')
-    require("    if: ${{ inputs.phase != 'delivery499' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') }}" in workflow,
+    require("    if: ${{ inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') }}" in workflow,
             'Host-only integration must not rebuild the referenced Core')
 
 
@@ -164,6 +171,7 @@ def validate_source_contract(root: Path = ROOT, source_root: Path | None = None)
             'Core must borrow relay ABI 1 from the host without claiming device proof')
     for host, core in (
         ('packages/neo_swap/ios/Classes/NeoSwap.h', 'rpcs3/ios/NeoSwap.h'),
+        ('packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h', 'rpcs3/ios/NeoSwapCompilerAPI.h'),
         ('packages/neo_swap/ios/Classes/NeoSwapClientStats.h', 'rpcs3/ios/NeoSwapClientStats.h'),
         ('packages/neo_swap/ios/Classes/NeoSwapRelay.h', 'rpcs3/ios/NeoSwapRelay.h'),
         ('native/neoswap/NeoSwapClient.h', 'rpcs3/ios/NeoSwapClient.h'),

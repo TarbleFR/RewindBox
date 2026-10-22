@@ -1,0 +1,233 @@
+name: RPCS3 memory audit implementation
+run-name: "RPCS3 audit ARM64 core \u2022 ${{ github.sha }}"
+'on':
+  push:
+    branches:
+    - work/rpcs3-audit-20261023
+    paths:
+    - .github/workflows/rpcs3-memory-audit.yml
+    - build-utils/rpcs3/**
+    - build-utils/rpcs3_core_syntax_gate.py
+    - test/rpcs3*
+    - test/native/rpcs3*
+    - test/neo_swap_core_pin_test.py
+    - packages/neo_swap/ios/Classes/NeoSwapCompiler*
+permissions:
+  contents: read
+  actions: read
+jobs:
+  retire_superseded_candidate:
+    name: Retire only the superseded audit candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - name: Cancel only the exact replaced source run; preserve every other build
+      run: |
+        python3 - <<'PYTHON'
+        import json, subprocess, time
+        endpoint='repos/TarbleFR/RewindBox/actions/runs/39869220268'
+        run=json.loads(subprocess.check_output(['gh','api',endpoint],text=True))
+        assert run['head_sha']=='9ba9892499e55205695e3b0afcae134d8dbe03b1'
+        assert run['path']=='.github/workflows/rpcs3-memory-audit.yml'
+        for attempt in range(12):
+            if run['status']=='completed': break
+            time.sleep(10)
+            run=json.loads(subprocess.check_output(['gh','api',endpoint],text=True))
+        if run['status']!='completed':
+            subprocess.run(['gh','api','--method','POST',endpoint+'/cancel'],check=True)
+            print('Cancelled only the superseded audit source; all other runs preserved.')
+        else:
+            print('Superseded candidate already completed; no cancellation needed.')
+        PYTHON
+  core:
+    concurrency:
+      group: rewindbox-rpcs3-memory-audit-${{ github.sha }}
+      cancel-in-progress: false
+    name: 'RPCS3 memory audit: ARM64 proofs and iPhone core'
+    runs-on: macos-15
+    timeout-minutes: 180
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+    - name: Checkout exact commit
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.sha }}
+        fetch-depth: 1
+        persist-credentials: false
+    - name: Select Xcode 16.4
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '16.4'
+    - name: Reuse exact compiler objects and pinned static dependency inputs
+      uses: actions/cache/restore@v4
+      with:
+        path: |-
+          ~/Library/Caches/ccache
+          ${{ runner.temp }}/neostation-rpcs3-embedded/deps
+        key: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch')
+          }}-${{ github.sha }}
+        restore-keys: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch')
+          }}-
+      id: compile-cache
+    - name: Validate startup contracts before compiling
+      shell: bash
+      run: |
+        set -euo pipefail
+        git diff --check
+        xcrun clang++ -std=c++20 -O2 -Wall -Wextra -Werror -pthread -DNEOSWAP_TESTING \
+          -Ipackages/neo_swap/ios/Classes packages/neo_swap/ios/Classes/NeoSwap.cpp \
+          test/neoswap_test.cpp -o "$RUNNER_TEMP/neoswap-test"
+        "$RUNNER_TEMP/neoswap-test"
+        bash -n build-utils/build_rpcs3_embedded_core.sh
+        bash -n build-utils/run_vdec_archive_validation.sh
+        python3 test/rpcs3_core_syntax_gate_test.py
+        python3 -m py_compile build-utils/materialize_rpcs3_core.py build-utils/apply_rpcs3_llvm_patch.py build-utils/validate_rpcs3_embedded_core.py test/rpcs3_atomic_startup_test.py test/rpcs3_preprocessor_balance_test.py test/rpcs3_build351_gow3_engine_test.py test/rpcs3_build352_gow3_memory_test.py test/rpcs3_build353_xitrix_v010_test.py test/rpcs3_xitrix_v0101_native_test.py test/rpcs3_xitrix_v011_native_test.py test/rpcs3_neoswap_relay_test.py test/rpcs3_build435_core_delta_test.py
+        python3 test/rpcs3_preprocessor_balance_test.py
+        python3 test/rpcs3_embedded_core_validator_test.py
+        python3 test/rpcs3_build301_passive_dlopen_test.py
+        python3 test/rpcs3_atomic_startup_test.py
+        # The native failure-path test compiles extracted functions from the
+        # materialized Core and runs in build_rpcs3_embedded_core.sh below.
+        python3 test/rpcs3_jit_handshake_test.py
+        node test/rpcs3_debugger_handshake_test.js
+        # Fail the new real client contract before expensive dependency builds.
+        STORAGE_SRC="$RUNNER_TEMP/storage-core-preflight"
+        git init -q "$STORAGE_SRC"
+        git -C "$STORAGE_SRC" remote add origin https://github.com/XITRIX/rpcs3.git
+        git -C "$STORAGE_SRC" fetch --depth 1 origin 22f1152783cef1f7e04af7b1c895173e28fd5b03
+        git -C "$STORAGE_SRC" checkout -q --detach FETCH_HEAD
+        python3 build-utils/materialize_rpcs3_core.py "$STORAGE_SRC"
+        mkdir -p build/rpcs3-core-diagnostics
+        CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
+          python3 test/rpcs3_build499_spu_audit_test.py "$STORAGE_SRC" 2>&1 | tee build/rpcs3-core-diagnostics/build499-proof.txt
+        CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_spu_warmup_test.py "$STORAGE_SRC" --sanitize
+        CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_build435_core_delta_test.py "$STORAGE_SRC" --sanitize
+        CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_shader_storage_test.py "$STORAGE_SRC"
+        CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_source_archive_test.py "$STORAGE_SRC"
+        # Exercise the actual shm/client and optional prepared-relay binder
+        # before the expensive Core build, including fallback and aliases.
+        CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_neoswap_relay_test.py "$STORAGE_SRC"
+        brew list --versions ffmpeg >/dev/null 2>&1 || brew install ffmpeg
+        mkdir -p dist/rpcs3 build/rpcs3-core-diagnostics
+        bash build-utils/run_vdec_archive_validation.sh "$STORAGE_SRC" 2>&1 | tee build/rpcs3-core-diagnostics/vdec-archive-proof.txt
+        for formula in ccache ninja cmake llvm@22; do
+          brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"
+        done
+        mkdir -p dist/rpcs3 build/rpcs3-core-diagnostics
+        # New memory-audit proofs run before any iPhone LLVM/Core build.
+        CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config"   python3 test/rpcs3_memory_audit_test.py "$STORAGE_SRC" --require-llvm 2>&1 | tee build/rpcs3-core-diagnostics/memory-audit-proof.txt
+        xcrun clang++ -std=c++20 -O1 -g -Wall -Wextra -Werror -pthread -fsanitize=address,undefined   -Ipackages/neo_swap/ios/Classes test/neoswap_budget_test.cpp -o "$RUNNER_TEMP/shared-budget-test"
+        "$RUNNER_TEMP/shared-budget-test"
+        xcrun clang++ -std=c++20 -fobjc-arc -fsyntax-only -Wall -Wextra -Werror   -Ipackages/neo_swap/ios/Classes packages/neo_swap/ios/Classes/NeoSwapCompiler.mm
+        python3 test/neo_swap_core_pin_test.py --source-only --source-root "$STORAGE_SRC"
+        # NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: policy, two-process MCJIT relocation
+        # proof with the LLVM 22 that builds the Core, and the translator wiring; fails
+        # here, before the expensive dependency and Core builds.
+        CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
+          python3 test/rpcs3_build481_spu_object_cache_test.py "$STORAGE_SRC" --sanitize --require-llvm 2>&1 | tee build/rpcs3-core-diagnostics/spu-object-cache-proof.txt
+        # NEOSTATION_BUILD483_LLVM_PIPELINES_V1: calling-convention hazard proof and the
+        # five Core pipelines on synthetic kernels (verification, IR/AArch64 counts,
+        # bit-exact host execution), then the pipeline wiring of the translators.
+        CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
+          python3 test/rpcs3_build483_llvm_pipeline_test.py "$STORAGE_SRC" --require-llvm --report build/rpcs3-core-diagnostics/llvm-pipeline-kernels.json 2>&1 | tee build/rpcs3-core-diagnostics/llvm-pipeline-proof.txt
+        # NEOSTATION_BUILD487_DIAGNOSTICS_V1: helpers of the audit diagnostics and levers
+        # executed on the host (profiler maths, boot lines, spin thresholds, directory
+        # retention against the real SPU object-cache policy), then the wiring and the
+        # unchanged defaults; the host bridge part (admission of the new Core lines,
+        # milestones, metrics mirror equal to the Core header, Foundation rotation).
+        CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
+          python3 test/rpcs3_build487_core_diagnostics_test.py "$STORAGE_SRC" 2>&1 | tee build/rpcs3-core-diagnostics/build487-core-proof.txt
+        python3 test/rpcs3_build258_core_architecture_test.py "$STORAGE_SRC" 2>&1 | tee -a build/rpcs3-core-diagnostics/build487-core-proof.txt
+        { python3 test/rpcs3_build487_host_diagnostics_test.py --core "$STORAGE_SRC"
+          python3 test/rpcs3_diagnostics_native_test.py
+          python3 test/rpcs3_build283_boot_stability_test.py
+          python3 test/rpcs3_performance_snapshot_test.py; } 2>&1 | tee build/rpcs3-core-diagnostics/build487-host-proof.txt
+    - name: Build Core from the single reviewed source delta
+      shell: bash
+      run: |
+        set -euo pipefail
+        env -u GITHUB_ENV OUTPUT_DIR="$PWD/dist/rpcs3" BUILD_JOBS=3 \
+          bash build-utils/build_rpcs3_embedded_core.sh 2>&1 | tee build/rpcs3-core-diagnostics/build.log
+    - name: Validate passive Core identity and exports
+      shell: bash
+      run: |
+        set -euo pipefail
+        CORE=dist/rpcs3/libRPCS3Core.dylib
+        test -s "$CORE"
+        python3 build-utils/validate_rpcs3_embedded_core.py "$CORE"
+        python3 build-utils/validate_rpcs3_passive_dlopen.py "$CORE" | tee build/rpcs3-core-diagnostics/passive-dlopen.txt
+        file "$CORE" | tee build/rpcs3-core-diagnostics/file.txt
+        lipo -archs "$CORE" | tee build/rpcs3-core-diagnostics/archs.txt
+        nm -gU "$CORE" > build/rpcs3-core-diagnostics/exports.txt
+        strings "$CORE" | grep -q REWINDBOX_RPCS3_MEMORY_AUDIT_V1
+        for symbol in _rpcs3_ios_set_compiler_budget_api _rpcs3_ios_initialize _rpcs3_ios_boot_game _neostation_rpcs3_ios_save_state _neostation_rpcs3_ios_save_state_slot _rpcs3_ios_run_llvm_self_test _rpcs3_ios_shutdown _rpcs3_ios_set_neoswap_api _rpcs3_ios_get_neoswap_client_stats _rpcs3_ios_set_neoswap_relay_api _rpcs3_ios_set_neoswap_prepared_relay_api _rpcs3_ios_get_neoswap_relay_client_stats _rpcs3_ios_set_storage_cache_api _rpcs3_ios_set_source_archive_api; do
+          grep -q " $symbol$" build/rpcs3-core-diagnostics/exports.txt
+        done
+        ! grep -q ' _neostation_rpcs3_adopt_jit_layout$' build/rpcs3-core-diagnostics/exports.txt
+        ! grep -q ' _neostation_rpcs3_reset_failed_startup$' build/rpcs3-core-diagnostics/exports.txt
+        python3 - <<'PY'
+        import hashlib,json,os,sys
+        from pathlib import Path
+        sys.path.insert(0,'test')
+        from neo_swap_core_pin_test import core_input_hashes
+        core=Path('dist/rpcs3/libRPCS3Core.dylib')
+        identity={
+          'schema_version':1,
+          'repository':'https://github.com/TarbleFR/RewindBox',
+          'host_commit':os.environ['GITHUB_SHA'],
+          'source_commit':Path('dist/rpcs3/RPCS3_SOURCE_COMMIT.txt').read_text().strip(),
+          'abi_version':int(Path('dist/rpcs3/RPCS3_IOS_ABI.txt').read_text().strip()),
+          'sha256':hashlib.sha256(core.read_bytes()).hexdigest(),
+          'architectures':['arm64'],
+          'jit_policy':'Build266 adaptive Core-owned arena + passive dlopen',
+          'reservation':'Page-aligned VM gaps, atomic non-overwriting vm_allocate, available-VA standard capacity',
+          'lifecycle_marker':'NEOSTATION_BUILD301_PASSIVE_DLOPEN_V1',
+          'allocator_marker':'NEOSTATION_PAGE_ALIGNED_JIT_GAPS_V1',
+          'source_patch_sha256':json.loads(Path('build-utils/rpcs3/canonical-source.json').read_text())['patch_sha256'],
+          'neoswap_client_abi':1,
+          'neoswap_client_stats_abi':1,
+          'neoswap_relay_abi':1,
+          'neoswap_prepared_relay_abi':1,
+          'neoswap_relay_client_stats_abi':1,
+          'neoswap_storage_abi':1,
+          'neoswap_source_archive_abi':1,
+          'core_input_sha256':core_input_hashes(),
+          'neoswap_coverage':'RSX CPU data and coherent host-visible Vulkan SYSTEM buffers (1-256MiB); strict import checks and GPU retirement; shared-memory guest backing with coherent aliases via separate host relay ABI 1; no JIT/executable mappings/images',
+          'device_runtime_tested':False,
+        }
+        Path('dist/rpcs3/identity.json').write_text(json.dumps(identity,indent=2)+'\n')
+        print(json.dumps(identity,indent=2))
+        PY
+        cp dist/rpcs3/identity.json build/rpcs3-core-diagnostics/identity.json
+    - name: Upload RPCS3 recovery Core
+      uses: actions/upload-artifact@v4
+      with:
+        name: RPCS3Core-${{ github.sha }}
+        path: dist/rpcs3/
+        if-no-files-found: error
+        retention-days: 30
+    - name: Preserve authenticated dependencies and compiler objects even after a syntax failure
+      if: ${{ always() }}
+      uses: actions/cache/save@v4
+      with:
+        path: |-
+          ~/Library/Caches/ccache
+          ${{ runner.temp }}/neostation-rpcs3-embedded/deps
+        key: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch')
+          }}-${{ github.sha }}
+    - name: Upload diagnostics
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: RPCS3Core-diagnostics-${{ github.sha }}
+        path: build/rpcs3-core-diagnostics/
+        if-no-files-found: warn
+        retention-days: 14
+    needs:
+    - retire_superseded_candidate
