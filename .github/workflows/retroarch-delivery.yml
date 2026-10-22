@@ -1,18 +1,20 @@
-name: RewindBox RetroArch • Build 497 • SideStore
+name: RewindBox RetroArch • Build 502 • SideStore
 # The closed evidence reader captures historical ANSI-bearing logs privately.
-run-name: RewindBox Build ${{ inputs.build_number || '497' }} • ${{ github.sha }} • embedded libretro
+run-name: RewindBox Build ${{ inputs.build_number || '502' }} • ${{ github.sha }} • embedded libretro
 'on':
   push:
     branches:
     - Claude
     paths:
     - .github/workflows/retroarch-delivery.yml
+    - .github/diagnostics/psprelaunch497_delivery.py
+    - build-utils/delivery-502-chatgpt-recipient.pem
   workflow_dispatch:
     inputs:
       build_number:
         description: New delivery build number
         required: true
-        default: '497'
+        default: '502'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -210,7 +212,7 @@ jobs:
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
-        name: RewindBox-${{ inputs.build_number || '497' }}-validation-${{ github.sha }}
+        name: RewindBox-${{ inputs.build_number || '502' }}-validation-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -268,7 +270,7 @@ jobs:
       if: ${{ inputs.validation_scope == 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: RewindBox-${{ inputs.build_number || '497' }}-native-reuse-${{ github.sha }}
+        name: RewindBox-${{ inputs.build_number || '502' }}-native-reuse-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -416,7 +418,7 @@ jobs:
       if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: RewindBox-${{ inputs.build_number || '497' }}-neoswap-native-${{ github.sha }}
+        name: RewindBox-${{ inputs.build_number || '502' }}-neoswap-native-${{ github.sha }}
         path: build/delivery/neoswap/
         if-no-files-found: error
         retention-days: 14
@@ -529,10 +531,10 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '497' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '502' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-502-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '497' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '502' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -1333,10 +1335,10 @@ jobs:
     needs:
     - cold
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '497' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-480-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '502' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-502-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '497' }}-${{ github.sha }}-warm
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '502' }}-${{ github.sha }}-warm
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
