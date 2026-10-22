@@ -52,13 +52,18 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip> {
             top: 1.r,
             bottom: 1.r,
             width: 32.r,
-            duration: NeoBubbleStyle.reduceMotion(context) ? Duration.zero : const Duration(milliseconds: 280),
+            duration: NeoBubbleStyle.reduceMotion(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 280),
             curve: Curves.easeOutBack,
             child: IgnorePointer(
               child: NeoBubbleMotion(
                 selected: true,
                 pressed: _pressedSlot == selectedSlot,
-                child: const NeoGlassBubble(blur: true, child: SizedBox.expand()),
+                child: const NeoGlassBubble(
+                  blur: true,
+                  child: SizedBox.expand(),
+                ),
               ),
             ),
           ),
@@ -78,7 +83,9 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip> {
                   onPointerDown: (_) => setState(() => _pressedSlot = slot),
                   onPointerUp: (_) => setState(() => _pressedSlot = null),
                   onPointerCancel: (_) => setState(() => _pressedSlot = null),
-                  child: tab == null ? const AirPlayMenuButton() : widget.tabBuilder(tab),
+                  child: tab == null
+                      ? const AirPlayMenuButton()
+                      : widget.tabBuilder(tab),
                 ),
               ),
           ],

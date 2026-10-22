@@ -46,6 +46,7 @@ jobs:
           flutter test --no-pub --reporter expanded
           test/console_bubble_transition_test.dart
           test/neo_glass_bubble_test.dart
+          test/system_bubble_render_test.dart
           test/main_menu_tab_strip_test.dart
           test/gamepad_navigation_manager_test.dart
           test/horizontal_swipe_test.dart

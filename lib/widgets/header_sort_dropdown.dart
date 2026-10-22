@@ -389,7 +389,9 @@ class _SortDropdownOverlayState extends State<SortDropdownOverlay> {
               height: 28.r,
               margin: EdgeInsets.symmetric(horizontal: 4.r, vertical: 2.r),
               padding: EdgeInsets.symmetric(horizontal: 12.r),
-              decoration: isFocused ? NeoBubbleStyle.decoration(context, radius: 22.r) : const BoxDecoration(),
+              decoration: isFocused
+                  ? NeoBubbleStyle.decoration(context, radius: 22.r)
+                  : const BoxDecoration(),
               child: Row(
                 children: [
                   Icon(
@@ -490,7 +492,9 @@ class _SortDropdownOverlayState extends State<SortDropdownOverlay> {
         Container(
           height: 24.r,
           margin: EdgeInsets.symmetric(horizontal: 4.r, vertical: 2.r),
-          decoration: itemIsFocused ? NeoBubbleStyle.decoration(context, radius: 22.r) : const BoxDecoration(),
+          decoration: itemIsFocused
+              ? NeoBubbleStyle.decoration(context, radius: 22.r)
+              : const BoxDecoration(),
           child: InkWell(
             onTap: () {
               setState(() => _selectedIndex = i);

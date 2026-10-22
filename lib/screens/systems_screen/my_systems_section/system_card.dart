@@ -217,7 +217,8 @@ class _SystemCardState extends State<SystemCard> {
         child: _surface(
           child: ClipRRect(
             borderRadius: widget.info.isGame
-                ? Theme.of(context).extension<CornerRadii>()?.radiusInternal ?? BorderRadius.circular(9.r)
+                ? Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
+                      BorderRadius.circular(9.r)
                 : BorderRadius.circular(27.r),
             child: InkWell(
               focusNode: _focusNode,
@@ -281,7 +282,11 @@ class _SystemCardState extends State<SystemCard> {
     return ConsoleBubbleAnchor(
       identity: widget.info.folderName ?? widget.info.title ?? 'all',
       selected: widget.isSelected,
-      child: NeoBubbleMotion(selected: widget.isSelected, float: true, child: card),
+      child: NeoBubbleMotion(
+        selected: widget.isSelected,
+        float: true,
+        child: card,
+      ),
     );
   }
 
@@ -291,11 +296,17 @@ class _SystemCardState extends State<SystemCard> {
         role: GlassSurfaceRole.card,
         enableBackdropBlur: false,
         showSheen: false,
-        borderRadius: Theme.of(context).extension<CornerRadii>()?.radiusExternal ?? BorderRadius.circular(14.r),
+        borderRadius:
+            Theme.of(context).extension<CornerRadii>()?.radiusExternal ??
+            BorderRadius.circular(14.r),
         child: child,
       );
     }
-    return NeoGlassBubble(selected: widget.isSelected, radius: 30.r, child: child);
+    return NeoGlassBubble(
+      selected: widget.isSelected,
+      radius: 30.r,
+      child: child,
+    );
   }
 
   /// Orchestrates background rendering, selecting between static images,
@@ -392,7 +403,8 @@ class _SystemCardState extends State<SystemCard> {
                 key: ValueKey('${activeBgPath}_${widget.info.imageVersion}'),
                 fit: BoxFit.cover,
                 cacheWidth: widget.backgroundCacheWidth,
-                errorBuilder: (context, error, stackTrace) => _buildBundledBackground(),
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildBundledBackground(),
               )
             : _buildBundledBackground(),
       ),
@@ -569,15 +581,27 @@ class _SystemCardState extends State<SystemCard> {
         padding: EdgeInsets.only(top: 1.r, bottom: 1.r, left: 2.r, right: 2.r),
         child: Column(
           children: [
-            Expanded(child: FittedBox(
-              fit: BoxFit.contain,
-              child: _buildSystemLogo(assetLogoPath, height: 128.r, color: Theme.of(context).colorScheme.onSurface),
-            )),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: _buildSystemLogo(
+                  assetLogoPath,
+                  height: 128.r,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
             Padding(
               padding: EdgeInsets.only(bottom: 3.r, left: 5.r, right: 5.r),
-              child: Text(widget.info.title ?? widget.info.shortName ?? '',
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 8.r, fontWeight: FontWeight.w600),
+              child: Text(
+                widget.info.title ?? widget.info.shortName ?? '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 8.r,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

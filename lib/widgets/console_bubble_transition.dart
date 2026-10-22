@@ -17,7 +17,8 @@ class ConsoleBubbleScope extends StatefulWidget {
   static _ConsoleBubbleScopeState? _of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_ConsoleBubbleHost>()?.owner;
 
-  static Future<T?> open<T>(BuildContext context, {
+  static Future<T?> open<T>(
+    BuildContext context, {
     required String identity,
     required WidgetBuilder builder,
   }) async {
@@ -39,7 +40,11 @@ class _ConsoleBubbleScopeState extends State<ConsoleBubbleScope> {
   bool _busy = false;
   Completer<void>? _settled;
 
-  Future<T?> _open<T>(BuildContext context, String identity, WidgetBuilder builder) async {
+  Future<T?> _open<T>(
+    BuildContext context,
+    String identity,
+    WidgetBuilder builder,
+  ) async {
     if (_busy) {
       // A second caller must not reactivate the source's controller in its
       // finally block while the first route is still opening or closing.
@@ -64,7 +69,10 @@ class _ConsoleBubbleScopeState extends State<ConsoleBubbleScope> {
       if (!reduced && boundary is RenderRepaintBoundary && origin != null) {
         try {
           // A single <=512px image (<1 MiB RGBA), retained only by this route.
-          final ratio = math.min(1.5, 512 / math.max(boundary.size.width, boundary.size.height));
+          final ratio = math.min(
+            1.5,
+            512 / math.max(boundary.size.width, boundary.size.height),
+          );
           image = boundary.toImageSync(pixelRatio: ratio);
         } catch (_) {
           // A disappearing/re-laid-out source still gets the geometric morph.
@@ -122,10 +130,8 @@ class _ConsoleBubbleScopeState extends State<ConsoleBubbleScope> {
     child: ValueListenableBuilder<double>(
       valueListenable: _progress,
       child: Builder(builder: widget.builder),
-      builder: (context, value, child) => Opacity(
-        opacity: 1 - 0.32 * value,
-        child: child,
-      ),
+      builder: (context, value, child) =>
+          Opacity(opacity: 1 - 0.32 * value, child: child),
     ),
   );
 }
@@ -134,20 +140,30 @@ class _ConsoleBubbleHost extends InheritedWidget {
   const _ConsoleBubbleHost({required this.owner, required super.child});
   final _ConsoleBubbleScopeState owner;
   @override
-  bool updateShouldNotify(_ConsoleBubbleHost oldWidget) => oldWidget.owner != owner;
+  bool updateShouldNotify(_ConsoleBubbleHost oldWidget) =>
+      oldWidget.owner != owner;
 }
 
 Rect? _rectOf(BuildContext? context) {
   final box = context?.findRenderObject();
-  if (box is! RenderBox || !box.attached || !box.hasSize || box.size.isEmpty) return null;
-  final rect = Rect.fromPoints(box.localToGlobal(Offset.zero), box.localToGlobal(box.size.bottomRight(Offset.zero)));
+  if (box is! RenderBox || !box.attached || !box.hasSize || box.size.isEmpty)
+    return null;
+  final rect = Rect.fromPoints(
+    box.localToGlobal(Offset.zero),
+    box.localToGlobal(box.size.bottomRight(Offset.zero)),
+  );
   return rect.isFinite && !rect.isEmpty ? rect : null;
 }
 
 /// The focused card's source, registered inside its own live Systems scope.
 /// Registration leases prevent an old card's dispose removing its successor.
 class ConsoleBubbleAnchor extends StatefulWidget {
-  const ConsoleBubbleAnchor({super.key, required this.identity, required this.child, this.selected = false});
+  const ConsoleBubbleAnchor({
+    super.key,
+    required this.identity,
+    required this.child,
+    this.selected = false,
+  });
   final String identity;
   final Widget child;
   final bool selected;
@@ -161,7 +177,8 @@ class _ConsoleBubbleAnchorState extends State<ConsoleBubbleAnchor> {
   String? _registered;
 
   void _register() {
-    if (_registered != null && identical(_owner?._anchors[_registered], _boundary)) {
+    if (_registered != null &&
+        identical(_owner?._anchors[_registered], _boundary)) {
       _owner?._anchors.remove(_registered);
     }
     _registered = widget.selected ? widget.identity : null;
@@ -171,7 +188,8 @@ class _ConsoleBubbleAnchorState extends State<ConsoleBubbleAnchor> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_registered != null && identical(_owner?._anchors[_registered], _boundary)) {
+    if (_registered != null &&
+        identical(_owner?._anchors[_registered], _boundary)) {
       _owner?._anchors.remove(_registered);
     }
     _owner = ConsoleBubbleScope._of(context);
@@ -182,12 +200,15 @@ class _ConsoleBubbleAnchorState extends State<ConsoleBubbleAnchor> {
   @override
   void didUpdateWidget(ConsoleBubbleAnchor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.identity != widget.identity || oldWidget.selected != widget.selected) _register();
+    if (oldWidget.identity != widget.identity ||
+        oldWidget.selected != widget.selected)
+      _register();
   }
 
   @override
   void dispose() {
-    if (_registered != null && identical(_owner?._anchors[_registered], _boundary)) {
+    if (_registered != null &&
+        identical(_owner?._anchors[_registered], _boundary)) {
       _owner?._anchors.remove(_registered);
     }
     super.dispose();
@@ -210,7 +231,14 @@ class _ConsoleBubbleAnchorState extends State<ConsoleBubbleAnchor> {
 }
 
 class _ConsolePlaylistRoute<T> extends PageRoute<T> {
-  _ConsolePlaylistRoute({required this.builder, required this.origin, required this.locate, required ui.Image? image, required this.reduceMotion, required this.onProgress}) : _image = image;
+  _ConsolePlaylistRoute({
+    required this.builder,
+    required this.origin,
+    required this.locate,
+    required ui.Image? image,
+    required this.reduceMotion,
+    required this.onProgress,
+  }) : _image = image;
   final WidgetBuilder builder;
   final Rect? origin;
   final Rect? Function() locate;
@@ -219,11 +247,24 @@ class _ConsolePlaylistRoute<T> extends PageRoute<T> {
   ui.Image? _image;
   Rect? _returnRect;
 
-  bool get _reduced => reduceMotion || WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.reduceMotion || WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+  bool get _reduced =>
+      reduceMotion ||
+      WidgetsBinding
+          .instance
+          .platformDispatcher
+          .accessibilityFeatures
+          .reduceMotion ||
+      WidgetsBinding
+          .instance
+          .platformDispatcher
+          .accessibilityFeatures
+          .disableAnimations;
   @override
-  Duration get transitionDuration => Duration(milliseconds: _reduced ? 100 : 460);
+  Duration get transitionDuration =>
+      Duration(milliseconds: _reduced ? 100 : 460);
   @override
-  Duration get reverseTransitionDuration => Duration(milliseconds: _reduced ? 100 : 380);
+  Duration get reverseTransitionDuration =>
+      Duration(milliseconds: _reduced ? 100 : 380);
   @override
   bool get maintainState => true;
   @override
@@ -253,67 +294,132 @@ class _ConsolePlaylistRoute<T> extends PageRoute<T> {
   }
 
   @override
-  Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) => _PlaylistInputGate(
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) => _PlaylistInputGate(
     animation: animation,
-    child: Semantics(scopesRoute: true, explicitChildNodes: true, child: builder(context)),
+    child: Semantics(
+      scopesRoute: true,
+      explicitChildNodes: true,
+      child: builder(context),
+    ),
   );
 
   @override
-  Widget buildTransitions(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation, Widget child) {
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
     return AnimatedBuilder(
       animation: animation,
       child: RepaintBoundary(child: child),
-      builder: (context, page) => LayoutBuilder(builder: (context, constraints) {
-        final value = animation.value;
-        final size = constraints.biggest;
-        final overlay = navigator?.overlay?.context.findRenderObject();
-        final offset = overlay is RenderBox ? overlay.localToGlobal(Offset.zero) : Offset.zero;
-        final full = Offset.zero & size;
-        final reduced = _reduced || origin == null;
-        var source = (_returnRect ?? origin ?? full).shift(-offset);
-        if (!source.overlaps(full)) source = Rect.fromCenter(center: full.center, width: size.shortestSide * 0.55, height: size.shortestSide * 0.65);
-        final flight = reduced ? value : const Interval(0.09, 1, curve: Curves.easeInOutCubic).transform(value);
-        final compression = 1 - 0.035 * math.sin(math.pi * (value / 0.18).clamp(0.0, 1.0));
-        source = Rect.fromCenter(center: source.center, width: source.width * compression, height: source.height * compression);
-        final rect = reduced ? full : Rect.lerp(source, full, flight)!;
-        final radius = reduced ? 0.0 : math.min(source.width, source.height) * 0.22 * (1 - flight);
-        final reveal = reduced ? value : const Interval(0.38, 0.96, curve: Curves.easeOutCubic).transform(value);
-        final artOpacity = reduced ? 0.0 : 1 - const Interval(0.34, 0.85).transform(value);
-        // Keep the real page at one stable element path and its final viewport
-        // size throughout. Reparenting it at completion would restart loading,
-        // input layers and playlist scroll state.
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            ColoredBox(color: Colors.black.withValues(alpha: 0.12 * flight)),
-            Positioned.fromRect(
-              key: const ValueKey('console-bubble-flight'),
-              rect: rect,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(radius),
-                child: Stack(fit: StackFit.expand, children: [
-                  ColoredBox(color: Theme.of(context).scaffoldBackgroundColor),
-                  if (_image != null) Opacity(opacity: artOpacity, child: RawImage(image: _image, fit: BoxFit.cover, filterQuality: FilterQuality.medium)),
-                ]),
+      builder: (context, page) => LayoutBuilder(
+        builder: (context, constraints) {
+          final value = animation.value;
+          final size = constraints.biggest;
+          final overlay = navigator?.overlay?.context.findRenderObject();
+          final offset = overlay is RenderBox
+              ? overlay.localToGlobal(Offset.zero)
+              : Offset.zero;
+          final full = Offset.zero & size;
+          final reduced = _reduced || origin == null;
+          var source = (_returnRect ?? origin ?? full).shift(-offset);
+          if (!source.overlaps(full))
+            source = Rect.fromCenter(
+              center: full.center,
+              width: size.shortestSide * 0.55,
+              height: size.shortestSide * 0.65,
+            );
+          final flight = reduced
+              ? value
+              : const Interval(
+                  0.09,
+                  1,
+                  curve: Curves.easeInOutCubic,
+                ).transform(value);
+          final compression =
+              1 - 0.035 * math.sin(math.pi * (value / 0.18).clamp(0.0, 1.0));
+          source = Rect.fromCenter(
+            center: source.center,
+            width: source.width * compression,
+            height: source.height * compression,
+          );
+          final rect = reduced ? full : Rect.lerp(source, full, flight)!;
+          final radius = reduced
+              ? 0.0
+              : math.min(source.width, source.height) * 0.22 * (1 - flight);
+          final reveal = reduced
+              ? value
+              : const Interval(
+                  0.38,
+                  0.96,
+                  curve: Curves.easeOutCubic,
+                ).transform(value);
+          final artOpacity = reduced
+              ? 0.0
+              : 1 - const Interval(0.34, 0.85).transform(value);
+          // Keep the real page at one stable element path and its final viewport
+          // size throughout. Reparenting it at completion would restart loading,
+          // input layers and playlist scroll state.
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              ColoredBox(color: Colors.black.withValues(alpha: 0.12 * flight)),
+              Positioned.fromRect(
+                key: const ValueKey('console-bubble-flight'),
+                rect: rect,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(radius),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ColoredBox(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                      ),
+                      if (_image != null)
+                        Opacity(
+                          opacity: artOpacity,
+                          child: RawImage(
+                            image: _image,
+                            fit: BoxFit.cover,
+                            filterQuality: FilterQuality.medium,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            Positioned.fill(
-              child: ClipPath(
-                clipper: _BubbleRevealClipper(rect, radius),
-                clipBehavior: value == 1 ? Clip.none : Clip.antiAlias,
-                child: Opacity(opacity: reveal, child: page),
+              Positioned.fill(
+                child: ClipPath(
+                  clipper: _BubbleRevealClipper(rect, radius),
+                  clipBehavior: value == 1 ? Clip.none : Clip.antiAlias,
+                  child: Opacity(opacity: reveal, child: page),
+                ),
               ),
-            ),
-            Positioned.fromRect(
-              rect: rect,
-              child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(radius),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.5 * (1 - flight)), width: 1.4),
-              ))),
-            ),
-          ],
-        );
-      }),
+              Positioned.fromRect(
+                rect: rect,
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(radius),
+                      border: Border.all(
+                        color: Colors.white.withValues(
+                          alpha: 0.5 * (1 - flight),
+                        ),
+                        width: 1.4,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -323,9 +429,11 @@ class _BubbleRevealClipper extends CustomClipper<Path> {
   final Rect rect;
   final double radius;
   @override
-  Path getClip(Size size) => Path()..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
+  Path getClip(Size size) =>
+      Path()..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(radius)));
   @override
-  bool shouldReclip(_BubbleRevealClipper old) => old.rect != rect || old.radius != radius;
+  bool shouldReclip(_BubbleRevealClipper old) =>
+      old.rect != rect || old.radius != radius;
 }
 
 /// Temporarily owns input during the flight, using the existing layer manager
@@ -358,10 +466,16 @@ class _PlaylistInputGateState extends State<_PlaylistInputGate> {
       scheduleMicrotask(() {
         _queued = false;
         if (!mounted) return;
-        final busy = widget.animation.status != AnimationStatus.completed && widget.animation.status != AnimationStatus.dismissed;
+        final busy =
+            widget.animation.status != AnimationStatus.completed &&
+            widget.animation.status != AnimationStatus.dismissed;
         if (busy && !_registered) {
           _registered = true;
-          GamepadNavigationManager.pushLayer(_layer, onActivate: () {}, onDeactivate: () {});
+          GamepadNavigationManager.pushLayer(
+            _layer,
+            onActivate: () {},
+            onDeactivate: () {},
+          );
         } else if (!busy && _registered) {
           _registered = false;
           GamepadNavigationManager.popLayer(_layer);
@@ -381,6 +495,9 @@ class _PlaylistInputGateState extends State<_PlaylistInputGate> {
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: widget.animation,
     child: widget.child,
-    builder: (context, child) => IgnorePointer(ignoring: widget.animation.status != AnimationStatus.completed, child: child),
+    builder: (context, child) => IgnorePointer(
+      ignoring: widget.animation.status != AnimationStatus.completed,
+      child: child,
+    ),
   );
 }

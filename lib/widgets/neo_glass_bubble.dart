@@ -9,9 +9,12 @@ import '../services/frontend_media_gate.dart';
 abstract final class NeoBubbleStyle {
   static bool reduceMotion(BuildContext context) {
     final media = MediaQuery.maybeOf(context);
-    final features = WidgetsBinding.instance.platformDispatcher.accessibilityFeatures;
-    return features.reduceMotion || features.disableAnimations ||
-        features.accessibleNavigation || (media?.disableAnimations ?? false) ||
+    final features =
+        WidgetsBinding.instance.platformDispatcher.accessibilityFeatures;
+    return features.reduceMotion ||
+        features.disableAnimations ||
+        features.accessibleNavigation ||
+        (media?.disableAnimations ?? false) ||
         (media?.accessibleNavigation ?? false);
   }
 
@@ -23,17 +26,28 @@ abstract final class NeoBubbleStyle {
     );
   }
 
-  static BoxDecoration decoration(BuildContext context, {double radius = 24, bool selected = true}) => BoxDecoration(
+  static BoxDecoration decoration(
+    BuildContext context, {
+    double radius = 24,
+    bool selected = true,
+  }) => BoxDecoration(
     color: fill(context, selected: selected),
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: rim(context, selected: selected)),
-    gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight,
-      colors: [Colors.white.withValues(alpha: selected ? 0.16 : 0.06), Colors.white.withValues(alpha: 0.015), Colors.white.withValues(alpha: selected ? 0.08 : 0.025)],
+    gradient: LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Colors.white.withValues(alpha: selected ? 0.16 : 0.06),
+        Colors.white.withValues(alpha: 0.015),
+        Colors.white.withValues(alpha: selected ? 0.08 : 0.025),
+      ],
     ),
   );
 
-  static Color rim(BuildContext context, {bool selected = true}) =>
-      Theme.of(context).colorScheme.onSurface.withValues(alpha: selected ? 0.56 : 0.18);
+  static Color rim(BuildContext context, {bool selected = true}) => Theme.of(
+    context,
+  ).colorScheme.onSurface.withValues(alpha: selected ? 0.56 : 0.18);
 }
 
 /// A convex, translucent lens with a reflective rim and a soft lower lip.
@@ -76,24 +90,39 @@ class NeoGlassBubble extends StatelessWidget {
               Colors.white.withValues(alpha: selected ? 0.11 : 0.035),
             ],
           ),
-          border: Border.all(color: NeoBubbleStyle.rim(context, selected: selected), width: selected ? 1.2 : 0.8),
+          border: Border.all(
+            color: NeoBubbleStyle.rim(context, selected: selected),
+            width: selected ? 1.2 : 0.8,
+          ),
         ),
         child: CustomPaint(
-          foregroundPainter: _BubbleReflection(selected: selected, radius: resolved),
-          child: padding == null ? child : Padding(padding: padding!, child: child),
+          foregroundPainter: _BubbleReflection(
+            selected: selected,
+            radius: resolved,
+          ),
+          child: padding == null
+              ? child
+              : Padding(padding: padding!, child: child),
         ),
       );
       return DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: borderRadius,
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: selected ? 0.20 : 0.10), blurRadius: selected ? 12 : 6, offset: const Offset(0, 4)),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: selected ? 0.20 : 0.10),
+              blurRadius: selected ? 12 : 6,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: ClipRRect(
           borderRadius: borderRadius,
           child: blur && !(MediaQuery.maybeOf(context)?.highContrast ?? false)
-              ? BackdropFilter(filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5), child: material)
+              ? BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                  child: material,
+                )
               : material,
         ),
       );
@@ -116,20 +145,34 @@ class _BubbleReflection extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Colors.white.withValues(alpha: selected ? 0.65 : 0.30), Colors.white.withValues(alpha: 0), Colors.white.withValues(alpha: selected ? 0.20 : 0.08)],
+        colors: [
+          Colors.white.withValues(alpha: selected ? 0.65 : 0.30),
+          Colors.white.withValues(alpha: 0),
+          Colors.white.withValues(alpha: selected ? 0.20 : 0.08),
+        ],
         stops: const [0, 0.48, 1],
       ).createShader(rect);
-    canvas.drawRRect(RRect.fromRectAndRadius(rect, Radius.circular(math.max(0.0, radius - 2))), paint);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(math.max(0.0, radius - 2))),
+      paint,
+    );
   }
 
   @override
-  bool shouldRepaint(_BubbleReflection old) => old.selected != selected || old.radius != radius;
+  bool shouldRepaint(_BubbleReflection old) =>
+      old.selected != selected || old.radius != radius;
 }
 
 /// At most the focused card floats. Motion stops for reduced motion, hidden
 /// routes/tabs, backgrounding and every embedded game via the existing gate.
 class NeoBubbleMotion extends StatefulWidget {
-  const NeoBubbleMotion({super.key, required this.child, this.selected = false, this.pressed = false, this.float = false});
+  const NeoBubbleMotion({
+    super.key,
+    required this.child,
+    this.selected = false,
+    this.pressed = false,
+    this.float = false,
+  });
   final Widget child;
   final bool selected;
   final bool pressed;
@@ -139,7 +182,8 @@ class NeoBubbleMotion extends StatefulWidget {
   State<NeoBubbleMotion> createState() => _NeoBubbleMotionState();
 }
 
-class _NeoBubbleMotionState extends State<NeoBubbleMotion> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+class _NeoBubbleMotionState extends State<NeoBubbleMotion>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _float;
   bool _touchDown = false;
   bool _foreground = true;
@@ -149,7 +193,10 @@ class _NeoBubbleMotionState extends State<NeoBubbleMotion> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _float = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800));
+    _float = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    );
     WidgetsBinding.instance.addObserver(this);
     FrontendMediaGate.instance.addListener(_mediaChanged);
   }
@@ -157,7 +204,7 @@ class _NeoBubbleMotionState extends State<NeoBubbleMotion> with SingleTickerProv
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _tickerEnabled = TickerMode.of(context);
+    _tickerEnabled = TickerMode.valuesOf(context).enabled;
     _reduced = NeoBubbleStyle.reduceMotion(context);
     _syncMotion();
   }
@@ -178,7 +225,8 @@ class _NeoBubbleMotionState extends State<NeoBubbleMotion> with SingleTickerProv
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
-    if (!_foreground && _touchDown && mounted) setState(() => _touchDown = false);
+    if (!_foreground && _touchDown && mounted)
+      setState(() => _touchDown = false);
     _syncMotion();
   }
 
@@ -188,7 +236,12 @@ class _NeoBubbleMotionState extends State<NeoBubbleMotion> with SingleTickerProv
   }
 
   void _syncMotion() {
-    if (widget.float && widget.selected && !_reduced && _foreground && _tickerEnabled && !FrontendMediaGate.instance.blocked) {
+    if (widget.float &&
+        widget.selected &&
+        !_reduced &&
+        _foreground &&
+        _tickerEnabled &&
+        !FrontendMediaGate.instance.blocked) {
       if (!_float.isAnimating) _float.repeat(reverse: true);
     } else {
       _float.stop();
@@ -216,14 +269,27 @@ class _NeoBubbleMotionState extends State<NeoBubbleMotion> with SingleTickerProv
       onPointerUp: (_) => _press(false),
       onPointerCancel: (_) => _press(false),
       child: AnimatedScale(
-        scale: _reduced || blocked ? 1 : (_touchDown || widget.pressed) ? 0.958 : widget.selected && widget.float ? 1.018 : 1,
-        duration: _reduced || blocked ? Duration.zero : const Duration(milliseconds: 170),
+        scale: _reduced || blocked
+            ? 1
+            : (_touchDown || widget.pressed)
+            ? 0.958
+            : widget.selected && widget.float
+            ? 1.018
+            : 1,
+        duration: _reduced || blocked
+            ? Duration.zero
+            : const Duration(milliseconds: 170),
         curve: Curves.easeOutCubic,
         child: AnimatedBuilder(
           animation: _float,
           child: widget.child,
           builder: (context, child) => Transform.translate(
-            offset: Offset(0, _reduced || blocked ? 0 : -0.65 * (1 - math.cos(_float.value * math.pi))),
+            offset: Offset(
+              0,
+              _reduced || blocked
+                  ? 0
+                  : -0.65 * (1 - math.cos(_float.value * math.pi)),
+            ),
             child: child,
           ),
         ),

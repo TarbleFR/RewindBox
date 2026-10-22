@@ -376,7 +376,8 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
           fileProvider: fileProvider,
         );
 
-        await ConsoleBubbleScope.open<void>(context,
+        await ConsoleBubbleScope.open<void>(
+          context,
           identity: systemInfo.folderName ?? systemInfo.title ?? 'all',
           builder: (context) => targetScreen,
         );
@@ -384,7 +385,8 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
         final systemMeta = configProvider.detectedSystems.firstWhere(
           (system) => system.folderName == 'android',
         );
-        await ConsoleBubbleScope.open<void>(context,
+        await ConsoleBubbleScope.open<void>(
+          context,
           identity: systemInfo.folderName ?? 'android',
           builder: (context) => AndroidAppsGrid(system: systemMeta),
         );
@@ -398,7 +400,8 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
           system: systemMeta,
           fileProvider: fileProvider,
         );
-        await ConsoleBubbleScope.open<void>(context,
+        await ConsoleBubbleScope.open<void>(
+          context,
           identity: systemInfo.folderName ?? systemInfo.title ?? 'all',
           builder: (context) => targetScreen,
         );
@@ -887,7 +890,10 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
                             height: 32.r,
                             margin: EdgeInsets.only(right: 4.r),
                             decoration: BoxDecoration(
-                              color: NeoBubbleStyle.fill(context, selected: false),
+                              color: NeoBubbleStyle.fill(
+                                context,
+                                selected: false,
+                              ),
                               borderRadius:
                                   Theme.of(
                                     context,
@@ -913,7 +919,9 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
                                   top: 0,
                                   bottom: 0,
                                   width: width,
-                                  child: const NeoGlassBubble(child: SizedBox.expand()),
+                                  child: const NeoGlassBubble(
+                                    child: SizedBox.expand(),
+                                  ),
                                 ),
                               ],
                             );

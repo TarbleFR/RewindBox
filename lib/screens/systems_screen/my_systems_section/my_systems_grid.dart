@@ -11,7 +11,6 @@ import 'package:neostation/models/system_model.dart';
 import 'package:neostation/screens/app_screen.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:provider/provider.dart';
-import '../../../themes/corner_radii.dart';
 import '../../../utils/gamepad_nav.dart';
 import '../../../services/game_service.dart';
 import '../../../utils/game_launch_utils.dart';
@@ -68,7 +67,8 @@ class MySystems extends StatelessWidget {
   final Function(int index)? onCardTapped;
 
   @override
-  Widget build(BuildContext context) => ConsoleBubbleScope(builder: _buildContent);
+  Widget build(BuildContext context) =>
+      ConsoleBubbleScope(builder: _buildContent);
 
   Widget _buildContent(BuildContext context) {
     return PopScope(
@@ -376,7 +376,8 @@ class MySystems extends StatelessWidget {
         );
 
         if (context.mounted) {
-          await ConsoleBubbleScope.open<void>(context,
+          await ConsoleBubbleScope.open<void>(
+            context,
             identity: systemInfo.folderName ?? systemInfo.title ?? 'all',
             builder: (context) => targetScreen,
           );
@@ -386,7 +387,8 @@ class MySystems extends StatelessWidget {
           (system) => system.folderName == 'android',
         );
         if (context.mounted) {
-          await ConsoleBubbleScope.open<void>(context,
+          await ConsoleBubbleScope.open<void>(
+            context,
             identity: systemInfo.folderName ?? 'android',
             builder: (context) => AndroidAppsGrid(system: systemMeta),
           );
@@ -403,7 +405,8 @@ class MySystems extends StatelessWidget {
         );
 
         if (context.mounted) {
-          await ConsoleBubbleScope.open<void>(context,
+          await ConsoleBubbleScope.open<void>(
+            context,
             identity: systemInfo.folderName ?? systemInfo.title ?? 'all',
             builder: (context) => targetScreen,
           );
@@ -944,12 +947,8 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
             // designed for wide TV/desktop layouts. On iOS's phone-sized
             // screens it dwarfs every other card, so keep it at the same
             // 1x1 size as everything else there.
-            final spanW = (card.isGame && cols >= 3 && !Platform.isIOS)
-                ? 3
-                : 1;
-            final spanH = (card.isGame && cols >= 3 && !Platform.isIOS)
-                ? 2
-                : 1;
+            final spanW = (card.isGame && cols >= 3 && !Platform.isIOS) ? 3 : 1;
+            final spanH = (card.isGame && cols >= 3 && !Platform.isIOS) ? 2 : 1;
 
             final left = c * (colWidth + spX);
             final width = spanW * colWidth + (spanW - 1) * spX;
@@ -1020,16 +1019,27 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
         }
 
         final focusIndicator =
-            (selLeft != null && selTop != null && selWidth != null && selHeight != null)
+            (selLeft != null &&
+                selTop != null &&
+                selWidth != null &&
+                selHeight != null)
             ? AnimatedPositioned(
                 key: const ValueKey('focus_indicator'),
-                duration: NeoBubbleStyle.reduceMotion(context) ? Duration.zero : const Duration(milliseconds: 280),
+                duration: NeoBubbleStyle.reduceMotion(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
-                left: selLeft + 1.r, top: selTop + 1.r,
-                width: selWidth - 2.r, height: selHeight - 2.r,
-                child: IgnorePointer(child: NeoGlassBubble(
-                  selected: true, radius: 30.r, child: const SizedBox.expand(),
-                )),
+                left: selLeft + 1.r,
+                top: selTop + 1.r,
+                width: selWidth - 2.r,
+                height: selHeight - 2.r,
+                child: IgnorePointer(
+                  child: NeoGlassBubble(
+                    selected: true,
+                    radius: 30.r,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
               )
             : const SizedBox.shrink();
 

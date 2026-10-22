@@ -281,7 +281,8 @@ class HeaderState extends State<Header> {
             ? NeoPlayCompanionLocale.get(context, 'unavailable')
             : [
                 text,
-                if (battery.charging) NeoPlayCompanionLocale.get(context, 'charging'),
+                if (battery.charging)
+                  NeoPlayCompanionLocale.get(context, 'charging'),
               ].join(', '),
         child: ExcludeSemantics(child: row),
       ),
@@ -404,13 +405,17 @@ class HeaderState extends State<Header> {
                             letterSpacing: 0.3.r,
                           ),
                         ),
-                        if (!_isTelevision &&
-                            !Responsive.isHandheldXS(context))
-                          ValueListenableBuilder<List<NeoPlayControllerBattery>>(
+                        if (!_isTelevision && !Responsive.isHandheldXS(context))
+                          ValueListenableBuilder<
+                            List<NeoPlayControllerBattery>
+                          >(
                             valueListenable:
                                 ControllerBatteryService.instance.controllers,
-                            builder: (context, controllers, _) =>
-                                _buildBattery(context, customColors, controllers),
+                            builder: (context, controllers, _) => _buildBattery(
+                              context,
+                              customColors,
+                              controllers,
+                            ),
                           ),
                         if (Platform.isIOS && _jitActive) ...[
                           SizedBox(width: 8.r),
