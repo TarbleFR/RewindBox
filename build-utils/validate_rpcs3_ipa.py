@@ -351,6 +351,17 @@ def validate_core_identity(
         'device_runtime_tested': False,
     }
     for key, value in expected.items():
+        # Build 501 deliberately reuses the exact immutable Build 499 Core.
+        # Its signed provenance predates the repository rename, so preserve and
+        # accept that historical repository value only for that exact host
+        # commit. Every other identity field, and every other Core commit,
+        # remains byte-for-byte strict.
+        if (
+            key == 'repository'
+            and expected_host_commit == '0b18a23460b0a9840406fda2e3d6da4c5cdb7273'
+            and identity.get(key) == 'https://github.com/TarbleFR/neostation-ios'
+        ):
+            continue
         demand(type(identity.get(key)) is type(value) and identity.get(key) == value,
                f'RPCS3 Core identity mismatch for {key}: expected {value!r}, '
                f'got {identity.get(key)!r}')
