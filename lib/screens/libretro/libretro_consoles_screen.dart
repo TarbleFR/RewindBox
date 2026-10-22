@@ -17,6 +17,7 @@ import '../../services/libretro_main_menu.dart';
 import '../../services/logger_service.dart';
 import '../../services/melonx_internal_service.dart';
 import '../../widgets/confirm_action_dialog.dart';
+import '../../widgets/horizontal_swipe.dart';
 import '../../widgets/libretro_engine_panel.dart';
 import 'libretro_library_actions.dart';
 import 'libretro_skin_manager_screen.dart';
@@ -603,13 +604,28 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     if (widget.inMainBar) {
       // Under the global header, clear of the notch like the other tabs.
       final safe = MediaQuery.viewPaddingOf(context);
-      return libretroPage(Material(
-        type: MaterialType.transparency,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(safe.left, 46.r, safe.right, 0),
-          child: list,
+      // Own the swipe recognizer inside the app-level one so this page can
+      // preserve its existing busy guard: imports/library mutations keep both
+      // LB/RB and touch swipes from disposing the page mid-operation.
+      return libretroPage(
+        HorizontalSwipe(
+          key: const ValueKey('consoles-main-tab-swipe'),
+          onSwipeLeft: () => _switchTab(widget.onNextTab),
+          onSwipeRight: () => _switchTab(widget.onPreviousTab),
+          canSwipeLeft: () => !_busy,
+          canSwipeRight: () => !_busy,
+          distanceThreshold: 64,
+          velocityThreshold: 450,
+          dragFeedback: true,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(safe.left, 46.r, safe.right, 0),
+              child: list,
+            ),
+          ),
         ),
-      ));
+      );
     }
     return libretroPage(Scaffold(
       appBar: libretroPageAppBar(context, _c(ConsoleManagerLocale.tabTitle)),
