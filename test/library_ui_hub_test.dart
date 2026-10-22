@@ -555,7 +555,7 @@ void main() {
     expect(
       find.text(
         'The site requires a browser check (anti-bot protection) that '
-        'NeoStation cannot complete.',
+        'RewindBox cannot complete.',
       ),
       findsOneWidget,
     );
