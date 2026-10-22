@@ -2,7 +2,7 @@ name: RPCS3 NeoSwap v1 core
 run-name: RPCS3 NeoSwap v1 Core • ${{ github.sha }}
 on:
   push:
-    branches: [experimental]
+    branches: [experimental, Claude]
     paths:
       - '.github/workflows/rpcs3-core.yml'
       - 'build-utils/build_rpcs3_embedded_core.sh'
