@@ -232,10 +232,23 @@ void main() {
             )
             .transform;
         expect(matrix.entry(3, 2), isNot(0));
-        await tester.drag(find.byType(PageView), const Offset(-200, 0));
+        await tester.fling(find.byType(PageView), const Offset(-100, 0), 800);
         await tester.pumpAndSettle();
         final selected = key.currentState!.currentIndex;
         expect(selected, greaterThanOrEqualTo(2));
+        if (selected < 7) {
+          key.currentState!.nextPage();
+          await tester.pumpAndSettle();
+          expect(
+            key.currentState!.currentIndex,
+            selected + 1,
+            reason:
+                'A controller move after a touch fling starts from the actual centred console.',
+          );
+          key.currentState!.previousPage();
+          await tester.pumpAndSettle();
+          expect(key.currentState!.currentIndex, selected);
+        }
         navigator.currentState!.push(
           MaterialPageRoute<void>(
             builder: (_) => const Scaffold(body: Text('Playlist')),

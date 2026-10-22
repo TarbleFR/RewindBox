@@ -152,6 +152,7 @@ class NativeCarouselState extends State<NativeCarousel> {
   PageController? _pageController;
   int _currentIndex = 0;
   int _navigationTarget = 0;
+  int _moveGeneration = 0;
   double _lastVpFraction = 0;
   int _lastReportedIndex = 0;
   final ValueNotifier<double> _pageNotifier = ValueNotifier(0.0);
@@ -203,7 +204,7 @@ class NativeCarouselState extends State<NativeCarousel> {
 
     _pageNotifier.value = page;
     _currentIndex = page.round();
-    if (_pointerDown) _navigationTarget = _currentIndex;
+    if (_pointerDown || !_animating.value) _navigationTarget = _currentIndex;
     widget.onPageScrolled?.call(page);
 
     if (_currentIndex != _lastReportedIndex) {
@@ -249,6 +250,7 @@ class NativeCarouselState extends State<NativeCarousel> {
   }
 
   void _animateToPage(int index, {bool gateInput = true}) {
+    final generation = ++_moveGeneration;
     _navigationTarget = index;
     _pageChangeReason = CarouselPageChangeReason.controller;
     if (NeoBubbleStyle.reduceMotion(context) ||
@@ -269,12 +271,14 @@ class NativeCarouselState extends State<NativeCarousel> {
         // Completing or being interrupted both end the move, so this is where
         // the input gate lifts.
         .whenComplete(() {
-          if (!mounted) return;
+          if (!mounted || generation != _moveGeneration) return;
           _animating.value = false;
         });
   }
 
   void jumpToPage(int index) {
+    _moveGeneration++;
+    _animating.value = false;
     _navigationTarget = index;
     _pageChangeReason = CarouselPageChangeReason.controller;
     _pageController?.jumpToPage(index);

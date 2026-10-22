@@ -19,7 +19,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: rewindbox-motion-${{ github.ref }}
+  group: rewindbox-motion-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[motion-flutter-only]') && 'carousel' || 'full' }}
   cancel-in-progress: true
 jobs:
   flutter:
@@ -40,6 +40,7 @@ jobs:
       - name: Analyze the complete combined app
         run: flutter analyze --no-pub --no-fatal-infos
       - name: Exercise real tabs, console perspective, lifecycle, power and progress states
+        if: ${{ !contains(github.event.head_commit.message, '[motion-flutter-only]') }}
         run: >-
           flutter test --no-pub --reporter expanded
           test/liquid_motion_test.dart test/airplay_navigation_test.dart
@@ -48,10 +49,18 @@ jobs:
           test/header_battery_test.dart test/legal_credits_dialog_test.dart
           test/ui_refresh_rate_service_test.dart test/notification_bell_idle_test.dart
       - name: Check unchanged library, display hook boundary and legal packaging
+        if: ${{ !contains(github.event.head_commit.message, '[motion-flutter-only]') }}
         run: |
           python3 test/retroarch_baseline_scope_test.py
           python3 test/ui_refresh_rate_scope_test.py
           python3 test/legal_bundle_preflight_test.py
+      - name: Reuse the exact successful full Flutter phase and exercise the changed fling-to-controller path
+        if: ${{ contains(github.event.head_commit.message, '[motion-flutter-only]') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 test/liquid_motion_reuse.py
+          flutter test --no-pub --reporter expanded test/liquid_motion_test.dart --name 'console perspective'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -60,7 +69,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
   native:
-    if: ${{ !contains(github.event.head_commit.message, '[motion507-validated]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[motion507-validated]') && !contains(github.event.head_commit.message, '[motion-flutter-only]') }}
     runs-on: macos-15
     timeout-minutes: 25
     env:
