@@ -117,3 +117,10 @@ gates retained. An additional post-sign IPA inspection requires the original
 motion archive/profile, full author notices, linked UIKit class, native power
 channel, compiled Dart components and aligned app/extension build versions.
 The final IPA requires normal Apple re-signing through SideStore/AltStore.
+
+The first 507 assembly attempt `39865696331` stopped before compilation:
+the new source gate incorrectly expected a direct `sign_delivery.py` call in
+the workflow. The actual preserved entry point is `delivery_benchmark.py seal`.
+The corrected gate checks that entry point and the byte-identical benchmark
+and signer implementations. It was preflighted against authenticated actual
+GitHub run/job metadata; no product source or successful test phase changed.

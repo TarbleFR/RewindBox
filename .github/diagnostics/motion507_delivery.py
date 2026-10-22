@@ -54,8 +54,11 @@ def main():
         assert old in current, old
     for name in ['validate_rpcs3_ipa.py','validate_single_ipa_distribution.py','validate_neoswap_ipa.py',
                  'validate_unified_cheats_ipa.py','validate_hd_textures_ipa.py',
-                 'validate_melonx_ipa.py','sign_delivery.py']:
+                 'validate_melonx_ipa.py','delivery_benchmark.py seal']:
         assert name in current and name in baseline_recipe, name
+    signer_delta = base.command(['git','diff','--name-only',BASELINE,'HEAD','--',
+        'build-utils/delivery_benchmark.py','build-utils/sign_delivery.py'])
+    assert not signer_delta, 'The preserved assembly/signature implementation changed: '+signer_delta
     hosted = (base.ROOT/'native/textures/catalogue/manifest.json.gz').read_bytes()
     assert hosted == (base.ROOT/'packages/neo_texture_catalog/ios/Resources/manifest.json.gz').read_bytes()
     output = base.ROOT/args.output; output.parent.mkdir(parents=True, exist_ok=True)
