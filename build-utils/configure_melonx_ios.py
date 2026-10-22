@@ -186,7 +186,9 @@ runner.build_configurations.each do |configuration|
   settings = configuration.build_settings
   settings['CODE_SIGN_ENTITLEMENTS'] = 'Runner/Runner.entitlements'
   settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
-  settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.4'
+  current_floor = settings.fetch('IPHONEOS_DEPLOYMENT_TARGET', '18.0').to_s
+  raise "Invalid Runner deployment floor #{current_floor.inspect}" unless current_floor.match?(/\A\d+(?:\.\d+){0,2}\z/)
+  settings['IPHONEOS_DEPLOYMENT_TARGET'] = Gem::Version.new(current_floor) < Gem::Version.new('18.0') ? '18.0' : current_floor
 end
 
 protected_after = protected.to_h { |target| [target.uuid, target_snapshot(target)] }
