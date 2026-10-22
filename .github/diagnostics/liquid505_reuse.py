@@ -19,7 +19,7 @@ def git(*args):
 
 
 def api(path):
-    return subprocess.check_output(['gh', 'api', 'repos/TarbleFR/RewindBox/' + path], text=True)
+    return subprocess.check_output(['gh', 'api', '--allow-escape-sequences', 'repos/TarbleFR/RewindBox/' + path], text=True)
 
 
 changed = set(git('diff', '--name-only', SOURCE, 'HEAD', '--',

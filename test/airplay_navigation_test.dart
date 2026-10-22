@@ -256,7 +256,9 @@ void main() {
         await inputEvent(tester, input.$1, 0);
         await tester.pumpAndSettle();
         await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 75)),
+          () => Future<void>.delayed(
+            Duration(milliseconds: input.$1.startsWith('axis') ? 150 : 75),
+          ),
         );
       }
       expect(key.currentState!.visited, [
