@@ -111,6 +111,10 @@ for current, removed in KARTPAD_REMOVAL:
 manager_without_current_engines = manager.replace("    'ios_melonx_internal',\n", '')
 manager_without_current_engines = manager_without_current_engines.replace(
     "    'ios_dolphin_internal',\n    'ios_rpcs3_internal',\n    'ios_libretro_internal',\n", '')
+# The baseline predates the RewindBox rebrand. Normalize the display-only
+# comment before checking that executable lifecycle code is otherwise exact.
+manager_without_current_engines = manager_without_current_engines.replace(
+    'Return to RewindBox', 'Return to NeoStation')
 assert manager_without_current_engines == original, 'unrelated lifecycle regression'
 for file in ('lib/screens/game_screen/my_games_list.dart','lib/screens/secondary_screen/secondary_screen.dart','lib/widgets/shaders/shader_gif_widget.dart'):
     data=(root/file).read_text();assert 'FrontendMediaGate.instance.register' in data,file
