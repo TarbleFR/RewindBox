@@ -44,9 +44,11 @@ def main():
                            manager, re.S).group(1)
     executables = re.findall(r"'(ios_\w+)'", candidates)
     # KartPad (19 October 2026) and Dusklight (20 October 2026,
-    # docs/ports-removal-2026-10-20.md) left NeoStation.
+    # docs/ports-removal-2026-10-20.md) left RewindBox. MeloNX is now an
+    # embedded iOS runtime and follows the same native-return lifecycle.
     assert set(executables) == {'ios_libretro_internal', 'ios_dolphin_internal',
-                               'ios_armsx2_internal', 'ios_rpcs3_internal'}
+                               'ios_armsx2_internal', 'ios_rpcs3_internal',
+                               'ios_melonx_internal'}
     locale_paths = sorted((ROOT / 'lib/l10n').glob('app_locale_*.dart'))
     assert len(locale_paths) == 12, locale_paths
     translations = {}
