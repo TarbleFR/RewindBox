@@ -76,7 +76,8 @@ def source_closure():
 
     # No emulator/core/native implementation may drift from the successful
     # Build 501 device delivery. The intended Build 502 changes are Flutter UI,
-    # branding assets and icon-generation inputs only.
+    # branding assets and icon-generation inputs only; historical JIT guards
+    # normalize the RewindBox display name before byte-equivalence checks.
     base.command([
         'git', 'diff', '--exit-code', BUILD501_NATIVE, 'HEAD', '--',
         'native', 'packages', 'build-utils/libretro'
