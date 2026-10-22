@@ -271,27 +271,29 @@ class _PermissionCheckWrapperState extends State<PermissionCheckWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_isChecking || _isStartingRetroArchSync) {
-      return const Scaffold(body: Center(child: ShimmeringLogo()));
+      return const Scaffold(body: Center(child: SizedBox.square(
+        dimension: 20, child: CircularProgressIndicator(strokeWidth: 2),
+      )));
     }
 
     if (_needsSetup) {
       if (_showForkWelcomeGate) {
-        return Scaffold(
+        return RewindStartupReady(child: Scaffold(
           body: ForkFirstRunOnboarding(
             onFinished: _completeForkWelcomeGate,
           ),
-        );
+        ));
       }
 
       if (_showPairingFileGate) {
-        return Scaffold(
+        return RewindStartupReady(child: Scaffold(
           body: PairingFileOnboarding(
             onFinished: _completePairingFileGate,
           ),
-        );
+        ));
       }
 
-      return SetupWizard(onComplete: _completeSetup);
+      return RewindStartupReady(child: SetupWizard(onComplete: _completeSetup));
     }
 
     return widget.child;

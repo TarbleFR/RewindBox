@@ -29,7 +29,7 @@ class RewindBoxBranding(unittest.TestCase):
     def test_upstream_wordmark_is_not_rendered(self):
         for name in ('lib/main.dart','lib/widgets/shimmering_logo.dart','lib/widgets/setup_wizard.dart','lib/screens/systems_screen/fork_first_run_onboarding.dart','lib/screens/secondary_screen/secondary_screen.dart'):
             self.assertNotIn('assets/images/logo_transparent.png', text(name))
-            self.assertIn('RewindBoxWordmark(', text(name))
+            self.assertIn('RewindStartupRoot(' if name == 'lib/main.dart' else 'RewindBoxWordmark(', text(name))
     def test_website_keeps_stable_bundle_id(self):
         source = text('web-installer/api/manifest.js')
         self.assertIn("'RewindBox'", source)

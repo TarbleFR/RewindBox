@@ -1,0 +1,71 @@
+name: RewindBox Rewind Motion checks
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - '.github/workflows/rewind504-checks.yml'
+      - 'lib/widgets/rewind_startup.dart'
+      - 'lib/widgets/rewind_mark_path.dart'
+      - 'lib/main.dart'
+      - 'lib/widgets/permission_check_wrapper.dart'
+      - 'lib/screens/systems_screen/system_content.dart'
+      - 'build-utils/configure_rewind_launch.py'
+      - 'build-utils/rewind-motion/**'
+      - 'test/rewind*test*'
+      - 'test/retroarch_baseline_scope_test.py'
+      - 'docs/rewind-motion-main-compatibility.json'
+permissions:
+  contents: read
+concurrency:
+  group: rewindbox-startup-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  flutter:
+    name: Startup readiness, recovery and accessibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env: {CI: 'true', BOT: 'true', FLUTTER_SUPPRESS_ANALYTICS: 'true'}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Preserve initialization, engines, scan, imports, artwork and twelve languages
+        run: |
+          git diff --check
+          git diff --exit-code 654263ac09ad192360064f92dedcb4f9442bde38 -- native packages assets ios build-utils/libretro pubspec.yaml pubspec.lock lib/l10n lib/services lib/repositories lib/models lib/providers lib/screens/system_games_list
+          python3 test/retroarch_baseline_scope_test.py
+          python3 test/rewindbox_branding_test.py
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - run: flutter pub get --enforce-lockfile
+      - name: Format startup presentation for review
+        run: |
+          mkdir -p build/startup-review
+          dart format lib/widgets/rewind_startup.dart lib/widgets/rewind_mark_path.dart lib/widgets/permission_check_wrapper.dart lib/screens/systems_screen/system_content.dart lib/main.dart test/rewind_startup_test.dart
+          git diff -- '*.dart' > build/startup-review/format.patch
+      - run: flutter analyze --no-pub
+      - name: Exercise real readiness, fast and slow startup, retry, lifecycle and Reduce Motion
+        if: ${{ !cancelled() }}
+        run: flutter test --no-pub --reporter expanded test/rewind_startup_test.dart test/startup_locale_test.dart
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RewindBox-startup-review-${{ github.sha }}
+          path: build/startup-review
+          if-no-files-found: error
+          retention-days: 14
+  native:
+    name: Static launch geometry and iPhone storyboard
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - run: python3 -m pip install pillow numpy pymupdf
+      - run: python3 test/rewind_launch_test.py
+      - name: Compile actual static iPhone launch storyboard
+        run: |
+          xcrun ibtool --errors --warnings --notices --target-device iphone --target-device ipad --minimum-deployment-target 18.0 --compile "$RUNNER_TEMP/LaunchScreen.storyboardc" build-utils/rewind-motion/LaunchScreen.storyboard
+          test -d "$RUNNER_TEMP/LaunchScreen.storyboardc"
