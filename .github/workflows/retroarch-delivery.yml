@@ -539,8 +539,8 @@ jobs:
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
-      RPCS3_CORE_HOST_SHA: 0b18a23460b0a9840406fda2e3d6da4c5cdb7273
-      RPCS3_CORE_RUN_ID: '39472233521'
+      RPCS3_CORE_HOST_SHA: 28371bd12169af9bf506d9d2cff98e0c13d44f24
+      RPCS3_CORE_RUN_ID: '39788462742'
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_RUN_ID: '39455712245'
@@ -850,14 +850,19 @@ jobs:
           build-utils/patch_dolphin_internal_core_v2.py \
           packages/dolphin_internal_bridge/core \
           test/dolphin_cheat_manager_test.py \
-          test/dolphin_cheats_menu_test.py \
-          .github/workflows/dolphin-core.yml
+          test/dolphin_cheats_menu_test.py
 
         python3 - <<'PY'
         import hashlib
         import json
         import os
         from pathlib import Path
+
+        import subprocess
+        recipe = '.github/workflows/dolphin-core.yml'
+        original = subprocess.check_output(['git', 'show', os.environ['DOLPHIN_CORE_HOST_SHA'] + ':' + recipe])
+        current = Path(recipe).read_bytes()
+        assert current == original.replace(b'Checkout exact NeoStation commit', b'Checkout exact RewindBox commit'), 'Unreviewed Dolphin recipe change'
 
         # This is a recompiled UIKit host API, not the retained core's C ABI.
         # Permit exactly the added navigation callback, preserving every other declaration.
@@ -993,7 +998,15 @@ jobs:
         PY
         # A core artifact built from different packaging inputs is refused.
         git diff --exit-code "$LIBRETRO_CORES_HOST_SHA" "$GITHUB_SHA" -- build-utils/libretro native/nestopia .github/diagnostics/nestopia_bgcolor/build.py native/ppsspp .github/diagnostics/ppsspp497 packages/libretro_internal_bridge/ios/Classes/NeoStationPSPMemory.h
-        git diff --exit-code "$LIBRETRO_CORES_VALIDATED_SHA" "$GITHUB_SHA" -- .github/diagnostics/nestopia_bgcolor .github/workflows/nestopia-bgcolor.yml .github/workflows/build497-checks.yml test/psp_relaunch497.py test/libretro_host/frontend/psp_managed_memory_test.m
+        git diff --exit-code "$LIBRETRO_CORES_VALIDATED_SHA" "$GITHUB_SHA" -- .github/diagnostics/nestopia_bgcolor .github/workflows/nestopia-bgcolor.yml test/psp_relaunch497.py test/libretro_host/frontend/psp_managed_memory_test.m
+        python3 - <<'PY_RECIPE'
+        import os, subprocess
+        from pathlib import Path
+        recipe = '.github/workflows/build497-checks.yml'
+        original = subprocess.check_output(['git', 'show', os.environ['LIBRETRO_CORES_VALIDATED_SHA'] + ':' + recipe])
+        current = Path(recipe).read_bytes()
+        assert current == original.replace(b'repos/TarbleFR/neostation-ios/', b'repos/TarbleFR/RewindBox/'), 'Unreviewed libretro recipe change'
+        PY_RECIPE
     - name: Download pinned libretro cores
       uses: actions/download-artifact@v4
       with:
@@ -1343,8 +1356,8 @@ jobs:
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
-      RPCS3_CORE_HOST_SHA: 0b18a23460b0a9840406fda2e3d6da4c5cdb7273
-      RPCS3_CORE_RUN_ID: '39472233521'
+      RPCS3_CORE_HOST_SHA: 28371bd12169af9bf506d9d2cff98e0c13d44f24
+      RPCS3_CORE_RUN_ID: '39788462742'
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_RUN_ID: '39455712245'

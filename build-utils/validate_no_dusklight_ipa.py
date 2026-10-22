@@ -42,6 +42,11 @@ PORTS_KEYS = (b"assets/systems/ports.json", b"assets/images/ports-gaming.webp")
 NEOSWAP = "Frameworks/neo_swap.framework/neo_swap"
 NEOSWAP_OWNER_TABLE = b"\x00rpcs3\x00dolphin\x00armsx2\x00dusklight\x00kartpad\x00probe\x00"
 NOTICE_SUFFIXES = (".md", ".txt")
+# Immutable legal/source audit generated when native ports were removed.
+# It documents the former component but cannot load or expose it at runtime.
+HISTORICAL_LEGAL_RECORDS = {
+    "Legal/Sources/Reviews/modified-sources-since-0.0.8-2026-10-21.json",
+}
 
 
 def single_app(archive: zipfile.ZipFile) -> str:
@@ -54,8 +59,9 @@ def single_app(archive: zipfile.ZipFile) -> str:
 
 
 def notice(relative: str) -> bool:
-    return (relative.startswith(("Legal/", FLUTTER_ASSETS + "assets/legal/"))
-            and relative.lower().endswith(NOTICE_SUFFIXES))
+    return (relative in HISTORICAL_LEGAL_RECORDS
+            or (relative.startswith(("Legal/", FLUTTER_ASSETS + "assets/legal/"))
+                and relative.lower().endswith(NOTICE_SUFFIXES)))
 
 
 def findings_of(relative: str, data: bytes) -> list[str]:

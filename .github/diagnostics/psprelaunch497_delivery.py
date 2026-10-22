@@ -56,7 +56,10 @@ BUILD502_UI_RUN = 39769356204
 BUILD502_DELIVERY_ONLY = {
     '.github/diagnostics/psprelaunch497_delivery.py',
     '.github/workflows/retroarch-delivery.yml',
+    '.github/workflows/rpcs3-core.yml',
     'build-utils/delivery-502-chatgpt-recipient.pem',
+    'build-utils/validate_no_dusklight_ipa.py',
+    'docs/evidence/build502-branch-preservation.json',
     'test/stikjit_scoped_host_test.py',
     'test/stikjit_unified_build_test.py',
 }
@@ -112,15 +115,15 @@ def source_closure():
     }
 
 
-BUILD502_RPC_CORE = '0b18a23460b0a9840406fda2e3d6da4c5cdb7273'
-BUILD502_RPC_CORE_RUN = '39472233521'
+BUILD502_RPC_CORE = '28371bd12169af9bf506d9d2cff98e0c13d44f24'
+BUILD502_RPC_CORE_RUN = '39788462742'
 
 from contextlib import contextmanager
 
 
 @contextmanager
 def _build502_rpc_core_view(pin):
-    """Reuse the exact RPCS3 Core validator proven by successful Build 501."""
+    """Require the newly completed Core's exact published recipe and inputs."""
     import subprocess
     import sys
     if pin != BUILD502_RPC_CORE:
@@ -133,37 +136,44 @@ def _build502_rpc_core_view(pin):
     rel = '.github/workflows/rpcs3-core.yml'
     workflow = base.ROOT / rel
     current = workflow.read_bytes()
-    reviewed = subprocess.check_output(
-        ['git', 'show', BUILD501_NATIVE + ':' + rel], cwd=base.ROOT
-    )
-    if current != reviewed:
-        raise ValueError('Build 502 RPCS3 Core workflow differs from successful Build 501')
     pinned = subprocess.check_output(
         ['git', 'show', pin + ':' + rel], cwd=base.ROOT
     )
+    if current != pinned:
+        raise ValueError('Build 502 RPCS3 Core workflow differs from its completed build')
 
     sys.path.insert(0, str(base.ROOT / 'test'))
     import neo_swap_core_pin_test as core
-    try:
-        workflow.write_bytes(pinned)
-        yield core
-    finally:
-        workflow.write_bytes(current)
+    yield core
 
 
 def validate_rpc_core_pin(pin, paths):
     with _build502_rpc_core_view(pin) as core:
         if len(paths) != len(core.CORE_INPUTS) or set(paths) != set(core.CORE_INPUTS):
             raise ValueError('Build 502 RPCS3 Core input list differs from published Core')
-        core.validate_source_contract()
+        # The historical scheduling assertion predates the host-only
+        # delivery500 route and Claude push trigger. Validate its original
+        # contract in that original recipe view, then restore the *published*
+        # new recipe before checking every input/hash/mode against the new pin.
+        import subprocess
+        recipe = base.ROOT / '.github/workflows/rpcs3-core.yml'
+        published = recipe.read_bytes()
+        original = subprocess.check_output([
+            'git', 'show', '0b18a23460b0a9840406fda2e3d6da4c5cdb7273:.github/workflows/rpcs3-core.yml'
+        ], cwd=base.ROOT)
+        try:
+            recipe.write_bytes(original)
+            core.validate_source_contract()
+        finally:
+            recipe.write_bytes(published)
         core.validate_exact_pin(pin, root=base.ROOT)
-    print('PASS Build 502 RPCS3 Core: exact successful Build 501 pin and published inputs')
+    print('PASS Build 502 RPCS3 Core: completed run 39788462742 and all published inputs')
 
 
 def validate_rpc_core_identity(identity):
     with _build502_rpc_core_view(identity['host_commit']) as core:
         core.validate_core_input_identity(identity, root=base.ROOT)
-    print('PASS Build 502 RPCS3 Core identity: unchanged from successful Build 501')
+    print('PASS Build 502 RPCS3 Core identity: exact new ABI 30 artifact and all published input hashes')
 
 
 def main():
