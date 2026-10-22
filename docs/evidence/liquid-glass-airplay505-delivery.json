@@ -1,0 +1,36 @@
+{
+  "build": 505,
+  "version": "0.0.8",
+  "source": "ca168102611f6a7f7247eb60727a2e338033f64e",
+  "run": 39846745630,
+  "runConclusion": "success",
+  "artifact": 12456731836,
+  "artifactZipSHA256": "5a0bbffea4166c88b91156a6d5e3b530b226debf14792e5d950dd81d5e608200",
+  "ipaBytes": 165582691,
+  "ipaSHA256": "f53aabfefc5b1cef980103f7abc1265083716a6fc27f5ef23b5e20a11f11d5e8",
+  "applicationAndExtensionBundles": 6,
+  "bundleVersions": [
+    "0.0.8 (505)"
+  ],
+  "validatedUI": {
+    "source": "01f6e9d44943b5f6bc8df3447ed9ddd465e3971b",
+    "run": 39846213108,
+    "reusedIndividualChecks": 62,
+    "rerunInputTests": 4
+  },
+  "preservedStartupSource": "d27a06f6ad386a79c55ac4e9304e5475c1c0c9a9",
+  "preservedStartupRun": 39843964056,
+  "rebuiltCores": [],
+  "temporaryBranchRemovedBySuccessfulCleanupJob": 120070097732,
+  "tagCreated": false,
+  "releaseCreated": false,
+  "deviceGameplayValidated": false,
+  "physicalDeviceAnimationPerformanceValidated": false,
+  "sideStoreAppleReSigningRequired": true,
+  "branchesAfterCleanup": [
+    "Claude",
+    "main"
+  ],
+  "artifactURL": "https://github.com/TarbleFR/RewindBox/actions/runs/39846745630/artifacts/12456731836",
+  "finalCodeAndDataIdentityMatchesCISignatureReport": true
+}

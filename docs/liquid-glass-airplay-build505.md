@@ -79,3 +79,24 @@ only the temporary branch at the exact validated SHA, and only if that SHA is
 an ancestor of the delivered commit. A moved branch is preserved for review.
 Final IPA identity and artifact receipt are appended after delivery.
 Delete the temporary branch after controlled integration, leaving Claude/main.
+
+
+## Delivered and frozen
+
+Build 505 delivered from `ca168102611f6a7f7247eb60727a2e338033f64e`,
+run `39846745630`: checks, native, Release device cold build and temporary-branch
+cleanup succeeded. The optional warm benchmark was skipped. Artifact
+`12456731836`, ZIP SHA-256
+`5a0bbffea4166c88b91156a6d5e3b530b226debf14792e5d950dd81d5e608200`.
+
+The recovered IPA is 165,582,691 bytes, version 0.0.8 (505) in all six app and
+extension bundles. SHA-256:
+`f53aabfefc5b1cef980103f7abc1265083716a6fc27f5ef23b5e20a11f11d5e8`.
+It matches SHA256SUMS and the final signed-payload identity. Startup 504 and all
+core/native sources are preserved; no core was rebuilt. No physical iPhone or
+measured frame-rate validation is claimed. SideStore/AltStore Apple re-signing
+is required as usual. **505 is frozen; do not reuse its number.**
+
+Only Claude/main remain after the exact temporary-branch cleanup. No new tag,
+release or main update. Independent receipt:
+`docs/evidence/liquid-glass-airplay505-delivery.json`.
