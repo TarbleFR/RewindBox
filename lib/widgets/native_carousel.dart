@@ -220,6 +220,19 @@ class NativeCarouselState extends State<NativeCarousel> {
 
   void _ensureController(double vpFraction) {
     if (_pageController == null || vpFraction != _lastVpFraction) {
+      if (widget.perspective && _pageController != null) {
+        // During an interrupted flight, the app still owns the last reported
+        // focus. Restore that identity instead of silently centring an
+        // unreported fractional page and opening a different playlist.
+        final generation = ++_moveGeneration;
+        _currentIndex = _lastReportedIndex;
+        _navigationTarget = _currentIndex;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || generation != _moveGeneration) return;
+          _animating.value = false;
+          _pageNotifier.value = _currentIndex.toDouble();
+        });
+      }
       _pageController?.removeListener(_onPageScroll);
       _pageController?.dispose();
       _lastVpFraction = vpFraction;

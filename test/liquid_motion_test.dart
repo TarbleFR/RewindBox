@@ -268,6 +268,58 @@ void main() {
   }
 
   testWidgets(
+    'console perspective interruption preserves the app focus during rotation',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(844, 390));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final key = GlobalKey<NativeCarouselState>();
+      final focus = ValueNotifier<int>(0);
+      addTearDown(focus.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox(
+                height: 230,
+                child: ValueListenableBuilder<int>(
+                  valueListenable: focus,
+                  builder: (_, selected, _) => NativeCarousel(
+                    key: key,
+                    itemCount: 8,
+                    initialIndex: selected,
+                    footerHeight: 60,
+                    perspective: true,
+                    onPageChanged: (index, _) => focus.value = index,
+                    itemBuilder: (_, index) => Text('Console $index'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      key.currentState!.animateToPage(4);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      final retained = focus.value;
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      await tester.pumpAndSettle();
+      expect(
+        focus.value,
+        key.currentState!.currentIndex,
+        reason:
+            'The controller must open the visually centred console after interruption.',
+      );
+      expect(focus.value, retained);
+      key.currentState!.nextPage();
+      await tester.pumpAndSettle();
+      expect(focus.value, retained + 1);
+      expect(focus.value, key.currentState!.currentIndex);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
     'reduced motion uses a static carousel and immediate controller selection',
     (tester) async {
       final key = GlobalKey<NativeCarouselState>();

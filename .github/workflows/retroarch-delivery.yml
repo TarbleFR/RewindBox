@@ -1,3 +1,4 @@
+# Revalidate the interrupted-carousel focus before assembling the updated 507 source.
 name: RewindBox Liquid Motion • Build 507 • SideStore
 run-name: RewindBox Build 507 • ${{ github.sha }} • Liquid Motion
 'on':
