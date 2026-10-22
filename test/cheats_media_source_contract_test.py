@@ -108,7 +108,10 @@ for current, removed in DUSKLIGHT_REMOVAL:
 for current, removed in KARTPAD_REMOVAL:
     assert manager.count(current)==1, current
     manager = manager.replace(current, removed, 1)
-assert manager.replace("    'ios_dolphin_internal',\n    'ios_rpcs3_internal',\n    'ios_libretro_internal',\n",'')==original, 'unrelated lifecycle regression'
+manager_without_current_engines = manager.replace("    'ios_melonx_internal',\n", '')
+manager_without_current_engines = manager_without_current_engines.replace(
+    "    'ios_dolphin_internal',\n    'ios_rpcs3_internal',\n    'ios_libretro_internal',\n", '')
+assert manager_without_current_engines == original, 'unrelated lifecycle regression'
 for file in ('lib/screens/game_screen/my_games_list.dart','lib/screens/secondary_screen/secondary_screen.dart','lib/widgets/shaders/shader_gif_widget.dart'):
     data=(root/file).read_text();assert 'FrontendMediaGate.instance.register' in data,file
     assert 'FrontendMediaGate.instance.unregister' in data,file
