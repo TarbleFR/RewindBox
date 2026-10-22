@@ -2,9 +2,9 @@
 
 Integration branch: `Claude`. No main change, release or version tag.
 Product baseline: `4fb8ffe6672c7802ea39d7144dfc762a7b9f1a18` (MeloNX 506 assembly).
-Tested final UI source: `225783a330e099d0fcbd95dd45ed4454fbe1ee9a`.
+Tested final UI source: `37606051d6a0226a3861309a06a8069c70eb1f34`.
 Full initial Flutter/UIKit checks: source `3dfd2d668ae6855094d24789b0ebc4cb683047d8`,
-run `39864139925`. Final carousel checks: run `39865309953`.
+run `39864139925`. Fling checks: run `39865309953`; final interrupted-flight checks: run `39866371150`.
 
 ## Actual author motion and navigation
 
@@ -44,7 +44,7 @@ Rapid controller requests retain a target index while a transition is running.
 A deterministic fast-fling regression also reproduced a stale target when
 switching back to a controller. Manual ballistic movement now follows the
 actual centred page, and generation IDs prevent an interrupted animation's
-completion from unlocking a newer movement. Two orientation cases exercise
+completion from unlocking a newer movement. Two orientation cases and a rotation during a live controller flight exercise
 this mixed-input path; unchanged full Flutter checks are authenticated and
 reused rather than replayed.
 Reduced motion uses static geometry and immediate controller selection.
@@ -105,7 +105,7 @@ actual UIKit material, real power notifications and the existing real-Flutter
 hook harness in the iOS Simulator. Native receipt/attachments:
 artifact `12463981247`, SHA-256
 `605cd2187fe99e637f5389e53ee2967678e15eec7f5c4780e9a6253c20dbba0e`.
-The final carousel run `39865309953` passed both strengthened cases after
+The first carousel run `39865309953` passed both strengthened cases after
 authenticating the unchanged successful full Flutter job `120121960951`.
 Build 506 delivery `39863280830` also succeeded in full. Final signed-IPA
 identity is recorded after delivery. Host/simulator tests do not prove physical Bluetooth input,
@@ -124,3 +124,12 @@ the workflow. The actual preserved entry point is `delivery_benchmark.py seal`.
 The corrected gate checks that entry point and the byte-identical benchmark
 and signer implementations. It was preflighted against authenticated actual
 GitHub run/job metadata; no product source or successful test phase changed.
+
+The subsequent interruption probe reproduced focus 0 while console 4 was
+centred after a mid-flight viewport change. Console viewport replacement now
+restores the app's last reported focus, invalidates the interrupted movement
+and releases its input gate after layout. The final three-case carousel run
+`39866371150` covers both mixed-input orientations plus this interruption; the
+original full Flutter and UIKit sources remain unchanged outside the closed
+carousel source/fixture exceptions. Assembly `39865904357` is superseded by
+this final candidate; no earlier 507 IPA is a delivered/frozen product.
