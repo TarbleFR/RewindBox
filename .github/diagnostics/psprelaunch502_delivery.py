@@ -23,6 +23,7 @@ DELIVERY_ONLY = {
     'test/library_ui_hub_test.dart',
     'test/libretro_host/frontend/session_journal_test.m',
     'test/libretro_frontend_test.py',
+    'test/stikjit_scoped_host_test.py',
 }
 
 validate_rpc_core_identity = previous.validate_rpc_core_identity
