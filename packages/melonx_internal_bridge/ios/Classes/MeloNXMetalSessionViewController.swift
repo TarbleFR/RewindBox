@@ -137,6 +137,10 @@ final class MeloNXMetalSessionViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         guard !started else { return }; started = true
+        if closing {
+            dismiss(animated:true) { [finished] in finished(.success(())) }
+            return
+        }
         surface.layoutIfNeeded()
         let size = surface.metalLayer.drawableSize
         do {

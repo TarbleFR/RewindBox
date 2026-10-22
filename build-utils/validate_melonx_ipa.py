@@ -24,9 +24,12 @@ def validate(ipa):
   assert receipt['gameplayTested'] is False and receipt['neoSwapLiveLoanConnected'] is False
   framework_names=set(receipt['frameworks'])
   assert framework_names=={'MeloNXCore','MeloNXMoltenVK','MeloNXSDL3','MeloNXAvCodec','MeloNXAvUtil','MeloNXJitSupport'}
+  sys.path.insert(0,str(ROOT/'build-utils'))
+  from delivery_benchmark import payload_fingerprint
   for name in framework_names:
    binary=z.read(root+f'Frameworks/{name}.framework/{name}')
    image=macho(binary);assert image['platform']==2 and image['fileType']==6
+   assert payload_fingerprint(binary)==receipt['compiledPayloadFingerprints'][name],name+' compiled code or ABI changed'
    for dep in image['dependencies']:
     value=dep['path']
     if value.startswith('@rpath/'):
@@ -39,6 +42,8 @@ def validate(ipa):
   assert helper['CFBundleVersion']==host['CFBundleVersion']
   assert helper['CFBundleIdentifier']==host['CFBundleIdentifier']+'.melonxjithelper'
   for component in receipt['sourceDependenciesIdentity']['sourceArchives']:assert len(component['sha256'])==64
+  for name,digest in receipt['managedNoticeFiles'].items():
+   assert hashlib.sha256(z.read(root+'Legal/MeloNX/ManagedDependencies/'+name)).hexdigest()==digest,name
   notices=json.loads(z.read(root+'Legal/MeloNX/source-notices.json'));assert notices
   for name,entry in notices.items():assert hashlib.sha256(z.read(root+'Legal/MeloNX/'+name)).hexdigest()==entry['sha256']
   assert not any('BreakpointJIT.framework/' in n for n in z.namelist())

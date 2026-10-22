@@ -51,7 +51,12 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
             guard host?.isSessionActive != true else { result(false); return }
             MeloNXJitAbortTransaction(); result(true)
         case "isSessionActive": result(starting || host?.isSessionActive == true)
-        case "stop": sessionView?.requestClose(); result(["success":true,"active":host?.isSessionActive == true])
+        case "stop":
+            if starting, sessionView == nil {
+                _ = replaceToken()
+                failLaunch("launchCancelled")
+            } else { sessionView?.requestClose() }
+            result(["success":true,"active":host?.isSessionActive == true])
         case "diagnostics":
             libraryQueue.async { [self] in
                 do {

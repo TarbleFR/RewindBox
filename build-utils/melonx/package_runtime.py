@@ -60,7 +60,13 @@ def materialize():
             assert dep.startswith(('/usr/lib/','/System/Library/Frameworks/','@rpath/')),dep
             if dep.startswith('@rpath/'):
                 assert (FRAMEWORKS/dep.removeprefix('@rpath/')).is_file(),dep
-    receipt={'sourceCoreIdentity':identity,'sourceDependenciesIdentity':dependencies,
+    sys.path.insert(0,str(ROOT/'build-utils'))
+    from delivery_benchmark import payload_fingerprint
+    managed=CORE/'managed-notices'
+    assert (managed/'resolved-managed-packages.json').is_file(), 'Managed build notices are missing'
+    managed_files={str(p.relative_to(managed)):sha(p) for p in sorted(managed.rglob('*')) if p.is_file()}
+    receipt={'compiledPayloadFingerprints':{name:payload_fingerprint((FRAMEWORKS/f'{name}.framework'/name).read_bytes()) for name in sorted(NAMES|{'MeloNXCore'})},
+             'managedNoticeFiles':managed_files,'sourceCoreIdentity':identity,'sourceDependenciesIdentity':dependencies,
              'packagedCoreSha256':sha(output),'frameworks':{name:sha(FRAMEWORKS/f'{name}.framework'/name) for name in sorted(NAMES|{'MeloNXCore'})},
              'gameplayTested':False,'physicalDeviceTested':False,'neoSwapLiveLoanConnected':False,
              'sources':{'engine':pin,'hostCommit':os.environ.get('GITHUB_SHA'),'repository':'https://github.com/TarbleFR/RewindBox'}}
