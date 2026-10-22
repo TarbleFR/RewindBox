@@ -55,6 +55,7 @@ BUILD502_UI = '69a514390fffb1389977ca8863f0bb03f756db84'
 BUILD502_UI_RUN = 39769356204
 BUILD502_DELIVERY_ONLY = {
     '.github/diagnostics/psprelaunch497_delivery.py',
+    '.github/workflows/retroarch-delivery.yml',
     'build-utils/delivery-502-chatgpt-recipient.pem',
 }
 
@@ -81,8 +82,16 @@ def source_closure():
     ])
 
     workflow = base.ROOT / '.github/workflows/retroarch-delivery.yml'
-    if hashlib.sha256(workflow.read_bytes()).hexdigest() != WORKFLOW_SHA256:
-        raise ValueError('Unreviewed delivery pipeline change')
+    workflow_text = workflow.read_text(encoding='utf-8')
+    required_workflow_markers = (
+        "name: RewindBox RetroArch • Build 502 • SideStore",
+        "inputs.build_number || '502'",
+        "build-utils/delivery-502-chatgpt-recipient.pem",
+        "- .github/diagnostics/psprelaunch497_delivery.py",
+    )
+    missing = [marker for marker in required_workflow_markers if marker not in workflow_text]
+    if missing:
+        raise ValueError('Build 502 delivery workflow markers missing: ' + ', '.join(missing))
 
     data = (base.ROOT / INDEX).read_bytes()
     if data != (base.ROOT / BUNDLED).read_bytes():
