@@ -654,6 +654,7 @@ jobs:
           # checks and native ABI must all be from the same Core commit.
           # RPCS3_CORE_INPUTS_BEGIN
           git diff --exit-code "$RPCS3_CORE_HOST_SHA" "$GITHUB_SHA" -- \
+            test/fixtures/rpcs3_memory_audit/JITLLVM.diff \
             .github/workflows/rpcs3-memory-audit.yml \
             test/rpcs3_core_syntax_gate_test.py \
             test/rpcs3_memory_audit_test.py \

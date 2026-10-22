@@ -37,7 +37,7 @@ jobs:
       with:
         xcode-version: '16.4'
     - name: Reuse exact compiler objects and pinned static dependency inputs
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         path: |-
           ~/Library/Caches/ccache
@@ -46,6 +46,7 @@ jobs:
           }}-${{ github.sha }}
         restore-keys: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch')
           }}-
+      id: compile-cache
     - name: Validate startup contracts before compiling
       shell: bash
       run: |
@@ -183,6 +184,15 @@ jobs:
         path: dist/rpcs3/
         if-no-files-found: error
         retention-days: 30
+    - name: Preserve authenticated dependencies and compiler objects even after a syntax failure
+      if: ${{ always() }}
+      uses: actions/cache/save@v4
+      with:
+        path: |-
+          ~/Library/Caches/ccache
+          ${{ runner.temp }}/neostation-rpcs3-embedded/deps
+        key: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch')
+          }}-${{ github.sha }}
     - name: Upload diagnostics
       if: always()
       uses: actions/upload-artifact@v4

@@ -37,6 +37,13 @@ REFERENCE_THREAD_SHA256 = 'b61d719ba055884c9bb9689ad7411fc57cd44eedd717d08b82256
 
 def reference_translator(text):
     """Undo only this cycle's three exact translator edits, then prove the old hash."""
+    # The memory audit adds admission before translation. Remove only that
+    # exact independently executed prelude for the historical full-file control.
+    prefix = '#ifdef RPCS3_IOS\n#include "ios/IOSCompileAdmission.h"\n#endif\n'
+    admission = '\t\trpcs3::ios::compile_admission admission(func.data.size() * sizeof(u32), [] { return Emu.IsStopped(); });\n\t\tif (!admission) return nullptr;\n\n'
+    if text.startswith(prefix):
+        assert text.count(admission) == 1
+        text = text[len(prefix):].replace(admission, '')
     assert text.count(NEW_LOG) == text.count(NEW_MASK) == text.count(DUMP_COMMENT) == 1
     text = text.replace(NEW_LOG, OLD_LOG).replace(NEW_MASK, OLD_MASK)
     start = text.index(DUMP_COMMENT)

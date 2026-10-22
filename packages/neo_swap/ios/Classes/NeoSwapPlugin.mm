@@ -1152,6 +1152,7 @@ extern "C" void NeoSwapCompilerBudgetChanged() {
     NSDictionary* contribution = @{
         @"schema":@2,
         @"hostFootprintBytes":memoryValid ? @(memory.phys_footprint) : NSNull.null,
+        @"compilerWorkingSetEstimateBytes":@(in.compiler_working_set_estimate_bytes),
         @"hostAvailableBytes":in.host_available_valid ? @(in.host_available_bytes) : NSNull.null,
         @"donatedBytes":donated.valid ? @(donated.total_bytes) : NSNull.null,
         @"donatedGuestBytes":donated.valid ? @(donated.guest_bytes) : NSNull.null,

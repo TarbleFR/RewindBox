@@ -1959,7 +1959,7 @@ index 863624e0a..7e35227c8 100644
  
 diff --git a/Utilities/JITMemoryProfile.h b/Utilities/JITMemoryProfile.h
 new file mode 100644
-index 000000000..7f5ee6411
+index 000000000..3bd4d98e6
 --- /dev/null
 +++ b/Utilities/JITMemoryProfile.h
 @@ -0,0 +1,19 @@
@@ -1970,7 +1970,7 @@ index 000000000..7f5ee6411
 +#include <limits>
 +namespace jit_memory {
 +inline std::atomic<unsigned> active{0}, peak_active{0};
-+inline std::atomic<std::uint64_t> samples{0}, footprint_peak{0}, batch_peak{0};
++inline std::atomic<std::uint64_t> samples{0}, footprint_peak{0}, batch_peak{0}, latest_footprint{0};
 +inline std::atomic<std::uint64_t> headroom_min{UINT64_MAX};
 +inline std::atomic<std::uint64_t> texture_hash_bytes{0}, texture_hash_ticks{0};
 +inline std::atomic<std::uint64_t> vma_block_bytes{0}, vma_allocated{0}, vma_unused{0};
@@ -3832,7 +3832,7 @@ index 000000000..76893b165
 +	}
 +}
 diff --git a/rpcs3/Emu/Cell/PPUThread.cpp b/rpcs3/Emu/Cell/PPUThread.cpp
-index b1f1a749b..211cdef7f 100644
+index b1f1a749b..1c1cf1e40 100644
 --- a/rpcs3/Emu/Cell/PPUThread.cpp
 +++ b/rpcs3/Emu/Cell/PPUThread.cpp
 @@ -1,9 +1,15 @@
@@ -4116,17 +4116,7 @@ index b1f1a749b..211cdef7f 100644
  				// Try not to process too many files at once because it seems to reduce performance and cause RAM shortages
  				// Concurrently compiling more OVL or huge PRX files does not have much theoretical benefit
  				while (!file_size_limit.fetch_op([&](u32& value)
-@@ -4480,7 +4616,8 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
- 				}).second)
- 				{
- 					// Wait until not 0
--					file_size_limit.wait(0);
-+					file_size_limit.wait(0, atomic_wait_timeout{20'000});
-+					if (Emu.IsStopped()) return false;
- 				}
- 
- 				if (Emu.IsStopped())
-@@ -4489,6 +4626,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4489,6 +4625,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  				}
  
  				return true;
@@ -4134,7 +4124,7 @@ index b1f1a749b..211cdef7f 100644
  			};
  
  			elf_error prx_err{}, ovl_err{};
-@@ -4576,6 +4714,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4576,6 +4713,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  			inc_fdone = 0;
  		}
  
@@ -4142,7 +4132,7 @@ index b1f1a749b..211cdef7f 100644
  		if (restore_mem)
  		{
  			if (!file_size_limit.fetch_add(restore_mem))
-@@ -4583,6 +4722,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4583,6 +4721,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  				file_size_limit.notify_all();
  			}
  		}
@@ -4150,7 +4140,7 @@ index b1f1a749b..211cdef7f 100644
  	});
  
  	// Join every thread
-@@ -4739,6 +4879,65 @@ extern void ppu_initialize()
+@@ -4739,6 +4878,65 @@ extern void ppu_initialize()
  
  	auto& _main = g_fxo->get<main_ppu_module<lv2_obj>>();
  
@@ -4216,7 +4206,7 @@ index b1f1a749b..211cdef7f 100644
  	std::optional<scoped_progress_dialog> progress_dialog(std::in_place, get_localized_string(localized_string_id::PROGRESS_DIALOG_ANALYZING_PPU_EXECUTABLE));
  
  	// Analyse executable
-@@ -4757,7 +4956,22 @@ extern void ppu_initialize()
+@@ -4757,7 +4955,22 @@ extern void ppu_initialize()
  	// Check main module cache
  	if (!_main.segs.empty())
  	{
@@ -4239,7 +4229,7 @@ index b1f1a749b..211cdef7f 100644
  	}
  
  	std::vector<ppu_module<lv2_obj>*> module_list;
-@@ -5540,6 +5754,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5540,6 +5753,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				daz_and_ftz,
  				arm64_codegen_v2,
  				arm64_codegen_v3,
@@ -4253,7 +4243,7 @@ index b1f1a749b..211cdef7f 100644
  
  				__bitset_enum_max
  			};
-@@ -5547,6 +5768,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5547,6 +5767,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  			be_t<bs_t<ppu_settings>> settings{};
  
  			settings += ppu_settings::_reserved_for_backwards_compatibility;
@@ -4264,7 +4254,7 @@ index b1f1a749b..211cdef7f 100644
  #if !defined(_WIN32) && !defined(__APPLE__)
  			settings += ppu_settings::platform_bit;
  #endif
-@@ -5573,10 +5798,37 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5573,10 +5797,37 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  #if defined(ARCH_ARM64)
  			settings += ppu_settings::arm64_codegen_v2;
  			settings += ppu_settings::arm64_codegen_v3;
@@ -4302,7 +4292,7 @@ index b1f1a749b..211cdef7f 100644
  		}
  
  		if (cpu ? cpu->state.all_of(cpu_flag::exit) : Emu.IsStopped())
-@@ -5585,20 +5837,46 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5585,20 +5836,46 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  		}
  
  		module_counter++;
@@ -4351,7 +4341,7 @@ index b1f1a749b..211cdef7f 100644
  
  			continue;
  		}
-@@ -5616,6 +5894,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5616,6 +5893,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  
  		// Fill workload list for compilation
  		workload.emplace_back(std::move(obj_name), std::move(part));
@@ -4362,7 +4352,7 @@ index b1f1a749b..211cdef7f 100644
  	}
  
  	if (check_only)
-@@ -5640,7 +5922,11 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5640,7 +5921,11 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  
  		*progress_dialog = get_localized_string(localized_string_id::PROGRESS_DIALOG_COMPILING_PPU_MODULES);
  
@@ -4374,7 +4364,7 @@ index b1f1a749b..211cdef7f 100644
  
  #ifdef RPCS3_IOS
  		ppu_log.notice("iOS LLVM compilation: %u module(s), %u concurrent thread(s)", ::size32(workload), thread_count + 1);
-@@ -5712,11 +5998,24 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5712,11 +5997,24 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  					ppu_log.warning("LLVM: Compiling module %s%s", cache_path, obj_name);
  
  					{
@@ -4400,7 +4390,7 @@ index b1f1a749b..211cdef7f 100644
  					ppu_log.success("LLVM: Compiled module %s", obj_name);
  				}
  
-@@ -5814,6 +6113,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5814,6 +6112,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  		usz mod_index = umax;
  
  		ppu_log.notice("Loading %u modules", link_workload.size());
@@ -4411,7 +4401,7 @@ index b1f1a749b..211cdef7f 100644
  
  		for (const auto& [obj_name, is_compiled] : link_workload)
  		{
-@@ -5824,11 +6127,21 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5824,11 +6126,21 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				break;
  			}
  
@@ -4433,7 +4423,7 @@ index b1f1a749b..211cdef7f 100644
  
  			if (mod_index % increment_link_count_at == (link_workload.size() - 1) % increment_link_count_at)
  			{
-@@ -5846,6 +6159,9 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5846,6 +6158,9 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				ppu_log.success("LLVM: Loaded module #%u %s", mod_index, obj_name);
  			}
  		}
@@ -4443,7 +4433,7 @@ index b1f1a749b..211cdef7f 100644
  	}
  
  	if (failed_to_load || !is_being_used_in_emulation || (cpu ? cpu->state.all_of(cpu_flag::exit) : Emu.IsStopped()))
-@@ -5877,7 +6193,16 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5877,7 +6192,16 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  	{
  		for (auto& jit : jits)
  		{
@@ -4461,7 +4451,7 @@ index b1f1a749b..211cdef7f 100644
  		}
  	}
  
-@@ -5901,7 +6226,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5901,7 +6225,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  					index++;
  
  					ensure(!sim);
@@ -4473,7 +4463,7 @@ index b1f1a749b..211cdef7f 100644
  
  					ppu_log.notice("Resolved symbol resolver function #%u", index);
  				}
-@@ -6052,6 +6380,24 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6052,6 +6379,24 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  		FunctionPassManager fpm;
  		// Basic optimizations
  		fpm.addPass(EarlyCSEPass());
@@ -4498,7 +4488,7 @@ index b1f1a749b..211cdef7f 100644
  
  		u32 guest_code_size = 0;
  		u32 min_addr = umax;
-@@ -6081,11 +6427,22 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6081,11 +6426,22 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  				min_addr = std::min<u32>(min_addr, mod_func.addr);
  
  				// Translate
@@ -4522,7 +4512,7 @@ index b1f1a749b..211cdef7f 100644
  #endif // ARCH_X64
  				}
  				else
-@@ -6104,6 +6461,13 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6104,6 +6460,13 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  #ifdef ARCH_X64 // TODO
  				// Run optimization passes
  				fpm.run(*func, fam);
@@ -4536,7 +4526,7 @@ index b1f1a749b..211cdef7f 100644
  #endif // ARCH_X64
  			}
  			else
-@@ -6131,7 +6495,11 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6131,7 +6494,11 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  			result.clear();
  		}
  
@@ -20953,7 +20943,7 @@ index 000000000..094a67210
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d8005424b..fa974add9 100644
+index d8005424b..52c296406 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,170 @@
@@ -22032,7 +22022,7 @@ index d8005424b..fa974add9 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1104,70 @@ performance_registry g_performance_registry;
+@@ -128,6 +1104,79 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -22044,8 +22034,15 @@ index d8005424b..fa974add9 100644
 +std::atomic<u64> observed_compile_cost[32]{};
 +void sample_compiler_memory()
 +{
++	// Bound expensive TASK_VM_INFO calls across phase hooks and the sampler.
++	// Short compiles may fall between samples; do not call that an exact peak.
++	static std::atomic<u64> last_sample_ns{0};
++	const u64 now = static_cast<u64>(std::chrono::duration_cast<std::chrono::nanoseconds>(sample_clock::now().time_since_epoch()).count());
++	auto previous = last_sample_ns.load(std::memory_order_relaxed);
++	if (now - previous < 100'000'000 || !last_sample_ns.compare_exchange_strong(previous, now, std::memory_order_relaxed)) return;
 +	const u64 footprint = process_memory_footprint();
 +	const u64 headroom = available_process_memory_headroom();
++	jit_memory::latest_footprint.store(footprint, std::memory_order_relaxed);
 +	jit_memory::maximum(jit_memory::footprint_peak, footprint);
 +	jit_memory::maximum(jit_memory::batch_peak, footprint);
 +	auto prior = jit_memory::headroom_min.load(std::memory_order_relaxed);
@@ -22079,7 +22076,9 @@ index d8005424b..fa974add9 100644
 +		compiler_wait_cv.wait_for(lock, std::chrono::milliseconds(20));
 +	}
 +	if (!ticket) return;
-+	footprint_start = process_memory_footprint();
++	jit_memory::sample_hook.store(sample_compiler_memory, std::memory_order_relaxed);
++	sample_compiler_memory();
++	footprint_start = jit_memory::latest_footprint.load(std::memory_order_relaxed);
 +	if (jit_memory::active.fetch_add(1, std::memory_order_relaxed) == 0)
 +		jit_memory::batch_peak.store(footprint_start, std::memory_order_relaxed);
 +	jit_memory::sample_hook.store(sample_compiler_memory, std::memory_order_relaxed);
@@ -22103,7 +22102,7 @@ index d8005424b..fa974add9 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1178,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1187,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -22232,7 +22231,7 @@ index d8005424b..fa974add9 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1309,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1318,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

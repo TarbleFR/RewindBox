@@ -27,6 +27,7 @@ with tempfile.TemporaryDirectory(prefix='rpcs3-memory-audit-') as temporary:
 #include <mutex>
 #include <thread>
 using u64=std::uint64_t;
+using sample_clock=std::chrono::steady_clock;
 namespace rpcs3::ios {
 std::atomic<u64> footprint{100ull<<20},headroom{2ull<<30};
 u64 process_memory_footprint(){return footprint.load();}
@@ -42,7 +43,11 @@ int main(){
   bool cancelled=false;
   std::thread waiter([&]{compile_admission next(1024,[&]{return stopped.load();}); cancelled=!next;});
   std::this_thread::sleep_for(std::chrono::milliseconds(30)); stopped=true; wake_compile_waiters(); waiter.join(); assert(cancelled);
+  const auto before=jit_memory::samples.load();
+  for(int i=0;i<1000;++i)jit_memory::sample();
+  assert(jit_memory::samples.load()-before<=1);
   footprint=900ull<<20;
+  std::this_thread::sleep_for(std::chrono::milliseconds(110));
   { jit_phase::scope phase(jit_phase::ppu_codegen,+[]()->u64{return 10;}); }
   assert(jit_memory::footprint_peak.load()==900ull<<20);
  }

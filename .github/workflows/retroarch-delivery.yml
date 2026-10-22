@@ -230,6 +230,7 @@ jobs:
         RPCS3_PIN_GUARD=.github/diagnostics/motion507_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
+          test/fixtures/rpcs3_memory_audit/JITLLVM.diff \
           .github/workflows/rpcs3-memory-audit.yml \
           test/rpcs3_core_syntax_gate_test.py \
           test/rpcs3_memory_audit_test.py \

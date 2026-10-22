@@ -17,7 +17,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = '22f1152783cef1f7e04af7b1c895173e28fd5b03'
-PATCH_SHA256 = 'cf6b793eb8324c1809da4466ede5c3b2c01b34a396114ac749cff4d5aecd27d0'
+PATCH_SHA256 = '179156b3c987132d5a98c967b4c277d9934da7ce3a49e69d95127c996c56604a'
 BACKPORTS = (
     '8bd938e9de9ff6455f312cdf8bd64bd37a064c4e',
     '1d13d1e6bbabfbb7a873f2c608c52525ff470e25',
@@ -34,6 +34,7 @@ V011_BACKPORTS = (
 # Core source, recipe, ABI and native acceptance evidence. NeoSwap.cpp,
 # NeoSwapHost.h, donation helpers and broker-only tests belong to the host.
 CORE_INPUTS = (
+    'test/fixtures/rpcs3_memory_audit/JITLLVM.diff',
     '.github/workflows/rpcs3-memory-audit.yml',
     'test/rpcs3_core_syntax_gate_test.py',
     'test/rpcs3_memory_audit_test.py',

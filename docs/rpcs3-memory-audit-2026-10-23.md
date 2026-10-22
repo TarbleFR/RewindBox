@@ -11,7 +11,7 @@ this change. No main update, public release or tag is authorized.
 | F1 | Gzip streams into the final LLVM-owned buffer with 64 KiB input scratch, exact output length, CRC/trailer verification, full reads, and explicit 256 MiB object/file bounds. Corrupt/truncated/trailing data cannot reach MCJIT. No compressed vector or final full-object memcpy. |
 | F2 | Nanosecond mtime/ctime, device/inode, size and actual selected path identify validated PPU objects. A bounded 4096-entry index avoids repeat validation; at most 32 MiB of immutable object bytes can transfer directly to the linker. File mutation rejects reuse, parsing remains before execution, and pass exit releases retained buffers. |
 | F3 | Minimal-object linker prototype validates architecture, entry and every symbolic external binding before engine mutation. The ARM64 two-process fixture tests external helper/data relocation without rebuilding IR bodies. Production SPU does **not** use this prototype: real-title helper/patchpoint registry coverage and gameplay proof are still required. |
-| F4 | Memory samples inside compilation phases and approximately every 100 ms while LLVM is active. Expensive per-thread sampling remains at 500 ms. JITMEM records observed footprint/headroom, active compilations, cache reuse, texture-hash work and VMA bytes. These are sampled observations, not exact instantaneous peaks. |
+| F4 | Memory samples inside compilation phases and approximately every 100 ms while LLVM is active; a shared throttle bounds expensive kernel queries across all hooks. Expensive per-thread sampling remains at 500 ms. JITMEM records observed footprint/headroom, active compilations, cache reuse, texture-hash work and VMA bytes. These are sampled observations, not exact instantaneous peaks. |
 | F5 | PPU fragments and SPU compilations borrow the same host NeoSwap compiler coordinator. Actual headroom is checked before each admission; observed costs by guest-module size refine a stated conservative initial estimate. Explicit thread settings cannot bypass admission; one oversized module can proceed exclusively. Cancellation wakes/polls waits, committed LLVM work completes normally. File preparation is serial while fragment workers remain parallel, replacing the iOS file-size-times-2000 admission heuristic. Compiler promises reserve room in NeoSwap and wake its existing utility pass; speculative donor growth defers. Older hosts have a serialized fallback. |
 | F6 | MADV_FREE advice only for complete, wholly free pages of non-executable data allocations. Shared boundary pages remain live. Arena addresses persist, allocation/reuse is zeroed, and code/RX/RW aliases are never purged or remapped. Counters mean successful advice, never RAM demonstrably reclaimed. |
 | F7 | JITPAGES records title, footprint/headroom and arena observations before/after preparation and after stop. Existing live/free/largest-free/peak code/data metrics remain. Capacities are preserved pending device measurements; neither a global capacity reduction nor a forced 1 GiB arena is introduced. |
@@ -60,3 +60,12 @@ RANGELOCKPROF, JITMEM/JITPAGES and post-stop footprint. Internal app logs suffic
 No game, firmware, key or device performance result is bundled or invented.
 
 Build/run receipts are added only after their respective checks complete.
+
+The first remote candidate 1956f35 / run 39868419517 passed the actual AArch64
+minimal-object two-process proof, bounded ownership/mutation checks, compiler
+cancellation, fault-order excerpts, shared-budget tests and the 35 LLVM kernel
+comparisons. It stopped before the iPhone build at the historical Build 487
+whole-interface freeze. The exact JIT API declarations, reviewed JITLLVM ownership/cache delta and
+independently tested admission prelude are reversed for that old reference;
+full historical hashes remain mandatory. Subsequent source also throttles
+kernel memory queries across phase hooks and the sampler to approximately 10 Hz.
