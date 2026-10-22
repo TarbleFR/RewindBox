@@ -28,7 +28,9 @@ view.write_text(text)
 for source in ['Core/Models/ControllerMapping.swift', 'Core/Models/VirtualControllerButton.swift']:
     original = engine / 'src/MeloNX/MeloNX' / source
     text = original.read_text().replace('import Melo_Controller\n', '')
-    (target / original.name).write_text(text)
+    # Swift uses basenames as private declaration discriminators; the upstream
+    # model already has a VirtualControllerButton.swift in its Models folder.
+    (target / ('MeloNX' + original.name)).write_text(text)
 # Isolate all of the original preference keys, not only the top-level scale.
 for path in target.rglob('*.swift'):
     text = path.read_text()

@@ -44,7 +44,9 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         setButton(pad: 1, source: "touch", index: Int32(button.rawValue), pressed: false)
     }
     func joystickMoved(position: CGPoint, right: Bool) {
-        setStick(pad: 1, source: "touch", stick: right ? 2 : 1, x: Float(position.x), y: Float(position.y))
+        // Melo-Controller reports UIKit's downward-positive Y. Preserve the
+        // original MeloNX BaseController's inversion for both touch sticks.
+        setStick(pad: 1, source: "touch", stick: right ? 2 : 1, x: Float(position.x), y: Float(-position.y))
     }
 
     private func setButton(pad: Int32, source: String, index: Int32, pressed: Bool) {
@@ -65,7 +67,7 @@ final class MeloNXInputRouter: ObservableObject, Controller {
 
     func releaseTouch() {
         for index in buttons[1]?["touch"] ?? [] { setButton(pad: 1, source: "touch", index: index, pressed: false) }
-        for stick: Int32 in [1, 2] { setStick(pad: 1, source: "touch", stick: stick, x: 0, y: 0) }
+        for stick in [Int32(1), Int32(2)] { setStick(pad: 1, source: "touch", stick: stick, x: 0, y: 0) }
     }
     func suspend(_ value: Bool) {
         guard !closed else { return }
