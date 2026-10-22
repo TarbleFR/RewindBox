@@ -74,7 +74,20 @@ def main():
     core = args.source.resolve()
     llvm = (core / 'rpcs3/Emu/Cell/SPULLVMRecompiler.cpp').read_text()
     thread = (core / 'rpcs3/Emu/Cell/SPUThread.cpp').read_text()
-    old_llvm, old_thread = reference_translator(llvm), reference_thread(thread)
+    control_llvm, control_thread = llvm, thread
+    prefix = '#ifdef RPCS3_IOS\n#include "ios/IOSCompileAdmission.h"\n#endif\n'
+    if control_llvm.startswith(prefix):
+        control_llvm = control_llvm[len(prefix):]
+        admission = '\t\trpcs3::ios::compile_admission admission(func.data.size() * sizeof(u32), [] { return Emu.IsStopped(); });\n\t\tif (!admission) return nullptr;\n\n'
+        assert control_llvm.count(admission) == 1
+        control_llvm = control_llvm.replace(admission, '')
+    fault = '\n#ifdef RPCS3_IOS\n\t\t// Resolve RSX readback before owning the line; fetch_op below revalidates rtime.\n\t\tif (accurate) utils::trigger_write_page_fault(vm::base(addr));\n#endif\n'
+    wrapped = '\n#ifndef RPCS3_IOS\n\t\telse\n\t\t{\n\t\t\tutils::trigger_write_page_fault(vm::base(addr));\n\t\t}\n#endif'
+    if fault in control_thread:
+        assert control_thread.count(fault) == control_thread.count(wrapped) == 1
+        control_thread = control_thread.replace(fault, '').replace(wrapped, '\n\t\telse\n\t\t{\n\t\t\tutils::trigger_write_page_fault(vm::base(addr));\n\t\t}')
+    old_llvm, old_thread = reference_translator(control_llvm), reference_thread(control_thread)
+
     cmake = (core / 'rpcs3/Emu/CMakeLists.txt').read_text()
     digest = cmake.split('foreach(NEOSTATION_SPU_CODEGEN_SOURCE IN ITEMS', 1)[1].split(')', 1)[0]
     assert all(name in digest for name in ('Cell/SPULLVMRecompiler.cpp', 'Cell/SPUThread.cpp', 'Cell/SPUOpcodes.h'))

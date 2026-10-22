@@ -24,7 +24,7 @@ class SyntaxGateTests(unittest.TestCase):
                 exception_flags[name] = (['-fno-exceptions', '-fexceptions'] if name == 'SourceClient.cpp'
                     else ['-fno-exceptions'] if name in ('fsr_pass.cpp', 'VKProgramPipeline.cpp', 'cellVdec.cpp')
                     else ['-fexceptions'])
-                entries.append({'file': name, 'directory': temp, 'arguments': [
+                entries.append({'file': '/core/rpcs3/Emu/RSX/VK/vkutils/memory.cpp' if name == 'memory.cpp' else name, 'directory': temp, 'arguments': [
                     'clang++', '--target=arm64-apple-ios16.3', '-std=c++23',
                     *exception_flags[name], '-DREQUIRED=1', '-c', name, '-o', name+'.o',
                     '-MD', '-MF', name+'.d', '@'+name+'.o.modmap']})
@@ -69,7 +69,7 @@ class SyntaxGateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             database = Path(temp) / 'compile_commands.json'
             database.write_text(json.dumps([
-                {'file': name, 'directory': temp, 'arguments': ['clang++', '-c', name]}
+                {'file': '/core/rpcs3/Emu/RSX/VK/vkutils/memory.cpp' if name == 'memory.cpp' else name, 'directory': temp, 'arguments': ['clang++', '-c', name]}
                 for name in sorted(gate.UNITS)
             ]))
             calls = []

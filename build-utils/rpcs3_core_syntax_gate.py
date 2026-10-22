@@ -7,7 +7,7 @@ import shlex
 import subprocess
 import sys
 
-UNITS = {'JITIOS.cpp', 'JITASM.cpp', 'JITLLVM.cpp', 'PPUAnalyser.cpp',
+UNITS = {'memory.cpp', 'IOSTextureHash.cpp', 'JITIOS.cpp', 'JITASM.cpp', 'JITLLVM.cpp', 'PPUAnalyser.cpp',
          'PPUFunction.cpp', 'PPUThread.cpp', 'PPUTranslator.cpp',
          'SPUCommonRecompiler.cpp', 'SPULLVMRecompiler.cpp', 'SPUThread.cpp',
          'VKResourceManager.cpp',
@@ -22,7 +22,8 @@ UNITS = {'JITIOS.cpp', 'JITASM.cpp', 'JITLLVM.cpp', 'PPUAnalyser.cpp',
 def main(database: Path) -> None:
     build = database.resolve().parent
     entries = [entry for entry in json.loads(database.read_text())
-               if Path(entry['file']).name in UNITS]
+               if Path(entry['file']).name in UNITS and
+               (Path(entry['file']).name != 'memory.cpp' or entry['file'].replace('\\', '/').endswith('/Emu/RSX/VK/vkutils/memory.cpp'))]
     found = {Path(entry['file']).name for entry in entries}
     if found != UNITS:
         raise RuntimeError('Missing startup units: ' + str(UNITS - found))

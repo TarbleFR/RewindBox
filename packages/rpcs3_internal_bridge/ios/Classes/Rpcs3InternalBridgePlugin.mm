@@ -4,6 +4,7 @@
 #import "Rpcs3JitBridgePlugin.h"
 #import "Rpcs3CoreABI.h"
 #import <neo_swap/NeoSwap.h>
+#import <neo_swap/NeoSwapCompilerAPI.h>
 #import <neo_swap/NeoSwapExperiment.h>
 #import <neo_swap/NeoSwapRelay.h>
 #import <neo_swap/NeoSwapRelayService.h>
@@ -594,6 +595,8 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
       strstr(message, "SPUPROF ") != nullptr ||
       strstr(message, "RANGELOCKPROF ") != nullptr ||
       strstr(message, "JITPROF ") != nullptr ||
+      strstr(message, "JITMEM ") != nullptr || strstr(message, "JITPAGES ") != nullptr ||
+      strstr(message, "JITCPU ") != nullptr || strstr(message, "VMAHEAP ") != nullptr ||
       strstr(message, "JITPROF_BOOT ") != nullptr ||
       strstr(message, "CONFIG_LAYERS ") != nullptr ||
       strstr(message, "NEOSTATION_RESTART ") != nullptr ||
@@ -773,6 +776,9 @@ static void RPCS3Progress(void* context,
   // allocator instance linked into this Core. Bind before initialize/boot.
   using NeoSwapBinder = int32_t (*)(const NeoSwapAPI*);
   auto bindSwap = reinterpret_cast<NeoSwapBinder>(dlsym(handle, "rpcs3_ios_set_neoswap_api"));
+  using CompilerBinder = int32_t (*)(const NeoSwapCompilerAPI*);
+  const auto bindCompiler = reinterpret_cast<CompilerBinder>(dlsym(handle, "rpcs3_ios_set_compiler_budget_api"));
+  if (bindCompiler) bindCompiler(NeoSwap_GetCompilerAPI(NEOSWAP_COMPILER_ABI));
   const int swapResult = bindSwap ? bindSwap(NeoSwap_GetAPI(NEOSWAP_ABI)) : NEOSWAP_INVALID;
   // Guest shared-memory objects choose their backing on their first map and
   // cannot be switched later without breaking g_base/g_sudo alias coherence.

@@ -230,6 +230,27 @@ jobs:
         RPCS3_PIN_GUARD=.github/diagnostics/motion507_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
+          .github/workflows/rpcs3-memory-audit.yml \
+          test/rpcs3_core_syntax_gate_test.py \
+          test/rpcs3_memory_audit_test.py \
+          test/native/rpcs3_memory_audit_test.cpp \
+          packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h \
+          packages/neo_swap/ios/Classes/NeoSwapCompilerBudget.h \
+          native/neoswap-storage/StorageABI.h \
+          native/neoswap-storage/Client.h \
+          native/neoswap-storage/ShaderKey.h \
+          test/rpcs3_shader_storage_test.py \
+          test/native/rpcs3_shader_storage_client_test.cpp \
+          native/neoswap-storage/SourceABI.h \
+          native/neoswap-storage/SourceClient.h \
+          native/neoswap-storage/SourceClient.cpp \
+          native/neoswap-storage/FrameClient.h \
+          native/neoswap-storage/VideoBuffer.h \
+          test/rpcs3_video_frame_archive_test.py \
+          test/native/rpcs3_video_frame_archive_test.cpp \
+          build-utils/run_vdec_archive_validation.sh \
+          test/rpcs3_source_archive_test.py \
+          test/native/rpcs3_source_archive_client_test.cpp \
           build-utils/build_rpcs3_embedded_core.sh \
           build-utils/materialize_rpcs3_core.py \
           build-utils/apply_rpcs3_llvm_patch.py \
@@ -260,6 +281,7 @@ jobs:
           test/rpcs3_failed_startup_test.py \
           test/rpcs3_build264_gow3_core_test.py \
           test/rpcs3_build351_gow3_engine_test.py \
+          test/rpcs3_build352_gow3_memory_test.py \
           test/rpcs3_build353_xitrix_v010_test.py \
           test/rpcs3_armsx3_performance_patch_test.py \
           test/rpcs3_build435_core_delta_test.py \
@@ -280,7 +302,6 @@ jobs:
           test/native/rpcs3_build487_retention_sequence_test.cpp \
           test/rpcs3_build487_host_diagnostics_test.py \
           test/rpcs3_build258_core_architecture_test.py \
-          test/rpcs3_build352_gow3_memory_test.py \
           test/rpcs3_ios_ppu_compile_budget_test.cpp \
           test/rpcs3_ppu_no_size_split_policy_test.cpp \
           test/rpcs3_xitrix_v0101_native_test.py \
@@ -292,22 +313,7 @@ jobs:
           test/native/rpcs3_vk_memory_pressure_test.cpp \
           test/native/rpcs3_vk_conditional_render_test.cpp \
           test/native/rpcs3_neoswap_stats_getter_test.cpp \
-          .github/workflows/rpcs3-core.yml \
-          native/neoswap-storage/StorageABI.h \
-          native/neoswap-storage/Client.h \
-          native/neoswap-storage/ShaderKey.h \
-          test/rpcs3_shader_storage_test.py \
-          test/native/rpcs3_shader_storage_client_test.cpp \
-          native/neoswap-storage/SourceABI.h \
-          native/neoswap-storage/SourceClient.h \
-          native/neoswap-storage/SourceClient.cpp \
-          native/neoswap-storage/FrameClient.h \
-          native/neoswap-storage/VideoBuffer.h \
-          test/rpcs3_video_frame_archive_test.py \
-          test/native/rpcs3_video_frame_archive_test.cpp \
-          build-utils/run_vdec_archive_validation.sh \
-          test/rpcs3_source_archive_test.py \
-          test/native/rpcs3_source_archive_client_test.cpp
+          .github/workflows/rpcs3-core.yml
         # RPCS3_CORE_INPUTS_END
         # The independent host broker/donation is rebuilt by this IPA job.
         # Only the Core source, client ABI, recipe and native tests are pinned.
