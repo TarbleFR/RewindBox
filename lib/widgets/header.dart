@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:neoplay_bridge/neoplay_bridge.dart';
@@ -329,16 +328,15 @@ class HeaderState extends State<Header> {
                       child: NeoGlass(
                         role: GlassSurfaceRole.chrome,
                         borderRadius:
-                            Theme.of(
-                              context,
-                            ).extension<CornerRadii>()?.radiusExternal ??
+                            Theme.of(context)
+                                .extension<CornerRadii>()
+                                ?.radiusExternal ??
                             BorderRadius.circular(8.r),
                         padding: EdgeInsets.symmetric(horizontal: 4.r),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.shadow.withValues(alpha: 0.1),
+                            color: Theme.of(context).colorScheme.shadow
+                                .withValues(alpha: 0.1),
                             blurRadius: 4.r,
                             offset: Offset(2.0.r, 2.0.r),
                           ),
@@ -346,8 +344,7 @@ class HeaderState extends State<Header> {
                         child: MainMenuTabStrip(
                           tabs: visibleNavTabs(configProvider.config),
                           selected: NavTab.values[widget.selectedTabIndex],
-                          showAirPlay:
-                              defaultTargetPlatform == TargetPlatform.iOS,
+
                           tabBuilder: (tab) => _buildTabButton(context, tab),
                         ),
                       ),
@@ -365,9 +362,9 @@ class HeaderState extends State<Header> {
                   child: NeoGlass(
                     role: GlassSurfaceRole.chrome,
                     borderRadius:
-                        Theme.of(
-                          context,
-                        ).extension<CornerRadii>()?.radiusExternal ??
+                        Theme.of(context)
+                            .extension<CornerRadii>()
+                            ?.radiusExternal ??
                         BorderRadius.circular(14),
                     padding: EdgeInsets.symmetric(
                       horizontal: 10.r,
@@ -375,9 +372,8 @@ class HeaderState extends State<Header> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.shadow.withValues(alpha: 0.1),
+                        color: Theme.of(context).colorScheme.shadow
+                            .withValues(alpha: 0.1),
                         blurRadius: 4.r,
                         offset: Offset(2.0.r, 2.0.r),
                       ),

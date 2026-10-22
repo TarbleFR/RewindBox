@@ -46,7 +46,9 @@ abstract final class NeoBubbleStyle {
   );
 
   static Color rim(BuildContext context, {bool selected = true}) =>
-      (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black)
+      (Theme.of(context).brightness == Brightness.dark
+              ? Colors.white
+              : Colors.black)
           .withValues(alpha: selected ? 0.56 : 0.18);
 }
 
@@ -75,6 +77,8 @@ class NeoGlassBubble extends StatelessWidget {
       final resolved = radius ?? (shortest.isFinite ? shortest * 0.46 : 24.0);
       final borderRadius = BorderRadius.circular(resolved);
       final dark = Theme.of(context).brightness == Brightness.dark;
+      final contrast = MediaQuery.maybeOf(context)?.highContrast ?? false;
+      final light = _BubbleLight.of(context);
       final material = DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: borderRadius,
@@ -96,9 +100,11 @@ class NeoGlassBubble extends StatelessWidget {
           ),
         ),
         child: CustomPaint(
-          foregroundPainter: _BubbleReflection(
+          foregroundPainter: NeoGlassLensPainter(
             selected: selected,
             radius: resolved,
+            highContrast: contrast,
+            light: light,
           ),
           child: padding == null
               ? child
@@ -130,37 +136,131 @@ class NeoGlassBubble extends StatelessWidget {
   );
 }
 
-class _BubbleReflection extends CustomPainter {
-  const _BubbleReflection({required this.selected, required this.radius});
+/// Optical depth painted over the artwork: a thick clear edge, a reflected
+/// ceiling light and a narrow lower meniscus. The clear center preserves text
+/// and original image detail; there is no per-card blur or artwork resampling.
+class NeoGlassLensPainter extends CustomPainter {
+  NeoGlassLensPainter({
+    required this.selected,
+    required this.radius,
+    this.highContrast = false,
+    this.light,
+    this.opacity = 1,
+  }) : super(repaint: light);
   final bool selected;
   final double radius;
+  final bool highContrast;
+  final Animation<double>? light;
+  final double opacity;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = (Offset.zero & size).deflate(2.1);
+    if (opacity <= 0) return;
+    final rect = (Offset.zero & size).deflate(0.7);
     if (rect.isEmpty) return;
+    final r = math.min(radius, rect.shortestSide / 2);
+    final thickness = (rect.shortestSide * 0.048).clamp(2.0, 8.0);
+    final outside = RRect.fromRectAndRadius(rect, Radius.circular(r));
+    final inside = RRect.fromRectAndRadius(
+      rect.deflate(thickness),
+      Radius.circular(math.max(0, r - thickness)),
+    );
+    final edge = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRRect(outside)
+      ..addRRect(inside);
+    final illumination = light?.value ?? 0;
+    final drift = 0.045 * math.sin(illumination * math.pi);
+    final strength = selected ? 1.0 : 0.62;
+    Color white(double alpha) =>
+        Colors.white.withValues(alpha: alpha * strength * opacity);
+    Color black(double alpha) =>
+        Colors.black.withValues(alpha: alpha * strength * opacity);
+
+    // A light-dark-light annulus reads as a convex edge instead of a flat
+    // translucent fill. Gradients stay neutral under every imported theme.
+    canvas.drawPath(
+      edge,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment(-0.9 + drift, -1),
+          end: const Alignment(0.7, 1),
+          colors: [
+            white(0.40),
+            white(0.08),
+            black(0.13),
+            white(0.18),
+            white(0.33),
+          ],
+          stops: const [0, 0.18, 0.48, 0.79, 1],
+        ).createShader(rect),
+    );
+
+    // Broad surface glint is kept near the upper edge, away from the label.
+    if (!highContrast) {
+      canvas.save();
+      canvas.clipRRect(outside);
+      final glint = Rect.fromLTWH(
+        rect.left + rect.width * (0.06 + drift),
+        rect.top - rect.height * 0.12,
+        rect.width * 0.88,
+        rect.height * 0.40,
+      );
+      canvas.drawOval(
+        glint,
+        Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(-0.25, -0.1),
+            radius: 0.85,
+            colors: [white(0.17), white(0.045), white(0)],
+            stops: const [0, 0.5, 1],
+          ).createShader(glint),
+      );
+      canvas.restore();
+    }
+
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
+      ..strokeWidth = highContrast ? 1.6 : 1.05
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          Colors.white.withValues(alpha: selected ? 0.65 : 0.30),
-          Colors.white.withValues(alpha: 0),
-          Colors.white.withValues(alpha: selected ? 0.20 : 0.08),
-        ],
-        stops: const [0, 0.48, 1],
+        colors: [white(highContrast ? 0.95 : 0.80), white(0.06), white(0.42)],
+        stops: const [0, 0.54, 1],
       ).createShader(rect);
+    canvas.drawRRect(outside, paint);
+    // A darker inner boundary adds thickness without a luminous outer halo.
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, Radius.circular(math.max(0.0, radius - 2))),
-      paint,
+      inside,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.7
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [white(0.16), black(0.16), white(0.12)],
+        ).createShader(rect),
     );
   }
 
   @override
-  bool shouldRepaint(_BubbleReflection old) =>
-      old.selected != selected || old.radius != radius;
+  bool shouldRepaint(NeoGlassLensPainter old) =>
+      old.selected != selected ||
+      old.radius != radius ||
+      old.highContrast != highContrast ||
+      old.opacity != opacity ||
+      old.light != light;
+}
+
+/// Only the painter listens to idle light changes, without rebuilding artwork,
+/// text, decoded media or the card layout on every frame.
+class _BubbleLight extends InheritedWidget {
+  const _BubbleLight({required this.light, required super.child});
+  final Animation<double> light;
+  static Animation<double>? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_BubbleLight>()?.light;
+  @override
+  bool updateShouldNotify(_BubbleLight old) => light != old.light;
 }
 
 /// At most the focused card floats. Motion stops for reduced motion, hidden
@@ -265,33 +365,53 @@ class _NeoBubbleMotionState extends State<NeoBubbleMotion>
   @override
   Widget build(BuildContext context) {
     final blocked = FrontendMediaGate.instance.blocked || !_foreground;
+    final pressed = _touchDown || widget.pressed;
     return Listener(
       onPointerDown: (_) => _press(true),
       onPointerUp: (_) => _press(false),
       onPointerCancel: (_) => _press(false),
-      child: AnimatedScale(
-        scale: _reduced || blocked
-            ? 1
-            : (_touchDown || widget.pressed)
-            ? 0.958
-            : widget.selected && widget.float
-            ? 1.018
-            : 1,
-        duration: _reduced || blocked
-            ? Duration.zero
-            : const Duration(milliseconds: 170),
-        curve: Curves.easeOutCubic,
-        child: AnimatedBuilder(
-          animation: _float,
-          child: widget.child,
-          builder: (context, child) => Transform.translate(
-            offset: Offset(
-              0,
-              _reduced || blocked
-                  ? 0
-                  : -0.65 * (1 - math.cos(_float.value * math.pi)),
+      child: _BubbleLight(
+        light: _float,
+        child: AnimatedScale(
+          scale: _reduced || blocked
+              ? 1
+              : pressed
+              ? 0.958
+              : widget.selected && widget.float
+              ? 1.018
+              : 1,
+          duration: _reduced || blocked
+              ? Duration.zero
+              : const Duration(milliseconds: 170),
+          curve: Curves.easeOutCubic,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(
+              begin: 0,
+              end: !_reduced && !blocked && pressed ? 1 : 0,
             ),
-            child: child,
+            duration: _reduced || blocked
+                ? Duration.zero
+                : const Duration(milliseconds: 170),
+            curve: Curves.easeOutCubic,
+            builder: (context, pressure, child) => Transform.scale(
+              key: const ValueKey('neo-bubble-pressure'),
+              scaleX: 1 + pressure * 0.022,
+              scaleY: 1 - pressure * 0.018,
+              child: child,
+            ),
+            child: AnimatedBuilder(
+              animation: _float,
+              child: widget.child,
+              builder: (context, child) => Transform.translate(
+                offset: Offset(
+                  0,
+                  _reduced || blocked
+                      ? 0
+                      : -0.65 * (1 - math.cos(_float.value * math.pi)),
+                ),
+                child: child,
+              ),
+            ),
           ),
         ),
       ),

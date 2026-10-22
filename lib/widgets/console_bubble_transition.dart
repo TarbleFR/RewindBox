@@ -343,8 +343,12 @@ class _ConsolePlaylistRoute<T> extends PageRoute<T> {
           final reduced = _reduced || origin == null;
           // A rotation may lay out the underlying carousel again on the first
           // reverse frame. Follow its live anchor rather than a stale rectangle.
-          final liveReturn = animation.status == AnimationStatus.reverse ? locate() : null;
-          var source = (liveReturn ?? _returnRect ?? origin ?? full).shift(-offset);
+          final liveReturn = animation.status == AnimationStatus.reverse
+              ? locate()
+              : null;
+          var source = (liveReturn ?? _returnRect ?? origin ?? full).shift(
+            -offset,
+          );
           if (!source.overlaps(full)) {
             source = Rect.fromCenter(
               center: full.center,
@@ -366,10 +370,21 @@ class _ConsolePlaylistRoute<T> extends PageRoute<T> {
             width: source.width * compression,
             height: source.height * compression,
           );
-          final rect = reduced ? full : Rect.lerp(source, full, flight)!;
+          final base = reduced ? full : Rect.lerp(source, full, flight)!;
+          final tension = reduced ? 0.0 : math.sin(math.pi * flight);
+          // A shallow horizontal stretch precedes relaxation into the page.
+          // Only the shell changes shape: the playlist keeps its final layout.
+          final rect = Rect.fromCenter(
+            center: base.center,
+            width: base.width * (1 + 0.018 * tension),
+            height: base.height * (1 - 0.012 * tension),
+          );
           final radius = reduced
               ? 0.0
-              : math.min(source.width, source.height) * 0.22 * (1 - flight);
+              : math.min(source.width, source.height) *
+                    0.18 *
+                    (1 - flight) *
+                    (1 + 0.12 * tension);
           final reveal = reduced
               ? value
               : const Interval(
@@ -403,7 +418,7 @@ class _ConsolePlaylistRoute<T> extends PageRoute<T> {
                           opacity: artOpacity,
                           child: RawImage(
                             image: _image,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                             filterQuality: FilterQuality.medium,
                           ),
                         ),
@@ -421,15 +436,14 @@ class _ConsolePlaylistRoute<T> extends PageRoute<T> {
               Positioned.fromRect(
                 rect: rect,
                 child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(radius),
-                      border: Border.all(
-                        color: Colors.white.withValues(
-                          alpha: 0.5 * (1 - flight),
-                        ),
-                        width: 1.4,
-                      ),
+                  child: CustomPaint(
+                    key: const ValueKey('console-bubble-liquid-shell'),
+                    painter: NeoGlassLensPainter(
+                      selected: true,
+                      radius: radius,
+                      opacity: reduced ? 0 : 1 - flight,
+                      highContrast:
+                          MediaQuery.maybeOf(context)?.highContrast ?? false,
                     ),
                   ),
                 ),

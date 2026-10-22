@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -27,8 +28,17 @@ void main() {
         // Finish real I/O before the production widgets subscribe from the
         // test's fake clock. Their existing cache keys are then reused.
         await tester.runAsync(() async {
-          await precacheImage(ResizeImage(FileImage(File(art)), width: 512), imageContext);
-          await precacheImage(const ResizeImage(AssetImage('assets/images/logos/32x.webp'), width: 256), imageContext);
+          await precacheImage(
+            ResizeImage(FileImage(File(art)), width: 512),
+            imageContext,
+          );
+          await precacheImage(
+            const ResizeImage(
+              AssetImage('assets/images/logos/32x.webp'),
+              width: 256,
+            ),
+            imageContext,
+          );
         });
         await tester.pumpWidget(
           ScreenUtilInit(
@@ -73,7 +83,7 @@ void main() {
                               child: MainMenuTabStrip(
                                 tabs: NavTab.values,
                                 selected: NavTab.systems,
-                                showAirPlay: false,
+
                                 tabBuilder: (tab) => Padding(
                                   padding: EdgeInsets.all(8.r),
                                   child: NavTabIcon(

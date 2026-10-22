@@ -4,6 +4,7 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
+import 'package:neostation/l10n/neoplay_locale.dart';
 import 'package:neostation/models/config_model.dart';
 
 /// Identity of a top-level navigation tab (the L1/R1 strip in the header).
@@ -21,6 +22,7 @@ enum NavTab {
   settings,
   library,
   consoles,
+  airplay,
 }
 
 /// Catalog a tab's [NavTabSpec.labelKey] belongs to.
@@ -30,6 +32,7 @@ enum NavTabLabelCatalog {
 
   /// [LibretroLocale] key (the embedded-console texts).
   libretro,
+  neoplay,
 }
 
 /// Static description of one navigation tab: how it is drawn, whether the user
@@ -154,6 +157,15 @@ const Map<NavTab, NavTabSpec> navTabSpecs = {
     badgeIconData: Symbols.add_rounded,
     available: _isIOS,
   ),
+  // Append the identity to preserve every stored/external tab index. Its
+  // display position is shared by touch, bumpers, keyboard and the header.
+  NavTab.airplay: NavTabSpec(
+    icon: '',
+    labelKey: 'subtitle',
+    labelCatalog: NavTabLabelCatalog.neoplay,
+    iconData: Icons.airplay_rounded,
+    available: _isIOS,
+  ),
 };
 
 // Torn out as top-level functions so [navTabSpecs] can stay `const`.
@@ -179,6 +191,7 @@ const List<NavTab> navTabDisplayOrder = [
   NavTab.systems,
   NavTab.consoles,
   NavTab.search,
+  NavTab.airplay,
   NavTab.achievements,
   NavTab.scraper,
   NavTab.settings,
@@ -234,5 +247,7 @@ String navTabLabel(BuildContext context, NavTab tab) {
   return switch (spec.labelCatalog) {
     NavTabLabelCatalog.libretro => LibretroLocale.text(context, spec.labelKey),
     NavTabLabelCatalog.app => spec.labelKey.getString(context),
+    NavTabLabelCatalog.neoplay =>
+      'AirPlay · ${NeoPlayLocale.get(context, spec.labelKey)}',
   };
 }

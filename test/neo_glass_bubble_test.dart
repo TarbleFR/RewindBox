@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -80,6 +82,12 @@ void main() {
       tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale,
       lessThan(1),
     );
+    await tester.pump(const Duration(milliseconds: 180));
+    final pressure = tester
+        .widget<Transform>(find.byKey(const ValueKey('neo-bubble-pressure')))
+        .transform;
+    expect(pressure.storage[0], greaterThan(1));
+    expect(pressure.storage[5], lessThan(1));
     await gesture.cancel();
     await tester.pump();
     expect(
@@ -159,7 +167,7 @@ void main() {
                   builder: (_, selected, child) => MainMenuTabStrip(
                     tabs: NavTab.values,
                     selected: selected,
-                    showAirPlay: true,
+
                     tabBuilder: (tab) => TextButton(
                       onPressed: () => selection.value = tab,
                       child: Text(tab.name),
@@ -178,6 +186,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       final moving = tester.getRect(lens).left;
       expect(moving, greaterThan(initial));
+      final stretch = tester
+          .widget<Transform>(
+            find.byKey(const ValueKey('main-menu-liquid-stretch')),
+          )
+          .transform;
+      expect(stretch.storage[0], greaterThan(1));
+      expect(stretch.storage[5], lessThan(1));
       selection.value = NavTab.consoles;
       await tester.pump();
       expect(tester.getRect(lens).left, closeTo(moving, 0.01));
@@ -191,4 +206,42 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('lens depth stays on the edge and keeps the image center clear', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final recorder = ui.PictureRecorder();
+      NeoGlassLensPainter(
+        selected: true,
+        radius: 30,
+      ).paint(Canvas(recorder), const Size(180, 230));
+      final picture = recorder.endRecording();
+      final bitmap = await picture.toImage(180, 230);
+      try {
+        final pixels = await bitmap.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        );
+        int alpha(int x, int y) => pixels!.getUint8((y * 180 + x) * 4 + 3);
+        expect(
+          alpha(90, 150),
+          0,
+          reason: 'the clear center cannot haze labels or art',
+        );
+        expect(
+          alpha(90, 1),
+          greaterThan(0),
+          reason: 'the thick polished rim is visible',
+        );
+        expect(
+          alpha(90, 228),
+          greaterThan(0),
+          reason: 'the lower meniscus closes the lens',
+        );
+      } finally {
+        bitmap.dispose();
+        picture.dispose();
+      }
+    });
+  });
 }

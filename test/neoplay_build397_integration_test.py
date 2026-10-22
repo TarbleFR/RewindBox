@@ -307,17 +307,16 @@ class Build398Integration(unittest.TestCase):
         header = (ROOT/'lib/widgets/header.dart').read_text()
         self.assertIn("import 'package:neostation/widgets/main_menu_tab_strip.dart';", header)
         self.assertIn('child: MainMenuTabStrip(', header)
-        self.assertRegex(header, r'showAirPlay:\s*defaultTargetPlatform == TargetPlatform.iOS')
-        self.assertNotIn('const AirPlayMenuButton()', header)
-        self.assertNotIn("import 'package:neostation/widgets/airplay_menu_button.dart';", header)
+        # AirPlay now participates in the canonical tab registry, so it is
+        # selectable by the same cycle as the displayed cells. Widget tests
+        # cover its real position with hidden Search/Achievement preferences.
+        self.assertIn('tabs: visibleNavTabs(configProvider.config)', header)
         strip = (ROOT/'lib/widgets/main_menu_tab_strip.dart').read_text()
-        self.assertEqual(strip.count('const AirPlayMenuButton()'), 1)
-        self.assertIn('cells.insert(airPlaySlot, null)', strip)
-        # Build440: the slot follows the display rank, not the canonical index,
-        # since the consoles tab (index 6) is drawn before Search. AirPlay stays
-        # right after Search (after Consoles when Search is hidden); the
-        # placement itself is proven by test/main_menu_tab_strip_test.dart.
-        self.assertIn('navTabDisplayRank(tab) <= navTabDisplayRank(NavTab.search)', strip)
+        self.assertIn('child: widget.tabBuilder(tab)', strip)
+        self.assertNotIn('cells.insert(', strip)
+        tabs = (ROOT/'lib/utils/nav_tabs.dart').read_text()
+        self.assertIn('NavTab.airplay: NavTabSpec(', tabs)
+        self.assertRegex(tabs, r'NavTab.search,\s*NavTab.airplay,\s*NavTab.achievements,')
         action = (ROOT/'lib/widgets/airplay_menu_button.dart').read_text()
         self.assertIn('Icons.airplay_rounded', action)
         self.assertEqual(action.count('onPressed: () => showNeoPlayDialog(context)'), 1)

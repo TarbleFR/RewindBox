@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'neo_glass_bubble.dart';
-import 'package:neostation/utils/nav_tabs.dart';
-import 'package:neostation/widgets/airplay_menu_button.dart';
 
-/// AirPlay occupies a cell in the existing pill without becoming a navigation
-/// tab. Canonical tab indices and controller bumper navigation stay intact.
-///
-/// Cells follow the display order ([navTabDisplayOrder]), not the canonical
-/// indices: the consoles tab (appended last) is drawn right after Systems.
+import 'dart:math' as math;
+
+import 'neo_glass_bubble.dart';
+
+import 'package:neostation/utils/nav_tabs.dart';
+
+import '../services/frontend_media_gate.dart';
+
+/// The displayed cells and every input source use the same tab identities.
 class MainMenuTabStrip extends StatefulWidget {
   final List<NavTab> tabs;
   final NavTab selected;
-  final bool showAirPlay;
   final Widget Function(NavTab) tabBuilder;
 
   const MainMenuTabStrip({
     super.key,
     required this.tabs,
     required this.selected,
-    required this.showAirPlay,
     required this.tabBuilder,
   });
 
@@ -33,59 +32,32 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip> {
   @override
   Widget build(BuildContext context) {
     final ordered = inNavTabDisplayOrder(widget.tabs);
-    // Insert after search, including when search is hidden in preferences.
-    final airPlaySlot = ordered
-        .where(
-          (tab) => navTabDisplayRank(tab) <= navTabDisplayRank(NavTab.search),
-        )
-        .length;
-    final cells = <NavTab?>[...ordered];
-    if (widget.showAirPlay) cells.insert(airPlaySlot, null);
+    final cells = ordered;
     final selectedSlot = cells.indexOf(widget.selected);
     return Stack(
       key: const ValueKey('main-menu-tab-strip'),
       children: [
         if (selectedSlot >= 0)
-          AnimatedPositioned(
-            key: const ValueKey('main-menu-tab-indicator'),
-            left: selectedSlot * 32.r,
-            top: 1.r,
-            bottom: 1.r,
-            width: 32.r,
-            duration: NeoBubbleStyle.reduceMotion(context)
-                ? Duration.zero
-                : const Duration(milliseconds: 280),
-            curve: Curves.easeOutBack,
-            child: IgnorePointer(
-              child: NeoBubbleMotion(
-                selected: true,
-                pressed: _pressedSlot == selectedSlot,
-                child: const NeoGlassBubble(
-                  blur: true,
-                  child: SizedBox.expand(),
-                ),
-              ),
-            ),
+          _LiquidTabLens(
+            slot: selectedSlot,
+            cell: 32.r,
+            inset: 1.r,
+            reduced: NeoBubbleStyle.reduceMotion(context),
+            pressed: _pressedSlot == selectedSlot,
           ),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final (slot, tab) in cells.indexed)
               SizedBox(
-                key: ValueKey(
-                  tab == null
-                      ? 'main-menu-airplay-cell'
-                      : 'main-menu-cell-${tab.name}',
-                ),
+                key: ValueKey('main-menu-cell-${tab.name}'),
                 width: 32.r,
                 height: 32.r,
                 child: Listener(
                   onPointerDown: (_) => setState(() => _pressedSlot = slot),
                   onPointerUp: (_) => setState(() => _pressedSlot = null),
                   onPointerCancel: (_) => setState(() => _pressedSlot = null),
-                  child: tab == null
-                      ? const AirPlayMenuButton()
-                      : widget.tabBuilder(tab),
+                  child: widget.tabBuilder(tab),
                 ),
               ),
           ],
@@ -93,6 +65,127 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip> {
       ],
     );
   }
+}
+
+/// Retargets from the lens's current position, including during a fast reversal.
+/// The meniscus stretches only in flight; icon layout and hit targets stay fixed.
+class _LiquidTabLens extends StatefulWidget {
+  const _LiquidTabLens({
+    required this.slot,
+    required this.cell,
+    required this.inset,
+    required this.reduced,
+    required this.pressed,
+  });
+  final int slot;
+  final double cell;
+  final double inset;
+  final bool reduced;
+  final bool pressed;
+  @override
+  State<_LiquidTabLens> createState() => _LiquidTabLensState();
+}
+
+class _LiquidTabLensState extends State<_LiquidTabLens>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  late final AnimationController _motion = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+    value: 1,
+  );
+  late double _from = widget.slot * widget.cell;
+  late double _to = _from;
+  double _fromStretch = 0;
+  double _travel = 0;
+  bool _foreground = true;
+  bool get _reduced =>
+      widget.reduced ||
+      NeoBubbleStyle.reduceMotion(context) ||
+      !_foreground ||
+      !TickerMode.valuesOf(context).enabled ||
+      FrontendMediaGate.instance.blocked;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    FrontendMediaGate.instance.addListener(_suspend);
+  }
+
+  void _suspend() {
+    if (mounted && _reduced)
+      setState(() {
+        _from = _to = widget.slot * widget.cell;
+        _fromStretch = _travel = 0;
+        _motion.value = 1;
+      });
+  }
+
+  @override
+  void didChangeAccessibilityFeatures() => _suspend();
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _suspend();
+  }
+
+  double get _position =>
+      _from + (_to - _from) * Curves.easeOutCubic.transform(_motion.value);
+  double get _stretch =>
+      _fromStretch * (1 - _motion.value) +
+      0.19 * _travel * math.sin(math.pi * _motion.value);
+
+  @override
+  void didUpdateWidget(_LiquidTabLens old) {
+    super.didUpdateWidget(old);
+    final target = widget.slot * widget.cell;
+    if (_reduced) {
+      _from = _to = target;
+      _fromStretch = _travel = 0;
+      _motion.value = 1;
+    } else if (target != _to) {
+      final position = _position;
+      _fromStretch = _stretch;
+      _from = position;
+      _to = target;
+      _travel = ((_to - _from).abs() / widget.cell).clamp(0, 1);
+      _motion.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    FrontendMediaGate.instance.removeListener(_suspend);
+    WidgetsBinding.instance.removeObserver(this);
+    _motion.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _motion,
+    child: IgnorePointer(
+      child: NeoBubbleMotion(
+        selected: true,
+        pressed: widget.pressed,
+        child: const NeoGlassBubble(blur: true, child: SizedBox.expand()),
+      ),
+    ),
+    builder: (context, child) => Positioned(
+      key: const ValueKey('main-menu-tab-indicator'),
+      left: _position,
+      top: widget.inset,
+      bottom: widget.inset,
+      width: widget.cell,
+      child: Transform.scale(
+        key: const ValueKey('main-menu-liquid-stretch'),
+        scaleX: 1 + _stretch,
+        scaleY: 1 - _stretch * 0.34,
+        child: child,
+      ),
+    ),
+  );
 }
 
 /// Icon of a navigation tab, drawn in a 16.r box like every other tab: its
