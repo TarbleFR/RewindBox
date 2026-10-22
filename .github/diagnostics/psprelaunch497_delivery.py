@@ -57,6 +57,7 @@ BUILD502_DELIVERY_ONLY = {
     '.github/diagnostics/psprelaunch497_delivery.py',
     '.github/workflows/retroarch-delivery.yml',
     'build-utils/delivery-502-chatgpt-recipient.pem',
+    'test/stikjit_scoped_host_test.py',
 }
 
 
