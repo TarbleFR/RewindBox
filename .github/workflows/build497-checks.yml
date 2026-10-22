@@ -29,7 +29,7 @@ jobs:
           python3 - <<'PY'
           import json, subprocess
           from pathlib import Path
-          job = json.loads(subprocess.check_output(['gh', 'api', 'repos/TarbleFR/RewindBox/actions/jobs/118730959458']))
+          job = json.loads(subprocess.check_output(['gh', 'api', 'repos/TarbleFR/neostation-ios/actions/jobs/118730959458']))
           step = next(s for s in job['steps'] if s['name'] == 'Reproduce arena self-collision and verify continuously owned mappings')
           assert job['head_sha'] == '4d0a5b9ac250a44bbb4f935d99d1a47f066043e1'
           assert step['conclusion'] == 'success', step
