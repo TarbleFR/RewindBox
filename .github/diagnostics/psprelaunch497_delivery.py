@@ -79,6 +79,7 @@ BUILD_501_ALLOWED = {
     'build-utils/delivery-501-recipient.pem',
     'build-utils/delivery-501-chatgpt-recipient.pem',
     'build-utils/validate_rpcs3_ipa.py',
+    'build-utils/validate_no_dusklight_ipa.py',
     '.github/workflows/dolphin-core.yml',
     '.github/workflows/build497-checks.yml',
     '.github/diagnostics/psprelaunch497_delivery.py',
