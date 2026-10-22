@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-SRC="assets/images/fork-icon-valid.jpg"
+SRC="assets/images/rewindbox-logo.png"
 ICON_DIR="ios/Runner/Assets.xcassets/AppIcon.appiconset"
 CONTENTS="$ICON_DIR/Contents.json"
 
@@ -73,5 +73,5 @@ if [ "$width" != "1024" ] || [ "$height" != "1024" ]; then
   exit 1
 fi
 
-echo "Forced NeoStation fork branding into $count iOS AppIcon slots."
+echo "Forced RewindBox branding into $count iOS AppIcon slots."
 echo "Marketing icon: $MARKETING_ICON (${width}x${height})"
