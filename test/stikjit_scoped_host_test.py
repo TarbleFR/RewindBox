@@ -46,6 +46,17 @@ replacements = (
 for added, previous in replacements:
     assert new.count(added)==1, 'Unexpected NeoSwap packaging delta: '+added
     new=new.replace(added, previous)
+# External MeloNX/Atari deep links were intentionally retired from RewindBox;
+# restore only the old verifier text before comparing the retained Dolphin/JIT
+# algorithm with its frozen baseline.
+new=new.replace(
+    "demand({'retroarch', 'shortcuts'} <= schemes, 'Existing URL query schemes were removed')",
+    "demand({'retroarch', 'shortcuts', 'melonx'} <= schemes, 'Existing URL query schemes were removed')",
+)
+new=new.replace(
+    "demand(not schemes & {'dolphin', 'dolphinios', 'dolphin-emu', 'melonx', 'atariemulator'}, 'Retired external emulator query scheme found')",
+    "demand(not schemes & {'dolphin', 'dolphinios', 'dolphin-emu'}, 'External Dolphin query scheme found')",
+)
 assert new.replace("== '1.9.0', 'Wrong StikJIT version'", "== '1.5.0', 'Wrong StikJIT version'")==original(p)
 p='packages/dolphin_jit_helper/ios/Classes/DolphinJITRequestHandlerBase.swift'
 assert (ROOT/p).read_text().replace('StikJIT 1.9.0','StikJIT 1.5.0')==original(p)
