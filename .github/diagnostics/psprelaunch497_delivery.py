@@ -49,25 +49,55 @@ def validate_psp_core_identity(identity, root):
     assert '_neostation_ppsspp_set_memory_callbacks' in base.command(['nm', '-gU', str(binary)])
 
 
+BUILD501_NATIVE = 'd83145a71709342e7d3b662ba00789b726bc3fb5'
+BUILD501_RUN = 39760303355
+BUILD502_UI = '69a514390fffb1389977ca8863f0bb03f756db84'
+BUILD502_UI_RUN = 39769356204
+BUILD502_DELIVERY_ONLY = {
+    '.github/diagnostics/psprelaunch497_delivery.py',
+    'build-utils/delivery-502-chatgpt-recipient.pem',
+}
+
+
 def source_closure():
-    for end in (['HEAD'], []):
-        changed = set(base.command(['git', 'diff', '--name-only', DELIVERED, *end, '--', *PRODUCT_PATHS]).splitlines())
-        if changed != PRODUCT:
-            raise ValueError('Unexpected product change since 496: ' + ', '.join(sorted(changed ^ PRODUCT)))
-        since = set(base.command(['git', 'diff', '--name-only', TESTED, *end]).splitlines())
-        extra = {p for p in since - DELIVERY_ONLY if not p.startswith('docs/')}
-        if extra:
-            raise ValueError('Changed inputs since targeted proof: ' + ', '.join(sorted(extra)))
-        base.command(['git', 'diff', '--exit-code', CATALOGUE, *end, '--', INDEX, BUNDLED, 'tools/textures'])
+    # Build 502 is a targeted UI/branding test delivery. The application state
+    # must be byte-for-byte the UI-validated Claude candidate; only this guard
+    # and the public recipient key may differ afterwards.
+    changed_since_ui = set(base.command([
+        'git', 'diff', '--name-only', BUILD502_UI, 'HEAD'
+    ]).splitlines())
+    if changed_since_ui != BUILD502_DELIVERY_ONLY:
+        raise ValueError(
+            'Build 502 candidate differs from validated UI state: ' +
+            ', '.join(sorted(changed_since_ui ^ BUILD502_DELIVERY_ONLY))
+        )
+
+    # No emulator/core/native implementation may drift from the successful
+    # Build 501 device delivery. The intended Build 502 changes are Flutter UI,
+    # branding assets and icon-generation inputs only.
+    base.command([
+        'git', 'diff', '--exit-code', BUILD501_NATIVE, 'HEAD', '--',
+        'native', 'packages', 'build-utils/libretro'
+    ])
+
     workflow = base.ROOT / '.github/workflows/retroarch-delivery.yml'
     if hashlib.sha256(workflow.read_bytes()).hexdigest() != WORKFLOW_SHA256:
         raise ValueError('Unreviewed delivery pipeline change')
+
     data = (base.ROOT / INDEX).read_bytes()
     if data != (base.ROOT / BUNDLED).read_bytes():
         raise ValueError('Bundled and hosted catalogues differ')
-    return {'baseline': DELIVERED, 'baselineRun': DELIVERED_RUN, 'testedSource': TESTED,
-            'testedRun': TESTED_RUN, 'catalogueSource': CATALOGUE, 'changedProductPaths': sorted(PRODUCT),
-            'catalogueSHA256': hashlib.sha256(data).hexdigest(), 'rebuiltCores': ['ppsspp']}
+
+    return {
+        'baseline': BUILD501_NATIVE,
+        'baselineRun': BUILD501_RUN,
+        'testedSource': BUILD502_UI,
+        'testedRun': BUILD502_UI_RUN,
+        'catalogueSHA256': hashlib.sha256(data).hexdigest(),
+        'changedAfterUITest': sorted(changed_since_ui),
+        'nativeAndCoreInputsReused': True,
+        'rebuiltCores': [],
+    }
 
 
 def main():
@@ -86,18 +116,27 @@ def main():
         validate_rpc_core_pin(a.rpc_core_inputs, a.core_paths)
         return
     if a.source_only:
-        print('PASS exact Build 496 product + tested PSP host/core managed memory')
+        print('PASS exact Build 502 UI state + unchanged Build 501 native/core inputs')
         return
-    records = [base.successful_run(DELIVERED_RUN, DELIVERED,
-                                  ['checks', 'native', 'Release device build • cold']),
-               base.successful_run(TESTED_RUN, TESTED, ['psp']),
-               base.successful_run(39449348701, 'd6fa85695f219ad0b66ef71bc9429d11c8e8abd9',
-                                   ['Packs published as repository archives (3ds)', 'Packs published as repository archives (psp)']),
-               base.successful_run(39450675080, 'c6ebee7f407c2833e20914db9a16682228a13a92',
-                                   ['Packs published as original GitHub archives (3ds)'])]
-    record = {'result': 'passed', 'testedSHA': TESTED, 'candidateSHA': base.command(['git', 'rev-parse', 'HEAD']),
-              'sourceClosure': closure, 'reusedEvidence': records, 'validationWasReused': True,
-              'unchangedDartSource': DELIVERED, 'deviceGameplayValidated': False, 'rebuiltCores': ['ppsspp']}
+    records = [
+        base.successful_run(
+            BUILD501_RUN,
+            BUILD501_NATIVE,
+            ['checks', 'native', 'Release device build • cold'],
+        ),
+        base.successful_run(BUILD502_UI_RUN, BUILD502_UI, ['test']),
+    ]
+    record = {
+        'result': 'passed',
+        'testedSHA': BUILD502_UI,
+        'candidateSHA': base.command(['git', 'rev-parse', 'HEAD']).strip(),
+        'sourceClosure': closure,
+        'reusedEvidence': records,
+        'validationWasReused': True,
+        'unchangedDartSource': BUILD502_UI,
+        'deviceGameplayValidated': False,
+        'rebuiltCores': [],
+    }
     if a.dart_evidence:
         record.update(key=os.environ['DART_VALIDATION_KEY'], tool='Flutter 3.47.2, Ubuntu 24.04')
     if a.libretro_evidence:
@@ -109,7 +148,7 @@ def main():
     out = base.ROOT / a.output
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(record, indent=2) + '\n')
-    print('PASS reused unchanged Build 496 evidence + exact successful Build 497 native/core/session checks')
+    print('PASS Build 502 targeted UI delivery closure')
 
 
 if __name__ == '__main__':
