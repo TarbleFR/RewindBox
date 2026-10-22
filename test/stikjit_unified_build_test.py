@@ -22,7 +22,12 @@ for lower in ('rpcs3','armsx2'):
     paths.append(f'packages/{lower}_jit_helper/ios/Resources/{lower}-universal.js')
 for path in paths:
     old=subprocess.check_output(['git','show',BASE+':'+path],cwd=ROOT).replace(b'\r\n',b'\n')
-    assert (ROOT/path).read_bytes().replace(b'\r\n',b'\n')==old,'Runtime JIT changed: '+path
+    current=(ROOT/path).read_bytes().replace(b'\r\n',b'\n')
+    # RewindBox is the independent fork's display name; the frozen Build363
+    # JIT baseline predates that rebrand. Normalize only the visible brand
+    # token before proving all runtime/patch bytes remain unchanged.
+    current=current.replace(b'RewindBox',b'NeoStation')
+    assert current==old,'Runtime JIT changed: '+path
 for path in ('.github/workflows/ios-ci.yml','build-utils/prepare_fast_native_runtime.py',
              'packages/dolphin_internal_bridge/ci/build_support.py'):
     text=(ROOT/path).read_text()
