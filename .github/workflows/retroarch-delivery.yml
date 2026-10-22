@@ -74,6 +74,13 @@ jobs:
         echo 'cache-hit=false' >> "$GITHUB_OUTPUT"
         echo 'Build 502: current candidate inputs changed; full Dart validation will run.'
 
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 3.47.2
+        channel: stable
+        cache: true
+      if: ${{ inputs.validation_scope == 'rpcs3_neoswap' || steps.dart-evidence.outputs.cache-hit != 'true' }}
+
     - name: Verify closed validation input tree and previous CI success
       run: python3 .github/diagnostics/psprelaunch502_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Analyze the changed integration and its restored dependencies
@@ -362,6 +369,8 @@ jobs:
         EOF
         mkdir -p "$STUB/neo_swap"
         cp packages/neo_swap/ios/Classes/*.h "$STUB/neo_swap/"
+        mkdir -p "$STUB/neo_touch_layout"
+        cp packages/neo_touch_layout/ios/Classes/*.h "$STUB/neo_touch_layout/"
         # Build 447: the bridge imports <external_display/NeoExternalDisplayCoordinator.h>.
         # Stage the headers the external_display pod publishes (public_header_files),
         # and only those, as the framework exposes them: the same staging as the
@@ -392,6 +401,8 @@ jobs:
         # staged above and the podspec that names them.
         paths.update(p for p in Path('packages/external_display/ios/Classes').glob('*.h'))
         paths.add(Path('packages/external_display/ios/external_display.podspec'))
+        paths.update(p for p in Path('packages/neo_touch_layout/ios/Classes').glob('*.h'))
+        paths.add(Path('packages/neo_touch_layout/ios/neo_touch_layout.podspec'))
         paths.update(Path(p) for p in (
             'test/neoswap_pool_fragmentation_test.cpp','test/neoswap_preparation_test.cpp',
             'test/neoswap_demand_test.cpp','test/relay_backend_test.cpp','test/neoswap_relay_loans_test.cpp',
