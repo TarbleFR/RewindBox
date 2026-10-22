@@ -18,6 +18,7 @@ import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/ui_refresh_rate_service.dart';
 
 import '../widgets/fixed_header.dart';
+import '../widgets/horizontal_swipe.dart';
 import 'systems_screen/system_content.dart';
 import 'systems_screen/custom_main_menu_background.dart';
 import 'search_screen/search_screen.dart';
@@ -51,7 +52,7 @@ class AppScreen extends StatefulWidget {
 ///
 /// [AppScreenState] delegates input per tab against these names rather than
 /// literals. They are identities, not positions: the header draws the tabs
-/// (and LB/RB cycle them) in [navTabDisplayOrder], where the consoles tab
+/// (and LB/RB or a touch swipe cycle them) in [navTabDisplayOrder], where the consoles tab
 /// sits right after Systems although it was appended last.
 abstract final class AppTabs {
   static const int systems = 0;
@@ -799,8 +800,22 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
                     ),
                   ),
 
-                // Main Content Layer.
-                Positioned.fill(child: _buildCurrentTabContent()),
+                // Main Content Layer. The ancestor horizontal recognizer
+                // only wins when no nested horizontal control (carousel,
+                // PageView, slider...) claims the gesture, so touch tab
+                // switching does not steal those interactions. LB/RB continues
+                // to call the same cycle methods below.
+                Positioned.fill(
+                  child: HorizontalSwipe(
+                    key: ValueKey('main-tab-swipe-$_selectedTabIndex'),
+                    onSwipeLeft: _navigateToNextTab,
+                    onSwipeRight: _navigateToPreviousTab,
+                    distanceThreshold: 64,
+                    velocityThreshold: 450,
+                    dragFeedback: true,
+                    child: _buildCurrentTabContent(),
+                  ),
+                ),
 
                 // Global Header: Managed based on app initialization state.
                 Positioned(
