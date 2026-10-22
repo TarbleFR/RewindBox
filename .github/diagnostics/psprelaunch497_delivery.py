@@ -112,6 +112,60 @@ def source_closure():
     }
 
 
+BUILD502_RPC_CORE = '0b18a23460b0a9840406fda2e3d6da4c5cdb7273'
+BUILD502_RPC_CORE_RUN = '39472233521'
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def _build502_rpc_core_view(pin):
+    """Reuse the exact RPCS3 Core validator proven by successful Build 501."""
+    import subprocess
+    import sys
+    if pin != BUILD502_RPC_CORE:
+        raise ValueError('Unexpected Build 502 RPCS3 Core pin: ' + str(pin))
+    if os.environ.get('RPCS3_CORE_RUN_ID') != BUILD502_RPC_CORE_RUN:
+        raise ValueError('Unexpected Build 502 RPCS3 Core workflow run')
+    if os.environ.get('GITHUB_REF_NAME') != 'Claude':
+        raise ValueError('Build 502 RPCS3 pin check invoked outside Claude')
+
+    rel = '.github/workflows/rpcs3-core.yml'
+    workflow = base.ROOT / rel
+    current = workflow.read_bytes()
+    reviewed = subprocess.check_output(
+        ['git', 'show', BUILD501_NATIVE + ':' + rel], cwd=base.ROOT
+    )
+    if current != reviewed:
+        raise ValueError('Build 502 RPCS3 Core workflow differs from successful Build 501')
+    pinned = subprocess.check_output(
+        ['git', 'show', pin + ':' + rel], cwd=base.ROOT
+    )
+
+    sys.path.insert(0, str(base.ROOT / 'test'))
+    import neo_swap_core_pin_test as core
+    try:
+        workflow.write_bytes(pinned)
+        yield core
+    finally:
+        workflow.write_bytes(current)
+
+
+def validate_rpc_core_pin(pin, paths):
+    with _build502_rpc_core_view(pin) as core:
+        if len(paths) != len(core.CORE_INPUTS) or set(paths) != set(core.CORE_INPUTS):
+            raise ValueError('Build 502 RPCS3 Core input list differs from published Core')
+        core.validate_source_contract()
+        core.validate_exact_pin(pin, root=base.ROOT)
+    print('PASS Build 502 RPCS3 Core: exact successful Build 501 pin and published inputs')
+
+
+def validate_rpc_core_identity(identity):
+    with _build502_rpc_core_view(identity['host_commit']) as core:
+        core.validate_core_input_identity(identity, root=base.ROOT)
+    print('PASS Build 502 RPCS3 Core identity: unchanged from successful Build 501')
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--source-only', action='store_true')
