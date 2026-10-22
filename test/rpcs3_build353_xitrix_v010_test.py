@@ -31,9 +31,9 @@ require("rpcs3/Emu/Cell/SPUThread.cpp",
 require("rpcs3/Emu/CPU/Backends/AArch64/SPUReservationHash.h",
         "spu_rdata_hash32")
 
-# PPU fixes must coexist with NeoStation's memory-safe compile budget.
+# PPU fixes coexist with the actual shared, measured compiler admission.
 require("rpcs3/Emu/Cell/PPUThread.cpp",
-        "get_ppu_module_file_budget", "arithmetic_codegen_v4")
+        "rpcs3::ios::compile_admission admission", "arithmetic_codegen_v4")
 require("rpcs3/Emu/Cell/PPUTranslator.cpp",
         "CreateSExt", "CreateSDiv")
 

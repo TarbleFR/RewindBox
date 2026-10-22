@@ -16,6 +16,34 @@ permissions:
   contents: read
   actions: read
 jobs:
+  retire_superseded_candidate:
+    name: Retire only the superseded audit candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - name: Cancel only the exact replaced source run; preserve every other build
+      run: |
+        python3 - <<'PYTHON'
+        import json, subprocess, time
+        endpoint='repos/TarbleFR/RewindBox/actions/runs/39869220268'
+        run=json.loads(subprocess.check_output(['gh','api',endpoint],text=True))
+        assert run['head_sha']=='9ba9892499e55205695e3b0afcae134d8dbe03b1'
+        assert run['path']=='.github/workflows/rpcs3-memory-audit.yml'
+        for attempt in range(12):
+            if run['status']=='completed': break
+            time.sleep(10)
+            run=json.loads(subprocess.check_output(['gh','api',endpoint],text=True))
+        if run['status']!='completed':
+            subprocess.run(['gh','api','--method','POST',endpoint+'/cancel'],check=True)
+            print('Cancelled only the superseded audit source; all other runs preserved.')
+        else:
+            print('Superseded candidate already completed; no cancellation needed.')
+        PYTHON
   core:
     concurrency:
       group: rewindbox-rpcs3-memory-audit-${{ github.sha }}
@@ -201,3 +229,5 @@ jobs:
         path: build/rpcs3-core-diagnostics/
         if-no-files-found: warn
         retention-days: 14
+    needs:
+    - retire_superseded_candidate
