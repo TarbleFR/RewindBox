@@ -12,6 +12,12 @@ on:
       - lib/utils/nav_tabs.dart
       - test/airplay_navigation_test.dart
       - .github/workflows/bubbles503-checks.yml
+      - "lib/widgets/header.dart"
+      - "lib/widgets/header_sort_dropdown.dart"
+      - "lib/widgets/game_view_mode_dropdown.dart"
+      - "lib/screens/systems_screen/my_systems_section/**"
+      - "lib/screens/settings_screen/new_settings_screen.dart"
+      - "test/*bubble*_test.dart"
   workflow_dispatch:
 permissions:
   contents: read
