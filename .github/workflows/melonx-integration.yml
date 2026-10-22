@@ -1,10 +1,17 @@
 name: MeloNX external retirement and embedded route
 'on':
   push:
-    branches: [Claude]
+    branches: [Claude, work/melonx-embedded-20261022]
     paths:
       - '.github/workflows/melonx-integration.yml'
       - 'lib/services/melonx_internal_service.dart'
+      - 'lib/services/melonx_embedded_library_service.dart'
+      - 'lib/widgets/melonx_internal_playlist_actions.dart'
+      - 'lib/l10n/melonx_library_locale.dart'
+      - 'lib/utils/switch_title_extractor.dart'
+      - 'test/melonx_library_test.dart'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
       - 'lib/l10n/melonx_locale.dart'
       - 'test/melonx_embedded_route_test.dart'
       - 'test/melonx_native_sdk_test.py'
@@ -33,7 +40,7 @@ jobs:
       - name: Exercise the adjusted console and retirement scenarios
         run: >-
           flutter test test/melonx_embedded_route_test.dart
-          test/console_manager_test.dart test/dolphin_isolation_contract_test.dart
+          test/console_manager_test.dart test/dolphin_isolation_contract_test.dart test/melonx_library_test.dart
       - name: Protect unchanged libraries, the remaining JIT helpers and routing
         run: |
           python3 test/retroarch_baseline_scope_test.py

@@ -6,8 +6,10 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stikjit_bridge/stikjit_bridge.dart';
 import 'package:neostation/l10n/pairing_file_locale.dart';
+
 import 'jit_backend_preference_service.dart';
 import 'pairing_file_service.dart';
+
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -26,22 +28,42 @@ abstract final class MelonxInternalService {
     return root;
   }
 
-  static Future<Map<String, dynamic>> content(String method, {String? filePath}) async {
-    final report = await channel.invokeMapMethod<String, dynamic>(method, {'path': filePath ?? ''});
+  static Future<Map<String, dynamic>> content(
+    String method, {
+    String? filePath,
+    String? titleId,
+  }) async {
+    final report = await channel.invokeMapMethod<String, dynamic>(method, {
+      'path': filePath ?? '',
+      if (titleId != null) 'titleId': titleId,
+    });
     if (report == null) throw StateError('Missing MeloNX content response');
-    if (report['success'] != true) throw StateError(report['diagnostic']?.toString() ?? 'MeloNX content failed');
+    if (report['success'] != true)
+      throw StateError(
+        report['diagnostic']?.toString() ?? 'MeloNX content failed',
+      );
     return report;
   }
 
-  static String _graphicsKey(String gamePath) => 'rewindbox.melonx.graphics.${path.basename(gamePath)}';
+  static String _graphicsKey(String gamePath) =>
+      'rewindbox.melonx.graphics.${path.normalize(gamePath).split('/Documents/').last}';
   static Future<Map<String, dynamic>> graphicsForGame(String gamePath) async {
-    final text = (await SharedPreferences.getInstance()).getString(_graphicsKey(gamePath));
+    final text = (await SharedPreferences.getInstance()).getString(
+      _graphicsKey(gamePath),
+    );
     if (text == null) return {};
     final value = jsonDecode(text);
     return value is Map ? Map<String, dynamic>.from(value) : {};
   }
-  static Future<void> saveGraphics(String gamePath, Map<String, dynamic> settings) async {
-    if (!await (await SharedPreferences.getInstance()).setString(_graphicsKey(gamePath), jsonEncode(settings))) {
+
+  static Future<void> saveGraphics(
+    String gamePath,
+    Map<String, dynamic> settings,
+  ) async {
+    if (!await (await SharedPreferences.getInstance()).setString(
+      _graphicsKey(gamePath),
+      jsonEncode(settings),
+    )) {
       throw StateError('Graphics configuration could not be saved');
     }
   }
@@ -71,7 +93,9 @@ abstract final class MelonxInternalService {
     if (!Platform.isIOS || isRetiredLink(gamePath)) {
       return {'success': false, 'error': 'localGameRequired'};
     }
-    if (!gameExtensions.contains(path.extension(gamePath).replaceFirst('.', '').toLowerCase()) ||
+    if (!gameExtensions.contains(
+          path.extension(gamePath).replaceFirst('.', '').toLowerCase(),
+        ) ||
         !await File(gamePath).exists()) {
       return {'success': false, 'error': 'localGameRequired'};
     }
@@ -79,16 +103,26 @@ abstract final class MelonxInternalService {
     var nativeTransaction = false;
     var launched = false;
     try {
-      final report = await channel.invokeMapMethod<String, dynamic>('diagnostics');
-      if (report?['available'] != true) return {'success': false, 'error': 'runtimeUnavailable', 'diagnostic': report?['diagnostic']};
+      final report = await channel.invokeMapMethod<String, dynamic>(
+        'diagnostics',
+      );
+      if (report?['available'] != true)
+        return {
+          'success': false,
+          'error': 'runtimeUnavailable',
+          'diagnostic': report?['diagnostic'],
+        };
       final external = await JitBackendPreferenceService.useStikDebugFallback();
       if (report?['jitArenaReady'] != true && !external) {
         if (!await PairingFileService.hasStoredPairingFile()) {
           final title = context != null && context.mounted
               ? PairingFileLocale.get(context, PairingFileLocale.pickerTitle)
               : null;
-          final imported = await PairingFileService.importFromPicker(dialogTitle: title);
-          if (imported == null) return {'success': false, 'error': 'jitPairingCancelled'};
+          final imported = await PairingFileService.importFromPicker(
+            dialogTitle: title,
+          );
+          if (imported == null)
+            return {'success': false, 'error': 'jitPairingCancelled'};
         }
         // Read-only route proof. Neither this service nor the native helper
         // creates a VPN or changes the user's selected JIT method.
@@ -97,9 +131,15 @@ abstract final class MelonxInternalService {
         final jit = await _jit.invokeMapMethod<String, dynamic>('prepareJit', {
           'pairingFilePath': (await PairingFileService.storedFile()).path,
         });
-        if (jit?['success'] != true || jit?['helperConnected'] != true ||
-            jit?['pidAttached'] != true || jit?['debugged'] != true) {
-          return {'success': false, 'error': 'jitUnavailable', 'diagnostic': jit?['message']};
+        if (jit?['success'] != true ||
+            jit?['helperConnected'] != true ||
+            jit?['pidAttached'] != true ||
+            jit?['debugged'] != true) {
+          return {
+            'success': false,
+            'error': 'jitUnavailable',
+            'diagnostic': jit?['message'],
+          };
         }
       }
       final response = await channel.invokeMethod<Object?>('launch', {
@@ -116,12 +156,22 @@ abstract final class MelonxInternalService {
     } on MissingPluginException {
       return {'success': false, 'error': 'runtimeUnavailable'};
     } on PlatformException catch (error) {
-      return {'success': false, 'error': error.code, 'diagnostic': error.message};
+      return {
+        'success': false,
+        'error': error.code,
+        'diagnostic': error.message,
+      };
     } catch (error) {
-      return {'success': false, 'error': 'launchFailed', 'diagnostic': error.toString()};
+      return {
+        'success': false,
+        'error': 'launchFailed',
+        'diagnostic': error.toString(),
+      };
     } finally {
       if (nativeTransaction && !launched) {
-        try { await channel.invokeMethod<Object?>('cancelJit'); } catch (_) {}
+        try {
+          await channel.invokeMethod<Object?>('cancelJit');
+        } catch (_) {}
       }
       _launching = false;
     }

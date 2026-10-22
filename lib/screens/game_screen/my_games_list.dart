@@ -13,7 +13,9 @@ import 'package:neostation/widgets/custom_notification.dart';
 import 'package:neostation/widgets/shimmering_logo.dart';
 import 'package:neostation/providers/retro_achievements_provider.dart';
 import 'package:video_player/video_player.dart';
+
 import '../../services/frontend_media_gate.dart';
+
 import 'package:provider/provider.dart';
 
 import 'dart:io';
@@ -24,6 +26,7 @@ import 'dart:ui';
 import 'package:neostation/widgets/dolphin_internal_playlist_actions.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
 import 'package:neostation/widgets/rpcs3_internal_playlist_actions.dart';
+import 'package:neostation/widgets/melonx_internal_playlist_actions.dart';
 import 'package:neostation/widgets/armsx2_internal_playlist_actions.dart';
 import 'package:neostation/widgets/libretro_internal_playlist_actions.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
@@ -604,9 +607,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
     // iOS TV menu (Build 447): the same system branding, while a TV shows
     // the menu.
     if (mounted && SecondaryDisplayBridge.instance.forwardsSelections) {
-      final backgroundColor = Theme.of(
-        context,
-      ).scaffoldBackgroundColor.toARGB32();
+      final backgroundColor = Theme.of(context).scaffoldBackgroundColor
+          .toARGB32();
       unawaited(
         SecondaryDisplayBridge.instance.forward(
           (current) => current.copyWith(
@@ -690,8 +692,13 @@ class _SystemGamesListState extends State<SystemGamesList> {
   void _inspectSelectedBox() {
     final game = _selectedGame;
     if (game == null || widget.system.folderName == 'music') return;
-    final folder = GameBoxLibrary.folderFor(game, widget.system, isAllMode: _isAllModeList);
-    if (GameBoxLibrary.mediaPath(game, folder, 'box2d', _fileProvider) == null) return;
+    final folder = GameBoxLibrary.folderFor(
+      game,
+      widget.system,
+      isAllMode: _isAllModeList,
+    );
+    if (GameBoxLibrary.mediaPath(game, folder, 'box2d', _fileProvider) == null)
+      return;
     _inspectBoxOf(game);
   }
 
@@ -871,6 +878,20 @@ class _SystemGamesListState extends State<SystemGamesList> {
                 },
               ),
             // LIBRETRO_INTERNAL_END: playlist_actions
+            if (!_isGameLaunching &&
+                Platform.isIOS &&
+                widget.system.folderName == 'switch')
+              Positioned(
+                top: 8.r,
+                right: 10.r,
+                child: SafeArea(
+                  child: Material(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12.r),
+                    child: _buildMelonxImportAction(),
+                  ),
+                ),
+              ),
             // RPCS3_INTERNAL_BEGIN: playlist_actions
             if (!_isGameLaunching && _isRpcs3Library)
               Consumer<SqliteConfigProvider>(
@@ -915,6 +936,22 @@ class _SystemGamesListState extends State<SystemGamesList> {
       ),
     );
   }
+
+  Widget _buildMelonxImportAction() => MelonxInternalPlaylistActions(
+    gamePath: _selectedGame?.romPath,
+    titleId: _selectedGame?.titleId,
+    onInteractionChanged: (active) {
+      if (!mounted) return;
+      if (active) {
+        _gamepadNav.deactivate();
+      } else {
+        _gamepadNav.activate();
+      }
+    },
+    onLibraryChanged: () async {
+      if (mounted) await _loadGames();
+    },
+  );
 
   // DOLPHIN_ISOLATION_BEGIN: import_action_builder
   Widget _buildDolphinImportAction() => DolphinInternalPlaylistActions(
@@ -970,25 +1007,22 @@ class _SystemGamesListState extends State<SystemGamesList> {
     },
   );
 
-  Widget _buildEmbeddedArmsx2ImportAction() =>
-      Armsx2InternalPlaylistActions(
-        embedded: true,
-        onInteractionChanged: (active) {
-          if (!mounted) return;
-          if (active) {
-            _gamepadNav.deactivate();
-          } else {
-            _gamepadNav.activate();
-          }
-        },
-        onLibraryChanged: () async {
-          if (!mounted) return;
-          await context
-              .read<SqliteConfigProvider>()
-              .refreshArmsx2InternalLibrary();
-          if (mounted) await _loadGames();
-        },
-      );
+  Widget _buildEmbeddedArmsx2ImportAction() => Armsx2InternalPlaylistActions(
+    embedded: true,
+    onInteractionChanged: (active) {
+      if (!mounted) return;
+      if (active) {
+        _gamepadNav.deactivate();
+      } else {
+        _gamepadNav.activate();
+      }
+    },
+    onLibraryChanged: () async {
+      if (!mounted) return;
+      await context.read<SqliteConfigProvider>().refreshArmsx2InternalLibrary();
+      if (mounted) await _loadGames();
+    },
+  );
 
   // LIBRETRO_INTERNAL_BEGIN: import_action_builder
   /// Imported games go to one of the user's library folders, so they join
@@ -1005,7 +1039,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
     if (mounted) await _loadGames();
   }
 
-  List<String> _libretroLibraryFolders() => context.read<SqliteConfigProvider>().config.romFolders;
+  List<String> _libretroLibraryFolders() =>
+      context.read<SqliteConfigProvider>().config.romFolders;
 
   void _libretroInteraction(bool active) {
     if (!mounted) return;
@@ -1023,13 +1058,14 @@ class _SystemGamesListState extends State<SystemGamesList> {
     libraryFolders: _libretroLibraryFolders,
   );
 
-  Widget _buildEmbeddedLibretroImportAction() => LibretroInternalPlaylistActions(
-    embedded: true,
-    system: widget.system,
-    onInteractionChanged: _libretroInteraction,
-    onLibraryChanged: _refreshLibretroLibrary,
-    libraryFolders: _libretroLibraryFolders,
-  );
+  Widget _buildEmbeddedLibretroImportAction() =>
+      LibretroInternalPlaylistActions(
+        embedded: true,
+        system: widget.system,
+        onInteractionChanged: _libretroInteraction,
+        onLibraryChanged: _refreshLibretroLibrary,
+        libraryFolders: _libretroLibraryFolders,
+      );
   // LIBRETRO_INTERNAL_END: import_action_builder
 
   Widget _buildEmbeddedRpcs3ImportAction() => Rpcs3InternalPlaylistActions(
