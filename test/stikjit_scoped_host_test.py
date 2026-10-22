@@ -19,6 +19,11 @@ for lower,cls in (('rpcs3','Rpcs3'),('armsx2','Armsx2')):
         assert 'armsx2_jit_debug.log' in log and '524288' in log
         new=new[:start]+new[end:]
         new=new.replace('message ?: @"");\n\n}', 'message ?: @"");\n}',1)
+    # The independent fork was rebranded after this frozen JIT baseline.
+    # Normalize only the user-facing product name; transaction logic, channel
+    # identifiers and JIT state-machine bytes must still match exactly.
+    if lower=='rpcs3':
+        new=new.replace('RewindBox','NeoStation')
     new=new.replace('          : [NSString stringWithFormat:@"JIT_PREPARATION_TIMEOUT: StikJIT did not complete preparation. Last stage: %@",\n              session.logs.lastObject ?: @"No helper stage received."];',
                     '          : @"StikJIT did not attach universal.js to NeoStation.";')
     assert old==new,p+' changed outside diagnostics'
