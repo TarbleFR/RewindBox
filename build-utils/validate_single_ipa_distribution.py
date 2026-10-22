@@ -152,10 +152,20 @@ def validate(ipa: Path) -> dict:
             'Every app extension must remain nested in NeoStation',
         )
         actual_extension_names = {path.name for path in extensions}
+        expected_extensions = dict(EXPECTED_EXTENSIONS)
+        if (app / 'MeloNX-native-identity.json').is_file():
+            expected_extensions['MeloNXJITHelper.appex'] = {
+                'bundleSuffix': '.melonxjithelper',
+                'principalClass': 'MeloNXJITRequestHandler',
+                'marker': 'NeoStationMeloNXJITHelper',
+            }
+            for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
+                demand((app / f'Frameworks/{component}.framework/{component}').is_file(),
+                       'MeloNX identity requires the complete private runtime: ' + component)
         demand(
-            actual_extension_names == set(EXPECTED_EXTENSIONS),
+            actual_extension_names == set(expected_extensions),
             'Unexpected app-extension set: expected '
-            f'{sorted(EXPECTED_EXTENSIONS)}, got {sorted(actual_extension_names)}',
+            f'{sorted(expected_extensions)}, got {sorted(actual_extension_names)}',
         )
 
         app_info = load_plist(app / 'Info.plist')
@@ -172,7 +182,7 @@ def validate(ipa: Path) -> dict:
 
         extension_reports = []
         for extension in extensions:
-            contract = EXPECTED_EXTENSIONS[extension.name]
+            contract = expected_extensions[extension.name]
             info = load_plist(extension / 'Info.plist')
             is_donor = extension.name in DONOR_CONTRACTS
             is_relay = extension.name in RELAY_CONTRACTS
@@ -291,7 +301,7 @@ def validate(ipa: Path) -> dict:
             'nestedSigningOrder': [
                 *[
                     f'NeoStation.app/PlugIns/{name}'
-                    for name in sorted(EXPECTED_EXTENSIONS)
+                    for name in sorted(expected_extensions)
                 ],
                 'NeoStation.app',
             ],

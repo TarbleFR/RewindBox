@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "distribution_scope": "staged-reference-only",
-  "include_in_legal_bundle": false,
-  "runtime_packaging_approved": false,
+  "distribution_scope": "embedded-source-built-test-runtime",
+  "include_in_legal_bundle": true,
+  "runtime_packaging_approved": true,
   "source_pin": "build-utils/melonx/source.json",
   "source_pin_sha256": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
   "open_items": [
@@ -18,7 +18,7 @@
     },
     {
       "component": "MeloNX native dependencies",
-      "issue": "Exact binary/source/build correspondence and all component notices must be completed before future staging. No native payload is packaged by this notice collection.",
+      "issue": "Upstream prebuilts are excluded. Replacement source-built frameworks, commands, licenses and source archive hashes are recorded in dist/melonx-native/identity.json and the delivered MeloNX-native-identity.json.",
       "local_evidence": "docs/evidence/melonx-native-dependencies-2026-10-20.json"
     }
   ],
@@ -131,5 +131,6 @@
         }
       ]
     }
-  ]
+  ],
+  "runtime_receipt": "MeloNX-native-identity.json in the delivered application"
 }

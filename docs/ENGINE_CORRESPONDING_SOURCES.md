@@ -45,7 +45,7 @@ questions.
 | Nestopia | [`135dfa6dfda5`](https://github.com/libretro/nestopia/tree/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3), [verified source archive](https://codeload.github.com/libretro/nestopia/tar.gz/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3) | [Source/patch identity](../native/nestopia/source.json), [RewindBox patch](../native/nestopia/reset-background.patch), [recipe](../.github/diagnostics/nestopia_bgcolor/build.py) | Original source and exact modification are available; retain them together with the historical build inputs. |
 | Azahar | [`5f3306d13cab`, 2127.0-alpha1](https://github.com/azahar-emu/azahar/tree/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6), [verified unified source archive](https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz) | [Official binary release](https://github.com/azahar-emu/azahar/releases/tag/2127.0-alpha1), [recorded binary identity](evidence/build479-libretro-source-identity.json) | Unified archive includes submodule content. Upstream SBOM/attestation verification and reproducible-build proof are separate; this review does not claim them. |
 | PPSSPP | [`1bd28b0d634d`](https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c) | Source-built replacement, Core 497; [dedicated source/license audit](PPSSPP_SOURCE_AND_LICENSE_AUDIT.md) | Follow that audit for FFmpeg, dependency notices and exact modified-source requirements. |
-| MeloNX / LibHac | [MeloNX `13700519f3ab`](https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67), [LibHac `23e402ebb6de`](https://starforgejo.dev/archive/LibHac_Ryubing/src/commit/23e402ebb6dedc517e34a98a033078dc0f6fd478), [source pins](../build-utils/melonx/source.json) | [Historical native-session receipt](evidence/melonx-native-session-2026-10-20.json) | Staged only. Exact-commit API retrieval returned 403 in this review; native binary provenance and conflicting upstream license statements remain open. No playable runtime is registered or packaged. |
+| MeloNX / LibHac | [MeloNX `13700519f3ab`](https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67), [LibHac `23e402ebb6de`](https://starforgejo.dev/archive/LibHac_Ryubing/src/commit/23e402ebb6dedc517e34a98a033078dc0f6fd478), [source pins](../build-utils/melonx/source.json) | [Historical native-session receipt](evidence/melonx-native-session-2026-10-20.json) | Source-built embedded test integration: [scope and limitations](melonx-embedded-build506.md). Original MIT notice and GPLv3 README declarations preserved; physical gameplay remains unverified. |
 
 ### RPCS3: retain the entire patched source chain
 
@@ -246,7 +246,15 @@ be equated with RPCS3's independently pinned MoltenVK 1.4.2. Evidence:
 [488](evidence/hdtex488-delivery.json), [489](evidence/hdtex489-delivery.json),
 [original package identity](evidence/build479-libretro-source-identity.json).
 
-## MeloNX remains staged
+## MeloNX source-built test runtime (22 October 2026)
+
+The replacement embedded runtime is documented in [Build 506](melonx-embedded-build506.md).
+The original eleven upstream binary paths below are an historical inventory,
+not the dependencies redistributed by this build. Private MoltenVK, SDL and
+FFmpeg are rebuilt from pinned sources; BreakpointJIT is replaced by the
+RewindBox assembly helper. Device/gameplay validation remains outstanding.
+
+### Historical staged inventory
 
 The existing source recipes preserve upstream and reconstructed LibHac source
 archives and an adapted-source ZIP. Their scope needs to remain explicit:

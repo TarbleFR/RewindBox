@@ -41,9 +41,10 @@ REQUIRED_LEGAL_FILES = (
 # (packages/neo_shader_kit/ios/ThirdParty/*/SOURCE.txt).
 SHADER_COMPILERS_TAG = "vulkan-sdk-1.4.350.1"
 
-# Notices for components actually used by the delivered integration. MeloNX
-# remains staged source work and is deliberately absent from this collection.
+# Notices for components actually used by the delivered integration.
+# MeloNX now ships with its source-built native dependencies.
 ADDITIONAL_NOTICE_COLLECTIONS = (
+    ("melonx", "MeloNX"),
     ("textures", "Textures"),
     ("ppsspp", "PPSSPP"),
     ("packages", "Packages"),

@@ -249,6 +249,28 @@ class SingleIPADistributionTests(unittest.TestCase):
         self.assertIs(report['deviceLaunchValidated'], False)
         self.assertEqual(report['mainApplicationCount'], 1)
 
+    def test_embedded_melonx_requires_its_exact_helper_and_six_private_frameworks(self):
+        members = complete_dolphin_packaging_members()
+        members[APP + 'MeloNX-native-identity.json'] = b'{}'
+        original = APP + 'PlugIns/DolphinJITHelper.appex/'
+        target = APP + 'PlugIns/MeloNXJITHelper.appex/'
+        info = plistlib.loads(members[original + 'Info.plist'])
+        info.update(CFBundleExecutable='MeloNXJITHelper', CFBundleIdentifier='com.neogamelab.neostation.melonxjithelper')
+        info.pop('NeoStationDolphinJITHelper'); info['NeoStationMeloNXJITHelper'] = '1'
+        info['NSExtension']['NSExtensionPrincipalClass'] = 'MeloNXJITRequestHandler'
+        members[target + 'Info.plist'] = plistlib.dumps(info)
+        members[target + 'MeloNXJITHelper'] = members[original + 'DolphinJITHelper']
+        for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
+            members[APP + f'Frameworks/{component}.framework/{component}'] = packaging_image({}, filetype=6)
+        for check in (validator.validate, dolphin_validator.validate):
+            with self.subTest(packager=check.__module__): self.validate_members(members, check)
+        broken = dict(members); del broken[APP + 'Frameworks/MeloNXSDL3.framework/MeloNXSDL3']
+        self.reject(broken, 'complete private runtime')
+        broken = dict(members); del broken[target + 'Info.plist']; del broken[target + 'MeloNXJITHelper']
+        self.reject(broken, 'Unexpected app-extension set')
+        self.modify_info(members, target, lambda info: info['NSExtension'].update(NSExtensionPrincipalClass='Wrong'))
+        self.reject(members, 'principal class')
+
     def test_packaging_rejects_retired_external_switch_queries(self):
         for scheme in ('melonx', 'atariemulator'):
             with self.subTest(scheme=scheme):

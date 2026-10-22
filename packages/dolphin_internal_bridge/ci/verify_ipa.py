@@ -175,13 +175,23 @@ def validate(ipa: Path) -> dict:
             posixpath.basename(posixpath.dirname(name)): posixpath.dirname(name)
             for name in extension_infos
         }
+        expected_helpers = dict(EXPECTED_HELPERS)
+        if app + '/MeloNX-native-identity.json' in names:
+            expected_helpers['MeloNXJITHelper.appex'] = {
+                'bundleSuffix': '.melonxjithelper',
+                'principalClass': 'MeloNXJITRequestHandler',
+                'marker': 'NeoStationMeloNXJITHelper',
+            }
+            for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
+                demand(app + f'/Frameworks/{component}.framework/{component}' in names,
+                       'MeloNX identity requires the complete private runtime: ' + component)
         demand(
-            set(extension_roots) == set(EXPECTED_HELPERS),
+            set(extension_roots) == set(expected_helpers),
             'Unexpected app-extension set: expected '
-            f'{sorted(EXPECTED_HELPERS)}, got {sorted(extension_roots)}',
+            f'{sorted(expected_helpers)}, got {sorted(extension_roots)}',
         )
         helper_images = {}
-        for bundle_name, contract in EXPECTED_HELPERS.items():
+        for bundle_name, contract in expected_helpers.items():
             helper_root = extension_roots[bundle_name]
             helper_info = plistlib.loads(z.read(helper_root + '/Info.plist'))
             demand(
@@ -328,7 +338,7 @@ def validate(ipa: Path) -> dict:
             'ipa': ipa.name, 'bytes': ipa.stat().st_size,
             'sha256': file_sha256(ipa),
             'zipIntegrity': 'passed', 'mainApplicationCount': 1,
-            'embeddedExtensions': sorted(EXPECTED_HELPERS),
+            'embeddedExtensions': sorted(expected_helpers),
             'networkExtensionDependencyPresent': False,
             'requiredBridgeExports': sorted(BRIDGE), 'machOImages': summary_images,
             'resolvedDependencies': dependency_checks, 'systemDependencies': sorted(system_dependencies),

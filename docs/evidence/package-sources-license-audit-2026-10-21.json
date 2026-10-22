@@ -5,7 +5,7 @@
   "reviewed_head": "5bad78357a8de4e346d4aaf1b11a326ad8bd647d",
   "public_baseline": "bcca4e4a4dc89a96b1dde05d66436af54efd327e",
   "scope": "Dart/Flutter dependencies, local plugin declarations and shared native libraries outside emulator engines. No IPA build, release, tag, code execution, Flutter test or dependency installation was performed.",
-  "followup_review": "2026-10-22: pubspec.yaml was re-reviewed after RewindBox branding-only changes. The only changes since the recorded dependency review are the app description and iOS icon asset path; dependency declarations, workspace entries and pubspec.lock are unchanged.",
+  "followup_review": "2026-10-22: MeloNX embedded Flutter workspace plugin and its scoped native JIT helper added. Hosted dependencies and pubspec.lock are unchanged. Own bridge source is under the RewindBox host license; engine/controller and rebuilt native dependency notices are recorded in assets/legal/melonx and docs/melonx-embedded-build506.md. Existing unrelated component review findings remain open.",
   "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
   "source_declaration_sha256": {
     "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
@@ -57,14 +57,17 @@
     "packages/stikjit_bridge/pubspec.yaml": "0e5bffb1dddf2412cf152c3db2847f4d5a9b286dc6db4082fabaa50deda46291",
     "packages/ui_refresh_rate/ios/ui_refresh_rate.podspec": "dc38bce9457f988e014f1b79c43853044d0084fd5d0a31dd58db8b4e7cddde6b",
     "packages/ui_refresh_rate/pubspec.yaml": "d9fe2b84c9d34a1851279f742b61ebc128359bfb8fbf3b9ad0810aba4628d842",
-    "pubspec.yaml": "a321b1c2f40c689af7df104a039f9aeaefd4aa9ccd476f301739420f7ed2aeb5",
-    "pubspec_overrides.yaml": "392a1ad26ff8e4cdfa2c4035b56638e0923e0b91c2895bac2ad4b0527f65f3c5"
+    "pubspec.yaml": "09cb00db684ff0649a1f4a501d1ce4b3e6547b5403ec98477da1e68f675bf83b",
+    "pubspec_overrides.yaml": "392a1ad26ff8e4cdfa2c4035b56638e0923e0b91c2895bac2ad4b0527f65f3c5",
+    "packages/melonx_internal_bridge/pubspec.yaml": "259d5c8a691b74775054042916bb25f12b6299e581c9b3e8d6bacb78e2973df5",
+    "packages/melonx_internal_bridge/ios/melonx_internal_bridge.podspec": "794c13b098df31b9e5c71fc29f3a59d7a19997f678fb90aa5ab96ae780997104",
+    "packages/melonx_jit_helper/ios/melonx_jit_helper.podspec": "95a9c03b3e25673e68454e8bab53809bd59b7787392f1fd12c7682f4f30ab35b"
   },
   "summary": {
     "locked_packages": 162,
     "hosted_packages": 157,
     "sdk_packages": 5,
-    "workspace_packages": 19,
+    "workspace_packages": 20,
     "hosted_archive_hashes_verified": 157,
     "hosted_archive_bytes": 153358112,
     "lockfile_unchanged_since_public_baseline": true,
@@ -7792,6 +7795,14 @@
           "declaration": "s.license          = { :type => 'GPL-3.0' }"
         }
       ]
+    },
+    {
+      "name": "melonx_internal_bridge",
+      "version": "0.1.0",
+      "path": "packages/melonx_internal_bridge",
+      "state_since_public_baseline": "added",
+      "license": "GPL-3.0 host adapter; upstream components retain their notices",
+      "source": "https://github.com/TarbleFR/RewindBox/tree/Claude/packages/melonx_internal_bridge"
     }
   ],
   "local_fork_comparison_references": [

@@ -226,7 +226,7 @@ puts 'melonx.xcode.save_reopen=passed'
 def main() -> None:
     if not (IOS / 'Runner.xcodeproj').is_dir():
         raise SystemExit('Generate the Flutter iOS host before configuring MeloNX')
-    core = ROOT / 'packages' / 'melonx_internal_bridge' / 'ios' / 'Frameworks' / 'libMeloNXCore.dylib'
+    core = ROOT / 'packages' / 'melonx_internal_bridge' / 'ios' / 'Frameworks' / 'MeloNXCore.framework' / 'MeloNXCore'
     if not core.is_file():
         raise SystemExit(f'MeloNX Core has not been materialized: {core}')
     stik = ROOT / 'packages' / 'stikjit_bridge' / 'ios' / 'Frameworks' / 'StikJIT.xcframework' / 'ios-arm64' / 'StikJIT.framework' / 'StikJIT'

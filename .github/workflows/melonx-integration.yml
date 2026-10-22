@@ -9,6 +9,8 @@ name: MeloNX external retirement and embedded route
       - 'lib/widgets/melonx_internal_playlist_actions.dart'
       - 'lib/l10n/melonx_library_locale.dart'
       - 'lib/utils/switch_title_extractor.dart'
+      - 'lib/screens/settings_screen/legal_credits_dialog.dart'
+      - 'test/single_ipa_distribution_test.py'
       - 'test/melonx_library_test.dart'
       - 'pubspec.yaml'
       - 'pubspec.lock'

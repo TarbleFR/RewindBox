@@ -1,10 +1,12 @@
 # MeloNX license reference scope
 
-These files preserve notices from the exact source revisions recorded in
-`build-utils/melonx/source.json`. They are reference material for ongoing
-integration. The current NeoStation Legal packaging step must not copy this
-folder into an IPA as evidence that a MeloNX runtime is already included or
-approved. No runtime or native dependency is staged by this notice collection.
+This collection now accompanies the embedded test runtime. Engine and controller
+source pins are in `build-utils/melonx/source.json`; privately named MoltenVK,
+SDL and FFmpeg are rebuilt from `build-utils/melonx/native-dependencies.json`.
+The unverified upstream prebuilt dependencies and BreakpointJIT binary are not
+redistributed. RewindBox's assembly JIT helper is built from its own source.
+Original notices are preserved and compiled dependency licenses are copied
+verbatim from their corresponding source archives under Legal/MeloNX.
 
 ## Conflicting upstream declarations
 
@@ -34,4 +36,5 @@ The manifest records source URLs, exact revisions, Git blob identifiers and
 SHA-256 digests. This source-notice collection does not satisfy all future
 corresponding-source or binary distribution obligations. See the current
 native dependency evidence and release preparation review before enabling
-runtime packaging.
+runtime packaging. The current test-build correspondence and limitations are
+recorded in `docs/melonx-embedded-build506.md`.

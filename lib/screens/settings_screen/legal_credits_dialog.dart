@@ -44,6 +44,20 @@ class LegalCreditsDialog {
       'assets/legal/ARMSX2-GPL-3.0.txt',
     ),
     _LegalEntry(
+      'MeloNX / Ryujinx / LibHac',
+      'MeloNX, Ryujinx, LibHac and Melo-Controller contributors',
+      'Upstream MIT notice and GPLv3 README declaration preserved; component licenses apply',
+      'https://starforgejo.dev/projects/MeloNX',
+      'assets/legal/melonx/MeloNX-Ryujinx-LICENSE.txt',
+    ),
+    _LegalEntry(
+      'Melo-Controller',
+      'stossy11 and contributors; original controls and editor',
+      'Original license retained',
+      'https://github.com/stossy11/Melo-Controller',
+      'assets/legal/melonx/Melo-Controller-LICENSE.txt',
+    ),
+    _LegalEntry(
       'StikJIT',
       'StikDebug and StikJIT contributors',
       'MPL-2.0',
@@ -241,10 +255,8 @@ class LegalCreditsDialog {
             child: SingleChildScrollView(
               child: SelectableText(
                 contents,
-                style: Theme.of(documentContext).textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                      height: 1.35,
-                    ),
+                style: Theme.of(documentContext).textTheme.bodySmall
+                    ?.copyWith(fontFamily: 'monospace', height: 1.35),
               ),
             ),
           ),

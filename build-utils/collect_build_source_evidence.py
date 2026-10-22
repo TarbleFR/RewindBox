@@ -204,7 +204,7 @@ def collect(root: Path, host_commit: str, app: Path | None = None) -> tuple[dict
             "Source access and notice inclusion do not settle every license compatibility or redistribution question.",
             "Historical buildbot binaries without exact source attestation remain open in ENGINE_CORRESPONDING_SOURCES.md.",
             "Native package downloads must be matched separately to their source, configuration and licenses.",
-            "MeloNX source references describe unfinished integration, not a delivered or approved runtime.",
+            "MeloNX test-runtime identity, private native dependency source archives and notices are recorded separately in MeloNX-native-identity.json and Legal/MeloNX; physical gameplay is not attested.",
         ],
     }
     files["BUILD_SOURCE_EVIDENCE.json"] = encoded(manifest)
