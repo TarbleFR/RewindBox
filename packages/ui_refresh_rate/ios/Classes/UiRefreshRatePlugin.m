@@ -6,8 +6,9 @@
 
 static NSString *const kUiRefreshRateChannel = @"neostation/ui_refresh_rate";
 
-@interface UiRefreshRatePlugin ()
+@interface UiRefreshRatePlugin () <FlutterStreamHandler>
 @property(nonatomic, weak, nullable) NSObject<FlutterPluginRegistrar> *registrar;
+@property(nonatomic, copy, nullable) FlutterEventSink powerSink;
 @end
 
 @implementation UiRefreshRatePlugin
@@ -27,7 +28,32 @@ static NSString *const kUiRefreshRateChannel = @"neostation/ui_refresh_rate";
   UiRefreshRatePlugin *instance = [[UiRefreshRatePlugin alloc] init];
   instance.registrar = registrar;
   [registrar addMethodCallDelegate:instance channel:channel];
+  FlutterEventChannel *power = [FlutterEventChannel eventChannelWithName:@"neostation/ui_refresh_rate/power"
+      binaryMessenger:[registrar messenger]];
+  [power setStreamHandler:instance];
 }
+
+- (FlutterError *)onListenWithArguments:(id)arguments eventSink:(FlutterEventSink)events {
+  self.powerSink = events;
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(powerChanged:)
+      name:NSProcessInfoPowerStateDidChangeNotification object:nil];
+  [self powerChanged:nil];
+  return nil;
+}
+- (FlutterError *)onCancelWithArguments:(id)arguments {
+  [NSNotificationCenter.defaultCenter removeObserver:self name:NSProcessInfoPowerStateDidChangeNotification object:nil];
+  self.powerSink = nil;
+  return nil;
+}
+- (void)powerChanged:(NSNotification *)note {
+  __weak typeof(self) weakSelf = self;
+  void (^send)(void) = ^{
+    typeof(self) self = weakSelf;
+    if (self.powerSink) self.powerSink(NSProcessInfo.processInfo.lowPowerModeEnabled ? @YES : @NO);
+  };
+  if (NSThread.isMainThread) send(); else dispatch_async(dispatch_get_main_queue(), send);
+}
+- (void)dealloc { [NSNotificationCenter.defaultCenter removeObserver:self]; }
 
 /// The screen showing NeoStation; read directly, never through the hook.
 - (UIScreen *)currentScreen {

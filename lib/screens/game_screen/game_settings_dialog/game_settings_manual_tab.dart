@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -275,7 +276,7 @@ class GameSettingsManualTabState extends State<GameSettingsManualTab> {
                   ),
                   if (_isDownloading) ...[
                     SizedBox(height: 14.r),
-                    LinearProgressIndicator(value: _downloadProgress),
+                    LiquidProgressIndicator(value: _downloadProgress),
                     SizedBox(height: 5.r),
                     Text(
                       AppLocale.downloadingManual.getString(context),

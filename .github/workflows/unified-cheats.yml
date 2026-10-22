@@ -32,7 +32,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   data:
-    if: ${{ !contains(github.event.head_commit.message, '[direct-') && !contains(github.event.head_commit.message, '[unified-code-only]') && !contains(github.event.head_commit.message, '[unified-index-only]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (!contains(github.event.head_commit.message, '[direct-') && !contains(github.event.head_commit.message, '[unified-code-only]') && !contains(github.event.head_commit.message, '[unified-index-only]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -68,7 +68,7 @@ jobs:
           flutter pub get --enforce-lockfile
           flutter analyze packages/neo_cheat_catalog --no-fatal-infos
   native:
-    if: ${{ !contains(github.event.head_commit.message, '[direct-') && !contains(github.event.head_commit.message, '[unified-data-only]') && !contains(github.event.head_commit.message, '[unified-effects-only]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (!contains(github.event.head_commit.message, '[direct-') && !contains(github.event.head_commit.message, '[unified-data-only]') && !contains(github.event.head_commit.message, '[unified-effects-only]')) }}
     runs-on: macos-15
     timeout-minutes: 35
     steps:
@@ -102,7 +102,7 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
   core-effects:
-    if: ${{ !contains(github.event.head_commit.message, '[direct-') && !contains(github.event.head_commit.message, '[unified-data-only]') && !contains(github.event.head_commit.message, '[unified-native-fix]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (!contains(github.event.head_commit.message, '[direct-') && !contains(github.event.head_commit.message, '[unified-data-only]') && !contains(github.event.head_commit.message, '[unified-native-fix]')) }}
     runs-on: macos-15
     timeout-minutes: 35
     steps:
@@ -137,7 +137,7 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
   published-index:
-    if: ${{ !contains(github.event.head_commit.message, '[direct-') && !contains(github.event.head_commit.message, '[unified-code-only]') && (!contains(github.event.head_commit.message, '[unified-index-verified]') || contains(github.event.head_commit.message, '[unified-index-only]')) }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (!contains(github.event.head_commit.message, '[direct-') && !contains(github.event.head_commit.message, '[unified-code-only]') && (!contains(github.event.head_commit.message, '[unified-index-verified]') || contains(github.event.head_commit.message, '[unified-index-only]'))) }}
     runs-on: macos-15
     timeout-minutes: 15
     steps:

@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -652,7 +653,7 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (_busy) const LinearProgressIndicator(),
+                        if (_busy) const LiquidProgressIndicator(),
                         _buildSelections(context),
                         const SizedBox(height: 12),
                         _buildHeaderActions(),

@@ -4,6 +4,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:math' as math;
 
 import 'neo_glass_bubble.dart';
+import 'mau_ali_tab_motion.dart';
+import 'liquid_motion_clock.dart';
 
 import 'package:neostation/utils/nav_tabs.dart';
 
@@ -90,16 +92,18 @@ class _LiquidTabLensState extends State<_LiquidTabLens>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _motion = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 300),
+    duration: MauAliTabMotion.duration,
     value: 1,
   );
   late double _from = widget.slot * widget.cell;
   late double _to = _from;
   double _fromStretch = 0;
   double _travel = 0;
+  (double, double) _fromShape = (1, 1);
   bool _foreground = true;
   bool get _reduced =>
       widget.reduced ||
+      LiquidMotionClock.instance.lowPower ||
       NeoBubbleStyle.reduceMotion(context) ||
       !_foreground ||
       !TickerMode.valuesOf(context).enabled ||
@@ -117,6 +121,7 @@ class _LiquidTabLensState extends State<_LiquidTabLens>
       setState(() {
         _from = _to = widget.slot * widget.cell;
         _fromStretch = _travel = 0;
+        _fromShape = (1, 1);
         _motion.value = 1;
       });
     }
@@ -132,7 +137,15 @@ class _LiquidTabLensState extends State<_LiquidTabLens>
   }
 
   double get _position =>
-      _from + (_to - _from) * Curves.easeOutCubic.transform(_motion.value);
+      _from + (_to - _from) * MauAliTabMotion.position.transform(_motion.value);
+  (double, double) get _shape {
+    final scale = MauAliTabMotion.scale(_motion.value);
+    return (
+      scale.$1 + (_fromShape.$1 - 1) * (1 - _motion.value),
+      scale.$2 + (_fromShape.$2 - 1) * (1 - _motion.value),
+    );
+  }
+
   double get _stretch =>
       _fromStretch * (1 - _motion.value) +
       0.19 * _travel * math.sin(math.pi * _motion.value);
@@ -144,9 +157,11 @@ class _LiquidTabLensState extends State<_LiquidTabLens>
     if (_reduced) {
       _from = _to = target;
       _fromStretch = _travel = 0;
+      _fromShape = (1, 1);
       _motion.value = 1;
     } else if (target != _to) {
       final position = _position;
+      _fromShape = _shape;
       _fromStretch = _stretch;
       _from = position;
       _to = target;
@@ -181,8 +196,8 @@ class _LiquidTabLensState extends State<_LiquidTabLens>
       width: widget.cell,
       child: Transform.scale(
         key: const ValueKey('main-menu-liquid-stretch'),
-        scaleX: 1 + _stretch,
-        scaleY: 1 - _stretch * 0.34,
+        scaleX: _shape.$1 * (1 + _stretch * .45),
+        scaleY: _shape.$2 * (1 - _stretch * .20),
         child: child,
       ),
     ),

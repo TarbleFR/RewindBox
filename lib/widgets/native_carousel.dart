@@ -2,6 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'neo_glass_bubble.dart';
+import 'liquid_motion_clock.dart';
+
 enum CarouselPageChangeReason { manual, controller }
 
 /// How off-centre pages shrink and fade with distance from the centred card.
@@ -125,6 +128,10 @@ class NativeCarousel extends StatefulWidget {
   /// Shrink/fade envelope applied to off-centre pages.
   final CarouselDepth depth;
 
+  /// Console artwork only. Game boxes and grid/list views retain their own
+  /// geometry. This transforms the cached card, never the decoded artwork.
+  final bool perspective;
+
   const NativeCarousel({
     super.key,
     required this.itemCount,
@@ -134,6 +141,7 @@ class NativeCarousel extends StatefulWidget {
     this.initialIndex = 0,
     this.footerHeight,
     this.depth = const CarouselDepth(),
+    this.perspective = false,
   });
 
   @override
@@ -143,6 +151,7 @@ class NativeCarousel extends StatefulWidget {
 class NativeCarouselState extends State<NativeCarousel> {
   PageController? _pageController;
   int _currentIndex = 0;
+  int _navigationTarget = 0;
   double _lastVpFraction = 0;
   int _lastReportedIndex = 0;
   final ValueNotifier<double> _pageNotifier = ValueNotifier(0.0);
@@ -161,6 +170,7 @@ class NativeCarouselState extends State<NativeCarousel> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _navigationTarget = widget.initialIndex;
     _lastReportedIndex = widget.initialIndex;
     _pageNotifier.value = widget.initialIndex.toDouble();
   }
@@ -193,6 +203,7 @@ class NativeCarouselState extends State<NativeCarousel> {
 
     _pageNotifier.value = page;
     _currentIndex = page.round();
+    if (_pointerDown) _navigationTarget = _currentIndex;
     widget.onPageScrolled?.call(page);
 
     if (_currentIndex != _lastReportedIndex) {
@@ -214,6 +225,9 @@ class NativeCarouselState extends State<NativeCarousel> {
       _pageController = PageController(
         viewportFraction: vpFraction,
         initialPage: _currentIndex,
+        // Console selection is owned here. A saved PageStorage offset from
+        // the old viewport must not override this index after rotation.
+        keepPage: !widget.perspective,
       );
       _pageController!.addListener(_onPageScroll);
       _lastReportedIndex = _currentIndex;
@@ -221,19 +235,28 @@ class NativeCarouselState extends State<NativeCarousel> {
   }
 
   void nextPage() {
-    if (_currentIndex < widget.itemCount - 1) {
-      _animateToPage(_currentIndex + 1);
+    final from = widget.perspective ? _navigationTarget : _currentIndex;
+    if (from < widget.itemCount - 1) {
+      _animateToPage(from + 1);
     }
   }
 
   void previousPage() {
-    if (_currentIndex > 0) {
-      _animateToPage(_currentIndex - 1);
+    final from = widget.perspective ? _navigationTarget : _currentIndex;
+    if (from > 0) {
+      _animateToPage(from - 1);
     }
   }
 
   void _animateToPage(int index, {bool gateInput = true}) {
+    _navigationTarget = index;
     _pageChangeReason = CarouselPageChangeReason.controller;
+    if (NeoBubbleStyle.reduceMotion(context) ||
+        LiquidMotionClock.instance.lowPower) {
+      _animating.value = false;
+      _pageController?.jumpToPage(index);
+      return;
+    }
     // Never gate while a finger is on the glass: the user is mid-gesture and
     // owns the carousel until they lift it.
     if (gateInput && !_pointerDown) _animating.value = true;
@@ -241,7 +264,7 @@ class NativeCarouselState extends State<NativeCarousel> {
         ?.animateToPage(
           index,
           duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutQuart,
+          curve: widget.perspective ? Curves.easeOutBack : Curves.easeOutQuart,
         )
         // Completing or being interrupted both end the move, so this is where
         // the input gate lifts.
@@ -252,6 +275,7 @@ class NativeCarouselState extends State<NativeCarousel> {
   }
 
   void jumpToPage(int index) {
+    _navigationTarget = index;
     _pageChangeReason = CarouselPageChangeReason.controller;
     _pageController?.jumpToPage(index);
   }
@@ -310,6 +334,9 @@ class NativeCarouselState extends State<NativeCarousel> {
               onPointerUp: (_) => _pointerDown = false,
               onPointerCancel: (_) => _pointerDown = false,
               child: PageView.builder(
+                // Scrollable otherwise retains physics with the old page
+                // pitch after rotation, whose ballistic snap drifts a card.
+                key: widget.perspective ? ValueKey(vpFraction) : null,
                 controller: _pageController,
                 clipBehavior: Clip.none,
                 padEnds: true,
@@ -338,6 +365,10 @@ class NativeCarouselState extends State<NativeCarousel> {
                     valueListenable: _pageNotifier,
                     child: card,
                     builder: (context, page, child) {
+                      final perspective =
+                          widget.perspective &&
+                          !NeoBubbleStyle.reduceMotion(context) &&
+                          !LiquidMotionClock.instance.lowPower;
                       final distance = (index - page).abs() - 0.6;
                       final depth = widget.depth;
                       final scale = (1.0 - distance * depth.scaleFalloff).clamp(
@@ -355,6 +386,30 @@ class NativeCarouselState extends State<NativeCarousel> {
                                 depth.edgePull *
                                 pageWidth *
                                 (page - index).sign;
+
+                      if (perspective) {
+                        final offset = (index - page).clamp(-2.5, 2.5);
+                        final distance = offset.abs();
+                        final scale3d = (1 - distance * .13).clamp(.72, 1.0);
+                        return Opacity(
+                          opacity: (1 - distance * .18).clamp(.48, 1),
+                          child: Transform(
+                            key: ValueKey('console-perspective-$index'),
+                            alignment: Alignment.center,
+                            transform: Matrix4.identity()
+                              ..setEntry(3, 2, .0011)
+                              ..translateByDouble(
+                                pull,
+                                distance * 4,
+                                -distance * 34,
+                                1,
+                              )
+                              ..rotateY(-offset.clamp(-1, 1) * .22)
+                              ..scaleByDouble(scale3d, scale3d, 1, 1),
+                            child: child,
+                          ),
+                        );
+                      }
 
                       return Opacity(
                         opacity: opacity,

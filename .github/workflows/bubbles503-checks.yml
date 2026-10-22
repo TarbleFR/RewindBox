@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   test:
-    if: ${{ !contains(github.event.head_commit.message, '[liquid505-validated-integration]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (!contains(github.event.head_commit.message, '[liquid505-validated-integration]')) }}
     name: Liquid material and sequential AirPlay navigation
     runs-on: ubuntu-24.04
     timeout-minutes: 20

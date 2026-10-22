@@ -9,6 +9,13 @@ class LegalCreditsDialog {
 
   static const List<_LegalEntry> _entries = [
     _LegalEntry(
+      'Interactive iOS 26 Inspired Tab Menu',
+      'Mau Ali; original dotLottie and adapted navigation motion',
+      'Lottie Simple License FL 9.13.21',
+      'https://lottiefiles.com/free-animation/free-interactive-ios-26-inspired-tab-menu-uTAhrmTC08',
+      'assets/legal/Lottie-Simple-License.txt',
+    ),
+    _LegalEntry(
       'NeoStation',
       'Miguel Soto / misobadev, androosio, ItsRetroPup and contributors',
       'GPL-3.0-or-later',

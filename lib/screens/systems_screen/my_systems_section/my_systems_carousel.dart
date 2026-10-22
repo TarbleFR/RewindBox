@@ -807,6 +807,7 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
                       child: RepaintBoundary(
                         child: NativeCarousel(
                           key: _carouselKey,
+                          perspective: true,
                           itemCount: allSystems.length,
                           initialIndex: _currentIndex,
                           footerHeight: 60.r,

@@ -192,7 +192,8 @@ void main() {
           )
           .transform;
       expect(stretch.storage[0], greaterThan(1));
-      expect(stretch.storage[5], lessThan(1));
+      expect(stretch.storage[5], inInclusiveRange(.94, 1.16),
+        reason: 'Mau Ali motion briefly swells before the settling compression.');
       selection.value = NavTab.consoles;
       await tester.pump();
       expect(tester.getRect(lens).left, closeTo(moving, 0.01));

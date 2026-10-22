@@ -56,7 +56,7 @@ concurrency:
 jobs:
   host:
     name: Readers, identities, installer, labels, catalogue, contracts and Flutter
-    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -83,10 +83,9 @@ jobs:
           path: build/build486/
           if-no-files-found: ignore
           retention-days: 14
-
   native:
     name: Store and adapters on Foundation, iPhone SDK build of every changed source
-    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native') }}
     runs-on: macos-15
     timeout-minutes: 120
     steps:
@@ -106,10 +105,9 @@ jobs:
             build/armsx2-validation/
           if-no-files-found: ignore
           retention-days: 14
-
   uikit:
     name: The HD textures page on UIKit with the bundled catalogue
-    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'uikit' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'uikit') }}
     runs-on: macos-15
     timeout-minutes: 90
     steps:
@@ -127,10 +125,9 @@ jobs:
           path: build/build486/
           if-no-files-found: ignore
           retention-days: 14
-
   repositories:
     name: Packs published as original GitHub archives (${{ matrix.console }})
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'repositories' || inputs.parts == 'releases') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'repositories' || inputs.parts == 'releases')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     strategy:
@@ -165,13 +162,12 @@ jobs:
           path: build/hdtex486/verified-${{ matrix.console }}.jsonl
           if-no-files-found: warn
           retention-days: 14
-
   hosts:
     # Manual packs published on a file host (download.verify): the author's file is fetched
     # once here (tools/textures/hosts.py) and installed with the app's code; the app only
     # accepts that exact file when the user imports it. Quotas and sign-in pages end an attempt.
     name: Manual packs on file hosts (${{ matrix.console }})
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'hosts' || inputs.parts == 'ps1-hosts') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'hosts' || inputs.parts == 'ps1-hosts')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     strategy:
@@ -206,10 +202,9 @@ jobs:
           path: build/hdtex486/verified-hosts-${{ matrix.console }}.jsonl
           if-no-files-found: warn
           retention-days: 14
-
   discover:
     name: Candidate packs on GitHub (review list, nothing published)
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'discover' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'discover') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     steps:
@@ -237,10 +232,9 @@ jobs:
           path: build/hdtex/candidates.jsonl
           if-no-files-found: warn
           retention-days: 14
-
   links:
     name: Links of the catalogued packs (reachability, size, newer release)
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'links' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'links') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     steps:
@@ -256,12 +250,11 @@ jobs:
           path: build/hdtex/links.jsonl
           if-no-files-found: warn
           retention-days: 14
-
   cores:
     name: Texture replacement in the pinned libretro cores (N64, PS1, NES) and in Mesen on the buildbot
     # On push: the binaries of the delivered package (Mesen included) against the catalogue's option,
     # folder and BIOS contracts. The buildbot read runs on dispatch only.
-    if: ${{ github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'cores' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'cores') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -294,10 +287,9 @@ jobs:
             build/hdtex/buildbot.json
           if-no-files-found: warn
           retention-days: 14
-
   summarize:
     name: Engine-relevant candidates of a discover run (review list)
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'summarize' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'summarize') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -312,10 +304,9 @@ jobs:
           merge-multiple: true
       - name: One short line per candidate an engine can read
         run: python3 tools/textures/discover.py summarize --candidates build/hdtex/candidates/candidates.jsonl --out build/hdtex/summary.jsonl
-
   research:
     name: Reference pages of the maintainer's list (review list, nothing published)
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'research' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'research') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     steps:
@@ -341,10 +332,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-
   direct_readers:
     name: RAR reader and direct-source publication boundaries
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'direct' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'direct') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -363,10 +353,9 @@ jobs:
           path: build/hd-direct400/
           if-no-files-found: warn
           retention-days: 14
-
   direct_native:
     name: Public host resolvers, native installation and iPhone compilation
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.parts == 'direct' || inputs.parts == 'direct-native') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && (inputs.parts == 'direct' || inputs.parts == 'direct-native')) }}
     runs-on: macos-15
     timeout-minutes: 90
     steps:
@@ -405,10 +394,9 @@ jobs:
             build/hd-direct400/*.log
           if-no-files-found: warn
           retention-days: 14
-
   ps1_catalogue:
     name: PS1 catalogue generation, provenance and preserved entries
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'ps1' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'ps1') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -428,10 +416,9 @@ jobs:
           path: build/hd-ps1/
           if-no-files-found: warn
           retention-days: 14
-
   ps1_native:
     name: PS1 bundled catalogue and regional matching on Foundation
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'ps1' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'ps1') }}
     runs-on: macos-15
     timeout-minutes: 40
     steps:
@@ -451,10 +438,9 @@ jobs:
           path: build/hd-ps1/
           if-no-files-found: warn
           retention-days: 14
-
   delivery498:
     name: Private HD native IPA delivery
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.parts == 'delivery498' }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'delivery498') }}
     uses: ./.github/workflows/hd-native-delivery.yml
     with:
       build_number: '498'

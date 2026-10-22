@@ -101,6 +101,15 @@ class UiRefreshRateChannel {
     'neostation/ui_refresh_rate',
   );
 
+  /// Native power-change notifications, without polling or changing the
+  /// existing display-rate hook. Attached only while the header is mounted.
+  static Stream<bool> get powerChanges =>
+      const EventChannel('neostation/ui_refresh_rate/power')
+          .receiveBroadcastStream()
+          .where((event) => event is bool)
+          .cast<bool>()
+          .distinct();
+
   /// Current state. A missing plugin reports
   /// [UiRefreshRateState.hookPluginMissing]; other platform errors propagate.
   Future<UiRefreshRateState> getState() async {

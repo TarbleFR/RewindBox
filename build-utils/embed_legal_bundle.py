@@ -22,6 +22,8 @@ LEGAL_ASSETS = ROOT / "assets" / "legal"
 
 REQUIRED_LEGAL_FILES = (
     "THIRD_PARTY_NOTICES.md",
+    "Lottie-Simple-License.txt",
+    "Mau-Ali-Tab-Motion.txt",
     "Dolphin-COPYING.txt",
     "RPCS3-GPL-2.0.txt",
     "ARMSX2-GPL-3.0.txt",

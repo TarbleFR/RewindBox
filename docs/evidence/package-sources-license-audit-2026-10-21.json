@@ -36,7 +36,7 @@
     "packages/libretro_internal_bridge/pubspec.yaml": "3a036b3f6afee45d4b190c6e701eb761b2f39246e76ac0fb8086ddef515fc14b",
     "packages/neo_box_reader/ios/neo_box_reader.podspec": "f370d75835c593d65622434d1f5dd9e39db6ceb9fa393d9dfee6be2c7a962da2",
     "packages/neo_box_reader/pubspec.yaml": "85092d8fafa6a20113030478639dc204a2d5870075c75c5093b792577a8d302c",
-    "packages/neo_cheat_catalog/ios/neo_cheat_catalog.podspec": "a612ba4a989270dc2ed8cdfa0970c2b183a2217fa45beed62a588d3a7d9084f4",
+    "packages/neo_cheat_catalog/ios/neo_cheat_catalog.podspec": "c81d3c72dfdd48c1e6335cc9e24ac4ae1e06fb5448ae779400da73e4064a3ca2",
     "packages/neo_cheat_catalog/pubspec.yaml": "d355fbcf78c963206afb2bbaab34fd69887cd3b87647544274438d1adca354e9",
     "packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/SOURCE.txt": "6636f3bb09f5a3b50bc2cc36155accb6339ad7d53077f3dfd6cc19c5044ceb67",
     "packages/neo_shader_kit/ios/ThirdParty/glslang/SOURCE.txt": "dc3c8288c3bfe69c2451e885d8dda71a0474e5cdeb76c9644baeb210d580a778",
@@ -44,7 +44,7 @@
     "packages/neo_shader_kit/pubspec.yaml": "a967ba172ddf7784ae7e54443984b83e832db3f0657d9087c198cbacb67bda6e",
     "packages/neo_swap/ios/neo_swap.podspec": "3e0e411267a82709dd25baf18c64d833bcd18e6f9e35c123389293fa5b87ae9f",
     "packages/neo_swap/pubspec.yaml": "d3e883cc8a601da81ed8935ffafa5b9871ec77f76854001512906f443d8419c5",
-    "packages/neo_texture_catalog/ios/neo_texture_catalog.podspec": "499de71d44d05295a2a68999a0429de3e90dd0442aab97f4dacbed60324faf8f",
+    "packages/neo_texture_catalog/ios/neo_texture_catalog.podspec": "50a502d151e5f7802d497a4ca50cacf0c66f9cac15c1d6400c8c04d6db8c36be",
     "packages/neo_texture_catalog/pubspec.yaml": "9c2a258009ddf30c29eec3a0b6d2a6d87b33b425b9c2a148d82608c1d446c9ee",
     "packages/neo_touch_layout/ios/neo_touch_layout.podspec": "dec513375d1b4f395d1a28779dc57f759c2b2d17cad4897f509d867a62434474",
     "packages/neo_touch_layout/pubspec.yaml": "08eb088e8647022257af6a2a79ac97810db7d527303564055b5bf187b35de1f1",
@@ -10921,5 +10921,6 @@
         "after": "cc9897ba289cb2531cd821b00d3aba7f77072533a380b24d8382bc098241e879"
       }
     }
-  }
+  },
+  "motion_followup_review": "2026-10-22: shared original UIKit liquid progress view in existing GPL host package neo_cheat_catalog; neo_texture_catalog depends on that existing local pod and uses its public view header. QuartzCore is an Apple system framework. No hosted dependency or engine added. Original Mau Ali dotLottie plus derived motion profile are separately licensed under Lottie Simple License FL 9.13.21; original archive, unchanged full license and visible author attribution are retained. No dotLottie runtime added."
 }

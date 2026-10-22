@@ -25,8 +25,8 @@ permissions:
   actions: read
 jobs:
   host:
-    if: ${{ (!contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message,
-      '[melonx-validated-integration]')) && !contains(github.event.head_commit.message, '[melonx-native]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && ((!contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message,
+      '[melonx-validated-integration]')) && !contains(github.event.head_commit.message, '[melonx-native]')) }}
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -60,8 +60,8 @@ jobs:
     - name: Type-check the actual shared route plugin against the iPhone SDK
       run: python3 test/melonx_native_sdk_test.py
   native:
-    if: ${{ (!contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message,
-      '[melonx-validated-integration]')) && contains(github.event.head_commit.message, '[melonx-native]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && ((!contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message,
+      '[melonx-validated-integration]')) && contains(github.event.head_commit.message, '[melonx-native]')) }}
     runs-on: macos-26
     timeout-minutes: 15
     steps:

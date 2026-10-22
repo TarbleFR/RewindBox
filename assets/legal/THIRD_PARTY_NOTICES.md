@@ -352,3 +352,17 @@ downloaded manuals. The scan, artwork and text retain their original rights;
 rotating, sharpening, recognizing or translating them grants no new ownership.
 Apple Vision, NaturalLanguage and Translation are platform frameworks used by
 the reader. NeoStation does not bundle an Apple translation-model package.
+
+
+## Mau Ali — interactive tab motion
+
+The navigation adapts the easing and deformation keyframes from **Interactive
+iOS 26 Inspired Tab Menu** by **Mau Ali**:
+https://lottiefiles.com/free-animation/free-interactive-ios-26-inspired-tab-menu-uTAhrmTC08
+
+The original dotLottie archive and the derived motion profile are distributed
+under the **Lottie Simple License FL 9.13.21**, separately from the host GPL code.
+Full terms and modification details are in `assets/legal/Lottie-Simple-License.txt`
+and `assets/legal/Mau-Ali-Tab-Motion.txt`, available in the app credits.
+The original five-tab scene is adapted to RewindBox's variable real tabs with
+the existing Flutter renderer; no dotLottie runtime dependency is introduced.

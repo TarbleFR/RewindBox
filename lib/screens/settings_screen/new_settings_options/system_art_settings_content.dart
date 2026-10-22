@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -284,7 +285,7 @@ class SystemArtSettingsContentState extends State<SystemArtSettingsContent> {
   }
 
   Widget _buildDownloadProgress(NeoAssetsProvider neoAssets, ThemeData theme) {
-    final primary = theme.colorScheme.primary;
+    final primary = const Color(0xFF69D9E7);
     final pct = (neoAssets.downloadProgress * 100).toInt();
 
     return Padding(
@@ -293,14 +294,9 @@ class SystemArtSettingsContentState extends State<SystemArtSettingsContent> {
         child: Column(
           children: [
             SizedBox(
-              width: 48.r,
-              height: 48.r,
-              child: CircularProgressIndicator(
-                value: neoAssets.downloadProgress,
-                strokeWidth: 3,
-                color: primary,
-                backgroundColor: primary.withValues(alpha: 0.15),
-              ),
+              width: 200.r,
+              height: 14.r,
+              child: LiquidProgressIndicator(value: neoAssets.downloadProgress),
             ),
             SizedBox(height: 16.r),
             Text(

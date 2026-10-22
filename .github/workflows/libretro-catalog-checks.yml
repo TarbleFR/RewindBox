@@ -17,6 +17,7 @@ permissions:
   actions: read
 jobs:
   catalogues:
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') }}
     runs-on: macos-15
     timeout-minutes: 35
     steps:

@@ -6,6 +6,8 @@
 #import "NeoTextureSupport.h"
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <Metal/Metal.h>
+#import <neo_cheat_catalog/RBLiquidProgressView.h>
+#include <math.h>
 
 #pragma mark - Labels
 
@@ -54,6 +56,9 @@ static NSString *Fill(NSString *text, NSDictionary *values) {
 @property(nonatomic, copy) NSString *identifier;
 @property(nonatomic, assign) BOOL disclosure, disabled, destructive, checked, action;
 @property(nonatomic, strong) NSNumber *toggle;  // non-nil: a switch with this value
+@property(nonatomic) BOOL showsLiquid;
+@property(nonatomic, strong) NSNumber *liquidFraction;
+@property(nonatomic) RBLiquidProgressStatus liquidStatus;
 @property(nonatomic, copy) void (^run)(void);
 @property(nonatomic, copy) void (^switched)(BOOL on);
 @end
@@ -103,6 +108,26 @@ static NSString *Fill(NSString *text, NSDictionary *values) {
   cell.detailTextLabel.numberOfLines = 0;
   cell.detailTextLabel.textColor = UIColor.secondaryLabelColor;
   cell.accessibilityIdentifier = row.identifier;
+  if (row.showsLiquid) {
+    UILabel *title = [UILabel new]; title.text = row.title; title.numberOfLines = 0;
+    title.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody]; title.adjustsFontForContentSizeCategory = YES;
+    RBLiquidProgressView *liquid = [RBLiquidProgressView new];
+    liquid.indeterminate = row.liquidFraction == nil;
+    liquid.progress = row.liquidFraction.doubleValue;
+    liquid.status = row.liquidStatus;
+    liquid.accessibilityLabel = row.title;
+    liquid.accessibilityValue = row.liquidFraction ? [NSString stringWithFormat:@"%.0f%%", row.liquidFraction.doubleValue * 100] : nil;
+    UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[title, liquid]];
+    stack.axis = UILayoutConstraintAxisVertical; stack.spacing = 10; stack.translatesAutoresizingMaskIntoConstraints = NO;
+    [cell.contentView addSubview:stack];
+    UILayoutGuide *margins = cell.contentView.layoutMarginsGuide;
+    [NSLayoutConstraint activateConstraints:@[
+      [stack.leadingAnchor constraintEqualToAnchor:margins.leadingAnchor],
+      [stack.trailingAnchor constraintEqualToAnchor:margins.trailingAnchor],
+      [stack.topAnchor constraintEqualToAnchor:margins.topAnchor],
+      [stack.bottomAnchor constraintEqualToAnchor:margins.bottomAnchor]]];
+    cell.textLabel.text = nil; cell.detailTextLabel.text = nil;
+  }
   if (row.action) cell.textLabel.textColor = row.destructive ? UIColor.systemRedColor : self.view.tintColor;
   if (row.disabled) { cell.textLabel.textColor = UIColor.tertiaryLabelColor; cell.selectionStyle = UITableViewCellSelectionStyleNone; }
   if (row.toggle) {
@@ -186,7 +211,7 @@ static NSString *ErrorText(NSError *error, NSString *locale) {
 static NSString *JobText(NSDictionary *job, NSString *locale) {
   NSString *state = job[@"state"];
   const double total = [job[@"total"] doubleValue], received = [job[@"received"] doubleValue];
-  NSString *percent = [NSString stringWithFormat:@"%d", total > 0 ? (int)MIN(100.0, received * 100.0 / total) : 0];
+  NSString *percent = total > 0 ? [NSString stringWithFormat:@"%d", (int)MIN(100.0, received * 100.0 / total)] : @"—";
   if ([state isEqualToString:@"downloading"]) return Fill(Text(@"stateDownloading", locale), @{@"percent": percent, @"received": Bytes(job[@"received"]), @"total": Bytes(job[@"total"])});
   if ([state isEqualToString:@"installing"] || [state isEqualToString:@"verifying"]) return Fill(Text(@"stateInstalling", locale), @{@"percent": percent});
   if ([state isEqualToString:@"paused"]) return Text(@"statePaused", locale);
@@ -349,7 +374,22 @@ static NSString *HostName(NSString *host) {
     if (update && !JobActive(job) && !verifiedFile) [actions.rows addObject:[self installRow:@"actionUpdate" replace:YES]];
     if (update && !JobActive(job) && verifiedFile) [actions.rows addObject:[self importVerifiedRow:YES]];
   }
-  if (state) [actions.rows addObject:[NTRow title:state detail:nil]];
+  if (state) {
+    NTRow *progress = [NTRow title:state detail:nil];
+    progress.identifier = @"neoTextureLiquidProgress";
+    progress.showsLiquid = YES;
+    double total = [job[@"total"] doubleValue], received = [job[@"received"] doubleValue];
+    progress.liquidFraction = total > 0 && isfinite(total) && isfinite(received) ? @(fmax(0, fmin(1, received / total))) : nil;
+    NSString *phase = job[@"state"];
+    progress.liquidStatus = [phase isEqual:@"paused"] || [phase isEqual:@"downloaded"] ? RBLiquidProgressPaused :
+        [phase isEqual:@"failed"] ? RBLiquidProgressError : RBLiquidProgressRunning;
+    [actions.rows addObject:progress];
+  } else if (self.installed) {
+    NTRow *progress = [NTRow title:[self t:@"stateInstalled"] detail:nil];
+    progress.identifier = @"neoTextureLiquidComplete";
+    progress.showsLiquid = YES; progress.liquidFraction = @1; progress.liquidStatus = RBLiquidProgressSuccess;
+    [actions.rows addObject:progress];
+  }
   if (verifiedFile) {
     if (JobActive(job)) {
       NTRow *cancel = [NTRow title:[self t:@"actionCancel"] detail:nil];
@@ -845,6 +885,7 @@ static NSString *AbsolutePath(id value) {
   else status = [self t:@"catalogueMissing"];
   NTRow *summary = [NTRow title:status detail:nil];
   summary.identifier = @"neoTextureCatalogueState";
+  summary.showsLiquid = self.refreshing || [snapshot[@"refreshing"] boolValue] || (!self.loaded && !snapshot);
   if (snapshot[@"refresh_error"])
     summary.detail = [self t:@"catalogueRefreshFailed" with:@{@"date": [self dateText:snapshot[@"failed_at"]]}];
   [section.rows addObject:summary];

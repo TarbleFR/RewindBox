@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -426,7 +427,7 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
     if (_status == null) {
       return Padding(
         padding: EdgeInsets.all(8.r),
-        child: const LinearProgressIndicator(),
+        child: const LiquidProgressIndicator(),
       );
     }
     final list = rows;
@@ -477,7 +478,7 @@ class Armsx2TexturePanelState extends State<Armsx2TexturePanel> {
           if (!_confirming)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 8.r),
-              child: LinearProgressIndicator(
+              child: LiquidProgressIndicator(
                 value: _phase.isEmpty || _fraction < 0
                     ? null
                     : _fraction.clamp(0, 1),

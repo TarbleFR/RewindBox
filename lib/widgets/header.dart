@@ -19,6 +19,10 @@ import 'package:neostation/services/permission_service.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/widgets/header_battery.dart';
+import 'package:neostation/widgets/liquid_battery.dart';
+import 'package:neostation/widgets/liquid_motion_clock.dart';
+import 'package:neostation/l10n/liquid_motion_locale.dart';
+import 'package:ui_refresh_rate/ui_refresh_rate.dart';
 import 'package:neostation/widgets/header_sort_dropdown.dart';
 import 'package:neostation/widgets/main_menu_tab_strip.dart';
 import 'package:neostation/widgets/bumper_glyph.dart';
@@ -46,13 +50,14 @@ class Header extends StatefulWidget {
   HeaderState createState() => HeaderState();
 }
 
-class HeaderState extends State<Header> {
+class HeaderState extends State<Header> with WidgetsBindingObserver {
   final Battery _battery = Battery();
   // Unknown until read: never show a level the device did not report.
   int _batteryLevel = -1;
   bool _batteryRetried = false;
   BatteryState? _batteryState;
   StreamSubscription<BatteryState>? _batteryStateSubscription;
+  StreamSubscription<bool>? _powerSubscription;
   StreamSubscription<Rpcs3RuntimeState>? _rpcs3RuntimeSubscription;
   Timer? _jitStatusTimer;
   bool _jitActive =
@@ -66,6 +71,13 @@ class HeaderState extends State<Header> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    if (Platform.isIOS) {
+      _powerSubscription = UiRefreshRateChannel.powerChanges.listen(
+        (low) => LiquidMotionClock.instance.lowPower = low,
+        onError: (Object _) {},
+      );
+    }
     _tabFocusNodes = List.generate(
       NavTab.values.length,
       (_) => FocusNode(skipTraversal: true),
@@ -98,8 +110,10 @@ class HeaderState extends State<Header> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timeUpdateTimer?.cancel();
     _batteryStateSubscription?.cancel();
+    _powerSubscription?.cancel();
     ControllerBatteryService.instance.detach();
     _rpcs3RuntimeSubscription?.cancel();
     _jitStatusTimer?.cancel();
@@ -126,6 +140,7 @@ class HeaderState extends State<Header> {
       ) {
         if (mounted) {
           setState(() => _batteryState = state);
+          unawaited(_getBatteryLevel());
         }
       });
     } catch (_) {
@@ -167,6 +182,13 @@ class HeaderState extends State<Header> {
   Future<void> _getBatteryLevel() async {
     try {
       final level = await _battery.batteryLevel;
+      // Reuse the same infrequent system read; no new poller or plugin.
+      try {
+        LiquidMotionClock.instance.lowPower =
+            await _battery.isInBatterySaveMode;
+      } catch (_) {
+        /* Unsupported platforms retain the static fallback. */
+      }
       if (mounted) {
         setState(() {
           // On Linux, 0% often indicates no battery (desktop), so we treat it as such
@@ -199,22 +221,13 @@ class HeaderState extends State<Header> {
       _batteryState == BatteryState.charging ||
       _batteryState == BatteryState.full;
 
-  /// Resolves the appropriate Material Symbols battery icon based on charge
-  /// level and charging state.
-  IconData _getBatteryIconData() {
-    if (_batteryLevel == -1 || _deviceCharging) {
-      return Symbols.battery_android_frame_bolt;
-    }
-
-    if (_batteryLevel >= 90) return Symbols.battery_full;
-    if (_batteryLevel >= 75) return Symbols.battery_android_frame_6;
-    if (_batteryLevel >= 60) return Symbols.battery_android_frame_5;
-    if (_batteryLevel >= 45) return Symbols.battery_android_frame_4;
-    if (_batteryLevel >= 30) return Symbols.battery_android_frame_3;
-    if (_batteryLevel >= 15) return Symbols.battery_android_frame_2;
-    return Symbols.battery_android_frame_1;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_getBatteryLevel());
   }
 
+  /// Resolves the appropriate Material Symbols battery icon based on charge
+  /// level and charging state.
   Color _getBatteryColor(dynamic customColors, int? level) {
     if (level == null || level == -1) {
       return customColors.batteryPower;
@@ -250,11 +263,15 @@ class HeaderState extends State<Header> {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(width: 12.r),
-        Icon(
-          battery.controller ? Symbols.sports_esports : _getBatteryIconData(),
-          color: color,
-          size: 16.r,
-        ),
+        if (battery.controller)
+          Icon(Symbols.sports_esports, color: color, size: 16.r)
+        else
+          LiquidBattery(
+            percent: battery.percent!,
+            charging: battery.charging,
+            width: 24.r,
+            height: 13.r,
+          ),
         if (battery.controller && battery.charging)
           Icon(Symbols.bolt, color: color, size: 12.r),
         SizedBox(width: 4.r),
@@ -269,9 +286,19 @@ class HeaderState extends State<Header> {
         ),
       ],
     );
-    if (!battery.controller) return row;
+    if (!battery.controller) {
+      return Semantics(
+        key: const ValueKey('header-device-battery'),
+        label: LiquidMotionLocale.deviceBattery(context),
+        value: [
+          text,
+          if (battery.charging) NeoPlayCompanionLocale.get(context, 'charging'),
+        ].join(', '),
+        child: ExcludeSemantics(child: row),
+      );
+    }
     final label = NeoPlayCompanionLocale.get(context, 'battery');
-    return Tooltip(
+    final controller = Tooltip(
       message: label,
       child: Semantics(
         key: const ValueKey('header-controller-battery'),
@@ -285,6 +312,41 @@ class HeaderState extends State<Header> {
               ].join(', '),
         child: ExcludeSemantics(child: row),
       ),
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_batteryLevel >= 0)
+          Semantics(
+            key: const ValueKey('header-device-battery'),
+            label: LiquidMotionLocale.deviceBattery(context),
+            value: [
+              '$_batteryLevel%',
+              if (_deviceCharging)
+                NeoPlayCompanionLocale.get(context, 'charging'),
+            ].join(', '),
+            child: ExcludeSemantics(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(width: 12.r),
+                  LiquidBattery(
+                    percent: _batteryLevel,
+                    charging: _deviceCharging,
+                    width: 24.r,
+                    height: 13.r,
+                  ),
+                  SizedBox(width: 4.r),
+                  Text(
+                    '$_batteryLevel%',
+                    style: TextStyle(color: color, fontSize: 12.r),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        controller,
+      ],
     );
   }
 
@@ -328,15 +390,16 @@ class HeaderState extends State<Header> {
                       child: NeoGlass(
                         role: GlassSurfaceRole.chrome,
                         borderRadius:
-                            Theme.of(context)
-                                .extension<CornerRadii>()
-                                ?.radiusExternal ??
+                            Theme.of(
+                              context,
+                            ).extension<CornerRadii>()?.radiusExternal ??
                             BorderRadius.circular(8.r),
                         padding: EdgeInsets.symmetric(horizontal: 4.r),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(context).colorScheme.shadow
-                                .withValues(alpha: 0.1),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.shadow.withValues(alpha: 0.1),
                             blurRadius: 4.r,
                             offset: Offset(2.0.r, 2.0.r),
                           ),
@@ -362,9 +425,9 @@ class HeaderState extends State<Header> {
                   child: NeoGlass(
                     role: GlassSurfaceRole.chrome,
                     borderRadius:
-                        Theme.of(context)
-                            .extension<CornerRadii>()
-                            ?.radiusExternal ??
+                        Theme.of(
+                          context,
+                        ).extension<CornerRadii>()?.radiusExternal ??
                         BorderRadius.circular(14),
                     padding: EdgeInsets.symmetric(
                       horizontal: 10.r,
@@ -372,8 +435,9 @@ class HeaderState extends State<Header> {
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Theme.of(context).colorScheme.shadow
-                            .withValues(alpha: 0.1),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.shadow.withValues(alpha: 0.1),
                         blurRadius: 4.r,
                         offset: Offset(2.0.r, 2.0.r),
                       ),

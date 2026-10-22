@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #import "NeoUnifiedCheatBrowser.h"
 #import "Public/NeoUnifiedCheatCatalog.h"
+#import "Public/RBLiquidProgressView.h"
 #include <limits.h>
 
 static unsigned long long NUCBSize(id value) {
@@ -107,7 +108,7 @@ typedef NS_ENUM(NSInteger, NUCBPage) { NUCBGames, NUCBPrograms, NUCBProgram };
 
 @interface NUCBProgressCell : UITableViewCell
 @property(nonatomic, strong) UILabel *progressLabel;
-@property(nonatomic, strong) UIProgressView *progressView;
+@property(nonatomic, strong) RBLiquidProgressView *progressView;
 @end
 @implementation NUCBProgressCell
 - (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)identifier {
@@ -117,7 +118,7 @@ typedef NS_ENUM(NSInteger, NUCBPage) { NUCBGames, NUCBPrograms, NUCBProgram };
         _progressLabel.numberOfLines = 0;
         _progressLabel.adjustsFontForContentSizeCategory = YES;
         _progressLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
-        _progressView = [[UIProgressView alloc] initWithProgressViewStyle:UIProgressViewStyleDefault];
+        _progressView = [RBLiquidProgressView new];
         UIStackView *stack = [[UIStackView alloc] initWithArrangedSubviews:@[_progressLabel, _progressView]];
         stack.axis = UILayoutConstraintAxisVertical;
         stack.spacing = 12;
@@ -695,6 +696,10 @@ typedef NS_ENUM(NSInteger, NUCBPage) { NUCBGames, NUCBPrograms, NUCBProgram };
             NSString *counts = [self text:@"progressPacks" values:@{@"done": completed ?: @0, @"total": info[@"total_packs"] ?: @0}];
             cell.progressLabel.text = [NSString stringWithFormat:@"%@\n%@", counts, bytes];
             cell.progressView.progress = total ? MIN(1.0, (double)done / (double)total) : 0;
+            cell.progressView.indeterminate = self.installing && total == 0;
+            cell.progressView.status = self.installing ? RBLiquidProgressRunning :
+                self.failedPacks ? RBLiquidProgressError :
+                done > 0 ? RBLiquidProgressSuccess : RBLiquidProgressPaused;
             cell.progressView.accessibilityLabel = [self text:@"downloading"];
             cell.progressView.accessibilityValue = cell.progressLabel.text;
             cell.accessibilityIdentifier = @"unifiedCheats.progress";

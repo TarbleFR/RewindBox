@@ -504,3 +504,17 @@ See [the 35-core development inventory](../assets/legal/libretro/LIBRETRO_CORES.
 [the hashed source references](../assets/legal/libretro/license-sources.json).
 License snapshots are not proof of the matching source for every buildbot binary.
 Azahar 2127.0-alpha1 is pinned separately to its official release.
+
+
+## Mau Ali — interactive tab motion
+
+The navigation adapts the easing and deformation keyframes from **Interactive
+iOS 26 Inspired Tab Menu** by **Mau Ali**:
+https://lottiefiles.com/free-animation/free-interactive-ios-26-inspired-tab-menu-uTAhrmTC08
+
+The original dotLottie archive and the derived motion profile are distributed
+under the **Lottie Simple License FL 9.13.21**, separately from the host GPL code.
+Full terms and modification details are in `assets/legal/Lottie-Simple-License.txt`
+and `assets/legal/Mau-Ali-Tab-Motion.txt`, available in the app credits.
+The original five-tab scene is adapted to RewindBox's variable real tabs with
+the existing Flutter renderer; no dotLottie runtime dependency is introduced.

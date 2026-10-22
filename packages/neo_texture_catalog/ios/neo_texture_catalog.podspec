@@ -22,6 +22,7 @@ from which the manual PlayStation 2 entries are derived.
   s.preserve_paths = 'ThirdParty/lzma/*', 'ThirdParty/libarchive/*'
   s.resource_bundles = { 'NeoTextureCatalog' => ['Resources/*.json', 'Resources/*.gz', 'Resources/*.txt'] }
   s.dependency 'Flutter'
+  s.dependency 'neo_cheat_catalog'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
   s.frameworks = 'Foundation', 'UIKit', 'UniformTypeIdentifiers', 'Metal'
