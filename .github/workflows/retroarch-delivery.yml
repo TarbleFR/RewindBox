@@ -439,8 +439,8 @@ jobs:
     - name: Download the exact source-built MeloNX engine
       uses: actions/download-artifact@v4
       with:
-        name: MeloNX-engine-a235042452bd41d1305ae84826cd7010579bea0f
-        run-id: 39856401343
+        name: MeloNX-engine-38d997064cd81c5f17de6187ab36d2c78b0ba97c
+        run-id: 39858967222
         github-token: ${{ github.token }}
         path: dist/melonx
     - name: Download the source-built private MeloNX dependencies
@@ -711,3 +711,38 @@ jobs:
       if: always()
       shell: bash
       run: rm -f .dart-defines.json
+  cleanup_melonx_branch:
+    name: Remove the integrated temporary MeloNX branch
+    needs: cold
+    if: ${{ github.ref == 'refs/heads/Claude' && needs.cold.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Delete only the exact integrated source branch after successful IPA validation
+      run: 'python3 - <<''PYTHON''
+
+        import json, os, subprocess
+
+        expected = subprocess.check_output([''git'',''rev-parse'',os.environ[''GITHUB_SHA'']+''^1''],text=True).strip()
+
+        endpoint = ''repos/TarbleFR/RewindBox/git/refs/heads/work/melonx-embedded-20261022''
+
+        subprocess.run([''git'',''merge-base'',''--is-ancestor'',expected,os.environ[''GITHUB_SHA'']],check=True)
+
+        current=json.loads(subprocess.check_output([''gh'',''api'',endpoint],text=True))
+
+        assert current[''object''][''sha'']==expected, ''Temporary branch advanced; preserve it''
+
+        subprocess.run([''gh'',''api'',''--method'',''DELETE'',endpoint],check=True)
+
+        print(''Removed only the integrated temporary MeloNX branch; Claude and main preserved.'')
+
+        PYTHON'

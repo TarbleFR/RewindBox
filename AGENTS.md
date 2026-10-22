@@ -2,6 +2,45 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## Current MeloNX embedded test integration — 22 October 2026
+
+This continuation supersedes the older bootstrap-only/staged descriptions below.
+The user explicitly authorized completing MeloNX in an isolated checkout, merging
+into Claude, and producing a test IPA without any release, tag or main change.
+
+- Actual source-built engine: host `38d997064cd81c5f17de6187ab36d2c78b0ba97c`,
+  run `39858967222`, iPhone and ARM64 simulator. Session ownership, startup
+  pause, firmware rollback and bounded game-header/metadata checks are included.
+- Swift/Objective-C++ host: `721380dd7f241d1343fe6ae8fbf563e1b63f6d66`, run
+  `39859362301`. Original editable controls, generation-bound input, controller
+  mappings, first-Metal-frame launch confirmation and dedicated host-PID JIT
+  are registered by the local Flutter plugin. Cancellation before presentation
+  cannot start a new session. SDK type checks and ABI-double cases passed.
+- Real NativeAOT initialization initially failed because SDL was not prepared
+  for UIKit's main(). The host now calls the private SDL_SetMainReady and video
+  initialization on the UIKit thread before managed initialization on its
+  library worker. Actual simulator bootstrap `39859017226` passed against the
+  preceding engine. Final-engine smoke run `39859909967` must pass before IPA.
+- Private SDL, MoltenVK, FFmpeg and assembly JIT-support frameworks are built
+  from pinned sources; dependency audit `39854858591` passed. No upstream
+  unverified prebuilt frameworks or BreakpointJIT binary are redistributed.
+  Managed package resolution, original notices and build configuration are
+  retained with the engine artifact. Preserve both upstream MIT notice and
+  GPLv3 README statements; do not invent a blanket license clearance.
+- Switch playlist imports personal local games, firmware, keys, updates and
+  DLC. Add-ons are inspected against the actual base title. Graphics settings
+  are persisted per game. Flutter/integration run `39857539994` passed; its Dart
+  inputs remain unchanged. The legacy external launcher is not restored.
+- Build 506 assembly is prepared in retroarch-delivery.yml and
+  melonx506_delivery.py; no IPA is claimed until that workflow completes and
+  the downloaded payload is independently verified. Startup/Liquid Glass 505,
+  HD catalogues and all other emulator code remain unchanged.
+- NeoSwap live loans are intentionally not connected to MeloNX's resetting
+  Offer/Withdraw API. No fake donation, Switch storage-backed GiB or device
+  performance is claimed. Switch HD references remain research-only without
+  a validated payload/format. Physical gameplay/audio/controller/relaunch
+  verification still requires an iPhone. No Jetsam/IPS requests.
+
 ## AI coordination — maintainer rule, 21 October 2026
 
 **Claude Code must remain the principal coder and integrator for RewindBox iOS.** ChatGPT/Codex coordinates, investigates and reviews; Cursor Agent handles light assistance and explicitly authorized isolated small fixes. This is a manual three-agent workflow, not an autonomous cross-subscription orchestrator. See `docs/AI_ORCHESTRATION.md` and `docs/AI_TASK_BOARD.md`.
