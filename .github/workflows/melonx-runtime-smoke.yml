@@ -3,7 +3,7 @@ run-name: MeloNX actual runtime • ${{ github.sha }}
 'on':
   push:
     branches: [Claude, work/melonx-embedded-20261022]
-    paths: ['.github/workflows/melonx-runtime-smoke.yml', 'test/melonx_runtime_smoke.py']
+    paths: ['.github/workflows/melonx-runtime-smoke.yml', 'test/melonx_runtime_smoke.py', 'packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift']
   workflow_dispatch:
 permissions: {contents: read, actions: read}
 jobs:
