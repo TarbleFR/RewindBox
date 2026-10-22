@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:neostation/themes/corner_radii.dart';
+import 'neo_glass_bubble.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import 'package:neostation/widgets/airplay_menu_button.dart';
 
@@ -9,7 +9,7 @@ import 'package:neostation/widgets/airplay_menu_button.dart';
 ///
 /// Cells follow the display order ([navTabDisplayOrder]), not the canonical
 /// indices: the consoles tab (appended last) is drawn right after Systems.
-class MainMenuTabStrip extends StatelessWidget {
+class MainMenuTabStrip extends StatefulWidget {
   final List<NavTab> tabs;
   final NavTab selected;
   final bool showAirPlay;
@@ -24,8 +24,15 @@ class MainMenuTabStrip extends StatelessWidget {
   });
 
   @override
+  State<MainMenuTabStrip> createState() => _MainMenuTabStripState();
+}
+
+class _MainMenuTabStripState extends State<MainMenuTabStrip> {
+  int? _pressedSlot;
+
+  @override
   Widget build(BuildContext context) {
-    final ordered = inNavTabDisplayOrder(tabs);
+    final ordered = inNavTabDisplayOrder(widget.tabs);
     // Insert after search, including when search is hidden in preferences.
     final airPlaySlot = ordered
         .where(
@@ -33,8 +40,8 @@ class MainMenuTabStrip extends StatelessWidget {
         )
         .length;
     final cells = <NavTab?>[...ordered];
-    if (showAirPlay) cells.insert(airPlaySlot, null);
-    final selectedSlot = cells.indexOf(selected);
+    if (widget.showAirPlay) cells.insert(airPlaySlot, null);
+    final selectedSlot = cells.indexOf(widget.selected);
     return Stack(
       key: const ValueKey('main-menu-tab-strip'),
       children: [
@@ -42,26 +49,23 @@ class MainMenuTabStrip extends StatelessWidget {
           AnimatedPositioned(
             key: const ValueKey('main-menu-tab-indicator'),
             left: selectedSlot * 32.r,
-            top: 4.r,
-            bottom: 4.r,
+            top: 1.r,
+            bottom: 1.r,
             width: 32.r,
-            duration: const Duration(milliseconds: 160),
-            curve: Curves.easeInOut,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                borderRadius:
-                    Theme.of(
-                      context,
-                    ).extension<CornerRadii>()?.radiusInternal ??
-                    BorderRadius.circular(4.r),
+            duration: NeoBubbleStyle.reduceMotion(context) ? Duration.zero : const Duration(milliseconds: 280),
+            curve: Curves.easeOutBack,
+            child: IgnorePointer(
+              child: NeoBubbleMotion(
+                selected: true,
+                pressed: _pressedSlot == selectedSlot,
+                child: const NeoGlassBubble(blur: true, child: SizedBox.expand()),
               ),
             ),
           ),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final tab in cells)
+            for (final (slot, tab) in cells.indexed)
               SizedBox(
                 key: ValueKey(
                   tab == null
@@ -70,9 +74,12 @@ class MainMenuTabStrip extends StatelessWidget {
                 ),
                 width: 32.r,
                 height: 32.r,
-                child: tab == null
-                    ? const AirPlayMenuButton()
-                    : tabBuilder(tab),
+                child: Listener(
+                  onPointerDown: (_) => setState(() => _pressedSlot = slot),
+                  onPointerUp: (_) => setState(() => _pressedSlot = null),
+                  onPointerCancel: (_) => setState(() => _pressedSlot = null),
+                  child: tab == null ? const AirPlayMenuButton() : widget.tabBuilder(tab),
+                ),
               ),
           ],
         ),

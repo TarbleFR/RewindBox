@@ -452,9 +452,7 @@ class HeaderState extends State<Header> {
   Widget _buildTabButton(BuildContext context, NavTab tab) {
     final tabIndex = tab.index;
     final bool isSelected = tabIndex == widget.selectedTabIndex;
-    final Color tint = isSelected
-        ? Theme.of(context).colorScheme.onPrimary
-        : Theme.of(context).colorScheme.onSurface;
+    final Color tint = Theme.of(context).colorScheme.onSurface;
 
     return Semantics(
       button: true,

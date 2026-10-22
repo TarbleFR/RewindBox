@@ -1,0 +1,65 @@
+name: RewindBox interactive glass checks
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - '.github/workflows/bubbles503-checks.yml'
+      - 'lib/widgets/neo_glass_bubble.dart'
+      - 'lib/widgets/console_bubble_transition.dart'
+      - 'lib/widgets/main_menu_tab_strip.dart'
+      - 'lib/widgets/header.dart'
+      - 'lib/widgets/header_sort_dropdown.dart'
+      - 'lib/widgets/game_view_mode_dropdown.dart'
+      - 'lib/screens/systems_screen/my_systems_section/**'
+      - 'lib/screens/settings_screen/new_settings_screen.dart'
+      - 'test/*bubble*_test.dart'
+permissions:
+  contents: read
+concurrency:
+  group: rewindbox-bubbles-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    name: Interactive glass, playlist ownership and input
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Preserve engines, imports, storage, HD data and twelve languages
+        run: |
+          git diff --check
+          git diff --exit-code 3c59580b012919ae6f7179f59f0e8efcfd4818fb -- native packages assets ios build-utils/libretro pubspec.yaml pubspec.lock lib/l10n lib/services lib/repositories lib/models lib/providers lib/screens/system_games_list
+          python3 test/retroarch_baseline_scope_test.py
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Resolve locked packages
+        run: flutter pub get --enforce-lockfile
+      - name: Analyze application and the new transition
+        run: flutter analyze --no-pub
+      - name: Exercise morph, reverse, retained state, interruption and accessibility
+        run: >-
+          flutter test --no-pub --reporter expanded
+          test/console_bubble_transition_test.dart
+          test/neo_glass_bubble_test.dart
+          test/main_menu_tab_strip_test.dart
+          test/gamepad_navigation_manager_test.dart
+          test/horizontal_swipe_test.dart
+          test/libretro_playlist_actions_test.dart
+      - name: Produce a formatting patch for review
+        if: always()
+        run: |
+          mkdir -p build/bubble-review
+          git diff --name-only 3c59580b012919ae6f7179f59f0e8efcfd4818fb -- '*.dart' | xargs -r dart format
+          git diff -- '*.dart' > build/bubble-review/format.patch
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RewindBox-bubbles-review-${{ github.sha }}
+          path: build/bubble-review
+          if-no-files-found: error
+          retention-days: 14

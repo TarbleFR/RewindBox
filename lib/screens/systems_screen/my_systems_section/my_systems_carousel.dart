@@ -1,3 +1,5 @@
+import '../../../widgets/console_bubble_transition.dart';
+import '../../../widgets/neo_glass_bubble.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -70,6 +72,7 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
 
   /// Set while game launch dialog is active to hide carousel content and free RAM.
   bool _isGameLaunching = false;
+  bool _isOpeningPlaylist = false;
 
   // ── Pull-to-refresh (Android) ──────────────────────────────────────────
   static const double _maxPull = 75.0;
@@ -267,6 +270,8 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
     SystemInfo systemInfo,
     FileProvider fileProvider,
   ) async {
+    if (_isOpeningPlaylist) return;
+    if (!systemInfo.isGame) _isOpeningPlaylist = true;
     _gamepadNav.deactivate();
 
     final configProvider = Provider.of<SqliteConfigProvider>(
@@ -371,19 +376,17 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
           fileProvider: fileProvider,
         );
 
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => targetScreen),
+        await ConsoleBubbleScope.open<void>(context,
+          identity: systemInfo.folderName ?? systemInfo.title ?? 'all',
+          builder: (context) => targetScreen,
         );
       } else if (systemInfo.folderName == 'android') {
         final systemMeta = configProvider.detectedSystems.firstWhere(
           (system) => system.folderName == 'android',
         );
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AndroidAppsGrid(system: systemMeta),
-          ),
+        await ConsoleBubbleScope.open<void>(context,
+          identity: systemInfo.folderName ?? 'android',
+          builder: (context) => AndroidAppsGrid(system: systemMeta),
         );
       } else {
         final systemMeta = configProvider.detectedSystems.firstWhere(
@@ -395,12 +398,13 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
           system: systemMeta,
           fileProvider: fileProvider,
         );
-        await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => targetScreen),
+        await ConsoleBubbleScope.open<void>(context,
+          identity: systemInfo.folderName ?? systemInfo.title ?? 'all',
+          builder: (context) => targetScreen,
         );
       }
     } finally {
+      _isOpeningPlaylist = false;
       if (mounted) {
         _gamepadNav.activate();
 
@@ -735,7 +739,7 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
             fontWeight: FontWeight.normal,
           );
           final selectedTextStyle = textStyle.copyWith(
-            color: theme.colorScheme.onPrimary,
+            color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.bold,
           );
 
@@ -883,7 +887,7 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
                             height: 32.r,
                             margin: EdgeInsets.only(right: 4.r),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface,
+                              color: NeoBubbleStyle.fill(context, selected: false),
                               borderRadius:
                                   Theme.of(
                                     context,
@@ -909,16 +913,7 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
                                   top: 0,
                                   bottom: 0,
                                   width: width,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.primary,
-                                      borderRadius:
-                                          Theme.of(context)
-                                              .extension<CornerRadii>()
-                                              ?.radiusExternal ??
-                                          BorderRadius.circular(14.r),
-                                    ),
-                                  ),
+                                  child: const NeoGlassBubble(child: SizedBox.expand()),
                                 ),
                               ],
                             );

@@ -1,3 +1,5 @@
+import '../../../widgets/console_bubble_transition.dart';
+import '../../../widgets/neo_glass_bubble.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -66,7 +68,9 @@ class MySystems extends StatelessWidget {
   final Function(int index)? onCardTapped;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ConsoleBubbleScope(builder: _buildContent);
+
+  Widget _buildContent(BuildContext context) {
     return PopScope(
       canPop:
           false, // Maintain application flow by preventing raw hardware back navigation.
@@ -372,9 +376,9 @@ class MySystems extends StatelessWidget {
         );
 
         if (context.mounted) {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => targetScreen),
+          await ConsoleBubbleScope.open<void>(context,
+            identity: systemInfo.folderName ?? systemInfo.title ?? 'all',
+            builder: (context) => targetScreen,
           );
         }
       } else if (systemInfo.folderName == 'android') {
@@ -382,11 +386,9 @@ class MySystems extends StatelessWidget {
           (system) => system.folderName == 'android',
         );
         if (context.mounted) {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => AndroidAppsGrid(system: systemMeta),
-            ),
+          await ConsoleBubbleScope.open<void>(context,
+            identity: systemInfo.folderName ?? 'android',
+            builder: (context) => AndroidAppsGrid(system: systemMeta),
           );
         }
       } else {
@@ -401,9 +403,9 @@ class MySystems extends StatelessWidget {
         );
 
         if (context.mounted) {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => targetScreen),
+          await ConsoleBubbleScope.open<void>(context,
+            identity: systemInfo.folderName ?? systemInfo.title ?? 'all',
+            builder: (context) => targetScreen,
           );
         }
       }
@@ -1018,49 +1020,16 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
         }
 
         final focusIndicator =
-            (selLeft != null &&
-                selTop != null &&
-                selWidth != null &&
-                selHeight != null)
+            (selLeft != null && selTop != null && selWidth != null && selHeight != null)
             ? AnimatedPositioned(
                 key: const ValueKey('focus_indicator'),
-                duration: const Duration(milliseconds: 256),
-                curve: Curves.fastOutSlowIn,
-                left: selLeft + 1.r,
-                top: selTop + 1.r,
-                width: selWidth - 2.r,
-                height: selHeight - 2.r,
-                child: IgnorePointer(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius:
-                          Theme.of(
-                            context,
-                          ).extension<CornerRadii>()?.radiusExternal ??
-                          BorderRadius.circular(14.r),
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.28),
-                          Theme.of(
-                            context,
-                          ).colorScheme.primary.withValues(alpha: 0.08),
-                          Colors.transparent,
-                        ],
-                        stops: const [0.0, 0.35, 1.0],
-                      ),
-                      border: Border.all(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(alpha: 0.55),
-                        width: 2.r,
-                      ),
-                    ),
-                  ),
-                ),
+                duration: NeoBubbleStyle.reduceMotion(context) ? Duration.zero : const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                left: selLeft + 1.r, top: selTop + 1.r,
+                width: selWidth - 2.r, height: selHeight - 2.r,
+                child: IgnorePointer(child: NeoGlassBubble(
+                  selected: true, radius: 30.r, child: const SizedBox.expand(),
+                )),
               )
             : const SizedBox.shrink();
 
