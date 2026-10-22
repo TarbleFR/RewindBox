@@ -121,12 +121,12 @@ class LegalBundlePreflightTests(unittest.TestCase):
         for source in expected.iterdir():
             self.assertEqual((app / "Legal/Libretro" / source.name).read_bytes(),
                              source.read_bytes(), source.name)
-        self.assertFalse((app / "Legal/MeloNX").exists())
+        self.assertTrue((app / "Legal/MeloNX").exists())
         self.assertEqual(
             (app / "Legal/Textures/libarchive-LICENSE.txt").read_bytes(),
             (self.root / "packages/neo_texture_catalog/ios/Resources/libarchive-LICENSE.txt").read_bytes(),
         )
-        for folder, target in (("textures", "Textures"), ("ppsspp", "PPSSPP"), ("packages", "Packages"), ("engines", "Engines")):
+        for folder, target in (("textures", "Textures"), ("ppsspp", "PPSSPP"), ("packages", "Packages"), ("engines", "Engines"), ("melonx", "MeloNX")):
             manifest = json.loads((self.root / "assets/legal" / folder / "license-sources.json").read_text())
             for component in manifest["components"]:
                 for entry in component["files"]:
