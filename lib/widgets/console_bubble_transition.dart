@@ -56,6 +56,8 @@ class _ConsoleBubbleScopeState extends State<ConsoleBubbleScope> {
     ui.Image? image;
     _ConsolePlaylistRoute<T>? route;
     var pushed = false;
+    final sourceLayer = 'console-bubble-source-${identityHashCode(settled)}';
+    var sourceHeld = false;
     try {
       final navigator = Navigator.of(context);
       final reduced = NeoBubbleStyle.reduceMotion(context);
@@ -91,6 +93,15 @@ class _ConsoleBubbleScopeState extends State<ConsoleBubbleScope> {
         },
       );
       _active.value = identity;
+      // The existing playlist releases its own input layers before its async
+      // back cleanup finishes. Keep an inert owner beneath those layers, so
+      // the hidden carousel cannot move until the reverse flight has ended.
+      GamepadNavigationManager.pushLayer(
+        sourceLayer,
+        onActivate: () {},
+        onDeactivate: () {},
+      );
+      sourceHeld = true;
       final popped = navigator.push<T>(route);
       pushed = true;
       final result = await popped;
@@ -106,6 +117,7 @@ class _ConsoleBubbleScopeState extends State<ConsoleBubbleScope> {
           image?.dispose();
         }
       }
+      if (sourceHeld) GamepadNavigationManager.popLayer(sourceLayer);
       _busy = false;
       settled.complete();
       _settled = null;
@@ -329,7 +341,10 @@ class _ConsolePlaylistRoute<T> extends PageRoute<T> {
               : Offset.zero;
           final full = Offset.zero & size;
           final reduced = _reduced || origin == null;
-          var source = (_returnRect ?? origin ?? full).shift(-offset);
+          // A rotation may lay out the underlying carousel again on the first
+          // reverse frame. Follow its live anchor rather than a stale rectangle.
+          final liveReturn = animation.status == AnimationStatus.reverse ? locate() : null;
+          var source = (liveReturn ?? _returnRect ?? origin ?? full).shift(-offset);
           if (!source.overlaps(full)) {
             source = Rect.fromCenter(
               center: full.center,

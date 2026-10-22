@@ -7,6 +7,10 @@ import 'package:neostation/widgets/main_menu_tab_strip.dart';
 import 'package:neostation/widgets/neo_glass_bubble.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  // Create the process-wide barrier outside any previous test's FakeAsync
+  // zone, just as the application creates it in its single running zone.
+  final gate = FrontendMediaGate.instance;
   Widget scene({
     bool selected = true,
     bool enabled = true,
@@ -94,7 +98,9 @@ void main() {
       expect(tester.binding.transientCallbackCount, greaterThan(0));
       final owner = Object();
       addTearDown(() => FrontendMediaGate.instance.release(owner));
-      await FrontendMediaGate.instance.hold(owner);
+      final quiet = gate.hold(owner);
+      await tester.pump();
+      await quiet;
       await tester.pump();
       await tester.pump();
       expect(tester.binding.transientCallbackCount, 0);

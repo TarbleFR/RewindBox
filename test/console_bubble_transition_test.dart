@@ -10,6 +10,7 @@ class _Visit {
   int disposed = 0;
   int returned = 0;
   bool playlistInput = false;
+  bool sourceInput = false;
   final scroll = ScrollController();
 }
 
@@ -62,6 +63,14 @@ class _SystemsState extends State<_Systems> {
   late BuildContext source;
   int selected = 2;
 
+  @override
+  void initState() {
+    super.initState();
+    GamepadNavigationManager.pushLayer('bubble-test-systems',
+      onActivate: () => widget.visit.sourceInput = true,
+      onDeactivate: () => widget.visit.sourceInput = false);
+  }
+
   Future<void> open() async {
     await ConsoleBubbleScope.open<void>(
       source,
@@ -74,6 +83,7 @@ class _SystemsState extends State<_Systems> {
   @override
   void dispose() {
     pages.dispose();
+    GamepadNavigationManager.popLayer('bubble-test-systems');
     super.dispose();
   }
 
@@ -176,6 +186,10 @@ void main() {
         find.byKey(const ValueKey('console-bubble-flight')),
       );
       expect(closing.width, lessThan(900));
+      await tester.pump(const Duration(milliseconds: 170));
+      final destination = tester.getRect(find.byKey(const ValueKey('console-2'), skipOffstage: false));
+      final landing = tester.getRect(find.byKey(const ValueKey('console-bubble-flight')));
+      expect((landing.center - destination.center).distance, lessThan(2));
       await tester.pumpAndSettle();
       expect(h.visit.returned, 1);
       expect(h.visit.disposed, 1);
@@ -211,6 +225,25 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('playlist back cleanup cannot activate the hidden source before landing', (tester) async {
+    final h = await mount(tester);
+    expect(h.visit.sourceInput, isTrue);
+    await start(tester, h.systems.currentState!);
+    await tester.pumpAndSettle();
+    // Production SystemGamesList releases its gamepad layers before awaiting
+    // external-display cleanup and requesting Navigator.pop.
+    GamepadNavigationManager.popLayer('bubble-test-playlist');
+    GamepadNavigationManager.reactivate();
+    expect(h.visit.sourceInput, isFalse);
+    h.nav.currentState!.pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 160));
+    expect(h.visit.sourceInput, isFalse);
+    await tester.pumpAndSettle();
+    expect(h.visit.sourceInput, isTrue);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'touch activation and programmatic controller activation take the same route',

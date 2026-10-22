@@ -22,6 +22,14 @@ void main() {
         addTearDown(assets.dispose);
         final capture = GlobalKey();
         final art = File('assets/images/logos/32x.webp').absolute.path;
+        await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+        final imageContext = tester.element(find.byType(SizedBox).last);
+        // Finish real I/O before the production widgets subscribe from the
+        // test's fake clock. Their existing cache keys are then reused.
+        await tester.runAsync(() async {
+          await precacheImage(ResizeImage(FileImage(File(art)), width: 512), imageContext);
+          await precacheImage(const ResizeImage(AssetImage('assets/images/logos/32x.webp'), width: 256), imageContext);
+        });
         await tester.pumpWidget(
           ScreenUtilInit(
             designSize: const Size(640, 480),
@@ -88,12 +96,6 @@ void main() {
         // Decode the existing cached-image provider, not a replacement artwork.
         final image = tester.widget<Image>(find.byKey(ValueKey('${art}_0')));
         expect(image.fit, BoxFit.cover);
-        await tester.runAsync(
-          () => precacheImage(
-            image.image,
-            tester.element(find.byType(SystemCard)),
-          ),
-        );
         await tester.pumpAndSettle();
         expect(find.text('Sega 32X'), findsOneWidget);
         expect(tester.getRect(find.text('Sega 32X')).height, greaterThan(0));

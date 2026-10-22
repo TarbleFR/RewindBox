@@ -43,8 +43,9 @@ jobs:
         run: flutter analyze --no-pub
       - name: Exercise morph, reverse, retained state, interruption and accessibility
         if: ${{ !cancelled() }}
+        timeout-minutes: 8
         run: >-
-          flutter test --no-pub --reporter expanded
+          flutter test --no-pub --reporter expanded --timeout 90s
           test/console_bubble_transition_test.dart
           test/neo_glass_bubble_test.dart
           test/system_bubble_render_test.dart
