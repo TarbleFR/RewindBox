@@ -1,13 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gamepads_platform_interface/api/gamepad_controller.dart';
-import 'package:gamepads_platform_interface/api/gamepad_event.dart';
-import 'package:gamepads_platform_interface/gamepads_platform_interface.dart';
 import 'package:neostation/models/config_model.dart';
 import 'package:neostation/screens/airplay_screen.dart';
 import 'package:neostation/services/sfx_service.dart';
@@ -15,23 +10,6 @@ import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import 'package:neostation/widgets/horizontal_swipe.dart';
 import 'package:neostation/widgets/main_menu_tab_strip.dart';
-
-class _Pads extends GamepadsPlatformInterface {
-  final events = StreamController<GamepadEvent>.broadcast(sync: true);
-  @override
-  Future<List<GamepadController>> listGamepads() async => [];
-  @override
-  Stream<GamepadEvent> get gamepadEventsStream => events.stream;
-  void input(String key, double value) => events.add(
-    GamepadEvent(
-      gamepadId: 'test-pad',
-      timestamp: DateTime.now().millisecondsSinceEpoch,
-      type: key.startsWith('axis') ? KeyType.analog : KeyType.button,
-      key: key,
-      value: value,
-    ),
-  );
-}
 
 /// A small frontend fixture uses the real tab registry, drag recognizer,
 /// controller translator, moving header and receiver page. Heavy startup,
@@ -115,19 +93,33 @@ class _MenuState extends State<_Menu> {
   );
 }
 
+void inputEvent(WidgetTester tester, String key, double value) {
+  tester.binding.channelBuffers.push(
+    'xyz.luan/gamepads',
+    const StandardMethodCodec().encodeMethodCall(
+      MethodCall('onGamepadEvent', {
+        'gamepadId': 'test-pad',
+        'time': DateTime.now().millisecondsSinceEpoch,
+        'type': key.startsWith('axis') ? 'analog' : 'button',
+        'key': key,
+        'value': value,
+      }),
+    ),
+    (_) {},
+  );
+}
+
 void main() {
   final calls = <String>[];
-  late _Pads pads;
-  late GamepadsPlatformInterface previous;
   setUp(() {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     SfxService().setEnabled(false);
-    previous = GamepadsPlatformInterface.instance;
-    pads = _Pads();
-    GamepadsPlatformInterface.instance = pads;
     calls.clear();
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('xyz.luan/gamepads'),
+      (_) async => [],
+    );
     messenger.setMockMethodCallHandler(
       const MethodChannel('neostation/neoplay'),
       (call) async {
@@ -141,11 +133,13 @@ void main() {
     );
   });
   tearDown(() async {
-    debugDefaultTargetPlatformOverride = null;
-    GamepadsPlatformInterface.instance = previous;
-    await pads.events.close();
+    SfxService().setEnabled(true);
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('xyz.luan/gamepads'),
+      null,
+    );
     messenger.setMockMethodCallHandler(
       const MethodChannel('neostation/neoplay'),
       null,
@@ -220,6 +214,7 @@ void main() {
         );
         await tester.pumpWidget(const SizedBox());
       },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
     );
   }
 
@@ -230,6 +225,9 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
       await tester.pumpAndSettle();
       expect(key.currentState!.selected, NavTab.airplay);
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 75)),
+      );
       await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
       await tester.pumpAndSettle();
       expect(key.currentState!.selected, NavTab.achievements);
@@ -244,9 +242,9 @@ void main() {
         ('button-5', 1.0),
         ('button-5', 1.0),
       ]) {
-        pads.input(input.$1, input.$2);
+        inputEvent(tester, input.$1, input.$2);
         await tester.pump();
-        pads.input(input.$1, 0);
+        inputEvent(tester, input.$1, 0);
         await tester.pumpAndSettle();
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 75)),
@@ -264,6 +262,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
   );
 
   testWidgets(
@@ -297,5 +296,6 @@ void main() {
       expect(calls, isNot(contains('disconnect')));
       expect(tester.takeException(), isNull);
     },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
   );
 }

@@ -113,12 +113,13 @@ class _LiquidTabLensState extends State<_LiquidTabLens>
   }
 
   void _suspend() {
-    if (mounted && _reduced)
+    if (mounted && _reduced) {
       setState(() {
         _from = _to = widget.slot * widget.cell;
         _fromStretch = _travel = 0;
         _motion.value = 1;
       });
+    }
   }
 
   @override

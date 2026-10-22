@@ -251,6 +251,16 @@ RETIRED_DUSKLIGHT_NATIVE = 'native/dusklight/'
 
 def restore_rewindbox_branding(data, name):
     """Undo only reviewed display-text edits before historical hash checks."""
+    motion = json.loads((ROOT / 'docs/rewind-motion-main-compatibility.json').read_text())
+    if name in motion['files']:
+        edits = motion['files'][name]
+        for change in reversed(edits['locked_replacements']):
+            current = change['new'].encode('utf-8')
+            if data.count(current) != change['count']:
+                raise AssertionError('Unexpected startup presentation edit: ' + name)
+            data = data.replace(current, change['old'].encode('utf-8'), change['count'])
+        if hashlib.sha256(data).hexdigest() != edits['baseline_sha256']:
+            raise AssertionError('Non-presentation library change: ' + name)
     record = json.loads((ROOT / 'docs/rewindbox-branding-compatibility.json').read_text())
     for change in record['locked_replacements'].get(name, []):
         current = change['new'].encode('utf-8')

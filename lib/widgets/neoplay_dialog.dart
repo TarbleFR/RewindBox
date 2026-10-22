@@ -33,11 +33,12 @@ class _NeoPlayDialogState extends State<NeoPlayDialog>
     WidgetsBinding.instance.addObserver(this);
     subscription = NeoPlayBridge.events.listen(
       (value) {
-        if (mounted)
+        if (mounted) {
           setState(() {
             snapshot = value;
             error = value['error'] != null;
           });
+        }
       },
       onError: (_) {
         if (mounted) setState(() => error = true);

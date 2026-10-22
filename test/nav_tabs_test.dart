@@ -75,7 +75,6 @@ void main() {
     expect(hidableNavTabs(), isNot(contains(NavTab.consoles)));
     expect(hidableNavTabs(), [
       NavTab.search,
-      NavTab.airplay,
       NavTab.achievements,
       NavTab.scraper,
     ]);

@@ -1,4 +1,4 @@
-import 'package:neostation/widgets/rewindbox_wordmark.dart';
+import 'package:neostation/widgets/rewind_startup.dart';
 import 'package:neostation/providers/menu_app_provider.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/providers/sqlite_database_provider.dart';
@@ -15,7 +15,7 @@ import 'package:neostation/providers/system_background_provider.dart';
 import 'package:neostation/providers/neo_assets_provider.dart';
 import 'package:neostation/widgets/app_lifecycle_handler.dart';
 import 'package:neostation/services/startup_theme_cache.dart';
-import 'package:neostation/widgets/shimmering_logo.dart';
+// Startup animation is owned by RewindStartupRoot.
 import 'package:neostation/widgets/permission_check_wrapper.dart';
 import 'package:neostation/utils/custom_scroll_behavior.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -55,6 +55,8 @@ import 'package:neostation/data/datasources/sqlite_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/audio_policy_service.dart';
+
+final _rewindStartup = RewindStartupController();
 
 // Politica personalizada para deshabilitar navegacion por teclado
 class NoFocusTraversalPolicy extends FocusTraversalPolicy {
@@ -213,7 +215,10 @@ Future<void> _cleanupRetiredThemePackages() async {
     for (final directoryName in directoryNames) {
       final retiredDirectory = Directory(path.join(dataPath, directoryName));
       // Never follow a link into other user data during an upgrade cleanup.
-      final type = await FileSystemEntity.type(retiredDirectory.path, followLinks: false);
+      final type = await FileSystemEntity.type(
+        retiredDirectory.path,
+        followLinks: false,
+      );
       if (type == FileSystemEntityType.directory) {
         await retiredDirectory.delete(recursive: true);
       } else if (type == FileSystemEntityType.link) {
@@ -294,7 +299,8 @@ Future<void> _prepareIosFilesWorkspaceAfterStartup() async {
   if (!Platform.isIOS) return;
   final log = LoggerService.instance;
   try {
-    final movedDiagnostics = await DiagnosticsDirectory.migrateLegacyRootFiles();
+    final movedDiagnostics =
+        await DiagnosticsDirectory.migrateLegacyRootFiles();
     final workspace = await Rpcs3InternalService.synchronizeFilesWorkspace();
     if (movedDiagnostics > 0) {
       log.i(
@@ -317,7 +323,7 @@ void main() async {
   // Render immediately. Cold boots can wait for removable storage before the
   // database opens, and without this lightweight root Android shows only a
   // blank launch surface for that entire interval.
-  runApp(const StartupLoadingApp());
+  runApp(RewindStartupRoot(controller: _rewindStartup));
   await WidgetsBinding.instance.endOfFrame;
 
   await _configureImageCache();
@@ -556,7 +562,7 @@ void main() async {
   // light brightness (the Steam Deck does) for a user on a dark theme.
   final themeProvider = await ThemeProvider.create();
 
-  runApp(
+  _rewindStartup.attach(
     MyApp(
       fileProvider: fileProvider,
       sqliteConfigProvider: sqliteConfigProvider,
@@ -623,180 +629,51 @@ String _startupString(String key) {
   return value is String ? value : '';
 }
 
-/// Shared chrome for the pre-initialization screens: logo, wordmark and a
-/// caller-supplied status area.
-///
-/// These screens run before the database is readable, so they cannot ask
-/// [ThemeProvider] for the selected theme. They read the palette mirrored into
-/// [StartupThemeCache] on the last theme change instead, which keeps the whole
-/// intro in the user's theme rather than always-dark chrome.
-class _StartupScaffold extends StatefulWidget {
-  const _StartupScaffold({
-    required this.childrenBuilder,
-    this.onKeyEvent,
-    this.animatedLogo = false,
-  });
-
-  /// Builds the status area, given the resolved startup palette.
+/// Recovery presentation only; loading lives in the single persistent root.
+class _StartupScaffold extends StatelessWidget {
+  const _StartupScaffold({required this.childrenBuilder, this.onKeyEvent});
   final List<Widget> Function(StartupThemeColors colors) childrenBuilder;
-
-  /// Show the shimmering logo instead of the static one. Used by the loading
-  /// screen, where the shine doubles as the activity indicator; the error
-  /// screen keeps the static logo (a shine would imply progress).
-  final bool animatedLogo;
-
-  /// Raw key handler used by the error screen. The gamepad navigation manager
-  /// is not running this early, so gamepad buttons are read straight from the
-  /// key events instead.
   final KeyEventResult Function(KeyEvent)? onKeyEvent;
 
   @override
-  State<_StartupScaffold> createState() => _StartupScaffoldState();
-}
-
-class _StartupScaffoldState extends State<_StartupScaffold> {
-  /// Starts on the dark chrome — the same color the Android splash hands over
-  /// — and is replaced once the cache read returns. That read is a fast
-  /// preferences lookup, so on a light theme the handoff lands within the
-  /// first frames rather than being visible as a change of screen.
-  StartupThemeColors _colors = StartupThemeColors.fallback;
-
-  @override
-  void initState() {
-    super.initState();
-    StartupThemeCache.load().then((colors) {
-      if (mounted) setState(() => _colors = colors);
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final children = widget.childrenBuilder(_colors);
+    const colors = StartupThemeColors(
+      background: Colors.black,
+      foreground: Colors.white,
+      primary: Colors.white,
+    );
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: _colors.themeData,
+      theme: colors.themeData,
       home: Scaffold(
-        // Matches the selected theme's scaffold color so the handoff into the
-        // themed splash doesn't read as a background jump.
-        backgroundColor: _colors.background,
+        backgroundColor: Colors.black,
         body: Focus(
-          autofocus: widget.onKeyEvent != null,
-          onKeyEvent: widget.onKeyEvent == null
+          autofocus: onKeyEvent != null,
+          onKeyEvent: onKeyEvent == null
               ? null
-              : (_, event) => widget.onKeyEvent!(event),
-          // Animated mode pins the logo at the exact screen centre — the same
-          // spot the Android 12+ splash icon occupies — with the status text
-          // hung below centre, so the native→Flutter handoff and the later
-          // screens never move the logo. The error screen keeps the simpler
-          // centred column with the wordmark.
-          child: widget.animatedLogo
-              ? Stack(
+              : (_, event) => onKeyEvent!(event),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
                   children: [
-                    const Center(child: ShimmeringLogo()),
-                    Align(
-                      // Same offset as the scan splash's progress detail so
-                      // the text/progress zone is one fixed place all intro.
-                      alignment: const Alignment(0, 0.55),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: children,
-                        ),
+                    const SizedBox(height: 32),
+                    const SizedBox.square(
+                      dimension: 112,
+                      child: CustomPaint(
+                        painter: RewindMarkPainter(reduced: true),
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    ...childrenBuilder(colors),
                   ],
-                )
-              : Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        RewindBoxWordmark(
-                          // Independent fork identity; upstream artwork remains credited.
-                          width: 112,
-                          height: 112,
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'RewindBox',
-                          style: TextStyle(
-                            color: _colors.foreground,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        ...children,
-                      ],
-                    ),
-                  ),
                 ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Lightweight root displayed while the app waits for its persisted data.
-class StartupLoadingApp extends StatefulWidget {
-  const StartupLoadingApp({super.key});
-
-  @override
-  State<StartupLoadingApp> createState() => _StartupLoadingAppState();
-}
-
-class _StartupLoadingAppState extends State<StartupLoadingApp> {
-  /// On a healthy device this screen lasts well under a second, so the
-  /// "waiting for storage" line would only ever flash. Keep it invisible
-  /// (but laid out, so nothing shifts) and fade it in once the wait has
-  /// gone on long enough to actually be a wait.
-  static const _textDelay = Duration(milliseconds: 1500);
-
-  bool _showText = false;
-  Timer? _textTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _textTimer = Timer(_textDelay, () {
-      if (mounted) setState(() => _showText = true);
-    });
-  }
-
-  @override
-  void dispose() {
-    _textTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _StartupScaffold(
-      animatedLogo: true,
-      childrenBuilder: (colors) => [
-        AnimatedOpacity(
-          opacity: _showText ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 400),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Text(
-              _startupString(AppLocale.startupLoading),
-              textAlign: TextAlign.center,
-              // Same voice as the splash's status line: the app font (Anta),
-              // small and dimmed. GoogleFonts falls back gracefully for the
-              // first frames if the font isn't warmed up yet.
-              style: GoogleFonts.anta(
-                color: colors.foreground.withValues(alpha: 0.6),
-                fontSize: 17,
-                letterSpacing: 0.3,
               ),
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -899,7 +776,7 @@ Future<void> _awaitUserDataStorage() async {
   while (!await ConfigService.ensureUserDataStorageReady()) {
     final decision = Completer<void>();
     var useDefault = false;
-    runApp(
+    _rewindStartup.showIssue(
       StartupStorageErrorApp(
         storagePath: ConfigService.unavailableStoragePath,
         onRetry: () {
@@ -913,7 +790,7 @@ Future<void> _awaitUserDataStorage() async {
       ),
     );
     await decision.future;
-    runApp(const StartupLoadingApp());
+    _rewindStartup.showIssue(null);
     if (useDefault) {
       ConfigService.continueWithDefaultUserDataPath();
       return;
