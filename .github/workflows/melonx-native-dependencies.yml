@@ -1,0 +1,33 @@
+name: MeloNX private native dependencies
+run-name: MeloNX source-built dependencies • ${{ github.sha }}
+'on':
+  push:
+    branches: [Claude, work/melonx-embedded-20261022]
+    paths:
+      - '.github/workflows/melonx-native-dependencies.yml'
+      - 'build-utils/melonx/native-dependencies.json'
+      - 'build-utils/melonx/build_native_dependencies.py'
+      - 'native/melonx/jit/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: melonx-native-dependencies-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  dependencies:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build isolated device and simulator frameworks and retain sources
+        run: python3 build-utils/melonx/build_native_dependencies.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MeloNX-native-dependencies-${{ github.sha }}
+          path: dist/melonx-native
+          retention-days: 14
+          if-no-files-found: error
