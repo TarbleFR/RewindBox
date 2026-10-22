@@ -5,6 +5,7 @@ The output is component evidence, not a claim that a guest or an IPA ran.
 All commands, sources, licenses and resulting Mach-O identities are retained.
 """
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -155,13 +156,13 @@ def audit(platforms):
             build = run(["xcrun", "vtool", "-show-build", binary], capture=True)
             expected = "IOS" if p == "ios" else "IOSSIMULATOR"
             assert f"platform {expected}\n" in build, build
-            assert "/Versions/" not in deps, deps
             for line in deps.splitlines()[1:]:
                 dep = line.strip().split(" (", 1)[0]
                 if dep.startswith("@rpath/"):
                     assert (OUT / p / dep.removeprefix("@rpath/")).is_file(), dep
                 else:
                     assert dep.startswith(("/usr/lib/", "/System/Library/Frameworks/")), dep
+                    verify_sdk_dependency(dep, p)
             run(["codesign", "--force", "--sign", "-", binary.parent])
             run(["codesign", "--verify", "--strict", binary.parent])
             binaries.append({"path": str(binary.relative_to(OUT)), "sha256": digest(binary),
@@ -169,22 +170,73 @@ def audit(platforms):
     return binaries
 
 
+def verify_sdk_dependency(dependency, platform):
+    """Trust exact Apple SDK install names, never a guessed path rewrite.
+
+    The iOS SDK's IOKit stub itself declares Versions/A/IOKit. Versioned spelling
+    alone is not a macOS binary. Validate platform and the SDK's declaration.
+    """
+    sdk = "iphoneos" if platform == "ios" else "iphonesimulator"
+    sysroot = Path(run(["xcrun", "--sdk", sdk, "--show-sdk-path"], capture=True))
+    relative = dependency.lstrip("/")
+    candidates = [sysroot / relative, sysroot / (relative + ".tbd")]
+    if ".framework/" in relative:
+        prefix = relative.split(".framework/", 1)[0] + ".framework"
+        framework_name = Path(prefix).stem
+        candidates.append(sysroot / prefix / (framework_name + ".tbd"))
+    elif dependency.endswith(".dylib"):
+        candidates.extend((sysroot / "usr/lib").glob(Path(dependency).name.removesuffix(".dylib") + "*.tbd"))
+        if not any(x.is_file() for x in candidates):
+            candidates.extend((sysroot / "usr/lib").glob("*.tbd"))
+    assert any(x.is_file() and dependency in x.read_text(errors="replace") for x in candidates if x.suffix == ".tbd"), (dependency, candidates[:5])
+
+
+def recover_compiled_dependencies(platforms):
+    # The original run built every component and failed only in audit. Check
+    # that every compilation function, pin and assembly input is unchanged.
+    previous = "f76ec4e9488d6adbc5443ef180762a2d2fe61a54"
+    run(["git", "fetch", "--depth", "1", "origin", previous])
+    run(["git", "diff", "--exit-code", previous, "HEAD", "--",
+         "build-utils/melonx/native-dependencies.json", "native/melonx/jit/MeloNXJitSupport.S"])
+    original = ast.parse(run(["git", "show", previous + ":build-utils/melonx/build_native_dependencies.py"], capture=True))
+    current = ast.parse(Path(__file__).read_text())
+    for name in ["source", "framework", "build_moltenvk", "build_sdl", "build_ffmpeg", "build_jit"]:
+        old = next(n for n in original.body if isinstance(n, ast.FunctionDef) and n.name == name)
+        new = next(n for n in current.body if isinstance(n, ast.FunctionDef) and n.name == name)
+        assert ast.dump(old) == ast.dump(new), name
+    commands = json.loads((OUT / "commands.json").read_text())
+    assert commands[-1]["args"][0:3] == ["xcrun", "vtool", "-show-build"]
+    assert commands[-1]["args"][-1].endswith("ios/MeloNXMoltenVK.framework/MeloNXMoltenVK")
+    shutil.copy2(OUT / "commands.json", OUT / "source-build-commands.json")
+    for name, pin in PIN["sources"].items():
+        assert (OUT / "sources" / f"{name}-{pin['revision']}.tar.gz").is_file()
+    for p in platforms:
+        assert len(list((OUT / p).glob("*.framework/Info.plist"))) == 5
+    return {"run": 39850575802, "artifact": 12459370798, "source": previous,
+            "originalRunConclusion": "failure", "failurePhase": "overbroad versioned system-framework path guard",
+            "compilationInputsUnchanged": True, "compilersReexecuted": False}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--platform", choices=["ios", "iossimulator", "both"], default="both")
+    parser.add_argument("--audit-recovered", action="store_true")
     args = parser.parse_args()
     platforms = ["ios", "iossimulator"] if args.platform == "both" else [args.platform]
-    OUT.mkdir(parents=True)
-    (OUT / "sources").mkdir()
-    paths = {name: source(name) for name in PIN["sources"]}
+    OUT.mkdir(parents=True, exist_ok=args.audit_recovered)
+    (OUT / "sources").mkdir(exist_ok=args.audit_recovered)
+    reuse = recover_compiled_dependencies(platforms) if args.audit_recovered else None
+    paths = None if reuse else {name: source(name) for name in PIN["sources"]}
     try:
-        build_moltenvk(paths["MoltenVK"], platforms)
-        build_sdl(paths["SDL"], platforms)
-        build_ffmpeg(paths["FFmpeg"], platforms)
-        build_jit(platforms)
+        if not reuse:
+            build_moltenvk(paths["MoltenVK"], platforms)
+            build_sdl(paths["SDL"], platforms)
+            build_ffmpeg(paths["FFmpeg"], platforms)
+            build_jit(platforms)
         binaries = audit(platforms)
         receipt = {"pins": PIN, "binaries": binaries, "status": "source-built-component-not-gameplay-tested",
                    "sourceArchives": [{"path": str(p.relative_to(OUT)), "sha256": digest(p)} for p in sorted((OUT / "sources").iterdir())]}
+        receipt['reusedCompilation'] = reuse
         (OUT / "identity.json").write_text(json.dumps(receipt, indent=2) + "\n")
     finally:
         (OUT / "commands.json").write_text(json.dumps(COMMANDS, indent=2) + "\n")

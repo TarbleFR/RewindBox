@@ -11,6 +11,7 @@ run-name: MeloNX source-built dependencies • ${{ github.sha }}
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: melonx-native-dependencies-${{ github.ref }}
   cancel-in-progress: false
@@ -22,8 +23,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Build isolated device and simulator frameworks and retain sources
-        run: python3 build-utils/melonx/build_native_dependencies.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: MeloNX-native-dependencies-f76ec4e9488d6adbc5443ef180762a2d2fe61a54
+          run-id: 39850575802
+          github-token: ${{ github.token }}
+          path: dist/melonx-native
+      - name: Audit all source-built frameworks against the exact iOS SDK declarations
+        run: python3 build-utils/melonx/build_native_dependencies.py --audit-recovered
       - uses: actions/upload-artifact@v4
         if: always()
         with:
