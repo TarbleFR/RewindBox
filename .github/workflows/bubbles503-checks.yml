@@ -3,66 +3,74 @@ on:
   push:
     branches: [Claude]
     paths:
-      - '.github/workflows/bubbles503-checks.yml'
-      - 'lib/widgets/neo_glass_bubble.dart'
-      - 'lib/widgets/console_bubble_transition.dart'
-      - 'lib/widgets/main_menu_tab_strip.dart'
-      - 'lib/widgets/header.dart'
-      - 'lib/widgets/header_sort_dropdown.dart'
-      - 'lib/widgets/game_view_mode_dropdown.dart'
-      - 'lib/screens/systems_screen/my_systems_section/**'
-      - 'lib/screens/settings_screen/new_settings_screen.dart'
-      - 'test/*bubble*_test.dart'
+      - lib/widgets/neo_glass_bubble.dart
+      - lib/widgets/main_menu_tab_strip.dart
+      - lib/widgets/console_bubble_transition.dart
+      - lib/widgets/neoplay_dialog.dart
+      - lib/screens/airplay_screen.dart
+      - lib/screens/app_screen.dart
+      - lib/utils/nav_tabs.dart
+      - test/airplay_navigation_test.dart
+      - .github/workflows/bubbles503-checks.yml
+  workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
-  group: rewindbox-bubbles-${{ github.ref }}
+  group: rewindbox-liquid-airplay-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   test:
-    name: Interactive glass, playlist ownership and input
+    if: ${{ !contains(github.event.head_commit.message, '[liquid505-validated-integration]') }}
+    name: Liquid material and sequential AirPlay navigation
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       CI: 'true'
       BOT: 'true'
       FLUTTER_SUPPRESS_ANALYTICS: 'true'
     steps:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0, persist-credentials: false}
-      - name: Preserve engines, imports, storage, HD data and twelve languages
+      - name: Preserve the startup chantier, engines, storage and twelve languages
         run: |
           git diff --check
-          git diff --exit-code 3c59580b012919ae6f7179f59f0e8efcfd4818fb -- native packages assets ios build-utils/libretro pubspec.yaml pubspec.lock lib/l10n lib/services lib/repositories lib/models lib/providers lib/screens/system_games_list
+          git diff --exit-code d27a06f6ad386a79c55ac4e9304e5475c1c0c9a9 -- native packages assets ios build-utils/libretro pubspec.yaml pubspec.lock lib/main.dart lib/screens/systems_screen/system_content.dart lib/l10n lib/services lib/repositories lib/models lib/providers lib/screens/system_games_list
           python3 test/retroarch_baseline_scope_test.py
+      - name: Verify the integrated dispatch and preserved startup source
+        run: |
+          mkdir -p build/bubble-review
+          git diff --exit-code d27a06f6ad386a79c55ac4e9304e5475c1c0c9a9 -- lib/widgets/rewind_startup.dart lib/widgets/rewind_mark_path.dart lib/widgets/permission_check_wrapper.dart build-utils/configure_rewind_launch.py build-utils/rewind-motion
+          git diff d27a06f6ad386a79c55ac4e9304e5475c1c0c9a9 -- lib/screens/app_screen.dart > build/bubble-review/integrated-app-screen.patch
+          git rev-parse HEAD > build/bubble-review/tested-commit.txt
       - uses: subosito/flutter-action@v2
         with: {flutter-version: '3.47.2', channel: stable, cache: true}
       - name: Resolve locked packages
         run: flutter pub get --enforce-lockfile
-      - name: Analyze application and the new transition
+      - name: Analyze the full application with both integrated chantiers
         run: flutter analyze --no-pub
-      - name: Exercise morph, reverse, retained state, interruption and accessibility
+      - name: Exercise liquid material, playlist ownership and sequential AirPlay
         if: ${{ !cancelled() }}
         timeout-minutes: 8
         run: >-
           flutter test --no-pub --reporter expanded --timeout 90s
-          test/console_bubble_transition_test.dart
-          test/neo_glass_bubble_test.dart
-          test/system_bubble_render_test.dart
+          test/airplay_navigation_test.dart
+          test/nav_tabs_test.dart
           test/main_menu_tab_strip_test.dart
-          test/gamepad_navigation_manager_test.dart
-          test/horizontal_swipe_test.dart
-          test/libretro_playlist_actions_test.dart
-      - name: Produce a formatting patch for review
+          test/neo_glass_bubble_test.dart
+          test/console_bubble_transition_test.dart
+          test/system_bubble_render_test.dart
+          test/neoplay_dialog_test.dart
+      - name: Retain reviewable source formatting
         if: always()
         run: |
-          mkdir -p build/bubble-review
-          git diff --name-only 3c59580b012919ae6f7179f59f0e8efcfd4818fb -- '*.dart' | xargs -r dart format
-          git diff -- '*.dart' > build/bubble-review/format.patch
+          git diff --name-only d27a06f6ad386a79c55ac4e9304e5475c1c0c9a9 -- '*.dart' | xargs -r dart format
+          git diff -- '*.dart' > build/bubble-review/format-and-integration.patch
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: RewindBox-bubbles-review-${{ github.sha }}
+          name: RewindBox-liquid-airplay-review-${{ github.sha }}
           path: build/bubble-review
           if-no-files-found: error
           retention-days: 14

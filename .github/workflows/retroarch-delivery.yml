@@ -1,20 +1,20 @@
-name: RewindBox RetroArch • Build 504 • SideStore
+name: RewindBox RetroArch • Build 505 • SideStore
 # The closed evidence reader captures historical ANSI-bearing logs privately.
-run-name: RewindBox Build ${{ inputs.build_number || '504' }} • ${{ github.sha }} • embedded libretro
+run-name: RewindBox Build ${{ inputs.build_number || '505' }} • ${{ github.sha }} • embedded libretro
 'on':
   push:
     branches:
     - Claude
     paths:
     - .github/workflows/retroarch-delivery.yml
-    - .github/diagnostics/rewind504_delivery.py
-    - build-utils/delivery-504-chatgpt-recipient.pem
+    - .github/diagnostics/liquid505_delivery.py
+    - build-utils/delivery-505-chatgpt-recipient.pem
   workflow_dispatch:
     inputs:
       build_number:
         description: New delivery build number
         required: true
-        default: '504'
+        default: '505'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -28,7 +28,7 @@ run-name: RewindBox Build ${{ inputs.build_number || '504' }} • ${{ github.sha
       recipient:
         description: Public key (PEM in build-utils) the encrypted artifact is addressed to; each session decrypts with its own private key
         required: false
-        default: build-utils/delivery-504-chatgpt-recipient.pem
+        default: build-utils/delivery-505-chatgpt-recipient.pem
         type: string
 permissions:
   contents: read
@@ -76,7 +76,7 @@ jobs:
         if [ "${{ steps.dart-cache.outputs.cache-hit }}" = 'true' ]; then
           echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
         else
-          python3 .github/diagnostics/rewind504_delivery.py --dart-evidence --output build/delivery/dart-validation.json
+          python3 .github/diagnostics/liquid505_delivery.py --dart-evidence --output build/delivery/dart-validation.json
           echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
         fi
     - uses: subosito/flutter-action@v2
@@ -86,7 +86,7 @@ jobs:
         cache: true
       if: ${{ inputs.validation_scope == 'rpcs3_neoswap' || steps.dart-evidence.outputs.cache-hit != 'true' }}
     - name: Verify closed validation input tree and previous CI success
-      run: python3 .github/diagnostics/rewind504_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+      run: python3 .github/diagnostics/liquid505_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Analyze the changed integration and its restored dependencies
       run: |-
         flutter pub get --enforce-lockfile
@@ -212,7 +212,7 @@ jobs:
     - name: Preserve validation provenance
       uses: actions/upload-artifact@v4
       with:
-        name: RewindBox-${{ inputs.build_number || '504' }}-validation-${{ github.sha }}
+        name: RewindBox-${{ inputs.build_number || '505' }}-validation-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -270,7 +270,7 @@ jobs:
       if: ${{ inputs.validation_scope == 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: RewindBox-${{ inputs.build_number || '504' }}-native-reuse-${{ github.sha }}
+        name: RewindBox-${{ inputs.build_number || '505' }}-native-reuse-${{ github.sha }}
         path: build/delivery/
         if-no-files-found: error
         retention-days: 14
@@ -280,7 +280,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 .github/diagnostics/rewind504_delivery.py --libretro-evidence --output build/delivery/neoswap/identity.json
+        python3 .github/diagnostics/liquid505_delivery.py --libretro-evidence --output build/delivery/neoswap/identity.json
         echo 'reused=true' >> "$GITHUB_OUTPUT"
     - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane
       if: ${{ inputs.validation_scope != 'library_covers' && steps.neoswap-evidence.outputs.reused != 'true' }}
@@ -418,7 +418,7 @@ jobs:
       if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
       uses: actions/upload-artifact@v4
       with:
-        name: RewindBox-${{ inputs.build_number || '504' }}-neoswap-native-${{ github.sha }}
+        name: RewindBox-${{ inputs.build_number || '505' }}-neoswap-native-${{ github.sha }}
         path: build/delivery/neoswap/
         if-no-files-found: error
         retention-days: 14
@@ -457,7 +457,7 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 .github/diagnostics/rewind504_delivery.py --libretro-evidence --output build/delivery/libretro-native-reuse.json
+        python3 .github/diagnostics/liquid505_delivery.py --libretro-evidence --output build/delivery/libretro-native-reuse.json
         echo 'reused=true' >> "$GITHUB_OUTPUT"
     - name: Run the embedded libretro host against a test core
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
@@ -531,10 +531,10 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '504' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-504-chatgpt-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '505' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-505-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '504' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '505' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -560,7 +560,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/rewind504_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/liquid505_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -577,7 +577,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/rewind504_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/liquid505_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -685,7 +685,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/rewind504_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/liquid505_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           build-utils/build_rpcs3_embedded_core.sh \
@@ -776,7 +776,7 @@ jobs:
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
         sys.path.insert(0, '.github/diagnostics')
-        from rewind504_delivery import validate_rpc_core_identity as validate_core_input_identity
+        from liquid505_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
@@ -1026,7 +1026,7 @@ jobs:
         assert identity['host_commit'] == os.environ['LIBRETRO_CORES_HOST_SHA'], identity['host_commit']
         import sys
         sys.path.insert(0, '.github/diagnostics')
-        from rewind504_delivery import validate_psp_core_identity
+        from liquid505_delivery import validate_psp_core_identity
         validate_psp_core_identity(identity, root)
         assert [core['id'] for core in identity['cores']] == [core['id'] for core in manifest['cores']]
         assert identity['moltenVK']['files'] == manifest['moltenVK']['files']
@@ -1349,10 +1349,10 @@ jobs:
     needs:
     - cold
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '504' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-504-chatgpt-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '505' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-505-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '504' }}-${{ github.sha }}-warm
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '505' }}-${{ github.sha }}-warm
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -1393,7 +1393,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/rewind504_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/liquid505_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Restore exact device build state
       id: state
       uses: actions/cache/restore@v4
@@ -1642,3 +1642,29 @@ jobs:
       shell: bash
       run: rm -f .dart-defines.json
     if: ${{ inputs.benchmark == true || contains(github.event.head_commit.message, '[benchmark-build]') }}
+
+  cleanup_liquid_branch:
+    name: Remove the integrated temporary UI branch
+    needs: cold
+    if: ${{ github.ref == 'refs/heads/Claude' && needs.cold.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Delete only the exact tested branch after successful IPA delivery
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, subprocess
+          expected = '01f6e9d44943b5f6bc8df3447ed9ddd465e3971b'
+          endpoint = 'repos/TarbleFR/RewindBox/git/refs/heads/work/liquid-glass-airplay-20261022'
+          subprocess.run(['git', 'merge-base', '--is-ancestor', expected, os.environ['GITHUB_SHA']], check=True)
+          current = json.loads(subprocess.check_output(['gh', 'api', endpoint], text=True))
+          assert current['object']['sha'] == expected, 'Temporary branch advanced; preserve it for review'
+          subprocess.run(['gh', 'api', '--method', 'DELETE', endpoint], check=True)
+          print('Removed the exact integrated temporary UI branch; Claude/main preserved')
+          PYTHON

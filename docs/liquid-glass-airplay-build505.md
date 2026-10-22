@@ -55,5 +55,27 @@ Its successful material, transition and receiver checks are not described as a
 successful whole run. No physical iPhone/Bluetooth or 60/120 FPS claim follows
 from these automated checks.
 
-Final combined checks and delivery receipts are appended after completion.
+## Validated combined source
+
+Combined proof: source `01f6e9d44943b5f6bc8df3447ed9ddd465e3971b`, run
+`39846213108`, job `120060044288`: full Flutter 3.47.2 analysis clean; 62
+individually passed checks from source `534fb842` / run `39845018642` reused
+only after exact input comparison, authenticated logs and sole-failure review;
+the changed four-test input fixture passed. That earlier run remains failed.
+Touch, keyboard, raw host controller translation, existing directional/bumper
+pacing, focus/actions, retained modal focus and reverse playlist ownership are
+covered. These are automated host fixtures, not physical Bluetooth validation.
+
+Startup 504 delivery `39843964056` succeeded (checks/native/cold), and its exact
+startup resources, engine/native inputs and toolchain are the delivery donor.
+No unchanged native engine or previously validated unrelated Flutter suite is
+rebuilt/replayed. The new IPA recompiles the combined Flutter app and retains
+all existing packaging, payload identity and signature gates.
+
+The temporary rehearsal workflow is consolidated into the maintained glass
+workflow. The validated-integration marker avoids duplicate UI checks during
+505 packaging. After a successful IPA, a separately scoped cleanup job deletes
+only the temporary branch at the exact validated SHA, and only if that SHA is
+an ancestor of the delivered commit. A moved branch is preserved for review.
+Final IPA identity and artifact receipt are appended after delivery.
 Delete the temporary branch after controlled integration, leaving Claude/main.
