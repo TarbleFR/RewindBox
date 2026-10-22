@@ -15,9 +15,7 @@
 </div>
 
 **RewindBox is the independent iOS/iPadOS fork maintained by TarbleFR.**
-For help with this app, use [RewindBox Issues](https://github.com/TarbleFR/RewindBox/issues), not the upstream NeoStation support server.
-
-The project was renamed on 21 October 2026. Releases 0.0.1–0.0.8 retain their original compiled binaries: their installed name and Files folder can still say NeoStation. The RewindBox on-device name applies to the next compiled build. See [rebranding and compatibility](docs/REBRANDING.md).
+For help with this app, use [RewindBox Issues](https://github.com/TarbleFR/RewindBox/issues) or the [RewindBox community](https://discord.gg/G48u46ppX).
 
 RewindBox brings a game library and embedded emulators into one
 sideloaded app. It is an independently maintained iOS/iPadOS fork of
