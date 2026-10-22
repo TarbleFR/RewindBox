@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -8,8 +9,6 @@ import 'package:neostation/widgets/neo_glass_bubble.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  // Create the process-wide barrier outside any previous test's FakeAsync
-  // zone, just as the application creates it in its single running zone.
   final gate = FrontendMediaGate.instance;
   Widget scene({
     bool selected = true,
@@ -98,13 +97,20 @@ void main() {
       expect(tester.binding.transientCallbackCount, greaterThan(0));
       final owner = Object();
       addTearDown(() => FrontendMediaGate.instance.release(owner));
-      final quiet = gate.hold(owner);
-      await tester.pump();
-      await quiet;
+      final producer = Object();
+      final cleanup = Completer<void>();
+      gate.register(producer, () => cleanup.future);
+      addTearDown(() => gate.unregister(producer));
+      // UI motion must stop synchronously, before an unrelated AVFoundation
+      // producer finishes its asynchronous shutdown. Its barrier is tested
+      // independently by frontend_media_gate_test.dart.
+      unawaited(gate.hold(owner));
       await tester.pump();
       await tester.pump();
       expect(tester.binding.transientCallbackCount, 0);
       expect(tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale, 1);
+      cleanup.complete();
+      gate.unregister(producer);
       FrontendMediaGate.instance.release(owner);
       await tester.pump();
       expect(tester.binding.transientCallbackCount, greaterThan(0));
