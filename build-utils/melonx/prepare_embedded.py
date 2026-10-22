@@ -8,6 +8,7 @@ import sys
 import zipfile
 from adapt_session import apply as adapt_session
 from adapt_input import apply as adapt_input
+from adapt_runtime import apply as adapt_runtime
 
 
 def replace_once(path, old, new):
@@ -36,10 +37,12 @@ def main():
                  'BaseDirPath = Path.GetFullPath(baseDirPath ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));')
     adapted = adapt_session(source)
     adapted += adapt_input(source)
+    adapted += adapt_runtime(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
-        project = 'Ryujinx.Input.Native' if path.name == 'EmbeddedNativeGamepadLease.cs' else 'Ryujinx.Library'
+        project = {'EmbeddedNativeGamepadLease.cs': 'Ryujinx.Input.Native',
+                   'EmbeddedNativeLibraries.cs': 'Ryujinx.Common'}.get(path.name, 'Ryujinx.Library')
         target = source / 'src' / project / path.name
         shutil.copyfile(path, target)
         copied.append(target)
@@ -49,12 +52,14 @@ def main():
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_input.py')
     inputs['build-utils/melonx/adapt_input.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    adapter = Path(__file__).with_name('adapt_runtime.py')
+    inputs['build-utils/melonx/adapt_runtime.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
     output.mkdir(parents=True, exist_ok=True)
     (output / 'embedded-inputs.json').write_text(json.dumps(inputs, indent=2) + '\n')
     with zipfile.ZipFile(output / 'embedded-adapted-source.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
-        for path in [*adapted, source / 'src/Ryujinx.Common/Configuration/AppDataManager.cs',
-                     *copied]:
+        for path in dict.fromkeys([*adapted, source / 'src/Ryujinx.Common/Configuration/AppDataManager.cs',
+                                  *copied]):
             archive.write(path, str(path.relative_to(source)))
 
 

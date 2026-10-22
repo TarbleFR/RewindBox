@@ -2,7 +2,7 @@ name: MeloNX embedded engine
 run-name: MeloNX engine • ${{ github.sha }}
 'on':
   push:
-    branches: [Claude]
+    branches: [Claude, work/melonx-embedded-20261022]
     paths:
       - '.github/workflows/melonx-core.yml'
       - 'build-utils/melonx/**'
@@ -20,7 +20,7 @@ concurrency:
 jobs:
   core:
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,20 +31,22 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: MeloNX-engine-dc46d73c6a42c5662ad3a863071edac0aa4081ad
+          run-id: 39577903252
+          github-token: ${{ github.token }}
+          path: dist/melonx
       - name: Execute the embedded storage boundary
         env:
           GH_TOKEN: ${{ github.token }}
+          MELONX_REUSE_SESSION_RUN: '39577903252'
         run: python3 build-utils/melonx/check_bootstrap.py
       - name: Execute session ownership and render teardown
         env:
           GH_TOKEN: ${{ github.token }}
+          MELONX_REUSE_SESSION_RUN: '39577903252'
         run: python3 build-utils/melonx/check_session.py
-      - uses: actions/download-artifact@v4
-        with:
-          name: MeloNX-engine-56aeec6722a93f07bbdc05a4576e71cebc93702b
-          run-id: 39504259828
-          github-token: ${{ github.token }}
-          path: dist/melonx
       - name: Fetch exact MeloNX source
         run: |
           set -euo pipefail
@@ -57,10 +59,13 @@ jobs:
           git -C .native-sources/LibHac fetch --depth 1 origin 23e402ebb6dedc517e34a98a033078dc0f6fd478
           git -C .native-sources/LibHac checkout --detach FETCH_HEAD
       - name: Execute production input driver ownership
-        run: python3 test/melonx_input_test.py .native-sources/MeloNX
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 build-utils/melonx/check_input.py .native-sources/MeloNX
       - name: Compile NativeAOT library and verify exported ABI
         env:
           MELONX_REUSE_LIBHAC: '1'
+          MELONX_BUILD_SIMULATOR: '1'
           GH_TOKEN: ${{ github.token }}
         run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
       - uses: actions/upload-artifact@v4
