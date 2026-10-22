@@ -133,3 +133,26 @@ and releases its input gate after layout. The final three-case carousel run
 original full Flutter and UIKit sources remain unchanged outside the closed
 carousel source/fixture exceptions. Assembly `39865904357` is superseded by
 this final candidate; no earlier 507 IPA is a delivered/frozen product.
+
+## Delivered build 507
+
+The final Release device workflow [39866664616](https://github.com/TarbleFR/RewindBox/actions/runs/39866664616) completed successfully from exact source commit
+`49c33b29287c0b659abba4f09d04a6efd062b1b6` on `Claude`.
+The delivered `RewindBox-Build507.ipa` is **0.0.8 (507)**, **185,904,172 bytes**,
+SHA-256 `8ef2088ea929df5b5455c91288e80e903d61bbdba94a3a601251a4ed4ac5276f`.
+
+Encrypted GitHub artifact [12465561412](https://github.com/TarbleFR/RewindBox/actions/runs/39866664616/artifacts/12465561412)
+has ZIP SHA-256 `6f2185972eed576a80fe2ceb3c968f88651aad19c7259a03c23ad605260b3141`.
+After retrieval and decryption, the IPA hash matched `SHA256SUMS`, the signed-payload
+identity and the final motion report. The app and all six extensions report
+0.0.8 (507). The final structure, engines, signatures, legal packaging and linked
+Flutter/UIKit motion checks passed; signing preserved all compiled code/data and
+ABI metadata across 83 Mach-O images. The IPA was made available as a direct
+download. This source/build pair is the delivered 507, superseding all earlier
+507 attempts.
+
+The machine-readable receipt is `docs/evidence/liquid-motion507-delivery.json`.
+This delivery record changes documentation only and starts no new build or
+unchanged tests. No tag or release was created and `main` was not changed.
+Physical-device installation, gameplay and frame-rate measurements remain
+unverified; normal Apple re-signing through SideStore/AltStore is required.
