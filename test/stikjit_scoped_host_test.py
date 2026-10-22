@@ -11,6 +11,10 @@ def original(p):
 for lower,cls in (('rpcs3','Rpcs3'),('armsx2','Armsx2')):
     p=f'packages/{lower}_internal_bridge/ios/Classes/{cls}JitBridgePlugin.mm'
     old=original(p); new=(ROOT/p).read_text()
+    # RewindBox branding is display-only relative to this frozen NeoStation
+    # JIT baseline. Normalize the product name before proving the host state
+    # machine and diagnostics remain byte-equivalent.
+    new=new.replace('RewindBox','NeoStation')
     if lower=='armsx2':
         start=new.index('  // Export legacy startup evidence only;')
         end=new.index('\n}\nstatic void ARMSX2Milestone',start)
@@ -19,11 +23,6 @@ for lower,cls in (('rpcs3','Rpcs3'),('armsx2','Armsx2')):
         assert 'armsx2_jit_debug.log' in log and '524288' in log
         new=new[:start]+new[end:]
         new=new.replace('message ?: @"");\n\n}', 'message ?: @"");\n}',1)
-    # The independent fork was rebranded after this frozen JIT baseline.
-    # Normalize only the user-facing product name; transaction logic, channel
-    # identifiers and JIT state-machine bytes must still match exactly.
-    if lower=='rpcs3':
-        new=new.replace('RewindBox','NeoStation')
     new=new.replace('          : [NSString stringWithFormat:@"JIT_PREPARATION_TIMEOUT: StikJIT did not complete preparation. Last stage: %@",\n              session.logs.lastObject ?: @"No helper stage received."];',
                     '          : @"StikJIT did not attach universal.js to NeoStation.";')
     assert old==new,p+' changed outside diagnostics'
