@@ -28,6 +28,7 @@ HOST = {
 }
 ALLOWED = HOST | {
     'AGENTS.md', '.gitattributes', '.github/workflows/neoswap-ipa.yml',
+    '.github/workflows/touch-layout-checks.yml', '.github/workflows/unified-cheats.yml',
     '.github/workflows/retroarch-delivery.yml', '.github/workflows/rpcs3-memory-audit.yml',
     '.github/diagnostics/rpcs3memory508_delivery.py',
     'build-utils/rpcs3/canonical-source.json', 'build-utils/rpcs3/embedded-core.patch',
@@ -87,6 +88,21 @@ def source_closure():
     assert core.PATCH_SHA256 == PATCH_SHA256
     original = base.command(['git', 'show', BASELINE + ':.github/workflows/retroarch-delivery.yml'])
     current = (ROOT / '.github/workflows/retroarch-delivery.yml').read_text()
+    # Broad bridge path triggers would replay unrelated Flutter/UIKit/other-core
+    # campaigns. Only this closed assembly marker reuses their existing proofs;
+    # every original command and manual invocation remains available.
+    for name, count in [('touch-layout-checks.yml', 3), ('unified-cheats.yml', 4)]:
+        relative = '.github/workflows/' + name
+        old = base.command(['git', 'show', BASELINE + ':' + relative])
+        lines = old.splitlines()
+        changed_conditions = 0
+        for i, line in enumerate(lines):
+            if line.startswith('    if: ${{ '):
+                assert line.endswith(' }}')
+                lines[i] = "    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-memory508]') && (" + line[len('    if: ${{ '):-3] + ') }}'
+                changed_conditions += 1
+        assert changed_conditions == count
+        assert (ROOT / relative).read_text().strip() == '\n'.join(lines).strip(), relative
     for token in ['DOLPHIN_CORE_HOST_SHA:', 'ARMSX2_CORE_HOST_SHA:', 'ARMSX2_CORE_RUN_ID:',
                   'LIBRETRO_CORES_HOST_SHA:', 'LIBRETRO_CORES_RUN_ID:']:
         line = next(line for line in original.splitlines() if token in line)

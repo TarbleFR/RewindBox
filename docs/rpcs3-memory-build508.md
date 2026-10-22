@@ -35,3 +35,8 @@ cold/warm/second-title comparisons. The app still requires Apple signing for
 installation with SideStore. No main change, public release or tag is made.
 
 Successful build and final artifact receipts are recorded after verification.
+
+Broad touch/cheat bridge path triggers reuse their existing proofs only for the
+closed `[rpcs3-memory508]` integration. The delivery gate proves every original
+command is retained and only that job condition differs; manual runs still
+execute. Product-source closure proves the touch/cheat/UI inputs are unchanged.
