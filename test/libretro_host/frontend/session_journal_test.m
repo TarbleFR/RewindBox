@@ -56,7 +56,7 @@ int main(int argc, const char *argv[]) {
     [first note:@"after the end"];
     NSString *text = Read(current);
     NSArray<NSString *> *lines = Lines(text);
-    CHECK([lines.firstObject hasPrefix:@"NeoStation libretro session journal 1"], @"header line");
+    CHECK([lines.firstObject hasPrefix:@"RewindBox libretro session journal 1"], @"header line");
     CHECK([text containsString:@" two | lines\n"], @"a multi-line note stays on one line");
     CHECK([text containsString:@"---- core log (2 lines) ----\n  [INFO] alpha\n  [ERROR] beta\n---- end of core log ----\n"],
           @"a titled block of lines");
