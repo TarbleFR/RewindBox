@@ -64,6 +64,12 @@ def main():
     if sys.platform != 'darwin':
         raise SystemExit('The libretro frontend tests run on macOS.')
     tests = sorted(TESTS.glob('*_test.m'))
+    requested = set(sys.argv[1:])
+    if requested:
+        tests = [
+            test for test in tests
+            if test.stem in requested or test.name in requested
+        ]
     if not tests:
         raise SystemExit(f'No frontend test found in {TESTS.relative_to(ROOT)}')
     results = []
