@@ -10,6 +10,10 @@ on:
       - 'test/carousel_chrome_layout_test.py'
       - 'lib/widgets/carousel_chrome_layout.dart'
       - 'lib/screens/game_screen/my_games_carousel.dart'
+      - 'lib/screens/app_screen.dart'
+      - 'lib/screens/libretro/libretro_consoles_screen.dart'
+      - 'lib/widgets/horizontal_swipe.dart'
+      - 'test/horizontal_swipe_test.dart'
       - 'lib/services/game_launch_manager.dart'
       - 'lib/services/audio_policy_service.dart'
       - 'test/game_audio_handoff_test.py'
@@ -55,6 +59,8 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Analyze the whole app after the KartPad, Dusklight and Ports removal
         run: flutter analyze --no-fatal-infos
+      - name: Exercise top-level touch tab swipes
+        run: flutter test test/horizontal_swipe_test.dart
       - name: Exercise the removed Ports playlist (checked copy, refused launch) and twelve languages
         run: >-
           flutter test test/retired_ports_backup_test.dart test/retired_ports_launch_test.dart
