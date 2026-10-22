@@ -71,20 +71,11 @@ jobs:
         DART_VALIDATION_KEY: neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml')
           }}
       run: |
-        if [ "${{ steps.dart-cache.outputs.cache-hit }}" = 'true' ]; then
-          echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
-        else
-          python3 .github/diagnostics/psprelaunch497_delivery.py --dart-evidence --output build/delivery/dart-validation.json
-          echo 'cache-hit=true' >> "$GITHUB_OUTPUT"
-        fi
-    - uses: subosito/flutter-action@v2
-      with:
-        flutter-version: 3.47.2
-        channel: stable
-        cache: true
-      if: ${{ inputs.validation_scope == 'rpcs3_neoswap' || steps.dart-evidence.outputs.cache-hit != 'true' }}
+        echo 'cache-hit=false' >> "$GITHUB_OUTPUT"
+        echo 'Build 502: current candidate inputs changed; full Dart validation will run.'
+
     - name: Verify closed validation input tree and previous CI success
-      run: python3 .github/diagnostics/psprelaunch497_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+      run: python3 .github/diagnostics/psprelaunch502_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Analyze the changed integration and its restored dependencies
       run: |-
         flutter pub get --enforce-lockfile
@@ -278,8 +269,10 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 .github/diagnostics/psprelaunch497_delivery.py --libretro-evidence --output build/delivery/neoswap/identity.json
-        echo 'reused=true' >> "$GITHUB_OUTPUT"
+        mkdir -p build/delivery/neoswap
+        echo 'reused=false' >> "$GITHUB_OUTPUT"
+        echo 'Build 502: running current NeoSwap/RPCS3 validation instead of stale Build 497 evidence.'
+
     - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane
       if: ${{ inputs.validation_scope != 'library_covers' && steps.neoswap-evidence.outputs.reused != 'true' }}
       shell: bash
@@ -455,8 +448,9 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 .github/diagnostics/psprelaunch497_delivery.py --libretro-evidence --output build/delivery/libretro-native-reuse.json
-        echo 'reused=true' >> "$GITHUB_OUTPUT"
+        echo 'reused=false' >> "$GITHUB_OUTPUT"
+        echo 'Build 502: running current libretro/native validation instead of stale Build 497 evidence.'
+
     - name: Run the embedded libretro host against a test core
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
       run: python3 test/libretro_host_test.py
@@ -558,7 +552,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/psprelaunch497_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/psprelaunch502_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -575,7 +569,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/psprelaunch497_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/psprelaunch502_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -683,7 +677,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/psprelaunch497_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/psprelaunch502_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           build-utils/build_rpcs3_embedded_core.sh \
@@ -1377,7 +1371,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/psprelaunch497_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/psprelaunch502_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Restore exact device build state
       id: state
       uses: actions/cache/restore@v4
