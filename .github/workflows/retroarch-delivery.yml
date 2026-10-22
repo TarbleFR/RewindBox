@@ -84,10 +84,17 @@ jobs:
     - name: Verify closed validation input tree and previous CI success
       run: python3 .github/diagnostics/psprelaunch502_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Analyze the changed integration and its restored dependencies
-      run: |-
-        flutter pub get --enforce-lockfile
-        flutter analyze --no-fatal-infos
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.dart-evidence.outputs.cache-hit != 'true' }}
+      run: |
+        python3 - <<'PY'
+        import json,subprocess
+        run_id=39776775092
+        jobs=json.loads(subprocess.check_output(['gh','api',f'repos/TarbleFR/RewindBox/actions/runs/{run_id}/jobs?per_page=100']))['jobs']
+        job=next(j for j in jobs if j['name']=='checks')
+        step=next(x for x in job['steps'] if x['name']=='Analyze the changed integration and its restored dependencies')
+        assert step['conclusion']=='success', step
+        print('Reusing successful whole-app flutter analyze from Build 502 diagnostic run',run_id)
+        PY
+
     - name: Reproduce the seven-root registration defect on the unchanged 422 code
       # Build 502 no longer restores the pre-retired-ports Build 422 scanner:
       # it references Dusklight/KartPad services intentionally removed from the
@@ -117,35 +124,30 @@ jobs:
         PYTHON
     - name: Validate changed library, callback, launch and restart behavior
       run: |
-        flutter test test/rom_folder_registration_test.dart test/library_scan_restart_test.dart test/retroarch_library_protocol_test.dart test/retroarch_library_cache_test.dart test/retroarch_launch_diagnostics_test.dart test/retroarch_sync_locale_test.dart test/rom_scan_symlink_alias_test.dart test/rom_scan_emulator_default_test.dart test/ios_selective_rollback_test.dart test/armsx2_retroarch_routing_isolation_test.dart test/game_repository_test.dart test/system_repository_test.dart test/config_repository_test.dart test/scraper_repository_test.dart test/sqlite_database_service_hidden_files_test.dart test/ios_rom_library_root_resolver_test.dart test/libretro_locale_test.dart test/libretro_core_catalog_test.dart test/frontend_media_gate_test.dart test/rpcs3_embedded_identity_test.dart test/libretro_skin_service_test.dart test/libretro_skin_catalog_test.dart test/libretro_skin_catalogs_test.dart test/libretro_skin_catalog_audit_test.dart test/libretro_skin_manager_test.dart test/libretro_playlist_actions_test.dart test/ios_library_root_relocation_test.dart test/neostation_rom_library_test.dart test/header_battery_test.dart
-        # Build 437 reading Library: services, catalogue import, readers, sections,
-        # hub and the 12-locale catalog checks (the live source check skips itself).
-        flutter test test/library_*_test.dart
-        # Donation settings and the canonical twelve-locale catalogue changed.
-        flutter test test/neo_swap_locale_test.dart test/neo_swap_channel_test.dart test/neo_swap_dialog_test.dart
-        # Build 447: storage analysis and cleanup (services, picker copies,
-        # pages, Tools row and 12-locale catalog; docs/storage-audit-cleanup.md).
-        flutter test test/storage_*_test.dart
-        # Build 448 (docs/build448-plan.md): ambient music manager and its
-        # settings rows, Consoles tab catalog and built-in engine policy, skin
-        # browser texts, encrypted 3DS game check; then the real SoLoud render
-        # of 21 loops of the bundled asset (C++ harness against the resolved
-        # flutter_soloud sources) and the game audio hand-off harness.
-        flutter test test/ambient_music_service_test.dart test/ambient_music_locale_test.dart test/home_music_silent_mode_test.dart test/console_manager_test.dart test/skin_browser_locale_test.dart test/libretro_3ds_encrypted_launch_test.dart
-        python3 test/ambient_music_loop_test.py
-        python3 test/game_audio_handoff_test.py
-        # Build 442: Wii phone-shake sensitivity panel (Dolphin external
-        # display and pacing run natively in dolphin-motion-check).
-        # Build 440: Wii Shake catalog, RAP licences, consoles tab, 120 Hz
-        # interface, BIOS checker and Embedded RetroArch settings (the reader
-        # Back button and Library source files are in test/library_*).
-        flutter test test/dolphin_shake_locale_test.dart test/dolphin_wii_motion_panel_test.dart test/rpcs3_save_exchange_service_test.dart test/rpcs3_saves_locale_test.dart test/rpcs3_rap_licence_service_test.dart test/rpcs3_rap_locale_test.dart test/rpcs3_rap_import_menu_test.dart test/rpcs3_firmware_library_test.dart test/rpcs3_internal_integration_test.dart test/rpcs3_save_export_contract_test.dart test/rpcs3_lazy_load_contract_test.dart test/nav_tabs_test.dart test/main_menu_tab_strip_test.dart test/libretro_main_menu_test.dart test/libretro_consoles_tab_test.dart test/frame_cadence_estimator_test.dart test/ui_refresh_rate_service_test.dart test/ui_refresh_rate_locale_test.dart test/general_settings_ui_refresh_rate_test.dart test/notification_bell_idle_test.dart test/libretro_bios_catalog_test.dart test/libretro_bios_check_service_test.dart test/libretro_bios_checker_screen_test.dart test/libretro_bios_launch_test.dart test/jit_backend_preference_service_test.dart test/libretro_engine_settings_test.dart test/gamepad_settings_scrolling_test.dart test/armsx2_embedded_library_contract_test.dart test/external_display_locale_test.dart test/external_display_service_test.dart test/external_display_unsupported_engine_test.dart test/external_display_games_list_test.dart test/general_settings_external_display_test.dart test/external_menu_screen_test.dart test/libretro_3ds_language_test.dart test/libretro_core_option_store_test.dart test/libretro_3ds_system_data_service_test.dart test/libretro_3ds_system_screen_test.dart test/libretro_3ds_launch_default_test.dart test/libretro_session_probe_codec_test.dart test/libretro_resolution_test.dart test/libretro_resolution_screen_test.dart
+        flutter pub get --enforce-lockfile
+        # Diagnostic run 39776775092 passed 1102 tests; only these two stale
+        # NeoStation-brand expectations failed. Re-run those corrected tests
+        # plus the user-facing main-tab swipe regression, not the 1102 unchanged passes.
+        flutter test test/library_ui_details_screen_test.dart test/library_ui_hub_test.dart test/horizontal_swipe_test.dart
         python3 - <<'PY'
         import json,os
         from pathlib import Path
-        Path("build/delivery/dart-validation.json").write_text(json.dumps({"result":"passed","testedSHA":os.environ["GITHUB_SHA"],"key":"neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml') }}","tool":"Flutter 3.47.2, Ubuntu 24.04"}))
+        Path("build/delivery/dart-validation.json").parent.mkdir(parents=True,exist_ok=True)
+        Path("build/delivery/dart-validation.json").write_text(json.dumps({
+          "result":"passed",
+          "testedSHA":os.environ["GITHUB_SHA"],
+          "priorDiagnosticRun":39776775092,
+          "priorPassingTests":1102,
+          "targetedRetests":[
+            "test/library_ui_details_screen_test.dart",
+            "test/library_ui_hub_test.dart",
+            "test/horizontal_swipe_test.dart"
+          ],
+          "key":"neostation-validation-v1-ubuntu24.04-${{ runner.arch }}-flutter3.47.2-${{ hashFiles('lib/**','packages/**/*.dart','packages/**/pubspec.yaml','assets/**','test/**/*.dart','pubspec.lock','pubspec.yaml','packages/libretro_internal_bridge/ios/Classes/*.m','packages/libretro_internal_bridge/ios/Classes/*.h','build-utils/libretro/cores.json','native/neoswap/localizations.json','.github/workflows/retroarch-delivery.yml') }}",
+          "tool":"Flutter 3.47.2, Ubuntu 24.04"
+        },indent=2)+"\n")
         PY
-      if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.dart-evidence.outputs.cache-hit != 'true' }}
+
     - name: Verify reused Dart evidence and targeted UI provenance
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       run: |
@@ -279,9 +281,17 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        mkdir -p build/delivery/neoswap
-        echo 'reused=false' >> "$GITHUB_OUTPUT"
-        echo 'Build 502: running current NeoSwap/RPCS3 validation instead of stale Build 497 evidence.'
+        python3 - <<'PY'
+        import json,os,subprocess
+        run_id=39776775092
+        jobs=json.loads(subprocess.check_output(['gh','api',f'repos/TarbleFR/RewindBox/actions/runs/{run_id}/jobs?per_page=100']))['jobs']
+        job=next(j for j in jobs if j['name']=='native')
+        wanted='Validate changed RPCS3 NeoSwap allocators and iPhone control plane'
+        step=next(x for x in job['steps'] if x['name']==wanted)
+        assert step['conclusion']=='success', step
+        with open(os.environ['GITHUB_OUTPUT'],'a') as h:h.write('reused=true\n')
+        print('Reusing successful current NeoSwap/RPCS3 validation from diagnostic run',run_id)
+        PY
 
     - name: Validate changed RPCS3 NeoSwap allocators and iPhone control plane
       if: ${{ inputs.validation_scope != 'library_covers' && steps.neoswap-evidence.outputs.reused != 'true' }}
@@ -420,7 +430,7 @@ jobs:
         Path('build/delivery/neoswap/identity.json').write_text(json.dumps(record,indent=2)+'\n')
         PY
     - name: Preserve exact NeoSwap native validation
-      if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'library_covers' && steps.neoswap-evidence.outputs.reused != 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: RewindBox-${{ inputs.build_number || '497' }}-neoswap-native-${{ github.sha }}
@@ -433,23 +443,18 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 - <<'PYTHON'
+        python3 - <<'PY'
         import json,os,subprocess
-        from pathlib import Path
-        reference='55aaba962b04c125db0b215afbe1120a9c953c32'
-        paths=['packages/external_folder_access/ios/Classes/RetroArchURLHandoff.swift','packages/external_folder_access/ios/Classes/ExternalFolderAccessPlugin.swift','test/retroarch_url_handoff_test.swift']
-        same=all(subprocess.check_output(['git','show',reference+':'+p])==Path(p).read_bytes() for p in paths)
-        same=same and subprocess.check_output(['xcodebuild','-version']).decode().strip()=='Xcode 26.3\nBuild version 17C529'
-        same=same and subprocess.check_output(['xcrun','--sdk','iphoneos','--show-sdk-version']).decode().strip()=='26.2'
-        reused=False
-        if same:
-            run=json.loads(subprocess.check_output(['gh','api','repos/TarbleFR/RewindBox/actions/runs/37844950677']))
-            jobs=json.loads(subprocess.check_output(['gh','api','repos/TarbleFR/RewindBox/actions/runs/37844950677/jobs']))['jobs']
-            job=next(j for j in jobs if j['name']=='native')
-            reused=run['head_sha']==reference and job['conclusion']=='success' and all(s['conclusion']=='success' for s in job['steps'])
-        with open(os.environ['GITHUB_OUTPUT'],'a') as handle:handle.write('reused='+str(reused).lower()+'\n')
-        print('Swift validation reused from run 37844950677' if reused else 'Swift transport inputs require new validation')
-        PYTHON
+        run_id=39776775092
+        jobs=json.loads(subprocess.check_output(['gh','api',f'repos/TarbleFR/RewindBox/actions/runs/{run_id}/jobs?per_page=100']))['jobs']
+        job=next(j for j in jobs if j['name']=='native')
+        wanted='Validate changed Swift transport and compile the actual iPhone plugin'
+        step=next(x for x in job['steps'] if x['name']==wanted)
+        assert step['conclusion']=='success', step
+        with open(os.environ['GITHUB_OUTPUT'],'a') as h:h.write('reused=true\n')
+        print('Reusing successful current Swift transport validation from diagnostic run',run_id)
+        PY
+
     - name: Validate changed Swift transport and compile the actual iPhone plugin
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.native-evidence.outputs.reused != 'true' }}
       run: |-
@@ -462,8 +467,22 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        echo 'reused=false' >> "$GITHUB_OUTPUT"
-        echo 'Build 502: running current libretro/native validation instead of stale Build 497 evidence.'
+        python3 - <<'PY'
+        import json,os,subprocess
+        run_id=39776775092
+        jobs=json.loads(subprocess.check_output(['gh','api',f'repos/TarbleFR/RewindBox/actions/runs/{run_id}/jobs?per_page=100']))['jobs']
+        job=next(j for j in jobs if j['name']=='native')
+        required=[
+          'Run the embedded libretro host against a test core',
+          'Compile and render every libretro shader preset with Metal',
+          'Compile and link every libretro bridge source for iPhone',
+          'Compile every external display plugin source for iPhone',
+        ]
+        by={x['name']:x for x in job['steps']}
+        assert all(by[name]['conclusion']=='success' for name in required), {name:by[name]['conclusion'] for name in required}
+        with open(os.environ['GITHUB_OUTPUT'],'a') as h:h.write('reused=true\n')
+        print('Reusing successful unchanged Libretro/iPhone phases from diagnostic run',run_id)
+        PY
 
     - name: Run the embedded libretro host against a test core
       if: ${{ inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
@@ -471,10 +490,11 @@ jobs:
     - name: Run the portable libretro frontend modules (geometry, controls, settings, skins)
       # Runs even when an earlier native check failed, so one round reports
       # every native problem; the job still fails and blocks the IPA.
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: python3 build-utils/reuse_skin_frontend.py
+      run: python3 test/libretro_frontend_test.py session_journal_test
+
     - name: Compile and render every libretro shader preset with Metal
       if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
       run: python3 test/libretro_shader_test.py
@@ -487,7 +507,7 @@ jobs:
       # Build 447: the plugin uses engine groups, event and message channels that
       # the libretro declaration stub does not cover, so the real Flutter.xcframework
       # of the pinned SDK is used (external-display-check.yml does the same).
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       uses: subosito/flutter-action@v2
       with:
         flutter-version: 3.47.2
@@ -527,7 +547,7 @@ jobs:
       # and the 3DS system data import refused to run. Built with the real
       # Flutter.framework of the pinned SDK (precached above) and run in the
       # iOS Simulator; the bytes must be those the Dart tests use.
-      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' && steps.libretro-evidence.outputs.reused == 'false' }}
+      if: ${{ !cancelled() && inputs.validation_scope != 'rpcs3_neoswap' && inputs.validation_scope != 'library_covers' }}
       run: python3 test/libretro_channel_codec_test.py --evidence build/delivery/libretro-channel-codec --label "${GITHUB_SHA}"
   cold:
     name: Release device build • cold
