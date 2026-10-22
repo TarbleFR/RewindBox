@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'build-utils'))
 
 import validate_single_ipa_distribution as validator
+import validate_rpcs3_ipa as rpcs3_validator
 from configure_rpcs3_ios_v2 import REQUIRED_RUNTIME_ENTITLEMENTS
 sys.path.insert(0, str(ROOT / 'packages/dolphin_internal_bridge/ci'))
 import verify_ipa as dolphin_validator
@@ -262,14 +263,35 @@ class SingleIPADistributionTests(unittest.TestCase):
         members[target + 'MeloNXJITHelper'] = members[original + 'DolphinJITHelper']
         for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
             members[APP + f'Frameworks/{component}.framework/{component}'] = packaging_image({}, filetype=6)
+        def check_rpcs3_helpers(candidate):
+            with tempfile.TemporaryDirectory(prefix='rpcs3-helper-contract-') as temporary:
+                root = Path(temporary)
+                for name, data in candidate.items():
+                    target = root / name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(data)
+                app = root / APP
+                return rpcs3_validator.validate_helper_bundles(app, plistlib.loads(candidate[APP + 'Info.plist']))
+
+        self.assertEqual(len(check_rpcs3_helpers(complete_ipa_members())), 5)
+        self.assertEqual(len(check_rpcs3_helpers(members)), 6)
+        without_identity = dict(members); del without_identity[APP + 'MeloNX-native-identity.json']
+        with self.assertRaisesRegex(rpcs3_validator.ValidationError, 'Unexpected app-extension set'):
+            check_rpcs3_helpers(without_identity)
         for check in (validator.validate, dolphin_validator.validate):
             with self.subTest(packager=check.__module__): self.validate_members(members, check)
         broken = dict(members); del broken[APP + 'Frameworks/MeloNXSDL3.framework/MeloNXSDL3']
         self.reject(broken, 'complete private runtime')
+        with self.assertRaisesRegex(rpcs3_validator.ValidationError, 'complete private runtime'):
+            check_rpcs3_helpers(broken)
         broken = dict(members); del broken[target + 'Info.plist']; del broken[target + 'MeloNXJITHelper']
         self.reject(broken, 'Unexpected app-extension set')
+        with self.assertRaisesRegex(rpcs3_validator.ValidationError, 'Unexpected app-extension set'):
+            check_rpcs3_helpers(broken)
         self.modify_info(members, target, lambda info: info['NSExtension'].update(NSExtensionPrincipalClass='Wrong'))
         self.reject(members, 'principal class')
+        with self.assertRaisesRegex(rpcs3_validator.ValidationError, 'principal class'):
+            check_rpcs3_helpers(members)
 
     def test_packaging_rejects_retired_external_switch_queries(self):
         for scheme in ('melonx', 'atariemulator'):

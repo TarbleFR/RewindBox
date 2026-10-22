@@ -21,6 +21,7 @@ DELIVERY={'.github/diagnostics/melonx506_delivery.py','.github/workflows/retroar
           'assets/legal/melonx/license-sources.json','build-utils/validate_melonx_ipa.py',
           'test/melonx_runtime_smoke.py', '.github/workflows/melonx-runtime-smoke.yml',
           'build-utils/melonx/package_runtime.py','build-utils/configure_melonx_ios.py',
+          'build-utils/validate_rpcs3_ipa.py','test/single_ipa_distribution_test.py',
           '.github/workflows/melonx-core.yml','.github/workflows/melonx-host.yml',
           '.github/workflows/melonx-integration.yml','.github/workflows/melonx-native-dependencies.yml',
           '.github/workflows/melonx-preserve-validation.yml'}
