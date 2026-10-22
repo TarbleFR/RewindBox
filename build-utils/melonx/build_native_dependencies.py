@@ -150,7 +150,7 @@ def audit(platforms):
     binaries = []
     for p in platforms:
         for binary in sorted((OUT / p).glob("*.framework/*")):
-            if binary.name == "Info.plist":
+            if not binary.is_file() or binary.name != binary.parent.stem:
                 continue
             deps = run(["otool", "-L", binary], capture=True)
             build = run(["xcrun", "vtool", "-show-build", binary], capture=True)
