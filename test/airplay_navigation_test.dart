@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -93,19 +92,28 @@ class _MenuState extends State<_Menu> {
   );
 }
 
-void inputEvent(WidgetTester tester, String key, double value) {
-  tester.binding.channelBuffers.push(
-    'xyz.luan/gamepads',
-    const StandardMethodCodec().encodeMethodCall(
-      MethodCall('onGamepadEvent', {
-        'gamepadId': 'test-pad',
-        'time': DateTime.now().millisecondsSinceEpoch,
-        'type': key.startsWith('axis') ? 'analog' : 'button',
-        'key': key,
-        'value': value,
-      }),
+Future<void> inputEvent(WidgetTester tester, String key, double value) async {
+  // Dispatch through the test messenger's registered platform handler rather
+  // than a ChannelBuffers drain that can belong to a completed fake-clock zone.
+  final response = await tester.runAsync(
+    () => tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'xyz.luan/gamepads',
+      const StandardMethodCodec().encodeMethodCall(
+        MethodCall('onGamepadEvent', {
+          'gamepadId': 'test-pad',
+          'time': DateTime.now().millisecondsSinceEpoch,
+          'type': key.startsWith('axis') ? 'analog' : 'button',
+          'key': key,
+          'value': value,
+        }),
+      ),
+      null,
     ),
-    (_) {},
+  );
+  expect(
+    response,
+    isNotNull,
+    reason: 'the real platform parser must receive every input',
   );
 }
 
@@ -236,15 +244,16 @@ void main() {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 180)),
       );
+      expect(key.currentState!.navigation.isActive, isTrue);
       for (final input in [
         ('axis_6', -32767.0),
         ('axis_0', -32767.0),
         ('button-5', 1.0),
         ('button-5', 1.0),
       ]) {
-        inputEvent(tester, input.$1, input.$2);
+        await inputEvent(tester, input.$1, input.$2);
         await tester.pump();
-        inputEvent(tester, input.$1, 0);
+        await inputEvent(tester, input.$1, 0);
         await tester.pumpAndSettle();
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 75)),
