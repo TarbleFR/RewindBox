@@ -87,3 +87,5 @@ for name in ['exports.txt', 'dependencies.txt', 'platform.txt']:
     (output / name).write_bytes((root / 'dist/melonx' / name).read_bytes())
 PY
 done
+
+python3 "$TASK_ROOT/build-utils/melonx/collect_managed_notices.py" "$SOURCE_DIR" "$TASK_ROOT/dist/melonx/managed-notices"

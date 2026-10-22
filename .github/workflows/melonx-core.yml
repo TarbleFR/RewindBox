@@ -7,6 +7,7 @@ run-name: MeloNX engine • ${{ github.sha }}
       - '.github/workflows/melonx-core.yml'
       - 'build-utils/melonx/source.json'
       - 'build-utils/melonx/build_core.sh'
+      - 'build-utils/melonx/collect_managed_notices.py'
       - 'build-utils/melonx/build_libhac.py'
       - 'build-utils/melonx/libhac-reuse.json'
       - 'build-utils/melonx/prepare_embedded.py'
@@ -19,6 +20,7 @@ run-name: MeloNX engine • ${{ github.sha }}
       - 'test/melonx_session_test.py'
       - 'test/melonx_input_test.py'
       - 'test/melonx_firmware_transaction_test.py'
+      - 'test/melonx_game_header_test.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -59,6 +61,8 @@ jobs:
         run: python3 build-utils/melonx/check_session.py
       - name: Execute the production firmware transaction with real files
         run: python3 test/melonx_firmware_transaction_test.py
+      - name: Execute production game header and metadata bounds
+        run: python3 test/melonx_game_header_test.py
       - name: Fetch exact MeloNX source
         run: |
           set -euo pipefail

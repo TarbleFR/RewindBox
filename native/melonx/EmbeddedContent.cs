@@ -40,8 +40,10 @@ partial class Library
                                     string extension = Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
                                     if (extension != "nsp" && extension != "xci" && extension != "nro" && extension != "nso")
                                         throw new InvalidDataException("Unsupported game format.");
+                                    EmbeddedGameHeader.Validate(stream, extension);
                                     var info = GameInfoLoader.GetGameInfo(_virtualFileSystem, stream, extension);
-                                    if (info == null) throw new InvalidDataException("The game could not be read with the current keys.");
+                                    if (info == null || ((extension == "nsp" || extension == "xci") &&
+                                        (string.IsNullOrWhiteSpace(info.TitleId) || info.TitleId.TrimEnd('\0') == "0000000000000000"))) throw new InvalidDataException("The game could not be read with the current keys.");
                                     json.WriteString("title", info.TitleName?.TrimEnd('\0'));
                                     json.WriteString("titleId", info.TitleId?.TrimEnd('\0'));
                                     json.WriteString("developer", info.Developer?.TrimEnd('\0'));

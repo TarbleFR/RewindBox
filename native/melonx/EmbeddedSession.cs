@@ -29,7 +29,7 @@ partial class Library
     {
         try
         {
-            byte[] error = Encoding.UTF8.GetBytes(EmbeddedSessions.LastFailure ?? "");
+            byte[] error = Encoding.UTF8.GetBytes(EmbeddedSessions.LastFailure ?? EmbeddedBootstrap.LastFailure ?? "");
             if (output != null && capacity > 0)
             {
                 int count = Math.Min(error.Length, capacity - 1);

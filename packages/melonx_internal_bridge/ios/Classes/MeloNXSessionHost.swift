@@ -70,7 +70,7 @@ final class MeloNXNativeSessionAPI {
 
     func initialize(root: URL) throws {
         let status = root.path.withCString { initializeFunction($0) }
-        guard status == 0 else { throw MeloNXHostError.initialize(status) }
+        guard status == 0 else { throw MeloNXHostError.load("MeloNX initialization failed (\(status)): \(diagnostic)") }
     }
     func prepare(game: URL, locale: String, width: Int32, height: Int32) -> Int64 {
         game.path.withCString { path in locale.withCString { prepareFunction(path, $0, width, height) } }

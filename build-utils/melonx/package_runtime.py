@@ -78,6 +78,8 @@ def embed(app):
     legal=app/'Legal/MeloNX';legal.mkdir(parents=True,exist_ok=True)
     shutil.copytree(ROOT/'assets/legal/melonx',legal,dirs_exist_ok=True)
     shutil.copy2(CORE/'MeloNX-LICENSE.txt',legal/'Engine-LICENSE.txt')
+    assert (CORE/'managed-notices/resolved-managed-packages.json').is_file(), 'Managed package notices are required'
+    shutil.copytree(CORE/'managed-notices',legal/'ManagedDependencies',dirs_exist_ok=True)
     # Copy licenses verbatim from the same source archives used for compilation.
     notices={}
     for archive in sorted((DEPS/'sources').glob('*.tar.gz')):

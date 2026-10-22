@@ -12,6 +12,31 @@ final class MeloNXRuntimeAPI {
     private typealias Pad = @convention(c) (Int64, Int32) -> Int32
     private typealias Button = @convention(c) (Int64, Int32, Int32, Int32) -> Int32
     private typealias Stick = @convention(c) (Int64, Int32, Int32, Float, Float) -> Int32
+    private static var preparedSDLPaths = Set<String>() // main-thread only
+    private static func prepareSDL(frameworks: URL) throws {
+        let prepare = {
+            let path = frameworks.appendingPathComponent("MeloNXSDL3.framework/MeloNXSDL3").path
+            if preparedSDLPaths.contains(path) { return }
+            guard let handle = dlopen(path, RTLD_NOW | RTLD_LOCAL),
+                  let readyAddress = dlsym(handle,"SDL_SetMainReady"),
+                  let initAddress = dlsym(handle,"SDL_Init"),
+                  let errorAddress = dlsym(handle,"SDL_GetError") else {
+                throw MeloNXHostError.load("The private SDL iOS entry points are unavailable")
+            }
+            // UIKit owns main(). Prepare SDL's video/events on that same thread
+            // before the background NativeAOT bootstrap initializes its drivers.
+            // Both handles and SDL remain process-owned, like the managed input manager.
+            let ready = unsafeBitCast(readyAddress,to:(@convention(c) () -> Void).self)
+            let initialize = unsafeBitCast(initAddress,to:(@convention(c) (UInt32) -> Bool).self)
+            let error = unsafeBitCast(errorAddress,to:(@convention(c) () -> UnsafePointer<CChar>?).self)
+            ready()
+            guard initialize(0x20) else {
+                throw MeloNXHostError.load("SDL iOS video initialization failed: " + (error().map { String(cString:$0) } ?? "unknown error"))
+            }
+            preparedSDLPaths.insert(path)
+        }
+        if Thread.isMainThread { try prepare() } else { try DispatchQueue.main.sync(execute:prepare) }
+    }
     let session: MeloNXNativeSessionAPI
     private let configureNative: StringCall
     private let configureGraphics: StringCall
@@ -48,6 +73,7 @@ final class MeloNXRuntimeAPI {
         guard frameworks.path.withCString({ configureNative($0) }) == 0 else {
             throw MeloNXHostError.load("Private MeloNX native dependencies could not be loaded")
         }
+        try Self.prepareSDL(frameworks:frameworks)
         try session.initialize(root: root)
     }
 
