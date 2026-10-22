@@ -13,10 +13,12 @@ run-name: MeloNX engine • ${{ github.sha }}
       - 'build-utils/melonx/adapt_session.py'
       - 'build-utils/melonx/adapt_input.py'
       - 'build-utils/melonx/adapt_runtime.py'
+      - 'build-utils/melonx/adapt_firmware.py'
       - 'native/melonx/*.cs'
       - 'test/melonx_bootstrap_test.py'
       - 'test/melonx_session_test.py'
       - 'test/melonx_input_test.py'
+      - 'test/melonx_firmware_transaction_test.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -55,6 +57,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MELONX_REUSE_SESSION_RUN: '39577903252'
         run: python3 build-utils/melonx/check_session.py
+      - name: Execute the production firmware transaction with real files
+        run: python3 test/melonx_firmware_transaction_test.py
       - name: Fetch exact MeloNX source
         run: |
           set -euo pipefail

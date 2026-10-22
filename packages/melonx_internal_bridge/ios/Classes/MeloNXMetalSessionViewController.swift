@@ -119,6 +119,8 @@ final class MeloNXMetalSessionViewController: UIViewController {
         self.router = router
         router.onMenu = { [weak self] in self?.showMenu() }
         refreshControls()
+        if UIApplication.shared.applicationState != .active { pauseReasons.insert("application") }
+        applyPause()
     }
     private func refreshControls() {
         guard let router else { return }
@@ -159,7 +161,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
     }
     private func applyPause() {
         router?.suspend(!pauseReasons.isEmpty)
-        if ready { host.setPaused(!pauseReasons.isEmpty) }
+        host.setPaused(!pauseReasons.isEmpty)
     }
     @objc private func showMenu() {
         guard presentedViewController == nil, !closing else { return }

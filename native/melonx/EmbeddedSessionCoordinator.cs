@@ -12,6 +12,7 @@ internal sealed class EmbeddedSessionCoordinator
     private bool _executing;
     private bool _stopRequested;
     private bool _inputsOpen;
+    private bool _pauseRequested;
     private Action _stop;
     private Action<bool> _pause;
     internal string LastFailure { get; private set; }
@@ -26,6 +27,7 @@ internal sealed class EmbeddedSessionCoordinator
             _state = 1;
             _stopRequested = false;
             _inputsOpen = true;
+            _pauseRequested = false;
             LastFailure = null;
             return _generation;
         }
@@ -59,8 +61,9 @@ internal sealed class EmbeddedSessionCoordinator
     {
         lock (_gate)
         {
-            if (generation != _generation || _state != 2 || _pause == null) return false;
-            _pause(paused);
+            if (generation != _generation || !_inputsOpen || (_state != 1 && _state != 2)) return false;
+            _pauseRequested = paused;
+            _pause?.Invoke(paused);
             return true;
         }
     }
@@ -87,6 +90,7 @@ internal sealed class EmbeddedSessionCoordinator
             _pause = pause;
             _inputsOpen = !_stopRequested;
             if (_stopRequested) _stop();
+            else if (_pauseRequested) _pause(true);
         }
     }
 

@@ -14,9 +14,9 @@ CHECKS = {
     'bootstrap': (15, 'Execute the embedded storage boundary', 'test/melonx_bootstrap_test.py',
                   ['native/melonx/EmbeddedDataRoot.cs', 'native/melonx/EmbeddedInitializationState.cs'],
                   'Embedded storage and initialization: 15 cases passed.'),
-    'session': (23, 'Execute session ownership and render teardown', 'test/melonx_session_test.py',
+    'session': (24, 'Execute session ownership and render teardown', 'test/melonx_session_test.py',
                 ['native/melonx/EmbeddedSessionCoordinator.cs', 'native/melonx/EmbeddedWindowLifetime.cs'],
-                'Embedded session and window lifetime: 23 cases passed.'),
+                'Embedded session and window lifetime: 24 cases passed.'),
 }
 
 

@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using Ryujinx.Common.Configuration;
+using Ryujinx.HLE.FileSystem;
 
 namespace Ryujinx.Library;
 
@@ -59,15 +60,22 @@ partial class Library
                             case 1:
                                 if (path == null || !Path.IsPathFullyQualified(path) || !File.Exists(path))
                                     throw new FileNotFoundException("A local firmware archive is required.");
+                                if (_contentManager.VerifyFirmwarePackage(path) == null)
+                                    throw new InvalidDataException("The firmware package could not be validated.");
                                 _contentManager.InstallFirmware(path);
                                 json.WriteString("firmware", GetInstalledFirmwareVersion());
                                 break;
                             case 2:
+                                if (!string.IsNullOrEmpty(path)) ContentManager.VerifyKeysFile(path);
                                 _virtualFileSystem.ReloadKeySet();
                                 break;
                             case 3:
                                 json.WriteString("firmware", GetInstalledFirmwareVersion());
                                 json.WriteString("root", AppDataManager.BaseDirPath);
+                                break;
+                            case 4:
+                            case 5:
+                                EmbeddedInspectAddon(path, operation, json);
                                 break;
                             default: throw new ArgumentOutOfRangeException(nameof(operation));
                         }

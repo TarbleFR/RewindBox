@@ -69,6 +69,18 @@ Case("pause and withdrawn controls", () => {
         owner.WithdrawControls(); Check(!owner.Pause(id, true)); return 0;
     }) == 0);
 });
+Case("pause during startup is applied before the guest executes", () => {
+    var owner = new EmbeddedSessionCoordinator(); long id = owner.Prepare(); bool paused = false;
+    Check(owner.Pause(id, true));
+    Check(owner.Run(id, () => {
+        owner.PublishControls(() => {}, value => paused = value);
+        Check(paused && owner.Pause(id, false) && !paused);
+        owner.WithdrawControls(); Check(!owner.Pause(id, true)); return 0;
+    }) == 0);
+    long next = owner.Prepare();
+    Check(!owner.Pause(id, true));
+    Check(owner.Run(next, () => { owner.PublishControls(() => {}, value => paused = value); Check(!paused); return 0; }) == 0);
+});
 Case("failure quarantines and preserves diagnostic", () => {
     var owner = new EmbeddedSessionCoordinator(); long id = owner.Prepare();
     Check(owner.Run(id, () => throw new InvalidOperationException("sentinel failure")) == 3);

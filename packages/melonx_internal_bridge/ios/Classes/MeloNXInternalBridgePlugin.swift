@@ -28,7 +28,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let instance = MeloNXInternalBridgePlugin()
-        instance.presenter = registrar.viewController()
+        instance.presenter = registrar.viewController
         registrar.addMethodCallDelegate(instance,channel:FlutterMethodChannel(name:"neostation/melonx_internal",binaryMessenger:registrar.messenger()))
         MeloNXJitBridgePlugin.register(with:registrar)
     }
@@ -59,12 +59,19 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     DispatchQueue.main.async { [self] in result(["available":true,"initialized":true,"sessionActive":starting || host?.isSessionActive == true,"jitArenaReady":arenaReady,"gameplayVerified":false,"lastFailure":lastFailure]) }
                 } catch { DispatchQueue.main.async { result(["available":false,"initialized":false,"diagnostic":String(describing:error)]) } }
             }
-        case "metadata", "installFirmware", "reloadKeys", "firmwareInfo":
+        case "metadata", "installFirmware", "reloadKeys", "firmwareInfo", "inspectUpdate", "inspectDlc":
             guard !starting, host?.isSessionActive != true else { result(FlutterError(code:"busy",message:"Close the current game first.",details:nil)); return }
-            let operation: Int32 = ["metadata":0,"installFirmware":1,"reloadKeys":2,"firmwareInfo":3][call.method]!
-            let path = arguments["path"] as? String ?? ""
+            let operation: Int32 = ["metadata":0,"installFirmware":1,"reloadKeys":2,"firmwareInfo":3,"inspectUpdate":4,"inspectDlc":5][call.method]!
+            var path = arguments["path"] as? String ?? ""
+            if operation >= 4 {
+                guard let title = arguments["titleId"] as? String,
+                      let data = try? JSONSerialization.data(withJSONObject:["path":path,"titleId":title]),
+                      let request = String(data:data,encoding:.utf8) else { result(FlutterError(code:"invalidTitle",message:"A base-game title is required.",details:nil)); return }
+                path = request
+            }
+            let requestPath = path
             libraryQueue.async { [self] in
-                do { let response = try ensureRuntime().content(path:path,operation:operation); DispatchQueue.main.async { result(response) } }
+                do { let response = try ensureRuntime().content(path:requestPath,operation:operation); DispatchQueue.main.async { result(response) } }
                 catch { DispatchQueue.main.async { result(FlutterError(code:"contentFailed",message:String(describing:error),details:nil)) } }
             }
         case "launch": launch(arguments,result:result)

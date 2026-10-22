@@ -9,6 +9,7 @@ import zipfile
 from adapt_session import apply as adapt_session
 from adapt_input import apply as adapt_input
 from adapt_runtime import apply as adapt_runtime
+from adapt_firmware import apply as adapt_firmware
 
 
 def replace_once(path, old, new):
@@ -38,11 +39,13 @@ def main():
     adapted = adapt_session(source)
     adapted += adapt_input(source)
     adapted += adapt_runtime(source)
+    adapted += adapt_firmware(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
         project = {'EmbeddedNativeGamepadLease.cs': 'Ryujinx.Input.Native',
-                   'EmbeddedNativeLibraries.cs': 'Ryujinx.Common'}.get(path.name, 'Ryujinx.Library')
+                   'EmbeddedNativeLibraries.cs': 'Ryujinx.Common',
+                   'EmbeddedFirmwareStore.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
         target = source / 'src' / project / path.name
         shutil.copyfile(path, target)
         copied.append(target)
@@ -54,6 +57,8 @@ def main():
     inputs['build-utils/melonx/adapt_input.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_runtime.py')
     inputs['build-utils/melonx/adapt_runtime.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    adapter = Path(__file__).with_name('adapt_firmware.py')
+    inputs['build-utils/melonx/adapt_firmware.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
     output.mkdir(parents=True, exist_ok=True)
     (output / 'embedded-inputs.json').write_text(json.dumps(inputs, indent=2) + '\n')
