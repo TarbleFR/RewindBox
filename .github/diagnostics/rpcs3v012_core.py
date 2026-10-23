@@ -18,6 +18,7 @@ PRIOR_ARCHIVE_SHA='6fbbeed2437ffa7fa810dbb82782171a68b5d693fc68ffafd0298bb99554c
 EXTRA_INPUTS=(
  '.github/diagnostics/rpcs3v012_core.py', '.github/workflows/rpcs3-v012.yml',
  'test/rpcs3_xitrix_v012_native_test.py',
+ 'test/rpcs3_v012_provenance_test.py',
  'packages/rpcs3_internal_bridge/ios/Classes/RPCS3CPUCompatibility.h',
  'packages/rpcs3_internal_bridge/ios/Classes/RPCS3CPUCompatibilityPolicy.h',
  'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3JitBridgePlugin.mm',
@@ -101,6 +102,7 @@ def prepare(source,out):
  env.update(CXX=str(wrapper),SDKROOT=sdk)
  log=diagnostics/'v012-proof.txt'
  tests=[
+  ['python3','test/rpcs3_v012_provenance_test.py'],
   ['python3','test/rpcs3_xitrix_v012_native_test.py',str(source),'--sanitize'],
   ['python3','test/rpcs3_build499_spu_audit_test.py',str(source)],
   ['python3','test/rpcs3_build483_llvm_pipeline_test.py',str(source)],

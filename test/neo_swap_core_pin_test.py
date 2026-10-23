@@ -136,6 +136,17 @@ def require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def workflow_source_text(text: str) -> str:
+    """Unfold YAML escaped line wraps without changing the guarded input list.
+
+    A quoted run scalar can wrap an assertion in the middle of its spaces.
+    Both this representation and literal shell blocks must retain identical
+    path/count and ABI assertions; no YAML dependency is needed for folding.
+    """
+    text = re.sub(r'\\\r?\n[ \t]*', '', text)
+    return re.sub(r'\\([ \t])', r'\1', text)
+
+
 def core_input_hashes(root: Path = ROOT) -> dict[str, str]:
     result = {}
     for relative in CORE_INPUTS:
@@ -228,8 +239,8 @@ def validate_source_contract(root: Path = ROOT, source_root: Path | None = None)
     require("'neoswap_source_archive_abi':1" in core_workflow and
             '_rpcs3_ios_set_source_archive_api' in core_workflow, 'Missing cold-source ABI/export identity')
     require("'core_input_sha256':core_input_hashes()" in core_workflow, 'Missing recipe/input identity')
-    ipa_workflow = (root / '.github/workflows/neoswap-ipa.yml').read_text()
-    block = ipa_workflow.split('# RPCS3_CORE_INPUTS_BEGIN\n', 1)[1].split('# RPCS3_CORE_INPUTS_END', 1)[0]
+    ipa_workflow = workflow_source_text((root / '.github/workflows/neoswap-ipa.yml').read_text())
+    block = ipa_workflow.split('# RPCS3_CORE_INPUTS_BEGIN', 1)[1].split('# RPCS3_CORE_INPUTS_END', 1)[0]
     inputs = re.findall(r'(?:build-utils|test|packages|native|\.github)/[^\s\\]+', block)
     require(len(inputs) == len(CORE_INPUTS) and set(inputs) == set(CORE_INPUTS),
             'IPA exact-diff inputs differ from the published Core input identity')
@@ -245,8 +256,8 @@ def validate_source_contract(root: Path = ROOT, source_root: Path | None = None)
             'IPA must reject a Core without prepared-relay ABI 1')
     require("assert identity['neoswap_relay_client_stats_abi'] == 1" in ipa_workflow,
             'IPA must reject a Core without relay-client diagnostics ABI 1')
-    delivery_workflow = (root / '.github/workflows/retroarch-delivery.yml').read_text()
-    delivery_block = delivery_workflow.split('# RPCS3_CORE_INPUTS_BEGIN\n', 1)[1].split('# RPCS3_CORE_INPUTS_END', 1)[0]
+    delivery_workflow = workflow_source_text((root / '.github/workflows/retroarch-delivery.yml').read_text())
+    delivery_block = delivery_workflow.split('# RPCS3_CORE_INPUTS_BEGIN', 1)[1].split('# RPCS3_CORE_INPUTS_END', 1)[0]
     delivery_inputs = re.findall(r'(?:build-utils|test|packages|native|\.github)/[^\s\\]+', delivery_block)
     require(len(delivery_inputs) == len(CORE_INPUTS) and set(delivery_inputs) == set(CORE_INPUTS),
             'Delivery exact-diff inputs differ from the published Core input identity')
