@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import shlex
 import subprocess
 import sys
 import zipfile
@@ -90,6 +91,14 @@ def prepare(source,out):
  version=command(str(Path(command('brew','--prefix','llvm@22').decode().strip())/'bin/llvm-config'),'--version').decode().strip()
  assert version=='22.1.8',version
  env=dict(os.environ,ASAN_OPTIONS='detect_leaks=0',UBSAN_OPTIONS='halt_on_error=1')
+ # Upstream runners accept one executable path in CXX. Preserve the selected
+ # host SDK for every child compiler rather than relying on a CLT default.
+ sdk=env['HOST_MACOS_SDK']
+ driver=env['CXX']
+ wrapper=diagnostics/'native-cxx'
+ wrapper.write_text('#!/bin/sh\nexec '+shlex.quote(driver)+' -isysroot '+shlex.quote(sdk)+' "$@"\n')
+ wrapper.chmod(0o700)
+ env.update(CXX=str(wrapper),SDKROOT=sdk)
  log=diagnostics/'v012-proof.txt'
  tests=[
   ['python3','test/rpcs3_xitrix_v012_native_test.py',str(source),'--sanitize'],
