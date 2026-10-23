@@ -639,6 +639,11 @@ jobs:
         git -C .native-sources/Melo-Controller fetch --depth 1 origin c049ce88a5635bddcd88e1965c42aa8fc92fe961
         git -C .native-sources/Melo-Controller checkout --detach FETCH_HEAD
         python3 build-utils/melonx/vendor_controller.py .native-sources/Melo-Controller .native-sources/MeloNX
+    - name: Verify relocated donor headers and the complete iPhone SDK host
+      run: |
+        python3 test/melonx_header_module_test.py
+        python3 test/melonx_session_host_test.py --sdk-only
+        cp dist/melonx-host/checks.json build/delivery/melonx-header-sdk.json
     - name: Prepare emulator build definitions
       shell: bash
       run: |
