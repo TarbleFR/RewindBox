@@ -18,14 +18,15 @@ import 'package:neostation/services/permission_service.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/widgets/header_battery.dart';
+
 import 'header_layout.dart';
+
 import 'package:neostation/widgets/liquid_battery.dart';
 import 'package:neostation/widgets/liquid_motion_clock.dart';
 import 'package:neostation/l10n/liquid_motion_locale.dart';
 import 'package:ui_refresh_rate/ui_refresh_rate.dart';
 import 'package:neostation/widgets/header_sort_dropdown.dart';
 import 'package:neostation/widgets/main_menu_tab_strip.dart';
-import 'package:neostation/widgets/bumper_glyph.dart';
 import 'package:neostation/widgets/notification_bell.dart';
 import 'package:neostation/screens/app_screen.dart';
 import 'package:neostation/utils/nav_tabs.dart';
@@ -264,7 +265,7 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(width: 12.r),
+        SizedBox(width: 6.r),
         if (battery.controller)
           Icon(Symbols.sports_esports, color: color, size: 16.r)
         else
@@ -331,7 +332,7 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(width: 12.r),
+                  SizedBox(width: 6.r),
                   LiquidBattery(
                     percent: _batteryLevel,
                     charging: _deviceCharging,
@@ -366,34 +367,30 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
       builder: (context, themeProvider, configProvider, child) => Padding(
         padding: padding,
         child: ResponsiveHeaderLayout(
-          gap: 7.r,
+          gap: 4.r,
           onExtentChanged: (height) =>
               widget.onExtentChanged?.call(height + padding.vertical),
           leading: KeyedSubtree(
             key: const ValueKey('header-controls'),
             child: widget.selectedTabIndex == AppTabs.systems
-                ? FittedBox(fit: BoxFit.scaleDown, child: HeaderSortDropdown())
+                ? FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: HeaderSortDropdown(compact: true),
+                  )
                 : const SizedBox.shrink(),
           ),
           navigation: FittedBox(
             key: const ValueKey('tabs-container'),
             fit: BoxFit.scaleDown,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildShoulderButton('LB', true),
-                MainMenuTabStrip(
-                  tabs: visibleNavTabs(configProvider.config),
-                  selected: NavTab.values[widget.selectedTabIndex],
-                  cellExtent: 36.r,
-                  tabBuilder: (tab) => _buildTabButton(context, tab),
-                  iconBuilder: (tab) => NavTabIcon(
-                    spec: navTabSpec(tab),
-                    tint: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                _buildShoulderButton('RB', false),
-              ],
+            child: MainMenuTabStrip(
+              tabs: visibleNavTabs(configProvider.config),
+              selected: NavTab.values[widget.selectedTabIndex],
+              cellExtent: 32.r,
+              tabBuilder: (tab) => _buildTabButton(context, tab),
+              iconBuilder: (tab) => NavTabIcon(
+                spec: navTabSpec(tab),
+                tint: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ),
           status: FittedBox(
@@ -404,12 +401,11 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
               borderRadius:
                   Theme.of(context).extension<CornerRadii>()?.radiusExternal ??
                   BorderRadius.circular(14),
-              padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 4.r),
+              padding: EdgeInsets.symmetric(horizontal: 6.r, vertical: 4.r),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.shadow.withValues(alpha: 0.1),
+                  color: Theme.of(context).colorScheme.shadow
+                      .withValues(alpha: 0.1),
                   blurRadius: 4.r,
                   offset: Offset(2.0.r, 2.0.r),
                 ),
@@ -418,7 +414,7 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const NotificationBell(),
-                  SizedBox(width: 10.r),
+                  SizedBox(width: 6.r),
                   Icon(
                     Symbols.schedule,
                     color: Theme.of(context).colorScheme.onSurface,
@@ -504,14 +500,6 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
           ),
         ),
       ),
-    );
-  }
-
-  // Steam-style shoulder button (LB/RB)
-  Widget _buildShoulderButton(String label, bool isLeft) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 6.r, vertical: 2.r),
-      child: BumperGlyph(isLeft: isLeft, size: 24.r),
     );
   }
 }

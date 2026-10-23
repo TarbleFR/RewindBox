@@ -16,8 +16,10 @@ import 'package:neostation/themes/app_themes.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/providers/theme_provider.dart';
 import 'package:neostation/services/controller_battery_service.dart';
+import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import 'package:neostation/widgets/header.dart';
+import 'package:neostation/widgets/bumper_glyph.dart';
 import 'package:neostation/widgets/main_menu_tab_strip.dart';
 import 'package:neostation/widgets/mau_ali_tab_motion.dart';
 import 'package:neostation/widgets/native_carousel.dart';
@@ -45,14 +47,26 @@ void main() {
         );
     SharedPreferences.setMockInitialValues({});
     BatteryPlatform.instance = _Battery();
+    SfxService().setEnabled(false);
     await FlutterLocalization.instance.ensureInitialized();
     FlutterLocalization.instance.init(
       mapLocales: [MapLocale('fr', AppLocale.fr)],
       initLanguageCode: 'fr',
     );
     theme = await ThemeProvider.create();
+    // Use the actual font metrics, not Flutter Test's fixed-width Ahem font,
+    // when asserting whether all three production groups fit on one row.
+    final roboto = File(
+      '${File(Platform.resolvedExecutable).parent.parent.parent.path}/material_fonts/Roboto-Regular.ttf',
+    );
+    await (FontLoader('Roboto')
+          ..addFont(roboto.readAsBytes().then((b) => ByteData.sublistView(b))))
+        .load();
   });
-  tearDownAll(() => theme.dispose());
+  tearDownAll(() {
+    theme.dispose();
+    SfxService().setEnabled(true);
+  });
   tearDown(() {
     ControllerBatteryService.instance.controllers.value = [];
   });
@@ -180,12 +194,14 @@ void main() {
   for (final size in [
     const Size(956, 440),
     const Size(852, 393),
+    const Size(1024, 768),
+    const Size(1366, 1024),
     const Size(393, 852),
     const Size(320, 568),
   ]) {
     for (final scale in [1.0, 1.4]) {
       testWidgets(
-        'complete production header reserves tabs and both batteries: $size / $scale',
+        'compact production header aligns tabs and both batteries: $size / $scale',
         (tester) async {
           tester.view.physicalSize = size;
           tester.view.devicePixelRatio = 1;
@@ -204,10 +220,14 @@ void main() {
           ];
           final config = SqliteConfigProvider();
           addTearDown(config.dispose);
-          final safe = size.width > size.height
+          final safe = size.width >= 1000
+              ? const EdgeInsets.only(top: 24)
+              : size.width > size.height
               ? const EdgeInsets.symmetric(horizontal: 59)
               : const EdgeInsets.only(top: 59);
           double extent = 0;
+          var selected = 0;
+          final selections = <int>[];
           await tester.pumpWidget(
             ScreenUtilInit(
               designSize: const Size(640, 480),
@@ -234,10 +254,15 @@ void main() {
                     child: Scaffold(
                       body: Align(
                         alignment: Alignment.topCenter,
-                        child: Header(
-                          selectedTabIndex: 0,
-                          onTabSelected: (_) {},
-                          onExtentChanged: (h) => extent = h,
+                        child: StatefulBuilder(
+                          builder: (context, setSelection) => Header(
+                            selectedTabIndex: selected,
+                            onTabSelected: (index) => setSelection(() {
+                              selected = index;
+                              selections.add(index);
+                            }),
+                            onExtentChanged: (h) => extent = h,
+                          ),
                         ),
                       ),
                     ),
@@ -274,6 +299,43 @@ void main() {
             for (var j = i + 1; j < groups.length; j++) {
               expect(groups[i].overlaps(groups[j]), isFalse);
             }
+          }
+          expect(find.byType(BumperGlyph), findsNothing);
+          debugPrint('HEADER $size / $scale: $groups extent=$extent');
+          if (size.width >= 1000 || (size.width >= 852 && scale == 1)) {
+            expect(groups[0].center.dy, closeTo(groups[1].center.dy, .01));
+            expect(groups[1].center.dy, closeTo(groups[2].center.dy, .01));
+          }
+          if (size == const Size(956, 440) && scale == 1) {
+            for (final tab in navTabDisplayOrder) {
+              await tester.tap(
+                find.byKey(ValueKey('main-menu-cell-${tab.name}')),
+              );
+              await tester.pump();
+              await tester.pump(const Duration(milliseconds: 600));
+              expect(selected, tab.index);
+              expect(
+                tester
+                    .getRect(
+                      find.byKey(const ValueKey('main-menu-tab-indicator')),
+                    )
+                    .center
+                    .dx,
+                closeTo(
+                  tester
+                      .getRect(
+                        find.byKey(ValueKey('main-menu-cell-${tab.name}')),
+                      )
+                      .center
+                      .dx,
+                  .1,
+                ),
+              );
+            }
+            expect(
+              selections,
+              navTabDisplayOrder.map((tab) => tab.index).toList(),
+            );
           }
           expect(extent, greaterThan(0));
           expect(

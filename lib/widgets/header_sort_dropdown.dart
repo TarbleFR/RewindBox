@@ -18,7 +18,9 @@ class HeaderSortDropdown extends StatefulWidget {
   static final GlobalKey<HeaderSortDropdownState> globalKey =
       GlobalKey<HeaderSortDropdownState>();
 
-  HeaderSortDropdown() : super(key: globalKey);
+  HeaderSortDropdown({this.compact = false}) : super(key: globalKey);
+
+  final bool compact;
 
   @override
   State<HeaderSortDropdown> createState() => HeaderSortDropdownState();
@@ -83,7 +85,7 @@ class HeaderSortDropdownState extends State<HeaderSortDropdown> {
   Widget build(BuildContext context) {
     return Container(
       key: _buttonKey,
-      margin: EdgeInsets.symmetric(horizontal: 10.r),
+      margin: EdgeInsets.symmetric(horizontal: widget.compact ? 0 : 10.r),
       child: GamepadControl(
         label: AppLocale.viewMode.getString(context),
         iconPath: 'assets/images/gamepad/Xbox_X_button.png',

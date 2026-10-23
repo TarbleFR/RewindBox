@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
 import '../l10n/melonx_library_locale.dart';
@@ -250,7 +251,9 @@ class _MelonxInternalPlaylistActionsState
 
   @override
   Widget build(BuildContext context) {
-    if (!Platform.isIOS) return const SizedBox.shrink();
+    if (defaultTargetPlatform != TargetPlatform.iOS) {
+      return const SizedBox.shrink();
+    }
     final validTitle =
         widget.titleId != null &&
         RegExp(r'^[0-9a-fA-F]{16}$').hasMatch(widget.titleId!);

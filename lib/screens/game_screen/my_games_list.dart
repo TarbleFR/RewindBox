@@ -1,4 +1,5 @@
 import '../../widgets/melonx_multi_delete_dialog.dart';
+
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/services.dart';
@@ -68,6 +69,7 @@ import '../../widgets/game_view_mode_dropdown.dart';
 import '../../widgets/game_action_buttons.dart';
 import '../../widgets/legend_edge_reshow_zone.dart';
 import '../../widgets/letter_indicator.dart';
+import '../../widgets/switch_playlist_empty_state.dart';
 import '../../constants/system_folder_names.dart';
 import '../../utils/artwork_cache.dart';
 import '../../utils/game_list_update.dart';
@@ -880,7 +882,7 @@ class _SystemGamesListState extends State<SystemGamesList> {
               ),
             // LIBRETRO_INTERNAL_END: playlist_actions
             if (!_isGameLaunching &&
-                Platform.isIOS &&
+                defaultTargetPlatform == TargetPlatform.iOS &&
                 widget.system.folderName == 'switch' &&
                 (_isLoading ||
                     _games.isEmpty ||
@@ -1146,6 +1148,12 @@ class _SystemGamesListState extends State<SystemGamesList> {
   /// specialized view for systems with zero detected media files.
   /// includes controls for recursive scanning and directory management.
   Widget _buildEmptyState() {
+    if (widget.system.folderName == 'switch') {
+      return SwitchPlaylistEmptyState(
+        systemName: widget.system.shortName ?? widget.system.realName,
+        onBack: _goBack,
+      );
+    }
     final isRpcs3Library =
         Platform.isIOS && widget.system.folderName.toLowerCase() == 'ps3';
     bool currentScanValue = widget.system.recursiveScan;

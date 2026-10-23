@@ -135,8 +135,10 @@ class _HeaderRender extends RenderBox
         width - leading.size.width - status.size.width - _gap * 2;
     // A modest scale-down keeps a landscape phone on one line while retaining
     // usable cells; genuinely narrow viewports still get a dedicated nav row.
-    if (availableForNavigation >= 300 &&
-        availableForNavigation >= nav.size.width * .65 &&
+    // Decide from this strip's measured width instead of a fixed 300-point
+    // threshold, which unnecessarily wrapped the 852-point iPhone layout.
+    // Keep at least 80% of its natural size; larger text can still use two rows.
+    if (availableForNavigation >= nav.size.width * .8 &&
         availableForNavigation < nav.size.width) {
       nav.layout(
         BoxConstraints(maxWidth: availableForNavigation),
