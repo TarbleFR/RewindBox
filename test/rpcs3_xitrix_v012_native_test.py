@@ -90,7 +90,7 @@ int main() {
     std::vector<region> regions;
     for(u32 i=0;i<levels;++i) regions.push_back({&image,64,32,i,0,0,0,std::max(1u,64u>>i),std::max(1u,32u>>i)});
     assert(covers(1,levels,&image,regions));++cases;
-    assert(!covers(2,levels,&image,regions));++cases;
+    assert(!covers(VK_IMAGE_ASPECT_DEPTH_BIT,levels,&image,regions));++cases;
     auto saved=regions.back();regions.pop_back();assert(!covers(1,levels,&image,regions));++cases;regions.push_back(saved);
     for(unsigned fault=0;fault<9;++fault) {
       auto bad=regions;
