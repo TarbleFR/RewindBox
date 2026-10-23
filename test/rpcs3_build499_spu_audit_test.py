@@ -37,6 +37,13 @@ REFERENCE_THREAD_SHA256 = 'b61d719ba055884c9bb9689ad7411fc57cd44eedd717d08b82256
 
 def reference_translator(text):
     """Undo only this cycle's three exact translator edits, then prove the old hash."""
+    # The v0.12 TBL1 pass has its own emitted-AArch64/scalar equivalence
+    # campaign. Reverse exactly its wiring to retain this historical control.
+    table_header = '#include "SPUARM64ConstantTable.h"\n'
+    table_call = '\t\t\t\tspu_llvm::arm64::fold_constant_tables(f);\n'
+    if table_header in text:
+        assert text.count(table_header) == text.count(table_call) == 1
+        text = text.replace(table_header, '').replace(table_call, '')
     # The memory audit adds admission before translation. Remove only that
     # exact independently executed prelude for the historical full-file control.
     prefix = '#ifdef RPCS3_IOS\n#include "ios/IOSCompileAdmission.h"\n#endif\n'

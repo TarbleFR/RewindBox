@@ -1,4 +1,5 @@
 #include "RPCS3PPUIdentity.h"
+#import "RPCS3CPUCompatibility.h"
 #import <string.h>
 #import "Rpcs3InternalBridgePlugin.h"
 #import "Rpcs3JitBridgePlugin.h"
@@ -667,6 +668,10 @@ static void RPCS3Progress(void* context,
 }
 
 - (BOOL)loadCoreWithExpandedJit:(BOOL)expanded error:(NSString**)error {
+  if (NSString* cpuError = RPCS3CPUCompatibilityError()) {
+    if (error) *error = cpuError;
+    return NO;
+  }
   if (_api.handle) {
     if (self.coreLoadedWithExpandedJit != expanded) {
       if (error) {

@@ -2704,10 +2704,10 @@ index 9b6c752..e53815e 100644
  	std::atomic_bool m_operational = false;
  };
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index 9bb3ea1..79c07d0 100644
+index 9bb3ea1..c05c86e 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
-@@ -25,6 +25,90 @@ if(USE_LTO)
+@@ -25,6 +25,91 @@ if(USE_LTO)
      set_target_properties(rpcs3_emu PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
  endif()
  
@@ -2768,6 +2768,7 @@ index 9bb3ea1..79c07d0 100644
 +        Cell/SPUAnalyser.h
 +        Cell/SPUObjectCachePolicy.h
 +        Cell/SPUARM64Lowering.h
++        Cell/SPUARM64ConstantTable.h
 +        Cell/SPUARM64CompareLowering.h
 +        CPU/CPUTranslator.cpp
 +        CPU/CPUTranslator.h
@@ -2798,7 +2799,7 @@ index 9bb3ea1..79c07d0 100644
  if(USE_ASAN)
      set_source_files_properties(../../Utilities/Thread.cpp PROPERTIES COMPILE_DEFINITIONS USE_ASAN)
  endif()
-@@ -100,7 +184,12 @@ if(APPLE)
+@@ -100,7 +185,12 @@ if(APPLE)
  endif()
  
  if(RPCS3_FRONTEND STREQUAL "IOS")
@@ -2811,7 +2812,7 @@ index 9bb3ea1..79c07d0 100644
          Io/IOS/IOSPadHandler.cpp
          Io/IOS/IOSPadHandler.h
          ../../Utilities/JITArenaAllocator.h
-@@ -721,9 +810,14 @@ if(TARGET 3rdparty_vulkan)
+@@ -721,9 +811,14 @@ if(TARGET 3rdparty_vulkan)
  
      if(RPCS3_FRONTEND STREQUAL "IOS")
          target_sources(rpcs3_emu PRIVATE
@@ -3832,7 +3833,7 @@ index 0000000..76893b1
 +	}
 +}
 diff --git a/rpcs3/Emu/Cell/PPUThread.cpp b/rpcs3/Emu/Cell/PPUThread.cpp
-index b1f1a74..1c1cf1e 100644
+index b1f1a74..618acf8 100644
 --- a/rpcs3/Emu/Cell/PPUThread.cpp
 +++ b/rpcs3/Emu/Cell/PPUThread.cpp
 @@ -1,9 +1,15 @@
@@ -4017,7 +4018,46 @@ index b1f1a74..1c1cf1e 100644
  // Get pointer to executable cache
  static inline u8* ppu_ptr(u32 addr)
  {
-@@ -3606,6 +3704,13 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
+@@ -1054,18 +1152,36 @@ struct ppu_far_jumps_t
+ 				c.mov(args[2], vm::g_base_addr + pc);
+ 				c.jmp(ppu_far_jump);
+ #else
++				// This sits in the exec table like any PPU block and is entered the same way, as
++				// GHC, so the thread is in x20 -- not x0. The x86 path above makes the same move
++				// from rbp. Without it ppu_far_jump took whatever x0 held, guest r0 in practice,
++				// as its ppu_thread&, and its store to ppu.cia faulted at r0 + 0x474: 0x475 every
++				// time, for NBA 08's code cave and for every line of Splatterhouse's, whether the
++				// patch point was reached by a branch or by falling into it.
++				//
++				// It then escapes to the host instead of returning, for the reason given in
++				// ppu_recompiler_fallback_ghc: GHC code on arm64 keeps no call stack to return
++				// into. The gateway resumes at the ppu.cia that ppu_far_jump just set.
+ 				Label jmp_address = c.newLabel();
+ 				Label this_op_address = c.newLabel();
++				Label escape_address = c.newLabel();
+ 
++				c.mov(args[0], a64::x20);
+ 				c.ldr(args[2], arm::ptr(this_op_address));
+-				c.ldr(args[1], arm::ptr(jmp_address));
+-				c.br(args[1]);
++				c.ldr(a64::x13, arm::ptr(jmp_address));
++				c.blr(a64::x13);
++
++				c.mov(a64::x0, a64::x20);
++				c.ldr(a64::x13, arm::ptr(escape_address));
++				c.br(a64::x13);
+ 
+ 				c.align(AlignMode::kCode, 16);
+ 				c.bind(jmp_address);
+ 				c.embedUInt64(reinterpret_cast<u64>(ppu_far_jump));
+ 				c.bind(this_op_address);
+ 				c.embedUInt64(reinterpret_cast<u64>(vm::g_base_addr) + pc);
++				c.bind(escape_address);
++				c.embedUInt64(reinterpret_cast<u64>(ppu_escape));
+ #endif
+ 			}, &rt);
+ 		}
+@@ -3606,6 +3722,13 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
  
  	if ([&]()
  	{
@@ -4031,7 +4071,7 @@ index b1f1a74..1c1cf1e 100644
  		if (ppu.use_full_rdata) [[unlikely]]
  		{
  			auto [_oldd, _ok] = res.fetch_op([&](u64& r)
-@@ -3631,7 +3736,9 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
+@@ -3631,7 +3754,9 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
  			// Cache line data
  			//auto& cline_data = vm::_ref<spu_rdata_t>(addr);
  
@@ -4041,7 +4081,7 @@ index b1f1a74..1c1cf1e 100644
  			auto range_lock = vm::alloc_range_lock();
  			bool success = false;
  			{
-@@ -3643,6 +3750,17 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
+@@ -3643,6 +3768,17 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
  				{
  					// Full lock (heavyweight)
  					// TODO: vm::check_addr
@@ -4059,7 +4099,7 @@ index b1f1a74..1c1cf1e 100644
  					vm::writer_lock lock(addr, range_lock);
  
  					if (cmp_rdata(ppu.rdata, super_data))
-@@ -4315,9 +4433,19 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4315,9 +4451,19 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  	// The growth in memory requirements of LLVM is not linear with file size of course
  	// But these estimates should hopefully protect RPCS3 in the coming years
  	// Especially when thread count is on the rise with each CPU generation
@@ -4079,7 +4119,7 @@ index b1f1a74..1c1cf1e 100644
  	const u32 cpu_thread_limit = utils::get_thread_count() > 8u ? std::max<u32>(utils::get_thread_count(), 2) - 1 : utils::get_thread_count(); // One LLVM thread less
  
  	std::vector<u128> decrypt_klics;
-@@ -4373,7 +4501,9 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4373,7 +4519,9 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  		// Set low priority
  		thread_ctrl::scoped_priority low_prio(-1);
  		u32 inc_fdone = 1;
@@ -4089,7 +4129,7 @@ index b1f1a74..1c1cf1e 100644
  
  		for (usz func_i = fnext++; func_i < file_queue.size(); func_i = fnext++, g_progr_fdone += std::exchange(inc_fdone, 1))
  		{
-@@ -4382,6 +4512,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4382,6 +4530,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  				continue;
  			}
  
@@ -4097,7 +4137,7 @@ index b1f1a74..1c1cf1e 100644
  			if (restore_mem)
  			{
  				if (!file_size_limit.fetch_add(restore_mem))
-@@ -4392,6 +4523,8 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4392,6 +4541,8 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  				restore_mem = 0;
  			}
  
@@ -4106,7 +4146,7 @@ index b1f1a74..1c1cf1e 100644
  			auto& [path, offset, file_size] = file_queue[func_i];
  
  			ppu_log.notice("Trying to load: %s", path);
-@@ -4461,6 +4594,9 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4461,6 +4612,9 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  
  			auto wait_for_memory = [&]() -> bool
  			{
@@ -4116,7 +4156,7 @@ index b1f1a74..1c1cf1e 100644
  				// Try not to process too many files at once because it seems to reduce performance and cause RAM shortages
  				// Concurrently compiling more OVL or huge PRX files does not have much theoretical benefit
  				while (!file_size_limit.fetch_op([&](u32& value)
-@@ -4489,6 +4625,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4489,6 +4643,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  				}
  
  				return true;
@@ -4124,7 +4164,7 @@ index b1f1a74..1c1cf1e 100644
  			};
  
  			elf_error prx_err{}, ovl_err{};
-@@ -4576,6 +4713,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4576,6 +4731,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  			inc_fdone = 0;
  		}
  
@@ -4132,7 +4172,7 @@ index b1f1a74..1c1cf1e 100644
  		if (restore_mem)
  		{
  			if (!file_size_limit.fetch_add(restore_mem))
-@@ -4583,6 +4721,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4583,6 +4739,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  				file_size_limit.notify_all();
  			}
  		}
@@ -4140,7 +4180,7 @@ index b1f1a74..1c1cf1e 100644
  	});
  
  	// Join every thread
-@@ -4739,6 +4878,65 @@ extern void ppu_initialize()
+@@ -4739,6 +4896,65 @@ extern void ppu_initialize()
  
  	auto& _main = g_fxo->get<main_ppu_module<lv2_obj>>();
  
@@ -4206,7 +4246,7 @@ index b1f1a74..1c1cf1e 100644
  	std::optional<scoped_progress_dialog> progress_dialog(std::in_place, get_localized_string(localized_string_id::PROGRESS_DIALOG_ANALYZING_PPU_EXECUTABLE));
  
  	// Analyse executable
-@@ -4757,7 +4955,22 @@ extern void ppu_initialize()
+@@ -4757,7 +4973,22 @@ extern void ppu_initialize()
  	// Check main module cache
  	if (!_main.segs.empty())
  	{
@@ -4229,7 +4269,7 @@ index b1f1a74..1c1cf1e 100644
  	}
  
  	std::vector<ppu_module<lv2_obj>*> module_list;
-@@ -5540,6 +5753,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5540,6 +5771,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				daz_and_ftz,
  				arm64_codegen_v2,
  				arm64_codegen_v3,
@@ -4243,7 +4283,7 @@ index b1f1a74..1c1cf1e 100644
  
  				__bitset_enum_max
  			};
-@@ -5547,6 +5767,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5547,6 +5785,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  			be_t<bs_t<ppu_settings>> settings{};
  
  			settings += ppu_settings::_reserved_for_backwards_compatibility;
@@ -4254,7 +4294,7 @@ index b1f1a74..1c1cf1e 100644
  #if !defined(_WIN32) && !defined(__APPLE__)
  			settings += ppu_settings::platform_bit;
  #endif
-@@ -5573,10 +5797,37 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5573,10 +5815,37 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  #if defined(ARCH_ARM64)
  			settings += ppu_settings::arm64_codegen_v2;
  			settings += ppu_settings::arm64_codegen_v3;
@@ -4292,7 +4332,7 @@ index b1f1a74..1c1cf1e 100644
  		}
  
  		if (cpu ? cpu->state.all_of(cpu_flag::exit) : Emu.IsStopped())
-@@ -5585,20 +5836,46 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5585,20 +5854,46 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  		}
  
  		module_counter++;
@@ -4341,7 +4381,7 @@ index b1f1a74..1c1cf1e 100644
  
  			continue;
  		}
-@@ -5616,6 +5893,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5616,6 +5911,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  
  		// Fill workload list for compilation
  		workload.emplace_back(std::move(obj_name), std::move(part));
@@ -4352,7 +4392,7 @@ index b1f1a74..1c1cf1e 100644
  	}
  
  	if (check_only)
-@@ -5640,7 +5921,11 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5640,7 +5939,11 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  
  		*progress_dialog = get_localized_string(localized_string_id::PROGRESS_DIALOG_COMPILING_PPU_MODULES);
  
@@ -4364,7 +4404,7 @@ index b1f1a74..1c1cf1e 100644
  
  #ifdef RPCS3_IOS
  		ppu_log.notice("iOS LLVM compilation: %u module(s), %u concurrent thread(s)", ::size32(workload), thread_count + 1);
-@@ -5712,11 +5997,24 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5712,11 +6015,24 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  					ppu_log.warning("LLVM: Compiling module %s%s", cache_path, obj_name);
  
  					{
@@ -4390,7 +4430,7 @@ index b1f1a74..1c1cf1e 100644
  					ppu_log.success("LLVM: Compiled module %s", obj_name);
  				}
  
-@@ -5814,6 +6112,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5814,6 +6130,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  		usz mod_index = umax;
  
  		ppu_log.notice("Loading %u modules", link_workload.size());
@@ -4401,7 +4441,7 @@ index b1f1a74..1c1cf1e 100644
  
  		for (const auto& [obj_name, is_compiled] : link_workload)
  		{
-@@ -5824,11 +6126,21 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5824,11 +6144,21 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				break;
  			}
  
@@ -4423,7 +4463,7 @@ index b1f1a74..1c1cf1e 100644
  
  			if (mod_index % increment_link_count_at == (link_workload.size() - 1) % increment_link_count_at)
  			{
-@@ -5846,6 +6158,9 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5846,6 +6176,9 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				ppu_log.success("LLVM: Loaded module #%u %s", mod_index, obj_name);
  			}
  		}
@@ -4433,7 +4473,7 @@ index b1f1a74..1c1cf1e 100644
  	}
  
  	if (failed_to_load || !is_being_used_in_emulation || (cpu ? cpu->state.all_of(cpu_flag::exit) : Emu.IsStopped()))
-@@ -5877,7 +6192,16 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5877,7 +6210,16 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  	{
  		for (auto& jit : jits)
  		{
@@ -4451,7 +4491,7 @@ index b1f1a74..1c1cf1e 100644
  		}
  	}
  
-@@ -5901,7 +6225,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5901,7 +6243,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  					index++;
  
  					ensure(!sim);
@@ -4463,7 +4503,7 @@ index b1f1a74..1c1cf1e 100644
  
  					ppu_log.notice("Resolved symbol resolver function #%u", index);
  				}
-@@ -6052,6 +6379,24 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6052,6 +6397,24 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  		FunctionPassManager fpm;
  		// Basic optimizations
  		fpm.addPass(EarlyCSEPass());
@@ -4488,7 +4528,7 @@ index b1f1a74..1c1cf1e 100644
  
  		u32 guest_code_size = 0;
  		u32 min_addr = umax;
-@@ -6081,11 +6426,22 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6081,11 +6444,22 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  				min_addr = std::min<u32>(min_addr, mod_func.addr);
  
  				// Translate
@@ -4512,7 +4552,7 @@ index b1f1a74..1c1cf1e 100644
  #endif // ARCH_X64
  				}
  				else
-@@ -6104,6 +6460,13 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6104,6 +6478,13 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  #ifdef ARCH_X64 // TODO
  				// Run optimization passes
  				fpm.run(*func, fam);
@@ -4526,7 +4566,7 @@ index b1f1a74..1c1cf1e 100644
  #endif // ARCH_X64
  			}
  			else
-@@ -6131,7 +6494,11 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6131,7 +6512,11 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  			result.clear();
  		}
  
@@ -5091,6 +5131,89 @@ index 0000000..2344206
 +	return changed;
 +}
 +}
+diff --git a/rpcs3/Emu/Cell/SPUARM64ConstantTable.h b/rpcs3/Emu/Cell/SPUARM64ConstantTable.h
+new file mode 100644
+index 0000000..ca9b019
+--- /dev/null
++++ b/rpcs3/Emu/Cell/SPUARM64ConstantTable.h
+@@ -0,0 +1,77 @@
++#pragma once
++#include <array>
++#include "SPUARM64Lowering.h"
++namespace spu_llvm::arm64
++{
++	inline bool read_constant_table_indices(llvm::Value* value, std::array<unsigned, 16>& out)
++	{
++		auto* constant = llvm::dyn_cast<llvm::Constant>(value);
++		if (!constant || constant->getType() != llvm::FixedVectorType::get(llvm::Type::getInt8Ty(value->getContext()), 16))
++			return false;
++		for (unsigned i = 0; i < 16; ++i)
++		{
++			auto* lane = llvm::dyn_cast_or_null<llvm::ConstantInt>(constant->getAggregateElement(i));
++			if (!lane)
++				return false;
++			out[i] = lane->getZExtValue();
++		}
++		return true;
++	}
++	// Fold only fully specified constant TBL1 masks. Invalid indices still select
++	// zero. Compose a nested table only when it has one use; shared expressions
++	// retain their existing lifetime and work. No memory or guest-state operation
++	// is moved. Run after the existing reversal pass, which can produce identity
++	// table lookups that LLVM does not remove itself.
++	inline unsigned fold_constant_tables(llvm::Function& function)
++	{
++		llvm::SmallVector<llvm::CallInst*, 32> calls;
++		for (auto& block : function)
++			for (auto& instruction : block)
++				if (auto* call = table_lookup(&instruction))
++					calls.push_back(call);
++		unsigned changes = 0;
++		for (auto* call : calls)
++		{
++			if (call->use_empty())
++				continue;
++			std::array<unsigned, 16> indices, inner_indices;
++			if (!read_constant_table_indices(call->getArgOperand(1), indices))
++				continue;
++			auto* source = call->getArgOperand(0);
++			bool composed = false;
++			if (auto* inner = table_lookup(source); inner && inner->hasOneUse() && read_constant_table_indices(inner->getArgOperand(1), inner_indices))
++			{
++				for (auto& lane : indices)
++					lane = lane < 16 ? inner_indices[lane] : 255;
++				source = inner->getArgOperand(0);
++				composed = true;
++			}
++			bool identity = true, zero = true;
++			for (unsigned i = 0; i < 16; ++i)
++			{
++				identity &= indices[i] == i;
++				zero &= indices[i] >= 16;
++			}
++			llvm::IRBuilder<> ir(call);
++			llvm::Value* result = nullptr;
++			if (identity)
++				result = source;
++			else if (zero)
++				result = llvm::Constant::getNullValue(call->getType());
++			else if (composed)
++			{
++				llvm::SmallVector<llvm::Constant*, 16> mask;
++				for (unsigned lane : indices)
++					mask.push_back(ir.getInt8(lane));
++				result = ir.CreateCall(call->getCalledFunction(), {source, llvm::ConstantVector::get(mask)});
++			}
++			if (result)
++			{
++				call->replaceAllUsesWith(result);
++				call->eraseFromParent();
++				++changes;
++			}
++		}
++		return changes;
++	}
++} // namespace spu_llvm::arm64
 diff --git a/rpcs3/Emu/Cell/SPUARM64Lowering.h b/rpcs3/Emu/Cell/SPUARM64Lowering.h
 new file mode 100644
 index 0000000..665988a
@@ -7371,7 +7494,7 @@ index 0000000..9d19266
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
-index 9a1e4c7..df0f737 100644
+index 9a1e4c7..2b24885 100644
 --- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 @@ -1,5 +1,12 @@
@@ -7430,11 +7553,12 @@ index 9a1e4c7..df0f737 100644
  #ifdef _MSC_VER
  #pragma warning(pop)
  #else
-@@ -61,9 +88,12 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
+@@ -61,9 +88,13 @@ const extern spu_decoder<spu_iflag> g_spu_iflag;
  #endif
  
  #ifdef ARCH_ARM64
 +#include "SPUARM64Lowering.h"
++#include "SPUARM64ConstantTable.h"
 +#include "SPUARM64CompareLowering.h"
  #include "Emu/CPU/Backends/AArch64/AArch64JIT.h"
  #include "Emu/CPU/Backends/AArch64/SPUChecksum.h"
@@ -7443,7 +7567,7 @@ index 9a1e4c7..df0f737 100644
  
  namespace
  {
-@@ -76,6 +106,92 @@ void spu_llvm_set_compile_context(spu_llvm_compile_context* context) noexcept
+@@ -76,6 +107,92 @@ void spu_llvm_set_compile_context(spu_llvm_compile_context* context) noexcept
  }
  #endif
  
@@ -7536,7 +7660,7 @@ index 9a1e4c7..df0f737 100644
  class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  {
  	// JIT Instance
-@@ -706,19 +822,44 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -706,19 +823,44 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	{
  		ensure(val && val->getType() == get_type<f64[4]>());
  
@@ -7581,7 +7705,7 @@ index 9a1e4c7..df0f737 100644
  		// Use integer operations here so LLVM can fold the masks into VPTERNLOG
  		if (m_use_avx512)
  		{
-@@ -728,6 +869,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -728,6 +870,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  			const auto e = m_ir->CreateAnd(val, 0x7f800000);
  			return uint64_as_double(m_ir->CreateSelect(m_ir->CreateIsNotNull(e), f, s));
  		}
@@ -7589,7 +7713,7 @@ index 9a1e4c7..df0f737 100644
  
  		const auto s = m_ir->CreateShl(m_ir->CreateAnd(x, 0x80000000), 32);
  		const auto a = m_ir->CreateAnd(x, 0x7fffffff);
-@@ -735,6 +877,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -735,6 +878,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  		const auto r = m_ir->CreateSelect(m_ir->CreateICmpSGT(a, splat<u64[4]>(0x7fffff).eval(m_ir)), m, splat<u64[4]>(0).eval(m_ir));
  		const auto f = m_ir->CreateOr(s, r);
  		return uint64_as_double(f);
@@ -7597,7 +7721,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  	// Clamp double values to ±Smax, flush values smaller than ±Smin to positive zero
-@@ -742,6 +885,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -742,6 +886,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	{
  		ensure(val && val->getType() == get_type<f64[4]>());
  
@@ -7605,7 +7729,7 @@ index 9a1e4c7..df0f737 100644
  		// Use integer operations here so LLVM can fold the masks into VPTERNLOG
  		if (m_use_avx512)
  		{
-@@ -754,6 +898,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -754,6 +899,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  			const auto r = m_ir->CreateOr(c, m_ir->CreateAnd(d, 0x8000000000000000));
  			return uint64_as_double(m_ir->CreateSelect(n, r, splat<u64[4]>(0).eval(m_ir)));
  		}
@@ -7613,7 +7737,7 @@ index 9a1e4c7..df0f737 100644
  
  		const auto smax = uint64_as_double(splat<u64[4]>(0x47ffffffe0000000).eval(m_ir));
  		const auto smin = uint64_as_double(splat<u64[4]>(0x3810000000000000).eval(m_ir));
-@@ -770,10 +915,279 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -770,10 +916,279 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  	// Expand 32-bit mask for xfloat values to 64-bit, 29 least significant bits are always zero
  	llvm::Value* conv_xfloat_mask(llvm::Value* val)
  	{
@@ -7893,7 +8017,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  	llvm::Value* get_reg_raw(u32 index)
-@@ -1160,17 +1574,34 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+@@ -1160,17 +1575,34 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
  		m_ir->SetInsertPoint(check);
  		update_pc(addr);
  
@@ -7930,7 +8054,7 @@ index 9a1e4c7..df0f737 100644
  
  		if (may_be_unsafe_for_savestate)
  		{
-@@ -1602,6 +2033,11 @@ public:
+@@ -1602,6 +2034,11 @@ public:
  			m_spurt = &g_fxo->get<spu_runtime>();
  			cpu_translator::initialize(m_jit.get_context(), m_jit.get_engine());
  
@@ -7942,7 +8066,7 @@ index 9a1e4c7..df0f737 100644
  			const auto md_name = llvm::MDString::get(m_context, "branch_weights");
  			const auto md_low = llvm::ValueAsMetadata::get(llvm::ConstantInt::get(GetType<u32>(), 1));
  			const auto md_high = llvm::ValueAsMetadata::get(llvm::ConstantInt::get(GetType<u32>(), 999));
-@@ -1674,6 +2110,12 @@ public:
+@@ -1674,6 +2111,12 @@ public:
  			return nullptr;
  		}
  
@@ -7955,7 +8079,7 @@ index 9a1e4c7..df0f737 100644
  		const spu_program& func = add_loc->data;
  
  		if (func.entry_point != start0)
-@@ -1689,6 +2131,10 @@ public:
+@@ -1689,6 +2132,10 @@ public:
  				add_loc->compiled.wait(nullptr, atomic_wait_timeout{10'000'000});
  			}
  
@@ -7966,7 +8090,7 @@ index 9a1e4c7..df0f737 100644
  			return add_loc->compiled;
  		}
  
-@@ -1702,6 +2148,10 @@ public:
+@@ -1702,6 +2149,10 @@ public:
  				add_loc->llvm_compile_state.wait(1, atomic_wait_timeout{10'000'000});
  			}
  
@@ -7977,7 +8101,7 @@ index 9a1e4c7..df0f737 100644
  			return add_loc->llvm_compile_state == 2 ? add_loc->compiled.load() : nullptr;
  		}
  
-@@ -1722,11 +2172,25 @@ public:
+@@ -1722,11 +2173,25 @@ public:
  
  		bool add_to_file = false;
  
@@ -8004,7 +8128,7 @@ index 9a1e4c7..df0f737 100644
  		{
  			sha1_context ctx;
  			u8 output[20];
-@@ -1751,9 +2215,42 @@ public:
+@@ -1751,9 +2216,42 @@ public:
  		{
  			g_spu_llvm_compile_context->llvm_error.clear();
  		}
@@ -8048,7 +8172,7 @@ index 9a1e4c7..df0f737 100644
  
  		m_pos = func.lower_bound;
  		m_base = func.entry_point;
-@@ -1764,33 +2261,48 @@ public:
+@@ -1764,33 +2262,48 @@ public:
  		m_pp_id = 0;
  
  		std::string function_log;
@@ -8108,7 +8232,7 @@ index 9a1e4c7..df0f737 100644
  			spu_log.notice("Function %s dump:\n%s", m_hash, function_log);
  		}
  
-@@ -1875,6 +2387,7 @@ public:
+@@ -1875,6 +2388,7 @@ public:
  			[[maybe_unused]] u32 elements;
  			[[maybe_unused]] u32 dwords;
  
@@ -8116,7 +8240,7 @@ index 9a1e4c7..df0f737 100644
  			if (m_use_avx512)
  			{
  				stride = 64;
-@@ -1888,6 +2401,7 @@ public:
+@@ -1888,6 +2402,7 @@ public:
  				dwords = 4;
  			}
  			else
@@ -8124,7 +8248,7 @@ index 9a1e4c7..df0f737 100644
  			{
  				stride = 16;
  				elements = 4;
-@@ -3853,6 +4367,13 @@ public:
+@@ -3853,6 +4368,13 @@ public:
  			m_function_table->eraseFromParent();
  		}
  
@@ -8138,7 +8262,7 @@ index 9a1e4c7..df0f737 100644
  		// Create the analysis managers.
  		// These must be declared in this order so that they are destroyed in the
  		// correct order due to inter-analysis-manager references.
-@@ -3878,19 +4399,62 @@ public:
+@@ -3878,19 +4400,63 @@ public:
  		// Basic optimizations
  		fpm.addPass(EarlyCSEPass(true));
  		fpm.addPass(SimplifyCFGPass());
@@ -8170,6 +8294,7 @@ index 9a1e4c7..df0f737 100644
 +				lower_spu_variable_insertions(f);
 +				spu_llvm::arm64::fold_byte_reversals(f);
 +				spu_llvm::arm64::fold_single_source_tables(f);
++				spu_llvm::arm64::fold_constant_tables(f);
 +				spu_llvm::arm64::fold_wide_comparison_reversals(f);
 +#endif
 +			}
@@ -8206,7 +8331,7 @@ index 9a1e4c7..df0f737 100644
  		}
  
  		// Clear context (TODO)
-@@ -3904,12 +4468,33 @@ public:
+@@ -3904,12 +4470,33 @@ public:
  		std::string& llvm_log = function_log;
  		raw_string_ostream out(llvm_log);
  
@@ -8245,7 +8370,7 @@ index 9a1e4c7..df0f737 100644
  			out.flush();
  			spu_log.error("LLVM: Verification failed at 0x%x:\n%s", func.entry_point, llvm_log);
  
-@@ -3951,22 +4536,39 @@ public:
+@@ -3951,22 +4538,39 @@ public:
  
  			if (recoverable)
  			{
@@ -8296,7 +8421,7 @@ index 9a1e4c7..df0f737 100644
  				{
  					added = m_jit.try_add(std::move(_module), llvm_error);
  				}
-@@ -3983,19 +4585,7 @@ public:
+@@ -3983,19 +4587,7 @@ public:
  			}
  			else
  			{
@@ -8317,7 +8442,7 @@ index 9a1e4c7..df0f737 100644
  
  				m_jit.fin();
  			}
-@@ -4018,11 +4608,60 @@ public:
+@@ -4018,11 +4610,60 @@ public:
  #endif
  		}
  
@@ -8378,7 +8503,7 @@ index 9a1e4c7..df0f737 100644
  
  		// Rebuild trampoline if necessary
  		if (!m_spurt->rebuild_ubertrampoline(func.data[0]))
-@@ -4069,7 +4708,7 @@ public:
+@@ -4069,7 +4710,7 @@ public:
  				cache.add(func);
  			}
  
@@ -8387,7 +8512,7 @@ index 9a1e4c7..df0f737 100644
  		}
  
  		return fn;
-@@ -4159,14 +4798,13 @@ public:
+@@ -4159,14 +4800,13 @@ public:
  		// Pinned constant, address of first register
  		m_interp_regs = _ptr(m_thread, get_reg_offset(0));
  
@@ -8406,7 +8531,7 @@ index 9a1e4c7..df0f737 100644
  
  		// Decode (shift) and load function pointer
  		const auto first = m_ir->CreateLoad(get_type<u8*>(), m_ir->CreateGEP(get_type<u8*>(), m_interp_table, m_ir->CreateLShr(m_interp_op, 32u - m_interp_magn)));
-@@ -4444,17 +5082,34 @@ public:
+@@ -4444,17 +5084,34 @@ public:
  		for (auto& f : *_module)
  		{
  			run_transforms(f);
@@ -8446,7 +8571,7 @@ index 9a1e4c7..df0f737 100644
  			out.flush();
  			spu_log.error("LLVM: Verification failed:\n%s", llvm_log);
  
-@@ -4466,6 +5121,11 @@ public:
+@@ -4466,6 +5123,11 @@ public:
  			fmt::throw_exception("Compilation failed");
  		}
  
@@ -8458,7 +8583,7 @@ index 9a1e4c7..df0f737 100644
  		if (g_cfg.core.spu_debug)
  		{
  			// Testing only
-@@ -4479,11 +5139,22 @@ public:
+@@ -4479,11 +5141,22 @@ public:
  		{
  			m_jit.add(std::move(_module));
  		}
@@ -8481,7 +8606,7 @@ index 9a1e4c7..df0f737 100644
  
  		for (u32 i = 0; i < spu_runtime::g_interpreter_table.size(); i++)
  		{
-@@ -4507,7 +5178,7 @@ public:
+@@ -4507,7 +5180,7 @@ public:
  
  	static bool exec_check_state(spu_thread* _spu)
  	{
@@ -8490,7 +8615,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  	template <spu_intrp_func_t F>
-@@ -4747,7 +5418,9 @@ public:
+@@ -4747,7 +5420,9 @@ public:
  #if defined(ARCH_X64) || defined(ARCH_ARM64)
  			if (utils::get_tsc_freq() && !(g_cfg.core.spu_loop_detection) && (g_cfg.core.clocks_scale == 100))
  			{
@@ -8501,7 +8626,7 @@ index 9a1e4c7..df0f737 100644
  				const auto timestamp = m_ir->CreateLoad(get_type<u64>(), spu_ptr(&spu_thread::ch_dec_start_timestamp));
  				const auto dec_value = m_ir->CreateLoad(get_type<u32>(), spu_ptr(&spu_thread::ch_dec_value));
  				const auto tsc = m_ir->CreateCall(get_intrinsic(llvm::Intrinsic::readcyclecounter));
-@@ -4924,9 +5597,25 @@ public:
+@@ -4924,9 +5599,25 @@ public:
  			{
  				auto wait_inbox = [](spu_thread* _spu, spu_channel_4_t* ch) -> u32
  				{
@@ -8528,7 +8653,7 @@ index 9a1e4c7..df0f737 100644
  				res.value = call("wait_spu_inbox", +wait_inbox, m_thread, spu_ptr(&spu_thread::ch_in_mbox));
  				break;
  			}
-@@ -5200,7 +5889,7 @@ public:
+@@ -5200,7 +5891,7 @@ public:
  				}
  			}
  
@@ -8537,7 +8662,7 @@ index 9a1e4c7..df0f737 100644
  			//m_ir->CreateStore(val.value, spu_ptr(&spu_thread::ch_mfc_cmd, &spu_mfc_cmd::eah));
  			return;
  		}
-@@ -5403,6 +6092,16 @@ public:
+@@ -5403,6 +6094,16 @@ public:
  					}
  					}
  
@@ -8554,7 +8679,7 @@ index 9a1e4c7..df0f737 100644
  					// Check if the LS address is constant and 256 bit aligned
  					u64 clsa = umax;
  
-@@ -5411,20 +6110,19 @@ public:
+@@ -5411,20 +6112,19 @@ public:
  						clsa = ci->getZExtValue();
  					}
  
@@ -8577,7 +8702,7 @@ index 9a1e4c7..df0f737 100644
  					{
  						// Generate fixed sequence of copy operations
  						for (u32 i = 0; i < csize; i += stride)
-@@ -5558,7 +6256,7 @@ public:
+@@ -5558,7 +6258,7 @@ public:
  			}
  
  			// Fallback to unoptimized WRCH implementation (TODO)
@@ -8586,7 +8711,7 @@ index 9a1e4c7..df0f737 100644
  			break;
  		}
  		case MFC_WrListStallAck:
-@@ -5580,29 +6278,8 @@ public:
+@@ -5580,29 +6280,8 @@ public:
  			return;
  		}
  		case SPU_WrDec:
@@ -8618,7 +8743,7 @@ index 9a1e4c7..df0f737 100644
  		case SPU_Set_Bkmk_Tag:
  		case SPU_PM_Start_Ev:
  		case SPU_PM_Stop_Ev:
-@@ -5702,14 +6379,34 @@ public:
+@@ -5702,14 +6381,34 @@ public:
  
  	void ABSDB(spu_opcode_t op)
  	{
@@ -8653,7 +8778,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  	void ROTM(spu_opcode_t op)
-@@ -5747,7 +6444,13 @@ public:
+@@ -5747,7 +6446,13 @@ public:
  			return;
  		}
  
@@ -8667,7 +8792,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  	void SHL(spu_opcode_t op)
-@@ -5766,7 +6469,13 @@ public:
+@@ -5766,7 +6471,13 @@ public:
  	void ROTH(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
@@ -8681,7 +8806,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  	void ROTHM(spu_opcode_t op)
-@@ -5804,7 +6513,13 @@ public:
+@@ -5804,7 +6515,13 @@ public:
  			return;
  		}
  
@@ -8695,7 +8820,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  	void SHLH(spu_opcode_t op)
-@@ -6258,13 +6973,12 @@ public:
+@@ -6258,13 +6975,12 @@ public:
  
  	void FSMB(spu_opcode_t op)
  	{
@@ -8713,7 +8838,7 @@ index 9a1e4c7..df0f737 100644
  		const auto m = bitcast<bool[16]>(trunc<u16>(v));
  		set_vr(op.rt, sext<s8[16]>(m));
  #endif
-@@ -6273,7 +6987,17 @@ public:
+@@ -6273,7 +6989,17 @@ public:
  	template <typename TA>
  	static auto byteswap(TA&& a)
  	{
@@ -8731,7 +8856,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  	static auto rotqby_reverse_base()
-@@ -6334,20 +7058,24 @@ public:
+@@ -6334,20 +7060,24 @@ public:
  				const auto sc = rotqby_reverse_base();
  				const auto sh = sc + (splat_scalar(b) >> 3);
  
@@ -8756,7 +8881,7 @@ index 9a1e4c7..df0f737 100644
  
  			return eval(pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  		});
-@@ -6504,8 +7232,14 @@ public:
+@@ -6504,8 +7234,14 @@ public:
  			}
  		}
  
@@ -8771,7 +8896,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  	void ROTQMBI(spu_opcode_t op)
-@@ -6518,15 +7252,27 @@ public:
+@@ -6518,15 +7254,27 @@ public:
  			minusb = eval(x);
  		}
  
@@ -8799,7 +8924,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  #if defined(ARCH_X64)
-@@ -6561,11 +7307,13 @@ public:
+@@ -6561,11 +7309,13 @@ public:
  			const auto sc = rotqby_reverse_base();
  			const auto sh = eval(sc + splat_scalar(b));
  
@@ -8813,7 +8938,7 @@ index 9a1e4c7..df0f737 100644
  
  			set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(as, (sh & 0xf)));
  			return;
-@@ -6574,11 +7322,13 @@ public:
+@@ -6574,11 +7324,13 @@ public:
  		const auto sc = rotqby_forward_base();
  		const auto sh = eval(sc - splat_scalar(b));
  
@@ -8827,7 +8952,7 @@ index 9a1e4c7..df0f737 100644
  
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  	}
-@@ -6724,6 +7474,16 @@ public:
+@@ -6724,6 +7476,16 @@ public:
  	void ROTQBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -8844,7 +8969,7 @@ index 9a1e4c7..df0f737 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = (sc - get_imm<u8[16]>(op.i7, false)) & 0xf;
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6732,6 +7492,16 @@ public:
+@@ -6732,6 +7494,16 @@ public:
  	void ROTQMBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -8861,7 +8986,7 @@ index 9a1e4c7..df0f737 100644
  		const auto sc = rotqby_zero_base();
  		const auto sh = sc + (-get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6741,6 +7511,16 @@ public:
+@@ -6741,6 +7513,16 @@ public:
  	{
  		if (get_reg_raw(op.ra) && !op.i7) return set_reg_fixed(op.rt, get_reg_raw(op.ra), false); // For expressions matching
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -8878,7 +9003,7 @@ index 9a1e4c7..df0f737 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = sc - (get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6773,6 +7553,7 @@ public:
+@@ -6773,6 +7555,7 @@ public:
  
  	void SUMB(spu_opcode_t op)
  	{
@@ -8886,7 +9011,7 @@ index 9a1e4c7..df0f737 100644
  		if (m_use_avx512)
  		{
  			const auto [a, b] = get_vrs<u8[16]>(op.ra, op.rb);
-@@ -6789,6 +7570,7 @@ public:
+@@ -6789,6 +7572,7 @@ public:
  			set_vr(op.rt, shuffle2(ax, bx, 0, 9, 2, 11, 4, 13, 6, 15));
  			return;
  		}
@@ -8894,7 +9019,7 @@ index 9a1e4c7..df0f737 100644
  
  #ifdef ARCH_ARM64
  		if (m_use_dotprod)
-@@ -6812,6 +7594,17 @@ public:
+@@ -6812,6 +7596,17 @@ public:
  			return;
  		}
  
@@ -8912,7 +9037,7 @@ index 9a1e4c7..df0f737 100644
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
  		const auto ahs = eval((a >> 8) + (a & 0xff));
  		const auto bhs = eval((b >> 8) + (b & 0xff));
-@@ -6850,11 +7643,31 @@ public:
+@@ -6850,11 +7645,31 @@ public:
  
  	void XSWD(spu_opcode_t op)
  	{
@@ -8944,7 +9069,7 @@ index 9a1e4c7..df0f737 100644
  		set_vr(op.rt, get_vr<s32[4]>(op.ra) << 16 >> 16);
  	}
  
-@@ -6865,6 +7678,16 @@ public:
+@@ -6865,6 +7680,16 @@ public:
  
  	void XSBH(spu_opcode_t op)
  	{
@@ -8961,7 +9086,7 @@ index 9a1e4c7..df0f737 100644
  		set_vr(op.rt, get_vr<s16[8]>(op.ra) << 8 >> 8);
  	}
  
-@@ -6925,16 +7748,28 @@ public:
+@@ -6925,16 +7750,28 @@ public:
  	void CGX(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u32[4]>(op.ra, op.rb);
@@ -8990,7 +9115,7 @@ index 9a1e4c7..df0f737 100644
  	}
  
  	void MPYHHA(spu_opcode_t op)
-@@ -7417,6 +8252,32 @@ public:
+@@ -7417,6 +8254,32 @@ public:
  			case 2:
  			case 1:
  			{
@@ -9023,7 +9148,7 @@ index 9a1e4c7..df0f737 100644
  				set_vr(op.rt4, select(bitcast<s8[16]>(c) != 0, get_vr<u8[16]>(op.rb), get_vr<u8[16]>(op.ra)));
  				return;
  			}
-@@ -7451,6 +8312,18 @@ public:
+@@ -7451,6 +8314,18 @@ public:
  			// If the mask comes from a constant generation instruction, replace SHUFB with insert
  			if (auto [ok, i] = match_expr(c, spu_get_insertion_shuffle_mask<VT>(match<u32>())); ok)
  			{
@@ -9042,7 +9167,7 @@ index 9a1e4c7..df0f737 100644
  				set_vr(op.rt4, insert(get_vr<VT>(op.rb), i, get_scalar(get_vr<VT>(op.ra))));
  				return true;
  			}
-@@ -7461,6 +8334,21 @@ public:
+@@ -7461,6 +8336,21 @@ public:
  			return;
  		}
  
@@ -9064,7 +9189,7 @@ index 9a1e4c7..df0f737 100644
  		const auto c = get_vr<u8[16]>(op.rc);
  
  		if (auto [ok, mask] = get_const_vector(c.value, m_pos); ok)
-@@ -7507,7 +8395,7 @@ public:
+@@ -7507,7 +8397,7 @@ public:
  					{ 0x1011121314151617, 0x000102031c1d1e1f, &cpu_translator::get_type<u32[4]>, 3, 1 },
  					{ 0x1011121314151617, 0x18191a1b00010203, &cpu_translator::get_type<u32[4]>, 3, 0 },
  					{ 0x0001020304050607, 0x18191a1b1c1d1e1f, &cpu_translator::get_type<u64[2]>, 1, 1 },
@@ -9073,7 +9198,7 @@ index 9a1e4c7..df0f737 100644
  				};
  
  				// Check important constants from CWD-like constant generation instructions
-@@ -7568,6 +8456,28 @@ public:
+@@ -7568,6 +8458,28 @@ public:
  		[[maybe_unused]] const bool consts_never_msb = known_idx.Zero[5];
  		[[maybe_unused]] const bool consts_never_allones = known_idx.One[5];
  		[[maybe_unused]] const bool idx_selects_single = known_idx.extractBits(1, 4).isConstant();
@@ -9102,7 +9227,7 @@ index 9a1e4c7..df0f737 100644
  
  		const auto a = get_vr<u8[16]>(op.ra);
  		const auto b = get_vr<u8[16]>(op.rb);
-@@ -7627,12 +8537,12 @@ public:
+@@ -7627,12 +8539,12 @@ public:
  			cv = eval(c ^ 0xf);
  		}
  
@@ -9120,7 +9245,7 @@ index 9a1e4c7..df0f737 100644
  #else
  		const std::optional<value_t<u8[16]>> single_src = (idx_selects_single || (op.ra == op.rb && !m_interp_magn))
  #endif
-@@ -7675,6 +8585,14 @@ public:
+@@ -7675,6 +8587,14 @@ public:
  				return;
  			}
  
@@ -9135,7 +9260,7 @@ index 9a1e4c7..df0f737 100644
  			const auto x = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  			const auto xv = perm_or_zero_only ? eval(splat<u8[16]>(0)) : x;
  			const auto cm = eval(cv & 0x8f);
-@@ -7694,6 +8612,15 @@ public:
+@@ -7694,6 +8614,15 @@ public:
  			return;
  		}
  
@@ -9151,7 +9276,7 @@ index 9a1e4c7..df0f737 100644
  		if (perm_only)
  		{
  			const auto cm = eval(cv & 0x1f);
-@@ -7701,6 +8628,14 @@ public:
+@@ -7701,6 +8630,14 @@ public:
  			return;
  		}
  
@@ -9166,7 +9291,7 @@ index 9a1e4c7..df0f737 100644
  		const auto idx_consts = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  		const auto idx_base = perm_or_zero_only ? eval(splat<u8[16]>(0)) : idx_consts;
  		const auto cm = eval(cv & 0x9f);
-@@ -7953,6 +8888,7 @@ public:
+@@ -7953,6 +8890,7 @@ public:
  	{
  		const auto known = known_opt.value_or(get_known_fp_class<3>(v, llvm::FPClassTest::fcNan | llvm::FPClassTest::fcInf));
  
@@ -9174,7 +9299,7 @@ index 9a1e4c7..df0f737 100644
  		// Avoid pessimation when full clamping isn't needed
  		if (m_use_avx512 && !(known.isKnownNeverNaN() && (known.isKnownNeverPosInfinity() || known.isKnownNeverNegInfinity())))
  		{
-@@ -7960,6 +8896,7 @@ public:
+@@ -7960,6 +8898,7 @@ public:
  			// Normally doesn't cause issues as SNaN frequently gets quieted beforehand
  			return eval(vrangeps(v, fsplat<f32[4]>(std::bit_cast<f32, u32>(0x7f7fffff)), 0x2, 0xff));
  		}
@@ -9182,7 +9307,7 @@ index 9a1e4c7..df0f737 100644
  
  		return eval(clamp_positive_smax(clamp_negative_smax(v, known), known));
  	}
-@@ -7993,6 +8930,7 @@ public:
+@@ -7993,6 +8932,7 @@ public:
  			const auto a_sign = (a & splat<u32[4]>(0x80000000));
  			value_t<u32[4]> final_result = eval(splat<u32[4]>(0));
  
@@ -9190,7 +9315,7 @@ index 9a1e4c7..df0f737 100644
  			if (m_use_avx512)
  			{
  				value_t<u32[16]> lo_lut;
-@@ -8003,6 +8941,7 @@ public:
+@@ -8003,6 +8943,7 @@ public:
  				final_result = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  			}
  			else
@@ -9198,7 +9323,7 @@ index 9a1e4c7..df0f737 100644
  			{
  				for (u32 i = 0; i < 4; i++)
  				{
-@@ -8058,6 +8997,15 @@ public:
+@@ -8058,6 +8999,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -9214,7 +9339,7 @@ index 9a1e4c7..df0f737 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) > get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8154,6 +9102,15 @@ public:
+@@ -8154,6 +9104,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -9230,7 +9355,7 @@ index 9a1e4c7..df0f737 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) > fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8432,6 +9389,15 @@ public:
+@@ -8432,6 +9391,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -9246,7 +9371,7 @@ index 9a1e4c7..df0f737 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) == get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8481,6 +9447,15 @@ public:
+@@ -8481,6 +9449,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -9262,7 +9387,7 @@ index 9a1e4c7..df0f737 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) == fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8669,6 +9644,7 @@ public:
+@@ -8669,6 +9646,7 @@ public:
  					return eval(select(fcmp_uno(b != fsplat<f32[4]>(0.)), normal_fma, c));
  				}
  
@@ -9270,7 +9395,7 @@ index 9a1e4c7..df0f737 100644
  				// Same number of operations well preventing a serial predicate chain pessimization
  				if (m_use_avx512)
  				{
-@@ -8677,6 +9653,7 @@ public:
+@@ -8677,6 +9655,7 @@ public:
  					const auto cb = vfixupimmps(b, a, splat<u32[4]>(0x00000800u), 0, 0xff);
  					return fma32x4(ca, cb, c, a_known, b_known);
  				}
@@ -9278,7 +9403,7 @@ index 9a1e4c7..df0f737 100644
  
  				const auto normal_fma = fma32x4(a, b, c, a_known, b_known);
  				const auto a_cmp = fcmp_uno(a != fsplat<f32[4]>(0.));
-@@ -8689,6 +9666,7 @@ public:
+@@ -8689,6 +9668,7 @@ public:
  			}
  		});
  
@@ -9286,7 +9411,7 @@ index 9a1e4c7..df0f737 100644
  		if (m_use_avx512)
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
-@@ -8702,6 +9680,7 @@ public:
+@@ -8702,6 +9682,7 @@ public:
  			});
  		}
  		else
@@ -9294,7 +9419,7 @@ index 9a1e4c7..df0f737 100644
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
  			{
-@@ -8910,17 +9889,38 @@ public:
+@@ -8910,17 +9891,38 @@ public:
  
  		if (auto [ok_re, mystery] = match_expr(a, spu_re(MT)); ok_re)
  		{
@@ -9333,7 +9458,7 @@ index 9a1e4c7..df0f737 100644
  		}
  
  		if (!m_interp_magn && op.ra == op.rb)
-@@ -9046,6 +10046,7 @@ public:
+@@ -9046,6 +10048,7 @@ public:
  				const auto a_sign = (a & splat<u32[4]>(0x80000000));
  				value_t<u32[4]> b = eval(splat<u32[4]>(0));
  
@@ -9341,7 +9466,7 @@ index 9a1e4c7..df0f737 100644
  				if (m_use_avx512)
  				{
  					value_t<u32[16]> lo_lut;
-@@ -9056,6 +10057,7 @@ public:
+@@ -9056,6 +10059,7 @@ public:
  					b = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  				}
  				else
@@ -9349,7 +9474,7 @@ index 9a1e4c7..df0f737 100644
  				{
  					for (u32 i = 0; i < 4; i++)
  					{
-@@ -9311,6 +10313,7 @@ public:
+@@ -9311,6 +10315,7 @@ public:
  
  			value_t<s32[4]> r;
  
@@ -9357,7 +9482,7 @@ index 9a1e4c7..df0f737 100644
  			if (m_use_avx512)
  			{
  				const auto sc = eval(bitcast<f32[4]>(max(bitcast<s32[4]>(a),splat<s32[4]>(0x0))));
-@@ -9318,6 +10321,7 @@ public:
+@@ -9318,6 +10323,7 @@ public:
  				set_vr(op.rt, r);
  				return;
  			}
@@ -9365,7 +9490,7 @@ index 9a1e4c7..df0f737 100644
  
  			r.value = m_ir->CreateFPToUI(a.value, get_type<s32[4]>());
  			set_vr(op.rt, select(bitcast<s32[4]>(a) > splat<s32[4]>(((32 + 127) << 23) - 1), splat<s32[4]>(-1), r & ~(bitcast<s32[4]>(a) >> 31)));
-@@ -9650,7 +10654,7 @@ public:
+@@ -9650,7 +10656,7 @@ public:
  
  		if (_spu->ch_events.load().count)
  		{
@@ -9374,7 +9499,7 @@ index 9a1e4c7..df0f737 100644
  			_spu->srr0 = addr;
  
  			// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -9667,6 +10671,13 @@ public:
+@@ -9667,6 +10673,13 @@ public:
  		return addr;
  	}
  
@@ -9388,7 +9513,7 @@ index 9a1e4c7..df0f737 100644
  	llvm::BasicBlock* add_block_indirect(spu_opcode_t op, value_t<u32> addr, bool ret = true)
  	{
  		if (m_interp_magn)
-@@ -9690,7 +10701,7 @@ public:
+@@ -9690,7 +10703,7 @@ public:
  			target->addIncoming(e_addr, e_exec);
  			m_ir->CreateCondBr(get_imm<bool>(op.d).value, d_exec, d_done, m_md_unlikely);
  			m_ir->SetInsertPoint(d_exec);
@@ -9397,7 +9522,7 @@ index 9a1e4c7..df0f737 100644
  			m_ir->CreateBr(d_done);
  			m_ir->SetInsertPoint(d_done);
  			m_ir->CreateBr(m_interp_bblock);
-@@ -9749,7 +10760,7 @@ public:
+@@ -9749,7 +10762,7 @@ public:
  
  		if (op.d)
  		{
@@ -9406,7 +9531,7 @@ index 9a1e4c7..df0f737 100644
  		}
  
  		m_ir->CreateStore(addr.value, spu_ptr(&spu_thread::pc));
-@@ -10036,7 +11047,7 @@ public:
+@@ -10036,7 +11049,7 @@ public:
  		if (op.d && tfound != m_targets.end() && tfound->second.size() == 1 && tfound->second[0] == spu_branch_target(m_pos, 1))
  		{
  			// Interrupts-disable pattern
@@ -9415,7 +9540,7 @@ index 9a1e4c7..df0f737 100644
  			return;
  		}
  
-@@ -10102,7 +11113,7 @@ public:
+@@ -10102,7 +11115,7 @@ public:
  			{
  				// Can't afford external tail call in true functions
  				m_ir->CreateStore(m_ir->getInt32("BIJT"_u32), _ptr(m_memptr, 0xffdead20));
@@ -13319,7 +13444,7 @@ index af6a25a..68145ed 100644
  	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
  	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28..64731ba 100644
+index 63cab28..b316a42 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 @@ -16,10 +16,14 @@
@@ -13337,7 +13462,33 @@ index 63cab28..64731ba 100644
  
  #include "../Program/SPIRVCommon.h"
  
-@@ -1019,12 +1023,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
+@@ -475,6 +479,16 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+ 	vk::set_current_renderer(m_swapchain->get_device());
+ 	vk::init();
+ 
++	// Keep hardware fallback local to this renderer; never overwrite saved settings.
++	m_shader_mode = g_cfg.video.shadermode.get();
++	if ((m_shader_mode == shader_mode::async_with_interpreter || m_shader_mode == shader_mode::interpreter_only) &&
++		!m_device->gpu().get_shader_interpreter_support())
++	{
++		rsx_log.warning("GPU '%s' cannot support the shader interpreter's 64 fragment samplers/images; using synchronous shader recompilation for this session.",
++			m_device->gpu().get_name());
++		m_shader_mode = shader_mode::recompiler;
++	}
++
+ 	m_swapchain_dims.width = m_frame->client_width();
+ 	m_swapchain_dims.height = m_frame->client_height();
+ 
+@@ -537,7 +551,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+ 
+ 	m_flushable_data_heaps = vk::data_heap_manager::to_list().filter(FN(x->has_shadow()));
+ 
+-	const auto shadermode = g_cfg.video.shadermode.get();
++	const auto shadermode = m_shader_mode;
+ 
+ 	if (shadermode == shader_mode::async_with_interpreter || shadermode == shader_mode::interpreter_only)
+ 	{
+@@ -1019,12 +1033,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
  
  void VKGSRender::on_semaphore_acquire_wait()
  {
@@ -13377,7 +13528,7 @@ index 63cab28..64731ba 100644
  }
  
  bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
-@@ -1048,6 +1079,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1048,6 +1089,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  				for (auto i = 0ull; i < texture_array.size(); ++i)
  				{
  					const auto& tex = texture_array[i];
@@ -13391,7 +13542,7 @@ index 63cab28..64731ba 100644
  					const auto addr = rsx::get_address(tex.offset(), tex.location());
  					exclusion_list.insert(addr);
  				}
-@@ -1096,33 +1134,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1096,33 +1144,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  		return any_cache_relieved;
  	}
  
@@ -13435,7 +13586,27 @@ index 63cab28..64731ba 100644
  		{
  			m_samplers_dirty.store(true);
  		}
-@@ -1276,6 +1299,19 @@ void VKGSRender::on_init_thread()
+@@ -1250,8 +1283,8 @@ void VKGSRender::on_init_thread()
+ 	GSRender::on_init_thread();
+ 	zcull_ctrl.reset(static_cast<::rsx::reports::ZCULL_control*>(this));
+ 
+-	if (g_cfg.video.shadermode == shader_mode::async_with_interpreter ||
+-		g_cfg.video.shadermode == shader_mode::interpreter_only)
++	if (m_shader_mode == shader_mode::async_with_interpreter ||
++		m_shader_mode == shader_mode::interpreter_only)
+ 	{
+ 		std::unique_ptr<rsx::shader_loading_dialog> dlg = m_overlay_manager
+ 			? std::make_unique<rsx::shader_loading_dialog_native>(this)
+@@ -1260,7 +1293,7 @@ void VKGSRender::on_init_thread()
+ 		dlg->close();
+ 	}
+ 
+-	if (g_cfg.video.shadermode != shader_mode::interpreter_only)
++	if (m_shader_mode != shader_mode::interpreter_only)
+ 	{
+ 		if (!m_overlay_manager)
+ 		{
+@@ -1276,6 +1309,19 @@ void VKGSRender::on_init_thread()
  			m_shaders_cache->load(&dlg);
  		}
  	}
@@ -13455,7 +13626,16 @@ index 63cab28..64731ba 100644
  }
  
  void VKGSRender::on_exit()
-@@ -1912,7 +1948,11 @@ bool VKGSRender::load_program()
+@@ -1801,7 +1847,7 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
+ 
+ bool VKGSRender::load_program()
+ {
+-	const auto shadermode = g_cfg.video.shadermode.get();
++	const auto shadermode = m_shader_mode;
+ 
+ 	// TODO: EXT_dynamic_state should get rid of this sillyness soon (kd)
+ 	const auto vertex_state = vk::decode_vertex_input_assembly_state();
+@@ -1912,7 +1958,11 @@ bool VKGSRender::load_program()
  
  		vk::leave_uninterruptible();
  
@@ -13469,10 +13649,18 @@ index 63cab28..64731ba 100644
  			// Notify the user with HUD notification
  			if (g_cfg.misc.show_shader_compilation_hint)
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
-index e3817d8..c7903bd 100644
+index e3817d8..c5100be 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.h
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
-@@ -190,6 +190,12 @@ private:
+@@ -104,6 +104,7 @@ private:
+ 	vk::instance m_instance;
+ 	vk::render_device *m_device;
+ 	std::string m_initialization_error;
++	shader_mode m_shader_mode = shader_mode::recompiler;
+ 
+ 	//Vulkan internals
+ 	std::unique_ptr<vk::query_pool_manager> m_occlusion_query_manager;
+@@ -190,6 +191,12 @@ private:
  	vk::flush_request_task m_flush_requests;
  
  	ullong m_last_cond_render_eval_hint = 0;
@@ -13485,7 +13673,7 @@ index e3817d8..c7903bd 100644
  
  	// Offloader thread deadlock recovery
  	rsx::atomic_bitmask_t<flush_queue_state> m_queue_status;
-@@ -255,6 +261,7 @@ private:
+@@ -255,6 +262,7 @@ private:
  	void upload_transform_constants(const rsx::io_buffer& buffer);
  
  	void load_texture_env();
@@ -14552,7 +14740,7 @@ index c9bbf4e..2bc13d6 100644
  			}
  
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
-index c165762..37780a9 100644
+index c165762..d933a08 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 @@ -408,11 +408,10 @@ namespace vk
@@ -14569,7 +14757,50 @@ index c165762..37780a9 100644
  	}
  
  	void texture_cache::copy_transfer_regions_impl(vk::command_buffer& cmd, vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const
-@@ -1576,13 +1575,20 @@ namespace vk
+@@ -957,6 +956,26 @@ namespace vk
+ 		VkImageAspectFlags dst_aspect = vk::get_aspect_flags(result->info.format);
+ 		VkImageSubresourceRange dst_range = { dst_aspect, 0, mipmaps, 0, 1 };
+ 		vk::change_image_layout(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, dst_range);
++		const bool fully_overwritten = [&]()
++		{
++			if (dst_aspect != VK_IMAGE_ASPECT_COLOR_BIT || !mipmaps || mipmaps >= 32)
++				return false;
++
++			u32 covered_levels = 0;
++			for (const auto& section : sections_to_copy)
++			{
++				if (!section.src || section.src->aspect() != VK_IMAGE_ASPECT_COLOR_BIT ||
++					!section.src_w || !section.src_h || section.level >= mipmaps ||
++					section.dst_x || section.dst_y || section.dst_z ||
++					section.dst_w != std::max(1u, u32{image->width()} >> section.level) ||
++					section.dst_h != std::max(1u, u32{image->height()} >> section.level))
++				{
++					return false;
++				}
++				covered_levels |= 1u << section.level;
++			}
++			return covered_levels == (1u << mipmaps) - 1;
++		}();
+ 
+ 		if (desc.force_bg_load)
+ 		{
+@@ -965,8 +984,13 @@ namespace vk
+ 		}
+ 		else if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
+ 		{
+-			VkClearColorValue clear = {};
+-			vkCmdClearColorImage(cmd, image->value, image->current_layout, &clear, 1, &dst_range);
++			// A full copy of every mip replaces all pooled-image contents. Avoid
++			// clearing those levels, which costs a separate render pass per mip on Metal.
++			if (!fully_overwritten)
++			{
++				VkClearColorValue clear = {};
++				vkCmdClearColorImage(cmd, image->value, image->current_layout, &clear, 1, &dst_range);
++			}
+ 		}
+ 		else
+ 		{
+@@ -1576,13 +1600,20 @@ namespace vk
  
  		// Nuke temporary resources. They will still be visible to the GPU.
  		auto gc = vk::get_resource_manager();
@@ -14594,7 +14825,7 @@ index c165762..37780a9 100644
  
  		any_released |= !m_temporary_subresource_cache.empty();
  		for (auto& e : m_temporary_subresource_cache)
-@@ -1604,18 +1610,19 @@ namespace vk
+@@ -1604,18 +1635,19 @@ namespace vk
  			purge_unreleased_sections();
  		}
  
@@ -14622,7 +14853,7 @@ index c165762..37780a9 100644
  		}
  
  		baseclass::on_frame_end();
-@@ -1708,6 +1715,7 @@ namespace vk
+@@ -1708,6 +1740,7 @@ namespace vk
  
  	u32 texture_cache::get_unreleased_textures_count() const
  	{
@@ -14768,7 +14999,7 @@ index 5892f8c..35cc4a3 100644
  	// MoltenVK exposes unified system memory as device-local memory. Leaving the
  	// desktop VRAM limit in charge lets RSX consume most of the process's jetsam
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/buffer_object.cpp b/rpcs3/Emu/RSX/VK/vkutils/buffer_object.cpp
-index 47f79ad..037e8a1 100644
+index 47f79ad..b47d49b 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/buffer_object.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/buffer_object.cpp
 @@ -1,6 +1,9 @@
@@ -14781,7 +15012,15 @@ index 47f79ad..037e8a1 100644
  
  namespace vk
  {
-@@ -58,6 +61,14 @@ namespace vk
+@@ -51,6 +54,7 @@ namespace vk
+ 	{
+ 		const bool nullable = !!(flags & VK_BUFFER_CREATE_ALLOW_NULL_RPCS3);
+ 		const bool no_vmem_recovery = !!(flags & VK_BUFFER_CREATE_IGNORE_VMEM_PRESSURE_RPCS3);
++		const bool dedicated = !!(flags & VK_BUFFER_CREATE_DEDICATED_MEMORY_RPCS3);
+ 
+ 		info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+ 		info.flags = flags & ~VK_BUFFER_CREATE_SPECIAL_FLAGS_RPCS3;
+@@ -58,6 +62,14 @@ namespace vk
  		info.usage = usage;
  		info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
  
@@ -14796,6 +15035,31 @@ index 47f79ad..037e8a1 100644
  		CHECK_RESULT(vkCreateBuffer(m_device, &info, nullptr, &value));
  
  		// Allocate vram for this buffer
+@@ -77,7 +89,8 @@ namespace vk
+ 			.memory_type = &allocation_type_info,
+ 			.pool = allocation_pool,
+ 			.throw_on_fail = !nullable,
+-			.recover_vmem_on_fail = !no_vmem_recovery
++			.recover_vmem_on_fail = !no_vmem_recovery,
++			.dedicated = dedicated
+ 		};
+ 		memory = std::make_unique<memory_block>(m_device, request);
+ 
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/buffer_object.h b/rpcs3/Emu/RSX/VK/vkutils/buffer_object.h
+index 136b693..c2b321a 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/buffer_object.h
++++ b/rpcs3/Emu/RSX/VK/vkutils/buffer_object.h
+@@ -11,8 +11,9 @@ namespace vk
+ 	{
+ 		VK_BUFFER_CREATE_ALLOW_NULL_RPCS3           = 0x10000000,   // If we cannot allocate memory for the buffer, just return an empty but valid object with a null handle.
+ 		VK_BUFFER_CREATE_IGNORE_VMEM_PRESSURE_RPCS3 = 0x20000000,   // If we cannot allocate memory for the buffer, do not run recovery routine to recover VRAM. Crash or return empty handle immediately instead.
++		VK_BUFFER_CREATE_DEDICATED_MEMORY_RPCS3     = 0x40000000,   // Give the buffer device memory of its own instead of a range in a shared block. Freeing it returns all of it.
+ 
+-		VK_BUFFER_CREATE_SPECIAL_FLAGS_RPCS3 = (VK_BUFFER_CREATE_ALLOW_NULL_RPCS3 | VK_BUFFER_CREATE_IGNORE_VMEM_PRESSURE_RPCS3)
++		VK_BUFFER_CREATE_SPECIAL_FLAGS_RPCS3 = (VK_BUFFER_CREATE_ALLOW_NULL_RPCS3 | VK_BUFFER_CREATE_IGNORE_VMEM_PRESSURE_RPCS3 | VK_BUFFER_CREATE_DEDICATED_MEMORY_RPCS3)
+ 	};
+ 
+ 	struct buffer_view : public unique_resource
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
 index 549d557..4a78952 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
@@ -14914,11 +15178,101 @@ index 81f65b3..d8e9fa8 100644
  		void bind_descriptor_sets(const std::span<VkDescriptorSet>& sets, VkPipelineBindPoint bind_point, VkPipelineLayout pipe_layout) const;
  		void bind_descriptor_sets(const std::span<VkDescriptorSet>& sets, const std::span<u32>& dynamic_offsets, VkPipelineBindPoint bind_point, VkPipelineLayout pipe_layout) const;
  
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp b/rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp
+index 9534b5f..cff7774 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp
+@@ -137,6 +137,10 @@ namespace vk
+ 		// Update heap information and reset the allocator
+ 		rsx::data_heap::init(aligned_new_size, m_name, m_min_guard_size);
+ 
++		// ARMSX3 05efc85699bd (jpolo1224): retiring a grown ring returns
++		// its backing instead of leaving a hole inside a retained VMA block.
++		constexpr VkFlags grown_heap_flags = VK_BUFFER_CREATE_DEDICATED_MEMORY_RPCS3;
++
+ 		// Discard old heap and create a new one. Old heap will be garbage collected when no longer needed
+ 		auto gc = get_resource_manager();
+ 		if (shadow)
+@@ -145,7 +149,7 @@ namespace vk
+ 			rsx_log.warning("Buffer usage %u is not heap-compatible using this driver, explicit staging buffer in use", usage);
+ 
+ 			gc->dispose(shadow);
+-			shadow = std::make_unique<buffer>(*g_render_device, aligned_new_size, memory_index, memory_flags, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 0, VMM_ALLOCATION_POOL_SYSTEM);
++			shadow = std::make_unique<buffer>(*g_render_device, aligned_new_size, memory_index, memory_flags, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, grown_heap_flags, VMM_ALLOCATION_POOL_SYSTEM);
+ 			usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+ 			memory_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+ 			memory_index = memory_map.device_local;
+@@ -153,7 +157,7 @@ namespace vk
+ 
+ 		gc->dispose(heap);
+ 
+-		VkFlags create_flags = 0;
++		VkFlags create_flags = grown_heap_flags;
+ 		if (m_prefer_writethrough)
+ 		{
+ 			create_flags |= (VK_BUFFER_CREATE_ALLOW_NULL_RPCS3 | VK_BUFFER_CREATE_IGNORE_VMEM_PRESSURE_RPCS3);
+@@ -169,7 +173,7 @@ namespace vk
+ 			// We failed to place the buffer in rebar memory. Try again in host-visible.
+ 			m_prefer_writethrough = false;
+ 			gc->dispose(heap);
+-			heap = std::make_unique<buffer>(*g_render_device, aligned_new_size, memory_map.host_visible_coherent, memory_flags, usage, 0, VMM_ALLOCATION_POOL_SYSTEM);
++			heap = std::make_unique<buffer>(*g_render_device, aligned_new_size, memory_map.host_visible_coherent, memory_flags, usage, grown_heap_flags, VMM_ALLOCATION_POOL_SYSTEM);
+ 		}
+ 
+ 		if (notify_on_grow)
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.cpp b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
+index 2b2e2c3..dede943 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/device.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
+@@ -412,6 +412,7 @@ namespace vk
+ 		// Core properties only
+ 		vkGetPhysicalDeviceMemoryProperties(dev, &memory_properties);
+ 		vkGetPhysicalDeviceProperties(dev, &props);
++		shader_interpreter_sampler_limit = props.limits.maxPerStageDescriptorSamplers;
+ 
+ 		if (!allow_extensions)
+ 		{
+@@ -459,6 +460,15 @@ namespace vk
+ 		vkGetPhysicalDeviceProperties2(dev, &properties2);
+ 		props = properties2.properties;
+ 
++		if (get_driver_vendor() == driver_vendor::MVK)
++		{
++			// MoltenVK reports 16 ordinary samplers even on Tier 2 hardware.
++			// Its extended limit reflects the active Metal argument-buffer tier:
++			// Tier 1 remains limited to 16; Tier 2 can hold the interpreter's 64.
++			shader_interpreter_sampler_limit = std::max(props.limits.maxPerStageDescriptorSamplers,
++				descriptor_indexing_props.maxPerStageDescriptorUpdateAfterBindSamplers);
++		}
++
+ 		if (descriptor_indexing_support)
+ 		{
+ 			if (descriptor_indexing_props.maxUpdateAfterBindDescriptorsInAllPools < 800'000)
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.h b/rpcs3/Emu/RSX/VK/vkutils/device.h
-index ffafbae..f798914 100644
+index ffafbae..c126dc9 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.h
-@@ -171,6 +171,10 @@ namespace vk
+@@ -83,6 +83,7 @@ namespace vk
+ 		VkPhysicalDeviceDriverPropertiesKHR driver_properties{};
+ 
+ 		u32 descriptor_max_draw_calls = DESCRIPTOR_MAX_DRAW_CALLS;
++		u32 shader_interpreter_sampler_limit = 0;
+ 		descriptor_indexing_features descriptor_indexing_support{};
+ 
+ 		custom_border_color_features custom_border_color_support{};
+@@ -132,6 +133,11 @@ namespace vk
+ 		const VkQueueFamilyProperties& get_queue_properties(u32 queue);
+ 		const VkPhysicalDeviceMemoryProperties& get_memory_properties() const;
+ 		const VkPhysicalDeviceLimits& get_limits() const;
++		bool get_shader_interpreter_support() const
++		{
++			// The fragment interpreter declares four texture types for all 16 RSX slots.
++			return shader_interpreter_sampler_limit >= 64 && props.limits.maxPerStageDescriptorSampledImages >= 64;
++		}
+ 
+ 		operator VkPhysicalDevice() const;
+ 		operator VkInstance() const;
+@@ -171,6 +177,10 @@ namespace vk
  
  		void create(vk::physical_device& pdev, u32 graphics_queue_idx, u32 present_queue_idx, u32 transfer_queue_idx);
  		void destroy();
@@ -15035,7 +15389,7 @@ index a301db6..a5fa747 100644
  		using image::image;
  
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/memory.cpp b/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
-index 3db1b27..b4dfab3 100644
+index 3db1b27..8d26935 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
 @@ -1,3 +1,6 @@
@@ -15059,7 +15413,23 @@ index 3db1b27..b4dfab3 100644
  
  		std::vector<VkDeviceSize> heap_limits;
  		const auto configured_vram_allocation_limit = g_cfg.video.vk.vram_allocation_limit * 0x100000ull;
-@@ -347,6 +357,14 @@ namespace vk
+@@ -256,6 +266,15 @@ namespace vk
+ 				create_info.memoryTypeBits = 1u << memory_type_index;
+ 				create_info.flags = m_allocation_flags;
+ 
++				if (request.dedicated)
++				{
++					// VMA already does this unasked for anything over half a block (128M of a
++					// 256M block); this extends it to the requests the caller knows are better
++					// off alone. The allocator without VMA needs nothing: every allocation it
++					// makes is already its own VkDeviceMemory.
++					create_info.flags |= VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
++				}
++
+ 				error_code = vmaAllocateMemory(m_allocator, &mem_req, &create_info, &vma_alloc, nullptr);
+ 				if (error_code == VK_SUCCESS)
+ 				{
+@@ -347,6 +366,14 @@ namespace vk
  	f32 mem_allocator_vma::get_memory_usage()
  	{
  		vmaGetHeapBudgets(m_allocator, stats.data());
@@ -15075,10 +15445,21 @@ index 3db1b27..b4dfab3 100644
  		// Filter out the Re-BAR heap
  		if (::size32(stats) > m_rebar_heap_idx)
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/memory.h b/rpcs3/Emu/RSX/VK/vkutils/memory.h
-index 352aaba..8ada42e 100644
+index 352aaba..5837ecc 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/memory.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/memory.h
-@@ -176,6 +176,8 @@ namespace vk
+@@ -74,6 +74,10 @@ namespace vk
+ 		vmm_allocation_pool pool = VMM_ALLOCATION_POOL_UNDEFINED;
+ 		bool throw_on_fail = true;
+ 		bool recover_vmem_on_fail = true;
++
++		// A VkDeviceMemory of its own instead of a range inside a shared block, so freeing it
++		// returns the memory to the heap at once rather than leaving a hole the block keeps.
++		bool dedicated = false;
+ 	};
+ 
+ 	class mem_allocator_base
+@@ -176,6 +180,8 @@ namespace vk
  
  	protected:
  		memory_block() = default;
@@ -15087,7 +15468,7 @@ index 352aaba..8ada42e 100644
  
  	private:
  		VkDevice m_device;
-@@ -208,7 +210,7 @@ namespace vk
+@@ -208,7 +214,7 @@ namespace vk
  	void vmm_notify_memory_allocated(void* handle, u32 memory_type, u64 memory_size, vmm_allocation_pool pool);
  	void vmm_notify_memory_freed(void* handle);
  	void vmm_reset();
@@ -16382,6 +16763,22 @@ index 52e4951..580947d 100644
  			sleep_for = 10'000;
  			wait_no_update_count++;
  		}
+diff --git a/rpcs3/Loader/ISO.cpp b/rpcs3/Loader/ISO.cpp
+index 94d5fdc..6201c64 100644
+--- a/rpcs3/Loader/ISO.cpp
++++ b/rpcs3/Loader/ISO.cpp
+@@ -903,7 +903,10 @@ static std::optional<iso_fs_metadata> iso_read_directory_entry(fs::file& entry,
+ 		file_name.erase(file_name.end() - 2, file_name.end());
+ 	}
+ 
+-	if (file_name.size() > 1 && file_name.ends_with("."))
++	// The parent record was decoded from the one-byte identifier above. It is
++	// not a regular filename with an empty extension: trimming it produces a
++	// second "." entry that games can recurse into during directory scans.
++	if (file_name.size() > 1 && file_name != ".." && file_name.ends_with("."))
+ 	{
+ 		file_name.pop_back();
+ 	}
 diff --git a/rpcs3/Loader/TAR.cpp b/rpcs3/Loader/TAR.cpp
 index f3ea297..a4a3aa9 100644
 --- a/rpcs3/Loader/TAR.cpp
@@ -23269,6 +23666,133 @@ index 3d22dfa..9b109be 100644
 +	static_assert(!moderate_reclaim_was_effective(1600 * process_memory_mib, 1727 * process_memory_mib));
 +	static_assert(!moderate_reclaim_was_effective(1600 * process_memory_mib, 1500 * process_memory_mib));
  }
+diff --git a/rpcs3/ios/tests/ISODirectoryTests.cpp b/rpcs3/ios/tests/ISODirectoryTests.cpp
+new file mode 100644
+index 0000000..7ee646a
+--- /dev/null
++++ b/rpcs3/ios/tests/ISODirectoryTests.cpp
+@@ -0,0 +1,121 @@
++#include <algorithm>
++#include <bit>
++#include <cassert>
++#include <chrono>
++#include <cstdint>
++#include <cstdio>
++#include <cstring>
++#include <memory>
++#include <optional>
++#include <string>
++#include <string_view>
++#include <vector>
++
++using u8 = uint8_t; using s8 = int8_t; using u16 = uint16_t;
++using u32 = uint32_t; using u64 = uint64_t; using s64 = int64_t; using usz = size_t;
++using namespace std::string_view_literals;
++
++template<class T> struct be_t
++{
++    u8 bytes[sizeof(T)];
++    operator T() const { T v = 0; for (u8 b : bytes) v = T((v << 8) | b); return v; }
++};
++namespace utils { template<class T> const T* bless(const void* p) { return static_cast<const T*>(p); } }
++std::string utf16_to_utf8(const std::u16string& text)
++{
++    std::string out;
++    for (auto c : text) { assert(c < 128); out.push_back(static_cast<char>(c)); }
++    return out;
++}
++struct { template<class... T> void error(T...) {} } iso_log;
++namespace fs
++{
++struct file
++{
++    std::vector<u8> bytes; u64 cursor = 0;
++    u64 pos() const { return cursor; }
++    void seek(u64 p) { cursor = p; }
++    template<class T> bool read(T& value)
++    {
++        if (cursor + sizeof(T) > bytes.size()) return false;
++        std::memcpy(&value, bytes.data() + cursor, sizeof(T)); cursor += sizeof(T); return true;
++    }
++    template<class T> T read() { T value{}; assert(read(value)); return value; }
++    bool read(std::string& value, u64 count)
++    {
++        if (cursor + count > bytes.size()) return false;
++        value.assign(reinterpret_cast<const char*>(bytes.data() + cursor), count); cursor += count; return true;
++    }
++};
++struct dir_entry
++{
++    std::string name; s64 atime = 0, mtime = 0, ctime = 0;
++    bool is_directory = false, is_symlink = false, is_writable = false; u64 size = 0;
++};
++}
++struct iso_fs_node;
++struct iso_dir
++{
++    const iso_fs_node& m_node; usz m_pos = 0;
++    bool read(fs::dir_entry&); void rewind();
++};
++// Match the production predicate shorthand for these directory-entry types.
++#define FN(expr) [&](const fs::dir_entry& x, [[maybe_unused]] const fs::dir_entry& y = fs::dir_entry{}) { return expr; }
++#include "production.inc"
++u64 iso_fs_metadata::size() const { u64 total = 0; for (auto e : extents) total += e.size; return total; }
++
++iso_fs_metadata parse(std::string_view raw, bool joliet = false, bool directory = false)
++{
++    fs::file file;
++    file.bytes.resize(33 + raw.size() + (raw.size() % 2 == 0));
++    file.bytes[0] = static_cast<u8>(file.bytes.size());
++    file.bytes[2] = 18; file.bytes[9] = 18; // both-endian extent
++    file.bytes[18] = 126; file.bytes[19] = 10; file.bytes[20] = 13;
++    file.bytes[25] = directory ? 2 : 0;
++    file.bytes[32] = static_cast<u8>(raw.size());
++    std::copy(raw.begin(), raw.end(), file.bytes.begin() + 33);
++    auto result = iso_read_directory_entry(file, joliet);
++    assert(result && file.pos() == file.bytes.size());
++    assert(result->is_directory == directory && result->extents[0].start == 18);
++    return std::move(*result);
++}
++
++int main()
++{
++    unsigned cases = 0;
++    for (bool joliet : {false, true})
++    {
++        iso_fs_node root;
++        for (auto raw : {std::string_view("\0", 1), std::string_view("\1", 1)})
++            root.children.push_back(std::make_unique<iso_fs_node>(iso_fs_node{parse(raw, joliet, true), {}}));
++        root.children.push_back(std::make_unique<iso_fs_node>(iso_fs_node{parse("english.lang;1"), {}}));
++        iso_dir dir{root};
++        std::vector<fs::dir_entry> entries;
++        fs::dir_entry entry;
++        while (dir.read(entry)) entries.push_back(entry);
++        assert(entries.size() == 3);
++        // Execute actual sys_fs_opendir ordering. A duplicate dot after the
++        // first two entries is precisely what sent Doom 3 back into itself.
++        order_entries(entries);
++        if (entries.size() != 3)
++        {
++            for (const auto& item : entries) fprintf(stderr, "[%s] ", item.name.c_str());
++            fprintf(stderr, "\n");
++        }
++        assert(entries.size() == 3);
++        assert(entries[0].name == "." && entries[1].name == "..");
++        assert(entries[2].name == "english.lang" && !entries[2].is_directory);
++        dir.rewind(); assert(dir.read(entry) && entry.name == ".");
++        ++cases;
++    }
++    for (const auto& [raw, expected] : std::vector<std::pair<std::string, std::string>>{
++        {"TEST.BIN;1", "TEST.BIN"}, {"README.;1", "README"}, {"README.", "README"},
++        {"A;1", "A"}, {".hidden;1", ".hidden"}, {"...;1", ".."}})
++    {
++        assert(parse(raw).name == expected); ++cases;
++        std::string encoded;
++        for (char c : raw) { encoded.push_back('\0'); encoded.push_back(c); }
++        assert(parse(encoded, true).name == expected); ++cases;
++    }
++    printf("ISO directory: %u parser/enumeration/ordering cases passed.\n", cases);
++}
 diff --git a/rpcs3/ios/tests/JITArenaAllocatorTests.cpp b/rpcs3/ios/tests/JITArenaAllocatorTests.cpp
 index 22e57cf..0f73a7a 100644
 --- a/rpcs3/ios/tests/JITArenaAllocatorTests.cpp
@@ -26773,6 +27297,79 @@ index 0000000..cc8d484
 +		{"Compiling SPU modules", 0, 0, 0, 0, 9, 7},
 +		{"", 0, 0, 0, 0, 9, 9}}, true, 2);
 +}
+diff --git a/rpcs3/ios/tests/PPUFarJumpTests.cpp b/rpcs3/ios/tests/PPUFarJumpTests.cpp
+new file mode 100644
+index 0000000..6af495c
+--- /dev/null
++++ b/rpcs3/ios/tests/PPUFarJumpTests.cpp
+@@ -0,0 +1,67 @@
++#include <asmjit/a64.h>
++#include <array>
++#include <cassert>
++#include <cstdint>
++#include <cstdio>
++using namespace asmjit;
++using u64 = uint64_t;
++struct context { u64 cia = 0; unsigned calls = 0; };
++context* expected;
++context* escaped;
++void far_jump(context* thread, u64, void* op)
++{
++    assert(thread == expected);
++    assert(op == reinterpret_cast<void*>(0x10003000));
++    thread->cia = 0x123456;
++    ++thread->calls;
++}
++namespace vm { inline const void* g_base_addr = reinterpret_cast<void*>(0x10000000); }
++const auto ppu_far_jump = &far_jump;
++void (*ppu_escape)();
++template<class F> void (*build(JitRuntime& runtime, F emit))()
++{
++    CodeHolder code;
++    assert(code.init(runtime.environment()) == kErrorOk);
++    a64::Assembler c(&code);
++    emit(c);
++    void (*fn)() = nullptr;
++    assert(runtime.add(&fn, &code) == kErrorOk);
++    return fn;
++}
++int main()
++{
++    JitRuntime runtime;
++    ppu_escape = build(runtime, [](a64::Assembler& c)
++    {
++        c.mov(a64::x9, Imm(reinterpret_cast<u64>(&escaped)));
++        c.str(a64::x0, arm::Mem(a64::x9));
++        // Independent host-side escape restores the gateway frame, not the
++        // return address of far_jump's BLR inside the production stub.
++        c.ldp(a64::x20, a64::x30, arm::Mem(a64::sp));
++        c.add(a64::sp, a64::sp, Imm(16));
++        c.ret(a64::x30);
++    });
++    const auto stub = build(runtime, [](a64::Assembler& c)
++    {
++        const u64 pc = 0x3000;
++        const std::array args{a64::x0, a64::x1, a64::x2, a64::x3};
++#include "production.inc"
++    });
++    const auto gateway = build(runtime, [&](a64::Assembler& c)
++    {
++        c.sub(a64::sp, a64::sp, Imm(16));
++        c.stp(a64::x20, a64::x30, arm::Mem(a64::sp));
++        c.mov(a64::x20, a64::x0);
++        c.mov(a64::x0, Imm(0x475)); // Poison the former ABI argument.
++        c.mov(a64::x13, Imm(reinterpret_cast<u64>(stub)));
++        c.br(a64::x13);
++    });
++    for (unsigned i = 0; i < 10'000; ++i)
++    {
++        context thread;
++        expected = &thread; escaped = nullptr;
++        reinterpret_cast<void(*)(context*)>(gateway)(&thread);
++        assert(escaped == &thread && thread.cia == 0x123456 && thread.calls == 1);
++    }
++    std::puts("ARM64 far jump: 10,000 generated GHC entries preserve the thread, update PC and escape to the host.");
++}
 diff --git a/rpcs3/ios/tests/RPCS3IOSContractTests.cpp b/rpcs3/ios/tests/RPCS3IOSContractTests.cpp
 index 453c089..3b1c489 100644
 --- a/rpcs3/ios/tests/RPCS3IOSContractTests.cpp
@@ -26957,6 +27554,718 @@ index 0000000..4f2c82f
 +    }
 +    if (failures) { std::fprintf(stderr, "%d failures\n", failures); return 1; }
 +    std::puts("A2C program selection, state invalidation, original-alpha coverage, RGB preservation and HDR amplification checks pass.");
++}
+diff --git a/rpcs3/ios/tests/SPUARM64ConstantTableFixture.cpp b/rpcs3/ios/tests/SPUARM64ConstantTableFixture.cpp
+new file mode 100644
+index 0000000..a72e091
+--- /dev/null
++++ b/rpcs3/ios/tests/SPUARM64ConstantTableFixture.cpp
+@@ -0,0 +1,182 @@
++#include "Emu/Cell/SPUARM64ConstantTable.h"
++#include <llvm/Transforms/Utils/Local.h>
++#include <llvm/IR/IntrinsicsAArch64.h>
++#include <llvm/IR/Verifier.h>
++#include <llvm/IR/Module.h>
++#include <llvm/IR/LegacyPassManager.h>
++#include <llvm/MC/TargetRegistry.h>
++#include <llvm/Support/TargetSelect.h>
++#include <llvm/Support/FileSystem.h>
++#include <llvm/Target/TargetMachine.h>
++
++using namespace llvm;
++
++int main(int argc, char** argv)
++{
++	if (argc != 2)
++		return 2;
++
++	InitializeNativeTarget();
++	InitializeNativeTargetAsmPrinter();
++	LLVMContext context;
++	Module module("conversion", context);
++	IRBuilder<> ir(context);
++	Triple triple("arm64-apple-macosx14.0.0");
++	std::string error;
++	const auto* target = TargetRegistry::lookupTarget(triple, error);
++	if (!target)
++	{
++		errs() << error;
++		return 1;
++	}
++	std::unique_ptr<TargetMachine> machine(target->createTargetMachine(triple, "apple-m1", "",
++		TargetOptions{}, Reloc::PIC_, std::nullopt, CodeGenOptLevel::Aggressive));
++	module.setTargetTriple(triple);
++	module.setDataLayout(machine->createDataLayout());
++	auto* bytes = FixedVectorType::get(ir.getInt8Ty(), 16);
++	for (unsigned kind = 0; kind < 68; ++kind)
++		for (bool chain : {false, true})
++			for (bool candidate : {false, true})
++			{
++				const std::string name = "table_" + std::to_string(kind) + (chain ? "_chain" : "_batch") + (candidate ? "_candidate" : "_baseline");
++				auto* function = Function::Create(FunctionType::get(ir.getVoidTy(),
++													  {ir.getPtrTy(), ir.getPtrTy(), ir.getInt32Ty()}, false),
++					Function::ExternalLinkage, name, module);
++				auto* entry = BasicBlock::Create(context, "entry", function);
++				auto* loop = BasicBlock::Create(context, "loop", function);
++				auto* end = BasicBlock::Create(context, "end", function);
++				ir.SetInsertPoint(entry);
++				ir.CreateBr(loop);
++				ir.SetInsertPoint(loop);
++				auto* index = ir.CreatePHI(ir.getInt32Ty(), 2);
++				index->addIncoming(ir.getInt32(0), entry);
++				auto* state = chain ? ir.CreatePHI(bytes, 2) : nullptr;
++				if (state)
++					state->addIncoming(Constant::getNullValue(bytes), entry);
++				Value* value = ir.CreateAlignedLoad(bytes, ir.CreateGEP(bytes, function->getArg(0), index), Align(1));
++				if (state)
++					value = ir.CreateXor(value, state);
++				SmallVector<Constant*, 16> first, second;
++				for (unsigned lane = 0; lane < 16; ++lane)
++				{
++					unsigned x, y;
++					if (kind == 0)
++					{
++						x = lane;
++						y = lane;
++					}
++					else if (kind == 1)
++					{
++						x = 15 - lane;
++						y = 15 - lane;
++					}
++					else if (kind == 2)
++					{
++						x = (lane + 4) & 15;
++						y = (lane + 12) & 15;
++					}
++					else if (kind == 3)
++					{
++						x = lane - 2;
++						y = lane + 3;
++					}
++					else if (kind < 20)
++					{
++						x = (lane + kind - 4) % 16;
++						y = (lane * 7 + 3) % 16;
++					}
++					else if (kind < 36)
++					{
++						x = (lane + kind - 20) % 32;
++						y = lane;
++					}
++					else if (kind < 52)
++					{
++						x = (lane * 3 + kind) % 256;
++						y = (kind - 36) * 17;
++					}
++					else
++					{
++						x = (kind * 13 + lane * 7) % 256;
++						y = (kind * 29 + lane * 3) % 32;
++					}
++					first.push_back(ir.getInt8(x));
++					second.push_back(ir.getInt8(y));
++				}
++				auto* lookup = Intrinsic::getOrInsertDeclaration(&module, Intrinsic::aarch64_neon_tbl1, {bytes});
++				auto* inner = ir.CreateCall(lookup, {value, ConstantVector::get(first)});
++				auto* result = ir.CreateCall(lookup, {inner, ConstantVector::get(second)});
++				if (state)
++					state->addIncoming(result, loop);
++				ir.CreateAlignedStore(result, ir.CreateGEP(bytes, function->getArg(1), index), Align(1));
++				auto* next = ir.CreateAdd(index, ir.getInt32(1));
++				index->addIncoming(next, loop);
++				ir.CreateCondBr(ir.CreateICmpULT(next, function->getArg(2)), loop, end);
++				ir.SetInsertPoint(end);
++				ir.CreateRetVoid();
++				// Baseline includes all existing byte-reversal/table simplifications.
++				spu_llvm::arm64::fold_byte_reversals(*function);
++				spu_llvm::arm64::fold_single_source_tables(*function);
++				if (candidate && spu_llvm::arm64::fold_constant_tables(*function) == 0)
++				{
++					errs() << "Expected constant-table fold in " << name << '\n';
++					return 4;
++				}
++				bool deleted;
++				do
++				{
++					deleted = false;
++					for (auto& block : *function)
++						for (auto i = block.begin(); i != block.end();)
++						{
++							auto* instruction = &*i++;
++							if (isInstructionTriviallyDead(instruction))
++							{
++								instruction->eraseFromParent();
++								deleted = true;
++							}
++						}
++				} while (deleted);
++			}
++	// Guard tests: dynamic, partially undefined and shared table inputs.
++	for (unsigned mode = 0; mode < 3; ++mode)
++	{
++		auto* function = Function::Create(FunctionType::get(bytes, {bytes, bytes}, false),
++			Function::ExternalLinkage, "guard_" + std::to_string(mode), module);
++		ir.SetInsertPoint(BasicBlock::Create(context, "entry", function));
++		auto* lookup = Intrinsic::getOrInsertDeclaration(&module, Intrinsic::aarch64_neon_tbl1, {bytes});
++		SmallVector<Constant*, 16> mask;
++		for (unsigned i = 0; i < 16; ++i)
++			mask.push_back(ir.getInt8((i + 3) % 16));
++		Value* indices = function->getArg(1);
++		if (mode == 1)
++		{
++			mask[7] = UndefValue::get(ir.getInt8Ty());
++			indices = ConstantVector::get(mask);
++		}
++		auto* inner = ir.CreateCall(lookup, {function->getArg(0), mode == 2 ? ConstantVector::get(mask) : indices});
++		Value* result = inner;
++		if (mode == 2)
++		{
++			auto* outer = ir.CreateCall(lookup, {inner, ConstantVector::get(mask)});
++			result = ir.CreateXor(inner, outer); // Inner has two live uses.
++		}
++		ir.CreateRet(result);
++		if (spu_llvm::arm64::fold_constant_tables(*function) != 0)
++			return 3;
++	}
++	if (verifyModule(module, &errs()))
++		return 1;
++	std::error_code code;
++	raw_fd_ostream ir_output(std::string(argv[1]) + ".ll", code);
++	if (code)
++		return 1;
++	module.print(ir_output, nullptr);
++	raw_fd_ostream object(std::string(argv[1]) + ".o", code);
++	if (code)
++		return 1;
++	legacy::PassManager passes;
++	if (machine->addPassesToEmitFile(passes, object, nullptr, CodeGenFileType::ObjectFile))
++		return 1;
++	passes.run(module);
++}
+diff --git a/rpcs3/ios/tests/SPUARM64ConstantTableTests.cpp b/rpcs3/ios/tests/SPUARM64ConstantTableTests.cpp
+new file mode 100644
+index 0000000..71f433c
+--- /dev/null
++++ b/rpcs3/ios/tests/SPUARM64ConstantTableTests.cpp
+@@ -0,0 +1,518 @@
++#include <algorithm>
++#include <array>
++#include <chrono>
++#include <cstdint>
++#include <cstdio>
++#include <cstdlib>
++#include <vector>
++using Fn = void (*)(const void*, void*, uint32_t);
++struct Case
++{
++	unsigned kind;
++	bool chain;
++	Fn baseline, candidate;
++};
++extern "C" void table_0_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_0_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_0_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_0_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_1_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_1_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_1_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_1_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_2_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_2_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_2_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_2_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_3_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_3_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_3_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_3_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_4_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_4_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_4_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_4_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_5_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_5_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_5_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_5_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_6_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_6_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_6_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_6_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_7_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_7_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_7_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_7_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_8_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_8_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_8_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_8_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_9_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_9_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_9_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_9_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_10_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_10_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_10_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_10_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_11_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_11_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_11_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_11_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_12_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_12_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_12_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_12_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_13_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_13_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_13_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_13_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_14_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_14_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_14_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_14_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_15_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_15_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_15_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_15_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_16_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_16_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_16_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_16_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_17_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_17_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_17_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_17_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_18_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_18_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_18_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_18_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_19_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_19_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_19_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_19_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_20_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_20_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_20_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_20_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_21_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_21_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_21_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_21_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_22_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_22_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_22_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_22_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_23_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_23_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_23_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_23_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_24_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_24_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_24_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_24_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_25_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_25_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_25_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_25_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_26_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_26_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_26_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_26_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_27_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_27_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_27_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_27_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_28_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_28_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_28_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_28_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_29_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_29_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_29_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_29_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_30_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_30_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_30_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_30_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_31_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_31_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_31_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_31_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_32_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_32_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_32_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_32_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_33_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_33_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_33_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_33_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_34_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_34_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_34_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_34_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_35_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_35_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_35_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_35_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_36_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_36_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_36_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_36_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_37_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_37_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_37_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_37_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_38_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_38_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_38_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_38_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_39_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_39_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_39_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_39_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_40_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_40_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_40_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_40_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_41_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_41_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_41_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_41_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_42_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_42_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_42_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_42_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_43_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_43_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_43_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_43_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_44_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_44_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_44_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_44_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_45_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_45_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_45_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_45_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_46_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_46_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_46_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_46_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_47_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_47_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_47_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_47_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_48_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_48_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_48_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_48_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_49_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_49_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_49_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_49_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_50_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_50_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_50_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_50_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_51_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_51_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_51_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_51_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_52_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_52_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_52_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_52_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_53_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_53_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_53_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_53_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_54_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_54_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_54_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_54_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_55_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_55_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_55_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_55_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_56_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_56_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_56_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_56_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_57_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_57_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_57_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_57_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_58_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_58_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_58_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_58_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_59_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_59_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_59_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_59_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_60_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_60_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_60_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_60_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_61_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_61_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_61_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_61_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_62_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_62_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_62_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_62_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_63_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_63_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_63_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_63_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_64_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_64_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_64_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_64_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_65_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_65_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_65_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_65_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_66_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_66_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_66_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_66_chain_candidate(const void*, void*, uint32_t);
++extern "C" void table_67_batch_baseline(const void*, void*, uint32_t);
++extern "C" void table_67_batch_candidate(const void*, void*, uint32_t);
++extern "C" void table_67_chain_baseline(const void*, void*, uint32_t);
++extern "C" void table_67_chain_candidate(const void*, void*, uint32_t);
++Case cases[] = {{0, false, table_0_batch_baseline, table_0_batch_candidate},
++	{0, true, table_0_chain_baseline, table_0_chain_candidate},
++	{1, false, table_1_batch_baseline, table_1_batch_candidate},
++	{1, true, table_1_chain_baseline, table_1_chain_candidate},
++	{2, false, table_2_batch_baseline, table_2_batch_candidate},
++	{2, true, table_2_chain_baseline, table_2_chain_candidate},
++	{3, false, table_3_batch_baseline, table_3_batch_candidate},
++	{3, true, table_3_chain_baseline, table_3_chain_candidate},
++	{4, false, table_4_batch_baseline, table_4_batch_candidate},
++	{4, true, table_4_chain_baseline, table_4_chain_candidate},
++	{5, false, table_5_batch_baseline, table_5_batch_candidate},
++	{5, true, table_5_chain_baseline, table_5_chain_candidate},
++	{6, false, table_6_batch_baseline, table_6_batch_candidate},
++	{6, true, table_6_chain_baseline, table_6_chain_candidate},
++	{7, false, table_7_batch_baseline, table_7_batch_candidate},
++	{7, true, table_7_chain_baseline, table_7_chain_candidate},
++	{8, false, table_8_batch_baseline, table_8_batch_candidate},
++	{8, true, table_8_chain_baseline, table_8_chain_candidate},
++	{9, false, table_9_batch_baseline, table_9_batch_candidate},
++	{9, true, table_9_chain_baseline, table_9_chain_candidate},
++	{10, false, table_10_batch_baseline, table_10_batch_candidate},
++	{10, true, table_10_chain_baseline, table_10_chain_candidate},
++	{11, false, table_11_batch_baseline, table_11_batch_candidate},
++	{11, true, table_11_chain_baseline, table_11_chain_candidate},
++	{12, false, table_12_batch_baseline, table_12_batch_candidate},
++	{12, true, table_12_chain_baseline, table_12_chain_candidate},
++	{13, false, table_13_batch_baseline, table_13_batch_candidate},
++	{13, true, table_13_chain_baseline, table_13_chain_candidate},
++	{14, false, table_14_batch_baseline, table_14_batch_candidate},
++	{14, true, table_14_chain_baseline, table_14_chain_candidate},
++	{15, false, table_15_batch_baseline, table_15_batch_candidate},
++	{15, true, table_15_chain_baseline, table_15_chain_candidate},
++	{16, false, table_16_batch_baseline, table_16_batch_candidate},
++	{16, true, table_16_chain_baseline, table_16_chain_candidate},
++	{17, false, table_17_batch_baseline, table_17_batch_candidate},
++	{17, true, table_17_chain_baseline, table_17_chain_candidate},
++	{18, false, table_18_batch_baseline, table_18_batch_candidate},
++	{18, true, table_18_chain_baseline, table_18_chain_candidate},
++	{19, false, table_19_batch_baseline, table_19_batch_candidate},
++	{19, true, table_19_chain_baseline, table_19_chain_candidate},
++	{20, false, table_20_batch_baseline, table_20_batch_candidate},
++	{20, true, table_20_chain_baseline, table_20_chain_candidate},
++	{21, false, table_21_batch_baseline, table_21_batch_candidate},
++	{21, true, table_21_chain_baseline, table_21_chain_candidate},
++	{22, false, table_22_batch_baseline, table_22_batch_candidate},
++	{22, true, table_22_chain_baseline, table_22_chain_candidate},
++	{23, false, table_23_batch_baseline, table_23_batch_candidate},
++	{23, true, table_23_chain_baseline, table_23_chain_candidate},
++	{24, false, table_24_batch_baseline, table_24_batch_candidate},
++	{24, true, table_24_chain_baseline, table_24_chain_candidate},
++	{25, false, table_25_batch_baseline, table_25_batch_candidate},
++	{25, true, table_25_chain_baseline, table_25_chain_candidate},
++	{26, false, table_26_batch_baseline, table_26_batch_candidate},
++	{26, true, table_26_chain_baseline, table_26_chain_candidate},
++	{27, false, table_27_batch_baseline, table_27_batch_candidate},
++	{27, true, table_27_chain_baseline, table_27_chain_candidate},
++	{28, false, table_28_batch_baseline, table_28_batch_candidate},
++	{28, true, table_28_chain_baseline, table_28_chain_candidate},
++	{29, false, table_29_batch_baseline, table_29_batch_candidate},
++	{29, true, table_29_chain_baseline, table_29_chain_candidate},
++	{30, false, table_30_batch_baseline, table_30_batch_candidate},
++	{30, true, table_30_chain_baseline, table_30_chain_candidate},
++	{31, false, table_31_batch_baseline, table_31_batch_candidate},
++	{31, true, table_31_chain_baseline, table_31_chain_candidate},
++	{32, false, table_32_batch_baseline, table_32_batch_candidate},
++	{32, true, table_32_chain_baseline, table_32_chain_candidate},
++	{33, false, table_33_batch_baseline, table_33_batch_candidate},
++	{33, true, table_33_chain_baseline, table_33_chain_candidate},
++	{34, false, table_34_batch_baseline, table_34_batch_candidate},
++	{34, true, table_34_chain_baseline, table_34_chain_candidate},
++	{35, false, table_35_batch_baseline, table_35_batch_candidate},
++	{35, true, table_35_chain_baseline, table_35_chain_candidate},
++	{36, false, table_36_batch_baseline, table_36_batch_candidate},
++	{36, true, table_36_chain_baseline, table_36_chain_candidate},
++	{37, false, table_37_batch_baseline, table_37_batch_candidate},
++	{37, true, table_37_chain_baseline, table_37_chain_candidate},
++	{38, false, table_38_batch_baseline, table_38_batch_candidate},
++	{38, true, table_38_chain_baseline, table_38_chain_candidate},
++	{39, false, table_39_batch_baseline, table_39_batch_candidate},
++	{39, true, table_39_chain_baseline, table_39_chain_candidate},
++	{40, false, table_40_batch_baseline, table_40_batch_candidate},
++	{40, true, table_40_chain_baseline, table_40_chain_candidate},
++	{41, false, table_41_batch_baseline, table_41_batch_candidate},
++	{41, true, table_41_chain_baseline, table_41_chain_candidate},
++	{42, false, table_42_batch_baseline, table_42_batch_candidate},
++	{42, true, table_42_chain_baseline, table_42_chain_candidate},
++	{43, false, table_43_batch_baseline, table_43_batch_candidate},
++	{43, true, table_43_chain_baseline, table_43_chain_candidate},
++	{44, false, table_44_batch_baseline, table_44_batch_candidate},
++	{44, true, table_44_chain_baseline, table_44_chain_candidate},
++	{45, false, table_45_batch_baseline, table_45_batch_candidate},
++	{45, true, table_45_chain_baseline, table_45_chain_candidate},
++	{46, false, table_46_batch_baseline, table_46_batch_candidate},
++	{46, true, table_46_chain_baseline, table_46_chain_candidate},
++	{47, false, table_47_batch_baseline, table_47_batch_candidate},
++	{47, true, table_47_chain_baseline, table_47_chain_candidate},
++	{48, false, table_48_batch_baseline, table_48_batch_candidate},
++	{48, true, table_48_chain_baseline, table_48_chain_candidate},
++	{49, false, table_49_batch_baseline, table_49_batch_candidate},
++	{49, true, table_49_chain_baseline, table_49_chain_candidate},
++	{50, false, table_50_batch_baseline, table_50_batch_candidate},
++	{50, true, table_50_chain_baseline, table_50_chain_candidate},
++	{51, false, table_51_batch_baseline, table_51_batch_candidate},
++	{51, true, table_51_chain_baseline, table_51_chain_candidate},
++	{52, false, table_52_batch_baseline, table_52_batch_candidate},
++	{52, true, table_52_chain_baseline, table_52_chain_candidate},
++	{53, false, table_53_batch_baseline, table_53_batch_candidate},
++	{53, true, table_53_chain_baseline, table_53_chain_candidate},
++	{54, false, table_54_batch_baseline, table_54_batch_candidate},
++	{54, true, table_54_chain_baseline, table_54_chain_candidate},
++	{55, false, table_55_batch_baseline, table_55_batch_candidate},
++	{55, true, table_55_chain_baseline, table_55_chain_candidate},
++	{56, false, table_56_batch_baseline, table_56_batch_candidate},
++	{56, true, table_56_chain_baseline, table_56_chain_candidate},
++	{57, false, table_57_batch_baseline, table_57_batch_candidate},
++	{57, true, table_57_chain_baseline, table_57_chain_candidate},
++	{58, false, table_58_batch_baseline, table_58_batch_candidate},
++	{58, true, table_58_chain_baseline, table_58_chain_candidate},
++	{59, false, table_59_batch_baseline, table_59_batch_candidate},
++	{59, true, table_59_chain_baseline, table_59_chain_candidate},
++	{60, false, table_60_batch_baseline, table_60_batch_candidate},
++	{60, true, table_60_chain_baseline, table_60_chain_candidate},
++	{61, false, table_61_batch_baseline, table_61_batch_candidate},
++	{61, true, table_61_chain_baseline, table_61_chain_candidate},
++	{62, false, table_62_batch_baseline, table_62_batch_candidate},
++	{62, true, table_62_chain_baseline, table_62_chain_candidate},
++	{63, false, table_63_batch_baseline, table_63_batch_candidate},
++	{63, true, table_63_chain_baseline, table_63_chain_candidate},
++	{64, false, table_64_batch_baseline, table_64_batch_candidate},
++	{64, true, table_64_chain_baseline, table_64_chain_candidate},
++	{65, false, table_65_batch_baseline, table_65_batch_candidate},
++	{65, true, table_65_chain_baseline, table_65_chain_candidate},
++	{66, false, table_66_batch_baseline, table_66_batch_candidate},
++	{66, true, table_66_chain_baseline, table_66_chain_candidate},
++	{67, false, table_67_batch_baseline, table_67_batch_candidate},
++	{67, true, table_67_chain_baseline, table_67_chain_candidate}};
++using V = std::array<uint8_t, 16>;
++V reference(V input, unsigned kind)
++{
++	V middle{}, result{};
++	for (unsigned i = 0; i < 16; ++i)
++	{
++		unsigned x = kind == 0 ? i : kind == 1 ? 15 - i :
++		                         kind == 2     ? (i + 4) % 16 :
++		                         kind == 3     ? (i + 254) % 256 :
++		                         kind < 20     ? (i + kind - 4) % 16 :
++		                         kind < 36     ? (i + kind - 20) % 32 :
++		                         kind < 52     ? (i * 3 + kind) % 256 :
++		                                         (kind * 13 + i * 7) % 256;
++		middle[i] = x < 16 ? input[x] : 0;
++	}
++	for (unsigned i = 0; i < 16; ++i)
++	{
++		unsigned y = kind == 0 ? i : kind == 1 ? 15 - i :
++		                         kind == 2     ? (i + 12) % 16 :
++		                         kind == 3     ? i + 3 :
++		                         kind < 20     ? (i * 7 + 3) % 16 :
++		                         kind < 36     ? i :
++		                         kind < 52     ? (kind - 36) * 17 :
++		                                         (kind * 29 + i * 3) % 32;
++		result[i] = y < 16 ? middle[y] : 0;
++	}
++	return result;
++}
++int main(int argc, char**)
++{
++	constexpr unsigned n = 8192;
++	std::vector<V> input(n), a(n), b(n);
++	uint64_t state = 0x873440023;
++	for (auto& v : input)
++		for (auto& x : v)
++		{
++			state ^= state << 13;
++			state ^= state >> 7;
++			state ^= state << 17;
++			x = state;
++		}
++	for (unsigned value = 0; value < 256; ++value)
++		for (unsigned lane = 0; lane < 16; ++lane)
++		{
++			input[value * 16 + lane] = {};
++			input[value * 16 + lane][lane] = value;
++		}
++	for (auto& c : cases)
++	{
++		c.baseline(input.data(), a.data(), n);
++		c.candidate(input.data(), b.data(), n);
++		V prior{};
++		for (unsigned i = 0; i < n; ++i)
++		{
++			V v = input[i];
++			if (c.chain)
++				for (unsigned j = 0; j < 16; ++j)
++					v[j] ^= prior[j];
++			auto expected = reference(v, c.kind);
++			if (a[i] != expected || b[i] != expected)
++			{
++				printf("FAIL kind=%u chain=%u index=%u\n", c.kind, c.chain, i);
++				return 1;
++			}
++			prior = expected;
++		}
++	}
++	puts("PASS: 68 constant-table pairs, batch/chained, every byte value at every source lane plus random vectors");
++	if (argc > 1)
++		return 0;
++	volatile uint8_t sink = 0;
++	for (auto& c : cases)
++	{
++		if (c.kind >= 4)
++			continue;
++		std::vector<double> t[2];
++		for (unsigned round = 0; round < 12; ++round)
++			for (unsigned order = 0; order < 2; ++order)
++			{
++				unsigned mode = (round + order) % 2;
++				auto fn = mode ? c.candidate : c.baseline;
++				auto start = std::chrono::steady_clock::now();
++				for (unsigned rep = 0; rep < 500; ++rep)
++					fn(input.data(), b.data(), n);
++				double ns = std::chrono::duration<double, std::nano>(std::chrono::steady_clock::now() - start).count() / (500 * n);
++				sink = b[round][0];
++				if (round >= 2)
++					t[mode].push_back(ns);
++			}
++		for (auto& v : t)
++			std::sort(v.begin(), v.end());
++		double old = (t[0][4] + t[0][5]) / 2, now = (t[1][4] + t[1][5]) / 2;
++		printf("kind=%u chain=%u baseline=%.6f candidate=%.6f ns/vector reduction=%.2f%%\n", c.kind, c.chain, old, now, 100 * (1 - now / old));
++	}
++	(void)sink;
 +}
 diff --git a/rpcs3/ios/tests/VKImagePoolTests.cpp b/rpcs3/ios/tests/VKImagePoolTests.cpp
 new file mode 100644
@@ -27377,6 +28686,49 @@ index 0000000..8736de8
 +        print('Negative control: original selection fails the mirror regression as expected')
 +    else:
 +        result.check_returncode()
+diff --git a/rpcs3/ios/tests/run-iso-directory-tests.py b/rpcs3/ios/tests/run-iso-directory-tests.py
+new file mode 100644
+index 0000000..84a4694
+--- /dev/null
++++ b/rpcs3/ios/tests/run-iso-directory-tests.py
+@@ -0,0 +1,37 @@
++#!/usr/bin/env python3
++"""Execute the production ISO record parser and LV2 directory ordering."""
++import argparse
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++
++HERE = Path(__file__).resolve().parent
++parser = argparse.ArgumentParser()
++parser.add_argument('--source', type=Path, default=HERE.parents[1] / 'Loader/ISO.cpp')
++parser.add_argument('--sanitize', action='store_true')
++args = parser.parse_args()
++src = args.source.read_text()
++lv2 = (HERE.parents[1] / 'Emu/Cell/lv2/sys_fs.cpp').read_text()
++header = (HERE.parents[1] / 'Loader/ISO.h').read_text()
++
++def section(text, start, end):
++    begin = text.index(start)
++    return text[begin:text.index(end, begin)]
++
++code = section(header, 'struct iso_extent_info', 'class iso_file :')
++code += section(src, 'template<typename T>\ninline T retrieve_endian_int', 'static bool iso_form_hierarchy')
++code += section(src, 'bool iso_dir::read', 'bool iso_device::stat')
++code += '\nvoid order_entries(std::vector<fs::dir_entry>& data)\n{\n'
++code += section(lv2, '\t// Sort files, keeping . and ..', '\n\tif (const u32 id = idm::make<lv2_fs_object, lv2_dir>')
++code += '\n}\n'
++
++with tempfile.TemporaryDirectory(prefix='iso-directory-') as temp:
++    out = Path(temp)
++    (out / 'production.inc').write_text(code)
++    command = [os.environ.get('CXX', 'clang++'), '-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror',
++               '-I', str(out), str(HERE / 'ISODirectoryTests.cpp'), '-o', str(out / 'tests')]
++    if args.sanitize:
++        command[1:1] = ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
++    subprocess.run(command, check=True)
++    subprocess.run([out / 'tests'], check=True)
 diff --git a/rpcs3/ios/tests/run-minecraft-descriptor-tests.py b/rpcs3/ios/tests/run-minecraft-descriptor-tests.py
 new file mode 100644
 index 0000000..e726a27
@@ -27559,6 +28911,46 @@ index 0000000..24c072d
 + cmd=[os.environ.get('CXX','clang++'),'-std=c++20','-O2','-Wall','-Wextra','-Werror','-I',str(t),'-I',str(CORE/'rpcs3'),str(args.test_source),'-o',str(t/'test')]
 + if args.sanitize:cmd[1:1]=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
 + subprocess.run(cmd,check=True);subprocess.run([str(t/'test'),*(['benchmark'] if args.benchmark else []),*args.test_argument],check=True)
+diff --git a/rpcs3/ios/tests/run-ppu-far-jump-tests.py b/rpcs3/ios/tests/run-ppu-far-jump-tests.py
+new file mode 100755
+index 0000000..e3a3516
+--- /dev/null
++++ b/rpcs3/ios/tests/run-ppu-far-jump-tests.py
+@@ -0,0 +1,34 @@
++#!/usr/bin/env python3
++"""Execute the production ARM64 far-jump stub through a GHC-style gateway."""
++import argparse
++import os
++from pathlib import Path
++import subprocess
++import tempfile
++
++HERE = Path(__file__).resolve().parent
++ROOT = HERE.parents[2]
++parser = argparse.ArgumentParser()
++parser.add_argument('--asmjit-library', type=Path, required=True)
++parser.add_argument('--negative-control', action='store_true')
++args = parser.parse_args()
++source = (ROOT / 'rpcs3/Emu/Cell/PPUThread.cpp').read_text()
++source = source[source.index('ppu_intrp_func_t gen_jump'):]
++body = source[source.index('#else') + len('#else'):source.index('#endif')]
++if args.negative_control:
++    body = body.replace('c.mov(args[0], a64::x20);', 'c.mov(args[0], Imm(0x475));')
++with tempfile.TemporaryDirectory(prefix='ppu-far-jump-') as directory:
++    temp = Path(directory)
++    (temp / 'production.inc').write_text(body)
++    exe = temp / 'tests'
++    subprocess.run([os.environ.get('CXX', 'clang++'), '-std=c++20', '-O2',
++                    '-Wall', '-Wextra', '-Werror', '-I', str(temp),
++                    '-isystem', str(ROOT / '3rdparty/asmjit/asmjit/src'),
++                    str(HERE / 'PPUFarJumpTests.cpp'), str(args.asmjit_library.resolve()),
++                    '-o', str(exe)], check=True)
++    result = subprocess.run([str(exe)], capture_output=args.negative_control, timeout=10)
++    if args.negative_control:
++        assert result.returncode != 0, 'Wrong GHC context unexpectedly accepted'
++        print('Negative control rejected: guest x0 cannot replace the thread in x20.')
++    else:
++        result.check_returncode()
 diff --git a/rpcs3/ios/tests/run-rsx-alpha-coverage-tests.py b/rpcs3/ios/tests/run-rsx-alpha-coverage-tests.py
 new file mode 100644
 index 0000000..bc8adca
@@ -27629,6 +29021,69 @@ index 0000000..bc8adca
 +        print("Negative control failed as expected.")
 +    else:
 +        result.check_returncode()
+diff --git a/rpcs3/ios/tests/run-spu-arm64-constant-table-tests.py b/rpcs3/ios/tests/run-spu-arm64-constant-table-tests.py
+new file mode 100644
+index 0000000..3bab624
+--- /dev/null
++++ b/rpcs3/ios/tests/run-spu-arm64-constant-table-tests.py
+@@ -0,0 +1,57 @@
++#!/usr/bin/env python3
++"""Execute constant-table folding using the production helper and native LLVM.
++
++Requires LLVM_DIR (22+) and a Darwin ARM64 host. All supported test masks execute against a scalar byte oracle; --sanitize
++checks the harness (the emitted LLVM machine code is not instrumented).
++Component timings are host observations, not predictions of game performance.
++"""
++import os
++import platform
++import subprocess
++import sys
++from pathlib import Path
++
++HERE = Path(__file__).resolve().parent
++CORE = HERE.parents[1]
++
++
++def main():
++    if platform.system() != 'Darwin' or platform.machine() != 'arm64':
++        raise SystemExit('Darwin ARM64 host required; test was not run.')
++    llvm = os.environ.get('LLVM_DIR')
++    if not llvm:
++        raise SystemExit('Set LLVM_DIR to the native LLVM lib/cmake/llvm directory.')
++    out = Path(os.environ.get('SPU_TABLE_TEST_OUTPUT', '/tmp/rpcs3-spu-table-tests')).resolve()
++    out.mkdir(parents=True, exist_ok=True)
++    # CMake paths are quoted independently of the shell; subprocess uses argv.
++    def quote(path):
++        return '"' + str(path).replace('\\', '/').replace('"', '\\"') + '"'
++    out.joinpath('CMakeLists.txt').write_text('''cmake_minimum_required(VERSION 3.20)
++project(SPUConstantTableTests C CXX)
++set(CMAKE_CXX_STANDARD 20)
++find_package(LLVM REQUIRED CONFIG)
++if(LLVM_VERSION_MAJOR LESS 22)
++  message(FATAL_ERROR "LLVM 22+ required")
++endif()
++add_executable(fixture ''' + quote(HERE / 'SPUARM64ConstantTableFixture.cpp') + ''')
++target_include_directories(fixture PRIVATE ${LLVM_INCLUDE_DIRS} ''' + quote(CORE) + ''')
++target_link_libraries(fixture PRIVATE LLVMTransformUtils LLVMAnalysis LLVMCore LLVMSupport LLVMTarget LLVMAArch64CodeGen LLVMAArch64AsmParser)
++# Cross-built native archive packages may retain Linux host link metadata.
++# Darwin supplies clock operations in libSystem, not a separate librt.
++get_target_property(deps LLVMSupport INTERFACE_LINK_LIBRARIES)
++list(REMOVE_ITEM deps rt)
++set_target_properties(LLVMSupport PROPERTIES INTERFACE_LINK_LIBRARIES "${deps}")
++''')
++    def run(*args):
++        subprocess.run([str(x) for x in args], check=True)
++    run('cmake', '-S', out, '-B', out / 'build', '-G', 'Ninja', '-DLLVM_DIR=' + llvm)
++    run('cmake', '--build', out / 'build')
++    run(out / 'build/fixture', out / 'table')
++    flags = ['-fsanitize=address,undefined', '-fno-omit-frame-pointer'] if '--sanitize' in sys.argv else []
++    run('xcrun', 'clang++', '-O3', '-std=c++20', '-mcpu=apple-m1', *flags,
++        HERE / 'SPUARM64ConstantTableTests.cpp', out / 'table.o', '-o', out / 'tests')
++    run(out / 'tests', *(['validate'] if '--sanitize' in sys.argv or '--validate-only' in sys.argv else []))
++
++
++if __name__ == '__main__':
++    main()
 diff --git a/rpcs3/ios/tests/run-vk-image-pool-tests.py b/rpcs3/ios/tests/run-vk-image-pool-tests.py
 new file mode 100644
 index 0000000..d59b084
