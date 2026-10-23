@@ -59,7 +59,7 @@ jobs:
               'test/menu_carousel_correction_test.dart', 'test/ui_correction_visual_test.dart',
               'test/main_menu_tab_strip_test.dart', 'test/airplay_navigation_test.dart', 'test/liquid_motion_test.dart']
           assert not subprocess.check_output(['git', 'diff', '--name-only', old, 'HEAD', '--', *inputs], text=True)
-          log = subprocess.check_output(['gh', 'api', prefix + 'actions/jobs/120203499995/logs'], text=True)
+          log = subprocess.check_output(['gh', 'api', '--allow-escape-sequences', prefix + 'actions/jobs/120203499995/logs'], text=True)
           failures = [line for line in log.splitlines() if re.search(r'\[E\]\s*$', line)]
           assert len(failures) == 1 and 'test/ui_correction_visual_test.dart: (setUpAll)' in failures[0], failures
           assert re.search(r'\+26 -1: Some tests failed', log)
