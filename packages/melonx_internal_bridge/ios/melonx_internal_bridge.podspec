@@ -15,5 +15,5 @@ Pod::Spec.new do |s|
   s.frameworks = 'Foundation', 'UIKit', 'Metal', 'QuartzCore', 'SwiftUI', 'GameController', 'CoreMotion', 'UniformTypeIdentifiers', 'AVFoundation', 'Security'
   s.libraries = 'c++'
   s.preserve_paths = 'Frameworks/*.framework', 'Controller/**', 'Memory/**'
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20' }
+  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20', 'CLANG_ENABLE_MODULES' => 'YES', 'OTHER_CPLUSPLUSFLAGS' => '$(inherited) -fmodules -fcxx-modules' }
 end

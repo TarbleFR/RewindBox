@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Compile relocated public headers, reproducing the old CocoaPods failure."""
-import hashlib,json,os,shutil,subprocess,tempfile
+import hashlib,json,os,shlex,shutil,subprocess,tempfile
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -32,10 +32,27 @@ with tempfile.TemporaryDirectory(prefix='melonx-module-') as temporary:
     # No search path points at the source Memory directory: only copied headers
     # can satisfy the framework import, as in the failing release compilation.
     assert not (framework/'Memory').exists()
+    # Read the production CocoaPods build flags, not a separate test-only set.
+    # The module import above exercises Swift's relocated C interface; the .mm
+    # consumer below also requires Clang's explicit C++ module opt-in.
+    podspec=POD/'melonx_internal_bridge.podspec'
+    environment={k:v for k,v in os.environ.items() if k not in {'BUNDLE_GEMFILE','BUNDLE_PATH'}}
+    spec=json.loads(subprocess.check_output(['pod','ipc','spec',str(podspec)],env=environment,text=True))
+    settings=spec['pod_target_xcconfig']
+    assert settings['CLANG_ENABLE_MODULES']=='YES'
+    flags=shlex.split(settings['OTHER_CPLUSPLUSFLAGS'].replace('$(inherited)',''))
+    cpp=work/'client.mm'
+    cpp.write_text('#import "'+str(HEADER)+'"\nvoid check() { (void)MeloNXMemorySnapshot(); (void)mlx_ram_donor_is_available(); }\n')
+    cpp_command=['xcrun','clang++','-fsyntax-only','-fobjc-arc','-std=c++20','-target','arm64-apple-ios18.0','-isysroot',sdk,'-F',str(flutter),str(cpp)]
+    old_cpp=subprocess.run([*cpp_command,'-fmodules','-fno-cxx-modules','-fmodules-cache-path='+str(work/'old-cpp-cache')],capture_output=True,text=True)
+    assert old_cpp.returncode!=0 and "C++ modules are disabled" in old_cpp.stderr,old_cpp.stderr
+    current_cpp=subprocess.run([*cpp_command,*flags,'-fmodules-cache-path='+str(work/'new-cpp-cache')],capture_output=True,text=True)
+    assert current_cpp.returncode==0,current_cpp.stderr
     report=dict(result='passed',source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
         oldSource=OLD,oldRelocatedHeaderFailed=True,currentRelocatedHeaderPassed=True,
+        oldObjectiveCxxModulesFailed=True,currentObjectiveCxxModulesPassed=True,podConfigurationActual=True,
         actualIPhoneSDK=True,gameplayTested=False,
-        inputs={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [HEADER,Path(__file__)]})
+        inputs={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [HEADER,podspec,Path(__file__)]})
     out=ROOT/'build/delivery/melonx-header-module.json';out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(report,indent=2)+'\n')
-    print('PASS: old relocated public header fails; corrected framework module compiles with the iPhone SDK.')
+    print('PASS: old relocated header and Objective-C++ flags fail; corrected framework and actual Pod flags compile with the iPhone SDK.')
