@@ -3,6 +3,10 @@ import 'package:flutter/widgets.dart';
 abstract final class MelonxTransferLocale {
   static const values = <String, Map<String, String>>{
     "en": {
+      "deleteRetiredConfirm":
+          "Remove these old MeloNX references and their scraped data from RewindBox? The original game files, saves, firmware and keys are kept.",
+      "deleteMixedConfirm":
+          "Local game files will be deleted, and old MeloNX references will be removed from RewindBox, along with their scraped data. Saves, firmware and keys are kept.",
       "launchProfile": "Profile on launch",
       "profileUnavailable":
           "The imported save profile is unavailable. Import or choose a compatible profile before launching this game.",
@@ -59,6 +63,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Link games in the selected folder",
     },
     "fr": {
+      "deleteRetiredConfirm":
+          "Retirer ces anciennes références MeloNX et leurs données scrapées de RewindBox ? Les fichiers de jeux originaux, les sauvegardes, le firmware et les clés sont conservés.",
+      "deleteMixedConfirm":
+          "Les fichiers de jeux locaux seront supprimés et les anciennes références MeloNX seront retirées de RewindBox, avec leurs données scrapées. Les sauvegardes, le firmware et les clés sont conservés.",
       "launchProfile": "Profil au lancement",
       "profileUnavailable":
           "Le profil de la sauvegarde importée est indisponible. Importez ou choisissez un profil compatible avant de lancer ce jeu.",
@@ -118,6 +126,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Lier les jeux du dossier sélectionné",
     },
     "de": {
+      "deleteRetiredConfirm":
+          "Diese alten MeloNX-Verweise und ihre erfassten Metadaten aus RewindBox entfernen? Die ursprünglichen Spieldateien, Spielstände, Firmware und Schlüssel bleiben erhalten.",
+      "deleteMixedConfirm":
+          "Lokale Spieldateien werden gelöscht und alte MeloNX-Verweise samt erfassten Metadaten aus RewindBox entfernt. Spielstände, Firmware und Schlüssel bleiben erhalten.",
       "launchProfile": "Profil beim Start",
       "profileUnavailable":
           "Das Profil des importierten Spielstands ist nicht verfügbar. Importiere oder wähle vor dem Start ein kompatibles Profil.",
@@ -175,6 +187,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Spiele im ausgewählten Ordner verknüpfen",
     },
     "es": {
+      "deleteRetiredConfirm":
+          "¿Quitar estas referencias antiguas de MeloNX y sus datos obtenidos de RewindBox? Se conservan los archivos originales de los juegos, las partidas, el firmware y las claves.",
+      "deleteMixedConfirm":
+          "Se eliminarán los archivos locales de los juegos y se quitarán las referencias antiguas de MeloNX de RewindBox, junto con sus datos obtenidos. Se conservan las partidas, el firmware y las claves.",
       "launchProfile": "Perfil al iniciar",
       "profileUnavailable":
           "El perfil de la partida importada no está disponible. Importa o elige un perfil compatible antes de iniciar el juego.",
@@ -232,6 +248,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Vincular los juegos de la carpeta seleccionada",
     },
     "it": {
+      "deleteRetiredConfirm":
+          "Rimuovere da RewindBox questi vecchi riferimenti MeloNX e i relativi dati scaricati? I file originali dei giochi, i salvataggi, il firmware e le chiavi vengono conservati.",
+      "deleteMixedConfirm":
+          "I file locali dei giochi verranno eliminati e i vecchi riferimenti MeloNX verranno rimossi da RewindBox, insieme ai dati scaricati. I salvataggi, il firmware e le chiavi vengono conservati.",
       "launchProfile": "Profilo all’avvio",
       "profileUnavailable":
           "Il profilo del salvataggio importato non è disponibile. Importa o scegli un profilo compatibile prima di avviare il gioco.",
@@ -288,6 +308,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Collega i giochi della cartella scelta",
     },
     "pt": {
+      "deleteRetiredConfirm":
+          "Remover estas referências antigas do MeloNX e os seus dados obtidos do RewindBox? Os ficheiros originais dos jogos, as gravações, o firmware e as chaves são preservados.",
+      "deleteMixedConfirm":
+          "Os ficheiros locais dos jogos serão eliminados e as referências antigas do MeloNX serão removidas do RewindBox, juntamente com os dados obtidos. As gravações, o firmware e as chaves são preservados.",
       "launchProfile": "Perfil ao iniciar",
       "profileUnavailable":
           "O perfil da gravação importada não está disponível. Importe ou escolha um perfil compatível antes de iniciar o jogo.",
@@ -345,6 +369,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Ligar os jogos da pasta selecionada",
     },
     "ru": {
+      "deleteRetiredConfirm":
+          "Удалить эти старые ссылки MeloNX и загруженные для них данные из RewindBox? Исходные файлы игр, сохранения, прошивка и ключи останутся.",
+      "deleteMixedConfirm":
+          "Локальные файлы игр будут удалены, а старые ссылки MeloNX будут убраны из RewindBox вместе с загруженными для них данными. Сохранения, прошивка и ключи останутся.",
       "launchProfile": "Профиль при запуске",
       "profileUnavailable":
           "Профиль импортированного сохранения недоступен. Импортируйте или выберите совместимый профиль перед запуском игры.",
@@ -402,6 +430,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Подключить игры из выбранной папки",
     },
     "id": {
+      "deleteRetiredConfirm":
+          "Hapus referensi MeloNX lama ini beserta data hasil pencariannya dari RewindBox? File game asli, data simpanan, firmware, dan kunci tetap disimpan.",
+      "deleteMixedConfirm":
+          "File game lokal akan dihapus dan referensi MeloNX lama akan dihapus dari RewindBox beserta data hasil pencariannya. Data simpanan, firmware, dan kunci tetap disimpan.",
       "launchProfile": "Profil saat memulai",
       "profileUnavailable":
           "Profil simpanan yang diimpor tidak tersedia. Impor atau pilih profil yang kompatibel sebelum memulai game.",
@@ -457,6 +489,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Tautkan game di folder yang dipilih",
     },
     "ja": {
+      "deleteRetiredConfirm":
+          "古いMeloNXの参照と取得済みデータをRewindBoxから削除しますか？元のゲームファイル、セーブデータ、ファームウェア、キーは保持されます。",
+      "deleteMixedConfirm":
+          "ローカルのゲームファイルを削除し、古いMeloNXの参照と取得済みデータをRewindBoxから削除します。セーブデータ、ファームウェア、キーは保持されます。",
       "launchProfile": "起動時のプロフィール",
       "profileUnavailable":
           "インポートしたセーブデータのプロフィールが見つかりません。ゲームを起動する前に対応するプロフィールをインポートするか選択してください。",
@@ -504,6 +540,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "選択したフォルダーのゲームをリンク",
     },
     "ko": {
+      "deleteRetiredConfirm":
+          "이전 MeloNX 참조와 수집된 데이터를 RewindBox에서 제거할까요? 원본 게임 파일, 저장 데이터, 펌웨어 및 키는 유지됩니다.",
+      "deleteMixedConfirm":
+          "로컬 게임 파일이 삭제되고 이전 MeloNX 참조와 수집된 데이터가 RewindBox에서 제거됩니다. 저장 데이터, 펌웨어 및 키는 유지됩니다.",
       "launchProfile": "실행 시 프로필",
       "profileUnavailable":
           "가져온 저장 데이터의 프로필을 사용할 수 없습니다. 게임을 실행하기 전에 호환되는 프로필을 가져오거나 선택하세요.",
@@ -551,6 +591,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "선택한 폴더의 게임 연결",
     },
     "zh": {
+      "deleteRetiredConfirm":
+          "要从 RewindBox 移除这些旧的 MeloNX 引用及其抓取的数据吗？原始游戏文件、存档、固件和密钥将保留。",
+      "deleteMixedConfirm":
+          "本地游戏文件将被删除，旧的 MeloNX 引用及其抓取的数据将从 RewindBox 移除。存档、固件和密钥将保留。",
       "launchProfile": "启动时的用户",
       "profileUnavailable": "导入存档的用户不可用。启动此游戏前，请导入或选择兼容的用户。",
       "deleteFailed": "无法删除游戏文件。资料库条目已保留。请检查文件访问权限和文件夹权限。",
@@ -596,6 +640,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "关联所选文件夹中的游戏",
     },
     "zh_Hant": {
+      "deleteRetiredConfirm":
+          "要從 RewindBox 移除這些舊的 MeloNX 參照及其擷取的資料嗎？原始遊戲檔案、存檔、韌體和金鑰將保留。",
+      "deleteMixedConfirm":
+          "本機遊戲檔案將被刪除，舊的 MeloNX 參照及其擷取的資料將從 RewindBox 移除。存檔、韌體和金鑰將保留。",
       "launchProfile": "啟動時的使用者",
       "profileUnavailable": "匯入存檔的使用者無法使用。啟動此遊戲前，請匯入或選擇相容的使用者。",
       "deleteFailed": "無法刪除遊戲檔案。資料庫項目已保留。請檢查檔案存取與資料夾權限。",

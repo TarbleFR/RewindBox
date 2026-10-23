@@ -1,19 +1,19 @@
-name: RewindBox RPCS3 memory audit • Build 508 • SideStore
-run-name: RewindBox Build 508 • ${{ github.sha }} • RPCS3 memory audit
+name: RewindBox MeloNX deletion • Build 509 • SideStore
+run-name: RewindBox Build 509 • ${{ github.sha }} • MeloNX embedded library
 'on':
   push:
     branches:
     - Claude
     paths:
     - .github/workflows/retroarch-delivery.yml
-    - .github/diagnostics/rpcs3memory508_delivery.py
-    - build-utils/delivery-508-chatgpt-recipient.pem
+    - .github/diagnostics/melonxdelete509_delivery.py
+    - build-utils/delivery-509-chatgpt-recipient.pem
   workflow_dispatch:
     inputs:
       build_number:
         description: New delivery build number
         required: true
-        default: '508'
+        default: '509'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -30,7 +30,7 @@ run-name: RewindBox Build 508 • ${{ github.sha }} • RPCS3 memory audit
       recipient:
         description: Public key (PEM in build-utils) the encrypted artifact is addressed to; each session decrypts with its own private key
         required: false
-        default: build-utils/delivery-508-chatgpt-recipient.pem
+        default: build-utils/delivery-509-chatgpt-recipient.pem
         type: string
 permissions:
   contents: read
@@ -52,9 +52,29 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require final exact component proofs and preserve other engines
-      run: python3 .github/diagnostics/rpcs3memory508_delivery.py --wait-for-components
-    - name: Verify legal packaging including the added MeloNX notices
-      run: python3 test/legal_bundle_preflight_test.py
+      run: python3 .github/diagnostics/melonxdelete509_delivery.py --wait-for-components
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 3.47.2
+        channel: stable
+        cache: true
+    - name: Resolve the unchanged locked Flutter dependencies
+      run: flutter pub get --enforce-lockfile
+    - name: Analyze the changed Switch deletion and retirement surfaces
+      run: >-
+        flutter analyze --no-fatal-infos
+        lib/repositories/game_repository.dart lib/services/melonx_retired_library_cleanup.dart
+        lib/widgets/delete_game_dialog.dart lib/widgets/melonx_multi_delete_dialog.dart
+        lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart
+        lib/l10n/melonx_transfer_locale.dart
+        test/melonx_deletion_test.dart test/melonx_retired_library_cleanup_test.dart
+    - name: Reproduce the video, upgrade cleanup and affected repository deletion paths
+      run: >-
+        flutter test --no-pub test/melonx_deletion_test.dart
+        test/melonx_retired_library_cleanup_test.dart test/game_deletion_regression_test.dart
+        test/game_repository_test.dart test/melonx_embedded_route_test.dart
+    - name: Check local Switch deletion, failures, cancellation, long confirmations and translations
+      run: flutter test --no-pub test/melonx_transfer_test.dart --name 'Switch deletion|large Switch|twelve-language'
   native:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
     runs-on: ubuntu-24.04
@@ -64,7 +84,7 @@ jobs:
     steps:
     - *id001
     - name: Require source-built engine, actual simulator runtime and private dependencies
-      run: python3 .github/diagnostics/rpcs3memory508_delivery.py --source-only
+      run: python3 .github/diagnostics/melonxdelete509_delivery.py --source-only
   cold:
     name: Release device build • cold
     runs-on: macos-15
@@ -73,10 +93,10 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '508' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-508-chatgpt-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '509' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-509-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '508' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '509' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -103,7 +123,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/rpcs3memory508_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/melonxdelete509_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -121,7 +141,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/rpcs3memory508_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/melonxdelete509_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -227,7 +247,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/rpcs3memory508_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/melonxdelete509_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           test/fixtures/rpcs3_memory_audit/JITLLVM.diff \
@@ -325,7 +345,7 @@ jobs:
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
         sys.path.insert(0, '.github/diagnostics')
-        from rpcs3memory508_delivery import validate_rpc_core_identity as validate_core_input_identity
+        from melonxdelete509_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
@@ -751,6 +771,11 @@ jobs:
         python3 build-utils/validate_rpcs3_memory_audit_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app \
           --core-binary dist/rpcs3-native/libRPCS3Core.dylib --core-identity dist/rpcs3-native/identity.json \
           --report build/delivery/rpcs3-memory-embedded.json
+    - name: Bind the compiled Switch retirement and deletion fix to its exact app sources
+      run: >-
+        python3 build-utils/validate_melonx_delete509_ipa.py
+        --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+        --build-number "$BUILD_NUMBER" --report build/delivery/melonx-delete509-embedded.json
     - name: Embed lazy-loaded ARMSX2 Core framework
       shell: bash
       run: |
@@ -880,6 +905,8 @@ jobs:
       run: python3 build-utils/validate_motion507_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/motion507-ipa-validation.json
     - name: Verify the final signed audit Core and shared compiler broker
       run: python3 build-utils/validate_rpcs3_memory_audit_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/rpcs3-memory-audit-ipa.json
+    - name: Verify the final signed Switch retirement and deletion fix
+      run: python3 build-utils/validate_melonx_delete509_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-delete509-ipa.json
     - name: Finalize observed timings and artifact identity
       if: always()
       run: |

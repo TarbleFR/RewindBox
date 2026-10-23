@@ -1,5 +1,7 @@
 import 'dart:io';
+
 import '../services/melonx_internal_service.dart';
+import '../services/melonx_retired_library_cleanup.dart';
 
 import 'package:neostation/services/logger_service.dart';
 
@@ -13,14 +15,25 @@ import '../services/rpcs3_library_service.dart';
 
 /// Repository for game data access operations.
 class GameRepository {
+  static Future<void> _retireExternalSwitch() async {
+    if (Platform.isIOS) await MelonxRetiredLibraryCleanup.run();
+  }
+
   /// Returns all games grouped by system folder name.
-  static Future<Map<String, List<DatabaseGameModel>>> loadDatabase() =>
-      SqliteDatabaseService.loadDatabase();
+  static Future<Map<String, List<DatabaseGameModel>>> loadDatabase() async {
+    await _retireExternalSwitch();
+    return SqliteDatabaseService.loadDatabase();
+  }
 
   /// Returns all games registered for [systemFolderName].
   static Future<List<DatabaseGameModel>> loadGamesForSystem(
     String systemFolderName,
-  ) => SqliteDatabaseService.loadGamesForSystem(systemFolderName);
+  ) async {
+    if (Platform.isIOS && systemFolderName.toLowerCase() == 'switch') {
+      await MelonxRetiredLibraryCleanup.run();
+    }
+    return SqliteDatabaseService.loadGamesForSystem(systemFolderName);
+  }
 
   /// Toggles favorite status for a game.
   static Future<void> toggleFavorite(
@@ -41,12 +54,16 @@ class GameRepository {
   ) => SqliteDatabaseService.updateGame(systemFolderName, updatedGame);
 
   /// Returns global stats: totalSystems, totalRoms, favoriteRoms, playedRoms.
-  static Future<Map<String, dynamic>> getStats() =>
-      SqliteDatabaseService.getStats();
+  static Future<Map<String, dynamic>> getStats() async {
+    await _retireExternalSwitch();
+    return SqliteDatabaseService.getStats();
+  }
 
   /// Returns ROM counts keyed by system folder name.
-  static Future<Map<String, int>> getRomCounts() =>
-      SqliteDatabaseService.getRomCounts();
+  static Future<Map<String, int>> getRomCounts() async {
+    await _retireExternalSwitch();
+    return SqliteDatabaseService.getRomCounts();
+  }
 
   /// Removes all ROM entries associated with a specific folder path.
   static Future<int> deleteRomsByFolderPath(String folderPath) =>
@@ -64,7 +81,8 @@ class GameRepository {
   }) async {
     if (Platform.isIOS && systemFolderName.toLowerCase() == 'switch') {
       final extension = romPath?.split('.').last.toLowerCase();
-      if (!MelonxInternalService.gameExtensions.contains(extension)) {
+      if (!MelonxInternalService.isRetiredLink(romPath ?? '') &&
+          !MelonxInternalService.gameExtensions.contains(extension)) {
         throw StateError('localGameRequired');
       }
       return MelonxInternalService.editLibrary(
@@ -110,7 +128,17 @@ class GameRepository {
     }
     var canRemoveSharedMedia = true;
     try {
-      if (Rpcs3LibraryService.isVirtualLibraryPath(romPath) ||
+      if (systemFolderName.toLowerCase() == 'switch' &&
+          MelonxInternalService.isRetiredLink(romPath)) {
+        // Retired external links identify only a library row. Never derive a
+        // filesystem target from their title ID, authority or query parameters.
+        canRemoveSharedMedia = await SqliteService.deleteGame(
+          appSystemId,
+          filename,
+          romPath: romPath,
+        );
+        log.i('GameDelete[$operation] retired_switch_reference_removed');
+      } else if (Rpcs3LibraryService.isVirtualLibraryPath(romPath) ||
           (Platform.isIOS && systemFolderName.toLowerCase() == 'ps3')) {
         final row = await SqliteService.getSingleGame(appSystemId, filename);
         final titleId = Rpcs3LibraryService.isVirtualLibraryPath(romPath)
@@ -256,16 +284,25 @@ class GameRepository {
   static Future<DatabaseGameModel?> getSingleGame(
     String systemId,
     String filename,
-  ) => SqliteService.getSingleGame(systemId, filename);
+  ) async {
+    await _retireExternalSwitch();
+    return SqliteService.getSingleGame(systemId, filename);
+  }
 
-  static Future<List<DatabaseGameModel>> getAllGames() =>
-      SqliteService.getAllGames();
+  static Future<List<DatabaseGameModel>> getAllGames() async {
+    await _retireExternalSwitch();
+    return SqliteService.getAllGames();
+  }
 
-  static Future<List<DatabaseGameModel>> getFavoriteGames() =>
-      SqliteService.getFavoriteGames();
+  static Future<List<DatabaseGameModel>> getFavoriteGames() async {
+    await _retireExternalSwitch();
+    return SqliteService.getFavoriteGames();
+  }
 
-  static Future<List<DatabaseGameModel>> getGamesBySystem(String systemId) =>
-      SqliteService.getGamesBySystem(systemId);
+  static Future<List<DatabaseGameModel>> getGamesBySystem(String systemId) async {
+    await _retireExternalSwitch();
+    return SqliteService.getGamesBySystem(systemId);
+  }
 
   static Future<void> updatePlayTime(String romPath, int seconds) =>
       SqliteService.updatePlayTime(romPath, seconds);

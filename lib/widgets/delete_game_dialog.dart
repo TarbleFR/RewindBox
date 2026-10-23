@@ -12,11 +12,13 @@ import 'package:neostation/utils/gamepad_nav.dart';
 class DeleteGameDialog extends StatefulWidget {
   final String gameName;
   final String romName;
+  final String? confirmationBody;
 
   const DeleteGameDialog({
     super.key,
     required this.gameName,
     required this.romName,
+    this.confirmationBody,
   });
 
   @override
@@ -105,7 +107,8 @@ class _DeleteGameDialogState extends State<DeleteGameDialog> {
           ),
           SizedBox(height: 8.r),
           Text(
-            AppLocale.deleteGameConfirmBody.getString(context),
+            widget.confirmationBody ??
+                AppLocale.deleteGameConfirmBody.getString(context),
             style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: 11.r,
               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),

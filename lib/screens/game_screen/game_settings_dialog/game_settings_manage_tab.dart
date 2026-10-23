@@ -1,4 +1,5 @@
 import '../../../../l10n/melonx_transfer_locale.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/repositories/game_repository.dart';
 import 'package:neostation/screens/settings_screen/new_settings_options/widgets/setting_row.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
+import 'package:neostation/services/melonx_internal_service.dart';
 import 'package:neostation/l10n/texture_catalog_locale.dart';
 import 'package:neostation/services/texture_catalog_service.dart';
 import 'package:neostation/services/logger_service.dart';
@@ -139,7 +141,10 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
     if (!opened && mounted) {
       AppNotification.showNotification(
         context,
-        TextureCatalogLocale.text(Localizations.localeOf(context), 'openFailed'),
+        TextureCatalogLocale.text(
+          Localizations.localeOf(context),
+          'openFailed',
+        ),
         type: NotificationType.error,
       );
     }
@@ -188,7 +193,13 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       builder: (ctx) => DeleteGameDialog(
         gameName: widget.game.name,
         romName: _targetSystemFolder.toLowerCase() == 'switch'
-            ? (widget.game.romPath ?? widget.game.romname) : widget.game.romname,
+            ? (widget.game.romPath ?? widget.game.romname)
+            : widget.game.romname,
+        confirmationBody:
+            _targetSystemFolder.toLowerCase() == 'switch' &&
+                MelonxInternalService.isRetiredLink(widget.game.romPath ?? '')
+            ? MelonxTransferLocale.text(context, 'deleteRetiredConfirm')
+            : null,
       ),
     );
     if (confirmed == true && mounted) _deleteGame();
@@ -224,7 +235,9 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
             .read<SqliteConfigProvider>()
             .refreshDolphinInternalLibrary(_targetSystemFolder);
       }
-      if (Platform.isIOS && _targetSystemFolder.toLowerCase() == 'switch' && mounted) {
+      if (Platform.isIOS &&
+          _targetSystemFolder.toLowerCase() == 'switch' &&
+          mounted) {
         await context.read<SqliteConfigProvider>().refreshDetectedSystems();
       }
       deleted = true;
@@ -234,7 +247,9 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
         AppNotification.showNotification(
           context,
           _targetSystemFolder.toLowerCase() == 'switch'
-              ? (e.toString().contains('libraryBusy') ? MelonxTransferLocale.text(context,'libraryBusy') : '${MelonxTransferLocale.text(context,'deleteFailed')}\n$e')
+              ? (e.toString().contains('libraryBusy')
+                    ? MelonxTransferLocale.text(context, 'libraryBusy')
+                    : '${MelonxTransferLocale.text(context, 'deleteFailed')}\n$e')
               : e.toString(),
           type: NotificationType.error,
         );
@@ -270,8 +285,14 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
               child: SettingRow(
                 key: _itemKey(_texturesIdx),
                 focused: _selectedIndex == _texturesIdx,
-                title: TextureCatalogLocale.text(Localizations.localeOf(context), 'menuTitle'),
-                subtitle: TextureCatalogLocale.text(Localizations.localeOf(context), 'menuSubtitle'),
+                title: TextureCatalogLocale.text(
+                  Localizations.localeOf(context),
+                  'menuTitle',
+                ),
+                subtitle: TextureCatalogLocale.text(
+                  Localizations.localeOf(context),
+                  'menuSubtitle',
+                ),
                 trailing: Icon(
                   Icons.hd_outlined,
                   size: 20.r,

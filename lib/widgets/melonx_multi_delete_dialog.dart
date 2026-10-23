@@ -109,12 +109,25 @@ class _MelonxMultiDeleteDialogState extends State<MelonxMultiDeleteDialog> {
         .where((game) => _selected.contains(_key(game)))
         .toList(growable: false);
     if (selectedGames.isEmpty) return;
+    final retiredCount = selectedGames
+        .where(
+          (game) => MelonxInternalService.isRetiredLink(game.romPath ?? ''),
+        )
+        .length;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => DeleteGameDialog(
         gameName: selectedGames.map((g) => g.name).join('\n'),
         romName: selectedGames.map((g) => g.romPath ?? g.romname).join('\n'),
+        confirmationBody: retiredCount == 0
+            ? null
+            : MelonxTransferLocale.text(
+                context,
+                retiredCount == selectedGames.length
+                    ? 'deleteRetiredConfirm'
+                    : 'deleteMixedConfirm',
+              ),
       ),
     );
     if (confirmed != true || !mounted) return;
@@ -127,10 +140,6 @@ class _MelonxMultiDeleteDialogState extends State<MelonxMultiDeleteDialog> {
 
     try {
       for (final game in selectedGames) {
-        if (!MelonxInternalService.gameExtensions.contains(
-          game.romPath?.split('.').last.toLowerCase(),
-        ))
-          throw StateError('localGameRequired');
         await GameRepository.deleteGame(
           appSystemId: game.systemId ?? widget.system.id,
           filename: game.romname,
