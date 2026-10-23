@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+from rpcs3_atomic_startup_test import extract_function
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'lib/services/melonx_internal_service.dart').read_text()
@@ -26,7 +27,7 @@ class PairingFileService {
 ''' + source[boundary:]
 tests = r'''
 import 'dart:async';
-import 'dart:io';
+import 'dart:io' show Directory, File;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -130,8 +131,26 @@ void main() {
   final secret=List.filled(64,'a').join();
   expect(MelonxLaunchDiagnostics.details({'stage':'content','diagnostic':'header_key = '+secret}),isNot(contains(secret)));
  });
+ test('a Switch refusal before the native service is logged and finalized without a false session',()async{
+  final result=await LaunchDispatch.launchGame(AliveContext(),SystemModel(),GameModel());
+  expect(result.errorDetails,'engine disabled');expect(GameLaunchManager().refused,true);
+  expect(FrontendMediaGate.instance.owners,0);expect(GameSessionManager.pending,false);
+ });
 }
 '''
+dispatch = extract_function((ROOT / 'lib/services/game/game_launch_service.dart').read_text(), 'static Future<GameLaunchResult> launchGame(')
+declarations = r'''
+class AliveContext extends Fake implements BuildContext {@override bool get mounted=>true;}
+class SystemModel {String folderName='switch';}
+class GameModel {String romPath='/local/game.nro';}
+class GameLaunchResult {final bool success;final String? errorMessage,errorDetails;GameLaunchResult.failure(this.errorMessage,[this.errorDetails]):success=false;}
+class GameLaunchManager {static final instance=GameLaunchManager._();factory GameLaunchManager()=>instance;GameLaunchManager._();bool refused=false;void markInitializationFailed({required bool nativeStillActive}){refused=true;}}
+class FrontendMediaGate {static final instance=FrontendMediaGate();int owners=0;Future<void> hold(Object o)async{owners++;}Future<void> get quiet async{}void release(Object o){owners--;}}
+class GameSessionManager {static bool pending=false;static void beginLaunchPending(){pending=true;}static void clearLaunchPending(){pending=false;}}
+class LaunchDispatch {
+ static Future<GameLaunchResult> _launchGameImpl(BuildContext c,SystemModel s,GameModel g)async=>GameLaunchResult.failure('disabled','engine disabled');
+''' + dispatch + '\n}\n'
+tests = tests.replace('void main() {', declarations + '\nvoid main() {', 1)
 with tempfile.TemporaryDirectory(prefix='.melonx-launch-', dir=ROOT) as temporary:
     work = Path(temporary)
     (work / 'service.dart').write_text(source)

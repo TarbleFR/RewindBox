@@ -51,6 +51,12 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         timer.schedule(deadline:.now(),repeating:.milliseconds(300))
         timer.setEventHandler { [weak self] in
             guard let self else { return }
+            self.drainDiagnostics(runtime)
+        }
+        diagnosticsTimer = timer; timer.resume()
+    }
+
+    private func drainDiagnostics(_ runtime: MeloNXRuntimeAPI) {
             let report = runtime.diagnostics()
             for event in report["events"] as? [[String:Any]] ?? [] {
                 let sequence = (event["sequence"] as? NSNumber)?.int64Value ?? 0
@@ -61,8 +67,6 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     code:(event["nativeStatus"] as? NSNumber)?.int64Value ?? 0,
                     detail:event["diagnostic"] as? String ?? "")
             }
-        }
-        diagnosticsTimer = timer; timer.resume()
     }
 
     // Accessed only on libraryQueue. Success includes actual dependency loading
@@ -177,7 +181,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                         guard isCurrent(token) else { return }
                         failLaunch(preflight["errorCode"] as? String ?? "invalidContent",
                             diagnostic:preflight["diagnostic"] as? String ?? "Native content preflight rejected the game.",
-                            stage:preflight["stage"] as? String ?? "contentPreflight", nativeStatus:0)
+                            stage:preflight["stage"] as? String ?? "contentPreflight", nativeStatus:(preflight["nativeStatus"] as? NSNumber)?.int64Value ?? 1)
                     }
                     return
                 }
@@ -241,10 +245,16 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                 let native = self.runtime?.diagnostics() ?? [:]
                 let nativeCode = native["errorCode"] as? String ?? ""
                 var status: Int64 = 1
-                if case MeloNXHostError.prepare(let code,_) = error { status = code }
+                if let failure = error as? MeloNXHostError {
+                    switch failure {
+                    case .prepare(let code,_): status = code
+                    case .operation(let failedStage,let code,_): stage = failedStage; status = code
+                    default: break
+                    }
+                }
                 DispatchQueue.main.async { [self] in
                     guard isCurrent(token) else { return }
-                    failLaunch(nativeCode.isEmpty ? (stage == "jit" ? "jitUnavailable" : "runtimeUnavailable") : nativeCode,diagnostic:String(describing:error),
+                    failLaunch(nativeCode.isEmpty ? (stage.hasPrefix("jit") ? "jitUnavailable" : "runtimeUnavailable") : nativeCode,diagnostic:String(describing:error),
                         stage:nativeCode.isEmpty ? stage : (native["stage"] as? String ?? stage),nativeStatus:status)
                 }
             }
@@ -261,6 +271,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     }
     private func failLaunch(_ code: String, diagnostic: String = "", stage: String = "launch", nativeStatus: Int64 = 1) {
         lastFailure = diagnostic
+        if let runtime { diagnosticsQueue.sync { drainDiagnostics(runtime) } }
         let errorCode = code.isEmpty ? "launchFailed" : code
         MeloNXLaunchJournal.record(stage,"failed",code:nativeStatus,detail:errorCode + ": " + diagnostic)
         let reply = launchReply; launchReply = nil; starting = false

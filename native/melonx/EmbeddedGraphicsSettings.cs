@@ -2,6 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Ryujinx.Common.Configuration;
+using Ryujinx.Common;
 
 namespace Ryujinx.Library;
 
@@ -71,6 +72,6 @@ partial class Library
                 return 0;
             }
         }
-        catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+        catch (Exception error) { EmbeddedLaunchDiagnostics.Fail("graphics", "invalidGraphics", error); return 1; }
     }
 }

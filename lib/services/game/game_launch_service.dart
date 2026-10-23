@@ -104,6 +104,13 @@ class GameLaunchService {
       await FrontendMediaGate.instance.quiet;
       if (!context.mounted) return GameLaunchResult.failure('', '');
       final result = await _launchGameImpl(context, system, game);
+      if (Platform.isIOS && system.folderName.toLowerCase() == 'switch' && !result.success) {
+        GameLaunchManager().markInitializationFailed(nativeStillActive: MelonxInternalService.nativeQuarantined);
+        MelonxLaunchDiagnostics.record('dispatch', 'failed', {
+          'gamePath': game.romPath,
+          'diagnostic': '${result.errorMessage ?? ""}\n${result.errorDetails ?? ""}',
+        });
+      }
       return result;
     } finally {
       GameSessionManager.clearLaunchPending();

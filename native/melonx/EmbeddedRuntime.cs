@@ -92,6 +92,6 @@ partial class Library
                 return 0;
             }
         }
-        catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+        catch (Exception error) { EmbeddedLaunchDiagnostics.Fail("jitMode", "jitRestartRequired", error); return 1; }
     }
 }

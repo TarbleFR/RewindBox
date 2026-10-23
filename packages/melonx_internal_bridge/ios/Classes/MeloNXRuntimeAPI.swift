@@ -84,8 +84,9 @@ final class MeloNXRuntimeAPI {
         prepareJitFunction = try symbol("neostation_melonx_prepare_jit", Version.self)
         let diagnosticsVersion = try symbol("neostation_melonx_diagnostics_abi", Version.self)
         guard runtimeVersion() == 1, inputVersion() == 1, libraryVersion() == 2, diagnosticsVersion() == 1 else { throw MeloNXHostError.incompatibleABI }
-        guard frameworks.path.withCString({ configureNative($0) }) == 0 else {
-            throw MeloNXHostError.load("Private MeloNX native dependencies could not be loaded")
+        let nativeStatus = frameworks.path.withCString({ configureNative($0) })
+        guard nativeStatus == 0 else {
+            throw MeloNXHostError.operation("frameworks",Int64(nativeStatus),diagnostics()["diagnostic"] as? String ?? "Private MeloNX native dependencies could not be loaded")
         }
         try Self.prepareSDL(frameworks:frameworks)
         MeloNXLaunchJournal.record("frameworks", "passed", detail:"Private SDL video and dependency closure initialized.")
@@ -113,10 +114,16 @@ final class MeloNXRuntimeAPI {
 
     func prepareGraphics(_ settings: [String: Any], universalJit: Bool) throws {
         let data = try JSONSerialization.data(withJSONObject: settings, options: [.sortedKeys])
-        guard let text = String(data: data, encoding: .utf8), text.utf8.count < 8192,
-              configureJit(universalJit ? 1 : 0) == 0,
-              text.withCString({ configureGraphics($0) }) == 0 else {
-            throw MeloNXHostError.load("MeloNX rejected its JIT mode or graphics configuration")
+        guard let text = String(data: data, encoding: .utf8), text.utf8.count < 8192 else {
+            throw MeloNXHostError.operation("graphics",-1,"Invalid or oversized graphics configuration.")
+        }
+        let jitStatus = configureJit(universalJit ? 1 : 0)
+        guard jitStatus == 0 else {
+            throw MeloNXHostError.operation("jitMode",Int64(jitStatus),diagnostics()["diagnostic"] as? String ?? "JIT mode rejected")
+        }
+        let graphicsStatus = text.withCString({ configureGraphics($0) })
+        guard graphicsStatus == 0 else {
+            throw MeloNXHostError.operation("graphics",Int64(graphicsStatus),diagnostics()["diagnostic"] as? String ?? "Graphics configuration rejected")
         }
     }
 
@@ -124,7 +131,7 @@ final class MeloNXRuntimeAPI {
     func content(path: String = "", operation: Int32) throws -> [String: Any] {
         var output = [CChar](repeating: 0, count: 65536)
         let status = path.withCString { contentFunction($0, operation, &output, Int32(output.count)) }
-        guard status == 0 else { throw MeloNXHostError.load("MeloNX content ABI failed: \(status)") }
+        guard status == 0 else { throw MeloNXHostError.operation("contentTransport",Int64(status),"Native content response failed.") }
         let data = Data(bytes: output, count: output.prefix { $0 != 0 }.count)
         guard let response = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw MeloNXHostError.load("Invalid MeloNX content response")

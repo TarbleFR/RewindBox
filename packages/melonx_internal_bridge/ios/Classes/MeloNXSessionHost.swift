@@ -17,6 +17,7 @@ enum MeloNXLaunchJournal {
 enum MeloNXHostError: Error, CustomStringConvertible {
     case load(String), missingSymbol(String), incompatibleABI, initialize(Int32)
     case busy, prepare(Int64, String), run(Int32, String)
+    case operation(String, Int64, String)
 
     var description: String {
         switch self {
@@ -27,6 +28,7 @@ enum MeloNXHostError: Error, CustomStringConvertible {
         case .busy: return "A MeloNX session is still active"
         case .prepare(let status, let detail): return "MeloNX preparation failed (\(status)): \(detail)"
         case .run(let status, let detail): return "MeloNX session failed (\(status)): \(detail)"
+        case .operation(let stage, let status, let detail): return "MeloNX \(stage) failed (\(status)): \(detail)"
         }
     }
 }
@@ -83,7 +85,7 @@ final class MeloNXNativeSessionAPI {
 
     func initialize(root: URL) throws {
         let status = root.path.withCString { initializeFunction($0) }
-        guard status == 0 else { throw MeloNXHostError.prepare(Int64(status),"MeloNX NativeAOT initialization: \(diagnostic)") }
+        guard status == 0 else { throw MeloNXHostError.operation("nativeAot",Int64(status),diagnostic) }
     }
     func prepare(game: URL, locale: String, width: Int32, height: Int32) -> Int64 {
         game.path.withCString { path in locale.withCString { prepareFunction(path, $0, width, height) } }

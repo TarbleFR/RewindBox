@@ -16,7 +16,7 @@ import uuid
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'dist/melonx-smoke';OUT.mkdir(parents=True,exist_ok=True)
-def run(*args): return subprocess.check_output(list(map(str,args)),text=True,stderr=subprocess.STDOUT).strip()
+def run(*args): return subprocess.check_output(list(map(str,args)),text=True,stderr=subprocess.STDOUT,timeout=300).strip()
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 core=ROOT/'dist/melonx/iossimulator-arm64/Ryujinx.Library.dylib'
 identity=json.loads(core.with_name('identity.json').read_text());assert sha(core)==identity['sha256']
@@ -66,7 +66,14 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        let package=root.appendingPathComponent("empty.nsp")
        try Data([0x50,0x46,0x53,0x30]+Array(repeating:UInt8(0),count:12)).write(to:package)
        let missingKeys=try runtime.content(path:package.path,operation:8)
-       guard missingKeys["success"] as? Bool == false, missingKeys["errorCode"] as? String == "keysMissing", runtime.session.state == 0 else {throw NSError(domain:"actual-key-preflight",code:6)}
+       guard missingKeys["success"] as? Bool == false, missingKeys["errorCode"] as? String == "keysMissing", missingKeys["nativeStatus"] is NSNumber, runtime.session.state == 0 else {throw NSError(domain:"actual-key-preflight",code:6)}
+       do {
+         try runtime.prepareGraphics(["resolution":9],universalJit:false)
+         throw NSError(domain:"invalid-graphics-accepted",code:13)
+       } catch MeloNXHostError.operation(let stage,let status,let detail) {
+         guard stage == "graphics", status == 1, !detail.isEmpty else {throw NSError(domain:"graphics-error-propagation",code:14)}
+         report["invalidGraphicsCodePreserved"]=true
+       }
        // Simulator-only executable mapping proof with the real ARM64 engine.
        // It does not exercise iPhone signing, its helper or Universal JIT.
        try runtime.prepareJit();try runtime.prepareJit()
@@ -134,12 +141,12 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
   container=Path(run('xcrun','simctl','get_app_container',device,bundle,'data'));result=container/'Documents/smoke.json'
   deadline=time.monotonic()+120
   while not result.exists() and time.monotonic()<deadline:time.sleep(1)
-  if not result.exists():
-   (OUT/'simulator.log').write_text(run('xcrun','simctl','spawn',device,'log','show','--last','3m','--predicate','process == "MeloNXSmoke"'))
-   raise RuntimeError('Actual NativeAOT bootstrap did not report completion')
   native_log=container/'Documents/native-runtime.log'
   if native_log.exists():
    text=native_log.read_text(errors='replace');(OUT/'native-runtime.log').write_text(text[-1000000:]);print(text[-20000:],flush=True)
+  if not result.exists():
+   (OUT/'simulator.log').write_text(run('xcrun','simctl','spawn',device,'log','show','--last','3m','--predicate','process == "MeloNXSmoke"'))
+   raise RuntimeError('Actual NativeAOT bootstrap did not report completion')
   report=json.loads(result.read_text());report['runtime']=runtime;report['coreSha256']=sha(core)
   report['inputs']={str(p.relative_to(ROOT)):sha(p) for p in [*sources,Path(__file__)]}
   (OUT/'actual-runtime.json').write_text(json.dumps(report,indent=2)+'\n')

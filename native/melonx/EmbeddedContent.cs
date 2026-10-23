@@ -110,6 +110,7 @@ partial class Library
                             EmbeddedLaunchDiagnostics.Classify(error), error);
                     json.WriteBoolean("success", false);
                     json.WriteString("error", error.GetType().Name);
+                    json.WriteNumber("nativeStatus", error.HResult);
                     string code = error is OperationCanceledException ? "cancelled" : "failed";
                     if (operation == 8) code = EmbeddedLaunchDiagnostics.ErrorCode;
                     if (operation == 1 && code != "cancelled")
