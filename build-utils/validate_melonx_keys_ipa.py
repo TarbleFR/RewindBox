@@ -5,13 +5,13 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'.github/diagnostics'))
 from melonxkeys517_delivery import SOURCE,MELONX_RUN,PRODUCT
 
-def validate(ipa,build):
+def validate(ipa,build,core_source=SOURCE,core_run=MELONX_RUN):
  with zipfile.ZipFile(ipa) as z:
   roots=[n[:-len('Info.plist')] for n in z.namelist() if n.startswith('Payload/') and len(n.split('/'))==3 and n.endswith('.app/Info.plist')]
   assert len(roots)==1;root=roots[0]
   info=plistlib.loads(z.read(root+'Info.plist'));assert info['CFBundleVersion']==str(build)
   receipt=json.loads(z.read(root+'MeloNX-native-identity.json'));identity=receipt['sourceCoreIdentity']
-  assert identity['host']==SOURCE
+  assert identity['host']==core_source
   for path in PRODUCT:
    if path.startswith('native/'):
     assert identity['adaptations'][path]==hashlib.sha256((ROOT/path).read_bytes()).hexdigest(),path
@@ -25,10 +25,11 @@ def validate(ipa,build):
   for text in ['keyExtras','keyInvalidSizes','keyNoSupported','keyReadFailed','[MeloNX:keys]']:
    assert text.encode() in dart or text.encode('utf-16le') in dart,text
   assert not any(Path(n).name.lower() in {'prod.keys','title.keys','dev.keys','console.keys'} for n in z.namelist())
- return dict(result='passed',build=build,source=SOURCE,coreRun=MELONX_RUN,
+ return dict(result='passed',build=build,source=core_source,coreRun=core_run,reusedKeyProofSource=SOURCE,
   ipaSHA256=hashlib.sha256(ipa.read_bytes()).hexdigest(),sourceCoreSHA256=identity['sha256'],
   compiledCorePayloadFingerprint=receipt['compiledPayloadFingerprints']['MeloNXCore'],
   nativeAndDartMarkersVerified=True,personalKeysBundled=False,physicalDeviceTested=False)
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('ipa',type=Path);p.add_argument('--build-number',type=int,default=517);p.add_argument('--report',type=Path,required=True)
- a=p.parse_args();report=validate(a.ipa,a.build_number);a.report.parent.mkdir(parents=True,exist_ok=True);a.report.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
+ p.add_argument('--core-source',default=SOURCE);p.add_argument('--core-run',type=int,default=MELONX_RUN)
+ a=p.parse_args();report=validate(a.ipa,a.build_number,a.core_source,a.core_run);a.report.parent.mkdir(parents=True,exist_ok=True);a.report.write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
