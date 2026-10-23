@@ -75,7 +75,53 @@ jobs:
         restore-keys: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch')
           }}-
       id: compile-cache
+    - name: Reuse the exact successful ARM64 proofs after the marker-script failure
+      id: evidence
+      env:
+        GH_TOKEN: ${{ github.token }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        git fetch --no-tags --depth 1 origin 94d886f375de03c5cbd11e673c2ce400da07beca
+        for formula in ccache ninja cmake llvm@22; do
+          brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"
+        done
+        python3 - <<'PROOF'
+        import hashlib, json, os, subprocess, zipfile
+        from pathlib import Path, PurePosixPath
+        previous='94d886f375de03c5cbd11e673c2ce400da07beca'
+        changed=subprocess.check_output(['git','diff','--name-only',previous,'HEAD'],text=True).splitlines()
+        version=subprocess.check_output([subprocess.check_output(['brew','--prefix','llvm@22'],text=True).strip()+'/bin/llvm-config','--version'],text=True).strip()
+        reuse=changed==['.github/workflows/rpcs3-memory-audit.yml'] and version=='22.1.8'
+        if reuse:
+            prefix='repos/TarbleFR/RewindBox/'
+            run=json.loads(subprocess.check_output(['gh','api',prefix+'actions/runs/39869742031'],text=True))
+            assert run['head_sha']==previous and run['status']=='completed' and run['conclusion']=='failure'
+            jobs=json.loads(subprocess.check_output(['gh','api',prefix+'actions/runs/39869742031/jobs?per_page=100'],text=True))['jobs']
+            job=next(j for j in jobs if j['id']==120141676370)
+            passed={s['name'] for s in job['steps'] if s.get('conclusion')=='success'}
+            assert {'Select Xcode 16.4','Validate startup contracts before compiling','Build Core from the single reviewed source delta'}<=passed
+            archive=Path(os.environ['RUNNER_TEMP'])/'audited-arm64-proofs.zip'
+            with archive.open('wb') as out:
+                subprocess.run(['gh','api',prefix+'actions/artifacts/12468287217/zip'],stdout=out,check=True)
+            assert hashlib.sha256(archive.read_bytes()).hexdigest()=='732cd020043309b489f22369201203129b79739b444d2963ee4574ca06c1bcc1'
+            output=Path('build/rpcs3-core-diagnostics');output.mkdir(parents=True,exist_ok=True)
+            with zipfile.ZipFile(archive) as z:
+                for member in z.infolist():
+                    name=PurePosixPath(member.filename)
+                    assert not name.is_absolute() and '..' not in name.parts
+                    if not member.is_dir():
+                        target=output/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(z.read(member))
+            # These are authentic prior component proofs. A new Core identity is
+            # generated only after the current binary and all exports pass.
+            for name in ['memory-audit-proof.txt','spu-object-cache-proof.txt','llvm-pipeline-proof.txt','build499-proof.txt','build487-core-proof.txt','build487-host-proof.txt']:
+                assert 'PASS' in (output/name).read_text(), name
+            (output/'reused-native-proofs.json').write_text(json.dumps({'source':previous,'run':39869742031,'job':120141676370,'overallConclusion':'failure','reusedSuccessfulSteps':sorted(passed),'changedInputs':changed,'llvm':version,'scope':'unchanged successful native proofs and SDK compile only'},indent=2)+'\n')
+            print('Reusing successful ARM64 proofs and SDK compile from exact unchanged production/test sources; marker check is repaired.')
+        with open(os.environ['GITHUB_OUTPUT'],'a') as out:out.write('reuse='+str(reuse).lower()+'\n')
+        PROOF
     - name: Validate startup contracts before compiling
+      if: ${{ steps.evidence.outputs.reuse != 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -165,7 +211,10 @@ jobs:
         file "$CORE" | tee build/rpcs3-core-diagnostics/file.txt
         lipo -archs "$CORE" | tee build/rpcs3-core-diagnostics/archs.txt
         nm -gU "$CORE" > build/rpcs3-core-diagnostics/exports.txt
-        strings "$CORE" | grep -q REWINDBOX_RPCS3_MEMORY_AUDIT_V1
+        python3 - <<'MARKER'
+        from pathlib import Path
+        assert b'REWINDBOX_RPCS3_MEMORY_AUDIT_V1' in Path('dist/rpcs3/libRPCS3Core.dylib').read_bytes(), 'Missing audit implementation marker'
+        MARKER
         for symbol in _rpcs3_ios_set_compiler_budget_api _rpcs3_ios_initialize _rpcs3_ios_boot_game _neostation_rpcs3_ios_save_state _neostation_rpcs3_ios_save_state_slot _rpcs3_ios_run_llvm_self_test _rpcs3_ios_shutdown _rpcs3_ios_set_neoswap_api _rpcs3_ios_get_neoswap_client_stats _rpcs3_ios_set_neoswap_relay_api _rpcs3_ios_set_neoswap_prepared_relay_api _rpcs3_ios_get_neoswap_relay_client_stats _rpcs3_ios_set_storage_cache_api _rpcs3_ios_set_source_archive_api; do
           grep -q " $symbol$" build/rpcs3-core-diagnostics/exports.txt
         done
