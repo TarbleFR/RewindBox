@@ -14,8 +14,8 @@ jobs:
         run: |
           python3 - <<'PY'
           import json,subprocess
-          source='9512996a9aae0f6419fb3bf35323ae831e7fa71b'
-          selected={39860517441:'.github/workflows/melonx-core.yml',39860517330:'.github/workflows/melonx-integration.yml',39860517240:'.github/workflows/melonx-host.yml',39860517350:'.github/workflows/melonx-runtime-smoke.yml',39860517435:'.github/workflows/libretro-checks.yml'}
+          source='07407ed87491eb5469d3ac694eeff8cf3bb41e01'
+          selected={39970253480:'.github/workflows/libretro-checks.yml'}
           for run,path in selected.items():
               endpoint=f'repos/TarbleFR/RewindBox/actions/runs/{run}'
               data=json.loads(subprocess.check_output(['gh','api',endpoint],text=True))
@@ -26,5 +26,5 @@ jobs:
               if result.returncode:
                   current=json.loads(subprocess.check_output(['gh','api',endpoint],text=True))
                   assert current['status']=='completed',f'Could not stop redundant run {run}'
-              print(run,'redundant component validation stopped; Build 506 delivery preserved')
+              print(run,'redundant component validation stopped; targeted MeloNX engine/host/Flutter proofs preserved')
           PY
