@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "status": "delivered",
+  "build": 518,
+  "branch": "Claude",
+  "source": "9d064ad1e757e27dc2fc133a17b3e791178a9871",
+  "functionalSource": "37a926d200328409368d4a4285b6554e5cc882f5",
+  "deliveryRun": 40033179437,
+  "deliveryRunConclusion": "success",
+  "host": {
+    "source": "303d9084db73b3016d29a5dca9bf439fa44ed7c7",
+    "run": 40031804127,
+    "job": 120681595879,
+    "result": "success",
+    "artifact": 12535262789,
+    "actualUIKit": {
+      "result": "passed",
+      "source": "303d9084db73b3016d29a5dca9bf439fa44ed7c7",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+      "oldControlSource": "fa6d056e668e55fb7b96959b20cc15064e52e68a",
+      "reports": [
+        {
+          "actualFlutterFramework": true,
+          "actualUIKit": true,
+          "checks": 4,
+          "detachCalls": 2,
+          "detail": "old registration/retry failure reproduced",
+          "engineAndJitDouble": true,
+          "gameplayTested": false,
+          "guestFrameDouble": true,
+          "oldControl": true,
+          "physicalDeviceTested": false,
+          "presentedSessions": 0,
+          "registrarBoundaryDouble": true,
+          "result": "passed"
+        },
+        {
+          "actualFlutterFramework": true,
+          "actualUIKit": true,
+          "checks": 12,
+          "detachCalls": 1,
+          "detail": "presentation and retry passed",
+          "engineAndJitDouble": true,
+          "gameplayTested": false,
+          "guestFrameDouble": true,
+          "oldControl": false,
+          "physicalDeviceTested": false,
+          "presentedSessions": 3,
+          "registrarBoundaryDouble": true,
+          "result": "passed"
+        }
+      ],
+      "inputs": {
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "6793e5926d966bb79b6bf2863a77c47013a927b8c019da1a1b56d62df3d19a8a",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXPresentation.swift": "94882dac3c73ebc3cda382a90267cae14586afeab12349c6ac81e2c8ac277b1f",
+        "test/melonx_presentation_test.py": "d49cda0f5f395ef5cea7c0d3666a4ae823860c9b020c9fbd612e2c3c0b461020",
+        "test/melonx_presentation/App.swift": "405c6d4d5a0204641fffc219cf0dbfa55c21009d0dac89de787f8ba7776b372d",
+        "test/melonx_presentation/Doubles.swift": "558e1182c654317c391dcb256c75bf0e752e422d360b41c014b74609ff427d66",
+        "test/melonx_presentation/Registrar.h": "f033df62f4cd06c95d651c1944a62694fe3aa4aa6bff0584df61d31dd22c1715",
+        "test/melonx_presentation/Registrar.m": "26d97d355c659107fe3527dcedf4083f33c5f7dfba44d0a9c6982ae1177e99b2"
+      },
+      "physicalDeviceTested": false,
+      "gameplayTested": false
+    },
+    "iphoneSDKTypecheck": true,
+    "nativeABIDoubleCases": 24,
+    "logSHA256": "64c5530a525142de3046c5403ae9fffe631bf94fb3ae41a641282b786836fba9"
+  },
+  "flutter": {
+    "source": "37a926d200328409368d4a4285b6554e5cc882f5",
+    "run": 40033099656,
+    "job": 120685917316,
+    "result": "success",
+    "productionImportAndWidget": true,
+    "oldDisposedContextFailureReproduced": true,
+    "correctedImportCompletedWithoutWarning": true,
+    "logSHA256": "c12235e4e3795b08d96e7d0f3ed0745dbbbe5207e68412a701184dd58c90b277"
+  },
+  "preserved": {
+    "delivered517Source": "05f04b9bbc9cb95137c8bc5df42a53606b358201",
+    "delivered517Run": 40025909494,
+    "meloNXCoreSource": "e0a1196d70469a28f04cc8a3628f43d484015581",
+    "meloNXCoreSHA256": "589b3cdbf62833d8e2e325ba5253540ce4aeceba71b2f8543f7daff3aa8f8d27",
+    "meloNXRun": 40025760206,
+    "RPCS3CoreSource": "a69860297d7b26dbb688df0daf16a31b42046462",
+    "RPCS3CoreRun": 39982269326,
+    "otherPrebuiltPayloadsPreserved": true
+  },
+  "ipa": {
+    "build": 518,
+    "version": "0.0.8",
+    "ipaFilename": "RewindBox-Build518.ipa",
+    "ipaBytes": 186175893,
+    "ipaSHA256": "1676b422e7bea341d8f81ab36e64488e995e52ee8dd50a99216db077e19a7934",
+    "alignedVersionedBundles": 7,
+    "machOImages": 86,
+    "codeDirectories": 116,
+    "verifiedCodePageHashes": 132675,
+    "encryptedImages": 0,
+    "appleReSigningRequired": true
+  },
+  "artifact": {
+    "id": 12537020596,
+    "name": "RewindBox-Build-518-9d064ad1e757e27dc2fc133a17b3e791178a9871-cold",
+    "size_in_bytes": 186421149,
+    "digest": "sha256:f8da37d81ab347fb9302305f877e85558a44aab86e5d89b626a7b1adbc069f86"
+  },
+  "packagedPresentation": {
+    "result": "passed",
+    "build": 518,
+    "source": "9d064ad1e757e27dc2fc133a17b3e791178a9871",
+    "presentation": {
+      "schemaVersion": 1,
+      "presentationSource": "37a926d200328409368d4a4285b6554e5cc882f5",
+      "hostSource": "303d9084db73b3016d29a5dca9bf439fa44ed7c7",
+      "hostRun": 40031804127,
+      "flutterSource": "37a926d200328409368d4a4285b6554e5cc882f5",
+      "flutterRun": 40033099656,
+      "inputs": {
+        "lib/widgets/melonx_internal_playlist_actions.dart": "762b752982fb15d7508e86e4e47244203ec0d7fdda945b1a3d4fe655048db759",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "6793e5926d966bb79b6bf2863a77c47013a927b8c019da1a1b56d62df3d19a8a",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXPresentation.swift": "94882dac3c73ebc3cda382a90267cae14586afeab12349c6ac81e2c8ac277b1f"
+      },
+      "realFrameStillRequired": true,
+      "physicalDeviceTested": false,
+      "gameplayTested": false
+    },
+    "ipaSHA256": "1676b422e7bea341d8f81ab36e64488e995e52ee8dd50a99216db077e19a7934",
+    "compiledHostMarkersVerified": true,
+    "physicalDeviceTested": false,
+    "gameplayTested": false
+  },
+  "keyImportValidation": {
+    "result": "passed",
+    "build": 518,
+    "source": "e0a1196d70469a28f04cc8a3628f43d484015581",
+    "coreRun": 40025760206,
+    "ipaSHA256": "1676b422e7bea341d8f81ab36e64488e995e52ee8dd50a99216db077e19a7934",
+    "sourceCoreSHA256": "589b3cdbf62833d8e2e325ba5253540ce4aeceba71b2f8543f7daff3aa8f8d27",
+    "compiledCorePayloadFingerprint": "11b612316c8b1c2163a4bd71695144187e756788a302dffac9d3abc14041c52b",
+    "nativeAndDartMarkersVerified": true,
+    "personalKeysBundled": false,
+    "physicalDeviceTested": false
+  },
+  "transport": {
+    "result": "verified",
+    "run": 40033179437,
+    "source": "9d064ad1e757e27dc2fc133a17b3e791178a9871",
+    "reconstructedEncryptedFilesExactly": true,
+    "files": {
+      "artifact.tar.enc": {
+        "bytes": 186420256,
+        "sha256": "60b34795733a34c2250bc192afe86a29f7c556abac56ca2cb25f969ee246fe85"
+      },
+      "format.json": {
+        "bytes": 133,
+        "sha256": "82cae9fd5975b6f0768716fbea66ab175de91406d5b63429db85c3d34fc6895b"
+      },
+      "password.rsa": {
+        "bytes": 384,
+        "sha256": "a6b5ace6fbdf1c3df4b3ffa189975635edc50d7ba14563eb5617326b4e0c8e90"
+      }
+    },
+    "rebuilt": false,
+    "decryptedDuringTransport": false,
+    "parts": [
+      {
+        "index": 0,
+        "artifact": 12535943589,
+        "archiveSHA256": "b462b142aa09d52f7d7c671afb953d13e0f75600e80d9cd6300555b4a9de0553",
+        "bytes": 46605064,
+        "sha256": "248131afbf907834f072d52a29af033c6ab33c768530da497cdf8c8998723199"
+      },
+      {
+        "index": 1,
+        "artifact": 12535514819,
+        "archiveSHA256": "56a2738187573de4ee602e087b4f4dd2c56daf8029c724c69149d13dafbd618d",
+        "bytes": 46605064,
+        "sha256": "3c817c6b6e96273dd7cb45e1a4b42f0dd7a771f3e8da16f9f035385231ca7d83"
+      },
+      {
+        "index": 2,
+        "artifact": 12536437090,
+        "archiveSHA256": "2c3041a5f76fe5195a2b51cc6a0ac859229010f885521ae57e85e91f33229c91",
+        "bytes": 46605064,
+        "sha256": "251eb6e2debdf467633f88b19bde7f9d7aec414bf093ddbe31dff0a7180eac6f"
+      },
+      {
+        "index": 3,
+        "artifact": 12537075404,
+        "archiveSHA256": "3fb22062e266c429f30ec50272132f70a2800506253d7144d7438a528984d766",
+        "bytes": 46605064,
+        "sha256": "4fac928f68e8a43b7803030ba5884a7477e4fc035618dbffa3e2e9a116342a57"
+      }
+    ]
+  },
+  "finalSignaturePagesVerified": true,
+  "personalValuesCommitted": false,
+  "personalValuesSentToCI": false,
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "releasePublished": false,
+  "mainUpdated": false
+}
