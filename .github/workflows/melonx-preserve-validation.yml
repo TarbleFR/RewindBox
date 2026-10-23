@@ -14,8 +14,8 @@ jobs:
         run: |
           python3 - <<'PY'
           import json,subprocess
-          source='07407ed87491eb5469d3ac694eeff8cf3bb41e01'
-          selected={39970253480:'.github/workflows/libretro-checks.yml'}
+          source='7f88ee9be1681f10dcc66f0996ee9eaffbdb51c0'
+          selected={39972191740:'.github/workflows/melonx-core.yml',39972191715:'.github/workflows/libretro-checks.yml'}
           for run,path in selected.items():
               endpoint=f'repos/TarbleFR/RewindBox/actions/runs/{run}'
               data=json.loads(subprocess.check_output(['gh','api',endpoint],text=True))
