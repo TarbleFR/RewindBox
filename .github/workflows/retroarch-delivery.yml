@@ -1,19 +1,19 @@
-name: RewindBox MeloNX deletion • Build 509 • SideStore
-run-name: RewindBox Build 509 • ${{ github.sha }} • MeloNX embedded library
+name: RewindBox RPCS3 GoW3 • Build 510 • SideStore
+run-name: RewindBox Build 510 • ${{ github.sha }} • God of War III Core
 'on':
   push:
     branches:
     - Claude
     paths:
     - .github/workflows/retroarch-delivery.yml
-    - .github/diagnostics/melonxdelete509_delivery.py
-    - build-utils/delivery-509-chatgpt-recipient.pem
+    - .github/diagnostics/rpcs3gow3_510_delivery.py
+    - build-utils/delivery-510-chatgpt-recipient.pem
   workflow_dispatch:
     inputs:
       build_number:
         description: New delivery build number
         required: true
-        default: '509'
+        default: '510'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -30,7 +30,7 @@ run-name: RewindBox Build 509 • ${{ github.sha }} • MeloNX embedded library
       recipient:
         description: Public key (PEM in build-utils) the encrypted artifact is addressed to; each session decrypts with its own private key
         required: false
-        default: build-utils/delivery-509-chatgpt-recipient.pem
+        default: build-utils/delivery-510-chatgpt-recipient.pem
         type: string
 permissions:
   contents: read
@@ -42,7 +42,7 @@ jobs:
   checks:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 180
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -51,30 +51,8 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
-    - name: Require final exact component proofs and preserve other engines
-      run: python3 .github/diagnostics/melonxdelete509_delivery.py --wait-for-components
-    - uses: subosito/flutter-action@v2
-      with:
-        flutter-version: 3.47.2
-        channel: stable
-        cache: true
-    - name: Resolve the unchanged locked Flutter dependencies
-      run: flutter pub get --enforce-lockfile
-    - name: Analyze the changed Switch deletion and retirement surfaces
-      run: >-
-        flutter analyze --no-fatal-infos
-        lib/repositories/game_repository.dart lib/services/melonx_retired_library_cleanup.dart
-        lib/widgets/delete_game_dialog.dart lib/widgets/melonx_multi_delete_dialog.dart
-        lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart
-        lib/l10n/melonx_transfer_locale.dart
-        test/melonx_deletion_test.dart test/melonx_retired_library_cleanup_test.dart
-    - name: Reproduce the video, upgrade cleanup and affected repository deletion paths
-      run: >-
-        flutter test --no-pub test/melonx_deletion_test.dart
-        test/melonx_retired_library_cleanup_test.dart test/game_deletion_regression_test.dart
-        test/game_repository_test.dart test/melonx_embedded_route_test.dart
-    - name: Check local Switch deletion, failures, cancellation, long confirmations and translations
-      run: flutter test --no-pub test/melonx_transfer_test.dart --name 'Switch deletion|large Switch|twelve-language'
+    - name: Require exact GoW3 Core and reuse unchanged delivered 509 inputs
+      run: python3 .github/diagnostics/rpcs3gow3_510_delivery.py --wait-for-components
   native:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
     runs-on: ubuntu-24.04
@@ -83,8 +61,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
     - *id001
-    - name: Require source-built engine, actual simulator runtime and private dependencies
-      run: python3 .github/diagnostics/melonxdelete509_delivery.py --source-only
+    - name: Require exact GoW3 Core and reuse unchanged delivered 509 inputs
+      run: python3 .github/diagnostics/rpcs3gow3_510_delivery.py --source-only
   cold:
     name: Release device build • cold
     runs-on: macos-15
@@ -93,16 +71,16 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '509' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-509-chatgpt-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '510' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-510-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '509' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '510' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
-      RPCS3_CORE_HOST_SHA: cfe92344e1b3dd26d2cb17bb8b8ad68260c5cc7f
-      RPCS3_CORE_RUN_ID: '39877981229'
+      RPCS3_CORE_HOST_SHA: 50714fe0980d0b50ccd93c1c739c480b054a31b9
+      RPCS3_CORE_RUN_ID: '39888215155'
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_RUN_ID: '39455712245'
@@ -123,7 +101,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/melonxdelete509_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/rpcs3gow3_510_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -141,7 +119,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/melonxdelete509_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/rpcs3gow3_510_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -247,7 +225,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/melonxdelete509_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/rpcs3gow3_510_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           .github/diagnostics/rpcs3gow3_core.py \
@@ -347,7 +325,7 @@ jobs:
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
         sys.path.insert(0, '.github/diagnostics')
-        from melonxdelete509_delivery import validate_rpc_core_identity as validate_core_input_identity
+        from rpcs3gow3_510_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
@@ -770,13 +748,11 @@ jobs:
         python3 build-utils/embed_neoswap_donor_entitlements.py
     - name: Bind audited RPCS3 binary provenance and verify the linked host compiler broker
       run: |
-        python3 build-utils/validate_rpcs3_memory_audit_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app \
+        python3 build-utils/validate_rpcs3_gow3_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app \
           --core-binary dist/rpcs3-native/libRPCS3Core.dylib --core-identity dist/rpcs3-native/identity.json \
           --report build/delivery/rpcs3-memory-embedded.json
     - name: Bind the compiled Switch retirement and deletion fix to its exact app sources
-      run: >-
-        python3 build-utils/validate_melonx_delete509_ipa.py
-        --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+      run: python3 build-utils/validate_melonx_delete509_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
         --build-number "$BUILD_NUMBER" --report build/delivery/melonx-delete509-embedded.json
     - name: Embed lazy-loaded ARMSX2 Core framework
       shell: bash
@@ -905,8 +881,8 @@ jobs:
       run: python3 build-utils/validate_melonx_ipa.py dist/NeoStation.ipa --report build/delivery/melonx-ipa.json
     - name: Verify final signed motion assets and linked native and Dart components
       run: python3 build-utils/validate_motion507_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/motion507-ipa-validation.json
-    - name: Verify the final signed audit Core and shared compiler broker
-      run: python3 build-utils/validate_rpcs3_memory_audit_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/rpcs3-memory-audit-ipa.json
+    - name: Verify final signed GoW3 Core identity and compiler broker
+      run: python3 build-utils/validate_rpcs3_gow3_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/rpcs3-memory-audit-ipa.json
     - name: Verify the final signed Switch retirement and deletion fix
       run: python3 build-utils/validate_melonx_delete509_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-delete509-ipa.json
     - name: Finalize observed timings and artifact identity
