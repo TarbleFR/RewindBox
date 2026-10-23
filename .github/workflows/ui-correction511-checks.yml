@@ -17,6 +17,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: rewindbox-ui-correction-${{ github.ref }}
   cancel-in-progress: true
@@ -26,6 +27,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
+      GH_TOKEN: ${{ github.token }}
       CI: 'true'
       BOT: 'true'
       FLUTTER_SUPPRESS_ANALYTICS: 'true'
@@ -39,22 +41,40 @@ jobs:
       - uses: subosito/flutter-action@v2
         with: {flutter-version: '3.47.2', channel: stable, cache: true}
       - run: flutter pub get --enforce-lockfile
-      - name: Analyze changed production UI and complete-screen fixtures
-        run: >-
-          flutter analyze --no-pub --no-fatal-infos
-          lib/widgets/header.dart lib/widgets/header_layout.dart
-          lib/widgets/main_menu_tab_strip.dart lib/widgets/mau_ali_tab_motion.dart
-          lib/widgets/native_carousel.dart lib/widgets/fixed_header.dart
-          lib/screens/app_screen.dart
-          lib/screens/systems_screen/my_systems_section/my_systems_carousel.dart
-          lib/screens/systems_screen/my_systems_section/system_card.dart
-          test/menu_carousel_correction_test.dart test/ui_correction_visual_test.dart
-          test/liquid_motion_test.dart
-      - name: Verify full author movement, real header, both batteries and depth-sorted artwork
-        run: >-
-          flutter test --no-pub --reporter expanded
-          test/menu_carousel_correction_test.dart test/ui_correction_visual_test.dart
-          test/main_menu_tab_strip_test.dart test/airplay_navigation_test.dart
+      - name: Authenticate unchanged passing analysis and 26 UI cases
+        run: |
+          python3 - <<'PROOF'
+          import json, re, subprocess
+          from pathlib import Path
+          old = '719de6ec3bf967862e95f9a71b2638bba26d9e4e'
+          prefix = 'repos/TarbleFR/RewindBox/'
+          def api(path): return json.loads(subprocess.check_output(['gh', 'api', prefix + path], text=True))
+          run = api('actions/runs/39888866329')
+          assert run['head_sha'] == old and run['status'] == 'completed' and run['conclusion'] == 'failure'
+          job = api('actions/jobs/120203499995')
+          passed = {step['name'] for step in job['steps'] if step.get('conclusion') == 'success'}
+          assert {'Require exact UI-only scope and the complete original motion source',
+              'Analyze changed production UI and complete-screen fixtures'} <= passed
+          inputs = ['lib', 'assets', 'packages', 'native', 'ios', 'pubspec.yaml', 'pubspec.lock',
+              'test/menu_carousel_correction_test.dart', 'test/ui_correction_visual_test.dart',
+              'test/main_menu_tab_strip_test.dart', 'test/airplay_navigation_test.dart', 'test/liquid_motion_test.dart']
+          assert not subprocess.check_output(['git', 'diff', '--name-only', old, 'HEAD', '--', *inputs], text=True)
+          log = subprocess.check_output(['gh', 'api', prefix + 'actions/jobs/120203499995/logs'], text=True)
+          failures = [line for line in log.splitlines() if re.search(r'\[E\]\s*$', line)]
+          assert len(failures) == 1 and 'test/ui_correction_visual_test.dart: (setUpAll)' in failures[0], failures
+          assert re.search(r'\+26 -1: Some tests failed', log)
+          assert 'database is locked' in log and 'no such column: id' in log
+          record = {'source': old, 'run': 39888866329, 'job': 120203499995,
+              'overallConclusion': 'failure', 'reusedPassingUICases': 26,
+              'analysisPassed': True, 'allTestedProductInputsUnchanged': True,
+              'failedFixture': 'parallel fresh database initialization; rerun isolated visual fixture only',
+              'physicalDeviceTested': False}
+          output = Path('build/ui-correction-qa'); output.mkdir(parents=True, exist_ok=True)
+          (output / 'reused-passing-ui-cases.json').write_text(json.dumps(record, indent=2) + '\n')
+          print('PASS authenticated analysis and 26 passing cases; original combined job failure retained.')
+          PROOF
+      - name: Verify complete visual composition with isolated fixture database ownership
+        run: flutter test --no-pub --concurrency=1 --reporter expanded test/ui_correction_visual_test.dart
       - name: Verify affected carousel input, interruption, rotation and accessibility
         run: >-
           flutter test --no-pub --reporter expanded test/liquid_motion_test.dart

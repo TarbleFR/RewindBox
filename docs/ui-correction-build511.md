@@ -67,3 +67,11 @@ made. The user's word "surchauffement" was interpreted in context as the reporte
 Desktop Commander reported a monthly usage limit before file transfer. A direct
 IPA download remains deliverable; no claim of a successful Windows Downloads
 copy will be made without actual verification.
+
+CI run `39888866329` from `719de6ec3bf967862e95f9a71b2638bba26d9e4e`
+passed source closure, analysis and 26 real UI/header/navigation cases. Its
+combined test step failed only in the visual fixture setup: two fresh SQLite
+initializers raced across Flutter test isolates. The recovery authenticates
+that precise run/job and unchanged inputs, retains the failed overall result,
+reuses the 26 passing cases, and runs only the visual fixture in its own process.
+The five carousel/profile and eight legal cases had not yet run in that CI job.
