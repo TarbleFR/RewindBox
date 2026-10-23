@@ -75,6 +75,8 @@ try {
  Directory.CreateDirectory(Path.Combine(root,"system"));File.WriteAllText(Path.Combine(root,"system/prod.keys"),"not a key file");
  try{Probe(nsp);throw new Exception("Accepted invalid personal keys");}catch(InvalidDataException){Check(EmbeddedLaunchDiagnostics.ErrorCode=="keysInvalid");}
  File.Delete(Path.Combine(root,"system/prod.keys"));Probe(game);Check(EmbeddedLaunchDiagnostics.ErrorCode=="");
+ EmbeddedLaunchDiagnostics.Record("gpu","begin");Check(EmbeddedLaunchDiagnostics.Classify(new FileNotFoundException("Vulkan dependency absent"))=="runtimeUnavailable");
+ EmbeddedLaunchDiagnostics.Record("file","begin");Check(EmbeddedLaunchDiagnostics.Classify(new FileNotFoundException("Game absent"))=="localGameRequired");
  var secret=new string('a',64);Check(!EmbeddedLaunchDiagnostics.Safe("header_key = "+secret).Contains(secret));
  EmbeddedLaunchDiagnostics.Fail("content","ncaDecryption",new InvalidDataException("Unable to decrypt NCA section. Key Name: key_area_key_application_16 "+secret),3);
  using(var doc=JsonDocument.Parse(EmbeddedLaunchDiagnostics.Snapshot())) {

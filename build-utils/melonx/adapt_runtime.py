@@ -20,6 +20,9 @@ def apply(source):
     vk = source / 'src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs'
     once(vk, 'path = path[..^VulkanLib.Length] + "libMoltenVK.dylib";',
          'path = Ryujinx.Common.EmbeddedNativeLibraries.PathFor("libMoltenVK.dylib");')
+    once(vk, '            if (path.EndsWith(VulkanLib))', '''            if (path.EndsWith(VulkanLib, StringComparison.Ordinal) ||
+                path.EndsWith("libvulkan.1.dylib", StringComparison.Ordinal) ||
+                path.EndsWith("libMoltenVK.dylib", StringComparison.Ordinal))''')
     once(vk, '        private const string VulkanLib', '        private static int EmbeddedResolverInitialized;\n        private const string VulkanLib')
     once(vk, '((DefaultPathResolver)PathResolver.Default).Resolvers.Insert(0, Resolver);', '''if (System.Threading.Interlocked.Exchange(ref EmbeddedResolverInitialized, 1) != 0) return;
             NativeLibrary.SetDllImportResolver(typeof(MVKInitialization).Assembly,

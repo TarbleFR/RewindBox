@@ -41,6 +41,8 @@ def apply(source):
                 if (!LoadApplication(option))
                     throw new InvalidOperationException("The engine could not load this game.");
                 if (EmbeddedSessions.IsStopping) break;''')
+    once(library, '            WindowBase window = CreateWindow(options);', '''            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("gpu", "begin", detail: "Resolving Vulkan for the native window.");
+            WindowBase window = CreateWindow(options);''')
     once(library, '            IRenderer renderer = CreateRenderer(options, window);', '''            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("gpu", "begin", detail: "Creating the private MoltenVK renderer and CAMetalLayer surface.");
             IRenderer renderer = CreateRenderer(options, window);''')
     # Input drivers are process-owned. Npad/touch managers are window-owned.

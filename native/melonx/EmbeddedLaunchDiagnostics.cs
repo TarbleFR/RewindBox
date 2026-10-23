@@ -49,7 +49,7 @@ public static class EmbeddedLaunchDiagnostics
         if (text.Contains("HeaderKey", StringComparison.OrdinalIgnoreCase) ||
             text.Contains("decrypt", StringComparison.OrdinalIgnoreCase)) return "ncaDecryption";
         if (text.Contains("profileUnavailable", StringComparison.Ordinal)) return "profileUnavailable";
-        if (error is FileNotFoundException) return "localGameRequired";
+        if (error is FileNotFoundException) return Stage == "gpu" || Stage == "frameworks" ? "runtimeUnavailable" : "localGameRequired";
         return "nativeFailure";
     }
 

@@ -30,6 +30,10 @@ partial class Library
             {
                 Directory.CreateDirectory(root);
                 InitializeCore(root);
+                // The standalone executable installs this resolver in Main;
+                // NativeAOT's embedded initialize() never passes through Main.
+                // Install it before MoltenVKWindow's first Vk.GetApi().
+                Ryujinx.Graphics.Vulkan.MoltenVK.MVKInitialization.InitializeResolver();
                 if (!string.Equals(Ryujinx.Common.Configuration.AppDataManager.BaseDirPath,
                                    root, StringComparison.Ordinal))
                     throw new InvalidOperationException("The engine did not adopt its isolated data root.");
