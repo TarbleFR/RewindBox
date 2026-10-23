@@ -132,7 +132,7 @@ partial class Library
             "ru" => SystemLanguage.Russian, "zh" => SystemLanguage.SimplifiedChinese,
             _ => SystemLanguage.AmericanEnglish
         };
-        return EmbeddedGraphics.Apply(new Options
+        return EmbeddedGraphics.Apply(ApplyEmbeddedPersonalOptions(new Options
         {
             InputPath = path, BaseDataDir = Ryujinx.Common.Configuration.AppDataManager.BaseDirPath,
             ExclusiveFullscreenWidth = width, ExclusiveFullscreenHeight = height,
@@ -149,6 +149,6 @@ partial class Library
             controllerType1 = ControllerType.ProController,
             LoggingEnableError = true, EnableKeyboard = false, EnableMouse = false,
             UseHypervisor = false, EnableInternetAccess = false,
-        });
+        }, path));
     }
 }

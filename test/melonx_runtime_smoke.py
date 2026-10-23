@@ -47,6 +47,11 @@ import Darwin
        let runtime=try MeloNXRuntimeAPI(library:frameworks.appendingPathComponent("MeloNXCore.framework/MeloNXCore"),frameworks:frameworks,root:root)
        let content=try runtime.content(operation:3)
        guard content["success"] as? Bool == true, content["root"] as? String == root.path else {throw NSError(domain:"actual-bootstrap",code:1)}
+       let storage=try runtime.content(operation:6)
+       guard storage["success"] as? Bool == true, storage["profiles"] is [[String:Any]] else {throw NSError(domain:"actual-save-profiles",code:4)}
+       let badSave=try runtime.content(path:"{\"titleId\":\"invalid\",\"profileId\":\"invalid\"}",operation:7)
+       guard badSave["success"] as? Bool == false else {throw NSError(domain:"actual-save-validation",code:5)}
+       report["storageProfilesRecognized"]=true;report["invalidSaveAssociationRejected"]=true
        try runtime.session.initialize(root:root)
        let invalid=try runtime.content(path:root.appendingPathComponent("missing.nsp").path,operation:0)
        guard invalid["success"] as? Bool == false, runtime.session.state == 0 else {throw NSError(domain:"actual-content",code:2)}

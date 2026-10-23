@@ -71,13 +71,14 @@ runtime = os.environ['MELONX_RUNTIME']
 expected_platform = 'IOS' if runtime == 'ios-arm64' else 'IOSSIMULATOR'
 assert 'platform ' + expected_platform + '\n' in platform, platform
 required = ['initialize', 'main_ryujinx_sdl', 'set_native_window', 'stop_emulation', 'toggle_pause_emulation', 'load_keyset', 'install_firmware', 'installed_firmware_version', 'get_game_info', 'set_gamepad_button_state', 'set_gamepad_stick_axis', 'RegisterCallback', 'neostation_melonx_bootstrap_abi', 'neostation_melonx_initialize', 'neostation_melonx_session_abi', 'neostation_melonx_session_state', 'neostation_melonx_session_error', 'neostation_melonx_prepare', 'neostation_melonx_run', 'neostation_melonx_stop', 'neostation_melonx_cancel_prepared', 'neostation_melonx_pause', 'neostation_melonx_input_abi', 'neostation_melonx_input_attach', 'neostation_melonx_input_detach', 'neostation_melonx_input_button', 'neostation_melonx_input_stick', 'neostation_melonx_input_reset']
-required += ['neostation_melonx_runtime_abi', 'neostation_melonx_configure_native', 'neostation_melonx_configure_jit', 'neostation_melonx_content', 'neostation_melonx_configure_graphics']
+required += ['neostation_melonx_library_abi', 'neostation_melonx_content_progress', 'neostation_melonx_cancel_content', 'neostation_melonx_runtime_abi', 'neostation_melonx_configure_native', 'neostation_melonx_configure_jit', 'neostation_melonx_content', 'neostation_melonx_configure_graphics']
 symbols = {line.split()[-1] for line in exports.splitlines() if line.split()}
 assert all('_' + name in symbols for name in required), [name for name in required if '_' + name not in symbols]
 receipt = dict(source=pin, host=subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip(), size=core.stat().st_size, sha256=hashlib.sha256(core.read_bytes()).hexdigest(), exports=required, status='compiled-not-gameplay-tested')
 receipt['adaptations'] = json.loads((root / 'dist/melonx/embedded-inputs.json').read_text())
 receipt['libHac'] = json.loads((root / 'dist/melonx/libhac-identity.json').read_text())
 receipt['embeddedSessionImplemented'] = True
+receipt['embeddedLibraryAbi'] = 2
 receipt['embeddedSessionDeviceVerified'] = False
 (root / 'dist/melonx/identity.json').write_text(json.dumps(receipt, indent=2) + '\n')
 output = root / 'dist/melonx' / runtime

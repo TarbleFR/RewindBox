@@ -1,3 +1,4 @@
+import '../../l10n/melonx_launch_access_locale.dart';
 import 'dart:io';
 
 import 'package:flutter_localization/flutter_localization.dart';
@@ -172,7 +173,9 @@ class GameLaunchService {
         }
         GameSessionManager.cancelGameLaunch();
         return GameLaunchResult.failure(
-          MelonxLocale.forLocale(locale, report['error'] == 'runtimeUnavailable' ? 'unavailable' : 'launchFailed'),
+          const {'memoryEntitlements','entitlementCheckFailed','libraryRestartRequired'}.contains(report['error'])
+            ? MelonxLaunchAccessLocale.text(locale, report['error'] as String)
+            : MelonxLocale.forLocale(locale, report['error'] == 'runtimeUnavailable' ? 'unavailable' : 'launchFailed'),
           report['diagnostic']?.toString() ?? report['error']?.toString(),
         );
       }

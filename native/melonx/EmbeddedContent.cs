@@ -10,6 +10,12 @@ namespace Ryujinx.Library;
 
 partial class Library
 {
+    [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_library_abi")]
+    public static int EmbeddedLibraryAbi() => 2;
+    [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_content_progress")]
+    public static int EmbeddedContentProgress() => EmbeddedFirmwareProgress.Phase;
+    [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_cancel_content")]
+    public static int EmbeddedCancelContent() { EmbeddedFirmwareProgress.Cancel(); return 0; }
     // A single call, caller-owned UTF-8 output. Imports are never performed by
     // a sizing call. The host supplies 64 KiB; icons are cached separately.
     // 0 metadata; 1 install personal firmware; 2 reload personal keys; 3 status.
@@ -60,6 +66,7 @@ partial class Library
                                 }
                                 break;
                             case 1:
+                                EmbeddedFirmwareProgress.Begin();
                                 if (path == null || !Path.IsPathFullyQualified(path) || !File.Exists(path))
                                     throw new FileNotFoundException("A local firmware archive is required.");
                                 if (_contentManager.VerifyFirmwarePackage(path) == null)
@@ -79,6 +86,12 @@ partial class Library
                             case 5:
                                 EmbeddedInspectAddon(path, operation, json);
                                 break;
+                            case 6:
+                                EmbeddedStorageInfo(json);
+                                break;
+                            case 7:
+                                EmbeddedSaveTarget(path, json);
+                                break;
                             default: throw new ArgumentOutOfRangeException(nameof(operation));
                         }
                         json.WriteBoolean("success", true);
@@ -89,6 +102,12 @@ partial class Library
                     Console.Error.WriteLine("MeloNX content: " + error);
                     json.WriteBoolean("success", false);
                     json.WriteString("error", error.GetType().Name);
+                    string code = error is OperationCanceledException ? "cancelled" : "failed";
+                    if (operation == 1 && code != "cancelled")
+                        code = EmbeddedFirmwareProgress.Phase >= 4 ? "firmwareInstallFailed" :
+                            error.GetType().Name == "MissingKeyException" ? "firmwareIncompatible" :
+                            error is FileNotFoundException ? "firmwareUnrecognized" : "firmwareIncomplete";
+                    json.WriteString("errorCode", code);
                     json.WriteString("diagnostic", error.Message.Length > 8192 ? error.Message[..8192] : error.Message);
                 }
                 json.WriteEndObject();

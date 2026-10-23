@@ -1,3 +1,4 @@
+import 'package:archive/archive_io.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -13,6 +14,7 @@ import 'config_service.dart';
 import 'melonx_internal_service.dart';
 import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
+import 'melonx_file_transaction.dart';
 
 /// Owns only user-supplied Switch files. Native content inspection runs on the
 /// bridge's library queue; copying uses asynchronous file IO and bounded RAM.
@@ -129,52 +131,148 @@ abstract final class MelonxEmbeddedLibraryService {
     return true;
   });
 
-  static Future<bool> importFirmware() => StorageImportActivity.run(() async {
-    final source = await pick({'zip', 'xci'});
-    if (source == null) return false;
-    await MelonxInternalService.content(
-      'installFirmware',
-      filePath: source.path,
-    );
-    return true;
-  });
-
-  static Future<bool> importKeys() => StorageImportActivity.run(() async {
-    final source = await pick({'keys'});
-    if (source == null) return false;
-    final name = path.basename(source.path).toLowerCase();
-    if (!{'prod.keys', 'title.keys'}.contains(name) ||
-        await source.length() > 4 * 1024 * 1024) {
-      throw const FormatException(
-        'Choose your personal prod.keys or title.keys file.',
+  static Future<bool> importFirmware({Future<void> Function(File)? install}) =>
+      StorageImportActivity.run(
+        () => MelonxInternalService.editLibrary(() async {
+          final source = await pick({'zip', 'xci'});
+          if (source == null) return false;
+          if (path.extension(source.path).toLowerCase() == '.zip') {
+            final input = InputFileStream(source.path);
+            try {
+              final decoder = ZipDecoder();
+              final archive = decoder.decodeStream(input);
+              if (decoder.directory.filePosition < 0 ||
+                  archive.length == 0 ||
+                  archive.length > 50000)
+                throw const FormatException('invalidArchive');
+            } catch (_) {
+              throw const FormatException('invalidArchive');
+            } finally {
+              await input.close();
+            }
+          }
+          if (install != null) {
+            await install(source);
+          } else {
+            await MelonxInternalService.content(
+              'installFirmware',
+              filePath: source.path,
+            );
+          }
+          return true;
+        }),
       );
-    }
-    // Validate before replacing any existing keys. This call reloads the old
-    // live keyset; the second reload only follows a successful atomic rename.
-    await MelonxInternalService.content('reloadKeys', filePath: source.path);
+
+  static Future<MelonxKeysReport> importKeys() =>
+      StorageImportActivity.run(() async {
+        final selection = await FilePicker.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['keys'],
+          withData: false,
+          allowMultiple: true,
+        );
+        if (selection == null) return const MelonxKeysReport([], {});
+        return importKeyFiles(
+          selection.files
+              .where((f) => f.path != null)
+              .map((f) => File(f.path!))
+              .toList(),
+        );
+      });
+
+  static Future<MelonxKeysReport> importKeyFiles(
+    List<File> files,
+  ) => MelonxInternalService.editLibrary(() async {
     final root = await MelonxInternalService.rootDirectory();
-    final directory = Directory(path.join(root.path, 'system'));
-    await directory.create(recursive: true);
-    final target = File(path.join(directory.path, name));
-    final temporary = File('${target.path}.importing');
-    final oldBytes = await target.exists() ? await target.readAsBytes() : null;
-    await source.copy(temporary.path);
-    try {
-      await temporary.rename(target.path);
-      await MelonxInternalService.content('reloadKeys', filePath: target.path);
-      SwitchTitleExtractor.resetKeys();
-    } catch (_) {
-      if (oldBytes == null) {
-        if (await target.exists()) await target.delete();
-      } else {
-        await target.writeAsBytes(oldBytes, flush: true);
-      }
-      await MelonxInternalService.content('reloadKeys');
-      rethrow;
-    } finally {
-      if (await temporary.exists()) await temporary.delete();
+    final preview = await Directory.systemTemp.createTemp('rewindbox-keys-');
+    final refused = <String, String>{};
+    final valid = <String, File>{};
+    final counts = <String, int>{};
+    for (final file in files) {
+      final name = path.basename(file.path).toLowerCase();
+      counts[name] = (counts[name] ?? 0) + 1;
     }
-    return true;
+    try {
+      for (final file in files) {
+        final name = path.basename(file.path).toLowerCase();
+        try {
+          if (!{'prod.keys', 'title.keys'}.contains(name))
+            throw const FormatException('unknownKey');
+          if (counts[name]! > 1) throw const FormatException('duplicateKey');
+          if (await file.length() > 4 * 1024 * 1024 || await file.length() == 0)
+            throw const FormatException('invalidKey');
+          final canonical = File(path.join(preview.path, name));
+          // Comments/blank lines are accepted by the key reader. Normalize only
+          // the private validation copy; never print key material in a log.
+          final lines = (await file.readAsLines())
+              .map((s) => s.trim().toLowerCase())
+              .where((s) => s.isNotEmpty && !s.startsWith('#'))
+              .toList();
+          final pattern = name == 'title.keys'
+              ? RegExp(r'^[a-f0-9]{32}\s*=\s*[a-f0-9]{32}$')
+              : RegExp(r'^[a-z0-9_]+\s*=\s*[a-f0-9]+$');
+          if (lines.isEmpty ||
+              lines.any(
+                (s) =>
+                    !pattern.hasMatch(s) ||
+                    s.split('=').last.trim().length.isOdd,
+              )) {
+            throw const FormatException('invalidKey');
+          }
+          await canonical.writeAsString(
+            lines
+                .map((s) => s.split('=').map((v) => v.trim()).join(' = '))
+                .join('\n'),
+            flush: true,
+          );
+          await MelonxInternalService.content(
+            'reloadKeys',
+            filePath: canonical.path,
+          );
+          valid[name] = canonical;
+        } on FormatException catch (error) {
+          refused[path.basename(file.path)] = error.message;
+        } catch (_) {
+          refused[path.basename(file.path)] = 'invalidKey';
+        }
+      }
+      if (valid.isNotEmpty) {
+        final items = <MelonxTransferItem>[];
+        for (final entry in valid.entries) {
+          items.add(
+            MelonxTransferItem(
+              entry.value,
+              path.join('system', entry.key),
+              await entry.value.length(),
+              await File(path.join(root.path, 'system', entry.key)).exists(),
+            ),
+          );
+        }
+        try {
+          await MelonxFileTransaction.apply(
+            root,
+            items,
+            MelonxTransferControl(),
+            validateInstalled: () async {
+              await MelonxInternalService.content('reloadKeys');
+            },
+          );
+          SwitchTitleExtractor.resetKeys();
+        } catch (_) {
+          await MelonxInternalService.content('reloadKeys');
+          rethrow;
+        }
+      }
+      return MelonxKeysReport(
+        valid.keys.toList(),
+        refused,
+        prodMissing: !await File(
+          path.join(root.path, 'system', 'prod.keys'),
+        ).exists(),
+      );
+    } finally {
+      await preview.delete(recursive: true);
+    }
   });
 
   static String baseTitleId(String value) {
@@ -197,58 +295,71 @@ abstract final class MelonxEmbeddedLibraryService {
   }
 
   static Future<bool> importAddon(String titleId, {required bool dlc}) =>
-      StorageImportActivity.run(() async {
-        final title = baseTitleId(titleId);
-        final source = await pick({'nsp'});
-        if (source == null) return false;
-        final info = await MelonxInternalService.content(
-          dlc ? 'inspectDlc' : 'inspectUpdate',
-          filePath: source.path,
-          titleId: title,
-        );
-        final root = await MelonxInternalService.rootDirectory();
-        final output = await _copyUnique(
-          source,
-          Directory(path.join(root.path, 'addons', title)),
-        );
-        final relative = path.relative(output.path, from: root.path);
-        final configuration = File(
-          path.join(
-            root.path,
-            'games',
-            title,
-            dlc ? 'dlc.json' : 'updates.json',
-          ),
-        );
-        try {
-          if (dlc) {
-            final previous = await configuration.exists()
-                ? jsonDecode(await configuration.readAsString()) as List
-                : <dynamic>[];
-            await _writeJson(configuration, [
-              ...previous,
-              {'path': relative, 'dlc_nca_list': info['dlc_nca_list']},
-            ]);
-          } else {
-            final previous = await configuration.exists()
-                ? jsonDecode(await configuration.readAsString()) as Map
-                : <String, dynamic>{};
-            await _writeJson(configuration, {
-              'selected': relative,
-              'paths': <dynamic>{
-                ...(previous['paths'] as List? ?? []),
-                relative,
-              }.toList(),
-            });
+      StorageImportActivity.run(
+        () => MelonxInternalService.editLibrary(() async {
+          final title = baseTitleId(titleId);
+          final source = await pick({'nsp'});
+          if (source == null) return false;
+          final info = await MelonxInternalService.content(
+            dlc ? 'inspectDlc' : 'inspectUpdate',
+            filePath: source.path,
+            titleId: title,
+          );
+          final root = await MelonxInternalService.rootDirectory();
+          final output = await _copyUnique(
+            source,
+            Directory(path.join(root.path, 'addons', title)),
+          );
+          final relative = path.relative(output.path, from: root.path);
+          final configuration = File(
+            path.join(
+              root.path,
+              'games',
+              title,
+              dlc ? 'dlc.json' : 'updates.json',
+            ),
+          );
+          try {
+            if (dlc) {
+              final previous = await configuration.exists()
+                  ? jsonDecode(await configuration.readAsString()) as List
+                  : <dynamic>[];
+              await _writeJson(configuration, [
+                ...previous,
+                {'path': relative, 'dlc_nca_list': info['dlc_nca_list']},
+              ]);
+            } else {
+              final previous = await configuration.exists()
+                  ? jsonDecode(await configuration.readAsString()) as Map
+                  : <String, dynamic>{};
+              await _writeJson(configuration, {
+                'selected': relative,
+                'paths': <dynamic>{
+                  ...(previous['paths'] as List? ?? []),
+                  relative,
+                }.toList(),
+              });
+            }
+          } catch (_) {
+            await output.delete();
+            rethrow;
           }
-        } catch (_) {
-          await output.delete();
-          rethrow;
-        }
-        await StoragePickerCopies.discardAfterVerifiedImport(
-          source.path,
-          expectedLength: await output.length(),
-        );
-        return true;
-      });
+          await StoragePickerCopies.discardAfterVerifiedImport(
+            source.path,
+            expectedLength: await output.length(),
+          );
+          return true;
+        }),
+      );
+}
+
+class MelonxKeysReport {
+  const MelonxKeysReport(
+    this.imported,
+    this.refused, {
+    this.prodMissing = false,
+  });
+  final List<String> imported;
+  final Map<String, String> refused;
+  final bool prodMissing;
 }

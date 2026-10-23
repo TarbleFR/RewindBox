@@ -111,6 +111,7 @@ class _SystemEmulatorSettingsDialogState
       'gc' || 'wii' => 'DolphiniOS',
       'ps2' => 'ARMSX2',
       'ps3' => 'RPCS3',
+      'switch' => 'MeloNX',
       _ => null,
     };
   }

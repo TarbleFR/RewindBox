@@ -22,6 +22,9 @@ run-name: MeloNX engine • ${{ github.sha }}
     - test/melonx_session_test.py
     - test/melonx_input_test.py
     - test/melonx_firmware_transaction_test.py
+    - test/melonx_firmware_archive_test.py
+    - test/melonx_library_api_test.py
+    - build-utils/melonx/reuse_library_validation.py
     - test/melonx_game_header_test.py
   workflow_dispatch: null
 permissions:
@@ -49,8 +52,8 @@ jobs:
         dotnet-version: 8.0.x
     - uses: actions/download-artifact@v4
       with:
-        name: MeloNX-engine-dc46d73c6a42c5662ad3a863071edac0aa4081ad
-        run-id: 39577903252
+        name: MeloNX-engine-38d997064cd81c5f17de6187ab36d2c78b0ba97c
+        run-id: 39858967222
         github-token: ${{ github.token }}
         path: dist/melonx
     - name: Execute the embedded storage boundary
@@ -63,10 +66,12 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         MELONX_REUSE_SESSION_RUN: '39577903252'
       run: python3 build-utils/melonx/check_session.py
-    - name: Execute the production firmware transaction with real files
-      run: python3 test/melonx_firmware_transaction_test.py
-    - name: Execute production game header and metadata bounds
-      run: python3 test/melonx_game_header_test.py
+    - name: Reuse unchanged successful firmware and game header checks
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 build-utils/melonx/reuse_library_validation.py
+    - name: Exercise firmware archive discovery and rollback integration
+      run: python3 test/melonx_firmware_archive_test.py
     - name: Fetch exact MeloNX source
       run: 'set -euo pipefail
 
@@ -87,6 +92,8 @@ jobs:
         git -C .native-sources/LibHac checkout --detach FETCH_HEAD
 
         '
+    - name: Check personal configuration and actual LibHac save API
+      run: python3 test/melonx_library_api_test.py .native-sources/MeloNX dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
     - name: Execute production input driver ownership
       env:
         GH_TOKEN: ${{ github.token }}
@@ -97,6 +104,14 @@ jobs:
         MELONX_BUILD_SIMULATOR: '1'
         GH_TOKEN: ${{ github.token }}
       run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
+    - uses: actions/download-artifact@v4
+      with:
+        name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
+        run-id: 39854858591
+        github-token: ${{ github.token }}
+        path: dist/melonx-native
+    - name: Exercise this exact rebuilt engine in an ARM64 iOS app
+      run: python3 test/melonx_runtime_smoke.py
     - uses: actions/upload-artifact@v4
       if: always()
       with:

@@ -15,6 +15,7 @@ void MeloNXJitAbortTransaction(void);
 // One real executable dual-mapping probe for methods that already enabled
 // this process. CS_DEBUGGED by itself never makes this return success.
 NSDictionary* MeloNXJitExecutableMappingProbe(void);
+NSDictionary* _Nonnull MeloNXMemoryEntitlements(void);
 #ifdef __cplusplus
 }
 #endif

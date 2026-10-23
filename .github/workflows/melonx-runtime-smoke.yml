@@ -1,15 +1,16 @@
 name: MeloNX actual NativeAOT bootstrap
 run-name: MeloNX actual runtime • ${{ github.sha }}
 'on':
-  push:
-    branches:
-    - Claude
-    - work/melonx-embedded-20261022
-    paths:
-    - .github/workflows/melonx-runtime-smoke.yml
-    - test/melonx_runtime_smoke.py
-    - packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      core_run:
+        description: Successful engine workflow run
+        type: string
+        required: true
+      core_sha:
+        description: Exact engine artifact source SHA
+        type: string
+        required: true
 permissions:
   contents: read
   actions: read
@@ -23,8 +24,8 @@ jobs:
         persist-credentials: false
     - uses: actions/download-artifact@v4
       with:
-        name: MeloNX-engine-38d997064cd81c5f17de6187ab36d2c78b0ba97c
-        run-id: 39858967222
+        name: MeloNX-engine-${{ inputs.core_sha }}
+        run-id: ${{ inputs.core_run }}
         github-token: ${{ github.token }}
         path: dist/melonx
     - uses: actions/download-artifact@v4

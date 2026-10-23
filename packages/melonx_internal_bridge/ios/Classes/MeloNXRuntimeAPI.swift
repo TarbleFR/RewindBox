@@ -42,6 +42,10 @@ final class MeloNXRuntimeAPI {
     private let configureGraphics: StringCall
     private let configureJit: Mode
     private let contentFunction: Content
+    private let contentProgressFunction: Version?
+    private let cancelContentFunction: Version?
+    func cancelContent() { _ = cancelContentFunction?() }
+    func contentProgress() -> Int32 { contentProgressFunction?() ?? 0 }
     private let attachFunction: Attach
     private let detachFunction: Pad
     private let resetFunction: Pad
@@ -59,17 +63,20 @@ final class MeloNXRuntimeAPI {
             return unsafeBitCast(value, to: type)
         }
         let runtimeVersion = try symbol("neostation_melonx_runtime_abi", Version.self)
+        let libraryVersion = try symbol("neostation_melonx_library_abi", Version.self)
         let inputVersion = try symbol("neostation_melonx_input_abi", Version.self)
         configureNative = try symbol("neostation_melonx_configure_native", StringCall.self)
         configureGraphics = try symbol("neostation_melonx_configure_graphics", StringCall.self)
         configureJit = try symbol("neostation_melonx_configure_jit", Mode.self)
         contentFunction = try symbol("neostation_melonx_content", Content.self)
+        contentProgressFunction = dlsym(handle, "neostation_melonx_content_progress").map { unsafeBitCast($0, to: Version.self) }
+        cancelContentFunction = dlsym(handle, "neostation_melonx_cancel_content").map { unsafeBitCast($0, to: Version.self) }
         attachFunction = try symbol("neostation_melonx_input_attach", Attach.self)
         detachFunction = try symbol("neostation_melonx_input_detach", Pad.self)
         resetFunction = try symbol("neostation_melonx_input_reset", Pad.self)
         buttonFunction = try symbol("neostation_melonx_input_button", Button.self)
         stickFunction = try symbol("neostation_melonx_input_stick", Stick.self)
-        guard runtimeVersion() == 1, inputVersion() == 1 else { throw MeloNXHostError.incompatibleABI }
+        guard runtimeVersion() == 1, inputVersion() == 1, libraryVersion() == 2 else { throw MeloNXHostError.incompatibleABI }
         guard frameworks.path.withCString({ configureNative($0) }) == 0 else {
             throw MeloNXHostError.load("Private MeloNX native dependencies could not be loaded")
         }

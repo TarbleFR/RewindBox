@@ -1,4 +1,5 @@
 import 'dart:io';
+import '../services/melonx_internal_service.dart';
 
 import 'package:neostation/services/logger_service.dart';
 
@@ -54,6 +55,40 @@ class GameRepository {
   /// Permanently deletes a game, its database metadata, and all associated
   /// scraped media files (screenshots, fanart, wheel, boxart, video) from disk.
   static Future<void> deleteGame({
+    String? appSystemId,
+    required String filename,
+    required String systemFolderName,
+    required String romBaseName,
+    String? romPath,
+    FileProvider? fileProvider,
+  }) async {
+    if (Platform.isIOS && systemFolderName.toLowerCase() == 'switch') {
+      final extension = romPath?.split('.').last.toLowerCase();
+      if (!MelonxInternalService.gameExtensions.contains(extension)) {
+        throw StateError('localGameRequired');
+      }
+      return MelonxInternalService.editLibrary(
+        () => _deleteGame(
+          appSystemId: appSystemId,
+          filename: filename,
+          systemFolderName: systemFolderName,
+          romBaseName: romBaseName,
+          romPath: romPath,
+          fileProvider: fileProvider,
+        ),
+      );
+    }
+    return _deleteGame(
+      appSystemId: appSystemId,
+      filename: filename,
+      systemFolderName: systemFolderName,
+      romBaseName: romBaseName,
+      romPath: romPath,
+      fileProvider: fileProvider,
+    );
+  }
+
+  static Future<void> _deleteGame({
     String? appSystemId,
     required String filename,
     required String systemFolderName,
@@ -195,15 +230,21 @@ class GameRepository {
     // Back scans of other editions: one folder per game.
     for (final base in {strippedBase, strippedFilename}) {
       if (base.isEmpty) continue;
-      final editions = Directory('$mediaDir/$systemFolderName/box2dback-editions/$base');
+      final editions = Directory(
+        '$mediaDir/$systemFolderName/box2dback-editions/$base',
+      );
       try {
         if (await editions.exists()) {
-          final count = (await editions.list().toList()).whereType<File>().length;
+          final count = (await editions.list().toList())
+              .whereType<File>()
+              .length;
           await editions.delete(recursive: true);
           deletedMedia += count;
         }
       } catch (e) {
-        log.e('deleteNeoStationScrapedMedia: Error deleting box editions for $filename: $e');
+        log.e(
+          'deleteNeoStationScrapedMedia: Error deleting box editions for $filename: $e',
+        );
       }
     }
 

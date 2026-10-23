@@ -1,3 +1,4 @@
+import '../../../../l10n/melonx_transfer_locale.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -186,7 +187,8 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       barrierDismissible: false,
       builder: (ctx) => DeleteGameDialog(
         gameName: widget.game.name,
-        romName: widget.game.romname,
+        romName: _targetSystemFolder.toLowerCase() == 'switch'
+            ? (widget.game.romPath ?? widget.game.romname) : widget.game.romname,
       ),
     );
     if (confirmed == true && mounted) _deleteGame();
@@ -222,13 +224,18 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
             .read<SqliteConfigProvider>()
             .refreshDolphinInternalLibrary(_targetSystemFolder);
       }
+      if (Platform.isIOS && _targetSystemFolder.toLowerCase() == 'switch' && mounted) {
+        await context.read<SqliteConfigProvider>().refreshDetectedSystems();
+      }
       deleted = true;
     } catch (e) {
       _log.e('Game deletion failed: $e');
       if (mounted) {
         AppNotification.showNotification(
           context,
-          e.toString(),
+          _targetSystemFolder.toLowerCase() == 'switch'
+              ? (e.toString().contains('libraryBusy') ? MelonxTransferLocale.text(context,'libraryBusy') : '${MelonxTransferLocale.text(context,'failed')}\n$e')
+              : e.toString(),
           type: NotificationType.error,
         );
       }

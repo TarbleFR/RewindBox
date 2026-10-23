@@ -10,6 +10,10 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     private var host: MeloNXSessionHost?
     private var sessionView: MeloNXMetalSessionViewController?
     private var starting = false
+    private var libraryMutation = false
+    private var libraryRestartRequired = false
+    private var contentProgress: (() -> Int32)?
+    private var contentCancellation: (() -> Void)?
     private var launchReply: FlutterResult?
     private var frameReady = false
     private var jitReady = false
@@ -37,16 +41,33 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     // and native initialization; it never asserts guest execution or JIT.
     private func ensureRuntime() throws -> MeloNXRuntimeAPI {
         if let runtime { return runtime }
+        let documents = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
+        guard !FileManager.default.fileExists(atPath: documents.appendingPathComponent("MeloNX/.rewindbox-transfer.json").path) else { throw MeloNXHostError.load("Library recovery required") }
         guard let frameworks = Bundle.main.privateFrameworksURL else { throw MeloNXHostError.load("Frameworks directory missing") }
         let root = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("MeloNX")
         let runtime = try MeloNXRuntimeAPI(library:frameworks.appendingPathComponent("MeloNXCore.framework/MeloNXCore"),frameworks:frameworks,root:root)
         self.runtime = runtime
+        DispatchQueue.main.async { [weak self] in self?.contentProgress = { runtime.contentProgress() }; self?.contentCancellation = { runtime.cancelContent() } }
         return runtime
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         let arguments = call.arguments as? [String:Any] ?? [:]
         switch call.method {
+        case "memoryEntitlements": result(MeloNXMemoryEntitlements())
+        case "storageCapacity":
+            do {
+                let documents = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
+                let attributes = try FileManager.default.attributesOfFileSystem(forPath:documents.path)
+                result((attributes[.systemFreeSize] as? NSNumber)?.int64Value)
+            } catch { result(FlutterError(code:"storageUnavailable",message:"Storage capacity unavailable",details:nil)) }
+        case "contentProgress": result(contentProgress?() ?? 0)
+        case "cancelContent": contentCancellation?(); result(nil)
+        case "beginLibraryMutation":
+            guard !libraryMutation, !starting, host?.isSessionActive != true else { result(false); return }
+            libraryMutation = true; result(true)
+        case "endLibraryMutation": libraryMutation = false; result(nil)
+        case "markLibraryRestartRequired": libraryRestartRequired = true; result(nil)
         case "cancelJit":
             guard host?.isSessionActive != true else { result(false); return }
             MeloNXJitAbortTransaction(); result(true)
@@ -64,11 +85,15 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     DispatchQueue.main.async { [self] in result(["available":true,"initialized":true,"sessionActive":starting || host?.isSessionActive == true,"jitArenaReady":arenaReady,"gameplayVerified":false,"lastFailure":lastFailure]) }
                 } catch { DispatchQueue.main.async { result(["available":false,"initialized":false,"diagnostic":String(describing:error)]) } }
             }
-        case "metadata", "installFirmware", "reloadKeys", "firmwareInfo", "inspectUpdate", "inspectDlc":
+        case "metadata", "installFirmware", "reloadKeys", "firmwareInfo", "inspectUpdate", "inspectDlc", "storageInfo", "saveTarget":
             guard !starting, host?.isSessionActive != true else { result(FlutterError(code:"busy",message:"Close the current game first.",details:nil)); return }
-            let operation: Int32 = ["metadata":0,"installFirmware":1,"reloadKeys":2,"firmwareInfo":3,"inspectUpdate":4,"inspectDlc":5][call.method]!
+            let operation: Int32 = ["metadata":0,"installFirmware":1,"reloadKeys":2,"firmwareInfo":3,"inspectUpdate":4,"inspectDlc":5,"storageInfo":6,"saveTarget":7][call.method]!
             var path = arguments["path"] as? String ?? ""
-            if operation >= 4 {
+            if operation == 7 {
+                guard let data = try? JSONSerialization.data(withJSONObject:arguments),
+                      let request = String(data:data,encoding:.utf8) else { result(FlutterError(code:"invalidSave",message:"Invalid save association.",details:nil)); return }
+                path = request
+            } else if operation == 4 || operation == 5 {
                 guard let title = arguments["titleId"] as? String,
                       let data = try? JSONSerialization.data(withJSONObject:["path":path,"titleId":title]),
                       let request = String(data:data,encoding:.utf8) else { result(FlutterError(code:"invalidTitle",message:"A base-game title is required.",details:nil)); return }
@@ -85,7 +110,10 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     }
 
     private func launch(_ arguments: [String:Any], result: @escaping FlutterResult) {
-        guard !starting, host?.isSessionActive != true else { result(["success":false,"error":"busy"]); return }
+        let access = MeloNXMemoryEntitlements()
+        guard access["allowed"] as? Bool == true else { result(["success":false,"error":"memoryEntitlements"]); return }
+        guard !libraryRestartRequired else { result(["success":false,"error":"libraryRestartRequired"]); return }
+        guard !libraryMutation, !starting, host?.isSessionActive != true else { result(["success":false,"error":"busy"]); return }
         guard let path = arguments["gamePath"] as? String, path.hasPrefix("/"),
               FileManager.default.isReadableFile(atPath:path),
               ["nro","nso","nsp","xci"].contains(URL(fileURLWithPath:path).pathExtension.lowercased()),

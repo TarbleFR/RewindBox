@@ -67,6 +67,7 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
     return switch (_systemFolder) {
       'ps2' => 'ARMSX2',
       'ps3' => 'RPCS3',
+      'switch' => 'MeloNX',
       _ => null,
     };
   }

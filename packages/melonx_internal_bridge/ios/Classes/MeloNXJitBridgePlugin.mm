@@ -83,6 +83,39 @@ static BOOL MeloNXHostHasGetTaskAllow(void) {
   return allowed;
 }
 
+NSDictionary* MeloNXMemoryEntitlements(void) {
+  void* task = SecTaskCreateFromSelf(NULL);
+  if (task == NULL) return @{ @"checked": @NO, @"allowed": @NO };
+  CFTypeRef memory = SecTaskCopyValueForEntitlement(task,
+      CFSTR("com.apple.developer.kernel.increased-memory-limit"), NULL);
+  CFTypeRef extended = SecTaskCopyValueForEntitlement(task,
+      CFSTR("com.apple.developer.kernel.extended-virtual-addressing"), NULL);
+  BOOL hasMemory = memory == kCFBooleanTrue;
+  BOOL hasExtended = extended == kCFBooleanTrue;
+  if (memory != NULL) CFRelease(memory);
+  if (extended != NULL) CFRelease(extended);
+  CFRelease(task);
+  // Upstream's device capability test reserves address space only. No RAM is
+  // committed, and every successful mapping is released immediately.
+  BOOL needsExtended = NO;
+  if (!hasExtended) {
+    static dispatch_once_t capacityOnce;
+    static BOOL capacityRequiresExtended = NO;
+    dispatch_once(&capacityOnce, ^{
+      size_t length = (size_t)4 * 1024 * 1024 * 1024;
+      void* address = mmap(NULL, length, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
+      capacityRequiresExtended = address == MAP_FAILED;
+      if (address != MAP_FAILED && munmap(address, length) != 0) capacityRequiresExtended = YES;
+    });
+    needsExtended = capacityRequiresExtended;
+  }
+  BOOL allowed = hasMemory && (hasExtended || !needsExtended);
+  return @{ @"checked": @YES, @"allowed": allowed ? @YES : @NO,
+      @"increasedMemoryLimit": hasMemory ? @YES : @NO,
+      @"extendedVirtualAddressing": hasExtended ? @YES : @NO,
+      @"extendedRequired": needsExtended ? @YES : @NO };
+}
+
 static BOOL MeloNXHostIsDebugged(void) {
   uint32_t flags = 0;
   if (csops(getpid(), CS_OPS_STATUS, &flags, sizeof(flags)) != 0) return NO;

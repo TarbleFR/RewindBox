@@ -1,4 +1,8 @@
+import '../l10n/melonx_transfer_locale.dart';
+import 'melonx_transfer_dialog.dart';
+import 'playlist_import_button.dart';
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,28 +12,65 @@ import '../providers/sqlite_config_provider.dart';
 import '../services/logger_service.dart';
 import '../services/melonx_internal_service.dart';
 import '../services/melonx_embedded_library_service.dart';
+import '../services/melonx_library_scanner.dart';
+import '../services/melonx_file_transaction.dart';
 
 class MelonxInternalPlaylistActions extends StatefulWidget {
   const MelonxInternalPlaylistActions({
     super.key,
     required this.onLibraryChanged,
     this.onInteractionChanged,
+    this.embedded = false,
     this.gamePath,
     this.titleId,
+    this.onDelete,
   });
   final Future<void> Function() onLibraryChanged;
   final ValueChanged<bool>? onInteractionChanged;
+  final bool embedded;
   final String? gamePath;
   final String? titleId;
+  final Future<void> Function()? onDelete;
   @override
   State<MelonxInternalPlaylistActions> createState() =>
       _MelonxInternalPlaylistActionsState();
 }
 
 class _MelonxInternalPlaylistActionsState
-    extends State<MelonxInternalPlaylistActions> {
+    extends State<MelonxInternalPlaylistActions>
+    with WidgetsBindingObserver {
   bool _busy = false;
   bool _interacting = false;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_discover()));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_busy) unawaited(_discover());
+  }
+
+  Future<void> _discover() async {
+    if (!mounted) return;
+    try {
+      await MelonxInternalService.editLibrary(() async {
+        await MelonxFileTransaction.recover(
+          await MelonxInternalService.rootDirectory(),
+        );
+      });
+      if (!mounted) return;
+      final changed = await MelonxLibraryScanner.refresh(
+        context.read<SqliteConfigProvider>(),
+      );
+      if (changed > 0 && mounted) await widget.onLibraryChanged();
+    } catch (error) {
+      LoggerService.instance.w('MeloNX discovery deferred: $error');
+    }
+  }
+
   String _text(String key) =>
       MelonxLibraryLocale.text(Localizations.localeOf(context), key);
   void _interaction(bool value) {
@@ -39,14 +80,16 @@ class _MelonxInternalPlaylistActionsState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     if (_interacting) widget.onInteractionChanged?.call(false);
     super.dispose();
   }
 
   void _notice(String message) {
     if (mounted)
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _selected(String action) async {
@@ -59,9 +102,85 @@ class _MelonxInternalPlaylistActionsState
         case 'games':
           changed = await MelonxEmbeddedLibraryService.importGame(config);
         case 'firmware':
-          changed = await MelonxEmbeddedLibraryService.importFirmware();
+          changed = await MelonxEmbeddedLibraryService.importFirmware(
+            install: (source) async {
+              if (!mounted) return;
+              final control = MelonxTransferControl();
+              await runMelonxProgress(
+                context,
+                control,
+                (progress) async {
+                  final timer = Timer.periodic(
+                    const Duration(milliseconds: 250),
+                    (_) async {
+                      try {
+                        final phase = await MelonxInternalService.channel
+                            .invokeMethod<int>('contentProgress');
+                        if (mounted && !control.cancelled)
+                          progress.value = MelonxProgress(switch (phase) {
+                            2 => 'extracting',
+                            3 => 'validating',
+                            4 => 'installing',
+                            _ => 'analyzing',
+                          });
+                      } catch (_) {
+                        /* never invent a completed stage */
+                      }
+                    },
+                  );
+                  try {
+                    await MelonxInternalService.content(
+                      'installFirmware',
+                      filePath: source.path,
+                    );
+                  } finally {
+                    timer.cancel();
+                  }
+                },
+                onCancel: () {
+                  unawaited(
+                    MelonxInternalService.channel.invokeMethod<void>(
+                      'cancelContent',
+                    ),
+                  );
+                },
+              );
+            },
+          );
         case 'keys':
-          changed = await MelonxEmbeddedLibraryService.importKeys();
+          final report = await MelonxEmbeddedLibraryService.importKeys();
+          if (!mounted) return;
+          await showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text(_text('Import personal keys')),
+              content: Text(
+                [
+                  for (final name in report.imported)
+                    '${MelonxTransferLocale.text(ctx, 'imported')}: $name',
+                  for (final item in report.refused.entries)
+                    '${MelonxTransferLocale.text(ctx, 'rejected')}: ${item.key} — ${MelonxTransferLocale.text(ctx, item.value)}',
+                  if (report.prodMissing)
+                    MelonxTransferLocale.text(ctx, 'requiredProd'),
+                ].join('\n'),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(_text('Done')),
+                ),
+              ],
+            ),
+          );
+          changed = report.imported.isNotEmpty;
+        case 'saves':
+          changed = await showMelonxTransfer(context, config, savesOnly: true);
+        case 'migration':
+          changed = await showMelonxTransfer(context, config, savesOnly: false);
+        case 'discover':
+          await _discover();
+        case 'delete':
+          await widget.onDelete?.call();
         case 'update':
           changed = await MelonxEmbeddedLibraryService.importAddon(
             widget.titleId!,
@@ -98,12 +217,29 @@ class _MelonxInternalPlaylistActionsState
           );
       }
       if (changed) {
+        if (mounted) await MelonxLibraryScanner.refresh(config);
         await widget.onLibraryChanged();
         _notice(_text('Import completed'));
       }
     } catch (error) {
       LoggerService.instance.w('MeloNX library action failed: $error');
-      if (mounted) _notice('${_text('Import failed')}: $error');
+      if (mounted)
+        _notice(
+          MelonxTransferLocale.text(
+            context,
+            error is MelonxTransferCancelled
+                ? 'cancelled'
+                : error.toString().contains('libraryBusy')
+                ? 'libraryBusy'
+                : error is MelonxContentException
+                ? error.code
+                : error is FormatException
+                ? error.message
+                : error is FileSystemException
+                ? error.message
+                : 'failed',
+          ),
+        );
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -118,22 +254,30 @@ class _MelonxInternalPlaylistActionsState
     final validTitle =
         widget.titleId != null &&
         RegExp(r'^[0-9a-fA-F]{16}$').hasMatch(widget.titleId!);
-    return PopupMenuButton<String>(
-      key: const ValueKey('melonx-import-menu'),
+    return PlaylistImportButton(
+      menuKey: const ValueKey('melonx-import-menu'),
       tooltip: _text('Import'),
-      enabled: !_busy,
-      icon: _busy
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(Icons.file_upload_outlined),
+      busy: _busy,
+      embedded: widget.embedded,
       onOpened: () => _interaction(true),
       onCanceled: () => _interaction(false),
       onSelected: _selected,
-      itemBuilder: (_) => [
+      items: (_) => [
         PopupMenuItem(value: 'games', child: Text(_text('Import games'))),
+        PopupMenuItem(
+          value: 'saves',
+          child: Text(MelonxTransferLocale.text(context, 'importSaves')),
+        ),
+        PopupMenuItem(
+          value: 'migration',
+          child: Text(MelonxTransferLocale.text(context, 'migrate')),
+        ),
+        PopupMenuItem(
+          value: 'discover',
+          child: Text(MelonxTransferLocale.text(context, 'rescan')),
+        ),
+        if (widget.onDelete != null)
+          PopupMenuItem(value: 'delete', child: Text(_text('Delete'))),
         PopupMenuItem(value: 'firmware', child: Text(_text('Import firmware'))),
         PopupMenuItem(
           value: 'keys',

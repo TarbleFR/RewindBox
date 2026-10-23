@@ -14,6 +14,17 @@ name: MeloNX external retirement and embedded route
     - lib/screens/settings_screen/legal_credits_dialog.dart
     - test/single_ipa_distribution_test.py
     - test/melonx_library_test.dart
+    - test/melonx_transfer_test.dart
+    - test/melonx_library_files_test.dart
+    - lib/services/melonx_library_scanner.dart
+    - lib/services/melonx_file_transaction.dart
+    - lib/services/melonx_migration_service.dart
+    - lib/services/melonx_transfer_source.dart
+    - lib/widgets/melonx_transfer_dialog.dart
+    - lib/widgets/melonx_multi_delete_dialog.dart
+    - lib/widgets/playlist_import_button.dart
+    - lib/l10n/melonx_transfer_locale.dart
+    - lib/l10n/melonx_launch_access_locale.dart
     - pubspec.yaml
     - pubspec.lock
     - lib/l10n/melonx_locale.dart
@@ -44,7 +55,8 @@ jobs:
       run: flutter analyze --no-fatal-infos
     - name: Exercise the adjusted console and retirement scenarios
       run: flutter test test/melonx_embedded_route_test.dart test/console_manager_test.dart test/dolphin_isolation_contract_test.dart
-        test/melonx_library_test.dart
+        test/melonx_library_test.dart test/melonx_transfer_test.dart test/melonx_library_files_test.dart
+        test/libretro_playlist_actions_test.dart
     - name: Protect unchanged libraries, the remaining JIT helpers and routing
       run: 'python3 test/retroarch_baseline_scope_test.py
 

@@ -1,3 +1,4 @@
+import '../../widgets/melonx_multi_delete_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/services.dart';
@@ -880,17 +881,17 @@ class _SystemGamesListState extends State<SystemGamesList> {
             // LIBRETRO_INTERNAL_END: playlist_actions
             if (!_isGameLaunching &&
                 Platform.isIOS &&
-                widget.system.folderName == 'switch')
+                widget.system.folderName == 'switch' &&
+                (_isLoading ||
+                    _games.isEmpty ||
+                    _selectedGame == null ||
+                    const {'grid', 'carousel'}.contains(
+                      context.watch<SqliteConfigProvider>().config.gameViewMode,
+                    )))
               Positioned(
                 top: 8.r,
                 right: 10.r,
-                child: SafeArea(
-                  child: Material(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(12.r),
-                    child: _buildMelonxImportAction(),
-                  ),
-                ),
+                child: SafeArea(child: _buildMelonxImportAction()),
               ),
             // RPCS3_INTERNAL_BEGIN: playlist_actions
             if (!_isGameLaunching && _isRpcs3Library)
@@ -937,21 +938,34 @@ class _SystemGamesListState extends State<SystemGamesList> {
     );
   }
 
-  Widget _buildMelonxImportAction() => MelonxInternalPlaylistActions(
-    gamePath: _selectedGame?.romPath,
-    titleId: _selectedGame?.titleId,
-    onInteractionChanged: (active) {
-      if (!mounted) return;
-      if (active) {
-        _gamepadNav.deactivate();
-      } else {
-        _gamepadNav.activate();
-      }
-    },
-    onLibraryChanged: () async {
-      if (mounted) await _loadGames();
-    },
-  );
+  Widget _buildMelonxImportAction({bool embedded = false}) =>
+      MelonxInternalPlaylistActions(
+        embedded: embedded,
+        onDelete: _selectedGame == null
+            ? null
+            : () async {
+                await MelonxMultiDeleteDialog.show(
+                  context: context,
+                  system: widget.system,
+                  games: _games,
+                  initialGame: _selectedGame!,
+                );
+                if (mounted) await _loadGames();
+              },
+        gamePath: _selectedGame?.romPath,
+        titleId: _selectedGame?.titleId,
+        onInteractionChanged: (active) {
+          if (!mounted) return;
+          if (active) {
+            _gamepadNav.deactivate();
+          } else {
+            _gamepadNav.activate();
+          }
+        },
+        onLibraryChanged: () async {
+          if (mounted) await _loadGames();
+        },
+      );
 
   // DOLPHIN_ISOLATION_BEGIN: import_action_builder
   Widget _buildDolphinImportAction() => DolphinInternalPlaylistActions(
@@ -1868,6 +1882,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
           ? _buildEmbeddedArmsx2ImportAction()
           : _isRpcs3Library && _rpcs3FirmwareReady
           ? _buildEmbeddedRpcs3ImportAction()
+          : Platform.isIOS && widget.system.folderName == 'switch'
+          ? _buildMelonxImportAction(embedded: true)
           : _isLibretroLibrary
           ? _buildEmbeddedLibretroImportAction()
           : null,
