@@ -35,3 +35,35 @@ The private IPA must freeze the new successful Core source/run, preserve the
 build 512 application and unrelated engine inputs, and validate the packaged
 Core payload against that exact artifact. Final CI, IPA digest and physical
 device observations are recorded separately after they exist.
+
+## Verified private delivery
+
+Build **0.0.8 (513)** was compiled from `f3f953c15a86463427e75a921adba814fe6e759d`.
+[Delivery run 39969103515](https://github.com/TarbleFR/RewindBox/actions/runs/39969103515)
+and [Core run 39968584447](https://github.com/TarbleFR/RewindBox/actions/runs/39968584447)
+completed successfully. The exact new Core source is
+`c5e54c5817f848e6f667b757931f91364e9faeda`.
+
+The decrypted private IPA is `RewindBox-Build513.ipa` (186,123,825 bytes), SHA-256
+`ba645e5a043738a4b3fff4518a39b76a306b890b513f015d4741b53145464b33`.
+The encrypted delivery artifact is `12508788492`; the clear IPA and independent
+verification report are provided in the conversation. Apple re-signing through
+SideStore is required.
+
+Five targeted macOS ASan/UBSan fixture variants passed. All 33 actual iPhone SDK
+syntax units passed, including TAR.cpp; the complete Core compiled and passed
+ABI 30, export and passive-dlopen gates. Actual CMake PPU/SPU identities remained
+`8f9b154eb34feabb` / `7c226c2359020e20`, preserving valid object cache namespaces.
+
+Independent verification of the downloaded final IPA checked its source-bound
+Core payload, all seven app/extension versions, 86 ARM64 iOS images, 116
+CodeDirectories and 132,645 code page hashes. No encrypted Mach-O image remains.
+The compiled Core fingerprint is
+`717909248184643b7a6ee9851bc304a314a904994dde9ef302f9d83fc853a175`.
+[Machine-readable evidence](evidence/rpcs3-restore513-delivery.json) records the
+artifact digests and validation scope. Physical memory/FPS gains and full game
+restoration still require device testing with internal logs.
+
+This IPA freezes the approved RPCS3 lot and delivered 512 app. Later concurrent
+MeloNX development is outside this immutable candidate; the evidence-only commit
+preserves that development on Claude.
