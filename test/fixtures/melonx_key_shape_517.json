@@ -1,0 +1,1195 @@
+{
+  "description": "Names and lengths only; all executable values generated synthetically. No personal values or title rights identifiers.",
+  "original": [
+    {
+      "name": "aes_kek_generation_source",
+      "hexChars": 32,
+      "originalLine": 1
+    },
+    {
+      "name": "aes_key_generation_source",
+      "hexChars": 32,
+      "originalLine": 2
+    },
+    {
+      "name": "bis_kek_source",
+      "hexChars": 32,
+      "originalLine": 3
+    },
+    {
+      "name": "bis_key_00",
+      "hexChars": 64,
+      "originalLine": 4
+    },
+    {
+      "name": "bis_key_01",
+      "hexChars": 64,
+      "originalLine": 5
+    },
+    {
+      "name": "bis_key_02",
+      "hexChars": 64,
+      "originalLine": 6
+    },
+    {
+      "name": "bis_key_03",
+      "hexChars": 64,
+      "originalLine": 7
+    },
+    {
+      "name": "bis_key_source_00",
+      "hexChars": 64,
+      "originalLine": 8
+    },
+    {
+      "name": "bis_key_source_01",
+      "hexChars": 64,
+      "originalLine": 9
+    },
+    {
+      "name": "bis_key_source_02",
+      "hexChars": 64,
+      "originalLine": 10
+    },
+    {
+      "name": "device_key_4x",
+      "hexChars": 32,
+      "originalLine": 11
+    },
+    {
+      "name": "eticket_rsa_kek",
+      "hexChars": 32,
+      "originalLine": 12
+    },
+    {
+      "name": "eticket_rsa_kek_personalized",
+      "hexChars": 32,
+      "originalLine": 13
+    },
+    {
+      "name": "eticket_rsa_kek_source",
+      "hexChars": 32,
+      "originalLine": 14
+    },
+    {
+      "name": "eticket_rsa_kekek_source",
+      "hexChars": 32,
+      "originalLine": 15
+    },
+    {
+      "name": "eticket_rsa_keypair",
+      "hexChars": 1056,
+      "originalLine": 16
+    },
+    {
+      "name": "header_kek_source",
+      "hexChars": 32,
+      "originalLine": 17
+    },
+    {
+      "name": "header_key",
+      "hexChars": 64,
+      "originalLine": 18
+    },
+    {
+      "name": "header_key_source",
+      "hexChars": 64,
+      "originalLine": 19
+    },
+    {
+      "name": "key_area_key_application_00",
+      "hexChars": 32,
+      "originalLine": 20
+    },
+    {
+      "name": "key_area_key_application_01",
+      "hexChars": 32,
+      "originalLine": 21
+    },
+    {
+      "name": "key_area_key_application_02",
+      "hexChars": 32,
+      "originalLine": 22
+    },
+    {
+      "name": "key_area_key_application_03",
+      "hexChars": 32,
+      "originalLine": 23
+    },
+    {
+      "name": "key_area_key_application_04",
+      "hexChars": 32,
+      "originalLine": 24
+    },
+    {
+      "name": "key_area_key_application_05",
+      "hexChars": 32,
+      "originalLine": 25
+    },
+    {
+      "name": "key_area_key_application_06",
+      "hexChars": 32,
+      "originalLine": 26
+    },
+    {
+      "name": "key_area_key_application_07",
+      "hexChars": 32,
+      "originalLine": 27
+    },
+    {
+      "name": "key_area_key_application_08",
+      "hexChars": 32,
+      "originalLine": 28
+    },
+    {
+      "name": "key_area_key_application_09",
+      "hexChars": 32,
+      "originalLine": 29
+    },
+    {
+      "name": "key_area_key_application_0a",
+      "hexChars": 32,
+      "originalLine": 30
+    },
+    {
+      "name": "key_area_key_application_0b",
+      "hexChars": 32,
+      "originalLine": 31
+    },
+    {
+      "name": "key_area_key_application_0c",
+      "hexChars": 32,
+      "originalLine": 32
+    },
+    {
+      "name": "key_area_key_application_0d",
+      "hexChars": 32,
+      "originalLine": 33
+    },
+    {
+      "name": "key_area_key_application_0e",
+      "hexChars": 32,
+      "originalLine": 34
+    },
+    {
+      "name": "key_area_key_application_0f",
+      "hexChars": 32,
+      "originalLine": 35
+    },
+    {
+      "name": "key_area_key_application_10",
+      "hexChars": 32,
+      "originalLine": 36
+    },
+    {
+      "name": "key_area_key_application_11",
+      "hexChars": 32,
+      "originalLine": 37
+    },
+    {
+      "name": "key_area_key_application_12",
+      "hexChars": 32,
+      "originalLine": 38
+    },
+    {
+      "name": "key_area_key_application_13",
+      "hexChars": 32,
+      "originalLine": 39
+    },
+    {
+      "name": "key_area_key_application_14",
+      "hexChars": 32,
+      "originalLine": 40
+    },
+    {
+      "name": "key_area_key_application_15",
+      "hexChars": 32,
+      "originalLine": 41
+    },
+    {
+      "name": "key_area_key_application_source",
+      "hexChars": 32,
+      "originalLine": 42
+    },
+    {
+      "name": "key_area_key_ocean_00",
+      "hexChars": 32,
+      "originalLine": 43
+    },
+    {
+      "name": "key_area_key_ocean_01",
+      "hexChars": 32,
+      "originalLine": 44
+    },
+    {
+      "name": "key_area_key_ocean_02",
+      "hexChars": 32,
+      "originalLine": 45
+    },
+    {
+      "name": "key_area_key_ocean_03",
+      "hexChars": 32,
+      "originalLine": 46
+    },
+    {
+      "name": "key_area_key_ocean_04",
+      "hexChars": 32,
+      "originalLine": 47
+    },
+    {
+      "name": "key_area_key_ocean_05",
+      "hexChars": 32,
+      "originalLine": 48
+    },
+    {
+      "name": "key_area_key_ocean_06",
+      "hexChars": 32,
+      "originalLine": 49
+    },
+    {
+      "name": "key_area_key_ocean_07",
+      "hexChars": 32,
+      "originalLine": 50
+    },
+    {
+      "name": "key_area_key_ocean_08",
+      "hexChars": 32,
+      "originalLine": 51
+    },
+    {
+      "name": "key_area_key_ocean_09",
+      "hexChars": 32,
+      "originalLine": 52
+    },
+    {
+      "name": "key_area_key_ocean_0a",
+      "hexChars": 32,
+      "originalLine": 53
+    },
+    {
+      "name": "key_area_key_ocean_0b",
+      "hexChars": 32,
+      "originalLine": 54
+    },
+    {
+      "name": "key_area_key_ocean_0c",
+      "hexChars": 32,
+      "originalLine": 55
+    },
+    {
+      "name": "key_area_key_ocean_0d",
+      "hexChars": 32,
+      "originalLine": 56
+    },
+    {
+      "name": "key_area_key_ocean_0e",
+      "hexChars": 32,
+      "originalLine": 57
+    },
+    {
+      "name": "key_area_key_ocean_0f",
+      "hexChars": 32,
+      "originalLine": 58
+    },
+    {
+      "name": "key_area_key_ocean_10",
+      "hexChars": 32,
+      "originalLine": 59
+    },
+    {
+      "name": "key_area_key_ocean_11",
+      "hexChars": 32,
+      "originalLine": 60
+    },
+    {
+      "name": "key_area_key_ocean_12",
+      "hexChars": 32,
+      "originalLine": 61
+    },
+    {
+      "name": "key_area_key_ocean_13",
+      "hexChars": 32,
+      "originalLine": 62
+    },
+    {
+      "name": "key_area_key_ocean_14",
+      "hexChars": 32,
+      "originalLine": 63
+    },
+    {
+      "name": "key_area_key_ocean_15",
+      "hexChars": 32,
+      "originalLine": 64
+    },
+    {
+      "name": "key_area_key_ocean_source",
+      "hexChars": 32,
+      "originalLine": 65
+    },
+    {
+      "name": "key_area_key_system_00",
+      "hexChars": 32,
+      "originalLine": 66
+    },
+    {
+      "name": "key_area_key_system_01",
+      "hexChars": 32,
+      "originalLine": 67
+    },
+    {
+      "name": "key_area_key_system_02",
+      "hexChars": 32,
+      "originalLine": 68
+    },
+    {
+      "name": "key_area_key_system_03",
+      "hexChars": 32,
+      "originalLine": 69
+    },
+    {
+      "name": "key_area_key_system_04",
+      "hexChars": 32,
+      "originalLine": 70
+    },
+    {
+      "name": "key_area_key_system_05",
+      "hexChars": 32,
+      "originalLine": 71
+    },
+    {
+      "name": "key_area_key_system_06",
+      "hexChars": 32,
+      "originalLine": 72
+    },
+    {
+      "name": "key_area_key_system_07",
+      "hexChars": 32,
+      "originalLine": 73
+    },
+    {
+      "name": "key_area_key_system_08",
+      "hexChars": 32,
+      "originalLine": 74
+    },
+    {
+      "name": "key_area_key_system_09",
+      "hexChars": 32,
+      "originalLine": 75
+    },
+    {
+      "name": "key_area_key_system_0a",
+      "hexChars": 32,
+      "originalLine": 76
+    },
+    {
+      "name": "key_area_key_system_0b",
+      "hexChars": 32,
+      "originalLine": 77
+    },
+    {
+      "name": "key_area_key_system_0c",
+      "hexChars": 32,
+      "originalLine": 78
+    },
+    {
+      "name": "key_area_key_system_0d",
+      "hexChars": 32,
+      "originalLine": 79
+    },
+    {
+      "name": "key_area_key_system_0e",
+      "hexChars": 32,
+      "originalLine": 80
+    },
+    {
+      "name": "key_area_key_system_0f",
+      "hexChars": 32,
+      "originalLine": 81
+    },
+    {
+      "name": "key_area_key_system_10",
+      "hexChars": 32,
+      "originalLine": 82
+    },
+    {
+      "name": "key_area_key_system_11",
+      "hexChars": 32,
+      "originalLine": 83
+    },
+    {
+      "name": "key_area_key_system_12",
+      "hexChars": 32,
+      "originalLine": 84
+    },
+    {
+      "name": "key_area_key_system_13",
+      "hexChars": 32,
+      "originalLine": 85
+    },
+    {
+      "name": "key_area_key_system_14",
+      "hexChars": 32,
+      "originalLine": 86
+    },
+    {
+      "name": "key_area_key_system_15",
+      "hexChars": 32,
+      "originalLine": 87
+    },
+    {
+      "name": "key_area_key_system_source",
+      "hexChars": 32,
+      "originalLine": 88
+    },
+    {
+      "name": "keyblob_key_source_00",
+      "hexChars": 32,
+      "originalLine": 89
+    },
+    {
+      "name": "keyblob_key_source_01",
+      "hexChars": 32,
+      "originalLine": 90
+    },
+    {
+      "name": "keyblob_key_source_02",
+      "hexChars": 32,
+      "originalLine": 91
+    },
+    {
+      "name": "keyblob_key_source_03",
+      "hexChars": 32,
+      "originalLine": 92
+    },
+    {
+      "name": "keyblob_key_source_04",
+      "hexChars": 32,
+      "originalLine": 93
+    },
+    {
+      "name": "keyblob_key_source_05",
+      "hexChars": 32,
+      "originalLine": 94
+    },
+    {
+      "name": "keyblob_mac_key_source",
+      "hexChars": 32,
+      "originalLine": 95
+    },
+    {
+      "name": "mariko_master_kek_source_05",
+      "hexChars": 34,
+      "originalLine": 96
+    },
+    {
+      "name": "mariko_master_kek_source_06",
+      "hexChars": 34,
+      "originalLine": 97
+    },
+    {
+      "name": "mariko_master_kek_source_07",
+      "hexChars": 34,
+      "originalLine": 98
+    },
+    {
+      "name": "mariko_master_kek_source_08",
+      "hexChars": 34,
+      "originalLine": 99
+    },
+    {
+      "name": "mariko_master_kek_source_09",
+      "hexChars": 34,
+      "originalLine": 100
+    },
+    {
+      "name": "mariko_master_kek_source_0a",
+      "hexChars": 34,
+      "originalLine": 101
+    },
+    {
+      "name": "mariko_master_kek_source_0b",
+      "hexChars": 34,
+      "originalLine": 102
+    },
+    {
+      "name": "mariko_master_kek_source_0c",
+      "hexChars": 34,
+      "originalLine": 103
+    },
+    {
+      "name": "mariko_master_kek_source_0d",
+      "hexChars": 34,
+      "originalLine": 104
+    },
+    {
+      "name": "mariko_master_kek_source_0e",
+      "hexChars": 34,
+      "originalLine": 105
+    },
+    {
+      "name": "mariko_master_kek_source_0f",
+      "hexChars": 34,
+      "originalLine": 106
+    },
+    {
+      "name": "mariko_master_kek_source_10",
+      "hexChars": 34,
+      "originalLine": 107
+    },
+    {
+      "name": "mariko_master_kek_source_11",
+      "hexChars": 34,
+      "originalLine": 108
+    },
+    {
+      "name": "mariko_master_kek_source_12",
+      "hexChars": 34,
+      "originalLine": 109
+    },
+    {
+      "name": "mariko_master_kek_source_13",
+      "hexChars": 34,
+      "originalLine": 110
+    },
+    {
+      "name": "mariko_master_kek_source_14",
+      "hexChars": 34,
+      "originalLine": 111
+    },
+    {
+      "name": "mariko_master_kek_source_15",
+      "hexChars": 34,
+      "originalLine": 112
+    },
+    {
+      "name": "master_kek_05",
+      "hexChars": 32,
+      "originalLine": 113
+    },
+    {
+      "name": "master_kek_06",
+      "hexChars": 32,
+      "originalLine": 114
+    },
+    {
+      "name": "master_kek_07",
+      "hexChars": 32,
+      "originalLine": 115
+    },
+    {
+      "name": "master_kek_08",
+      "hexChars": 32,
+      "originalLine": 116
+    },
+    {
+      "name": "master_kek_09",
+      "hexChars": 32,
+      "originalLine": 117
+    },
+    {
+      "name": "master_kek_0a",
+      "hexChars": 32,
+      "originalLine": 118
+    },
+    {
+      "name": "master_kek_0b",
+      "hexChars": 32,
+      "originalLine": 119
+    },
+    {
+      "name": "master_kek_0c",
+      "hexChars": 32,
+      "originalLine": 120
+    },
+    {
+      "name": "master_kek_0d",
+      "hexChars": 32,
+      "originalLine": 121
+    },
+    {
+      "name": "master_kek_0e",
+      "hexChars": 32,
+      "originalLine": 122
+    },
+    {
+      "name": "master_kek_0f",
+      "hexChars": 32,
+      "originalLine": 123
+    },
+    {
+      "name": "master_kek_10",
+      "hexChars": 32,
+      "originalLine": 124
+    },
+    {
+      "name": "master_kek_11",
+      "hexChars": 32,
+      "originalLine": 125
+    },
+    {
+      "name": "master_kek_12",
+      "hexChars": 32,
+      "originalLine": 126
+    },
+    {
+      "name": "master_kek_13",
+      "hexChars": 32,
+      "originalLine": 127
+    },
+    {
+      "name": "master_kek_14",
+      "hexChars": 32,
+      "originalLine": 128
+    },
+    {
+      "name": "master_kek_15",
+      "hexChars": 32,
+      "originalLine": 129
+    },
+    {
+      "name": "master_kek_source_06",
+      "hexChars": 34,
+      "originalLine": 130
+    },
+    {
+      "name": "master_kek_source_07",
+      "hexChars": 34,
+      "originalLine": 131
+    },
+    {
+      "name": "master_kek_source_08",
+      "hexChars": 34,
+      "originalLine": 132
+    },
+    {
+      "name": "master_kek_source_09",
+      "hexChars": 34,
+      "originalLine": 133
+    },
+    {
+      "name": "master_kek_source_0a",
+      "hexChars": 34,
+      "originalLine": 134
+    },
+    {
+      "name": "master_kek_source_0b",
+      "hexChars": 34,
+      "originalLine": 135
+    },
+    {
+      "name": "master_kek_source_0c",
+      "hexChars": 34,
+      "originalLine": 136
+    },
+    {
+      "name": "master_kek_source_0d",
+      "hexChars": 34,
+      "originalLine": 137
+    },
+    {
+      "name": "master_kek_source_0e",
+      "hexChars": 34,
+      "originalLine": 138
+    },
+    {
+      "name": "master_kek_source_0f",
+      "hexChars": 34,
+      "originalLine": 139
+    },
+    {
+      "name": "master_kek_source_10",
+      "hexChars": 34,
+      "originalLine": 140
+    },
+    {
+      "name": "master_kek_source_11",
+      "hexChars": 34,
+      "originalLine": 141
+    },
+    {
+      "name": "master_kek_source_12",
+      "hexChars": 34,
+      "originalLine": 142
+    },
+    {
+      "name": "master_kek_source_13",
+      "hexChars": 34,
+      "originalLine": 143
+    },
+    {
+      "name": "master_kek_source_14",
+      "hexChars": 34,
+      "originalLine": 144
+    },
+    {
+      "name": "master_kek_source_15",
+      "hexChars": 34,
+      "originalLine": 145
+    },
+    {
+      "name": "master_key_00",
+      "hexChars": 32,
+      "originalLine": 146
+    },
+    {
+      "name": "master_key_01",
+      "hexChars": 32,
+      "originalLine": 147
+    },
+    {
+      "name": "master_key_02",
+      "hexChars": 32,
+      "originalLine": 148
+    },
+    {
+      "name": "master_key_03",
+      "hexChars": 32,
+      "originalLine": 149
+    },
+    {
+      "name": "master_key_04",
+      "hexChars": 32,
+      "originalLine": 150
+    },
+    {
+      "name": "master_key_05",
+      "hexChars": 32,
+      "originalLine": 151
+    },
+    {
+      "name": "master_key_06",
+      "hexChars": 32,
+      "originalLine": 152
+    },
+    {
+      "name": "master_key_07",
+      "hexChars": 32,
+      "originalLine": 153
+    },
+    {
+      "name": "master_key_08",
+      "hexChars": 32,
+      "originalLine": 154
+    },
+    {
+      "name": "master_key_09",
+      "hexChars": 32,
+      "originalLine": 155
+    },
+    {
+      "name": "master_key_0a",
+      "hexChars": 32,
+      "originalLine": 156
+    },
+    {
+      "name": "master_key_0b",
+      "hexChars": 32,
+      "originalLine": 157
+    },
+    {
+      "name": "master_key_0c",
+      "hexChars": 32,
+      "originalLine": 158
+    },
+    {
+      "name": "master_key_0d",
+      "hexChars": 32,
+      "originalLine": 159
+    },
+    {
+      "name": "master_key_0e",
+      "hexChars": 32,
+      "originalLine": 160
+    },
+    {
+      "name": "master_key_0f",
+      "hexChars": 32,
+      "originalLine": 161
+    },
+    {
+      "name": "master_key_10",
+      "hexChars": 32,
+      "originalLine": 162
+    },
+    {
+      "name": "master_key_11",
+      "hexChars": 32,
+      "originalLine": 163
+    },
+    {
+      "name": "master_key_12",
+      "hexChars": 32,
+      "originalLine": 164
+    },
+    {
+      "name": "master_key_13",
+      "hexChars": 32,
+      "originalLine": 165
+    },
+    {
+      "name": "master_key_14",
+      "hexChars": 32,
+      "originalLine": 166
+    },
+    {
+      "name": "master_key_15",
+      "hexChars": 32,
+      "originalLine": 167
+    },
+    {
+      "name": "master_key_source",
+      "hexChars": 32,
+      "originalLine": 168
+    },
+    {
+      "name": "package2_key_00",
+      "hexChars": 32,
+      "originalLine": 169
+    },
+    {
+      "name": "package2_key_01",
+      "hexChars": 32,
+      "originalLine": 170
+    },
+    {
+      "name": "package2_key_02",
+      "hexChars": 32,
+      "originalLine": 171
+    },
+    {
+      "name": "package2_key_03",
+      "hexChars": 32,
+      "originalLine": 172
+    },
+    {
+      "name": "package2_key_04",
+      "hexChars": 32,
+      "originalLine": 173
+    },
+    {
+      "name": "package2_key_05",
+      "hexChars": 32,
+      "originalLine": 174
+    },
+    {
+      "name": "package2_key_06",
+      "hexChars": 32,
+      "originalLine": 175
+    },
+    {
+      "name": "package2_key_07",
+      "hexChars": 32,
+      "originalLine": 176
+    },
+    {
+      "name": "package2_key_08",
+      "hexChars": 32,
+      "originalLine": 177
+    },
+    {
+      "name": "package2_key_09",
+      "hexChars": 32,
+      "originalLine": 178
+    },
+    {
+      "name": "package2_key_0a",
+      "hexChars": 32,
+      "originalLine": 179
+    },
+    {
+      "name": "package2_key_0b",
+      "hexChars": 32,
+      "originalLine": 180
+    },
+    {
+      "name": "package2_key_0c",
+      "hexChars": 32,
+      "originalLine": 181
+    },
+    {
+      "name": "package2_key_0d",
+      "hexChars": 32,
+      "originalLine": 182
+    },
+    {
+      "name": "package2_key_0e",
+      "hexChars": 32,
+      "originalLine": 183
+    },
+    {
+      "name": "package2_key_0f",
+      "hexChars": 32,
+      "originalLine": 184
+    },
+    {
+      "name": "package2_key_10",
+      "hexChars": 32,
+      "originalLine": 185
+    },
+    {
+      "name": "package2_key_11",
+      "hexChars": 32,
+      "originalLine": 186
+    },
+    {
+      "name": "package2_key_12",
+      "hexChars": 32,
+      "originalLine": 187
+    },
+    {
+      "name": "package2_key_13",
+      "hexChars": 32,
+      "originalLine": 188
+    },
+    {
+      "name": "package2_key_14",
+      "hexChars": 32,
+      "originalLine": 189
+    },
+    {
+      "name": "package2_key_15",
+      "hexChars": 32,
+      "originalLine": 190
+    },
+    {
+      "name": "package2_key_source",
+      "hexChars": 32,
+      "originalLine": 191
+    },
+    {
+      "name": "per_console_key_source",
+      "hexChars": 32,
+      "originalLine": 192
+    },
+    {
+      "name": "retail_specific_aes_key_source",
+      "hexChars": 32,
+      "originalLine": 193
+    },
+    {
+      "name": "save_mac_kek_source",
+      "hexChars": 32,
+      "originalLine": 194
+    },
+    {
+      "name": "save_mac_key",
+      "hexChars": 32,
+      "originalLine": 195
+    },
+    {
+      "name": "save_mac_key_source",
+      "hexChars": 32,
+      "originalLine": 196
+    },
+    {
+      "name": "save_mac_sd_card_kek_source",
+      "hexChars": 32,
+      "originalLine": 197
+    },
+    {
+      "name": "save_mac_sd_card_key_source",
+      "hexChars": 32,
+      "originalLine": 198
+    },
+    {
+      "name": "sd_card_custom_storage_key_source",
+      "hexChars": 64,
+      "originalLine": 199
+    },
+    {
+      "name": "sd_card_kek_source",
+      "hexChars": 32,
+      "originalLine": 200
+    },
+    {
+      "name": "sd_card_nca_key_source",
+      "hexChars": 64,
+      "originalLine": 201
+    },
+    {
+      "name": "sd_card_save_key_source",
+      "hexChars": 64,
+      "originalLine": 202
+    },
+    {
+      "name": "sd_seed",
+      "hexChars": 32,
+      "originalLine": 203
+    },
+    {
+      "name": "ssl_rsa_kek",
+      "hexChars": 32,
+      "originalLine": 204
+    },
+    {
+      "name": "ssl_rsa_kek_personalized",
+      "hexChars": 32,
+      "originalLine": 205
+    },
+    {
+      "name": "ssl_rsa_kek_source",
+      "hexChars": 32,
+      "originalLine": 206
+    },
+    {
+      "name": "ssl_rsa_kekek_source",
+      "hexChars": 32,
+      "originalLine": 207
+    },
+    {
+      "name": "ssl_rsa_key",
+      "hexChars": 512,
+      "originalLine": 208
+    },
+    {
+      "name": "titlekek_00",
+      "hexChars": 32,
+      "originalLine": 209
+    },
+    {
+      "name": "titlekek_01",
+      "hexChars": 32,
+      "originalLine": 210
+    },
+    {
+      "name": "titlekek_02",
+      "hexChars": 32,
+      "originalLine": 211
+    },
+    {
+      "name": "titlekek_03",
+      "hexChars": 32,
+      "originalLine": 212
+    },
+    {
+      "name": "titlekek_04",
+      "hexChars": 32,
+      "originalLine": 213
+    },
+    {
+      "name": "titlekek_05",
+      "hexChars": 32,
+      "originalLine": 214
+    },
+    {
+      "name": "titlekek_06",
+      "hexChars": 32,
+      "originalLine": 215
+    },
+    {
+      "name": "titlekek_07",
+      "hexChars": 32,
+      "originalLine": 216
+    },
+    {
+      "name": "titlekek_08",
+      "hexChars": 32,
+      "originalLine": 217
+    },
+    {
+      "name": "titlekek_09",
+      "hexChars": 32,
+      "originalLine": 218
+    },
+    {
+      "name": "titlekek_0a",
+      "hexChars": 32,
+      "originalLine": 219
+    },
+    {
+      "name": "titlekek_0b",
+      "hexChars": 32,
+      "originalLine": 220
+    },
+    {
+      "name": "titlekek_0c",
+      "hexChars": 32,
+      "originalLine": 221
+    },
+    {
+      "name": "titlekek_0d",
+      "hexChars": 32,
+      "originalLine": 222
+    },
+    {
+      "name": "titlekek_0e",
+      "hexChars": 32,
+      "originalLine": 223
+    },
+    {
+      "name": "titlekek_0f",
+      "hexChars": 32,
+      "originalLine": 224
+    },
+    {
+      "name": "titlekek_10",
+      "hexChars": 32,
+      "originalLine": 225
+    },
+    {
+      "name": "titlekek_11",
+      "hexChars": 32,
+      "originalLine": 226
+    },
+    {
+      "name": "titlekek_12",
+      "hexChars": 32,
+      "originalLine": 227
+    },
+    {
+      "name": "titlekek_13",
+      "hexChars": 32,
+      "originalLine": 228
+    },
+    {
+      "name": "titlekek_14",
+      "hexChars": 32,
+      "originalLine": 229
+    },
+    {
+      "name": "titlekek_15",
+      "hexChars": 32,
+      "originalLine": 230
+    },
+    {
+      "name": "titlekek_source",
+      "hexChars": 32,
+      "originalLine": 231
+    }
+  ],
+  "copyRemovedNames": [
+    "mariko_master_kek_source_05",
+    "mariko_master_kek_source_06",
+    "mariko_master_kek_source_07",
+    "mariko_master_kek_source_08",
+    "mariko_master_kek_source_09",
+    "mariko_master_kek_source_0a",
+    "mariko_master_kek_source_0b",
+    "mariko_master_kek_source_0c",
+    "mariko_master_kek_source_0d",
+    "mariko_master_kek_source_0e",
+    "mariko_master_kek_source_0f",
+    "mariko_master_kek_source_10",
+    "mariko_master_kek_source_11",
+    "mariko_master_kek_source_12",
+    "mariko_master_kek_source_13",
+    "mariko_master_kek_source_14",
+    "mariko_master_kek_source_15",
+    "master_kek_source_06",
+    "master_kek_source_07",
+    "master_kek_source_08",
+    "master_kek_source_09",
+    "master_kek_source_0a",
+    "master_kek_source_0b",
+    "master_kek_source_0c",
+    "master_kek_source_0d",
+    "master_kek_source_0e",
+    "master_kek_source_0f",
+    "master_kek_source_10",
+    "master_kek_source_11",
+    "master_kek_source_12",
+    "master_kek_source_13",
+    "master_kek_source_14",
+    "master_kek_source_15"
+  ]
+}
