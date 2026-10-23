@@ -13,10 +13,11 @@ validate_psp_core_identity=previous.validate_psp_core_identity
 BASELINE='555603e541dc586b60d27cac28b38e62f7df12a0'
 DELIVERED='9d064ad1e757e27dc2fc133a17b3e791178a9871'
 DELIVERED_RUN=40033179437
-SOURCE='18005a8f7eb7fb7204ecc8bb7af74eff6c928bee'
+SOURCE='a279185aec23fcbf9dfbd389a62f5c0e90d83bc6'
 HOST_SOURCE='5445f9bb3bd1b04ba88e4e4f03852e6dfbd4763e'
 HEADER_SOURCE=SOURCE
 HEADER='packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.h'
+PODSPEC='packages/melonx_internal_bridge/ios/melonx_internal_bridge.podspec'
 HOST_RUN=40038955791
 APP_SOURCE=HOST_SOURCE
 APP_RUN=40038955747
@@ -38,14 +39,16 @@ def source_closure():
   product=set(base.command(['git','diff','--name-only',DELIVERED,*revision,'--',
    'lib','native','packages','assets','ios','pubspec.yaml','pubspec.lock']).splitlines())
   assert product-ASSEMBLY==PRODUCT,sorted((product-ASSEMBLY)^PRODUCT)
- for component,paths in [(HOST_SOURCE,sorted(p for p in PRODUCT if p.startswith('packages/') and p!=HEADER)),
+ for component,paths in [(HOST_SOURCE,sorted(p for p in PRODUCT if p.startswith('packages/') and p not in {HEADER,PODSPEC})),
                          (APP_SOURCE,sorted(p for p in PRODUCT if p.startswith('lib/')))]:
   assert not base.command(['git','diff','--name-only',component,'HEAD','--',*paths])
- assert not base.command(['git','diff','--name-only',HEADER_SOURCE,'HEAD','--',HEADER,'test/melonx_header_module_test.py'])
+ assert not base.command(['git','diff','--name-only',HEADER_SOURCE,'HEAD','--',HEADER,PODSPEC,'test/melonx_header_module_test.py'])
  old_header=base.command(['git','show',HOST_SOURCE+':'+HEADER])
  current_header=(ROOT/HEADER).read_text().strip()
  replacement='// CocoaPods flattens public headers into the framework\'s Headers directory.\n// The source-tree spelling remains available to standalone SDK checks.\n#if __has_include("MLXRamDonor.h")\n#import "MLXRamDonor.h"\n#else\n#import "../Memory/MLXRamDonor.h"\n#endif'
  assert current_header==old_header.replace('#import "../Memory/MLXRamDonor.h"',replacement)
+ old_podspec=base.command(['git','show',HOST_SOURCE+':'+PODSPEC])
+ assert (ROOT/PODSPEC).read_text().strip()==old_podspec.replace("'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20'", "'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20', 'CLANG_ENABLE_MODULES' => 'YES', 'OTHER_CPLUSPLUSFLAGS' => '$(inherited) -fmodules -fcxx-modules'")
  assert not base.command(['git','diff','--name-only','c8424c32d2437b930870222fee1a07481d2b117d','HEAD','--','test/melonx_presentation_widgets_test.dart','lib/widgets/melonx_internal_playlist_actions.dart'])
  previous.core_module().validate_source_contract()
  previous.core_module().validate_exact_pin(CORE_SOURCE)
