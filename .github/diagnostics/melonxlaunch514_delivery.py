@@ -10,10 +10,10 @@ import rpcs3restore513_delivery as previous
 ROOT = Path(__file__).resolve().parents[2]
 base = previous.base
 BASELINE = 'f3f953c15a86463427e75a921adba814fe6e759d'
-SOURCE = 'e8efeaab28f4c9804ee0170bd3ad752ba8aec8aa'
+SOURCE = '75935aba1a647934c399b22057dc3ffcd0103e31'
 HOST_SOURCE = '7f88ee9be1681f10dcc66f0996ee9eaffbdb51c0'
 APP_SOURCE = HOST_SOURCE
-CORE_RUN = 39976987186
+CORE_RUN = 39978106781
 HOST_RUN = 39972191758
 APP_RUN = 39972191726
 validate_rpc_core_identity = previous.validate_rpc_core_identity
@@ -26,6 +26,7 @@ PRODUCT = {
     'native/melonx/EmbeddedBootstrap.cs', 'native/melonx/EmbeddedContent.cs',
     'native/melonx/EmbeddedRuntime.cs', 'native/melonx/EmbeddedSession.cs',
     'native/melonx/EmbeddedGraphicsSettings.cs', 'native/melonx/EmbeddedDarwinSignals.cs',
+    'native/melonx/EmbeddedHomebrewAssets.cs',
     'native/melonx/EmbeddedLaunchDiagnostics.cs', 'native/melonx/EmbeddedLaunchPreflight.cs',
     'packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift',
     'packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift',

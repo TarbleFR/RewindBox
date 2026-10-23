@@ -54,6 +54,15 @@ the real ARM64 app also checks both installed SA_SIGINFO flags before a guest.
 Any original loader exception is recorded before resource teardown, and actual
 Horizon-service readiness is distinguished from creating service objects.
 
+The exact alpha.129 LibHac also reproduced a NullReferenceException in
+`Nro.OpenNroAssetSection` for a legitimate executable without optional ASET.
+The HLE loader called it unconditionally. The embedded loader now checks the
+optional AssetHeader before opening RomFS/NACP, retaining present assets and
+propagating malformed present content errors. Ten checks execute the production
+NRO executable and new asset helper against the pinned real LibHac for absent,
+empty and present assets. The original homebrew fixture remains unchanged;
+this fixes the loader instead of adding assets just to avoid the failure.
+
 An additive diagnostic ABI carries a bounded, redacted native stage journal.
 Its Swift/Flutter bridge writes into the normal app journal, including GPU,
 session return and real Metal-presentation events. Startup success still requires

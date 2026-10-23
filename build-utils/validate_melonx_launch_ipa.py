@@ -44,6 +44,7 @@ def validate(ipa):
         for path in ['native/melonx/EmbeddedLaunchPreflight.cs', 'native/melonx/EmbeddedLaunchDiagnostics.cs',
             'native/melonx/EmbeddedRuntime.cs', 'native/melonx/EmbeddedSession.cs',
             'native/melonx/EmbeddedDarwinSignals.cs', 'native/melonx/EmbeddedBootstrap.cs',
+            'native/melonx/EmbeddedHomebrewAssets.cs',
             'build-utils/melonx/adapt_session.py', 'build-utils/melonx/adapt_runtime.py']:
             assert receipt['sourceCoreIdentity']['adaptations'][path] == hashlib.sha256((ROOT / path).read_bytes()).hexdigest(), path
         bridge = archive.read(root + 'Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge')
