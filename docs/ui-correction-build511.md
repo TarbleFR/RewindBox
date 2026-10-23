@@ -75,3 +75,14 @@ initializers raced across Flutter test isolates. The recovery authenticates
 that precise run/job and unchanged inputs, retains the failed overall result,
 reuses the 26 passing cases, and runs only the visual fixture in its own process.
 The five carousel/profile and eight legal cases had not yet run in that CI job.
+
+Recovery proof `fa5c249dbca0f988128021e465b3aa936c7ebea3`, run
+`39889391790`, job `120205228418`, completed successfully. It authenticates the
+26 passing cases and analysis above, passes the two isolated complete-screen
+visual cases, five affected profile/input/rotation/accessibility cases, and eight
+legal-packaging checks. Recovery `39889262784` stopped while reading ANSI-bearing
+logs; the current capture explicitly permits those bytes into a private Python
+buffer, never into a terminal. No product inputs changed during either recovery.
+The final Release recipe pins this successful proof and the exact GoW3 Core
+`50714fe0980d0b50ccd93c1c739c480b054a31b9` / `39888215155`, waiting for its success.
+Its independent concurrency group preserves the separate 510 assembly run.

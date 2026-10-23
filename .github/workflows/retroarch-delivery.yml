@@ -1,19 +1,19 @@
-name: RewindBox RPCS3 GoW3 • Build 510 • SideStore
-run-name: RewindBox Build 510 • ${{ github.sha }} • God of War III Core
+name: RewindBox complete menu and Cover Flow • Build 511 • SideStore
+run-name: RewindBox Build 511 • ${{ github.sha }} • Complete Mau Ali and Cover Flow
 'on':
   push:
     branches:
     - Claude
     paths:
     - .github/workflows/retroarch-delivery.yml
-    - .github/diagnostics/rpcs3gow3_510_delivery.py
-    - build-utils/delivery-510-chatgpt-recipient.pem
+    - .github/diagnostics/uicorrection511_delivery.py
+    - build-utils/delivery-511-chatgpt-recipient.pem
   workflow_dispatch:
     inputs:
       build_number:
         description: New delivery build number
         required: true
-        default: '510'
+        default: '511'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -30,13 +30,13 @@ run-name: RewindBox Build 510 • ${{ github.sha }} • God of War III Core
       recipient:
         description: Public key (PEM in build-utils) the encrypted artifact is addressed to; each session decrypts with its own private key
         required: false
-        default: build-utils/delivery-510-chatgpt-recipient.pem
+        default: build-utils/delivery-511-chatgpt-recipient.pem
         type: string
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: neostation-retroarch-delivery-${{ github.ref }}
+  group: rewindbox-ui511-delivery-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   checks:
@@ -51,8 +51,8 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
-    - name: Require exact GoW3 Core and reuse unchanged delivered 509 inputs
-      run: python3 .github/diagnostics/rpcs3gow3_510_delivery.py --wait-for-components
+    - name: Require exact tested UI and reuse successful native/engine evidence
+      run: python3 .github/diagnostics/uicorrection511_delivery.py --wait-for-components
   native:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
     runs-on: ubuntu-24.04
@@ -61,8 +61,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
     - *id001
-    - name: Require exact GoW3 Core and reuse unchanged delivered 509 inputs
-      run: python3 .github/diagnostics/rpcs3gow3_510_delivery.py --source-only
+    - name: Require exact tested UI and reuse successful native/engine evidence
+      run: python3 .github/diagnostics/uicorrection511_delivery.py --source-only
   cold:
     name: Release device build • cold
     runs-on: macos-15
@@ -71,10 +71,10 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '510' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-510-chatgpt-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '511' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-511-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '510' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '511' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -101,7 +101,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/rpcs3gow3_510_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/uicorrection511_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -119,7 +119,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/rpcs3gow3_510_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/uicorrection511_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -225,7 +225,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/rpcs3gow3_510_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/uicorrection511_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           .github/diagnostics/rpcs3gow3_core.py \
@@ -325,7 +325,7 @@ jobs:
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
         sys.path.insert(0, '.github/diagnostics')
-        from rpcs3gow3_510_delivery import validate_rpc_core_identity as validate_core_input_identity
+        from uicorrection511_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
@@ -885,6 +885,8 @@ jobs:
       run: python3 build-utils/validate_rpcs3_gow3_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/rpcs3-memory-audit-ipa.json
     - name: Verify the final signed Switch retirement and deletion fix
       run: python3 build-utils/validate_melonx_delete509_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-delete509-ipa.json
+    - name: Verify complete selection tracks and compiled Cover Flow and header correction
+      run: python3 build-utils/validate_ui_correction511_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/ui-correction511-ipa-validation.json
     - name: Finalize observed timings and artifact identity
       if: always()
       run: |
