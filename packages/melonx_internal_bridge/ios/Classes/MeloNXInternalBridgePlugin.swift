@@ -9,7 +9,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     private var diagnosticsTimer: DispatchSourceTimer?
     private var nativeSequence: Int64 = 0 // diagnosticsQueue only
     private var diagnosticsChannel: FlutterMethodChannel?
-    private weak var presenter: UIViewController?
+    // Registration may precede attachment of the Flutter view controller.
+    // Resolve it from the registrar at launch, never freeze its initial nil value.
+    private var registrar: FlutterPluginRegistrar?
     private var runtime: MeloNXRuntimeAPI?
     private var host: MeloNXSessionHost?
     private var sessionView: MeloNXMetalSessionViewController?
@@ -37,7 +39,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let instance = MeloNXInternalBridgePlugin()
-        instance.presenter = registrar.viewController
+        instance.registrar = registrar
         let channel = FlutterMethodChannel(name:"neostation/melonx_internal",binaryMessenger:registrar.messenger())
         instance.diagnosticsChannel = channel
         MeloNXLaunchJournal.sink = { [weak instance] event in instance?.diagnosticsChannel?.invokeMethod("launchDiagnostic",arguments:event) }
@@ -207,39 +209,57 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                 }
                 MeloNXLaunchJournal.record("jit", "passed", detail:"Actual engine mapping verified; selected helper transaction completed.")
                 DispatchQueue.main.async { [self] in
+                    // The arena and helper detach have succeeded independently
+                    // of UIKit. A presentation failure must not reattach a helper
+                    // waiting for the already-completed one-time arena handshake.
+                    arenaReady = true
                     guard isCurrent(token) else { return }
                     jitReady = true
-                    guard let presenter = topPresenter(), presenter.viewIfLoaded?.window != nil else { failLaunch("presentationUnavailable"); return }
-                    let audio = AVAudioSession.sharedInstance()
-                    previousAudio = (audio.category,audio.mode,audio.categoryOptions)
-                    do { try audio.setCategory(.playback,mode:.default,options:[]); try audio.setActive(true) }
-                    catch { failLaunch("audioUnavailable",diagnostic:String(describing:error)); return }
-                    let host = MeloNXSessionHost(api:runtime.session); self.host = host
-                    let view = MeloNXMetalSessionViewController(host:host,game:URL(fileURLWithPath:path),locale:locale,runtime:runtime,titleID:titleID,
-                        beforeRun:{ [weak self] in
-                            guard let self else { return false }
-                            return self.isCurrent(token) && self.jitReady
-                        },firstFrame:{ [weak self] in guard let self, self.isCurrent(token) else { return }; MeloNXLaunchJournal.record("firstFrame","passed",detail:"CAMetalDrawable presentedTime confirmed."); self.frameReady = true; self.completeLaunchIfReady() }) { [weak self] outcome in
-                            guard let self, self.isCurrent(token) else { return }
-                            if self.launchReply != nil {
-                                let detail: String
-                                switch outcome { case .success: detail = "The game closed before launch authorization completed."; case .failure(let error): detail = error.description }
-                                var status: Int64 = 0
-                                if case .failure(let error) = outcome {
-                                    switch error { case .prepare(let code,_): status = code; case .run(let code,_): status = Int64(code); default: break }
-                                }
-                                let native = runtime.diagnostics()
-                                self.failLaunch(native["errorCode"] as? String ?? "launchFailed",diagnostic:detail,
-                                    stage:native["stage"] as? String ?? "session",nativeStatus:status)
-                            }
-                            self.starting = false; self.sessionView = nil
-                            if self.host?.isSessionActive != true { self.host = nil; self.restoreAudio() }
-                            if case .failure(let error) = outcome { self.lastFailure = error.description }
-                            self.diagnosticsTimer?.cancel(); self.diagnosticsTimer = nil
-                            MeloNXLaunchJournal.record("close",self.host?.isSessionActive == true ? "quarantined" : "passed")
-                            _ = self.replaceToken()
+                    MeloNXLaunchJournal.record("presentation", "begin")
+                    MeloNXPresentation.whenReady(
+                        preferred: { [weak self] in self?.registrar?.viewController },
+                        isCurrent: { [weak self] in self?.isCurrent(token) == true }
+                    ) { [self] presenter in
+                        guard isCurrent(token) else { return }
+                        guard let presenter else {
+                            failLaunch("presentationUnavailable", diagnostic:"No attached foreground application controller became available.", stage:"presentation")
+                            return
                         }
-                    sessionView = view; presenter.present(view,animated:true)
+                        let audio = AVAudioSession.sharedInstance()
+                        previousAudio = (audio.category,audio.mode,audio.categoryOptions)
+                        do { try audio.setCategory(.playback,mode:.default,options:[]); try audio.setActive(true) }
+                        catch { failLaunch("audioUnavailable",diagnostic:String(describing:error)); return }
+                        let host = MeloNXSessionHost(api:runtime.session); self.host = host
+                        let view = MeloNXMetalSessionViewController(host:host,game:URL(fileURLWithPath:path),locale:locale,runtime:runtime,titleID:titleID,
+                            beforeRun:{ [weak self] in
+                                guard let self else { return false }
+                                return self.isCurrent(token) && self.jitReady
+                            },firstFrame:{ [weak self] in guard let self, self.isCurrent(token) else { return }; MeloNXLaunchJournal.record("firstFrame","passed",detail:"CAMetalDrawable presentedTime confirmed."); self.frameReady = true; self.completeLaunchIfReady() }) { [weak self] outcome in
+                                guard let self, self.isCurrent(token) else { return }
+                                if self.launchReply != nil {
+                                    let detail: String
+                                    switch outcome { case .success: detail = "The game closed before launch authorization completed."; case .failure(let error): detail = error.description }
+                                    var status: Int64 = 0
+                                    if case .failure(let error) = outcome {
+                                        switch error { case .prepare(let code,_): status = code; case .run(let code,_): status = Int64(code); default: break }
+                                    }
+                                    let native = runtime.diagnostics()
+                                    self.failLaunch(native["errorCode"] as? String ?? "launchFailed",diagnostic:detail,
+                                        stage:native["stage"] as? String ?? "session",nativeStatus:status)
+                                }
+                                self.starting = false; self.sessionView = nil
+                                if self.host?.isSessionActive != true { self.host = nil; self.restoreAudio() }
+                                if case .failure(let error) = outcome { self.lastFailure = error.description }
+                                self.diagnosticsTimer?.cancel(); self.diagnosticsTimer = nil
+                                MeloNXLaunchJournal.record("close",self.host?.isSessionActive == true ? "quarantined" : "passed")
+                                _ = self.replaceToken()
+                            }
+                        sessionView = view
+                        presenter.present(view,animated:true) {
+                            guard self.isCurrent(token), view.viewIfLoaded?.window != nil else { return }
+                            MeloNXLaunchJournal.record("presentation", "passed", detail:"Embedded MeloNX view attached to the foreground application window.")
+                        }
+                    }
                 }
             } catch {
                 let native = self.runtime?.diagnostics() ?? [:]
@@ -263,9 +283,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
 
     private func completeLaunchIfReady() {
         guard frameReady, jitReady, let reply = launchReply else { return }
-        // Cached authorization is process-local and backed by actual rendering
-        // plus the helper's completed mapping transaction, never a preference.
-        arenaReady = true; starting = false; launchReply = nil
+        // Launch success still requires a real frame, separately from the
+        // process-local arena/detach proof cached before presentation.
+        starting = false; launchReply = nil
         MeloNXLaunchJournal.record("launchResult", "passed", detail:"First Metal presentation and actual engine JIT authorization confirmed.")
         reply(["success":true,"firstMetalFramePresented":true,"jitMappingConfirmed":true,"pid":ProcessInfo.processInfo.processIdentifier])
     }
@@ -279,11 +299,6 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         if host?.isSessionActive != true { diagnosticsTimer?.cancel(); diagnosticsTimer = nil }
         reply?(["success":false,"error":errorCode,"errorCode":errorCode,"stage":stage,"nativeStatus":nativeStatus,
             "diagnostic":diagnostic,"sessionActive":host?.isSessionActive == true,"requiresRestart":host?.isSessionActive == true || errorCode == "jitRestartRequired"])
-    }
-    private func topPresenter() -> UIViewController? {
-        var top = presenter
-        while let presented = top?.presentedViewController { top = presented }
-        return top
     }
     private func restoreAudio() {
         guard let previousAudio else { return }; self.previousAudio = nil

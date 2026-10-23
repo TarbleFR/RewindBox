@@ -221,10 +221,14 @@ class _MelonxInternalPlaylistActionsState
             ),
           );
       }
-      if (changed) {
-        if (mounted) await MelonxLibraryScanner.refresh(config);
-        await widget.onLibraryChanged();
-        _notice(_text('Import completed'));
+      if (changed && mounted) {
+        final completedMessage = _text('Import completed');
+        final onLibraryChanged = widget.onLibraryChanged;
+        await MelonxLibraryScanner.refresh(config);
+        if (!mounted) return;
+        await onLibraryChanged();
+        if (!mounted) return;
+        _notice(completedMessage);
       }
     } catch (error) {
       LoggerService.instance.w('MeloNX library action failed: $error');

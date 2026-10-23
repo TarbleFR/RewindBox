@@ -9,6 +9,8 @@ run-name: MeloNX host • ${{ github.sha }}
     - .github/workflows/melonx-host.yml
     - packages/melonx_internal_bridge/**
     - test/melonx_session_host_test.py
+    - test/melonx_presentation_test.py
+    - test/melonx_presentation/**
     - build-utils/melonx/vendor_controller.py
     - build-utils/melonx/generate_ui_strings.py
     - build-utils/melonx/ui-strings.json
@@ -23,6 +25,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         persist-credentials: false
+        fetch-depth: 0
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: 3.47.2
@@ -54,6 +57,8 @@ jobs:
         '
     - name: Compile the iPhone host and execute its native ABI scenarios
       run: python3 test/melonx_session_host_test.py
+    - name: Exercise registered plugin presentation and retry in actual UIKit
+      run: python3 test/melonx_presentation_test.py
     - uses: actions/upload-artifact@v4
       if: always()
       with:
