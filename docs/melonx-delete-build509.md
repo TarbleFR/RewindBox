@@ -40,4 +40,19 @@ distribution, signature and final-package gates remain.
 
 No main update, public release or tag is authorized. The IPA requires Apple
 re-signing with SideStore; no physical-device gameplay or performance claim is
-made. The verified final delivery receipt will be added after download.
+made. The final decrypted IPA has been independently verified. Delivery source
+`d4e61fa1388b9b52e4ea51ea0a0a65cee58bab90`, tree
+`bec248cc5597c89e8ac19e67de36a8d9d4611566`, completed all three jobs in
+[run 39884045828](https://github.com/TarbleFR/RewindBox/actions/runs/39884045828).
+The IPA is version 0.0.8 (509), requires iOS 18.0, and has 186,082,461 bytes.
+SHA-256: `b934daa250ab29d50f5a5dfe6ae25d54fa5dbd5e92a3700ece18f155db59b7ef`.
+
+Independent checks verified all 83 compiled Mach-O payloads against the signed
+package inventory; CI verified 86 ad hoc signatures. All six MeloNX framework
+payloads, including the ABI2 engine, match Build 508. The 38 other emulator
+Core/MoltenVK payloads also match Build 508. The RPCS3 audited Core fingerprint,
+host compiler broker and binder, final motion assets/notices, and the compiled
+Switch retirement/deletion source receipt all passed. The targeted CI suites
+passed 34 tests (one existing macOS-only case skipped on Linux) and five existing
+Switch deletion/translation scenarios. Receipt:
+`evidence/melonx-delete509-delivery.json`.
