@@ -43,3 +43,15 @@ AirPlay/Achievements routing and physical LB/RB owners. A new test IPA is
 required; release/tag/main changes are not authorized. Successful CI and final
 IPA identities will be recorded after completion. No physical-device or
 performance/thermal validation is claimed.
+
+Targeted CI source `377ff62b25e66565dc2e8f7835b999968b07284b`, run
+`39958450728`, job `120430071377`, completed successfully. All **18** Flutter
+cases passed: four actual Switch route/import/discovery/localization cases,
+twelve complete-header layout cases (including tapping all eight real tabs),
+and two full portrait/landscape rendering cases. The generated neutral-artwork
+proof is artifact `12503229072`, ZIP SHA-256
+`fd2ee037f6dc36ffd97db24a3c11b1ba3bba82de2dbf81ed769e7bb518427472`.
+Translated Linux controller events exercise the actual route/input owner; the
+unchanged iOS named-event bridge retains its earlier source proof. No physical
+controller/iPhone execution is claimed. Four pre-existing informational
+brace-style lints remain; analysis has no errors or warnings.
