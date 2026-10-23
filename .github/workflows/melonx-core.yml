@@ -77,25 +77,26 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: python3 build-utils/melonx/reuse_launch_library.py
     - name: Fetch exact MeloNX source
-      run: 'set -euo pipefail
-
-        git init .native-sources/MeloNX
-
-        git -C .native-sources/MeloNX remote add origin https://starforgejo.dev/projects/MeloNX.git
-
-        git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
-
-        git -C .native-sources/MeloNX checkout --detach FETCH_HEAD
-
-        git init .native-sources/LibHac
-
-        git -C .native-sources/LibHac remote add origin https://starforgejo.dev/archive/LibHac_Ryubing.git
-
-        git -C .native-sources/LibHac fetch --depth 1 origin 23e402ebb6dedc517e34a98a033078dc0f6fd478
-
-        git -C .native-sources/LibHac checkout --detach FETCH_HEAD
-
-        '
+      run: |
+        python3 - <<'PY_FETCH'
+        import subprocess,time
+        sources=[('MeloNX','https://starforgejo.dev/projects/MeloNX.git','13700519f3abc4e6d7ed8a065b118b2cc59bcd67'),
+          ('LibHac','https://starforgejo.dev/archive/LibHac_Ryubing.git','23e402ebb6dedc517e34a98a033078dc0f6fd478')]
+        for name,url,revision in sources:
+            path='.native-sources/'+name
+            subprocess.run(['git','init',path],check=True)
+            subprocess.run(['git','-C',path,'remote','add','origin',url],check=True)
+            for attempt in range(1,4):
+                try:
+                    subprocess.run(['git','-C',path,'-c','http.lowSpeedLimit=1000','-c','http.lowSpeedTime=30','fetch','--depth','1','origin',revision],check=True,timeout=120)
+                    break
+                except (subprocess.CalledProcessError,subprocess.TimeoutExpired):
+                    if attempt==3:raise
+                    print(name,'source transfer failed; retrying exact commit',revision,flush=True)
+                    time.sleep(5)
+            subprocess.run(['git','-C',path,'checkout','--detach','FETCH_HEAD'],check=True)
+            assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==revision
+        PY_FETCH
     - name: Verify the real Darwin signal ABI and preserve NativeAOT handlers
       run: python3 test/melonx_darwin_signal_test.py .native-sources/MeloNX
     - name: Execute the changed production launch preflight and diagnostic API
