@@ -1,7 +1,13 @@
 #pragma once
 #import <Flutter/Flutter.h>
 #import <Foundation/Foundation.h>
+// CocoaPods flattens public headers into the framework's Headers directory.
+// The source-tree spelling remains available to standalone SDK checks.
+#if __has_include("MLXRamDonor.h")
+#import "MLXRamDonor.h"
+#else
 #import "../Memory/MLXRamDonor.h"
+#endif
 
 @interface MeloNXJitBridgePlugin : NSObject <FlutterPlugin>
 @end

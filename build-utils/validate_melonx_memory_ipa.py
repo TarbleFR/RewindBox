@@ -9,6 +9,7 @@ IDENTITY='MeloNX-memory-display-identity.json'
 def expected():
  donor=json.loads((ROOT/'packages/melonx_internal_bridge/ios/Memory/adaptation.json').read_text())
  return dict(schemaVersion=1,source=proof.SOURCE,hostSource=proof.HOST_SOURCE,hostRun=proof.HOST_RUN,
+  headerLayoutFixSource=proof.HEADER_SOURCE,headerLayoutValidatedInDelivery=True,
   flutterSource=proof.APP_SOURCE,flutterRun=proof.APP_RUN,coreSource=proof.MELONX_SOURCE,coreRun=proof.MELONX_RUN,
   inputs={p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in sorted(proof.PRODUCT)},
   donorSource=donor,ramMeasurement='TASK_VM_INFO.phys_footprint',historySamples=120,sampleHz=2,
