@@ -17,10 +17,10 @@ ROOT=Path(__file__).resolve().parents[2]
 base=previous.base
 CORE_SOURCE='407ea8f7462db0645590e799adcdff9ed56b1b21'
 CORE_RUN=40039707148
-APP_SOURCE='407ea8f7462db0645590e799adcdff9ed56b1b21'
-DELIVERED='e43937263fd506c149a7cf3960c5a925217f2e1a'
-DELIVERY_DRIVER='236b5c23caba74031794730ca85d5866dd9c4abe'
-DELIVERED_RUN=40039329972
+APP_SOURCE='ed6319476fa9231b6fe23c1954e6202d60e693f5'
+DELIVERED='20b2b11f210d9c85b54ecdbad8d3e3164e0a3d01'
+DELIVERY_DRIVER='ed6319476fa9231b6fe23c1954e6202d60e693f5'
+DELIVERED_RUN=40041292331
 PRODUCT={
  'packages/rpcs3_internal_bridge/ios/Classes/RPCS3CPUCompatibility.h',
  'packages/rpcs3_internal_bridge/ios/Classes/RPCS3CPUCompatibilityPolicy.h',
@@ -39,8 +39,33 @@ validate_psp_core_identity=previous.validate_psp_core_identity
 HOST_PATH='packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm'
 HOST_DELTA='test/fixtures/rpcs3_v012_host_escrow.diff'
 HOST_DELTA_SHA='36db0806d95d6c67fccd67880e46255cf26889e82819aa65ec4345bbee0ee655'
+HOST_PROOF_SOURCE='faf2b951f1f55b8fb89ad8728e632a6e81fd30ef'
+HOST_PROOF_RUN=40040875173
+HOST_PROOF_INPUTS={HOST_PATH,
+ 'packages/rpcs3_internal_bridge/ios/Classes/RPCS3CPUCompatibility.h',
+ 'packages/rpcs3_internal_bridge/ios/Classes/RPCS3CPUCompatibilityPolicy.h',
+ 'test/rpcs3_cpu_escrow_test.py',HOST_DELTA}
 
 def digest(path):return hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
+
+def validate_host_proof(proof):
+ assert proof['result']=='passed' and proof['productionInitializerCases']==8
+ assert proof['preFixReservationReproduced'] and proof['iphoneSDKTypecheck']
+ assert proof['actualFoundation'] and proof['actualDispatch'] and proof['sysctlAndEscrowDouble']
+ assert proof['physicalDeviceTested'] is False and proof['gameplayTested'] is False
+ assert set(proof['inputs'])==HOST_PROOF_INPUTS
+ for path,expected in proof['inputs'].items():assert digest(path)==expected,path
+
+def authenticate_host_proof():
+ # The native job completed successfully; its sibling only awaited the now
+ # superseded 519 app. Do not claim that entire delivery workflow succeeded.
+ run=base.api('actions/runs/'+str(HOST_PROOF_RUN))
+ assert run['head_sha']==HOST_PROOF_SOURCE
+ jobs=base.api('actions/runs/'+str(HOST_PROOF_RUN)+'/jobs?per_page=100')['jobs']
+ job=next(j for j in jobs if j['name']=='native')
+ assert job['id']==120711477329 and job['status']=='completed' and job['conclusion']=='success'
+ validate_host_proof(json.loads((ROOT/'build/delivery/rpcs3-cpu-escrow-proof.json').read_text()))
+ print('PASS authenticated Apple SDK CPU bootstrap proof; all five production/test inputs unchanged')
 
 @contextmanager
 def core_input_view():
@@ -134,8 +159,10 @@ def component(run,source,names,wait):
 def main():
  p=argparse.ArgumentParser();p.add_argument('--scope',default='full');p.add_argument('--source-only',action='store_true')
  p.add_argument('--wait-for-components',action='store_true');p.add_argument('--skin-session-evidence',action='store_true')
+ p.add_argument('--verify-host-proof',action='store_true')
  p.add_argument('--output',default='build/delivery/reused-validation.json');p.add_argument('--rpc-core-inputs');p.add_argument('core_paths',nargs='*')
  a=p.parse_args()
+ if a.verify_host_proof:authenticate_host_proof();return
  if a.rpc_core_inputs:validate_rpc_core_pin(a.rpc_core_inputs,a.core_paths);return
  record=dict(result='passed',sourceClosure=source_closure())
  if not a.source_only:

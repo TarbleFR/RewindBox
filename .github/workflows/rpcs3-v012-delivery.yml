@@ -61,8 +61,8 @@ jobs:
   native:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-v012-delivery]')
       }}
-    runs-on: macos-15
-    timeout-minutes: 15
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -71,14 +71,17 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Select Xcode 26.3
-      uses: maxim-lobanov/setup-xcode@v1
+    - name: Retrieve unchanged CPU bootstrap proof from its exact successful native job
+      uses: actions/download-artifact@v4
       with:
-        xcode-version: '26.3'
-    - name: Verify source-built RPCS3 v0.12 and production CPU bootstrap ordering
+        github-token: ${{ github.token }}
+        run-id: 40040875173
+        name: RPCS3HostCPU-faf2b951f1f55b8fb89ad8728e632a6e81fd30ef
+        path: build/delivery
+    - name: Verify source-built RPCS3 v0.12 and production CPU bootstrap proof
       run: |
         python3 .github/diagnostics/rpcs3v012_delivery.py --source-only
-        python3 test/rpcs3_cpu_escrow_test.py
+        python3 .github/diagnostics/rpcs3v012_delivery.py --verify-host-proof
     - uses: actions/upload-artifact@v4
       with:
         name: RPCS3HostCPU-${{ github.sha }}
