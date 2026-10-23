@@ -82,7 +82,7 @@ int main(void){return 0;}
         for name, target in [('iphoneos', 'arm64-apple-ios18.0'), ('iphonesimulator', 'arm64-apple-ios18.0-simulator')]:
             subprocess.run(['xcrun', '--sdk', name, 'clang', '-target', target, '-fsyntax-only', str(sdk)], check=True)
         swift=work/'SignalInspection.swift'
-        swift.write_text('import Darwin\nvar action=Darwin.sigaction()\nlet result=Darwin.sigaction(SIGSEGV,nil,&action)\nlet valid=action.sa_flags & SA_SIGINFO != 0\n')
+        swift.write_text('import Darwin\ntypealias SignalQuery = @convention(c) (Int32,UnsafePointer<Darwin.sigaction>?,UnsafeMutablePointer<Darwin.sigaction>?) -> Int32\nlet inspectSignal=unsafeBitCast(dlsym(dlopen(nil,RTLD_NOW)!,"sigaction")!,to:SignalQuery.self)\nvar action=Darwin.sigaction()\nlet result=inspectSignal(SIGSEGV,nil,&action)\nlet valid=action.sa_flags & SA_SIGINFO != 0\n')
         sdk_path=subprocess.check_output(['xcrun','--sdk','iphonesimulator','--show-sdk-path'],text=True).strip()
         subprocess.run(['xcrun','swiftc','-typecheck','-target','arm64-apple-ios18.0-simulator','-sdk',sdk_path,str(swift)],check=True)
         print('PASS exact iOS device and Simulator SDK signal declarations.')
