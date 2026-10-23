@@ -1011,6 +1011,43 @@ void main() {
     },
   );
   testWidgets(
+    'large Switch deletion confirmation keeps its actions accessible',
+    (tester) async {
+      final games = List.generate(
+        200,
+        (i) => deletionGame('Personal $i', '/personal/roms/Game $i.nro'),
+      );
+      await pumpDeletion(tester, games);
+      await tester.tap(find.byIcon(Icons.select_all_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+      final confirmation = find.byType(DeleteGameDialog);
+      expect(tester.takeException(), isNull);
+      expect(
+        tester
+            .widget<AlertDialog>(
+              find.descendant(
+                of: confirmation,
+                matching: find.byType(AlertDialog),
+              ),
+            )
+            .scrollable,
+        true,
+      );
+      expect(
+        tester.widget<DeleteGameDialog>(confirmation).romName,
+        contains('/personal/roms/Game 199.nro'),
+      );
+      await tester.tap(
+        find.descendant(of: confirmation, matching: find.byType(TextButton)),
+      );
+      await tester.pumpAndSettle();
+      expect(confirmation, findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  testWidgets(
     'shared Import segment explicitly applies the theme foreground in both placements',
     (tester) async {
       for (final appTheme in [

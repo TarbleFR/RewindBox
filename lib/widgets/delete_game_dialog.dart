@@ -62,6 +62,7 @@ class _DeleteGameDialogState extends State<DeleteGameDialog> {
     final errorColor = theme.colorScheme.error;
 
     return AlertDialog(
+      scrollable: true,
       backgroundColor: theme.cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.r),
