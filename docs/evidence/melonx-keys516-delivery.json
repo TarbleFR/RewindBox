@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "status": "delivered",
+  "build": 516,
+  "branch": "Claude",
+  "source": "5d805f48eba97307dad94c66c51fb534355a70f8",
+  "keyImportSource": "5a917d154a886481fb00d424b9cfc8fe149ece37",
+  "deliveryRun": 40019951810,
+  "nativeCore": {
+    "result": "verified",
+    "source": "5a917d154a886481fb00d424b9cfc8fe149ece37",
+    "run": 40017275406,
+    "artifact": 12529561585,
+    "artifactSHA256": "1db66d1cb65a6ba1605320ca1f2bb9df6c9c9ff7d1fbfd542fa2be23a2726ba4",
+    "bytes": 37469384,
+    "sha256": "f45534df91a35692b1f55e5049885ef2106117d3cb2503a0c7166f523d50baf3",
+    "simulatorSha256": "c2462cb900ed221ed7d6c6917c47c9de3e578d8df40f57f3dbac88631e31aab3",
+    "compiledPayloadFingerprint": "f671aa030c59e4b5926e9d6207c47b531b9e482720e5e485b5e571b99aedd628",
+    "adaptationInputsVerified": 28,
+    "changedEngineInputs": [
+      "native/melonx/EmbeddedContent.cs",
+      "native/melonx/EmbeddedKeyValidation.cs"
+    ],
+    "nativeKeyChecks": 39,
+    "actualRuntime": {
+      "actualDarwinThreeArgumentHandlersVerified": true,
+      "actualKeyImportABIValidated": true,
+      "actualNativeAOT": true,
+      "actualSimulatorCodeArenaVerified": true,
+      "gameplayTested": false,
+      "graphicsAccepted": true,
+      "homebrewProducesVideo": false,
+      "homebrewSimulatorSessions": 2,
+      "initializationAndIdempotency": true,
+      "invalidContentRejected": true,
+      "invalidGraphicsCodePreserved": true,
+      "invalidGuestRejected": true,
+      "invalidSaveAssociationRejected": true,
+      "iphoneGuestExecutionTested": false,
+      "jitTested": false,
+      "keyRefusalCodePreserved": true,
+      "keyUnknownEntryAccepted": true,
+      "missingKeysRejectedBeforeGuest": true,
+      "originalHomebrewGuestSvcConfirmed": true,
+      "personalKeysUsed": false,
+      "result": "passed",
+      "storageProfilesRecognized": true,
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+      "coreSha256": "c2462cb900ed221ed7d6c6917c47c9de3e578d8df40f57f3dbac88631e31aab3",
+      "inputs": {
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "3b2dd81f65c177ce461aa5bbba1feac4a0445cb137f0e6b7ce789a5ad6920a73",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "913eb462b1047772787d8170e2fd0a0000b9cad843419420cf68353bbdd83fd1",
+        "test/melonx_runtime_smoke.py": "a5eb89e4b1e77365d04eb865ad2ca368d02dbcb93a3f4790610a1bb343e2eced"
+      }
+    },
+    "physicalDeviceTested": false
+  },
+  "flutter": {
+    "run": 40017275462,
+    "job": 120632471818,
+    "result": "success",
+    "tests": 15,
+    "logSHA256": "6993494b6caa28d7647bf7fdcda89c22991c942c20e5512c0d31b22364d12664"
+  },
+  "nativeTests": {
+    "keyRegressionAssertions": 39,
+    "personalConfigurationCases": 14,
+    "launchPreflightAssertions": 13,
+    "syntheticKeysOnly": true
+  },
+  "preserved": {
+    "delivered515Source": "3bfbc91634227599c9d7746271482a55e41517b2",
+    "RPCS3CoreSource": "a69860297d7b26dbb688df0daf16a31b42046462",
+    "RPCS3CoreRun": 39982269326
+  },
+  "retiredWorkflow": {
+    "run": 40017275461,
+    "conclusion": "failure",
+    "phase": "Require only the requested interface changes",
+    "reason": "Historical Build 512 scope guard correctly refuses later key import changes; no runtime/frontend checks were replayed there. Assembly excludes this obsolete lane and preserves its original failure."
+  },
+  "physicalDeviceTested": false,
+  "personalExportExamined": false,
+  "releasePublished": false,
+  "mainUpdated": false,
+  "assemblyVerifierCorrection": {
+    "initialSource": "1d77fc7df0cb3a2ee77147fcd6bf2692b239f7f1",
+    "initialRun": 40017610140,
+    "productChanged": false,
+    "reason": "The new marker guard assumed fully padded UTF-16. The tested NativeAOT string table omits the final zero high byte. Corrected guard checks all four complete character sequences and rejects all four markers in the delivered old Core.",
+    "positiveAndNegativeMarkers": 4,
+    "nativeCoreRebuiltAgain": false,
+    "flutterTestsReexecuted": false,
+    "initialRunConclusion": "failure",
+    "failurePhase": "Verify the exact packaged key import correction",
+    "failure": "2026-10-23T20:34:58.5257590Z AssertionError: recognizedKeys\n2026-10-23T20:34:58.5299360Z ##[error]Process completed with exit code 1."
+  },
+  "deliveryRunConclusion": "success",
+  "ipa": {
+    "build": 516,
+    "version": "0.0.8",
+    "ipaFilename": "RewindBox-Build516.ipa",
+    "ipaBytes": 186166377,
+    "ipaSHA256": "6e3cd68315f269c43717e18728e42de6ba4464577771dabe378aa84b55918a00",
+    "alignedVersionedBundles": 7,
+    "machOImages": 86,
+    "codeDirectories": 116,
+    "verifiedCodePageHashes": 132664,
+    "encryptedImages": 0,
+    "appleReSigningRequired": true
+  },
+  "artifact": {
+    "id": 12530692723,
+    "name": "RewindBox-Build-516-5d805f48eba97307dad94c66c51fb534355a70f8-cold",
+    "size_in_bytes": 186408861,
+    "digest": "sha256:95f1d17919705cb5491b87d1fe9d53f9a1b5cdb02ba6ae9494ddfdaafbc45842"
+  },
+  "independentVerification": {
+    "compiledCorePayloadFingerprint": "2c122f8eaa0b675215bfde3e8356e4ef3fe50b3d0a1d3c4eebb320ac005d7265",
+    "coreArtifactBinarySHA256": "cb2877b7558a589554c9c923b71f20129433c40654232ee706545dd7622da7cb",
+    "meloNXSource": "5a917d154a886481fb00d424b9cfc8fe149ece37",
+    "meloNXSourceSHA256": "f45534df91a35692b1f55e5049885ef2106117d3cb2503a0c7166f523d50baf3",
+    "meloNXRun": 40017275406,
+    "keyImportValidation": {
+      "result": "passed",
+      "build": 516,
+      "source": "5a917d154a886481fb00d424b9cfc8fe149ece37",
+      "coreRun": 40017275406,
+      "ipaSHA256": "6e3cd68315f269c43717e18728e42de6ba4464577771dabe378aa84b55918a00",
+      "sourceCoreSHA256": "f45534df91a35692b1f55e5049885ef2106117d3cb2503a0c7166f523d50baf3",
+      "compiledCorePayloadFingerprint": "fc2b84c66919c4e185c58edfb7f937bc0444b2ac221a4e23051f1fb88afb1560",
+      "nativeAndDartMarkersVerified": true,
+      "personalKeysBundled": false,
+      "physicalDeviceTested": false
+    },
+    "otherPrebuiltPayloadsPreserved": true
+  },
+  "originalArtifactDigestVerified": true,
+  "finalSignaturePagesVerified": true
+}
