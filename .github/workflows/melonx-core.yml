@@ -18,6 +18,7 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_runtime.py
     - build-utils/melonx/adapt_firmware.py
     - native/melonx/*.cs
+    - test/melonx_homebrew_test.py
     - test/melonx_darwin_signal_test.py
     - test/melonx_bootstrap_test.py
     - test/melonx_session_test.py
@@ -99,6 +100,8 @@ jobs:
       run: python3 test/melonx_darwin_signal_test.py .native-sources/MeloNX
     - name: Execute the changed production launch preflight and diagnostic API
       run: python3 test/melonx_launch_native_test.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
+    - name: Verify optional homebrew assets with the real LibHac loader
+      run: python3 test/melonx_homebrew_test.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg .native-sources/MeloNX
     - name: Execute production input driver ownership
       env:
         GH_TOKEN: ${{ github.token }}

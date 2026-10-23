@@ -138,6 +138,9 @@ def apply(source):
     once(helper, '            context.Device.System.ServiceTable.WaitServicesReady();', '''            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("systemServices", "begin", detail: "Waiting for Horizon service readiness before creating the guest process.");
             context.Device.System.ServiceTable.WaitServicesReady();
             Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("systemServices", "passed", detail: "All Horizon service readiness acknowledgements received.");''')
+    for asset_type, variable, size in [('RomFs', 'nroRomFs', 'romFsSize'), ('Nacp', 'nacpStorage', 'nacpSize')]:
+        once(loader, f'IStorage {variable} = nro.OpenNroAssetSection(LibHac.Tools.Ro.NroAssetType.{asset_type}, false);\n                {variable}.GetSize(out long {size}).ThrowIfFailure();',
+             f'IStorage {variable} = EmbeddedHomebrewAssets.Open(nro, LibHac.Tools.Ro.NroAssetType.{asset_type}, out long {size});')
     text = library.read_text()
     assert text.count('_emulationContext.Dispose();') == 9
     library.write_text(text.replace('_emulationContext.Dispose();', '/* Session owner releases the context. */'))
