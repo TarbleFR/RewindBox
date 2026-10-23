@@ -50,7 +50,11 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
       MauAliTabMotion.sample(_segment, _motion.value);
   double get _position => _from + (_to - _from) * _frame.position;
   (double, double, double) get _shape {
-    final f = _frame, rest = 1 - _motion.value;
+    final f = _frame;
+    // Blend interrupted deformation back into the author's track in four frames.
+    // Carrying it through another peak would accumulate scale on repeated taps.
+    final frames = (MauAliTabMotion.segment(_segment)['dr'] as num).toDouble();
+    final rest = (1 - _motion.value * frames / 4).clamp(0.0, 1.0);
     return (
       f.scaleX + _carry.$1 * rest,
       f.scaleY + _carry.$2 * rest,

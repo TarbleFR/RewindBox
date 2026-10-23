@@ -353,4 +353,50 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'rapid repeated selection keeps the original bounded lens and capsule scale',
+    (tester) async {
+      final selected = ValueNotifier(NavTab.systems);
+      addTearDown(selected.dispose);
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(640, 480),
+          builder: (_, _) => MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: ValueListenableBuilder<NavTab>(
+                  valueListenable: selected,
+                  builder: (_, tab, _) => MainMenuTabStrip(
+                    tabs: NavTab.values,
+                    selected: tab,
+                    tabBuilder: (tab) => Text(tab.name),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      for (var i = 0; i < 24; i++) {
+        selected.value = i.isEven ? NavTab.settings : NavTab.systems;
+        await tester.pump();
+        await tester.pump(const Duration(microseconds: 133333));
+        final painter =
+            tester
+                    .widget<CustomPaint>(
+                      find.byKey(const ValueKey('main-menu-tab-indicator')),
+                    )
+                    .painter!
+                as MauAliSelectionPainter;
+        final capsule = tester.widget<Transform>(
+          find.byKey(const ValueKey('main-menu-capsule-pulse')),
+        );
+        expect(painter.scaleX, lessThanOrEqualTo(1.18));
+        expect(painter.scaleY, lessThanOrEqualTo(1.28));
+        expect(capsule.transform.entry(0, 0), lessThanOrEqualTo(1.027));
+      }
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

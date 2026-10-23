@@ -86,3 +86,14 @@ buffer, never into a terminal. No product inputs changed during either recovery.
 The final Release recipe pins this successful proof and the exact GoW3 Core
 `50714fe0980d0b50ccd93c1c739c480b054a31b9` / `39888215155`, waiting for its success.
 Its independent concurrency group preserves the separate 510 assembly run.
+
+A final rapid-input regression reproduced cumulative deformation when interrupted
+shape residue was carried through the next full source peak (observed X scale
+1.2942 beyond the source bound). The correction fades only that interrupted
+residue during the first four source frames; uninterrupted source animation is
+unchanged. A 24-selection regression and the existing complete eight-tab
+selection test pass locally. The unshipped first assembly was superseded.
+The final targeted proof authenticates recovery 39889391790, checks this exact
+code delta, reuses its 32 unaffected Flutter and eight legal cases, and reruns
+only the affected selection case plus the new regression: 34 Flutter cases in
+the resulting proof chain, without replaying native or unchanged visual tests.
