@@ -9,6 +9,7 @@ import 'package:neostation/l10n/pairing_file_locale.dart';
 
 import 'jit_backend_preference_service.dart';
 import 'pairing_file_service.dart';
+import 'melonx_launch_diagnostics.dart';
 
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -21,6 +22,23 @@ abstract final class MelonxInternalService {
   static const _jit = MethodChannel('neostation/melonx_jit');
   static bool _launching = false;
   static bool _editing = false;
+  static bool _diagnosticsInstalled = false;
+  static bool nativeQuarantined = false;
+
+  static void _installDiagnostics() {
+    if (_diagnosticsInstalled) return;
+    _diagnosticsInstalled = true;
+    channel.setMethodCallHandler((call) async {
+      if (call.method == 'launchDiagnostic' && call.arguments is Map) {
+        final event = Map<String, dynamic>.from(call.arguments as Map);
+        MelonxLaunchDiagnostics.record(
+          event['stage']?.toString() ?? 'native',
+          event['status']?.toString() ?? 'unknown',
+          event,
+        );
+      }
+    });
+  }
 
   /// Holds the native launch gate while files used by the engine are changed.
   /// Unknown/native-error states fail closed, including a pending JIT launch.
@@ -54,6 +72,7 @@ abstract final class MelonxInternalService {
     String? filePath,
     String? titleId,
   }) async {
+    _installDiagnostics();
     final report = await channel.invokeMapMethod<String, dynamic>(method, {
       'path': filePath ?? '',
       if (titleId != null) 'titleId': titleId,
@@ -139,6 +158,7 @@ abstract final class MelonxInternalService {
   }
 
   static Future<bool> runtimeAvailable() async {
+    _installDiagnostics();
     try {
       final report = await channel.invokeMethod<Object?>('diagnostics');
       return report is Map && report['available'] == true;
@@ -184,8 +204,13 @@ abstract final class MelonxInternalService {
             'com.apple.developer.kernel.extended-virtual-addressing',
         ].join('\n'),
       };
-    } catch (_) {
-      return {'success': false, 'error': 'entitlementCheckFailed'};
+    } catch (error) {
+      return {
+        'success': false,
+        'error': 'entitlementCheckFailed',
+        'stage': 'entitlements',
+        'diagnostic': error.toString(),
+      };
     }
   }
 
@@ -194,22 +219,68 @@ abstract final class MelonxInternalService {
     required String locale,
     BuildContext? context,
   }) async {
+    _installDiagnostics();
+    final attempt = DateTime.now().toUtc().microsecondsSinceEpoch.toString();
+    MelonxLaunchDiagnostics.record('selection', 'begin', {
+      'attempt': attempt,
+      'gamePath': gamePath,
+    });
+    final result = await _launch(
+      gamePath: gamePath,
+      locale: locale,
+      context: context,
+    );
+    if (result['requiresRestart'] == true) nativeQuarantined = true;
+    MelonxLaunchDiagnostics.record(
+      result['stage']?.toString() ?? 'launchResult',
+      result['success'] == true ? 'passed' : 'failed',
+      {...result, 'attempt': attempt},
+    );
+    return result;
+  }
+
+  static Future<Map<String, dynamic>> _launch({
+    required String gamePath,
+    required String locale,
+    BuildContext? context,
+  }) async {
     if (_launching || _editing) return {'success': false, 'error': 'busy'};
-    if (!Platform.isIOS || isRetiredLink(gamePath)) {
-      return {'success': false, 'error': 'localGameRequired'};
-    }
-    if (!gameExtensions.contains(
-          path.extension(gamePath).replaceFirst('.', '').toLowerCase(),
-        ) ||
-        !await File(gamePath).exists()) {
-      return {'success': false, 'error': 'localGameRequired'};
-    }
+    if (nativeQuarantined)
+      return {
+        'success': false,
+        'error': 'quarantined',
+        'stage': 'close',
+        'sessionActive': true,
+        'requiresRestart': true,
+      };
     _launching = true;
     var nativeTransaction = false;
     var launched = false;
     try {
+      if (!Platform.isIOS || isRetiredLink(gamePath)) {
+        return {'success': false, 'error': 'localGameRequired'};
+      }
+      MelonxLaunchDiagnostics.record('file', 'begin');
+      if (!gameExtensions.contains(
+            path.extension(gamePath).replaceFirst('.', '').toLowerCase(),
+          ) ||
+          !await File(gamePath).exists()) {
+        return {'success': false, 'error': 'localGameRequired'};
+      }
+      final bytes = await File(gamePath).length();
+      if (bytes == 0)
+        return {
+          'success': false,
+          'error': 'invalidContent',
+          'stage': 'file',
+          'diagnostic': 'The local game file is empty.',
+        };
+      MelonxLaunchDiagnostics.record('file', 'passed', {'bytes': bytes});
+      MelonxLaunchDiagnostics.record('entitlements', 'begin');
       final accessFailure = await verifyMemoryAccess();
       if (accessFailure != null) return accessFailure;
+      MelonxLaunchDiagnostics.record('entitlements', 'passed');
+      MelonxLaunchDiagnostics.record('runtime', 'begin');
       final report = await channel.invokeMapMethod<String, dynamic>(
         'diagnostics',
       );
@@ -218,8 +289,37 @@ abstract final class MelonxInternalService {
           'success': false,
           'error': 'runtimeUnavailable',
           'diagnostic': report?['diagnostic'],
+          'stage': 'runtime',
+        };
+      MelonxLaunchDiagnostics.record('runtime', 'passed');
+      final preflight = await channel.invokeMapMethod<String, dynamic>(
+        'launchPreflight',
+        {'path': gamePath},
+      );
+      if (preflight?['success'] != true)
+        return {
+          ...?preflight,
+          'success': false,
+          'error': preflight?['errorCode'] ?? 'invalidContent',
+          'stage': preflight?['stage'] ?? 'contentPreflight',
         };
       final external = await JitBackendPreferenceService.useStikDebugFallback();
+      MelonxLaunchDiagnostics.record('jitHelper', 'begin', {
+        'diagnostic': external
+            ? 'User-selected external JIT method.'
+            : 'User-selected embedded helper with LocalDevVPN route.',
+      });
+      if (report?['jitArenaReady'] == true) {
+        final state = await _jit.invokeMapMethod<String, dynamic>('status');
+        if (state?['debugged'] != true)
+          return {
+            'success': false,
+            'error': 'jitUnavailable',
+            'stage': 'jitHelper',
+            'diagnostic':
+                'The RewindBox process no longer has JIT authorization.',
+          };
+      }
       if (report?['jitArenaReady'] != true && !external) {
         if (!await PairingFileService.hasStoredPairingFile()) {
           final title = context != null && context.mounted
@@ -246,6 +346,7 @@ abstract final class MelonxInternalService {
             'success': false,
             'error': 'jitUnavailable',
             'diagnostic': jit?['message'],
+            'stage': 'jitHelper',
           };
         }
       }
@@ -258,6 +359,17 @@ abstract final class MelonxInternalService {
       final result = response is Map
           ? Map<String, dynamic>.from(response)
           : {'success': false, 'error': 'invalidResponse'};
+      if (result['success'] == true &&
+          (result['firstMetalFramePresented'] != true ||
+              result['jitMappingConfirmed'] != true)) {
+        return {
+          'success': false,
+          'error': 'invalidNativeStart',
+          'stage': 'firstFrame',
+          'diagnostic':
+              'Native success omitted the required first-frame or JIT evidence.',
+        };
+      }
       launched = result['success'] == true;
       return result;
     } on MissingPluginException {
@@ -265,8 +377,12 @@ abstract final class MelonxInternalService {
     } on PlatformException catch (error) {
       return {
         'success': false,
-        'error': error.code,
+        'error': error.code == 'localdevvpn_route_unavailable'
+            ? 'jitUnavailable'
+            : error.code,
         'diagnostic': error.message,
+        'nativeStatus': error.code,
+        'stage': 'methodChannel',
       };
     } catch (error) {
       return {

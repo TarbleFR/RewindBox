@@ -1,0 +1,35 @@
+name: MeloNX launch diagnostics and failure recovery
+run-name: MeloNX launch checks • ${{ github.sha }}
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/melonx-launch-checks.yml
+      - lib/services/melonx_internal_service.dart
+      - lib/services/melonx_launch_diagnostics.dart
+      - lib/services/game/game_launch_service.dart
+      - lib/services/game_launch_manager.dart
+      - lib/l10n/melonx_launch_failure_locale.dart
+      - test/melonx_launch_flow_test.py
+      - test/game_audio_handoff_test.py
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  flutter:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze the changed launch service and failure translations
+        run: >-
+          flutter analyze --no-pub --no-fatal-infos lib/services/melonx_internal_service.dart
+          lib/services/melonx_launch_diagnostics.dart lib/services/game/game_launch_service.dart
+          lib/services/game_launch_manager.dart lib/l10n/melonx_launch_failure_locale.dart
+      - name: Exercise real Dart launch ordering, error propagation and twelve languages
+        run: python3 test/melonx_launch_flow_test.py
+      - name: Verify affected audio finalization and rejected-initialization paths
+        run: python3 test/game_audio_handoff_test.py

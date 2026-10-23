@@ -138,6 +138,23 @@ void main() {
     manager.onDialogDisposed(); await flush();
     expect(manager.isActive, isFalse);
   });
+  test('rejected initialization restores frontend audio exactly once', () async {
+    sfx.isEnabled = true; music.playing = true;
+    await manager.beginSession();
+    manager.markInitializationFailed(nativeStillActive: false);
+    manager.onDialogDisposed(); manager.onDialogDisposed(); await flush();
+    expect(manager.isActive, isFalse); expect(music.playing, isTrue);
+    expect(events.where((s) => s == 'activate').length, 1);
+    expect(events.where((s) => s == 'resume').length, 1);
+  });
+  test('quarantined native initialization retains audio ownership', () async {
+    sfx.isEnabled = true; music.playing = true;
+    await manager.beginSession();
+    manager.markInitializationFailed(nativeStillActive: true);
+    manager.onDialogDisposed(); await flush();
+    expect(events, isNot(contains('activate'))); expect(events, isNot(contains('resume')));
+    expect(music.playing, isFalse); expect(sfx.isEnabled, isFalse);
+  });
 }
 '''
 with tempfile.TemporaryDirectory(prefix='neostation-audio-handoff-') as directory:

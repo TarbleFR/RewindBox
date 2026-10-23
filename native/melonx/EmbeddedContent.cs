@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Ryujinx.Common.Configuration;
 using Ryujinx.HLE.FileSystem;
+using Ryujinx.Common;
 
 namespace Ryujinx.Library;
 
@@ -77,8 +78,10 @@ partial class Library
                             case 2:
                                 if (!string.IsNullOrEmpty(path)) EmbeddedKeyValidation.Validate(path);
                                 _virtualFileSystem.ReloadKeySet();
+                                if (string.IsNullOrEmpty(path)) _contentManager.LoadEntries();
                                 break;
                             case 3:
+                                _contentManager.LoadEntries();
                                 json.WriteString("firmware", GetInstalledFirmwareVersion());
                                 json.WriteString("root", AppDataManager.BaseDirPath);
                                 break;
@@ -92,6 +95,9 @@ partial class Library
                             case 7:
                                 EmbeddedSaveTarget(path, json);
                                 break;
+                            case 8:
+                                EmbeddedLaunchPreflight(path, json);
+                                break;
                             default: throw new ArgumentOutOfRangeException(nameof(operation));
                         }
                         json.WriteBoolean("success", true);
@@ -99,16 +105,20 @@ partial class Library
                 }
                 catch (Exception error)
                 {
-                    Console.Error.WriteLine("MeloNX content: " + error);
+                    if (operation == 8 && string.IsNullOrEmpty(EmbeddedLaunchDiagnostics.ErrorCode))
+                        EmbeddedLaunchDiagnostics.Fail(EmbeddedLaunchDiagnostics.Stage,
+                            EmbeddedLaunchDiagnostics.Classify(error), error);
                     json.WriteBoolean("success", false);
                     json.WriteString("error", error.GetType().Name);
                     string code = error is OperationCanceledException ? "cancelled" : "failed";
+                    if (operation == 8) code = EmbeddedLaunchDiagnostics.ErrorCode;
                     if (operation == 1 && code != "cancelled")
                         code = EmbeddedFirmwareProgress.Phase >= 4 ? "firmwareInstallFailed" :
                             error.GetType().Name == "MissingKeyException" ? "firmwareIncompatible" :
                             error is FileNotFoundException ? "firmwareUnrecognized" : "firmwareIncomplete";
                     json.WriteString("errorCode", code);
-                    json.WriteString("diagnostic", error.Message.Length > 8192 ? error.Message[..8192] : error.Message);
+                    json.WriteString("diagnostic", EmbeddedLaunchDiagnostics.Safe(error.ToString()));
+                    if (operation == 8) json.WriteString("stage", EmbeddedLaunchDiagnostics.Stage);
                 }
                 json.WriteEndObject();
             }

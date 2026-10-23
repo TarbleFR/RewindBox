@@ -1,6 +1,19 @@
 import Foundation
 import Darwin
 
+// Shared by the Swift loader/session and the registered Flutter bridge. No
+// dependency on Flutter here, so the actual FFI host remains executable alone.
+enum MeloNXLaunchJournal {
+    static var sink: (([String: Any]) -> Void)?
+    static func record(_ stage: String, _ status: String, code: Int64 = 0, detail: String = "") {
+        let bounded = String(detail.prefix(4096)).replacingOccurrences(of: "(?i)\\b[0-9a-f]{32,}\\b", with: "[redacted]", options: .regularExpression)
+        let event: [String: Any] = ["stage":stage,"status":status,"nativeStatus":code,"diagnostic":bounded,
+            "pid":ProcessInfo.processInfo.processIdentifier,"timestamp":ISO8601DateFormatter().string(from:Date())]
+        NSLog("[MeloNX:launch] %@ %@ (%lld) %@",stage,status,code,bounded)
+        DispatchQueue.main.async { sink?(event) }
+    }
+}
+
 enum MeloNXHostError: Error, CustomStringConvertible {
     case load(String), missingSymbol(String), incompatibleABI, initialize(Int32)
     case busy, prepare(Int64, String), run(Int32, String)
@@ -70,7 +83,7 @@ final class MeloNXNativeSessionAPI {
 
     func initialize(root: URL) throws {
         let status = root.path.withCString { initializeFunction($0) }
-        guard status == 0 else { throw MeloNXHostError.load("MeloNX initialization failed (\(status)): \(diagnostic)") }
+        guard status == 0 else { throw MeloNXHostError.prepare(Int64(status),"MeloNX NativeAOT initialization: \(diagnostic)") }
     }
     func prepare(game: URL, locale: String, width: Int32, height: Int32) -> Int64 {
         game.path.withCString { path in locale.withCString { prepareFunction(path, $0, width, height) } }
@@ -97,6 +110,7 @@ final class MeloNXSessionHost {
     private let queue = DispatchQueue(label: "com.neogamelab.neostation.melonx.session", qos: .userInitiated)
     private let lock = NSLock()
     private var generation: Int64?
+    private var stopRequested = false
     private var retainedSurface: AnyObject?
 
     init(api: MeloNXNativeSessionAPI) { self.api = api }
@@ -114,12 +128,15 @@ final class MeloNXSessionHost {
                completion: @escaping (Result<Void, MeloNXHostError>) -> Void) throws {
         lock.lock()
         guard generation == nil else { lock.unlock(); throw MeloNXHostError.busy }
+        MeloNXLaunchJournal.record("session", "begin")
         let id = api.prepare(game: game, locale: locale, width: width, height: height)
-        guard id > 0 else { let detail = api.diagnostic; lock.unlock(); throw MeloNXHostError.prepare(id, detail) }
+        guard id > 0 else { let detail = api.diagnostic; lock.unlock(); MeloNXLaunchJournal.record("session","failed",code:id,detail:detail); throw MeloNXHostError.prepare(id, detail) }
         generation = id
+        stopRequested = false
         retainedSurface = surface
         api.setLayer(pointer)
         lock.unlock()
+        MeloNXLaunchJournal.record("session", "passed", code:id)
         prepared?(id)
         queue.async { [self] in
             let authorized = beforeRun?() ?? true
@@ -135,6 +152,7 @@ final class MeloNXSessionHost {
                 status = drained ? 1 : 3
             }
             let detail = authorized ? (status == 0 ? "" : api.diagnostic) : "JIT authorization or executable mapping failed"
+            MeloNXLaunchJournal.record("sessionResult", status == 0 ? "passed" : "failed", code:Int64(status), detail:detail)
             // Report inactive only after run has joined and released resources.
             // Retain self and the surface until this main-thread completion.
             DispatchQueue.main.async { [self] in
@@ -161,7 +179,10 @@ final class MeloNXSessionHost {
     @discardableResult func requestStop() -> Bool {
         lock.lock(); defer { lock.unlock() }
         guard let id = generation else { return false }
-        return api.stop(id) == 0
+        if stopRequested { return true }
+        let accepted = api.stop(id) == 0
+        if accepted { stopRequested = true; MeloNXLaunchJournal.record("close", "begin", code:id) }
+        return accepted
     }
     @discardableResult func setPaused(_ paused: Bool) -> Bool {
         lock.lock(); defer { lock.unlock() }

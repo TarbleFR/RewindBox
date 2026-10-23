@@ -61,5 +61,5 @@ jobs:
         path: dist/melonx-host/
         if-no-files-found: ignore
         retention-days: 14
-    if: ${{ github.event_name == 'workflow_dispatch' || (!contains(github.event.head_commit.message, '[retroarch-delivery]')
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[retroarch-delivery]')
       && !contains(github.event.head_commit.message, '[melonx-validated-integration]')) }}

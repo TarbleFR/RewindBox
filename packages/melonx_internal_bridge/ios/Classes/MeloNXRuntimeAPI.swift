@@ -12,6 +12,7 @@ final class MeloNXRuntimeAPI {
     private typealias Pad = @convention(c) (Int64, Int32) -> Int32
     private typealias Button = @convention(c) (Int64, Int32, Int32, Int32) -> Int32
     private typealias Stick = @convention(c) (Int64, Int32, Int32, Float, Float) -> Int32
+    private typealias Diagnostic = @convention(c) (UnsafeMutablePointer<CChar>?, Int32) -> Int32
     private static var preparedSDLPaths = Set<String>() // main-thread only
     private static func prepareSDL(frameworks: URL) throws {
         let prepare = {
@@ -51,8 +52,11 @@ final class MeloNXRuntimeAPI {
     private let resetFunction: Pad
     private let buttonFunction: Button
     private let stickFunction: Stick
+    private let diagnosticsFunction: Diagnostic
+    private let prepareJitFunction: Version
 
     init(library: URL, frameworks: URL, root: URL) throws {
+        MeloNXLaunchJournal.record("frameworks", "begin", detail:"Loading the private ARM64 MeloNX engine and resolving its ABI.")
         session = try MeloNXNativeSessionAPI(libraryURL: library)
         // session already owns a process-lifetime handle, including on error.
         guard let handle = dlopen(library.path, RTLD_NOW | RTLD_LOCAL) else {
@@ -76,12 +80,35 @@ final class MeloNXRuntimeAPI {
         resetFunction = try symbol("neostation_melonx_input_reset", Pad.self)
         buttonFunction = try symbol("neostation_melonx_input_button", Button.self)
         stickFunction = try symbol("neostation_melonx_input_stick", Stick.self)
-        guard runtimeVersion() == 1, inputVersion() == 1, libraryVersion() == 2 else { throw MeloNXHostError.incompatibleABI }
+        diagnosticsFunction = try symbol("neostation_melonx_diagnostics", Diagnostic.self)
+        prepareJitFunction = try symbol("neostation_melonx_prepare_jit", Version.self)
+        let diagnosticsVersion = try symbol("neostation_melonx_diagnostics_abi", Version.self)
+        guard runtimeVersion() == 1, inputVersion() == 1, libraryVersion() == 2, diagnosticsVersion() == 1 else { throw MeloNXHostError.incompatibleABI }
         guard frameworks.path.withCString({ configureNative($0) }) == 0 else {
             throw MeloNXHostError.load("Private MeloNX native dependencies could not be loaded")
         }
         try Self.prepareSDL(frameworks:frameworks)
+        MeloNXLaunchJournal.record("frameworks", "passed", detail:"Private SDL video and dependency closure initialized.")
+        MeloNXLaunchJournal.record("nativeAot", "begin")
         try session.initialize(root: root)
+        MeloNXLaunchJournal.record("nativeAot", "passed")
+    }
+
+    // This snapshot has its own native lock and may be polled while the library
+    // worker is opening content or waiting for the JIT helper.
+    func diagnostics() -> [String: Any] {
+        var output = [CChar](repeating:0,count:524288)
+        guard diagnosticsFunction(&output,Int32(output.count)) == 0 else { return [:] }
+        let data = Data(bytes:output,count:output.prefix { $0 != 0 }.count)
+        return (try? JSONSerialization.jsonObject(with:data)) as? [String:Any] ?? [:]
+    }
+
+    func prepareJit() throws {
+        let status = prepareJitFunction()
+        guard status == 0 else {
+            let report = diagnostics()
+            throw MeloNXHostError.prepare(Int64(status),report["diagnostic"] as? String ?? session.diagnostic)
+        }
     }
 
     func prepareGraphics(_ settings: [String: Any], universalJit: Bool) throws {

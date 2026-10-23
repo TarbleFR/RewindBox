@@ -45,4 +45,44 @@ def apply(source):
         }
 
         public nint RwPtr { get; private set; }''')
-    return [project, library, ffmpeg, vk, memory]
+    # The standalone host explicitly calls init_dualmapping before a game. Do
+    # the same through a status-preserving ABI; a tiny separate mmap probe does
+    # not prove the real shared code cache or the signal mapping is ready.
+    translator = source / 'src/Ryujinx.Cpu/LightningJit/Translator.cs'
+    once(translator, '        public static bool InitMemoryCache()', '''        public static void PrepareEmbeddedMapping()
+        {
+            if (!MemoryBlock.DualMappedEnabled())
+                throw new InvalidOperationException("MeloNX dual-mapped JIT is not enabled.");
+            DualMappedNoWxCache.InitMemoryCache();
+            NativeSignalHandler.InitializeSignalHandler();
+            DualMappedNoWxCache.VerifyEmbeddedMapping();
+            initialized = true;
+        }
+
+        public static bool InitMemoryCache()''')
+    cache = source / 'src/Ryujinx.Cpu/LightningJit/Cache/DualMappedNoWxCache.cs'
+    once(cache, 'private static readonly ulong SharedCacheSize =', 'private static ulong SharedCacheSize =>')
+    once(cache, '_cacheAllocator = new((int)size);', '_cacheAllocator = new(checked((int)size - 16));')
+    once(cache, '        public static void InitMemoryCache()', '''        private static bool _embeddedMappingVerified;
+        public static unsafe void VerifyEmbeddedMapping()
+        {
+            if (_sharedCacheAlloc == null || _sharedCacheAlloc.RwPtr == 0 ||
+                _sharedCacheAlloc.RxPtr == 0 || _sharedCacheAlloc.RwPtr == _sharedCacheAlloc.RxPtr)
+                throw new InvalidOperationException("The real MeloNX JIT aliases are unavailable.");
+            // The last 16 bytes are excluded from every cache allocator. Reuse
+            // this reserved probe without overwriting translated guest code.
+            nint offset = checked((nint)SharedCacheSize - 16);
+            if (!_embeddedMappingVerified)
+            {
+                uint* code = (uint*)(_sharedCacheAlloc.RwPtr + offset);
+                code[0] = 0x5289a980; code[1] = 0xd65f03c0;
+                JitSupportDarwin.SysIcacheInvalidate(_sharedCacheAlloc.RxPtr + offset, 8);
+            }
+            var execute = (delegate* unmanaged<uint>)(_sharedCacheAlloc.RxPtr + offset);
+            if (execute() != 0x4d4c)
+                throw new InvalidOperationException("The real MeloNX JIT code-arena probe failed.");
+            _embeddedMappingVerified = true;
+        }
+
+        public static void InitMemoryCache()''')
+    return [project, library, ffmpeg, vk, memory, translator, cache]

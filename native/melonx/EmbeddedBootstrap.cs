@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Ryujinx.Common;
 
 namespace Ryujinx.Library;
 
@@ -22,6 +23,7 @@ partial class Library
     {
         try
         {
+            EmbeddedLaunchDiagnostics.Record("nativeAot", "begin");
             int result = EmbeddedBootstrap.Initialize(
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 Marshal.PtrToStringUTF8(rootUtf8), () => _virtualFileSystem != null, root =>
@@ -33,7 +35,8 @@ partial class Library
                     throw new InvalidOperationException("The engine did not adopt its isolated data root.");
             });
             if (result == 1 || result == 3)
-                Console.Error.WriteLine("MeloNX embedded bootstrap: " + EmbeddedBootstrap.LastFailure);
+                EmbeddedLaunchDiagnostics.Record("nativeAot", "failed", result, EmbeddedBootstrap.LastFailure);
+            else EmbeddedLaunchDiagnostics.Record("nativeAot", "passed", result);
             return result;
         }
         catch (Exception error)

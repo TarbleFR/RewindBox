@@ -5,11 +5,16 @@ import AVFoundation
 
 public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     private let libraryQueue = DispatchQueue(label:"com.neogamelab.neostation.melonx.library",qos:.userInitiated)
+    private let diagnosticsQueue = DispatchQueue(label:"com.neogamelab.neostation.melonx.diagnostics",qos:.utility)
+    private var diagnosticsTimer: DispatchSourceTimer?
+    private var nativeSequence: Int64 = 0 // diagnosticsQueue only
+    private var diagnosticsChannel: FlutterMethodChannel?
     private weak var presenter: UIViewController?
     private var runtime: MeloNXRuntimeAPI?
     private var host: MeloNXSessionHost?
     private var sessionView: MeloNXMetalSessionViewController?
     private var starting = false
+    private var cancelling = false
     private var libraryMutation = false
     private var libraryRestartRequired = false
     private var contentProgress: (() -> Int32)?
@@ -33,8 +38,31 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     public static func register(with registrar: FlutterPluginRegistrar) {
         let instance = MeloNXInternalBridgePlugin()
         instance.presenter = registrar.viewController
-        registrar.addMethodCallDelegate(instance,channel:FlutterMethodChannel(name:"neostation/melonx_internal",binaryMessenger:registrar.messenger()))
+        let channel = FlutterMethodChannel(name:"neostation/melonx_internal",binaryMessenger:registrar.messenger())
+        instance.diagnosticsChannel = channel
+        MeloNXLaunchJournal.sink = { [weak instance] event in instance?.diagnosticsChannel?.invokeMethod("launchDiagnostic",arguments:event) }
+        registrar.addMethodCallDelegate(instance,channel:channel)
         MeloNXJitBridgePlugin.register(with:registrar)
+    }
+
+    private func startDiagnostics(_ runtime: MeloNXRuntimeAPI) {
+        diagnosticsTimer?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue:diagnosticsQueue)
+        timer.schedule(deadline:.now(),repeating:.milliseconds(300))
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            let report = runtime.diagnostics()
+            for event in report["events"] as? [[String:Any]] ?? [] {
+                let sequence = (event["sequence"] as? NSNumber)?.int64Value ?? 0
+                guard sequence > self.nativeSequence else { continue }
+                self.nativeSequence = sequence
+                MeloNXLaunchJournal.record(event["stage"] as? String ?? "native",
+                    event["status"] as? String ?? "unknown",
+                    code:(event["nativeStatus"] as? NSNumber)?.int64Value ?? 0,
+                    detail:event["diagnostic"] as? String ?? "")
+            }
+        }
+        diagnosticsTimer = timer; timer.resume()
     }
 
     // Accessed only on libraryQueue. Success includes actual dependency loading
@@ -74,8 +102,15 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         case "isSessionActive": result(starting || host?.isSessionActive == true)
         case "stop":
             if starting, sessionView == nil {
-                _ = replaceToken()
-                failLaunch("launchCancelled")
+                if !cancelling {
+                    cancelling = true; _ = replaceToken()
+                    // Do not detach a debugger under a NativeAOT mapping call.
+                    // The serial worker acknowledges cancellation after the
+                    // current content/JIT step has returned safely.
+                    libraryQueue.async { [self] in DispatchQueue.main.async { [self] in
+                        cancelling = false; failLaunch("launchCancelled",stage:"close")
+                    } }
+                }
             } else { sessionView?.requestClose() }
             result(["success":true,"active":host?.isSessionActive == true])
         case "diagnostics":
@@ -85,9 +120,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     DispatchQueue.main.async { [self] in result(["available":true,"initialized":true,"sessionActive":starting || host?.isSessionActive == true,"jitArenaReady":arenaReady,"gameplayVerified":false,"lastFailure":lastFailure]) }
                 } catch { DispatchQueue.main.async { result(["available":false,"initialized":false,"diagnostic":String(describing:error)]) } }
             }
-        case "metadata", "installFirmware", "reloadKeys", "firmwareInfo", "inspectUpdate", "inspectDlc", "storageInfo", "saveTarget":
+        case "metadata", "installFirmware", "reloadKeys", "firmwareInfo", "inspectUpdate", "inspectDlc", "storageInfo", "saveTarget", "launchPreflight":
             guard !starting, host?.isSessionActive != true else { result(FlutterError(code:"busy",message:"Close the current game first.",details:nil)); return }
-            let operation: Int32 = ["metadata":0,"installFirmware":1,"reloadKeys":2,"firmwareInfo":3,"inspectUpdate":4,"inspectDlc":5,"storageInfo":6,"saveTarget":7][call.method]!
+            let operation: Int32 = ["metadata":0,"installFirmware":1,"reloadKeys":2,"firmwareInfo":3,"inspectUpdate":4,"inspectDlc":5,"storageInfo":6,"saveTarget":7,"launchPreflight":8][call.method]!
             var path = arguments["path"] as? String ?? ""
             if operation == 7 {
                 guard let data = try? JSONSerialization.data(withJSONObject:arguments),
@@ -111,7 +146,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
 
     private func launch(_ arguments: [String:Any], result: @escaping FlutterResult) {
         let access = MeloNXMemoryEntitlements()
-        guard access["allowed"] as? Bool == true else { result(["success":false,"error":"memoryEntitlements"]); return }
+        MeloNXLaunchJournal.record("entitlements", "begin")
+        guard access["allowed"] as? Bool == true else { MeloNXLaunchJournal.record("entitlements","failed",detail:"Required entitlements are absent from this signed process."); result(["success":false,"error":"memoryEntitlements","stage":"entitlements","access":access]); return }
+        MeloNXLaunchJournal.record("entitlements", "passed")
         guard !libraryRestartRequired else { result(["success":false,"error":"libraryRestartRequired"]); return }
         guard !libraryMutation, !starting, host?.isSessionActive != true else { result(["success":false,"error":"busy"]); return }
         guard let path = arguments["gamePath"] as? String, path.hasPrefix("/"),
@@ -125,15 +162,49 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         let reuseArena = arenaReady
         let token = replaceToken()
         let universal = backend == "builtin" && ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26
-        starting = true; launchReply = result; frameReady = false; jitReady = reuseArena
+        starting = true; cancelling = false; launchReply = result; frameReady = false; jitReady = reuseArena
         MeloNXStrings.locale = locale
         libraryQueue.async { [self] in
+            var stage = "frameworks"
             do {
+                guard isCurrent(token) else { return }
                 let runtime = try ensureRuntime()
-                let titleID = (try? runtime.content(path:path,operation:0))?["titleId"] as? String
+                DispatchQueue.main.async { [weak self] in self?.startDiagnostics(runtime) }
+                stage = "contentPreflight"
+                let preflight = try runtime.content(path:path,operation:8)
+                guard preflight["success"] as? Bool == true else {
+                    DispatchQueue.main.async { [self] in
+                        guard isCurrent(token) else { return }
+                        failLaunch(preflight["errorCode"] as? String ?? "invalidContent",
+                            diagnostic:preflight["diagnostic"] as? String ?? "Native content preflight rejected the game.",
+                            stage:preflight["stage"] as? String ?? "contentPreflight", nativeStatus:0)
+                    }
+                    return
+                }
+                let titleID = preflight["titleId"] as? String
+                guard isCurrent(token) else { return }
                 try runtime.prepareGraphics(settings,universalJit:universal)
+                stage = "jit"
+                MeloNXLaunchJournal.record("jit", "begin")
+                if !reuseArena {
+                    let authorized = universal
+                        ? (MeloNXJitHasActiveCoreHandshake() && MeloNXJitConfirmCoreLoadHandoff())
+                        : ((MeloNXJitExecutableMappingProbe()["success"] as? Bool) == true)
+                    guard authorized else { throw MeloNXHostError.prepare(-1,"The selected method did not authorize executable mappings for the RewindBox PID.") }
+                }
+                // Prepare both the shared cache and native signal mapping before
+                // creating guest threads. This is the standalone MeloNX order.
+                try runtime.prepareJit()
+                if backend == "builtin", !reuseArena {
+                    var message: NSString?
+                    guard MeloNXJitWaitForDetach(120,&message) else {
+                        throw MeloNXHostError.prepare(-1,message as String? ?? "The JIT helper did not confirm detach.")
+                    }
+                }
+                MeloNXLaunchJournal.record("jit", "passed", detail:"Actual engine mapping verified; selected helper transaction completed.")
                 DispatchQueue.main.async { [self] in
                     guard isCurrent(token) else { return }
+                    jitReady = true
                     guard let presenter = topPresenter(), presenter.viewIfLoaded?.window != nil else { failLaunch("presentationUnavailable"); return }
                     let audio = AVAudioSession.sharedInstance()
                     previousAudio = (audio.category,audio.mode,audio.categoryOptions)
@@ -142,39 +213,41 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     let host = MeloNXSessionHost(api:runtime.session); self.host = host
                     let view = MeloNXMetalSessionViewController(host:host,game:URL(fileURLWithPath:path),locale:locale,runtime:runtime,titleID:titleID,
                         beforeRun:{ [weak self] in
-                            guard let self, self.isCurrent(token) else { return false }
-                            if reuseArena { return true }
-                            let authorized: Bool
-                            if universal { authorized = MeloNXJitHasActiveCoreHandshake() && MeloNXJitConfirmCoreLoadHandoff() }
-                            else { authorized = (MeloNXJitExecutableMappingProbe()["success"] as? Bool) == true }
-                            guard authorized else { return false }
-                            if backend == "builtin" {
-                                DispatchQueue.global(qos:.userInitiated).async { [weak self] in
-                                    var message: NSString?
-                                    let detached = MeloNXJitWaitForDetach(120,&message)
-                                    DispatchQueue.main.async { [weak self] in
-                                        guard let self, self.isCurrent(token) else { return }
-                                        if detached { self.jitReady = true; self.completeLaunchIfReady() }
-                                        else { self.failLaunch("jitDetachFailed",diagnostic:message as String? ?? "Helper did not confirm detach"); self.sessionView?.requestClose() }
-                                    }
-                                }
-                            } else { DispatchQueue.main.async { [weak self] in guard let self, self.isCurrent(token) else { return }; self.jitReady = true; self.completeLaunchIfReady() } }
-                            return true
-                        },firstFrame:{ [weak self] in guard let self, self.isCurrent(token) else { return }; self.frameReady = true; self.completeLaunchIfReady() }) { [weak self] outcome in
+                            guard let self else { return false }
+                            return self.isCurrent(token) && self.jitReady
+                        },firstFrame:{ [weak self] in guard let self, self.isCurrent(token) else { return }; MeloNXLaunchJournal.record("firstFrame","passed",detail:"CAMetalDrawable presentedTime confirmed."); self.frameReady = true; self.completeLaunchIfReady() }) { [weak self] outcome in
                             guard let self, self.isCurrent(token) else { return }
                             if self.launchReply != nil {
                                 let detail: String
                                 switch outcome { case .success: detail = "The game closed before launch authorization completed."; case .failure(let error): detail = error.description }
-                                self.failLaunch("launchFailed",diagnostic:detail)
+                                var status: Int64 = 0
+                                if case .failure(let error) = outcome {
+                                    switch error { case .prepare(let code,_): status = code; case .run(let code,_): status = Int64(code); default: break }
+                                }
+                                let native = runtime.diagnostics()
+                                self.failLaunch(native["errorCode"] as? String ?? "launchFailed",diagnostic:detail,
+                                    stage:native["stage"] as? String ?? "session",nativeStatus:status)
                             }
                             self.starting = false; self.sessionView = nil
                             if self.host?.isSessionActive != true { self.host = nil; self.restoreAudio() }
                             if case .failure(let error) = outcome { self.lastFailure = error.description }
+                            self.diagnosticsTimer?.cancel(); self.diagnosticsTimer = nil
+                            MeloNXLaunchJournal.record("close",self.host?.isSessionActive == true ? "quarantined" : "passed")
                             _ = self.replaceToken()
                         }
                     sessionView = view; presenter.present(view,animated:true)
                 }
-            } catch { DispatchQueue.main.async { [self] in guard isCurrent(token) else { return }; failLaunch("runtimeUnavailable",diagnostic:String(describing:error)) } }
+            } catch {
+                let native = self.runtime?.diagnostics() ?? [:]
+                let nativeCode = native["errorCode"] as? String ?? ""
+                var status: Int64 = 1
+                if case MeloNXHostError.prepare(let code,_) = error { status = code }
+                DispatchQueue.main.async { [self] in
+                    guard isCurrent(token) else { return }
+                    failLaunch(nativeCode.isEmpty ? (stage == "jit" ? "jitUnavailable" : "runtimeUnavailable") : nativeCode,diagnostic:String(describing:error),
+                        stage:nativeCode.isEmpty ? stage : (native["stage"] as? String ?? stage),nativeStatus:status)
+                }
+            }
         }
     }
 
@@ -183,13 +256,18 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         // Cached authorization is process-local and backed by actual rendering
         // plus the helper's completed mapping transaction, never a preference.
         arenaReady = true; starting = false; launchReply = nil
+        MeloNXLaunchJournal.record("launchResult", "passed", detail:"First Metal presentation and actual engine JIT authorization confirmed.")
         reply(["success":true,"firstMetalFramePresented":true,"jitMappingConfirmed":true,"pid":ProcessInfo.processInfo.processIdentifier])
     }
-    private func failLaunch(_ code: String, diagnostic: String = "") {
+    private func failLaunch(_ code: String, diagnostic: String = "", stage: String = "launch", nativeStatus: Int64 = 1) {
         lastFailure = diagnostic
+        let errorCode = code.isEmpty ? "launchFailed" : code
+        MeloNXLaunchJournal.record(stage,"failed",code:nativeStatus,detail:errorCode + ": " + diagnostic)
         let reply = launchReply; launchReply = nil; starting = false
         if host?.isSessionActive != true { restoreAudio(); MeloNXJitAbortTransaction() }
-        reply?(["success":false,"error":code,"diagnostic":diagnostic])
+        if host?.isSessionActive != true { diagnosticsTimer?.cancel(); diagnosticsTimer = nil }
+        reply?(["success":false,"error":errorCode,"errorCode":errorCode,"stage":stage,"nativeStatus":nativeStatus,
+            "diagnostic":diagnostic,"sessionActive":host?.isSessionActive == true,"requiresRestart":host?.isSessionActive == true || errorCode == "jitRestartRequired"])
     }
     private func topPresenter() -> UIViewController? {
         var top = presenter

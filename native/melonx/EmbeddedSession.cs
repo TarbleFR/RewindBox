@@ -7,6 +7,7 @@ using Ryujinx.HLE.HOS.SystemState;
 using System.Text;
 using System.Linq;
 using Ryujinx.Input.Native;
+using Ryujinx.Common;
 
 namespace Ryujinx.Library;
 
@@ -61,6 +62,7 @@ partial class Library
                 if (extension != ".nro" && extension != ".nso" && extension != ".nsp" && extension != ".xci") return -2;
                 if (EmbeddedSessions.State != 0) return -1;
                 EmbeddedPrepareFailure = "";
+                EmbeddedLaunchDiagnostics.Record("session", "begin");
                 Options options = EmbeddedOptions(Path.GetFullPath(path), locale, width, height);
                 // Native Npad disposal disconnects its pad objects. A new
                 // host view reattaches fresh pads after this reservation.
@@ -69,11 +71,11 @@ partial class Library
                 lock (inputConfigurationLock) _inputConfiguration.Clear();
                 NativeTouchDriver.ResetEmbeddedTouches();
                 long generation = EmbeddedSessions.Prepare();
-                if (generation > 0) EmbeddedPreparedOptions = options;
+                if (generation > 0) { EmbeddedPreparedOptions = options; EmbeddedLaunchDiagnostics.Record("session", "passed"); }
                 return generation;
             }
         }
-        catch (Exception error) { EmbeddedPrepareFailure = error.Message; Console.Error.WriteLine(error); return -2; }
+        catch (Exception error) { EmbeddedPrepareFailure = EmbeddedLaunchDiagnostics.Safe(error.ToString()); EmbeddedLaunchDiagnostics.Fail("session", EmbeddedLaunchDiagnostics.Classify(error), error, -2); return -2; }
     }
 
     // Synchronous: invoke on a dedicated host worker, never UIKit's main thread.
@@ -89,7 +91,13 @@ partial class Library
             {
                 if (options == null || GetNativeMetalLayer() == nint.Zero)
                     throw new InvalidOperationException("No prepared game or CAMetalLayer.");
-                try { Load(options); return 0; }
+                try { Load(options); EmbeddedLaunchDiagnostics.Record("close", "passed"); return 0; }
+                catch (Exception error)
+                {
+                    EmbeddedLaunchDiagnostics.Fail(EmbeddedLaunchDiagnostics.Stage,
+                        EmbeddedLaunchDiagnostics.Classify(error), error, 3);
+                    throw;
+                }
                 finally
                 {
                     lock (metalLayerLock) nativeMetalLayer = nint.Zero;

@@ -1,5 +1,8 @@
 import '../../l10n/melonx_transfer_locale.dart';
 import '../../l10n/melonx_launch_access_locale.dart';
+import '../../l10n/melonx_launch_failure_locale.dart';
+import '../melonx_launch_diagnostics.dart';
+import '../game_launch_manager.dart';
 import 'dart:io';
 
 import 'package:flutter_localization/flutter_localization.dart';
@@ -89,6 +92,10 @@ class GameLaunchService {
     SystemModel system,
     GameModel game,
   ) async {
+    if (Platform.isIOS && MelonxInternalService.nativeQuarantined) {
+      GameLaunchManager().markInitializationFailed(nativeStillActive: true);
+      return GameLaunchResult.failure(MelonxLaunchFailureLocale.text(Localizations.localeOf(context), 'quarantined'));
+    }
     final mediaOwner = Object();
     final stopMedia = FrontendMediaGate.instance.hold(mediaOwner);
     GameSessionManager.beginLaunchPending();
@@ -161,23 +168,54 @@ class GameLaunchService {
         final locale = Localizations.localeOf(context);
         final source = game.romPath;
         if (source == null || MelonxInternalService.isRetiredLink(source)) {
-          return GameLaunchResult.failure(MelonxLocale.forLocale(locale, 'reimport'));
+          return GameLaunchResult.failure(
+            MelonxLocale.forLocale(locale, 'reimport'),
+          );
         }
-        final allowed = await EmbeddedEnginePolicy.instance.allowsSystem(system);
+        final allowed = await EmbeddedEnginePolicy.instance.allowsSystem(
+          system,
+        );
         if (!context.mounted) return GameLaunchResult.failure('', '');
         if (!allowed) return _embeddedEngineOff(context, system);
-        final report = await MelonxInternalService.launch(gamePath: source, locale: locale.toLanguageTag(), context: context);
+        final report = await MelonxInternalService.launch(
+          gamePath: source,
+          locale: locale.toLanguageTag(),
+          context: context,
+        );
         if (report['success'] == true) {
-          GameSessionManager.registerGameLaunch(system, game, 'ios_melonx_internal');
+          GameSessionManager.registerGameLaunch(
+            system,
+            game,
+            'ios_melonx_internal',
+          );
           await FavoritesService.recordGamePlayed(game);
           return GameLaunchResult.success();
         }
         GameSessionManager.cancelGameLaunch();
+        GameLaunchManager().markInitializationFailed(
+          nativeStillActive: report['sessionActive'] == true,
+        );
+        final error = report['error']?.toString() ?? 'launchFailed';
+        final localized = report['requiresRestart'] == true
+            ? MelonxLaunchFailureLocale.text(locale, 'quarantined')
+            : error == 'profileUnavailable' ||
+                  report['diagnostic']?.toString().contains(
+                        'profileUnavailable',
+                      ) ==
+                      true
+            ? MelonxTransferLocale.forLocale(locale, 'profileUnavailable')
+            : const {
+                'memoryEntitlements',
+                'entitlementCheckFailed',
+                'libraryRestartRequired',
+              }.contains(error)
+            ? MelonxLaunchAccessLocale.text(locale, error)
+            : error == 'runtimeUnavailable'
+            ? MelonxLocale.forLocale(locale, 'unavailable')
+            : MelonxLaunchFailureLocale.text(locale, error);
         return GameLaunchResult.failure(
-          report['diagnostic']?.toString().contains('profileUnavailable') == true ? MelonxTransferLocale.forLocale(locale, 'profileUnavailable') : const {'memoryEntitlements','entitlementCheckFailed','libraryRestartRequired'}.contains(report['error'])
-            ? MelonxLaunchAccessLocale.text(locale, report['error'] as String)
-            : MelonxLocale.forLocale(locale, report['error'] == 'runtimeUnavailable' ? 'unavailable' : 'launchFailed'),
-          report['diagnostic']?.toString() ?? report['error']?.toString(),
+          localized,
+          MelonxLaunchDiagnostics.details(report),
         );
       }
 

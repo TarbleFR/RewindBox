@@ -35,7 +35,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   core:
-    if: ${{ github.event_name == 'workflow_dispatch' || (!contains(github.event.head_commit.message, '[melonx-host-only]')
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[melonx-host-only]')
       && !contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message,
       '[melonx-validated-integration]')) }}
     runs-on: macos-26
@@ -70,8 +70,10 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: python3 build-utils/melonx/reuse_library_validation.py
-    - name: Exercise firmware archive discovery and rollback integration
-      run: python3 test/melonx_firmware_archive_test.py
+    - name: Reuse unchanged firmware archive and personal configuration proofs
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 build-utils/melonx/reuse_launch_library.py
     - name: Fetch exact MeloNX source
       run: 'set -euo pipefail
 
@@ -92,8 +94,8 @@ jobs:
         git -C .native-sources/LibHac checkout --detach FETCH_HEAD
 
         '
-    - name: Check personal configuration and actual LibHac save API
-      run: python3 test/melonx_library_api_test.py .native-sources/MeloNX dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
+    - name: Execute the changed production launch preflight and diagnostic API
+      run: python3 test/melonx_launch_native_test.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
     - name: Execute production input driver ownership
       env:
         GH_TOKEN: ${{ github.token }}

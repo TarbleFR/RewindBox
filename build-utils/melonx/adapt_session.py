@@ -41,6 +41,8 @@ def apply(source):
                 if (!LoadApplication(option))
                     throw new InvalidOperationException("The engine could not load this game.");
                 if (EmbeddedSessions.IsStopping) break;''')
+    once(library, '            IRenderer renderer = CreateRenderer(options, window);', '''            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("gpu", "begin", detail: "Creating the private MoltenVK renderer and CAMetalLayer surface.");
+            IRenderer renderer = CreateRenderer(options, window);''')
     # Input drivers are process-owned. Npad/touch managers are window-owned.
     # Keep drivers alive, but discard per-game bindings to disconnected pads.
     once(library, '            _inputManager.Dispose();', '''            lock (inputConfigurationLock) _inputConfiguration.Clear();''')
@@ -105,6 +107,22 @@ def apply(source):
             IRenderer renderer = CreateRenderer(options, window);''')
     once(library, '            _emulationContext = InitializeEmulationContext(window, renderer, options);', '''            try { _emulationContext = InitializeEmulationContext(window, renderer, options); }
             catch { renderer.Dispose(); throw; }''')
+    once(library, '            bool isFirmwareTitle = false;', '''            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("sessionServices", "passed", detail: "User profile, Horizon services and guest memory initialized.");
+            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("content", "begin");
+            bool isFirmwareTitle = false;''')
+    once(library, '            SetupProgressHandler();', '''            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("content", "passed", detail: "Native loader accepted the game and started its guest process.");
+            SetupProgressHandler();''')
+    # A failed encrypted NSP must not fall through into the plain ExeFS loader:
+    # that second failure hides the original CNMT/NCA/key error. Genuine ExeFS
+    # containers have no CNMT and retain their existing successful fallback.
+    loader = source / 'src/Ryujinx.HLE/Loaders/Processes/ProcessLoader.cs'
+    once(loader, '''            if (processResult.ProcessId == 0)
+            {''', '''            if (!success && !string.IsNullOrEmpty(errorMessage) &&
+                !partitionFileSystem.FileExists("/main.npdm"))
+                throw new InvalidDataException(errorMessage);
+
+            if (processResult.ProcessId == 0)
+            {''')
     text = library.read_text()
     assert text.count('_emulationContext.Dispose();') == 9
     library.write_text(text.replace('_emulationContext.Dispose();', '/* Session owner releases the context. */'))
@@ -125,6 +143,14 @@ def apply(source):
 
         public void Initialize''')
     once(window, '                while (_isActive)', '                while (_embeddedLifetime.RenderAllowed)')
+    once(window, '            Device.Gpu.Renderer.Initialize(_glLogLevel);', '''            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("gpu", "begin", detail: "Initializing the real GPU renderer.");
+            Device.Gpu.Renderer.Initialize(_glLogLevel);
+            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("gpu", "passed", detail: "Native GPU renderer initialized; Metal presentation remains unconfirmed.");''')
+    syscall = source / 'src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs'
+    once(syscall, '''        public void ExitProcess()
+        {''', '''        public void ExitProcess()
+        {
+            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("guestExecution", "passed", detail: "A guest ARM64 thread executed SVC ExitProcess.");''')
     once(window, '''                    if (_isStopped)
                     {
                         return;
@@ -197,4 +223,4 @@ def apply(source):
     once(touch, '        public void UpdatePosition()', '''        internal static void ResetEmbeddedTouches() => _activeTouches.Clear();
 
         public void UpdatePosition()''')
-    return [library, window, touch]
+    return [library, window, touch, loader, syscall]

@@ -31,7 +31,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-runtime-') as temporary:
  bundle='com.neogamelab.neostation.melonxsmoke'
  (app/'Info.plist').write_bytes(plistlib.dumps({'CFBundleExecutable':'MeloNXSmoke','CFBundleIdentifier':bundle,'CFBundleName':'MeloNXSmoke','CFBundlePackageType':'APPL','CFBundleVersion':'1','CFBundleShortVersionString':'1','MinimumOSVersion':'18.0','LSRequiresIPhoneOS':True,'UIDeviceFamily':[1,2],'UILaunchScreen':{}}))
  swift=work/'App.swift';swift.write_text(r'''import UIKit
+import Metal
+import QuartzCore
 import Darwin
+final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLayer.self }}
 @main final class Smoke: UIResponder, UIApplicationDelegate {
  var window: UIWindow?
  func application(_ app: UIApplication,didFinishLaunchingWithOptions options:[UIApplication.LaunchOptionsKey:Any]? = nil)->Bool {
@@ -58,6 +61,59 @@ import Darwin
        try runtime.prepareGraphics(["resolution":0.5,"shaderCache":false,"asyncShaders":true,"vsync":true,"filter":"bilinear"],universalJit:false)
        let rejected=runtime.session.prepare(game:root.appendingPathComponent("missing.nro"),locale:"fr-FR",width:1280,height:720)
        guard rejected == -2, runtime.session.state == 0 else {throw NSError(domain:"actual-prepare",code:3)}
+       // A synthetic PFS0 header contains no proprietary content. The actual
+       // engine must report missing personal keys before allocating a guest.
+       let package=root.appendingPathComponent("empty.nsp")
+       try Data([0x50,0x46,0x53,0x30]+Array(repeating:UInt8(0),count:12)).write(to:package)
+       let missingKeys=try runtime.content(path:package.path,operation:8)
+       guard missingKeys["success"] as? Bool == false, missingKeys["errorCode"] as? String == "keysMissing", runtime.session.state == 0 else {throw NSError(domain:"actual-key-preflight",code:6)}
+       // Simulator-only executable mapping proof with the real ARM64 engine.
+       // It does not exercise iPhone signing, its helper or Universal JIT.
+       try runtime.prepareJit();try runtime.prepareJit()
+       let diagnostics=runtime.diagnostics()
+       let events=diagnostics["events"] as? [[String:Any]] ?? []
+       guard events.contains(where:{$0["stage"] as? String == "jitArena" && $0["status"] as? String == "passed"}) else {throw NSError(domain:"actual-jit-arena",code:7)}
+       report["actualSimulatorCodeArenaVerified"]=true;report["missingKeysRejectedBeforeGuest"]=true
+       // Original, unencrypted ARM64 homebrew: branch over its NRO header and
+       // issue SVC ExitProcess. This is CPU/session proof, not a graphical game.
+       let homebrew=root.appendingPathComponent("RewindBox-owned-exit.nro")
+       var nro=Data(repeating:0,count:0x3000)
+       func word(_ offset:Int,_ value:UInt32) {var little=value.littleEndian;withUnsafeBytes(of:&little){nro.replaceSubrange(offset..<offset+4,with:$0)}}
+       word(0,0x14000020);word(0x10,0x304f524e);word(0x18,0x3000)
+       word(0x20,0);word(0x24,0x1000);word(0x28,0x1000);word(0x2c,0x1000);word(0x30,0x2000);word(0x34,0x1000);word(0x38,0x1000)
+       word(0x80,0xd2800000);word(0x84,0xd40000e1);word(0x88,0x14000000)
+       try nro.write(to:homebrew)
+       let hb=try runtime.content(path:homebrew.path,operation:8)
+       guard hb["success"] as? Bool == true else {throw NSError(domain:"homebrew-preflight",code:8)}
+       var sessions=0
+       for _ in 0..<2 {
+         let ended=DispatchSemaphore(value:0)
+         var outcome:Result<Void,MeloNXHostError>?
+         var owner:MeloNXSessionHost?
+         var surface:ProbeView?
+         DispatchQueue.main.sync {
+           let view=ProbeView(frame:self.window!.rootViewController!.view.bounds)
+           let layer=view.layer as! CAMetalLayer
+           layer.device=MTLCreateSystemDefaultDevice();layer.pixelFormat = .bgra8Unorm
+           layer.drawableSize=CGSize(width:1280,height:720)
+           self.window!.rootViewController!.view.addSubview(view);surface=view
+           let host=MeloNXSessionHost(api:runtime.session);owner=host
+           do {
+             try host.start(game:homebrew,locale:"en",width:1280,height:720,surface:layer,pointer:Unmanaged.passUnretained(layer).toOpaque(),beforeRun:{true}) {result in outcome=result;ended.signal()}
+             DispatchQueue.main.asyncAfter(deadline:.now()+2) {host.requestStop()}
+           } catch {outcome = .failure(error as? MeloNXHostError ?? .load(String(describing:error)));ended.signal()}
+         }
+         guard ended.wait(timeout:.now()+45) == .success else {throw NSError(domain:"homebrew-session-timeout",code:9)}
+         guard let completedOutcome=outcome else {throw NSError(domain:"homebrew-result",code:12)}
+         if case .failure(let error)=completedOutcome {throw error}
+         guard runtime.session.state == 0, owner?.isSessionActive == false else {throw NSError(domain:"homebrew-session-cleanup",code:10)}
+         DispatchQueue.main.sync {surface?.removeFromSuperview()}
+         sessions += 1
+       }
+       let execution=runtime.diagnostics()["events"] as? [[String:Any]] ?? []
+       guard execution.filter({$0["stage"] as? String == "guestExecution" && $0["status"] as? String == "passed"}).count >= 2 else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11)}
+       report["originalHomebrewGuestSvcConfirmed"]=true;report["homebrewSimulatorSessions"]=sessions
+       report["homebrewProducesVideo"]=false;report["iphoneGuestExecutionTested"]=false
        report["result"]="passed";report["initializationAndIdempotency"]=true;report["invalidContentRejected"]=true;report["graphicsAccepted"]=true;report["invalidGuestRejected"]=true
      } catch {report["result"]="failed";report["diagnostic"]=String(describing:error)}
      try? JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys]).write(to:documents.appendingPathComponent("smoke.json"),options:.atomic)

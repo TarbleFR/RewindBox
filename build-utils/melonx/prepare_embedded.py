@@ -45,6 +45,7 @@ def main():
     for path in sorted((root / 'native/melonx').glob('*.cs')):
         project = {'EmbeddedNativeGamepadLease.cs': 'Ryujinx.Input.Native',
                    'EmbeddedNativeLibraries.cs': 'Ryujinx.Common',
+                   'EmbeddedLaunchDiagnostics.cs': 'Ryujinx.Common',
                    'EmbeddedFirmwareStore.cs': 'Ryujinx.HLE',
                    'EmbeddedFirmwareArchive.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
         target = source / 'src' / project / path.name
