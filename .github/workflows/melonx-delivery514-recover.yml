@@ -10,24 +10,25 @@ jobs:
     timeout-minutes: 5
     env: {GH_TOKEN: '${{ github.token }}'}
     steps:
-      - name: Rerun only the cancelled IPA job on its original tested source
+      - name: Allow fresh evidence upload after archiving cancelled diagnostics
         run: |
-          python3 - <<'PY'
+          python3 - <<'PY_CLEANUP'
           import json,subprocess
           base='repos/TarbleFR/RewindBox/actions'
           def api(path):return json.loads(subprocess.check_output(['gh','api',base+path],text=True))
           run=api('/runs/39979130143')
           assert run['head_sha']=='22df4502db21ee1bcd68e15c1791aeba1a826658'
-          assert run['head_branch']=='Claude' and run['path']=='.github/workflows/retroarch-delivery.yml'
-          assert run['status']=='completed' and run['conclusion']=='cancelled' and run['run_attempt']==1
-          job=api('/jobs/120505909551')
-          assert job['run_id']==run['id'] and job['conclusion']=='cancelled'
-          steps={step['name']:step['conclusion'] for step in job['steps']}
-          for name in ['Seal every executable, framework and extension for SideStore',
-              'Verify the actual MeloNX launch ABI and signed memory entitlements',
-              'Prepare encrypted delivery and evidence']:
-              assert steps[name]=='success',(name,steps.get(name))
-          assert steps['Encrypt authenticated compilation cache']=='cancelled'
-          subprocess.run(['gh','api','--method','POST',base+'/jobs/120505909551/rerun'],check=True)
-          print('Rerun accepted: exact tested source 22df4502, IPA job only. Native engine/host/Flutter proofs retained.')
-          PY
+          assert run['head_branch']=='Claude' and run['run_attempt']==2
+          assert run['status'] in ('queued','in_progress','completed')
+          entries=api('/runs/39979130143/artifacts')['artifacts']
+          old=next((a for a in entries if a['id']==12513298944),None)
+          if old:
+              assert old['name']=='RewindBox-Build-514-22df4502db21ee1bcd68e15c1791aeba1a826658-cold-diagnostics'
+              assert old['digest']=='sha256:afa62917690855c7cf6eec51f5f9482fdf697d3cd149fd9598db0099b137eb84'
+              assert old['size_in_bytes']==5994167
+              # These exact bytes were downloaded and SHA-256 checked before
+              # this disposable diagnostic artifact is replaced by attempt 2.
+              subprocess.run(['gh','api','--method','DELETE',base+'/artifacts/12513298944'],check=True)
+              print('Retired only archived attempt-1 diagnostic artifact; fresh attempt-2 upload can proceed.')
+          else:print('Archived attempt-1 diagnostic artifact already retired; no action.')
+          PY_CLEANUP
