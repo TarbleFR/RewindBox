@@ -4,6 +4,31 @@ import 'package:archive/archive_io.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:neostation/providers/sqlite_config_provider.dart';
+import 'package:neostation/providers/sqlite_database_provider.dart';
+import 'package:neostation/models/game_model.dart';
+import 'package:neostation/models/system_model.dart';
+import 'package:neostation/widgets/melonx_multi_delete_dialog.dart';
+import 'package:neostation/widgets/delete_game_dialog.dart';
+import 'database_test_helper.dart';
+
+import 'package:neostation/themes/abyss_theme.dart';
+import 'package:neostation/themes/aqua_theme.dart';
+import 'package:neostation/themes/coffee_theme.dart';
+import 'package:neostation/themes/cyberpunk_theme.dart';
+import 'package:neostation/themes/dark_theme.dart';
+import 'package:neostation/themes/dracula_theme.dart';
+import 'package:neostation/themes/horizon_theme.dart';
+import 'package:neostation/themes/light_theme.dart';
+import 'package:neostation/themes/nord_theme.dart';
+import 'package:neostation/themes/oled_theme.dart';
+import 'package:neostation/themes/palenight_theme.dart';
+import 'package:neostation/themes/retro_theme.dart';
+import 'package:neostation/themes/tokyo_night_theme.dart';
+import 'package:neostation/themes/valentine_theme.dart';
+
 import 'package:path/path.dart' as p;
 import 'package:neostation/l10n/melonx_launch_access_locale.dart';
 import 'package:neostation/l10n/melonx_transfer_locale.dart';
@@ -673,43 +698,290 @@ void main() {
       );
     },
   );
-  testWidgets(
-    'shared Import segment explicitly applies the theme foreground in both placements',
-    (tester) async {
-      for (final embedded in [true, false]) {
-        final scheme = ColorScheme.dark(
-          onSurface: Colors.white,
-          onTertiaryFixed: Colors.white,
-        );
-        await tester.pumpWidget(
-          ScreenUtilInit(
-            designSize: const Size(800, 600),
-            builder: (ctx, child) => MaterialApp(
-              theme: ThemeData(colorScheme: scheme),
-              home: Scaffold(
-                body: PlaylistImportButton(
-                  menuKey: const ValueKey('import'),
-                  tooltip: 'Import',
-                  busy: false,
-                  embedded: embedded,
-                  items: (_) => [
-                    const PopupMenuItem(value: 'game', child: Text('Game')),
-                  ],
-                  onSelected: (_) {},
+  Future<void> pumpDeletion(WidgetTester tester, List<GameModel> games) async {
+    tester.view.physicalSize = const Size(1000, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    messenger.setMockMethodCallHandler(
+      const MethodChannel('xyz.luan/gamepads'),
+      (call) async => [],
+    );
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(
+        const MethodChannel('xyz.luan/gamepads'),
+        null,
+      ),
+    );
+    final config = SqliteConfigProvider();
+    final database = SqliteDatabaseProvider();
+    addTearDown(config.dispose);
+    addTearDown(database.dispose);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: config),
+          ChangeNotifierProvider.value(value: database),
+        ],
+        child: ScreenUtilInit(
+          designSize: const Size(1000, 900),
+          builder: (ctx, child) => MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (ctx) => TextButton(
+                  onPressed: () => showDialog<void>(
+                    context: ctx,
+                    builder: (_) => MelonxMultiDeleteDialog(
+                      system: const SystemModel(
+                        id: 'switch',
+                        folderName: 'switch',
+                        realName: 'Nintendo Switch',
+                        iconImage: '',
+                        color: '#ffffff',
+                      ),
+                      games: games,
+                      initialGame: games.first,
+                    ),
+                  ),
+                  child: const Text('Open'),
                 ),
               ),
             ),
           ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+  }
+
+  GameModel deletionGame(String name, String location) => GameModel(
+    romname: '$name.nro',
+    realname: name,
+    name: name,
+    year: '',
+    developer: '',
+    publisher: '',
+    genre: '',
+    players: '',
+    rating: 0,
+    systemId: 'switch',
+    romPath: location,
+  );
+  testWidgets(
+    'multiple Switch deletion selection uses shared confirmation and cancellation preserves files',
+    (tester) async {
+      final files = (await tester.runAsync(
+        () async => [
+          await write(p.join(root.path, 'roms/First.nro'), 'first'),
+          await write(p.join(root.path, 'roms/Second.nro'), 'second'),
+        ],
+      ))!;
+      final first = files[0], second = files[1];
+      await pumpDeletion(tester, [
+        deletionGame('First', first.path),
+        deletionGame('Second', second.path),
+      ]);
+      await tester.tap(find.text('Second'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+      final confirmation = tester.widget<DeleteGameDialog>(
+        find.byType(DeleteGameDialog),
+      );
+      expect(confirmation.romName, contains(first.path));
+      expect(confirmation.romName, contains(second.path));
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DeleteGameDialog),
+          matching: find.byType(TextButton),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(DeleteGameDialog), findsNothing);
+      expect(
+        tester
+            .widgetList<CheckboxListTile>(find.byType(CheckboxListTile))
+            .every((tile) => tile.value == true),
+        true,
+      );
+      expect(await tester.runAsync(first.readAsString), 'first');
+      expect(await tester.runAsync(second.readAsString), 'second');
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  testWidgets(
+    'Switch deletion failure keeps its selected entry and explains the file access failure',
+    (tester) async {
+      final helper = DatabaseTestHelper();
+      final db = await helper.setUp();
+      addTearDown(helper.tearDown);
+      await db.insert('app_systems', {
+        'id': 'switch',
+        'folder_name': 'switch',
+        'real_name': 'Nintendo Switch',
+      });
+      final refused = Directory(p.join(root.path, 'refused.nro'));
+      await tester.runAsync(() async {
+        await refused.create();
+        await write(p.join(refused.path, 'personal'), 'keep');
+      });
+      await db.insert('user_roms', {
+        'app_system_id': 'switch',
+        'filename': 'Refused.nro',
+        'rom_path': refused.path,
+      });
+      await pumpDeletion(tester, [deletionGame('Refused', refused.path)]);
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DeleteGameDialog),
+          matching: find.byType(ElevatedButton),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining(
+          MelonxTransferLocale.values['en']!['deleteFailed']!,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+        true,
+      );
+      expect(await db.query('user_roms'), hasLength(1));
+      expect(
+        await tester.runAsync(
+          File(p.join(refused.path, 'personal')).readAsString,
+        ),
+        'keep',
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  testWidgets(
+    'multiple Switch deletion removes only game files and refreshes the playlist',
+    (tester) async {
+      final helper = DatabaseTestHelper();
+      final db = await helper.setUp();
+      addTearDown(helper.tearDown);
+      await db.insert('app_systems', {
+        'id': 'switch',
+        'folder_name': 'switch',
+        'real_name': 'Nintendo Switch',
+      });
+      final files = (await tester.runAsync(
+        () async => [
+          await write(p.join(root.path, 'roms/First.nro'), 'first'),
+          await write(p.join(root.path, 'roms/Second.nro'), 'second'),
+          await write(p.join(root.path, 'bis/user/save/personal'), 'save'),
+          await write(p.join(root.path, 'system/prod.keys'), 'keys'),
+        ],
+      ))!;
+      for (var i = 0; i < 2; i++) {
+        await db.insert('user_roms', {
+          'app_system_id': 'switch',
+          'filename': p.basename(files[i].path),
+          'rom_path': files[i].path,
+        });
+      }
+      await pumpDeletion(tester, [
+        deletionGame('First', files[0].path),
+        deletionGame('Second', files[1].path),
+      ]);
+      await tester.tap(find.text('Second'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(DeleteGameDialog),
+          matching: find.byType(ElevatedButton),
+        ),
+      );
+      for (var i = 0; i < 100; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
         );
-        expect(
-          tester.widget<Icon>(find.byIcon(Icons.file_upload_outlined)).color,
-          Colors.white,
-        );
-        await tester.tap(find.byKey(const ValueKey('import')));
-        await tester.pumpAndSettle();
-        expect(find.text('Game'), findsOneWidget);
-        await tester.tap(find.text('Game'));
-        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 16));
+        if (find.byType(MelonxMultiDeleteDialog).evaluate().isEmpty) break;
+      }
+      await tester.pumpAndSettle();
+      expect(await db.query('user_roms'), isEmpty);
+      expect(find.byType(MelonxMultiDeleteDialog), findsNothing);
+      expect(await tester.runAsync(files[0].exists), false);
+      expect(await tester.runAsync(files[1].exists), false);
+      expect(await tester.runAsync(files[2].readAsString), 'save');
+      expect(await tester.runAsync(files[3].readAsString), 'keys');
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+  testWidgets(
+    'shared Import segment explicitly applies the theme foreground in both placements',
+    (tester) async {
+      for (final appTheme in [
+        abyssTheme,
+        aquaTheme,
+        coffeeTheme,
+        cyberpunkTheme,
+        darkTheme,
+        draculaTheme,
+        horizonTheme,
+        lightTheme,
+        nordTheme,
+        oledTheme,
+        palenightTheme,
+        retroTheme,
+        tokyoNightTheme,
+        valentineTheme,
+      ]) {
+        for (final embedded in [true, false]) {
+          final scheme = appTheme.colorScheme;
+          await tester.pumpWidget(
+            ScreenUtilInit(
+              designSize: const Size(800, 600),
+              builder: (ctx, child) => MaterialApp(
+                theme: appTheme,
+                home: Scaffold(
+                  body: PlaylistImportButton(
+                    menuKey: const ValueKey('import'),
+                    tooltip: 'Import',
+                    busy: false,
+                    embedded: embedded,
+                    items: (_) => [
+                      const PopupMenuItem(value: 'game', child: Text('Game')),
+                    ],
+                    onSelected: (_) {},
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final foreground = tester
+              .widget<Icon>(find.byIcon(Icons.file_upload_outlined))
+              .color!;
+          final background = embedded ? scheme.surface : scheme.tertiaryFixed;
+          final high = foreground.computeLuminance(),
+              low = background.computeLuminance();
+          expect(
+            ((high > low ? high : low) + .05) /
+                ((high < low ? high : low) + .05),
+            greaterThanOrEqualTo(3),
+            reason: 'Import icon contrast',
+          );
+          await tester.tap(find.byKey(const ValueKey('import')));
+          await tester.pumpAndSettle();
+          expect(find.text('Game'), findsOneWidget);
+          await tester.tap(find.text('Game'));
+          await tester.pumpAndSettle();
+        }
       }
     },
   );

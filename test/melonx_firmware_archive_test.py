@@ -1,11 +1,14 @@
 """Exercise production archive discovery and cancellation/rollback integration."""
 from pathlib import Path
-import os, subprocess, tempfile
+import ast, os, subprocess, tempfile
 root=Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='melonx-archive-') as d:
  p=Path(d)
  for name in ['EmbeddedFirmwareArchive.cs','EmbeddedFirmwareStore.cs']:
   (p/name).write_bytes((root/'native/melonx'/name).read_bytes())
+ adapter=ast.parse((root/'build-utils/melonx/adapt_firmware.py').read_text())
+ finish=next(call.args[3].value for call in ast.walk(adapter) if isinstance(call,ast.Call) and isinstance(call.func,ast.Name) and call.func.id=='section' and 'FinishInstallation' in call.args[1].value)
+ (p/'FinishProbe.cs').write_text('using System;using System.IO;namespace Ryujinx.HLE.FileSystem;class InstallationProbe {string root;public string Current;public InstallationProbe(string path){root=path;LoadEntries();}public void Install(string stage,string target){FinishInstallation(stage,target);}void LoadEntries(){Current=File.ReadAllText(Path.Combine(root,"version"));}string GetCurrentFirmwareVersion()=>Current=="new"?null:Current;'+finish+'}')
  (p/'Test.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>')
  (p/'Program.cs').write_text(r'''using System;
 using System.IO;
@@ -27,7 +30,7 @@ Case("cancellation reaches the extraction enumerator",()=> {using var z=Archive(
 Case("engine rejection or cancellation after swap restores recognized old firmware",()=> {
  var work=Path.Combine(Path.GetTempPath(),Guid.NewGuid().ToString("N"));Directory.CreateDirectory(work);
  try {var old=Path.Combine(work,"registered");var stage=Path.Combine(work,"stage");Directory.CreateDirectory(old);Directory.CreateDirectory(stage);File.WriteAllText(Path.Combine(old,"version"),"old");File.WriteAllText(Path.Combine(stage,"version"),"new");
- try {EmbeddedFirmwareStore.Commit(stage,old,()=> {if(File.ReadAllText(Path.Combine(old,"version"))=="new")throw new InvalidDataException("engine did not recognize installed firmware");});throw new Exception("accepted rejection");}catch(InvalidDataException){}Check(File.ReadAllText(Path.Combine(old,"version"))=="old");
+ var probe=new InstallationProbe(old);try {probe.Install(stage,old);throw new Exception("accepted rejection");}catch(InvalidDataException){}Check(File.ReadAllText(Path.Combine(old,"version"))=="old" && probe.Current=="old");
  }finally {Directory.Delete(work,true);}
 });
 Console.WriteLine($"{count} production firmware archive cases passed");''')

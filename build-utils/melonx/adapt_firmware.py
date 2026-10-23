@@ -12,12 +12,22 @@ def apply(source):
             '        private void InstallFromDirectory', '''        private void FinishInstallation(string temporaryDirectory, string registeredDirectory)
         {
             EmbeddedFirmwareProgress.Set(4);
-            EmbeddedFirmwareStore.Commit(temporaryDirectory, registeredDirectory, () => {
-                LoadEntries();
-                EmbeddedFirmwareProgress.Check();
-                if (GetCurrentFirmwareVersion() == null)
-                    throw new InvalidDataException("The installed firmware was not recognized by the engine.");
-            });
+            try
+            {
+                EmbeddedFirmwareStore.Commit(temporaryDirectory, registeredDirectory, () => {
+                    LoadEntries();
+                    EmbeddedFirmwareProgress.Check();
+                    if (GetCurrentFirmwareVersion() == null)
+                        throw new InvalidDataException("The installed firmware was not recognized by the engine.");
+                });
+            }
+            catch
+            {
+                // The store has restored the previous files. Rebuild the live
+                // index too; a rejected new archive must not leave stale NCAs.
+                try { LoadEntries(); } catch { /* preserve the original failure */ }
+                throw;
+            }
         }''')
     section(path, '        private static MemoryStream GetZipStream(ZipArchiveEntry entry)',
             '        public SystemVersion VerifyFirmwarePackage', '''        private static Stream GetZipStream(ZipArchiveEntry entry)

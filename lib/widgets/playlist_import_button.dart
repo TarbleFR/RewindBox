@@ -24,7 +24,16 @@ class PlaylistImportButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final foreground = embedded ? scheme.onSurface : scheme.onTertiaryFixed;
+    final background = embedded ? scheme.surface : scheme.tertiaryFixed;
+    var foreground = embedded ? scheme.onSurface : scheme.onTertiaryFixed;
+    final light = foreground.computeLuminance();
+    final dark = background.computeLuminance();
+    final contrast =
+        ((light > dark ? light : dark) + .05) /
+        ((light < dark ? light : dark) + .05);
+    if (contrast < 3) {
+      foreground = dark <= .179 ? Colors.white : Colors.black;
+    }
     final button = SizedBox(
       width: 36.r,
       height: 36.r,
