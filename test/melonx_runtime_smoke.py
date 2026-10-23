@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Load the actual NativeAOT runtime and private frameworks in an ARM64 iOS app.
 
-No JIT, firmware, keys, game execution, rendering or audio proof is inferred.
+Exercises an original non-graphical homebrew in Simulator only.
+No physical-device signing, helper, personal content or gameplay proof is inferred.
 """
 import hashlib
 import json
@@ -44,10 +45,12 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
      let log=documents.appendingPathComponent("native-runtime.log")
      log.path.withCString { _ = freopen($0,"w",stderr) }
      var report:[String:Any]=["actualNativeAOT":true,"gameplayTested":false,"jitTested":false]
+     var observedRuntime:MeloNXRuntimeAPI?
      do {
        let frameworks=Bundle.main.privateFrameworksURL!
        let root=documents.appendingPathComponent("MeloNX")
        let runtime=try MeloNXRuntimeAPI(library:frameworks.appendingPathComponent("MeloNXCore.framework/MeloNXCore"),frameworks:frameworks,root:root)
+       observedRuntime=runtime
        let content=try runtime.content(operation:3)
        guard content["success"] as? Bool == true, content["root"] as? String == root.path else {throw NSError(domain:"actual-bootstrap",code:1)}
        let storage=try runtime.content(operation:6)
@@ -122,7 +125,7 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        report["originalHomebrewGuestSvcConfirmed"]=true;report["homebrewSimulatorSessions"]=sessions
        report["homebrewProducesVideo"]=false;report["iphoneGuestExecutionTested"]=false
        report["result"]="passed";report["initializationAndIdempotency"]=true;report["invalidContentRejected"]=true;report["graphicsAccepted"]=true;report["invalidGuestRejected"]=true
-     } catch {report["result"]="failed";report["diagnostic"]=String(describing:error)}
+     } catch {report["result"]="failed";report["diagnostic"]=String(describing:error);report["nativeDiagnostics"]=observedRuntime?.diagnostics();report["nativeSessionState"]=observedRuntime?.session.state}
      try? JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys]).write(to:documents.appendingPathComponent("smoke.json"),options:.atomic)
    };return true
  }
@@ -137,13 +140,18 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
  device=run('xcrun','simctl','create','MeloNX smoke '+uuid.uuid4().hex[:8],'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro',runtime)
  try:
   run('xcrun','simctl','boot',device);run('xcrun','simctl','bootstatus',device,'-b');run('xcrun','simctl','install',device,app)
-  run('xcrun','simctl','launch',device,bundle)
+  launched=run('xcrun','simctl','launch',device,bundle)
+  pid=launched.rsplit(':',1)[-1].strip();assert pid.isdigit(),launched
   container=Path(run('xcrun','simctl','get_app_container',device,bundle,'data'));result=container/'Documents/smoke.json'
   deadline=time.monotonic()+120
   while not result.exists() and time.monotonic()<deadline:time.sleep(1)
   native_log=container/'Documents/native-runtime.log'
   if native_log.exists():
    text=native_log.read_text(errors='replace');(OUT/'native-runtime.log').write_text(text[-1000000:]);print(text[-20000:],flush=True)
+  if not result.exists() or json.loads(result.read_text()).get('result') != 'passed':
+   sampled=subprocess.run(['sample',pid,'1','1','-file',str(OUT/'native-stacks.txt')],capture_output=True,text=True,timeout=20)
+   print('Native process stack sampling:',sampled.returncode,flush=True)
+   if (OUT/'native-stacks.txt').exists():print((OUT/'native-stacks.txt').read_text(errors='replace')[:70000],flush=True)
   if not result.exists():
    (OUT/'simulator.log').write_text(run('xcrun','simctl','spawn',device,'log','show','--last','3m','--predicate','process == "MeloNXSmoke"'))
    raise RuntimeError('Actual NativeAOT bootstrap did not report completion')

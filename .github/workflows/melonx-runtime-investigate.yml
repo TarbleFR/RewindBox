@@ -1,0 +1,34 @@
+name: MeloNX actual runtime investigation
+'on':
+  push:
+    branches: [Claude]
+    paths: ['.github/workflows/melonx-runtime-investigate.yml', 'test/melonx_runtime_smoke.py']
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  runtime:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/download-artifact@v4
+        with:
+          name: MeloNX-engine-38545b97fe0f034e644ce374dd3efbfa8554e65b
+          run-id: 39972715534
+          github-token: ${{ github.token }}
+          path: dist/melonx
+      - uses: actions/download-artifact@v4
+        with:
+          name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
+          run-id: 39854858591
+          github-token: ${{ github.token }}
+          path: dist/melonx-native
+      - name: Inspect the actual blocked guest and native threads
+        run: python3 test/melonx_runtime_smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MeloNX-runtime-investigation-${{ github.sha }}
+          path: dist/melonx-smoke/
+          retention-days: 14
