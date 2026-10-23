@@ -1,207 +1,320 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-
-import 'dart:math' as math;
-
+import 'package:neostation/utils/nav_tabs.dart';
+import '../services/frontend_media_gate.dart';
 import 'neo_glass_bubble.dart';
 import 'mau_ali_tab_motion.dart';
 import 'liquid_motion_clock.dart';
 
-import 'package:neostation/utils/nav_tabs.dart';
-
-import '../services/frontend_media_gate.dart';
-
-/// The displayed cells and every input source use the same tab identities.
+/// Original Mau Ali selection tracks, retargeted to the real visible tabs.
 class MainMenuTabStrip extends StatefulWidget {
-  final List<NavTab> tabs;
-  final NavTab selected;
-  final Widget Function(NavTab) tabBuilder;
-
   const MainMenuTabStrip({
     super.key,
     required this.tabs,
     required this.selected,
     required this.tabBuilder,
+    this.iconBuilder,
+    this.cellExtent,
   });
-
+  final List<NavTab> tabs;
+  final NavTab selected;
+  final Widget Function(NavTab) tabBuilder;
+  final Widget Function(NavTab)? iconBuilder;
+  final double? cellExtent;
   @override
   State<MainMenuTabStrip> createState() => _MainMenuTabStripState();
 }
 
-class _MainMenuTabStripState extends State<MainMenuTabStrip> {
-  int? _pressedSlot;
-
-  @override
-  Widget build(BuildContext context) {
-    final ordered = inNavTabDisplayOrder(widget.tabs);
-    final cells = ordered;
-    final selectedSlot = cells.indexOf(widget.selected);
-    return Stack(
-      key: const ValueKey('main-menu-tab-strip'),
-      children: [
-        if (selectedSlot >= 0)
-          _LiquidTabLens(
-            slot: selectedSlot,
-            cell: 32.r,
-            inset: 1.r,
-            reduced: NeoBubbleStyle.reduceMotion(context),
-            pressed: _pressedSlot == selectedSlot,
-          ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final (slot, tab) in cells.indexed)
-              SizedBox(
-                key: ValueKey('main-menu-cell-${tab.name}'),
-                width: 32.r,
-                height: 32.r,
-                child: Listener(
-                  onPointerDown: (_) => setState(() => _pressedSlot = slot),
-                  onPointerUp: (_) => setState(() => _pressedSlot = null),
-                  onPointerCancel: (_) => setState(() => _pressedSlot = null),
-                  child: widget.tabBuilder(tab),
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// Retargets from the lens's current position, including during a fast reversal.
-/// The meniscus stretches only in flight; icon layout and hit targets stay fixed.
-class _LiquidTabLens extends StatefulWidget {
-  const _LiquidTabLens({
-    required this.slot,
-    required this.cell,
-    required this.inset,
-    required this.reduced,
-    required this.pressed,
-  });
-  final int slot;
-  final double cell;
-  final double inset;
-  final bool reduced;
-  final bool pressed;
-  @override
-  State<_LiquidTabLens> createState() => _LiquidTabLensState();
-}
-
-class _LiquidTabLensState extends State<_LiquidTabLens>
+class _MainMenuTabStripState extends State<MainMenuTabStrip>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _motion = AnimationController(
     vsync: this,
     duration: MauAliTabMotion.duration,
     value: 1,
   );
-  late double _from = widget.slot * widget.cell;
-  late double _to = _from;
-  double _fromStretch = 0;
-  double _travel = 0;
-  (double, double) _fromShape = (1, 1);
+  late double _from = _slot.toDouble(), _to = _from;
+  String _segment = 'PnW';
+  (double, double, double) _carry = (0, 0, 0);
   bool _foreground = true;
+  int get _slot => inNavTabDisplayOrder(
+    widget.tabs,
+  ).indexOf(widget.selected).clamp(0, widget.tabs.length - 1);
   bool get _reduced =>
-      widget.reduced ||
-      LiquidMotionClock.instance.lowPower ||
       NeoBubbleStyle.reduceMotion(context) ||
+      LiquidMotionClock.instance.lowPower ||
       !_foreground ||
       !TickerMode.valuesOf(context).enabled ||
       FrontendMediaGate.instance.blocked;
+  MauAliSelectionFrame get _frame =>
+      MauAliTabMotion.sample(_segment, _motion.value);
+  double get _position => _from + (_to - _from) * _frame.position;
+  (double, double, double) get _shape {
+    final f = _frame, rest = 1 - _motion.value;
+    return (
+      f.scaleX + _carry.$1 * rest,
+      f.scaleY + _carry.$2 * rest,
+      f.containerScale + _carry.$3 * rest,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     FrontendMediaGate.instance.addListener(_suspend);
+    LiquidMotionClock.instance.addListener(_suspend);
   }
 
   void _suspend() {
-    if (mounted && _reduced) {
-      setState(() {
-        _from = _to = widget.slot * widget.cell;
-        _fromStretch = _travel = 0;
-        _fromShape = (1, 1);
-        _motion.value = 1;
-      });
-    }
+    if (mounted && _reduced) setState(_settle);
+  }
+
+  void _settle() {
+    _from = _to = _slot.toDouble();
+    _carry = (0, 0, 0);
+    _motion.value = 1;
   }
 
   @override
   void didChangeAccessibilityFeatures() => _suspend();
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
     _suspend();
   }
 
-  double get _position =>
-      _from + (_to - _from) * MauAliTabMotion.position.transform(_motion.value);
-  (double, double) get _shape {
-    final scale = MauAliTabMotion.scale(_motion.value);
-    return (
-      scale.$1 + (_fromShape.$1 - 1) * (1 - _motion.value),
-      scale.$2 + (_fromShape.$2 - 1) * (1 - _motion.value),
-    );
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_reduced) _settle();
   }
 
-  double get _stretch =>
-      _fromStretch * (1 - _motion.value) +
-      0.19 * _travel * math.sin(math.pi * _motion.value);
-
   @override
-  void didUpdateWidget(_LiquidTabLens old) {
+  void didUpdateWidget(MainMenuTabStrip old) {
     super.didUpdateWidget(old);
-    final target = widget.slot * widget.cell;
-    if (_reduced) {
-      _from = _to = target;
-      _fromStretch = _travel = 0;
-      _fromShape = (1, 1);
-      _motion.value = 1;
-    } else if (target != _to) {
-      final position = _position;
-      _fromShape = _shape;
-      _fromStretch = _stretch;
-      _from = position;
-      _to = target;
-      _travel = ((_to - _from).abs() / widget.cell).clamp(0, 1);
+    if (_reduced ||
+        old.tabs.length != widget.tabs.length ||
+        old.cellExtent != widget.cellExtent) {
+      _settle();
+    } else if (_slot != _to) {
+      final current = _position, shape = _shape;
+      _segment = MauAliTabMotion.segmentFor(current, _slot, widget.tabs.length);
+      _from = current;
+      _to = _slot.toDouble();
+      _carry = (shape.$1 - 1, shape.$2 - 1, shape.$3 - 1);
+      _motion.duration = MauAliTabMotion.durationFor(_segment);
       _motion.forward(from: 0);
     }
   }
 
   @override
   void dispose() {
-    FrontendMediaGate.instance.removeListener(_suspend);
     WidgetsBinding.instance.removeObserver(this);
+    FrontendMediaGate.instance.removeListener(_suspend);
+    LiquidMotionClock.instance.removeListener(_suspend);
     _motion.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _motion,
-    child: IgnorePointer(
-      child: NeoBubbleMotion(
-        selected: true,
-        pressed: widget.pressed,
-        child: const NeoGlassBubble(blur: true, child: SizedBox.expand()),
+  Widget build(BuildContext context) {
+    final tabs = inNavTabDisplayOrder(widget.tabs);
+    final cell = widget.cellExtent ?? 32.r;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final buttons = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final tab in tabs)
+          SizedBox(
+            key: ValueKey('main-menu-cell-${tab.name}'),
+            width: cell,
+            height: cell,
+            child: widget.tabBuilder(tab),
+          ),
+      ],
+    );
+    Widget icons() => ExcludeSemantics(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final tab in tabs)
+            SizedBox(
+              width: cell,
+              height: cell,
+              child: Center(
+                child: SizedBox.square(
+                  dimension: 17.r,
+                  child: widget.iconBuilder!(tab),
+                ),
+              ),
+            ),
+        ],
       ),
-    ),
-    builder: (context, child) => Positioned(
-      key: const ValueKey('main-menu-tab-indicator'),
-      left: _position,
-      top: widget.inset,
-      bottom: widget.inset,
-      width: widget.cell,
-      child: Transform.scale(
-        key: const ValueKey('main-menu-liquid-stretch'),
-        scaleX: _shape.$1 * (1 + _stretch * .45),
-        scaleY: _shape.$2 * (1 - _stretch * .20),
-        child: child,
+    );
+    // Padding reserves the maximum author capsule pulse and lens deformation.
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 7.r, vertical: 5.r),
+      child: AnimatedBuilder(
+        animation: _motion,
+        child: buttons,
+        builder: (context, buttons) {
+          final frame = _frame, shape = _shape;
+          final rect = Rect.fromCenter(
+            center: Offset((_position + .5) * cell, cell / 2),
+            width: cell * shape.$1,
+            height: cell / 1.61 * shape.$2,
+          );
+          final lensPath = frame.contour(rect.size).shift(rect.topLeft);
+          return Transform.scale(
+            key: const ValueKey('main-menu-capsule-pulse'),
+            scale: shape.$3,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                color: dark ? const Color(0xDE102C3E) : const Color(0xE5E5F0F5),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: .23),
+                  width: .8,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: .17),
+                    blurRadius: 8.r,
+                    offset: Offset(0, 3.r),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                width: tabs.length * cell,
+                height: cell,
+                child: Stack(
+                  key: const ValueKey('main-menu-tab-strip'),
+                  clipBehavior: Clip.none,
+                  children: [
+                    if (widget.iconBuilder != null)
+                      ClipPath(
+                        clipper: _SelectionClip(lensPath, outside: true),
+                        child: icons(),
+                      ),
+                    Positioned(
+                      left: _position * cell,
+                      top: 0,
+                      width: cell,
+                      height: cell,
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                          key: const ValueKey('main-menu-tab-indicator'),
+                          painter: MauAliSelectionPainter(
+                            frame: frame,
+                            scaleX: shape.$1,
+                            scaleY: shape.$2,
+                            dark: dark,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (widget.iconBuilder != null)
+                      IgnorePointer(
+                        child: ClipPath(
+                          clipper: _SelectionClip(lensPath),
+                          child: Transform.scale(
+                            scale: 1.12,
+                            alignment: Alignment(
+                              (_position + .5) / tabs.length * 2 - 1,
+                              0,
+                            ),
+                            child: icons(),
+                          ),
+                        ),
+                      ),
+                    // Real hit regions and semantics remain stable while the visual
+                    // capsule and refracted icons animate above their own track.
+                    if (widget.iconBuilder != null)
+                      Opacity(
+                        opacity: 0,
+                        alwaysIncludeSemantics: true,
+                        child: buttons!,
+                      )
+                    else
+                      buttons!,
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
-    ),
-  );
+    );
+  }
+}
+
+class _SelectionClip extends CustomClipper<Path> {
+  const _SelectionClip(this.path, {this.outside = false});
+  final Path path;
+  final bool outside;
+  @override
+  Path getClip(Size size) => outside
+      ? Path.combine(
+          PathOperation.difference,
+          Path()..addRect(Offset.zero & size),
+          path,
+        )
+      : path;
+  @override
+  bool shouldReclip(_SelectionClip old) => true;
+}
+
+class MauAliSelectionPainter extends CustomPainter {
+  const MauAliSelectionPainter({
+    required this.frame,
+    required this.scaleX,
+    required this.scaleY,
+    required this.dark,
+  });
+  final MauAliSelectionFrame frame;
+  final double scaleX, scaleY;
+  final bool dark;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromCenter(
+      center: size.center(Offset.zero),
+      width: size.width * scaleX,
+      height: size.height / 1.61 * scaleY,
+    );
+    final path = frame.contour(rect.size).shift(rect.topLeft);
+    canvas.drawShadow(path, Colors.black.withValues(alpha: .25), 3, false);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = (dark ? const Color(0xFFACC8DA) : Colors.white).withValues(
+          alpha: (.21 * frame.fillOpacity).clamp(0, 1),
+        ),
+    );
+    Offset rim(Offset p) => Offset(
+      rect.center.dx + p.dx / 161 * rect.width,
+      rect.center.dy + p.dy / 100 * rect.height,
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.25
+        ..shader = ui.Gradient.linear(
+          rim(frame.rimStart),
+          rim(frame.rimEnd),
+          [
+            Colors.white.withValues(alpha: .9 * frame.rimOpacity),
+            Colors.white.withValues(alpha: .08 * frame.rimOpacity),
+            const Color(0xFFC3EEFF).withValues(alpha: .65 * frame.rimOpacity),
+          ],
+          [0, .5, 1],
+        ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(MauAliSelectionPainter old) => true;
 }
 
 /// Icon of a navigation tab, drawn in a 16.r box like every other tab: its

@@ -10,7 +10,6 @@ import 'dart:io';
 import 'package:neostation/l10n/neoplay_companion_locale.dart';
 import 'package:neostation/l10n/rpcs3_ui_locale.dart';
 import 'package:neostation/providers/theme_provider.dart';
-import 'package:neostation/responsive.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/themes/app_themes.dart';
 import 'package:neostation/services/controller_battery_service.dart';
@@ -19,6 +18,7 @@ import 'package:neostation/services/permission_service.dart';
 import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/widgets/header_battery.dart';
+import 'header_layout.dart';
 import 'package:neostation/widgets/liquid_battery.dart';
 import 'package:neostation/widgets/liquid_motion_clock.dart';
 import 'package:neostation/l10n/liquid_motion_locale.dart';
@@ -39,11 +39,13 @@ import '../themes/corner_radii.dart';
 class Header extends StatefulWidget {
   final int selectedTabIndex;
   final Function(int) onTabSelected;
+  final ValueChanged<double>? onExtentChanged;
 
   const Header({
     super.key,
     required this.selectedTabIndex,
     required this.onTabSelected,
+    this.onExtentChanged,
   });
 
   @override
@@ -353,159 +355,119 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final customColors = AppThemes.getCustomColors(context);
-    // Soft horizontal gradient derived from headerColors.background (left->right)
-
+    final safe = MediaQuery.viewPaddingOf(context);
+    final padding = EdgeInsets.fromLTRB(
+      safe.left + 6.r,
+      safe.top + 3.r,
+      safe.right + 6.r,
+      3.r,
+    );
     return Consumer2<ThemeProvider, SqliteConfigProvider>(
-      builder: (context, themeProvider, configProvider, child) {
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.transparent,
-            border: Border.all(color: Colors.transparent, width: 0.r),
+      builder: (context, themeProvider, configProvider, child) => Padding(
+        padding: padding,
+        child: ResponsiveHeaderLayout(
+          gap: 7.r,
+          onExtentChanged: (height) =>
+              widget.onExtentChanged?.call(height + padding.vertical),
+          leading: KeyedSubtree(
+            key: const ValueKey('header-controls'),
+            child: widget.selectedTabIndex == AppTabs.systems
+                ? FittedBox(fit: BoxFit.scaleDown, child: HeaderSortDropdown())
+                : const SizedBox.shrink(),
           ),
-          height: 46.r,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              if (widget.selectedTabIndex == AppTabs.systems)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [HeaderSortDropdown()],
+          navigation: FittedBox(
+            key: const ValueKey('tabs-container'),
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildShoulderButton('LB', true),
+                MainMenuTabStrip(
+                  tabs: visibleNavTabs(configProvider.config),
+                  selected: NavTab.values[widget.selectedTabIndex],
+                  cellExtent: 36.r,
+                  tabBuilder: (tab) => _buildTabButton(context, tab),
+                  iconBuilder: (tab) => NavTabIcon(
+                    spec: navTabSpec(tab),
+                    tint: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
-
-              // Grouped Tab Navigation with Background (Glass Style)
-              Align(
-                key: const ValueKey('tabs-container'),
-                alignment: Alignment.center,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Bumper glyphs sit outside the pill so the pill reads as a
-                    // single switch and the hardware hints stay distinct from it.
-                    _buildShoulderButton('LB', true),
-                    SizedBox(
-                      height: 32.r,
-                      child: NeoGlass(
-                        role: GlassSurfaceRole.chrome,
-                        borderRadius:
-                            Theme.of(
-                              context,
-                            ).extension<CornerRadii>()?.radiusExternal ??
-                            BorderRadius.circular(8.r),
-                        padding: EdgeInsets.symmetric(horizontal: 4.r),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.shadow.withValues(alpha: 0.1),
-                            blurRadius: 4.r,
-                            offset: Offset(2.0.r, 2.0.r),
+                _buildShoulderButton('RB', false),
+              ],
+            ),
+          ),
+          status: FittedBox(
+            key: const ValueKey('header-status'),
+            fit: BoxFit.scaleDown,
+            child: NeoGlass(
+              role: GlassSurfaceRole.chrome,
+              borderRadius:
+                  Theme.of(context).extension<CornerRadii>()?.radiusExternal ??
+                  BorderRadius.circular(14),
+              padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 4.r),
+              boxShadow: [
+                BoxShadow(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.shadow.withValues(alpha: 0.1),
+                  blurRadius: 4.r,
+                  offset: Offset(2.0.r, 2.0.r),
+                ),
+              ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const NotificationBell(),
+                  SizedBox(width: 10.r),
+                  Icon(
+                    Symbols.schedule,
+                    color: Theme.of(context).colorScheme.onSurface,
+                    size: 14.r,
+                  ),
+                  SizedBox(width: 4.r),
+                  Text(
+                    formatClockTime(
+                      _now,
+                      use12Hour: configProvider.config.use12HourClock,
+                    ),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 12.r,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3.r,
+                    ),
+                  ),
+                  if (!_isTelevision)
+                    ValueListenableBuilder<List<NeoPlayControllerBattery>>(
+                      valueListenable:
+                          ControllerBatteryService.instance.controllers,
+                      builder: (context, controllers, _) =>
+                          _buildBattery(context, customColors, controllers),
+                    ),
+                  if (Platform.isIOS && _jitActive) ...[
+                    SizedBox(width: 8.r),
+                    Tooltip(
+                      message: 'JIT ${Rpcs3UiLocale.text(context, 'enabled')}',
+                      child: Semantics(
+                        label: 'JIT ${Rpcs3UiLocale.text(context, 'enabled')}',
+                        child: Container(
+                          key: const ValueKey('header-jit-active-dot'),
+                          width: 8.r,
+                          height: 8.r,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF22C55E),
+                            shape: BoxShape.circle,
                           ),
-                        ],
-                        child: MainMenuTabStrip(
-                          tabs: visibleNavTabs(configProvider.config),
-                          selected: NavTab.values[widget.selectedTabIndex],
-
-                          tabBuilder: (tab) => _buildTabButton(context, tab),
                         ),
                       ),
                     ),
-                    _buildShoulderButton('RB', false),
                   ],
-                ),
+                ],
               ),
-
-              // Steam-style system info
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: EdgeInsets.only(right: 8.r),
-                  child: NeoGlass(
-                    role: GlassSurfaceRole.chrome,
-                    borderRadius:
-                        Theme.of(
-                          context,
-                        ).extension<CornerRadii>()?.radiusExternal ??
-                        BorderRadius.circular(14),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 10.r,
-                      vertical: 4.r,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.shadow.withValues(alpha: 0.1),
-                        blurRadius: 4.r,
-                        offset: Offset(2.0.r, 2.0.r),
-                      ),
-                    ],
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const NotificationBell(),
-                        SizedBox(width: 10.r),
-                        Icon(
-                          Symbols.schedule,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          size: 14.r,
-                        ),
-                        SizedBox(width: 4.r),
-                        Text(
-                          formatClockTime(
-                            _now,
-                            use12Hour: configProvider.config.use12HourClock,
-                          ),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 12.r,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0.3.r,
-                          ),
-                        ),
-                        if (!_isTelevision && !Responsive.isHandheldXS(context))
-                          ValueListenableBuilder<
-                            List<NeoPlayControllerBattery>
-                          >(
-                            valueListenable:
-                                ControllerBatteryService.instance.controllers,
-                            builder: (context, controllers, _) => _buildBattery(
-                              context,
-                              customColors,
-                              controllers,
-                            ),
-                          ),
-                        if (Platform.isIOS && _jitActive) ...[
-                          SizedBox(width: 8.r),
-                          Tooltip(
-                            message:
-                                'JIT ${Rpcs3UiLocale.text(context, 'enabled')}',
-                            child: Semantics(
-                              label:
-                                  'JIT ${Rpcs3UiLocale.text(context, 'enabled')}',
-                              child: Container(
-                                key: const ValueKey('header-jit-active-dot'),
-                                width: 8.r,
-                                height: 8.r,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF22C55E),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 

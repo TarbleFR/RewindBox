@@ -508,7 +508,8 @@ Azahar 2127.0-alpha1 is pinned separately to its official release.
 
 ## Mau Ali — interactive tab motion
 
-The navigation adapts the easing and deformation keyframes from **Interactive
+The navigation adapts all original selection segments, full deformation, Bezier
+contour, capsule pulse and moving rim from **Interactive
 iOS 26 Inspired Tab Menu** by **Mau Ali**:
 https://lottiefiles.com/free-animation/free-interactive-ios-26-inspired-tab-menu-uTAhrmTC08
 

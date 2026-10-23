@@ -45,7 +45,7 @@ void main() {
       File('assets/data/mau-ali-tab-motion.json').readAsStringSync(),
     );
     expect(profile['creator'], 'Mau Ali');
-    expect(profile['frames'], 33);
+    expect(profile['segments'], hasLength(21));
     expect(
       MauAliTabMotion.position.transform(.5),
       closeTo(const Cubic(.358, .965, .56, 1).transform(.5), .00001),
@@ -54,8 +54,8 @@ void main() {
     expect(MauAliTabMotion.scale(1), (1, 1));
     for (var i = 0; i <= 100; i++) {
       final scale = MauAliTabMotion.scale(i / 100);
-      expect(scale.$1, inInclusiveRange(.94, 1.16));
-      expect(scale.$2, inInclusiveRange(.94, 1.16));
+      expect(scale.$1, inInclusiveRange(.90, 1.30));
+      expect(scale.$2, inInclusiveRange(.90, 1.30));
     }
     expect(LiquidMotionLocale.battery.keys.toSet(), {
       'en',
@@ -226,13 +226,17 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(key.currentState!.currentIndex, 2);
-        final matrix = tester
-            .widget<Transform>(
-              find.byKey(const ValueKey('console-perspective-1')),
-            )
-            .transform;
+        final flow = tester.widget<Flow>(find.byType(Flow));
+        final matrix = (flow.delegate as ConsoleCoverFlowDelegate).transformFor(
+          1,
+          tester.getSize(find.byType(Flow)),
+        );
         expect(matrix.entry(3, 2), isNot(0));
-        await tester.fling(find.byType(PageView), const Offset(-100, 0), 800);
+        await tester.fling(
+          find.byType(Scrollable).first,
+          const Offset(-100, 0),
+          800,
+        );
         await tester.pumpAndSettle();
         final selected = key.currentState!.currentIndex;
         expect(selected, greaterThanOrEqualTo(2));
@@ -337,7 +341,12 @@ void main() {
       key.currentState!.nextPage();
       await tester.pumpAndSettle();
       expect(key.currentState!.currentIndex, 1);
-      expect(find.byKey(const ValueKey('console-perspective-1')), findsNothing);
+      expect(
+        (tester.widget<Flow>(find.byType(Flow)).delegate
+                as ConsoleCoverFlowDelegate)
+            .reduced,
+        isTrue,
+      );
       expect(tester.hasRunningAnimations, isFalse);
       await tester.pumpWidget(const SizedBox());
     },

@@ -12,12 +12,14 @@ License FL 9.13.21, reproduced in Lottie-Simple-License.txt, rather than the
 application's default GPL license. Upstream attribution and these terms apply
 to the original and adapted motion data, including in the public repository.
 
-RewindBox adapts the Select_mover easing and Selected 2 scale keyframes of the
-PnW segment to its real, variable, visible navigation tabs. Duration is reduced
-to 330ms; scale deviation is attenuated to 55%. The reference's five icons,
-labels and opaque backdrop are not drawn. Existing Flutter animation and glass
-rendering perform this adaptation; no dotLottie runtime is added or claimed
-to have been compatibility-tested. The archive is retained for source access.
+RewindBox retargets all original selection segments to its real, variable,
+visible navigation tabs. The original frame timing (60 fps), unattenuated scale,
+Bezier contour, container pulse, transparency and moving rim are preserved.
+The generated mau_ali_tab_motion_data.dart is also derived licensed motion data.
+The reference's fixed five icons and labels are replaced by application icons.
+Existing Flutter animation and painting render the adapted selection; no
+additional dotLottie runtime is included. The original archive is retained for
+source access and exact provenance.
 
 The native download/battery/carousel artwork and renderers are original
 RewindBox work under GPL-3.0-or-later. This application is not an animation

@@ -356,7 +356,8 @@ the reader. NeoStation does not bundle an Apple translation-model package.
 
 ## Mau Ali — interactive tab motion
 
-The navigation adapts the easing and deformation keyframes from **Interactive
+The navigation adapts all original selection segments, full deformation, Bezier
+contour, capsule pulse and moving rim from **Interactive
 iOS 26 Inspired Tab Menu** by **Mau Ali**:
 https://lottiefiles.com/free-animation/free-interactive-ios-26-inspired-tab-menu-uTAhrmTC08
 

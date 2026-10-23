@@ -810,7 +810,7 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
                           perspective: true,
                           itemCount: allSystems.length,
                           initialIndex: _currentIndex,
-                          footerHeight: 60.r,
+
                           // System cards are height-bound (square art + footer)
                           // so ~3.6 of them fit across the screen. With the
                           // default envelope the 4th card is already down to
@@ -835,6 +835,7 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
                               info: system,
                               isSelected: isSelected,
                               backgroundCacheWidth: 1024,
+                              carouselArtworkOnly: true,
                               onTap: () {
                                 // Tapping an off-centre card brings it to the
                                 // middle; tapping the centred one enters it, so
@@ -1018,7 +1019,10 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
             );
           }
 
-          return content;
+          return Padding(
+            padding: EdgeInsets.only(top: 51.r),
+            child: content,
+          );
         },
       ),
     );

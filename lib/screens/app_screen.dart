@@ -1,3 +1,5 @@
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../widgets/header_layout.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -835,29 +837,26 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
                 // switching does not steal those interactions. LB/RB continues
                 // to call the same cycle methods below.
                 Positioned.fill(
-                  child: HorizontalSwipe(
-                    key: ValueKey('main-tab-swipe-$_selectedTabIndex'),
-                    onSwipeLeft: _navigateToNextTab,
-                    onSwipeRight: _navigateToPreviousTab,
-                    distanceThreshold: 64,
-                    velocityThreshold: 450,
-                    dragFeedback: true,
-                    child: _buildCurrentTabContent(),
+                  child: MainMenuChromeLayout(
+                    baseClearance: 46.r,
+                    body: HorizontalSwipe(
+                      key: ValueKey('main-tab-swipe-$_selectedTabIndex'),
+                      onSwipeLeft: _navigateToNextTab,
+                      onSwipeRight: _navigateToPreviousTab,
+                      distanceThreshold: 64,
+                      velocityThreshold: 450,
+                      dragFeedback: true,
+                      child: _buildCurrentTabContent(),
+                    ),
+                    header:
+                        (configProvider.initialized ||
+                            !configProvider.isLoading)
+                        ? FixedHeader(
+                            selectedTabIndex: _selectedTabIndex,
+                            onTabSelected: _onTabSelected,
+                          )
+                        : const SizedBox.shrink(),
                   ),
-                ),
-
-                // Global Header: Managed based on app initialization state.
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child:
-                      (configProvider.initialized || !configProvider.isLoading)
-                      ? FixedHeader(
-                          selectedTabIndex: _selectedTabIndex,
-                          onTabSelected: _onTabSelected,
-                        )
-                      : const SizedBox.shrink(),
                 ),
 
                 // Global Footer Placeholder.

@@ -31,6 +31,7 @@ class SystemCard extends StatefulWidget {
     this.onTap,
     this.isSelected = false,
     this.backgroundCacheWidth = 512,
+    this.carouselArtworkOnly = false,
   });
 
   /// The system or game metadata resolved for this card.
@@ -45,6 +46,9 @@ class SystemCard extends StatefulWidget {
   /// Decode width for the card's background image. Defaults to 512 (grid
   /// cards); the carousel passes 1024 since its cards are much larger.
   final int backgroundCacheWidth;
+
+  /// Carousel artwork is already branded; never append the grid logo/footer.
+  final bool carouselArtworkOnly;
 
   @override
   State<SystemCard> createState() => _SystemCardState();
@@ -210,6 +214,8 @@ class _SystemCardState extends State<SystemCard> {
           : neoAssets.getBackgroundForSystemSync(folderName);
     }
 
+    if (widget.carouselArtworkOnly) return _buildCarouselArtwork(context);
+
     final card = Padding(
       padding: EdgeInsets.all(2.r),
       child: MouseRegion(
@@ -286,6 +292,85 @@ class _SystemCardState extends State<SystemCard> {
         selected: widget.isSelected,
         float: true,
         child: card,
+      ),
+    );
+  }
+
+  Widget _buildCarouselArtwork(BuildContext context) {
+    final hasArtwork =
+        widget.info.customBackgroundPath?.isNotEmpty == true ||
+        _themeBackgroundPath?.isNotEmpty == true;
+    return Semantics(
+      key: ValueKey('console-artwork-${widget.info.folderName}'),
+      button: true,
+      selected: widget.isSelected,
+      label: widget.info.title,
+      child: ConsoleBubbleAnchor(
+        identity: widget.info.folderName ?? widget.info.title ?? 'all',
+        selected: widget.isSelected,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24.r),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: widget.isSelected ? .42 : .22,
+                ),
+                blurRadius: 18.r,
+                offset: Offset(0, 8.r),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24.r),
+            child: Material(
+              color: Theme.of(context).colorScheme.surface,
+              child: InkWell(
+                canRequestFocus: false,
+                onTap: () {
+                  if (widget.isSelected) {
+                    SfxService().playEnterSound();
+                  } else {
+                    SfxService().playNavSound();
+                  }
+                  widget.onTap?.call();
+                },
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildSystemBackground(),
+                    if (widget.info.isGame)
+                      _buildGameMainContent(context)
+                    else if (!hasArtwork)
+                      Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(18.r),
+                          child: _buildSystemLogo(
+                            widget.info.svgSrc ??
+                                'assets/images/logos/unknown.webp',
+                            height: 56.r,
+                          ),
+                        ),
+                      ),
+                    IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24.r),
+                          border: Border.all(
+                            color: Colors.white.withValues(
+                              alpha: widget.isSelected ? .7 : .18,
+                            ),
+                            width: widget.isSelected ? 1.5 : .7,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

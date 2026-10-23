@@ -1,0 +1,70 @@
+name: RewindBox complete menu and Cover Flow correction
+run-name: RewindBox UI correction 511 • ${{ github.sha }}
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/ui-correction511-checks.yml
+      - test/menu_carousel_correction_test.dart
+      - test/ui_correction_visual_test.dart
+      - test/ui_correction_scope_test.py
+      - lib/widgets/header_layout.dart
+      - lib/widgets/mau_ali_tab_motion_data.dart
+      - lib/widgets/main_menu_tab_strip.dart
+      - lib/widgets/native_carousel.dart
+      - lib/widgets/header.dart
+      - lib/screens/systems_screen/my_systems_section/system_card.dart
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rewindbox-ui-correction-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  flutter:
+    if: ${{ !contains(github.event.head_commit.message, '[ui511-validated]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Require exact UI-only scope and the complete original motion source
+        run: |
+          python3 test/ui_correction_scope_test.py
+          python3 build-utils/extract_mau_ali_motion.py --check
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze changed production UI and complete-screen fixtures
+        run: >-
+          flutter analyze --no-pub --no-fatal-infos
+          lib/widgets/header.dart lib/widgets/header_layout.dart
+          lib/widgets/main_menu_tab_strip.dart lib/widgets/mau_ali_tab_motion.dart
+          lib/widgets/native_carousel.dart lib/widgets/fixed_header.dart
+          lib/screens/app_screen.dart
+          lib/screens/systems_screen/my_systems_section/my_systems_carousel.dart
+          lib/screens/systems_screen/my_systems_section/system_card.dart
+          test/menu_carousel_correction_test.dart test/ui_correction_visual_test.dart
+          test/liquid_motion_test.dart
+      - name: Verify full author movement, real header, both batteries and depth-sorted artwork
+        run: >-
+          flutter test --no-pub --reporter expanded
+          test/menu_carousel_correction_test.dart test/ui_correction_visual_test.dart
+          test/main_menu_tab_strip_test.dart test/airplay_navigation_test.dart
+      - name: Verify affected carousel input, interruption, rotation and accessibility
+        run: >-
+          flutter test --no-pub --reporter expanded test/liquid_motion_test.dart
+          --name 'author motion|console perspective|reduced motion uses a static carousel'
+      - name: Verify changed author notice packaging
+        run: python3 test/legal_bundle_preflight_test.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RewindBox-UI511-complete-screen-proof
+          path: build/ui-correction-qa/
+          if-no-files-found: warn
+          retention-days: 14

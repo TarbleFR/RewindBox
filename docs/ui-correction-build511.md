@@ -1,0 +1,69 @@
+# RewindBox UI correction — build 511
+
+The maintainer rejected the delivered 507 carousel and reported the main tabs
+colliding with the clock/device/controller status. The correction starts from
+`92dd1caa3442769dc6148df33a488d85e7b88500`, preserving the complete delivered 509
+Switch retirement/deletion work, 508 RPCS3 audit and all earlier engines.
+Concurrent RPCS3 source work at `50714fe0980d0b50ccd93c1c739c480b054a31b9`
+is preserved; this UI scope is closed against that integrated head. Build 511
+is reserved for this correction so another chantier can deliver 510 independently.
+
+The first implementation had only a shortened, attenuated PnW motion envelope,
+a modest transform around the grid cards and three independently aligned header
+groups. That did not reproduce the requested complete selection or composition.
+
+## Corrected presentation
+
+All 21 selection segments from Mau Ali's original dotLottie are retained with
+original 60 fps timing, full unattenuated X/Y deformation, animated Bezier shape,
+capsule impulse, moving rim and fill transparency. The existing real icons,
+canonical tab identities and variable visible destination cells replace the
+reference's fixed five icons. Rapid reversals start from the current position
+and shape. The compiled generated data is derived by
+`build-utils/extract_mau_ali_motion.py`; `--check` verifies it against the original
+archive. Original archive and full Lottie Simple License/attribution remain.
+There is no new dotLottie runtime or package dependency.
+
+The header measures all groups before placement, reserves safe-area insets,
+permits only a moderate navigation scale-down, then puts navigation on its own
+row where necessary. A shared header/body compositor reserves its measured height in the same
+layout pass, so content stays below additional rows without a delayed frame. The console carousel also reserves the
+normal header clearance. Device and controller battery readings remain visible.
+
+The console carousel has square branded artwork without the grid logo/footer.
+Absent artwork still gets its existing system logo fallback. A bounded Flow
+paints cards in far-to-near order, with symmetric perspective and a dominant
+central card. The established page controller/snapping and input ownership are
+retained; game-box and grid/list presentations keep their existing path.
+Artwork widgets are cached within a nine-card window; animation frames repaint
+transforms without per-frame image decoding. Reduced Motion and Low Power Mode
+use static geometry and immediate controller navigation.
+
+## Validation and delivery
+
+Targeted checks cover all author segments, interruption and reverse selection,
+all eight real tabs, complete production header with both batteries, safe areas,
+320/393/852/956-point widths and 1.0/1.4 text scaling. Full production Header,
+NativeCarousel and SystemCard compositions are rendered in portrait/landscape;
+local review uses only cropped reference artwork from the maintainer's captures,
+which is not committed or redistributed. CI uses generated neutral artwork.
+Real Flutter fonts and icon fonts are loaded for review. Depth tests verify
+symmetric projected bounds, paint order, actual hit testing, touch flings,
+controller navigation, viewport interruption and route return.
+
+Initial fixture failures (missing theme/font/event-channel setup) and a real
+small-width overflow in the leading control were corrected before delivery.
+Visual review caught and corrected an asymmetric perspective composition before
+IPA assembly. These failed attempts are not represented as successful checks.
+
+Only changed UI tests are run; delivered 509 native/engine and unaffected 507
+liquid download/battery validations are reused. Final workflow/source identity,
+IPA digest, bundle versions and packaging checks will be recorded after the
+actual Release build completes. No release, tag or main update is authorized.
+No physical-device installation, gameplay, temperature or frame-rate claim is
+made. The user's word "surchauffement" was interpreted in context as the reported
+"chevauchement"; no unrelated emulator thermal tuning was undertaken.
+
+Desktop Commander reported a monthly usage limit before file transfer. A direct
+IPA download remains deliverable; no claim of a successful Windows Downloads
+copy will be made without actual verification.
