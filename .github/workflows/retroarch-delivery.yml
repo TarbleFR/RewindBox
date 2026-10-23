@@ -1,22 +1,22 @@
-# Build 518: live UIKit presentation and prepared-JIT retries; all native Cores preserved.
-name: RewindBox MeloNX launch • Build 518 • SideStore
-run-name: RewindBox Build 518 • ${{ github.sha }} • MeloNX UIKit presentation
+# Build 519: owned MeloNX RAM donor, measured RAM graph and per-game screen formats.
+name: RewindBox MeloNX RAM and display • Build 519 • SideStore
+run-name: RewindBox Build 519 • ${{ github.sha }} • MeloNX donor and display
 'on':
   push:
     branches:
     - Claude
     paths:
     - .github/workflows/retroarch-delivery.yml
-    - .github/diagnostics/melonxpresentation518_delivery.py
-    - build-utils/delivery-518-chatgpt-recipient.pem
-    - build-utils/validate_melonx_presentation_ipa.py
+    - .github/diagnostics/melonxmemory519_delivery.py
+    - build-utils/delivery-519-chatgpt-recipient.pem
+    - build-utils/validate_melonx_memory_ipa.py
     - build-utils/split_encrypted_delivery.py
   workflow_dispatch:
     inputs:
       build_number:
         description: New delivery build number
         required: true
-        default: '518'
+        default: '519'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -33,13 +33,13 @@ run-name: RewindBox Build 518 • ${{ github.sha }} • MeloNX UIKit presentatio
       recipient:
         description: Public key (PEM in build-utils) the encrypted artifact is addressed to; each session decrypts with its own private key
         required: false
-        default: build-utils/delivery-518-chatgpt-recipient.pem
+        default: build-utils/delivery-519-chatgpt-recipient.pem
         type: string
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: rewindbox-melonxpresentation518-delivery-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
+  group: rewindbox-melonxmemory519-delivery-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
   cancel-in-progress: false
 jobs:
   checks:
@@ -54,8 +54,8 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
-    - name: Verify UIKit and playlist regression proofs and preserve Build 517 Cores
-      run: python3 .github/diagnostics/melonxpresentation518_delivery.py --wait-for-components
+    - name: Verify donor/display proofs and preserve unrelated Build 518 Cores
+      run: python3 .github/diagnostics/melonxmemory519_delivery.py --wait-for-components
   native:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
     runs-on: ubuntu-24.04
@@ -64,8 +64,10 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
     - *id001
-    - name: Verify UIKit and playlist regression proofs and preserve Build 517 Cores
-      run: python3 .github/diagnostics/melonxpresentation518_delivery.py --source-only
+    - name: Verify donor/display proofs and preserve unrelated Build 518 Cores
+      run: |
+        python3 .github/diagnostics/melonxmemory519_delivery.py --source-only
+        python3 test/melonx_memory_ipa_test.py
   cold:
     name: Release device build • cold
     runs-on: macos-15
@@ -74,10 +76,10 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '518' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-518-chatgpt-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '519' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-519-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '518' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '519' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -104,7 +106,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/melonxpresentation518_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/melonxmemory519_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -122,7 +124,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/melonxpresentation518_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/melonxmemory519_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -228,7 +230,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/melonxpresentation518_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/melonxmemory519_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           test/rpcs3_restore_eof_test.py \
@@ -334,7 +336,7 @@ jobs:
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
         sys.path.insert(0, '.github/diagnostics')
-        from melonxpresentation518_delivery import validate_rpc_core_identity as validate_core_input_identity
+        from melonxmemory519_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
@@ -613,8 +615,8 @@ jobs:
     - name: Download the exact source-built MeloNX engine
       uses: actions/download-artifact@v4
       with:
-        name: MeloNX-engine-e0a1196d70469a28f04cc8a3628f43d484015581
-        run-id: 40025760206
+        name: MeloNX-engine-c8424c32d2437b930870222fee1a07481d2b117d
+        run-id: 40038087907
         github-token: ${{ github.token }}
         path: dist/melonx
     - name: Download the source-built private MeloNX dependencies
@@ -763,8 +765,8 @@ jobs:
     - name: Bind the compiled Switch retirement and deletion fix to its exact app sources
       run: python3 build-utils/validate_melonx_delete509_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
         --build-number "$BUILD_NUMBER" --report build/delivery/melonx-delete509-embedded.json
-    - name: Embed exact presentation source and test identity
-      run: python3 build-utils/validate_melonx_presentation_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+    - name: Embed exact donor/display source and test identity
+      run: python3 build-utils/validate_melonx_memory_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Embed lazy-loaded ARMSX2 Core framework
       shell: bash
       run: |
@@ -903,9 +905,9 @@ jobs:
     - name: Verify the actual MeloNX launch ABI and signed memory entitlements
       run: python3 build-utils/validate_melonx_launch_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-launch514-ipa-validation.json
     - name: Verify the exact packaged key import correction
-      run: python3 build-utils/validate_melonx_keys_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-keys517-ipa-validation.json
+      run: python3 build-utils/validate_melonx_keys_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --core-source c8424c32d2437b930870222fee1a07481d2b117d --core-run 40038087907 --report build/delivery/melonx-keys517-ipa-validation.json
     - name: Verify the compiled foreground presentation correction
-      run: python3 build-utils/validate_melonx_presentation_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-presentation518-ipa-validation.json
+      run: python3 build-utils/validate_melonx_memory_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-memory519-ipa-validation.json
     - name: Finalize observed timings and artifact identity
       if: always()
       run: |

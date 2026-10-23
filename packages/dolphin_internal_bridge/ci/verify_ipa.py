@@ -182,6 +182,11 @@ def validate(ipa: Path) -> dict:
                 'principalClass': 'MeloNXJITRequestHandler',
                 'marker': 'NeoStationMeloNXJITHelper',
             }
+            if 'ramDonorSource' in json.loads(z.read(app + '/MeloNX-native-identity.json')):
+                expected_helpers['MeloNXRamDonor.appex'] = {
+                    'bundleSuffix': '.melonxramdonor', 'principalClass': 'MLXRamDonorHandler',
+                    'marker': 'RewindBoxMeloNXRamDonor',
+                }
             for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
                 demand(app + f'/Frameworks/{component}.framework/{component}' in names,
                        'MeloNX identity requires the complete private runtime: ' + component)
@@ -202,7 +207,7 @@ def validate(ipa: Path) -> dict:
             extension = helper_info.get('NSExtension', {})
             demand(
                 extension.get('NSExtensionPointIdentifier') ==
-                (DONOR_EXTENSION_POINT if bundle_name in DONOR_CONTRACTS or bundle_name in RELAY_CONTRACTS else SHARE_EXTENSION_POINT),
+                (DONOR_EXTENSION_POINT if bundle_name in DONOR_CONTRACTS or bundle_name in RELAY_CONTRACTS or bundle_name == 'MeloNXRamDonor.appex' else SHARE_EXTENSION_POINT),
                 f'{bundle_name} has an unexpected extension point',
             )
             demand(
