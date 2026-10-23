@@ -38,8 +38,10 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: rewindbox-rpcs3v012-delivery-${{ github.sha }}
-  cancel-in-progress: false
+  # Reuse the initial candidate's resolved group to supersede only this task's
+  # obsolete waiting build, without touching the concurrent Build 519 campaign.
+  group: rewindbox-rpcs3v012-delivery-fdee3ece0c2e7cb0da4299187123fc2c86785f9b
+  cancel-in-progress: true
 jobs:
   checks:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-v012-delivery]')
@@ -59,8 +61,8 @@ jobs:
   native:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-v012-delivery]')
       }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    runs-on: macos-15
+    timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -69,9 +71,19 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Verify source-built RPCS3 v0.12 and preserve validated 519 components
+    - name: Select Xcode 26.3
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26.3'
+    - name: Verify source-built RPCS3 v0.12 and production CPU bootstrap ordering
       run: |
         python3 .github/diagnostics/rpcs3v012_delivery.py --source-only
+        python3 test/rpcs3_cpu_escrow_test.py
+    - uses: actions/upload-artifact@v4
+      with:
+        name: RPCS3HostCPU-${{ github.sha }}
+        path: build/delivery/rpcs3-cpu-escrow-proof.json
+        if-no-files-found: error
   cold:
     name: Release device build • cold
     runs-on: macos-15
@@ -112,6 +124,11 @@ jobs:
         ref: ${{ github.sha }}
     - name: Require exact successful skin sessions and cheat catalogue/core checks
       run: python3 .github/diagnostics/rpcs3v012_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+    - name: Retrieve this candidate's successful native CPU bootstrap proof
+      uses: actions/download-artifact@v4
+      with:
+        name: RPCS3HostCPU-${{ github.sha }}
+        path: build/delivery
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:

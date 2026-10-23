@@ -11,7 +11,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / '.github/diagnostics'))
 sys.path.insert(0, str(ROOT / 'packages/dolphin_internal_bridge/ci'))
-from rpcs3v012_delivery import CORE_SOURCE, CORE_RUN, HOST, validate_rpc_core_identity
+from rpcs3v012_delivery import CORE_SOURCE, CORE_RUN, HOST, HOST_DELTA_SHA, validate_rpc_core_identity
 from delivery_benchmark import payload_fingerprint
 from verify_ipa import macho
 
@@ -25,6 +25,19 @@ def inspect(core, images, receipt):
     assert receipt['productionMinimalSPULinkerEnabled'] is False
     assert receipt['physicalDeviceTested'] is False
     assert receipt['physicalPerformanceMeasured'] is False
+    proof = receipt['hostBootstrapProof']
+    assert receipt['hostBootstrapDeltaSHA256'] == HOST_DELTA_SHA
+    assert proof['result'] == 'passed' and proof['productionInitializerCases'] == 8
+    assert proof['preFixReservationReproduced'] and proof['iphoneSDKTypecheck']
+    assert proof['actualFoundation'] and proof['actualDispatch'] and proof['sysctlAndEscrowDouble']
+    assert proof['physicalDeviceTested'] is False and proof['gameplayTested'] is False
+    for relative, digest in proof['inputs'].items():
+        assert hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() == digest, relative
+    assert set(proof['inputs']) == {
+        'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',
+        'packages/rpcs3_internal_bridge/ios/Classes/RPCS3CPUCompatibility.h',
+        'packages/rpcs3_internal_bridge/ios/Classes/RPCS3CPUCompatibilityPolicy.h',
+        'test/rpcs3_cpu_escrow_test.py','test/fixtures/rpcs3_v012_host_escrow.diff'}
     assert payload_fingerprint(core) == receipt['compiledCorePayloadFingerprint']
     image = macho(core)
     assert image['platform'] == 2 and '_rpcs3_ios_set_compiler_budget_api' in image['definedSymbols']
@@ -52,6 +65,8 @@ def embed(app, core_path, identity_path):
     assert identity['sha256'] == hashlib.sha256(original).hexdigest()
     receipt = {'schemaVersion': 1, 'coreSource': CORE_SOURCE, 'coreRun': CORE_RUN,
         'coreIdentity': identity, 'compiledCorePayloadFingerprint': payload_fingerprint(original),
+        'hostBootstrapDeltaSHA256': HOST_DELTA_SHA,
+        'hostBootstrapProof': json.loads((ROOT / 'build/delivery/rpcs3-cpu-escrow-proof.json').read_text()),
         'hostInputSHA256': {relative: hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() for relative in sorted(HOST)},
         'productionMinimalSPULinkerEnabled': False, 'physicalDeviceTested': False,
         'physicalPerformanceMeasured': False, 'gow3BootAndVmaSourceVerified': True}

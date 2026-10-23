@@ -42,11 +42,20 @@ Commit and path provenance is retained in `canonical-source.json`.
 The source is regenerated as one canonical delta; historical patch chains
 are not applied during CI.
 
-The native host additionally checks CPU features **before prepareJit and before
-dlopen**. Failed/unknown sysctl results reject the modern Core. The policy
+The native host additionally checks CPU features **before the initializer's
+early JIT escrow reservation, before prepareJit and before dlopen**.
+Failed/unknown sysctl results reject the modern Core. The policy
 distinguishes ARMv8-A from ARMv8.4-A; no ARMv8-A Core is bundled or falsely
 selected. Older devices receive an explicit compatibility error without
 deleting data. This does not add older-device support.
+
+The early escrow guard is a host-only follow-up to Core source `407ea8f`.
+The Core artifact keeps its original input identity: an exact, hash-pinned
+reverse fixture proves that the initializer is its only subsequent host input
+change, and every compiled engine input remains byte-identical. A separate
+Apple SDK test executes the production initializer with real Foundation and
+dispatch, controlled sysctl/escrow doubles, eight feature scenarios and a
+pre-fix negative control. The complete bridge is then compiled into the IPA.
 
 ## Already present or excluded
 

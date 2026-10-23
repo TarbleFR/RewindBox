@@ -476,10 +476,14 @@ static UIViewController* RPCS3RootViewController(void) {
   if (self) {
     _runtimeQueue = dispatch_queue_create("com.neogamelab.neostation.rpcs3.runtime", DISPATCH_QUEUE_SERIAL);
     memset(&_api, 0, sizeof(_api));
-    const BOOL held = _jitEscrow.acquire();
-    NSString* detail = [NSString stringWithUTF8String:_jitEscrow.detail().c_str()] ?: @"";
-    RPCS3Milestone(@"early_jit_escrow", detail);
-    if (!held) RPCS3Diagnostic(@"early_jit_escrow_failed", detail);
+    if (NSString* cpuError = RPCS3CPUCompatibilityError()) {
+      RPCS3Milestone(@"early_jit_escrow_skipped", cpuError);
+    } else {
+      const BOOL held = _jitEscrow.acquire();
+      NSString* detail = [NSString stringWithUTF8String:_jitEscrow.detail().c_str()] ?: @"";
+      RPCS3Milestone(@"early_jit_escrow", detail);
+      if (!held) RPCS3Diagnostic(@"early_jit_escrow_failed", detail);
+    }
   }
   return self;
 }

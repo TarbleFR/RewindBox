@@ -1,11 +1,13 @@
 """Close private 520 around the source-built v0.12 Core and preserved 519 app."""
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import time
 
 import rpcs3freeze515_delivery as previous
@@ -30,15 +32,51 @@ ASSEMBLY={
  '.github/diagnostics/rpcs3v012_delivery.py','.github/workflows/rpcs3-v012-delivery.yml',
  'build-utils/validate_rpcs3_v012_ipa.py','build-utils/delivery-520-rpcs3-recipient.pem',
  'docs/rpcs3-xitrix-v012.md','docs/evidence/rpcs3-v012-delivery.json',
+ 'test/rpcs3_cpu_escrow_test.py','test/fixtures/rpcs3_v012_host_escrow.diff',
+ 'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',
 }
 validate_psp_core_identity=previous.validate_psp_core_identity
+HOST_PATH='packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm'
+HOST_DELTA='test/fixtures/rpcs3_v012_host_escrow.diff'
+HOST_DELTA_SHA='36db0806d95d6c67fccd67880e46255cf26889e82819aa65ec4345bbee0ee655'
 
 def digest(path):return hashlib.sha256((ROOT/path).read_bytes()).hexdigest()
 
+@contextmanager
+def core_input_view():
+ """Original Core build inputs, with one separately tested host-only delta.
+
+ The Core artifact and its identity are never rewritten. Every engine/recipe/
+ test input remains byte-identical. Reverse the exact CPU/escrow initializer
+ fixture to prove that no other host or ABI change is hidden by this view.
+ """
+ assert digest(HOST_DELTA)==HOST_DELTA_SHA
+ core=native.pin_module()
+ with tempfile.TemporaryDirectory(prefix='rpcs3-core-input-view-') as directory:
+  view=Path(directory)
+  for path in dict.fromkeys(core.CORE_INPUTS):
+   pinned=subprocess.check_output(['git','show',CORE_SOURCE+':'+path],cwd=ROOT)
+   target=view/path;target.parent.mkdir(parents=True,exist_ok=True)
+   if path==HOST_PATH:
+    target.write_bytes((ROOT/path).read_bytes())
+    subprocess.run(['git','apply','--reverse','--check',str(ROOT/HOST_DELTA)],cwd=view,check=True)
+    subprocess.run(['git','apply','--reverse',str(ROOT/HOST_DELTA)],cwd=view,check=True)
+    assert target.read_bytes()==pinned,'Host changed beyond the tested CPU/escrow gate'
+   else:
+    assert (ROOT/path).read_bytes()==pinned,'Changed compiled Core input: '+path
+    os.link(ROOT/path,target)
+  for path in native.EXTRA_INPUTS:
+   pinned=subprocess.check_output(['git','show',CORE_SOURCE+':'+path],cwd=ROOT)
+   assert (ROOT/path).read_bytes()==pinned,'Changed extra Core proof input: '+path
+  yield view
+
 def validate_rpc_core_identity(identity):
  assert identity['host_commit']==CORE_SOURCE
- native.pin_module().validate_core_input_identity(identity)
- assert identity['v012_input_sha256']==native.inputs()
+ with core_input_view() as view:
+  core=native.pin_module()
+  core.validate_core_input_identity(identity,root=view)
+  expected={**core.core_input_hashes(view),**{p:digest(p) for p in native.EXTRA_INPUTS}}
+  assert identity['v012_input_sha256']==expected
  assert identity['cpu_baseline']=='armv8.4-a' and identity['legacy_core_bundled'] is False
  assert identity['device_runtime_tested'] is False
 
@@ -46,10 +84,8 @@ def validate_rpc_core_pin(pin,paths):
  assert pin==CORE_SOURCE
  core=native.pin_module()
  assert len(paths)==len(core.CORE_INPUTS) and set(paths)==set(core.CORE_INPUTS)
- native.source_contract();core.validate_exact_pin(pin)
- for path in native.EXTRA_INPUTS:
-  old=subprocess.check_output(['git','show',pin+':'+path],cwd=ROOT)
-  assert hashlib.sha256(old).hexdigest()==digest(path),path
+ native.source_contract()
+ with core_input_view() as view:core.core_input_hashes(view)
  print('PASS exact v0.12 source pin, native tests, CPU guards, optional ABI and compiler inputs')
 
 def source_closure():
@@ -82,7 +118,8 @@ def source_closure():
  assert 'validate_rpcs3_v012_ipa.py' in current
  return dict(source=base.command(['git','rev-parse','HEAD']),nativeCore=CORE_SOURCE,nativeRun=CORE_RUN,
    preservedApp519=DELIVERED,delivered519Driver=DELIVERY_DRIVER,delivered519Run=DELIVERED_RUN,
-   changedHost=sorted(PRODUCT),unchangedOtherEmulatorSources=True,physicalDeviceTested=False)
+   changedHost=sorted(PRODUCT),hostBootstrapDeltaSHA256=HOST_DELTA_SHA,
+   unchangedOtherEmulatorSources=True,physicalDeviceTested=False)
 
 def component(run,source,names,wait):
  if wait:
