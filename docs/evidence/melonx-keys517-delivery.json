@@ -1,0 +1,390 @@
+{
+  "schemaVersion": 1,
+  "status": "delivered",
+  "build": 517,
+  "branch": "Claude",
+  "source": "05f04b9bbc9cb95137c8bc5df42a53606b358201",
+  "keyImportSource": "e0a1196d70469a28f04cc8a3628f43d484015581",
+  "deliveryRun": 40025909494,
+  "deliveryRunConclusion": "success",
+  "nativeCore": {
+    "result": "verified",
+    "source": "e0a1196d70469a28f04cc8a3628f43d484015581",
+    "run": 40025760206,
+    "artifact": 12532094718,
+    "artifactSHA256": "38fc8435ef5d6e1d8a33e9c2608e4274db8a134957f17fd5942a840ea1481d5f",
+    "bytes": 37469384,
+    "sha256": "589b3cdbf62833d8e2e325ba5253540ce4aeceba71b2f8543f7daff3aa8f8d27",
+    "simulatorSha256": "f38b9aa29418593530a4e589b7c8f2a7621bfdf9f5549bf710f1ff69197e85cd",
+    "compiledPayloadFingerprint": "5f234da5824beb80ce24ed47599ca25e9854ff43bac427e35e920f919856456f",
+    "adaptationInputsVerified": 28,
+    "changedEngineInputs": [
+      "native/melonx/EmbeddedContent.cs",
+      "native/melonx/EmbeddedKeyValidation.cs"
+    ],
+    "nativeKeyChecks": 48,
+    "actualRuntime": {
+      "actualDarwinThreeArgumentHandlersVerified": true,
+      "actualKeyImportABIValidated": true,
+      "actualNativeAOT": true,
+      "actualSimulatorCodeArenaVerified": true,
+      "gameplayTested": false,
+      "graphicsAccepted": true,
+      "homebrewProducesVideo": false,
+      "homebrewSimulatorSessions": 2,
+      "initializationAndIdempotency": true,
+      "invalidContentRejected": true,
+      "invalidGraphicsCodePreserved": true,
+      "invalidGuestRejected": true,
+      "invalidSaveAssociationRejected": true,
+      "iphoneGuestExecutionTested": false,
+      "jitTested": false,
+      "keyRefusalCodePreserved": true,
+      "keyUnknownEntryAccepted": true,
+      "missingKeysRejectedBeforeGuest": true,
+      "mixedInvalidKeySizeAccepted": true,
+      "originalHomebrewGuestSvcConfirmed": true,
+      "personalKeysUsed": false,
+      "result": "passed",
+      "storageProfilesRecognized": true,
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+      "coreSha256": "f38b9aa29418593530a4e589b7c8f2a7621bfdf9f5549bf710f1ff69197e85cd",
+      "inputs": {
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "3b2dd81f65c177ce461aa5bbba1feac4a0445cb137f0e6b7ce789a5ad6920a73",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "913eb462b1047772787d8170e2fd0a0000b9cad843419420cf68353bbdd83fd1",
+        "test/melonx_runtime_smoke.py": "27a4414e2bf186ef5f45561fb5973af03762f7235a5ae757ac46ea8eee8bef9b"
+      }
+    },
+    "physicalDeviceTested": false
+  },
+  "flutter": {
+    "run": 40025760340,
+    "job": 120661422291,
+    "result": "success",
+    "tests": 16,
+    "logSHA256": "37db2c051112bf2b8a7af47c3f153671158b3f4bbe32c20334ee3d4d1a3ec9be"
+  },
+  "diagnosticProbe": {
+    "source": "7257cfb35b9db2991ec02509e39ee5ae0642d8f3",
+    "run": 40025328376,
+    "result": {
+      "runtime": "osx-arm64",
+      "mismatches": [
+        {
+          "name": "mariko_master_kek_source_05",
+          "actual": 34,
+          "expected": 32,
+          "line": 96
+        },
+        {
+          "name": "mariko_master_kek_source_06",
+          "actual": 34,
+          "expected": 32,
+          "line": 97
+        },
+        {
+          "name": "mariko_master_kek_source_07",
+          "actual": 34,
+          "expected": 32,
+          "line": 98
+        },
+        {
+          "name": "mariko_master_kek_source_08",
+          "actual": 34,
+          "expected": 32,
+          "line": 99
+        },
+        {
+          "name": "mariko_master_kek_source_09",
+          "actual": 34,
+          "expected": 32,
+          "line": 100
+        },
+        {
+          "name": "mariko_master_kek_source_0a",
+          "actual": 34,
+          "expected": 32,
+          "line": 101
+        },
+        {
+          "name": "mariko_master_kek_source_0b",
+          "actual": 34,
+          "expected": 32,
+          "line": 102
+        },
+        {
+          "name": "mariko_master_kek_source_0c",
+          "actual": 34,
+          "expected": 32,
+          "line": 103
+        },
+        {
+          "name": "mariko_master_kek_source_0d",
+          "actual": 34,
+          "expected": 32,
+          "line": 104
+        },
+        {
+          "name": "mariko_master_kek_source_0e",
+          "actual": 34,
+          "expected": 32,
+          "line": 105
+        },
+        {
+          "name": "mariko_master_kek_source_0f",
+          "actual": 34,
+          "expected": 32,
+          "line": 106
+        },
+        {
+          "name": "mariko_master_kek_source_10",
+          "actual": 34,
+          "expected": 32,
+          "line": 107
+        },
+        {
+          "name": "mariko_master_kek_source_11",
+          "actual": 34,
+          "expected": 32,
+          "line": 108
+        },
+        {
+          "name": "mariko_master_kek_source_12",
+          "actual": 34,
+          "expected": 32,
+          "line": 109
+        },
+        {
+          "name": "mariko_master_kek_source_13",
+          "actual": 34,
+          "expected": 32,
+          "line": 110
+        },
+        {
+          "name": "mariko_master_kek_source_14",
+          "actual": 34,
+          "expected": 32,
+          "line": 111
+        },
+        {
+          "name": "mariko_master_kek_source_15",
+          "actual": 34,
+          "expected": 32,
+          "line": 112
+        },
+        {
+          "name": "master_kek_source_06",
+          "actual": 34,
+          "expected": 32,
+          "line": 130
+        },
+        {
+          "name": "master_kek_source_07",
+          "actual": 34,
+          "expected": 32,
+          "line": 131
+        },
+        {
+          "name": "master_kek_source_08",
+          "actual": 34,
+          "expected": 32,
+          "line": 132
+        },
+        {
+          "name": "master_kek_source_09",
+          "actual": 34,
+          "expected": 32,
+          "line": 133
+        },
+        {
+          "name": "master_kek_source_0a",
+          "actual": 34,
+          "expected": 32,
+          "line": 134
+        },
+        {
+          "name": "master_kek_source_0b",
+          "actual": 34,
+          "expected": 32,
+          "line": 135
+        },
+        {
+          "name": "master_kek_source_0c",
+          "actual": 34,
+          "expected": 32,
+          "line": 136
+        },
+        {
+          "name": "master_kek_source_0d",
+          "actual": 34,
+          "expected": 32,
+          "line": 137
+        },
+        {
+          "name": "master_kek_source_0e",
+          "actual": 34,
+          "expected": 32,
+          "line": 138
+        },
+        {
+          "name": "master_kek_source_0f",
+          "actual": 34,
+          "expected": 32,
+          "line": 139
+        },
+        {
+          "name": "master_kek_source_10",
+          "actual": 34,
+          "expected": 32,
+          "line": 140
+        },
+        {
+          "name": "master_kek_source_11",
+          "actual": 34,
+          "expected": 32,
+          "line": 141
+        },
+        {
+          "name": "master_kek_source_12",
+          "actual": 34,
+          "expected": 32,
+          "line": 142
+        },
+        {
+          "name": "master_kek_source_13",
+          "actual": 34,
+          "expected": 32,
+          "line": 143
+        },
+        {
+          "name": "master_kek_source_14",
+          "actual": 34,
+          "expected": 32,
+          "line": 144
+        },
+        {
+          "name": "master_kek_source_15",
+          "actual": 34,
+          "expected": 32,
+          "line": 145
+        }
+      ],
+      "reports": [
+        {
+          "input": "original",
+          "result": "refused",
+          "code": "keySize"
+        },
+        {
+          "input": "copy",
+          "result": "accepted",
+          "recognized": 190,
+          "ignored": 8
+        }
+      ],
+      "syntheticOnly": true
+    },
+    "proves": "Exact shipped schema behavior with synthetic values, not which file iOS selected"
+  },
+  "nativeTests": {
+    "keyRegressionAssertions": 48,
+    "personalConfigurationCases": 14,
+    "launchPreflightAssertions": 13,
+    "syntheticKeysOnly": true
+  },
+  "preserved": {
+    "delivered516Source": "5d805f48eba97307dad94c66c51fb534355a70f8",
+    "RPCS3CoreSource": "a69860297d7b26dbb688df0daf16a31b42046462",
+    "RPCS3CoreRun": 39982269326
+  },
+  "ipa": {
+    "build": 517,
+    "version": "0.0.8",
+    "ipaFilename": "RewindBox-Build517.ipa",
+    "ipaBytes": 186164583,
+    "ipaSHA256": "7ab16fade93bbb81aa24a077835b02644beacb97a2e15e960ed1a1f76b7a8fb9",
+    "alignedVersionedBundles": 7,
+    "machOImages": 86,
+    "codeDirectories": 116,
+    "verifiedCodePageHashes": 132668,
+    "encryptedImages": 0,
+    "appleReSigningRequired": true
+  },
+  "artifact": {
+    "id": 12534117178,
+    "name": "RewindBox-Build-517-05f04b9bbc9cb95137c8bc5df42a53606b358201-cold",
+    "size_in_bytes": 186406813,
+    "digest": "sha256:10373b4a9b912dc006f7cb757f1fd4193de0d0edccc3e4718b06ad53de5c8f7a"
+  },
+  "independentVerification": {
+    "compiledCorePayloadFingerprint": "2c122f8eaa0b675215bfde3e8356e4ef3fe50b3d0a1d3c4eebb320ac005d7265",
+    "coreArtifactBinarySHA256": "cb2877b7558a589554c9c923b71f20129433c40654232ee706545dd7622da7cb",
+    "meloNXSource": "e0a1196d70469a28f04cc8a3628f43d484015581",
+    "meloNXSourceSHA256": "589b3cdbf62833d8e2e325ba5253540ce4aeceba71b2f8543f7daff3aa8f8d27",
+    "meloNXRun": 40025760206,
+    "keyImportValidation": {
+      "result": "passed",
+      "build": 517,
+      "source": "e0a1196d70469a28f04cc8a3628f43d484015581",
+      "coreRun": 40025760206,
+      "ipaSHA256": "7ab16fade93bbb81aa24a077835b02644beacb97a2e15e960ed1a1f76b7a8fb9",
+      "sourceCoreSHA256": "589b3cdbf62833d8e2e325ba5253540ce4aeceba71b2f8543f7daff3aa8f8d27",
+      "compiledCorePayloadFingerprint": "11b612316c8b1c2163a4bd71695144187e756788a302dffac9d3abc14041c52b",
+      "nativeAndDartMarkersVerified": true,
+      "personalKeysBundled": false,
+      "physicalDeviceTested": false
+    },
+    "otherPrebuiltPayloadsPreserved": true
+  },
+  "transport": {
+    "result": "verified",
+    "transferSource": "5d569ea3335bdd0c20750cbe2781a0dfd8d44894",
+    "transferRun": 40029737541,
+    "fullDownloadTimeouts": 2,
+    "originalArtifact": 12534117178,
+    "originalArchiveSHA256": "10373b4a9b912dc006f7cb757f1fd4193de0d0edccc3e4718b06ad53de5c8f7a",
+    "originalArchiveBytes": 186406813,
+    "originalArchiveReconstructedExactly": true,
+    "rebuilt": false,
+    "decryptedDuringTransport": false,
+    "parts": [
+      {
+        "index": 0,
+        "artifact": 12533019564,
+        "archiveSHA256": "sha256:221771612dfcaa96056c283eed6be0213dab7529594ee62d3d041a1c4d1df736",
+        "bytes": 50331648,
+        "sha256": "cba6acc8f96d30d8d4ad735fd270083afc2db772f031ca2b68de62b25a9adb7f"
+      },
+      {
+        "index": 1,
+        "artifact": 12533723063,
+        "archiveSHA256": "sha256:b530da5016c994215f5357afdb7b35a8e6ee8b3c219bdeb317ec5a30aa314316",
+        "bytes": 50331648,
+        "sha256": "cd907c6c40778213ed3e4e0c624f4cd28774560a339e692c829f71858073d343"
+      },
+      {
+        "index": 2,
+        "artifact": 12533244099,
+        "archiveSHA256": "sha256:cb7ab65683ac05b265143d1d6026521a1f829471341dd41cc4ba9e51a502fd94",
+        "bytes": 50331648,
+        "sha256": "e820865c74e8a07d109a55699cefa909ff9b001350e1794ca5eb966e04357586"
+      },
+      {
+        "index": 3,
+        "artifact": 12533049567,
+        "archiveSHA256": "sha256:111e6f35f2f45e6cfa857823d588ffa7a2f4bbed247d820b00a620dc87cd7534",
+        "bytes": 35411869,
+        "sha256": "15ac814a8d188655f6c2cd8cce8416ca9832d54cc1e9921e98b88fb77442621c"
+      }
+    ]
+  },
+  "originalArtifactDigestVerified": true,
+  "finalSignaturePagesVerified": true,
+  "personalInputShapeExamined": true,
+  "personalValuesCommitted": false,
+  "personalValuesSentToCI": false,
+  "physicalDeviceTested": false,
+  "personalDecryptionTested": false,
+  "releasePublished": false,
+  "mainUpdated": false
+}
