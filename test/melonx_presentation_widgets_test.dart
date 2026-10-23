@@ -83,7 +83,9 @@ void main() {
     await tester.pumpAndSettle();
     tester.widget<PopupMenuButton<String>>(find.byKey(const ValueKey('melonx-import-menu'))).onSelected!('keys');
     await until(() => find.byType(AlertDialog).evaluate().isNotEmpty);
-    await tester.pumpAndSettle();
+    // The busy indicator behind the completed-import dialog keeps animating.
+    // Advance the dialog transition without waiting for that spinner to stop.
+    await tester.pump(const Duration(milliseconds:350));
     await tester.tap(find.text('Done'));
     await until(() => refreshed);
     await tester.pumpAndSettle();
