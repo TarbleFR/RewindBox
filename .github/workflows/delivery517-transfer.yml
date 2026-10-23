@@ -1,0 +1,88 @@
+name: Transfer the verified private Build 517 in bounded pieces
+
+on:
+  push:
+    branches: [Claude]
+    paths: [.github/workflows/delivery517-transfer.yml]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: private-delivery517-transfer
+  cancel-in-progress: false
+
+jobs:
+  transfer:
+    if: github.ref == 'refs/heads/Claude' && contains(github.event.head_commit.message, '[delivery517-transfer]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch the immutable encrypted delivery archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail --silent --show-error --location --retry 2 \
+            --connect-timeout 15 --max-time 180 \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            'https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12534117178/zip' \
+            --output delivery.zip
+      - name: Verify and split encrypted bytes without rebuilding or decrypting
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          original = Path('delivery.zip')
+          expected = '10373b4a9b912dc006f7cb757f1fd4193de0d0edccc3e4718b06ad53de5c8f7a'
+          assert original.stat().st_size == 186406813
+          assert hashlib.sha256(original.read_bytes()).hexdigest() == expected
+          manifest = dict(schemaVersion=1, originalArtifact=12534117178,
+              originalRun=40025909494,
+              originalSource='05f04b9bbc9cb95137c8bc5df42a53606b358201',
+              bytes=original.stat().st_size, sha256=expected,
+              encrypted=True, rebuilt=False, parts=[])
+          with original.open('rb') as source:
+              while chunk := source.read(48 * 1024 * 1024):
+                  index = len(manifest['parts'])
+                  folder = Path('parts') / f'part{index:02d}'
+                  folder.mkdir(parents=True)
+                  (folder / 'data.bin').write_bytes(chunk)
+                  manifest['parts'].append(dict(index=index, bytes=len(chunk),
+                      sha256=hashlib.sha256(chunk).hexdigest()))
+          assert len(manifest['parts']) == 4
+          text = json.dumps(manifest, indent=2) + '\n'
+          for index in range(4):
+              (Path('parts') / f'part{index:02d}' / 'manifest.json').write_text(text)
+          print(text)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RewindBox517-private-transfer-00
+          path: parts/part00/
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RewindBox517-private-transfer-01
+          path: parts/part01/
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RewindBox517-private-transfer-02
+          path: parts/part02/
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RewindBox517-private-transfer-03
+          path: parts/part03/
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
