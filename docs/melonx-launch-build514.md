@@ -40,6 +40,20 @@ change the playlist, alter saves or repair database rows automatically.
   device-stage logs still prevent assigning it as the exact first refusal on the
   maintainer's two latest attempts.
 
+After correcting Vulkan resolution, the actual native homebrew load stalled
+inside the fault handler (runs 39972715534 and 39974803384). The thread sample
+shows the loader within `_sigtramp`; the native journal reaches content load.
+Pinned upstream uses Linux's 128-byte signal mask and flag `4` for sigaction on
+Darwin. Apple's SDK uses a 4-byte mask, flags at byte 12 and SA_SIGINFO `0x40`.
+The embedded adapter now registers the exact Darwin ABI, preserves each prior
+SIGSEGV/SIGBUS disposition and its one/three-argument convention, and uses the
+matching generated handler offsets. Non-guest faults still chain to NativeAOT;
+SIG_DFL/SIG_IGN are treated as dispositions rather than function addresses.
+Registration is checked against the actual iOS SDK and live Darwin signals;
+the real ARM64 app also checks both installed SA_SIGINFO flags before a guest.
+Any original loader exception is recorded before resource teardown, and actual
+Horizon-service readiness is distinguished from creating service objects.
+
 An additive diagnostic ABI carries a bounded, redacted native stage journal.
 Its Swift/Flutter bridge writes into the normal app journal, including GPU,
 session return and real Metal-presentation events. Startup success still requires

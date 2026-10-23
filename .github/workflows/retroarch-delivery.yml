@@ -607,8 +607,8 @@ jobs:
     - name: Download the exact source-built MeloNX engine
       uses: actions/download-artifact@v4
       with:
-        name: MeloNX-engine-38545b97fe0f034e644ce374dd3efbfa8554e65b
-        run-id: 39972715534
+        name: MeloNX-engine-e8efeaab28f4c9804ee0170bd3ad752ba8aec8aa
+        run-id: 39976987186
         github-token: ${{ github.token }}
         path: dist/melonx
     - name: Download the source-built private MeloNX dependencies
