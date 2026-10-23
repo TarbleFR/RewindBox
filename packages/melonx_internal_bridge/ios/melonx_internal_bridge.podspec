@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.license = { :type => 'GPL-3.0' }
   s.author = { 'RewindBox' => 'TarbleFR' }
   s.source = { :path => '.' }
-  s.source_files = 'Classes/**/*.{swift,h,m,mm}', 'Controller/**/*.swift'
+  s.source_files = 'Classes/**/*.{swift,h,m,mm}', 'Controller/**/*.swift', 'Memory/*.{h,m}'
   s.private_header_files = 'Classes/MeloNXSessionABI.h'
   s.dependency 'Flutter'
   s.dependency 'neo_touch_layout'
@@ -14,6 +14,6 @@ Pod::Spec.new do |s|
   s.swift_version = '5.0'
   s.frameworks = 'Foundation', 'UIKit', 'Metal', 'QuartzCore', 'SwiftUI', 'GameController', 'CoreMotion', 'UniformTypeIdentifiers', 'AVFoundation', 'Security'
   s.libraries = 'c++'
-  s.preserve_paths = 'Frameworks/*.framework', 'Controller/**'
+  s.preserve_paths = 'Frameworks/*.framework', 'Controller/**', 'Memory/**'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20' }
 end

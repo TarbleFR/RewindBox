@@ -14,6 +14,7 @@
 #import <sys/sysctl.h>
 #import <unistd.h>
 #import <mach/mach.h>
+#import <os/proc.h>
 #import <sys/mman.h>
 #import <libkern/OSCacheControl.h>
 
@@ -944,3 +945,15 @@ void MeloNXJitAbortTransaction(void) {
 }
 
 @end
+
+NSDictionary* MeloNXMemorySnapshot(void) {
+  task_vm_info_data_t info = {};
+  mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+  NSMutableDictionary* result = [NSMutableDictionary new];
+  if (task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&info, &count) == KERN_SUCCESS && count >= TASK_VM_INFO_REV1_COUNT)
+    result[@"footprintBytes"] = @(info.phys_footprint);
+#if TARGET_OS_IOS && !TARGET_OS_SIMULATOR
+  result[@"availableBytes"] = @(os_proc_available_memory());
+#endif
+  return result;
+}

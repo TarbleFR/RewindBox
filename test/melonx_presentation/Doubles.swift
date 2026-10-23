@@ -44,7 +44,8 @@ final class MeloNXMetalSessionViewController:UIViewController {
     let beforeRun:()->Bool
     let firstFrame:()->Void
     let finished:(Result<Void,MeloNXHostError>)->Void
-    init(host:MeloNXSessionHost,game:URL,locale:String,runtime:MeloNXRuntimeAPI,titleID:String?,
+    init(host:MeloNXSessionHost,game:URL,locale:String,runtime:MeloNXRuntimeAPI,titleID:String?,settings:[String:Any] = [:],
+         saveSettings:@escaping([String:Any],@escaping(Bool)->Void)->Void = {_,done in done(false)},
          beforeRun:@escaping()->Bool,firstFrame:@escaping()->Void,
          finished:@escaping(Result<Void,MeloNXHostError>)->Void) {
         self.host=host;self.beforeRun=beforeRun;self.firstFrame=firstFrame;self.finished=finished
@@ -62,4 +63,10 @@ final class MeloNXMetalSessionViewController:UIViewController {
         host.isSessionActive=false
         dismiss(animated:false) { self.finished(.success(())) }
     }
+}
+
+final class MeloNXMemoryLease {
+    static let shared=MeloNXMemoryLease()
+    func prepare(runtime:MeloNXRuntimeAPI,enabled:Bool,isCurrent:@escaping()->Bool) throws {}
+    func retire(runtime:MeloNXRuntimeAPI)->Bool {true}
 }

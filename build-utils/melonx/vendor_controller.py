@@ -93,3 +93,6 @@ receipt = {'controller': json.loads((root / 'build-utils/melonx/source.json').re
            'engine': json.loads((root / 'build-utils/melonx/source.json').read_text())['revision'],
            'files': {str(p.relative_to(target)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(target.rglob('*.swift'))}}
 (target / 'adaptation.json').write_text(json.dumps(receipt, indent=2) + '\n')
+
+from vendor_memory import generate as generate_memory
+generate_memory(root, Path(sys.argv[2]).resolve())

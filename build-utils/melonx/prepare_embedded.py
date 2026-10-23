@@ -10,6 +10,7 @@ from adapt_session import apply as adapt_session
 from adapt_input import apply as adapt_input
 from adapt_runtime import apply as adapt_runtime
 from adapt_firmware import apply as adapt_firmware
+from adapt_memory import apply as adapt_memory
 
 
 def replace_once(path, old, new):
@@ -40,6 +41,7 @@ def main():
     adapted += adapt_input(source)
     adapted += adapt_runtime(source)
     adapted += adapt_firmware(source)
+    adapted += adapt_memory(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -63,6 +65,8 @@ def main():
     inputs['build-utils/melonx/adapt_runtime.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_firmware.py')
     inputs['build-utils/melonx/adapt_firmware.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    adapter = Path(__file__).with_name('adapt_memory.py')
+    inputs['build-utils/melonx/adapt_memory.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
     output.mkdir(parents=True, exist_ok=True)
     (output / 'embedded-inputs.json').write_text(json.dumps(inputs, indent=2) + '\n')

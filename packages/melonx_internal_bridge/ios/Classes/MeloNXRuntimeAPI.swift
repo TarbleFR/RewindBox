@@ -6,6 +6,8 @@ import Darwin
 final class MeloNXRuntimeAPI {
     private typealias Version = @convention(c) () -> Int32
     private typealias StringCall = @convention(c) (UnsafePointer<CChar>?) -> Int32
+    private typealias MemoryOffer = @convention(c) (UnsafeMutableRawPointer?, UInt64) -> Int32
+    private typealias MemorySnapshot = @convention(c) (UnsafeMutablePointer<UInt64>?, Int32) -> Int32
     private typealias Mode = @convention(c) (Int32) -> Int32
     private typealias Content = @convention(c) (UnsafePointer<CChar>?, Int32, UnsafeMutablePointer<CChar>?, Int32) -> Int32
     private typealias Attach = @convention(c) (Int64, Int32, UnsafePointer<CChar>?, Int32) -> Int32
@@ -41,6 +43,10 @@ final class MeloNXRuntimeAPI {
     let session: MeloNXNativeSessionAPI
     private let configureNative: StringCall
     private let configureGraphics: StringCall
+    private let setAspectFunction: Pad
+    private let memoryOffer: MemoryOffer
+    private let memoryWithdraw: Version
+    private let memorySnapshotFunction: MemorySnapshot
     private let configureJit: Mode
     private let contentFunction: Content
     private let contentProgressFunction: Version?
@@ -71,6 +77,10 @@ final class MeloNXRuntimeAPI {
         let inputVersion = try symbol("neostation_melonx_input_abi", Version.self)
         configureNative = try symbol("neostation_melonx_configure_native", StringCall.self)
         configureGraphics = try symbol("neostation_melonx_configure_graphics", StringCall.self)
+        setAspectFunction = try symbol("neostation_melonx_set_aspect_ratio", Pad.self)
+        memoryOffer = try symbol("neostation_melonx_memory_offer", MemoryOffer.self)
+        memoryWithdraw = try symbol("neostation_melonx_memory_withdraw", Version.self)
+        memorySnapshotFunction = try symbol("neostation_melonx_memory_snapshot", MemorySnapshot.self)
         configureJit = try symbol("neostation_melonx_configure_jit", Mode.self)
         contentFunction = try symbol("neostation_melonx_content", Content.self)
         contentProgressFunction = dlsym(handle, "neostation_melonx_content_progress").map { unsafeBitCast($0, to: Version.self) }
@@ -104,6 +114,18 @@ final class MeloNXRuntimeAPI {
         return (try? JSONSerialization.jsonObject(with:data)) as? [String:Any] ?? [:]
     }
 
+    func offerMemory(_ address: UnsafeMutableRawPointer, bytes: UInt64) -> Bool { memoryOffer(address,bytes) == 0 }
+    func withdrawMemory() -> Bool { memoryWithdraw() == 0 }
+    func memorySnapshot() -> [String:Any] {
+        var values = [UInt64](repeating:0,count:3)
+        guard memorySnapshotFunction(&values,3) == 0 else { return [:] }
+        return ["donorOfferedBytes":values[0],"donorUsedBytes":values[1],"donorAllocations":values[2]]
+    }
+
+    func setAspectRatio(_ value: Int32, generation: Int64) -> Bool {
+        setAspectFunction(generation,value) == 0
+    }
+
     func prepareJit() throws {
         let status = prepareJitFunction()
         guard status == 0 else {
@@ -113,7 +135,10 @@ final class MeloNXRuntimeAPI {
     }
 
     func prepareGraphics(_ settings: [String: Any], universalJit: Bool) throws {
-        let data = try JSONSerialization.data(withJSONObject: settings, options: [.sortedKeys])
+        var engine = settings
+        engine.removeValue(forKey:"showRamGraph") // presentation only, never a Core option
+        engine.removeValue(forKey:"donateMemory") // acquired by the owned host lease
+        let data = try JSONSerialization.data(withJSONObject: engine, options: [.sortedKeys])
         guard let text = String(data: data, encoding: .utf8), text.utf8.count < 8192 else {
             throw MeloNXHostError.operation("graphics",-1,"Invalid or oversized graphics configuration.")
         }

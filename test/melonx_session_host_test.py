@@ -9,6 +9,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import os
+import sys
 
 root = Path(__file__).resolve().parents[1]
 sources = sorted((root / 'packages/melonx_internal_bridge/ios/Classes').glob('*.swift'))
@@ -27,6 +28,20 @@ subprocess.run(['xcrun', 'swiftc', '-typecheck', '-swift-version', '5', '-sdk', 
 subprocess.run(['xcrun','clang++','-fsyntax-only','-fobjc-arc','-std=c++20',
                 '-target','arm64-apple-ios18.0','-isysroot',sdk,'-F',str(flutter),
                 str(jit_header.with_suffix('.mm'))],check=True)
+memory = root/'packages/melonx_internal_bridge/ios/Memory'
+for source in [memory/'MLXRamDonor.m',memory/'Helper/MeloNXRamDonor.m']:
+    subprocess.run(['xcrun','clang','-fsyntax-only','-fobjc-arc','-fmodules',
+        '-target','arm64-apple-ios18.0','-isysroot',sdk,'-I',str(memory),str(source)],check=True)
+if '--sdk-only' in sys.argv:
+    unchanged = 'packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift'
+    assert subprocess.check_output(['git','show','303d9084db73b3016d29a5dca9bf439fa44ed7c7:'+unchanged],cwd=root) == (root/unchanged).read_bytes()
+    inputs=[*sources,*controller_sources,header,jit_header,jit_header.with_suffix('.mm'),Path(__file__)]
+    out=root/'dist/melonx-host/checks.json';out.parent.mkdir(parents=True,exist_ok=True)
+    out.write_text(json.dumps(dict(source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
+        inputs={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
+        iphoneSDKTypecheck=True,nativeABIDoubleReexecuted=False,unchangedABIDoubleRun=40031804127,gameplayTested=False),indent=2)+'\n')
+    print('PASS complete iPhone SDK Swift/ObjC++ typecheck; unchanged session ABI fixtures not reexecuted.')
+    raise SystemExit(0)
 with tempfile.TemporaryDirectory(prefix='melonx-host-') as temporary:
     work = Path(temporary)
     (work / 'double.c').write_text(r'''#include "MeloNXSessionABI.h"

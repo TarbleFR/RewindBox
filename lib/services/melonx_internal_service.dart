@@ -29,7 +29,17 @@ abstract final class MelonxInternalService {
     if (_diagnosticsInstalled) return;
     _diagnosticsInstalled = true;
     channel.setMethodCallHandler((call) async {
-      if (call.method == 'launchDiagnostic' && call.arguments is Map) {
+      if (call.method == 'saveGameGraphics' && call.arguments is Map) {
+        final values = Map<String, dynamic>.from(call.arguments as Map);
+        final game = values['gamePath'];
+        final settings = values['settings'];
+        if (game is! String || !path.isAbsolute(game) || settings is! Map) {
+          throw const FormatException('Invalid per-game graphics request');
+        }
+        await saveGraphics(game, Map<String, dynamic>.from(settings));
+        return true;
+      }
+      if (call.method == 'launchDiagnostic'  && call.arguments is Map) {
         final event = Map<String, dynamic>.from(call.arguments as Map);
         MelonxLaunchDiagnostics.record(
           event['stage']?.toString() ?? 'native',
@@ -93,12 +103,16 @@ abstract final class MelonxInternalService {
     final text = (await SharedPreferences.getInstance()).getString(
       _graphicsKey(gamePath),
     );
-    if (text == null) {
-      if (!Platform.isIOS) return {};
+    final decoded = text == null ? null : jsonDecode(text);
+    final saved = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    // Older preferences contain only resolution/filter. Fill missing options from
+    // the imported personal profile before applying explicit per-game overrides.
+    {
+      if (!Platform.isIOS) return saved;
       final root = await rootDirectory();
       final global = File(path.join(root.path, 'config.json'));
       final configurations = Directory(path.join(root.path, 'config'));
-      if (!await global.exists() && !await configurations.exists()) return {};
+      if (!await global.exists() && !await configurations.exists()) return saved;
       final values = <String, dynamic>{};
       if (await global.exists() && await global.length() <= 4 * 1024 * 1024) {
         values.addAll(
@@ -119,10 +133,8 @@ abstract final class MelonxInternalService {
           }
         }
       }
-      return migratedGraphics(values);
+      return {...migratedGraphics(values), ...saved};
     }
-    final value = jsonDecode(text);
-    return value is Map ? Map<String, dynamic>.from(value) : {};
   }
 
   static Map<String, dynamic> migratedGraphics(Map<String, dynamic> source) {
@@ -139,6 +151,13 @@ abstract final class MelonxInternalService {
       result['vsync'] = source['vSyncMode'] == 0;
     else if (source['disableVSync'] is bool)
       result['vsync'] = !(source['disableVSync'] as bool);
+    if (source['donateGuestMemory'] is bool) result['donateMemory'] = source['donateGuestMemory'];
+    final aspect = source['aspectRatio'];
+    if (aspect is int && aspect >= 0 && aspect <= 5) result['aspectRatio'] = aspect;
+    if (source['enableHostMemoryBudgetTracking'] is bool)
+      result['hostMemoryBudget'] = source['enableHostMemoryBudgetTracking'];
+    if (source['enableTextureRecompression'] is bool)
+      result['textureRecompression'] = source['enableTextureRecompression'];
     final filter = source['scalingFilter'];
     if (filter is int && filter >= 0 && filter < 4)
       result['filter'] = ['bilinear', 'nearest', 'fsr', 'area'][filter];

@@ -9,8 +9,13 @@ run-name: MeloNX host • ${{ github.sha }}
     - .github/workflows/melonx-host.yml
     - packages/melonx_internal_bridge/**
     - test/melonx_session_host_test.py
+    - test/melonx_memory_graph_test.py
+    - test/melonx_memory_lease_test.py
+    - test/melonx_memory_extension_test.py
+    - build-utils/configure_melonx_memory_ios.py
     - test/melonx_presentation_test.py
     - test/melonx_presentation/**
+    - build-utils/melonx/vendor_memory.py
     - build-utils/melonx/vendor_controller.py
     - build-utils/melonx/generate_ui_strings.py
     - build-utils/melonx/ui-strings.json
@@ -56,9 +61,18 @@ jobs:
 
         '
     - name: Compile the iPhone host and execute its native ABI scenarios
-      run: python3 test/melonx_session_host_test.py
+      run: python3 test/melonx_session_host_test.py ${{ contains(github.event.head_commit.message, '[melonx-display]') && '--sdk-only' || '' }}
     - name: Exercise registered plugin presentation and retry in actual UIKit
       run: python3 test/melonx_presentation_test.py
+    - name: Compile the original donor extension and validate target packaging
+      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
+      run: python3 test/melonx_memory_extension_test.py
+    - name: Exercise donor ownership, cancellation, fallback and quarantine
+      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
+      run: python3 test/melonx_memory_lease_test.py
+    - name: Exercise RAM measurement, graph bounds and timer lifetime in UIKit
+      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
+      run: python3 test/melonx_memory_graph_test.py
     - uses: actions/upload-artifact@v4
       if: always()
       with:

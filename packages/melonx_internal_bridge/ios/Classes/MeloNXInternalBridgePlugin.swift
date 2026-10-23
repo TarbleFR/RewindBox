@@ -208,6 +208,11 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     }
                 }
                 MeloNXLaunchJournal.record("jit", "passed", detail:"Actual engine mapping verified; selected helper transaction completed.")
+                // Cache actual one-time JIT success even if donor setup or UIKit fails.
+                DispatchQueue.main.async { [self] in arenaReady = true }
+                stage = "memory"
+                try MeloNXMemoryLease.shared.prepare(runtime:runtime,enabled:settings["donateMemory"] as? Bool ?? true,
+                    isCurrent:{ [weak self] in self?.isCurrent(token) == true })
                 DispatchQueue.main.async { [self] in
                     // The arena and helper detach have succeeded independently
                     // of UIKit. A presentation failure must not reattach a helper
@@ -230,12 +235,20 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                         do { try audio.setCategory(.playback,mode:.default,options:[]); try audio.setActive(true) }
                         catch { failLaunch("audioUnavailable",diagnostic:String(describing:error)); return }
                         let host = MeloNXSessionHost(api:runtime.session); self.host = host
-                        let view = MeloNXMetalSessionViewController(host:host,game:URL(fileURLWithPath:path),locale:locale,runtime:runtime,titleID:titleID,
+                        let view = MeloNXMetalSessionViewController(host:host,game:URL(fileURLWithPath:path),locale:locale,runtime:runtime,titleID:titleID,settings:settings,
+                            saveSettings:{ [weak self] updated, completion in
+                                guard let self, self.isCurrent(token), let channel = self.diagnosticsChannel else { completion(false); return }
+                                channel.invokeMethod("saveGameGraphics",arguments:["gamePath":path,"settings":updated]) { reply in
+                                    completion((reply as? Bool) == true)
+                                }
+                            },
                             beforeRun:{ [weak self] in
                                 guard let self else { return false }
                                 return self.isCurrent(token) && self.jitReady
                             },firstFrame:{ [weak self] in guard let self, self.isCurrent(token) else { return }; MeloNXLaunchJournal.record("firstFrame","passed",detail:"CAMetalDrawable presentedTime confirmed."); self.frameReady = true; self.completeLaunchIfReady() }) { [weak self] outcome in
-                                guard let self, self.isCurrent(token) else { return }
+                                guard let self else { return }
+                                self.libraryQueue.async { _ = MeloNXMemoryLease.shared.retire(runtime:runtime) }
+                                guard self.isCurrent(token) else { return }
                                 if self.launchReply != nil {
                                     let detail: String
                                     switch outcome { case .success: detail = "The game closed before launch authorization completed."; case .failure(let error): detail = error.description }
@@ -291,6 +304,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     }
     private func failLaunch(_ code: String, diagnostic: String = "", stage: String = "launch", nativeStatus: Int64 = 1) {
         lastFailure = diagnostic
+        if let runtime { libraryQueue.async { _ = MeloNXMemoryLease.shared.retire(runtime:runtime) } }
         if let runtime { diagnosticsQueue.sync { drainDiagnostics(runtime) } }
         let errorCode = code.isEmpty ? "launchFailed" : code
         MeloNXLaunchJournal.record(stage,"failed",code:nativeStatus,detail:errorCode + ": " + diagnostic)

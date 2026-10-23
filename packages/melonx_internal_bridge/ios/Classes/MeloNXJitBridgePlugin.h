@@ -1,6 +1,7 @@
 #pragma once
 #import <Flutter/Flutter.h>
 #import <Foundation/Foundation.h>
+#import "../Memory/MLXRamDonor.h"
 
 @interface MeloNXJitBridgePlugin : NSObject <FlutterPlugin>
 @end
@@ -16,6 +17,8 @@ void MeloNXJitAbortTransaction(void);
 // this process. CS_DEBUGGED by itself never makes this return success.
 NSDictionary* MeloNXJitExecutableMappingProbe(void);
 NSDictionary* _Nonnull MeloNXMemoryEntitlements(void);
+// Real process footprint and OS-reported headroom; absent fields mean unavailable.
+NSDictionary* _Nonnull MeloNXMemorySnapshot(void);
 #ifdef __cplusplus
 }
 #endif

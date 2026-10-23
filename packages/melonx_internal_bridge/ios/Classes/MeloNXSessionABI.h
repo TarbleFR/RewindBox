@@ -38,6 +38,11 @@ int32_t neostation_melonx_input_detach(int64_t generation, int32_t pad);
 int32_t neostation_melonx_input_reset(int64_t generation, int32_t pad);
 int32_t neostation_melonx_input_button(int64_t generation, int32_t pad, int32_t button, int32_t pressed);
 int32_t neostation_melonx_input_stick(int64_t generation, int32_t pad, int32_t stick, float x, float y);
+/* Live renderer ratio and checked, process-owned borrowed memory. */
+int32_t neostation_melonx_set_aspect_ratio(int64_t generation, int32_t aspect);
+int32_t neostation_melonx_memory_offer(void *address, uint64_t bytes);
+int32_t neostation_melonx_memory_withdraw(void);
+int32_t neostation_melonx_memory_snapshot(uint64_t *values, int32_t count);
 #ifdef __cplusplus
 }
 #endif

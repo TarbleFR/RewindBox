@@ -330,3 +330,6 @@ packages/neo_swap/ios/Classes/Storage/
 # The published/bundled unified index uses bounded gzip; JSON is a build intermediate.
 /native/cheats/catalogue/manifest.json
 /packages/neo_cheat_catalog/ios/Resources/manifest.json
+
+# Materialized from the pinned MeloNX donor source by vendor_memory.py.
+/packages/melonx_internal_bridge/ios/Memory/

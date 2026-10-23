@@ -15,6 +15,7 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/prepare_embedded.py
     - build-utils/melonx/adapt_session.py
     - build-utils/melonx/adapt_input.py
+    - build-utils/melonx/adapt_memory.py
     - build-utils/melonx/adapt_runtime.py
     - build-utils/melonx/adapt_firmware.py
     - native/melonx/*.cs
@@ -28,6 +29,7 @@ run-name: MeloNX engine • ${{ github.sha }}
     - test/melonx_library_api_test.py
     - build-utils/melonx/reuse_library_validation.py
     - test/melonx_game_header_test.py
+    - test/melonx_display_native_test.py
     - test/melonx_keys_native_test.py
     - test/fixtures/melonx_key_shape_517.json
     - test/melonx_runtime_smoke.py
@@ -106,16 +108,16 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: python3 build-utils/melonx/reuse_keys_validation.py
-    - name: Exercise key regression against the real pinned LibHac reader
-      run: python3 test/melonx_keys_native_test.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
-    - name: Check affected personal configuration and LibHac API
-      run: python3 test/melonx_library_api_test.py .native-sources/MeloNX dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
-    - name: Execute the changed production launch preflight and diagnostic API
-      run: python3 test/melonx_launch_native_test.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
+    - name: Reuse exact successful key, personal configuration and launch validation
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 build-utils/melonx/reuse_display_validation.py
     - name: Execute production input driver ownership
       env:
         GH_TOKEN: ${{ github.token }}
       run: python3 build-utils/melonx/check_input.py .native-sources/MeloNX
+    - name: Exercise display ratios, existing memory settings and stale-session refusal
+      run: python3 test/melonx_display_native_test.py .native-sources/MeloNX
     - name: Compile NativeAOT library and verify exported ABI
       env:
         MELONX_REUSE_LIBHAC: '1'

@@ -239,6 +239,8 @@ def main() -> None:
     configure_entitlements()
     configure_podfile()
     configure_xcode_project()
+    from configure_melonx_memory_ios import configure as configure_memory
+    configure_memory()
     print('Configured embedded MeloNX Core capabilities and MeloNXJITHelper.')
 
 

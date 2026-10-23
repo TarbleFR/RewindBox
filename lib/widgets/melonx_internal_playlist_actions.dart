@@ -345,6 +345,29 @@ class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    DropdownButtonFormField<int>(
+                      initialValue: settings['aspectRatio'] as int? ?? 1,
+                      decoration: InputDecoration(labelText: _text('Screen format')),
+                      items: [
+                        for (final item in [(1, 'Original (16:9)'), (0, '4:3'), (2, '16:10'), (3, '21:9'), (4, '32:9'), (5, 'Stretch')])
+                          DropdownMenuItem(value: item.$1, child: Text(_text(item.$2))),
+                      ],
+                      onChanged: (value) => setState(() => settings['aspectRatio'] = value),
+                    ),
+                    SwitchListTile(
+                      title: Text(_text('RAM graph')),
+                      value: settings['showRamGraph'] as bool? ?? true,
+                      onChanged: (value) => setState(() => settings['showRamGraph'] = value),
+                    ),
+                    Text(_text('Memory settings apply on the next launch.')),
+                    for (final item in [('donateMemory', 'Use RamDonor'), ('hostMemoryBudget', 'Track available memory'), ('textureRecompression', 'Texture recompression')])
+                      SwitchListTile(
+                        title: Text(_text(item.$2)),
+                        value: settings[item.$1] as bool? ?? true,
+                        onChanged: (value) => setState(() => settings[item.$1] = value),
+                      ),
+                    Text(_text('RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.')),
+                    if (_failure != null) Text(_text('Settings could not be saved.')),
                     DropdownButtonFormField<double>(
                       initialValue: (settings['resolution'] as num? ?? 1)
                           .toDouble(),

@@ -8,6 +8,9 @@ namespace Ryujinx.Library;
 
 internal sealed class EmbeddedGraphicsSettings
 {
+    internal AspectRatio? Aspect;
+    internal bool? HostMemoryBudget;
+    internal bool? TextureRecompression;
     internal float Resolution = 1;
     internal bool ShaderCache;
     internal bool AsyncShaders = true;
@@ -24,6 +27,12 @@ internal sealed class EmbeddedGraphicsSettings
         {
             switch (property.Name)
             {
+                case "aspectRatio":
+                    settings.Aspect = (AspectRatio)property.Value.GetInt32();
+                    if (!Enum.IsDefined(settings.Aspect.Value)) throw new ArgumentException("Unsupported aspect ratio.");
+                    break;
+                case "hostMemoryBudget": settings.HostMemoryBudget = property.Value.GetBoolean(); break;
+                case "textureRecompression": settings.TextureRecompression = property.Value.GetBoolean(); break;
                 case "resolution": settings.Resolution = property.Value.GetSingle(); break;
                 case "shaderCache": settings.ShaderCache = property.Value.GetBoolean(); break;
                 case "asyncShaders": settings.AsyncShaders = property.Value.GetBoolean(); break;
@@ -46,6 +55,9 @@ internal sealed class EmbeddedGraphicsSettings
 
     internal Options Apply(Options options)
     {
+        if (Aspect.HasValue) options.AspectRatio = Aspect.Value;
+        if (HostMemoryBudget.HasValue) options.EnableHostMemoryBudgetTracking = HostMemoryBudget.Value;
+        if (TextureRecompression.HasValue) options.EnableTextureRecompression = TextureRecompression.Value;
         options.ResScale = Resolution;
         options.DisableShaderCache = !ShaderCache;
         options.EnableAsyncShaderCompilation = AsyncShaders;
@@ -58,6 +70,27 @@ internal sealed class EmbeddedGraphicsSettings
 partial class Library
 {
     private static EmbeddedGraphicsSettings EmbeddedGraphics = new();
+
+    // Uses the engine's existing SurfaceFlinger crop/ratio path. The session
+    // gate rejects delayed UI callbacks after stop or for a different game.
+    [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_set_aspect_ratio")]
+    public static int EmbeddedSetAspectRatio(long generation, int value)
+    {
+        if (!Enum.IsDefined((AspectRatio)value)) return 1;
+        try
+        {
+            bool applied = false;
+            bool current = EmbeddedSessions.WithInputs(generation, () =>
+            {
+                var window = _window;
+                if (window?.Device?.Configuration == null) return;
+                window.Device.Configuration.AspectRatio = (AspectRatio)value;
+                applied = true;
+            });
+            return current && applied ? 0 : 2;
+        }
+        catch (Exception error) { EmbeddedLaunchDiagnostics.Fail("display", "displayUnavailable", error); return 3; }
+    }
 
     [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_configure_graphics")]
     public static int EmbeddedConfigureGraphics(nint jsonUtf8)

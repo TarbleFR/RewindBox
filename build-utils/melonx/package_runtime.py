@@ -80,6 +80,8 @@ def embed(app):
         target=app/'Frameworks'/source.name
         if target.exists():shutil.rmtree(target)
         shutil.copytree(source,target)
+    donor=read(ROOT/'packages/melonx_internal_bridge/ios/Memory/adaptation.json')
+    receipt['ramDonorSource']=donor
     (app/'MeloNX-native-identity.json').write_text(json.dumps(receipt,indent=2)+'\n')
     legal=app/'Legal/MeloNX';legal.mkdir(parents=True,exist_ok=True)
     shutil.copytree(ROOT/'assets/legal/melonx',legal,dirs_exist_ok=True)

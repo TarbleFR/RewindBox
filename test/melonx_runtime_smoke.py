@@ -103,6 +103,13 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
          guard stage == "graphics", status == 1, !detail.isEmpty else {throw NSError(domain:"graphics-error-propagation",code:14)}
          report["invalidGraphicsCodePreserved"]=true
        }
+       // Resolve and exercise the new entry point in the actual NativeAOT image.
+       for ratio in 0...5 {
+         try runtime.prepareGraphics(["aspectRatio":ratio,"hostMemoryBudget":true,"textureRecompression":true,"showRamGraph":true],universalJit:false)
+       }
+       guard !runtime.setAspectRatio(5,generation:12345) else {throw NSError(domain:"stale-display-generation",code:20)}
+       try runtime.prepareGraphics(["aspectRatio":1],universalJit:false)
+       report["displayAndMemoryConfigurationAccepted"]=true
        // Simulator-only executable mapping proof with the real ARM64 engine.
        // It does not exercise iPhone signing, its helper or Universal JIT.
        try runtime.prepareJit();try runtime.prepareJit()
@@ -128,7 +135,16 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        let hb=try runtime.content(path:homebrew.path,operation:8)
        guard hb["success"] as? Bool == true else {throw NSError(domain:"homebrew-preflight",code:8)}
        var sessions=0
+       let donationBytes=4*1024*1024*1024
+       guard let donation=mmap(nil,donationBytes,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANON,-1,0), donation != MAP_FAILED else {throw NSError(domain:"donation-fixture-map",code:21)}
+       // Local test backing proves the actual Core's allocation/retirement path;
+       // it is explicitly NOT a donor process or reduced iPhone footprint proof.
+       defer { if runtime.withdrawMemory() { munmap(donation,donationBytes) } }
+       var donatedSessions=0
        for _ in 0..<2 {
+         guard runtime.offerMemory(donation,bytes:UInt64(donationBytes)) else {throw NSError(domain:"actual-memory-offer",code:22)}
+         var borrowedWhileRunning=false
+         var liveWithdrawalRefused=false
          let ended=DispatchSemaphore(value:0)
          var outcome:Result<Void,MeloNXHostError>?
          var owner:MeloNXSessionHost?
@@ -142,7 +158,12 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
            let host=MeloNXSessionHost(api:runtime.session);owner=host
            do {
              try host.start(game:homebrew,locale:"en",width:1280,height:720,surface:layer,pointer:Unmanaged.passUnretained(layer).toOpaque(),beforeRun:{true}) {result in outcome=result;ended.signal()}
-             DispatchQueue.main.asyncAfter(deadline:.now()+2) {host.requestStop()}
+             DispatchQueue.main.asyncAfter(deadline:.now()+2) {
+               let memory=runtime.memorySnapshot()
+               borrowedWhileRunning=((memory["donorUsedBytes"] as? NSNumber)?.uint64Value ?? 0)>0
+               liveWithdrawalRefused = !runtime.withdrawMemory()
+               host.requestStop()
+             }
            } catch {outcome = .failure(error as? MeloNXHostError ?? .load(String(describing:error)));ended.signal()}
          }
          guard ended.wait(timeout:.now()+45) == .success else {throw NSError(domain:"homebrew-session-timeout",code:9)}
@@ -150,10 +171,16 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
          if case .failure(let error)=completedOutcome {throw error}
          guard runtime.session.state == 0, owner?.isSessionActive == false else {throw NSError(domain:"homebrew-session-cleanup",code:10)}
          DispatchQueue.main.sync {surface?.removeFromSuperview()}
+         guard borrowedWhileRunning,liveWithdrawalRefused,
+               (runtime.memorySnapshot()["donorUsedBytes"] as? NSNumber)?.uint64Value == 0,
+               runtime.withdrawMemory() else {throw NSError(domain:"actual-donation-lifetime",code:23)}
+         donatedSessions += 1
          sessions += 1
        }
        let execution=runtime.diagnostics()["events"] as? [[String:Any]] ?? []
        guard execution.filter({$0["stage"] as? String == "guestExecution" && $0["status"] as? String == "passed"}).count >= 2 else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11)}
+       report["actualCoreDonatedBackingSessions"]=donatedSessions
+       report["donorProcessUsedInSmoke"]=false
        report["originalHomebrewGuestSvcConfirmed"]=true;report["homebrewSimulatorSessions"]=sessions
        report["homebrewProducesVideo"]=false;report["iphoneGuestExecutionTested"]=false
        report["result"]="passed";report["initializationAndIdempotency"]=true;report["invalidContentRejected"]=true;report["graphicsAccepted"]=true;report["invalidGuestRejected"]=true

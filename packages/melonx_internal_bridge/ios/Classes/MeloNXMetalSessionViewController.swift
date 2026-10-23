@@ -59,6 +59,12 @@ final class MeloNXMetalSessionViewController: UIViewController {
     private let beforeRun: (() -> Bool)?
     private let firstFrame: () -> Void
     private let finished: (Result<Void, MeloNXHostError>) -> Void
+    private var settings: [String:Any]
+    private let saveSettings: ([String:Any], @escaping (Bool)->Void)->Void
+    private var generation: Int64?
+    private var saving = false
+    private var memoryGraph: MeloNXMemoryGraph?
+    private var visible = false
     private var started = false
     private var ready = false
     private var closing = false
@@ -72,11 +78,15 @@ final class MeloNXMetalSessionViewController: UIViewController {
     var presentedFrameCount: UInt64 { surface.metalLayer.frameCount }
 
     init(host: MeloNXSessionHost, game: URL, locale: String,
-         runtime: MeloNXRuntimeAPI? = nil, titleID: String? = nil, beforeRun: (() -> Bool)? = nil,
+         runtime: MeloNXRuntimeAPI? = nil, titleID: String? = nil,
+         settings: [String:Any] = [:],
+         saveSettings: @escaping ([String:Any], @escaping (Bool)->Void)->Void = { _, done in done(false) },
+         beforeRun: (() -> Bool)? = nil,
          firstFrame: @escaping () -> Void = {},
          finished: @escaping (Result<Void, MeloNXHostError>) -> Void) {
         self.host = host; self.game = game; self.locale = locale; self.titleID = titleID
         self.runtime = runtime; self.beforeRun = beforeRun
+        self.settings = settings; self.saveSettings = saveSettings
         self.firstFrame = firstFrame; self.finished = finished
         super.init(nibName:nil,bundle:nil)
         modalPresentationStyle = .fullScreen; isModalInPresentation = true
@@ -109,12 +119,28 @@ final class MeloNXMetalSessionViewController: UIViewController {
         menuButton.addTarget(self,action:#selector(showMenu),for:.touchUpInside)
         view.addSubview(menuButton)
         NSLayoutConstraint.activate([menuButton.widthAnchor.constraint(equalToConstant:44),menuButton.heightAnchor.constraint(equalToConstant:44),menuButton.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor,constant:8),menuButton.trailingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.trailingAnchor,constant:-8)])
+        let graph = MeloNXMemoryGraph()
+        graph.sample = { [weak self] in
+            var values = MeloNXMemorySnapshot() as? [String:Any] ?? [:]
+            for (key,value) in MeloNXMemoryLease.shared.snapshot() { values[key] = value }
+            for (key,value) in self?.runtime?.memorySnapshot() ?? [:] { values[key] = value }
+            return values
+        }
+        graph.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(graph); memoryGraph = graph
+        NSLayoutConstraint.activate([
+            graph.leadingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.leadingAnchor,constant:8),
+            graph.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor,constant:8),
+            graph.widthAnchor.constraint(equalToConstant:240),graph.heightAnchor.constraint(equalToConstant:152)
+        ])
+        updateMemoryGraph()
         for (name, pause) in [(UIApplication.willResignActiveNotification,true),(UIApplication.didBecomeActiveNotification,false)] {
-            observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] _ in self?.setPause("application",enabled:pause) })
+            observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] _ in self?.setPause("application",enabled:pause); self?.updateMemoryGraph() })
         }
     }
 
     private func installControls(generation: Int64) {
+        self.generation = generation
         guard let runtime else { return }
         let router = MeloNXInputRouter(runtime:runtime,generation:generation,game:game,titleID:titleID)
         self.router = router
@@ -137,6 +163,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        visible = true; updateMemoryGraph()
         guard !started else { return }; started = true
         if closing {
             dismiss(animated:true) { [finished] in finished(.success(())) }
@@ -149,7 +176,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
                 width:Int32(max(1,min(16384,size.width))),height:Int32(max(1,min(16384,size.height))),
                 surface:surface.metalLayer,pointer:Unmanaged.passUnretained(surface.metalLayer).toOpaque(),
                 prepared:{ [weak self] id in self?.installControls(generation:id) },beforeRun:beforeRun) { [weak self, finished] result in
-                    self?.router?.close(); self?.closing = true
+                    self?.router?.close(); self?.closing = true; self?.updateMemoryGraph()
                     if let self, self.presentingViewController != nil {
                         self.dismiss(animated:true) { finished(result) }
                     } else { finished(result) }
@@ -169,10 +196,18 @@ final class MeloNXMetalSessionViewController: UIViewController {
         host.setPaused(!pauseReasons.isEmpty)
     }
     @objc private func showMenu() {
-        guard presentedViewController == nil, !closing else { return }
+        guard presentedViewController == nil, !closing, !saving else { return }
         setPause("menu",enabled:true)
         let menu = UIAlertController(title:game.deletingPathExtension().lastPathComponent,message:nil,preferredStyle:.actionSheet)
         menu.addAction(UIAlertAction(title:MeloNXText("Resume"),style:.cancel) { [weak self] _ in self?.setPause("menu",enabled:false) })
+        menu.addAction(UIAlertAction(title:MeloNXText("RAM graph") + ": " + MeloNXText((settings["showRamGraph"] as? Bool ?? true) ? "On" : "Off"),style:.default) { [weak self] _ in
+            guard let self else { return }
+            self.saveOption("showRamGraph",value:!(self.settings["showRamGraph"] as? Bool ?? true))
+        })
+        menu.addAction(UIAlertAction(title:MeloNXText("Memory status"),style:.default) { [weak self] _ in self?.showMemoryStatus() })
+        if ready {
+            menu.addAction(UIAlertAction(title:MeloNXText("Screen format"),style:.default) { [weak self] _ in self?.showFormats() })
+        }
         if ready, let router {
             menu.addAction(UIAlertAction(title:MeloNXText("Edit touch controls"),style:.default) { [weak self] _ in self?.editLayout() })
             menu.addAction(UIAlertAction(title:MeloNXText("Controller mapping"),style:.default) { [weak self] _ in self?.editMapping() })
@@ -183,6 +218,57 @@ final class MeloNXMetalSessionViewController: UIViewController {
         menu.popoverPresentationController?.sourceView = menuButton
         menu.popoverPresentationController?.sourceRect = menuButton.bounds
         present(menu,animated:true)
+    }
+    private func updateMemoryGraph() {
+        let enabled = settings["showRamGraph"] as? Bool ?? true
+        memoryGraph?.isHidden = !enabled
+        memoryGraph?.setSampling(enabled && visible && !closing && UIApplication.shared.applicationState == .active)
+    }
+    private func showFormats() {
+        guard !closing else { return }
+        let menu = UIAlertController(title:MeloNXText("Screen format"),message:nil,preferredStyle:.actionSheet)
+        let current = (settings["aspectRatio"] as? NSNumber)?.intValue ?? 1
+        for (value,key) in [(1,"Original (16:9)"),(0,"4:3"),(2,"16:10"),(3,"21:9"),(4,"32:9"),(5,"Stretch")] {
+            menu.addAction(UIAlertAction(title:(value == current ? "✓ " : "") + MeloNXText(key),style:.default) { [weak self] _ in self?.saveOption("aspectRatio",value:value) })
+        }
+        menu.addAction(UIAlertAction(title:MeloNXText("Cancel"),style:.cancel) { [weak self] _ in self?.setPause("menu",enabled:false) })
+        menu.popoverPresentationController?.sourceView = menuButton
+        menu.popoverPresentationController?.sourceRect = menuButton.bounds
+        present(menu,animated:true)
+    }
+    private func saveOption(_ key:String, value:Any) {
+        guard !closing, !saving else { return }
+        var updated = settings; updated[key] = value
+        let oldAspect = (settings["aspectRatio"] as? NSNumber)?.int32Value ?? 1
+        if key == "aspectRatio" {
+            guard let generation,let aspect = value as? Int,
+                  runtime?.setAspectRatio(Int32(aspect),generation:generation) == true else { settingsFailed(); return }
+        }
+        saving = true
+        saveSettings(updated) { [weak self] success in
+            guard let self else { return }
+            self.saving = false
+            guard !self.closing else { return }
+            if success { self.settings = updated; self.updateMemoryGraph(); self.setPause("menu",enabled:false) }
+            else {
+                if key == "aspectRatio", let generation = self.generation { _ = self.runtime?.setAspectRatio(oldAspect,generation:generation) }
+                self.settingsFailed()
+            }
+        }
+    }
+    private func settingsFailed() {
+        let alert = UIAlertController(title:MeloNXText("Settings could not be saved."),message:nil,preferredStyle:.alert)
+        alert.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self] _ in self?.setPause("menu",enabled:false) })
+        present(alert,animated:true)
+    }
+    private func showMemoryStatus() {
+        let access = MeloNXMemoryEntitlements()
+        let state = MeloNXText(access["increasedMemoryLimit"] as? Bool == true ? "Granted" : "Unavailable")
+        let donorState = MeloNXMemoryLease.shared.snapshot()["donorState"] as? String ?? "unavailable"
+        let message = MeloNXText("Extended memory") + ": " + state + "\nRamDonor: " + MeloNXText("Donor " + donorState) + "\n\n" + MeloNXText("RamDonor lends memory through the bundled extension. If unavailable, MeloNX uses normal memory.")
+        let alert = UIAlertController(title:MeloNXText("Memory status"),message:message,preferredStyle:.alert)
+        alert.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self] _ in self?.setPause("menu",enabled:false) })
+        present(alert,animated:true)
     }
     private func editLayout() {
         guard let router else { setPause("menu",enabled:false); return }
@@ -201,15 +287,17 @@ final class MeloNXMetalSessionViewController: UIViewController {
     }
     func requestClose() {
         guard !closing else { return }; closing = true
-        router?.close(); host.requestStop()
+        router?.close(); host.requestStop(); updateMemoryGraph()
         spinner.startAnimating(); menuButton.isEnabled = false
     }
     func setPaused(_ paused: Bool) { setPause("host",enabled:paused) }
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        visible = false; updateMemoryGraph()
         if isBeingDismissed || presentingViewController == nil { router?.close(); host.requestStop() }
     }
     deinit {
+        memoryGraph?.setSampling(false)
         observers.forEach { NotificationCenter.default.removeObserver($0) }
         router?.close(); host.requestStop()
     }
