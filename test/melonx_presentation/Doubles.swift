@@ -67,6 +67,10 @@ final class MeloNXMetalSessionViewController:UIViewController {
 
 final class MeloNXMemoryLease {
     static let shared=MeloNXMemoryLease()
-    func prepare(runtime:MeloNXRuntimeAPI,enabled:Bool,isCurrent:@escaping()->Bool) throws {}
+    var retained=false
+    func snapshot()->[String:Any] { ["donorState":retained ? "retained":"off"] }
+    func prepare(runtime:MeloNXRuntimeAPI,enabled:Bool,isCurrent:@escaping()->Bool) throws {
+        if retained {throw MeloNXHostError.load("Retained donor reservation fixture")}
+    }
     func retire(runtime:MeloNXRuntimeAPI)->Bool {true}
 }

@@ -41,6 +41,10 @@ abstract final class MelonxInternalService {
       }
       if (call.method == 'launchDiagnostic'  && call.arguments is Map) {
         final event = Map<String, dynamic>.from(call.arguments as Map);
+        // Retained donor mappings also block other embedded engines until restart.
+        if (event['stage'] == 'memory' && event['status'] == 'retained') {
+          nativeQuarantined = true;
+        }
         MelonxLaunchDiagnostics.record(
           event['stage']?.toString() ?? 'native',
           event['status']?.toString() ?? 'unknown',

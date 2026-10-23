@@ -17,6 +17,7 @@ class MLXRamDonor {
  static let shared=MLXRamDonor()
  var maxDonors=0,killDonorsAfterMapping=true,hasOutstandingRegions=false
  var shouldContinue:(()->Bool)?
+ var lastError:String? = "Synthetic donor refusal"
  var release=true,available=true,supply=true,leak=false,acquisitions=0,releases=0,shutdowns=0
  func releaseRegionChecked(_ p:UnsafeMutableRawPointer)->Bool {
   releases += 1;if release {hasOutstandingRegions=false};return release

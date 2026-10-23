@@ -312,7 +312,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         if host?.isSessionActive != true { restoreAudio(); MeloNXJitAbortTransaction() }
         if host?.isSessionActive != true { diagnosticsTimer?.cancel(); diagnosticsTimer = nil }
         reply?(["success":false,"error":errorCode,"errorCode":errorCode,"stage":stage,"nativeStatus":nativeStatus,
-            "diagnostic":diagnostic,"sessionActive":host?.isSessionActive == true,"requiresRestart":host?.isSessionActive == true || errorCode == "jitRestartRequired"])
+            "diagnostic":diagnostic,"sessionActive":host?.isSessionActive == true,"requiresRestart":host?.isSessionActive == true || errorCode == "jitRestartRequired" || (MeloNXMemoryLease.shared.snapshot()["donorState"] as? String) == "retained"])
     }
     private func restoreAudio() {
         guard let previousAudio else { return }; self.previousAudio = nil

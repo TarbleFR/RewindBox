@@ -104,7 +104,12 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
             self.window?.makeKeyAndVisible()
             DispatchQueue.main.asyncAfter(deadline:.now()+0.3) {
                 self.check(Probe.starts == starts,"cancelled launch cannot present later")
-                self.finish(true,"presentation and retry passed")
+                MeloNXMemoryLease.shared.retained = true
+                self.launch { failed in
+                    self.check(failed["requiresRestart"] as? Bool == true,"retained donor blocks restart")
+                    self.check(Probe.detachCalls == 1 && Probe.starts == starts,"memory refusal preserves prepared JIT and starts no guest")
+                    self.finish(true,"presentation, retry and donor quarantine passed")
+                }
             }
         }
         DispatchQueue.main.asyncAfter(deadline:.now()+0.15) { self.call("stop") { _ in } }

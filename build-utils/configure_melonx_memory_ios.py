@@ -41,7 +41,7 @@ t.build_configurations.each do |c|
  s['GENERATE_INFOPLIST_FILE']='NO';s['CODE_SIGN_ENTITLEMENTS']='MeloNXRamDonor/MeloNXRamDonor.entitlements'
  s['CODE_SIGN_STYLE']='Automatic';s['CURRENT_PROJECT_VERSION']=ENV.fetch('BUILD_NUMBER','519')
  s['MARKETING_VERSION']=ENV.fetch('MELONX_MARKETING_VERSION');s['IPHONEOS_DEPLOYMENT_TARGET']='18.0';s['TARGETED_DEVICE_FAMILY']='1,2'
- s['CLANG_ENABLE_MODULES']='YES';s['CLANG_ENABLE_OBJC_ARC']='YES';s['APPLICATION_EXTENSION_API_ONLY']='NO'
+ s['CLANG_ENABLE_MODULES']='YES';s['CLANG_ENABLE_OBJC_ARC']='YES';s['APPLICATION_EXTENSION_API_ONLY']='YES'
  s['OTHER_LDFLAGS']='$(inherited) -framework Foundation';s['SKIP_INSTALL']='YES'
  s['LD_RUNPATH_SEARCH_PATHS']='$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks'
 end

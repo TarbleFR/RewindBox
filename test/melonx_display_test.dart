@@ -45,6 +45,10 @@ void main() {
         'settings': {'aspectRatio': 5, 'showRamGraph': false, 'resolution': 1.5}})),
       (data) => reply = codec.decodeEnvelope(data!));
     expect(reply, true);
+    await messenger.handlePlatformMessage(MelonxInternalService.channel.name,
+      codec.encodeMethodCall(const MethodCall('launchDiagnostic', {'stage': 'memory', 'status': 'retained'})), (_) {});
+    expect(MelonxInternalService.nativeQuarantined, true);
+    MelonxInternalService.nativeQuarantined = false;
     expect(await MelonxInternalService.graphicsForGame(game),
       {'aspectRatio': 5, 'showRamGraph': false, 'resolution': 1.5});
   });

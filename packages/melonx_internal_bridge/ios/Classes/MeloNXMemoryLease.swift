@@ -12,8 +12,9 @@ final class MeloNXMemoryLease {
     private func update(_ state:String, bytes:UInt64? = nil) {
         lock.lock(); self.state = state
         if let bytes { mappedBytes = bytes }
+        let mapped = mappedBytes
         lock.unlock()
-        MeloNXLaunchJournal.record("memory",state,detail:"MeloNX donor lease state changed.")
+        MeloNXLaunchJournal.record("memory",state,detail:"MeloNX donor lease state changed. Mapped bytes: \(mapped).")
     }
     func snapshot() -> [String:Any] {
         lock.lock(); defer { lock.unlock() }
@@ -43,6 +44,7 @@ final class MeloNXMemoryLease {
         let address = mlx_ram_donor_acquire_up_to(4 * 1024 * 1024 * 1024,256 * 1024 * 1024,&granted)
         donor.shouldContinue = nil
         guard let address, granted > 0 else {
+            MeloNXLaunchJournal.record("memory","refused",detail:donor.lastError ?? "No mapped donor region returned.")
             if donor.hasOutstandingRegions {
                 update("retained")
                 throw MeloNXHostError.load("The donor retained an unmapped reservation; restart RewindBox before retrying.")
