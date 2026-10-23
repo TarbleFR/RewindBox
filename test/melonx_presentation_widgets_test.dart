@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
+// Existing transitive platform boundary, shared with the library regression tests.
+// ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:provider/provider.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
@@ -49,9 +51,10 @@ void main() {
     FilePickerPlatform.instance=_Picker(source);
     addTearDown(() => FilePickerPlatform.instance=previousPicker);
     final messenger=TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    var mutationCompletions=0;
     messenger.setMockMethodCallHandler(MelonxInternalService.channel,(call) async {
       if(call.method=='beginLibraryMutation') return true;
-      if(call.method=='endLibraryMutation') return null;
+      if(call.method=='endLibraryMutation') { mutationCompletions++;return null; }
       return {'success':true,'recognizedKeys':1};
     });
     addTearDown(() => messenger.setMockMethodCallHandler(MelonxInternalService.channel,null));
@@ -74,7 +77,9 @@ void main() {
       }
       expect(condition(),true);
     }
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds:30)));
+    // Initial discovery owns the same transaction lock as import. Wait for its
+    // real completion instead of racing filesystem I/O with an arbitrary delay.
+    await until(() => mutationCompletions>0);
     await tester.pumpAndSettle();
     tester.widget<PopupMenuButton<String>>(find.byKey(const ValueKey('melonx-import-menu'))).onSelected!('keys');
     await until(() => find.byType(AlertDialog).evaluate().isNotEmpty);
