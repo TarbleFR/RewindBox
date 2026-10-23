@@ -55,3 +55,15 @@ Translated Linux controller events exercise the actual route/input owner; the
 unchanged iOS named-event bridge retains its earlier source proof. No physical
 controller/iPhone execution is claimed. Four pre-existing informational
 brace-style lints remain; analysis has no errors or warnings.
+
+## Verified delivery
+
+Build **0.0.8 (512)** compiled source `02a0273494c50bc849b092c0fff395d9e5fd7ebf`. [Run 39959490510](https://github.com/TarbleFR/RewindBox/actions/runs/39959490510) completed successfully with checks, native evidence reuse and the cold Release job. [Encrypted GitHub artifact 12504996829](https://github.com/TarbleFR/RewindBox/actions/runs/39959490510/artifacts/12504996829) contains the IPA and final verification reports. The clear IPA is supplied in the conversation as `RewindBox-Build512.ipa`.
+
+- IPA SHA256: `3728998c897c95c2bf89e852c753549720fc2be3ee1ec9f4f45ffa0647da35b3` (186123342 bytes).
+- Artifact ZIP SHA256: `e005403a9ab30c37a8b56450245d00e24de1415b7ba738809b2240343c2316b2`.
+- ARM64, iOS 18.0 minimum, six version-aligned extensions and 86 verified ad hoc signatures. SideStore/AltStore must re-sign with the user’s Apple identity.
+- Exact compiled Switch/header markers and all 21 author animation segments verified after signing; code, data and ABI unchanged by signing.
+- No physical-device installation/gameplay or thermal measurement claimed. No release, tag or main update.
+
+Machine-readable receipt: `docs/evidence/navigation512-delivery.json`.
