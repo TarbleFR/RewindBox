@@ -37,7 +37,28 @@ Internal app logs JITMEM/JITPAGES/JITCPU/VMAHEAP support the audit's suggested
 cold/warm/second-title comparisons. The app still requires Apple signing for
 installation with SideStore. No main change, public release or tag is made.
 
-Successful build and final artifact receipts are recorded after verification.
+Build 508 is delivered and independently verified. Source
+`e44b0d34bcca18a193793704ca01db1eccf819a4`, tree
+`24106680143456f7572ad406805b2789f9e12f1a`, completed the checks, native-source
+and Release device jobs in [run 39880551632](https://github.com/TarbleFR/RewindBox/actions/runs/39880551632).
+The decrypted IPA is version 0.0.8 (508), requires iOS 18.0, and contains
+186,077,551 bytes. Its SHA-256 is
+`17431aedb8ee3c87f7b868d9a59db2944be783a681250d1606b71c3505198ab6`.
+The machine-readable receipt is `evidence/rpcs3-memory508-delivery.json`.
+
+Independent verification checked 83 compiled Mach-O payloads against the final
+package identities; CI verified 86 ad hoc signatures. The new RPCS3 Core,
+shared compiler broker and optional binder are present. Its compiled payload
+fingerprint matches the successful Core source/run without rewriting the
+original artifact identity. The 38 other emulator payloads and five private
+MeloNX dependency payloads remain identical to Build 506. The current MeloNX
+ABI2 engine and concurrent Switch library fixes are included. Final motion
+assets, notices, native channels and compiled Dart checks also passed.
+
+The final IPA still requires Apple re-signing with SideStore. Physical
+installation, game sessions, relaunch behavior and FPS/RAM measurements remain
+unverified. The minimal-object SPU linker remains disabled in production.
+Main, releases and tags were not changed.
 
 Broad touch/cheat bridge path triggers reuse their existing proofs only for the
 closed `[rpcs3-memory508]` integration. The delivery gate proves every original

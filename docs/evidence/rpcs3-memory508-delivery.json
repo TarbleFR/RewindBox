@@ -1,0 +1,86 @@
+{
+  "bytes": 186077551,
+  "sha256": "17431aedb8ee3c87f7b868d9a59db2944be783a681250d1606b71c3505198ab6",
+  "build": "508",
+  "version": "0.0.8",
+  "minimumIOS": "18.0",
+  "signedBinaryPayloadsVerified": 83,
+  "adHocSignaturesVerifiedByCI": 86,
+  "oldCorePayloadsUnchangedFrom506": 38,
+  "meloNX": {
+    "result": "passed",
+    "build": "508",
+    "engineExportsVerified": 36,
+    "privateFrameworks": [
+      "MeloNXAvCodec",
+      "MeloNXAvUtil",
+      "MeloNXCore",
+      "MeloNXJitSupport",
+      "MeloNXMoltenVK",
+      "MeloNXSDL3"
+    ],
+    "nativeSourceNoticesVerified": 26,
+    "registeredFlutterBridge": true,
+    "gameplayTested": false,
+    "deviceInstallationTested": false
+  },
+  "rpcs3Audit": {
+    "result": "passed",
+    "build": 508,
+    "ipaSHA256": "17431aedb8ee3c87f7b868d9a59db2944be783a681250d1606b71c3505198ab6",
+    "coreSource": "cfe92344e1b3dd26d2cb17bb8b8ad68260c5cc7f",
+    "coreRun": 39877981229,
+    "sourceArtifactSHA256": "97918a2e471901dbed18dafb56640c15902a63ae79e580ee9de25515fdf5601b",
+    "compiledCorePayloadFingerprint": "9a045125bd98797907bcdcbb4b354e7fdf693587b5919a0c6218d928e3675361",
+    "sharedCompilerBrokerLinked": true,
+    "optionalCoreBinderLinked": true,
+    "productionMinimalSPULinkerEnabled": false,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false
+  },
+  "physicalDeviceTested": false,
+  "unchangedMeloNXPrivateDependencies": 5,
+  "sources": {
+    "host": "e44b0d34bcca18a193793704ca01db1eccf819a4",
+    "baseline": "RewindBox-Build506-4fb8ffe6.ipa"
+  },
+  "schemaVersion": 1,
+  "date": "2026-10-23",
+  "fileName": "RewindBox-Build508-e44b0d34.ipa",
+  "result": "passed",
+  "source": "e44b0d34bcca18a193793704ca01db1eccf819a4",
+  "sourceTree": "24106680143456f7572ad406805b2789f9e12f1a",
+  "workflow": {
+    "run": 39880551632,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/39880551632",
+    "conclusion": "success",
+    "checksJob": 120176630366,
+    "nativeSourceGateJob": 120176630493,
+    "releaseDeviceJob": 120176740419
+  },
+  "encryptedDeliveryArtifact": {
+    "id": 12470183752,
+    "bytes": 186314653,
+    "sha256": "ab55264e6a1c72a2db713aad75f988a3616599c130fa4acc5cf8079818006801"
+  },
+  "diagnosticsArtifact": {
+    "id": 12470313422,
+    "bytes": 5990071,
+    "sha256": "20f8dcd70696dbf7ccd5fe731b53242877c957fefe60e2ea3b4b4ee8d472cd2f"
+  },
+  "verification": {
+    "decryptedFinalIPA": true,
+    "deliveryArchiveDigestAndCRC": true,
+    "deliverySHA256SUMS": true,
+    "independentPayloadIdentity": true,
+    "motionAssetsNoticesNativeAndCompiledDart": true,
+    "physicalGameplayTested": false,
+    "physicalPerformanceMeasured": false
+  },
+  "distribution": {
+    "appleResigningRequired": true,
+    "mainChanged": false,
+    "publicReleaseCreated": false,
+    "tagCreated": false
+  }
+}
