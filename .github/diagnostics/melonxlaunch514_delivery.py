@@ -10,10 +10,10 @@ import rpcs3restore513_delivery as previous
 ROOT = Path(__file__).resolve().parents[2]
 base = previous.base
 BASELINE = 'f3f953c15a86463427e75a921adba814fe6e759d'
-SOURCE = '75935aba1a647934c399b22057dc3ffcd0103e31'
+SOURCE = 'e050961d6caabfabdef57dd140c774545976d0fd'
 HOST_SOURCE = '7f88ee9be1681f10dcc66f0996ee9eaffbdb51c0'
 APP_SOURCE = HOST_SOURCE
-CORE_RUN = 39978106781
+CORE_RUN = 39978893582
 HOST_RUN = 39972191758
 APP_RUN = 39972191726
 validate_rpc_core_identity = previous.validate_rpc_core_identity
