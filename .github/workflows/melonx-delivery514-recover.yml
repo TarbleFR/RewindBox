@@ -1,0 +1,33 @@
+name: Recover the exact verified MeloNX Build 514 delivery
+'on':
+  push:
+    branches: [Claude]
+    paths: ['.github/workflows/melonx-delivery514-recover.yml']
+permissions: {contents: read, actions: write}
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env: {GH_TOKEN: '${{ github.token }}'}
+    steps:
+      - name: Rerun only the cancelled IPA job on its original tested source
+        run: |
+          python3 - <<'PY'
+          import json,subprocess
+          base='repos/TarbleFR/RewindBox/actions'
+          def api(path):return json.loads(subprocess.check_output(['gh','api',base+path],text=True))
+          run=api('/runs/39979130143')
+          assert run['head_sha']=='22df4502db21ee1bcd68e15c1791aeba1a826658'
+          assert run['head_branch']=='Claude' and run['path']=='.github/workflows/retroarch-delivery.yml'
+          assert run['status']=='completed' and run['conclusion']=='cancelled' and run['run_attempt']==1
+          job=api('/jobs/120505909551')
+          assert job['run_id']==run['id'] and job['conclusion']=='cancelled'
+          steps={step['name']:step['conclusion'] for step in job['steps']}
+          for name in ['Seal every executable, framework and extension for SideStore',
+              'Verify the actual MeloNX launch ABI and signed memory entitlements',
+              'Prepare encrypted delivery and evidence']:
+              assert steps[name]=='success',(name,steps.get(name))
+          assert steps['Encrypt authenticated compilation cache']=='cancelled'
+          subprocess.run(['gh','api','--method','POST',base+'/jobs/120505909551/rerun'],check=True)
+          print('Rerun accepted: exact tested source 22df4502, IPA job only. Native engine/host/Flutter proofs retained.')
+          PY

@@ -37,8 +37,8 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: rewindbox-melonxlaunch514-delivery-${{ github.ref }}
-  cancel-in-progress: true
+  group: rewindbox-melonxlaunch514-delivery-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
+  cancel-in-progress: false
 jobs:
   checks:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
@@ -911,6 +911,14 @@ jobs:
         shasum -a 256 build/delivery-artifact/*.ipa > build/delivery-artifact/SHA256SUMS
 
         python3 build-utils/delivery_metrics.py artifact_encryption python3 build-utils/delivery_cipher.py artifact build/delivery-artifact build/encrypted-delivery
+    - name: Upload encrypted IPA and verification reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}
+        path: build/encrypted-delivery/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
     - name: Encrypt authenticated compilation cache
       if: ${{ success() && env.DELIVERY_MODE == 'cold' }}
       run: |
@@ -923,14 +931,6 @@ jobs:
         path: .ci-cache
         key: neostation-device-v2-${{ runner.os }}-${{ runner.arch }}-xcode26.3-flutter3.47.2-${{ github.sha }}-${{ env.BUILD_NUMBER }}-${{ hashFiles('pubspec.lock',
           'build-utils/Gemfile.dolphin') }}-${{ env.CACHE_NAMESPACE }}
-    - name: Upload encrypted IPA and verification reports
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ env.ARTIFACT_NAME }}
-        path: build/encrypted-delivery/
-        if-no-files-found: error
-        retention-days: 14
-        compression-level: 0
     - name: Collect diagnostic evidence
       if: always()
       run: |
