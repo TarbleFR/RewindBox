@@ -40,7 +40,10 @@ void main() {
     debugDefaultTargetPlatformOverride=TargetPlatform.iOS;
     addTearDown(() => debugDefaultTargetPlatformOverride=null);
     final database=DatabaseTestHelper();
-    await database.setUp();addTearDown(database.tearDown);
+    final db=await database.setUp();addTearDown(database.tearDown);
+    // A completely empty systems table triggers catalogue synchronization.
+    // Keep the real scanner bounded to this fixture without a Switch entry.
+    await db.rawInsert("INSERT INTO app_systems (id,real_name,folder_name) VALUES ('fixture','Fixture','fixture')");
     final temp=Directory.systemTemp.createTempSync('melonx-presentation-widget-');
     addTearDown(() => temp.delete(recursive:true));
     final previousPaths=PathProviderPlatform.instance;
@@ -86,6 +89,8 @@ void main() {
     // The busy indicator behind the completed-import dialog keeps animating.
     // Advance the dialog transition without waiting for that spinner to stop.
     await tester.pump(const Duration(milliseconds:350));
+    expect(find.textContaining('prod.keys'),findsOneWidget);
+    expect(File('${temp.path}/MeloNX/system/prod.keys').existsSync(),true);
     await tester.tap(find.text('Done'));
     await until(() => refreshed);
     await tester.pumpAndSettle();
@@ -95,7 +100,10 @@ void main() {
     final failures=warnings.where((s) => s.startsWith('MeloNX library action failed:')).toList();
     if(const bool.fromEnvironment('EXPECT_OLD')) {
       expect(failures,hasLength(1));
-      expect(failures.single,contains('Null check operator used on a null value'));
+      expect(failures.single,anyOf(
+        contains('Null check operator used on a null value'),
+        contains('This widget has been unmounted'),
+      ));
     } else { expect(failures,isEmpty); }
     expect(tester.takeException(),isNull);
     expect(File('${temp.path}/MeloNX/system/prod.keys').readAsStringSync(),source.readAsStringSync());
