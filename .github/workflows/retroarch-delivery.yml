@@ -1,3 +1,4 @@
+# Supersede the unshipped candidate while rapid-selection proof completes.
 name: RewindBox complete menu and Cover Flow • Build 511 • SideStore
 run-name: RewindBox Build 511 • ${{ github.sha }} • Complete Mau Ali and Cover Flow
 'on':
