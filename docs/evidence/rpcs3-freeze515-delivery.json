@@ -1,0 +1,147 @@
+{
+  "result": "verified",
+  "build": 515,
+  "version": "0.0.8",
+  "branch": "Claude",
+  "source": "3bfbc91634227599c9d7746271482a55e41517b2",
+  "run": 39987867807,
+  "coreSource": "a69860297d7b26dbb688df0daf16a31b42046462",
+  "coreRun": 39982269326,
+  "canonicalPatchSHA256": "388c5c37ed89c97d2b2aebd7642b611fd5a5ef2ed1d3c0cfa2be815357f66767",
+  "ipaFilename": "RewindBox-Build515.ipa",
+  "ipaBytes": 186159247,
+  "ipaSHA256": "5cefa91667db20f1ea67a9619f076e24ee2d0fa1c1a2c377641a36fc41d88a8c",
+  "compiledCorePayloadFingerprint": "2c122f8eaa0b675215bfde3e8356e4ef3fe50b3d0a1d3c4eebb320ac005d7265",
+  "coreArtifactBinarySHA256": "cb2877b7558a589554c9c923b71f20129433c40654232ee706545dd7622da7cb",
+  "compressedTarBoundaryCases": 20,
+  "iPhoneSDKSyntaxUnitsPassed": 34,
+  "codegenIdentities": {
+    "PPU": [
+      "8f9b154eb34feabb"
+    ],
+    "SPU": [
+      "7c226c2359020e20"
+    ]
+  },
+  "validPPUSPUCacheNamespacesPreserved": true,
+  "alignedVersionedBundles": 7,
+  "machOImages": 86,
+  "codeDirectories": 116,
+  "verifiedCodePageHashes": 132664,
+  "encryptedImages": 0,
+  "provenanceValidation": {
+    "result": "passed",
+    "build": 515,
+    "ipaSHA256": "5cefa91667db20f1ea67a9619f076e24ee2d0fa1c1a2c377641a36fc41d88a8c",
+    "coreSource": "a69860297d7b26dbb688df0daf16a31b42046462",
+    "coreRun": 39982269326,
+    "sourceArtifactSHA256": "cb2877b7558a589554c9c923b71f20129433c40654232ee706545dd7622da7cb",
+    "compiledCorePayloadFingerprint": "2c122f8eaa0b675215bfde3e8356e4ef3fe50b3d0a1d3c4eebb320ac005d7265",
+    "sharedCompilerBrokerLinked": true,
+    "optionalCoreBinderLinked": true,
+    "productionMinimalSPULinkerEnabled": false,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false,
+    "gow3BootAndVmaSourceVerified": true
+  },
+  "physicalDeviceTested": false,
+  "physicalPerformanceMeasured": false,
+  "appleReSigningRequired": true,
+  "releasePublished": false,
+  "mainUpdated": false,
+  "deliveryJob": 120531806095,
+  "deliveryConclusion": "success",
+  "encryptedArtifact": {
+    "id": 12516968034,
+    "bytes": 186400669,
+    "sha256": "5d2e77b41fda30c401e9064e07d659bdeb367172fc0d5f89e733c667e6be4d55",
+    "downloadAndDecryptionVerified": true
+  },
+  "diagnosticArtifact": {
+    "id": 12517621808,
+    "sha256": "8d2b21f470183af5c67daf9a1f619d58bd1468e71bfd101a929fe0e981d3f9c4",
+    "downloadIndependentlyVerified": false
+  },
+  "baseline": {
+    "build": 514,
+    "source": "22df4502db21ee1bcd68e15c1791aeba1a826658",
+    "run": 39979130143,
+    "productSourcesPreservedExceptRPCS3HostLogging": true
+  },
+  "sourceClosure": {
+    "result": "passed",
+    "source": "3bfbc91634227599c9d7746271482a55e41517b2",
+    "sourceClosure": {
+      "baseline": "dfdb87169601002bfef745e5fff605a0c2c3d398",
+      "delivered514Source": "22df4502db21ee1bcd68e15c1791aeba1a826658",
+      "delivered514Run": 39979130143,
+      "auditedCoreSource": "a69860297d7b26dbb688df0daf16a31b42046462",
+      "auditedCoreRun": 39982269326,
+      "canonicalPatchSHA256": "388c5c37ed89c97d2b2aebd7642b611fd5a5ef2ed1d3c0cfa2be815357f66767",
+      "hostChange": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
+      "frontendAndOtherEngineSourcesPreserved": true,
+      "physicalDeviceTested": false
+    },
+    "reusedEvidence": [
+      {
+        "run": 39979130143,
+        "source": "22df4502db21ee1bcd68e15c1791aeba1a826658",
+        "jobs": [
+          "checks",
+          "native",
+          "Release device build \u2022 cold"
+        ],
+        "conclusion": "success"
+      },
+      {
+        "run": 39982269326,
+        "source": "a69860297d7b26dbb688df0daf16a31b42046462",
+        "jobs": [
+          "RPCS3 GoW3: targeted proofs and iPhone Core"
+        ],
+        "conclusion": "success"
+      }
+    ]
+  },
+  "preservedMeloNX": {
+    "result": "passed",
+    "build": 515,
+    "ipaSHA256": "5cefa91667db20f1ea67a9619f076e24ee2d0fa1c1a2c377641a36fc41d88a8c",
+    "newLaunchExports": [
+      "_neostation_melonx_diagnostics",
+      "_neostation_melonx_diagnostics_abi",
+      "_neostation_melonx_prepare_jit"
+    ],
+    "declaredMemoryEntitlements": {
+      "com.apple.developer.kernel.extended-virtual-addressing": true,
+      "com.apple.developer.kernel.increased-debugging-memory-limit": true,
+      "com.apple.developer.kernel.increased-memory-limit": true,
+      "get-task-allow": true
+    },
+    "signedUserInstallationEntitlementsVerified": false,
+    "physicalDeviceTested": false,
+    "privateFrameworks": [
+      "MeloNXAvCodec",
+      "MeloNXAvUtil",
+      "MeloNXCore",
+      "MeloNXJitSupport",
+      "MeloNXMoltenVK",
+      "MeloNXSDL3"
+    ],
+    "personalContentBundled": false
+  },
+  "nativeSignatureTargetsVerified": 86,
+  "proofHashes": {
+    "signature.json": "a1794e5c8b4f1a5f820d723e6ec21eb5344291b4893f2156a53741fa86266449",
+    "signed-payload-identity.json": "5f354286bd0dde72ceaebb3a70e3516c360842ad445d2934de7af05208ef5563",
+    "rpcs3-memory-audit-ipa.json": "965eaa58554fe917ecce68d206f65bbfdf8ad2f7132e0c7f36565973537a4ade",
+    "reused-validation.json": "647c9a809a93de0ddde855f7cb1b85da88851c6400bb464941df28473892c633"
+  },
+  "phoneConfirmation": {
+    "exactUserSaveRestored": false,
+    "gow3FreezeEliminated": false,
+    "missingRSXProducerIdentified": false,
+    "fpsGainMeasured": false
+  },
+  "distribution": "Private IPA; Apple re-signing via SideStore or AltStore required; no tag or public release"
+}
