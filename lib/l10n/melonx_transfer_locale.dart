@@ -10,6 +10,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "The selected file could not be read. Download it locally and try again.",
       "keyImportFailed": "The engine could not complete key import. See the internal log.",
       "keyExtras": "Additional entries preserved; this engine does not use them",
+      "keyInvalidSizes": "Entries with an incorrect length were ignored; valid entries were imported",
 
       "deleteRetiredConfirm":
           "Remove these old MeloNX references and their scraped data from RewindBox? The original game files, saves, firmware and keys are kept.",
@@ -78,6 +79,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "Impossible de lire le fichier sélectionné. Téléchargez-le localement puis réessayez.",
       "keyImportFailed": "Le moteur n’a pas pu terminer l’importation des clés. Consultez le journal interne.",
       "keyExtras": "Entrées supplémentaires conservées ; ce moteur ne les utilise pas",
+      "keyInvalidSizes": "Entrées de longueur incorrecte ignorées ; les entrées valides ont été importées",
 
       "deleteRetiredConfirm":
           "Retirer ces anciennes références MeloNX et leurs données scrapées de RewindBox ? Les fichiers de jeux originaux, les sauvegardes, le firmware et les clés sont conservés.",
@@ -149,6 +151,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "Die Datei konnte nicht gelesen werden. Lokal herunterladen und erneut versuchen.",
       "keyImportFailed": "Die Engine konnte den Schlüsselimport nicht abschließen. Internes Protokoll prüfen.",
       "keyExtras": "Zusätzliche Einträge bleiben erhalten; diese Engine nutzt sie nicht",
+      "keyInvalidSizes": "Einträge mit falscher Länge wurden ignoriert; gültige Einträge wurden importiert",
 
       "deleteRetiredConfirm":
           "Diese alten MeloNX-Verweise und ihre erfassten Metadaten aus RewindBox entfernen? Die ursprünglichen Spieldateien, Spielstände, Firmware und Schlüssel bleiben erhalten.",
@@ -218,6 +221,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "No se pudo leer el archivo. Descárgalo localmente e inténtalo de nuevo.",
       "keyImportFailed": "El motor no pudo completar la importación de claves. Consulta el registro interno.",
       "keyExtras": "Entradas adicionales conservadas; este motor no las utiliza",
+      "keyInvalidSizes": "Se ignoraron las entradas de longitud incorrecta; se importaron las entradas válidas",
 
       "deleteRetiredConfirm":
           "¿Quitar estas referencias antiguas de MeloNX y sus datos obtenidos de RewindBox? Se conservan los archivos originales de los juegos, las partidas, el firmware y las claves.",
@@ -287,6 +291,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "Impossibile leggere il file. Scaricalo localmente e riprova.",
       "keyImportFailed": "Il motore non ha completato l’importazione delle chiavi. Consulta il registro interno.",
       "keyExtras": "Voci aggiuntive conservate; questo motore non le utilizza",
+      "keyInvalidSizes": "Le voci con lunghezza errata sono state ignorate; le voci valide sono state importate",
 
       "deleteRetiredConfirm":
           "Rimuovere da RewindBox questi vecchi riferimenti MeloNX e i relativi dati scaricati? I file originali dei giochi, i salvataggi, il firmware e le chiavi vengono conservati.",
@@ -355,6 +360,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "Não foi possível ler o ficheiro. Descarregue-o localmente e tente novamente.",
       "keyImportFailed": "O motor não concluiu a importação de chaves. Consulte o registo interno.",
       "keyExtras": "Entradas adicionais preservadas; este motor não as utiliza",
+      "keyInvalidSizes": "Entradas com comprimento incorreto ignoradas; as entradas válidas foram importadas",
 
       "deleteRetiredConfirm":
           "Remover estas referências antigas do MeloNX e os seus dados obtidos do RewindBox? Os ficheiros originais dos jogos, as gravações, o firmware e as chaves são preservados.",
@@ -424,6 +430,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "Не удалось прочитать файл. Скачайте его на устройство и повторите попытку.",
       "keyImportFailed": "Движок не завершил импорт ключей. Проверьте внутренний журнал.",
       "keyExtras": "Дополнительные записи сохранены; этот движок их не использует",
+      "keyInvalidSizes": "Записи с неверной длиной пропущены; корректные записи импортированы",
 
       "deleteRetiredConfirm":
           "Удалить эти старые ссылки MeloNX и загруженные для них данные из RewindBox? Исходные файлы игр, сохранения, прошивка и ключи останутся.",
@@ -493,6 +500,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "Berkas tidak dapat dibaca. Unduh ke perangkat lalu coba lagi.",
       "keyImportFailed": "Mesin tidak dapat menyelesaikan impor kunci. Periksa log internal.",
       "keyExtras": "Entri tambahan disimpan; mesin ini tidak menggunakannya",
+      "keyInvalidSizes": "Entri dengan panjang yang salah diabaikan; entri yang valid telah diimpor",
 
       "deleteRetiredConfirm":
           "Hapus referensi MeloNX lama ini beserta data hasil pencariannya dari RewindBox? File game asli, data simpanan, firmware, dan kunci tetap disimpan.",
@@ -560,6 +568,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "ファイルを読み込めません。端末にダウンロードして再試行してください。",
       "keyImportFailed": "キーのインポートを完了できません。内部ログを確認してください。",
       "keyExtras": "追加の項目は保存されますが、このエンジンでは使用されません",
+      "keyInvalidSizes": "長さが正しくない項目は無視され、有効な項目がインポートされました",
 
       "deleteRetiredConfirm":
           "古いMeloNXの参照と取得済みデータをRewindBoxから削除しますか？元のゲームファイル、セーブデータ、ファームウェア、キーは保持されます。",
@@ -619,6 +628,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "파일을 읽을 수 없습니다. 기기에 다운로드한 후 다시 시도하세요.",
       "keyImportFailed": "키 가져오기를 완료하지 못했습니다. 내부 로그를 확인하세요.",
       "keyExtras": "추가 항목은 보존되지만 이 엔진에서는 사용하지 않습니다",
+      "keyInvalidSizes": "길이가 잘못된 항목은 무시되고 유효한 항목은 가져왔습니다",
 
       "deleteRetiredConfirm":
           "이전 MeloNX 참조와 수집된 데이터를 RewindBox에서 제거할까요? 원본 게임 파일, 저장 데이터, 펌웨어 및 키는 유지됩니다.",
@@ -678,6 +688,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "无法读取文件。请下载到本机后重试。",
       "keyImportFailed": "引擎未能完成密钥导入。请查看内部日志。",
       "keyExtras": "额外条目已保留，但此引擎不会使用",
+      "keyInvalidSizes": "已忽略长度不正确的条目，并导入有效条目",
 
       "deleteRetiredConfirm":
           "要从 RewindBox 移除这些旧的 MeloNX 引用及其抓取的数据吗？原始游戏文件、存档、固件和密钥将保留。",
@@ -735,6 +746,7 @@ abstract final class MelonxTransferLocale {
       "keyReadFailed": "無法讀取檔案。請下載至本機後重試。",
       "keyImportFailed": "引擎未能完成金鑰匯入。請查看內部日誌。",
       "keyExtras": "額外項目已保留，但此引擎不會使用",
+      "keyInvalidSizes": "已忽略長度不正確的項目，並匯入有效項目",
 
       "deleteRetiredConfirm":
           "要從 RewindBox 移除這些舊的 MeloNX 參照及其擷取的資料嗎？原始遊戲檔案、存檔、韌體和金鑰將保留。",

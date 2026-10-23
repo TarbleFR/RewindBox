@@ -81,6 +81,7 @@ partial class Library
                                     var validation = EmbeddedKeyValidation.Validate(path);
                                     json.WriteNumber("recognizedKeys", validation.Recognized);
                                     json.WriteNumber("ignoredKeys", validation.Ignored);
+                                    json.WriteNumber("invalidSizeKeys", validation.InvalidSizes);
                                 }
                                 else
                                 {

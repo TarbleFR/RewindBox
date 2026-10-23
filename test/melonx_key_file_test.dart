@@ -51,7 +51,7 @@ void main() {
   test('every new refusal and compatibility notice exists in all twelve languages', () {
     expect(MelonxTransferLocale.values.length, 12);
     for (final values in MelonxTransferLocale.values.values) {
-      for (final key in ['keySyntax','keySize','keyConflict','keyNoSupported','keyReadFailed','keyImportFailed','keyExtras']) {
+      for (final key in ['keySyntax','keySize','keyConflict','keyNoSupported','keyReadFailed','keyImportFailed','keyExtras','keyInvalidSizes']) {
         expect(values[key], isNotEmpty);
       }
     }
@@ -64,18 +64,19 @@ void main() {
     var code = '';
     final staged = <String>[];
     var reloads = 0;
+    var invalidSizes = 0;
     setUp(() async {
       temp = await Directory.systemTemp.createTemp('melonx-key-regression-');
       previous = PathProviderPlatform.instance;
       PathProviderPlatform.instance = _Paths(temp.path);
-      code = ''; staged.clear(); reloads = 0;
+      code = ''; staged.clear(); reloads = 0; invalidSizes = 0;
       messenger.setMockMethodCallHandler(MelonxInternalService.channel, (call) async {
         if (call.method == 'beginLibraryMutation') return true;
         if (call.method == 'endLibraryMutation') return null;
         final path = (call.arguments as Map)['path'] as String;
         if (path.isEmpty) { reloads++; return {'success':true}; }
         staged.add(await File(path).readAsString());
-        return code.isEmpty ? {'success':true,'recognizedKeys':1,'ignoredKeys':1} :
+        return code.isEmpty ? {'success':true,'recognizedKeys':1,'ignoredKeys':1,'invalidSizeKeys':invalidSizes} :
           {'success':false,'errorCode':code,'diagnostic':'sensitive native detail must not be displayed'};
       });
     });
@@ -103,6 +104,16 @@ void main() {
       final report = await MelonxEmbeddedLibraryService.importKeyFiles([a,b]);
       expect(report.imported,isEmpty); expect(report.refused.values, everyElement('duplicateKey'));
       expect(await installed.readAsString(),'keep'); expect(staged,isEmpty); expect(reloads,0);
+    });
+    test('mixed key sizes install without altering values and expose the native warning', () async {
+      invalidSizes = 1;
+      final text = '$line\nmariko_master_kek_source_05 = ${'c' * 34}';
+      final source = await File('${temp.path}/prod.keys').writeAsString(text);
+      final report = await MelonxEmbeddedLibraryService.importKeyFiles([source]);
+      expect(report.imported,['prod.keys']); expect(report.refused,isEmpty);
+      expect(report.invalidSizes,{'prod.keys':1}); expect(report.prodMissing,false);
+      expect(await File('${temp.path}/MeloNX/system/prod.keys').readAsString(),text);
+      expect(await source.readAsString(),text); expect(reloads,1);
     });
     test('native refusal codes survive instead of becoming invalid key', () async {
       final source = await File('${temp.path}/prod.keys').writeAsString(line);

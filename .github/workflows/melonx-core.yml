@@ -29,6 +29,8 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/reuse_library_validation.py
     - test/melonx_game_header_test.py
     - test/melonx_keys_native_test.py
+    - test/fixtures/melonx_key_shape_517.json
+    - test/melonx_runtime_smoke.py
     - build-utils/melonx/reuse_keys_validation.py
   workflow_dispatch: null
 permissions:

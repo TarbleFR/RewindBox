@@ -163,6 +163,8 @@ class _MelonxInternalPlaylistActionsState
                     '${MelonxTransferLocale.text(ctx, 'rejected')}: ${item.key} — ${MelonxTransferLocale.text(ctx, item.value)}',
                   for (final item in report.ignored.entries)
                     '${item.key}: ${MelonxTransferLocale.text(ctx, 'keyExtras')} (${item.value})',
+                  for (final item in report.invalidSizes.entries)
+                    '${item.key}: ${MelonxTransferLocale.text(ctx, 'keyInvalidSizes')} (${item.value})',
                   if (report.prodMissing)
                     MelonxTransferLocale.text(ctx, 'requiredProd'),
                 ].join('\n'),

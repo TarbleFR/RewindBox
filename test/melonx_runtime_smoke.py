@@ -75,12 +75,13 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        let staged=root.appendingPathComponent("key-preview",isDirectory:true)
        try FileManager.default.createDirectory(at:staged,withIntermediateDirectories:true)
        let candidate=staged.appendingPathComponent("prod.keys")
-       let fixture="header_key = "+String(repeating:"a",count:64)+"\nfuture_console_key = "+String(repeating:"b",count:32)
+       let fixture="header_key = "+String(repeating:"a",count:64)+"\nfuture_console_key = "+String(repeating:"b",count:32)+"\nmariko_master_kek_source_05 = "+String(repeating:"c",count:34)
        try fixture.write(to:candidate,atomically:true,encoding:.utf8)
        let keyPreview=try runtime.content(path:candidate.path,operation:2)
        guard keyPreview["success"] as? Bool == true,
              (keyPreview["recognizedKeys"] as? NSNumber)?.intValue == 1,
-             (keyPreview["ignoredKeys"] as? NSNumber)?.intValue == 1 else {throw NSError(domain:"actual-key-import-preview",code:16)}
+             (keyPreview["ignoredKeys"] as? NSNumber)?.intValue == 1,
+             (keyPreview["invalidSizeKeys"] as? NSNumber)?.intValue == 1 else {throw NSError(domain:"actual-key-import-preview",code:16)}
        let installed=root.appendingPathComponent("system/prod.keys")
        guard !FileManager.default.fileExists(atPath:installed.path) else {throw NSError(domain:"preview-mutated-installed-keys",code:17)}
        try fixture.write(to:installed,atomically:true,encoding:.utf8)
@@ -93,6 +94,7 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        try FileManager.default.removeItem(at:installed)
        try FileManager.default.removeItem(at:staged)
        report["actualKeyImportABIValidated"]=true;report["keyUnknownEntryAccepted"]=true
+       report["mixedInvalidKeySizeAccepted"]=true
        report["keyRefusalCodePreserved"]=true;report["personalKeysUsed"]=false
        do {
          try runtime.prepareGraphics(["resolution":9],universalJit:false)

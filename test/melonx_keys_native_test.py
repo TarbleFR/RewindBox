@@ -27,6 +27,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-keys-') as temporary:
       </PropertyGroup><ItemGroup><Reference Include="LibHac"><HintPath>LibHac.dll</HintPath></Reference></ItemGroup></Project>''')
     old = subprocess.check_output(['git', 'show', BASELINE + ':native/melonx/EmbeddedKeyValidation.cs'], cwd=ROOT, text=True)
     (work / 'OldValidation.cs').write_text(old.replace('EmbeddedKeyValidation', 'OldValidation'))
+    old_length = subprocess.check_output(['git', 'show', '3d765ec389e2fb85c7e6bbc374ca9d354256a253:native/melonx/EmbeddedKeyValidation.cs'], cwd=ROOT, text=True)
+    (work / 'OldLengthValidation.cs').write_text(old_length.replace('EmbeddedKeyValidation', 'OldLengthValidation'))
+    shutil.copyfile(ROOT / 'test/fixtures/melonx_key_shape_517.json', work / 'shape.json')
     shutil.copyfile(ROOT / 'native/melonx/EmbeddedKeyValidation.cs', work / 'EmbeddedKeyValidation.cs')
     content = (ROOT / 'native/melonx/EmbeddedContent.cs').read_text()
     case = content.split('                            case 2:\n', 1)[1].split('                            case 3:', 1)[0]
@@ -85,6 +88,27 @@ try {
  }
  Reject(extra,"keyNoSupported");Reject("# comment\n","keyNoSupported");
  Reject("header_key = aa","keySize");Reject("header_key = aaa","keySyntax");
+ Reject("header_key = aa\n"+extra,"keySize");
+ // The full reported export shape reproduces Build 516's refusal without
+ // committing personal bytes. The actual LibHac reader skips bad lengths.
+ using(var shape=JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"../../../shape.json")))) {
+  var rows=shape.RootElement.GetProperty("original").EnumerateArray().Select(row=>
+   row.GetProperty("name").GetString()+" = "+new string('a',row.GetProperty("hexChars").GetInt32())).ToArray();
+  var mixed=string.Join("\n",rows);File.WriteAllText(prod,mixed);
+  try{OldLengthValidation.Validate(prod);throw new Exception("Build 516 refusal was not reproduced.");}
+  catch(InvalidDataException error){Check(OldLengthValidation.ErrorCode(error)=="keySize");}
+  result=EmbeddedKeyValidation.Validate(prod);Check(result.Recognized==190&&result.Ignored==8&&result.InvalidSizes==33);
+  keys=KeySet.CreateDefaultKeySet();var badInfo=schema.First(k=>k.Matches("mariko_master_kek_source_05".AsSpan(),out _,out _));
+  var before=badInfo.Getter(keys,5).ToArray();
+  using(var input=File.OpenRead(prod))ExternalKeyReader.ReadMainKeys(keys,input,schema,null);
+  Check(info.Getter(keys,0).ToArray().All(b=>b==0xaa));
+  Check(badInfo.Getter(keys,5).ToArray().SequenceEqual(before));
+  Check(File.ReadAllText(prod)==mixed);
+  using(var report=JsonDocument.Parse(ContentProbe.Run(prod))) {
+   Check(report.RootElement.GetProperty("recognizedKeys").GetInt32()==190);
+   Check(report.RootElement.GetProperty("invalidSizeKeys").GetInt32()==33);
+  }
+ }
  Reject("header_key = zz","keySyntax");Reject("invalid line","keySyntax");
  Reject(header+"\nheader_key = "+new string('b',64),"keyConflict");
  Reject("header_key = "+new string('a',2048),"keySyntax");
@@ -117,5 +141,5 @@ try {
     out = ROOT / 'dist/melonx/keys-regression.json'; out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({'baseline':BASELINE,'result':output,'personalKeysUsed':False,
       'inputs':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in
-        ['test/melonx_keys_native_test.py','native/melonx/EmbeddedKeyValidation.cs','native/melonx/EmbeddedContent.cs']},
+        ['test/melonx_keys_native_test.py','test/fixtures/melonx_key_shape_517.json','native/melonx/EmbeddedKeyValidation.cs','native/melonx/EmbeddedContent.cs']},
       'libHacPackageSha256':hashlib.sha256(package.read_bytes()).hexdigest()},indent=2)+'\n')

@@ -8,7 +8,7 @@ namespace Ryujinx.Library;
 
 internal static class EmbeddedKeyValidation
 {
-    internal readonly record struct Result(int Recognized, int Ignored);
+    internal readonly record struct Result(int Recognized, int Ignored, int InvalidSizes);
     internal static string ErrorCode(Exception error) => error is InvalidDataException &&
         error.Message is "keySyntax" or "keySize" or "keyConflict" or "keyNoSupported"
         ? error.Message : error is IOException or UnauthorizedAccessException ? "keyReadFailed" : "keyImportFailed";
@@ -25,7 +25,7 @@ internal static class EmbeddedKeyValidation
         var keys = KeySet.CreateDefaultKeySet();
         var schema = KeySet.CreateKeyInfoList();
         var seen = new Dictionary<string, string>(StringComparer.Ordinal);
-        int recognized = 0, ignored = 0;
+        int recognized = 0, ignored = 0, invalidSizes = 0;
         foreach (string line in File.ReadLines(path))
         {
             string text = line.Trim();
@@ -65,10 +65,20 @@ internal static class EmbeddedKeyValidation
             // ReadMainKeys skips unmatched names; rejecting the entire dump here
             // prevented it from loading the supported entries beside them.
             if (expected == 0) { ignored++; continue; }
-            if (value.Length != expected) throw new InvalidDataException("keySize");
+            if (value.Length != expected)
+            {
+                // ReadMainKeys ignores a wrong-sized entry without writing its
+                // destination. Match that behavior for mixed personal exports;
+                // never truncate, pad or otherwise manufacture a key value.
+                // Title files retain their strict rights-ID/value validation.
+                if (name == "title.keys") throw new InvalidDataException("keySize");
+                invalidSizes++;
+                continue;
+            }
             recognized++;
         }
-        if (recognized == 0) throw new InvalidDataException("keyNoSupported");
-        return new Result(recognized, ignored);
+        if (recognized == 0)
+            throw new InvalidDataException(invalidSizes > 0 ? "keySize" : "keyNoSupported");
+        return new Result(recognized, ignored, invalidSizes);
     }
 }

@@ -191,6 +191,7 @@ abstract final class MelonxEmbeddedLibraryService {
     final refused = <String, String>{};
     final valid = <String, File>{};
     final ignored = <String, int>{};
+    final invalidSizes = <String, int>{};
     final counts = <String, int>{};
     for (final file in files) {
       final name = MelonxKeyFile.canonicalName(path.basename(file.path));
@@ -204,7 +205,8 @@ abstract final class MelonxEmbeddedLibraryService {
           if (name == null)
             throw const FormatException('unknownKey');
           if (counts[name]! > 1) throw const FormatException('duplicateKey');
-          if (await file.length() > 4 * 1024 * 1024 || await file.length() == 0)
+          final sourceBytes = await file.length();
+          if (sourceBytes > 4 * 1024 * 1024 || sourceBytes == 0)
             throw const FormatException('keySyntax');
           final canonical = File(path.join(preview.path, name));
           await canonical.writeAsString(
@@ -218,6 +220,16 @@ abstract final class MelonxEmbeddedLibraryService {
           valid[name] = canonical;
           final count = validation['ignoredKeys'];
           if (count is int && count > 0) ignored[name] = count;
+          final invalidCount = validation['invalidSizeKeys'];
+          if (invalidCount is int && invalidCount > 0) {
+            invalidSizes[name] = invalidCount;
+          }
+          final recognizedCount = validation['recognizedKeys'];
+          LoggerService.instance.i(
+            '[MeloNX:keys] type=$name sourceBytes=$sourceBytes '
+            'recognized=${recognizedCount is int ? recognizedCount : 0} '
+            'unknown=${ignored[name] ?? 0} invalidSize=${invalidSizes[name] ?? 0}',
+          );
         } on FormatException catch (error) {
           refused[path.basename(file.path)] = error.message;
         } on MelonxContentException catch (error) {
@@ -266,6 +278,7 @@ abstract final class MelonxEmbeddedLibraryService {
         valid.keys.toList(),
         refused,
         ignored: ignored,
+        invalidSizes: invalidSizes,
         prodMissing: !await File(
           path.join(root.path, 'system', 'prod.keys'),
         ).exists(),
@@ -359,9 +372,11 @@ class MelonxKeysReport {
     this.refused, {
     this.prodMissing = false,
     this.ignored = const {},
+    this.invalidSizes = const {},
   });
   final List<String> imported;
   final Map<String, String> refused;
   final bool prodMissing;
   final Map<String, int> ignored;
+  final Map<String, int> invalidSizes;
 }
