@@ -250,6 +250,8 @@ jobs:
         RPCS3_PIN_GUARD=.github/diagnostics/melonxdelete509_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
+          .github/diagnostics/rpcs3gow3_core.py \
+          test/rpcs3_gow3_boot_regression_test.py \
           test/fixtures/rpcs3_memory_audit/JITLLVM.diff \
           .github/workflows/rpcs3-memory-audit.yml \
           test/rpcs3_core_syntax_gate_test.py \

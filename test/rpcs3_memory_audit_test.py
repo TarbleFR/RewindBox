@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Execute the audit's production helpers; LLVM proofs require the pinned host SDK."""
-import argparse,json,os,shlex,shutil,subprocess,tempfile
+import argparse,json,os,shlex,shutil,subprocess,sys,tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 p=argparse.ArgumentParser();p.add_argument('source',type=Path);p.add_argument('--require-llvm',action='store_true');a=p.parse_args();core=a.source.resolve()
@@ -8,6 +8,7 @@ cxx=shlex.split(os.environ.get('CXX') or shutil.which('clang++') or 'g++')
 if sdk:=os.environ.get('HOST_MACOS_SDK'):cxx+=['-isysroot',sdk]
 base=[*cxx,'-std=c++20','-O1','-g','-Wall','-Wextra','-Werror','-pthread','-fsanitize=address,undefined','-fno-sanitize-recover=all','-DRPCS3_IOS','-I'+str(core),'-I'+str(core/'rpcs3'),'-I'+str(ROOT/'packages/neo_swap/ios/Classes')]
 def run(cmd):subprocess.run(list(map(str,cmd)),check=True,timeout=180)
+run([sys.executable,ROOT/'test/rpcs3_gow3_boot_regression_test.py',core])
 with tempfile.TemporaryDirectory(prefix='rpcs3-memory-audit-') as temporary:
  work=Path(temporary)
  run([*base,ROOT/'test/native/rpcs3_memory_audit_test.cpp','-lz','-o',work/'policies']);run([work/'policies'])

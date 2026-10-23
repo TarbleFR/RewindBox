@@ -14732,17 +14732,25 @@ index dd10f2a22..e1f251bf9 100644
  		}
  
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/VRAMBudgetPolicy.h b/rpcs3/Emu/RSX/VK/vkutils/VRAMBudgetPolicy.h
-index 5892f8cda..d4baac593 100644
+index 5892f8cdacf8a5b6e84ec8a8fc74de53c4fd9fcd..35cc4a30f4a6946caff2ef756cecf7852746987c 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/VRAMBudgetPolicy.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/VRAMBudgetPolicy.h
-@@ -7,6 +7,16 @@ namespace vk
+@@ -7,6 +7,24 @@ namespace vk
  {
  	inline constexpr std::uint64_t vram_budget_mib = 0x100000ull;
  
 +	constexpr std::uint64_t get_preferred_vram_block_size(std::uint64_t heap)
 +	{
 +#if defined(RPCS3_IOS) && !defined(RPCS3_MACOS)
-+		return heap && heap <= 4096 * vram_budget_mib ? 32 * vram_budget_mib : 0;
++		// REWINDBOX_GOW3_VMA_GRANULARITY_V1: build 508's 7,989,460,992-byte
++		// device-local heap missed the small-heap tier, leaving VMA's desktop
++		// granularity while its blocks retained substantial unused space.
++		// Use the Vulkan-reported heap, not nominal RAM. This is a preferred
++		// block size, not a hard allocation ceiling or a dedicated-allocation cap.
++		if (!heap) return 0;
++		if (heap <= 4096 * vram_budget_mib) return 32 * vram_budget_mib;
++		if (heap <= 8192 * vram_budget_mib) return 64 * vram_budget_mib;
++		return 0;
 +#else
 +		(void)heap;
 +		return 0;
@@ -15617,7 +15625,7 @@ index 7cfb22ddc..88a56d224 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64b0..4820272db 100644
+index 1f53c64b00e4027b4b4b6ee00a5f6af8ffb1db18..6250f1b907b808a29f81f4c961dbc570d8061fe3 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -10,6 +10,8 @@
@@ -15701,7 +15709,37 @@ index 1f53c64b0..4820272db 100644
  			{
  				// Restore SFO directory for PSN games
  
-@@ -1733,6 +1762,16 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1470,6 +1499,11 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 				sys_log.notice("Savestate: Loading iso archive");
+ 
+ 				load_iso(disc_info);
++#ifdef RPCS3_IOS
++				// REWINDBOX_GOW3_BOOT_V1: a restored ISO owns the current archive
++				// path too. Restart must not reuse an older container's disc path.
++				m_path_real = disc_info;
++#endif
+ 				m_path = iso_device::virtual_device_name + "/" + argv[0];
+ 
+ 				resolve_path_as_vfs_path = false;
+@@ -1680,6 +1714,17 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 
+ 		// Load PARAM.SFO (TODO)
+ 		{
++#ifdef RPCS3_IOS
++			if (launching_from_disc_archive)
++			{
++				// REWINDBOX_GOW3_BOOT_V1: portable savestates can put the real
++				// ISO filename in disc. Read the mounted archive's PARAM.SFO;
++				// <game.iso>/PS3_GAME is not a directory. Resolve the identity
++				// before applying title settings, cache and memory policies.
++				m_sfo_dir = iso_device::virtual_device_name + "/" + m_game_dir;
++			}
++			else
++#endif
+ 			if (fs::is_dir(m_path))
+ 			{
+ 				// Special case (directory scan)
+@@ -1733,6 +1778,16 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			// This one setting is global-only. Custom title files are complete cfg
  			// snapshots, so preserve config.yml's value before applying one.
  			const auto ios_global_persistent_spu_cache = g_cfg.ios_experimental.persistent_spu_object_cache.get();
@@ -15718,7 +15756,7 @@ index 1f53c64b0..4820272db 100644
  #endif
  
  			if (m_config_mode == cfg_mode::database_config || m_config_mode == cfg_mode::custom)
-@@ -1762,6 +1801,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1762,6 +1817,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					if (g_cfg.from_string(cfg_file.to_string()))
  					{
  						g_cfg.name = m_config_path;
@@ -15729,7 +15767,7 @@ index 1f53c64b0..4820272db 100644
  					}
  					else
  					{
-@@ -1793,6 +1836,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1793,6 +1852,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  						if (g_cfg.from_string(cfg_file.to_string()))
  						{
@@ -15739,7 +15777,7 @@ index 1f53c64b0..4820272db 100644
  							g_cfg.name = config_path;
  							m_config_path = config_path;
  
-@@ -1818,6 +1864,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1818,6 +1880,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				if (g_cfg.from_string(*m_db_config))
  				{
  					g_cfg.name = "database_config";
@@ -15749,7 +15787,7 @@ index 1f53c64b0..4820272db 100644
  				}
  				else
  				{
-@@ -1825,6 +1874,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1825,6 +1890,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
@@ -15777,7 +15815,7 @@ index 1f53c64b0..4820272db 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +1917,48 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +1933,67 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -15823,10 +15861,29 @@ index 1f53c64b0..4820272db 100644
 +				ios_layers.getllar_pct = ios_getllar_pct;
 +				sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_layers_line(ios_layers));
 +			}
++
++#ifdef LLVM_AVAILABLE
++			// REWINDBOX_GOW3_GAME_CPU_DIAGNOSTICS_V1: the process's first
++			// compiler belongs to the generic JIT self-test. Report the game
++			// target after all configuration layers on every boot/resume.
++			{
++				std::string ios_cpu_features;
++				for (const auto& feature : jit_compiler::target_attributes())
++				{
++					if (!ios_cpu_features.empty()) ios_cpu_features += ",";
++					ios_cpu_features += feature;
++				}
++				const std::string ios_configured_cpu = g_cfg.core.llvm_cpu.to_string();
++				sys_log.notice("JITCPU context=game_boot title=%s savestate=%u configured=%s selected=%s ppu_triple=%s spu_triple=%s features=%s",
++					m_title_id.empty() ? "-" : m_title_id, m_ar ? 1u : 0u,
++					ios_configured_cpu.empty() ? "auto" : ios_configured_cpu, jit_compiler::cpu(ios_configured_cpu),
++					jit_compiler::triple1(), jit_compiler::triple2(), ios_cpu_features);
++			}
++#endif
  #endif
  
  			// Backup config
-@@ -3479,6 +3591,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3626,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -15839,7 +15896,7 @@ index 1f53c64b0..4820272db 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3611,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3646,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -15862,7 +15919,7 @@ index 1f53c64b0..4820272db 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3667,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3702,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -15870,7 +15927,7 @@ index 1f53c64b0..4820272db 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3678,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3713,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -15878,7 +15935,7 @@ index 1f53c64b0..4820272db 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3688,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3723,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -15886,7 +15943,7 @@ index 1f53c64b0..4820272db 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +3776,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +3811,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -15897,7 +15954,7 @@ index 1f53c64b0..4820272db 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +3842,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +3877,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -15906,7 +15963,7 @@ index 1f53c64b0..4820272db 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +3956,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +3991,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -15921,7 +15978,7 @@ index 1f53c64b0..4820272db 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +3991,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4026,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -15929,7 +15986,7 @@ index 1f53c64b0..4820272db 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4109,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4144,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -15943,7 +16000,7 @@ index 1f53c64b0..4820272db 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4164,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4199,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -15956,7 +16013,7 @@ index 1f53c64b0..4820272db 100644
  			});
  
  			// Join it
-@@ -4075,10 +4234,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4269,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -15976,7 +16033,7 @@ index 1f53c64b0..4820272db 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4308,10 +4476,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4511,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{

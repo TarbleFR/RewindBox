@@ -100,6 +100,7 @@ int main() {
     assert(compiling.growth_room_bytes + GiB == ordinary.growth_room_bytes);
     assert(vk::get_preferred_vram_block_size(0) == 0);
     assert(vk::get_preferred_vram_block_size(4 * GiB) == 32 * MiB);
-    assert(vk::get_preferred_vram_block_size(8 * GiB) == 0);
+    assert(vk::get_preferred_vram_block_size(8 * GiB) == 64 * MiB);
+    assert(vk::get_preferred_vram_block_size(8 * GiB + 1) == 0);
     std::cout << "PASS direct gzip ownership/corruption bounds, shared compiler admission, fragmentation-safe data pages and VMA heap boundaries\n";
 }
