@@ -323,7 +323,8 @@ void main() {
         p.join(temporary.path, 'export'),
       ).create();
       final source = Directory(p.join(wrapper.path, 'whatever'));
-      await write(p.join(source.path, 'system/prod.keys'), 'key');
+      await write(p.join(source.path, 'system/PROD.KEYS'), 'key');
+      await write(p.join(source.path, 'system/backup.keys'), 'not active');
       await write(p.join(source.path, 'roms/Game.nsp'), 'game');
       await write(
         p.join(source.path, 'config.json'),
@@ -340,6 +341,8 @@ void main() {
         MelonxTransferControl(),
       );
       expect(plan.source.path, source.path);
+      expect(plan.items.map((e) => e.relative), contains('system/prod.keys'));
+      expect(plan.unsupported, contains('system/backup.keys'));
       expect(
         plan.items.map((e) => e.relative),
         containsAll([

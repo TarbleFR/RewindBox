@@ -149,6 +149,19 @@ abstract final class MelonxMigrationService {
         );
       }
       if (MelonxTransferSource.ignored(p.basename(entity.path))) return;
+      if (entity is File && p.extension(relative).toLowerCase() == '.keys') {
+        final name = p.basename(relative).toLowerCase();
+        if (!{
+          'prod.keys',
+          'title.keys',
+          'console.keys',
+          'dev.keys',
+        }.contains(name)) {
+          unsupported.add(relative);
+          return;
+        }
+        relative = p.join(p.dirname(relative), name);
+      }
       if (entity is Directory && relative != 'bis') {
         await for (final child in entity.list(followLinks: false)) {
           await add(child, p.join(relative, p.basename(child.path)));

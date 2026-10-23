@@ -75,7 +75,7 @@ partial class Library
                                 json.WriteString("firmware", GetInstalledFirmwareVersion());
                                 break;
                             case 2:
-                                if (!string.IsNullOrEmpty(path)) ContentManager.VerifyKeysFile(path);
+                                if (!string.IsNullOrEmpty(path)) EmbeddedKeyValidation.Validate(path);
                                 _virtualFileSystem.ReloadKeySet();
                                 break;
                             case 3:

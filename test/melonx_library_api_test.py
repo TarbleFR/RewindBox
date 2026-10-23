@@ -12,7 +12,7 @@ assert hashlib.sha256(package.read_bytes()).hexdigest()=='b68e88ab73aa48a0af2bb9
 with tempfile.TemporaryDirectory(prefix='melonx-library-api-') as d:
  work=Path(d)
  with zipfile.ZipFile(package) as z:(work/'LibHac.dll').write_bytes(z.read('lib/net8.0/LibHac.dll'))
- for name in ['EmbeddedSaveTransfer.cs','EmbeddedPersonalOptions.cs']:
+ for name in ['EmbeddedSaveTransfer.cs','EmbeddedPersonalOptions.cs','EmbeddedKeyValidation.cs']:
   shutil.copyfile(root/'native/melonx'/name,work/name)
  shutil.copyfile(source/'src/Ryujinx.HLE/HOS/Services/Account/Acc/Types/UserId.cs',work/'UserId.cs')
  (work/'Api.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup><ItemGroup><Reference Include="LibHac"><HintPath>LibHac.dll</HintPath></Reference></ItemGroup></Project>')
@@ -68,6 +68,12 @@ options=Library.Probe(new Options(),game);Check(options.AudioVolume==0.8f&&optio
 File.WriteAllText(Path.Combine(root,"config/0100123456780000_config.json"),"{\"audioVolume\":2}");try{Library.Probe(new Options(),game);throw new Exception("accepted invalid volume");}catch(InvalidDataException){count++;}
 File.WriteAllText(Path.Combine(root,"config/0100123456780000_config.json"),"{\"aspectRatio\":999}");try{Library.Probe(new Options(),game);throw new Exception("accepted unknown enum");}catch(InvalidDataException){count++;}
 using var stream=new MemoryStream();using var writer=new Utf8JsonWriter(stream);try{Library.SaveProbe("{\"titleId\":\"../invalid\",\"profileId\":\"invalid\"}",writer);throw new Exception("accepted invalid association");}catch(ArgumentException){count++;}
-Console.WriteLine($"{count} native personal configuration/save validation cases passed; LibHac API compile passed");
+var prod=Path.Combine(root,"prod.keys");
+File.WriteAllText(prod,"# personal export\n\nheader_key = "+new string('a',64)+"\n");EmbeddedKeyValidation.Validate(prod);count++;
+foreach(var invalidKeys in new[]{"header_key = aa","unknown_key = "+new string('a',32),"header_key = "+new string('a',64)+"\nheader_key = "+new string('b',64)}) {
+File.WriteAllText(prod,invalidKeys);try{EmbeddedKeyValidation.Validate(prod);throw new Exception("accepted invalid key schema");}catch(InvalidDataException){count++;}}
+var title=Path.Combine(root,"title.keys");File.WriteAllText(title,new string('0',32)+" = "+new string('a',32));EmbeddedKeyValidation.Validate(title);count++;
+File.WriteAllText(title,new string('0',32)+" = aa");try{EmbeddedKeyValidation.Validate(title);throw new Exception("accepted invalid title key");}catch(InvalidDataException){count++;}
+Console.WriteLine($"{count} native personal configuration/save/key validation cases passed; LibHac API compile passed");
 }finally{Directory.Delete(root,true);}''')
  subprocess.run(['dotnet','run','--project',str(work/'Api.csproj'),'-c','Release'],check=True,timeout=120)
