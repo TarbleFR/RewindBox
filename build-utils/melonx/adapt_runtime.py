@@ -88,4 +88,51 @@ def apply(source):
         }
 
         public static void InitMemoryCache()''')
-    return [project, library, ffmpeg, vk, memory, translator, cache]
+    registration = source / 'src/Ryujinx.Cpu/Signal/UnixSignalHandlerRegistration.cs'
+    once(registration, '            int result = sigaction(SIGSEGV, nint.Zero, out SigAction old);',
+         '            if (IsDarwin) return GetDarwin(SIGSEGV);\n            int result = sigaction(SIGSEGV, nint.Zero, out SigAction old);')
+    once(registration, '            SigAction sig = new()',
+         '            if (IsDarwin) return RegisterDarwin(action);\n            SigAction sig = new()')
+    once(registration, '            return sigaction(SIGSEGV, ref oldAction, out SigAction _) == 0 &&',
+         '            if (IsDarwin) return RestoreDarwin(oldAction);\n            return sigaction(SIGSEGV, ref oldAction, out SigAction _) == 0 &&')
+    signal = source / 'src/Ryujinx.Cpu/Signal/NativeSignalHandler.cs'
+    once(signal, '        public SignalHandlerRangeArray Ranges;',
+         '        public nuint UnixOldBusSigaction;\n        public int UnixOldBusSigaction3Arg;\n        public SignalHandlerRangeArray Ranges;')
+    once(signal, '                    _signalHandlerPtr = MapCode(NativeSignalHandlerGenerator.GenerateUnixSignalHandler(_handlerConfig, rangeStructSize));', '''                    // Populate fallbacks before the first handler is installed.
+                    var prior = UnixSignalHandlerRegistration.GetSegfaultExceptionHandler();
+                    var priorBus = UnixSignalHandlerRegistration.GetBusExceptionHandler();
+                    config.UnixOldSigaction = (nuint)prior.sa_handler;
+                    config.UnixOldSigaction3Arg = prior.sa_flags & UnixSignalHandlerRegistration.SigInfoFlag;
+                    config.UnixOldBusSigaction = (nuint)priorBus.sa_handler;
+                    config.UnixOldBusSigaction3Arg = priorBus.sa_flags & UnixSignalHandlerRegistration.SigInfoFlag;
+                    _signalHandlerPtr = MapCode(NativeSignalHandlerGenerator.GenerateUnixSignalHandler(_handlerConfig, rangeStructSize));''')
+    once(signal, 'config.UnixOldSigaction3Arg = old.sa_flags & 4;',
+         'config.UnixOldSigaction3Arg = old.sa_flags & UnixSignalHandlerRegistration.SigInfoFlag;')
+    generator = source / 'src/ARMeilleure/Signal/NativeSignalHandlerGenerator.cs'
+    once(generator, 'private const int RangeOffset = 20;', 'private const int RangeOffset = 32;')
+    once(generator, '''            Operand unixOldSigaction = context.Load(OperandType.I64, Const((ulong)signalStructPtr + UnixOldSigaction));
+            Operand unixOldSigaction3Arg = context.Load(OperandType.I64, Const((ulong)signalStructPtr + UnixOldSigaction3Arg));''', '''            Operand unixOldSigaction = context.AllocateLocal(OperandType.I64);
+            Operand unixOldSigaction3Arg = context.AllocateLocal(OperandType.I32);
+            context.Copy(unixOldSigaction, context.Load(OperandType.I64, Const((ulong)signalStructPtr + UnixOldSigaction)));
+            context.Copy(unixOldSigaction3Arg, context.Load(OperandType.I32, Const((ulong)signalStructPtr + UnixOldSigaction3Arg)));
+            if (OperatingSystem.IsMacOS() || OperatingSystem.IsIOS())
+            {
+                Operand useSegv = Label();
+                context.BranchIf(useSegv, context.LoadArgument(OperandType.I32, 0), Const(10), Comparison.NotEqual);
+                context.Copy(unixOldSigaction, context.Load(OperandType.I64, Const((ulong)signalStructPtr + 20)));
+                context.Copy(unixOldSigaction3Arg, context.Load(OperandType.I32, Const((ulong)signalStructPtr + 28)));
+                context.MarkLabel(useSegv);
+                // SIG_DFL and SIG_IGN are dispositions, never callable addresses.
+                Operand callPrevious = Label();
+                context.BranchIf(callPrevious, unixOldSigaction, Const(1UL), Comparison.GreaterUI);
+                Operand returnIgnored = Label();
+                context.BranchIf(returnIgnored, unixOldSigaction, Const(1UL), Comparison.Equal);
+                nint system = NativeLibrary.Load("/usr/lib/libSystem.B.dylib");
+                Operand signo = context.LoadArgument(OperandType.I32, 0);
+                context.Call(Const((ulong)NativeLibrary.GetExport(system, "signal")), OperandType.I64, signo, Const(0UL));
+                context.Call(Const((ulong)NativeLibrary.GetExport(system, "raise")), OperandType.I32, signo);
+                context.MarkLabel(returnIgnored);
+                context.Return();
+                context.MarkLabel(callPrevious);
+            }''')
+    return [project, library, ffmpeg, vk, memory, translator, cache, registration, signal, generator]

@@ -18,6 +18,7 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_runtime.py
     - build-utils/melonx/adapt_firmware.py
     - native/melonx/*.cs
+    - test/melonx_darwin_signal_test.py
     - test/melonx_bootstrap_test.py
     - test/melonx_session_test.py
     - test/melonx_input_test.py
@@ -94,6 +95,8 @@ jobs:
         git -C .native-sources/LibHac checkout --detach FETCH_HEAD
 
         '
+    - name: Verify the real Darwin signal ABI and preserve NativeAOT handlers
+      run: python3 test/melonx_darwin_signal_test.py .native-sources/MeloNX
     - name: Execute the changed production launch preflight and diagnostic API
       run: python3 test/melonx_launch_native_test.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
     - name: Execute production input driver ownership

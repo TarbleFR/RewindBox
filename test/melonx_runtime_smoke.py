@@ -80,6 +80,10 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        // Simulator-only executable mapping proof with the real ARM64 engine.
        // It does not exercise iPhone signing, its helper or Universal JIT.
        try runtime.prepareJit();try runtime.prepareJit()
+       var segv=Darwin.sigaction(),bus=Darwin.sigaction()
+       guard Darwin.sigaction(SIGSEGV,nil,&segv)==0, Darwin.sigaction(SIGBUS,nil,&bus)==0,
+             segv.sa_flags & SA_SIGINFO != 0, bus.sa_flags & SA_SIGINFO != 0 else {throw NSError(domain:"actual-Darwin-signal-ABI",code:15)}
+       report["actualDarwinThreeArgumentHandlersVerified"]=true
        let diagnostics=runtime.diagnostics()
        let events=diagnostics["events"] as? [[String:Any]] ?? []
        guard events.contains(where:{$0["stage"] as? String == "jitArena" && $0["status"] as? String == "passed"}) else {throw NSError(domain:"actual-jit-arena",code:7)}

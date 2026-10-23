@@ -43,7 +43,8 @@ def main():
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
-        project = {'EmbeddedNativeGamepadLease.cs': 'Ryujinx.Input.Native',
+        project = {'EmbeddedDarwinSignals.cs': 'Ryujinx.Cpu',
+                   'EmbeddedNativeGamepadLease.cs': 'Ryujinx.Input.Native',
                    'EmbeddedNativeLibraries.cs': 'Ryujinx.Common',
                    'EmbeddedLaunchDiagnostics.cs': 'Ryujinx.Common',
                    'EmbeddedFirmwareStore.cs': 'Ryujinx.HLE',

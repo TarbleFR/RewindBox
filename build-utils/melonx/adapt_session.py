@@ -77,6 +77,15 @@ def apply(source):
         private static bool LoadApplication(Options options)
         {
             try { return LoadApplicationOwned(options); }
+            catch (Exception error)
+            {
+                // Capture the original loader failure before cleanup. A stuck
+                // teardown must not hide the reason the game failed to load.
+                Ryujinx.Common.EmbeddedLaunchDiagnostics.Fail(
+                    Ryujinx.Common.EmbeddedLaunchDiagnostics.Stage,
+                    Ryujinx.Common.EmbeddedLaunchDiagnostics.Classify(error), error, 3);
+                throw;
+            }
             finally
             {
                 EmbeddedSessions.WithdrawControls();
@@ -125,6 +134,10 @@ def apply(source):
 
             if (processResult.ProcessId == 0)
             {''')
+    helper = source / 'src/Ryujinx.HLE/Loaders/Processes/ProcessLoaderHelper.cs'
+    once(helper, '            context.Device.System.ServiceTable.WaitServicesReady();', '''            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("systemServices", "begin", detail: "Waiting for Horizon service readiness before creating the guest process.");
+            context.Device.System.ServiceTable.WaitServicesReady();
+            Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("systemServices", "passed", detail: "All Horizon service readiness acknowledgements received.");''')
     text = library.read_text()
     assert text.count('_emulationContext.Dispose();') == 9
     library.write_text(text.replace('_emulationContext.Dispose();', '/* Session owner releases the context. */'))
@@ -225,4 +238,4 @@ def apply(source):
     once(touch, '        public void UpdatePosition()', '''        internal static void ResetEmbeddedTouches() => _activeTouches.Clear();
 
         public void UpdatePosition()''')
-    return [library, window, touch, loader, syscall]
+    return [library, window, touch, loader, syscall, helper]

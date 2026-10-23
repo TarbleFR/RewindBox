@@ -7,6 +7,7 @@ name: MeloNX actual runtime investigation
 permissions: {contents: read, actions: read}
 jobs:
   runtime:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-runtime-probe]') }}
     runs-on: macos-26
     timeout-minutes: 20
     steps:
