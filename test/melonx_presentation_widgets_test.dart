@@ -107,5 +107,7 @@ void main() {
     } else { expect(failures,isEmpty); }
     expect(tester.takeException(),isNull);
     expect(File('${temp.path}/MeloNX/system/prod.keys').readAsStringSync(),source.readAsStringSync());
+    // Flutter verifies foundation globals before package:test tearDown runs.
+    debugDefaultTargetPlatformOverride=null;
   });
 }
