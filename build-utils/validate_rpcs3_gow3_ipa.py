@@ -11,7 +11,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / '.github/diagnostics'))
 sys.path.insert(0, str(ROOT / 'packages/dolphin_internal_bridge/ci'))
-from rpcs3gow3_510_delivery import CORE_SOURCE, CORE_RUN, HOST, validate_rpc_core_identity
+from rpcs3restore513_delivery import CORE_SOURCE, CORE_RUN, HOST, validate_rpc_core_identity
 from delivery_benchmark import payload_fingerprint
 from verify_ipa import macho
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--embed', type=Path)
     parser.add_argument('--core-binary', type=Path)
     parser.add_argument('--core-identity', type=Path)
-    parser.add_argument('--build-number', type=int, default=510)
+    parser.add_argument('--build-number', type=int, default=513)
     parser.add_argument('--report', type=Path)
     args = parser.parse_args()
     if args.embed:

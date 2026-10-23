@@ -1,20 +1,20 @@
-# Build 512: direct Switch playlist and compact aligned Liquid Glass header.
-name: RewindBox direct Switch playlist and aligned header • Build 512 • SideStore
-run-name: RewindBox Build 512 • ${{ github.sha }} • Direct Switch and aligned Liquid Glass
+# Build 513: RPCS3 restore buffers and accurate LLVM JIT CPU accounting.
+name: RewindBox RPCS3 restore and LLVM JIT • Build 513 • SideStore
+run-name: RewindBox Build 513 • ${{ github.sha }} • RPCS3 restore memory and JIT accounting
 'on':
   push:
     branches:
     - Claude
     paths:
     - .github/workflows/retroarch-delivery.yml
-    - .github/diagnostics/navigation512_delivery.py
-    - build-utils/delivery-512-chatgpt-recipient.pem
+    - .github/diagnostics/rpcs3restore513_delivery.py
+    - build-utils/delivery-513-chatgpt-recipient.pem
   workflow_dispatch:
     inputs:
       build_number:
         description: New delivery build number
         required: true
-        default: '512'
+        default: '513'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -31,13 +31,13 @@ run-name: RewindBox Build 512 • ${{ github.sha }} • Direct Switch and aligne
       recipient:
         description: Public key (PEM in build-utils) the encrypted artifact is addressed to; each session decrypts with its own private key
         required: false
-        default: build-utils/delivery-512-chatgpt-recipient.pem
+        default: build-utils/delivery-513-chatgpt-recipient.pem
         type: string
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: rewindbox-navigation512-delivery-${{ github.ref }}
+  group: rewindbox-rpcs3restore513-delivery-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   checks:
@@ -52,8 +52,8 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
-    - name: Require exact tested UI and reuse successful native/engine evidence
-      run: python3 .github/diagnostics/navigation512_delivery.py --wait-for-components
+    - name: Verify frozen restore Core and reuse delivered 512 application evidence
+      run: python3 .github/diagnostics/rpcs3restore513_delivery.py --wait-for-components
   native:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
     runs-on: ubuntu-24.04
@@ -62,8 +62,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
     - *id001
-    - name: Require exact tested UI and reuse successful native/engine evidence
-      run: python3 .github/diagnostics/navigation512_delivery.py --source-only
+    - name: Verify frozen restore Core and reuse delivered 512 application evidence
+      run: python3 .github/diagnostics/rpcs3restore513_delivery.py --source-only
   cold:
     name: Release device build • cold
     runs-on: macos-15
@@ -72,16 +72,16 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '512' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-512-chatgpt-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '513' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-513-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '512' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '513' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
-      RPCS3_CORE_HOST_SHA: 50714fe0980d0b50ccd93c1c739c480b054a31b9
-      RPCS3_CORE_RUN_ID: '39888215155'
+      RPCS3_CORE_HOST_SHA: c5e54c5817f848e6f667b757931f91364e9faeda
+      RPCS3_CORE_RUN_ID: '39968584447'
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_RUN_ID: '39455712245'
@@ -102,7 +102,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/navigation512_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/rpcs3restore513_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -120,7 +120,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/navigation512_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/rpcs3restore513_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -226,7 +226,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/navigation512_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/rpcs3restore513_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           test/rpcs3_gow3_restore_regression_test.py \
@@ -328,7 +328,7 @@ jobs:
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
         sys.path.insert(0, '.github/diagnostics')
-        from navigation512_delivery import validate_rpc_core_identity as validate_core_input_identity
+        from rpcs3restore513_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
