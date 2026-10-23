@@ -97,3 +97,9 @@ The final targeted proof authenticates recovery 39889391790, checks this exact
 code delta, reuses its 32 unaffected Flutter and eight legal cases, and reruns
 only the affected selection case plus the new regression: 34 Flutter cases in
 the resulting proof chain, without replaying native or unchanged visual tests.
+
+Final rapid-selection proof `554c8540570c9eab3c19da0a53123381051977bf`,
+run `39894280161`, job `120220965793`, completed successfully: exact delta
+authentication, changed-file analysis, complete eight-tab selection and the
+24-selection non-accumulation regression. The final recipe pins this proof.
+The independent GoW3 Core run `39888215155` also completed successfully.

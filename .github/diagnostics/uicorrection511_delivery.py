@@ -10,8 +10,8 @@ import rpcs3gow3_510_delivery as previous
 
 base = previous.base
 ROOT = Path(__file__).resolve().parents[2]
-TESTED = 'fa5c249dbca0f988128021e465b3aa936c7ebea3'
-TESTED_RUN = 39889391790
+TESTED = '554c8540570c9eab3c19da0a53123381051977bf'
+TESTED_RUN = 39894280161
 BASELINE = '8a79ae4e7855cde46e2922e8f71a2df81f0c7a7b'
 DELIVERED = previous.DELIVERED
 DELIVERED_RUN = previous.DELIVERED_RUN
