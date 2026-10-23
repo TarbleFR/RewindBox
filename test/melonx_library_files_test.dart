@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 // Existing transitive path_provider platform boundary; no new app dependency.
@@ -213,6 +215,8 @@ void main() {
       messenger.setMockMethodCallHandler(MelonxInternalService.channel, (
         call,
       ) async {
+        if (call.method == 'beginLibraryMutation') return true;
+        if (call.method == 'endLibraryMutation') return null;
         expect(call.method, 'metadata');
         inspected++;
         if ((call.arguments as Map)['path'].toString().endsWith('Update.nsp'))
@@ -243,6 +247,17 @@ void main() {
       expect(await MelonxLibraryScanner.refresh(config), 0);
       // Both unchanged games and native data rejections are cached until the file or keys change.
       expect(inspected - before, 0);
+      final oldHash = sha256
+          .convert(utf8.encode(p.normalize(game.path)))
+          .toString();
+      await write(
+        p.join(root.path, 'controller_layouts/$oldHash.json'),
+        'personal layout',
+      );
+      await write(
+        p.join(root.path, 'controller_mappings/$oldHash/pad.json'),
+        'personal mapping',
+      );
       final relocated = p.join(root.path, 'roms/switch/Moved/Renamed.nro');
       await Directory(p.dirname(relocated)).create();
       await game.rename(relocated);
@@ -253,6 +268,25 @@ void main() {
       expect(rows.single['is_favorite'], 1);
       expect(rows.single['play_time'], 123);
       expect(rows.single['title_name'], 'Custom metadata');
+      expect(
+        await File(
+          p.join(root.path, 'controller_layouts/0100123456780000.json'),
+        ).readAsString(),
+        'personal layout',
+      );
+      expect(
+        await File(
+          p.join(root.path, 'controller_mappings/0100123456780000/pad.json'),
+        ).readAsString(),
+        'personal mapping',
+      );
+      expect(
+        await File(
+          p.join(root.path, 'controller_layouts/$oldHash.json'),
+        ).exists(),
+        true,
+      );
+
       final copy = p.join(root.path, 'roms/switch/duplicate.nro');
       await File(relocated).copy(copy);
       await MelonxLibraryScanner.refresh(config);

@@ -329,12 +329,24 @@ void main() {
         p.join(source.path, 'config.json'),
         jsonEncode({'resScale': 1.5, 'useHypervisor': true}),
       );
+      await write(
+        p.join(source.path, 'controller_layouts/0100ABCDEF120000.json'),
+        '{}',
+      );
+      await write(p.join(source.path, 'controllerMappings.json'), '{}');
       final plan = await MelonxMigrationService.analyze(
         wrapper,
         root,
         MelonxTransferControl(),
       );
       expect(plan.source.path, source.path);
+      expect(
+        plan.items.map((e) => e.relative),
+        containsAll([
+          'controller_layouts/0100abcdef120000.json',
+          'controllerMappings.json',
+        ]),
+      );
       expect(
         plan.items.map((e) => e.relative),
         contains('roms/switch/Game.nsp'),

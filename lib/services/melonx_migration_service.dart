@@ -141,6 +141,13 @@ abstract final class MelonxMigrationService {
     Future<void> add(FileSystemEntity entity, String relative) async {
       control.check();
       if (entity is Link) throw const FormatException('unsafePath');
+      if (p.dirname(relative) == 'controller_layouts' &&
+          RegExp(r'^[0-9a-fA-F]{16}\.json$').hasMatch(p.basename(relative))) {
+        relative = p.join(
+          'controller_layouts',
+          p.basename(relative).toLowerCase(),
+        );
+      }
       if (MelonxTransferSource.ignored(p.basename(entity.path))) return;
       if (entity is Directory && relative != 'bis') {
         await for (final child in entity.list(followLinks: false)) {
@@ -206,9 +213,11 @@ abstract final class MelonxMigrationService {
             'addons',
             'config',
             'controller_mappings',
+            'controller_layouts',
             'controller',
           }.contains(name) ||
-          name == 'config.json') {
+          name == 'config.json' ||
+          name == 'controllerMappings.json') {
         await add(entity, name);
       } else if (entity is File &&
           MelonxInternalService.gameExtensions.contains(

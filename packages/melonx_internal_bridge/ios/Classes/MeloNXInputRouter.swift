@@ -10,6 +10,7 @@ final class MeloNXInputRouter: ObservableObject, Controller {
     @Published var hideWithController = UserDefaults.standard.object(forKey: "rewindbox.melonx.hideTouch") as? Bool ?? true {
         didSet { UserDefaults.standard.set(hideWithController, forKey: "rewindbox.melonx.hideTouch"); if hideWithController && controllerCount > 0 { releaseTouch() } }
     }
+    private let legacyGameID: String
     let gameID: String
     let gameName: String
     var onMenu: (() -> Void)?
@@ -25,9 +26,20 @@ final class MeloNXInputRouter: ObservableObject, Controller {
     private var axes: [Int32: [String: [Int32: (Float, Float)]]] = [:]
     private(set) var controllers: [GCController] = []
 
-    init(runtime: MeloNXRuntimeAPI, generation: Int64, game: URL) {
+    init(runtime: MeloNXRuntimeAPI, generation: Int64, game: URL, titleID: String? = nil) {
         self.runtime = runtime; self.generation = generation
-        gameID = SHA256.hash(data: Data(game.standardizedFileURL.path.utf8)).map { String(format: "%02x", $0) }.joined()
+        legacyGameID = SHA256.hash(data: Data(game.standardizedFileURL.path.utf8)).map { String(format: "%02x", $0) }.joined()
+        if let titleID, titleID.range(of:"^[0-9a-fA-F]{16}$",options:.regularExpression) != nil, titleID != "0000000000000000" {
+            gameID = titleID.lowercased()
+        } else { gameID = legacyGameID }
+        // Standalone layouts already use title IDs. Preserve earlier embedded
+        // path-based layouts when opening the same game with a stable identity.
+        let layouts = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("MeloNX/controller_layouts")
+        let legacyLayout = layouts.appendingPathComponent("\(legacyGameID).json")
+        let stableLayout = layouts.appendingPathComponent("\(gameID).json")
+        if gameID != legacyGameID, !FileManager.default.fileExists(atPath:stableLayout.path), FileManager.default.fileExists(atPath:legacyLayout.path) {
+            try? FileManager.default.copyItem(at:legacyLayout,to:stableLayout)
+        }
         gameName = game.deletingPathExtension().lastPathComponent
         _ = runtime.attach(generation, pad: 1, name: "MeloNX touch / player 1", player: 0)
         for name in [Notification.Name.GCControllerDidConnect, .GCControllerDidDisconnect] {
@@ -139,18 +151,29 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         }
     }
 
-    private func mappingURL(_ controller: GCController) -> URL {
+    private func mappingURL(_ controller: GCController, identity: String? = nil) -> URL {
         let name = controller.productCategory + ":" + (controller.vendorName ?? "")
         let key = SHA256.hash(data: Data(name.utf8)).map { String(format:"%02x",$0) }.joined()
         return FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
-            .appendingPathComponent("MeloNX/controller_mappings/\(gameID)/\(key).json")
+            .appendingPathComponent("MeloNX/controller_mappings/\(identity ?? gameID)/\(key).json")
     }
     func mapping(for controller: GCController) -> ControllerMapping {
-        let url = mappingURL(controller)
-        guard let data = try? Data(contentsOf:url), data.count < 65536,
-              let mapping = try? JSONDecoder().decode(ControllerMapping.self,from:data), Self.valid(mapping) else { return .standard() }
-        return mapping
+        for url in [mappingURL(controller), mappingURL(controller, identity:legacyGameID)] {
+            guard let size = try? url.resourceValues(forKeys:[.fileSizeKey]).fileSize, size < 65536,
+                  let data = try? Data(contentsOf:url),
+                  let mapping = try? JSONDecoder().decode(ControllerMapping.self,from:data), Self.valid(mapping) else { continue }
+            return mapping
+        }
+        // The standalone app exports a global dictionary keyed by vendor name.
+        // Keep a per-game override first, then use only a validated exact match.
+        let global = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("MeloNX/controllerMappings.json")
+        if let size = try? global.resourceValues(forKeys:[.fileSizeKey]).fileSize, size < 4 * 1024 * 1024,
+           let data = try? Data(contentsOf:global),
+           let mappings = try? JSONDecoder().decode([String:ControllerMapping].self,from:data),
+           let name = controller.vendorName, let mapping = mappings[name], Self.valid(mapping) { return mapping }
+        return .standard()
     }
+
     func save(_ mapping: ControllerMapping, for controller: GCController) throws {
         guard Self.valid(mapping) else { throw MeloNXHostError.load("Invalid controller mapping") }
         let url = mappingURL(controller)

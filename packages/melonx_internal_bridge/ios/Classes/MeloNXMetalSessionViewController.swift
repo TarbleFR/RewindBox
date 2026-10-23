@@ -53,6 +53,7 @@ private final class MeloNXEditorHost: UIHostingController<AnyView> {
 final class MeloNXMetalSessionViewController: UIViewController {
     private let host: MeloNXSessionHost
     private let runtime: MeloNXRuntimeAPI?
+    private let titleID: String?
     private let game: URL
     private let locale: String
     private let beforeRun: (() -> Bool)?
@@ -71,10 +72,10 @@ final class MeloNXMetalSessionViewController: UIViewController {
     var presentedFrameCount: UInt64 { surface.metalLayer.frameCount }
 
     init(host: MeloNXSessionHost, game: URL, locale: String,
-         runtime: MeloNXRuntimeAPI? = nil, beforeRun: (() -> Bool)? = nil,
+         runtime: MeloNXRuntimeAPI? = nil, titleID: String? = nil, beforeRun: (() -> Bool)? = nil,
          firstFrame: @escaping () -> Void = {},
          finished: @escaping (Result<Void, MeloNXHostError>) -> Void) {
-        self.host = host; self.game = game; self.locale = locale
+        self.host = host; self.game = game; self.locale = locale; self.titleID = titleID
         self.runtime = runtime; self.beforeRun = beforeRun
         self.firstFrame = firstFrame; self.finished = finished
         super.init(nibName:nil,bundle:nil)
@@ -115,7 +116,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
 
     private func installControls(generation: Int64) {
         guard let runtime else { return }
-        let router = MeloNXInputRouter(runtime:runtime,generation:generation,game:game)
+        let router = MeloNXInputRouter(runtime:runtime,generation:generation,game:game,titleID:titleID)
         self.router = router
         router.onMenu = { [weak self] in self?.showMenu() }
         refreshControls()

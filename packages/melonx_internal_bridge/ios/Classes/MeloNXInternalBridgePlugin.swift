@@ -130,6 +130,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         libraryQueue.async { [self] in
             do {
                 let runtime = try ensureRuntime()
+                let titleID = (try? runtime.content(path:path,operation:0))?["titleId"] as? String
                 try runtime.prepareGraphics(settings,universalJit:universal)
                 DispatchQueue.main.async { [self] in
                     guard isCurrent(token) else { return }
@@ -139,7 +140,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     do { try audio.setCategory(.playback,mode:.default,options:[]); try audio.setActive(true) }
                     catch { failLaunch("audioUnavailable",diagnostic:String(describing:error)); return }
                     let host = MeloNXSessionHost(api:runtime.session); self.host = host
-                    let view = MeloNXMetalSessionViewController(host:host,game:URL(fileURLWithPath:path),locale:locale,runtime:runtime,
+                    let view = MeloNXMetalSessionViewController(host:host,game:URL(fileURLWithPath:path),locale:locale,runtime:runtime,titleID:titleID,
                         beforeRun:{ [weak self] in
                             guard let self, self.isCurrent(token) else { return false }
                             if reuseArena { return true }

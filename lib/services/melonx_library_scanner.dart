@@ -8,6 +8,7 @@ import '../data/datasources/sqlite_service.dart';
 import '../providers/sqlite_config_provider.dart';
 import '../repositories/system_repository.dart';
 import 'melonx_internal_service.dart';
+import 'melonx_file_transaction.dart';
 
 /// Incremental Switch discovery. Never copies ROMs or deletes missing entries.
 /// File hashes identify moves; a metadata-only match is deliberately refused.
@@ -159,6 +160,11 @@ abstract final class MelonxLibraryScanner {
             index[location] = {'stamp': stamp, 'sha256': digest, 'info': info};
             if (duplicate && row == null) continue;
             if (row == null && moved != null) {
+              await _preserveControls(
+                root,
+                moved['rom_path'] as String,
+                info['titleId']?.toString(),
+              );
               await db.rawUpdate(
                 "UPDATE user_roms SET rom_path = ?, updated_at = datetime('now') WHERE rom_path = ?",
                 [location, moved['rom_path']],
@@ -224,6 +230,49 @@ abstract final class MelonxLibraryScanner {
       await config.refreshDetectedSystems();
     }
     return changed;
+  }
+
+  static Future<void> _preserveControls(
+    Directory root,
+    String oldPath,
+    String? titleId,
+  ) async {
+    if (titleId == null ||
+        !RegExp(r'^[0-9a-fA-F]{16}$').hasMatch(titleId) ||
+        titleId == '0000000000000000')
+      return;
+    final legacy = sha256.convert(utf8.encode(p.normalize(oldPath))).toString();
+    final title = titleId.toLowerCase();
+    final candidates = <String, FileSystemEntity>{
+      'controller_layouts/$title.json': File(
+        p.join(root.path, 'controller_layouts/$legacy.json'),
+      ),
+      'controller_mappings/$title': Directory(
+        p.join(root.path, 'controller_mappings/$legacy'),
+      ),
+    };
+    final items = <MelonxTransferItem>[];
+    for (final candidate in candidates.entries) {
+      if (!await candidate.value.exists() ||
+          await FileSystemEntity.type(
+                p.join(root.path, candidate.key),
+                followLinks: false,
+              ) !=
+              FileSystemEntityType.notFound)
+        continue;
+      items.add(
+        MelonxTransferItem(
+          candidate.value,
+          candidate.key,
+          await MelonxFileTransaction.size(candidate.value),
+          false,
+        ),
+      );
+    }
+    if (items.isNotEmpty)
+      await MelonxInternalService.editLibrary(
+        () => MelonxFileTransaction.apply(root, items, MelonxTransferControl()),
+      );
   }
 
   static Future<bool> missing(String location) async {
