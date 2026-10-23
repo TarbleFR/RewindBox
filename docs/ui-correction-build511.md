@@ -83,7 +83,7 @@ visual cases, five affected profile/input/rotation/accessibility cases, and eigh
 legal-packaging checks. Recovery `39889262784` stopped while reading ANSI-bearing
 logs; the current capture explicitly permits those bytes into a private Python
 buffer, never into a terminal. No product inputs changed during either recovery.
-The final Release recipe pins this successful proof and the exact GoW3 Core
+The first proposed Release recipe pinned that successful proof and the exact GoW3 Core
 `50714fe0980d0b50ccd93c1c739c480b054a31b9` / `39888215155`, waiting for its success.
 Its independent concurrency group preserves the separate 510 assembly run.
 
@@ -103,3 +103,26 @@ run `39894280161`, job `120220965793`, completed successfully: exact delta
 authentication, changed-file analysis, complete eight-tab selection and the
 24-selection non-accumulation regression. The final recipe pins this proof.
 The independent GoW3 Core run `39888215155` also completed successfully.
+
+## Delivered artifact
+
+Final Release source `12589d3fa7c3d5fd28537c456cde1b80a06cca98`, run
+`39894506630`, completed successfully (source gate, native evidence closure and
+iPhone Release job `120221819782`). The packaged AOT binary contains the complete
+21-segment/60 fps author profile, Cover Flow and shared header/body compositor.
+The actual final ZIP passed strict nested signature verification; compiled
+code, data sections and ABI identities were unchanged by signing.
+
+Delivered `RewindBox-Build511.ipa`: version **0.0.8 (511)**, iPhone **arm64**,
+minimum iOS **18.0**, **186,119,672 bytes**, six aligned extensions and **86**
+verified ad hoc signatures. Apple re-signing with SideStore/AltStore is required.
+SHA-256: `714eecf8c7cc09e9d5b4bc4da375708f1773b8ad4413715c0630aef7c5a54f58`.
+
+Encrypted CI artifact `12476174472` has ZIP SHA-256
+`d4042cfa2dd66e9bc791b066baededc7c68fec66473720bee3c2fcf97a640cb7`.
+The decrypted IPA digest matches SHA256SUMS, signed-payload identity and final
+UI-validation report. It was saved successfully for direct download. The PC
+Downloads copy remains blocked by Desktop Commander's reported monthly quota.
+No physical-device installation, gameplay or thermal validation is claimed.
+The machine-readable receipt is `docs/evidence/ui-correction511-delivery.json`.
+No release, tag or main update was made.
