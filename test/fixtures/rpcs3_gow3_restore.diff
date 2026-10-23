@@ -1,0 +1,87 @@
+diff --git a/rpcs3/Loader/TAR.cpp b/rpcs3/Loader/TAR.cpp
+--- a/rpcs3/Loader/TAR.cpp
++++ b/rpcs3/Loader/TAR.cpp
+@@ -299,8 +299,14 @@
+ 
+ 			const usz filesize = file_data->get_size() - file_data->pos;
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_GOW3_TAR_WINDOW_V1: bound the iOS transfer ring to 4 MiB.
++			constexpr usz chunk_size = 0x100000;
++			constexpr usz chunk_count = 4;
++#else
+ 			constexpr usz chunk_size = 0x8 * 0x100000;
+ 			constexpr usz chunk_count = 16;
++#endif
+ 
+ 			if (should_ignore)
+ 			{
+@@ -328,6 +334,22 @@
+ 				std::unique_ptr<named_thread<std::function<void()>>> async_reader;
+ 
+ 				atomic_t<usz> filedata_read_pos = 0, filedata_write_pos = 0;
++
++				const auto read_chunk = [&](std::span<u8> destination)
++				{
++					const usz unread_size = file_data->try_read(destination);
++#ifdef RPCS3_IOS
++					// The chunk has been copied into the independent transfer ring.
++					// Only the reader owns this serial until it is joined below; TAR
++					// padding and the next header are forward reads. Release consumed
++					// decompressed bytes instead of retaining a whole savestate member.
++					if (m_ar && !unread_size)
++					{
++						file_data->breathe(true);
++					}
++#endif
++					return unread_size;
++				};
+ 
+ 				while (!should_ignore && filesize)
+ 				{
+@@ -340,7 +362,7 @@
+ 					// Feed itself if smaller than one chunk
+ 					if (filedata_buffers.size() == 1)
+ 					{
+-						file_data->try_read(get_span_at(filedata_read_pos));
++						read_chunk(get_span_at(filedata_read_pos));
+ 						filedata_read_pos++;
+ 					}
+ 					else if (!async_reader)
+@@ -354,7 +376,7 @@
+ 									thread_ctrl::wait_for(1000);
+ 								}
+ 
+-								const usz unread_size = file_data->try_read(get_span_at(filedata_read_pos));
++								const usz unread_size = read_chunk(get_span_at(filedata_read_pos));
+ 
+ 								if (unread_size)
+ 								{
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -87,9 +87,8 @@
+ 
+ core_group classify_thread(std::string_view name)
+ {
+-	if (name.starts_with("PPUW.") || name.starts_with("PPU Exec") ||
+-		name.starts_with("PPU Symbol") || name.starts_with("SPUW.") ||
+-		name.starts_with("SPU Worker") || name.starts_with("SPU LLVM") ||
++	if (rpcs3::ios::profiler::is_transient_compile_thread(name) ||
++		name.starts_with("SPUW.") || name.starts_with("SPU LLVM") ||
+ 		name.starts_with("RSX.W"))
+ 	{
+ 		return core_group::jit;
+diff --git a/rpcs3/ios/RPCS3IOSProfilerHelpers.h b/rpcs3/ios/RPCS3IOSProfilerHelpers.h
+--- a/rpcs3/ios/RPCS3IOSProfilerHelpers.h
++++ b/rpcs3/ios/RPCS3IOSProfilerHelpers.h
+@@ -44,7 +44,8 @@
+ // permanent JIT threads ("SPUW.", "SPU LLVM", "RSX.W") that the jit group also holds.
+ inline bool is_transient_compile_thread(std::string_view name) noexcept
+ {
+-	return name.starts_with("PPUW.") || name.starts_with("PPU Exec") ||
++	// JITLLVM.cpp creates a disposable "LLVM JIT" code-generation thread.
++	return name == "LLVM JIT" || name.starts_with("PPUW.") || name.starts_with("PPU Exec") ||
+ 		name.starts_with("PPU Symbol") || name.starts_with("SPU Worker");
+ }
+ 

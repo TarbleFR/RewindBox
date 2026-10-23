@@ -49,12 +49,12 @@ jobs:
         restore-keys: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch')
           }}-
       id: compile-cache
-    - name: Reuse authenticated 508 proofs and execute changed GoW3 behavior
+    - name: Reuse authenticated 510 proofs and execute restore/profiler behavior
       id: evidence
       env:
         GH_TOKEN: ${{ github.token }}
       shell: bash
-      run: "set -euo pipefail\ngit fetch --no-tags --depth 1 origin cfe92344e1b3dd26d2cb17bb8b8ad68260c5cc7f\nfor formula\
+      run: "set -euo pipefail\ngit fetch --no-tags --depth 1 origin 50714fe0980d0b50ccd93c1c739c480b054a31b9\nfor formula\
         \ in ccache ninja cmake llvm@22; do\n  brew list --versions \"$formula\" >/dev/null 2>&1 || brew install \"$formula\"\
         \ndone\nSOURCE=\"$RUNNER_TEMP/gow3-source-preflight\"\ngit init -q \"$SOURCE\"\ngit -C \"$SOURCE\" remote add origin\
         \ https://github.com/XITRIX/rpcs3.git\ngit -C \"$SOURCE\" fetch --depth 1 origin 22f1152783cef1f7e04af7b1c895173e28fd5b03\n\
@@ -67,6 +67,19 @@ jobs:
         \ 2>&1 | tee build/rpcs3-core-diagnostics/build.log\n"
       env:
         RPCS3_REUSED_NATIVE_PROOF: ${{ github.workspace }}/build/rpcs3-core-diagnostics/gow3-reuse.json
+    - name: Compare actual configured PPU and SPU cache identities with validated Core 510
+      shell: bash
+      run: |
+        python3 - <<'PYCODE'
+        import json,re
+        from pathlib import Path
+        text=Path('build/rpcs3-core-diagnostics/build.log').read_text()
+        actual={kind:re.findall(r'NeoStation '+kind+r' codegen identity: ([0-9a-f]{16})',text) for kind in ('PPU','SPU')}
+        expected={'PPU':['8f9b154eb34feabb'],'SPU':['7c226c2359020e20']}
+        assert actual==expected,actual
+        Path('build/rpcs3-core-diagnostics/codegen-identities.json').write_text(json.dumps({'actual':actual,'referenceCore':'50714fe0980d0b50ccd93c1c739c480b054a31b9','cacheNamespacePreserved':True},indent=2)+'\n')
+        print('PASS actual CMake codegen identities; valid PPU/SPU object cache namespaces retained')
+        PYCODE
     - name: Validate passive Core identity and exports
       shell: bash
       run: "set -euo pipefail\nCORE=dist/rpcs3/libRPCS3Core.dylib\ntest -s \"$CORE\"\npython3 build-utils/validate_rpcs3_embedded_core.py\
