@@ -1,20 +1,19 @@
-# Revalidate the interrupted-carousel focus before assembling the updated 507 source.
-name: RewindBox Liquid Motion • Build 507 • SideStore
-run-name: RewindBox Build 507 • ${{ github.sha }} • Liquid Motion
+name: RewindBox RPCS3 memory audit • Build 508 • SideStore
+run-name: RewindBox Build 508 • ${{ github.sha }} • RPCS3 memory audit
 'on':
   push:
     branches:
     - Claude
     paths:
     - .github/workflows/retroarch-delivery.yml
-    - .github/diagnostics/motion507_delivery.py
-    - build-utils/delivery-507-chatgpt-recipient.pem
+    - .github/diagnostics/rpcs3memory508_delivery.py
+    - build-utils/delivery-508-chatgpt-recipient.pem
   workflow_dispatch:
     inputs:
       build_number:
         description: New delivery build number
         required: true
-        default: '507'
+        default: '508'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -31,7 +30,7 @@ run-name: RewindBox Build 507 • ${{ github.sha }} • Liquid Motion
       recipient:
         description: Public key (PEM in build-utils) the encrypted artifact is addressed to; each session decrypts with its own private key
         required: false
-        default: build-utils/delivery-507-chatgpt-recipient.pem
+        default: build-utils/delivery-508-chatgpt-recipient.pem
         type: string
 permissions:
   contents: read
@@ -53,7 +52,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require final exact component proofs and preserve other engines
-      run: python3 .github/diagnostics/motion507_delivery.py
+      run: python3 .github/diagnostics/rpcs3memory508_delivery.py
     - name: Verify legal packaging including the added MeloNX notices
       run: python3 test/legal_bundle_preflight_test.py
   native:
@@ -65,7 +64,7 @@ jobs:
     steps:
     - *id001
     - name: Require source-built engine, actual simulator runtime and private dependencies
-      run: python3 .github/diagnostics/motion507_delivery.py --source-only
+      run: python3 .github/diagnostics/rpcs3memory508_delivery.py --source-only
   cold:
     name: Release device build • cold
     runs-on: macos-15
@@ -74,16 +73,16 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '507' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-507-chatgpt-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '508' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-508-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '507' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '508' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
-      RPCS3_CORE_HOST_SHA: 28371bd12169af9bf506d9d2cff98e0c13d44f24
-      RPCS3_CORE_RUN_ID: '39788462742'
+      RPCS3_CORE_HOST_SHA: cfe92344e1b3dd26d2cb17bb8b8ad68260c5cc7f
+      RPCS3_CORE_RUN_ID: '39877981229'
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_RUN_ID: '39455712245'
@@ -104,7 +103,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/motion507_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/rpcs3memory508_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -122,7 +121,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/motion507_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/rpcs3memory508_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -228,9 +227,31 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/motion507_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/rpcs3memory508_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
+          test/fixtures/rpcs3_memory_audit/JITLLVM.diff \
+          .github/workflows/rpcs3-memory-audit.yml \
+          test/rpcs3_core_syntax_gate_test.py \
+          test/rpcs3_memory_audit_test.py \
+          test/native/rpcs3_memory_audit_test.cpp \
+          packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h \
+          packages/neo_swap/ios/Classes/NeoSwapCompilerBudget.h \
+          native/neoswap-storage/StorageABI.h \
+          native/neoswap-storage/Client.h \
+          native/neoswap-storage/ShaderKey.h \
+          test/rpcs3_shader_storage_test.py \
+          test/native/rpcs3_shader_storage_client_test.cpp \
+          native/neoswap-storage/SourceABI.h \
+          native/neoswap-storage/SourceClient.h \
+          native/neoswap-storage/SourceClient.cpp \
+          native/neoswap-storage/FrameClient.h \
+          native/neoswap-storage/VideoBuffer.h \
+          test/rpcs3_video_frame_archive_test.py \
+          test/native/rpcs3_video_frame_archive_test.cpp \
+          build-utils/run_vdec_archive_validation.sh \
+          test/rpcs3_source_archive_test.py \
+          test/native/rpcs3_source_archive_client_test.cpp \
           build-utils/build_rpcs3_embedded_core.sh \
           build-utils/materialize_rpcs3_core.py \
           build-utils/apply_rpcs3_llvm_patch.py \
@@ -261,6 +282,7 @@ jobs:
           test/rpcs3_failed_startup_test.py \
           test/rpcs3_build264_gow3_core_test.py \
           test/rpcs3_build351_gow3_engine_test.py \
+          test/rpcs3_build352_gow3_memory_test.py \
           test/rpcs3_build353_xitrix_v010_test.py \
           test/rpcs3_armsx3_performance_patch_test.py \
           test/rpcs3_build435_core_delta_test.py \
@@ -281,7 +303,6 @@ jobs:
           test/native/rpcs3_build487_retention_sequence_test.cpp \
           test/rpcs3_build487_host_diagnostics_test.py \
           test/rpcs3_build258_core_architecture_test.py \
-          test/rpcs3_build352_gow3_memory_test.py \
           test/rpcs3_ios_ppu_compile_budget_test.cpp \
           test/rpcs3_ppu_no_size_split_policy_test.cpp \
           test/rpcs3_xitrix_v0101_native_test.py \
@@ -293,22 +314,7 @@ jobs:
           test/native/rpcs3_vk_memory_pressure_test.cpp \
           test/native/rpcs3_vk_conditional_render_test.cpp \
           test/native/rpcs3_neoswap_stats_getter_test.cpp \
-          .github/workflows/rpcs3-core.yml \
-          native/neoswap-storage/StorageABI.h \
-          native/neoswap-storage/Client.h \
-          native/neoswap-storage/ShaderKey.h \
-          test/rpcs3_shader_storage_test.py \
-          test/native/rpcs3_shader_storage_client_test.cpp \
-          native/neoswap-storage/SourceABI.h \
-          native/neoswap-storage/SourceClient.h \
-          native/neoswap-storage/SourceClient.cpp \
-          native/neoswap-storage/FrameClient.h \
-          native/neoswap-storage/VideoBuffer.h \
-          test/rpcs3_video_frame_archive_test.py \
-          test/native/rpcs3_video_frame_archive_test.cpp \
-          build-utils/run_vdec_archive_validation.sh \
-          test/rpcs3_source_archive_test.py \
-          test/native/rpcs3_source_archive_client_test.cpp
+          .github/workflows/rpcs3-core.yml
         # RPCS3_CORE_INPUTS_END
         # The independent host broker/donation is rebuilt by this IPA job.
         # Only the Core source, client ABI, recipe and native tests are pinned.
@@ -319,7 +325,7 @@ jobs:
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
         sys.path.insert(0, '.github/diagnostics')
-        from liquid505_delivery import validate_rpc_core_identity as validate_core_input_identity
+        from rpcs3memory508_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
@@ -370,6 +376,7 @@ jobs:
         exports = Path('build/rpcs3-core-exports.txt').read_text().splitlines()
         symbols = {line.split()[-1] for line in exports if line.split()}
         missing = (set(REQUIRED_CORE_SYMBOLS) | {
+            '_rpcs3_ios_set_compiler_budget_api',
             '_rpcs3_ios_set_neoswap_api', '_rpcs3_ios_get_neoswap_client_stats',
             '_rpcs3_ios_install_patch_repository', '_rpcs3_ios_enumerate_runtime_patches',
             '_rpcs3_ios_set_runtime_patch_enabled', '_rpcs3_ios_enumerate_games',
@@ -597,8 +604,8 @@ jobs:
     - name: Download the exact source-built MeloNX engine
       uses: actions/download-artifact@v4
       with:
-        name: MeloNX-engine-38d997064cd81c5f17de6187ab36d2c78b0ba97c
-        run-id: 39858967222
+        name: MeloNX-engine-c6c5a9c0a8a843ba7a71ac66d4d24f45d7ee8c7a
+        run-id: 39877793359
         github-token: ${{ github.token }}
         path: dist/melonx
     - name: Download the source-built private MeloNX dependencies
@@ -739,6 +746,11 @@ jobs:
         python3 build-utils/embed_rpcs3_core_lazy.py
         python3 build-utils/embed_rpcs3_host_entitlements.py
         python3 build-utils/embed_neoswap_donor_entitlements.py
+    - name: Bind audited RPCS3 binary provenance and verify the linked host compiler broker
+      run: |
+        python3 build-utils/validate_rpcs3_memory_audit_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app \
+          --core-binary dist/rpcs3-native/libRPCS3Core.dylib --core-identity dist/rpcs3-native/identity.json \
+          --report build/delivery/rpcs3-memory-embedded.json
     - name: Embed lazy-loaded ARMSX2 Core framework
       shell: bash
       run: |
@@ -865,7 +877,9 @@ jobs:
     - name: Verify actual packaged MeloNX exports, helper identity and native notices
       run: python3 build-utils/validate_melonx_ipa.py dist/NeoStation.ipa --report build/delivery/melonx-ipa.json
     - name: Verify final signed motion assets and linked native and Dart components
-      run: python3 build-utils/validate_motion507_ipa.py "dist/$IPA_NAME.ipa" --report build/delivery/motion507-ipa-validation.json
+      run: python3 build-utils/validate_motion507_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/motion507-ipa-validation.json
+    - name: Verify the final signed audit Core and shared compiler broker
+      run: python3 build-utils/validate_rpcs3_memory_audit_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/rpcs3-memory-audit-ipa.json
     - name: Finalize observed timings and artifact identity
       if: always()
       run: |

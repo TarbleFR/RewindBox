@@ -102,7 +102,29 @@ BUILD483_CODEGEN = {
     'rpcs3/Emu/Cell/SPURecompiler.h': '0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07',
 }
 for relative, digest in BUILD483_CODEGEN.items():
-    if relative == 'rpcs3/Emu/Cell/SPULLVMRecompiler.cpp':
+    if relative == 'Utilities/JIT.h':
+        text = read(relative)
+        api = '\tstatic void release_cached_object_buffers();\n'
+        prototype = '\tbool try_add_minimal_object(jit_cached_object object, const std::string& entry,\n\t\tconst std::unordered_map<std::string, u64>& bindings, std::string& error);\n\n'
+        if api in text or prototype in text:
+            require(text.count(api) == text.count(prototype) == 1, 'Unexpected JIT audit API declaration')
+            text = text.replace(api, '').replace(prototype, '')
+        require(hashlib.sha256(text.encode()).hexdigest() == digest,
+                'JIT.h changed beyond the exact memory-audit API additions')
+    elif relative == 'Utilities/JITLLVM.cpp' and (ROOT / 'test/fixtures/rpcs3_memory_audit/JITLLVM.diff').is_file():
+        # Reverse the exact reviewed cache/ownership/prototype delta, then keep
+        # the original full-file code-generation hash. An extra changed byte
+        # either makes reverse application fail or breaks the historical hash.
+        with tempfile.TemporaryDirectory(prefix='jitllvm-reference-') as temporary:
+            target = Path(temporary) / relative
+            target.parent.mkdir(parents=True)
+            target.write_text(read(relative))
+            delta = ROOT / 'test/fixtures/rpcs3_memory_audit/JITLLVM.diff'
+            subprocess.run(['git', 'apply', '--reverse', '--check', str(delta)], cwd=temporary, check=True)
+            subprocess.run(['git', 'apply', '--reverse', str(delta)], cwd=temporary, check=True)
+            require(hashlib.sha256(target.read_bytes()).hexdigest() == digest,
+                    'JITLLVM.cpp changed beyond the reviewed audit delta')
+    elif relative == 'rpcs3/Emu/Cell/SPULLVMRecompiler.cpp':
         # Build 499 intentionally fixes one SHUFB mask and compile diagnostics.
         # Undo exactly those edits, then retain the full historical SHA check.
         # The new Core preflight executes both revisions against scalar results.
@@ -169,4 +191,4 @@ for unit in ('RPCS3IOSFreezeDump.cpp', 'System.cpp', 'sys_game.cpp', 'sys_mutex.
     require(f"'{unit}'" in gate, f'syntax gate does not compile {unit} before the Core build')
 require('inline constexpr bool deferred_compile_enabled = false;' in read('rpcs3/Emu/Cell/SPUDeferredCompilePolicy.h'),
         'deferred SPU compilation (Build 435) must stay off')
-print('PASS: Build 487 Core diagnostics and levers (helpers executed, code generation unchanged, wiring and defaults)')
+print('PASS: Build 487 Core diagnostics and levers (helpers executed, historical codegen controls retained, audited API/admission additions isolated, wiring and defaults)')

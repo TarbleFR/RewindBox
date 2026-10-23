@@ -2,6 +2,24 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+
+## RPCS3 memory audit implementation — 23 October 2026
+
+The maintainer explicitly asked Codex to implement the attached ARM64/iOS audit.
+Work is isolated in work/rpcs3-audit-20261023 from Claude 932e4a9f; preserve
+concurrent frontend work, MeloNX and unrelated engines. Detailed scope and
+F1-F9 mapping: docs/rpcs3-memory-audit-2026-10-23.md. The canonical Core delta
+now owns direct bounded object loading, a bounded validated PPU object window,
+shared host NeoSwap compiler admission, in-phase memory observations,
+fault-before-reservation ordering and free data-page advice. Code aliases and
+ABI 30 remain unchanged. Small-heap VMA granularity is based on the reported
+heap, not the phone's physical RAM. The minimal-object SPU linker is a research
+prototype, disabled in production pending real-title binding/gameplay proof.
+Do not claim FPS, footprint savings or physical relaunch validation from host
+fixtures or a successful Core build. Do not alter main or publish releases/tags.
+Use the dedicated rpcs3-memory-audit workflow for the immutable candidate and
+reuse unrelated validated components; no Flutter campaign for this Core work.
+
 ## Current MeloNX embedded test integration — 22 October 2026
 
 This continuation supersedes the older bootstrap-only/staged descriptions below.
