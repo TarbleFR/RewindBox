@@ -20,7 +20,12 @@ CORE_RUN = 39877981229
 SWITCH_CORE_RUN = 39879059963
 SWITCH_HOST_RUN = 39879059750
 SWITCH_HOST = '741918e15a6bfe79ab213cdd5038ea31f1c0cc62'
-SWITCH_APP_RUN = 39879059765
+SWITCH_APP_RUN = 39879745766
+SWITCH_APP = '6045bdec0cadeee192f2c2b2f20c7258ab773c09'
+SWITCH_UI = {'lib/widgets/delete_game_dialog.dart', 'test/melonx_transfer_test.dart'}
+SWITCH_DOC = 'docs/switch-migration-2026-10-23.md'
+SWITCH_DOC_SOURCE = 'e633a42fe5e54d65128f909d29ccdad146e0476c'
+LEGAL_REVIEW = 'docs/evidence/package-sources-license-audit-2026-10-21.json'
 PATCH_SHA256 = '179156b3c987132d5a98c967b4c277d9934da7ce3a49e69d95127c996c56604a'
 HOST = {
     'packages/neo_swap/ios/Classes/NeoSwapBudget.h',
@@ -31,7 +36,8 @@ HOST = {
     'packages/neo_swap/ios/neo_swap.podspec',
     'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',
 }
-ALLOWED = HOST | {
+ALLOWED = HOST | SWITCH_UI | {
+    LEGAL_REVIEW, SWITCH_DOC,
     'AGENTS.md', '.gitattributes', '.github/workflows/neoswap-ipa.yml',
     '.github/workflows/touch-layout-checks.yml', '.github/workflows/unified-cheats.yml',
     '.github/workflows/retroarch-delivery.yml', '.github/workflows/rpcs3-memory-audit.yml',
@@ -79,11 +85,14 @@ def source_closure():
     changed = set(base.command(['git', 'diff', '--name-only', BASELINE]).splitlines())
     committed = set(base.command(['git', 'diff', '--name-only', BASELINE, 'HEAD']).splitlines())
     assert not ((changed | committed) - ALLOWED), sorted((changed | committed) - ALLOWED)
+    assert (ROOT / SWITCH_DOC).read_bytes() == subprocess.check_output(['git','show',SWITCH_DOC_SOURCE+':'+SWITCH_DOC],cwd=ROOT)
     # Product scope is exact: the new compiler broker and its optional RPCS3
     # binding. UI, startup, data, all other engines and their recipes stay closed.
     product = set(base.command(['git', 'diff', '--name-only', BASELINE, '--',
         'lib', 'assets', 'packages', 'native', 'ios', 'pubspec.yaml', 'pubspec.lock']).splitlines())
-    assert not (product - HOST), sorted(product - HOST)
+    assert not (product - HOST - SWITCH_UI), sorted(product - HOST - SWITCH_UI)
+    for relative in sorted(SWITCH_UI):
+        assert (ROOT / relative).read_bytes() == subprocess.check_output(['git','show',SWITCH_APP+':'+relative],cwd=ROOT), relative
     for relative in sorted(HOST):
         tested = subprocess.check_output(['git', 'show', CORE_SOURCE + ':' + relative], cwd=ROOT)
         assert tested == (ROOT / relative).read_bytes(), 'Untested host change: ' + relative
@@ -118,11 +127,21 @@ def source_closure():
                  'validate_hd_textures_ipa.py', 'validate_melonx_ipa.py',
                  'validate_motion507_ipa.py', 'delivery_benchmark.py seal']:
         assert name in current and name in original, 'Missing existing delivery gate: ' + name
+    reviewed = json.loads(base.command(['git','show',BASELINE+':'+LEGAL_REVIEW]))
+    pod = 'packages/neo_swap/ios/neo_swap.podspec'
+    previous = reviewed['source_declaration_sha256'][pod]
+    digest = hashlib.sha256((ROOT / pod).read_bytes()).hexdigest()
+    reviewed['source_declaration_sha256'][pod] = digest
+    reviewed['rpcs3_memory_audit_followup'] = {'date':'2026-10-23','declaration':pod,
+        'previous_sha256':previous,'current_sha256':digest,
+        'change':'Expose the own NeoSwapCompilerAPI.h C header to the RPCS3 bridge; no dependency, source URL or pod license change.',
+        'own_compiler_sources_spdx':'GPL-2.0-or-later','existing_notices_preserved':True}
+    assert json.loads((ROOT / LEGAL_REVIEW).read_text()) == reviewed, 'Unreviewed source/license inventory change'
     catalogue = (ROOT / 'native/textures/catalogue/manifest.json.gz').read_bytes()
     assert catalogue == (ROOT / 'packages/neo_texture_catalog/ios/Resources/manifest.json.gz').read_bytes()
     return {'baseline': BASELINE, 'delivered507Source': DELIVERED,
         'auditedCoreSource': CORE_SOURCE, 'auditedCoreRun': CORE_RUN,
-        'canonicalPatchSHA256': PATCH_SHA256, 'hostChanges': sorted(product),
+        'canonicalPatchSHA256': PATCH_SHA256, 'hostChanges': sorted(product & HOST),
         'catalogueSHA256': hashlib.sha256(catalogue).hexdigest(),
         'switchLibraryBase': BASELINE, 'switchLibraryCoreRun': SWITCH_CORE_RUN,
         'interfaceAndOtherEnginesPreserved': True, 'rebuiltCores': ['RPCS3'],
@@ -165,7 +184,7 @@ def main():
             base.successful_run(previous.NATIVE_RUN, previous.NATIVE_TESTED, ['flutter', 'native']),
             base.successful_run(CORE_RUN, CORE_SOURCE, ['RPCS3 memory audit: ARM64 proofs and iPhone core']),
             successful_component(SWITCH_CORE_RUN, BASELINE, ['core'], args.wait_for_components),
-            successful_component(SWITCH_APP_RUN, BASELINE, ['host'], args.wait_for_components),
+            successful_component(SWITCH_APP_RUN, SWITCH_APP, ['host'], args.wait_for_components),
             successful_component(SWITCH_HOST_RUN, SWITCH_HOST, ['host'], args.wait_for_components),
         ]
     output = ROOT / args.output

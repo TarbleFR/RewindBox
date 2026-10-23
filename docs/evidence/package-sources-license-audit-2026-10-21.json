@@ -42,7 +42,7 @@
     "packages/neo_shader_kit/ios/ThirdParty/glslang/SOURCE.txt": "dc3c8288c3bfe69c2451e885d8dda71a0474e5cdeb76c9644baeb210d580a778",
     "packages/neo_shader_kit/ios/neo_shader_kit.podspec": "7357cecc906b087348972df016fd5da67108ea6b99a5a483f109c380a3bdc680",
     "packages/neo_shader_kit/pubspec.yaml": "a967ba172ddf7784ae7e54443984b83e832db3f0657d9087c198cbacb67bda6e",
-    "packages/neo_swap/ios/neo_swap.podspec": "3e0e411267a82709dd25baf18c64d833bcd18e6f9e35c123389293fa5b87ae9f",
+    "packages/neo_swap/ios/neo_swap.podspec": "9f45282a24451f6475517cfbf5b109208cd702d38215f322b4a8ffe394d3d6ec",
     "packages/neo_swap/pubspec.yaml": "d3e883cc8a601da81ed8935ffafa5b9871ec77f76854001512906f443d8419c5",
     "packages/neo_texture_catalog/ios/neo_texture_catalog.podspec": "50a502d151e5f7802d497a4ca50cacf0c66f9cac15c1d6400c8c04d6db8c36be",
     "packages/neo_texture_catalog/pubspec.yaml": "9c2a258009ddf30c29eec3a0b6d2a6d87b33b425b9c2a148d82608c1d446c9ee",
@@ -10922,5 +10922,14 @@
       }
     }
   },
-  "motion_followup_review": "2026-10-22: shared original UIKit liquid progress view in existing GPL host package neo_cheat_catalog; neo_texture_catalog depends on that existing local pod and uses its public view header. QuartzCore is an Apple system framework. No hosted dependency or engine added. Original Mau Ali dotLottie plus derived motion profile are separately licensed under Lottie Simple License FL 9.13.21; original archive, unchanged full license and visible author attribution are retained. No dotLottie runtime added."
+  "motion_followup_review": "2026-10-22: shared original UIKit liquid progress view in existing GPL host package neo_cheat_catalog; neo_texture_catalog depends on that existing local pod and uses its public view header. QuartzCore is an Apple system framework. No hosted dependency or engine added. Original Mau Ali dotLottie plus derived motion profile are separately licensed under Lottie Simple License FL 9.13.21; original archive, unchanged full license and visible author attribution are retained. No dotLottie runtime added.",
+  "rpcs3_memory_audit_followup": {
+    "date": "2026-10-23",
+    "declaration": "packages/neo_swap/ios/neo_swap.podspec",
+    "previous_sha256": "3e0e411267a82709dd25baf18c64d833bcd18e6f9e35c123389293fa5b87ae9f",
+    "current_sha256": "9f45282a24451f6475517cfbf5b109208cd702d38215f322b4a8ffe394d3d6ec",
+    "change": "Expose the own NeoSwapCompilerAPI.h C header to the RPCS3 bridge; no dependency, source URL or pod license change.",
+    "own_compiler_sources_spdx": "GPL-2.0-or-later",
+    "existing_notices_preserved": true
+  }
 }
