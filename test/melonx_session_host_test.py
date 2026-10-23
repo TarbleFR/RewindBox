@@ -25,7 +25,7 @@ subprocess.run(['xcrun', 'swiftc', '-typecheck', '-swift-version', '5', '-sdk', 
                 '-target', 'arm64-apple-ios18.0', '-F',str(flutter),
                 '-import-objc-header',str(jit_header), '-module-name','melonx_internal_bridge',
                 *map(str, [*sources,*controller_sources])], check=True)
-subprocess.run(['xcrun','clang++','-fsyntax-only','-fobjc-arc','-std=c++20',
+subprocess.run(['xcrun','clang++','-fsyntax-only','-fobjc-arc','-fmodules','-fcxx-modules','-std=c++20',
                 '-target','arm64-apple-ios18.0','-isysroot',sdk,'-F',str(flutter),
                 str(jit_header.with_suffix('.mm'))],check=True)
 memory = root/'packages/melonx_internal_bridge/ios/Memory'
