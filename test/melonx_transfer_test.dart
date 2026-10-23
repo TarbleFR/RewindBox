@@ -476,16 +476,98 @@ void main() {
         Directory(p.join(temporary.path, 'stage')),
         MelonxTransferControl(),
       );
+      await write(
+        p.join(root.path, 'config/0100123456780000_config.json'),
+        '{"audioVolume":0.4}',
+      );
       expect(await File(p.join(target, '0/main')).readAsString(), 'old');
       await MelonxMigrationService.applySaves(root, [
         prepared,
       ], MelonxTransferControl());
       expect(await File(p.join(target, '0/main')).readAsString(), 'new save');
       expect(await File(p.join(target, '1/main')).readAsString(), 'new save');
+      final preferences = jsonDecode(
+        await File(
+          p.join(root.path, 'config/0100123456780000_config.json'),
+        ).readAsString(),
+      );
+      expect(preferences, {
+        'audioVolume': 0.4,
+        'rewindboxSaveProfileId': '00000000000000000000000000000001',
+      });
       expect(
         await File(p.join(target, 'extra_data')).readAsString(),
         'native association',
       );
+    },
+  );
+  test(
+    'several save profiles require an explicit launch choice and keep both saves',
+    () async {
+      const title = '0100123456780000',
+          one = '00000000000000000000000000000001',
+          two = '00000000000000000000000000000002';
+      final prepared = <MelonxPreparedSave>[];
+      for (final profile in [one, two]) {
+        final source = Directory(p.join(temporary.path, profile));
+        await write(p.join(source.path, '0/main'), profile);
+        await write(p.join(source.path, '1/main'), profile);
+        final relative = 'bis/user/save/${profile.substring(16)}';
+        prepared.add(
+          MelonxPreparedSave(MelonxTransferItem(source, relative, 64, false), {
+            'titleId': title,
+            'profileId': profile,
+          }),
+        );
+      }
+      await expectLater(
+        MelonxMigrationService.applySaves(
+          root,
+          prepared,
+          MelonxTransferControl(),
+        ),
+        throwsFormatException,
+      );
+      expect(
+        await Directory(p.join(root.path, 'bis/user/save')).exists(),
+        false,
+      );
+      messenger.setMockMethodCallHandler(MelonxInternalService.channel, (
+        call,
+      ) async {
+        final profile = (call.arguments as Map)['profileId'] as String;
+        final target = p.join(
+          root.path,
+          'bis/user/save',
+          profile.substring(16),
+        );
+        return {
+          'success': true,
+          'path': target,
+          'dataPath': p.join(target, '0'),
+        };
+      });
+      await MelonxMigrationService.applySaves(
+        root,
+        prepared,
+        MelonxTransferControl(),
+        launchProfiles: {title: two},
+      );
+      expect(
+        jsonDecode(
+          await File(
+            p.join(root.path, 'config/${title}_config.json'),
+          ).readAsString(),
+        )['rewindboxSaveProfileId'],
+        two,
+      );
+      for (final profile in [one, two])
+        expect(
+          await File(
+            p.join(root.path, 'bis/user/save', profile.substring(16), '0/main'),
+          ).readAsString(),
+          profile,
+        );
     },
   );
   test(
@@ -519,6 +601,12 @@ void main() {
           prepared,
         ], MelonxTransferControl()),
         throwsFormatException,
+      );
+      expect(
+        await File(
+          p.join(root.path, 'config/0100123456780000_config.json'),
+        ).exists(),
+        false,
       );
       expect(await File(p.join(target, '0/main')).readAsString(), 'old');
     },

@@ -100,6 +100,14 @@ func awaitResult(_ predicate: () -> Bool) {
     while !predicate() && Date() < deadline { RunLoop.main.run(until:Date().addingTimeInterval(0.002)) }
     precondition(predicate(), "Timed out")
 }
+do {
+    try host.start(game:URL(fileURLWithPath:"/tmp/invalid.nro"),locale:"fr-FR",width:0,height:720,
+        surface:Surface(),pointer:UnsafeMutableRawPointer(bitPattern:0x1234)!) { _ in fatalError("Rejected prepare completed") }
+    fatalError("Accepted invalid preparation")
+} catch MeloNXHostError.prepare(let status, let detail) {
+    check(status == -2 && detail == "échec natif témoin")
+    check(!host.isSessionActive)
+}
 var completed = 0
 var surface: Surface? = Surface(); weak var weakSurface = surface
 try host.start(game:URL(fileURLWithPath:"/tmp/Jeu été.nro"),locale:"fr-FR",width:1280,height:720,

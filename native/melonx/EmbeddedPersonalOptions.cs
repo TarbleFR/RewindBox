@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using Ryujinx.Common.Configuration;
 using Ryujinx.HLE.HOS.SystemState;
@@ -21,7 +22,10 @@ partial class Library
             string title = GameInfoLoader.GetGameInfo(_virtualFileSystem, stream, extension)?.TitleId?.TrimEnd('\0');
             if (title != null && title.Length == 16 && ulong.TryParse(title,
                 System.Globalization.NumberStyles.HexNumber, null, out _))
-                Apply(Path.Combine(configuration, title + "_config.json"));
+            {
+                string preferred = Path.Combine(configuration, title.ToLowerInvariant() + "_config.json");
+                Apply(File.Exists(preferred) ? preferred : Path.Combine(configuration, title + "_config.json"));
+            }
         }
         return options;
 
@@ -35,6 +39,16 @@ partial class Library
                 var value = property.Value;
                 switch (property.Name)
                 {
+                    case "rewindboxSaveProfileId":
+                        string id = value.GetString();
+                        if (id == null || id.Length != 32 || id.Any(c => !Uri.IsHexDigit(c)))
+                            throw new InvalidDataException("profileUnavailable");
+                        var profile = _accountManager.GetAllUsers().FirstOrDefault(p => p.UserId.ToString().Equals(id, StringComparison.OrdinalIgnoreCase));
+                        if (profile == null) throw new InvalidDataException("profileUnavailable");
+                        // Load() reconstructs AccountManager from its persisted
+                        // LastOpened ID. Select by ID, never by an ambiguous name.
+                        _accountManager.OpenUser(profile.UserId);
+                        break;
                     case "disablePTC": options.DisablePTC = value.GetBoolean(); break;
                     case "enableTextureRecompression": options.EnableTextureRecompression = value.GetBoolean(); break;
                     case "enableHostMemoryBudgetTracking": options.EnableHostMemoryBudgetTracking = value.GetBoolean(); break;

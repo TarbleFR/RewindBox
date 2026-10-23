@@ -1,3 +1,4 @@
+import '../../l10n/melonx_transfer_locale.dart';
 import '../../l10n/melonx_launch_access_locale.dart';
 import 'dart:io';
 
@@ -173,7 +174,7 @@ class GameLaunchService {
         }
         GameSessionManager.cancelGameLaunch();
         return GameLaunchResult.failure(
-          const {'memoryEntitlements','entitlementCheckFailed','libraryRestartRequired'}.contains(report['error'])
+          report['diagnostic']?.toString().contains('profileUnavailable') == true ? MelonxTransferLocale.forLocale(locale, 'profileUnavailable') : const {'memoryEntitlements','entitlementCheckFailed','libraryRestartRequired'}.contains(report['error'])
             ? MelonxLaunchAccessLocale.text(locale, report['error'] as String)
             : MelonxLocale.forLocale(locale, report['error'] == 'runtimeUnavailable' ? 'unavailable' : 'launchFailed'),
           report['diagnostic']?.toString() ?? report['error']?.toString(),

@@ -40,6 +40,7 @@ class MelonxPreparedSave {
 
 abstract final class MelonxMigrationService {
   static const settings = {
+    'rewindboxSaveProfileId',
     'resScale',
     'disableShaderCache',
     'enableAsyncShaderCompilation',
@@ -87,7 +88,9 @@ abstract final class MelonxMigrationService {
     for (final entry in input.entries) {
       final key = entry.key, value = entry.value;
       bool valid = true;
-      if (booleans.contains(key))
+      if (key == 'rewindboxSaveProfileId')
+        valid = value is String && RegExp(r'^[0-9a-fA-F]{32}$').hasMatch(value);
+      else if (booleans.contains(key))
         valid = value is bool;
       else if (ranges.containsKey(key))
         valid = value is int && value >= 0 && value <= ranges[key]!;
@@ -493,25 +496,90 @@ abstract final class MelonxMigrationService {
     List<MelonxPreparedSave> saves,
     MelonxTransferControl control, {
     void Function(int, int)? progress,
-  }) => MelonxFileTransaction.apply(
-    root,
-    saves.map((s) => s.item).toList(),
-    control,
-    progress: progress,
-    validateInstalled: () async {
-      for (final save in saves) {
-        final target = await MelonxInternalService.channel
-            .invokeMapMethod<String, dynamic>('saveTarget', save.association);
-        if (target?['success'] != true ||
-            !p.equals(
-              target!['path'] as String,
-              p.join(root.path, save.item.relative),
-            ) ||
-            !await Directory(target['dataPath'] as String).exists())
-          throw const FormatException('incompleteTransfer');
+    Map<String, String>? launchProfiles,
+  }) async {
+    final selected = <String, String>{};
+    for (final save in saves) {
+      final title = save.association['titleId']!.toLowerCase();
+      final profile = save.association['profileId']!;
+      if (selected.containsKey(title) &&
+          selected[title] != profile &&
+          launchProfiles?[title] == null)
+        throw const FormatException('chooseProfile');
+      selected[title] = launchProfiles?[title] ?? profile;
+    }
+    final temporary = await Directory.systemTemp.createTemp(
+      'rewindbox-save-options-',
+    );
+    try {
+      final configs = <MelonxTransferItem>[];
+      for (final entry in selected.entries) {
+        if (!saves.any(
+          (save) =>
+              save.association['titleId']!.toLowerCase() == entry.key &&
+              save.association['profileId'] == entry.value,
+        ))
+          throw const FormatException('sourceUnknown');
+        final relative = p.join('config', '${entry.key}_config.json');
+        var previous = File(p.join(root.path, relative));
+        final folder = Directory(p.join(root.path, 'config'));
+        if (!await previous.exists() && await folder.exists()) {
+          await for (final file in folder.list(followLinks: false)) {
+            if (file is File &&
+                p.basename(file.path).toLowerCase() == p.basename(relative)) {
+              previous = file;
+              break;
+            }
+          }
+        }
+        final value = <String, dynamic>{};
+        if (await previous.exists()) {
+          if (await previous.length() > 4 * 1024 * 1024)
+            throw const FormatException('incompleteTransfer');
+          value.addAll(
+            Map<String, dynamic>.from(
+              jsonDecode(await previous.readAsString()) as Map,
+            ),
+          );
+        }
+        value['rewindboxSaveProfileId'] = entry.value;
+        final staged = File(p.join(temporary.path, '${entry.key}_config.json'));
+        await staged.writeAsString(jsonEncode(value), flush: true);
+        configs.add(
+          MelonxTransferItem(
+            staged,
+            relative,
+            await staged.length(),
+            await File(p.join(root.path, relative)).exists(),
+          ),
+        );
       }
-    },
-  );
+      return await MelonxFileTransaction.apply(
+        root,
+        [...saves.map((s) => s.item), ...configs],
+        control,
+        progress: progress,
+        validateInstalled: () async {
+          for (final save in saves) {
+            final target = await MelonxInternalService.channel
+                .invokeMapMethod<String, dynamic>(
+                  'saveTarget',
+                  save.association,
+                );
+            if (target?['success'] != true ||
+                !p.equals(
+                  target!['path'] as String,
+                  p.join(root.path, save.item.relative),
+                ) ||
+                !await Directory(target['dataPath'] as String).exists())
+              throw const FormatException('incompleteTransfer');
+          }
+        },
+      );
+    } finally {
+      await temporary.delete(recursive: true);
+    }
+  }
 
   static Future<List<MelonxSaveCandidate>> saves(Directory selected) async {
     final found = <MelonxSaveCandidate>[];

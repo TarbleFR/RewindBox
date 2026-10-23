@@ -12,6 +12,7 @@ namespace Ryujinx.Library;
 
 partial class Library
 {
+    private static string EmbeddedPrepareFailure = "";
     private static readonly EmbeddedSessionCoordinator EmbeddedSessions = new();
     private static readonly object EmbeddedHostGate = new();
     private static Options EmbeddedPreparedOptions;
@@ -29,7 +30,7 @@ partial class Library
     {
         try
         {
-            byte[] error = Encoding.UTF8.GetBytes(EmbeddedSessions.LastFailure ?? EmbeddedBootstrap.LastFailure ?? "");
+            byte[] error = Encoding.UTF8.GetBytes(!string.IsNullOrEmpty(EmbeddedPrepareFailure) ? EmbeddedPrepareFailure : EmbeddedSessions.LastFailure ?? EmbeddedBootstrap.LastFailure ?? "");
             if (output != null && capacity > 0)
             {
                 int count = Math.Min(error.Length, capacity - 1);
@@ -58,8 +59,9 @@ partial class Library
                     return -2;
                 string extension = Path.GetExtension(path).ToLowerInvariant();
                 if (extension != ".nro" && extension != ".nso" && extension != ".nsp" && extension != ".xci") return -2;
-                Options options = EmbeddedOptions(Path.GetFullPath(path), locale, width, height);
                 if (EmbeddedSessions.State != 0) return -1;
+                EmbeddedPrepareFailure = "";
+                Options options = EmbeddedOptions(Path.GetFullPath(path), locale, width, height);
                 // Native Npad disposal disconnects its pad objects. A new
                 // host view reattaches fresh pads after this reservation.
                 foreach (var pad in ((NativeGamepadDriver)_inputManager.GamepadDriver).GetGamepads().ToArray())
@@ -71,7 +73,7 @@ partial class Library
                 return generation;
             }
         }
-        catch (Exception error) { Console.Error.WriteLine(error); return -2; }
+        catch (Exception error) { EmbeddedPrepareFailure = error.Message; Console.Error.WriteLine(error); return -2; }
     }
 
     // Synchronous: invoke on a dedicated host worker, never UIKit's main thread.

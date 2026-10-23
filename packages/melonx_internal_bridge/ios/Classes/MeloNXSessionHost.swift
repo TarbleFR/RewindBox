@@ -3,7 +3,7 @@ import Darwin
 
 enum MeloNXHostError: Error, CustomStringConvertible {
     case load(String), missingSymbol(String), incompatibleABI, initialize(Int32)
-    case busy, prepare(Int64), run(Int32, String)
+    case busy, prepare(Int64, String), run(Int32, String)
 
     var description: String {
         switch self {
@@ -12,7 +12,7 @@ enum MeloNXHostError: Error, CustomStringConvertible {
         case .incompatibleABI: return "Unsupported MeloNX bootstrap/session ABI"
         case .initialize(let status): return "MeloNX initialization failed: \(status)"
         case .busy: return "A MeloNX session is still active"
-        case .prepare(let status): return "MeloNX preparation failed: \(status)"
+        case .prepare(let status, let detail): return "MeloNX preparation failed (\(status)): \(detail)"
         case .run(let status, let detail): return "MeloNX session failed (\(status)): \(detail)"
         }
     }
@@ -115,7 +115,7 @@ final class MeloNXSessionHost {
         lock.lock()
         guard generation == nil else { lock.unlock(); throw MeloNXHostError.busy }
         let id = api.prepare(game: game, locale: locale, width: width, height: height)
-        guard id > 0 else { lock.unlock(); throw MeloNXHostError.prepare(id) }
+        guard id > 0 else { let detail = api.diagnostic; lock.unlock(); throw MeloNXHostError.prepare(id, detail) }
         generation = id
         retainedSurface = surface
         api.setLayer(pointer)

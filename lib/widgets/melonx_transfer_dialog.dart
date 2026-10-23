@@ -391,12 +391,33 @@ Future<bool> _importSaves(
       prepared.add(save);
     }
   }
+  final launchProfiles = <String, String>{};
+  for (final title
+      in prepared
+          .map((save) => save.association['titleId']!.toLowerCase())
+          .toSet()) {
+    final choices = prepared
+        .where((save) => save.association['titleId']!.toLowerCase() == title)
+        .map((save) => save.association['profileId']!)
+        .toSet();
+    if (!context.mounted) return false;
+    final selected = choices.length == 1
+        ? choices.single
+        : await _choose(context, '${text('launchProfile')} — $title', {
+            for (final profile in choices)
+              profile: profiles[profile] ?? profile,
+          });
+    if (selected == null) return false;
+    launchProfiles[title] = selected;
+  }
   if (!context.mounted) return false;
   if (!await _confirm(
         context,
         text('importSaves'),
         [
           text('conflicts'),
+          for (final entry in launchProfiles.entries)
+            '${text('launchProfile')}: ${entry.key} / ${profiles[entry.value]}\n→ ${p.join(root.path, 'config', '${entry.key}_config.json')}',
           for (final save in prepared)
             '${save.association['titleId']} / ${save.association['profileId']}\n→ ${p.join(root.path, save.item.relative)}',
         ].join('\n\n'),
@@ -418,6 +439,7 @@ Future<bool> _importSaves(
       root,
       prepared,
       control,
+      launchProfiles: launchProfiles,
       progress: (done, total) =>
           progress.value = MelonxProgress('installing', done, total),
     ),

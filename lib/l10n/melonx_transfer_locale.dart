@@ -3,6 +3,9 @@ import 'package:flutter/widgets.dart';
 abstract final class MelonxTransferLocale {
   static const values = <String, Map<String, String>>{
     "en": {
+      "launchProfile": "Profile on launch",
+      "profileUnavailable":
+          "The imported save profile is unavailable. Import or choose a compatible profile before launching this game.",
       "deleteFailed":
           "The game file could not be deleted. Its library entry is kept. Check file access and folder permissions.",
       "importSaves": "Import Nintendo Switch saves",
@@ -56,6 +59,9 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Link games in the selected folder",
     },
     "fr": {
+      "launchProfile": "Profil au lancement",
+      "profileUnavailable":
+          "Le profil de la sauvegarde importée est indisponible. Importez ou choisissez un profil compatible avant de lancer ce jeu.",
       "deleteFailed":
           "Impossible de supprimer le fichier du jeu. Son entrée est conservée. Vérifiez l’accès au fichier et les autorisations du dossier.",
       "importSaves": "Importer des sauvegardes Nintendo Switch",
@@ -112,6 +118,9 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Lier les jeux du dossier sélectionné",
     },
     "de": {
+      "launchProfile": "Profil beim Start",
+      "profileUnavailable":
+          "Das Profil des importierten Spielstands ist nicht verfügbar. Importiere oder wähle vor dem Start ein kompatibles Profil.",
       "deleteFailed":
           "Die Spieldatei konnte nicht gelöscht werden. Der Bibliothekseintrag bleibt erhalten. Prüfe den Dateizugriff und die Ordnerberechtigungen.",
       "importSaves": "Nintendo-Switch-Spielstände importieren",
@@ -166,6 +175,9 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Spiele im ausgewählten Ordner verknüpfen",
     },
     "es": {
+      "launchProfile": "Perfil al iniciar",
+      "profileUnavailable":
+          "El perfil de la partida importada no está disponible. Importa o elige un perfil compatible antes de iniciar el juego.",
       "deleteFailed":
           "No se pudo eliminar el archivo del juego. Se conserva su entrada. Comprueba el acceso al archivo y los permisos de la carpeta.",
       "importSaves": "Importar partidas de Nintendo Switch",
@@ -220,6 +232,9 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Vincular los juegos de la carpeta seleccionada",
     },
     "it": {
+      "launchProfile": "Profilo all’avvio",
+      "profileUnavailable":
+          "Il profilo del salvataggio importato non è disponibile. Importa o scegli un profilo compatibile prima di avviare il gioco.",
       "deleteFailed":
           "Impossibile eliminare il file del gioco. La voce rimane nella libreria. Verifica l’accesso al file e i permessi della cartella.",
       "importSaves": "Importa salvataggi Nintendo Switch",
@@ -273,6 +288,9 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Collega i giochi della cartella scelta",
     },
     "pt": {
+      "launchProfile": "Perfil ao iniciar",
+      "profileUnavailable":
+          "O perfil da gravação importada não está disponível. Importe ou escolha um perfil compatível antes de iniciar o jogo.",
       "deleteFailed":
           "Não foi possível eliminar o ficheiro do jogo. A entrada é mantida. Verifique o acesso ao ficheiro e as permissões da pasta.",
       "importSaves": "Importar gravações Nintendo Switch",
@@ -327,6 +345,9 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Ligar os jogos da pasta selecionada",
     },
     "ru": {
+      "launchProfile": "Профиль при запуске",
+      "profileUnavailable":
+          "Профиль импортированного сохранения недоступен. Импортируйте или выберите совместимый профиль перед запуском игры.",
       "deleteFailed":
           "Не удалось удалить файл игры. Запись в библиотеке сохранена. Проверьте доступ к файлу и права на папку.",
       "importSaves": "Импорт сохранений Nintendo Switch",
@@ -381,6 +402,9 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Подключить игры из выбранной папки",
     },
     "id": {
+      "launchProfile": "Profil saat memulai",
+      "profileUnavailable":
+          "Profil simpanan yang diimpor tidak tersedia. Impor atau pilih profil yang kompatibel sebelum memulai game.",
       "deleteFailed":
           "File game tidak dapat dihapus. Entri pustaka dipertahankan. Periksa akses file dan izin folder.",
       "importSaves": "Impor simpanan Nintendo Switch",
@@ -433,6 +457,9 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Tautkan game di folder yang dipilih",
     },
     "ja": {
+      "launchProfile": "起動時のプロフィール",
+      "profileUnavailable":
+          "インポートしたセーブデータのプロフィールが見つかりません。ゲームを起動する前に対応するプロフィールをインポートするか選択してください。",
       "deleteFailed":
           "ゲームファイルを削除できませんでした。ライブラリーの項目は保持されます。ファイルへのアクセスとフォルダーの権限を確認してください。",
       "importSaves": "Nintendo Switchのセーブをインポート",
@@ -477,6 +504,9 @@ abstract final class MelonxTransferLocale {
       "linkGames": "選択したフォルダーのゲームをリンク",
     },
     "ko": {
+      "launchProfile": "실행 시 프로필",
+      "profileUnavailable":
+          "가져온 저장 데이터의 프로필을 사용할 수 없습니다. 게임을 실행하기 전에 호환되는 프로필을 가져오거나 선택하세요.",
       "deleteFailed":
           "게임 파일을 삭제할 수 없습니다. 라이브러리 항목은 유지됩니다. 파일 접근 및 폴더 권한을 확인하세요.",
       "importSaves": "Nintendo Switch 저장 데이터 가져오기",
@@ -521,6 +551,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "선택한 폴더의 게임 연결",
     },
     "zh": {
+      "launchProfile": "启动时的用户",
+      "profileUnavailable": "导入存档的用户不可用。启动此游戏前，请导入或选择兼容的用户。",
       "deleteFailed": "无法删除游戏文件。资料库条目已保留。请检查文件访问权限和文件夹权限。",
       "importSaves": "导入 Nintendo Switch 存档",
       "migrate": "迁移我的 MeloNX 数据",
@@ -564,6 +596,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "关联所选文件夹中的游戏",
     },
     "zh_Hant": {
+      "launchProfile": "啟動時的使用者",
+      "profileUnavailable": "匯入存檔的使用者無法使用。啟動此遊戲前，請匯入或選擇相容的使用者。",
       "deleteFailed": "無法刪除遊戲檔案。資料庫項目已保留。請檢查檔案存取與資料夾權限。",
       "importSaves": "匯入 Nintendo Switch 存檔",
       "migrate": "移轉我的 MeloNX 資料",
@@ -607,8 +641,9 @@ abstract final class MelonxTransferLocale {
       "linkGames": "連結所選資料夾中的遊戲",
     },
   };
-  static String text(BuildContext context, String key) {
-    final locale = Localizations.localeOf(context);
+  static String text(BuildContext context, String key) =>
+      forLocale(Localizations.localeOf(context), key);
+  static String forLocale(Locale locale, String key) {
     final traditional =
         locale.languageCode == 'zh' &&
         (locale.scriptCode == 'Hant' ||

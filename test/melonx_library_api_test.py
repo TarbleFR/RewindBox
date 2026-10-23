@@ -40,13 +40,14 @@ namespace Ryujinx.Common.Configuration {public static class AppDataManager {publ
 namespace Ryujinx.HLE.FileSystem {public static class VirtualFileSystem {public static string GetNandPath()=>"/tmp/bis";}}
 namespace Ryujinx.Library {
 class Profile {public Ryujinx.HLE.HOS.Services.Account.Acc.UserId UserId=default;public string Name="test";}
-class AccountManager {public IEnumerable<Profile> GetAllUsers()=>new Profile[0];}
+class AccountManager {public Ryujinx.HLE.HOS.Services.Account.Acc.UserId Opened;public IEnumerable<Profile> GetAllUsers()=>new[]{new Profile {UserId=new Ryujinx.HLE.HOS.Services.Account.Acc.UserId(new string('1',32))}};public void OpenUser(Ryujinx.HLE.HOS.Services.Account.Acc.UserId user){Opened=user;}}
 class HorizonManager {public LibHac.HorizonClient RyujinxClient=null;}
 class GameInfo {public string TitleId="0100123456780000";}
 static class GameInfoLoader {public static GameInfo GetGameInfo(object fs,Stream stream,string extension)=>new();}
 public class Options {'''+''.join(fields)+'''}
 partial class Library {
  static object _virtualFileSystem=new();static AccountManager _accountManager=new();static HorizonManager _libHacHorizonManager=new();
+ public static string SelectedProfile=>_accountManager.Opened.ToString();
  public static Options Probe(Options options,string game)=>ApplyEmbeddedPersonalOptions(options,game);
  public static void SaveProbe(string json,System.Text.Json.Utf8JsonWriter writer)=>EmbeddedSaveTarget(json,writer);
 }}
@@ -68,6 +69,8 @@ options=Library.Probe(new Options(),game);Check(options.AudioVolume==0.8f&&optio
 File.WriteAllText(Path.Combine(root,"config/0100123456780000_config.json"),"{\"audioVolume\":2}");try{Library.Probe(new Options(),game);throw new Exception("accepted invalid volume");}catch(InvalidDataException){count++;}
 File.WriteAllText(Path.Combine(root,"config/0100123456780000_config.json"),"{\"aspectRatio\":999}");try{Library.Probe(new Options(),game);throw new Exception("accepted unknown enum");}catch(InvalidDataException){count++;}
 using var stream=new MemoryStream();using var writer=new Utf8JsonWriter(stream);try{Library.SaveProbe("{\"titleId\":\"../invalid\",\"profileId\":\"invalid\"}",writer);throw new Exception("accepted invalid association");}catch(ArgumentException){count++;}
+File.WriteAllText(Path.Combine(root,"config/0100123456780000_config.json"),"{\"rewindboxSaveProfileId\":\""+new string('1',32)+"\"}");Library.Probe(new Options(),game);Check(Library.SelectedProfile==new string('1',32));
+File.WriteAllText(Path.Combine(root,"config/0100123456780000_config.json"),"{\"rewindboxSaveProfileId\":\""+new string('2',32)+"\"}");try{Library.Probe(new Options(),game);throw new Exception("accepted missing save profile");}catch(InvalidDataException error){Check(error.Message=="profileUnavailable");}
 var prod=Path.Combine(root,"prod.keys");
 File.WriteAllText(prod,"# personal export\n\nheader_key = "+new string('a',64)+"\n");EmbeddedKeyValidation.Validate(prod);count++;
 foreach(var invalidKeys in new[]{"header_key = aa","unknown_key = "+new string('a',32),"header_key = "+new string('a',64)+"\nheader_key = "+new string('b',64)}) {
