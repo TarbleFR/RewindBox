@@ -17,7 +17,10 @@ def validate(ipa,build):
     assert identity['adaptations'][path]==hashlib.sha256((ROOT/path).read_bytes()).hexdigest(),path
   core=z.read(root+'Frameworks/MeloNXCore.framework/MeloNXCore')
   for text in ['recognizedKeys','ignoredKeys','keyNoSupported','keyConflict']:
-   assert text.encode() in core or text.encode('utf-16le') in core,text
+   # The tested NativeAOT image's serialized string table omits the final
+   # zero high byte of ASCII UTF-16 literals. Bind all four complete character
+   # sequences, in addition to the exact source hashes and payload identity.
+   assert text.encode() in core or text.encode('utf-16le') in core or text.encode('utf-16le')[:-1] in core,text
   dart=z.read(root+'Frameworks/App.framework/App')
   for text in ['keyExtras','keyNoSupported','keyReadFailed','[MeloNX:keys]']:
    assert text.encode() in dart or text.encode('utf-16le') in dart,text

@@ -9,6 +9,7 @@ run-name: RewindBox Build 516 • ${{ github.sha }} • MeloNX personal key impo
     - .github/workflows/retroarch-delivery.yml
     - .github/diagnostics/melonxkeys516_delivery.py
     - build-utils/delivery-516-chatgpt-recipient.pem
+    - build-utils/validate_melonx_keys_ipa.py
   workflow_dispatch:
     inputs:
       build_number:
