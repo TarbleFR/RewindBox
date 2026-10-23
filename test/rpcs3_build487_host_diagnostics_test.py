@@ -39,7 +39,7 @@ abi = (CLASSES / 'Rpcs3CoreABI.h').read_text()
 diag = (CLASSES / 'Rpcs3Diagnostics.mm').read_text()
 MARK = 'NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1'
 TOKENS = ['JITPROF ', 'JITPROF_BOOT ', 'CONFIG_LAYERS ', 'NEOSTATION_RESTART ', 'SAVESTATE_BOOT ',
-          'FREEZE_DUMP ', 'MUTEX_DESTROY_BUSY ']
+          'FREEZE_DUMP ', 'MUTEX_DESTROY_BUSY ', 'SAVESTATE_RESTORE ', 'RSX_ACQUIRE ']
 
 
 def require(condition, message):
@@ -134,7 +134,10 @@ int main() {
   assert(same(RPCS3Build487MilestoneStage("SAVESTATE_BOOT title=A applied_patches=0"), "savestate_boot"));
   assert(same(RPCS3Build487MilestoneStage("FREEZE_DUMP begin dump=1 reason=no_frames"), "freeze_dump"));
   assert(same(RPCS3Build487MilestoneStage("MUTEX_DESTROY_BUSY mutex_id=0x1"), "mutex_destroy_busy"));
-  // Only the first dump line is a milestone; JITPROF every 5 s is not.
+  assert(same(RPCS3Build487MilestoneStage("FREEZE_DUMP snapshot\nFREEZE_DUMP begin dump=1"), "freeze_snapshot"));
+  assert(same(RPCS3Build487MilestoneStage("SAVESTATE_RESTORE phase=tar_begin"), "savestate_restore"));
+  assert(same(RPCS3Build487MilestoneStage("RSX_ACQUIRE waiting_after_recovery"), "rsx_acquire"));
+  // Individual legacy detail lines are not separate synchronous writes.
   assert(RPCS3Build487MilestoneStage("FREEZE_DUMP spu id=0x1") == nullptr);
   assert(RPCS3Build487MilestoneStage("FREEZE_DUMP end dump=1") == nullptr);
   assert(RPCS3Build487MilestoneStage("JITPROF session=3 ppu_translate=1:2:3:4") == nullptr);
@@ -147,7 +150,8 @@ int main() {
 }
 ''', 'milestones')
 require('RPCS3Build487MilestoneText(message)' in host and 'strstr(message, "FREEZE_DUMP begin ") != nullptr ? 512 : 1024' in host,
-        'milestone text is not bounded (512 bytes for a dump, 1 KiB otherwise)')
+        'milestone text is not bounded (512 bytes for a legacy begin, 1 KiB otherwise)')
+require('66 * 1024' in host, 'complete snapshot bound is missing')
 mirror = core_log[:core_log.index('  const BOOL profiler =')]
 require('else if (const char* stage = RPCS3Build487MilestoneStage(message))' in mirror,
         'Build 487 milestones must be mirrored before the admission block, like boot_policy')
@@ -194,6 +198,51 @@ int main() { return 0; }
 ''', 'abi-layout', extra=('-I' + str(CLASSES), '-Wno-unused-parameter'))
 
 if args.core:
+    freeze = (args.core / 'rpcs3/ios/RPCS3IOSFreezeDump.cpp').read_text()
+    start = freeze.index('\tstd::string snapshot = "FREEZE_DUMP snapshot')
+    snapshot = freeze[start:freeze.index('\n}', start)]
+    compile_and_run(r'''
+#include <cassert>
+#include <cstdio>
+#include <string>
+#include <vector>
+#include "RPCS3IOSProfilerHelpers.h"
+using u32=unsigned int;
+using u64=unsigned long long;
+using rpcs3::ios::profiler::bound_line;
+struct Log {
+  unsigned calls=0;
+  std::string message;
+  void notice(const char*,const std::string& value){++calls;message=value;}
+} ios_freeze_dump;
+std::string rsx_line(){return "FREEZE_DUMP rsx " + std::string(1000,'r');}
+namespace fmt {
+template<class... T> void append(std::string& out,const char* format,T... args){
+  char tail[256];int n=std::snprintf(tail,sizeof(tail),format,args...);
+  assert(n>0 && n<256);out.append(tail,n);
+}
+}
+void capture(std::size_t count){
+  const u64 index=7;
+  const u32 total_lines=count+3;
+  struct {u32 truncated=0;} plan;
+  std::string header="FREEZE_DUMP begin dump=7 " + std::string(1100,'h');
+  std::vector<std::string> lines(count,std::string(1024,'p'));
+''' + snapshot + r'''
+}
+int main(){
+  for(auto count:{0u,1u,61u}){
+    ios_freeze_dump={};capture(count);
+    assert(ios_freeze_dump.calls==1);
+    const auto& text=ios_freeze_dump.message;
+    assert(text.starts_with("FREEZE_DUMP snapshot\nFREEZE_DUMP begin dump=7 "));
+    assert(text.find("FREEZE_DUMP rsx ")!=std::string::npos);
+    assert(text.find("FREEZE_DUMP end dump=7")!=std::string::npos);
+    assert(text.size()<66*1024);
+    assert(std::count(text.begin(),text.end(),'\n')==count+3);
+  }
+}
+''', 'complete-freeze-snapshot', extra=('-I'+str(args.core / 'rpcs3/ios'),))
     core_header = (args.core / 'rpcs3/ios/RPCS3IOS.h').read_text()
     core_struct = core_header.split('typedef struct rpcs3_ios_performance_metrics', 1)[1].split('} rpcs3_ios_performance_metrics;', 1)[0]
     core_fields = re.findall(r'^\s*(u?int\d+_t|double)\s+(\w+);', core_struct, re.M)

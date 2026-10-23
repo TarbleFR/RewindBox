@@ -1,4 +1,4 @@
-"""Authenticate Core 510 proofs and execute the reviewed three-file restore delta."""
+"""Authenticate Core 513 proofs and execute the reviewed restore/freeze follow-up."""
 import argparse
 import hashlib
 import json
@@ -10,19 +10,15 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-BASE = '50714fe0980d0b50ccd93c1c739c480b054a31b9'
-BASE_RUN = 39888215155
-BASE_JOB = 120201349645
-PROOF_ARTIFACT = 12476405230
-PROOF_SHA = '32adb6f8939b5b347407c91b394e0c52c5bbc5974313086f9742cdc060621a73'
-OLD_PATCH = 'f31bf5f7d66c44dd3a02683a12a3b3ad6ac450d83bd66603e8c2010f7579198d'
-NEW_PATCH = 'db839d645eee6dc8dabba55a1580cb41a8314cbac0cb6c5e26f6c8a1be0f4f61'
-POLICY_NOTE = 'Build 513 bounds iOS TAR restore buffers and recognizes transient LLVM JIT threads; no PPU/SPU translation or settings policy change.'
-CHANGED_CORE = {
-    'rpcs3/Loader/TAR.cpp': '8a77b61d7a6bc292e22cb14170737a1780e9b30ba8b493c2bdbd041e671b4c8a',
-    'rpcs3/ios/RPCS3IOSPerformance.cpp': 'a2b96ba798ec5a8cf946129dfea64ff8d7ae45d9f4e8be11e9d7928ad20aa800',
-    'rpcs3/ios/RPCS3IOSProfilerHelpers.h': 'd11297d9ac5025a8335b4ff18215a0222f63a90f8f95c4c6bc4ee72bb740ea83',
-}
+BASE = 'c5e54c5817f848e6f667b757931f91364e9faeda'
+BASE_RUN = 39968584447
+BASE_JOB = 120464895339
+PROOF_ARTIFACT = 12508761363
+PROOF_SHA = '927221b7aa0b025a263df3ad8eba59f10dd00c54128e8101fad24b439b1ad143'
+OLD_PATCH = 'db839d645eee6dc8dabba55a1580cb41a8314cbac0cb6c5e26f6c8a1be0f4f61'
+NEW_PATCH = '388c5c37ed89c97d2b2aebd7642b611fd5a5ef2ed1d3c0cfa2be815357f66767'
+POLICY_NOTE = 'Restore follow-up bounds the TAR reader by its declared chunk count, preserves unsatisfied RSX acquire dependencies with bounded host waits, and retains complete bounded freeze snapshots and restore phase diagnostics; save formats and PPU/SPU code generation remain unchanged.'
+CHANGED_CORE = {'rpcs3/Loader/TAR.cpp': '47b9fca0855a3ac2d3a05699aa7857b94709540c6921968889deee98b70bf0cd', 'rpcs3/Emu/RSX/NV47/HW/nv406e.cpp': 'b8855f642f9a65ba83cf81f4ed09256a822555c45de20c43d7843793250c2dd1', 'rpcs3/Emu/System.cpp': '5fd1adfcd1f95c3ba063f3bc5ac9bd5b4137d2f4e7944b164f8cf58d9a8090d2', 'rpcs3/ios/RPCS3IOSFreezeDump.cpp': '68b30b9ebe8b869051d8d18f88ebc1aac36de25b940fc7b12c072625e3a815fc'}
 SELF = '.github/diagnostics/rpcs3gow3_core.py'
 NEW_TEST = 'test/rpcs3_gow3_restore_regression_test.py'
 FIXTURE = 'test/fixtures/rpcs3_gow3_restore.diff'
@@ -56,9 +52,8 @@ def verify_source():
     after=json.loads((ROOT/manifest_path).read_bytes())
     assert before['patch_sha256']==OLD_PATCH and after['patch_sha256']==NEW_PATCH
     assert after['device_runtime_tested'] is False
-    assert set(after['files_sha256'])-set(before['files_sha256'])=={'rpcs3/Loader/TAR.cpp'}
-    assert set(before['files_sha256'])-set(after['files_sha256'])==set()
-    assert {k for k in before['files_sha256'] if before['files_sha256'][k]!=after['files_sha256'][k]}==set(CHANGED_CORE)-{'rpcs3/Loader/TAR.cpp'}
+    assert set(after['files_sha256'])==set(before['files_sha256'])
+    assert {k for k in before['files_sha256'] if before['files_sha256'][k]!=after['files_sha256'][k]}==set(CHANGED_CORE)
     for path,digest in CHANGED_CORE.items(): assert after['files_sha256'][path]==digest
     expected=dict(before)
     expected['files_sha256']=after['files_sha256']
@@ -67,19 +62,24 @@ def verify_source():
     assert after==expected, 'Unreviewed manifest policy change'
     a=blocks(old('build-utils/rpcs3/embedded-core.patch'))
     b=blocks((ROOT/'build-utils/rpcs3/embedded-core.patch').read_bytes())
-    assert set(b)-set(a)=={'rpcs3/Loader/TAR.cpp'} and not set(a)-set(b)
-    assert {k for k in a if a[k]!=b[k]}==set(CHANGED_CORE)-{'rpcs3/Loader/TAR.cpp'}
+    assert set(a)==set(b)
+    assert {k for k in a if a[k]!=b[k]}==set(CHANGED_CORE)
     changed_inputs={SELF,NEW_TEST,FIXTURE,manifest_path,'build-utils/rpcs3/embedded-core.patch',
-        '.github/workflows/rpcs3-memory-audit.yml','build-utils/rpcs3_core_syntax_gate.py','test/neo_swap_core_pin_test.py'}
+        '.github/workflows/rpcs3-memory-audit.yml','build-utils/rpcs3_core_syntax_gate.py','test/neo_swap_core_pin_test.py',
+        'test/rpcs3_restore_eof_test.py','test/rpcs3_build265_core_test.py',
+        'test/rpcs3_build487_host_diagnostics_test.py',
+        'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm'}
     for path in core.CORE_INPUTS:
         if path not in changed_inputs:
             assert (ROOT/path).read_bytes()==old(path), 'Changed prior proof input: '+path
     path='test/neo_swap_core_pin_test.py'
+    added=['test/rpcs3_restore_eof_test.py','test/native/rpcs3_savestate_harness.cpp',
+        'test/rpcs3_build265_core_test.py','packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm']
     expected=old(path).decode().replace(OLD_PATCH,NEW_PATCH).replace('CORE_INPUTS = (\n',
-        "CORE_INPUTS = (\n    'test/rpcs3_gow3_restore_regression_test.py',\n    'test/fixtures/rpcs3_gow3_restore.diff',\n")
+        'CORE_INPUTS = (\n'+''.join('    '+repr(n)+',\n' for n in added),1)
     assert (ROOT/path).read_text()==expected
     path='build-utils/rpcs3_core_syntax_gate.py'
-    assert (ROOT/path).read_text()==old(path).decode().replace("UNITS = {", "UNITS = {'TAR.cpp', ",1)
+    assert (ROOT/path).read_text()==old(path).decode().replace("UNITS = {'TAR.cpp',", "UNITS = {'nv406e.cpp', 'TAR.cpp',",1)
     return core.core_input_hashes()
 
 def api(path):
@@ -104,55 +104,59 @@ def prepare(source,output):
             relative=PurePosixPath(item.filename)
             assert not relative.is_absolute() and '..' not in relative.parts
             if not item.is_dir():
-                dest=diagnostics/'prior510'/relative
+                dest=diagnostics/'prior513'/relative
                 dest.parent.mkdir(parents=True,exist_ok=True)
                 dest.write_bytes(bundle.read(item))
-    prior=json.loads((diagnostics/'prior510/gow3-reuse.json').read_bytes())
-    identity=json.loads((diagnostics/'prior510/identity.json').read_bytes())
+    prior=json.loads((diagnostics/'prior513/gow3-reuse.json').read_bytes())
+    identity=json.loads((diagnostics/'prior513/identity.json').read_bytes())
     assert prior['source']==BASE and identity['host_commit']==BASE
     assert identity['source_patch_sha256']==OLD_PATCH
     for path,digest in prior['core_input_sha256'].items(): assert sha(old(path))==digest,path
     assert identity['core_input_sha256']==prior['core_input_sha256']
-    assert sha((diagnostics/'prior510/gow3-boot-proof.txt').read_bytes())==prior['new_targeted_log_sha256']
-    assert 'PASS God of War III boot regressions' in (diagnostics/'prior510/gow3-boot-proof.txt').read_text()
+    assert sha((diagnostics/'prior513/gow3-restore-proof.txt').read_bytes())==prior['new_targeted_log_sha256']
+    assert 'PASS God of War III restore/profiler regressions' in (diagnostics/'prior513/gow3-restore-proof.txt').read_text()
     for name in ['memory-audit-proof.txt','spu-object-cache-proof.txt','llvm-pipeline-proof.txt',
         'build499-proof.txt','build487-core-proof.txt','build487-host-proof.txt']:
-        assert 'PASS' in (diagnostics/'prior510/prior508'/name).read_text(),name
-    for path,digest in CHANGED_CORE.items(): assert sha((source/path).read_bytes())==digest,path
-    log=diagnostics/'gow3-restore-proof.txt'
+        assert 'PASS' in (diagnostics/'prior513/prior510/prior508'/name).read_text(),name
+    for path,digest in CHANGED_CORE.items(): assert sha((source/path).read_bytes().replace(b'\r\n',b'\n'))==digest,path
+    log=diagnostics/'freeze-followup-proof.txt'
     env=dict(os.environ,ASAN_OPTIONS='detect_leaks=0',UBSAN_OPTIONS='halt_on_error=1')
-    test=subprocess.run([sys.executable,str(ROOT/NEW_TEST),str(source),'--sanitize',
-        '--report',str(diagnostics/'gow3-restore-cases.json')],env=env,stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,text=True,timeout=600)
-    log.write_text(test.stdout)
-    print(test.stdout,end='')
-    test.check_returncode()
-    # The syntax gate changed only by adding TAR; test actual command preservation.
-    syntax=subprocess.run([sys.executable,str(ROOT/'test/rpcs3_core_syntax_gate_test.py')],
-        stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=180)
-    (diagnostics/'syntax-gate-proof.txt').write_text(syntax.stdout)
-    syntax.check_returncode()
-    record={'schema':2,'source':command('git','rev-parse','HEAD').decode().strip(),
+    tests=[
+        ['test/rpcs3_restore_eof_test.py',str(source),'--sanitize','--report',str(diagnostics/'restore-eof-cases.json')],
+        [NEW_TEST,str(source),'--sanitize','--only-tar','--report',str(diagnostics/'tar-window-cases.json')],
+        ['test/rpcs3_build265_core_test.py',str(source)],
+        ['test/rpcs3_build487_host_diagnostics_test.py','--core',str(source)],
+        ['test/rpcs3_core_syntax_gate_test.py'],
+    ]
+    with log.open('w') as stream:
+        for command_line in tests:
+            test=subprocess.run([sys.executable,*command_line],cwd=ROOT,env=env,stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,text=True,timeout=600)
+            stream.write(test.stdout);stream.flush()
+            print(test.stdout,end='')
+            test.check_returncode()
+        stream.write('PASS restore/freeze follow-up regressions\n')
+    record={'schema':3,'source':command('git','rev-parse','HEAD').decode().strip(),
         'core_input_sha256':inputs,'prior_source':BASE,'prior_run':BASE_RUN,'prior_job':BASE_JOB,
         'prior_artifact':PROOF_ARTIFACT,'prior_archive_sha256':PROOF_SHA,'llvm':version,
-        'changed_core':CHANGED_CORE,'new_targeted_test':NEW_TEST,'new_targeted_log':str(log.relative_to(ROOT)),
+        'changed_core':CHANGED_CORE,'new_targeted_tests':tests,'new_targeted_log':str(log.relative_to(ROOT)),
         'new_targeted_log_sha256':sha(log.read_bytes()),
-        'scope':'Exact unchanged Core 510/508 proofs retained; new TAR/profiler ASan/UBSan tests; current Core still requires iPhone compilation and binary gates',
+        'scope':'Exact unchanged Core 513/510/508 proofs retained; real ZSTD TAR boundary negative control, bounded-memory TAR, delayed RSX producer and complete freeze snapshot tests; current Core still requires iPhone compilation and binary gates',
         'physical_device_tested':False}
     output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(json.dumps(record,indent=2)+'\n')
-    print('PASS authenticated Core 510 proofs and newly executed restore/profiler regressions')
+    print('PASS authenticated Core 513 proofs and newly executed restore/freeze regressions')
 
 def verify_receipt(path):
     record=json.loads(path.read_bytes())
-    assert record['schema']==2 and record['source']==command('git','rev-parse','HEAD').decode().strip()
+    assert record['schema']==3 and record['source']==command('git','rev-parse','HEAD').decode().strip()
     assert record['core_input_sha256']==verify_source()
     assert record['prior_source']==BASE and record['prior_run']==BASE_RUN
     assert record['prior_archive_sha256']==PROOF_SHA and record['llvm']=='22.1.8'
     assert record['changed_core']==CHANGED_CORE
     log=ROOT/record['new_targeted_log']
     assert record['new_targeted_log_sha256']==sha(log.read_bytes())
-    assert 'PASS God of War III restore/profiler regressions' in log.read_text()
+    assert 'PASS restore/freeze follow-up regressions' in log.read_text()
     print('PASS source-bound restore reuse receipt; unchanged native campaigns retained')
 
 if __name__=='__main__':
@@ -165,4 +169,4 @@ if __name__=='__main__':
     elif args.source: prepare(args.source.resolve(),args.output.resolve())
     else:
         verify_source()
-        print('PASS reviewed three-file restore delta and unchanged prior proof inputs')
+        print('PASS reviewed four-file restore/freeze delta and unchanged prior proof inputs')

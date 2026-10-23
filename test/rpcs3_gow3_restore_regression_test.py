@@ -14,7 +14,7 @@ import tempfile
 
 BASE = Path(__file__).resolve().parent
 FIXTURE = BASE / 'fixtures/rpcs3_gow3_restore.diff'
-EXPECTED = {'rpcs3/Loader/TAR.cpp': {'beforeSHA256': '21694ca8a4a512bbf3764d1d3c714984fce700f622e3d9f0231d558ee43f0432', 'proposedSHA256': '8a77b61d7a6bc292e22cb14170737a1780e9b30ba8b493c2bdbd041e671b4c8a'}, 'rpcs3/ios/RPCS3IOSPerformance.cpp': {'beforeSHA256': 'ce0b1cc7f6aab878f9a6a239d1ba2a9c08294eac696fb5e5efc26df94866ff51', 'proposedSHA256': 'a2b96ba798ec5a8cf946129dfea64ff8d7ae45d9f4e8be11e9d7928ad20aa800'}, 'rpcs3/ios/RPCS3IOSProfilerHelpers.h': {'beforeSHA256': '82124f62d099b22702f57caa0656becbec7913772ca5859e95fe639ab9df620e', 'proposedSHA256': 'd11297d9ac5025a8335b4ff18215a0222f63a90f8f95c4c6bc4ee72bb740ea83'}}
+EXPECTED = {'rpcs3/Loader/TAR.cpp': {'beforeSHA256': '21694ca8a4a512bbf3764d1d3c714984fce700f622e3d9f0231d558ee43f0432', 'proposedSHA256': '47b9fca0855a3ac2d3a05699aa7857b94709540c6921968889deee98b70bf0cd'}, 'rpcs3/ios/RPCS3IOSPerformance.cpp': {'beforeSHA256': 'ce0b1cc7f6aab878f9a6a239d1ba2a9c08294eac696fb5e5efc26df94866ff51', 'proposedSHA256': 'a2b96ba798ec5a8cf946129dfea64ff8d7ae45d9f4e8be11e9d7928ad20aa800'}, 'rpcs3/ios/RPCS3IOSProfilerHelpers.h': {'beforeSHA256': '82124f62d099b22702f57caa0656becbec7913772ca5859e95fe639ab9df620e', 'proposedSHA256': 'd11297d9ac5025a8335b4ff18215a0222f63a90f8f95c4c6bc4ee72bb740ea83'}}
 
 def braced(text, start):
     first = text.index('{', start)
@@ -162,6 +162,7 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('source', type=Path)
     parser.add_argument('--sanitize',action='store_true')
+    parser.add_argument('--only-tar',action='store_true')
     parser.add_argument('--report',type=Path)
     args=parser.parse_args()
     candidate=args.source.resolve()
@@ -180,7 +181,7 @@ def main():
             assert hashlib.sha256((before/relative).read_bytes()).hexdigest()==expected['beforeSHA256'], relative
         for name,root,fixed,ios in [('before',before,False,True),('candidate-ios',candidate,True,True),('candidate-desktop',candidate,True,False)]:
             programs=[('tar',tar_program(root,fixed))]
-            if name!='candidate-desktop': programs.append(('profiler',profiler_program(root,fixed)))
+            if name!='candidate-desktop' and not args.only_tar: programs.append(('profiler',profiler_program(root,fixed)))
             for kind,program in programs:
                 source=temp/(name+'-'+kind+'.cpp');binary=source.with_suffix('');source.write_text(program)
                 compiler=os.environ.get('CXX') or shutil.which('clang++') or shutil.which('g++')
@@ -194,7 +195,7 @@ def main():
                 result=subprocess.run([str(binary)],check=True,timeout=90,text=True,stdout=subprocess.PIPE)
                 results.append({'variant':name,'fixture':kind,'stdout':result.stdout.strip()})
     record={'passed':True,'scope':'production excerpts; portable SDK/I-O doubles; no full emulator/device validation',
-        'sanitizers':args.sanitize,'testedRuntimeSourceHashes':{p:v['proposedSHA256'] for p,v in EXPECTED.items()},'cases':results}
+        'sanitizers':args.sanitize,'testedRuntimeSourceHashes':{p:v['proposedSHA256'] for p,v in EXPECTED.items() if not args.only_tar or p=='rpcs3/Loader/TAR.cpp'},'cases':results}
     if args.report:
         args.report.parent.mkdir(parents=True,exist_ok=True)
         args.report.write_text(json.dumps(record,indent=2)+'\n')

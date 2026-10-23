@@ -46,6 +46,7 @@ namespace vm { template <class T> const T& _ref(u32) { return label; } }
 struct Config { struct Video { u64 driver_recovery_timeout=1000; } video; } g_cfg;
 struct Log {
  int errors=0, warnings=0;
+ template <class... T> void notice(const char*, T...) {}
  template <class... T> void error(const char*, T...) { ++errors; }
  template <class... T> void warning(const char*, T...) { ++warnings; }
 } rsx_log;
@@ -55,6 +56,7 @@ template <class T> void spin_on_cacheline_once(const T&, u32, u64 interval) {
  now += interval; if (step) step(); assert(now < 100000);
 }
 }
+namespace thread_ctrl { void wait_for(u64 us) { now+=us; if(step)step(); assert(now<100000); } }
 namespace rpcs3::ios { void record_rsx_semaphore_wait(u64, bool) {} }
 struct Release { void release(bool) {} };
 struct context {
@@ -104,11 +106,11 @@ int main() {
  // 2. A delayed producer releases the actual label.
  reset(); context delayed; step=[&]{ if(now>=300) label.value=11; };
  semaphore_acquire(&delayed,0,11); assert(now>=300 && delayed.wakes==1);
- // 3. After one hard sync and a second full deadline, the upstream liveness
- // fallback resumes without forging the missing guest label.
- reset(); context late;
+ // 3. A producer delayed beyond both recovery windows must still publish.
+ // A timeout is not permission to consume subsequent FIFO commands.
+ reset(); context late; step=[&]{ if(now>=3500) label.value=11; };
  semaphore_acquire(&late,0,11);
- assert(now>=2000 && now<5000 && label.value==10 && late.syncs==1 &&
+ assert(now>=3500 && label.value==11 && late.syncs==1 &&
         late.wakes==1 && rsx_log.errors==1);
  // 4. A producer remains cancellable before the bounded fallback expires.
  reset(); context cancelled; step=[&]{ if(now>=1500) cancelled.stopped=true; };
@@ -122,7 +124,12 @@ int main() {
  reset(); g_cfg.video.driver_recovery_timeout=0; context untimed;
  step=[&]{ if(now>=5000) label.value=11; };
  semaphore_acquire(&untimed,0,11); assert(untimed.syncs==0 && untimed.wakes==1);
- // 7. Vulkan servicing is reentrancy-safe, rate-limited and services flushes.
+ // 7. An absent producer remains stoppable after exhausting recovery.
+ reset(); context absent; step=[&]{ if(now>=9000) absent.stopped=true; };
+ semaphore_acquire(&absent,0,11);
+ assert(now>=9000 && label.value==10 && absent.wakes==0 && absent.syncs==1);
+ assert((absent.state & cpu_flag::again) && rsx_log.errors==1);
+ // 8. Vulkan servicing is reentrancy-safe, rate-limited and services flushes.
  reset(); VKGSRender renderer; Zcull z; DMA d;
  renderer.zcull_ctrl=&z; renderer.m_host_dma_ctrl=&d; z.reenter=true;
  renderer.m_eng_interrupt_mask=rsx::pipe_flush_interrupt;
@@ -133,7 +140,7 @@ int main() {
  renderer.m_queue_status=flush_queue_state::flushing; now=2000;
  for(int i=0;i<64;++i) renderer.on_semaphore_acquire_wait();
  assert(z.updates==2 && d.updates==2);
- std::cout << "7 source-extracted C++ wait scenarios: OK\n";
+ std::cout << "8 source-extracted C++ wait scenarios: OK\n";
 }
 '''
 
@@ -149,7 +156,7 @@ def main() -> None:
     spu = read('rpcs3/Emu/Cell/SPULLVMRecompiler.cpp')
     info = read('rpcs3/ios/RPCS3IOS.cpp')
     assert 'NEOSTATION_BUILD265_RSX_SPU_VIDEO_V1' in info
-    assert 'recovery exhausted; resuming FIFO' in sem and 'atomic_sema.store' not in sem
+    assert 'waiting_after_recovery' in sem and 'atomic_sema.store' not in sem
     assert 'out_queue.size() < out_max' in vdec
     assert 'out_queue.size() + 1 >= vdec->out_max' in vdec
     assert 'std::lock_guard conversion_lock{vdec->conversion_mutex}' in vdec

@@ -229,6 +229,10 @@ jobs:
         RPCS3_PIN_GUARD=.github/diagnostics/melonxlaunch514_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
+          test/rpcs3_restore_eof_test.py \
+          test/native/rpcs3_savestate_harness.cpp \
+          test/rpcs3_build265_core_test.py \
+          packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm \
           test/rpcs3_gow3_restore_regression_test.py \
           test/fixtures/rpcs3_gow3_restore.diff \
           .github/diagnostics/rpcs3gow3_core.py \

@@ -85,3 +85,19 @@ diff --git a/rpcs3/ios/RPCS3IOSProfilerHelpers.h b/rpcs3/ios/RPCS3IOSProfilerHel
  		name.starts_with("PPU Symbol") || name.starts_with("SPU Worker");
  }
  
+diff --git a/rpcs3/Loader/TAR.cpp b/rpcs3/Loader/TAR.cpp
+index cf40d1d..a4a3aa9 100644
+--- a/rpcs3/Loader/TAR.cpp
++++ b/rpcs3/Loader/TAR.cpp
+@@ -369,7 +369,10 @@ bool tar_object::extract(const std::string& prefix_path, bool is_vfs)
+ 					{
+ 						async_reader = std::make_unique<named_thread<std::function<void()>>>("TAR Extract File Thread", [&]()
+ 						{
+-							while (true)
++							// REWINDBOX_RESTORE_EOF_V1: never probe beyond the final chunk.
++							// A zero-byte probe followed by breathe() can discard prefetched
++							// bytes belonging to the next TAR member.
++							while (filedata_read_pos < utils::aligned_div<usz>(filesize, chunk_size))
+ 							{
+ 								while (filedata_read_pos - filedata_write_pos == filedata_buffers.size())
+ 								{

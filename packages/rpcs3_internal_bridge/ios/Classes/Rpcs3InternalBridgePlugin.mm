@@ -519,8 +519,11 @@ static NSString* RPCS3HostCPUTopology(void) {
 }
 
 // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: milestone stage of a Build 487 Core
-// line, or nullptr. Only the first FREEZE_DUMP line ("begin") is mirrored.
+// line, or nullptr. Complete bounded freeze snapshots are persisted as one milestone.
 static const char* RPCS3Build487MilestoneStage(const char* message) {
+  if (strstr(message, "FREEZE_DUMP snapshot\n") != nullptr) return "freeze_snapshot";
+  if (strstr(message, "SAVESTATE_RESTORE ") != nullptr) return "savestate_restore";
+  if (strstr(message, "RSX_ACQUIRE ") != nullptr) return "rsx_acquire";
   if (strstr(message, "JITPROF_BOOT ") != nullptr) return "jitprof_boot";
   if (strstr(message, "CONFIG_LAYERS ") != nullptr) return "config_layers";
   if (strstr(message, "NEOSTATION_RESTART ") != nullptr) return "internal_restart";
@@ -539,10 +542,12 @@ static BOOL RPCS3Build487AdmitBoundedLine(const char* message) {
   return mutexLines.fetch_add(1, std::memory_order_relaxed) < 64;
 }
 
-// Milestones are bounded files: a FREEZE_DUMP begin line is cut at 512 bytes
-// (the full dump stays in the diagnostic file), every other line at 1 KiB.
+// Milestones are bounded files: complete freeze snapshots fit within 66 KiB;
+// legacy begin summaries use 512 bytes and ordinary records use 1 KiB.
 static NSString* RPCS3Build487MilestoneText(const char* message) {
-  const size_t limit = strstr(message, "FREEZE_DUMP begin ") != nullptr ? 512 : 1024;
+  // 64 bounded Core lines plus separators/thread prefix; one durable write.
+  const size_t limit = strstr(message, "FREEZE_DUMP snapshot\n") != nullptr ? 66 * 1024 :
+      strstr(message, "FREEZE_DUMP begin ") != nullptr ? 512 : 1024;
   const size_t length = strnlen(message, limit);
   NSString* text = [[NSString alloc] initWithBytes:message length:length encoding:NSUTF8StringEncoding];
   // A cut inside a multibyte sequence is not valid UTF-8: fall back to ASCII-safe text.
@@ -601,6 +606,8 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
       strstr(message, "CONFIG_LAYERS ") != nullptr ||
       strstr(message, "NEOSTATION_RESTART ") != nullptr ||
       strstr(message, "SAVESTATE_BOOT ") != nullptr ||
+      strstr(message, "SAVESTATE_RESTORE ") != nullptr ||
+      strstr(message, "RSX_ACQUIRE ") != nullptr ||
       strstr(message, "FREEZE_DUMP ") != nullptr ||
       strstr(message, "MUTEX_DESTROY_BUSY ") != nullptr;
   // Core already emits bounded video archive/unmap/restore notices. Keep them

@@ -7,7 +7,7 @@ import shlex
 import subprocess
 import sys
 
-UNITS = {'TAR.cpp', 'memory.cpp', 'IOSTextureHash.cpp', 'JITIOS.cpp', 'JITASM.cpp', 'JITLLVM.cpp', 'PPUAnalyser.cpp',
+UNITS = {'nv406e.cpp', 'TAR.cpp', 'memory.cpp', 'IOSTextureHash.cpp', 'JITIOS.cpp', 'JITASM.cpp', 'JITLLVM.cpp', 'PPUAnalyser.cpp',
          'PPUFunction.cpp', 'PPUThread.cpp', 'PPUTranslator.cpp',
          'SPUCommonRecompiler.cpp', 'SPULLVMRecompiler.cpp', 'SPUThread.cpp',
          'VKResourceManager.cpp',
