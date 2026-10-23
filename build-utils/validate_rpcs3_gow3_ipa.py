@@ -11,7 +11,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / '.github/diagnostics'))
 sys.path.insert(0, str(ROOT / 'packages/dolphin_internal_bridge/ci'))
-from rpcs3restore513_delivery import CORE_SOURCE, CORE_RUN, HOST, validate_rpc_core_identity
+from rpcs3freeze515_delivery import CORE_SOURCE, CORE_RUN, HOST, validate_rpc_core_identity
 from delivery_benchmark import payload_fingerprint
 from verify_ipa import macho
 
@@ -30,6 +30,9 @@ def inspect(core, images, receipt):
     assert image['platform'] == 2 and '_rpcs3_ios_set_compiler_budget_api' in image['definedSymbols']
     assert b'REWINDBOX_RPCS3_MEMORY_AUDIT_V1' in core
     assert b'JITCPU context=game_boot title=' in core, 'Missing compiled GoW3 target diagnostic'
+    for marker in (b'RSX_ACQUIRE waiting_after_recovery', b'FREEZE_DUMP snapshot', b'SAVESTATE_RESTORE '):
+        assert marker in core, marker
+    assert any(b'freeze_snapshot' in data and b'rsx_acquire' in data and b'savestate_restore' in data for data in images.values()), 'Complete freeze and restore milestones are not linked'
     assert any('_NeoSwap_GetCompilerAPI' in macho(data)['definedSymbols'] for data in images.values()), 'Compiler broker is not linked'
     assert any(b'rpcs3_ios_set_compiler_budget_api' in data and b'JITMEM ' in data for data in images.values()), 'Optional Core binder and memory log bridge are not linked'
     for relative, digest in receipt['hostInputSHA256'].items():
@@ -93,7 +96,7 @@ if __name__ == '__main__':
     parser.add_argument('--embed', type=Path)
     parser.add_argument('--core-binary', type=Path)
     parser.add_argument('--core-identity', type=Path)
-    parser.add_argument('--build-number', type=int, default=513)
+    parser.add_argument('--build-number', type=int, default=515)
     parser.add_argument('--report', type=Path)
     args = parser.parse_args()
     if args.embed:

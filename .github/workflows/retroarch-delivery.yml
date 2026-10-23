@@ -1,20 +1,20 @@
-# Build 514: real MeloNX Vulkan/JIT startup and persistent launch diagnostics.
-name: RewindBox MeloNX native launch • Build 514 • SideStore
-run-name: RewindBox Build 514 • ${{ github.sha }} • MeloNX Vulkan and JIT launch
+# Build 515: corrected RPCS3 restore, RSX dependencies and complete freeze diagnostics.
+name: RewindBox RPCS3 restore and freeze • Build 515 • SideStore
+run-name: RewindBox Build 515 • ${{ github.sha }} • RPCS3 restore and RSX follow-up
 'on':
   push:
     branches:
     - Claude
     paths:
     - .github/workflows/retroarch-delivery.yml
-    - .github/diagnostics/melonxlaunch514_delivery.py
-    - build-utils/delivery-514-chatgpt-recipient.pem
+    - .github/diagnostics/rpcs3freeze515_delivery.py
+    - build-utils/delivery-515-chatgpt-recipient.pem
   workflow_dispatch:
     inputs:
       build_number:
         description: New delivery build number
         required: true
-        default: '514'
+        default: '515'
         type: string
       validation_scope:
         description: Reuse pinned unchanged evidence for the selected candidate scope
@@ -31,13 +31,13 @@ run-name: RewindBox Build 514 • ${{ github.sha }} • MeloNX Vulkan and JIT la
       recipient:
         description: Public key (PEM in build-utils) the encrypted artifact is addressed to; each session decrypts with its own private key
         required: false
-        default: build-utils/delivery-514-chatgpt-recipient.pem
+        default: build-utils/delivery-515-chatgpt-recipient.pem
         type: string
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: rewindbox-melonxlaunch514-delivery-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
+  group: rewindbox-rpcs3freeze515-delivery-${{ github.ref }}-${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
   cancel-in-progress: false
 jobs:
   checks:
@@ -52,8 +52,8 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
-    - name: Verify actual MeloNX launch proof and reuse preserved 512/513 components
-      run: python3 .github/diagnostics/melonxlaunch514_delivery.py --wait-for-components
+    - name: Verify corrected RPCS3 Core and preserve verified Build 514 components
+      run: python3 .github/diagnostics/rpcs3freeze515_delivery.py --wait-for-components
   native:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]') }}
     runs-on: ubuntu-24.04
@@ -62,8 +62,8 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
     - *id001
-    - name: Verify actual MeloNX launch proof and reuse preserved 512/513 components
-      run: python3 .github/diagnostics/melonxlaunch514_delivery.py --source-only
+    - name: Verify corrected RPCS3 Core and preserve verified Build 514 components
+      run: python3 .github/diagnostics/rpcs3freeze515_delivery.py --source-only
   cold:
     name: Release device build • cold
     runs-on: macos-15
@@ -72,16 +72,16 @@ jobs:
     - checks
     - native
     env:
-      BUILD_NUMBER: ${{ inputs.build_number || '514' }}
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-514-chatgpt-recipient.pem' }}
+      BUILD_NUMBER: ${{ inputs.build_number || '515' }}
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-515-chatgpt-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '514' }}-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build-${{ inputs.build_number || '515' }}-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
-      RPCS3_CORE_HOST_SHA: c5e54c5817f848e6f667b757931f91364e9faeda
-      RPCS3_CORE_RUN_ID: '39968584447'
+      RPCS3_CORE_HOST_SHA: a69860297d7b26dbb688df0daf16a31b42046462
+      RPCS3_CORE_RUN_ID: '39982269326'
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_RUN_ID: '39455712245'
@@ -102,7 +102,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/melonxlaunch514_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/rpcs3freeze515_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -120,7 +120,7 @@ jobs:
       run: |
         mkdir -p build/delivery
         python3 build-utils/delivery_benchmark.py environment
-        python3 .github/diagnostics/melonxlaunch514_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
+        python3 .github/diagnostics/rpcs3freeze515_delivery.py --scope "${{ inputs.validation_scope || 'full' }}"
     - name: Record empty device build cache
       id: state
       uses: actions/cache/restore@v4
@@ -226,7 +226,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/melonxlaunch514_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/rpcs3freeze515_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           test/rpcs3_restore_eof_test.py \
@@ -332,7 +332,7 @@ jobs:
         sys.path.insert(0, 'build-utils')
         sys.path.insert(0, 'test')
         sys.path.insert(0, '.github/diagnostics')
-        from melonxlaunch514_delivery import validate_rpc_core_identity as validate_core_input_identity
+        from rpcs3freeze515_delivery import validate_rpc_core_identity as validate_core_input_identity
         from validate_rpcs3_ipa import validate_core_identity
         from validate_rpcs3_embedded_core import validate_core
         from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
@@ -897,7 +897,7 @@ jobs:
     - name: Verify final signed direct Switch playlist and compact header
       run: python3 build-utils/validate_navigation512_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/navigation512-ipa-validation.json
     - name: Verify the actual MeloNX launch ABI and signed memory entitlements
-      run: python3 build-utils/validate_melonx_launch_ipa.py "dist/$IPA_NAME.ipa" --report build/delivery/melonx-launch514-ipa-validation.json
+      run: python3 build-utils/validate_melonx_launch_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-launch514-ipa-validation.json
     - name: Finalize observed timings and artifact identity
       if: always()
       run: |

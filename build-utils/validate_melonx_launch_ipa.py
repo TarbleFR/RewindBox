@@ -30,12 +30,12 @@ def entitlements(binary):
         cursor += size
     return {}
 
-def validate(ipa):
+def validate(ipa, build=514):
     with zipfile.ZipFile(ipa) as archive:
         assert archive.testzip() is None
         roots = [n[:-len('Info.plist')] for n in archive.namelist() if n.startswith('Payload/') and len(n.split('/')) == 3 and n.endswith('.app/Info.plist')]
         assert len(roots) == 1; root = roots[0]
-        info = plistlib.loads(archive.read(root + 'Info.plist')); assert info['CFBundleVersion'] == '514'
+        info = plistlib.loads(archive.read(root + 'Info.plist')); assert info['CFBundleVersion'] == str(build)
         receipt = json.loads(archive.read(root + 'MeloNX-native-identity.json'))
         core = archive.read(root + 'Frameworks/MeloNXCore.framework/MeloNXCore')
         symbols = set(macho(core)['definedSymbols'])
@@ -57,13 +57,14 @@ def validate(ipa):
         for key in ['com.apple.developer.kernel.increased-memory-limit', 'com.apple.developer.kernel.extended-virtual-addressing']:
             assert declared.get(key) is True, key
         assert not any(Path(n).suffix.lower() in {'.nsp', '.xci', '.nro', '.nso'} or Path(n).name.lower() in {'prod.keys', 'title.keys'} for n in archive.namelist())
-        return {'result': 'passed', 'build': 514, 'ipaSHA256': hashlib.sha256(ipa.read_bytes()).hexdigest(),
+        return {'result': 'passed', 'build': build, 'ipaSHA256': hashlib.sha256(ipa.read_bytes()).hexdigest(),
             'newLaunchExports': sorted(required), 'declaredMemoryEntitlements': declared,
             'signedUserInstallationEntitlementsVerified': False, 'physicalDeviceTested': False,
             'privateFrameworks': sorted(receipt['frameworks']), 'personalContentBundled': False}
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(); parser.add_argument('ipa', type=Path); parser.add_argument('--report', type=Path, required=True)
-    args = parser.parse_args(); report = validate(args.ipa)
+    parser.add_argument('--build-number', type=int, default=514)
+    args = parser.parse_args(); report = validate(args.ipa, args.build_number)
     args.report.parent.mkdir(parents=True, exist_ok=True); args.report.write_text(json.dumps(report, indent=2) + '\n')
     print('PASS packaged MeloNX launch ABI, diagnostics, signed declared entitlements and absence of personal content.')
