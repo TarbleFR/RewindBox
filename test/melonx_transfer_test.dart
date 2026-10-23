@@ -348,6 +348,14 @@ void main() {
       );
       expect(linked.items.where((e) => e.relative.endsWith('.nsp')), isEmpty);
       expect(linked.linkedGames.single.path, p.join(source.path, 'roms'));
+      final reused = await MelonxMigrationService.analyze(
+        wrapper,
+        root,
+        MelonxTransferControl(),
+        registeredGameFolders: {p.join(source.path, 'roms')},
+      );
+      expect(reused.items.where((e) => e.relative.endsWith('.nsp')), isEmpty);
+      expect(reused.linkedGames.single.path, p.join(source.path, 'roms'));
     },
   );
   test(
@@ -505,6 +513,43 @@ void main() {
       expect(released, 1);
       expect(await MelonxInternalService.editLibrary(() async => 42), 42);
       expect(released, 2);
+    },
+  );
+  test(
+    'library registration failure rolls back installed migration files',
+    () async {
+      final source = Directory(p.join(temporary.path, 'source'));
+      await write(p.join(source.path, 'system/prod.keys'), 'new');
+      await write(p.join(source.path, 'roms/Game.nsp'), 'game');
+      final old = await write(p.join(root.path, 'system/prod.keys'), 'old');
+      messenger.setMockMethodCallHandler(
+        MelonxInternalService.channel,
+        (call) async => {'success': true},
+      );
+      final plan = await MelonxMigrationService.analyze(
+        source,
+        root,
+        MelonxTransferControl(),
+      );
+      await expectLater(
+        MelonxMigrationService.apply(
+          plan,
+          root,
+          MelonxTransferControl(),
+          registerLibrary: () async =>
+              throw const FileSystemException('settings refused'),
+        ),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(await old.readAsString(), 'old');
+      expect(
+        await File(p.join(root.path, 'roms/switch/Game.nsp')).exists(),
+        false,
+      );
+      expect(
+        await File(p.join(source.path, 'roms/Game.nsp')).readAsString(),
+        'game',
+      );
     },
   );
   test(

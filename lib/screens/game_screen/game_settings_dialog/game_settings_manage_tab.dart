@@ -234,7 +234,7 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
         AppNotification.showNotification(
           context,
           _targetSystemFolder.toLowerCase() == 'switch'
-              ? (e.toString().contains('libraryBusy') ? MelonxTransferLocale.text(context,'libraryBusy') : '${MelonxTransferLocale.text(context,'failed')}\n$e')
+              ? (e.toString().contains('libraryBusy') ? MelonxTransferLocale.text(context,'libraryBusy') : '${MelonxTransferLocale.text(context,'deleteFailed')}\n$e')
               : e.toString(),
           type: NotificationType.error,
         );

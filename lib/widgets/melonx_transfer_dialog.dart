@@ -182,6 +182,33 @@ Future<bool> showMelonxTransfer(
       if (!context.mounted) return false;
       if (savesOnly)
         return await _importSaves(context, source, root, temporary, control);
+      final preferences = await SharedPreferences.getInstance();
+      final previousLinks = preferences.getStringList(
+        'rewindbox.melonx.gameFolders',
+      );
+      final registered = <String>{
+        for (final folder in config.config.romFolders)
+          p.basename(folder).toLowerCase() == 'switch'
+              ? folder
+              : p.join(folder, 'switch'),
+      };
+      for (final encoded in previousLinks ?? <String>[]) {
+        try {
+          final entry = jsonDecode(encoded) as Map;
+          final linked = await ExternalFolderAccess.resolveBookmarkedFolder(
+            key: entry['bookmark'] as String,
+          );
+          final relative = entry['relative'] as String;
+          if (linked != null &&
+              !p.isAbsolute(relative) &&
+              !p.split(relative).contains('..')) {
+            registered.add(p.join(linked, relative));
+          }
+        } catch (_) {
+          /* inaccessible sources retain their existing bookmark */
+        }
+      }
+      if (!context.mounted) return false;
       final plan = await runMelonxProgress(
         context,
         control,
@@ -190,6 +217,7 @@ Future<bool> showMelonxTransfer(
           root,
           control,
           linkGames: kind == 'linked',
+          registeredGameFolders: registered,
         ),
       );
       if (!context.mounted) return false;
@@ -219,34 +247,54 @@ Future<bool> showMelonxTransfer(
           ) ||
           !context.mounted)
         return false;
-      await runMelonxProgress(
-        context,
-        control,
-        (progress) => MelonxMigrationService.apply(
-          plan,
-          root,
-          control,
-          progress: (done, total) =>
-              progress.value = MelonxProgress('transfer', done, total),
-        ),
-      );
-      if (plan.linkedGames.isNotEmpty) {
-        final preferences = await SharedPreferences.getInstance();
-        final previous =
-            preferences.getStringList('rewindbox.melonx.gameFolders') ?? [];
-        for (final folder in plan.linkedGames) {
-          final relative = p.relative(folder.path, from: source.path);
-          if (relative.startsWith('..') || p.isAbsolute(relative))
-            throw const FormatException('unsafePath');
-          previous.add(
-            jsonEncode({'bookmark': bookmark, 'relative': relative}),
-          );
-        }
-        if (!await preferences.setStringList(
-          'rewindbox.melonx.gameFolders',
-          previous,
+      final links = [...?previousLinks];
+      for (final folder in plan.linkedGames) {
+        if (registered.any(
+          (existing) =>
+              p.equals(existing, folder.path) ||
+              p.isWithin(existing, folder.path),
         ))
-          throw const FileSystemException('incompleteTransfer');
+          continue;
+        final relative = p.relative(folder.path, from: source.path);
+        if (relative.startsWith('..') || p.isAbsolute(relative))
+          throw const FormatException('unsafePath');
+        links.add(jsonEncode({'bookmark': bookmark, 'relative': relative}));
+      }
+      bool linksChanged = false;
+      try {
+        await runMelonxProgress(
+          context,
+          control,
+          (progress) => MelonxMigrationService.apply(
+            plan,
+            root,
+            control,
+            progress: (done, total) =>
+                progress.value = MelonxProgress('transfer', done, total),
+            registerLibrary: () async {
+              if (links.length == (previousLinks?.length ?? 0)) return;
+              linksChanged = true;
+              if (!await preferences.setStringList(
+                'rewindbox.melonx.gameFolders',
+                links,
+              )) {
+                throw const FileSystemException('incompleteTransfer');
+              }
+            },
+          ),
+        );
+      } catch (_) {
+        if (linksChanged) {
+          if (previousLinks == null) {
+            await preferences.remove('rewindbox.melonx.gameFolders');
+          } else {
+            await preferences.setStringList(
+              'rewindbox.melonx.gameFolders',
+              previousLinks,
+            );
+          }
+        }
+        rethrow;
       }
       await config.addRomFolder(p.join(root.path, 'roms'), scan: false);
       await config.refreshDetectedSystems();

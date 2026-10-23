@@ -128,6 +128,7 @@ abstract final class MelonxMigrationService {
     Directory root,
     MelonxTransferControl control, {
     bool linkGames = false,
+    Set<String> registeredGameFolders = const {},
   }) async {
     final source = await findRoot(selected);
     if (p.equals(source.path, root.path) ||
@@ -185,7 +186,12 @@ abstract final class MelonxMigrationService {
       if (entity is Directory && name == 'roms') {
         final console = Directory(p.join(entity.path, 'switch'));
         final games = await console.exists() ? console : entity;
-        if (linkGames)
+        if (linkGames ||
+            registeredGameFolders.any(
+              (folder) =>
+                  p.equals(folder, games.path) ||
+                  p.isWithin(folder, games.path),
+            ))
           linkedGames.add(games);
         else {
           await add(games, p.join('roms', 'switch'));
@@ -295,6 +301,7 @@ abstract final class MelonxMigrationService {
     Directory root,
     MelonxTransferControl control, {
     void Function(int, int)? progress,
+    Future<void> Function()? registerLibrary,
   }) async {
     await MelonxInternalService.content('firmwareInfo');
     try {
@@ -344,6 +351,7 @@ abstract final class MelonxMigrationService {
               );
             }
           }
+          await registerLibrary?.call();
         },
         validateStaged: (stage) async {
           for (final item in plan.items) {

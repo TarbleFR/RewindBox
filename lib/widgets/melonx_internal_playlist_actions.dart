@@ -139,9 +139,9 @@ class _MelonxInternalPlaylistActionsState
                 },
                 onCancel: () {
                   unawaited(
-                    MelonxInternalService.channel.invokeMethod<void>(
-                      'cancelContent',
-                    ),
+                    MelonxInternalService.channel
+                        .invokeMethod<void>('cancelContent')
+                        .catchError((Object _) {}),
                   );
                 },
               );

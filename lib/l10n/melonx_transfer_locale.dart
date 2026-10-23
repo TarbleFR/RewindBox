@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 abstract final class MelonxTransferLocale {
   static const values = <String, Map<String, String>>{
     "en": {
+      "deleteFailed":
+          "The game file could not be deleted. Its library entry is kept. Check file access and folder permissions.",
       "importSaves": "Import Nintendo Switch saves",
       "migrate": "Transfer my MeloNX data",
       "folder": "Folder",
@@ -54,6 +56,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Link games in the selected folder",
     },
     "fr": {
+      "deleteFailed":
+          "Impossible de supprimer le fichier du jeu. Son entrée est conservée. Vérifiez l’accès au fichier et les autorisations du dossier.",
       "importSaves": "Importer des sauvegardes Nintendo Switch",
       "migrate": "Transférer mes données MeloNX",
       "folder": "Dossier",
@@ -108,6 +112,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Lier les jeux du dossier sélectionné",
     },
     "de": {
+      "deleteFailed":
+          "Die Spieldatei konnte nicht gelöscht werden. Der Bibliothekseintrag bleibt erhalten. Prüfe den Dateizugriff und die Ordnerberechtigungen.",
       "importSaves": "Nintendo-Switch-Spielstände importieren",
       "migrate": "Meine MeloNX-Daten übertragen",
       "folder": "Ordner",
@@ -160,6 +166,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Spiele im ausgewählten Ordner verknüpfen",
     },
     "es": {
+      "deleteFailed":
+          "No se pudo eliminar el archivo del juego. Se conserva su entrada. Comprueba el acceso al archivo y los permisos de la carpeta.",
       "importSaves": "Importar partidas de Nintendo Switch",
       "migrate": "Transferir mis datos de MeloNX",
       "folder": "Carpeta",
@@ -212,6 +220,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Vincular los juegos de la carpeta seleccionada",
     },
     "it": {
+      "deleteFailed":
+          "Impossibile eliminare il file del gioco. La voce rimane nella libreria. Verifica l’accesso al file e i permessi della cartella.",
       "importSaves": "Importa salvataggi Nintendo Switch",
       "migrate": "Trasferisci i miei dati MeloNX",
       "folder": "Cartella",
@@ -263,6 +273,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Collega i giochi della cartella scelta",
     },
     "pt": {
+      "deleteFailed":
+          "Não foi possível eliminar o ficheiro do jogo. A entrada é mantida. Verifique o acesso ao ficheiro e as permissões da pasta.",
       "importSaves": "Importar gravações Nintendo Switch",
       "migrate": "Transferir os meus dados MeloNX",
       "folder": "Pasta",
@@ -315,6 +327,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Ligar os jogos da pasta selecionada",
     },
     "ru": {
+      "deleteFailed":
+          "Не удалось удалить файл игры. Запись в библиотеке сохранена. Проверьте доступ к файлу и права на папку.",
       "importSaves": "Импорт сохранений Nintendo Switch",
       "migrate": "Перенести мои данные MeloNX",
       "folder": "Папка",
@@ -367,6 +381,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Подключить игры из выбранной папки",
     },
     "id": {
+      "deleteFailed":
+          "File game tidak dapat dihapus. Entri pustaka dipertahankan. Periksa akses file dan izin folder.",
       "importSaves": "Impor simpanan Nintendo Switch",
       "migrate": "Transfer data MeloNX saya",
       "folder": "Folder",
@@ -417,6 +433,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Tautkan game di folder yang dipilih",
     },
     "ja": {
+      "deleteFailed":
+          "ゲームファイルを削除できませんでした。ライブラリーの項目は保持されます。ファイルへのアクセスとフォルダーの権限を確認してください。",
       "importSaves": "Nintendo Switchのセーブをインポート",
       "migrate": "MeloNXのデータを転送",
       "folder": "フォルダー",
@@ -459,6 +477,8 @@ abstract final class MelonxTransferLocale {
       "linkGames": "選択したフォルダーのゲームをリンク",
     },
     "ko": {
+      "deleteFailed":
+          "게임 파일을 삭제할 수 없습니다. 라이브러리 항목은 유지됩니다. 파일 접근 및 폴더 권한을 확인하세요.",
       "importSaves": "Nintendo Switch 저장 데이터 가져오기",
       "migrate": "내 MeloNX 데이터 전송",
       "folder": "폴더",
@@ -501,6 +521,7 @@ abstract final class MelonxTransferLocale {
       "linkGames": "선택한 폴더의 게임 연결",
     },
     "zh": {
+      "deleteFailed": "无法删除游戏文件。资料库条目已保留。请检查文件访问权限和文件夹权限。",
       "importSaves": "导入 Nintendo Switch 存档",
       "migrate": "迁移我的 MeloNX 数据",
       "folder": "文件夹",
@@ -543,6 +564,7 @@ abstract final class MelonxTransferLocale {
       "linkGames": "关联所选文件夹中的游戏",
     },
     "zh_Hant": {
+      "deleteFailed": "無法刪除遊戲檔案。資料庫項目已保留。請檢查檔案存取與資料夾權限。",
       "importSaves": "匯入 Nintendo Switch 存檔",
       "migrate": "移轉我的 MeloNX 資料",
       "folder": "資料夾",

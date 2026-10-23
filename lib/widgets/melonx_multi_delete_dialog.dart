@@ -159,10 +159,8 @@ class _MelonxMultiDeleteDialogState extends State<MelonxMultiDeleteDialog> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = MelonxTransferLocale.text(
-          context,
-          error.toString().contains('libraryBusy') ? 'libraryBusy' : 'failed',
-        );
+        _error =
+            '${MelonxTransferLocale.text(context, error.toString().contains('libraryBusy') ? 'libraryBusy' : 'deleteFailed')}\n$error';
         _deleting = false;
       });
     }
