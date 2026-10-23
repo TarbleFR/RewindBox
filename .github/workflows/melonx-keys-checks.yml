@@ -1,0 +1,34 @@
+name: MeloNX personal key import
+run-name: MeloNX key import checks • ${{ github.sha }}
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/melonx-keys-checks.yml
+      - lib/services/melonx_key_file.dart
+      - lib/services/melonx_embedded_library_service.dart
+      - lib/widgets/melonx_internal_playlist_actions.dart
+      - lib/l10n/melonx_transfer_locale.dart
+      - test/melonx_key_file_test.dart
+      - test/melonx_library_files_test.dart
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  keys:
+    if: ${{ !contains(github.event.head_commit.message, '[retroarch-delivery]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze only the changed key import and translations
+        run: >-
+          flutter analyze --no-pub --no-fatal-infos
+          lib/services/melonx_key_file.dart lib/services/melonx_embedded_library_service.dart
+          lib/widgets/melonx_internal_playlist_actions.dart lib/l10n/melonx_transfer_locale.dart
+          test/melonx_key_file_test.dart
+      - name: Exercise production key import and transaction rollback
+        run: flutter test test/melonx_key_file_test.dart test/melonx_library_files_test.dart

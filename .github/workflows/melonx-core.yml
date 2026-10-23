@@ -28,6 +28,8 @@ run-name: MeloNX engine • ${{ github.sha }}
     - test/melonx_library_api_test.py
     - build-utils/melonx/reuse_library_validation.py
     - test/melonx_game_header_test.py
+    - test/melonx_keys_native_test.py
+    - build-utils/melonx/reuse_keys_validation.py
   workflow_dispatch: null
 permissions:
   contents: read
@@ -45,6 +47,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
+        fetch-depth: 0
         persist-credentials: false
     - uses: actions/setup-dotnet@v4
       with:
@@ -72,10 +75,10 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: python3 build-utils/melonx/reuse_library_validation.py
-    - name: Reuse unchanged firmware archive and personal configuration proofs
+    - name: Reuse unchanged firmware archive proof
       env:
         GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/reuse_launch_library.py
+      run: python3 build-utils/melonx/reuse_launch_library.py --firmware-only
     - name: Fetch exact MeloNX source
       run: |
         python3 - <<'PY_FETCH'
@@ -97,12 +100,16 @@ jobs:
             subprocess.run(['git','-C',path,'checkout','--detach','FETCH_HEAD'],check=True)
             assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==revision
         PY_FETCH
-    - name: Verify the real Darwin signal ABI and preserve NativeAOT handlers
-      run: python3 test/melonx_darwin_signal_test.py .native-sources/MeloNX
+    - name: Reuse exact successful Darwin and homebrew proofs
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 build-utils/melonx/reuse_keys_validation.py
+    - name: Exercise key regression against the real pinned LibHac reader
+      run: python3 test/melonx_keys_native_test.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
+    - name: Check affected personal configuration and LibHac API
+      run: python3 test/melonx_library_api_test.py .native-sources/MeloNX dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
     - name: Execute the changed production launch preflight and diagnostic API
       run: python3 test/melonx_launch_native_test.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
-    - name: Verify optional homebrew assets with the real LibHac loader
-      run: python3 test/melonx_homebrew_test.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg .native-sources/MeloNX
     - name: Execute production input driver ownership
       env:
         GH_TOKEN: ${{ github.token }}

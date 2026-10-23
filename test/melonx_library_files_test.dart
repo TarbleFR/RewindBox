@@ -136,7 +136,7 @@ void main() {
       expect(result.refused, {
         'prod.keys': 'duplicateKey',
         'random.keys': 'unknownKey',
-        'title.keys': 'invalidKey',
+        'title.keys': 'keySyntax',
       });
       expect(
         await File(p.join(root.path, 'system/prod.keys')).readAsString(),

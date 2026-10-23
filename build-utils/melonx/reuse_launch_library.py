@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = '741918e15a6bfe79ab213cdd5038ea31f1c0cc62'
@@ -21,6 +22,8 @@ jobs = json.loads(subprocess.check_output(['gh', 'api', f'repos/TarbleFR/RewindB
 job = next(j for j in jobs if j['head_sha'] == SOURCE and j['conclusion'] == 'success')
 records = []
 for phase, paths in GROUPS.items():
+    if "--firmware-only" in sys.argv and phase == "Check personal configuration and actual LibHac save API":
+        continue
     assert next(s for s in job['steps'] if s['name'] == phase)['conclusion'] == 'success'
     hashes = {}
     for path in paths:

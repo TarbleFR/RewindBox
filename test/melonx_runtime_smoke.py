@@ -70,6 +70,30 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        try Data([0x50,0x46,0x53,0x30]+Array(repeating:UInt8(0),count:12)).write(to:package)
        let missingKeys=try runtime.content(path:package.path,operation:8)
        guard missingKeys["success"] as? Bool == false, missingKeys["errorCode"] as? String == "keysMissing", missingKeys["nativeStatus"] is NSNumber, runtime.session.state == 0 else {throw NSError(domain:"actual-key-preflight",code:6)}
+       // Exercise the actual new NativeAOT key import ABI using synthetic bytes.
+       // Keep unsupported entries beside a supported one, exactly as an export.
+       let staged=root.appendingPathComponent("key-preview",isDirectory:true)
+       try FileManager.default.createDirectory(at:staged,withIntermediateDirectories:true)
+       let candidate=staged.appendingPathComponent("prod.keys")
+       let fixture="header_key = "+String(repeating:"a",count:64)+"\nfuture_console_key = "+String(repeating:"b",count:32)
+       try fixture.write(to:candidate,atomically:true,encoding:.utf8)
+       let keyPreview=try runtime.content(path:candidate.path,operation:2)
+       guard keyPreview["success"] as? Bool == true,
+             (keyPreview["recognizedKeys"] as? NSNumber)?.intValue == 1,
+             (keyPreview["ignoredKeys"] as? NSNumber)?.intValue == 1 else {throw NSError(domain:"actual-key-import-preview",code:16)}
+       let installed=root.appendingPathComponent("system/prod.keys")
+       guard !FileManager.default.fileExists(atPath:installed.path) else {throw NSError(domain:"preview-mutated-installed-keys",code:17)}
+       try fixture.write(to:installed,atomically:true,encoding:.utf8)
+       let reloaded=try runtime.content(operation:2)
+       guard reloaded["success"] as? Bool == true else {throw NSError(domain:"actual-key-reload",code:18)}
+       try "header_key = aa".write(to:candidate,atomically:true,encoding:.utf8)
+       let badKey=try runtime.content(path:candidate.path,operation:2)
+       guard badKey["success"] as? Bool == false, badKey["errorCode"] as? String == "keySize",
+             try String(contentsOf:installed,encoding:.utf8) == fixture else {throw NSError(domain:"actual-key-refusal",code:19)}
+       try FileManager.default.removeItem(at:installed)
+       try FileManager.default.removeItem(at:staged)
+       report["actualKeyImportABIValidated"]=true;report["keyUnknownEntryAccepted"]=true
+       report["keyRefusalCodePreserved"]=true;report["personalKeysUsed"]=false
        do {
          try runtime.prepareGraphics(["resolution":9],universalJit:false)
          throw NSError(domain:"invalid-graphics-accepted",code:13)

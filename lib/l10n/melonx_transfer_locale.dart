@@ -3,6 +3,14 @@ import 'package:flutter/widgets.dart';
 abstract final class MelonxTransferLocale {
   static const values = <String, Map<String, String>>{
     "en": {
+      "keySyntax": "Malformed key text or unsupported encoding.",
+      "keySize": "A recognized key has an incorrect length.",
+      "keyConflict": "The file contains conflicting values for the same key.",
+      "keyNoSupported": "No key supported by this engine was found.",
+      "keyReadFailed": "The selected file could not be read. Download it locally and try again.",
+      "keyImportFailed": "The engine could not complete key import. See the internal log.",
+      "keyExtras": "Additional entries preserved; this engine does not use them",
+
       "deleteRetiredConfirm":
           "Remove these old MeloNX references and their scraped data from RewindBox? The original game files, saves, firmware and keys are kept.",
       "deleteMixedConfirm":
@@ -63,6 +71,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Link games in the selected folder",
     },
     "fr": {
+      "keySyntax": "Texte de clés mal formé ou encodage non reconnu.",
+      "keySize": "Une clé reconnue a une longueur incorrecte.",
+      "keyConflict": "Le fichier contient des valeurs différentes pour une même clé.",
+      "keyNoSupported": "Aucune clé prise en charge par ce moteur n’a été trouvée.",
+      "keyReadFailed": "Impossible de lire le fichier sélectionné. Téléchargez-le localement puis réessayez.",
+      "keyImportFailed": "Le moteur n’a pas pu terminer l’importation des clés. Consultez le journal interne.",
+      "keyExtras": "Entrées supplémentaires conservées ; ce moteur ne les utilise pas",
+
       "deleteRetiredConfirm":
           "Retirer ces anciennes références MeloNX et leurs données scrapées de RewindBox ? Les fichiers de jeux originaux, les sauvegardes, le firmware et les clés sont conservés.",
       "deleteMixedConfirm":
@@ -126,6 +142,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Lier les jeux du dossier sélectionné",
     },
     "de": {
+      "keySyntax": "Ungültiger Schlüsseltext oder nicht unterstützte Kodierung.",
+      "keySize": "Ein erkannter Schlüssel hat eine falsche Länge.",
+      "keyConflict": "Die Datei enthält widersprüchliche Werte für denselben Schlüssel.",
+      "keyNoSupported": "Kein von dieser Engine unterstützter Schlüssel gefunden.",
+      "keyReadFailed": "Die Datei konnte nicht gelesen werden. Lokal herunterladen und erneut versuchen.",
+      "keyImportFailed": "Die Engine konnte den Schlüsselimport nicht abschließen. Internes Protokoll prüfen.",
+      "keyExtras": "Zusätzliche Einträge bleiben erhalten; diese Engine nutzt sie nicht",
+
       "deleteRetiredConfirm":
           "Diese alten MeloNX-Verweise und ihre erfassten Metadaten aus RewindBox entfernen? Die ursprünglichen Spieldateien, Spielstände, Firmware und Schlüssel bleiben erhalten.",
       "deleteMixedConfirm":
@@ -187,6 +211,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Spiele im ausgewählten Ordner verknüpfen",
     },
     "es": {
+      "keySyntax": "Texto de claves incorrecto o codificación no admitida.",
+      "keySize": "Una clave reconocida tiene una longitud incorrecta.",
+      "keyConflict": "El archivo contiene valores contradictorios para la misma clave.",
+      "keyNoSupported": "No se encontró ninguna clave compatible con este motor.",
+      "keyReadFailed": "No se pudo leer el archivo. Descárgalo localmente e inténtalo de nuevo.",
+      "keyImportFailed": "El motor no pudo completar la importación de claves. Consulta el registro interno.",
+      "keyExtras": "Entradas adicionales conservadas; este motor no las utiliza",
+
       "deleteRetiredConfirm":
           "¿Quitar estas referencias antiguas de MeloNX y sus datos obtenidos de RewindBox? Se conservan los archivos originales de los juegos, las partidas, el firmware y las claves.",
       "deleteMixedConfirm":
@@ -248,6 +280,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Vincular los juegos de la carpeta seleccionada",
     },
     "it": {
+      "keySyntax": "Testo delle chiavi non valido o codifica non supportata.",
+      "keySize": "Una chiave riconosciuta ha una lunghezza errata.",
+      "keyConflict": "Il file contiene valori diversi per la stessa chiave.",
+      "keyNoSupported": "Nessuna chiave supportata da questo motore trovata.",
+      "keyReadFailed": "Impossibile leggere il file. Scaricalo localmente e riprova.",
+      "keyImportFailed": "Il motore non ha completato l’importazione delle chiavi. Consulta il registro interno.",
+      "keyExtras": "Voci aggiuntive conservate; questo motore non le utilizza",
+
       "deleteRetiredConfirm":
           "Rimuovere da RewindBox questi vecchi riferimenti MeloNX e i relativi dati scaricati? I file originali dei giochi, i salvataggi, il firmware e le chiavi vengono conservati.",
       "deleteMixedConfirm":
@@ -308,6 +348,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Collega i giochi della cartella scelta",
     },
     "pt": {
+      "keySyntax": "Texto de chaves inválido ou codificação não suportada.",
+      "keySize": "Uma chave reconhecida tem um comprimento incorreto.",
+      "keyConflict": "O ficheiro contém valores diferentes para a mesma chave.",
+      "keyNoSupported": "Nenhuma chave suportada por este motor foi encontrada.",
+      "keyReadFailed": "Não foi possível ler o ficheiro. Descarregue-o localmente e tente novamente.",
+      "keyImportFailed": "O motor não concluiu a importação de chaves. Consulte o registo interno.",
+      "keyExtras": "Entradas adicionais preservadas; este motor não as utiliza",
+
       "deleteRetiredConfirm":
           "Remover estas referências antigas do MeloNX e os seus dados obtidos do RewindBox? Os ficheiros originais dos jogos, as gravações, o firmware e as chaves são preservados.",
       "deleteMixedConfirm":
@@ -369,6 +417,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Ligar os jogos da pasta selecionada",
     },
     "ru": {
+      "keySyntax": "Неверный формат ключей или неподдерживаемая кодировка.",
+      "keySize": "У распознанного ключа неверная длина.",
+      "keyConflict": "Файл содержит разные значения для одного ключа.",
+      "keyNoSupported": "Ключи, поддерживаемые этим движком, не найдены.",
+      "keyReadFailed": "Не удалось прочитать файл. Скачайте его на устройство и повторите попытку.",
+      "keyImportFailed": "Движок не завершил импорт ключей. Проверьте внутренний журнал.",
+      "keyExtras": "Дополнительные записи сохранены; этот движок их не использует",
+
       "deleteRetiredConfirm":
           "Удалить эти старые ссылки MeloNX и загруженные для них данные из RewindBox? Исходные файлы игр, сохранения, прошивка и ключи останутся.",
       "deleteMixedConfirm":
@@ -430,6 +486,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Подключить игры из выбранной папки",
     },
     "id": {
+      "keySyntax": "Teks kunci tidak valid atau pengodean tidak didukung.",
+      "keySize": "Panjang kunci yang dikenali tidak sesuai.",
+      "keyConflict": "Berkas berisi nilai berbeda untuk kunci yang sama.",
+      "keyNoSupported": "Tidak ada kunci yang didukung mesin ini.",
+      "keyReadFailed": "Berkas tidak dapat dibaca. Unduh ke perangkat lalu coba lagi.",
+      "keyImportFailed": "Mesin tidak dapat menyelesaikan impor kunci. Periksa log internal.",
+      "keyExtras": "Entri tambahan disimpan; mesin ini tidak menggunakannya",
+
       "deleteRetiredConfirm":
           "Hapus referensi MeloNX lama ini beserta data hasil pencariannya dari RewindBox? File game asli, data simpanan, firmware, dan kunci tetap disimpan.",
       "deleteMixedConfirm":
@@ -489,6 +553,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Tautkan game di folder yang dipilih",
     },
     "ja": {
+      "keySyntax": "キーの形式が不正か、文字コードが未対応です。",
+      "keySize": "認識されたキーの長さが正しくありません。",
+      "keyConflict": "同じキーに異なる値が含まれています。",
+      "keyNoSupported": "このエンジンに対応するキーが見つかりません。",
+      "keyReadFailed": "ファイルを読み込めません。端末にダウンロードして再試行してください。",
+      "keyImportFailed": "キーのインポートを完了できません。内部ログを確認してください。",
+      "keyExtras": "追加の項目は保存されますが、このエンジンでは使用されません",
+
       "deleteRetiredConfirm":
           "古いMeloNXの参照と取得済みデータをRewindBoxから削除しますか？元のゲームファイル、セーブデータ、ファームウェア、キーは保持されます。",
       "deleteMixedConfirm":
@@ -540,6 +612,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "選択したフォルダーのゲームをリンク",
     },
     "ko": {
+      "keySyntax": "키 형식이 잘못되었거나 지원하지 않는 인코딩입니다.",
+      "keySize": "인식된 키의 길이가 잘못되었습니다.",
+      "keyConflict": "파일에 같은 키의 서로 다른 값이 있습니다.",
+      "keyNoSupported": "이 엔진이 지원하는 키를 찾을 수 없습니다.",
+      "keyReadFailed": "파일을 읽을 수 없습니다. 기기에 다운로드한 후 다시 시도하세요.",
+      "keyImportFailed": "키 가져오기를 완료하지 못했습니다. 내부 로그를 확인하세요.",
+      "keyExtras": "추가 항목은 보존되지만 이 엔진에서는 사용하지 않습니다",
+
       "deleteRetiredConfirm":
           "이전 MeloNX 참조와 수집된 데이터를 RewindBox에서 제거할까요? 원본 게임 파일, 저장 데이터, 펌웨어 및 키는 유지됩니다.",
       "deleteMixedConfirm":
@@ -591,6 +671,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "선택한 폴더의 게임 연결",
     },
     "zh": {
+      "keySyntax": "密钥文本格式错误或编码不受支持。",
+      "keySize": "已识别密钥的长度不正确。",
+      "keyConflict": "文件中同一密钥存在不同的值。",
+      "keyNoSupported": "未找到此引擎支持的密钥。",
+      "keyReadFailed": "无法读取文件。请下载到本机后重试。",
+      "keyImportFailed": "引擎未能完成密钥导入。请查看内部日志。",
+      "keyExtras": "额外条目已保留，但此引擎不会使用",
+
       "deleteRetiredConfirm":
           "要从 RewindBox 移除这些旧的 MeloNX 引用及其抓取的数据吗？原始游戏文件、存档、固件和密钥将保留。",
       "deleteMixedConfirm":
@@ -640,6 +728,14 @@ abstract final class MelonxTransferLocale {
       "linkGames": "关联所选文件夹中的游戏",
     },
     "zh_Hant": {
+      "keySyntax": "金鑰文字格式錯誤或編碼不受支援。",
+      "keySize": "已識別金鑰的長度不正確。",
+      "keyConflict": "檔案中同一金鑰存在不同的值。",
+      "keyNoSupported": "未找到此引擎支援的金鑰。",
+      "keyReadFailed": "無法讀取檔案。請下載至本機後重試。",
+      "keyImportFailed": "引擎未能完成金鑰匯入。請查看內部日誌。",
+      "keyExtras": "額外項目已保留，但此引擎不會使用",
+
       "deleteRetiredConfirm":
           "要從 RewindBox 移除這些舊的 MeloNX 參照及其擷取的資料嗎？原始遊戲檔案、存檔、韌體和金鑰將保留。",
       "deleteMixedConfirm":

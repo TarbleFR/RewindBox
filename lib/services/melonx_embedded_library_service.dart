@@ -15,6 +15,8 @@ import 'melonx_internal_service.dart';
 import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 import 'melonx_file_transaction.dart';
+import 'melonx_key_file.dart';
+import 'logger_service.dart';
 
 /// Owns only user-supplied Switch files. Native content inspection runs on the
 /// bridge's library queue; copying uses asynchronous file IO and bounded RAM.
@@ -166,8 +168,9 @@ abstract final class MelonxEmbeddedLibraryService {
   static Future<MelonxKeysReport> importKeys() =>
       StorageImportActivity.run(() async {
         final selection = await FilePicker.pickFiles(
-          type: FileType.custom,
-          allowedExtensions: ['keys'],
+          // .keys has no portable iOS document UTI; the import validates the
+          // selected files, including provider-added .txt/copy suffixes.
+          type: FileType.any,
           withData: false,
           allowMultiple: true,
         );
@@ -187,53 +190,49 @@ abstract final class MelonxEmbeddedLibraryService {
     final preview = await Directory.systemTemp.createTemp('rewindbox-keys-');
     final refused = <String, String>{};
     final valid = <String, File>{};
+    final ignored = <String, int>{};
     final counts = <String, int>{};
     for (final file in files) {
-      final name = path.basename(file.path).toLowerCase();
+      final name = MelonxKeyFile.canonicalName(path.basename(file.path));
+      if (name == null) continue;
       counts[name] = (counts[name] ?? 0) + 1;
     }
     try {
       for (final file in files) {
-        final name = path.basename(file.path).toLowerCase();
+        final name = MelonxKeyFile.canonicalName(path.basename(file.path));
         try {
-          if (!{'prod.keys', 'title.keys'}.contains(name))
+          if (name == null)
             throw const FormatException('unknownKey');
           if (counts[name]! > 1) throw const FormatException('duplicateKey');
           if (await file.length() > 4 * 1024 * 1024 || await file.length() == 0)
-            throw const FormatException('invalidKey');
+            throw const FormatException('keySyntax');
           final canonical = File(path.join(preview.path, name));
-          // Comments/blank lines are accepted by the key reader. Normalize only
-          // the private validation copy; never print key material in a log.
-          final lines = (await file.readAsLines())
-              .map((s) => s.trim().toLowerCase())
-              .where((s) => s.isNotEmpty && !s.startsWith('#'))
-              .toList();
-          final pattern = name == 'title.keys'
-              ? RegExp(r'^[a-f0-9]{32}\s*=\s*[a-f0-9]{32}$')
-              : RegExp(r'^[a-z0-9_]+\s*=\s*[a-f0-9]+$');
-          if (lines.isEmpty ||
-              lines.any(
-                (s) =>
-                    !pattern.hasMatch(s) ||
-                    s.split('=').last.trim().length.isOdd,
-              )) {
-            throw const FormatException('invalidKey');
-          }
           await canonical.writeAsString(
-            lines
-                .map((s) => s.split('=').map((v) => v.trim()).join(' = '))
-                .join('\n'),
+            MelonxKeyFile.normalize(await file.readAsBytes(), name),
             flush: true,
           );
-          await MelonxInternalService.content(
+          final validation = await MelonxInternalService.content(
             'reloadKeys',
             filePath: canonical.path,
           );
           valid[name] = canonical;
+          final count = validation['ignoredKeys'];
+          if (count is int && count > 0) ignored[name] = count;
         } on FormatException catch (error) {
           refused[path.basename(file.path)] = error.message;
+        } on MelonxContentException catch (error) {
+          refused[path.basename(file.path)] = const {
+            'keySyntax', 'keySize', 'keyConflict', 'keyNoSupported',
+            'keyReadFailed', 'keyImportFailed',
+          }.contains(error.code) ? error.code : 'keyImportFailed';
+          // Fixed code only: never log selected file bytes or native text that
+          // might contain material from a personal key export.
+          LoggerService.instance.e('[MeloNX:keys] ${refused[path.basename(file.path)]}');
+        } on FileSystemException {
+          refused[path.basename(file.path)] = 'keyReadFailed';
         } catch (_) {
-          refused[path.basename(file.path)] = 'invalidKey';
+          refused[path.basename(file.path)] = 'keyImportFailed';
+          LoggerService.instance.e('[MeloNX:keys] keyImportFailed');
         }
       }
       if (valid.isNotEmpty) {
@@ -266,6 +265,7 @@ abstract final class MelonxEmbeddedLibraryService {
       return MelonxKeysReport(
         valid.keys.toList(),
         refused,
+        ignored: ignored,
         prodMissing: !await File(
           path.join(root.path, 'system', 'prod.keys'),
         ).exists(),
@@ -358,8 +358,10 @@ class MelonxKeysReport {
     this.imported,
     this.refused, {
     this.prodMissing = false,
+    this.ignored = const {},
   });
   final List<String> imported;
   final Map<String, String> refused;
   final bool prodMissing;
+  final Map<String, int> ignored;
 }

@@ -76,9 +76,20 @@ partial class Library
                                 json.WriteString("firmware", GetInstalledFirmwareVersion());
                                 break;
                             case 2:
-                                if (!string.IsNullOrEmpty(path)) EmbeddedKeyValidation.Validate(path);
-                                _virtualFileSystem.ReloadKeySet();
-                                if (string.IsNullOrEmpty(path)) _contentManager.LoadEntries();
+                                if (!string.IsNullOrEmpty(path))
+                                {
+                                    var validation = EmbeddedKeyValidation.Validate(path);
+                                    json.WriteNumber("recognizedKeys", validation.Recognized);
+                                    json.WriteNumber("ignoredKeys", validation.Ignored);
+                                }
+                                else
+                                {
+                                    // Staged validation above must never touch the live set.
+                                    // Reload only after the transaction installs the keys.
+                                    // Firmware discovery has its own operation/preflight and
+                                    // must not turn a successful key import into a refusal.
+                                    _virtualFileSystem.ReloadKeySet();
+                                }
                                 break;
                             case 3:
                                 _contentManager.LoadEntries();
@@ -113,6 +124,7 @@ partial class Library
                     json.WriteNumber("nativeStatus", error.HResult);
                     string code = error is OperationCanceledException ? "cancelled" : "failed";
                     if (operation == 8) code = EmbeddedLaunchDiagnostics.ErrorCode;
+                    if (operation == 2) code = EmbeddedKeyValidation.ErrorCode(error);
                     if (operation == 1 && code != "cancelled")
                         code = EmbeddedFirmwareProgress.Phase >= 4 ? "firmwareInstallFailed" :
                             error.GetType().Name == "MissingKeyException" ? "firmwareIncompatible" :
