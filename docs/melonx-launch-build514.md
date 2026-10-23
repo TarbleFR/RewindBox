@@ -86,6 +86,30 @@ even successful CPU/session proof does not establish a first game image.
 Exact CI, bundle validation and delivery results are recorded in the delivery
 receipt after the jobs finish, including failures where applicable.
 
+Actual Core run [39978893582](https://github.com/TarbleFR/RewindBox/actions/runs/39978893582)
+passed for source `e050961d6caabfabdef57dd140c774545976d0fd`. Both device ARM64
+and Simulator ARM64 NativeAOT images compiled with 39 exported ABI functions.
+The ARM64 Simulator app verified the real JIT arena and installed Darwin
+SA_SIGINFO handlers, executed the original homebrew's SVC ExitProcess twice and
+returned both sessions to idle. MoltenVK created the real simulator Vulkan/Metal
+device and swapchain, then released them. First-run GPU initialization took
+about 16 seconds; teardown waited for that worker instead of freeing it early.
+No game image is claimed: this original program has no video output. The
+firmware-free test logged an absent TimeZoneBinary archive; it did not block this
+homebrew and is not evidence about the user's installed firmware. The report's
+`jitTested: false` retains its physical-helper limitation; its separately named
+`actualSimulatorCodeArenaVerified` and `originalHomebrewGuestSvcConfirmed` are true.
+
+The IPA is frozen at `22df4502db21ee1bcd68e15c1791aeba1a826658`, retaining RPCS3
+Core 513. A later independent RPCS3 push (`a6986029`) remains on Claude and is not
+silently mixed into this already-tested candidate. The first delivery attempt
+passed final signature, bundle, ABI and memory-entitlement checks, then a skipped
+concurrent workflow cancelled it during compilation-cache preparation before
+upload. The delivery concurrency rule is now isolated and future IPA uploads
+precede cache work. Recovery reruns the original job on its original tested
+source; it does not rebuild the validated MeloNX engine or replay Flutter tests.
+Final download identity and independent verification follow in the delivery receipt.
+
 No connected iPhone, personal game, personal keys or personal firmware is
 available to this environment. Installed-signature entitlements, StikJIT or
 LocalDevVPN authorization on that phone, compatibility of the user's selected
@@ -98,3 +122,22 @@ The prepared IPA uses ad hoc signatures; SideStore/AltStore must apply the user'
 Apple signing/provisioning. Declared entitlements and the capabilities actually
 granted to the installed process are separate checks. No release, tag or main
 update is authorized or performed.
+
+## Delivered candidate
+
+[GitHub Actions attempt 2](https://github.com/TarbleFR/RewindBox/actions/runs/39979130143/attempts/2)
+completed successfully. Artifact `12515825796` was downloaded, its encrypted ZIP
+SHA-256 checked, and its IPA decrypted and independently verified against source
+`22df4502db21ee1bcd68e15c1791aeba1a826658`. The 186,162,249-byte IPA is
+`92e3ed7938db64b6bc96146a06cdfdb85811062b71663e39d3f746c13a4a2564`.
+All six private MeloNX frameworks and 39 NativeAOT exports are present. Signature
+checks passed for all bundled executable images; compiled code/data and ABI
+fingerprints stayed unchanged through signing. Both required memory entitlements
+are declared. Apple re-signing and the installed phone's actual granted
+entitlements are separate, unverified steps. No Nintendo content, keys or firmware
+is bundled. The one-off investigation/cancellation/recovery workflows were retired
+after delivery; the permanent launch checks and corrected delivery rules remain.
+
+The [delivery receipt](evidence/melonx-launch514-delivery.json) contains the exact
+component runs, hashes, tests, initial failure distinction, recovered delivery and
+physical-device limitations. No release, tag or main modification was made.

@@ -1,0 +1,216 @@
+{
+  "build": 514,
+  "applicationVersion": "0.0.8",
+  "branch": "Claude",
+  "assemblyCommit": "22df4502db21ee1bcd68e15c1791aeba1a826658",
+  "nativeCoreCommit": "e050961d6caabfabdef57dd140c774545976d0fd",
+  "nativeUpstreamCommit": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "ipa": {
+    "fileName": "RewindBox-Build514.ipa",
+    "bytes": 186162249,
+    "sha256": "92e3ed7938db64b6bc96146a06cdfdb85811062b71663e39d3f746c13a4a2564",
+    "encryptedArtifactId": 12515825796,
+    "encryptedArtifactSHA256": "fe2e2c19a58c026bbd1c034e5711d40811e01105c4407a36a1f493bbf27c5ffc",
+    "downloadDecryptionAndChecksumsVerified": true
+  },
+  "delivery": {
+    "run": 39979130143,
+    "attempt": 2,
+    "job": 120514997048,
+    "conclusion": "success",
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/39979130143/attempts/2",
+    "frozenSourceVerifiedIndependently": true
+  },
+  "componentProofs": {
+    "core": {
+      "run": 39978893582,
+      "job": 120500650095,
+      "source": "e050961d6caabfabdef57dd140c774545976d0fd",
+      "artifact": 12513890182,
+      "conclusion": "success"
+    },
+    "swiftHost": {
+      "run": 39972191758,
+      "source": "7f88ee9be1681f10dcc66f0996ee9eaffbdb51c0",
+      "conclusion": "success"
+    },
+    "flutter": {
+      "run": 39972191726,
+      "source": "7f88ee9be1681f10dcc66f0996ee9eaffbdb51c0",
+      "conclusion": "success"
+    },
+    "preservedRPCS3": {
+      "run": 39968584447,
+      "source": "c5e54c5817f848e6f667b757931f91364e9faeda"
+    }
+  },
+  "actualSimulatorRuntime": {
+    "actualDarwinThreeArgumentHandlersVerified": true,
+    "actualNativeAOT": true,
+    "actualSimulatorCodeArenaVerified": true,
+    "gameplayTested": false,
+    "graphicsAccepted": true,
+    "homebrewProducesVideo": false,
+    "homebrewSimulatorSessions": 2,
+    "initializationAndIdempotency": true,
+    "invalidContentRejected": true,
+    "invalidGraphicsCodePreserved": true,
+    "invalidGuestRejected": true,
+    "invalidSaveAssociationRejected": true,
+    "iphoneGuestExecutionTested": false,
+    "jitTested": false,
+    "missingKeysRejectedBeforeGuest": true,
+    "originalHomebrewGuestSvcConfirmed": true,
+    "result": "passed",
+    "storageProfilesRecognized": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+    "coreSha256": "7a96a31283b597d571d2cf782900414ce3ef27f8cedc0a73cd841956b31563c1",
+    "inputs": {
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "3b2dd81f65c177ce461aa5bbba1feac4a0445cb137f0e6b7ce789a5ad6920a73",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "913eb462b1047772787d8170e2fd0a0000b9cad843419420cf68353bbdd83fd1",
+      "test/melonx_runtime_smoke.py": "25b3c657ff8889cee5935b184ac0e1bc9745bdf633f36405f33703c87f674155"
+    }
+  },
+  "targetedTests": {
+    "productionPreflightJournalChecks": 13,
+    "productionNroAssetChecks": 10,
+    "dartLaunchScenarios": 9,
+    "audioFinalizationScenarios": 5,
+    "priorAudioReturnCyclesRetained": 100,
+    "darwinLiveSignalsAndBothIosSdkLayouts": "passed",
+    "nativeSimulatorSessions": 2
+  },
+  "independentLaunchValidation": {
+    "result": "passed",
+    "build": 514,
+    "ipaSHA256": "92e3ed7938db64b6bc96146a06cdfdb85811062b71663e39d3f746c13a4a2564",
+    "newLaunchExports": [
+      "_neostation_melonx_diagnostics",
+      "_neostation_melonx_diagnostics_abi",
+      "_neostation_melonx_prepare_jit"
+    ],
+    "declaredMemoryEntitlements": {
+      "com.apple.developer.kernel.extended-virtual-addressing": true,
+      "com.apple.developer.kernel.increased-debugging-memory-limit": true,
+      "com.apple.developer.kernel.increased-memory-limit": true,
+      "get-task-allow": true
+    },
+    "signedUserInstallationEntitlementsVerified": false,
+    "physicalDeviceTested": false,
+    "privateFrameworks": [
+      "MeloNXAvCodec",
+      "MeloNXAvUtil",
+      "MeloNXCore",
+      "MeloNXJitSupport",
+      "MeloNXMoltenVK",
+      "MeloNXSDL3"
+    ],
+    "personalContentBundled": false
+  },
+  "independentNativeValidation": {
+    "result": "passed",
+    "build": "514",
+    "engineExportsVerified": 39,
+    "privateFrameworks": [
+      "MeloNXAvCodec",
+      "MeloNXAvUtil",
+      "MeloNXCore",
+      "MeloNXJitSupport",
+      "MeloNXMoltenVK",
+      "MeloNXSDL3"
+    ],
+    "nativeSourceNoticesVerified": 26,
+    "registeredFlutterBridge": true,
+    "gameplayTested": false,
+    "deviceInstallationTested": false
+  },
+  "independentBundleValidation": {
+    "result": "passed",
+    "build": "514",
+    "bundle": "com.neogamelab.neostation",
+    "ipaBytes": 186162249,
+    "engineSource": "e050961d6caabfabdef57dd140c774545976d0fd",
+    "engineOriginalSHA256": "e0c44903438354c9af383e403a202aefeb8f8a912f0ec7bfc3d671768ff0d549",
+    "engineExports": 39,
+    "privateFrameworks": [
+      "MeloNXAvCodec",
+      "MeloNXAvUtil",
+      "MeloNXCore",
+      "MeloNXJitSupport",
+      "MeloNXMoltenVK",
+      "MeloNXSDL3"
+    ],
+    "proprietaryContentBundled": false,
+    "physicalDeviceTested": false
+  },
+  "signatures": {
+    "verifiedBundlesAndImages": 86,
+    "allAdHocSignaturesVerified": true,
+    "compiledCodeDataAndAbiUnchangedBySigning": true,
+    "personalAppleReSigningRequired": true,
+    "installedDeviceEntitlementsVerified": false
+  },
+  "latestSuppliedJournal": {
+    "file": "app(5).log",
+    "bytes": 4271413,
+    "lines": 44842,
+    "loggerInitializationBoundaries": 470,
+    "lastBoundaryLine": 44705,
+    "lastLaunchEndTimesUtc": [
+      "2026-10-23T13:48:57.796081Z",
+      "2026-10-23T13:49:05.817338Z"
+    ],
+    "exactFirstRefusalCauseEstablished": false,
+    "reason": "The original device journal discarded native launch details. Earlier NCA errors are outside the final app section.",
+    "temporaryImportBytesCleaned": 6172971680,
+    "importCopyAndDatabaseAlgorithmsModified": false
+  },
+  "reproducedBlockers": [
+    "Missing embedded MoltenVK resolver: Vk.CreateDefaultContext FileNotFoundException before the native window.",
+    "Linux sigaction layout/SA_SIGINFO used on Darwin, exposing an invalid fault-handler path.",
+    "LibHac alpha.129 OpenNroAssetSection NullReferenceException when optional ASET is absent."
+  ],
+  "historicalNcaErrors": [
+    "HeaderKey is empty. Cannot decrypt NCA headers.",
+    "Unable to decrypt NCA section.",
+    "key_area_key_application_16"
+  ],
+  "userContentAndPhone": {
+    "personalKeysOrFirmwareReceived": false,
+    "proprietaryContentBundled": false,
+    "personalProdKeysTitleKeysFirmwareLoadedOnPhone": "unverified; device and personal files unavailable",
+    "key_area_key_application_16StillRequiredForUserContent": "unverified; content and available key revision cannot be inspected here",
+    "installedSigningAndStikJitLocalDevVpnAuthorization": "unverified on physical iPhone",
+    "firstGameMetalFrameOnPhone": "unverified",
+    "physicalPhoneGameplayTested": false,
+    "phonePlaylistReturnAudioTouchAndController": "unverified on physical iPhone",
+    "nativeLaunchSuccessRequires": [
+      "actual JIT mapping confirmation",
+      "real CAMetalDrawable presentedTime"
+    ]
+  },
+  "preservation": {
+    "motionLiquidGlassPlaylistsCoversMainBarAirPlayOtherEnginesCatalogues": "Source inputs preserved from the tested 512/513 candidate; signed bundle checks passed.",
+    "laterConcurrentRPCS3CommitRetainedOnClaude": "a69860297d7b26dbb688df0daf16a31b42046462",
+    "laterConcurrentRPCS3CommitIncludedInThisFrozenIPA": false,
+    "jitBackendPreferenceChanged": false,
+    "internalVpnAdded": false,
+    "userGamesSavesKeysFirmwareProfilesDeletedOrReimported": false
+  },
+  "deliveryRecovery": {
+    "originalCancelledJob": 120505909551,
+    "originalAttemptPassedFinalBundleAndSigningChecks": true,
+    "cause": "A skipped workflow triggered by the concurrent RPCS3 commit used the same cancellation group.",
+    "recoveryControllerRun": 39983023290,
+    "diagnosticReplacementControllerRun": 39983370768,
+    "concurrencyIsolationAndUploadBeforeCacheCorrected": true,
+    "oneOffInvestigationAndRecoveryWorkflowsRetired": true
+  },
+  "desktopDownloadsCopy": {
+    "completed": false,
+    "reason": "Desktop Commander device Corentin remained offline."
+  },
+  "releasePublished": false,
+  "tagCreated": false,
+  "mainModified": false
+}
