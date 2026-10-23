@@ -26,7 +26,7 @@ enum rpcs3_ios_state { RPCS3_IOS_STATE_UNINITIALIZED, RPCS3_IOS_STATE_INITIALIZI
     RPCS3_IOS_STATE_READY, RPCS3_IOS_STATE_FAILED };
 struct rpcs3_ios_config { const char* application_support_path; const char* cache_path;
     unsigned expanded_jit_arena; };
-std::vector<std::string> events;
+std::vector<std::string> events, arena_observations;
 std::string failure_stage;
 std::string error;
 int listeners = 0;
@@ -36,6 +36,7 @@ bool step(const char* name) { events.emplace_back(name); return failure_stage !=
 void emit_diagnostic(std::string) noexcept {}
 void emit_jit_diagnostic(const char*) noexcept {}
 void emit_log(int, std::string) {}
+void emit_jit_arena_statistics(std::string_view phase) { arena_observations.emplace_back(phase); }
 void set_error(std::string value) { error = std::move(value); }
 namespace fmt { template <typename T> std::string format(const char* text, T) { return text; } }
 namespace fs {
@@ -72,7 +73,7 @@ namespace spu_runtime { bool initialize_static_trampolines(std::string&) { retur
 '''
 SCENARIOS = r'''
 void reset(const char* fail) {
-    events.clear(); failure_stage = fail; error.clear(); listeners = 0;
+    events.clear(); arena_observations.clear(); failure_stage = fail; error.clear(); listeners = 0;
     g_lifecycle = {}; g_initialization_attempted = false; g_log_listener.reset();
     universal = true; issue_command = true;
 }
@@ -82,6 +83,7 @@ int main() {
         reset(stage);
         assert(rpcs3_ios_initialize(&config) != RPCS3_IOS_OK);
         assert(events.back() == "detach");
+        assert(arena_observations.size() == (failure_stage == "paths" || failure_stage == "ready" ? 0u : failure_stage == "seal" ? 2u : 1u));
         assert(error.find("original mapping error") != std::string::npos || failure_stage == "paths");
         const bool early = failure_stage == "paths" || failure_stage == "ready" || failure_stage == "arena";
         assert(g_initialization_attempted == !early);

@@ -1,5 +1,7 @@
 # Generated diff is data; preserve upstream whitespace in the canonical postimage.
 build-utils/rpcs3/embedded-core.patch -whitespace
+# Exact reviewed inverse used by the historical whole-file hash control.
+test/fixtures/rpcs3_memory_audit/JITLLVM.diff -whitespace
 build-utils/armsx2/neostation-core.patch -whitespace
 
 # Upstream notices are hashed byte-for-byte; do not convert line endings.

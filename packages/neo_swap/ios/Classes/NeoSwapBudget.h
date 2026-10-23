@@ -39,6 +39,7 @@ enum class State : std::uint32_t {
 
 struct Inputs {
     bool session_active = false;
+    std::uint64_t compiler_working_set_estimate_bytes = 0;
     std::uint64_t physical_bytes = 0;
     // TASK_VM_INFO.phys_footprint of the host and os_proc_available_memory().
     // Process ledger. phys_footprint is exported for display and ratios only:
@@ -215,7 +216,7 @@ constexpr Decision decide(const Inputs& in, const Decision& previous) noexcept {
                                              in.storage_archived_live_bytes);
     const bool os_pressure = in.dispatch_warning || in.system_pressure == Pressure::warning ||
                              in.system_pressure == Pressure::critical;
-    out.operational_reserve_bytes = operational_reserve(in.physical_bytes, os_pressure || in.thermal_serious);
+    out.operational_reserve_bytes = saturating_add(operational_reserve(in.physical_bytes, os_pressure || in.thermal_serious), in.compiler_working_set_estimate_bytes);
     // Measured host envelope: the session high-water mark of footprint plus
     // headroom. The previous decision carries the mark; a session start (no
     // previous estimate) takes the first valid sample as is.

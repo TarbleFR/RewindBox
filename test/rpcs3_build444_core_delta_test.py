@@ -78,7 +78,8 @@ require('jit_phase::scope phase_timer(m_spu ? jit_phase::spu_cache_write : jit_p
         'object cache write is not measured')
 require('jit_phase::scope phase_timer(read_phase, utils::get_tsc);' in jit and
         'jit_phase::phase read_phase = jit_phase::ppu_cache_read' in jit and
-        'phase_timer.bytes = out.size();' in jit, 'object cache read is not measured with its decompressed size')
+        'phase_timer.bytes = output_size;' in jit and
+        'jit_object_buffer::inflate(compressed_size, read_at, buf->getBufferStart(), output_size)' in jit, 'object cache read is not measured with its decompressed size')
 require(jit.count('const jit_phase::scope phase_timer(jit_phase::ppu_codegen, utils::get_tsc);\n\t\tm_engine->generateCodeForModule(ptr);') == 2,
         'both cached add() paths must time code generation')
 require('jit_phase::scope phase_timer(jit_phase::ppu_object_load, utils::get_tsc);' in jit and
