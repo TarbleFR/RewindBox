@@ -147,9 +147,8 @@ static std::array<char, 0x420> saved_name(std::string_view value)
     name[value.size()] = '\0';
     return name;
 }
-static utils::serial file_archive(lv2_file_type type, s32 flags, bool memory, u64 size = 0)
+static void file_archive(utils::serial& ar, lv2_file_type type, s32 flags, bool memory, u64 size = 0)
 {
-    utils::serial ar;
     const auto name = saved_name("/dev_hdd0/game/TEST/file");
     const s32 mode = 0600;
     const u32 lock = 7;
@@ -168,11 +167,11 @@ static utils::serial file_archive(lv2_file_type type, s32 flags, bool memory, u6
             const std::vector<u8> bytes(size, 0x5a); ar(std::span<const u8>(bytes));
         }
     }
-    const s64 seek = 9; ar(seek); ar.set_reading_state(); return utils::serial(std::move(ar));
+    const s64 seek = 9; ar(seek); ar.set_reading_state(); return;
 }
-static utils::serial dir_archive(u64 count)
+static void dir_archive(utils::serial& ar, u64 count)
 {
-    utils::serial ar; ar(saved_name("/dev_hdd0/game/TEST")); ar.serialize_vle(count);
+    ar(saved_name("/dev_hdd0/game/TEST")); ar.serialize_vle(count);
     if (count < 1024)
     {
         for (u64 i = 0; i < count; ++i)
@@ -181,7 +180,7 @@ static utils::serial dir_archive(u64 count)
             fs::stat_t stat; stat.size = i; ar(name, stat);
         }
     }
-    const u64 pos = 1; ar(pos); ar.set_reading_state(); return utils::serial(std::move(ar));
+    const u64 pos = 1; ar(pos); ar.set_reading_state(); return;
 }
 static void allocation_terminate()
 {
@@ -214,8 +213,8 @@ int main(int argc, char** argv)
     if (argc > 1)
     {
         std::set_terminate(allocation_terminate);
-        if (std::string_view(argv[1]) == "file-size-overflow") { auto ar = file_archive(lv2_file_type::regular, 0, true, ~u64{0}); lv2_file file(ar); }
-        else { auto ar = dir_archive(~u64{0}); lv2_dir dir(ar); }
+        if (std::string_view(argv[1]) == "file-size-overflow") { utils::serial ar; file_archive(ar, lv2_file_type::regular, 0, true, ~u64{0}); lv2_file file(ar); }
+        else { utils::serial ar; dir_archive(ar, ~u64{0}); lv2_dir dir(ar); }
         return 8;
     }
     unsigned cases = 0;
@@ -230,7 +229,7 @@ int main(int argc, char** argv)
     for (bool memory : {false, true})
     {
         g_fxo->keys = {};
-        auto ar = file_archive(type, access | 000100 | 001000 | 002000, memory, 37);
+        utils::serial ar; file_archive(ar, type, access | 000100 | 001000 | 002000, memory, 37);
         const auto saved = ar.data; const auto old_opens = opens;
         lv2_file file(ar);
         ensure(ar.pos == ar.data.size() && ar.data == saved && opens == old_opens + 1);
@@ -246,7 +245,7 @@ int main(int argc, char** argv)
     std::size_t first_dir_read = 0, first_dir_size = 0;
     for (u64 count : {0u, 1u, 9u, 127u, 128u, 257u})
     {
-        auto ar = dir_archive(count); const auto saved = ar.data;
+        utils::serial ar; dir_archive(ar, count); const auto saved = ar.data;
         lv2_dir dir(ar);
         const bool restored = ar.pos == ar.data.size() && ar.data == saved && dir.entries.size() == count && dir.pos == 1;
         if (count == 1) { first_dir_read = ar.pos; first_dir_size = ar.data.size(); }

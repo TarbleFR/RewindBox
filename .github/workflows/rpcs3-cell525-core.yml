@@ -8,6 +8,9 @@ run-name: "RPCS3 CELL525 iPhone Core \u2022 ${{ github.sha }}"
     - .github/workflows/rpcs3-cell525-core.yml
     - .github/diagnostics/rpcs3cell525_core.py
     - build-utils/rpcs3/**
+    - test/*525*
+    - test/native/*525*
+    - test/fixtures/rpcs3*525.diff
   workflow_dispatch: {}
 permissions:
   contents: read
