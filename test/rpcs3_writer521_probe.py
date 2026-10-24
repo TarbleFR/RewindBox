@@ -29,13 +29,13 @@ if __name__=='__main__':
   if sdk:=os.environ.get('HOST_MACOS_SDK'):cxx+=['-isysroot',sdk]
   if platform.machine() in ('arm64','aarch64'):cxx+=['-march=armv8.4-a']
   flags=['-fsanitize=address,undefined','-fno-omit-frame-pointer'] if a.sanitize else []
-  subprocess.run([*cxx,'-std=c++20','-O3','-Wall','-Wextra','-Werror','-Wno-misleading-indentation','-pthread','-DRPCS3_IOS',*flags,'-I',str(work),str(ROOT/'test/native/rpcs3_writer521_probe.cpp'),'-o',str(work/'probe')],check=True)
-  subprocess.run([str(work/'probe'),str(out/'measurements.json')],check=True,timeout=240)
+  subprocess.run([*cxx,'-std=c++20','-O3','-Wall','-Wextra','-Werror','-Wno-misleading-indentation','-pthread','-DRPCS3_IOS',*flags,'-I',str(work),'-I',str(ROOT/'test/native'),str(ROOT/'test/native/rpcs3_writer521_probe.cpp'),'-o',str(work/'probe')],check=True)
+  subprocess.run([str(work/'probe'),str(out/'measurements.json')],check=True,timeout=300,env=dict(os.environ,WRITER_PROBE_ITERATIONS='3000') if a.sanitize else None)
   (out/'candidate-destructor.txt').write_text(after+'\n')
  report=json.loads((out/'measurements.json').read_text());report.update(source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
   originalDestructorSHA256=hashlib.sha256(before.encode()).hexdigest(),candidateDestructorSHA256=hashlib.sha256(after.encode()).hexdigest(),
   recordMethodSHA256=hashlib.sha256(recorder.encode()).hexdigest(),maximumMethodSHA256=hashlib.sha256(maximum.encode()).hexdigest(),
-  method='12 alternating rounds, discard first 2; median/min/max of 10 rounds; 50000 operations per thread; includes acquisition, protected payload and 3 atomic counters + maximum',
+  method='15 rotated three-variant rounds, discard first 3; median/min/max of 12 rounds; 300000 operations per thread (3000 with sanitizers); includes acquisition, protected payload and 3 atomic counters + maximum',
   platform=platform.platform(),hardware=subprocess.check_output(['sysctl','-n','machdep.cpu.brand_string'],text=True).strip() if platform.system()=='Darwin' else platform.machine(),
-  sanitizer=a.sanitize,productionChanged=False)
+  sanitizer=a.sanitize,productionChanged=False,shardHeaderSHA256=hashlib.sha256((ROOT/'test/native/rpcs3_writer521_shards.h').read_bytes()).hexdigest())
  (out/'measurements.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
