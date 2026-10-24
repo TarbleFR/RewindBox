@@ -190,7 +190,7 @@
     }
   },
   "ipa": {
-    "status": "prepared; private workflow not yet run",
+    "status": "success",
     "baselineCacheKey": "neostation-device-v2-macOS-ARM64-xcode26.3-flutter3.47.2-c1f550f8be86c91d65dc564ebddff593f2e3fe46-523-09b8aa7d1bc439098e74eaba3735094714b3cd5740c469e7c84be8dd2fec6336-normal",
     "baselinePayloadFixtureSHA256": "a4cbe634f3eb9cc06ae115b47553b9c3813ce4c7ef72a80111289def4774f13a",
     "appCodeRecompiled": false,
@@ -207,7 +207,162 @@
         "diagnosticsArtifact": 12566763252,
         "diagnosticsArchiveSHA256": "f4d21d35051532c9428cabec7042aaa84fc5c750ef576ecb4f8f919bdfd2ed82"
       }
-    ]
+    ],
+    "source": "2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787",
+    "run": 40112137356,
+    "job": 120925891764,
+    "build": 524,
+    "version": "0.0.8",
+    "bytes": 186623530,
+    "sha256": "3a3de8f038dfc59df65f40e0064c04b6414d80d51e3019b0ad9ae05cdde3634f",
+    "transportArtifacts": [
+      {
+        "index": 0,
+        "id": 12566873267,
+        "name": "RewindBox-Build-524-2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787-core-reuse-part00",
+        "digest": "sha256:404034f98c7c0fc89b7ea4e92a46483c5183341e77e3a4e2b54208665cf3c1bc"
+      },
+      {
+        "index": 1,
+        "id": 12567330920,
+        "name": "RewindBox-Build-524-2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787-core-reuse-part01",
+        "digest": "sha256:a73f1002478071b0527087bd7d2d38628fb298de10c96def03160d4996ae2983"
+      },
+      {
+        "index": 2,
+        "id": 12566664406,
+        "name": "RewindBox-Build-524-2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787-core-reuse-part02",
+        "digest": "sha256:8fe94315584ebe1a60b9c0dd4780626a922ee929cf0e89cd1a6d924f577de74d"
+      },
+      {
+        "index": 3,
+        "id": 12566838467,
+        "name": "RewindBox-Build-524-2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787-core-reuse-part03",
+        "digest": "sha256:736ca2740711574d9894a8ce9f61707ecbb485b7b830dda4a0b24a316e242174"
+      }
+    ],
+    "encryptedTransportSHA256": "d32e0e4d27e054900befde11c9da348d2b34884e3b8ccdb6652eabd6799d48d8",
+    "allTransportZipAndPartHashesVerified": true,
+    "safeTarExtraction": true,
+    "plaintextChecksumVerified": true,
+    "independentValidation": {
+      "result": "passed",
+      "build": 524,
+      "ipaSHA256": "3a3de8f038dfc59df65f40e0064c04b6414d80d51e3019b0ad9ae05cdde3634f",
+      "coreSource": "a7a109b955d2e60de005fd663eb4391f6c93e88d",
+      "coreRun": 40110663507,
+      "sourceArtifactSHA256": "382bd3e2b27eb186c059fde7b5294de33f1334117ee2f593957b76658625fff0",
+      "compiledCorePayloadFingerprint": "0bc7fcfa88c6295bc84411c6a79642235472cebb9dedadbd19584942d81cfec6",
+      "sharedCompilerBrokerLinked": true,
+      "optionalCoreBinderLinked": true,
+      "productionMinimalSPULinkerEnabled": false,
+      "physicalDeviceTested": false,
+      "physicalPerformanceMeasured": false,
+      "gow3BootAndVmaSourceVerified": true,
+      "compiledAppSource": "c1f550f8be86c91d65dc564ebddff593f2e3fe46",
+      "compiledAppRun": 40104064265,
+      "appCodeRecompiled": false,
+      "unchangedOtherARM64Images": 86,
+      "preservedAssetEntries": 4410,
+      "preservedAssetRootSHA256": "754e938ac9214f564d2e1cbe7202f45e37661337d94037b9de9a307cde3c5407",
+      "allRuntimeEntitlementsUnchanged": true,
+      "extensionVersionsChecked": 7,
+      "nativeSourceAndLicensesRetained": true,
+      "ipaBytes": 186623530,
+      "version": "0.0.8",
+      "minimumIOS": "18.0",
+      "nativeNonLinkeditSegmentsUnchanged": true,
+      "packagedCoreSHA256": "7b5270dfc603d8acbc6f530ee13147547e7f2874e96020074f202ba00f72c1db",
+      "allSealedThinImagesVerified": 84,
+      "distribution": {
+        "ipa": "RewindBox-Build524.ipa",
+        "installationUnits": 1,
+        "hostBundleIdentifier": "com.neogamelab.neostation",
+        "embeddedExtensions": [
+          {
+            "bundle": "ARMSX2JITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.armsx2jithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "DolphinJITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.dolphinjithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "MeloNXJITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.melonxjithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "MeloNXRamDonor.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.melonxramdonor",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "NeoSwapDonor.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.neoswapdonor",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "NeoSwapPageRelay.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.NeoSwapPageRelay",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "RPCS3JITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.rpcs3jithelper",
+            "extensionPoint": "com.apple.share-services"
+          }
+        ],
+        "embeddedPacketTunnelPresent": false,
+        "networkExtensionEntitlementPresent": false,
+        "externalJITTransport": "LocalDevVPN",
+        "userSignsOneIPA": true,
+        "neoSwapDonorRequestedEntitlements": {
+          "get-task-allow": true,
+          "com.apple.developer.kernel.increased-memory-limit": true,
+          "com.apple.developer.kernel.increased-debugging-memory-limit": true
+        },
+        "neoSwapDonorCount": 1,
+        "neoSwapRelayCount": 1,
+        "neoSwapRelayRequestedEntitlements": {
+          "get-task-allow": true,
+          "com.apple.developer.kernel.increased-memory-limit": true,
+          "com.apple.developer.kernel.increased-debugging-memory-limit": true
+        },
+        "neoSwapRelayEffectiveDeviceProfileValidated": false,
+        "neoSwapRelayResidentMemoryValidated": false,
+        "neoSwapDonorProcessInstancesValidated": false,
+        "neoSwapDonorEffectiveDeviceProfileValidated": false,
+        "deviceRuntimeTested": false,
+        "nestedSigningOrder": [
+          "NeoStation.app/PlugIns/ARMSX2JITHelper.appex",
+          "NeoStation.app/PlugIns/DolphinJITHelper.appex",
+          "NeoStation.app/PlugIns/MeloNXJITHelper.appex",
+          "NeoStation.app/PlugIns/MeloNXRamDonor.appex",
+          "NeoStation.app/PlugIns/NeoSwapDonor.appex",
+          "NeoStation.app/PlugIns/NeoSwapPageRelay.appex",
+          "NeoStation.app/PlugIns/RPCS3JITHelper.appex",
+          "NeoStation.app"
+        ],
+        "machOImagesCheckedForVPNEntitlements": 87
+      },
+      "signatureCount": 87,
+      "ciStrictSignaturesAllVerified": true,
+      "installationMethod": "SideStore re-signing",
+      "appleProvisioningVerified": false
+    },
+    "legalValidation": {
+      "status": "passed",
+      "actualFinalIPA": true,
+      "commit": "2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787",
+      "build": 524
+    },
+    "privateDistribution": true,
+    "githubReleaseCreated": false,
+    "tagCreated": false,
+    "mainModified": false
   },
   "knownLogLimit": "No new Build523 device capture; recorded Build522 stop is in PPU restoration, not a demonstrated occurrence of aborted HLE save finalization.",
   "physicalDeviceTested": false,

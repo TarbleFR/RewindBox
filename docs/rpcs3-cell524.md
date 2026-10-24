@@ -1,9 +1,10 @@
 # RPCS3 524 — réveil HLE après refus de création d'une sauvegarde
 
 Reprise sur `Claude` depuis le rapport Build 523, `1f850395`, sans nouveau
-journal appareil ni changement distant. La Build 523 privée reste la dernière
-IPA validée tant que la compilation et la livraison décrites ici ne sont pas
-terminées. Aucun changement de `main`, tag ou release n'est autorisé.
+journal appareil ni changement distant. Le Core 524 est compilé et l'IPA privée
+524 est assemblée depuis le binaire d'application 523 inchangé. Les octets
+finalement téléchargés ont été vérifiés. Aucun changement de `main`, tag ou
+release GitHub n'est produit.
 
 ## Défaut démontré dans le code
 
@@ -55,7 +56,7 @@ formatage propres au test. Cela ne constitue pas un essai Apple ou iPhone.
 
 Le [reçu détaillé](evidence/rpcs3-cell524-validation.json) conserve les sources,
 résultats et limites. L'essai du backend natif Apple `os_sync_wait_on_address`
-doit passer dans la compilation dédiée avant toute livraison.
+a passé la compilation dédiée et les 20 cas avant la livraison.
 
 ## Sources, périmètre et validation
 
@@ -103,10 +104,41 @@ Les trois images universelles sont comparées sur leur tranche ARM64 utilisable.
 Le test sur l'IPA réelle accepte le changement de numéro et refuse un identifiant
 ou une instruction de l'application modifiés. Aucun binaire d'IPA externe n'est utilisé.
 
-L'IPA 524 reste **en attente d'assemblage et vérification**. La préparation conserve
-les notices originales et ajoute le delta canonique, son manifeste et la recette
-native au paquet de sources. Elle resigne le paquet avec le cœur source compilé ;
-aucune nouvelle campagne Flutter n'est lancée.
+La **Build 524**, version **0.0.8**, est assemblée depuis
+`2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787` :
+[Actions 40112137356](https://github.com/TarbleFR/RewindBox/actions/runs/40112137356),
+job `120925891764`, réussi. Aucune nouvelle compilation Flutter n'est lancée.
+Le paquet conserve les notices et relevés de l'application compilée 523 et
+ajoute le delta canonique, son manifeste et la recette native aux sources incluses.
+Le registre de provenance distingue l'ancien binaire hôte de l'assemblage 524.
+
+Les quatre archives de transport ont été téléchargées, vérifiées contre leurs
+empreintes GitHub et leur manifeste commun, assemblées et déchiffrées.
+L'IPA finale fait **186623530 octets**, SHA-256 :
+`3a3de8f038dfc59df65f40e0064c04b6414d80d51e3019b0ad9ae05cdde3634f`.
+Le Core provient de l'artefact natif vérifié ; ses sections et segments hors
+LINKEDIT sont conservés après signature. Les 86 autres images ARM64 et les
+ressources normalisées du témoin correspondent. Les versions des sept extensions
+sont alignées à 524. Les entitlements restent identiques, sans VPN interne.
+Les 87 signatures ad hoc passent les contrôles stricts macOS ; le ZIP téléchargé,
+les 84 images fines du reçu de scellement et ses tranches universelles sont revérifiés.
+Les sources/notices passent aussi le validateur sur l'IPA finale.
+
+Application : iOS 18.0, CPU compatible ARMv8.4-A, **re-signature SideStore requise**.
+Les essais sur iPhone restent à faire : installation Apple, lancement, chemins ISO,
+JIT, manette, pause/reprise, fermeture et second lancement. Le blocage de restauration PPU de God of War III reste
+non expliqué en l'absence de capture après la livraison 523/524. Le lien privé
+est remis dans la conversation ; aucune release GitHub n'est publiée.
+
+Pour revérifier l'IPA depuis ce commit d'assemblage :
+
+```sh
+python3 build-utils/rpcs3_cell524_package.py --validate RewindBox-Build524.ipa
+```
+
+L'essai sur appareil doit notamment confirmer qu'un refus de création n'empêche
+pas la reprise audio/vidéo, puis vérifier pause, fermeture et nouveau lancement.
+Les créations et restaurations se testent avec des copies des sauvegardes originales.
 
 Le premier assemblage `40111780603` a validé la reprise exacte du binaire et
 des ressources, puis a refusé la perte d'un ancien relevé SDK/plugin pendant
