@@ -17,7 +17,7 @@ PRODUCT={'native/neoswap-storage/FrameClient.h','native/neoswap-storage/SourceCl
  'native/neoswap-storage/tests/frame_archive_test.cpp','native/neoswap-storage/tests/source_archive_test.cpp',
  'packages/neo_swap/ios/Classes/NeoSwap.cpp'}
 ASSEMBLY={'.github/diagnostics/rpcs3cell522_delivery.py','.github/workflows/rpcs3-cell522-delivery.yml',
- 'build-utils/delivery-521-rpcs3-recipient.pem','build-utils/validate_rpcs3_cell522_ipa.py',
+ 'build-utils/delivery-522-rpcs3-recipient.pem','build-utils/validate_rpcs3_cell522_ipa.py',
  'build-utils/analyze_rpcs3_cell_sessions.py','docs/rpcs3-cell522.md',
  'docs/evidence/rpcs3-cell522-log-baseline.json','docs/evidence/rpcs3-cell522-validation.json'}
 def validate_rpc_core_identity(identity):
