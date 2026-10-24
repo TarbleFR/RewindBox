@@ -97,6 +97,9 @@ def prepare(source, directory):
     for name in changed:
         assert not re.search(r'\bspu\.(?!gpr\b)\w+', a[name] + b[name]), name
     (directory / 'native-gv.hpp').write_text(common)
+    byte_helpers = '\n'.join(support[name][0] for name in
+        ('gv_rotl128_bytes', 'gv_shl128_bytes', 'gv_shr128_bytes'))
+    (directory / 'byte-bounds.cpp').write_text('#include <algorithm>\n#include <array>\n#include <cstring>\n#include <iostream>\n#include "util/v128.hpp"\n' + byte_helpers + 'int main()\n{\n    std::array<u32,260> counts{};\n    for(u32 i=0;i<256;++i)counts[i]=i;\n    counts[256]=0xffffffffu;counts[257]=0xfffffffeu;counts[258]=256;counts[259]=1024;\n    u32 random=0x14922f7;\n    u64 checks=0;\n    for(u32 iteration=0;iteration<256;++iteration)\n    {\n        v128 input;\n        for(u32 i=0;i<16;++i){random^=random<<13;random^=random>>17;random^=random<<5;input._u8[i]=u8(random);}\n        for(u32 count:counts)\n        {\n            const v128 actual[3]={gv_rotl128_bytes(input,count),gv_shl128_bytes(input,count),gv_shr128_bytes(input,count)};\n            v128 expected[3]{};\n            for(u32 i=0;i<16;++i)\n            {\n                expected[0]._u8[i]=input._u8[(i-(count&15))&15];\n                if(count<16 && i>=count)expected[1]._u8[i]=input._u8[i-count];\n                if(count<16 && i+count<16)expected[2]._u8[i]=input._u8[i+count];\n            }\n            for(u32 operation=0;operation<3;++operation)\n            {\n                if(std::memcmp(&actual[operation],&expected[operation],sizeof(v128)))\n                {\n                    std::cerr<<"byte window mismatch: operation="<<operation<<" count="<<count<<\'\\n\';\n                    return 1;\n                }\n                ++checks;\n            }\n        }\n    }\n    std::cout<<"{\\"helper_comparisons\\":"<<checks<<",\\"count_values\\":260,\\"input_vectors\\":256,\\"includes_uint32_max\\":true,\\"shift_counts_at_least_16_are_zero\\":true}\\n";\n}\n')
     (directory / 'instructions.hpp').write_text(
         'namespace baseline {\n' + '\n'.join('__attribute__((noinline' + (', no_sanitize(\"signed-integer-overflow\")' if x == 'ROTQMBI' else '') + ')) ' + b[x] for x in changed) + '\n}\n'
         'namespace candidate {\n' + '\n'.join('__attribute__((noinline)) ' + a[x] for x in changed) + '\n}\n'
@@ -137,6 +140,7 @@ def main():
     parser.add_argument('--sanitize', action='store_true')
     parser.add_argument('--benchmark', action='store_true')
     parser.add_argument('--keep-generated', type=Path)
+    parser.add_argument('--byte-bounds-only', action='store_true')
     args = parser.parse_args()
     source = (args.source_option or args.source).resolve()
     compiler = shlex.split(os.environ.get('CXX', 'c++'))
@@ -153,6 +157,29 @@ def main():
             flags += ['-isysroot', os.environ['HOST_MACOS_SDK']]
         if args.sanitize:
             flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+        execution_env = dict(os.environ, ASAN_OPTIONS=os.environ.get('ASAN_OPTIONS', 'detect_leaks=0'), UBSAN_OPTIONS='halt_on_error=1')
+        bounds_exe = work / 'byte-bounds'
+        bounds_build = subprocess.run([*compiler, *flags, str(work / 'byte-bounds.cpp'), '-o', str(bounds_exe)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if bounds_build.returncode:
+            print(bounds_build.stdout.decode(), end='')
+            raise SystemExit(bounds_build.returncode)
+        record['byte_window_bounds'] = json.loads(subprocess.check_output([str(bounds_exe)], text=True, env=execution_env))
+        record['rejected_simd_variants'] = [{
+            'variant': 'TBL1 variable byte windows', 'retained': False,
+            'reason': 'Matched component measurements favored native load/store windows; no game or RAM gain inferred',
+            'source': '28f896c7b0bfa942c2e9573fbadecdac0fe1e841', 'run': 40124207015,
+            'benchmark_sha256': 'd27c79b60d9d1e81a00fa05b82709f35da33efc8be7131d7b329c47088ca8e94',
+            'host_cpu': 'Apple M1 (Virtual)', 'host_hardware': 'VirtualMac2,1',
+            'prior_simd_sha256': '910971d051610881933a52b1ba3b2eec02ab0a9d7c1feac50219ae6d1506d881',
+            'wall_ns': {'ROTQBY': {'before': 7.53858, 'tbl1': 8.23785},
+                        'ROTQMBY': {'before': 6.57581, 'tbl1': 7.94935},
+                        'SHLQBY': {'before': 6.71546, 'tbl1': 8.07258}}}]
+        if args.byte_bounds_only:
+            record.update(mode='targeted_byte_window_bounds', target=architecture, sanitized=args.sanitize, physical_device_tested=False)
+            args.report.parent.mkdir(parents=True, exist_ok=True)
+            args.report.write_text(json.dumps(record, indent=2) + '\n')
+            print(json.dumps(record['byte_window_bounds']))
+            return
         exe = work / 'simd-test'
         cmd = [*compiler, *flags, str(NATIVE), '-o', str(exe)]
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -188,10 +215,14 @@ def main():
         # Save assembly for inspection; no whole binary disassembly data is
         # substituted for a production Core compile.
         assembly = work / 'simd.s'
-        subprocess.run([*compiler, *flags, '-S', str(NATIVE), '-o', str(assembly)], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Inspect the uninstrumented kernels even when executable validation
+        # uses sanitizers. ASan stack redzones would add calls of its own.
+        assembly_flags = [flag for flag in flags if not flag.startswith('-fsanitize=')]
+        subprocess.run([*compiler, *assembly_flags, '-S', str(NATIVE), '-o', str(assembly)], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        record['assembly_sanitizers_enabled'] = False
         if architecture in ('arm64', 'aarch64'):
             text = assembly.read_text()
-            checks = {'CNTB': r'\bcnt\b', 'SHUFB': r'\btbl\b', 'ROTM': r'\bushl\b', 'ROTHM': r'\bushl\b', 'ROTQBY': r'\btbl\b', 'CFLTU': r'\bfcvtzu\b'}
+            checks = {'CNTB': r'\bcnt\b', 'SHUFB': r'\btbl\b', 'ROTM': r'\bushl\b', 'ROTHM': r'\bushl\b', 'CFLTU': r'\bfcvtzu\b'}
             found = {}
             for name, pattern in checks.items():
                 label = re.search(r'(?m)^_*ZN9candidate' + str(len(name)) + name + r'E[^:]*:.*$', text)
@@ -200,6 +231,19 @@ def main():
                 section = text[label.start():label.end() + end.start()] if end else text[label.start():]
                 found[name] = bool(re.search(pattern, section))
                 assert found[name], (name, section)
+            for name in ('ROTQBY', 'ROTQMBY', 'SHLQBY'):
+                label = re.search(r'(?m)^_*ZN9candidate' + str(len(name)) + name + r'E[^:]*:.*$', text)
+                assert label, name
+                end = re.search(r'(?m)^\s*(?:\.cfi_endproc|\.size|\.Lfunc_end)', text[label.end():])
+                section = text[label.start():label.end() + end.start()] if end else text[label.start():]
+                # Each kernel uses a vector-sized native window, not a scalar
+                # byte gather or a call into the old compatibility layer.
+                loads = bool(re.search(r'\b(?:ldr|ldur|ldp)\s+q\d+', section))
+                stores = bool(re.search(r'\b(?:str|stur|stp)\s+q\d+', section))
+                calls = bool(re.search(r'(?m)^\s*(?:bl|blr)\s', section))
+                tables = bool(re.search(r'\btbl\b', section))
+                found[name] = dict(vector_load=loads, vector_store=stores, helper_call=calls, table_lookup=tables)
+                assert loads and stores and not calls and not tables, (name, section)
             record['native_instruction_checks'] = found
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(record, indent=2) + '\n')

@@ -18,6 +18,21 @@ def block(s, marker):
     return s[start:end]
 
 def sha(b): return hashlib.sha256(b).hexdigest()
+def arm64_legacy_names_absent(preprocessed, dependencies):
+    # The real types.hpp declares these three architecture-neutral vector
+    # aliases even when no operation uses them. Exclude only their exact known
+    # declarations; any use, additional declaration or compatibility call fails.
+    assert '_mm_' not in preprocessed and 'sse2neon' not in preprocessed
+    assert 'sse2neon' not in dependencies.lower(), 'Candidate depends on legacy SIMD adapter'
+    filtered = preprocessed
+    for alias, representation in (('__m128i', 'long long'), ('__m128d', 'double'), ('__m128', 'float')):
+        declaration = ('using ' + alias + ' = ' + representation +
+                       ' __attribute__((vector_size(16)));')
+        assert filtered.count(declaration) == 1, 'Unexpected compatibility alias declaration: ' + alias
+        filtered = filtered.replace(declaration, '', 1)
+    assert '__m128' not in filtered, 'Candidate still uses a legacy vector type'
+    return 3
+
 def hardware():
     record={'machine':platform.machine(),'system':platform.system()}
     if platform.system()=='Darwin':
@@ -62,7 +77,8 @@ def main():
         if a.sanitize:cmd+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
         subprocess.run(cmd,check=True)
         # Compile an independent candidate-only translation unit. On ARM64 its
-        # preprocessed source must contain neither SSE names nor the adapter.
+        # preprocessed operations must contain neither SSE names nor the adapter;
+        # only the real types.hpp three unused compatibility aliases are allowed.
         probe = r'''#include "util/types.hpp"
 #include "util/v128.hpp"
 #include <algorithm>
@@ -90,10 +106,13 @@ extern "C" __attribute__((noinline)) void rsx526_constants_after(const std::span
         preprocessed=subprocess.check_output(probe_flags+['-E','-P',str(work/'probe.cpp')],text=True)
         subprocess.run(probe_flags+['-S',str(work/'probe.cpp'),'-o',str(work/'probe.s')],check=True)
         assembly=(work/'probe.s').read_text()
-        arm='ARCH_ARM64' in subprocess.check_output(cxx+['-dM','-E','-x','c++','-include',str(source/'rpcs3/util/types.hpp'),'/dev/null'],text=True)
+        arm='ARCH_ARM64' in subprocess.check_output(cxx+['-std=c++20','-dM','-E','-x','c++','-include',str(source/'rpcs3/util/types.hpp'),'/dev/null'],text=True)
+        dependencies=subprocess.check_output(probe_flags+['-M',str(work/'probe.cpp')],text=True)
+        assert 'sse2neon' not in dependencies.lower(), 'Candidate depends on legacy SIMD adapter'
+        compat_aliases=0
         probe_functions={}
         if arm:
-            assert '_mm_' not in preprocessed and '__m128' not in preprocessed and 'sse2neon' not in preprocessed
+            compat_aliases=arm64_legacy_names_absent(preprocessed,dependencies)
             for symbol in ('rsx526_decode_after','rsx526_stream_after','rsx526_copy_after','rsx526_border_after'):
                 label=re.search(r'^_?'+symbol+r':[^\n]*\n',assembly,re.M)
                 assert label, 'Missing assembly symbol '+symbol
@@ -110,7 +129,7 @@ extern "C" __attribute__((noinline)) void rsx526_constants_after(const std::span
         record=json.loads(run.stdout);record.update(fixtureSHA256=sha(fixture.read_bytes()),
             beforeSHA256={p:sha((previous/p).read_bytes()) for p in PATHS},
             afterSHA256={p:sha((source/p).read_bytes().replace(b'\r\n',b'\n')) for p in PATHS},
-            backendSHA256=sha(common.encode()),sanitizers=a.sanitize,candidateOnlyProbe=True,arm64LegacyNamesAbsent=arm,probeAssemblySHA256=sha(assembly.encode()),probeFunctions=probe_functions,
+            backendSHA256=sha(common.encode()),sanitizers=a.sanitize,candidateOnlyProbe=True,arm64LegacyNamesAbsent=arm,compatTypeAliasesDeclared=compat_aliases,candidateLegacyHeaderDependencyAbsent=True,candidateDependencySHA256=sha(dependencies.encode()),probeAssemblySHA256=sha(assembly.encode()),probeFunctions=probe_functions,
             scope='real v128 and extracted production operations/methods; RSX program register/data adapters; baseline-only sse2neon on ARM64',
             physicalDeviceTested=False,gpuTested=False,hostHardware=hardware(),compilerVersion=subprocess.check_output(cxx+['--version'],text=True).splitlines()[0])
         if a.report:a.report.parent.mkdir(parents=True,exist_ok=True);a.report.write_text(json.dumps(record,indent=2)+'\n')

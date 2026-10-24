@@ -32526,10 +32526,10 @@ index cd3dfab..e6901e4 100644
  }
  
 diff --git a/rpcs3/util/simd.hpp b/rpcs3/util/simd.hpp
-index e5de73d..ef51e65 100644
+index e5de73d..a7ffd3b 100644
 --- a/rpcs3/util/simd.hpp
 +++ b/rpcs3/util/simd.hpp
-@@ -3274,6 +3274,334 @@ inline v128 gv_to_be32(const v128& vec)
+@@ -3274,6 +3274,318 @@ inline v128 gv_to_be32(const v128& vec)
  	return vec;
  }
  
@@ -32783,45 +32783,29 @@ index e5de73d..ef51e65 100644
 +#endif
 +}
 +
++// Variable byte windows deliberately retain the measured native load/store
++// algorithm. A TBL1 version was slower on the matched Apple ARM64 host probe.
++// These are only temporary host vectors: the guest alignment contract is unchanged.
 +inline v128 gv_rotl128_bytes(const v128& a, u32 count)
 +{
-+#if defined(ARCH_ARM64)
-+	constexpr uint8x16_t positions = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-+	return vqtbl1q_u8(a, vandq_u8(vsubq_u8(positions, vdupq_n_u8(u8(count))), vdupq_n_u8(15)));
-+#else
-+	v128 result;
-+	for (u32 i = 0; i < 16; ++i)
-+		result._u8[i] = a._u8[(i - count) & 15];
-+	return result;
-+#endif
++	alignas(16) const v128 window[2]{a, a};
++	return v128::loadu(reinterpret_cast<const u8*>(window) + (16 - (count & 15)));
 +}
 +
 +inline v128 gv_shl128_bytes(const v128& a, u32 count)
 +{
-+	count = std::min<u32>(count, 16);
-+#if defined(ARCH_ARM64)
-+	constexpr uint8x16_t positions = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-+	return vqtbl1q_u8(a, vsubq_u8(positions, vdupq_n_u8(u8(count))));
-+#else
-+	v128 result{};
-+	for (u32 i = count; i < 16; ++i)
-+		result._u8[i] = a._u8[i - count];
-+	return result;
-+#endif
++	// Counts 16..31 naturally select only zero bytes; clamping to 31 keeps
++	// every window within these 48 bytes. Existing &31 callers fold the clamp.
++	count = std::min<u32>(count, 31);
++	alignas(16) const v128 window[3]{{}, {}, a};
++	return v128::loadu(reinterpret_cast<const u8*>(window) + (32 - count));
 +}
 +
 +inline v128 gv_shr128_bytes(const v128& a, u32 count)
 +{
-+	count = std::min<u32>(count, 16);
-+#if defined(ARCH_ARM64)
-+	constexpr uint8x16_t positions = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-+	return vqtbl1q_u8(a, vaddq_u8(positions, vdupq_n_u8(u8(count))));
-+#else
-+	v128 result{};
-+	for (u32 i = 0; i + count < 16; ++i)
-+		result._u8[i] = a._u8[i + count];
-+	return result;
-+#endif
++	count = std::min<u32>(count, 31);
++	alignas(16) const v128 window[3]{a, {}, {}};
++	return v128::loadu(reinterpret_cast<const u8*>(window) + count);
 +}
 +
 +// Out-of-range unsigned indices produce zero, including 0x80..0xff. Unlike

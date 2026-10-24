@@ -29,6 +29,9 @@
 #include <type_traits>
 #include <tuple>
 #include <vector>
+#ifdef __APPLE__
+#include <sys/sysctl.h>
+#endif
 
 using u8 = std::uint8_t;
 using u16 = std::uint16_t;
@@ -41,6 +44,71 @@ namespace {
     std::fprintf(stderr, "FAIL %s\n", message.c_str()); std::exit(1);
 }
 llvm::IRBuilder<>* current_ir = nullptr;
+bool verified_host_dotprod = false;
+struct host_feature_proof {
+    bool llvm_key_present = false;
+    bool llvm_value = false;
+    int darwin_status = -2;
+    int darwin_value = 0;
+    bool darwin_size_valid = false;
+};
+host_feature_proof probe_host_dotprod() {
+    host_feature_proof proof;
+    const auto features = llvm::sys::getHostCPUFeatures();
+    const auto feature = features.find("dotprod");
+    proof.llvm_key_present = feature != features.end();
+    proof.llvm_value = proof.llvm_key_present && feature->second;
+#ifdef __APPLE__
+    std::size_t size = sizeof(proof.darwin_value);
+    proof.darwin_status = ::sysctlbyname("hw.optional.arm.FEAT_DotProd",
+        &proof.darwin_value, &size, nullptr, 0);
+    proof.darwin_size_valid = size == sizeof(proof.darwin_value);
+    verified_host_dotprod = proof.darwin_status == 0 && proof.darwin_size_valid && proof.darwin_value == 1;
+#else
+    verified_host_dotprod = proof.llvm_value;
+#endif
+    std::printf("DOTPROD hardware proof: LLVM key=%d value=%d Darwin sysctl_rc=%d size_valid=%d value=%d verified=%d\n",
+        proof.llvm_key_present, proof.llvm_value, proof.darwin_status, proof.darwin_size_valid, proof.darwin_value, verified_host_dotprod);
+    std::fflush(stdout);
+    if (!verified_host_dotprod) fail("DOTPROD hardware capability absent, false or unknown");
+    return proof;
+}
+#if defined(__aarch64__) || defined(__arm64__)
+// Called only after the platform reports DOTPROD. The explicit instruction
+// proves that the host executes it, independently of MCJIT feature detection.
+__attribute__((target("dotprod"), noinline))
+void hardware_udot(u32* accumulator, const u8* a, const u8* b) {
+    asm volatile("ldr q0, [%0]\n"
+                 "ldr q1, [%1]\n"
+                 "ldr q2, [%2]\n"
+                 "udot v0.4s, v1.16b, v2.16b\n"
+                 "str q0, [%0]\n"
+                 : : "r"(accumulator), "r"(a), "r"(b) : "v0", "v1", "v2", "memory");
+}
+#endif
+void verify_hardware_udot() {
+    if (!verified_host_dotprod) fail("UDOT execution attempted without hardware proof");
+#if defined(__aarch64__) || defined(__arm64__)
+    for (unsigned sample = 0; sample < 5; ++sample) {
+        std::array<u8, 16> a{}, b{};
+        std::array<u32, 4> actual{}, expected{};
+        for (unsigned i = 0; i < 16; ++i) {
+            a[i] = static_cast<u8>(sample * 29 + i * 7);
+            b[i] = static_cast<u8>(255 - sample * 13 - i * 5);
+        }
+        for (unsigned lane = 0; lane < 4; ++lane) {
+            actual[lane] = expected[lane] = 0xffffff00u + sample * 19 + lane * 43;
+            for (unsigned term = 0; term < 4; ++term)
+                expected[lane] += u32(a[lane * 4 + term]) * b[lane * 4 + term];
+        }
+        hardware_udot(actual.data(), a.data(), b.data());
+        if (actual != expected) fail("hardware UDOT control mismatch");
+    }
+    std::puts("PASS hardware UDOT: five explicit-instruction controls before MCJIT");
+#else
+    fail("hardware UDOT execution requires ARM64");
+#endif
+}
 template <class T> struct value_t { llvm::Value* value; };
 template <class T> llvm::Type* vector_type(llvm::LLVMContext& context) {
     return llvm::FixedVectorType::get(llvm::IntegerType::get(context, 8 * sizeof(std::remove_extent_t<T>)), std::extent_v<T>);
@@ -158,12 +226,14 @@ struct compiled {
     kernel function;
 };
 compiled compile(std::unique_ptr<llvm::Module> module) {
+    if (!verified_host_dotprod) fail("MCJIT DOTPROD target attempted without hardware proof");
     module->setTargetTriple(llvm::Triple(llvm::sys::getDefaultTargetTriple()));
     std::string error;
     std::unique_ptr<llvm::ExecutionEngine> engine(llvm::EngineBuilder(std::move(module))
         .setErrorStr(&error).setEngineKind(llvm::EngineKind::JIT)
         .setMCJITMemoryManager(std::make_unique<llvm::SectionMemoryManager>())
-        .setOptLevel(llvm::CodeGenOptLevel::Aggressive).setMCPU(llvm::sys::getHostCPUName().str()).create());
+        .setOptLevel(llvm::CodeGenOptLevel::Aggressive).setMCPU(llvm::sys::getHostCPUName().str())
+        .setMAttrs(std::vector<std::string>{"+neon", "+dotprod", "-sve", "-sve2"}).create());
     if (!engine) fail(error);
     engine->finalizeObject();
     auto function = reinterpret_cast<kernel>(engine->getFunctionAddress("run"));
@@ -234,7 +304,8 @@ int main(int argc, char** argv) {
 #if !defined(__aarch64__) && !defined(__arm64__)
     fail("generated NEON execution requires an ARM64 host; no emulated success");
 #endif
-    if (!llvm::sys::getHostCPUFeatures().lookup("dotprod")) fail("host lacks DOTPROD");
+    const auto host_proof = probe_host_dotprod();
+    verify_hardware_udot();
     llvm::LLVMContext context;
     std::vector<data_case> corpus;
     for (unsigned a = 0; a < 256; ++a)
@@ -259,7 +330,13 @@ int main(int argc, char** argv) {
     std::ofstream json(argv[1]);
     json << "{\n  \"schema\":1,\n  \"host_cpu\":\"" << llvm::sys::getHostCPUName().str()
          << "\",\n  \"host_triple\":\"" << llvm::sys::getDefaultTargetTriple()
-         << "\",\n  \"game_or_device_tested\":false,\n  \"cases_per_operation\":" << corpus.size() << ",\n  \"operations\":[\n";
+         << "\",\n  \"dotprod_hardware_proof\":{\"llvm_key_present\":" << (host_proof.llvm_key_present ? "true" : "false")
+         << ",\"llvm_value\":" << (host_proof.llvm_value ? "true" : "false")
+         << ",\"darwin_sysctl_status\":" << host_proof.darwin_status
+         << ",\"darwin_sysctl_size_valid\":" << (host_proof.darwin_size_valid ? "true" : "false")
+         << ",\"darwin_sysctl_value\":" << host_proof.darwin_value
+         << ",\"hardware_verified\":true,\"explicit_udot_controls\":5,\"jit_attributes\":\"+neon,+dotprod,-sve,-sve2\"}"
+         << ",\n  \"game_or_device_tested\":false,\n  \"cases_per_operation\":" << corpus.size() << ",\n  \"operations\":[\n";
     for (unsigned operation = 0; operation < 4; ++operation) {
         utils::dotprod = true;
         auto before = build<before_translator>(context, operation);
