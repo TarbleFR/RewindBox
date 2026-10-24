@@ -64,7 +64,8 @@
         "script": "test/rpcs3_simd526_test.py",
         "name": "spu-simd",
         "args": [
-          "--sanitize"
+          "--sanitize",
+          "--require-core-compiler"
         ],
         "timeout": 900
       },
@@ -72,7 +73,8 @@
         "script": "test/rpcs3_simd526_test.py",
         "name": "spu-simd-benchmark",
         "args": [
-          "--benchmark"
+          "--benchmark",
+          "--require-core-compiler"
         ],
         "timeout": 900
       },
@@ -80,7 +82,8 @@
         "script": "test/rpcs3_rsx_simd526_test.py",
         "name": "rsx-simd",
         "args": [
-          "--sanitize"
+          "--sanitize",
+          "--require-core-compiler"
         ],
         "timeout": 300
       },
@@ -88,7 +91,8 @@
         "script": "test/rpcs3_rsx_simd526_test.py",
         "name": "rsx-simd-benchmark",
         "args": [
-          "--benchmark"
+          "--benchmark",
+          "--require-core-compiler"
         ],
         "timeout": 300
       },
@@ -523,6 +527,29 @@
         "ppu-simd"
       ],
       "cause": "RSX probe confused three unused real types.hpp aliases with execution. LLVM HostCPUFeatures is empty on Darwin ARM64; PPU fixture now requires direct Darwin capability and hardware UDOT proof."
+    },
+    {
+      "source": "89c7b9abebdcb8b0ad8dfd0c9cf9c5b275aa6574",
+      "run": 40125236853,
+      "job": 120965129354,
+      "result": "preflight incomplete; no Core produced",
+      "diagnostics_artifact": 12572569925,
+      "verified_archive_bytes": 99194507,
+      "verified_archive_sha256": "65e81de4a239c43a654c095128ebfca7c4481f372af85efc6424e54469233898",
+      "passed_cases": [
+        "ppu-simd"
+      ],
+      "reused_cases": [
+        "fs-diagnostic",
+        "simd-gate"
+      ],
+      "failed_probe_cases": [
+        "spu-simd",
+        "spu-simd-benchmark",
+        "rsx-simd",
+        "rsx-simd-benchmark"
+      ],
+      "cause": "SPU correctness/bench executed; assembly filter mistook compiler stack protector failure call for an emulator helper. RSX global SDK substring filter remained overbroad. No production changes."
     }
   ],
   "rejected_byte_variant": {
@@ -1579,5 +1606,137 @@
     "actualArtifactSHA256": "782852c9a91632c1769ec3e6dab3c6496ee358abe33763c21cd0ed55a1683fa9",
     "scope": "pure admission/metadata and mocked execution; no current Apple compiler or GitHub API exercised",
     "physicalDeviceTested": false
-  }
+  },
+  "ppu_llvm22_executed": {
+    "schema": 1,
+    "host_cpu": "generic",
+    "host_triple": "arm64-apple-darwin24.6.0",
+    "dotprod_hardware_proof": {
+      "llvm_key_present": false,
+      "llvm_value": false,
+      "darwin_sysctl_status": 0,
+      "darwin_sysctl_size_valid": true,
+      "darwin_sysctl_value": 1,
+      "hardware_verified": true,
+      "explicit_udot_controls": 5,
+      "jit_attributes": "+neon,+dotprod,-sve,-sve2"
+    },
+    "game_or_device_tested": false,
+    "cases_per_operation": 75941,
+    "operations": [
+      {
+        "name": "VMSUMUBM",
+        "before_instructions": 18,
+        "after_instructions": 6,
+        "fallback_instructions": 18,
+        "host_median_before_ms": 1.46031,
+        "host_median_after_ms": 1.09885,
+        "calls_per_round": 1048576,
+        "rounds": 12,
+        "discarded_rounds": 2,
+        "bit_exact": true,
+        "big_endian_exact": true
+      },
+      {
+        "name": "VMSUMMBM",
+        "before_instructions": 20,
+        "after_instructions": 13,
+        "fallback_instructions": 20,
+        "host_median_before_ms": 1.50206,
+        "host_median_after_ms": 1.12106,
+        "calls_per_round": 1048576,
+        "rounds": 12,
+        "discarded_rounds": 2,
+        "bit_exact": true,
+        "big_endian_exact": true
+      },
+      {
+        "name": "VMSUMUHM",
+        "before_instructions": 13,
+        "after_instructions": 9,
+        "fallback_instructions": 9,
+        "host_median_before_ms": 1.23904,
+        "host_median_after_ms": 1.2449,
+        "calls_per_round": 1048576,
+        "rounds": 12,
+        "discarded_rounds": 2,
+        "bit_exact": true,
+        "big_endian_exact": true
+      },
+      {
+        "name": "VMSUMSHM",
+        "before_instructions": 14,
+        "after_instructions": 9,
+        "fallback_instructions": 9,
+        "host_median_before_ms": 1.26235,
+        "host_median_after_ms": 1.25746,
+        "calls_per_round": 1048576,
+        "rounds": 12,
+        "discarded_rounds": 2,
+        "bit_exact": true,
+        "big_endian_exact": true
+      }
+    ],
+    "hardware": {
+      "hw.model": "VirtualMac2,1",
+      "machdep.cpu.brand_string": "Apple M1 (Virtual)"
+    },
+    "benchmark_cache": "warm generated code and hot corpus; no guest/file cache eviction",
+    "llvm_version": "22.1.8",
+    "production_translator_sha256": "39e90825625f0000464cc8183222cabb9b4507857f917fe99d6b02c323889b8b",
+    "production_helper_sha256": "06417bbf616bbca35175b0901821ed05c4c19076aa66e48bccc63e98d1656bd4",
+    "before_fixture_sha256": "7eb2668b1cb991f9bed443aeecb89d39b312ab5d198b7e52795bb0cdf613a3ef",
+    "limitations": "Generated integer kernels on ARM64 host; register-file and generic expression DSL adapters, production method bodies and native builders unchanged; no full PPU translator pipeline, game, guest CPU instruction stream, phone FPS, cold/warm title cache or peak memory measurement"
+  },
+  "partial_ppu_reuse_local_tests": {
+    "passed": true,
+    "cases": [
+      "exact-direct-ppu-admission",
+      "only-four-core-compiler-registry-args-accepted",
+      "other-registry-flag-rejected",
+      "ppu-command-change-rejected",
+      "failed-case",
+      "nonzero-case",
+      "transitive-reuse-rejected",
+      "wrong-source",
+      "ppu-runner-change",
+      "ppu-fixture-change",
+      "ppu-native-adapter-change",
+      "extra-input",
+      "missing-input",
+      "changed-native-header",
+      "changed-codegen",
+      "changed-compiler",
+      "changed-llvm",
+      "changed-sdk",
+      "changed-flags",
+      "changed-platform",
+      "sysctl-failed",
+      "sysctl-size-invalid",
+      "sysctl-no-dot",
+      "hardware-not-verified",
+      "udot-controls-missing",
+      "too-few-cases",
+      "wrong-operation-count",
+      "non-bit-exact",
+      "non-endian-exact",
+      "wrong-benchmark-rounds",
+      "device-claim-rejected",
+      "corrupt-report",
+      "corrupt-output",
+      "missing-asm",
+      "corrupt-asm",
+      "exact-attempt3-metadata",
+      "attempt3-not-accepted-as-attempt2",
+      "only-ppu-reused-twelve-exact-asm-copied"
+    ],
+    "historicalInputHashesVerified": 157,
+    "nativePostimagesVerified": 258,
+    "assemblyFiles": 12,
+    "actualArtifactBytes": 99194507,
+    "actualArtifactSHA256": "65e81de4a239c43a654c095128ebfca7c4481f372af85efc6424e54469233898",
+    "scope": "pure admission/metadata and mocked execution; no current Apple compiler or GitHub API exercised",
+    "physicalDeviceTested": false
+  },
+  "runtime_compiler_alignment": "SPU/RSX tests now explicitly require the actual Core LLVM22.1.8 compiler; additional validation warranted by the different compiler, not rerunning unchanged evidence."
 }

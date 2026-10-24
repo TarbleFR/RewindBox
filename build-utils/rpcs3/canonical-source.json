@@ -1157,7 +1157,8 @@
         "script": "test/rpcs3_simd526_test.py",
         "name": "spu-simd",
         "args": [
-          "--sanitize"
+          "--sanitize",
+          "--require-core-compiler"
         ],
         "timeout": 900
       },
@@ -1165,7 +1166,8 @@
         "script": "test/rpcs3_simd526_test.py",
         "name": "spu-simd-benchmark",
         "args": [
-          "--benchmark"
+          "--benchmark",
+          "--require-core-compiler"
         ],
         "timeout": 900
       },
@@ -1173,7 +1175,8 @@
         "script": "test/rpcs3_rsx_simd526_test.py",
         "name": "rsx-simd",
         "args": [
-          "--sanitize"
+          "--sanitize",
+          "--require-core-compiler"
         ],
         "timeout": 300
       },
@@ -1181,7 +1184,8 @@
         "script": "test/rpcs3_rsx_simd526_test.py",
         "name": "rsx-simd-benchmark",
         "args": [
-          "--benchmark"
+          "--benchmark",
+          "--require-core-compiler"
         ],
         "timeout": 300
       },

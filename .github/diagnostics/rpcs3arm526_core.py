@@ -4,6 +4,7 @@ The arm526 manifest record is deliberately mandatory. Test commands and every
 fixture input are source-bound, rather than inferred from a file-name glob.
 """
 import argparse
+import copy
 import json
 import os
 import platform
@@ -47,44 +48,75 @@ PARTIAL_CHANGED_INPUTS = frozenset({
 PARTIAL_MEMBERS = ('arm526-partial.json', 'arm526-proof.txt',
     'fs-diagnostic-result.json', 'fs-diagnostic-output.txt',
     'simd-gate-result.json', 'simd-gate-output.txt')
+PARTIAL_PIN = dict(source=PARTIAL_SOURCE, run=PARTIAL_RUN, artifact=PARTIAL_ARTIFACT,
+                   size=PARTIAL_SIZE, sha=PARTIAL_SHA, cache='attempt2')
+PPU_PIN = dict(source='89c7b9abebdcb8b0ad8dfd0c9cf9c5b275aa6574', run=40125236853,
+    artifact=12572569925, size=99194507,
+    sha='65e81de4a239c43a654c095128ebfca7c4481f372af85efc6424e54469233898', cache='attempt3')
+PPU_CASES = frozenset({'ppu-simd'})
+REUSABLE_CASES = PARTIAL_CASES | PPU_CASES
+PPU_CHANGED_INPUTS = frozenset({'.github/diagnostics/rpcs3arm526_core.py',
+    'test/rpcs3_simd526_test.py', 'test/rpcs3_rsx_simd526_test.py',
+    'build-utils/rpcs3/canonical-source.json'})
+PPU_ASM_SHA = {
+    'ppu-simd-asm/VMSUMMBM-after.s': '214e4fb8ff1d7a407128c2371ac10e15880c6420636adb3bca8bf59d7799d79d',
+    'ppu-simd-asm/VMSUMMBM-before.s': '58561701f5e2ac3c265d33b278885a933a6a9a4e613b7f49ade5ca2a9ffaed9c',
+    'ppu-simd-asm/VMSUMMBM-fallback.s': '546334906e5064cdb4fb8b3ae147a5b9fb3f6c7b776bbc071fac0c8665cddadb',
+    'ppu-simd-asm/VMSUMSHM-after.s': '281a59e3981c69a00b822a6b24362cae95bd6e8f0651364c7dd6bbae5ed3000a',
+    'ppu-simd-asm/VMSUMSHM-before.s': '2ca76234377f2d481c334a1bf868db72603de5a28ef2dbe39e9b09a6c4c752aa',
+    'ppu-simd-asm/VMSUMSHM-fallback.s': '58be9a74056b57e00d080278f1c1bb012c8b010d1f3b58445c7165a8092f9546',
+    'ppu-simd-asm/VMSUMUBM-after.s': 'c3750e7258772127b5a044e79f0d88780b4c33f6ab5e259b19bfba8527b2c5aa',
+    'ppu-simd-asm/VMSUMUBM-before.s': 'd004963516268aa837d3e2f647f33007f72bbf02eccac7014f051594faff244e',
+    'ppu-simd-asm/VMSUMUBM-fallback.s': '9e53867c739f83d59ec286237a2f60fb24b72afd6dc1f3240d338f8bcfe330bd',
+    'ppu-simd-asm/VMSUMUHM-after.s': '01b2c45b8f40b7ea5191f458a3dea09aff6131a418f55791e3ac82aa5281fa9b',
+    'ppu-simd-asm/VMSUMUHM-before.s': 'c73449946bc3560fa8359b0263b46966d392beedb8af64cdccd77d31b9e23dd2',
+    'ppu-simd-asm/VMSUMUHM-fallback.s': '34aa0fefb3129a38320f433e3e2ef98d78c90b61ccc0c4a3a5fc7ecbd2a5bdb5',
+}
+PPU_MEMBERS = ('arm526-partial.json', 'arm526-proof.txt', 'ppu-simd-result.json',
+               'ppu-simd-output.txt', 'simd-gate-result.json', *PPU_ASM_SHA)
 
 
-def partial_metadata_contract(metadata):
+def partial_metadata_contract(metadata, pin=PARTIAL_PIN):
     run, artifact = metadata['run'], metadata['artifact']
-    assert run['id'] == PARTIAL_RUN and run['head_sha'] == PARTIAL_SOURCE
+    assert run['id'] == pin['run'] and run['head_sha'] == pin['source']
     assert run['status'] == 'completed' and run['conclusion'] == 'failure'
-    assert artifact['id'] == PARTIAL_ARTIFACT and artifact['expired'] is False
-    assert artifact['size_in_bytes'] == PARTIAL_SIZE
-    assert artifact['name'] == 'RPCS3Core-diagnostics-' + PARTIAL_SOURCE
-    assert artifact['workflow_run']['id'] == PARTIAL_RUN
-    assert artifact['workflow_run']['head_sha'] == PARTIAL_SOURCE
+    assert artifact['id'] == pin['artifact'] and artifact['expired'] is False
+    assert artifact['size_in_bytes'] == pin['size']
+    assert artifact['name'] == 'RPCS3Core-diagnostics-' + pin['source']
+    assert artifact['workflow_run']['id'] == pin['run']
+    assert artifact['workflow_run']['head_sha'] == pin['source']
 
 
-def partial_bundle(*, download):
+def pinned_partial_bundle(pin, members, *, download):
     cache = ROOT / 'build/arm526-reuse-cache'
     cache.mkdir(parents=True, exist_ok=True)
-    archive, metadata_path = cache / 'attempt2.zip', cache / 'attempt2-metadata.json'
+    archive = cache / (pin['cache'] + '.zip')
+    metadata_path = cache / (pin['cache'] + '-metadata.json')
     if download:
         def api(path):
             return json.loads(command('gh', 'api', 'repos/TarbleFR/RewindBox/' + path))
-        metadata = dict(run=api('actions/runs/' + str(PARTIAL_RUN)),
-                        artifact=api('actions/artifacts/' + str(PARTIAL_ARTIFACT)))
-        partial_metadata_contract(metadata)
+        metadata = dict(run=api('actions/runs/' + str(pin['run'])),
+                        artifact=api('actions/artifacts/' + str(pin['artifact'])))
+        partial_metadata_contract(metadata, pin)
         metadata_path.write_text(json.dumps(metadata, indent=2) + '\n')
-        if not archive.exists() or archive.stat().st_size != PARTIAL_SIZE or sha(archive.read_bytes()) != PARTIAL_SHA:
+        if not archive.exists() or archive.stat().st_size != pin['size'] or sha(archive.read_bytes()) != pin['sha']:
             archive.unlink(missing_ok=True)
             with archive.open('wb') as stream:
-                subprocess.run(['gh', 'api', f'repos/TarbleFR/RewindBox/actions/artifacts/{PARTIAL_ARTIFACT}/zip'],
+                subprocess.run(['gh', 'api', f"repos/TarbleFR/RewindBox/actions/artifacts/{pin['artifact']}/zip"],
                                cwd=ROOT, stdout=stream, check=True, timeout=180)
     metadata = json.loads(metadata_path.read_bytes())
-    partial_metadata_contract(metadata)
-    assert archive.stat().st_size == PARTIAL_SIZE and sha(archive.read_bytes()) == PARTIAL_SHA
+    partial_metadata_contract(metadata, pin)
+    assert archive.stat().st_size == pin['size'] and sha(archive.read_bytes()) == pin['sha']
     with zipfile.ZipFile(archive) as bundle:
         names = bundle.namelist()
         assert len(names) == len(set(names)), 'Duplicate partial-artifact ZIP entry'
-        # Read the six explicit members only; never extract the archive.
-        files = {name: bundle.read(name) for name in PARTIAL_MEMBERS}
+        # Read explicit members only; never extract the archive.
+        files = {name: bundle.read(name) for name in members}
     return files, sha(metadata_path.read_bytes())
+
+
+def partial_bundle(*, download):
+    return pinned_partial_bundle(PARTIAL_PIN, PARTIAL_MEMBERS, download=download)
 
 
 def validate_partial_cases(files, current_inputs, current_manifest, environment, compiler_version,
@@ -145,6 +177,81 @@ def admitted_partial_cases(current_inputs, current_manifest, environment, *, dow
     version = subprocess.check_output(compiler + ['--version'], text=True, timeout=30).splitlines()[0]
     return validate_partial_cases(files, current_inputs, current_manifest, environment, version,
                                   historical_inputs, historical_manifest, metadata_sha)
+
+
+def validate_ppu_case(files, current_inputs, current_manifest, environment, compiler_version,
+                      llvm_version, historical_inputs, historical_manifest, metadata_sha):
+    """Admit the directly executed PPU case from attempt3, with no native delta."""
+    prior = json.loads(files['arm526-partial.json'])
+    assert prior['source'] == PPU_PIN['source'] and prior['all_tests_passed'] is False
+    assert prior['physical_device_tested'] is False
+    assert sha(files['arm526-proof.txt']) == prior['log_sha256']
+    assert len(historical_inputs) == 157 and prior['input_sha256'] == historical_inputs
+    assert set(current_inputs) == set(historical_inputs)
+    changed = {path for path in current_inputs if current_inputs[path] != historical_inputs[path]}
+    assert changed <= PPU_CHANGED_INPUTS, 'PPU inputs changed: ' + str(sorted(changed))
+    assert len(prior['native_source_sha256']) == 258
+    assert prior['native_source_sha256'] == historical_manifest['files_sha256'] == current_manifest['files_sha256']
+    expected_manifest = copy.deepcopy(historical_manifest)
+    current_specs = {entry['name']: entry for entry in current_manifest['arm526']['tests']}
+    for entry in expected_manifest['arm526']['tests']:
+        if entry['name'] in {'spu-simd', 'spu-simd-benchmark', 'rsx-simd', 'rsx-simd-benchmark'}:
+            wanted = current_specs[entry['name']].get('args', [])
+            if wanted != entry.get('args', []):
+                assert wanted == [*entry.get('args', []), '--require-core-compiler']
+                entry['args'] = wanted
+    assert current_manifest == expected_manifest, 'Canonical identity/options/codegen changed'
+    assert prior['environment'] == environment, 'PPU host compiler/SDK environment changed'
+    assert json.loads(files['simd-gate-result.json'])['compiler'] == compiler_version
+    old_specs = {entry['name']: entry for entry in historical_manifest['arm526']['tests']}
+    new_specs = {entry['name']: entry for entry in current_manifest['arm526']['tests']}
+    assert old_specs['ppu-simd'] == new_specs['ppu-simd']
+    state = prior['tests']['ppu-simd']
+    assert state['status'] == 'passed' and state['returncode'] == 0 and 'reused_from' not in state
+    assert state['report'] == 'ppu-simd-result.json' and state['output'] == 'ppu-simd-output.txt'
+    report, output = files[state['report']], files[state['output']]
+    assert sha(report) == state['report_sha256'] and sha(output) == state['output_sha256']
+    argv = state['command']
+    assert argv[:2] == ['python3', old_specs['ppu-simd']['script']]
+    assert argv[3:] == [*old_specs['ppu-simd'].get('args', []), '--report', argv[-1]]
+    assert Path(argv[-1]).name == state['report']
+    payload = json.loads(report)
+    assert payload['schema'] == 1 and payload['game_or_device_tested'] is False
+    assert payload['llvm_version'] == llvm_version == '22.1.8'
+    proof = payload['dotprod_hardware_proof']
+    assert proof['darwin_sysctl_status'] == 0 and proof['darwin_sysctl_value'] == 1
+    assert proof['darwin_sysctl_size_valid'] is True and proof['hardware_verified'] is True
+    assert proof['explicit_udot_controls'] == 5
+    assert payload['cases_per_operation'] == 75941
+    operations = payload['operations']
+    assert len(operations) == 4 and {row['name'] for row in operations} == {'VMSUMUBM', 'VMSUMMBM', 'VMSUMUHM', 'VMSUMSHM'}
+    assert all(row['bit_exact'] is True and row['big_endian_exact'] is True for row in operations)
+    assert all(row['rounds'] == 12 and row['discarded_rounds'] == 2 and row['calls_per_round'] == 1048576 for row in operations)
+    assert payload['production_translator_sha256'] == current_manifest['files_sha256']['rpcs3/Emu/Cell/PPUTranslator.cpp']
+    assert payload['production_helper_sha256'] == current_manifest['files_sha256']['rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h']
+    assert payload['before_fixture_sha256'] == current_inputs['test/fixtures/rpcs3_ppu_dot526_before.inc']
+    assert all(sha(files[path]) == digest for path, digest in PPU_ASM_SHA.items())
+    provenance = dict(source=PPU_PIN['source'], run=PPU_PIN['run'], artifact=PPU_PIN['artifact'],
+        archive_sha256=PPU_PIN['sha'], archive_bytes=PPU_PIN['size'], metadata_sha256=metadata_sha,
+        partial_receipt_sha256=sha(files['arm526-partial.json']), original_report_sha256=state['report_sha256'],
+        original_output_sha256=state['output_sha256'], compiler=compiler_version, llvm_version=llvm_version,
+        container_conclusion='failure', individually_passed=True,
+        source_scope='all 258 native postimages and all PPU test inputs identical', assembly_sha256=PPU_ASM_SHA)
+    return {'ppu-simd': dict(report=report, output=output, provenance=provenance,
+                             artifacts={path: files[path] for path in PPU_ASM_SHA})}
+
+
+def admitted_ppu_case(current_inputs, current_manifest, environment, *, download):
+    files, metadata_sha = pinned_partial_bundle(PPU_PIN, PPU_MEMBERS, download=download)
+    prior = json.loads(files['arm526-partial.json'])
+    historical_inputs = {path: sha(command('git', 'show', PPU_PIN['source'] + ':' + path))
+                         for path in prior['input_sha256']}
+    historical_manifest = json.loads(command('git', 'show', PPU_PIN['source'] + ':build-utils/rpcs3/canonical-source.json'))
+    def version(variable):
+        args = shlex.split(environment['variables'][variable])
+        return subprocess.check_output(args + ['--version'], text=True, timeout=30).splitlines()[0]
+    return validate_ppu_case(files, current_inputs, current_manifest, environment, version('CXX'),
+        version('LLVM_CONFIG'), historical_inputs, historical_manifest, metadata_sha)
 
 
 def manifest():
@@ -228,7 +335,7 @@ def execute_tests(source, diagnostics, entries, partial, reused=None):
         pending.replace(partial_path)
 
     reused = reused or {}
-    assert set(reused) <= PARTIAL_CASES
+    assert set(reused) <= REUSABLE_CASES
     partial['tests'] = {entry['name']: dict(status='pending') for entry in entries}
     checkpoint()
     for entry in entries:
@@ -245,10 +352,18 @@ def execute_tests(source, diagnostics, entries, partial, reused=None):
             payload = json.loads(item['report'])
             payload['reused_validation'] = item['provenance']
             report.write_text(json.dumps(payload, indent=2) + '\n')
-            output = (f"REUSED independently passed {name} from run {PARTIAL_RUN}; "
+            output = (f"REUSED independently passed {name} from run {item['provenance']['run']}; "
                       "workflow container failed, no successful Core claimed.\n").encode() + item['output']
             state.update(returncode=0, status='passed', executed_here=False,
                          reused_from=item['provenance'])
+            if artifacts := item.get('artifacts'):
+                assert name == 'ppu-simd' and set(artifacts) == set(PPU_ASM_SHA)
+                for relative, data in artifacts.items():
+                    assert sha(data) == PPU_ASM_SHA[relative]
+                    target = diagnostics / relative
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(data)
+                state['artifacts_sha256'] = dict(PPU_ASM_SHA)
         else:
             try:
                 result = subprocess.run(args, cwd=ROOT,
@@ -315,15 +430,20 @@ def prepare(source, out):
             variables={key: os.environ.get(key) for key in ('CXX', 'CXXFLAGS', 'HOST_MACOS_SDK',
                 'SDKROOT', 'LLVM_CONFIG', 'LLVM_DIR', 'DEVELOPER_DIR', 'MACOSX_DEPLOYMENT_TARGET')}),
         tests={}, all_tests_passed=False, physical_device_tested=False)
-    try:
-        reused = admitted_partial_cases(current, manifest(), partial['environment'], download=True)
-        partial['reuse_attempt'] = dict(status='admitted', cases=sorted(reused),
-            source=PARTIAL_SOURCE, run=PARTIAL_RUN, artifact=PARTIAL_ARTIFACT, archive_sha256=PARTIAL_SHA)
-    except (AssertionError, OSError, KeyError, ValueError, TypeError, subprocess.SubprocessError, zipfile.BadZipFile) as error:
-        reused = {}
-        partial['reuse_attempt'] = dict(status='not-admitted', reason=str(error),
-            source=PARTIAL_SOURCE, run=PARTIAL_RUN, artifact=PARTIAL_ARTIFACT, archive_sha256=PARTIAL_SHA)
-        print('Partial two-case evidence not admitted; executing both cases: ' + str(error), flush=True)
+    reused = {}
+    partial['reuse_attempts'] = {}
+    for key, pin, admit in (('attempt2', PARTIAL_PIN, admitted_partial_cases),
+                            ('attempt3', PPU_PIN, admitted_ppu_case)):
+        try:
+            candidates = admit(current, manifest(), partial['environment'], download=True)
+            assert not set(candidates) & set(reused)
+            reused.update(candidates)
+            partial['reuse_attempts'][key] = dict(status='admitted', cases=sorted(candidates),
+                source=pin['source'], run=pin['run'], artifact=pin['artifact'], archive_sha256=pin['sha'])
+        except (AssertionError, OSError, KeyError, ValueError, TypeError, subprocess.SubprocessError, zipfile.BadZipFile) as error:
+            partial['reuse_attempts'][key] = dict(status='not-admitted', reason=str(error),
+                source=pin['source'], run=pin['run'], artifact=pin['artifact'], archive_sha256=pin['sha'])
+            print('Partial evidence ' + key + ' not admitted; affected cases execute: ' + str(error), flush=True)
     reports = execute_tests(source, diagnostics, arm_record()['tests'], partial, reused=reused)
     # execute_tests raises only after all independent entries have been run.
     # A partial receipt is never admitted by the Core builder as native proof.
@@ -362,19 +482,26 @@ def verify(path):
         assert state['report_sha256'] == record['reports_sha256'][state['report']]
         assert sha((diagnostics / state['output']).read_bytes()) == state['output_sha256'], name
     reused_names = {name for name, state in partial['tests'].items() if 'reused_from' in state}
-    assert reused_names <= PARTIAL_CASES
-    if reused_names:
-        admitted = admitted_partial_cases(record['input_sha256'], manifest(), partial['environment'], download=False)
-        assert reused_names == set(admitted) == PARTIAL_CASES
-        assert partial['reuse_attempt']['status'] == 'admitted'
-        for name in reused_names:
-            state, item = partial['tests'][name], admitted[name]
-            assert state['executed_here'] is False and state['reused_from'] == item['provenance']
-            payload = json.loads(item['report'])
-            payload['reused_validation'] = item['provenance']
-            assert (diagnostics / state['report']).read_bytes() == (json.dumps(payload, indent=2) + '\n').encode()
-    else:
-        assert partial['reuse_attempt']['status'] == 'not-admitted'
+    assert reused_names <= REUSABLE_CASES
+    for key, names, admit in (('attempt2', PARTIAL_CASES, admitted_partial_cases),
+                              ('attempt3', PPU_CASES, admitted_ppu_case)):
+        selected = reused_names & names
+        if selected:
+            admitted = admit(record['input_sha256'], manifest(), partial['environment'], download=False)
+            assert selected == set(admitted) == names
+            assert partial['reuse_attempts'][key]['status'] == 'admitted'
+            for name in selected:
+                state, item = partial['tests'][name], admitted[name]
+                assert state['executed_here'] is False and state['reused_from'] == item['provenance']
+                payload = json.loads(item['report'])
+                payload['reused_validation'] = item['provenance']
+                assert (diagnostics / state['report']).read_bytes() == (json.dumps(payload, indent=2) + '\n').encode()
+                if name == 'ppu-simd':
+                    assert state['artifacts_sha256'] == PPU_ASM_SHA
+                    for relative, digest in PPU_ASM_SHA.items():
+                        assert sha((diagnostics / relative).read_bytes()) == digest, relative
+        else:
+            assert partial['reuse_attempts'][key]['status'] == 'not-admitted'
     print('PASS source-bound ARM64 migration native tests; exact unchanged 525 evidence authenticated')
 
 

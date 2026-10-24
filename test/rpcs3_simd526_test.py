@@ -132,6 +132,94 @@ def prepare(source, directory):
                 arm64_legacy_sse_operations=0)
 
 
+def assembly_call_policy(section, stack_fail='___stack_chk_fail'):
+    """Allow only a compiler's cold, guarded, noreturn stack-canary failure.
+
+    The vector kernel must have no hot helper call or external tail call. A
+    canary failure is accepted only in its own final basic block, after the
+    normal return, reached exclusively by CMP/B.NE and referencing the guard.
+    """
+    instructions, labels = [], {}
+    for raw in section.splitlines():
+        line = raw.split(';', 1)[0].split('//', 1)[0].strip()
+        if not line:
+            continue
+        label = re.fullmatch(r'([.$A-Za-z_][\w.$]*):', line)
+        if label:
+            labels[label.group(1)] = len(instructions)
+            continue
+        if line.startswith('.'):
+            continue
+        instruction = re.fullmatch(r'([A-Za-z][\w.]*)\s*(.*)', line)
+        assert instruction, line
+        instructions.append((instruction.group(1).lower(), instruction.group(2).strip()))
+    calls = [(i, mnemonic, operands) for i, (mnemonic, operands) in enumerate(instructions)
+             if mnemonic in {'bl', 'blr', 'blraa', 'blrab', 'blraaz', 'blrabz'}]
+    for _, mnemonic, operands in calls:
+        assert mnemonic == 'bl' and operands == stack_fail, ('unexpected kernel call', mnemonic, operands)
+    # An external/indirect tail branch would be a helper call too.
+    for mnemonic, operands in instructions:
+        assert mnemonic not in {'br', 'braa', 'brab', 'braaz', 'brabz'}, ('indirect kernel tail call', mnemonic)
+        if mnemonic == 'b' or mnemonic.startswith('b.'):
+            assert operands in labels, ('external kernel tail call', operands)
+        if mnemonic in {'cbz', 'cbnz', 'tbz', 'tbnz'}:
+            assert operands.rsplit(',', 1)[-1].strip() in labels, ('external conditional tail call', operands)
+    guard_present = bool(re.search(r'\b_+stack_chk_guard\b', section))
+    failures = []
+    for index, _, _ in calls:
+        assert guard_present, 'stack failure call without a stack guard'
+        failure_labels = [label for label, position in labels.items() if position == index]
+        assert any(re.fullmatch(r'\.?LBB[\w.$]*', label) for label in failure_labels), 'stack failure call is not its own local basic block'
+        assert index > 0 and instructions[index - 1][0] in {'ret', 'retab', 'retaa'}, 'stack failure can fall through from the hot path'
+        assert index == len(instructions) - 1, 'stack failure block must contain only the noreturn failure call'
+        incoming = []
+        for label in failure_labels:
+            for origin, (mnemonic, operands) in enumerate(instructions):
+                if not re.search(r'(?<![\w.$])' + re.escape(label) + r'(?![\w.$])', operands):
+                    continue
+                assert mnemonic == 'b.ne' and operands == label, ('non-failure entry to canary block', mnemonic, operands)
+                assert origin > 0 and instructions[origin - 1][0] == 'cmp', 'canary branch is not immediately controlled by CMP'
+                incoming.append(origin)
+        assert incoming, 'canary failure block has no guarded conditional entry'
+        failures.append(dict(labels=failure_labels, conditional_entries=len(incoming), after_normal_return=True))
+    return dict(stackProtectorPresent=guard_present and bool(calls),
+                coldFailureCallOnly=bool(calls), noHotHelperCalls=True,
+                coldFailureBlocks=failures)
+
+
+def assembly_call_policy_selftests():
+    guarded = '''kernel:
+    adrp x9, ___stack_chk_guard@GOTPAGE
+    cmp x9, x8
+    b.ne LBB7_2
+    ret
+LBB7_2:
+    bl ___stack_chk_fail
+'''
+    assert assembly_call_policy(guarded)['stackProtectorPresent']
+    assert assembly_call_policy('kernel:\nldr q0, [x0]\nstr q0, [sp]\nret\n')['noHotHelperCalls']
+    invalid = [
+        guarded.replace('    cmp', '    bl _old_simd_helper\n    cmp'),
+        guarded.replace('    cmp', '    blr x9\n    cmp'),
+        guarded.replace('    cmp', '    b _old_simd_helper\n    cmp'),
+        guarded.replace('    cmp', '    br x9\n    cmp'),
+        guarded.replace('    ret\n', '    nop\n'),
+        guarded.replace('    b.ne ', '    b '),
+        guarded.replace('LBB7_2:\n', 'LBB7_2:\nLalias:\n').replace('    ret\n', '    b Lalias\n    ret\n'),
+        guarded.replace('    cmp x9, x8', '    nop'),
+        guarded.replace('    ret\n', '    b LBB7_2\n    ret\n'),
+        guarded.replace('___stack_chk_guard', '_unrelated_data'),
+        guarded.replace('    bl ___stack_chk_fail\n', '    bl ___stack_chk_fail\n    ret\n'),
+    ]
+    for index, section in enumerate(invalid):
+        try:
+            assembly_call_policy(section)
+        except AssertionError:
+            continue
+        raise AssertionError(('assembly call policy accepted an invalid control', index, section))
+    return dict(accepted_controls=2, rejected_controls=len(invalid))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', nargs='?', type=Path)
@@ -141,13 +229,24 @@ def main():
     parser.add_argument('--benchmark', action='store_true')
     parser.add_argument('--keep-generated', type=Path)
     parser.add_argument('--byte-bounds-only', action='store_true')
+    parser.add_argument('--require-core-compiler', action='store_true')
     args = parser.parse_args()
     source = (args.source_option or args.source).resolve()
     compiler = shlex.split(os.environ.get('CXX', 'c++'))
+    core_llvm = None
+    if args.require_core_compiler:
+        config = os.environ.get('LLVM_CONFIG')
+        assert config, 'LLVM_CONFIG for the actual Core toolchain is required'
+        core_llvm = subprocess.check_output([config, '--version'], text=True).strip()
+        assert core_llvm == '22.1.8', core_llvm
+        compiler_path = Path(subprocess.check_output([config, '--bindir'], text=True).strip()) / 'clang++'
+        assert compiler_path.is_file(), compiler_path
+        compiler = [str(compiler_path)]
     architecture = platform.machine().lower()
     with tempfile.TemporaryDirectory(prefix='rpcs3-simd526-') as temp:
         work = Path(temp)
         record = prepare(source, work)
+        record['assembly_call_policy_controls'] = assembly_call_policy_selftests()
         flags = ['-std=c++20', '-O3', '-fno-fast-math', '-fno-strict-aliasing', '-I' + str(source / 'rpcs3'), '-I' + str(work)]
         if architecture in ('arm64', 'aarch64'):
             flags += ['-DARCH_ARM64=1', '-march=armv8.4-a']
@@ -207,6 +306,7 @@ def main():
         record['floating_point_configurations'] = configurations
         record['compiler_flags'] = flags
         record.update(compiler=subprocess.check_output(compiler + ['--version'], text=True).splitlines()[0],
+                      core_compiler_llvm_version=core_llvm,
                       target=architecture, sanitized=args.sanitize, physical_device_tested=False,
                       host_system=platform.platform())
         if platform.system() == 'Darwin':
@@ -240,10 +340,11 @@ def main():
                 # byte gather or a call into the old compatibility layer.
                 loads = bool(re.search(r'\b(?:ldr|ldur|ldp)\s+q\d+', section))
                 stores = bool(re.search(r'\b(?:str|stur|stp)\s+q\d+', section))
-                calls = bool(re.search(r'(?m)^\s*(?:bl|blr)\s', section))
+                policy = assembly_call_policy(section, '___stack_chk_fail' if platform.system() == 'Darwin' else '__stack_chk_fail')
                 tables = bool(re.search(r'\btbl\b', section))
-                found[name] = dict(vector_load=loads, vector_store=stores, helper_call=calls, table_lookup=tables)
-                assert loads and stores and not calls and not tables, (name, section)
+                found[name] = dict(vector_load=loads, vector_store=stores, helper_call=False, table_lookup=tables,
+                    integer_pair_load=bool(re.search(r'\bldp\s+x\d+,\s*x\d+', section)), **policy)
+                assert loads and stores and policy['noHotHelperCalls'] and not tables, (name, section)
             record['native_instruction_checks'] = found
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(record, indent=2) + '\n')
