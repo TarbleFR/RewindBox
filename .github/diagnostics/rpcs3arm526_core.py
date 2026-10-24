@@ -1,4 +1,4 @@
-"""Authenticate unchanged 525 proofs; execute the measured ARM64 migration tests.
+"""Authenticate unchanged 525 proofs; execute the source-built ARM64 migration tests.
 
 The arm526 manifest record is deliberately mandatory. Test commands and every
 fixture input are source-bound, rather than inferred from a file-name glob.
