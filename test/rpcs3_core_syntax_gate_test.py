@@ -47,6 +47,11 @@ class SyntaxGateTests(unittest.TestCase):
                     self.assertIn('-fsyntax-only', args)
                     self.assertNotIn('-o', args)
                     self.assertNotIn('-c', args)
+                    if '-MF' in args:
+                        self.assertIn('-MD', args)
+                        dependency = Path(args[args.index('-MF') + 1])
+                        dependency.parent.mkdir(parents=True, exist_ok=True)
+                        dependency.write_text(unit + '.o: /core/rpcs3/util/simd.hpp\n')
                 return subprocess.CompletedProcess(args, 0)
             with patch.object(gate.subprocess, 'run', side_effect=run):
                 gate.main(database)
@@ -75,6 +80,10 @@ class SyntaxGateTests(unittest.TestCase):
             calls = []
             def run(args, **kwargs):
                 calls.append(args)
+                if '-MF' in args:
+                    dependency = Path(args[args.index('-MF') + 1])
+                    dependency.parent.mkdir(parents=True, exist_ok=True)
+                    dependency.write_text(args[1] + '.o: /core/rpcs3/util/simd.hpp\n')
                 return subprocess.CompletedProcess(args, int(args[1] in ('PPUTranslator.cpp', 'SPULLVMRecompiler.cpp')))
             with patch.object(gate.subprocess, 'run', side_effect=run):
                 with self.assertRaisesRegex(RuntimeError, 'PPUTranslator.cpp.*SPULLVMRecompiler.cpp'):

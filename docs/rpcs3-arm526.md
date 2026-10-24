@@ -9,7 +9,7 @@ Les empreintes, rapports et essais incomplets sont consignés dans [le relevé d
 | Problème observé ou défaut de source | Cause établie et intervention | Preuve et portée |
 |---|---|---|
 | Une seconde API SIMD reste utilisée par le SPU et cinq composants RSX | Les consommateurs SSE2NEON sont migrés vers `gv_*`, avec 28 primitives communes supplémentaires ; les branches ARM64 utilisent directement NEON ou des charges/écritures vectorielles | 114 corps SPU modifiés ; contrôle du prétraitement, dépendances et code émis. Les opérations simples déjà NEON ne reçoivent aucun gain présumé |
-| SHUFB effectue seize gathers depuis un tableau temporaire ; CNTB émule le comptage de bits | TBL2 pour la permutation et CNT pour les octets ; les règles de sélection et valeurs spéciales CELL restent conservées | Différentiel des corps de production, contrôles et alias de registres ; mesures LLVM22 courantes à rapprocher des rapports ci-dessous |
+| SHUFB effectue seize gathers depuis un tableau temporaire ; CNTB émule le comptage de bits | TBL2 pour la permutation et CNT pour les octets ; les règles de sélection et valeurs spéciales CELL restent conservées | Différentiel des corps de production, contrôles et alias de registres ; mesures LLVM22 du backend final ci-dessous |
 | CFLTU reconstruit la moitié unsigned avec des conversions signées et masques | FCVTZU réalise directement conversion, saturation et NaN→zéro | Cas limites flottants et configurations de contraction ; aucune approximation ni modification de précision |
 | ROTMAI peut décaler dans le mauvais sens sur ARM64 | La macro SSE2NEON applique `-imm` sans parenthèses à son argument composé ; `gv_sar32` suit le contrat CELL | Référence scalaire indépendante pour huit instructions immédiates : le témoin ROTMAI présente 62 erreurs sur 128 immédiats ; le candidat suit la référence. Aucun appel d'interpréteur n'est observé dans la capture du jeu fournie |
 | ROTQMBI contient une négation signée de `INT32_MIN` | Soustraction non signée modulo avant le masque de trois bits | Témoin UBSan séparé ; candidat instrumenté. Ni attente ni barrière modifiée |
@@ -66,37 +66,54 @@ La restauration passe le TAR (**4,372659 s**), la VM (**0,573369 s**) et les fon
 
 Le reset VMA de 525 est observé après arrêt : propriétaire non vivant, échantillon non valide et compteurs nuls. Avant arrêt : **61 606 016 octets** demandés pour les textures, dont 11 images recyclables / **12 880 512 octets**. Le maximum de footprint est **2 411 157 496 octets**, celui de résident **2 480 635 904** ; ils ne s'additionnent pas. Le compressé du processus manque dans ces fichiers. Les donneurs atteignent **85 983 232 octets** préparés/résidents ; cible NeoSwap de 7 Gio et alias ne sont pas de la RAM physique supplémentaire. Les 761 événements de stockage rapprochés ne présentent aucune erreur OS ; 361 sont des refus de quota. Leur maximum **97,254 ms** n'est pas à lui seul une saccade par image.
 
-Le Core du quatrième essai a compilé et lié avec succès. Ses mesures ont montré une régression de deux shifts par octets ; le désassemblage réel a révélé une contrainte perdue : les temporaires étaient alignés sur 64 octets dans 525, contre 16 après migration. Le backend commun rétablit les suralignements originaux 32/64, sans modifier le contrat invité de 16 octets. La formation d’adresse ROTQMBY perdait notamment une fusion BFXIL au profit de AND+ADD. Cette différence est démontrée ; son rôle exact dans les durées reste à mesurer. Le quatrième Core ne sera pas livré comme candidat final.
-
 ## Validation actuelle et mesures
 
-Les rapports historiques conservent leurs entrées et leur statut. Des filtres de preuve trop larges ont refusé des déclarations SDK et un appel froid légitime à `__stack_chk_fail` ; la détection de features LLVM est vide sur Darwin ARM64. Les fixtures contrôlent désormais les opérations actives, gardent la protection de pile et exigent une sonde Darwin valide puis cinq UDOT matériels. L'hypothèse initiale d'alias ARM dans `types.hpp` était fausse et est retirée. Ces échecs de préparation ne sont pas présentés comme des constructions réussies du Core. Le détail des essais reste dans le JSON.
+Les sept cas préalables du **cinquième essai**, source **`6a60950964aadd3487b477dc35712c5ac1d39586`**, [run `40128154799`](https://github.com/TarbleFR/RewindBox/actions/runs/40128154799), sont validés individuellement. Les cinq cas SIMD/PPU ont été exécutés directement avec le backend final **`a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4`** ; les deux preuves FS/gate inchangées sont réutilisées directement du deuxième essai, sous contrôle des entrées et de l'environnement. Les sept SHA-256 des rapports correspondent au reçu préalable `all_tests_passed=true`. Le workflow a ensuite été annulé pendant l'étape Core pour corriger le support des fichiers de dépendances `.d` dans un ancien mock de la porte syntaxique. Ces preuves préalables ne sont donc pas une construction réussie du Core final ; la sixième campagne doit encore en attester le lien et le binaire.
 
-La variante TBL1 des shifts par octets a régressé sur le banc Apple M1 virtualisé : ROTQBY 7,539→8,238 ns, ROTQMBY 6,576→7,949 ns et SHLQBY 6,715→8,073 ns. Elle a été rejetée. Le backend final conserve des fenêtres `v128` alignées sur 32 octets pour les rotations et 64 pour les shifts, bornées et chargées en bloc, sans SSE ni boucle scalaire par octet. Les comptes des shifts sont bornés à 31 et les sorties ≥16 restent nulles. Aucun retrait de ces fenêtres ou gain de RAM correspondant n'est revendiqué.
-
-| Validation | Preuve disponible et état | Limite |
+| Validation | Preuve du candidat final disponible | Portée |
 |---|---|---|
-| SPU : 114 corps, flottants, alias et contrôles ISA | Historique Apple : 4 894 912 comparaisons et 325 888 contrôles scalaires par configuration, quatre arrondis/deux modes de dénormalisation ; **[ROOT_COMPLETE: rapport SPU courant Clang22.1.8, hashes et statut]** | Le rapport local au backend `910971d0…` précède le remplacement de TBL1 ; il ne valide pas seul les postimages finales |
-| Fenêtres par octets finales | 199 680 contrôles ASan/UBSan, 260 comptes dont UINT32_MAX, backend `b64a92ed…` ; **[ROOT_COMPLETE: résultat et mesure Apple courants]** | Vérification ciblée de bornes ; aucune mesure de footprint global |
-| Cinq composants RSX | Banc x86_64 : 15 328 199 contrôles ASan/UBSan ; **[ROOT_COMPLETE: rapports RSX Clang22.1.8, 96 recouvrements ARM64, assembleur par symbole et mesure border color]** | Extraction des méthodes réelles, adaptateurs registres/données ; aucun Vulkan/Metal ni jeu exécuté |
-| PPU LLVM22 | Preuve du troisième essai `89c7b9ab`, run `40125236853`, réutilisée explicitement : **75 941 cas/opération**, before/after/fallback, référence big-endian et cinq contrôles UDOT matériels ; postimages traducteur/builder identiques au candidat final | Kernels générés, avec adaptateur du DSL ; ni pipeline PPU complet ni iPhone |
-| Diagnostic FS | 24 cas de fichiers, 15 classifications de racines ; fingerprint d'état avant/après identique, chemins de refus conservés ; **[ROOT_COMPLETE: reçu Apple authentifié/réutilisé]** | Diagnostic uniquement ; le savestate utilisateur n'a pas été restauré ici |
-| Dépendances et compilateur du Core | **[ROOT_COMPLETE: reçu de la porte et 47 unités SDK iPhone]** | Les probes de fixtures ne remplacent pas la compilation des unités complètes |
-| Lien complet, ABI et binaire natif | **[ROOT_COMPLETE: source/run/job/artifact/SHA et contrôles du Core]** | Aucun succès de construction attesté par ce tableau tant que ces reçus manquent |
-| IPA privée | **[ROOT_COMPLETE: version/commit/run/artifact/SHA, intégrité, dépendances, signatures et lien privé]** | Assemblage distinct de l'installation et du gameplay sur appareil |
+| SPU : 114 corps actifs | **4 894 912 comparaisons de registres et 325 888 contrôles scalaires par configuration**, sous ASan/UBSan : contraction par défaut, puis désactivée ; chacune couvre quatre arrondis et deux modes de dénormalisation | Réels corps et primitives, registre/opcodes/échelles adaptés ; aucun jeu exécuté |
+| Contrôles SPU spécifiques | 65 536 masques, les 256 contrôles SHUFB et les alias ; référence ISA indépendante pour les shifts, dont 62/128 divergences attendues du témoin ROTMAI ; contrôle négatif UBSan pour ROTQMBI | L'ancien débordement signé n'est désactivé que dans cette fonction témoin du différentiel ; le candidat reste instrumenté |
+| Fenêtres par octets finales | **199 680 contrôles de bornes**, 260 comptes dont UINT32_MAX ; rotations/zero-fill et sortie nulle pour shifts ≥16 | Temporaires alignés sur **32 octets pour la rotation et 64 pour les shifts**, conformément au Core 525 ; format invité `v128` toujours aligné sur 16 |
+| Cinq composants RSX | **15 328 295 contrôles ARM64 ASan/UBSan**, dont **96 recouvrements** ; 16 alignements source, 104 tailles `iota16`, 1 000 tours de constantes ; candidate-only sans ancien header/token actif | Méthodes réelles extraites et `v128` réel, adaptateurs registres/données ; aucun GPU exécuté |
+| Instructions hôte émises | CNT, TBL2, shifts natifs et FCVTZU vérifiés ; REV16/EOR/stores vérifiés par symbole RSX ; fenêtres avec charges/écritures natives, sans TBL ni appel auxiliaire chaud | Protection de pile conservée ; seul son appel froid d'échec de canari est admis |
+| Quatre kernels PPU LLVM22 | **75 941 cas/opération**, before/after/fallback, référence big-endian et cinq contrôles UDOT matériels ; exécution directe dans le cinquième essai | Registre et opérateurs du DSL adaptés ; pas de pipeline PPU complet ni d'iPhone |
+| Diagnostic FS | 24 cas de fichiers, 15 classifications de racines, fingerprint d'état avant/après identique et refus conservés ; preuve directe réutilisée de `28f896c7`, run `40124207015` | Compilateur Apple Clang17 authentifié et entrées FS identiques ; diagnostic uniquement, pas de restauration de l'original utilisateur |
+| Orchestration de la porte SIMD | Preuve directe réutilisée du même deuxième essai ; refus d'une opération héritée active, préservation des échecs et contrôle de dépendances | Cas d'orchestration et smoke de compilateur ; ne remplace pas les dépendances et les 47 unités iPhone de la construction réelle |
+| Core final : 47 unités SDK iPhone, lien, ABI et binaire | **[ROOT_COMPLETE: sixième campagne — source/run/job/artifact/SHA, 47 unités réelles, lien, 88 exports/ABI30/architectures/dépendances et désassemblage des fenêtres finales]** | Le Core précédent `5396ec9d…` appartenait à la variante historique alignée sur 16 et ne valide pas le delta final |
+| IPA privée finale | **[ROOT_COMPLETE: version/commit/run/artifact/SHA, intégrité, entitlements, dépendances, signatures et lien privé]** | Assemblage distinct de l'installation et du gameplay sur appareil |
 
-Mesures PPU conservées du troisième essai, avec le même builder et les mêmes corps qu'au candidat final : **LLVM 22.1.8**, hôte **Apple M1 (Virtual) / VirtualMac2,1**, code et corpus chauds, **1 048 576 appels/tour**, douze tours alternés avant/après et deux écartés, médianes des dix restants. Aucun cache invité/fichier n'est évincé.
+Les erreurs de preuve des premiers essais restent détaillées dans le JSON : filtres trop larges sur les déclarations SDK et le seul appel froid `__stack_chk_fail`, détection de features LLVM vide sur Darwin ARM64. Les probes contrôlent maintenant les opérations actives sans retirer la protection de pile et exigent une sonde Darwin valide puis cinq UDOT matériels. L'hypothèse d'alias ARM dans `types.hpp` était fausse. La variante TBL1 des shifts par octets a également été rejetée après ses régressions mesurées. Enfin, la lecture des **vrais Core 525 et de la variante 526 historique** a révélé la perte des alignements de temporaires 32/64, et un calcul d'adresse BFXIL remplacé par AND+ADD. Les contraintes d'alignement ont été restaurées ; les rapports ci-dessous portent sur cette source corrigée. La cause exacte des écarts de temps — adresse, accès mémoire, placement du code ou bruit du banc — n'est pas isolée, et aucun gain de RAM n'en est déduit.
 
-| Kernel généré | Temps avant | Temps après | Instructions avant→après |
-|---|---:|---:|---:|
-| VMSUMUBM | 1,46031 ms | 1,09885 ms | 18→6 |
-| VMSUMMBM | 1,50206 ms | 1,12106 ms | 20→13 |
-| VMSUMUHM | 1,23904 ms | 1,24490 ms | 13→9 |
-| VMSUMSHM | 1,26235 ms | 1,25746 ms | 14→9 |
+Les timings suivants proviennent tous des **rapports directs du cinquième essai**, avec **Clang/LLVM 22.1.8**, sur **Apple M1 (Virtual) / VirtualMac2,1**, macOS 15.7.9 ARM64. Chaque comparaison alterne avant/après douze fois et écarte les deux premiers tours ; les tableaux donnent les médianes des dix restants. Les tests de conformité SPU passent dans **les deux configurations de contraction** ; les benchmarks SPU ne mesurent que **la configuration par défaut**, sans sanitizers. Il ne s'agit pas d'un essai de jeu ou de stockage, et les petits écarts n'ont pas de significativité statistique établie.
 
-Les deux byte-dot prennent environ 25 % de temps en moins dans ces kernels. Les deux halfword-dot ont des durées voisines ; aucun gain temporel significatif n'est revendiqué pour eux. Le compte d'instructions inclut transferts et retour du kernel, pour la cible de génération `apple-m4` ; ce nom LLVM n'est pas le matériel du runner ni un iPad utilisé pour la mesure.
+SPU : **1 000 000 appels par tour**, même corpus et registre adapté. Tous les huit kernels mesurés sont présentés, y compris ceux plus lents :
 
-**[ROOT_COMPLETE: tableau des mesures SPU et RSX Clang22.1.8 du backend final, avec matériel, paramètres, rondes et limites. Ne pas recopier les gains de la variante TBL1 rejetée comme mesures de la version finale.]**
+| Kernel SPU | Murale avant (ns/appel) | Murale après (ns/appel) | CPU avant→après (ns/appel) | Variation murale |
+|---|---:|---:|---:|---:|
+| CNTB | 14,621 | 8,391 | 14,588→8,254 | −42,61 % |
+| SHUFB | 29,259 | 10,877 | 29,231→10,864 | −62,82 % |
+| ROTM | 7,987 | 8,197 | 7,973→8,160 | +2,62 % |
+| ROTHM | 8,434 | 7,660 | 8,393→7,644 | −9,18 % |
+| ROTQBY | 7,599 | 7,653 | 7,590→7,628 | +0,71 % |
+| ROTQMBY | 6,048 | 5,916 | 6,029→5,902 | −2,19 % |
+| SHLQBY | 5,948 | 6,195 | 5,945→6,191 | +4,14 % |
+| CFLTU | 14,498 | 9,442 | 14,472→9,434 | −34,87 % |
+
+CNTB, SHUFB et CFLTU réduisent nettement le travail de ces kernels. ROTM, ROTQBY et SHLQBY sont légèrement plus lents dans ce relevé ; ces valeurs restent consignées, sans extrapolation en FPS ni gain attribué aux fenêtres. Le raccordement commun des opérations déjà efficaces et la préservation de leurs contraintes d'alignement restent distincts d'une accélération mesurée. Les détails de chaque tour et les temps non arrondis sont conservés dans le rapport.
+
+RSX border color : **4 194 304 appels par tour** ; médiane murale **1,791229→1,452272 ns/appel** (−18,92 %) et CPU **1,791358→1,452327 ns/appel**. Cela mesure la fonction de conversion scalaire supprimant l'expansion SIMD, pas le temps GPU, le débit de textures ou les FPS.
+
+PPU : **1 048 576 appels par tour**, code généré et corpus chauds, sans éviction de cache invité/fichier. Le tableau emploie les **nouvelles mesures directes du cinquième essai**, et non les anciennes médianes du troisième essai :
+
+| Kernel PPU généré | Temps avant | Temps après | Instructions avant→après | Variation murale |
+|---|---:|---:|---:|---:|
+| VMSUMUBM | 1,60648 ms | 1,18002 ms | 18→6 | −26,55 % |
+| VMSUMMBM | 1,72231 ms | 1,22473 ms | 20→13 | −28,89 % |
+| VMSUMUHM | 1,13937 ms | 1,16231 ms | 13→9 | +2,01 % |
+| VMSUMSHM | 1,15217 ms | 1,11912 ms | 14→9 | −2,87 % |
+
+Les deux byte-dot prennent environ **26,5 % et 28,9 % de temps en moins** dans ces kernels. Les deux halfword-dot ont des écarts plus faibles, dont +2,01 % pour VMSUMUHM ; aucune accélération significative n'est revendiquée pour eux. Le compte d'instructions comprend transferts et retour, sur la cible de génération `apple-m4`. Ce nom LLVM n'est ni le matériel du runner ni un iPad utilisé pour la mesure.
 
 ## Périmètre préservé et validations appareil
 
@@ -120,4 +137,4 @@ Références primaires consultées le 24 octobre 2026 :
 - [LLVM 22.1 Language Reference](https://releases.llvm.org/22.1.0/docs/LangRef.html) : arithmétique modulo la largeur, conversions, poison et environnement flottant. Le contrat documentaire 22.1.0 reste distinct de la version 22.1.8 construite.
 - Sources matérialisées : `util/simd.hpp`, `util/v128.hpp`, les six consommateurs, `CPU/CPUTranslator.*`, `Cell/PPUTranslator.cpp`, `Cell/SPULLVMRecompiler.cpp`, CMake des identités et manifeste canonique. Les signatures ont été rapprochées d'`IntrinsicsAArch64.td` au tag `llvmorg-22.1.8`, blob `fd56e0e3f9e7b304178c4221ce4f6415d0d5c3f4`.
 
-**[ROOT_COMPLETE: livraison privée vérifiée — commit Core et assemblage, runs/jobs/artifacts, SHA-256, ABI/architectures/entitlements/dépendances, signature et lien IPA.]** Aucun changement de `main`, tag ou release publique n'est autorisé pour ce chantier. L'assemblage réussi d'une IPA ne prouve pas son installation, sa reprise ou ses performances sur l'iPhone.
+Les identités et le lien de livraison restent à renseigner dans le tableau de validation après téléchargement et contrôle des artefacts. Aucun changement de `main`, tag ou release publique n'est autorisé pour ce chantier. L'assemblage réussi d'une IPA ne prouve pas son installation, sa reprise ou ses performances sur l'iPhone.
