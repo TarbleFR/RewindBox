@@ -86,12 +86,53 @@ passed. Portable cases ran with ASan/UBSan; the sandbox cannot run LeakSanitizer
 The generated canonical delta was independently applied on a pristine upstream
 worktree; every materialized postimage matched the reviewed source bytes.
 
-The dedicated Actions campaign must execute the actual AArch64 PPU stub
-(10,000 GHC-style entries and poisoned-context control), emitted SPU table
-kernels against scalar results, actual LLVM pipeline checks, then compile
-the modified Core for iPhoneOS and validate architectures/exports/passive load.
+The [dedicated Actions campaign](https://github.com/TarbleFR/RewindBox/actions/runs/40039707148)
+passed the actual AArch64 PPU stub (10,000 GHC-style entries and a
+poisoned-context control), 68 emitted SPU mask pairs in batch/chained modes
+against 8192 scalar results each, and actual LLVM pipeline checks. It then
+compiled the modified Core for iPhoneOS. The downloaded artifact independently
+passed the input-identity, binary-hash, architecture/export and static passive
+load checks. Static direct ARM64 B/BL reachability (depth 16) is not an actual
+device dlopen or boot test.
 Unchanged authenticated Core 515 campaigns are reused by exact source hashes;
-they are not reported as newly run. Receipts are added after actual completion.
+they are not reported as newly run.
+
+The resulting Core is 76,976,960 bytes, ARM64/iPhoneOS, ABI 30, SHA-256
+`f3662c28c835173389e41cd78b331cf350b8c2f03ae8a8041ca0112c24612e8b`.
+Its host source is `407ea8f`; canonical patch SHA-256 is
+`3f8dbbee3e228ed965aae750fcd95bddc13910c71fe279695aede05b60320a9a`.
+Actual PPU/SPU cache identities are `9013390836efe46e` and `a601a98f20f30c80`
+(previously `8f9b154eb34feabb` / `7c226c2359020e20`).
+
+The production host initializer also passed its eight Apple SDK scenarios and
+pre-fix negative control in native job `120711477329`, run `40040875173`.
+That native job succeeded; its sibling delivery job was superseded. Subsequent
+candidates reuse only the exact hash-matched native proof, not a claim that the
+entire older delivery workflow succeeded.
+
+### Observed native microbenchmarks
+
+One macOS ARM64 runner, LLVM 22.1.8, emitted baseline/candidate kernels with
+all prior table/reversal folds enabled. Twelve alternating rounds, first two
+discarded; median of ten samples, each 500 × 8192 vectors. These are warmed
+component kernels, not cold/warm game-cache measurements. No confidence
+intervals were calculated; small batch differences are not established gains.
+
+| Mask kind | Input mode | Before ns/vector | After ns/vector | Observed time reduction |
+| --- | --- | ---: | ---: | ---: |
+| 0 | independent | 0.355891 | 0.340500 | 4.32% |
+| 0 | dependent chain | 2.029251 | 0.675237 | 66.72% |
+| 1 | independent | 0.350586 | 0.353109 | -0.72% |
+| 1 | dependent chain | 1.344162 | 0.675507 | 49.75% |
+| 2 | independent | 0.336604 | 0.333827 | 0.83% |
+| 2 | dependent chain | 2.000320 | 0.664230 | 66.79% |
+| 3 | independent | 0.375717 | 0.379120 | -0.91% |
+| 3 | dependent chain | 2.067093 | 1.334244 | 35.45% |
+
+Full artifact IDs, hashes, methodology and limitations are retained in
+[`evidence/rpcs3-v012-delivery.json`](evidence/rpcs3-v012-delivery.json).
+No GPU timing, peak-memory reduction, game launch improvement or FPS gain is
+established by these component measurements.
 
 No physical iPhone or legal game image is available in this environment.
 Cold/warm game startup, CPU/GPU time, frame regularity, stutters, peak memory,
