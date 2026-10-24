@@ -45,7 +45,9 @@ jobs:
 
         python3 .github/diagnostics/melonxlaunch529_delivery.py --source-only
 
-        python3 test/melonx_memory_ipa_test.py\n\n        python3 test/retroarch_baseline_scope_test.py
+        python3 test/melonx_memory_ipa_test.py
+
+        python3 test/retroarch_baseline_scope_test.py
 
         '
   cold:
