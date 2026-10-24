@@ -10,6 +10,7 @@ import stat
 import struct
 import subprocess
 import sys
+import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -169,10 +170,31 @@ def prepare():
         allOtherARM64ImagesAndAssetsPreserved=True, baselineFixtureSHA256=source.FIXTURE_SHA,
         physicalDeviceTested=False, physicalPerformanceMeasured=False)
     (app / REUSE).write_text(json.dumps(reuse, indent=2) + '\n')
-    with (OUT / 'legal-package.log').open('wb') as log:
-        subprocess.run(['python3', 'build-utils/embed_legal_bundle.py', '--app', str(app),
-            '--build-number', '524', '--dolphin-sha', '7cac54161659421ed95c2cd1c0b0746539a4cd38'], cwd=ROOT,
-            stdout=log, stderr=subprocess.STDOUT, check=True)
+    # The legal generator recreates its directory. Preserve actual resolved
+    # SDK/plugin and embedded-engine notices from the authenticated app first.
+    with tempfile.TemporaryDirectory(prefix='cell524-original-legal-') as temporary:
+        backup = Path(temporary) / 'Legal'
+        shutil.copytree(app / 'Legal', backup, symlinks=True)
+        with (OUT / 'legal-package.log').open('wb') as log:
+            subprocess.run(['python3', 'build-utils/embed_legal_bundle.py', '--app', str(app),
+                '--build-number', '524', '--dolphin-sha', '7cac54161659421ed95c2cd1c0b0746539a4cd38'], cwd=ROOT,
+                stdout=log, stderr=subprocess.STDOUT, check=True)
+        for original in backup.rglob('*'):
+            relative = original.relative_to(backup)
+            if relative.as_posix() in {'BUILD_SOURCE_IDENTITY.json', 'Sources/BUILD_SOURCE_EVIDENCE.json'}:
+                continue
+            if original.is_dir() and not original.is_symlink():
+                continue
+            current = app / 'Legal' / relative
+            if current.exists() or current.is_symlink():
+                assert current.is_symlink() == original.is_symlink(), relative
+                if original.is_symlink():
+                    assert os.readlink(current) == os.readlink(original), relative
+                else:
+                    assert current.read_bytes() == original.read_bytes(), relative
+            else:
+                current.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(original, current, follow_symlinks=False)
     evidence = json.loads((app / LEGAL_SOURCE).read_bytes())
     # Keep the actual original Flutter/plugin observations when no SDK is run.
     for relative in ('Build/flutter-plugin-selection.json', 'Build/flutter-sdk-version.json'):

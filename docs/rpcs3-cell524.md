@@ -107,3 +107,11 @@ L'IPA 524 reste **en attente d'assemblage et vérification**. La préparation co
 les notices originales et ajoute le delta canonique, son manifeste et la recette
 native au paquet de sources. Elle resigne le paquet avec le cœur source compilé ;
 aucune nouvelle campagne Flutter n'est lancée.
+
+Le premier assemblage `40111780603` a validé la reprise exacte du binaire et
+des ressources, puis a refusé la perte d'un ancien relevé SDK/plugin pendant
+la régénération des notices. Le générateur recrée son dossier ; l'assemblage
+conserve désormais toutes les anciennes notices et références avant cette
+opération, puis refuse toute différence hors des métadonnées explicitement
+actualisées. Aucune IPA de ce premier assemblage n'est livrée. Le Core compilé
+reste identique et n'est pas recompilé pour cette correction d'empaquetage.

@@ -193,7 +193,21 @@
     "status": "prepared; private workflow not yet run",
     "baselineCacheKey": "neostation-device-v2-macOS-ARM64-xcode26.3-flutter3.47.2-c1f550f8be86c91d65dc564ebddff593f2e3fe46-523-09b8aa7d1bc439098e74eaba3735094714b3cd5740c469e7c84be8dd2fec6336-normal",
     "baselinePayloadFixtureSHA256": "a4cbe634f3eb9cc06ae115b47553b9c3813ce4c7ef72a80111289def4774f13a",
-    "appCodeRecompiled": false
+    "appCodeRecompiled": false,
+    "failedAttempts": [
+      {
+        "source": "71b17eda54a5953c0e5797019e3879d44e2a5c0c",
+        "run": 40111780603,
+        "job": 120924840607,
+        "phase": "preserving original legal source observations after legal directory regeneration",
+        "reason": "Generator recreates Legal directory; original plugin/SDK snapshots must be retained as bytes before regeneration.",
+        "baselineAppAndCoreAdmission": "passed",
+        "ipaProduced": false,
+        "coreRecompiled": false,
+        "diagnosticsArtifact": 12566763252,
+        "diagnosticsArchiveSHA256": "f4d21d35051532c9428cabec7042aaa84fc5c750ef576ecb4f8f919bdfd2ed82"
+      }
+    ]
   },
   "knownLogLimit": "No new Build523 device capture; recorded Build522 stop is in PPU restoration, not a demonstrated occurrence of aborted HLE save finalization.",
   "physicalDeviceTested": false,
