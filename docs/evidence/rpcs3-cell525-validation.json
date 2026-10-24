@@ -1,0 +1,553 @@
+{
+  "schema": 1,
+  "build": 525,
+  "branch": "Claude",
+  "base": "1bdad6caf3848916e427e6b602b78e7fb42cb500",
+  "status": "Native Core built and independently verified; IPA assembly pending",
+  "logEvidence": {
+    "path": "docs/evidence/rpcs3-cell525-log-baseline.json",
+    "sha256": "290bdf462e8beb92f2a2f2b3227b466cd863adead5868fd1123bb0eb3ff69fdb",
+    "matchedDeviceBeforeAfter": false
+  },
+  "source": {
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "patchSHA256": "3c08064ece47cbade52b453292c693d7fe5ca93c8071fb11055a1a08e3413168",
+    "fixtureSHA256": "63306a30adfd3b375e866fd94f91645519d09bb1c85fcf652a95f02681604ec8",
+    "paths": {
+      "rpcs3/Emu/Cell/PPUThread.cpp": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+      "rpcs3/Emu/savestate_utils.cpp": "a07eb51a0d3084889a32b0b4ae4b9e51ac14de5ad43b6dc2a2100568828b0269",
+      "rpcs3/Emu/RSX/VK/vkutils/memory.cpp": "312e7224d8287d3ee00bd8f59a96dd59f253b094100fc4adca4856c2091d79da",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "c44eb1ab884562c573f0d4214bf016c964182c801f48f2ee5a8a6f76aaf83496",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "eb006faa8886f213501e8f89bb0d8e700735d30cfe10479aa9253dada12a932d",
+      "rpcs3/Emu/IdManager.h": "366efb1f439a38646e53e2431e95d06a43c9f99b246b84dad8859a91fcfabf2e",
+      "rpcs3/Emu/Cell/lv2/sys_fs.cpp": "9662e72b1b3db28da2e47f0d7907b75fd1506ab7ef0dfe904e2862a8e4fa1de1",
+      "rpcs3/ios/IOSGPUMemoryProfile.h": "bc5f673312a950e6c50151b5f772e6dfbad8439b900d2d0b5ac91f13192d56aa"
+    },
+    "exactReverseTo524Verified": true,
+    "pristineMaterializationVerified": true,
+    "ABI": 30,
+    "codegen": {
+      "PPU": "ed8b442fb38656b6",
+      "SPU": "a601a98f20f30c80"
+    },
+    "priorCodegen": {
+      "PPU": "9013390836efe46e",
+      "SPU": "a601a98f20f30c80"
+    },
+    "appSourcesUnchanged": true
+  },
+  "localTests": {
+    "filesystem": {
+      "passed": true,
+      "sanitized": true,
+      "valid_cases": {
+        "fileCases": 22,
+        "directoryCases": 6,
+        "directoryMismatches": 0,
+        "firstDirectoryReadPosition": 1112,
+        "firstDirectoryArchiveBytes": 1112,
+        "boundedTracePassed": true
+      },
+      "directory_before": {
+        "fileCases": 22,
+        "directoryCases": 6,
+        "directoryMismatches": 5,
+        "firstDirectoryReadPosition": 1065,
+        "firstDirectoryArchiveBytes": 1112,
+        "boundedTracePassed": true
+      },
+      "directory_fix": "explicit checked deserialize_vle<64> in lv2_dir; same serialized format",
+      "baseline_constructor_sha256": "0c9dac0c7dc86b3298efb5f005f5e6b28272bdb8c5c14f95e409d8411c319440",
+      "baseline_name_failure": "ASan heap-buffer-overflow in strlen",
+      "fixed_name_failure": "explicit fatal rejection before mount lookup; stream read=0x420",
+      "real_serialization_header": true,
+      "real_fs_layouts_and_enum": true,
+      "fs_trace": "256 events + one limit; independent FXO budget; writing no-op; reset; thread isolation",
+      "unresolved_allocations": "stat.size and directory count still allocate before payload validation; SIZE_MAX tested without allocating huge memory",
+      "scope": "extracted production constructors and bounded tracer; portable host file/mount/FXO/log adapters; no device/game restore or performance claim"
+    },
+    "ppu": {
+      "passed": true,
+      "cases": 16,
+      "budgetBytes": 33554432,
+      "measurements": [
+        {
+          "round": 0,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 95.8419,
+            "cpuMs": 95.841
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 58.8125,
+            "cpuMs": 58.803
+          }
+        }
+      ],
+      "realLLVMMemoryBuffer": false,
+      "sanitizers": true,
+      "timingAllocator": "portable zero-initialized vector adapter; allocator timings are not production LLVM timings",
+      "production": "actual window, identity, gzip load, settings and owner methods; host fs/clock adapters; no MCJIT/game/device",
+      "cache": "new synthetic files for first pass; warm filesystem for alternated rounds; no OS-cache eviction or cold-storage claim",
+      "beforeSourceSHA256": "b5baa769ec8e6370aef3768ad6fd2ce039359b2932e70ed5d0ea8ab96b680c8c",
+      "afterSourceSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+      "fixtureSHA256": "7e68b1ee349f4ce876c3e292adeff455d4ad0497f81ae3ed944debad85b3e89f"
+    },
+    "gpu": {
+      "passed": true,
+      "stdout": "PASS coherent 30000 lifecycle epochs, captures=39167, nonblocking skips=30292\nPASS allocator stop/reset, >32-bit values, delayed-owner exclusion, no VMA call from reporter, preserved pressure/ReBAR policy, existing texture trim/lifecycle, held-writer refusal",
+      "benchmark": {
+        "iterations": 1000000,
+        "publish_host_ns_each": 12.6199,
+        "capture_host_ns_each": 12.3898,
+        "texture_channel_bytes": 88,
+        "dynamic_allocations_per_sample": 0,
+        "try_lock_attempts_per_sample": 1
+      },
+      "sanitizers": true,
+      "actualVMAUsageAndDestroy": true,
+      "actualTextureFrameClearAndDestroy": true,
+      "scope": "production diagnostics with portable VMA/texture adapters; host channel timing only; no iPhone/GPU/game measurement"
+    },
+    "scope": "host fixtures; no iOS device or PS3 title executed"
+  },
+  "nativeBuild": {
+    "source": "c89b7809641ea976e0a0e29a52d8af2a7b7a3e5f",
+    "run": 40119436261,
+    "job": 120947551175,
+    "status": "success",
+    "firstAttempt": {
+      "source": "3dbaffa4003f8f97675f56fe134cd4fd8944ffd7",
+      "run": 40118946165,
+      "job": 120946087631,
+      "result": "failed fixture compilation; no Core produced",
+      "diagnosticsArtifact": 12569634196,
+      "diagnosticsArchiveSHA256": "ba6db163f37cff98bcc51b6037df699f4d878e647ffee877b897c57da4f947d7"
+    },
+    "secondAttempt": {
+      "source": "c822dbc6c80f146e7a3ef3c13d85c8397a8bd02a",
+      "run": 40119211793,
+      "job": 120946874641,
+      "result": "failed negative-control observation; no Core produced",
+      "diagnosticsArtifact": 12569388662,
+      "diagnosticsArchiveSHA256": "cfb19c9c31712b460ac30fa4d3156c5e8f6d54042c9b2d889ab8a18619a916f4"
+    },
+    "artifact": {
+      "source": "c89b7809641ea976e0a0e29a52d8af2a7b7a3e5f",
+      "run": 40119436261,
+      "artifact": 12570199880,
+      "sha256": "3aadeb5ff04facb3d047a0316332703e5b84322a00ad00998ad4087ac1935031",
+      "bytes": 77002760,
+      "identitySHA256": "b79bda9b83d457c0aabadd154b3d389dfdc274540c2f2ccd916d6d34533a3256",
+      "inputCount": 142,
+      "allNativeInputsAuthenticated": true,
+      "ABI": 30,
+      "architecture": "arm64",
+      "platform": 2,
+      "minimumOS": "16.3.0",
+      "exports": 88,
+      "exportsEqualApp523": true,
+      "newNativeDiagnosticsPresent": true,
+      "payloadFingerprint": "04934548624b4342a13cadd234c35fa05814e0d151eaefb0c4819cf263965775",
+      "physicalDeviceTested": false
+    },
+    "diagnosticsArtifact": 12569484825,
+    "archives": [
+      {
+        "id": 12570199880,
+        "digest": "sha256:6444eee6e72b2cb83b54a45e9c8a7cf0a2f3fbe3f6efb22dce48d3a3aebd1521",
+        "bytes": 28985108,
+        "name": "RPCS3Core-c89b7809641ea976e0a0e29a52d8af2a7b7a3e5f",
+        "archiveVerified": true,
+        "safeZipExtraction": true
+      },
+      {
+        "id": 12569484825,
+        "digest": "sha256:b4f28919ab905f3c41a831bde55486317dd420a04226f9de46c6b3277128ac11",
+        "bytes": 49590471,
+        "name": "RPCS3Core-diagnostics-c89b7809641ea976e0a0e29a52d8af2a7b7a3e5f",
+        "archiveVerified": true,
+        "safeZipExtraction": true
+      }
+    ],
+    "iPhoneSDKUnits": 43,
+    "passiveDlopenValidation": true,
+    "fullCoreLinked": true
+  },
+  "appleTests": {
+    "filesystem": {
+      "passed": true,
+      "sanitized": true,
+      "valid_cases": {
+        "fileCases": 22,
+        "directoryCases": 6,
+        "directoryMismatches": 0,
+        "firstDirectoryReadPosition": 1112,
+        "firstDirectoryArchiveBytes": 1112,
+        "boundedTracePassed": true
+      },
+      "directory_before": {
+        "fileCases": 22,
+        "directoryCases": 6,
+        "directoryMismatches": 5,
+        "firstDirectoryReadPosition": 1065,
+        "firstDirectoryArchiveBytes": 1112,
+        "boundedTracePassed": true
+      },
+      "directory_fix": "explicit checked deserialize_vle<64> in lv2_dir; same serialized format",
+      "baseline_constructor_sha256": "0c9dac0c7dc86b3298efb5f005f5e6b28272bdb8c5c14f95e409d8411c319440",
+      "baseline_name_failure": "ASan heap-buffer-overflow in strlen",
+      "fixed_name_failure": "explicit fatal rejection before mount lookup; stream read=0x420",
+      "real_serialization_header": true,
+      "real_fs_layouts_and_enum": true,
+      "fs_trace": "256 events + one limit; independent FXO budget; writing no-op; reset; thread isolation",
+      "unresolved_allocations": "stat.size and directory count still allocate before payload validation; SIZE_MAX tested without allocating huge memory",
+      "scope": "extracted production constructors and bounded tracer; portable host file/mount/FXO/log adapters; no device/game restore or performance claim"
+    },
+    "ppu": {
+      "passed": true,
+      "cases": 16,
+      "budgetBytes": 33554432,
+      "measurements": [
+        {
+          "round": 0,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 39.5579,
+            "cpuMs": 39.437
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 26.1099,
+            "cpuMs": 26.097
+          }
+        }
+      ],
+      "realLLVMMemoryBuffer": true,
+      "sanitizers": true,
+      "timingAllocator": "pinned LLVM uninitialized buffers",
+      "production": "actual window, identity, gzip load, settings and owner methods; host fs/clock adapters; no MCJIT/game/device",
+      "cache": "new synthetic files for first pass; warm filesystem for alternated rounds; no OS-cache eviction or cold-storage claim",
+      "beforeSourceSHA256": "b5baa769ec8e6370aef3768ad6fd2ce039359b2932e70ed5d0ea8ab96b680c8c",
+      "afterSourceSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+      "fixtureSHA256": "7e68b1ee349f4ce876c3e292adeff455d4ad0497f81ae3ed944debad85b3e89f"
+    },
+    "gpu": {
+      "passed": true,
+      "stdout": "PASS coherent 30000 lifecycle epochs, captures=990510, nonblocking skips=163834\nPASS allocator stop/reset, >32-bit values, delayed-owner exclusion, no VMA call from reporter, preserved pressure/ReBAR policy, existing texture trim/lifecycle, held-writer refusal",
+      "benchmark": {
+        "iterations": 1000000,
+        "publish_host_ns_each": 9.82829,
+        "capture_host_ns_each": 8.98225,
+        "texture_channel_bytes": 112,
+        "dynamic_allocations_per_sample": 0,
+        "try_lock_attempts_per_sample": 1
+      },
+      "sanitizers": true,
+      "actualVMAUsageAndDestroy": true,
+      "actualTextureFrameClearAndDestroy": true,
+      "scope": "production diagnostics with portable VMA/texture adapters; host channel timing only; no iPhone/GPU/game measurement"
+    },
+    "ppuBenchmark": {
+      "passed": true,
+      "cases": 16,
+      "budgetBytes": 33554432,
+      "measurements": [
+        {
+          "round": 0,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 26.2837,
+            "cpuMs": 26.284
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 18.3876,
+            "cpuMs": 18.388
+          }
+        },
+        {
+          "round": 1,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 26.0835,
+            "cpuMs": 26.083
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 19.553,
+            "cpuMs": 19.524
+          }
+        },
+        {
+          "round": 2,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 25.4462,
+            "cpuMs": 25.446
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 20.8332,
+            "cpuMs": 20.7
+          }
+        },
+        {
+          "round": 3,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 31.4482,
+            "cpuMs": 30.009
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 20.8875,
+            "cpuMs": 20.698
+          }
+        },
+        {
+          "round": 4,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 29.5856,
+            "cpuMs": 29.34
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 20.0284,
+            "cpuMs": 19.839
+          }
+        },
+        {
+          "round": 5,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 26.3091,
+            "cpuMs": 26.309
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 19.4768,
+            "cpuMs": 19.477
+          }
+        },
+        {
+          "round": 6,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 25.6887,
+            "cpuMs": 25.671
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 18.132,
+            "cpuMs": 18.132
+          }
+        },
+        {
+          "round": 7,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 29.3472,
+            "cpuMs": 29.203
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 19.9812,
+            "cpuMs": 19.826
+          }
+        },
+        {
+          "round": 8,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 30.0666,
+            "cpuMs": 29.071
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 21.5659,
+            "cpuMs": 21.383
+          }
+        },
+        {
+          "round": 9,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 29.2202,
+            "cpuMs": 29.012
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 22.1519,
+            "cpuMs": 20.424
+          }
+        },
+        {
+          "round": 10,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 28.9088,
+            "cpuMs": 28.699
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 20.7004,
+            "cpuMs": 20.451
+          }
+        },
+        {
+          "round": 11,
+          "before": {
+            "objectLoads": 80,
+            "logicalDecompressedBytes": 83886080,
+            "bufferHits": 0,
+            "peakRetainedBytes": 1048576,
+            "ms": 29.7967,
+            "cpuMs": 29.574
+          },
+          "after": {
+            "objectLoads": 48,
+            "logicalDecompressedBytes": 50331648,
+            "bufferHits": 32,
+            "peakRetainedBytes": 33554432,
+            "ms": 20.4442,
+            "cpuMs": 20.099
+          }
+        }
+      ],
+      "realLLVMMemoryBuffer": true,
+      "sanitizers": false,
+      "timingAllocator": "pinned LLVM uninitialized buffers",
+      "production": "actual window, identity, gzip load, settings and owner methods; host fs/clock adapters; no MCJIT/game/device",
+      "cache": "new synthetic files for first pass; warm filesystem for alternated rounds; no OS-cache eviction or cold-storage claim",
+      "beforeSourceSHA256": "b5baa769ec8e6370aef3768ad6fd2ce039359b2932e70ed5d0ea8ab96b680c8c",
+      "afterSourceSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+      "fixtureSHA256": "7e68b1ee349f4ce876c3e292adeff455d4ad0497f81ae3ed944debad85b3e89f"
+    },
+    "codegen": {
+      "actual": {
+        "PPU": [
+          "ed8b442fb38656b6"
+        ],
+        "SPU": [
+          "a601a98f20f30c80"
+        ]
+      },
+      "before": {
+        "PPU": "9013390836efe46e",
+        "SPU": "a601a98f20f30c80"
+      },
+      "expected": {
+        "PPU": [
+          "ed8b442fb38656b6"
+        ],
+        "SPU": [
+          "a601a98f20f30c80"
+        ]
+      },
+      "coldCompileRequired": {
+        "PPU": true,
+        "SPU": false
+      },
+      "deviceTested": false
+    }
+  },
+  "delivery": null,
+  "limitations": [
+    "No matched before/after device/game/scene/settings measurement",
+    "No physical GPU timing, frame percentiles, stutter or peak-memory gain measured",
+    "PPU cache change requires first title launch recompilation; SPU key preserved",
+    "Synthetic object reuse increases temporary retained buffers to the existing 32MiB budget; not a RAM reduction",
+    "Last device event does not identify the final filesystem descriptor subtype",
+    "Excessive declared in-memory file or directory sizes still allocate before payload validation",
+    "Fatal or abrupt process termination is not modeled by normal scope-exit fixtures",
+    "No first or second game launch, controller, JIT, pause/resume or savestate restore executed on a physical device",
+    "XITRIX v0.12 complete published IPA-to-source equality remains unproven"
+  ],
+  "publication": {
+    "mainChanged": false,
+    "tagCreated": false,
+    "releasePublished": false,
+    "privateIPAOnly": true
+  }
+}
