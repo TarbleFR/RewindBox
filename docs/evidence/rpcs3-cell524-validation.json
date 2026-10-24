@@ -42,7 +42,18 @@
     "scope": "native synchronization fixture; no game, device, FPS or RAM measurement"
   },
   "nativeBuild": {
-    "status": "pending"
+    "status": "pending",
+    "failedAttempts": [
+      {
+        "source": "9c761ab30149bcf83aca0ceadda0859b306a564f",
+        "run": 40110380865,
+        "job": 120920664402,
+        "phase": "Apple native fixture compile",
+        "reason": "Xcode16.4 rejects the unused unreachable HLE lock() definition under -Werror invalid-noreturn; the fixture now compiles only its three exercised production methods.",
+        "coreProduced": false,
+        "nativeFixChanged": false
+      }
+    ]
   },
   "ipa": {
     "status": "pending"

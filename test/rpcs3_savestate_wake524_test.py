@@ -33,9 +33,10 @@ def run(source, report):
     before = method.replace(FIX, '')
     assert sha(before.encode()) == BASE_METHOD_SHA, 'Unreviewed negative control'
     common = braced(header.read_text(), 'struct hle_locks_t') + ';\n'
+    # lock() is intentionally unreachable and is never called by try_to_lock.
+    # Keep the fixture on the three methods exercised by HLE admission.
     common += '\n'.join(braced(text, marker) for marker in (
-        '[[noreturn]] void hle_locks_t::lock(', 'bool hle_locks_t::try_lock(',
-        'void hle_locks_t::unlock('))
+        'bool hle_locks_t::try_lock(', 'void hle_locks_t::unlock('))
     inputs = {str(p.relative_to(source)): sha(p.read_bytes()) for p in (
         native, header, source / 'rpcs3/util/atomic.cpp', source / 'rpcs3/util/atomic.hpp',
         source / 'Utilities/sync.h', source / 'rpcs3/ios/tests/MinecraftAtomicSupport.cpp')}

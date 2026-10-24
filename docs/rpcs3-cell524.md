@@ -32,7 +32,8 @@ sur appareil. Aucun nouveau test de God of War III n'est revendiqué ici.
 
 ## Preuve avant/après
 
-Le test extrait la déclaration HLE et ses quatre méthodes des sources réelles.
+Le test extrait la déclaration HLE et les trois méthodes d'admission exercées
+des sources réelles.
 Il compile `rpcs3/util/atomic.cpp`, `atomic.hpp` et `Utilities/sync.h` ; aucun
 double ne remplace le verrou ou son moteur d'attente. Le rappel de test natif
 annonce les attentes après leur enregistrement et leur contrôle de valeur,
