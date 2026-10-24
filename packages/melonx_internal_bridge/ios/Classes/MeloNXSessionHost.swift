@@ -5,10 +5,47 @@ import Darwin
 // dependency on Flutter here, so the actual FFI host remains executable alone.
 enum MeloNXLaunchJournal {
     static var sink: (([String: Any]) -> Void)?
+    private static let fileLock = NSLock()
+    private static var fileURL: URL?
+
+    static func configure(path: String) {
+        fileLock.lock(); defer { fileLock.unlock() }
+        guard path.hasPrefix("/"), URL(fileURLWithPath:path).lastPathComponent == "app.log" else { return }
+        fileURL = URL(fileURLWithPath:path)
+    }
+
+    // Use O_APPEND for each write: Dart's logger owns the same file and may
+    // append concurrently. No main-queue hop or Flutter callback precedes this
+    // write. Disk errors only disable this diagnostic copy for that event.
+    private static func persist(_ event: [String: Any]) {
+        fileLock.lock(); defer { fileLock.unlock() }
+        guard let fileURL, let json = try? JSONSerialization.data(withJSONObject:event,options:[.sortedKeys]),
+              var line = "[MeloNX:native] ".data(using:.utf8) else { return }
+        line.append(json); line.append(0x0a)
+        let fd = Darwin.open(fileURL.path,O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR)
+        guard fd >= 0 else { return }
+        defer { Darwin.close(fd) }
+        var info = stat()
+        guard fstat(fd,&info) == 0, info.st_size < 5 * 1024 * 1024 else { return }
+        line.withUnsafeBytes { bytes in
+            var offset = 0
+            while offset < bytes.count {
+                let count = Darwin.write(fd,bytes.baseAddress!.advanced(by:offset),bytes.count-offset)
+                if count < 0 && errno == EINTR { continue }
+                guard count > 0 else { return }
+                offset += count
+            }
+        }
+    }
+
     static func record(_ stage: String, _ status: String, code: Int64 = 0, detail: String = "") {
-        let bounded = String(detail.prefix(4096)).replacingOccurrences(of: "(?i)\\b[0-9a-f]{32,}\\b", with: "[redacted]", options: .regularExpression)
+        let safe = detail
+            .replacingOccurrences(of: "(?i)\\b[0-9a-f]{32,}\\b", with: "[redacted]", options: .regularExpression)
+            .replacingOccurrences(of: "(?im)^\\s*[a-z0-9_]+\\s*=\\s*[^\\r\\n]+", with: "[redacted key entry]", options: .regularExpression)
+        let bounded = String(safe.prefix(4096))
         let event: [String: Any] = ["stage":stage,"status":status,"nativeStatus":code,"diagnostic":bounded,
             "pid":ProcessInfo.processInfo.processIdentifier,"timestamp":ISO8601DateFormatter().string(from:Date())]
+        persist(event)
         NSLog("[MeloNX:launch] %@ %@ (%lld) %@",stage,status,code,bounded)
         DispatchQueue.main.async { sink?(event) }
     }

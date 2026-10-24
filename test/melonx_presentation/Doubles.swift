@@ -18,6 +18,7 @@ enum MeloNXJitBridgePlugin { static func register(with registrar: FlutterPluginR
 enum MeloNXStrings { static var locale="en" }
 enum MeloNXLaunchJournal {
     static var sink: (([String:Any])->Void)?
+    static func configure(path:String) {}
     static func record(_ stage:String,_ status:String,code:Int64=0,detail:String="") {}
 }
 enum MeloNXHostError: Error {

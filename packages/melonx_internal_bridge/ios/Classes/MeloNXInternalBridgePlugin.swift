@@ -97,6 +97,18 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
             } catch { result(FlutterError(code:"storageUnavailable",message:"Storage capacity unavailable",details:nil)) }
         case "contentProgress": result(contentProgress?() ?? 0)
         case "cancelContent": contentCancellation?(); result(nil)
+        case "configureLaunchJournal":
+            guard let path = arguments["path"] as? String, path.hasPrefix("/"),
+                  URL(fileURLWithPath:path).lastPathComponent == "app.log" else {
+                result(FlutterError(code:"invalidJournal",message:"Invalid application journal path.",details:nil)); return
+            }
+            MeloNXLaunchJournal.configure(path:path)
+            libraryQueue.async { [self] in
+                do {
+                    let response = try ensureRuntime().content(path:path,operation:9)
+                    DispatchQueue.main.async { result(response) }
+                } catch { DispatchQueue.main.async { result(FlutterError(code:"journalUnavailable",message:String(describing:error),details:nil)) } }
+            }
         case "beginLibraryMutation":
             guard !libraryMutation, !starting, host?.isSessionActive != true else { result(false); return }
             libraryMutation = true; result(true)
@@ -193,10 +205,12 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                 stage = "jit"
                 MeloNXLaunchJournal.record("jit", "begin")
                 if !reuseArena {
+                    MeloNXLaunchJournal.record("jitProbe", "begin", detail:universal ? "Checking the selected helper's core-mapping handshake." : "Checking executable RX/RW aliases for the RewindBox PID.")
                     let authorized = universal
                         ? (MeloNXJitHasActiveCoreHandshake() && MeloNXJitConfirmCoreLoadHandoff())
                         : ((MeloNXJitExecutableMappingProbe()["success"] as? Bool) == true)
                     guard authorized else { throw MeloNXHostError.prepare(-1,"The selected method did not authorize executable mappings for the RewindBox PID.") }
+                    MeloNXLaunchJournal.record("jitProbe", "passed")
                 }
                 // Prepare both the shared cache and native signal mapping before
                 // creating guest threads. This is the standalone MeloNX order.

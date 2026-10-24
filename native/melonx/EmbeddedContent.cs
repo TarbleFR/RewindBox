@@ -19,7 +19,8 @@ partial class Library
     public static int EmbeddedCancelContent() { EmbeddedFirmwareProgress.Cancel(); return 0; }
     // A single call, caller-owned UTF-8 output. Imports are never performed by
     // a sizing call. The host supplies 64 KiB; icons are cached separately.
-    // 0 metadata; 1 install personal firmware; 2 reload personal keys; 3 status.
+    // 0 metadata; 1 install personal firmware; 2 reload personal keys; 3 status;
+    // 8 launch preflight; 9 configure the application-owned diagnostic path.
     [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_content")]
     public static unsafe int EmbeddedContent(nint pathUtf8, int operation, byte* output, int capacity)
     {
@@ -109,6 +110,9 @@ partial class Library
                                 break;
                             case 8:
                                 EmbeddedLaunchPreflight(path, json);
+                                break;
+                            case 9:
+                                EmbeddedLaunchDiagnostics.ConfigureJournal(path);
                                 break;
                             default: throw new ArgumentOutOfRangeException(nameof(operation));
                         }

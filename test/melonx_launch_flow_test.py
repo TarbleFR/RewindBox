@@ -47,14 +47,14 @@ void main() {
  final messenger=TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
  final calls=<String>[];
  late Directory root;late File game;
- Map<String,dynamic> access={},preflight={},launch={},jitReply={};
+ Map<String,dynamic> access={},launch={},jitReply={};
  bool arena=false;
  Future<Object?> native(MethodCall call) async {
   calls.add(call.method);
   switch(call.method) {
    case 'memoryEntitlements':return access;
    case 'diagnostics':return {'available':true,'jitArenaReady':arena};
-   case 'launchPreflight':return preflight;
+   case 'configureLaunchJournal':return {'success':true};
    case 'launch':return launch;
    case 'cancelJit':return true;
   }
@@ -67,7 +67,6 @@ void main() {
   PathProviderPlatform.instance=Paths(root.path);
   game=await File('${root.path}/Été.nro').writeAsBytes([1,2,3,4]);
   access={'checked':true,'allowed':true,'increasedMemoryLimit':true,'extendedRequired':false,'extendedVirtualAddressing':false};
-  preflight={'success':true};
   launch={'success':true,'firstMetalFramePresented':true,'jitMappingConfirmed':true};
   jitReply={'success':true,'helperConnected':true,'pidAttached':true,'debugged':true};
   messenger.setMockMethodCallHandler(MelonxInternalService.channel,native);
@@ -80,16 +79,16 @@ void main() {
   final result=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(result['error'],'memoryEntitlements');expect(calls,['memoryEntitlements']);
  });
- test('missing keys preserve native code and refuse before helper',()async{
-  preflight={'success':false,'errorCode':'missingKey','stage':'contentPreflight','diagnostic':'Key Name: key_area_key_application_16','nativeStatus':-17};
+ test('the sole native preflight preserves key failure details',()async{
+  launch={'success':false,'error':'missingKey','errorCode':'missingKey','stage':'contentPreflight','diagnostic':'Key Name: key_area_key_application_16','nativeStatus':-17};
   final result=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(result['error'],'missingKey');expect(result['nativeStatus'],-17);
   expect(MelonxLaunchDiagnostics.details(result),contains('key_area_key_application_16'));
-  expect(calls,['memoryEntitlements','diagnostics','launchPreflight']);
+  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','launch']);
  });
  test('external JIT choice is preserved and needs both native proofs',()async{
   final first=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
-  expect(first['success'],true);expect(calls,['memoryEntitlements','diagnostics','launchPreflight','launch']);
+  expect(first['success'],true);expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','launch']);
   launch={'success':true};
   expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['success'],false);
   expect((await SharedPreferences.getInstance()).getBool('ios_stikdebug_fallback_v1'),true);
@@ -110,13 +109,28 @@ void main() {
   launch={'success':true,'firstMetalFramePresented':true,'jitMappingConfirmed':true};
   expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['success'],true);
  });
- test('launch gate rejects a second request during pending preflight',()async{
+ test('launch gate rejects a second request during the native launch',()async{
   final pending=Completer<Object?>();
-  messenger.setMockMethodCallHandler(MelonxInternalService.channel,(call)async=>call.method=='launchPreflight'?pending.future:native(call));
+  messenger.setMockMethodCallHandler(MelonxInternalService.channel,(call)async=>call.method=='launch'?pending.future:native(call));
   final first=MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   await Future<void>.delayed(Duration.zero);
   expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['error'],'busy');
-  pending.complete({'success':true});expect((await first)['success'],true);
+  pending.complete({'success':true,'firstMetalFramePresented':true,'jitMappingConfirmed':true});expect((await first)['success'],true);
+ });
+ test('native preflight refusal cancels the prepared helper once and allows retry',()async{
+  SharedPreferences.setMockInitialValues({'ios_stikdebug_fallback_v1':false});
+  launch={'success':false,'error':'firmwareMissing','stage':'firmware','nativeStatus':-3};
+  expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['error'],'firmwareMissing');
+  expect(calls.where((s)=>s=='cancelJit').length,1);expect(calls,isNot(contains('launchPreflight')));
+  launch={'success':true,'firstMetalFramePresented':true,'jitMappingConfirmed':true};
+  expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['success'],true);
+ });
+ test('journal configuration failure cannot block a launch',()async{
+  messenger.setMockMethodCallHandler(MelonxInternalService.channel,(call)async {
+   if(call.method=='configureLaunchJournal')throw PlatformException(code:'journalUnavailable');
+   return native(call);
+  });
+  expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['success'],true);
  });
  test('quarantined native state cannot be relaunched or edited',()async{
   launch={'success':false,'error':'nativeFailure','sessionActive':true,'requiresRestart':true};

@@ -53,6 +53,10 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        observedRuntime=runtime
        let content=try runtime.content(operation:3)
        guard content["success"] as? Bool == true, content["root"] as? String == root.path else {throw NSError(domain:"actual-bootstrap",code:1)}
+       let journal=documents.appendingPathComponent("app.log")
+       MeloNXLaunchJournal.configure(path:journal.path)
+       let journalSetup=try runtime.content(path:journal.path,operation:9)
+       guard journalSetup["success"] as? Bool == true else {throw NSError(domain:"actual-launch-journal-configuration",code:23)}
        let storage=try runtime.content(operation:6)
        guard storage["success"] as? Bool == true, storage["profiles"] is [[String:Any]] else {throw NSError(domain:"actual-save-profiles",code:4)}
        let badSave=try runtime.content(path:"{\"titleId\":\"invalid\",\"profileId\":\"invalid\"}",operation:7)
@@ -70,6 +74,9 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        try Data([0x50,0x46,0x53,0x30]+Array(repeating:UInt8(0),count:12)).write(to:package)
        let missingKeys=try runtime.content(path:package.path,operation:8)
        guard missingKeys["success"] as? Bool == false, missingKeys["errorCode"] as? String == "keysMissing", missingKeys["nativeStatus"] is NSNumber, runtime.session.state == 0 else {throw NSError(domain:"actual-key-preflight",code:6)}
+       let persisted=try String(contentsOf:journal,encoding:.utf8)
+       guard persisted.contains("[MeloNX:core]"), persisted.contains("keysMissing") else {throw NSError(domain:"actual-launch-journal-persistence",code:24)}
+       report["actualNativeLaunchJournalWritten"]=true
        // Exercise the actual new NativeAOT key import ABI using synthetic bytes.
        // Keep unsupported entries beside a supported one, exactly as an export.
        let staged=root.appendingPathComponent("key-preview",isDirectory:true)

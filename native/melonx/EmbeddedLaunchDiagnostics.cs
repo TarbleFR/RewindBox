@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -14,9 +15,63 @@ public static class EmbeddedLaunchDiagnostics
     private static readonly object Gate = new();
     private static readonly Queue<(long Id, string Stage, string Status, int Code, string Detail)> Events = new();
     private static long Sequence;
+    private static string JournalPath;
+    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    private static extern int OpenJournal(string path, int flags, int mode);
+    [DllImport("libc", EntryPoint = "write", SetLastError = true)]
+    private static extern nint WriteJournal(int descriptor, byte[] record, nuint length);
+    [DllImport("libc", EntryPoint = "close")]
+    private static extern int CloseJournal(int descriptor);
     public static string Stage { get; private set; } = "nativeAot";
     public static string ErrorCode { get; private set; } = "";
     public static string ErrorDetail { get; private set; } = "";
+
+    public static void ConfigureJournal(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path) ||
+            Path.GetFileName(path) != "app.log") throw new ArgumentException("Invalid application journal path.");
+        lock (Gate) JournalPath = path;
+    }
+
+    private static void Persist(long sequence, string stage, string status, int code, string detail)
+    {
+        if (JournalPath == null) return;
+        try
+        {
+            using var memory = new MemoryStream();
+            using (var json = new Utf8JsonWriter(memory))
+            {
+                json.WriteStartObject();
+                json.WriteString("timestamp", DateTime.UtcNow.ToString("O"));
+                json.WriteNumber("pid", Environment.ProcessId);
+                json.WriteNumber("sequence", sequence);
+                json.WriteString("stage", stage); json.WriteString("status", status);
+                json.WriteNumber("nativeStatus", code); json.WriteString("diagnostic", detail);
+                json.WriteEndObject();
+            }
+            var file = new FileInfo(JournalPath);
+            if (file.Exists && file.Length >= 5 * 1024 * 1024) return;
+            byte[] prefix = Encoding.UTF8.GetBytes("[MeloNX:core] ");
+            byte[] record = new byte[prefix.Length + memory.Length + 1];
+            prefix.CopyTo(record, 0);
+            memory.GetBuffer().AsSpan(0, (int)memory.Length).CopyTo(record.AsSpan(prefix.Length));
+            record[^1] = (byte)'\n';
+            // Use a real O_APPEND write, not a seek-to-end/pwrite pair. Swift
+            // and Dart may append to this file at the same time. The syscall
+            // returns before control reaches the next native operation.
+            bool darwin = OperatingSystem.IsIOS() || OperatingSystem.IsMacOS() || OperatingSystem.IsMacCatalyst();
+            int descriptor = OpenJournal(JournalPath, 1 | (darwin ? 0x8 | 0x200 : 0x400 | 0x40), 0x180);
+            if (descriptor < 0) return;
+            try
+            {
+                nint count;
+                do { count = WriteJournal(descriptor, record, (nuint)record.Length); }
+                while (count < 0 && Marshal.GetLastPInvokeError() == 4); // EINTR
+            }
+            finally { CloseJournal(descriptor); }
+        }
+        catch { /* Diagnostic I/O must never alter engine behavior. */ }
+    }
 
     public static string Safe(string value)
     {
@@ -37,8 +92,10 @@ public static class EmbeddedLaunchDiagnostics
         lock (Gate)
         {
             if (status == "begin") Stage = stage;
-            Events.Enqueue((++Sequence, stage, status, code, Safe(detail)));
+            string safeDetail = Safe(detail);
+            Events.Enqueue((++Sequence, stage, status, code, safeDetail));
             while (Events.Count > 64) Events.Dequeue();
+            Persist(Sequence, stage, status, code, safeDetail);
         }
     }
 

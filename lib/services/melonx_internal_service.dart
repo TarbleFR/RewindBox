@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stikjit_bridge/stikjit_bridge.dart';
 import 'package:neostation/l10n/pairing_file_locale.dart';
 
+import 'config_service.dart';
 import 'jit_backend_preference_service.dart';
 import 'pairing_file_service.dart';
 import 'melonx_launch_diagnostics.dart';
@@ -315,17 +316,17 @@ abstract final class MelonxInternalService {
           'stage': 'runtime',
         };
       MelonxLaunchDiagnostics.record('runtime', 'passed');
-      final preflight = await channel.invokeMapMethod<String, dynamic>(
-        'launchPreflight',
-        {'path': gamePath},
-      );
-      if (preflight?['success'] != true)
-        return {
-          ...?preflight,
-          'success': false,
-          'error': preflight?['errorCode'] ?? 'invalidContent',
-          'stage': preflight?['stage'] ?? 'contentPreflight',
-        };
+      // The native launch worker owns the complete content preflight. Running
+      // it here as well reloaded keys and inspected the same game/firmware twice.
+      // Configure the synchronous journal before entering any launch/JIT work;
+      // Flutter's asynchronous event relay cannot survive a native termination.
+      try {
+        await channel.invokeMethod<Object?>('configureLaunchJournal', {
+          'path': await ConfigService.getLogFilePath(),
+        });
+      } catch (_) {
+        // Diagnostic I/O must never prevent an otherwise valid game launch.
+      }
       final external = await JitBackendPreferenceService.useStikDebugFallback();
       MelonxLaunchDiagnostics.record('jitHelper', 'begin', {
         'diagnostic': external
