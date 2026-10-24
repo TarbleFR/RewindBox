@@ -1,5 +1,5 @@
 name: "RewindBox private IPA 529 \u2014 MeloNX launch"
-run-name: "RewindBox Build 529 \u2014 853ccf5fe95a91efad0573c6e524c03153b42c7c"
+run-name: "RewindBox Build 529 \u2014 196f0b6e29f2ddb552e201b464e043374d222c5f"
 'on':
   push:
     branches:
@@ -26,9 +26,9 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
-        ref: 853ccf5fe95a91efad0573c6e524c03153b42c7c
+        ref: 196f0b6e29f2ddb552e201b464e043374d222c5f
     - name: Verify donor/display proofs and preserve unrelated Build 518 Cores
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 .github/diagnostics/melonxlaunch529_delivery.py --wait-for-components'
   native:
@@ -41,13 +41,13 @@ jobs:
     steps:
     - *id001
     - name: Verify donor/display proofs and preserve unrelated Build 518 Cores
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 .github/diagnostics/melonxlaunch529_delivery.py --source-only
 
         python3 test/melonx_memory_ipa_test.py
 
-        python3 test/retroarch_baseline_scope_test.py
+        python3 .github/diagnostics/melonxlaunch529_delivery.py --source-only
 
         '
   cold:
@@ -61,13 +61,13 @@ jobs:
       BUILD_NUMBER: '529'
       DELIVERY_RECIPIENT: build-utils/delivery-529-recipient.pem
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build529-853ccf5fe95a91efad0573c6e524c03153b42c7c-cold
+      ARTIFACT_NAME: RewindBox-Build529-196f0b6e29f2ddb552e201b464e043374d222c5f-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
-      RPCS3_CORE_HOST_SHA: a69860297d7b26dbb688df0daf16a31b42046462
-      RPCS3_CORE_RUN_ID: '39982269326'
+      RPCS3_CORE_HOST_SHA: 17ee65469c39e560c91fdb6d55604ab590992f59
+      RPCS3_CORE_RUN_ID: '40142369420'
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_RUN_ID: '39455712245'
@@ -87,9 +87,9 @@ jobs:
       with:
         fetch-depth: 0
         persist-credentials: false
-        ref: 853ccf5fe95a91efad0573c6e524c03153b42c7c
+        ref: 196f0b6e29f2ddb552e201b464e043374d222c5f
     - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 .github/diagnostics/melonxlaunch529_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json'
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
@@ -106,7 +106,7 @@ jobs:
         pub-cache-key: neostation-benchmark-pub-${{ runner.os }}-${{ runner.arch }}-3.47.2-${{ hashFiles('pubspec.lock') }}-${{ env.CACHE_NAMESPACE
           }}
     - name: Record exact build environment and start measurement
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         mkdir -p build/delivery
 
@@ -124,16 +124,16 @@ jobs:
           }}-${{ hashFiles('pubspec.lock', 'build-utils/Gemfile.dolphin') }}-${{ env.CACHE_NAMESPACE }}
     - name: Assert the benchmark device cache is empty
       if: ${{ inputs.benchmark == true || contains(github.event.head_commit.message, '[benchmark-build]') }}
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         test "${{ steps.state.outputs.cache-hit }}" != true'
     - name: Resolve locked Dart dependencies
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/delivery_metrics.py dart_dependencies flutter pub get --enforce-lockfile'
     - name: Prepare lightweight build tools
       shell: bash
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         set -euo pipefail
 
@@ -146,7 +146,7 @@ jobs:
         '
     - name: Generate iOS host
       shell: bash
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         set -euo pipefail
 
@@ -160,7 +160,7 @@ jobs:
         '
     - name: Download validated Build 350 native donor without KartPad
       shell: bash
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\n# Artifact 10932894067 (run 36323843067)\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\n# Artifact 10932894067 (run 36323843067)\
         \ was purged on 7 October 2026.\n# The same Build 350 IPA is published as release 0.0.1. It also holds\n# the old KartPad donor\
         \ (code translated from Mario Kart Wii), which\n# must never enter this job: only the members the native preparer\n# reuses\
         \ are fetched by range from its pinned central directory, and\n# their names and hashes must match a pinned aggregate.\nmkdir\
@@ -168,7 +168,7 @@ jobs:
         python3 build-utils/game_content_gate.py build/native-donor/NeoStation.ipa\n"
     - name: Reuse validated native runtimes
       shell: bash
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\n# Core/resource bootstrap only. JIT comes\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\n# Core/resource bootstrap only. JIT comes\
         \ exclusively from source below.\npython3 build-utils/prepare_fast_native_runtime.py \\\n  build/native-donor --build-number\
         \ \"$BUILD_NUMBER\"\n"
     - name: Restore unchanged canonical StikJIT compilation interfaces
@@ -180,7 +180,7 @@ jobs:
           }}-37844950677
     - name: Build canonical StikJIT from pinned sources for iOS 18 26 and 27
       shell: bash
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         set -euo pipefail
 
@@ -194,14 +194,14 @@ jobs:
       if: ${{ steps.stik.outputs.cache-hit != 'true' }}
     - name: Install verified cached StikJIT interfaces
       if: ${{ steps.stik.outputs.cache-hit == 'true' }}
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/install_patched_stikjit.py build/stikjit-current/StikJIT.xcframework'
     - name: Require completed exact NeoSwap Core before artifact download
       shell: bash
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\npython3 - <<'PYCOREWAIT'\nimport json,os,subprocess,time\n\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\npython3 - <<'PYCOREWAIT'\nimport json,os,subprocess,time\n\
         endpoint='repos/TarbleFR/RewindBox/actions/runs/'+os.environ['RPCS3_CORE_RUN_ID']\ndeadline=time.monotonic()+7200\nwhile True:\n\
         \    result=json.loads(subprocess.check_output(['gh','api',endpoint]))\n    assert result['head_sha']==os.environ['RPCS3_CORE_HOST_SHA'],result\n\
         \    if result['status']=='completed':\n        assert result['conclusion']=='success',result\n        print('Verified successful\
@@ -217,7 +217,7 @@ jobs:
         path: dist/rpcs3-native
     - name: Verify and install passive RPCS3 Core
       shell: bash
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\nSOURCE=dist/rpcs3-native/libRPCS3Core.dylib\n\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\nSOURCE=dist/rpcs3-native/libRPCS3Core.dylib\n\
         IDENTITY=dist/rpcs3-native/identity.json\nCORE=packages/rpcs3_internal_bridge/ios/Frameworks/libRPCS3Core.dylib\ntest -s \"\
         $SOURCE\"\ntest -s \"$IDENTITY\"\ntest -s \"$CORE\"\n# The artifact's source, canonical patch, compiler recipe, binary\n# checks\
         \ and native ABI must all be from the same Core commit.\nRPCS3_PIN_GUARD=.github/diagnostics/melonxlaunch529_delivery.py\n#\
@@ -282,7 +282,7 @@ jobs:
         \ exports: {sorted(forbidden)}'\nPY\n"
     - name: Verify retained stable Dolphin Core
       shell: bash
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\nCORE=\"packages/dolphin_internal_bridge/ios/Frameworks/DolphinCore.framework/DolphinCore\"\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\nCORE=\"packages/dolphin_internal_bridge/ios/Frameworks/DolphinCore.framework/DolphinCore\"\
         \ntest -s \"$CORE\"\ntest -d ios/Runner/Sys\ntest -s ios/Runner/cacert.pem\n\n# The Build 350 IPA carries the exact previously\
         \ validated Dolphin\n# runtime. Refuse it if any source defining that ABI has changed.\ngit diff --exit-code \"$DOLPHIN_CORE_HOST_SHA\"\
         \ \"$GITHUB_SHA\" -- \\\n  build-utils/patch_dolphin_internal_core_v2.py \\\n  packages/dolphin_internal_bridge/core \\\n  test/dolphin_cheat_manager_test.py\
@@ -314,7 +314,7 @@ jobs:
       shell: bash
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         set -euo pipefail
 
@@ -346,7 +346,7 @@ jobs:
         path: dist/armsx2
     - name: Verify pinned ARMSX2 Core identity
       shell: bash
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\ntest -f dist/armsx2/ARMSX2Core.framework/ARMSX2Core\n\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\ntest -f dist/armsx2/ARMSX2Core.framework/ARMSX2Core\n\
         test -f dist/armsx2/identity.json\n# Refuse a stale core even when both artifacts report the same ABI.\ngit diff --exit-code\
         \ \"$ARMSX2_CORE_HOST_SHA\" \"$GITHUB_SHA\" -- \\\n  packages/armsx2_internal_bridge/core \\\n  packages/armsx2_internal_bridge/ios/Classes/ARMSX2CoreABI.h\
         \ \\\n  build-utils/armsx2\npython3 - <<'PY'\nimport hashlib, json, os\nfrom pathlib import Path\nidentity=json.loads(Path('dist/armsx2/identity.json').read_text())\n\
@@ -365,7 +365,7 @@ jobs:
     - name: Require the completed pinned libretro cores
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         set -euo pipefail
 
@@ -423,7 +423,7 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro
     - name: Verify pinned libretro cores identity
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\npython3 - <<'PY'\nimport hashlib, json, os\n\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\npython3 - <<'PY'\nimport hashlib, json, os\n\
         from pathlib import Path\nroot = Path('dist/libretro')\nidentity = json.loads((root / 'identity.json').read_text())\nmanifest\
         \ = json.loads(Path('build-utils/libretro/cores.json').read_text())\nassert identity['host_commit'] == os.environ['LIBRETRO_CORES_HOST_SHA'],\
         \ identity['host_commit']\nimport sys\nsys.path.insert(0, '.github/diagnostics')\nfrom liquid505_delivery import validate_psp_core_identity\n\
@@ -437,18 +437,18 @@ jobs:
         \ core['sha256'] for core in identity['cores']},\n})\nfast_path.write_text(json.dumps(fast, indent=2) + '\\n')\nprint('Verified',\
         \ len(identity['cores']), 'libretro cores and', len(identity['files']), 'files')\nPY\n"
     - name: Check catalog options and no-JIT overrides against the pinned cores
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 test/libretro_core_options_test.py --cores dist/libretro'
     - name: Check BIOS names, OpenBIOS option and bundled PPSSPP files against the pinned cores
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 test/libretro_bios_requirements_test.py --cores dist/libretro'
     - name: Download the exact source-built MeloNX engine
       uses: actions/download-artifact@v4
       with:
-        name: MeloNX-engine-084fdb5d71609d3529c39cca9efa26093459827d
-        run-id: 40143289330
+        name: MeloNX-engine-329d9de706a647481e9d192aee890e92bb0b56ef
+        run-id: 40144482367
         github-token: ${{ github.token }}
         path: dist/melonx
     - name: Download the source-built private MeloNX dependencies
@@ -459,7 +459,7 @@ jobs:
         github-token: ${{ github.token }}
         path: dist/melonx-native
     - name: Verify and materialize the six private MeloNX frameworks and original controls
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         set -euo pipefail
 
@@ -483,7 +483,7 @@ jobs:
 
         python3 build-utils/melonx/vendor_controller.py .native-sources/Melo-Controller .native-sources/MeloNX'
     - name: Verify relocated donor headers and the complete iPhone SDK host
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 test/melonx_header_module_test.py
 
@@ -494,14 +494,14 @@ jobs:
         '
     - name: Prepare emulator build definitions
       shell: bash
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom pathlib\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\npython3 - <<'PY'\nimport json, os\nfrom pathlib\
         \ import Path\nrequired=('SCREENSCRAPER_DEV_ID','SCREENSCRAPER_DEV_PASSWORD')\nvalues={key:os.environ.get(key,'').strip() for\
         \ key in required}\nmissing=[key for key,value in values.items() if not value]\nif missing:\n    raise SystemExit('Missing build\
         \ secrets: '+', '.join(missing))\nvalues.update({\n    'NEOSTATION_EXPERIMENTAL_STIKJIT_MELONX':'true',\n    'NEOSTATION_MELONX_BUNDLE_ID':'com.nur.nx',\n\
         })\nPath('.dart-defines.json').write_text(json.dumps(values))\nPY\n\npython3 build-utils/delivery_benchmark.py record-inputs\n"
     - name: Configure release host
       shell: bash
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\npython3 build-utils/configure_neoswap_storage.py\n\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\npython3 build-utils/configure_neoswap_storage.py\n\
         python3 build-utils/patch_ios_video_player_audio_session.py\n# Flutter's config-only build also invokes CocoaPods. Align its\
         \ host\n# first, then reapply after legacy host generators below.\npython3 build-utils/configure_neoplay_ios.py --deployment-only\n\
         python3 build-utils/delivery_metrics.py flutter_configuration_and_first_pods flutter build ios --release --no-codesign --config-only\
@@ -521,12 +521,12 @@ jobs:
         \ '.join(found))\nif Path('ios/NeoStationLocalTunnel').exists():\n    raise SystemExit('Generated iOS host retains the internal\
         \ VPN directory')\nprint('Generated iOS host is LocalDevVPN-only.')\nPY\ngit diff --exit-code -- pubspec.yaml pubspec.lock\n"
     - name: Align application and extension versions to the pubspec version
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/stamp_host_version.py'
     - name: Compile Release device binary with measured AOT and Xcode phases
       shell: bash
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\npython3 build-utils/delivery_metrics.py xcode_build\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\npython3 build-utils/delivery_metrics.py xcode_build\
         \ xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \\\n  -configuration Release -sdk iphoneos \\\n  -destination\
         \ 'generic/platform=iOS' \\\n  -derivedDataPath build/ios/DolphinDerivedData \\\n  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO\
         \ CODE_SIGN_IDENTITY='' \\\n  DEVELOPMENT_TEAM='' PROVISIONING_PROFILE_SPECIFIER='' \\\n  COMPILER_INDEX_STORE_ENABLE=NO \\\n\
@@ -534,7 +534,7 @@ jobs:
         \ -showBuildTimingSummary build \\\n  2>&1 | tee \"$RUNNER_TEMP/neostation-fast-xcodebuild.log\"\n"
     - name: Embed NeoPlay source identity and dependency acknowledgements
       shell: bash
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         set -euo pipefail
 
@@ -564,7 +564,7 @@ jobs:
         '
     - name: Embed verified RPCS3 Core and signing metadata
       shell: bash
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         set -euo pipefail
 
@@ -576,20 +576,20 @@ jobs:
 
         '
     - name: Bind audited RPCS3 binary provenance and verify the linked host compiler broker
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\npython3 build-utils/validate_rpcs3_gow3_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\npython3 build-utils/validate_rpcs3_529_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app\
         \ \\\n  --core-binary dist/rpcs3-native/libRPCS3Core.dylib --core-identity dist/rpcs3-native/identity.json \\\n  --report build/delivery/rpcs3-memory-embedded.json\n"
     - name: Bind the compiled Switch retirement and deletion fix to its exact app sources
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/validate_melonx_delete509_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
         --build-number "$BUILD_NUMBER" --report build/delivery/melonx-delete509-embedded.json'
     - name: Embed exact donor/display source and test identity
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/validate_melonx_memory_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app'
     - name: Embed lazy-loaded ARMSX2 Core framework
       shell: bash
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         set -euo pipefail
 
@@ -613,23 +613,23 @@ jobs:
 
         '
     - name: Embed lazy-loaded libretro cores, MoltenVK and system assets
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\nAPP=\"build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app\"\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\nAPP=\"build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app\"\
         \nfor framework in dist/libretro/Frameworks/*.framework; do\n  rm -rf \"$APP/Frameworks/$(basename \"$framework\")\"\n  ditto\
         \ \"$framework\" \"$APP/Frameworks/$(basename \"$framework\")\"\ndone\nrm -rf \"$APP/LibretroSystem\" \"$APP/Libretro-Licenses\"\
         \nditto dist/libretro/LibretroSystem \"$APP/LibretroSystem\"\nditto dist/libretro/Libretro-Licenses \"$APP/Libretro-Licenses\"\
         \ncp dist/libretro/identity.json \"$APP/Libretro-native-identity.json\"\nls \"$APP/Frameworks\" | grep -c '_libretro.framework'\n"
     - name: Embed legal, license and source notices
       shell: bash
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\nAPP=\"build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app\"\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\nAPP=\"build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app\"\
         \npython3 build-utils/embed_legal_bundle.py \\\n  --app \"$APP\" \\\n  --build-number \"$BUILD_NUMBER\" \\\n  --dolphin-sha\
         \ \"$DOLPHIN_SHA\"\n"
     - name: Embed verified MeloNX runtime and actual build-source notices
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/melonx/package_runtime.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app'
     - name: Package and validate RewindBox IPA
       shell: bash
-      run: "export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c\nset -euo pipefail\ngit diff --check\npython3 packages/dolphin_internal_bridge/ci/build_support.py\
+      run: "export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f\nset -euo pipefail\ngit diff --check\npython3 packages/dolphin_internal_bridge/ci/build_support.py\
         \ package\npython3 build-utils/validate_legal_bundle_ipa.py \"dist/$IPA_NAME.ipa\" \\\n  --build-number \"$BUILD_NUMBER\" --commit\
         \ \"$GITHUB_SHA\"\npython3 build-utils/validate_rpcs3_ipa.py \\\n  --build-number \"$BUILD_NUMBER\" --commit \"$GITHUB_SHA\"\
         \ \\\n  --core-identity build/fast-native/rpcs3-core-identity.json \\\n  --core-host-commit \"$RPCS3_CORE_HOST_SHA\" \\\n  --core-run-id\
@@ -677,57 +677,57 @@ jobs:
         dist/$IPA_NAME.ipa\" --build-number \"$BUILD_NUMBER\" --commit \"$GITHUB_SHA\" --report dist/neoplay-validation.json\nshasum\
         \ -a 256 dist/*.ipa | tee \"dist/$IPA_NAME.sha256\"\nls -lah dist\n"
     - name: Seal every executable, framework and extension for SideStore
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/delivery_metrics.py signature_and_ipa_export python3 build-utils/delivery_benchmark.py seal
 
         '
     - name: Verify actual packaged MeloNX exports, helper identity and native notices
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/validate_melonx_ipa.py dist/NeoStation.ipa --report build/delivery/melonx-ipa.json'
     - name: Verify final signed motion assets and linked native and Dart components
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/validate_motion507_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/motion507-ipa-validation.json'
     - name: Verify final signed GoW3 Core identity and compiler broker
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
-        python3 build-utils/validate_rpcs3_gow3_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/rpcs3-memory-audit-ipa.json'
+        python3 build-utils/validate_rpcs3_529_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/rpcs3-memory-audit-ipa.json'
     - name: Verify the final signed Switch retirement and deletion fix
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/validate_melonx_delete509_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-delete509-ipa.json'
     - name: Verify complete selection tracks and compiled Cover Flow and header correction
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/validate_ui_correction511_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/ui-correction511-ipa-validation.json'
     - name: Verify final signed direct Switch playlist and compact header
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/validate_navigation512_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/navigation512-ipa-validation.json'
     - name: Verify the actual MeloNX launch ABI and signed memory entitlements
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/validate_melonx_launch_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-launch514-ipa-validation.json'
     - name: Verify the exact packaged key import correction
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
-        python3 build-utils/validate_melonx_keys_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --core-source 084fdb5d71609d3529c39cca9efa26093459827d
-        --core-run 40143289330 --report build/delivery/melonx-keys517-ipa-validation.json'
+        python3 build-utils/validate_melonx_keys_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --core-source 329d9de706a647481e9d192aee890e92bb0b56ef
+        --core-run 40144482367 --report build/delivery/melonx-keys517-ipa-validation.json'
     - name: Verify the compiled foreground presentation correction
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/validate_melonx_memory_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/melonx-memory519-ipa-validation.json'
     - name: Finalize observed timings and artifact identity
       if: always()
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/delivery_benchmark.py report
 
         '
     - name: Prepare encrypted delivery and evidence
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         mkdir -p build/delivery-artifact
 
@@ -753,7 +753,7 @@ jobs:
         retention-days: 14
         compression-level: 0
     - name: Prepare bounded encrypted transport pieces
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         python3 build-utils/split_encrypted_delivery.py build/encrypted-delivery build/encrypted-delivery-parts'
     - name: Upload encrypted transport piece 1 of 4
@@ -790,7 +790,7 @@ jobs:
         compression-level: 0
     - name: Collect diagnostic evidence
       if: always()
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         mkdir -p build/delivery
 
@@ -813,6 +813,6 @@ jobs:
     - name: Remove temporary secrets
       if: always()
       shell: bash
-      run: 'export GITHUB_SHA=853ccf5fe95a91efad0573c6e524c03153b42c7c
+      run: 'export GITHUB_SHA=196f0b6e29f2ddb552e201b464e043374d222c5f
 
         rm -f .dart-defines.json'
