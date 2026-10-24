@@ -1,6 +1,6 @@
 # Build527 — controlled iPhone follow-up
 
-Reference: the already delivered Build526, source `d1354170efa22d18ab6cca898998a340239a90c2`. Candidate identity must be recorded after the new native build and IPA verification. Existing supplied device files are Build525 and cannot replace this comparison.
+Reference: the already delivered Build526, source `d1354170efa22d18ab6cca898998a340239a90c2`. Verified candidate: Build527, Core `75ffd142645392f75608aa7c9797195289b498de`, assembly `df9f76eba2b2fba741edebf0d042548bff7d5d89`, IPA SHA-256 `884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e`. Installation requires personal Apple re-signing. Existing supplied device files are Build525 and cannot replace this comparison.
 
 Use the same iPhone16ProMax, same GoWIII edition/update, exact same checkpoint/route, resolution, CPU/SPU options, frame limit, sound and controller state. Keep charging state, screen brightness, available storage and other foreground/background apps comparable. Start each run at the same reported thermal state; a hot candidate and cool reference are not a controlled comparison. Leave original game saves, savestates, keys and caches intact. No system crash logs are required.
 
