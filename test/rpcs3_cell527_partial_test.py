@@ -80,6 +80,92 @@ def fixture():
     return [files, 'metadata-hash', current_inputs, new_manifest, environment, old_inputs, old_manifest]
 
 
+def fixture_second():
+    first = fixture()
+    old_inputs, old_manifest = copy.deepcopy(first[2]), copy.deepcopy(first[3])
+    old_inputs.update({'test/fixtures/rpcs3_ppu_sum527_before.inc': 'sum-fixture',
+        'test/rpcs3_ppu_sum527_test.py': 'same-sum-script', 'test/native/rpcs3_ppu_sum527.cpp': 'same-sum-harness',
+        'test/rpcs3_runtime_metrics527_test.py': 'same-metrics-script',
+        'test/native/rpcs3_jit_publication527_llvm.cpp': 'old-jit-failure-case'})
+    old_manifest['files_sha256'].update({'rpcs3/ios/IOSRuntimeMetrics.h': 'metrics-helper',
+        'rpcs3/ios/RPCS3IOSPerformance.cpp': 'metrics-hooks'})
+    specs = []
+    for name in sorted(partial.SECOND_CASES):
+        if name.startswith('ppu-sum'):
+            args = ['--require-llvm'] + (['--sanitize'] if name == 'ppu-sum-sanitized' else [])
+            args += ['--artifacts', 'build/rpcs3-core-diagnostics/' + ('ppu-sum527-sanitized-asm' if name == 'ppu-sum-sanitized' else 'ppu-sum527-asm')]
+            script = 'test/rpcs3_ppu_sum527_test.py'
+        else:
+            args, script = ['--sanitize'], 'test/rpcs3_runtime_metrics527_test.py'
+        specs.append(dict(name=name, script=script, args=args, timeout=600))
+    old_manifest['cell527']['tests'] += specs
+    environment = dict(first[4], variables={'CXX': '/xcode/clang++', 'HOST_MACOS_SDK': partial.SDK})
+    files, tests = {}, {}
+    for spec in specs:
+        name = spec['name']
+        if name.startswith('ppu-sum'):
+            payload = dict(game_or_device_tested=False, cases_per_operation=76284, llvm_version='22.1.8',
+                sanitized_harness=name == 'ppu-sum-sanitized', generated_code_sanitized=False,
+                production_translator_sha256='translator', production_helper_sha256='helper', before_fixture_sha256='sum-fixture',
+                operations=[dict(bit_exact=True, sticky_sat_exact=True, big_endian_exact=True) for _ in range(3)],
+                sanitizer_boundary_proof={key: True for key in ('jit_function_metadata_check_exempt_only_at_invoke_jit',
+                    'ordinary_indirect_function_check_present', 'signed_overflow_check_present', 'asan_load_check_present')})
+            for path in partial.sum_assembly_names(name):
+                files[path] = ('fixture assembly ' + path).encode()
+        else:
+            payload = dict(passed=True, sanitized=True, physical_device_tested=False,
+                input_sha256={'rpcs3/ios/IOSRuntimeMetrics.h': 'metrics-helper', 'rpcs3/ios/RPCS3IOSPerformance.cpp': 'metrics-hooks'},
+                command=['/xcode/clang++', '-std=c++20', '-isysroot', partial.SDK, '-fsanitize=address,undefined'])
+        report, output = name + '-result.json', name + '-output.txt'
+        files[report], files[output] = json.dumps(payload).encode(), (name + ' directly passed').encode()
+        tests[name] = dict(status='passed', returncode=0, executed_here=True, report=report, output=output,
+            report_sha256=digest(files[report]), output_sha256=digest(files[output]),
+            command=['python3', spec['script'], partial.HISTORICAL_SOURCE_PATH, *spec['args'], '--report',
+                partial.HISTORICAL_ROOT + '/build/rpcs3-core-diagnostics/' + report])
+    files['cell527-proof.txt'] = b'direct failed attempt2 log'
+    receipt = dict(source=partial.SECOND_SOURCE, physical_device_tested=False, all_tests_passed=False,
+        native_source_sha256=old_manifest['files_sha256'], input_sha256=old_inputs, tests=tests,
+        log_sha256=digest(files['cell527-proof.txt']), environment=environment,
+        environment_sha256=digest(partial.canonical(environment)))
+    files['cell527-partial.json'] = json.dumps(receipt).encode()
+    current_inputs = dict(old_inputs)
+    current_inputs['test/native/rpcs3_jit_publication527_llvm.cpp'] = 'fixed-jit-failure-case'
+    return [files, 'second-metadata-hash', current_inputs, copy.deepcopy(old_manifest), environment, old_inputs, old_manifest]
+
+
+def check_second():
+    checks = 0
+    base = fixture_second()
+    admitted = partial.validate_second(*base)
+    assert set(admitted) == partial.SECOND_CASES
+    assert all(item['provenance']['container_conclusion'] == 'failure' and item['provenance']['core_built'] is False for item in admitted.values())
+    assert all(item['provenance']['full_historical_environment_captured'] is True for item in admitted.values())
+    checks += 3
+    def reject(mutate):
+        nonlocal checks
+        value = copy.deepcopy(base)
+        mutate(value)
+        try:
+            partial.validate_second(*value)
+        except (AssertionError, KeyError):
+            checks += 1
+            return
+        raise AssertionError('Attempt2 partial mutation admitted')
+    def receipt(value, mutate):
+        payload = json.loads(value[0]['cell527-partial.json'])
+        mutate(payload)
+        value[0]['cell527-partial.json'] = json.dumps(payload).encode()
+    reject(lambda v: v[4]['variables'].update(CXX='/changed/compiler'))
+    reject(lambda v: v[2].update({'test/native/rpcs3_ppu_sum527.cpp': 'changed-passed-harness'}))
+    reject(lambda v: v[3]['files_sha256'].update({'rpcs3/ios/IOSRuntimeMetrics.h': 'changed-production'}))
+    reject(lambda v: receipt(v, lambda p: p.update(all_tests_passed=True)))
+    reject(lambda v: receipt(v, lambda p: p['tests']['runtime-metrics'].update(executed_here=False)))
+    reject(lambda v: receipt(v, lambda p: p['tests']['runtime-metrics']['command'].append('--different-command')))
+    reject(lambda v: v[0].update({'ppu-sum-sanitized-result.json': b'{"passed":false}'}))
+    reject(lambda v: receipt(v, lambda p: p.update(environment_sha256='wrong-environment-hash')))
+    return checks
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path)
@@ -138,7 +224,8 @@ def main():
                 raise AssertionError('Invalid partial transport admitted')
     finally:
         partial.PPU_ASM_SHA = before
-    report = dict(passed=True, checks=checks, narrow_direct_partial_cases=sorted(partial.CASES),
+    checks += check_second()
+    report = dict(passed=True, checks=checks, narrow_direct_partial_cases=sorted(partial.ALL_CASES),
         sourceCommandsToolsAndReportsMutationRejected=True, fullHistoricalEnvironmentInvented=False,
         failedPreflightNeverTreatedAsCore=True, physicalDeviceTested=False)
     args.report.parent.mkdir(parents=True, exist_ok=True)

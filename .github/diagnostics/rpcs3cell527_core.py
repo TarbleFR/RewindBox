@@ -117,7 +117,7 @@ def source_contract(source=None):
 
 
 def prior_bundle(download):
-    cache = ROOT / 'build/rpcs3-core-diagnostics/prior526'
+    cache = ROOT / 'build/cell527-evidence-cache/prior526'
     cache.mkdir(parents=True, exist_ok=True)
     path, metadata_path = cache / 'artifact.zip', cache / 'metadata.json'
     if download:
@@ -126,13 +126,16 @@ def prior_bundle(download):
         metadata = dict(run=api('actions/runs/' + str(PRIOR_RUN)), artifact=api('actions/artifacts/' + str(PRIOR_ARTIFACT)))
         validate_metadata(metadata)
         metadata_path.write_text(json.dumps(metadata, indent=2) + '\n')
-        if not path.is_file() or path.stat().st_size != PRIOR_BYTES or sha(path.read_bytes()) != PRIOR_SHA:
+        if not path.is_file() or path.stat().st_size != PRIOR_BYTES or partial_reuse.file_sha(path) != PRIOR_SHA:
             with path.open('wb') as output:
                 subprocess.run(['gh', 'api', f'repos/TarbleFR/RewindBox/actions/artifacts/{PRIOR_ARTIFACT}/zip'],
                                cwd=ROOT, stdout=output, check=True, timeout=240)
     metadata = json.loads(metadata_path.read_bytes())
     validate_metadata(metadata)
-    assert path.stat().st_size == PRIOR_BYTES and sha(path.read_bytes()) == PRIOR_SHA
+    diagnostics = ROOT / 'build/rpcs3-core-diagnostics'
+    diagnostics.mkdir(parents=True, exist_ok=True)
+    (diagnostics / 'evidence-prior526-metadata.json').write_bytes(metadata_path.read_bytes())
+    assert path.stat().st_size == PRIOR_BYTES and partial_reuse.file_sha(path) == PRIOR_SHA
     with zipfile.ZipFile(path) as archive:
         assert len(archive.namelist()) == len(set(archive.namelist()))
         # Explicit members only. No archive extraction or historic code execution.
@@ -218,7 +221,7 @@ def execution_environment():
 def execute_tests(source, directory, current, reused=None, environment=None):
     environment = environment or execution_environment()
     reused = reused or {}
-    assert set(reused) <= partial_reuse.CASES
+    assert set(reused) <= partial_reuse.ALL_CASES
     partial = dict(schema=1, source=command('git', 'rev-parse', 'HEAD').decode().strip(),
         input_sha256=current, native_source_sha256=manifest()['files_sha256'],
         physical_device_tested=False, all_tests_passed=False, tests={},
@@ -244,10 +247,10 @@ def execute_tests(source, directory, current, reused=None, environment=None):
             payload = json.loads(item['report'])
             payload['reused_validation'] = item['provenance']
             report.write_text(json.dumps(payload, indent=2) + '\n')
-            output = (f"REUSED individually passed {name} from failed preflight {partial_reuse.RUN}; no Core inferred.\n").encode() + item['output']
+            output = (f"REUSED individually passed {name} from failed preflight {item['provenance']['run']}; no Core inferred.\n").encode() + item['output']
             state.update(returncode=0, status='passed', executed_here=False, reused_from=item['provenance'])
             for relative, data in item.get('artifacts', {}).items():
-                assert name == 'ppu-simd526-regression'
+                assert name in {'ppu-simd526-regression', 'ppu-sum-sanitized', 'ppu-sum-benchmark'}
                 assert sha(data) == item['provenance']['assembly_sha256'][relative]
                 target = directory / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -301,17 +304,22 @@ def prepare(source, output):
     directory.mkdir(parents=True, exist_ok=True)
     (directory / 'cell527-prior526.json').write_text(json.dumps(prior, indent=2) + '\n')
     environment = execution_environment()
-    try:
-        environment['toolchain'] = partial_reuse.current_toolchain()
-        reused = partial_reuse.admitted(sys.modules[__name__], current, environment, download=True)
-        reuse_attempt = dict(status='admitted', cases=sorted(reused), source=partial_reuse.SOURCE,
-            run=partial_reuse.RUN, artifact=partial_reuse.ARTIFACT, archive_sha256=partial_reuse.SHA,
-            container_conclusion='failure', core_built=False)
-    except (AssertionError, OSError, KeyError, ValueError, TypeError, subprocess.SubprocessError, zipfile.BadZipFile) as error:
-        reused = {}
-        reuse_attempt = dict(status='not-admitted', reason=str(error), source=partial_reuse.SOURCE,
-            run=partial_reuse.RUN, artifact=partial_reuse.ARTIFACT, archive_sha256=partial_reuse.SHA)
-        print('Individual527 passes not admitted; affected cases execute: ' + str(error), flush=True)
+    reused, reuse_attempts = {}, {}
+    for label, pin, admit in (('attempt1', partial_reuse.PIN1, partial_reuse.admitted),
+                              ('attempt2', partial_reuse.PIN2, partial_reuse.admitted_second)):
+        try:
+            if 'toolchain' not in environment:
+                environment['toolchain'] = partial_reuse.current_toolchain()
+            candidates = admit(sys.modules[__name__], current, environment, download=True)
+            assert not set(candidates) & set(reused)
+            reused.update(candidates)
+            reuse_attempts[label] = dict(status='admitted', cases=sorted(candidates),
+                source=pin['source'], run=pin['run'], artifact=pin['artifact'], archive_sha256=pin['sha256'],
+                container_conclusion='failure', core_built=False)
+        except (AssertionError, OSError, KeyError, ValueError, TypeError, subprocess.SubprocessError, zipfile.BadZipFile) as error:
+            reuse_attempts[label] = dict(status='not-admitted', reason=str(error),
+                source=pin['source'], run=pin['run'], artifact=pin['artifact'], archive_sha256=pin['sha256'])
+            print('Individual527 passes from ' + label + ' not admitted; affected cases execute: ' + str(error), flush=True)
     partial, reports = execute_tests(source, directory, current, reused=reused, environment=environment)
     result = dict(schema=1, source=partial['source'], input_sha256=current,
         native_source_sha256=manifest()['files_sha256'], prior_source=PRIOR_SOURCE,
@@ -321,7 +329,7 @@ def prepare(source, output):
         partial_receipt_sha256=sha((directory / 'cell527-partial.json').read_bytes()),
         log_sha256=sha((directory / 'cell527-proof.txt').read_bytes()),
         all_tests_passed=True, physical_device_tested=False,
-        environment=environment, environment_sha256=partial['environment_sha256'], partial_reuse_attempt=reuse_attempt)
+        environment=environment, environment_sha256=partial['environment_sha256'], partial_reuse_attempts=reuse_attempts)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2) + '\n')
 
@@ -352,22 +360,26 @@ def verify(path, source):
         assert sha((directory / state['report']).read_bytes()) == state['report_sha256']
         assert sha((directory / state['output']).read_bytes()) == state['output_sha256']
     reused_names = {name for name, state in partial['tests'].items() if 'reused_from' in state}
-    if reused_names:
-        admitted = partial_reuse.admitted(sys.modules[__name__], proof['input_sha256'], proof['environment'], download=False)
-        assert reused_names == set(admitted) == partial_reuse.CASES
-        assert proof['partial_reuse_attempt']['status'] == 'admitted'
-        for name, item in admitted.items():
-            state = partial['tests'][name]
-            assert state['executed_here'] is False and state['reused_from'] == item['provenance']
-            payload = json.loads(item['report'])
-            payload['reused_validation'] = item['provenance']
-            assert (directory / state['report']).read_bytes() == (json.dumps(payload, indent=2) + '\n').encode()
-            expected_output = (f"REUSED individually passed {name} from failed preflight {partial_reuse.RUN}; no Core inferred.\n").encode() + item['output']
-            assert (directory / state['output']).read_bytes() == expected_output
-            for relative, data in item.get('artifacts', {}).items():
-                assert (directory / relative).read_bytes() == data
-    else:
-        assert proof['partial_reuse_attempt']['status'] == 'not-admitted'
+    assert reused_names <= partial_reuse.ALL_CASES
+    for label, cases, admit in (('attempt1', partial_reuse.CASES, partial_reuse.admitted),
+                                ('attempt2', partial_reuse.SECOND_CASES, partial_reuse.admitted_second)):
+        selected = reused_names & cases
+        if selected:
+            admitted = admit(sys.modules[__name__], proof['input_sha256'], proof['environment'], download=False)
+            assert selected == set(admitted) == cases
+            assert proof['partial_reuse_attempts'][label]['status'] == 'admitted'
+            for name, item in admitted.items():
+                state = partial['tests'][name]
+                assert state['executed_here'] is False and state['reused_from'] == item['provenance']
+                payload = json.loads(item['report'])
+                payload['reused_validation'] = item['provenance']
+                assert (directory / state['report']).read_bytes() == (json.dumps(payload, indent=2) + '\n').encode()
+                expected_output = (f"REUSED individually passed {name} from failed preflight {item['provenance']['run']}; no Core inferred.\n").encode() + item['output']
+                assert (directory / state['output']).read_bytes() == expected_output
+                for relative, data in item.get('artifacts', {}).items():
+                    assert (directory / relative).read_bytes() == data
+        else:
+            assert proof['partial_reuse_attempts'][label]['status'] == 'not-admitted'
     # The already authenticated archive is rebound to every current unchanged
     # dependency using the actual materialized source again by the builder.
     files, metadata_sha = prior_bundle(download=False)

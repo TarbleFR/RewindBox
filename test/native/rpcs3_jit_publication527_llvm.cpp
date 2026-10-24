@@ -268,9 +268,15 @@ template <typename Base> static void resolver_failure()
 		llvm::LLVMContext context;
 		failing_manager<Base>* manager = nullptr;
 		auto compiler = engine(context, &manager);
+		// MCJIT getGlobalValueAddress finalizes only loaded modules. Finish
+		// its initial empty module before injecting the resolver failure:
+		// compiling ANY still-added module after a sticky Dyld error is fatal
+		// in generateCodeForModule, independently of publication policy.
+		compiler->finalizeObject();
 		compiler->addModule(module(context, "jit527_error_caller", "jit527_late_helper", 31));
 		const auto address = compiler->getGlobalValueAddress("jit527_error_caller");
 		require(address && compiler->hasError());
+		std::fprintf(stderr, "LLVM resolver failure retained dirty ranges; retrying existing relocations only\n");
 		const auto before_retry = flush_calls;
 		manager->fail_lookup = false;
 		compiler->clearErrorMessage();
@@ -280,6 +286,7 @@ template <typename Base> static void resolver_failure()
 		// RuntimeDyld retains its error flag; conservative full dirty suffix
 		// remains covered instead of trusting a cleared Engine error string.
 		require(compiler->hasError());
+		std::fprintf(stderr, "LLVM resolver retry executed correctly; sticky error keeps dirty ranges conservative\n");
 	}
 	clear_mappings();
 }
