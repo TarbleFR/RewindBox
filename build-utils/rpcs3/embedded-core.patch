@@ -16805,7 +16805,7 @@ index 1f53c64..ae78132 100644
  	{
  		// Reset boot path in case of ISO
 diff --git a/rpcs3/Emu/savestate_utils.cpp b/rpcs3/Emu/savestate_utils.cpp
-index f43643d..dbcb500 100644
+index f43643d..7224894 100644
 --- a/rpcs3/Emu/savestate_utils.cpp
 +++ b/rpcs3/Emu/savestate_utils.cpp
 @@ -9,6 +9,10 @@
@@ -16915,6 +16915,18 @@ index f43643d..dbcb500 100644
  	extern u16 serial_breathe_and_tag(utils::serial& ar, std::string_view name, bool tag_bit)
  	{
  		thread_local std::string_view s_tls_object_name = "none";
+@@ -706,6 +775,11 @@ bool hle_locks_t::try_finalize(std::function<bool()> test)
+ 	{
+ 		// Failed
+ 		ensure(lock_val.compare_and_swap_test(waiting_for_evaluation, 0));
++#ifdef RPCS3_IOS
++		// REWINDBOX_SAVESTATE_ABORT_WAKE_V1: cancelled evaluation reopens
++		// HLE admission; threads already parked on -1 need a notification.
++		lock_val.notify_all();
++#endif
+ 		return false;
+ 	}
+ 
 diff --git a/rpcs3/Emu/savestate_utils.hpp b/rpcs3/Emu/savestate_utils.hpp
 index 130f54b..4c096c9 100644
 --- a/rpcs3/Emu/savestate_utils.hpp

@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "baselineBuild": 523,
+  "baselineAppSource": "c1f550f8be86c91d65dc564ebddff593f2e3fe46",
+  "baselineCoreSource": "e8437623a1ba37874adfacd8521c596e94d055c3",
+  "baselineCoreRun": 40103133192,
+  "patchSHA256": "6a06f3e84ef41a9b43b2873a769c09c993514931fda48009c4890b20159c7303",
+  "changedNativePaths": [
+    "rpcs3/Emu/savestate_utils.cpp"
+  ],
+  "localProof": {
+    "passed": true,
+    "actualHLEMethods": true,
+    "actualAtomicWaitEngine": true,
+    "beforeMethodSHA256": "05aeb95ee311c7f51d8607fdbe83282cc60c2da829b8a154c49e10cde1faf1f5",
+    "sourceInputs": {
+      "rpcs3/Emu/savestate_utils.cpp": "799466dedec54aadc57f24440905837e726936e20a1ae8032e46fb9e0359ce61",
+      "rpcs3/Emu/savestate_utils.hpp": "8f6c7ccf781e71ae6ac559c464063e3657eeeb44616373e1831e584310e729d0",
+      "rpcs3/util/atomic.cpp": "7fd0a17fa78d4ef6f078cb87a4735e8f20431d744b620b46801a314a89202d66",
+      "rpcs3/util/atomic.hpp": "5333cb88153e713e47eae1240b7a2684472a7cc0c44b832274f9ba53d698c677",
+      "Utilities/sync.h": "3fff9bafc7228c1ab718fedef27d3a27fb5d2896ef34ef49eaa3a6b4d1c61a7d",
+      "rpcs3/ios/tests/MinecraftAtomicSupport.cpp": "f394b8362ddfae74f8fa97a33040ca2c3d340c2cf53e9752b4ab21a8fff41902"
+    },
+    "cases": [
+      {
+        "variant": "before",
+        "exit": 7,
+        "stdout": "",
+        "stderr": "FAIL aborted HLE finalization left 8 registered native waits asleep; fixture notify_all rescued them"
+      },
+      {
+        "variant": "candidate",
+        "exit": 0,
+        "stdout": "PASS 20 HLE cases: parked waiters resume after abort, retry succeeds, finalized rejects, active locks and initial rejection preserved; actual RPCS3 wait engine",
+        "stderr": ""
+      }
+    ],
+    "sanitizers": true,
+    "platform": "Linux",
+    "machine": "x86_64",
+    "nativeWaitBackend": "Linux RPCS3 hashed futex fallback (-DANDROID fixture selection)",
+    "scope": "native synchronization fixture; no game, device, FPS or RAM measurement"
+  },
+  "nativeBuild": {
+    "status": "pending"
+  },
+  "ipa": {
+    "status": "pending"
+  },
+  "knownLogLimit": "No new Build523 device capture; recorded Build522 stop is in PPU restoration, not a demonstrated occurrence of aborted HLE save finalization.",
+  "physicalDeviceTested": false,
+  "gamePerformanceMeasured": false,
+  "physicalRAMReductionMeasured": false
+}
