@@ -151,3 +151,39 @@ Les nouveaux compteurs n'affirment pas une résidence GPU :
 `*_snapshot_valid=0` signifie échantillon indisponible ; après arrêt valide,
 `owner_live=0` et `sample_valid=0`. Le pool recyclable est celui du dernier
 frame-end publié ; textures actives et retraites GPU en attente restent non mesurées.
+
+
+## Livraison privée vérifiée
+
+IPA **0.0.8 (525)**, `RewindBox-Build525.ipa`, **186 630 220 octets**,
+SHA-256 **`a95d49860b4ef74699284d4ed002b02318eb5551a427fee9fea574363d209cdd`**.
+Source d'assemblage : `7269071664100e2fe2b10e559bc43cfc423c6a50` ;
+[run 40120597675](https://github.com/TarbleFR/RewindBox/actions/runs/40120597675),
+job `120951083411`, réussi. Les quatre transports GitHub sont chiffrés ; leurs
+tailles et SHA-256, les fragments, l'enveloppe et le checksum de l'IPA déchiffrée
+ont été contrôlés. Le récepteur a d'abord refusé le répertoire racine `.` de
+BSD tar ; il accepte désormais uniquement cette entrée de répertoire explicite,
+sans relâcher les gardes de traversée, liens ou fichiers spéciaux.
+
+Le Core signé embarqué a pour SHA-256
+`65dac69775250810a61aa014f492ea8f80bea2def4eb0b8689f48353b928443d`.
+La différence avec l'artefact natif vient de la signature : ses segments hors
+LINKEDIT et son empreinte code/données/ABI
+`04934548624b4342a13cadd234c35fa05814e0d151eaefb0c4819cf263965775`
+sont conservés. Les 88 exports correspondent exactement au contrat précédent.
+
+L'application compilée 523 (`c1f550f8`, run `40104064265`) est réutilisée à
+l'identique : aucune recompilation Flutter, car aucun de ses fichiers de produit
+ne change. L'IPA est reconstruite et scellée avec le nouveau Core. Contrôle
+indépendant final : **87 images ARM64**, dont **86 autres images identiques**,
+**4410 ressources conservées**, **8 bundles en 525** dont sept extensions,
+**84 images fines scellées** et **87 signatures ad hoc strictes vérifiées en CI**.
+Les entitlements d'exécution sont identiques ; les notices, sources et recettes
+natives restent embarquées. La racine Merkle des ressources normalisées reste
+`754e938ac9214f564d2e1cbe7202f45e37661337d94037b9de9a307cde3c5407`.
+
+L'IPA privée a été enregistrée pour téléchargement. La signature Apple pour
+installation reste à refaire avec la méthode habituelle du mainteneur ; aucune
+provision Apple ou installation physique n'est déclarée. Le
+[reçu complet](evidence/rpcs3-cell525-validation.json) conserve les observations,
+les deux échecs de préparation, les tests Apple, les mesures brutes et les limites.
