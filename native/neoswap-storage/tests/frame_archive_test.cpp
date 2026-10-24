@@ -46,14 +46,15 @@ void policy(){
     CHECK(!frame_queue_has_room(60,0,60));
     CHECK(!frame_queue_has_room(0,60,60));
     CHECK(!frame_queue_has_room(UINT64_MAX,1,60));
-    CHECK(frame_can_cool(60,0,250000,1280*720*3/2,true));
-    CHECK(!frame_can_cool(23,0,250000,4096,true));
+    CHECK(!frame_can_cool(60,0,250000,1280*720*3/2,true));
+    CHECK(frame_can_cool(60,8,250000,1280*720*3/2,true));
+    CHECK(!frame_can_cool(23,8,250000,4096,true));
     CHECK(!frame_can_cool(60,52,250000,4096,true));
     CHECK(!frame_can_cool(60,60,250000,4096,true));
-    CHECK(!frame_can_cool(60,0,249999,4096,true));
-    CHECK(!frame_can_cool(60,0,250000,4095,true));
-    CHECK(!frame_can_cool(60,0,250000,frame_max_bytes+1,true));
-    CHECK(!frame_can_cool(60,0,250000,4096,false));
+    CHECK(!frame_can_cool(60,8,249999,4096,true));
+    CHECK(!frame_can_cool(60,8,250000,4095,true));
+    CHECK(!frame_can_cool(60,8,250000,frame_max_bytes+1,true));
+    CHECK(!frame_can_cool(60,8,250000,4096,false));
 }
 Stats cycle;
 void large_cycle(const std::string& dir){

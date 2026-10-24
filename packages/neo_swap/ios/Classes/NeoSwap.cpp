@@ -137,6 +137,9 @@ struct Shelf {
     std::atomic<uint32_t> ready{0}, target{0};
     std::atomic<uint64_t> misses{0}, hits{0};
     uint64_t last_misses = 0; // misses already turned into a target
+    // Broker-lock protected demand. Video payloads need alignment, not a
+    // power-of-two allocation. Other kinds continue requesting the full class.
+    uint64_t requested_span = 0, refill_span = 0;
 };
 #endif
 struct HostCounters {
@@ -593,9 +596,14 @@ bool try_relay_loan(Broker& b, uint32_t owner, uint32_t kind, uint64_t rounded, 
         return true;
     }
     const size_t klass = shelf_class_for(bytes);
+    if (fast && klass < shelf_exact_class) {
+        auto& shelf = b.shelves[klass];
+        const uint64_t demand = kind == NEOSWAP_HOST_KIND_VIDEO_FRAME ? bytes : shelf_class_bytes(klass);
+        shelf.requested_span = std::max(shelf.requested_span, demand);
+    }
     if (klass < shelf_exact_class && (fast || shelf_class_bytes(klass) == bytes)) {
         Shelf& shelf = b.shelves[klass];
-        for (auto& entry : shelf.entries) if (entry.token) {
+        for (auto& entry : shelf.entries) if (entry.token && entry.bytes >= bytes && (fast || entry.bytes == bytes)) {
             take(shelf, entry);
             return true;
         }
@@ -647,7 +655,9 @@ int release_relay_loan(Broker& b, Block& block, uint64_t now_ms) {
         r.cached_bytes.load(std::memory_order_relaxed) + block.size <= relay_cache_budget) {
         // A class-sized interval returns to its class shelf; any other size
         // waits on the exact shelf for an identical request.
-        Shelf& shelf = b.shelves[shelf_class_exact(block.size) ? shelf_class_for(block.size) : shelf_exact_class];
+        const size_t klass = shelf_class_for(block.size);
+        Shelf& shelf = b.shelves[(shelf_class_exact(block.size) ||
+            block.kind == NEOSWAP_HOST_KIND_VIDEO_FRAME) && klass < shelf_exact_class ? klass : shelf_exact_class];
         for (auto& entry : shelf.entries) if (!entry.token) {
             entry = {block.relay_token, block.size, now_ms, block.address};
             shelf.ready.fetch_add(1, std::memory_order_relaxed);
@@ -1343,6 +1353,20 @@ extern "C" int NeoSwap_RelayLoanMaintain(uint64_t now_ms, int flush_all) {
         // closed admission gate alone keeps the bounded shelves ageing normally
         // so a holding sample does not hand room back and reopen the gate.
         result = relay_loan_maintain_locked(b, now_ms, flush_all != 0);
+        for (size_t klass = 0; klass < shelf_exact_class; ++klass) {
+            auto& shelf = b.shelves[klass];
+            if (flush_all) shelf.refill_span = 0;
+            else if (shelf.requested_span) shelf.refill_span = shelf.requested_span;
+            shelf.requested_span = 0;
+            // Replace at most one oversized idle interval per class/tick.
+            // Live loans and failed unmaps keep their original ownership.
+            if (!flush_all && shelf.refill_span && shelf.refill_span < shelf_class_bytes(klass)) {
+                for (auto& entry : shelf.entries) if (entry.token && entry.bytes > shelf.refill_span) {
+                    if (retire_cached_loan(b, entry)) shelf.ready.fetch_sub(1, std::memory_order_relaxed);
+                    break;
+                }
+            }
+        }
         if (flush_all || !b.relay_loans.admitted.load(std::memory_order_acquire) || !relay_api()) return result;
         // Plan the refill under the lock: smallest classes first so a large
         // class cannot starve the small sizes of the quota, bounded by the
@@ -1357,8 +1381,9 @@ extern "C" int NeoSwap_RelayLoanMaintain(uint64_t now_ms, int flush_all) {
         for (size_t klass = 0; klass < shelf_exact_class && planned < plan.size(); ++klass) {
             Shelf& shelf = b.shelves[klass];
             const uint32_t target = shelf.target.load(std::memory_order_relaxed);
-            uint32_t ready = shelf.ready.load(std::memory_order_relaxed);
-            const uint64_t bytes = shelf_class_bytes(klass);
+            const uint64_t bytes = shelf.refill_span ? shelf.refill_span : shelf_class_bytes(klass);
+            uint32_t ready = 0;
+            for (const auto& entry : shelf.entries) if (entry.token && entry.bytes >= bytes) ++ready;
             while (ready < target && planned < plan.size()) {
                 if (projected_cached + bytes > relay_cache_budget || live + projected_cached > quota ||
                     bytes > quota - live - projected_cached || free_slots <= planned) {

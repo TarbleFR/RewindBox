@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include "SourceArchive.h"
 #include "SourceClient.h"
+#include "FrameClient.h"
 #include <cerrno>
 #include <cstdlib>
 #include <iostream>
@@ -110,10 +111,30 @@ void restore_failures_and_epochs(const std::string& directory){
         active=&archive;owner.reset();archive.maintain();active=nullptr;
     }
 }
+void video_prefetch_cycle(const std::string& directory){
+    auto limits=config();limits.domain_mask|=8;
+    Archive archive(directory,6,limits);active=&archive;
+    const auto pixels=fixture(1382400,521);
+    neostation::source_client::ColdFrame frame;
+    CHECK(frame.offload(pixels.data(),pixels.size()));
+    while(archive.snapshot().pending)archive.maintain();
+    const auto before=archive.snapshot();
+    CHECK(before.staging_bytes==0&&before.managed.owned_ram_bytes==0);
+    CHECK(frame.prefetch());
+    auto hot=archive.snapshot();CHECK(hot.managed.store.bytes_read>before.managed.store.bytes_read);
+    std::string output;int error=0;bool prefetched=false;
+    CHECK(frame.restore(output,error,&prefetched)==NS_SOURCE_OK&&prefetched&&output==pixels);
+    CHECK(archive.snapshot().managed.store.bytes_read==hot.managed.store.bytes_read);
+    CHECK(neostation::source_client::frame_prefetch_payload_bytes==0);
+    // The underlying immutable archive remains retryable after warm delivery.
+    CHECK(frame.restore(output,error)==NS_SOURCE_OK&&output==pixels);
+    frame.reset();archive.maintain();CHECK(archive.snapshot().sources==0);
+    active=nullptr;
+}
 }
 int main(int argc,char** argv){
     CHECK(argc==2 && neostation::source_client::install(&api)==NS_SOURCE_OK);
-    large_cycle(argv[1]);pressure_and_limits(argv[1]);persistence_failures(argv[1]);restore_failures_and_epochs(argv[1]);
+    large_cycle(argv[1]);pressure_and_limits(argv[1]);persistence_failures(argv[1]);restore_failures_and_epochs(argv[1]);video_prefetch_cycle(argv[1]);
     std::cout<<"{\"passed\":true,\"coreClientExecuted\":true,\"ramStorageRamCycleVerified\":true,"
         "\"byteIdentityVerified\":true,\"admissionNoDiskIO\":true,\"pressureAndQuotaVerified\":true,"
         "\"persistenceFailureRetainsSnapshot\":true,\"failedRestoreClearsOutput\":true,\"staleEpochRejected\":true,"

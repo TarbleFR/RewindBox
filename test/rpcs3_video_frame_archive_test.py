@@ -17,7 +17,10 @@ cflags=shlex.split(os.environ['FFMPEG_TEST_CFLAGS']) if 'FFMPEG_TEST_CFLAGS' in 
 libs=shlex.split(os.environ['FFMPEG_TEST_LIBS']) if 'FFMPEG_TEST_LIBS' in os.environ else shlex.split(subprocess.check_output(['pkg-config','--libs','libavcodec','libavutil','libswscale'],text=True))
 text=(source/'rpcs3/Emu/Cell/Modules/cellVdec.cpp').read_text()
 start=text.index('\tvoid archive_cold_pixels_locked()')
-method=text[start:text.index('\n#endif',start)]
+opening=text.index('{',start);end=opening+1;depth=1
+while depth:
+    depth+=int(text[end]=='{')-int(text[end]=='}');end+=1
+method=text[start:end]
 assert method.endswith('\n\t}')
 assert 'av_frame_is_writable(picture.avf.get()) == 1' in method
 assert method.index('!picture.cold_pixels.offload_copy')<method.index('av_buffer_unref')

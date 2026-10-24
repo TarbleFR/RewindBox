@@ -3248,7 +3248,7 @@ index a88ac6e..5a8d88e 100644
  	~audio_ringbuffer();
  
 diff --git a/rpcs3/Emu/Cell/Modules/cellVdec.cpp b/rpcs3/Emu/Cell/Modules/cellVdec.cpp
-index 1847c8c..9786108 100644
+index 1847c8c..f0234c9 100644
 --- a/rpcs3/Emu/Cell/Modules/cellVdec.cpp
 +++ b/rpcs3/Emu/Cell/Modules/cellVdec.cpp
 @@ -46,6 +46,11 @@ extern "C"
@@ -3289,7 +3289,7 @@ index 1847c8c..9786108 100644
  
  	shared_mutex mutex; // Used for 'out' queue (TODO)
  
-@@ -214,6 +231,65 @@ struct vdec_context final
+@@ -214,6 +231,88 @@ struct vdec_context final
  
  	std::deque<vdec_frame> out_queue;
  	const u32 out_max = 60;
@@ -3351,11 +3351,34 @@ index 1847c8c..9786108 100644
 +			return;
 +		}
 +	}
++
++	// The existing decoder producer warms at most one upcoming archived picture
++	// per pass. Its queue lock only pins the reference; storage I/O is outside
++	// BOTH queue and conversion locks. A global 8 MiB payload / 8 object budget
++	// bounds this read-ahead across all decoder contexts, without a new thread.
++	void prefetch_near_pixels()
++	{
++		neostation::source_client::ColdFrame next;
++		{
++			std::lock_guard lock{mutex};
++			usz position = 0;
++			for (const auto& picture : out_queue)
++			{
++				if (position++ >= neostation::source_client::frame_warm_head_count) break;
++				if (picture.cold_pixels.can_prefetch())
++				{
++					next = picture.cold_pixels;
++					break;
++				}
++			}
++		}
++		next.prefetch();
++	}
 +#endif
  
  	atomic_t<s32> au_count{0};
  
-@@ -272,6 +348,16 @@ struct vdec_context final
+@@ -272,6 +371,16 @@ struct vdec_context final
  			fmt::throw_exception("avcodec_alloc_context3() failed (type=0x%x)", type);
  		}
  
@@ -3372,7 +3395,13 @@ index 1847c8c..9786108 100644
  		AVDictionary* opts = nullptr;
  
  		std::lock_guard lock(g_mutex_avcodec_open2);
-@@ -581,7 +667,14 @@ struct vdec_context final
+@@ -578,10 +687,20 @@ struct vdec_context final
+ 						u32 elapsed = 0;
+ 						while (thread_ctrl::state() != thread_state::aborting && !abort_decode && seq_id == cmd->seq_id)
+ 						{
++#ifdef RPCS3_IOS
++							prefetch_near_pixels();
++#endif
  							{
  								std::lock_guard lock{mutex};
  
@@ -3388,7 +3417,7 @@ index 1847c8c..9786108 100644
  								{
  									break;
  								}
-@@ -591,7 +684,12 @@ struct vdec_context final
+@@ -591,7 +710,12 @@ struct vdec_context final
  
  							if (elapsed++ >= 500) // 5 seconds
  							{
@@ -3402,7 +3431,7 @@ index 1847c8c..9786108 100644
  								elapsed = 0;
  							}
  						}
-@@ -603,6 +701,9 @@ struct vdec_context final
+@@ -603,6 +727,9 @@ struct vdec_context final
  
  						{
  							std::lock_guard lock{mutex};
@@ -3412,7 +3441,7 @@ index 1847c8c..9786108 100644
  							out_queue.push_back(std::move(decoded_frames.front()));
  							decoded_frames.pop_front();
  						}
-@@ -1728,6 +1829,31 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
+@@ -1728,6 +1855,31 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
  
  	vdec_frame frame;
  	bool notify = false;
@@ -3444,7 +3473,7 @@ index 1847c8c..9786108 100644
  	u64 sequence_id{};
  
  	{
-@@ -1740,9 +1866,20 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
+@@ -1740,9 +1892,20 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
  
  		frame = std::move(vdec->out_queue.front());
  		sequence_id = vdec->seq_id;
@@ -3466,7 +3495,7 @@ index 1847c8c..9786108 100644
  			notify = true;
  	}
  
-@@ -1759,17 +1896,67 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
+@@ -1759,17 +1922,71 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
  
  	if (outBuff)
  	{
@@ -3477,8 +3506,9 @@ index 1847c8c..9786108 100644
 +		if (frame.cold_pixels.archived())
 +		{
 +			int os_error = 0;
++			bool prefetched = false;
 +			const u64 restore_started = get_system_time();
-+			const int result = frame.cold_pixels.restore(restored_pixels, os_error);
++			const int result = frame.cold_pixels.restore(restored_pixels, os_error, &prefetched);
 +			if (result != NS_SOURCE_OK)
 +			{
 +				cellVdec.error("NEOSWAP_VDEC restore failed: handle=0x%x seq=%llu code=%d errno=%d", handle, frame.seq_id, result, os_error);
@@ -3499,9 +3529,12 @@ index 1847c8c..9786108 100644
 +			while (peak < elapsed && !vdec->pixel_restore_max_us.compare_exchange_weak(peak, elapsed)) {}
 +			const u64 restored_count = vdec->pixel_frames_restored.fetch_add(1) + 1;
 +			if (restored_count == 1 || !(restored_count % 16) || elapsed >= 50'000)
-+				cellVdec.notice("NEOSWAP_VDEC restored_frames=%llu bytes=%llu read_us=%llu max_read_us=%llu mapped_live=%llu scope=cpu_archive_read_not_nand_benchmark",
++				cellVdec.notice("NEOSWAP_VDEC restored_frames=%llu bytes=%llu read_us=%llu max_read_us=%llu mapped_live=%llu prefetched=%u prefetch_payload_live=%llu prefetch_payload_peak=%llu prefetch_hits=%llu demand_reads=%llu prefetch_failures=%llu prefetch_wait_max_us=%llu prefetch_scope=process_lifetime scope=cpu_archive_read_not_nand_benchmark",
 +					restored_count, static_cast<u64>(restored_pixels.size()), elapsed,
-+					vdec->pixel_restore_max_us.load(), neostation::source_client::video_mapped_bytes.load());
++					vdec->pixel_restore_max_us.load(), neostation::source_client::video_mapped_bytes.load(), prefetched ? 1u : 0u,
++					neostation::source_client::frame_prefetch_payload_bytes.load(), neostation::source_client::frame_prefetch_peak_bytes.load(),
++					neostation::source_client::frame_prefetch_hits.load(), neostation::source_client::frame_demand_reads.load(),
++					neostation::source_client::frame_prefetch_failures.load(), neostation::source_client::frame_prefetch_wait_max_us.load());
 +		}
 +#endif
 +#ifdef RPCS3_IOS
@@ -3537,7 +3570,7 @@ index 1847c8c..9786108 100644
  		case CELL_VDEC_PICFMT_UYVY422_ILV: out_f = AV_PIX_FMT_UYVY422; break;
  		case CELL_VDEC_PICFMT_YUV420_PLANAR: out_f = AV_PIX_FMT_YUV420P; break;
  		default:
-@@ -1780,9 +1967,25 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
+@@ -1780,9 +1997,25 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
  
  		// TODO: color matrix
  
@@ -3565,7 +3598,7 @@ index 1847c8c..9786108 100644
  		}
  
  		AVPixelFormat in_f = AV_PIX_FMT_YUV420P;
-@@ -1801,10 +2004,26 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
+@@ -1801,10 +2034,26 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
  
  		cellVdec.trace("cellVdecGetPictureExt: handle=0x%x, seq_id=%d, cmd_id=%d, w=%d, h=%d, frameFormat=%d, formatType=%d, in_f=%d, out_f=%d, alpha_plane=%d, alpha=%d, colorMatrixType=%d", handle, frame.seq_id, frame.cmd_id, w, h, frame->format, format->formatType, +in_f, +out_f, !!alpha_plane, format->alpha, format->colorMatrixType);
  
@@ -3594,7 +3627,7 @@ index 1847c8c..9786108 100644
  		u8* out_data[4] = { outBuff.get_ptr() };
  		int out_line[4] = { w * 4 }; // RGBA32 or ARGB32
  
-@@ -1824,7 +2043,8 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
+@@ -1824,7 +2073,8 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
  			}
  		}
  
@@ -16013,7 +16046,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..1c3011b 100644
+index 1f53c64..f25868c 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -10,6 +10,8 @@
@@ -16319,7 +16352,48 @@ index 1f53c64..1c3011b 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -3479,6 +3644,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -2709,7 +2874,17 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 
+ 			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
+ 
+-			if (ppu_load_exec(ppu_exec, false, m_path, DeserialManager()))
++			const bool restoring_ppu = !!m_ar;
++			if (restoring_ppu)
++			{
++				sys_log.notice("SAVESTATE_RESTORE phase=ppu_exec_begin position=%llu", static_cast<u64>(m_ar->pos));
++			}
++			const bool loaded_ppu = ppu_load_exec(ppu_exec, false, m_path, DeserialManager());
++			if (restoring_ppu)
++			{
++				sys_log.notice("SAVESTATE_RESTORE phase=ppu_exec_end loaded=%u position=%llu", loaded_ppu ? 1u : 0u, m_ar ? static_cast<u64>(m_ar->pos) : 0ull);
++			}
++			if (loaded_ppu)
+ 			{
+ 				if (g_cfg.core.ppu_debug && had_been_decrypted)
+ 				{
+@@ -2943,6 +3118,10 @@ void Emulator::FixGuestTime()
+ 
+ void Emulator::FinalizeRunRequest()
+ {
++	if (m_ar)
++	{
++		sys_log.notice("SAVESTATE_RESTORE phase=finalize_run_begin position=%llu", static_cast<u64>(m_ar->pos));
++	}
+ 	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
+ 
+ 	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
+@@ -2990,6 +3169,10 @@ void Emulator::FinalizeRunRequest()
+ 
+ 	m_state.compare_and_swap_test(system_state::starting, system_state::running);
+ 
++	if (m_ar)
++	{
++		sys_log.notice("SAVESTATE_RESTORE phase=finalize_run_end position=%llu", static_cast<u64>(m_ar->pos));
++	}
+ 	m_ar.reset();
+ 
+ 	if (!autostart)
+@@ -3479,6 +3662,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -16332,7 +16406,7 @@ index 1f53c64..1c3011b 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3664,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3682,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -16355,7 +16429,7 @@ index 1f53c64..1c3011b 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3720,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3738,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -16363,7 +16437,7 @@ index 1f53c64..1c3011b 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3731,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3749,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -16371,7 +16445,7 @@ index 1f53c64..1c3011b 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3741,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3759,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -16379,7 +16453,7 @@ index 1f53c64..1c3011b 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +3829,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +3847,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -16390,7 +16464,7 @@ index 1f53c64..1c3011b 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +3895,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +3913,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -16399,7 +16473,7 @@ index 1f53c64..1c3011b 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4009,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4027,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -16414,7 +16488,7 @@ index 1f53c64..1c3011b 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4044,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4062,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -16422,7 +16496,7 @@ index 1f53c64..1c3011b 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4162,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4180,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -16436,7 +16510,7 @@ index 1f53c64..1c3011b 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4217,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4235,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -16449,7 +16523,7 @@ index 1f53c64..1c3011b 100644
  			});
  
  			// Join it
-@@ -4075,10 +4287,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4305,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -16469,7 +16543,7 @@ index 1f53c64..1c3011b 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4308,10 +4529,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4547,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -18742,16 +18816,18 @@ index 0000000..a0d7975
 +}
 diff --git a/rpcs3/ios/NeoSwapStorage/FrameClient.h b/rpcs3/ios/NeoSwapStorage/FrameClient.h
 new file mode 100644
-index 0000000..0bec1ac
+index 0000000..339261b
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapStorage/FrameClient.h
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,78 @@
 +// SPDX-License-Identifier: MIT
 +#pragma once
 +#include "SourceClient.h"
 +#include <array>
 +#include <cstddef>
 +#include <cstdint>
++#include <condition_variable>
++#include <mutex>
 +
 +namespace neostation::source_client {
 +// Immutable packed SOFTWARE pixels only, after the decoder has relinquished
@@ -18761,6 +18837,17 @@ index 0000000..0bec1ac
 +inline constexpr uint32_t frame_max_chunks = 4;
 +inline constexpr uint64_t frame_cold_age_us = 250'000;
 +inline constexpr uint32_t frame_warm_count = 8, frame_min_queue = 24;
++// Protect the next pictures as well as FFmpeg's newest references. Archiving
++// the FIFO head creates an avoidable disk restore on cellVdecGetPicture.
++inline constexpr uint32_t frame_warm_head_count = 8;
++inline constexpr uint64_t frame_prefetch_payload_limit = 8ULL << 20;
++inline constexpr uint32_t frame_prefetch_count_limit = 8;
++enum class FrameWarmState : uint8_t { cold, loading, ready, consumed, failed };
++inline constinit std::atomic<uint64_t> frame_prefetch_payload_bytes{0},frame_prefetch_peak_bytes{0};
++inline constinit std::atomic<uint32_t> frame_prefetch_count{0};
++inline constinit std::atomic<uint64_t> frame_prefetch_hits{0},frame_prefetch_requests{0};
++inline constinit std::atomic<uint64_t> frame_prefetch_failures{0},frame_prefetch_refusals{0};
++inline constinit std::atomic<uint64_t> frame_demand_reads{0},frame_prefetch_wait_max_us{0};
 +inline constexpr bool frame_requires_restore_slot(bool archived, bool has_output) noexcept {
 +    // Normal/warm/default-off consumption keeps the original producer wakeup.
 +    return archived && has_output;
@@ -18770,7 +18857,7 @@ index 0000000..0bec1ac
 +}
 +inline bool frame_can_cool(uint32_t queue, uint32_t position, uint64_t age_us,
 +                           uint64_t bytes, bool exclusively_owned) noexcept {
-+    return exclusively_owned && queue >= frame_min_queue && position < queue &&
++    return exclusively_owned && queue >= frame_min_queue && position >= frame_warm_head_count && position < queue &&
 +        queue - position > frame_warm_count && age_us >= frame_cold_age_us &&
 +        bytes >= 4096 && bytes <= frame_max_bytes;
 +}
@@ -18778,6 +18865,12 @@ index 0000000..0bec1ac
 +    std::array<Reference, frame_max_chunks> chunks;
 +    uint64_t bytes = 0;
 +    uint32_t count = 0;
++    std::atomic<FrameWarmState> warm_state{FrameWarmState::cold};
++    std::mutex warm_mutex;
++    std::condition_variable warm_changed;
++    std::string warm_pixels;
++    bool warm_charge = false; // guarded by warm_mutex; last shared owner retires it
++    ~FrameReference();
 +};
 +class ColdFrame final {
 +public:
@@ -18793,7 +18886,14 @@ index 0000000..0bec1ac
 +    bool offload_copy(size_t bytes, PixelCopy copy, void* context) noexcept;
 +    // VDEC's CPU consumer only, outside the queue/conversion mutexes. Failed
 +    // restore clears output; no caller may consume partially restored pixels.
-+    int restore(std::string& output, int& os_error) const noexcept;
++    int restore(std::string& output, int& os_error, bool* prefetched = nullptr) const noexcept;
++    bool can_prefetch() const noexcept {
++        return reference_ && reference_->warm_state.load(std::memory_order_relaxed)==FrameWarmState::cold;
++    }
++    // Existing VDEC producer only, OUTSIDE its queue/conversion locks. There
++    // is no new worker thread, Core ABI or host storage API. A consumed frame
++    // never starts a second speculative read. Payload/count limits are global.
++    bool prefetch() const noexcept;
 +private:
 +    std::shared_ptr<FrameReference> reference_;
 +};
@@ -18868,14 +18968,15 @@ index 0000000..aad4038
 +#endif
 diff --git a/rpcs3/ios/NeoSwapStorage/SourceClient.cpp b/rpcs3/ios/NeoSwapStorage/SourceClient.cpp
 new file mode 100644
-index 0000000..e834820
+index 0000000..59075bf
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapStorage/SourceClient.cpp
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,169 @@
 +// SPDX-License-Identifier: MIT
 +#include "SourceClient.h"
 +#include "FrameClient.h"
 +#include <algorithm>
++#include <chrono>
 +#if !defined(__cpp_exceptions)
 +#error "NeoSwap SourceClient.cpp requires exceptions in this dedicated unit"
 +#endif
@@ -18938,9 +19039,28 @@ index 0000000..e834820
 +        return offload(packed.data(),packed.size());
 +    }catch(...){return false;}
 +}
-+int ColdFrame::restore(std::string& output,int& os_error) const noexcept {
-+    os_error=0;output.clear();if(!reference_)return NS_SOURCE_MISSING;
-+    const auto& frame=*reference_;
++namespace {
++void frame_peak(std::atomic<uint64_t>& field,uint64_t value) noexcept {
++    auto old=field.load(std::memory_order_relaxed);
++    while(old<value&&!field.compare_exchange_weak(old,value,std::memory_order_relaxed)){}
++}
++bool reserve_frame_payload(uint64_t bytes) noexcept {
++    auto used=frame_prefetch_payload_bytes.load(std::memory_order_relaxed);
++    do {
++        if(bytes>frame_prefetch_payload_limit || used>frame_prefetch_payload_limit-bytes)return false;
++    }while(!frame_prefetch_payload_bytes.compare_exchange_weak(used,used+bytes,std::memory_order_relaxed));
++    const auto count=frame_prefetch_count.fetch_add(1,std::memory_order_relaxed);
++    if(count>=frame_prefetch_count_limit){
++        frame_prefetch_count.fetch_sub(1,std::memory_order_relaxed);
++        frame_prefetch_payload_bytes.fetch_sub(bytes,std::memory_order_relaxed);return false;
++    }
++    frame_peak(frame_prefetch_peak_bytes,used+bytes);return true;
++}
++void release_frame_payload(uint64_t bytes) noexcept {
++    frame_prefetch_payload_bytes.fetch_sub(bytes,std::memory_order_relaxed);
++    frame_prefetch_count.fetch_sub(1,std::memory_order_relaxed);
++}
++int read_frame_payload(const FrameReference& frame,std::string& output,int& os_error) noexcept {
 +    try {
 +        output.resize(static_cast<size_t>(frame.bytes));size_t offset=0;
 +        for(uint32_t index=0;index<frame.count;++index){
@@ -18950,6 +19070,74 @@ index 0000000..e834820
 +            offset+=static_cast<size_t>(ref.bytes);
 +        }
 +        return NS_SOURCE_OK;
++    }catch(...){output.clear();return NS_SOURCE_BUSY;}
++}
++}
++FrameReference::~FrameReference(){
++    if(warm_charge){std::string().swap(warm_pixels);release_frame_payload(bytes);}
++}
++bool ColdFrame::prefetch() const noexcept {
++    if(!reference_)return false;
++    auto frame=reference_; // pins objects and epoch during the existing producer's read
++    // A zero/stale session also covers paused or pressure-closed admission.
++    // Demand restores remain permitted; speculative RAM is not grown there.
++    if(!frame->chunks[0].api || frame->chunks[0].api->session()!=frame->chunks[0].session){
++        frame_prefetch_refusals.fetch_add(1);return false;
++    }
++    try {
++        {
++            std::unique_lock lock(frame->warm_mutex,std::try_to_lock);
++            if(!lock.owns_lock() || frame->warm_state.load()!=FrameWarmState::cold)return false;
++            if(!reserve_frame_payload(frame->bytes)){frame_prefetch_refusals.fetch_add(1);return false;}
++            frame->warm_charge=true;
++            frame->warm_state.store(FrameWarmState::loading);
++        }
++        frame_prefetch_requests.fetch_add(1);
++        std::string pixels;int error=0;
++        const int result=read_frame_payload(*frame,pixels,error);
++        {
++            std::lock_guard lock(frame->warm_mutex);
++            if(result==NS_SOURCE_OK){
++                frame->warm_pixels.swap(pixels);
++                frame->warm_state.store(FrameWarmState::ready);
++            }else{
++                std::string().swap(pixels);
++                release_frame_payload(frame->bytes);frame->warm_charge=false;
++                frame->warm_state.store(FrameWarmState::failed);
++                frame_prefetch_failures.fetch_add(1);
++            }
++        }
++        frame->warm_changed.notify_all();return result==NS_SOURCE_OK;
++    }catch(...){
++        // No I/O occurs under this metadata lock. Always release waiters, and
++        // keep the archived original available to the normal retry path.
++        std::lock_guard lock(frame->warm_mutex);
++        if(frame->warm_charge){release_frame_payload(frame->bytes);frame->warm_charge=false;}
++        frame->warm_state.store(FrameWarmState::failed);frame->warm_changed.notify_all();
++        frame_prefetch_failures.fetch_add(1);return false;
++    }
++}
++int ColdFrame::restore(std::string& output,int& os_error,bool* prefetched) const noexcept {
++    os_error=0;output.clear();if(prefetched)*prefetched=false;
++    if(!reference_)return NS_SOURCE_MISSING;
++    auto frame=reference_;
++    try {
++        std::string retired_output;
++        std::unique_lock lock(frame->warm_mutex);
++        const auto start=std::chrono::steady_clock::now();
++        frame->warm_changed.wait(lock,[&]{return frame->warm_state.load()!=FrameWarmState::loading;});
++        frame_peak(frame_prefetch_wait_max_us,std::chrono::duration_cast<std::chrono::microseconds>(
++            std::chrono::steady_clock::now()-start).count());
++        if(frame->warm_state.load()==FrameWarmState::ready){
++            output.swap(frame->warm_pixels);retired_output.swap(frame->warm_pixels);
++            release_frame_payload(frame->bytes);frame->warm_charge=false;
++            frame->warm_state.store(FrameWarmState::consumed);
++            if(prefetched)*prefetched=true;
++            frame_prefetch_hits.fetch_add(1);return NS_SOURCE_OK;
++        }
++        frame->warm_state.store(FrameWarmState::consumed);
++        lock.unlock();frame_demand_reads.fetch_add(1);
++        return read_frame_payload(*frame,output,os_error);
 +    }catch(...){output.clear();return NS_SOURCE_BUSY;}
 +}
 +}
