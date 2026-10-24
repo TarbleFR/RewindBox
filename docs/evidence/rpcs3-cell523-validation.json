@@ -4,7 +4,7 @@
   "baselineBranch": "139f3d791323f84c4245dcb9030ac637baa214bb",
   "baselineCoreSource": "1ae41b6400688d20a8d72173d3d80d0a1fe19710",
   "baselineCoreRun": 40095061758,
-  "patch": "8d664d969dda9a548caf042631ec3f336c2fbbfc810a2ebbe60cb187b66531b7",
+  "patch": "c1a56ef3c0248c8369e01ec98340bc6617677b92a35cb369402df2c5dcd6852e",
   "memoryProbe": [
     {
       "pattern": 0,
@@ -152,11 +152,27 @@
     },
     "executor": {
       "passed": true,
-      "stdout": "PASS 16 owned restore cases: actual old UIKit negative control; UI handoff, API serialization, bounded admission, stale-after-dequeue and late-cleanup cancellation, lifecycle reject, exception, closed queue, concurrent joins, self-join refusal, same-worker second restore",
+      "cases": [
+        {
+          "variant": "candidate",
+          "exit": 0,
+          "stdout": "PASS 17 owned restore cases: actual old UIKit negative control; UI handoff, API serialization, bounded admission, stale-after-dequeue and late-cleanup cancellation, lifecycle reject, exception, closed queue, concurrent joins, self-join refusal, same-worker second restore, actual shutdown/lifecycle completion after join",
+          "stderr": ""
+        },
+        {
+          "variant": "before-join-negative-control",
+          "exit": -6,
+          "stdout": "",
+          "stderr": "175 assertion rpcs3_ios_shutdown()==RPCS3_IOS_INVALID_STATE"
+        }
+      ],
       "actualExecutor": true,
       "actualContinuation": true,
       "actualReloadPath": true,
+      "actualShutdownAPI": true,
+      "actualLifecycle": true,
       "originalAutoSaveBodyPreserved": true,
+      "negativeControlSHA256": "74156d35cbfa4c1a31f84403b6002bfd20e9ca43eb6bd9d18122c643f4ffd704",
       "sanitizers": true,
       "scope": "real owned native worker and production methods; Core/UI/filesystem doubles; no guest/device restore"
     },
@@ -170,7 +186,24 @@
     }
   },
   "nativeBuild": {
-    "status": "pending"
+    "status": "pending",
+    "failedAttempts": [
+      {
+        "source": "40f0337122e8bd83a22b10acfb515ee56638600d",
+        "run": 40101861338,
+        "job": 120895491355,
+        "phase": "iPhoneOS 41-unit syntax gate",
+        "errors": [
+          "qualify profiler snapshot namespace",
+          "include shared_mutex for SDK build"
+        ],
+        "targetedNativePreflight": "passed",
+        "coreProduced": false,
+        "delivered": false,
+        "diagnosticsArtifact": 12563790098,
+        "diagnosticsArchiveSHA256": "14f53f532ce2c9d2c9f924ffc97ca7d7257d5304d2f17ec125a7677f0749958f"
+      }
+    ]
   },
   "ipa": {
     "status": "pending"

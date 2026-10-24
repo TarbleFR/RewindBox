@@ -39,7 +39,7 @@ ils ne s'additionnent pas. Une capacité configurée n'est pas de la RAM physiqu
 | Problème dans le code | Intervention | Validation et limite |
 | --- | --- | --- |
 | La validation de la table HLE restaurée vérifiait son premier octet, avant de protéger et réécrire une plage plus grande | Vérification de toute la table lisible et de son enveloppe allouée de 64 Kio, avec bornes de taille/adresse ; échec explicite du snapshot, sans essai comme overlay | 39 cas natifs, dont un contrôle négatif avec page absente acceptée par l'ancienne condition ; la sauvegarde originale n'est pas réécrite par cette vérification |
-| Les rechargements internes et le redémarrage après création d'une sauvegarde pouvaient lancer le chargement dans le rappel de nettoyage UIKit | Un worker possédé, une seule admission, génération capturée avant l'arrêt, accès sérialisé au moteur, annulation des anciens rappels et jonction hors du verrou API | 16 cas ASan/UBSan exécutent les méthodes de production, avec doubles Core/UI/fichiers : ancien chargement sur UIKit reproduit, nouveau hors UIKit ; annulations, fermeture concurrente, exception, deuxième restauration et refus d'auto-jonction |
+| Les rechargements internes et le redémarrage après création d'une sauvegarde pouvaient lancer le chargement dans le rappel de nettoyage UIKit | Un worker possédé, une seule admission, génération capturée avant l'arrêt, accès sérialisé au moteur, annulation des anciens rappels et jonction hors du verrou API, avec état SHUTTING_DOWN maintenu jusqu'à sa fin | 17 cas ASan/UBSan exécutent les méthodes de production, avec doubles Core/UI/fichiers : ancien chargement sur UIKit reproduit, nouveau hors UIKit ; annulations, fermeture concurrente, exception, deuxième restauration et refus d'auto-jonction |
 | Le parcours VM multipliait les petits transferts même pour des lignes de cache contiguës | Regroupement borné à 64 Kio et saut des bitmaps vides, avec ordre des octets et points `breathe()` conservés | 160 cas différentiels ; 8 cas avec le vrai lecteur serial et ZSTD, y compris les données suivantes dans le flux ; capacité temporaire du lecteur inchangée dans ces cas |
 | Le dernier jalon de restauration ne nommait pas l'opération PPU/FXO précise | Phases PPU/modules/graphique/entrées et début/fin de construction des objets, positions et état du lecteur | Maximum 512 événements FXO par restauration ; aucun timeout, déblocage forcé, modification de tags, de format ou d'ordre des objets |
 | Les totaux Vulkan ne distinguaient pas les catégories qui grossissent | Instantané des octets demandés par pools système, surfaces, textures, swapchain, scratch, autres ; samplers en nombre d'objets | Une tentative de verrou lecteur, sept recherches, dans le rapport existant toutes les 5 s ; refus explicite si occupé. Essai avec verrou écrivain tenu et 30000 resets/reconstructions concurrents. Ni allocation GPU ni attente de fence ajoutée |
@@ -102,7 +102,11 @@ modification de MeloNX, autres moteurs, traductions ou fonctions d'interface.
 
 Le [reçu de validation](evidence/rpcs3-cell523-validation.json) est complété avec
 les identités de compilation et de livraison après vérification. À ce stade,
-la compilation complète iPhone et l'IPA 523 ne sont pas encore revendiquées.
+la compilation complète iPhone et l'IPA 523 ne sont pas encore revendiquées. Le premier
+passage SDK (`40101861338`) a refusé deux diagnostics ajoutés (qualification de
+namespace et inclusion `shared_mutex`) ; ils sont corrigés. L'arrêt concurrent
+est aussi vérifié avec le véritable code de l'API et du cycle de vie : un
+contrôle négatif refuse la fin d'arrêt avant jonction du worker.
 
 Aucun iPhone ni dump légal du jeu n'est accessible dans cet environnement.
 Restent à vérifier sur appareil : restauration de la copie du même état, lancement,

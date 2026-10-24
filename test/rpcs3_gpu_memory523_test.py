@@ -9,7 +9,7 @@ def run(source,report):
  snapshot=braced(text,'rpcs3::ios::graphics_memory_snapshot rpcs3::ios::capture_graphics_memory_snapshot() noexcept')
  helper=braced(text,'u64 vmm_get_application_pool_usage_impl(')
  reset=braced(text,'void vmm_reset()');assert reset.index('std::lock_guard lock(g_vmm_stats.mutex);')<reset.index('g_vmm_stats.clear();')
- perf=(source/'rpcs3/ios/RPCS3IOSPerformance.cpp').read_text();assert perf.count('const auto gpu_memory = capture_graphics_memory_snapshot();')==1
+ perf=(source/'rpcs3/ios/RPCS3IOSPerformance.cpp').read_text();assert perf.count('const auto gpu_memory = rpcs3::ios::capture_graphics_memory_snapshot();')==1
  assert 'gpu_pool_scope=requested_allocation_bytes_not_physical_ram' in perf and 'gpu_pools_valid=%u' in perf
  with tempfile.TemporaryDirectory(prefix='gpu-memory523-') as d:
   w=Path(d);(w/'snapshot.inc').write_text(snapshot);(w/'helper.inc').write_text(helper)

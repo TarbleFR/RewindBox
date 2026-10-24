@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "ios/IOSRestoreExecutor.h"
+#include "ios/RPCS3IOSContract.h"
 #include <cassert>
 #include <chrono>
 #include <cstdlib>
@@ -30,13 +31,12 @@ struct ApiMutex {
  void lock(){if(!on_ui())attempted.signal();mutex.lock();}
  void unlock(){mutex.unlock();}
 } g_api_mutex;
-std::mutex logs_mutex;std::condition_variable logs_changed;std::vector<std::string> logs;
-void emit_log(int,std::string_view text){std::lock_guard lock(logs_mutex);logs.emplace_back(text);logs_changed.notify_all();}
-void wait_log(std::string_view text){std::unique_lock lock(logs_mutex);ensure(logs_changed.wait_for(lock,std::chrono::seconds(5),[&]{for(auto& s:logs)if(s.find(text)!=s.npos)return true;return false;}));}
+std::mutex logs_mutex;std::condition_variable logs_changed;std::vector<std::string> captured_logs;
+void emit_log(int,std::string_view text){std::lock_guard lock(logs_mutex);captured_logs.emplace_back(text);logs_changed.notify_all();}
+void wait_log(std::string_view text){std::unique_lock lock(logs_mutex);ensure(logs_changed.wait_for(lock,std::chrono::seconds(5),[&]{for(auto& s:captured_logs)if(s.find(text)!=s.npos)return true;return false;}));}
 namespace fmt {std::string format(const char*,unsigned main){return "SAVESTATE_RESTORE phase=worker_begin main_thread="+std::to_string(main);}}
 namespace thread_base {void set_name(const char*){}}
-constexpr int RPCS3_IOS_STATE_READY=1;
-struct Lifecycle {std::atomic<int> value{1};int state()const{return value.load();}} g_lifecycle;
+rpcs3::ios::lifecycle g_lifecycle;
 std::atomic<bool> g_accept_display_surfaces{true};
 enum class system_state {stopped,stopping,running,paused};
 enum class game_boot_result {no_errors,failed};
@@ -46,10 +46,11 @@ struct Emulator {
  std::string GetTitleID(){return "TEST00001";}std::string GetBoot(){return "legal-fixture";}
  system_state GetStatus(bool=false){return state.load();}bool IsRunning(){return GetStatus()==system_state::running;}
  void SetContinuousMode(bool value){continuous=value;}
- void GracefulShutdown(bool,bool,bool,bool){state=system_state::stopping;}
+ void GracefulShutdown(bool,bool,bool=false,bool=false){state=system_state::stopping;}
+ void DeactivateBigPictureMode(){}void SetForceBoot(bool){}
  game_boot_result BootGame(const std::string&,const std::string&,bool){boot_on_ui=on_ui();++boots;state=system_state::running;return game_boot_result::no_errors;}
 } Emu;
-namespace neostation::savestate {struct Status {std::atomic<unsigned> finishes{0};void finish(bool,std::string_view){++finishes;}} current;}
+namespace neostation::savestate {struct Status {std::atomic<unsigned> finishes{0};struct View{bool active=false;};View read(){return {};}void finish(bool,std::string_view){++finishes;}} current;}
 struct Cfg {struct Save {bool suspend_emu=false;struct Max {u32 get(){return 10;}} max_files;} savestate;} g_cfg;
 namespace fs {bool is_file(const std::string&){return true;}}
 std::string get_savestate_file(const std::string&,const std::string&,int){return "legal-state-fixture";}
@@ -59,7 +60,18 @@ rpcs3::ios::restore_executor& restore_jobs(){ensure(selected_jobs);return *selec
 namespace rpcs3::ios {
 #include "executor.inc"
 #include "continuation.inc"
+struct Pad {void clear(){}};
+Pad& shared_pad_states(){static Pad p;return p;}Pad& shared_pad_feedback(){static Pad p;return p;}
 }
+bool g_emu_started=false;std::atomic<bool> g_accept_pad_state{true};std::shared_ptr<int> g_rpcn_client;
+struct Rpcn {void clear_runtime_credentials(){}} g_cfg_rpcn;
+struct Display {void clear(){}} g_display_surface;
+Latch shutdown_synced;
+namespace jit_runtime {void finalize(){}}
+namespace logs {struct listener {static void sync_all(){shutdown_synced.signal();}};}
+void emit_jit_arena_statistics(const char*){}void set_error(std::string_view text){emit_log(1,text);}
+bool wait_for_emulation_stop(){return true;}
+#include "shutdown.inc"
 namespace before {
 #include "before.inc"
 }
@@ -68,8 +80,9 @@ namespace after {
 }
 void reset(){
  Emu.state=system_state::running;Emu.boots=0;Emu.boot_on_ui=false;Emu.continuous=false;Emu.after_kill_callback={};
- g_lifecycle.value=1;g_accept_display_surfaces=true;neostation::savestate::current.finishes=0;
- g_api_mutex.attempted.reset();std::lock_guard lock(logs_mutex);logs.clear();
+ g_lifecycle={};ensure(g_lifecycle.begin_initialize()==RPCS3_IOS_OK);g_lifecycle.finish_initialize(true);g_accept_display_surfaces=true;neostation::savestate::current.finishes=0;
+ g_emu_started=false;g_accept_pad_state=true;shutdown_synced.reset();
+ g_api_mutex.attempted.reset();std::lock_guard lock(logs_mutex);captured_logs.clear();
 }
 void finish_ui_cleanup(){
  Emu.state=system_state::stopped;
@@ -103,7 +116,7 @@ int main(){
  }
  {
   reset();rpcs3::ios::restore_executor q;selected_jobs=&q;
-  Emu.state=system_state::stopped;g_lifecycle.value=0;
+  Emu.state=system_state::stopped;g_lifecycle.finish_initialize(false);
   ensure(rpcs3::ios::defer_savestate_restore([]{++Emu.boots;},q.generation()));wait_log("state_rejected");q.close();
   ensure(!Emu.boots&&neostation::savestate::current.finishes==1);++cases;
  }
@@ -153,5 +166,15 @@ int main(){
   while(!q.post([&](u64){two=std::this_thread::get_id();second.signal();},q.generation())){ensure(std::chrono::steady_clock::now()<limit);std::this_thread::yield();}
   second.wait();q.close();ensure(one==two&&one!=ui_thread);++cases;
  }
- std::cout<<"PASS "<<cases<<" owned restore cases: actual old UIKit negative control; UI handoff, API serialization, bounded admission, stale-after-dequeue and late-cleanup cancellation, lifecycle reject, exception, closed queue, concurrent joins, self-join refusal, same-worker second restore\n";
+ {
+  reset();rpcs3::ios::restore_executor q;selected_jobs=&q;Emu.state=system_state::stopped;
+  Latch entered,release;ensure(q.post([&](u64){entered.signal();release.wait();},q.generation()));entered.wait();
+  std::atomic<int> result{-1};std::thread shutdown([&]{result=rpcs3_ios_shutdown();});shutdown_synced.wait();
+  // The first shutdown is joining a live Core worker. The actual API and
+  // actual lifecycle must refuse concurrent completion until that join ends.
+  ensure(rpcs3_ios_shutdown()==RPCS3_IOS_INVALID_STATE);
+  ensure(g_lifecycle.state()==RPCS3_IOS_STATE_SHUTTING_DOWN&&result==-1);
+  release.signal();shutdown.join();ensure(result==RPCS3_IOS_OK&&g_lifecycle.state()==RPCS3_IOS_STATE_STOPPED);++cases;
+ }
+ std::cout<<"PASS "<<cases<<" owned restore cases: actual old UIKit negative control; UI handoff, API serialization, bounded admission, stale-after-dequeue and late-cleanup cancellation, lifecycle reject, exception, closed queue, concurrent joins, self-join refusal, same-worker second restore, actual shutdown/lifecycle completion after join\n";
 }

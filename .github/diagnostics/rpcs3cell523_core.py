@@ -9,14 +9,14 @@ PRIOR_SHA='7bd27ada1d3af6d8c6bfc717cffe41efd0623454371c085ff225504fe8890a04'
 PROBE_SOURCE='77089aa283e6db0ea37c188151ea0ab1ea490b79';PROBE_RUN=40099814314;PROBE_ARTIFACT=12562336862
 PROBE_SHA='f64bb116ba9ab3faf357f76cb8178c2d103d44ca9b8ed320bb0c6935400f5706'
 FIXTURE='test/fixtures/rpcs3_restore523.diff'
-FIXTURE_SHA='f1b4f144f73bc2caa9ad4ea3a9b5ac3c2c913aa98dca403d63c25ce23ba4028e'
+FIXTURE_SHA='0554375cfa7d3fe3fc20e77dd101f256a9a7c1bef04cfe92675913b1807fa913'
 MODIFIED={'rpcs3/Emu/Cell/PPUModule.cpp','rpcs3/Emu/Memory/vm.cpp','rpcs3/Emu/System.cpp','rpcs3/Emu/savestate_utils.cpp','rpcs3/ios/RPCS3IOS.cpp','rpcs3/Emu/RSX/VK/VKResourceManager.cpp','rpcs3/ios/RPCS3IOSPerformance.cpp'}
 ADDED={'rpcs3/util/fixed_typemap.hpp','rpcs3/ios/IOSRestoreExecutor.h','rpcs3/ios/IOSGraphicsMemorySnapshot.h'}
 EXTRA_INPUTS=previous.EXTRA_INPUTS+('.github/diagnostics/rpcs3cell523_core.py','.github/workflows/rpcs3-cell523-core.yml',
  'test/rpcs3_memory523_test.py','test/native/rpcs3_memory523.cpp','test/rpcs3_memory523_stream_test.py',
  'test/rpcs3_restore523_test.py','test/native/rpcs3_restore523.cpp',
  'test/rpcs3_restore_executor523_test.py','test/native/rpcs3_restore_executor523.cpp',
- 'test/rpcs3_gpu_memory523_test.py','test/native/rpcs3_gpu_memory523.cpp',FIXTURE)
+ 'test/rpcs3_gpu_memory523_test.py','test/native/rpcs3_gpu_memory523.cpp','test/fixtures/rpcs3_shutdown523_before.inc',FIXTURE)
 CHANGED=previous.CHANGED|{'build-utils/rpcs3_core_syntax_gate.py'}
 command=previous.command;sha=previous.sha;pin_module=previous.pin_module;authenticated=previous.authenticated
 old=lambda p:command('git','show',BASE+':'+p)

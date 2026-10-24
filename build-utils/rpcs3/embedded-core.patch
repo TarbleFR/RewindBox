@@ -14715,11 +14715,14 @@ index ada374a..4efb448 100644
  
  				overlay_pass::emit_geometry(cmd, program);
 diff --git a/rpcs3/Emu/RSX/VK/VKResourceManager.cpp b/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
-index 95b81bf..3b683e3 100644
+index 95b81bf..64838fa 100644
 --- a/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
-@@ -5,8 +5,10 @@
+@@ -3,10 +3,13 @@
+ #include "VKGSRender.h"
+ #include "VKCommandStream.h"
  #include "vkutils/VRAMBudgetPolicy.h"
++#include <shared_mutex>
  
  #ifdef RPCS3_IOS
 +#include "Emu/System.h"
@@ -14729,7 +14732,7 @@ index 95b81bf..3b683e3 100644
  #endif
  
  namespace vk
-@@ -47,6 +49,18 @@ namespace vk
+@@ -47,6 +50,18 @@ namespace vk
  		rpcs3::ios::process_memory_pressure process_severity = rpcs3::ios::process_memory_pressure::low;
  		rsx::problem_severity combined_severity = rsx::problem_severity::low;
  		std::chrono::steady_clock::time_point next_report{};
@@ -14748,7 +14751,7 @@ index 95b81bf..3b683e3 100644
  	} g_ios_process_memory_pressure;
  
  	static rsx::problem_severity to_problem_severity(rpcs3::ios::process_memory_pressure severity)
-@@ -165,6 +179,9 @@ namespace vk
+@@ -165,6 +180,9 @@ namespace vk
  		}
  
  		g_vmm_stats.pool_usage[pool] += memory_size;
@@ -14758,7 +14761,7 @@ index 95b81bf..3b683e3 100644
  
  		auto& vmm_size = g_vmm_stats.memory_usage[memory_type];
  		vmm_size += memory_size;
-@@ -185,6 +202,9 @@ namespace vk
+@@ -185,6 +203,9 @@ namespace vk
  			found != g_vmm_stats.allocations.end())
  		{
  			const auto& info = found->second;
@@ -14768,7 +14771,7 @@ index 95b81bf..3b683e3 100644
  			g_vmm_stats.memory_usage[info.type_index] -= info.size;
  			g_vmm_stats.pool_usage[info.pool] -= info.size;
  			g_vmm_stats.allocations.erase(found);
-@@ -251,9 +271,16 @@ namespace vk
+@@ -251,9 +272,16 @@ namespace vk
  
  #ifdef RPCS3_IOS
  		const u64 process_headroom = rpcs3::ios::available_process_memory_headroom();
@@ -14786,7 +14789,7 @@ index 95b81bf..3b683e3 100644
  		const auto process_severity = to_problem_severity(g_ios_process_memory_pressure.process_severity);
  #else
  		constexpr auto process_severity = rsx::problem_severity::low;
-@@ -334,12 +361,21 @@ namespace vk
+@@ -334,12 +362,21 @@ namespace vk
  		{
  			const auto mem_info = get_current_renderer()->get_memory_mapping();
  			const auto local_memory_usage = vmm_get_application_memory_usage_impl(mem_info.device_local);
@@ -14810,7 +14813,7 @@ index 95b81bf..3b683e3 100644
  			g_ios_process_memory_pressure.next_report = now + std::chrono::seconds(5);
  		}
  		else if (severity_changed && previous_severity >= rsx::problem_severity::moderate)
-@@ -364,13 +400,103 @@ namespace vk
+@@ -364,13 +401,103 @@ namespace vk
  		return false;
  	}
  
@@ -14918,7 +14921,7 @@ index 95b81bf..3b683e3 100644
  	}
  
  	void vmm_notify_object_allocated(vmm_allocation_pool pool)
-@@ -389,3 +515,21 @@ namespace vk
+@@ -389,3 +516,21 @@ namespace vk
  		g_vmm_stats.pool_usage[pool]--;
  	}
  }
@@ -19878,7 +19881,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..c1e96a5 100644
+index 74a6dc7..b1d728d 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,14 @@
@@ -20154,29 +20157,29 @@ index 74a6dc7..c1e96a5 100644
 +	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "ppu_hle_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
-+	}
+ 	}
+-	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
+-		!rpcs3::ios::jit::seal_arena())
 +	emit_log(2, "ppu_trampoline_init_end");
 +
 +	trampoline_error.clear();
 +	emit_log(2, "spu_trampoline_init_begin");
 +	if (!spu_runtime::initialize_static_trampolines(trampoline_error))
-+	{
-+		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "spu_trampolines",
-+			trampoline_error + "; " + rpcs3::ios::jit::last_error());
- 	}
--	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
--		!rpcs3::ios::jit::seal_arena())
-+	emit_log(2, "spu_trampoline_init_end");
-+
-+	emit_jit_arena_statistics("after JIT preparation before seal");
-+	if (!rpcs3::ios::jit::seal_arena())
  	{
 -		set_error(rpcs3::ios::jit::last_error());
 -		g_lifecycle.finish_initialize(false);
 -		return RPCS3_IOS_JIT_MAPPING_FAILED;
++		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "spu_trampolines",
++			trampoline_error + "; " + rpcs3::ios::jit::last_error());
+ 	}
++	emit_log(2, "spu_trampoline_init_end");
++
++	emit_jit_arena_statistics("after JIT preparation before seal");
++	if (!rpcs3::ios::jit::seal_arena())
++	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "arena_seal",
 +			rpcs3::ios::jit::last_error());
- 	}
++	}
 +	emit_log(2, "jit_initialize_success");
  
  	try
@@ -20626,18 +20629,27 @@ index 74a6dc7..c1e96a5 100644
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4824,6 +5198,10 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
+@@ -4822,7 +5196,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
+ 		g_display_surface.clear();
+ 		emit_jit_arena_statistics("before core shutdown completion");
  		logs::listener::sync_all();
- 		g_lifecycle.finish_shutdown(true);
- 		emit_log(4, "RPCS3Core shutdown completed");
-+		// A dequeued task may still be waiting for this mutex. Release it before
-+		// joining the owned worker; its generation/lifecycle check then cancels it.
+-		g_lifecycle.finish_shutdown(true);
++		// Keep SHUTTING_DOWN visible until the worker is joined. A concurrent
++		// shutdown must not report success while Core code is still executing.
++		// The worker may be waiting for this API mutex, so join without it.
 +		lock.unlock();
-+		restore_jobs().close();
++		const bool joined = restore_jobs().close();
++		lock.lock();
++		g_lifecycle.finish_shutdown(joined);
++		if (!joined)
++		{
++			set_error("RPCS3 restore worker could not be joined");
++			return RPCS3_IOS_STOP_FAILED;
++		}
+ 		emit_log(4, "RPCS3Core shutdown completed");
  		return RPCS3_IOS_OK;
  	}
- 	catch (const std::exception& error)
-@@ -4846,9 +5224,196 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4846,9 +5231,196 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	return copy.c_str();
  }
  
@@ -22287,7 +22299,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..afd79ce 100644
+index d800542..feeb9cb 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,171 @@
@@ -23071,7 +23083,7 @@ index d800542..afd79ce 100644
 +		const u64 memory_reclaims = m_memory_reclaim_attempts.exchange(0, std::memory_order_relaxed);
 +		const u64 memory_reclaim_effective = m_memory_reclaim_effective.exchange(0, std::memory_order_relaxed);
 +		const u64 memory_reclaim_deferred = m_memory_reclaim_deferred.exchange(0, std::memory_order_relaxed);
-+		const auto gpu_memory = capture_graphics_memory_snapshot();
++		const auto gpu_memory = rpcs3::ios::capture_graphics_memory_snapshot();
 +		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu gpu_pools_valid=%u gpu_system_requested=%llu gpu_surfaces_requested=%llu gpu_textures_requested=%llu gpu_swapchain_requested=%llu gpu_scratch_requested=%llu gpu_other_requested=%llu gpu_samplers=%llu gpu_pool_scope=requested_allocation_bytes_not_physical_ram",
 +			jit_memory::active.load(), jit_memory::peak_active.exchange(0), jit_memory::samples.exchange(0),
 +			static_cast<double>(jit_memory::footprint_peak.exchange(0)) / 0x100000,

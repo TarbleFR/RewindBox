@@ -318,12 +318,21 @@
 @@ -5139,0 +5159,2 @@
 +	restore_jobs().cancel();
 +
-@@ -5179,0 +5201,4 @@
-+		// A dequeued task may still be waiting for this mutex. Release it before
-+		// joining the owned worker; its generation/lifecycle check then cancels it.
+@@ -5178 +5199,12 @@
+-		g_lifecycle.finish_shutdown(true);
++		// Keep SHUTTING_DOWN visible until the worker is joined. A concurrent
++		// shutdown must not report success while Core code is still executing.
++		// The worker may be waiting for this API mutex, so join without it.
 +		lock.unlock();
-+		restore_jobs().close();
-@@ -5199,0 +5225,135 @@
++		const bool joined = restore_jobs().close();
++		lock.lock();
++		g_lifecycle.finish_shutdown(joined);
++		if (!joined)
++		{
++			set_error("RPCS3 restore worker could not be joined");
++			return RPCS3_IOS_STOP_FAILED;
++		}
+@@ -5199,0 +5232,135 @@
 +}
 +
 +namespace rpcs3::ios {
@@ -510,9 +519,11 @@
 +}
 --- a/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
-@@ -10,0 +11 @@
+@@ -5,0 +6 @@
++#include <shared_mutex>
+@@ -10,0 +12 @@
 +#include "ios/IOSGraphicsMemorySnapshot.h"
-@@ -516,0 +518,18 @@
+@@ -516,0 +519,18 @@
 +
 +#ifdef RPCS3_IOS
 +rpcs3::ios::graphics_memory_snapshot rpcs3::ios::capture_graphics_memory_snapshot() noexcept
@@ -537,7 +548,7 @@
 +#include "IOSGraphicsMemorySnapshot.h"
 @@ -807 +808,2 @@
 -		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu",
-+		const auto gpu_memory = capture_graphics_memory_snapshot();
++		const auto gpu_memory = rpcs3::ios::capture_graphics_memory_snapshot();
 +		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu gpu_pools_valid=%u gpu_system_requested=%llu gpu_surfaces_requested=%llu gpu_textures_requested=%llu gpu_swapchain_requested=%llu gpu_scratch_requested=%llu gpu_other_requested=%llu gpu_samplers=%llu gpu_pool_scope=requested_allocation_bytes_not_physical_ram",
 @@ -813 +815,3 @@
 -			jit_memory::vma_block_bytes.load(), jit_memory::vma_allocated.load(), jit_memory::vma_unused.load());
