@@ -22892,7 +22892,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..b95b602 100644
+index 74a6dc7..848875c 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,15 @@
@@ -23385,7 +23385,24 @@ index 74a6dc7..b95b602 100644
  		}
  
  		if (requested_savestate_id.empty())
-@@ -4644,7 +4796,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
+@@ -4532,11 +4684,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+ 		prepare_rpcn_for_guest_boot();
+ 		Emu.DeactivateBigPictureMode();
+ 		Emu.SetForceBoot(true);
++		rpcs3::ios::restore_failure::reset();
+ 		const game_boot_result result = Emu.BootGame(boot_path, game->title_id);
+ 		if (result != game_boot_result::no_errors)
+ 		{
+ 			Emu.SetForceBoot(false);
+-			set_error(fmt::format("Game boot failed: %s", result));
++            const auto& missing = rpcs3::ios::restore_failure::current;
++            set_error(!requested_savestate_id.empty() && missing.active
++                ? fmt::format("Savestate needs file descriptor %u (error 0x%x, disc file '%s'). Mount the same game disc/dump and update used to create it, then retry. The original savestate is unchanged.", missing.id, missing.error, missing.disc_path.data())
++                : fmt::format("Game boot failed: %s", result));
+ 			return RPCS3_IOS_BOOT_FAILED;
+ 		}
+ 
+@@ -4644,7 +4800,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
  		if (result != RPCS3_IOS_OK)
  		{
  			set_error("Performance metrics require a compatible output structure");
@@ -23423,7 +23440,7 @@ index 74a6dc7..b95b602 100644
  		return result;
  	}
  	catch (const std::exception& error)
-@@ -4730,15 +4912,205 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
+@@ -4730,15 +4916,206 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
  	return RPCS3_IOS_INTERNAL_ERROR;
  }
  
@@ -23484,6 +23501,7 @@ index 74a6dc7..b95b602 100644
 +                        rpcs3::ios::boot_diagnostics::announce_restart(
 +                            rpcs3::ios::boot_diagnostics::restart_reason::savestate_create, {},
 +                            fmt::format("neostation_slot:%u", requested_slot));
++                        rpcs3::ios::restore_failure::reset();
 +                        const auto result = Emu.Restart(true, false);
 +                        if (result != game_boot_result::no_errors || Emu.GetStatus(false) == system_state::stopped)
 +                        {
@@ -23629,7 +23647,7 @@ index 74a6dc7..b95b602 100644
  	try
  	{
  		// An explicit wrapper stop leaves the full-screen session. It must not
-@@ -4783,7 +5155,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
+@@ -4783,7 +5160,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
  
  extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  {
@@ -23646,7 +23664,7 @@ index 74a6dc7..b95b602 100644
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4822,7 +5202,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
+@@ -4822,7 +5207,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  		g_display_surface.clear();
  		emit_jit_arena_statistics("before core shutdown completion");
  		logs::listener::sync_all();
@@ -23666,7 +23684,7 @@ index 74a6dc7..b95b602 100644
  		emit_log(4, "RPCS3Core shutdown completed");
  		return RPCS3_IOS_OK;
  	}
-@@ -4846,9 +5237,196 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4846,9 +5242,196 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	return copy.c_str();
  }
  

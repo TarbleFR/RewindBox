@@ -280,7 +280,7 @@ index 59075bf..02c18dd 100644
              std::lock_guard lock(frame->warm_mutex);
              if(result==NS_SOURCE_OK){
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index b1d728d..b95b602 100644
+index b1d728d..848875c 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,3 +1,4 @@
@@ -288,8 +288,28 @@ index b1d728d..b95b602 100644
  #include "IOSCompileAdmission.h"
  #include <os/proc.h>
  #include <mach/mach.h>
-@@ -4970,7 +4971,12 @@ static rpcs3_ios_status neostation_rpcs3_ios_save_state_impl(uint32_t requested_
+@@ -4683,11 +4684,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+ 		prepare_rpcn_for_guest_boot();
+ 		Emu.DeactivateBigPictureMode();
+ 		Emu.SetForceBoot(true);
++		rpcs3::ios::restore_failure::reset();
+ 		const game_boot_result result = Emu.BootGame(boot_path, game->title_id);
+ 		if (result != game_boot_result::no_errors)
+ 		{
+ 			Emu.SetForceBoot(false);
+-			set_error(fmt::format("Game boot failed: %s", result));
++            const auto& missing = rpcs3::ios::restore_failure::current;
++            set_error(!requested_savestate_id.empty() && missing.active
++                ? fmt::format("Savestate needs file descriptor %u (error 0x%x, disc file '%s'). Mount the same game disc/dump and update used to create it, then retry. The original savestate is unchanged.", missing.id, missing.error, missing.disc_path.data())
++                : fmt::format("Game boot failed: %s", result));
+ 			return RPCS3_IOS_BOOT_FAILED;
+ 		}
+ 
+@@ -4968,9 +4973,15 @@ static rpcs3_ios_status neostation_rpcs3_ios_save_state_impl(uint32_t requested_
+                         rpcs3::ios::boot_diagnostics::announce_restart(
+                             rpcs3::ios::boot_diagnostics::restart_reason::savestate_create, {},
                              fmt::format("neostation_slot:%u", requested_slot));
++                        rpcs3::ios::restore_failure::reset();
                          const auto result = Emu.Restart(true, false);
                          if (result != game_boot_result::no_errors || Emu.GetStatus(false) == system_state::stopped)
 -                            neostation::savestate::current.finish(false, "The savestate was written, but RPCS3 could not restore it.");
