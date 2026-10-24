@@ -1,0 +1,433 @@
+{
+  "schema": 1,
+  "sourceBuild": 527,
+  "physicalDevice": "iPhone 16 Pro Max / 8 GiB reported by maintainer",
+  "title": "BCES00510",
+  "inputs": {
+    "RPCS3-milestones(4).log": {
+      "bytes": 330434,
+      "sha256": "f6763e28a3ce4d5fb646ec8196390bf7b007f7b487f60225e03da804a0250e78"
+    },
+    "RPCS3-diagnostic(4).log": {
+      "bytes": 74914,
+      "sha256": "d461fbad67ede28a6318f495aa9ba09388223db806f988954b03b3f6c960b856"
+    },
+    "NeoSwap-operations(2).jsonl": {
+      "bytes": 10421931,
+      "sha256": "e7bea11d6f0cefa97da73311cf9406567d659bc989863bf4add9862706a326af"
+    },
+    "app(5).log": {
+      "bytes": 4731158,
+      "sha256": "ddfb4d036a722c0359e5dab299b0576e28501019b1a845ae0c1c78a5a4ccbd15"
+    }
+  },
+  "rpcs3": {
+    "RPCS3-milestones(4).log": {
+      "25548": {
+        "records": 33,
+        "builds": [
+          "527"
+        ],
+        "first": 1792879707.814098,
+        "last": 1792880374.579607,
+        "stages": {
+          "early_jit_escrow": 1,
+          "jit_prepare_begin": 1,
+          "jit_helper_connected": 1,
+          "jit_debugger_attached": 1,
+          "jit_prepare_ready": 1,
+          "core_handoff_begin": 1,
+          "debugger_probe_begin": 1,
+          "debugger_probe_end": 1,
+          "core_handoff_end": 1,
+          "core_load_begin": 1,
+          "core_load_end": 1,
+          "rpcs3_initialize_begin": 1,
+          "core_initialize_begin": 1,
+          "core_initialize_end": 1,
+          "rpcs3_initialize_end": 1,
+          "jit_completion_begin": 1,
+          "jit_completion_end": 1,
+          "llvm_self_test_begin": 1,
+          "llvm_self_test_end": 1,
+          "game_boot_begin": 1,
+          "host_cpu_topology": 1,
+          "boot_policy": 1,
+          "config_layers": 1,
+          "renderer_detected": 1,
+          "game_boot_return": 1,
+          "jitprof_boot": 2,
+          "freeze_snapshot": 3,
+          "rsx_acquire": 3
+        }
+      },
+      "25781": {
+        "records": 1,
+        "builds": [
+          "527"
+        ],
+        "first": 1792880472.906296,
+        "last": 1792880472.906296,
+        "stages": {
+          "early_jit_escrow": 1
+        }
+      },
+      "25855": {
+        "records": 1,
+        "builds": [
+          "527"
+        ],
+        "first": 1792881230.6750832,
+        "last": 1792881230.6750832,
+        "stages": {
+          "early_jit_escrow": 1
+        }
+      },
+      "25865": {
+        "records": 478,
+        "builds": [
+          "527"
+        ],
+        "first": 1792881419.177774,
+        "last": 1792881551.898518,
+        "stages": {
+          "early_jit_escrow": 1,
+          "jit_prepare_begin": 1,
+          "jit_helper_connected": 1,
+          "jit_debugger_attached": 1,
+          "jit_prepare_ready": 1,
+          "core_handoff_begin": 1,
+          "debugger_probe_begin": 1,
+          "debugger_probe_end": 1,
+          "core_handoff_end": 1,
+          "core_load_begin": 1,
+          "core_load_end": 1,
+          "rpcs3_initialize_begin": 1,
+          "core_initialize_begin": 1,
+          "core_initialize_end": 1,
+          "rpcs3_initialize_end": 1,
+          "jit_completion_begin": 1,
+          "jit_completion_end": 1,
+          "llvm_self_test_begin": 1,
+          "llvm_self_test_end": 1,
+          "game_boot_begin": 1,
+          "host_cpu_topology": 1,
+          "boot_policy": 2,
+          "config_layers": 2,
+          "renderer_detected": 1,
+          "game_boot_return": 1,
+          "jitprof_boot": 2,
+          "savestate_restore": 449
+        }
+      },
+      "25895": {
+        "records": 1,
+        "builds": [
+          "527"
+        ],
+        "first": 1792881627.578236,
+        "last": 1792881627.578236,
+        "stages": {
+          "early_jit_escrow": 1
+        }
+      },
+      "25906": {
+        "records": 479,
+        "builds": [
+          "527"
+        ],
+        "first": 1792881721.898127,
+        "last": 1792881768.3915,
+        "stages": {
+          "early_jit_escrow": 1,
+          "jit_prepare_begin": 1,
+          "jit_helper_connected": 1,
+          "jit_debugger_attached": 1,
+          "jit_prepare_ready": 1,
+          "core_handoff_begin": 1,
+          "debugger_probe_begin": 1,
+          "debugger_probe_end": 1,
+          "core_handoff_end": 1,
+          "core_load_begin": 1,
+          "core_load_end": 1,
+          "rpcs3_initialize_begin": 1,
+          "core_initialize_begin": 1,
+          "core_initialize_end": 1,
+          "rpcs3_initialize_end": 1,
+          "jit_completion_begin": 1,
+          "jit_completion_end": 1,
+          "llvm_self_test_begin": 1,
+          "llvm_self_test_end": 1,
+          "game_boot_begin": 1,
+          "host_cpu_topology": 1,
+          "boot_policy": 2,
+          "config_layers": 2,
+          "renderer_detected": 1,
+          "game_boot_return": 1,
+          "jitprof_boot": 2,
+          "freeze_snapshot": 1,
+          "savestate_restore": 449
+        }
+      }
+    },
+    "RPCS3-diagnostic(4).log": {
+      "25906": {
+        "records": 248,
+        "builds": [
+          "527"
+        ],
+        "first": 1792881768.3125901,
+        "last": 1792881768.3914971,
+        "stages": {
+          "core_log": 248
+        }
+      }
+    }
+  },
+  "neoswap": {
+    "25548": {
+      "batches": 31,
+      "first_timestamp": 1792879722.1081371,
+      "last_timestamp": 1792880365.584436,
+      "sessions": {
+        "2": {
+          "events": 2513,
+          "first_monotonic": 463754095198,
+          "last_monotonic": 464396681732,
+          "sequence_first": 1,
+          "sequence_last": 2961,
+          "groups": [
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "admitted",
+              "count": 27,
+              "sum_us": 215,
+              "max_us": 29,
+              "unique_objects": 27
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "checkpoint_verified_and_chunk_evicted",
+              "count": 91,
+              "sum_us": 556959,
+              "max_us": 85208,
+              "unique_objects": 91
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "full_snapshot_unmapped",
+              "count": 91,
+              "sum_us": 846,
+              "max_us": 64,
+              "unique_objects": 91
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "quota_refused",
+              "count": 312,
+              "sum_us": 68,
+              "max_us": 1,
+              "unique_objects": 1
+            },
+            {
+              "domain": "none",
+              "operation": "pressure_changed",
+              "count": 2,
+              "sum_us": 0,
+              "max_us": 0,
+              "unique_objects": 1
+            },
+            {
+              "domain": "owned_software_vdec_pixels",
+              "operation": "admitted",
+              "count": 88,
+              "sum_us": 15470,
+              "max_us": 427,
+              "unique_objects": 88
+            },
+            {
+              "domain": "owned_software_vdec_pixels",
+              "operation": "checkpoint_verified_and_chunk_evicted",
+              "count": 968,
+              "sum_us": 6998114,
+              "max_us": 23844,
+              "unique_objects": 88
+            },
+            {
+              "domain": "owned_software_vdec_pixels",
+              "operation": "discarded",
+              "count": 62,
+              "sum_us": 0,
+              "max_us": 0,
+              "unique_objects": 62
+            },
+            {
+              "domain": "owned_software_vdec_pixels",
+              "operation": "full_snapshot_unmapped",
+              "count": 88,
+              "sum_us": 9248,
+              "max_us": 2123,
+              "unique_objects": 88
+            },
+            {
+              "domain": "owned_software_vdec_pixels",
+              "operation": "managed_chunk_restored",
+              "count": 718,
+              "sum_us": 4262359,
+              "max_us": 991451,
+              "unique_objects": 66
+            },
+            {
+              "domain": "owned_software_vdec_pixels",
+              "operation": "restored_from_managed_chunks",
+              "count": 66,
+              "sum_us": 4270948,
+              "max_us": 2037158,
+              "unique_objects": 66
+            }
+          ]
+        }
+      },
+      "batch_keys": [
+        "completeHistory",
+        "droppedEventsCumulative",
+        "events",
+        "pendingEvents"
+      ],
+      "max_dropped_cumulative": 448
+    },
+    "25865": {
+      "batches": 9,
+      "first_timestamp": 1792881438.444188,
+      "last_timestamp": 1792881549.434588,
+      "sessions": {
+        "2": {
+          "events": 673,
+          "first_monotonic": 465470043025,
+          "last_monotonic": 465580286475,
+          "sequence_first": 1,
+          "sequence_last": 848,
+          "groups": [
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "admitted",
+              "count": 75,
+              "sum_us": 718,
+              "max_us": 180,
+              "unique_objects": 75
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "checkpoint_verified_and_chunk_evicted",
+              "count": 119,
+              "sum_us": 609430,
+              "max_us": 85623,
+              "unique_objects": 119
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "discarded",
+              "count": 129,
+              "sum_us": 0,
+              "max_us": 0,
+              "unique_objects": 129
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "full_snapshot_unmapped",
+              "count": 119,
+              "sum_us": 1476,
+              "max_us": 392,
+              "unique_objects": 119
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "quota_refused",
+              "count": 231,
+              "sum_us": 41,
+              "max_us": 1,
+              "unique_objects": 1
+            }
+          ]
+        }
+      },
+      "batch_keys": [
+        "completeHistory",
+        "droppedEventsCumulative",
+        "events",
+        "pendingEvents"
+      ],
+      "max_dropped_cumulative": 175
+    },
+    "25906": {
+      "batches": 9,
+      "first_timestamp": 1792881737.911182,
+      "last_timestamp": 1792881765.657589,
+      "sessions": {
+        "2": {
+          "events": 743,
+          "first_monotonic": 465769453287,
+          "last_monotonic": 465796937689,
+          "sequence_first": 1,
+          "sequence_last": 743,
+          "groups": [
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "admitted",
+              "count": 94,
+              "sum_us": 670,
+              "max_us": 87,
+              "unique_objects": 94
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "checkpoint_verified_and_chunk_evicted",
+              "count": 94,
+              "sum_us": 598544,
+              "max_us": 115530,
+              "unique_objects": 94
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "discarded",
+              "count": 94,
+              "sum_us": 0,
+              "max_us": 0,
+              "unique_objects": 94
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "full_snapshot_unmapped",
+              "count": 94,
+              "sum_us": 1522,
+              "max_us": 375,
+              "unique_objects": 94
+            },
+            {
+              "domain": "compiled_glsl_cpu_snapshot",
+              "operation": "quota_refused",
+              "count": 367,
+              "sum_us": 80,
+              "max_us": 2,
+              "unique_objects": 1
+            }
+          ]
+        }
+      },
+      "batch_keys": [
+        "completeHistory",
+        "droppedEventsCumulative",
+        "events",
+        "pendingEvents"
+      ],
+      "max_dropped_cumulative": 0
+    }
+  },
+  "limitations": [
+    "Nested event deduplication key is pid/session/sequence; retained counts are lower bounds where drops occur.",
+    "Parent restore duration overlaps child restore durations.",
+    "Old app/NeoSwap processes are not combined with the current RPCS3 PID.",
+    "No paired epoch/monotonic anchor in the supplied events; batch timestamps are export times, not operation times.",
+    "No continuous gameplay frame series available; no baseline FPS or causal freeze attribution established."
+  ]
+}

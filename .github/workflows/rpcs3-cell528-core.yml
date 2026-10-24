@@ -57,7 +57,8 @@ jobs:
           SOURCE="$RUNNER_TEMP/cell528-source-preflight"
           git init -q "$SOURCE"
           git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
-          git -C "$SOURCE" fetch --depth 1 origin 22f1152883cef1f7e04af7b1c895173e28fd5b03
+          UPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
+          git -C "$SOURCE" fetch --depth 1 origin "$UPSTREAM"
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
           CXX="$(xcrun --sdk macosx --find clang++)" \

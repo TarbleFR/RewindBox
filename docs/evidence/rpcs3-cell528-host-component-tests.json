@@ -1,0 +1,182 @@
+{
+  "restore": {
+    "passed": true,
+    "baseline": "6c6604a70a6837b4d461618b90a791934d6c65b3",
+    "physicalDeviceTested": false,
+    "realGameRestored": false,
+    "sanitized": true,
+    "noExceptionsSyntaxVerified": true,
+    "fdCases": {
+      "before": {
+        "valid": {
+          "exit": 0,
+          "stdout": "{\"fileCases\":24,\"pathClassCases\":15,\"newDiagnosticEvents\":81,\"stateFingerprint\":\"6697706242030391908\"}\n",
+          "stderr": ""
+        },
+        "unavailable-regular": {
+          "exit": 91,
+          "stdout": "",
+          "stderr": "EXPECTED unchanged failed-file fatal path; error=0x80010006\n"
+        },
+        "unavailable-sdata": {
+          "exit": 91,
+          "stdout": "",
+          "stderr": "EXPECTED unchanged failed-file fatal path; error=0x80010006\n"
+        },
+        "unavailable-edata": {
+          "exit": 91,
+          "stdout": "",
+          "stderr": "EXPECTED unchanged failed-file fatal path; error=0x80010006\n"
+        },
+        "unterminated": {
+          "exit": 88,
+          "stdout": "",
+          "stderr": "REJECT unchanged unterminated name before mount lookup\n"
+        },
+        "truncated-seek": {
+          "exit": 92,
+          "stdout": "",
+          "stderr": "REJECT unchanged truncated archive through real serializer\n"
+        },
+        "truncated-memory": {
+          "exit": 92,
+          "stdout": "",
+          "stderr": "REJECT unchanged truncated archive through real serializer\n"
+        }
+      },
+      "after": {
+        "valid": {
+          "exit": 0,
+          "stdout": "{\"fileCases\":24,\"pathClassCases\":15,\"newDiagnosticEvents\":81,\"stateFingerprint\":\"6697706242030391908\"}\n",
+          "stderr": ""
+        },
+        "unavailable-regular": {
+          "exit": 0,
+          "stdout": "PASS recoverable missing disc FD; original bytes unchanged; no seek, fallback or guest resume\n",
+          "stderr": ""
+        },
+        "unavailable-sdata": {
+          "exit": 0,
+          "stdout": "PASS recoverable missing disc FD; original bytes unchanged; no seek, fallback or guest resume\n",
+          "stderr": ""
+        },
+        "unavailable-edata": {
+          "exit": 0,
+          "stdout": "PASS recoverable missing disc FD; original bytes unchanged; no seek, fallback or guest resume\n",
+          "stderr": ""
+        },
+        "unterminated": {
+          "exit": 88,
+          "stdout": "",
+          "stderr": "REJECT unchanged unterminated name before mount lookup\n"
+        },
+        "truncated-seek": {
+          "exit": 92,
+          "stdout": "",
+          "stderr": "REJECT unchanged truncated archive through real serializer\n"
+        },
+        "truncated-memory": {
+          "exit": 92,
+          "stdout": "",
+          "stderr": "REJECT unchanged truncated archive through real serializer\n"
+        }
+      }
+    },
+    "fxo": "PASS actual FXO: failure registers destructor, skips subsequent archive tags/constructors/postponed work/thread launch, requests abort before gate release; clean destruction, thread-local cause, reset, normal boot\n",
+    "fxoNegativeControl": "REFERENCE_COUNTS later=1 postponed=1 launched=1 reads=3 tags=4\nREPRO527 missing-resource flag ignored: later constructor, tag and thread launch executed\n",
+    "scope": "production constructors and actual FXO header; controlled filesystem/serial/thread-op adapters; native Core build and iPhone follow-up still required"
+  },
+  "glsl": {
+    "passed": true,
+    "sanitized": true,
+    "noExceptionsConsumerVerified": true,
+    "physicalDeviceTested": false,
+    "before": {
+      "moduleCalls": 5,
+      "admissions": 5,
+      "retainedObjects": 0,
+      "retainedBytes": 0,
+      "releasedCapacityBytes": 1236105,
+      "exactDebugText": true,
+      "balancedRetirement": true
+    },
+    "after": {
+      "moduleCalls": 5,
+      "admissions": 2,
+      "retainedObjects": 3,
+      "retainedBytes": 121993,
+      "releasedCapacityBytes": 1114112,
+      "exactDebugText": true,
+      "balancedRetirement": true
+    },
+    "scope": "exact shader compile body, real source client; module/compiler/archive API adapters; no GPU/gameplay timing"
+  },
+  "archiveGranularity": {
+    "passed": true,
+    "physicalDeviceTested": false,
+    "scope": "real POSIX files, exact byte roundtrips; compression disabled, rate limit disabled; 1MiB candidate needs 2MiB store RAM and was rejected",
+    "rows": [
+      {
+        "chunkBytes": 65536,
+        "records": 10,
+        "recordBytes": 691200,
+        "checkpoints": 110,
+        "restoredChunks": 110,
+        "writeCalls": 220,
+        "readCalls": 440,
+        "checkpointTotalUs": 91090,
+        "readTotalUs": 14314,
+        "checkpointMedianUs": 9068,
+        "checkpointMaxUs": 10218,
+        "readMedianUs": 1421,
+        "readMaxUs": 1702,
+        "managedPeakBytes": 692224,
+        "managedLimitBytes": 8388608,
+        "backendWorkspaceBoundBytes": 1179648,
+        "stagingPeakBytes": 692224,
+        "physicalDeviceTested": false
+      },
+      {
+        "chunkBytes": 262144,
+        "records": 10,
+        "recordBytes": 691200,
+        "checkpoints": 30,
+        "restoredChunks": 30,
+        "writeCalls": 60,
+        "readCalls": 120,
+        "checkpointTotalUs": 32272,
+        "readTotalUs": 5368,
+        "checkpointMedianUs": 3232,
+        "checkpointMaxUs": 3816,
+        "readMedianUs": 496,
+        "readMaxUs": 733,
+        "managedPeakBytes": 692224,
+        "managedLimitBytes": 8388608,
+        "backendWorkspaceBoundBytes": 1572864,
+        "stagingPeakBytes": 692224,
+        "physicalDeviceTested": false
+      },
+      {
+        "chunkBytes": 1048576,
+        "records": 10,
+        "recordBytes": 691200,
+        "checkpoints": 10,
+        "restoredChunks": 10,
+        "writeCalls": 20,
+        "readCalls": 40,
+        "checkpointTotalUs": 23873,
+        "readTotalUs": 5787,
+        "checkpointMedianUs": 2241,
+        "checkpointMaxUs": 3342,
+        "readMedianUs": 587,
+        "readMaxUs": 667,
+        "managedPeakBytes": 1384448,
+        "managedLimitBytes": 8388608,
+        "backendWorkspaceBoundBytes": 4194304,
+        "stagingPeakBytes": 692224,
+        "physicalDeviceTested": false
+      }
+    ]
+  },
+  "physicalDeviceTested": false
+}
