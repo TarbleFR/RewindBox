@@ -3782,7 +3782,7 @@ index a42ae12..de2bea5 100644
  	static inline const auto& get(bool llvm = false)
  	{
 diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
-index dc78ddc..0b89cd5 100644
+index dc78ddc..6f1a015 100644
 --- a/rpcs3/Emu/Cell/PPUModule.cpp
 +++ b/rpcs3/Emu/Cell/PPUModule.cpp
 @@ -10,6 +10,9 @@
@@ -3795,7 +3795,18 @@ index dc78ddc..0b89cd5 100644
  #include "Emu/VFS.h"
  
  #include "Emu/Cell/PPUOpcodes.h"
-@@ -1311,7 +1314,11 @@ static void ppu_check_patch_spu_images(const ppu_module<lv2_obj>& mod, const ppu
+@@ -1151,6 +1154,10 @@ void init_ppu_functions(utils::serial* ar, bool full = false)
+ 	{
+ 		const u32 addr = ensure(g_fxo->init<ppu_function_manager>(*ar))->addr;
+ 
++#ifdef RPCS3_IOS
++		ppu_loader.notice("SAVESTATE_RESTORE phase=ppu_functions_address address=0x%x position=%llu readable=%u",
++			addr, static_cast<u64>(ar->pos), vm::check_addr(addr) ? 1u : 0u);
++#endif
+ 		if (addr % 0x1000 || !vm::check_addr(addr))
+ 		{
+ 			fmt::throw_exception("init_ppu_functions(): Failure to initialize function manager. (addr=0x%x, %s)", addr, *ar);
+@@ -1311,7 +1318,11 @@ static void ppu_check_patch_spu_images(const ppu_module<lv2_obj>& mod, const ppu
  					// ILA R2, PC + 8
  					// BIE/BID R2
  
@@ -3808,7 +3819,66 @@ index dc78ddc..0b89cd5 100644
  					{
  						const u32 inst1 = read_from_ptr<be_t<u32>>(ls_segment, it);
  						const u32 inst2 = read_from_ptr<be_t<u32>>(ls_segment, it + 4);
-@@ -2335,6 +2342,35 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+@@ -2106,8 +2117,31 @@ void ppu_unload_prx(const lv2_prx& prx)
+ 	}
+ }
+ 
++#ifdef RPCS3_IOS
++static bool ppu_restore_functions_fit(u32 address, u64 count)
++{
++	// REWINDBOX_RESTORE_HLE_RANGE_V1: a readable first byte does not prove
++	// that the entire saved HLE table (or its 64 KiB registration envelope)
++	// exists. Validate before page protection, dispatch writes or fake OPDs.
++	if (!address || address % 4096 || !count || count > u32{umax} / 8) return false;
++	const u64 length = utils::align<u64>(address % 65536 + count * 8, 65536);
++	const u32 begin = address & -65536;
++	if (length > u32{umax} || length > 0x1'0000'0000ull - begin) return false;
++	return vm::check_addr(begin, vm::page_allocated, static_cast<u32>(length)) &&
++		vm::check_addr(address, vm::page_readable, static_cast<u32>(count * 8));
++}
++#endif
++
+ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::string& elf_path, utils::serial* ar)
+ {
++#ifdef RPCS3_IOS
++	const auto restore_phase = [&](const char* phase)
++	{
++		if (ar) ppu_loader.notice("SAVESTATE_RESTORE phase=%s position=%llu buffer_bytes=%llu buffer_capacity=%llu",
++			phase, static_cast<u64>(ar->pos), static_cast<u64>(ar->data.size()), static_cast<u64>(ar->data.capacity()));
++	};
++	restore_phase("ppu_functions_begin");
++#endif
+ 	if (elf != elf_error::ok)
+ 	{
+ 		return false;
+@@ -2130,6 +2164,16 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ 	}
+ 
+ 	init_ppu_functions(ar, false);
++#ifdef RPCS3_IOS
++	restore_phase("ppu_functions_end");
++	if (ar && !ppu_restore_functions_fit(g_fxo->get<ppu_function_manager>().addr, ppu_function_manager::get().size()))
++	{
++		ppu_loader.error("SAVESTATE_RESTORE phase=ppu_functions_range_invalid address=0x%x count=%llu position=%llu",
++			g_fxo->get<ppu_function_manager>().addr, static_cast<u64>(ppu_function_manager::get().size()), static_cast<u64>(ar->pos));
++		return false;
++	}
++	restore_phase("ppu_segments_begin");
++#endif
+ 
+ 	// Set for delayed initialization in ppu_initialize()
+ 	auto& _main = g_fxo->get<main_ppu_module<lv2_obj>>();
+@@ -2287,6 +2331,9 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ 	}
+ 
+ 	// Load section list, used by the analyser
++#ifdef RPCS3_IOS
++	restore_phase("ppu_segments_end");
++#endif
+ 	for (const auto& s : elf.shdrs)
+ 	{
+ 		ppu_loader.notice("** Section: sh_type=0x%x, addr=0x%llx, size=0x%llx, flags=0x%x", std::bit_cast<u32>(s.sh_type), s.sh_addr, s.sh_size, s._sh_flags);
+@@ -2335,6 +2382,35 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
  		g_fxo->get<patch_engine>().apply(applied, Emu.GetTitleID() + '-' + hash, [&](u32 addr, u32 size) { return _main.get_ptr<u8>(addr, size); });
  	}
  
@@ -3844,6 +3914,34 @@ index dc78ddc..0b89cd5 100644
  	if (!applied.empty() || ar)
  	{
  		// Compare memory changes in memory after executable code sections end
+@@ -2373,7 +2449,13 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ 	}
+ 
+ 	// Initialize HLE modules
++#ifdef RPCS3_IOS
++	restore_phase("ppu_modules_begin");
++#endif
+ 	ppu_initialize_modules(&link, ar);
++#ifdef RPCS3_IOS
++	restore_phase("ppu_modules_end");
++#endif
+ 
+ 	// Embedded SPU elf patching
+ 	for (const auto& seg : _main.segs)
+@@ -2650,7 +2732,13 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ 		}
+ 
+ 		void init_fxo_for_exec(utils::serial* ar, bool full);
++#ifdef RPCS3_IOS
++		restore_phase("ppu_fxo_begin");
++#endif
+ 		init_fxo_for_exec(ar, false);
++#ifdef RPCS3_IOS
++		restore_phase("ppu_fxo_end");
++#endif
+ 
+ 		liblv2_begin = 0;
+ 		liblv2_end = 0;
 diff --git a/rpcs3/Emu/Cell/PPUNoSizeSplitPolicy.h b/rpcs3/Emu/Cell/PPUNoSizeSplitPolicy.h
 new file mode 100644
 index 0000000..76893b1
@@ -11019,7 +11117,7 @@ index 669f759..d0e01fd 100644
  
  		return false;
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index e7f55d7..c4dc699 100644
+index e7f55d7..6a2cec6 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
 @@ -13,6 +13,8 @@
@@ -11183,7 +11281,68 @@ index e7f55d7..c4dc699 100644
  		}
  
  		vm::writer_lock lock;
-@@ -1808,7 +1861,7 @@ namespace vm
+@@ -1725,6 +1778,52 @@ namespace vm
+ 
+ 		ar.breathe();
+ 
++#ifdef RPCS3_IOS
++		// REWINDBOX_MEMORY_RUNS_V1: the bitmap already describes the payload
++		// order. Merge adjacent non-zero cache lines across 4 KiB bitmap words,
++		// up to 64 KiB, without changing a single byte of the savestate stream.
++		// Keep the original breathe boundaries and never cross an absent line.
++		usz pending_start = 0, pending_size = 0;
++		const auto flush_pending = [&]()
++		{
++			if (pending_size)
++			{
++				ar(std::span<u8>(ptr + pending_start, pending_size));
++				pending_size = 0;
++			}
++		};
++		for (usz word_offset = 0, offset = 0; offset < size; word_offset += sizeof(u32), offset += 4096)
++		{
++			u32 bitmap = read_from_ptr<le_t<u32>>(bit_array, word_offset);
++			usz line = 0;
++			while (bitmap)
++			{
++				const usz skip = std::countr_zero(bitmap);
++				if (skip)
++				{
++					flush_pending();
++					line += skip;
++					bitmap >>= skip;
++				}
++				const usz count = std::countr_one(bitmap);
++				const usz begin = offset + line * 128;
++				if (pending_size + count * 128 > 65536) flush_pending();
++				if (pending_size && pending_start + pending_size != begin) flush_pending();
++				if (!pending_size) pending_start = begin;
++				pending_size += count * 128;
++				line += count;
++				bitmap = count == 32 ? 0 : bitmap >> count;
++				if (pending_size >= 65536) flush_pending();
++			}
++			if (line != 32) flush_pending();
++			if (word_offset % 256 == 0)
++			{
++				flush_pending();
++				ar.breathe();
++			}
++		}
++		flush_pending();
++#else
+ 		for (usz iter_count = 0; size; iter_count += sizeof(u32), ptr += byte_of_pages * sizeof(u32))
+ 		{
+ 			const u32 bitmap = read_from_ptr<le_t<u32>>(bit_array, iter_count);
+@@ -1757,6 +1856,7 @@ namespace vm
+ 			}
+ 		}
+ 
++#endif
+ 		ar.breathe();
+ 	}
+ 
+@@ -1808,7 +1908,7 @@ namespace vm
  	{
  		if (flags & preallocated)
  		{
@@ -11192,7 +11351,7 @@ index e7f55d7..c4dc699 100644
  			m_common->map_critical(vm::base(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no);
  			m_common->map_critical(vm::get_super_ptr(addr));
  		}
-@@ -1849,6 +1902,13 @@ namespace vm
+@@ -1849,6 +1949,13 @@ namespace vm
  			{
  				pflags |= page_size_64k;
  			}
@@ -11206,7 +11365,7 @@ index e7f55d7..c4dc699 100644
  			else if (!(flags & (page_size_mask & ~page_size_1m)))
  			{
  				pflags |= page_size_1m;
-@@ -2403,7 +2463,7 @@ namespace vm
+@@ -2403,7 +2510,7 @@ namespace vm
  
  			const u32 flags = ar.pop<u32>();
  			const u64 size = ar.pop<u64>();
@@ -16046,7 +16205,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..f25868c 100644
+index 1f53c64..ae78132 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -10,6 +10,8 @@
@@ -16067,7 +16226,46 @@ index 1f53c64..f25868c 100644
  #endif
  
  #include "Loader/PSF.h"
-@@ -717,6 +721,8 @@ void Emulator::Init()
+@@ -237,6 +241,12 @@ void Emulator::BlockingCallFromMainThread(std::function<void()>&& func, bool tra
+ // This function ensures constant initialization order between different compilers and builds
+ void init_fxo_for_exec(utils::serial* ar, bool full = false)
+ {
++#ifdef RPCS3_IOS
++	const auto restore_phase = [&](const char* phase)
++	{
++		if (ar) sys_log.notice("SAVESTATE_RESTORE phase=%s position=%llu", phase, static_cast<u64>(ar->pos));
++	};
++#endif
+ 	g_fxo->init<main_ppu_module<lv2_obj>>();
+ 
+ 	void init_ppu_functions(utils::serial* ar, bool full);
+@@ -252,7 +262,15 @@ void init_fxo_for_exec(utils::serial* ar, bool full = false)
+ 
+ 	g_fxo->init(false, ar, [](){ Emu.ExecPostponedInitCode(); });
+ 
++#ifdef RPCS3_IOS
++	restore_phase("fxo_constructors_end");
++	restore_phase("graphics_begin");
++#endif
+ 	Emu.GetCallbacks().init_gs_render(ar);
++#ifdef RPCS3_IOS
++	restore_phase("graphics_end");
++	restore_phase("input_begin");
++#endif
+ 	Emu.GetCallbacks().init_kb_handler();
+ 	Emu.GetCallbacks().init_mouse_handler();
+ 
+@@ -260,6 +278,9 @@ void init_fxo_for_exec(utils::serial* ar, bool full = false)
+ 	stx::g_launch_retainer.notify_all();
+ 
+ 	Emu.GetCallbacks().init_pad_handler(Emu.GetTitleID());
++#ifdef RPCS3_IOS
++	restore_phase("input_end");
++#endif
+ 
+ 	usz pos = 0;
+ 
+@@ -717,6 +738,8 @@ void Emulator::Init()
  	make_path_verbose(fs::get_cache_dir() + "spu_progs/", false);
  	make_path_verbose(fs::get_cache_dir() + "ppu_progs/", false);
  	make_path_verbose(fs::get_parent_dir(get_savestate_file("NO_ID", "/NO_FILE", -1, -1)), false);
@@ -16076,7 +16274,7 @@ index 1f53c64..f25868c 100644
  	make_path_verbose(fs::get_config_dir() + "captures/", false);
  	make_path_verbose(fs::get_config_dir() + "sounds/", false);
  	make_path_verbose(patch_engine::get_patches_path(), false);
-@@ -1340,6 +1346,22 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1340,6 +1363,22 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			launching_from_disc_archive = is_iso_file(disc_info, nullptr, &launching_from_optical_drive);
  
@@ -16099,7 +16297,7 @@ index 1f53c64..f25868c 100644
  			sys_log.notice("Savestate: is iso archive = %d ('%s')", launching_from_disc_archive, disc_info);
  
  			if (!klic[0])
-@@ -1355,12 +1377,19 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1355,12 +1394,19 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				// Load /dev_bdvd/ from game list if available
  				if (std::string game_path = m_games_config.get_path(m_title_id); !game_path.empty())
  				{
@@ -16121,7 +16319,7 @@ index 1f53c64..f25868c 100644
  					{
  						// Marked as PS3_GAME directory
  						inherited_ps3_game_path = std::move(game_path).substr(0, game_path.size() - 3);
-@@ -1387,6 +1416,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1387,6 +1433,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					fmt::throw_exception("TAR desrialization failed: Invalid size. TAR size: 0x%x, path='%s', ar: %s", size, path, *m_ar);
  				}
  
@@ -16131,7 +16329,7 @@ index 1f53c64..f25868c 100644
  				fs::remove_all(path, size == 0);
  
  				if (!special_file.empty())
-@@ -1408,6 +1440,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1408,6 +1457,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					m_ar->m_max_data = umax;
  					m_ar->breathe();
  				}
@@ -16141,7 +16339,7 @@ index 1f53c64..f25868c 100644
  			};
  
  			if (!hdd1.empty())
-@@ -1440,7 +1475,7 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1440,7 +1492,7 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				return game_boot_result::savestate_version_unsupported;
  			}
  
@@ -16150,7 +16348,7 @@ index 1f53c64..f25868c 100644
  			{
  				// Restore SFO directory for PSN games
  
-@@ -1470,6 +1505,11 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1470,6 +1522,11 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.notice("Savestate: Loading iso archive");
  
  				load_iso(disc_info);
@@ -16162,7 +16360,7 @@ index 1f53c64..f25868c 100644
  				m_path = iso_device::virtual_device_name + "/" + argv[0];
  
  				resolve_path_as_vfs_path = false;
-@@ -1680,6 +1720,17 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1680,6 +1737,17 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  		// Load PARAM.SFO (TODO)
  		{
@@ -16180,7 +16378,7 @@ index 1f53c64..f25868c 100644
  			if (fs::is_dir(m_path))
  			{
  				// Special case (directory scan)
-@@ -1733,6 +1784,16 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1733,6 +1801,16 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			// This one setting is global-only. Custom title files are complete cfg
  			// snapshots, so preserve config.yml's value before applying one.
  			const auto ios_global_persistent_spu_cache = g_cfg.ios_experimental.persistent_spu_object_cache.get();
@@ -16197,7 +16395,7 @@ index 1f53c64..f25868c 100644
  #endif
  
  			if (m_config_mode == cfg_mode::database_config || m_config_mode == cfg_mode::custom)
-@@ -1762,6 +1823,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1762,6 +1840,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					if (g_cfg.from_string(cfg_file.to_string()))
  					{
  						g_cfg.name = m_config_path;
@@ -16208,7 +16406,7 @@ index 1f53c64..f25868c 100644
  					}
  					else
  					{
-@@ -1793,6 +1858,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1793,6 +1875,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  						if (g_cfg.from_string(cfg_file.to_string()))
  						{
@@ -16218,7 +16416,7 @@ index 1f53c64..f25868c 100644
  							g_cfg.name = config_path;
  							m_config_path = config_path;
  
-@@ -1818,6 +1886,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1818,6 +1903,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				if (g_cfg.from_string(*m_db_config))
  				{
  					g_cfg.name = "database_config";
@@ -16228,7 +16426,7 @@ index 1f53c64..f25868c 100644
  				}
  				else
  				{
-@@ -1825,6 +1896,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1825,6 +1913,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
@@ -16256,7 +16454,7 @@ index 1f53c64..f25868c 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +1939,67 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +1956,67 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -16324,11 +16522,12 @@ index 1f53c64..f25868c 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2657,13 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2674,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
 +#ifdef RPCS3_IOS
++				stx::serial_restore_trace_reset();
 +				sys_log.notice("SAVESTATE_RESTORE phase=vm_begin position=%llu", static_cast<u64>(m_ar->pos));
 +#endif
  				vm::load(*m_ar);
@@ -16338,11 +16537,12 @@ index 1f53c64..f25868c 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2586,7 +2745,13 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2763,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
 +#ifdef RPCS3_IOS
++				stx::serial_restore_trace_reset();
 +				sys_log.notice("SAVESTATE_RESTORE phase=vm_begin position=%llu", static_cast<u64>(m_ar->pos));
 +#endif
  				vm::load(*m_ar);
@@ -16352,7 +16552,7 @@ index 1f53c64..f25868c 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +2874,17 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +2893,24 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -16366,12 +16566,19 @@ index 1f53c64..f25868c 100644
 +			if (restoring_ppu)
 +			{
 +				sys_log.notice("SAVESTATE_RESTORE phase=ppu_exec_end loaded=%u position=%llu", loaded_ppu ? 1u : 0u, m_ar ? static_cast<u64>(m_ar->pos) : 0ull);
++				if (!loaded_ppu)
++				{
++					// A restored PPU snapshot cannot be retried as an overlay ELF.
++					// Leave the original state file intact and return the real failure.
++					SetContinuousMode(false);
++					return game_boot_result::savestate_corrupted;
++				}
 +			}
 +			if (loaded_ppu)
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2943,6 +3118,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3144,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -16382,7 +16589,7 @@ index 1f53c64..f25868c 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2990,6 +3169,10 @@ void Emulator::FinalizeRunRequest()
+@@ -2990,6 +3195,10 @@ void Emulator::FinalizeRunRequest()
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
  
@@ -16393,7 +16600,7 @@ index 1f53c64..f25868c 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3662,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3688,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -16406,7 +16613,7 @@ index 1f53c64..f25868c 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3682,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3708,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -16429,7 +16636,7 @@ index 1f53c64..f25868c 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3738,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3764,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -16437,7 +16644,7 @@ index 1f53c64..f25868c 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3749,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3775,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -16445,7 +16652,7 @@ index 1f53c64..f25868c 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3759,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3785,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -16453,7 +16660,7 @@ index 1f53c64..f25868c 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +3847,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +3873,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -16464,7 +16671,7 @@ index 1f53c64..f25868c 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +3913,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +3939,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -16473,7 +16680,7 @@ index 1f53c64..f25868c 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4027,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4053,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -16488,7 +16695,7 @@ index 1f53c64..f25868c 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4062,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4088,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -16496,7 +16703,7 @@ index 1f53c64..f25868c 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4180,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4206,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -16510,7 +16717,7 @@ index 1f53c64..f25868c 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4235,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4261,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -16523,7 +16730,7 @@ index 1f53c64..f25868c 100644
  			});
  
  			// Join it
-@@ -4075,10 +4305,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4331,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -16543,7 +16750,7 @@ index 1f53c64..f25868c 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4308,10 +4547,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4573,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -16570,10 +16777,20 @@ index 1f53c64..f25868c 100644
  	{
  		// Reset boot path in case of ISO
 diff --git a/rpcs3/Emu/savestate_utils.cpp b/rpcs3/Emu/savestate_utils.cpp
-index f43643d..68d46f8 100644
+index f43643d..f1d0ca7 100644
 --- a/rpcs3/Emu/savestate_utils.cpp
 +++ b/rpcs3/Emu/savestate_utils.cpp
-@@ -579,6 +579,33 @@ void clean_savestates(std::string_view title_id, std::string_view boot_path, usz
+@@ -9,6 +9,9 @@
+ #include "savestate_utils.hpp"
+ 
+ #include "System.h"
++#ifdef RPCS3_IOS
++#include "Cell/timers.hpp"
++#endif
+ 
+ #include <set>
+ #include <span>
+@@ -579,6 +582,33 @@ void clean_savestates(std::string_view title_id, std::string_view boot_path, usz
  	}
  }
  
@@ -16607,6 +16824,44 @@ index f43643d..68d46f8 100644
  bool load_and_check_reserved(utils::serial& ar, usz size)
  {
  	u8 bytes[4096];
+@@ -602,6 +632,37 @@ bool load_and_check_reserved(utils::serial& ar, usz size)
+ 
+ namespace stx
+ {
++#ifdef RPCS3_IOS
++	// REWINDBOX_RESTORE_TRACE_V1: the existing application journal receives
++	// at most 256 constructor pairs per restore. No timer, timeout, recovery,
++	// archive seek, emulator lock or additional worker is introduced.
++	struct restore_trace_state
++	{
++		u32 events = 0;
++		u64 started_us = 0;
++	};
++	static thread_local restore_trace_state s_restore_trace;
++	extern void serial_restore_trace_reset() noexcept
++	{
++		s_restore_trace = {0, get_system_time()};
++	}
++	extern void serial_restore_trace(utils::serial& ar, std::string_view name, bool begin) noexcept
++	{
++		if (ar.is_writing()) return;
++		const u32 event = ++s_restore_trace.events;
++		if (event > 512)
++		{
++			if (event == 513) sys_log.notice("SAVESTATE_RESTORE phase=fxo_trace_limit events=512");
++			return;
++		}
++		const u64 now = get_system_time();
++		sys_log.notice("SAVESTATE_RESTORE phase=%s type=%s position=%llu elapsed_us=%llu buffer_bytes=%llu buffer_capacity=%llu handler_valid=%u",
++			begin ? "fxo_type_begin" : "fxo_type_end", name, static_cast<u64>(ar.pos),
++			now >= s_restore_trace.started_us ? now - s_restore_trace.started_us : 0,
++			static_cast<u64>(ar.data.size()), static_cast<u64>(ar.data.capacity()),
++			ar.m_file_handler && ar.m_file_handler->is_valid() ? 1u : 0u);
++	}
++#endif
+ 	extern u16 serial_breathe_and_tag(utils::serial& ar, std::string_view name, bool tag_bit)
+ 	{
+ 		thread_local std::string_view s_tls_object_name = "none";
 diff --git a/rpcs3/Emu/savestate_utils.hpp b/rpcs3/Emu/savestate_utils.hpp
 index 130f54b..4c096c9 100644
 --- a/rpcs3/Emu/savestate_utils.hpp
@@ -29410,6 +29665,73 @@ index 406b4e9..8f68949 100644
  	inline void init_arm_timer_scale()
  	{
  		u64 freq = 0;
+diff --git a/rpcs3/util/fixed_typemap.hpp b/rpcs3/util/fixed_typemap.hpp
+index bcb5f36..2c145de 100644
+--- a/rpcs3/util/fixed_typemap.hpp
++++ b/rpcs3/util/fixed_typemap.hpp
+@@ -23,6 +23,11 @@ namespace stx
+ 	struct launch_retainer{};
+ 
+ 	extern u16 serial_breathe_and_tag(utils::serial& ar, std::string_view name, bool tag_bit);
++#ifdef RPCS3_IOS
++	// Bounded, restore-only observations. No object ordering or thread control.
++	extern void serial_restore_trace_reset() noexcept;
++	extern void serial_restore_trace(utils::serial& ar, std::string_view name, bool begin) noexcept;
++#endif
+ 
+ 	// Simplified typemap with exactly one object of each used type, non-moveable. Initialized on init(). Destroyed on clear().
+ 	template <typename Tag /*Tag should be unique*/, u32 Size = 0, u32 Align = (Size ? 64 : __STDCPP_DEFAULT_NEW_ALIGNMENT__)>
+@@ -299,6 +304,9 @@ namespace stx
+ 
+ 				const bool saveable = !type.saveable || type.saveable(false);
+ 
++#ifdef RPCS3_IOS
++				if (ar) serial_restore_trace(*ar, type.name, true);
++#endif
+ 				if (type.create(data, *this, saveable ? ar : nullptr, type.name))
+ 				{
+ 					*m_order++ = data;
+@@ -310,6 +318,9 @@ namespace stx
+ 						serial_breathe_and_tag(*ar, type.name, false);
+ 					}
+ 				}
++#ifdef RPCS3_IOS
++				if (ar) serial_restore_trace(*ar, type.name, false);
++#endif
+ 			}
+ 
+ 			if (func)
+@@ -472,6 +483,20 @@ namespace stx
+ 
+ 			g_tls_serialize_name = get_name<T, As>();
+ 
++#ifdef RPCS3_IOS
++			const auto trace = [&]([[maybe_unused]] bool begin)
++			{
++				if constexpr ((std::is_same_v<std::remove_cvref_t<Args>, utils::serial> || ...))
++				{
++					serial_restore_trace(std::get<0>(std::tie(args...)), get_name<T, As>(), begin);
++				}
++				if constexpr ((std::is_same_v<std::remove_cvref_t<Args>, utils::serial*> || ...))
++				{
++					if (auto* ar = std::get<0>(std::tie(args...))) serial_restore_trace(*ar, get_name<T, As>(), begin);
++				}
++			};
++			trace(true);
++#endif
+ 			if constexpr (Size != 0)
+ 			{
+ 				obj = new (m_data + stx::typeoffset<typeinfo, std::decay_t<T>>()) std::decay_t<As>(std::forward<Args>(args)...);
+@@ -500,6 +525,9 @@ namespace stx
+ 				}
+ 			}
+ 
++#ifdef RPCS3_IOS
++			trace(false);
++#endif
+ 			g_tls_serialize_name = {};
+ 
+ 			*m_order++ = obj;
 diff --git a/rpcs3/util/logs.cpp b/rpcs3/util/logs.cpp
 index 930cdaa..b37b326 100644
 --- a/rpcs3/util/logs.cpp
