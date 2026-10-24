@@ -10,7 +10,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: rewindbox-private529
+  group: rewindbox-private529-${{ github.sha }}
   cancel-in-progress: false
 jobs:
   checks:
