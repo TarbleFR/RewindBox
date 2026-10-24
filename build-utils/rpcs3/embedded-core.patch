@@ -21711,11 +21711,12 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..ede1d80 100644
+index d800542..2b8ff88 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,169 @@
+@@ -1,26 +1,170 @@
  #include "stdafx.h"
++#include "RPCS3IOSWriterCounters.h"
  #include "RPCS3IOSPerformance.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
@@ -21884,7 +21885,7 @@ index d800542..ede1d80 100644
  
  u64 process_memory_footprint()
  {
-@@ -41,28 +184,357 @@ u64 process_memory_footprint()
+@@ -41,28 +185,346 @@ u64 process_memory_footprint()
  class performance_registry final
  {
  public:
@@ -21948,11 +21949,9 @@ index d800542..ede1d80 100644
 +		m_range_blocker_max = 0;
 +		m_range_iterations_max = 0;
 +		static_cast<void>(m_range_episodes.take());
++		static_cast<void>(m_writer_counters.drain());
 +		for (usz source = 0; source < writer_lock_source_count; ++source)
 +		{
-+			m_writer_lock_count[source] = 0;
-+			m_writer_lock_acquire_ticks[source] = 0;
-+			m_writer_lock_hold_ticks[source] = 0;
 +			m_writer_lock_avoided[source] = 0;
 +		}
 +		static_cast<void>(m_spu_loading.take());
@@ -22003,10 +22002,6 @@ index d800542..ede1d80 100644
 +		m_has_flip_info.store(false, std::memory_order_release);
 +		m_rsx_window_elapsed_us = 0;
 +		m_rsx_window_idle_us = 0;
-+		for (usz source = 0; source < writer_lock_source_count; ++source)
-+		{
-+			m_writer_lock_hold_max[source] = 0;
-+		}
 +		m_usage_thread_cores.clear();
 +		m_usage_compile_cores_sum = 0.0;
 +		m_usage_compile_thread_sum = 0;
@@ -22033,8 +22028,8 @@ index d800542..ede1d80 100644
 +			m_frame_intervals[frame_index % frame_ring_size].store(now - previous, std::memory_order_relaxed);
 +		}
 +		m_presented_frames.store(frame_index + 1, std::memory_order_release);
- 	}
- 
++	}
++
 +	void record_pipeline_job_queued(u32 pending_jobs) noexcept
 +	{
 +		m_pipeline_queued.fetch_add(1, std::memory_order_relaxed);
@@ -22079,12 +22074,7 @@ index d800542..ede1d80 100644
 +
 +	void record_writer_lock(u32 source, u64 acquire_ticks, u64 hold_ticks) noexcept
 +	{
-+		const usz index = source < writer_lock_source_count ? source : 0;
-+		m_writer_lock_count[index].fetch_add(1, std::memory_order_relaxed);
-+		m_writer_lock_acquire_ticks[index].fetch_add(acquire_ticks, std::memory_order_relaxed);
-+		m_writer_lock_hold_ticks[index].fetch_add(hold_ticks, std::memory_order_relaxed);
-+		// NEOSTATION_BUILD487_DIAGNOSTICS_V1: longest single hold per source (D7).
-+		update_max(m_writer_lock_hold_max[index], hold_ticks);
++		m_writer_counters.record(source, acquire_ticks, hold_ticks);
 +	}
 +
 +	void record_writer_lock_avoided(u32 source) noexcept
@@ -22213,8 +22203,8 @@ index d800542..ede1d80 100644
 +			m_spu_object_hit_bytes.fetch_add(amount, std::memory_order_relaxed);
 +		else if (event == rpcs3::ios::spu_object_cache_event::written)
 +			m_spu_object_written_bytes.fetch_add(amount, std::memory_order_relaxed);
-+	}
-+
+ 	}
+ 
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1: every rsx::thread::flip(); lock-free.
 +	void record_flip(bool emu_flip, bool native_ui_visible) noexcept
 +	{
@@ -22252,7 +22242,7 @@ index d800542..ede1d80 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +544,10 @@ public:
+@@ -72,10 +534,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -22265,7 +22255,7 @@ index d800542..ede1d80 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +580,428 @@ public:
+@@ -108,12 +570,429 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -22394,13 +22384,14 @@ index d800542..ede1d80 100644
 +			range_iterations_max = m_range_iterations_max.exchange(0, std::memory_order_relaxed);
 +			range_blocker_sum = m_range_blocker_sum.exchange(0, std::memory_order_relaxed);
 +			range_blocker_max = m_range_blocker_max.exchange(0, std::memory_order_relaxed);
++			const auto writer_totals = m_writer_counters.drain();
 +			for (usz source = 0; source < writer_lock_source_count; ++source)
 +			{
-+				writer_count[source] = m_writer_lock_count[source].exchange(0, std::memory_order_relaxed);
++				writer_count[source] = writer_totals[source].count;
 +				writer_avoided[source] = m_writer_lock_avoided[source].exchange(0, std::memory_order_relaxed);
-+				writer_acquire[source] = m_writer_lock_acquire_ticks[source].exchange(0, std::memory_order_relaxed);
-+				writer_hold[source] = m_writer_lock_hold_ticks[source].exchange(0, std::memory_order_relaxed);
-+				writer_hold_max[source] = m_writer_lock_hold_max[source].exchange(0, std::memory_order_relaxed);
++				writer_acquire[source] = writer_totals[source].acquire;
++				writer_hold[source] = writer_totals[source].hold;
++				writer_hold_max[source] = writer_totals[source].maximum;
 +			}
 +			frame_baseline = m_profile_frame_baseline;
 +			elapsed_ms = std::chrono::duration<double, std::milli>(now - m_profile_window_start).count();
@@ -22464,7 +22455,7 @@ index d800542..ede1d80 100644
 +			"RANGELOCKPROF session=%llu episodes=%llu total_ms=%.3f max_ms=%.3f iterations_max=%llu blocker_samples=%llu blocker_max=%llu "
 +			"wl_other=%llu:%.3f:%.3f wl_putllc=%llu:%.3f:%.3f wl_store128=%llu:%.3f:%.3f wl_ppu_stcx=%llu:%.3f:%.3f wl_resop=%llu:%.3f:%.3f "
 +			"wl_putllc_avoided=%llu wl_ppu_stcx_avoided=%llu "
-+			"wl_other_max_hold_us=%.3f wl_putllc_max_hold_us=%.3f wl_store128_max_hold_us=%.3f wl_ppu_stcx_max_hold_us=%.3f wl_resop_max_hold_us=%.3f",
++			"wl_other_max_hold_us=%.3f wl_putllc_max_hold_us=%.3f wl_store128_max_hold_us=%.3f wl_ppu_stcx_max_hold_us=%.3f wl_resop_max_hold_us=%.3f writer_shards=%u",
 +			profile_session, range.count, milliseconds(range.ticks), milliseconds(range.maximum_ticks),
 +			range_iterations_max, range_blocker_sum, range_blocker_max,
 +			writer_count[0], milliseconds(writer_acquire[0]), milliseconds(writer_hold[0]),
@@ -22474,7 +22465,7 @@ index d800542..ede1d80 100644
 +			writer_count[4], milliseconds(writer_acquire[4]), milliseconds(writer_hold[4]),
 +			writer_avoided[1], writer_avoided[3],
 +			microseconds(writer_hold_max[0]), microseconds(writer_hold_max[1]), microseconds(writer_hold_max[2]),
-+			microseconds(writer_hold_max[3]), microseconds(writer_hold_max[4]));
++			microseconds(writer_hold_max[3]), microseconds(writer_hold_max[4]), rpcs3::ios::diagnostics::WriterCounters::shard_count);
 +
 +		// NEOSTATION_BUILD444_JIT_PHASE_PROFILE_V1: name=events:total_ms:max_ms:bytes
 +		// per LLVM phase, exclusive of nested phases; headroom_min_mib is the
@@ -22695,7 +22686,7 @@ index d800542..ede1d80 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1009,93 @@ private:
+@@ -121,6 +1000,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -22727,16 +22718,14 @@ index d800542..ede1d80 100644
 +	rpcs3::spu::compile_counters m_range_episodes;
 +	// NEOSTATION_WRITER_LOCK_ATTRIBUTION_V1: indexed by vm::writer_lock_source.
 +	static constexpr usz writer_lock_source_count = 5;
-+	std::array<std::atomic<u64>, writer_lock_source_count> m_writer_lock_count{};
-+	std::array<std::atomic<u64>, writer_lock_source_count> m_writer_lock_acquire_ticks{};
-+	std::array<std::atomic<u64>, writer_lock_source_count> m_writer_lock_hold_ticks{};
++	rpcs3::ios::diagnostics::WriterCounters m_writer_counters;
++	static_assert(writer_lock_source_count == rpcs3::ios::diagnostics::WriterCounters::sources);
 +	std::array<std::atomic<u64>, writer_lock_source_count> m_writer_lock_avoided{};
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1: longest single hold per source (D7),
 +	// guest flips and native-UI state from rsx::thread::flip() (D1), closed RSX
 +	// load windows (rsx_fifo_busy), and the window accumulators guarded by
 +	// m_profile_mutex (per-thread cores for top=, compile workers, the RSX puller
 +	// and the frame-change clock of the freeze trigger).
-+	std::array<std::atomic<u64>, writer_lock_source_count> m_writer_lock_hold_max{};
 +	std::atomic<u64> m_guest_frames{0};
 +	std::atomic<u32> m_native_ui_visible{0};
 +	std::atomic_bool m_has_flip_info{false};
@@ -22789,7 +22778,7 @@ index d800542..ede1d80 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1103,79 @@ performance_registry g_performance_registry;
+@@ -128,6 +1092,79 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -22869,7 +22858,7 @@ index d800542..ede1d80 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1186,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1175,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -22998,7 +22987,7 @@ index d800542..ede1d80 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1317,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1306,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -23722,6 +23711,55 @@ index 74abaa0..b00e894 100644
  std::string game_settings_preset_directory(std::string_view title_id);
  std::string_view settings_load_error_detail(settings_load_error error) noexcept;
  game_settings_preset_result enumerate_game_settings_presets(
+diff --git a/rpcs3/ios/RPCS3IOSWriterCounters.h b/rpcs3/ios/RPCS3IOSWriterCounters.h
+new file mode 100644
+index 0000000..cd3836b
+--- /dev/null
++++ b/rpcs3/ios/RPCS3IOSWriterCounters.h
+@@ -0,0 +1,43 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <array>
++#include <atomic>
++#include <cstdint>
++namespace rpcs3::ios::diagnostics {
++class WriterCounters final {
++public:
++ static constexpr uint32_t sources=5, shard_count=64;
++ struct Total {uint64_t count=0,acquire=0,hold=0,maximum=0;};
++ void record(uint32_t source,uint64_t acquire,uint64_t hold) noexcept {
++  auto& entry=shards_[thread_slot()].source[source<sources?source:0];
++  entry.count.fetch_add(1,std::memory_order_relaxed);
++  entry.acquire.fetch_add(acquire,std::memory_order_relaxed);
++  entry.hold.fetch_add(hold,std::memory_order_relaxed);
++  auto maximum=entry.maximum.load(std::memory_order_relaxed);
++  while(maximum<hold&&!entry.maximum.compare_exchange_weak(maximum,hold,std::memory_order_relaxed)){}
++ }
++ std::array<Total,sources> drain() noexcept {
++  std::array<Total,sources> result{};
++  for(auto& shard:shards_)for(uint32_t i=0;i<sources;++i){
++   auto& entry=shard.source[i];auto& total=result[i];
++   total.count+=entry.count.exchange(0,std::memory_order_relaxed);
++   total.acquire+=entry.acquire.exchange(0,std::memory_order_relaxed);
++   total.hold+=entry.hold.exchange(0,std::memory_order_relaxed);
++   const auto maximum=entry.maximum.exchange(0,std::memory_order_relaxed);
++   if(maximum>total.maximum)total.maximum=maximum;
++  }
++  return result;
++ }
++private:
++ struct Entry {std::atomic<uint64_t> count{0},acquire{0},hold{0},maximum{0};};
++ struct alignas(128) Shard {std::array<Entry,sources> source{};};
++ static uint32_t thread_slot() noexcept {
++  static std::atomic<uint32_t> next{0};
++  // Only the first event on a thread registers. Slots contain no thread
++  // pointers and need no retirement; collisions retain exact atomic counters.
++  static thread_local const uint32_t slot=next.fetch_add(1,std::memory_order_relaxed)%shard_count;
++  return slot;
++ }
++ std::array<Shard,shard_count> shards_{};
++};
++}
 diff --git a/rpcs3/ios/tests/FramebufferSourceTests.cpp b/rpcs3/ios/tests/FramebufferSourceTests.cpp
 new file mode 100644
 index 0000000..717dbdd
