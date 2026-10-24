@@ -1,10 +1,9 @@
-"""Authenticate unchanged 525 proofs; execute the source-built ARM64 migration tests.
+"""Authenticate unchanged 525 proofs and validate the final ARM64 migration.
 
 The arm526 manifest record is deliberately mandatory. Test commands and every
 fixture input are source-bound, rather than inferred from a file-name glob.
 """
 import argparse
-import copy
 import json
 import os
 import platform
