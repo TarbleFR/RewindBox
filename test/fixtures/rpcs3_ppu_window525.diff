@@ -1,0 +1,70 @@
+--- a/rpcs3/Emu/Cell/PPUThread.cpp
++++ b/rpcs3/Emu/Cell/PPUThread.cpp
+@@ -190,15 +190,43 @@
+ extern void ppu_finalize(const ppu_module<lv2_obj>& info, bool force_mem_release = false);
+ extern bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only = false, u64 file_size = 0);
+ #ifdef RPCS3_IOS
++// Cache buffers belong to PPU loading, not to a query of the codegen setting.
++// The boot contains module calls; precompilation can also run module calls in
++// parallel. Release transient bytes only after their last loading owner exits.
++// Identity metadata and the global 32 MiB bound remain in validated_objects().
++namespace
++{
++class ppu_object_window_scope
++{
++	inline static std::mutex s_mutex;
++	inline static std::size_t s_owners = 0;
++
++public:
++	ppu_object_window_scope()
++	{
++		std::lock_guard lock(s_mutex);
++		++s_owners;
++	}
++
++	~ppu_object_window_scope()
++	{
++		std::lock_guard lock(s_mutex);
++		if (--s_owners == 0)
++		{
++			jit_compiler::release_cached_object_buffers();
++		}
++	}
++
++	ppu_object_window_scope(const ppu_object_window_scope&) = delete;
++	ppu_object_window_scope& operator=(const ppu_object_window_scope&) = delete;
++};
++}
++
+ // NEOSTATION_BUILD483_LLVM_PIPELINES_V1: the Build 444 boolean keeps its meaning
+ // (EarlyCSE) and the enum selects beyond it; the stronger request wins. Both the
+ // object name (settings bits) and the pass run read this one function.
+ static ppu_llvm_pipeline_type ppu_effective_pipeline()
+ {
+-#ifdef RPCS3_IOS
+-	struct object_window_scope { ~object_window_scope() { jit_compiler::release_cached_object_buffers(); } } object_window;
+-#endif
+-
+ 	const ppu_llvm_pipeline_type selected = g_cfg.core.ppu_llvm_pipeline.get();
+ 
+ 	if (selected == ppu_llvm_pipeline_type::upstream && g_cfg.core.ppu_llvm_ir_passes)
+@@ -4897,6 +4925,8 @@
+ 	auto& _main = g_fxo->get<main_ppu_module<lv2_obj>>();
+ 
+ #ifdef RPCS3_IOS
++	ppu_object_window_scope object_window;
++
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D8/D10): JITPROF_BOOT at every exit of
+ 	// this function, two lines per boot: boot ordinal, boot kind, module counts,
+ 	// PPU object cache outcome, wall time and the PPU phase deltas over the whole
+@@ -5099,6 +5129,10 @@
+ 
+ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_size)
+ {
++#ifdef RPCS3_IOS
++	ppu_object_window_scope object_window;
++#endif
++
+ 	ppu_log.notice("Entering ppu_initialize(const ppu_module&..)");
+ 
+ 	struct log_guard

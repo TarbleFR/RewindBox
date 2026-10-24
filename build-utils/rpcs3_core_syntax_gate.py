@@ -13,7 +13,7 @@ UNITS = {'vm.cpp', 'PPUModule.cpp', 'savestate_utils.cpp', 'ISO.cpp', 'VKGSRende
          'VKResourceManager.cpp',
          'BufferUtils.cpp', 'RSXFIFO.cpp', 'RPCS3IOS.cpp', 'RPCS3IOSPerformance.cpp', 'buffer_object.cpp',
          'RPCS3IOSFreezeDump.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1
-         'System.cpp', 'sys_game.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D3/D4)
+         'System.cpp', 'sys_game.cpp', 'sys_fs.cpp',  # CELL525 restored file descriptors
          'overlay_home_menu_savestate.cpp', 'overlay_home_menu_main_menu.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D4)
          'RSXThread.cpp', 'sys_mutex.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D1/rsx counter, D5)
          'RPCS3IOSExperimentalPolicy.cpp', 'RPCS3IOSSettings.cpp', 'system_config_types.cpp',  # NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2/L3/L5/L9)

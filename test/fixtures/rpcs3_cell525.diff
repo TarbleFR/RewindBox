@@ -1,0 +1,545 @@
+diff --git a/rpcs3/Emu/Cell/PPUThread.cpp b/rpcs3/Emu/Cell/PPUThread.cpp
+index 618acf8..fcbcf39 100644
+--- a/rpcs3/Emu/Cell/PPUThread.cpp
++++ b/rpcs3/Emu/Cell/PPUThread.cpp
+@@ -190,15 +190,43 @@ extern void ppu_initialize();
+ extern void ppu_finalize(const ppu_module<lv2_obj>& info, bool force_mem_release = false);
+ extern bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only = false, u64 file_size = 0);
+ #ifdef RPCS3_IOS
++// Cache buffers belong to PPU loading, not to a query of the codegen setting.
++// The boot contains module calls; precompilation can also run module calls in
++// parallel. Release transient bytes only after their last loading owner exits.
++// Identity metadata and the global 32 MiB bound remain in validated_objects().
++namespace
++{
++class ppu_object_window_scope
++{
++	inline static std::mutex s_mutex;
++	inline static std::size_t s_owners = 0;
++
++public:
++	ppu_object_window_scope()
++	{
++		std::lock_guard lock(s_mutex);
++		++s_owners;
++	}
++
++	~ppu_object_window_scope()
++	{
++		std::lock_guard lock(s_mutex);
++		if (--s_owners == 0)
++		{
++			jit_compiler::release_cached_object_buffers();
++		}
++	}
++
++	ppu_object_window_scope(const ppu_object_window_scope&) = delete;
++	ppu_object_window_scope& operator=(const ppu_object_window_scope&) = delete;
++};
++}
++
+ // NEOSTATION_BUILD483_LLVM_PIPELINES_V1: the Build 444 boolean keeps its meaning
+ // (EarlyCSE) and the enum selects beyond it; the stronger request wins. Both the
+ // object name (settings bits) and the pass run read this one function.
+ static ppu_llvm_pipeline_type ppu_effective_pipeline()
+ {
+-#ifdef RPCS3_IOS
+-	struct object_window_scope { ~object_window_scope() { jit_compiler::release_cached_object_buffers(); } } object_window;
+-#endif
+-
+ 	const ppu_llvm_pipeline_type selected = g_cfg.core.ppu_llvm_pipeline.get();
+ 
+ 	if (selected == ppu_llvm_pipeline_type::upstream && g_cfg.core.ppu_llvm_ir_passes)
+@@ -4897,6 +4925,8 @@ extern void ppu_initialize()
+ 	auto& _main = g_fxo->get<main_ppu_module<lv2_obj>>();
+ 
+ #ifdef RPCS3_IOS
++	ppu_object_window_scope object_window;
++
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D8/D10): JITPROF_BOOT at every exit of
+ 	// this function, two lines per boot: boot ordinal, boot kind, module counts,
+ 	// PPU object cache outcome, wall time and the PPU phase deltas over the whole
+@@ -5099,6 +5129,10 @@ extern void ppu_initialize()
+ 
+ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_size)
+ {
++#ifdef RPCS3_IOS
++	ppu_object_window_scope object_window;
++#endif
++
+ 	ppu_log.notice("Entering ppu_initialize(const ppu_module&..)");
+ 
+ 	struct log_guard
+diff --git a/rpcs3/Emu/Cell/lv2/sys_fs.cpp b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
+index 79c74da..620df45 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_fs.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
+@@ -532,10 +532,36 @@ lv2_fs_object::lv2_fs_object(std::string_view filename)
+ {
+ }
+ 
++#ifdef RPCS3_IOS
++// REWINDBOX_RESTORE_FS_NAME_V1: the fixed-size saved name must contain its
++// existing NUL terminator before it is passed to string_view's C-string
++// constructor. Preserve all bytes after that terminator, including padding.
++static auto lv2_fs_restore_name(utils::serial& ar)
++{
++	stx::serial_restore_fs_trace(ar, "name_read_begin", idm::last_id(), 0, 0);
++	auto name = ar.pop<decltype(lv2_fs_object::name)>();
++	const auto end = std::find(name.begin(), name.end(), '\0');
++	if (end == name.end())
++	{
++		stx::serial_restore_fs_trace(ar, "name_unterminated", idm::last_id(), 0, name.size());
++		fmt::throw_exception("Savestate filesystem name is not NUL-terminated (id=%u, position=%llu)", idm::last_id(), static_cast<u64>(ar.pos));
++	}
++	stx::serial_restore_fs_trace(ar, "name_ready", idm::last_id(), 0, std::distance(name.begin(), end));
++	return name;
++}
++#endif
++
+ lv2_fs_object::lv2_fs_object(utils::serial& ar, bool)
++#ifdef RPCS3_IOS
++	: name(lv2_fs_restore_name(ar))
++#else
+ 	: name(ar.pop<decltype(name)>())
++#endif
+ 	, mp(g_fxo->get<lv2_fs_mount_info_map>().lookup(name.data()))
+ {
++#ifdef RPCS3_IOS
++	stx::serial_restore_fs_trace(ar, "mount_ready", idm::last_id(), 0, 0);
++#endif
+ }
+ 
+ u64 lv2_file::op_read(const fs::file& file, vm::ptr<void> buf, u64 size, u64 opt_pos)
+@@ -609,6 +635,9 @@ lv2_file::lv2_file(utils::serial& ar)
+ {
+ 	[[maybe_unused]] const s32 version = GET_SERIALIZATION_VERSION(lv2_fs);
+ 
++#ifdef RPCS3_IOS
++	stx::serial_restore_fs_trace(ar, "file_metadata", idm::last_id(), static_cast<u32>(type), (u64{static_cast<u32>(mode)} << 32) | static_cast<u32>(flags));
++#endif
+ 	ar(lock);
+ 
+ 	be_t<u64> arg = 0;
+@@ -621,14 +650,26 @@ lv2_file::lv2_file(utils::serial& ar)
+ 	case lv2_file_type::edata: arg = 0x2, size = 8; break;
+ 	}
+ 
++#ifdef RPCS3_IOS
++	stx::serial_restore_fs_trace(ar, "file_path_begin", idm::last_id(), static_cast<u32>(type), 0);
++#endif
+ 	const std::string retrieve_real = ar.pop<std::string>();
++#ifdef RPCS3_IOS
++	stx::serial_restore_fs_trace(ar, "file_path_ready", idm::last_id(), static_cast<u32>(type), retrieve_real.size());
++#endif
+ 
+ 	if (type == lv2_file_type::edata && version >= 2)
+ 	{
+ 		ar(g_fxo->get<loaded_npdrm_keys>().one_time_key);
+ 	}
+ 
++#ifdef RPCS3_IOS
++	stx::serial_restore_fs_trace(ar, "file_open_begin", idm::last_id(), static_cast<u32>(type), static_cast<u32>(flags & CELL_FS_O_ACCMODE));
++#endif
+ 	open_result_t res = lv2_file::open(retrieve_real, flags & CELL_FS_O_ACCMODE, mode, size ? &arg : nullptr, size);
++#ifdef RPCS3_IOS
++	stx::serial_restore_fs_trace(ar, "file_open_end", idm::last_id(), static_cast<u32>(type), !!res.file);
++#endif
+ 	file = std::move(res.file);
+ 	real_path = std::move(res.real_path);
+ 
+@@ -639,8 +680,17 @@ lv2_file::lv2_file(utils::serial& ar)
+ 	{
+ 		const fs::stat_t stat = ar.pop<fs::stat_t>();
+ 
++#ifdef RPCS3_IOS
++		stx::serial_restore_fs_trace(ar, "file_memory_begin", idm::last_id(), static_cast<u32>(type), stat.size);
++#endif
+ 		std::vector<u8> buf(stat.size);
++#ifdef RPCS3_IOS
++		stx::serial_restore_fs_trace(ar, "file_memory_allocated", idm::last_id(), static_cast<u32>(type), stat.size);
++#endif
+ 		ar(std::span<u8>(buf.data(), buf.size()));
++#ifdef RPCS3_IOS
++		stx::serial_restore_fs_trace(ar, "file_memory_read", idm::last_id(), static_cast<u32>(type), stat.size);
++#endif
+ 
+ 		file = fs::make_stream<std::vector<u8>>(std::move(buf), stat);
+ 	}
+@@ -657,7 +707,13 @@ lv2_file::lv2_file(utils::serial& ar)
+ 		sys_fs.success("Loaded file descriptor \'%s\' file for savestates (vpath=\'%s\', type=%s, flags=0x%x, id=%d)", name.data(), retrieve_real, type, flags, idm::last_id());
+ 	}
+ 
++#ifdef RPCS3_IOS
++	stx::serial_restore_fs_trace(ar, "file_seek_begin", idm::last_id(), static_cast<u32>(type), 0);
++#endif
+ 	file.seek(ar.pop<s64>());
++#ifdef RPCS3_IOS
++	stx::serial_restore_fs_trace(ar, "file_ready", idm::last_id(), static_cast<u32>(type), 0);
++#endif
+ }
+ 
+ void lv2_file::save(utils::serial& ar)
+@@ -740,18 +796,38 @@ lv2_dir::lv2_dir(utils::serial& ar)
+ 		std::vector<fs::dir_entry> entries;
+ 
+ 		u64 size = 0;
++#ifdef RPCS3_IOS
++		// The default MaxBits=0 reader currently rejects its first byte. Use
++		// the existing 64-bit VLE format explicitly and reject failed reads
++		// before treating entry bytes as the saved directory iterator.
++		stx::serial_restore_fs_trace(ar, "dir_count_begin", idm::last_id(), lv2_dir::id_type, 0);
++		ensure(ar.deserialize_vle<64>(size));
++#else
+ 		ar.deserialize_vle(size);
++#endif
++#ifdef RPCS3_IOS
++		stx::serial_restore_fs_trace(ar, "dir_entries_begin", idm::last_id(), lv2_dir::id_type, size);
++#endif
+ 		entries.resize(size);
++#ifdef RPCS3_IOS
++		stx::serial_restore_fs_trace(ar, "dir_entries_allocated", idm::last_id(), lv2_dir::id_type, size);
++#endif
+ 
+ 		for (auto& entry : entries)
+ 		{
+ 			ar(entry.name, static_cast<fs::stat_t&>(entry));
+ 		}
++#ifdef RPCS3_IOS
++		stx::serial_restore_fs_trace(ar, "dir_entries_read", idm::last_id(), lv2_dir::id_type, size);
++#endif
+ 
+ 		return entries;
+ 	}())
+ 	, pos(ar.pop<u64>())
+ {
++#ifdef RPCS3_IOS
++	stx::serial_restore_fs_trace(ar, "dir_ready", idm::last_id(), lv2_dir::id_type, entries.size());
++#endif
+ }
+ 
+ void lv2_dir::save(utils::serial& ar)
+diff --git a/rpcs3/Emu/IdManager.h b/rpcs3/Emu/IdManager.h
+index a626995..6763630 100644
+--- a/rpcs3/Emu/IdManager.h
++++ b/rpcs3/Emu/IdManager.h
+@@ -19,6 +19,14 @@ enum class thread_state : u32;
+ 
+ extern u16 serial_breathe_and_tag(utils::serial& ar, std::string_view name, bool tag_bit);
+ 
++#ifdef RPCS3_IOS
++struct lv2_fs_object;
++namespace stx
++{
++	extern void serial_restore_fs_trace(utils::serial& ar, std::string_view stage, u32 id, u32 type, u64 value) noexcept;
++}
++#endif
++
+ template <typename T>
+ concept IdmCompatible = requires () { u32{T::id_base}, u32{T::id_step}, u32{T::id_count}; };
+ 
+@@ -298,9 +306,23 @@ namespace id_manager
+ 
+ 		id_map(utils::serial& ar) noexcept requires IdmSavable<T>
+ 		{
++			// Only the filesystem restore dispatch is traced, with a per-restore
++			// budget shared with its constructors. No paths or contents are logged.
++			const auto fs_trace = [&]([[maybe_unused]] std::string_view stage, [[maybe_unused]] u32 id = 0, [[maybe_unused]] u32 type = 0, [[maybe_unused]] u64 value = 0)
++			{
++#ifdef RPCS3_IOS
++				if constexpr (std::is_same_v<T, lv2_fs_object>)
++				{
++					stx::serial_restore_fs_trace(ar, stage, id, type, value);
++				}
++#endif
++			};
++
+ 			while (true)
+ 			{
++				fs_trace("id_tag_begin");
+ 				const u16 tag = serial_breathe_and_tag(ar, g_fxo->get_name<id_map<T>>(), false);
++				fs_trace("id_tag_end", 0, 0, tag);
+ 
+ 				if (tag >> 15)
+ 				{
+@@ -312,6 +334,8 @@ namespace id_manager
+ 				const u32 id = ar.pop<u32>();
+ 
+ 				const u128 type_init_pos = u128{ar.pop<u32>()} << 64 | std::bit_cast<u64>(T::savestate_init_pos);
++				const u32 type_hash = static_cast<u32>(static_cast<u64>(type_init_pos >> 64));
++				fs_trace("id_type_lookup", id, type_hash);
+ 				const typeinfo* info = nullptr;
+ 
+ 				// Search load functions for the one of this type (see make_typeinfo() for explenation about key composition reasoning)
+@@ -323,6 +347,7 @@ namespace id_manager
+ 					}
+ 				}
+ 
++				fs_trace(info ? "id_type_found" : "id_type_missing", id, type_hash);
+ 				ensure(info);
+ 
+ 				// Construct each object from information collected
+@@ -331,13 +356,16 @@ namespace id_manager
+ 				g_id = id;
+ 
+ 				const u32 object_index = get_index(id, info->base, info->step, info->count, info->invl_range);
++				fs_trace("id_slot", id, type_hash, object_index);
+ 				auto& obj = ::at32(vec_data, object_index);
+ 				ensure(!obj);
+ 
+ 				highest_index = std::max(highest_index, object_index + 1);
+ 
+ 				vec_keys[object_index] = id_key(id, static_cast<u32>(static_cast<u64>(type_init_pos >> 64)));
++				fs_trace("id_load_begin", id, type_hash);
+ 				info->load(ar)(&obj);
++				fs_trace("id_load_end", id, type_hash);
+ 			}
+ 		}
+ 
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+index d933a08..43f5c5a 100644
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -6,6 +6,7 @@
+ #include "vkutils/data_heap.h"
+ 
+ #ifdef RPCS3_IOS
++#include "ios/IOSGPUMemoryProfile.h"
+ #include "ios/IOSMemoryPressurePolicy.h"
+ #include "ios/RPCS3IOSPerformance.h"
+ #endif
+@@ -412,6 +413,9 @@ namespace vk
+ 			m_cached_memory_size = 0;
+ 		}
+ 		baseclass::clear();
++#ifdef RPCS3_IOS
++		rpcs3::ios::texture_profile.publish(this, {});
++#endif
+ 	}
+ 
+ 	void texture_cache::copy_transfer_regions_impl(vk::command_buffer& cmd, vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const
+@@ -1530,11 +1534,17 @@ namespace vk
+ 		m_formats_support = device.get_formats_support();
+ 		m_submit_queue = submit_queue;
+ 		m_texture_upload_heap = &upload_heap;
++#ifdef RPCS3_IOS
++		rpcs3::ios::texture_profile.begin(this);
++#endif
+ 	}
+ 
+ 	void texture_cache::destroy()
+ 	{
+ 		clear();
++#ifdef RPCS3_IOS
++		rpcs3::ios::texture_profile.end(this);
++#endif
+ 	}
+ 
+ 	bool texture_cache::is_depth_texture(u32 rsx_address, u32 rsx_size)
+@@ -1648,6 +1658,15 @@ namespace vk
+ 
+ 				m_cached_images.resize(new_size);
+ 			}
++#ifdef RPCS3_IOS
++			// Already on RSX with the return-pool lock held. Only completed GPU
++			// images are in this pool. No renderer access from the reporter, no
++			// new walk/lock/wait, and no claim about active or pending images.
++			rpcs3::ios::texture_memory_sample sample;
++			sample.recyclable_images = m_cached_images.size();
++			sample.recyclable_bytes = m_cached_memory_size;
++			rpcs3::ios::texture_profile.publish(this, sample);
++#endif
+ 		}
+ 
+ 		baseclass::on_frame_end();
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/memory.cpp b/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
+index 8d26935..72bd887 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
+@@ -1,5 +1,5 @@
+ #ifdef RPCS3_IOS
+-#include "Utilities/JITMemoryProfile.h"
++#include "ios/IOSGPUMemoryProfile.h"
+ #endif
+ #include "device.h"
+ #include "memory.h"
+@@ -222,6 +222,9 @@ namespace vk
+ 		}
+ 
+ 		CHECK_RESULT(vmaCreateAllocator(&allocatorInfo, &m_allocator));
++#ifdef RPCS3_IOS
++		rpcs3::ios::vma_profile.begin(this);
++#endif
+ 
+ 		// Allow fastest possible allocation on start
+ 		set_fastest_allocation_flags();
+@@ -247,6 +250,9 @@ namespace vk
+ 	void mem_allocator_vma::destroy()
+ 	{
+ 		vmaDestroyAllocator(m_allocator);
++#ifdef RPCS3_IOS
++		rpcs3::ios::vma_profile.end(this);
++#endif
+ 	}
+ 
+ 	mem_allocator_vk::mem_handle_t mem_allocator_vma::alloc(const memory_allocation_request& request)
+@@ -370,9 +376,11 @@ namespace vk
+ 		// VMA's block and allocation bytes count each heap once, without aliases.
+ 		u64 blocks = 0, allocated = 0;
+ 		for (const auto& heap : stats) { blocks += heap.statistics.blockBytes; allocated += heap.statistics.allocationBytes; }
+-		jit_memory::vma_block_bytes.store(blocks, std::memory_order_relaxed);
+-		jit_memory::vma_allocated.store(allocated, std::memory_order_relaxed);
+-		jit_memory::vma_unused.store(blocks > allocated ? blocks - allocated : 0, std::memory_order_relaxed);
++		rpcs3::ios::vma_memory_sample sample;
++		sample.block_bytes = blocks;
++		sample.allocated = allocated;
++		sample.unused = blocks > allocated ? blocks - allocated : 0;
++		rpcs3::ios::vma_profile.publish(this, sample);
+ #endif
+ 
+ 		// Filter out the Re-BAR heap
+diff --git a/rpcs3/Emu/savestate_utils.cpp b/rpcs3/Emu/savestate_utils.cpp
+index 7224894..144b4a5 100644
+--- a/rpcs3/Emu/savestate_utils.cpp
++++ b/rpcs3/Emu/savestate_utils.cpp
+@@ -648,11 +648,12 @@ namespace stx
+ 	{
+ 		u32 events = 0;
+ 		u64 started_us = 0;
++		u32 fs_events = 0;
+ 	};
+ 	static thread_local restore_trace_state s_restore_trace;
+ 	extern void serial_restore_trace_reset() noexcept
+ 	{
+-		s_restore_trace = {0, get_system_time()};
++		s_restore_trace = {0, get_system_time(), 0};
+ 	}
+ 	extern void serial_restore_trace(utils::serial& ar, std::string_view name, bool begin) noexcept
+ 	{
+@@ -670,6 +671,24 @@ namespace stx
+ 			static_cast<u64>(ar.data.size()), static_cast<u64>(ar.data.capacity()),
+ 			ar.m_file_handler && ar.m_file_handler->is_valid() ? 1u : 0u);
+ 	}
++	// REWINDBOX_RESTORE_FS_TRACE_V1: distinguish tag, type dispatch and
++	// host file operations without logging paths or changing restore semantics.
++	// This budget is independent of the enclosing FXO constructor trace.
++	extern void serial_restore_fs_trace(utils::serial& ar, std::string_view stage, u32 id, u32 type, u64 value) noexcept
++	{
++		if (ar.is_writing()) return;
++		const u32 event = ++s_restore_trace.fs_events;
++		if (event > 256)
++		{
++			if (event == 257) sys_log.notice("SAVESTATE_RESTORE phase=fs_trace_limit events=256");
++			return;
++		}
++		const u64 now = get_system_time();
++		sys_log.notice("SAVESTATE_RESTORE phase=fs_stage stage=%s id=%u type=%u value=%llu position=%llu elapsed_us=%llu buffer_bytes=%llu buffer_capacity=%llu",
++			stage, id, type, value, static_cast<u64>(ar.pos),
++			now >= s_restore_trace.started_us ? now - s_restore_trace.started_us : 0,
++			static_cast<u64>(ar.data.size()), static_cast<u64>(ar.data.capacity()));
++	}
+ #endif
+ 	extern u16 serial_breathe_and_tag(utils::serial& ar, std::string_view name, bool tag_bit)
+ 	{
+diff --git a/rpcs3/ios/IOSGPUMemoryProfile.h b/rpcs3/ios/IOSGPUMemoryProfile.h
+new file mode 100644
+index 0000000..286359d
+--- /dev/null
++++ b/rpcs3/ios/IOSGPUMemoryProfile.h
+@@ -0,0 +1,58 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++#pragma once
++#include <cstdint>
++#include <mutex>
++namespace rpcs3::ios {
++// Diagnostic copies only. Neither the reporter nor this lock accesses a live
++// Vulkan allocator/cache. Hot-path publication and capture never wait; start /
++// stop may take the lock, but do not hold it across any GPU or allocator work.
++struct memory_sample_status {
++    bool captured = false, owner_live = false, sampled = false;
++    std::uint64_t generation = 0;
++};
++struct vma_memory_sample : memory_sample_status {
++    std::uint64_t block_bytes = 0, allocated = 0, unused = 0;
++};
++struct texture_memory_sample : memory_sample_status {
++    std::uint64_t recyclable_images = 0, recyclable_bytes = 0;
++};
++template <typename Sample> class owned_memory_profile {
++    mutable std::mutex mutex;
++    const void* owner = nullptr;
++    std::uint64_t generation = 0;
++    Sample value{};
++public:
++    void begin(const void* current) {
++        std::lock_guard lock(mutex);
++        owner = current;
++        value = {};
++        value.owner_live = true;
++        value.generation = ++generation;
++    }
++    void end(const void* current) {
++        std::lock_guard lock(mutex);
++        // A delayed teardown from an older device must not erase the new one.
++        if (owner != current) return;
++        owner = nullptr;
++        value = {};
++        value.generation = generation;
++    }
++    bool publish(const void* current, Sample sample) {
++        std::unique_lock lock(mutex, std::try_to_lock);
++        if (!lock || owner != current) return false;
++        sample.owner_live = sample.sampled = true;
++        sample.generation = generation;
++        value = sample;
++        return true;
++    }
++    Sample capture() const {
++        std::unique_lock lock(mutex, std::try_to_lock);
++        if (!lock) return {};
++        auto result = value;
++        result.captured = true;
++        return result;
++    }
++};
++inline constinit owned_memory_profile<vma_memory_sample> vma_profile;
++inline constinit owned_memory_profile<texture_memory_sample> texture_profile;
++}
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index feeb9cb..d60709c 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -1,6 +1,7 @@
+ #include "stdafx.h"
+ #include "RPCS3IOSWriterCounters.h"
+ #include "IOSGraphicsMemorySnapshot.h"
++#include "IOSGPUMemoryProfile.h"
+ #include "RPCS3IOSPerformance.h"
+ #include "RPCS3IOSFreezeDump.h"
+ #include "RPCS3IOSProfilerHelpers.h"
+@@ -806,15 +807,22 @@ private:
+ 		const u64 memory_reclaim_effective = m_memory_reclaim_effective.exchange(0, std::memory_order_relaxed);
+ 		const u64 memory_reclaim_deferred = m_memory_reclaim_deferred.exchange(0, std::memory_order_relaxed);
+ 		const auto gpu_memory = rpcs3::ios::capture_graphics_memory_snapshot();
+-		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu gpu_pools_valid=%u gpu_system_requested=%llu gpu_surfaces_requested=%llu gpu_textures_requested=%llu gpu_swapchain_requested=%llu gpu_scratch_requested=%llu gpu_other_requested=%llu gpu_samplers=%llu gpu_pool_scope=requested_allocation_bytes_not_physical_ram",
++		const auto vma_memory = rpcs3::ios::vma_profile.capture();
++		const auto texture_memory = rpcs3::ios::texture_profile.capture();
++		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu vma_snapshot_valid=%u vma_owner_live=%u vma_sample_valid=%u vma_generation=%llu gpu_pools_valid=%u gpu_system_requested=%llu gpu_surfaces_requested=%llu gpu_textures_requested=%llu gpu_swapchain_requested=%llu gpu_scratch_requested=%llu gpu_other_requested=%llu gpu_samplers=%llu gpu_pool_scope=requested_allocation_bytes_not_physical_ram texture_snapshot_valid=%u texture_owner_live=%u texture_sample_valid=%u texture_generation=%llu texture_recyclable_images=%llu texture_recyclable_bytes=%llu texture_sample_scope=last_frame_end texture_pending_scope=unmeasured",
+ 			jit_memory::active.load(), jit_memory::peak_active.exchange(0), jit_memory::samples.exchange(0),
+ 			static_cast<double>(jit_memory::footprint_peak.exchange(0)) / 0x100000,
+ 			static_cast<double>(jit_memory::headroom_min.load() == UINT64_MAX ? 0 : jit_memory::headroom_min.exchange(UINT64_MAX)) / 0x100000,
+ 			jit_memory::cache_index_hits.exchange(0), jit_memory::cache_buffer_hits.exchange(0),
+ 			jit_memory::texture_hash_bytes.exchange(0), jit_memory::texture_hash_ticks.exchange(0),
+-			jit_memory::vma_block_bytes.load(), jit_memory::vma_allocated.load(), jit_memory::vma_unused.load(),
++			vma_memory.block_bytes, vma_memory.allocated, vma_memory.unused,
++			vma_memory.captured ? 1u : 0u, vma_memory.owner_live ? 1u : 0u,
++			vma_memory.sampled ? 1u : 0u, vma_memory.generation,
+ 			gpu_memory.valid ? 1u : 0u, gpu_memory.system, gpu_memory.surfaces, gpu_memory.textures,
+-			gpu_memory.swapchain, gpu_memory.scratch, gpu_memory.other, gpu_memory.samplers);
++			gpu_memory.swapchain, gpu_memory.scratch, gpu_memory.other, gpu_memory.samplers,
++			texture_memory.captured ? 1u : 0u, texture_memory.owner_live ? 1u : 0u,
++			texture_memory.sampled ? 1u : 0u, texture_memory.generation,
++			texture_memory.recyclable_images, texture_memory.recyclable_bytes);
+ 
+ 		const u32 memory_pressure_peak = m_memory_pressure_peak.exchange(0, std::memory_order_relaxed);
+ 		const u64 vram_allocations = m_vram_allocations.exchange(0, std::memory_order_relaxed);
