@@ -7,8 +7,8 @@ import rpcs3cell523_delivery as previous
 import rpcs3cell527_core as native
 
 ROOT = Path(__file__).resolve().parents[2]
-CORE_SOURCE = 'fe0035588e24eeb5e84e5d6cc245552654c9c386'
-CORE_RUN = 40133110089
+CORE_SOURCE = '75ffd142645392f75608aa7c9797195289b498de'
+CORE_RUN = 40135072855
 APP_SOURCE = 'c1f550f8be86c91d65dc564ebddff593f2e3fe46'
 APP_RUN = 40104064265
 BASE_IPA_SHA = '7fa958570e802c489db4d4df07b7388cde4bb18f94c2555bcce060db9aedb8a1'
@@ -21,7 +21,7 @@ validate_host_proof = previous.validate_host_proof
 ASSEMBLY = {'.github/diagnostics/rpcs3cell527_delivery.py', '.github/workflows/rpcs3-cell527-delivery.yml',
     'build-utils/rpcs3_cell527_package.py', 'build-utils/validate_rpcs3_cell527_ipa.py',
     'build-utils/delivery-527-rpcs3-recipient.pem', FIXTURE,
-    'docs/rpcs3-cell527.md', 'docs/evidence/rpcs3-cell527-validation.json',
+    'docs/rpcs3-cell527.md', 'docs/rpcs3-cell527-device-protocol.md', 'docs/evidence/rpcs3-cell527-validation.json',
     'docs/evidence/rpcs3-cell527-log-baseline.json'}
 CONTROLS = ('build-utils/delivery_cipher.py', 'build-utils/sign_delivery.py',
     'build-utils/delivery_benchmark.py', 'build-utils/embed_legal_bundle.py',

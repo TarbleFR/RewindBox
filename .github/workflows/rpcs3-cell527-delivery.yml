@@ -65,8 +65,8 @@ jobs:
     - name: Download source-built Core527
       uses: actions/download-artifact@v4
       with:
-        run-id: 40133110089
-        name: RPCS3Core-fe0035588e24eeb5e84e5d6cc245552654c9c386
+        run-id: 40135072855
+        name: RPCS3Core-75ffd142645392f75608aa7c9797195289b498de
         github-token: ${{ github.token }}
         path: dist/rpcs3-native
     - name: Authenticate app523 bytes, install Core527 and seal the private IPA

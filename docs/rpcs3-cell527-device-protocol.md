@@ -36,7 +36,7 @@ Memory: peak and stabilized process footprint, resident, virtual and compressed 
 
 To decide whether incremental JIT helps gameplay, correlate new publication events with slow frames and compare matched warm gameplay windows. A lower synthetic finalize cost alone does not establish fewer in-game pauses. For waits, identify the blocked component, producer and exact resource before changing synchronization. Keep GPU time unavailable if reported as−1.
 
-Export only existing application journals (`app.log`, `RPCS3-diagnostic.log`, `RPCS3-milestones.log`, NeoSwap operations if available). No IPS/Jetsam/watchdog report is requested. Preserve failures and classify incomplete runs; do not average them into successful gameplay.
+Export only existing application journals (`app.log`, `RPCS3-diagnostic.log`, `RPCS3-diagnostic.1.log` when present, `RPCS3-milestones.log`, NeoSwap operations if available). Export the cold-start observation before starting the warm run. The diagnostic writer retains one previous2MiB generation, so export checkpoints during a20–30-minute session as well; pass all generations to the analyzer, which deduplicates mirrors. No IPS/Jetsam/watchdog report is requested. Preserve failures and classify incomplete runs; do not average them into successful gameplay.
 
 ## Log analysis
 
