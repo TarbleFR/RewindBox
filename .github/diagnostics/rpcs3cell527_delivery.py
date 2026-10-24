@@ -7,8 +7,8 @@ import rpcs3cell523_delivery as previous
 import rpcs3cell527_core as native
 
 ROOT = Path(__file__).resolve().parents[2]
-CORE_SOURCE = ''  # Pin only after the immutable527 Core succeeds
-CORE_RUN = 0
+CORE_SOURCE = 'fe0035588e24eeb5e84e5d6cc245552654c9c386'
+CORE_RUN = 40133110089
 APP_SOURCE = 'c1f550f8be86c91d65dc564ebddff593f2e3fe46'
 APP_RUN = 40104064265
 BASE_IPA_SHA = '7fa958570e802c489db4d4df07b7388cde4bb18f94c2555bcce060db9aedb8a1'
