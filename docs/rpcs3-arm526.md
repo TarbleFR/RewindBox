@@ -37,6 +37,8 @@ L'inventaire textuel de départ contient 503 appels `_mm_*` dans ces six fichier
 
 ## Traduction PPU, distincte du SIMD hôte
 
+La première exécution Apple (`053c605e`, run `40123705588`) a révélé une divergence `ROTMAI` : la macro SSE2NEON `_mm_srai_epi32` écrit `-imm` sans parenthèses. Avec son argument composé, elle produit un décalage gauche au lieu du décalage droit pour 62 des 128 immédiats. Le backend natif est conforme au manuel SPU ISA v1.2, p. 148, et au traducteur SPU LLVM existant. La fixture ajoute une référence scalaire indépendante pour huit instructions immédiates, vérifie le candidat contre celle-ci et compte les erreurs du témoin séparément. Aucun Core n’est produit par cet essai échoué ; le delta de production est inchangé.
+
 Le correctif SPU `ROTQMBI` remplace aussi la négation signée de `INT32_MIN`, indéfinie en C++, par une soustraction non signée modulo avant le masque de trois bits. Un contrôle négatif UBSan distingue ce défaut source du résultat différentiel valide ; aucune barrière ni attente n’est modifiée.
 
 Le nouveau builder `CellVectorLowering.h` produit de l'IR AArch64 pour quatre opérations PPU :
@@ -92,6 +94,7 @@ Les modifications portent sur les sources RPCS3 conservées avec leurs notices e
 
 Références primaires consultées pour les contrats (24 octobre 2026) :
 
+- [SPU ISA v1.2 IBM/Sony/Toshiba, 27 janvier 2007](https://moss.csc.ncsu.edu/~mueller/cluster/ps3/SDK3.0/docs/arch/SPU_ISA_v1.2_27Jan2007_pub.pdf), p. 148 : décalage droit arithmétique et compte modulo 64 de ROTMAI.
 - [Arm Neon Intrinsics Reference / ACLE](https://arm-software.github.io/acle/neon_intrinsics/advsimd.html) : correspondances CNT, CLZ, REV16, TBL, FCVTZU, widening et dot product ; version affichée `aef52c2` à la consultation. Ces correspondances guident le choix ; le désassemblage réel reste requis.
 - [Arm C Language Extensions](https://arm-software.github.io/acle/main/acle.html) : disponibilité NEON et garde DOTPROD, distincte des extensions Matrix Multiply.
 - [LLVM 22.1 Language Reference](https://releases.llvm.org/22.1.0/docs/LangRef.html) : arithmétique entière modulo la largeur, conversions, poison et contraintes d'environnement flottant. Ce manuel 22.1.0 définit le contrat ; la construction doit employer la version 22.1.8 épinglée et son patch existant.

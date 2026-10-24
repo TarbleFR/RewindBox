@@ -337,12 +337,16 @@
       "arm64_legacy_sse_operations": 0,
       "baseline_undefined_negation_control": {
         "rejected": true,
-        "stderr_sha256": "098ae3e989bd27de2d5489d92f8dc43d947ecf636e9f0a3c53e4ca4404cd52b2",
+        "stderr_sha256": "c335ce68fd83fad951e46c264205b01461a2e0138c031004dd539d6952f7972c",
         "signed_overflow_suppressed_only_in_differential_baseline_ROTQMBI": true
       },
       "mode": "differential",
       "instruction_count": 114,
       "register_comparisons": 4894912,
+      "scalar_shift_reference_checks": 325888,
+      "known_legacy_shift_macro_mismatches": 0,
+      "legacy_macro_control_cases": 128,
+      "legacy_macro_control_mismatches": 0,
       "rounding_modes": 4,
       "denormal_modes": 2,
       "exhaustive_mask16": 65536,
@@ -354,6 +358,10 @@
           "mode": "differential",
           "instruction_count": 114,
           "register_comparisons": 4894912,
+          "scalar_shift_reference_checks": 325888,
+          "known_legacy_shift_macro_mismatches": 0,
+          "legacy_macro_control_cases": 128,
+          "legacy_macro_control_mismatches": 0,
           "rounding_modes": 4,
           "denormal_modes": 2,
           "exhaustive_mask16": 65536,
@@ -365,6 +373,10 @@
           "mode": "differential",
           "instruction_count": 114,
           "register_comparisons": 4894912,
+          "scalar_shift_reference_checks": 325888,
+          "known_legacy_shift_macro_mismatches": 0,
+          "legacy_macro_control_cases": 128,
+          "legacy_macro_control_mismatches": 0,
           "rounding_modes": 4,
           "denormal_modes": 2,
           "exhaustive_mask16": 65536,
@@ -378,7 +390,7 @@
         "-fno-fast-math",
         "-fno-strict-aliasing",
         "-I/workspace/scratch/0e385e2b26ab/simd526-impl-work/after/rpcs3",
-        "-I/tmp/rpcs3-simd526-23x8zu6u",
+        "-I/tmp/rpcs3-simd526-7uruf9no",
         "-DARCH_X64=1",
         "-msse4.1",
         "-mssse3",
@@ -480,5 +492,16 @@
   "phone_fps_gain_measured": false,
   "phone_memory_gain_measured": false,
   "core_built": false,
-  "ipa_delivered": false
+  "ipa_delivered": false,
+  "native_attempts": [
+    {
+      "source": "053c605e9e085c5d05a248e236c25f7c4be8e925",
+      "run": 40123705588,
+      "job": 120960522523,
+      "result": "preflight failure; no Core produced",
+      "diagnostics_artifact": 12572377370,
+      "github_archive_digest": "sha256:d6add8581b2034d12225c8b6e28f17600e962f7ab437487f65ac8b205bd70b36",
+      "cause": "Legacy SSE2NEON ROTMAI macro loses parentheses around -imm; candidate follows CELL. Independent scalar ISA reference added; production delta unchanged."
+    }
+  ]
 }

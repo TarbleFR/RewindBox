@@ -52,10 +52,89 @@ static spu_thread registers()
     return result;
 }
 static u64 checks=0;
+static u64 scalar_reference_checks=0;
+static u64 legacy_macro_mismatches=0;
+static u32 legacy_macro_control_mismatches=0;
+
+// Independent CELL lane semantics. No gv/SSE/NEON operation is used here.
+// ROTMAI: IBM/Sony/Toshiba SPU ISA v1.2 (27 Jan 2007), printed p.148;
+// https://moss.csc.ncsu.edu/~mueller/cluster/ps3/SDK3.0/docs/arch/SPU_ISA_v1.2_27Jan2007_pub.pdf
+// The production SPULLVMRecompiler::ROTMAI independently uses the same
+// modulo-64 negated count followed by a sign-filling right shift.
+// Arithmetic shifts construct the sign fill explicitly rather than relying
+// on the host's signed-shift or integer-negation behavior.
+static bool reference_immediate(const TestCase& test, const spu_thread& input,
+    spu_opcode_t op, spu_thread& expected)
+{
+    enum class Kind { rotate, left, right, arithmetic };
+    Kind kind; u32 width;
+    if (!std::strcmp(test.name,"ROTI")) {kind=Kind::rotate;width=32;}
+    else if (!std::strcmp(test.name,"ROTMI")) {kind=Kind::right;width=32;}
+    else if (!std::strcmp(test.name,"ROTMAI")) {kind=Kind::arithmetic;width=32;}
+    else if (!std::strcmp(test.name,"SHLI")) {kind=Kind::left;width=32;}
+    else if (!std::strcmp(test.name,"ROTHI")) {kind=Kind::rotate;width=16;}
+    else if (!std::strcmp(test.name,"ROTHMI")) {kind=Kind::right;width=16;}
+    else if (!std::strcmp(test.name,"ROTMAHI")) {kind=Kind::arithmetic;width=16;}
+    else if (!std::strcmp(test.name,"SHLHI")) {kind=Kind::left;width=16;}
+    else return false;
+    expected=input;
+    const u32 mask=width==32?0xffffffffu:0xffffu;
+    const u32 count=kind==Kind::rotate?(op.i7&(width-1)):
+        kind==Kind::left?(op.i7&(width*2-1)):((0u-op.i7)&(width*2-1));
+    for(u32 lane=0;lane<128/width;++lane)
+    {
+        const u32 value=width==32?input.gpr[op.ra]._u32[lane]:input.gpr[op.ra]._u16[lane];
+        u32 result;
+        if(kind==Kind::rotate)
+            result=count?u32((u64(value)<<count)|(value>>(width-count)))&mask:value;
+        else if(kind==Kind::left)
+            result=count<width?u32(u64(value)<<count)&mask:0;
+        else if(kind==Kind::right)
+            result=count<width?value>>count:0;
+        else
+        {
+            const u32 fill=(value>>(width-1))?mask:0;
+            result=count>=width?fill:count?((value>>count)|(fill^(fill>>count))):value;
+        }
+        if(width==32) expected.gpr[op.rt]._u32[lane]=result;
+        else expected.gpr[op.rt]._u16[lane]=u16(result);
+    }
+    return true;
+}
 static void compare(const TestCase& test, const spu_thread& input, spu_opcode_t op)
 {
     auto a=input, b=input;
     const auto before=test.before(a,op), after=test.after(b,op);
+    spu_thread expected;
+    const bool has_reference=reference_immediate(test,input,op,expected);
+    if(has_reference)
+    {
+        ++scalar_reference_checks;
+        if(std::memcmp(&b,&expected,sizeof(b)))
+        {
+            std::cerr << "Candidate disagrees with independent CELL shift reference: " << test.name << " i7=" << op.i7 << '\n';
+            std::exit(1);
+        }
+    }
+#if defined(ARCH_ARM64)
+    // The old srai32 macro uses -imm rather than -(imm). In ROTMAI,
+    // -(0-op.i7)&63 becomes a positive left-shift count. Preserve and count
+    // the real control failure; only the candidate must match CELL here.
+    if(!std::strcmp(test.name,"ROTMAI") && std::memcmp(&a,&b,sizeof(a)))
+    {
+        const u32 count=(0u-op.i7)&63;
+        auto broken=input;broken.gpr[op.rt]={};
+        if(!has_reference || !before || !after || count==0 || count>=32 ||
+            std::memcmp(&a,&broken,sizeof(a)))
+        {
+            std::cerr << "Unexpected legacy shift discrepancy\n";
+            std::exit(1);
+        }
+        ++legacy_macro_mismatches;
+        ++checks;
+        return;
+    }
+#endif
     if (before!=after || std::memcmp(&a,&b,sizeof(a)))
     {
         std::cerr << "Mismatch " << test.name << " case=" << checks << " rounding=" << fegetround() << " i7=" << op.i7 << " i8=" << op.i8 << " rt=" << op.rt << " rt4=" << op.rt4 << '\n';
@@ -78,8 +157,33 @@ static spu_opcode_t opcode(u32 i)
     op.rt=(i>>3)%5;op.rt4=(i>>6)%5;
     return op;
 }
+static void legacy_shift_macro_control()
+{
+    const auto& test=find_case("ROTMAI");
+    for(u32 immediate=0;immediate<128;++immediate)
+    {
+        spu_thread input{};spu_opcode_t op;op.i7=immediate;
+        input.gpr[0]=v128::from32(0xffffffffu,0x80000000u,0x12345678u,0);
+        auto old=input,actual=input;spu_thread expected;
+        assert(reference_immediate(test,input,op,expected));
+        assert(test.before(old,op) && test.after(actual,op));
+        if(std::memcmp(&actual,&expected,sizeof(actual)))std::abort();
+        if(std::memcmp(&old,&expected,sizeof(old)))
+        {
+            ++legacy_macro_control_mismatches;
+            auto broken=input;broken.gpr[3]={};
+            assert(((immediate&63)>=33) && !std::memcmp(&old,&broken,sizeof(old)));
+        }
+    }
+#if defined(ARCH_ARM64)
+    assert(legacy_macro_control_mismatches==62);
+#else
+    assert(legacy_macro_control_mismatches==0);
+#endif
+}
 static void differential()
 {
+    legacy_shift_macro_control();
     const int original_round=fegetround();
     const std::array<int,4> modes={FE_TONEAREST,FE_TOWARDZERO,FE_UPWARD,FE_DOWNWARD};
     // Four rounding modes, destination aliasing all sources, all immediate
@@ -147,7 +251,7 @@ static void differential()
         for(const char* name:{"ROTH","ROTHM","ROTMAH","SHLH","ROTHI","ROTHMI","ROTMAHI","SHLHI"})
             compare(find_case(name),input,opcode(count));
     }
-    std::cout << "{\"mode\":\"differential\",\"instruction_count\":" << std::size(cases) << ",\"register_comparisons\":" << checks << ",\"rounding_modes\":4,\"denormal_modes\":2,\"exhaustive_mask16\":65536,\"shufb_control_values\":256,\"legacy_adapter_used_only_by_control\":true}\n";
+    std::cout << "{\"mode\":\"differential\",\"instruction_count\":" << std::size(cases) << ",\"register_comparisons\":" << checks << ",\"scalar_shift_reference_checks\":" << scalar_reference_checks << ",\"known_legacy_shift_macro_mismatches\":" << legacy_macro_mismatches << ",\"legacy_macro_control_cases\":128,\"legacy_macro_control_mismatches\":" << legacy_macro_control_mismatches << ",\"rounding_modes\":4,\"denormal_modes\":2,\"exhaustive_mask16\":65536,\"shufb_control_values\":256,\"legacy_adapter_used_only_by_control\":true}\n";
 }
 static volatile u64 consumed=0;
 struct Timing { double wall_ns; double cpu_ns; };

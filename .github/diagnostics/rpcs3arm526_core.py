@@ -6,6 +6,7 @@ fixture input are source-bound, rather than inferred from a file-name glob.
 import argparse
 import json
 import os
+import platform
 from pathlib import Path
 import subprocess
 import tempfile
@@ -94,7 +95,76 @@ def source_contract(source=None):
     return inputs()
 
 
+def execute_tests(source, diagnostics, entries, partial):
+    """Keep every independent test result, but fail closed after any failure."""
+    diagnostics.mkdir(parents=True, exist_ok=True)
+    partial_path = diagnostics / 'arm526-partial.json'
+    log = diagnostics / 'arm526-proof.txt'
+    log.write_bytes(b'')
+    reports = {}
+    failures = []
+
+    def checkpoint():
+        pending = partial_path.with_suffix('.json.tmp')
+        pending.write_text(json.dumps(partial, indent=2) + '\n')
+        pending.replace(partial_path)
+
+    partial['tests'] = {entry['name']: dict(status='pending') for entry in entries}
+    checkpoint()
+    for entry in entries:
+        name = entry['name']
+        report = diagnostics / (name + '-result.json')
+        report.unlink(missing_ok=True)
+        args = ['python3', entry['script'], str(source), *entry.get('args', []),
+                '--report', str(report)]
+        state = dict(status='running', command=args, report=report.name)
+        partial['tests'][name] = state
+        checkpoint()
+        try:
+            result = subprocess.run(args, cwd=ROOT,
+                env=dict(os.environ, ASAN_OPTIONS='detect_leaks=0', UBSAN_OPTIONS='halt_on_error=1'),
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=entry.get('timeout', 300))
+            output = result.stdout
+            state.update(returncode=result.returncode, status='passed' if result.returncode == 0 else 'failed')
+        except subprocess.TimeoutExpired as error:
+            output = error.stdout or b''
+            state.update(returncode=None, status='timeout', error=str(error))
+        except OSError as error:
+            output = str(error).encode()
+            state.update(returncode=None, status='execution-error', error=str(error))
+        if isinstance(output, str):
+            output = output.encode()
+        output_path = diagnostics / (name + '-output.txt')
+        output_path.write_bytes(output)
+        state.update(output=output_path.name, output_sha256=sha(output))
+        with log.open('ab') as stream:
+            stream.write(('\n===== ' + name + ' =====\n').encode() + output)
+        print(output.decode(errors='replace'), end='', flush=True)
+        if report.is_file():
+            state['report_sha256'] = sha(report.read_bytes())
+        if state['status'] == 'passed':
+            try:
+                payload = json.loads(report.read_bytes())
+                assert isinstance(payload, dict), 'Native report must be a JSON object'
+                assert payload.get('passed') is not False, 'Native report explicitly failed'
+                assert payload.get('result') not in ('failed', 'failure', 'error'), 'Native report explicitly failed'
+            except (OSError, ValueError, AssertionError) as error:
+                state.update(status='invalid-report', error=str(error))
+        if state['status'] == 'passed':
+            reports[report.name] = state['report_sha256']
+        else:
+            failures.append(name + ' (' + state['status'] + ')')
+        checkpoint()
+    partial['all_tests_passed'] = not failures
+    partial['log_sha256'] = sha(log.read_bytes())
+    checkpoint()
+    if failures:
+        raise RuntimeError('ARM526 native tests failed; all independent entries were attempted: ' + ', '.join(failures))
+    return reports
+
+
 def prepare(source, out):
+    out.unlink(missing_ok=True)
     current = source_contract(source)
     prior = previous.previous.previous.authenticated(PRIOR_RUN, BASE, PRIOR_ARTIFACT, PRIOR_SHA, 'prior525')
     identity = json.loads((prior / 'identity.json').read_bytes())
@@ -106,26 +176,24 @@ def prepare(source, out):
     receipt = json.loads((prior / 'cell525-reuse.json').read_bytes())
     assert sha((prior / 'cell525-proof.txt').read_bytes()) == receipt['log_sha256']
     diagnostics = ROOT / 'build/rpcs3-core-diagnostics'
-    log = diagnostics / 'arm526-proof.txt'
     diagnostics.mkdir(parents=True, exist_ok=True)
-    outputs = []
-    reports = {}
-    for entry in arm_record()['tests']:
-        report = diagnostics / (entry['name'] + '-result.json')
-        result = subprocess.run(['python3', entry['script'], str(source), *entry.get('args', []),
-                                 '--report', str(report)], cwd=ROOT,
-            env=dict(os.environ, ASAN_OPTIONS='detect_leaks=0', UBSAN_OPTIONS='halt_on_error=1'),
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=entry.get('timeout', 300))
-        outputs.append(result.stdout)
-        log.write_bytes(b'\n'.join(outputs))
-        print(result.stdout.decode(), end='', flush=True)
-        result.check_returncode()
-        assert report.is_file(), 'Missing native result ' + str(report)
-        reports[report.name] = sha(report.read_bytes())
-    record = dict(schema=1, source=command('git', 'rev-parse', 'HEAD').decode().strip(),
+    partial = dict(schema=1, source=command('git', 'rev-parse', 'HEAD').decode().strip(),
+        input_sha256=current, native_source_sha256=manifest()['files_sha256'],
+        prior_source=BASE, prior_run=PRIOR_RUN, prior_artifact=PRIOR_ARTIFACT,
+        prior_archive_sha256=PRIOR_SHA, fixture_sha256=arm_record()['fixture_sha256'],
+        environment=dict(system=platform.platform(), machine=platform.machine(),
+            variables={key: os.environ.get(key) for key in ('CXX', 'CXXFLAGS', 'HOST_MACOS_SDK',
+                'SDKROOT', 'LLVM_CONFIG', 'LLVM_DIR', 'DEVELOPER_DIR', 'MACOSX_DEPLOYMENT_TARGET')}),
+        tests={}, all_tests_passed=False, physical_device_tested=False)
+    reports = execute_tests(source, diagnostics, arm_record()['tests'], partial)
+    # execute_tests raises only after all independent entries have been run.
+    # A partial receipt is never admitted by the Core builder as native proof.
+    record = dict(schema=1, source=partial['source'],
         input_sha256=current, prior_source=BASE, prior_run=PRIOR_RUN, prior_artifact=PRIOR_ARTIFACT,
         prior_archive_sha256=PRIOR_SHA, fixture_sha256=arm_record()['fixture_sha256'],
-        log_sha256=sha(log.read_bytes()), reports_sha256=reports, physical_device_tested=False)
+        log_sha256=sha((diagnostics / 'arm526-proof.txt').read_bytes()), reports_sha256=reports,
+        partial_receipt_sha256=sha((diagnostics / 'arm526-partial.json').read_bytes()),
+        all_tests_passed=True, physical_device_tested=False)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(record, indent=2) + '\n')
 
@@ -137,10 +205,23 @@ def verify(path):
     assert record['prior_archive_sha256'] == PRIOR_SHA
     assert record['fixture_sha256'] == arm_record()['fixture_sha256']
     diagnostics = ROOT / 'build/rpcs3-core-diagnostics'
+    assert record['all_tests_passed'] is True
+    partial_path = diagnostics / 'arm526-partial.json'
+    assert sha(partial_path.read_bytes()) == record['partial_receipt_sha256']
+    partial = json.loads(partial_path.read_bytes())
+    assert partial['source'] == record['source'] and partial['input_sha256'] == record['input_sha256']
+    assert partial['native_source_sha256'] == manifest()['files_sha256']
+    assert partial['all_tests_passed'] is True
+    assert set(partial['tests']) == {entry['name'] for entry in arm_record()['tests']}
+    assert all(row['status'] == 'passed' and row['returncode'] == 0 for row in partial['tests'].values())
     assert sha((diagnostics / 'arm526-proof.txt').read_bytes()) == record['log_sha256']
     assert set(record['reports_sha256']) == {entry['name'] + '-result.json' for entry in arm_record()['tests']}
     for name, digest in record['reports_sha256'].items():
         assert sha((diagnostics / name).read_bytes()) == digest, name
+    for name, state in partial['tests'].items():
+        assert state['report'] == name + '-result.json' and state['output'] == name + '-output.txt'
+        assert state['report_sha256'] == record['reports_sha256'][state['report']]
+        assert sha((diagnostics / state['output']).read_bytes()) == state['output_sha256'], name
     print('PASS source-bound ARM64 migration native tests; exact unchanged 525 evidence authenticated')
 
 
