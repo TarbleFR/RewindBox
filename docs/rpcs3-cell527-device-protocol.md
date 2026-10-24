@@ -12,7 +12,7 @@ A true cold comparison requires matching empty **isolated** cache copies for eac
 
 ## Active follow-up — eight minutes per build, after first guest presentation
 
-Record the wall-clock start/end of each phase in a short note or screen recording so the exported internal log windows can be assigned reliably. Intervals straddling transitions are excluded from scene statistics.
+Record the wall-clock start/end of each phase in a short note or screen recording so the exported internal log windows can be assigned reliably. Intervals straddling transitions are excluded from scene statistics. Discard the first complete five-second report after each scene transition or resume as well: its first guest interval can have begun before the labelled phase. Begin the phase annotation only after this guard interval; do not classify a paused gap as gameplay stutter.
 
 | Time | Phase and action |
 |---|---|

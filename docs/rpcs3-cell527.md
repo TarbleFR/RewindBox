@@ -25,7 +25,7 @@ The pool bound covers **retained recyclable image backing**, not live/pending te
 
 ## Measurement and validation status
 
-Local source contract passes: all261 native postimages, exact inverse delta to526 and173 source/test inputs; app/host sources are unchanged. Portable ASan/UBSan checks pass for the publication queue and runtime metrics. The pool's old negative control fails as intended; the new policy passes concurrent ownership/accounting checks and no-exceptions syntax. Mathematical PPU proof covers1,322,966 cases, including all65,536 halfword patterns. These are host component checks, not guest execution.
+Local source contract passes: all261 native postimages, exact inverse delta to526 and175 source/test inputs; app/host sources are unchanged. Portable ASan/UBSan checks pass for the publication queue and runtime metrics. The pool's old negative control fails as intended; the new policy passes concurrent ownership/accounting checks and no-exceptions syntax. Mathematical PPU proof covers1,322,966 cases, including all65,536 halfword patterns. These are host component checks, not guest execution.
 
 The Apple gate must execute real LLVM22 MCJIT tests, generated PPU kernels and existing526 VMSUM regression affected by their common helper. Unchanged526 SPU/RSX/FS checks are authenticated with their original provenance rather than rerun. Independent current cases run even after another case fails; any failure blocks the native Core. Actual iPhone Core/link/ABI and private IPA identities will be recorded only after they succeed and the artifacts are downloaded and independently verified.
 

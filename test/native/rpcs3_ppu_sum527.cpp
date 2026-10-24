@@ -170,6 +170,30 @@ struct after_translator : register_adapter {
 
 constexpr std::array<const char*, 3> names = {"VSUM4UBS", "VSUM4SBS", "VSUM4SHS"};
 using kernel = void(*)(u8*, const u8*, const u8*, const u8*);
+#ifdef RPCS3_PPU_SUM527_SANITIZED_JIT_BOUNDARY
+// UBSan's function checker reads compiler type metadata before the callee.
+// MCJIT emits no such metadata. Exempt only that checker at this dynamic-code
+// boundary; ASan and all other undefined-behaviour checks stay enabled here
+// and throughout the C++ harness. The generated code is never ASan-instrumented.
+__attribute__((noinline, no_sanitize("function")))
+void invoke_jit(kernel function, u8* result, const u8* a, const u8* b, const u8* sat) {
+    function(result,a,b,sat);
+}
+// Never executed: retained controls prove the compiler keeps all three checks
+// outside the one narrowly exempted dynamic-code invocation.
+__attribute__((used,noinline))
+void sanitizer_function_control(kernel function, u8* result, const u8* a, const u8* b, const u8* sat) {
+    function(result,a,b,sat);
+}
+__attribute__((used,noinline))
+s32 sanitizer_overflow_control(s32 a,s32 b) { return a+b; }
+__attribute__((used,noinline))
+s32 sanitizer_address_control(const s32* value) { return *value; }
+#define CALL_KERNEL(function, ...) invoke_jit(function, __VA_ARGS__)
+#else
+#define CALL_KERNEL(function, ...) function(__VA_ARGS__)
+#endif
+
 using block = std::array<u8, 16>;
 using result_block = std::array<u8,32>;
 struct data_case { block a, b, c; };
@@ -301,7 +325,7 @@ double time_kernel(kernel function, const std::vector<data_case>& corpus) {
     for (unsigned loop = 0; loop < 256; ++loop)
         for (unsigned i = 0; i < 4096; ++i) {
             const auto& input = corpus[i];
-            function(out.data(), input.a.data(), input.b.data(), input.c.data());
+            CALL_KERNEL(function,out.data(), input.a.data(), input.b.data(), input.c.data());
         }
     const auto stopped = std::chrono::steady_clock::now();
     static volatile u32 sink = 0;
@@ -380,13 +404,13 @@ int main(int argc, char** argv) {
             const auto expected = reference(input, operation);
             for (auto function : {original.function, candidate.function, legacy_fallback.function}) {
                 result_block result{};
-                function(result.data(), input.a.data(), input.b.data(), input.c.data());
+                CALL_KERNEL(function,result.data(), input.a.data(), input.b.data(), input.c.data());
                 if (result != expected) fail(std::string(names[operation]) + " differential or edge-case mismatch");
             }
             auto reversed = input;
             for (auto* bytes : {&reversed.a, &reversed.b, &reversed.c}) std::reverse(bytes->begin(), bytes->end());
             result_block result{};
-            candidate.function(result.data(), reversed.a.data(), reversed.b.data(), reversed.c.data());
+            CALL_KERNEL(candidate.function,result.data(), reversed.a.data(), reversed.b.data(), reversed.c.data());
             std::reverse(result.begin(),result.begin()+16); std::reverse(result.begin()+16,result.end());
             if (result != guest_reference(input, operation)) fail(std::string(names[operation]) + " endian mismatch");
         }

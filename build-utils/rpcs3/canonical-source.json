@@ -1270,7 +1270,8 @@
       "test/rpcs3_pool527_test.py",
       "test/native/rpcs3_pool527.cpp",
       "test/fixtures/rpcs3_pool527.diff",
-      "test/rpcs3_cell527_gate_test.py"
+      "test/rpcs3_cell527_gate_test.py",
+      "test/rpcs3_cell527_partial_test.py"
     ],
     "tests": [
       {
@@ -1341,6 +1342,12 @@
       {
         "script": "test/rpcs3_cell527_gate_test.py",
         "name": "native-gate",
+        "args": [],
+        "timeout": 120
+      },
+      {
+        "script": "test/rpcs3_cell527_partial_test.py",
+        "name": "partial-reuse-gate",
         "args": [],
         "timeout": 120
       }

@@ -58,15 +58,29 @@ def main():
     assert current.count('engine->mapSectionAddress(item.local, reinterpret_cast<u64>(item.target));') == 2
     # The API stubs replace the host arena, not either manager's behavior.
     compiler = shlex.split(os.environ.get('CXX', shutil.which('clang++') or 'c++'))
+    config = args.llvm_config or os.environ.get('LLVM_CONFIG') or shutil.which('llvm-config')
+    if config:
+        llvm_compiler = Path(subprocess.check_output([config, '--bindir'], text=True).strip()) / 'clang++'
+        if llvm_compiler.is_file():
+            compiler = [str(llvm_compiler)]
+    sdk_flags = []
+    if os.uname().sysname == 'Darwin':
+        sdk = os.environ.get('HOST_MACOS_SDK') or subprocess.check_output(
+            ['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+        if not Path(sdk).is_dir():
+            raise RuntimeError(f'macOS host SDK is not a directory: {sdk}')
+        sdk_flags = ['-isysroot', sdk]
+    compiler_version = subprocess.check_output([*compiler, '--version'], text=True).splitlines()[0]
     report = {'passed': False, 'physical_device': False, 'reference': 526,
               'reference_managers_sha256': REFERENCE_SHA256,
+              'compiler': compiler, 'compiler_version': compiler_version, 'host_sdk_flags': sdk_flags,
               'source_sha256': {p: hashlib.sha256((source / p).read_bytes()).hexdigest()
                                 for p in ('Utilities/JITLLVM.cpp', 'Utilities/JITPublicationQueue.h')}}
     with tempfile.TemporaryDirectory(prefix='rpcs3-publication527-') as tmp_name:
         tmp = Path(tmp_name)
         portable = tmp / 'queue-test'
         sanitizers = ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
-        base = ['-std=c++20', '-O1', '-g', '-pthread', '-I', source]
+        base = ['-std=c++20', '-O1', '-g', '-pthread', *sdk_flags, '-I', source]
         run([*compiler, *base, *sanitizers, ROOT / 'test/native/rpcs3_jit_publication527.cpp', '-o', portable])
         env = os.environ.copy()
         # This runner is traced and cannot run LeakSanitizer's /proc task scan.
@@ -74,7 +88,6 @@ def main():
         if os.uname().sysname == 'Linux':
             env['ASAN_OPTIONS'] = env.get('ASAN_OPTIONS', '') + ':detect_leaks=0'
         report['portable_sanitized'] = parse_last_json(run([portable], env))
-        config = args.llvm_config or os.environ.get('LLVM_CONFIG') or shutil.which('llvm-config')
         if not config:
             if args.require_llvm:
                 raise RuntimeError('LLVM22 is required for real MCJIT validation')
@@ -87,10 +100,10 @@ def main():
             (tmp / 'ReferenceMemoryManagers.inc').write_text(reference.replace('MemoryManager1', 'ReferenceMemoryManager1').replace('MemoryManager2', 'ReferenceMemoryManager2'))
             (tmp / 'CurrentMemoryManagers.inc').write_text(current)
             executable = tmp / 'llvm-test'
-            command = [*compiler, *flags('--cxxflags'), '-std=c++20', '-fexceptions', '-O2', '-pthread',
+            command = [*compiler, *flags('--cxxflags'), '-std=c++20', '-fexceptions', '-O2', '-pthread', *sdk_flags,
                        '-I', source, '-I', tmp, ROOT / 'test/native/rpcs3_jit_publication527_llvm.cpp',
                        *flags('--ldflags'), *flags('--libs', 'core', 'executionengine', 'mcjit', 'native'),
-                       *flags('--system-libs'), '-o', executable]
+                       *flags('--system-libs'), '-Wl,-rpath,' + subprocess.check_output([config, '--libdir'], text=True).strip(), '-o', executable]
             run(command)
             output = run([executable])
             report['llvm'] = {'executed': True, 'version': version, 'result': parse_last_json(output),

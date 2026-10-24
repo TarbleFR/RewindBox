@@ -17,6 +17,7 @@ with tempfile.TemporaryDirectory(prefix='metrics527-') as tmp:
         methods.append(text[start:end])
     (Path(tmp)/'production_methods.inc').write_text('\n'.join(methods))
     command=cxx+['-std=c++20','-O2','-g','-pthread','-Wall','-Wextra','-Werror','-I',str(a.source.resolve()),'-I',tmp,str(root/'native/rpcs3_runtime_metrics527.cpp'),'-o',str(binary)]
+    if sdk:=os.environ.get('HOST_MACOS_SDK'): command += ['-isysroot',sdk]
     if a.sanitize: command += ['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     subprocess.run(command,check=True)
     env=os.environ.copy()

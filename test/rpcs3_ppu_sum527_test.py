@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shlex
 import shutil
 import subprocess
@@ -98,22 +99,37 @@ def main():
         if sdk:=os.environ.get('HOST_MACOS_SDK'):command+=['-isysroot',sdk]
         command+=['-std=c++20','-O2','-g','-Wall','-Wextra','-Werror','-Wno-unused-parameter','-Wno-deprecated-declarations']
         command+=[f for f in flags('--cxxflags') if not f.startswith(('-std=','-O','-g','-W','-fno-exceptions','-fno-rtti'))]
-        if a.sanitize:command+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
+        if a.sanitize:command+=['-fsanitize=address,undefined','-fno-omit-frame-pointer','-DRPCS3_PPU_SUM527_SANITIZED_JIT_BOUNDARY']
         with tempfile.TemporaryDirectory(prefix='ppu-sum527-') as d:
             work=Path(d); (work/'rpcs3_ppu_sum527_before.inc').write_text(before); (work/'rpcs3_ppu_sum527_after.inc').write_text(after)
             binary=work/'sum527'
             command+=['-I',str(source),'-I',str(work),str(ROOT/'test/native/rpcs3_ppu_sum527.cpp'),'-o',str(binary)]
+            emit_command=command[:-2]+['-S','-emit-llvm','-o',str(work/'sanitizer-harness.ll')]
             command+=flags('--ldflags')+flags('--libs','core','mcjit','native','aarch64','support','executionengine','runtimedyld','transformutils')+flags('--system-libs')+['-Wl,-rpath,'+flags('--libdir')[0]]
             env=dict(os.environ,ASAN_OPTIONS='detect_leaks=0',UBSAN_OPTIONS='halt_on_error=1');env.pop('SDKROOT',None)
+            sanitizer_proof=None
+            if a.sanitize:
+                subprocess.run(emit_command,check=True,env=env,timeout=600)
+                emitted=(work/'sanitizer-harness.ll').read_text()
+                def body(name):
+                    candidates=[m.group(0) for m in re.finditer(r'^define [^\n]*'+name+r'[^\n]*\n.*?^}',emitted,re.M|re.S)]
+                    assert len(candidates)==1,(name,len(candidates))
+                    return candidates[0]
+                boundary=body('invoke_jit')
+                assert '__ubsan_handle_function_type_mismatch' not in boundary
+                assert '__ubsan_handle_function_type_mismatch' in body('sanitizer_function_control')
+                assert '__ubsan_handle_add_overflow' in body('sanitizer_overflow_control')
+                assert '__asan_report_load4' in body('sanitizer_address_control')
+                sanitizer_proof={'jit_function_metadata_check_exempt_only_at_invoke_jit':True,'ordinary_indirect_function_check_present':True,'signed_overflow_check_present':True,'asan_load_check_present':True}
             subprocess.run(command,check=True,env=env,timeout=600)
             subprocess.run([str(binary),str(work/'result.json'),str(work)],check=True,env=env,timeout=240)
             report=json.loads((work/'result.json').read_text())
             assert len(report['operations'])==3
             assert all(op['bit_exact'] and op['sticky_sat_exact'] and op['big_endian_exact'] for op in report['operations'])
-            report.update(llvm_version=version,sanitized_harness=a.sanitize,generated_code_sanitized=False,production_methods='three exact bodies; native builder unchanged; LLVM register/DSL adapters; full result and sticky SAT output checked',limitations='ARM64 host generated integer kernels; no full PPU pipeline, guest instruction trace, game, iPhone frame time, opcode runtime frequency, peak memory, or cold title-cache measurement')
+            report.update(sanitizer_boundary_proof=sanitizer_proof,llvm_version=version,sanitized_harness=a.sanitize,generated_code_sanitized=False,production_methods='three exact bodies; native builder unchanged; LLVM register/DSL adapters; full result and sticky SAT output checked',limitations='ARM64 host generated integer kernels; no full PPU pipeline, guest instruction trace, game, iPhone frame time, opcode runtime frequency, peak memory, or cold title-cache measurement')
             if a.artifacts:
                 a.artifacts.mkdir(parents=True,exist_ok=True)
-                for file in work.glob('*.s'):shutil.copy2(file,a.artifacts/file.name)
+                for file in [*work.glob('*.s'),*work.glob('*.ll')]:shutil.copy2(file,a.artifacts/file.name)
     report.update(production_translator_sha256=hashlib.sha256(translator.read_bytes()).hexdigest(),production_helper_sha256=hashlib.sha256(helper.read_bytes()).hexdigest(),before_fixture_sha256=hashlib.sha256(BEFORE.read_bytes()).hexdigest())
     if a.report:a.report.parent.mkdir(parents=True,exist_ok=True);a.report.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2))

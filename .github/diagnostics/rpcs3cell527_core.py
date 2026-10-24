@@ -11,10 +11,12 @@ from pathlib import Path
 import platform
 import re
 import shlex
+import sys
 import subprocess
 import tempfile
 import zipfile
 import rpcs3arm526_core as previous
+import rpcs3cell527_partial as partial_reuse
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = 'd1354170efa22d18ab6cca898998a340239a90c2'
@@ -24,7 +26,7 @@ PRIOR_ARTIFACT = 12573877967
 PRIOR_BYTES = 99337231
 PRIOR_SHA = '0c6120cb458e595924bac79c69518d2dd088afb5016d152bb32fa80e3b2cc982'
 FIXTURE = 'test/fixtures/rpcs3_cell527.diff'
-FIXED_INPUTS = ('.github/diagnostics/rpcs3cell527_core.py', '.github/workflows/rpcs3-cell527-core.yml', FIXTURE)
+FIXED_INPUTS = ('.github/diagnostics/rpcs3cell527_core.py', '.github/diagnostics/rpcs3cell527_partial.py', '.github/workflows/rpcs3-cell527-core.yml', FIXTURE)
 CHANGED_REPOSITORY_INPUTS = frozenset({'build-utils/rpcs3/canonical-source.json',
     'build-utils/rpcs3/embedded-core.patch', 'test/neo_swap_core_pin_test.py',
     'build-utils/build_rpcs3_embedded_core.sh', '.github/workflows/rpcs3-core.yml'})
@@ -206,10 +208,21 @@ def validate_prior(files, metadata_sha, source):
     return result
 
 
-def execute_tests(source, directory, current):
+def execution_environment():
+    return dict(platform=platform.platform(), machine=platform.machine(),
+        variables={key: os.environ.get(key) for key in ('CXX', 'CXXFLAGS', 'HOST_MACOS_SDK',
+            'LLVM_CONFIG', 'LLVM_DIR', 'DEVELOPER_DIR', 'SDKROOT', 'MACOSX_DEPLOYMENT_TARGET',
+            'CPATH', 'CPLUS_INCLUDE_PATH', 'LIBRARY_PATH', 'DYLD_LIBRARY_PATH')})
+
+
+def execute_tests(source, directory, current, reused=None, environment=None):
+    environment = environment or execution_environment()
+    reused = reused or {}
+    assert set(reused) <= partial_reuse.CASES
     partial = dict(schema=1, source=command('git', 'rev-parse', 'HEAD').decode().strip(),
         input_sha256=current, native_source_sha256=manifest()['files_sha256'],
-        physical_device_tested=False, all_tests_passed=False, tests={})
+        physical_device_tested=False, all_tests_passed=False, tests={},
+        environment=environment, environment_sha256=sha(partial_reuse.canonical(environment)))
     log = directory / 'cell527-proof.txt'
     log.write_bytes(b'')
     path = directory / 'cell527-partial.json'
@@ -226,17 +239,33 @@ def execute_tests(source, directory, current):
         state = dict(status='running', executed_here=True, command=argv, report=report.name)
         partial['tests'][name] = state
         checkpoint()
-        try:
-            proc = subprocess.run(argv, cwd=ROOT, env=dict(os.environ, ASAN_OPTIONS='detect_leaks=0', UBSAN_OPTIONS='halt_on_error=1'),
-                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=entry.get('timeout', 300))
-            output = proc.stdout
-            state.update(returncode=proc.returncode, status='passed' if proc.returncode == 0 else 'failed')
-        except subprocess.TimeoutExpired as error:
-            output = error.stdout or b''
-            state.update(returncode=None, status='timeout', error=str(error))
-        except OSError as error:
-            output = str(error).encode()
-            state.update(returncode=None, status='execution-error', error=str(error))
+        if name in reused:
+            item = reused[name]
+            payload = json.loads(item['report'])
+            payload['reused_validation'] = item['provenance']
+            report.write_text(json.dumps(payload, indent=2) + '\n')
+            output = (f"REUSED individually passed {name} from failed preflight {partial_reuse.RUN}; no Core inferred.\n").encode() + item['output']
+            state.update(returncode=0, status='passed', executed_here=False, reused_from=item['provenance'])
+            for relative, data in item.get('artifacts', {}).items():
+                assert name == 'ppu-simd526-regression'
+                assert sha(data) == item['provenance']['assembly_sha256'][relative]
+                target = directory / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(data)
+            if 'artifacts' in item:
+                state['artifacts_sha256'] = item['provenance']['assembly_sha256']
+        else:
+            try:
+                proc = subprocess.run(argv, cwd=ROOT, env=dict(os.environ, ASAN_OPTIONS='detect_leaks=0', UBSAN_OPTIONS='halt_on_error=1'),
+                                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=entry.get('timeout', 300))
+                output = proc.stdout
+                state.update(returncode=proc.returncode, status='passed' if proc.returncode == 0 else 'failed')
+            except subprocess.TimeoutExpired as error:
+                output = error.stdout or b''
+                state.update(returncode=None, status='timeout', error=str(error))
+            except OSError as error:
+                output = str(error).encode()
+                state.update(returncode=None, status='execution-error', error=str(error))
         if isinstance(output, str):
             output = output.encode()
         output_path.write_bytes(output)
@@ -271,7 +300,19 @@ def prepare(source, output):
     directory = ROOT / 'build/rpcs3-core-diagnostics'
     directory.mkdir(parents=True, exist_ok=True)
     (directory / 'cell527-prior526.json').write_text(json.dumps(prior, indent=2) + '\n')
-    partial, reports = execute_tests(source, directory, current)
+    environment = execution_environment()
+    try:
+        environment['toolchain'] = partial_reuse.current_toolchain()
+        reused = partial_reuse.admitted(sys.modules[__name__], current, environment, download=True)
+        reuse_attempt = dict(status='admitted', cases=sorted(reused), source=partial_reuse.SOURCE,
+            run=partial_reuse.RUN, artifact=partial_reuse.ARTIFACT, archive_sha256=partial_reuse.SHA,
+            container_conclusion='failure', core_built=False)
+    except (AssertionError, OSError, KeyError, ValueError, TypeError, subprocess.SubprocessError, zipfile.BadZipFile) as error:
+        reused = {}
+        reuse_attempt = dict(status='not-admitted', reason=str(error), source=partial_reuse.SOURCE,
+            run=partial_reuse.RUN, artifact=partial_reuse.ARTIFACT, archive_sha256=partial_reuse.SHA)
+        print('Individual527 passes not admitted; affected cases execute: ' + str(error), flush=True)
+    partial, reports = execute_tests(source, directory, current, reused=reused, environment=environment)
     result = dict(schema=1, source=partial['source'], input_sha256=current,
         native_source_sha256=manifest()['files_sha256'], prior_source=PRIOR_SOURCE,
         prior_run=PRIOR_RUN, prior_artifact=PRIOR_ARTIFACT, prior_archive_sha256=PRIOR_SHA,
@@ -280,8 +321,7 @@ def prepare(source, output):
         partial_receipt_sha256=sha((directory / 'cell527-partial.json').read_bytes()),
         log_sha256=sha((directory / 'cell527-proof.txt').read_bytes()),
         all_tests_passed=True, physical_device_tested=False,
-        environment=dict(platform=platform.platform(), machine=platform.machine(),
-            variables={key: os.environ.get(key) for key in ('CXX', 'CXXFLAGS', 'HOST_MACOS_SDK', 'LLVM_CONFIG', 'LLVM_DIR', 'DEVELOPER_DIR')}))
+        environment=environment, environment_sha256=partial['environment_sha256'], partial_reuse_attempt=reuse_attempt)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2) + '\n')
 
@@ -302,12 +342,32 @@ def verify(path, source):
     assert set(partial['tests']) == {entry['name'] for entry in record()['tests']}
     assert sha((directory / 'cell527-proof.txt').read_bytes()) == proof['log_sha256'] == partial['log_sha256']
     assert set(proof['reports_sha256']) == {entry['name'] + '-result.json' for entry in record()['tests']}
+    assert partial['environment'] == proof['environment']
+    assert partial['environment_sha256'] == proof['environment_sha256'] == sha(partial_reuse.canonical(proof['environment']))
     for name, state in partial['tests'].items():
-        assert state['status'] == 'passed' and state['returncode'] == 0 and state['executed_here'] is True
+        assert state['status'] == 'passed' and state['returncode'] == 0
+        assert state['executed_here'] is ('reused_from' not in state)
         assert state['report'] == name + '-result.json' and state['output'] == name + '-output.txt'
         assert state['report_sha256'] == proof['reports_sha256'][state['report']]
         assert sha((directory / state['report']).read_bytes()) == state['report_sha256']
         assert sha((directory / state['output']).read_bytes()) == state['output_sha256']
+    reused_names = {name for name, state in partial['tests'].items() if 'reused_from' in state}
+    if reused_names:
+        admitted = partial_reuse.admitted(sys.modules[__name__], proof['input_sha256'], proof['environment'], download=False)
+        assert reused_names == set(admitted) == partial_reuse.CASES
+        assert proof['partial_reuse_attempt']['status'] == 'admitted'
+        for name, item in admitted.items():
+            state = partial['tests'][name]
+            assert state['executed_here'] is False and state['reused_from'] == item['provenance']
+            payload = json.loads(item['report'])
+            payload['reused_validation'] = item['provenance']
+            assert (directory / state['report']).read_bytes() == (json.dumps(payload, indent=2) + '\n').encode()
+            expected_output = (f"REUSED individually passed {name} from failed preflight {partial_reuse.RUN}; no Core inferred.\n").encode() + item['output']
+            assert (directory / state['output']).read_bytes() == expected_output
+            for relative, data in item.get('artifacts', {}).items():
+                assert (directory / relative).read_bytes() == data
+    else:
+        assert proof['partial_reuse_attempt']['status'] == 'not-admitted'
     # The already authenticated archive is rebound to every current unchanged
     # dependency using the actual materialized source again by the builder.
     files, metadata_sha = prior_bundle(download=False)
