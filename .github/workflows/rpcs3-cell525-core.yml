@@ -1,4 +1,4 @@
-name: RPCS3 CELL525 restore and object cache
+name: RPCS3 CELL525 restore, object cache and GPU diagnostics
 run-name: "RPCS3 CELL525 iPhone Core \u2022 ${{ github.sha }}"
 'on':
   push:
