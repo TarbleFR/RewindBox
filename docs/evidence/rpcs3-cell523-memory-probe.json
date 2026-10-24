@@ -1,0 +1,859 @@
+{
+  "source": "77089aa283e6db0ea37c188151ea0ab1ea490b79",
+  "run": 40099814314,
+  "job": 120889466192,
+  "artifact": 12562336862,
+  "archiveSHA256": "f64bb116ba9ab3faf357f76cb8178c2d103d44ca9b8ed320bb0c6935400f5706",
+  "runner": "Darwin iad20-gt1020-b1f0a83f-16dc-483b-8eac-3368116decbf-02045C0325A6.local 24.6.0 Darwin Kernel Version 24.6.0: Tue Jul 21 20:51:34 PDT 2026; root:xnu-11417.140.69.711.44~1/RELEASE_ARM64_VMAPPLE arm64\nmachdep.cpu.brand_string: Apple M1 (Virtual)",
+  "identity": {
+    "source": "77089aa283e6db0ea37c188151ea0ab1ea490b79",
+    "nativeInputs": {
+      "rpcs3/Emu/Cell/PPUModule.cpp": "f183d235c1260f858ea0c8a8f5af6eef4e1de3d459d67c7fcea591cdf097fab7",
+      "rpcs3/Emu/Memory/vm.cpp": "911cbf2213575f9e0b167601cab46883da6f023a0486bcd07db0e9a51f019fb4",
+      "rpcs3/Emu/System.cpp": "6fb02ff521ada1dc01e87aba315a6f050702e46c445cea284257304812e13bfa",
+      "rpcs3/Emu/savestate_utils.cpp": "95d8f38a50580f8346271ad8851cc0f986c0f915534965c19124d3cf36c4f821",
+      "rpcs3/util/fixed_typemap.hpp": "60ac7431c1c12780c98faa391b9acc6d0879ba86a72f4caf06fe26e1edaf72b1"
+    },
+    "fixtureInputs": {
+      "test/rpcs3_memory523_test.py": "ce3152872409ede4d00d7544ed86b36c64a13b3449d03309047c09ab7adc6260",
+      "test/native/rpcs3_memory523.cpp": "135619e46ff8c7bcf0166693d2b0eb5c4f276f62325044009827e45b9a5d1efd",
+      "test/rpcs3_restore523_test.py": "cf3504d2b78e896136da385788b463899d7c4b3327714248024e03c4b293862c",
+      "test/native/rpcs3_restore523.cpp": "bf383ef008c2bad73621084591c89fddeb30b9123ceddac8974458aba9338928",
+      "test/rpcs3_memory523_stream_test.py": "8efcf53d1f98aaa33e79137da055bbc4a6560dcffb82c7a1d1378d63ee18e1dc",
+      "test/fixtures/rpcs3_restore523.diff": "bfc55482643546e64215d68552d804e9ec1dd77815a0aa67e163f3c15e53d29f"
+    },
+    "physicalDeviceTested": false
+  },
+  "measurements": {
+    "passed": true,
+    "cases": 160,
+    "sameUncompressedBytes": true,
+    "sameBreatheBoundaries": true,
+    "maxPayloadTransfer": 65536,
+    "densePayloadTransfersBefore": 2048,
+    "densePayloadTransfersAfter": 129,
+    "measurements": [
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 0,
+        "beforeMs": 2.10513,
+        "afterMs": 1.84535
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 1,
+        "beforeMs": 1.98242,
+        "afterMs": 1.57449
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 2,
+        "beforeMs": 2.43511,
+        "afterMs": 1.57605
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 3,
+        "beforeMs": 1.59904,
+        "afterMs": 1.29167
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 4,
+        "beforeMs": 2.44265,
+        "afterMs": 1.34659
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 5,
+        "beforeMs": 1.60668,
+        "afterMs": 1.19018
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 6,
+        "beforeMs": 1.53992,
+        "afterMs": 1.54257
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 7,
+        "beforeMs": 2.03651,
+        "afterMs": 1.95781
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 8,
+        "beforeMs": 2.14579,
+        "afterMs": 2.14538
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 9,
+        "beforeMs": 2.21271,
+        "afterMs": 1.03486
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 10,
+        "beforeMs": 1.51138,
+        "afterMs": 1.08635
+      },
+      {
+        "pattern": 0,
+        "writing": true,
+        "round": 11,
+        "beforeMs": 1.43453,
+        "afterMs": 1.22735
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 0,
+        "beforeMs": 0.39091,
+        "afterMs": 0.0215278
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 1,
+        "beforeMs": 0.40051,
+        "afterMs": 0.0214167
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 2,
+        "beforeMs": 0.286896,
+        "afterMs": 0.0206077
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 3,
+        "beforeMs": 0.348542,
+        "afterMs": 0.0332534
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 4,
+        "beforeMs": 0.510729,
+        "afterMs": 0.0207048
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 5,
+        "beforeMs": 0.45133,
+        "afterMs": 0.0207535
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 6,
+        "beforeMs": 0.318622,
+        "afterMs": 0.0209132
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 7,
+        "beforeMs": 0.326729,
+        "afterMs": 0.0336319
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 8,
+        "beforeMs": 0.286958,
+        "afterMs": 0.033993
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 9,
+        "beforeMs": 0.409576,
+        "afterMs": 0.0212986
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 10,
+        "beforeMs": 0.459726,
+        "afterMs": 0.0211354
+      },
+      {
+        "pattern": 0,
+        "writing": false,
+        "round": 11,
+        "beforeMs": 0.284722,
+        "afterMs": 0.0324723
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 0,
+        "beforeMs": 3.65971,
+        "afterMs": 3.37435
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 1,
+        "beforeMs": 3.2091,
+        "afterMs": 3.51806
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 2,
+        "beforeMs": 3.86842,
+        "afterMs": 3.828
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 3,
+        "beforeMs": 3.34666,
+        "afterMs": 3.20277
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 4,
+        "beforeMs": 3.28606,
+        "afterMs": 3.80851
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 5,
+        "beforeMs": 3.45572,
+        "afterMs": 3.03669
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 6,
+        "beforeMs": 3.14782,
+        "afterMs": 3.36573
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 7,
+        "beforeMs": 3.66593,
+        "afterMs": 2.93772
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 8,
+        "beforeMs": 7.31639,
+        "afterMs": 3.00975
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 9,
+        "beforeMs": 3.67325,
+        "afterMs": 3.1738
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 10,
+        "beforeMs": 3.14427,
+        "afterMs": 5.95074
+      },
+      {
+        "pattern": 1,
+        "writing": true,
+        "round": 11,
+        "beforeMs": 4.37121,
+        "afterMs": 4.34207
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 0,
+        "beforeMs": 2.89226,
+        "afterMs": 1.99632
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 1,
+        "beforeMs": 1.83749,
+        "afterMs": 2.37586
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 2,
+        "beforeMs": 2.17243,
+        "afterMs": 2.37872
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 3,
+        "beforeMs": 2.08194,
+        "afterMs": 2.08397
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 4,
+        "beforeMs": 2.8118,
+        "afterMs": 2.43484
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 5,
+        "beforeMs": 2.51307,
+        "afterMs": 2.08215
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 6,
+        "beforeMs": 1.93185,
+        "afterMs": 2.18781
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 7,
+        "beforeMs": 2.17444,
+        "afterMs": 1.78538
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 8,
+        "beforeMs": 2.67072,
+        "afterMs": 1.67592
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 9,
+        "beforeMs": 2.38569,
+        "afterMs": 1.54946
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 10,
+        "beforeMs": 2.3439,
+        "afterMs": 1.87324
+      },
+      {
+        "pattern": 1,
+        "writing": false,
+        "round": 11,
+        "beforeMs": 2.26794,
+        "afterMs": 1.67512
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 0,
+        "beforeMs": 2.56352,
+        "afterMs": 1.46474
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 1,
+        "beforeMs": 2.1633,
+        "afterMs": 1.14834
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 2,
+        "beforeMs": 1.61616,
+        "afterMs": 2.3469
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 3,
+        "beforeMs": 4.00603,
+        "afterMs": 1.94064
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 4,
+        "beforeMs": 1.65458,
+        "afterMs": 2.1055
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 5,
+        "beforeMs": 2.8703,
+        "afterMs": 3.16414
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 6,
+        "beforeMs": 2.80517,
+        "afterMs": 1.73669
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 7,
+        "beforeMs": 1.79118,
+        "afterMs": 1.32199
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 8,
+        "beforeMs": 1.63657,
+        "afterMs": 1.62413
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 9,
+        "beforeMs": 1.72743,
+        "afterMs": 1.23151
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 10,
+        "beforeMs": 1.55429,
+        "afterMs": 1.00793
+      },
+      {
+        "pattern": 3,
+        "writing": true,
+        "round": 11,
+        "beforeMs": 1.81149,
+        "afterMs": 1.16969
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 0,
+        "beforeMs": 0.649358,
+        "afterMs": 0.320306
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 1,
+        "beforeMs": 0.448701,
+        "afterMs": 0.125656
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 2,
+        "beforeMs": 0.399326,
+        "afterMs": 0.124986
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 3,
+        "beforeMs": 0.797778,
+        "afterMs": 0.159035
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 4,
+        "beforeMs": 0.725205,
+        "afterMs": 0.276656
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 5,
+        "beforeMs": 0.40442,
+        "afterMs": 0.197052
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 6,
+        "beforeMs": 0.410358,
+        "afterMs": 0.126771
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 7,
+        "beforeMs": 0.41526,
+        "afterMs": 0.297372
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 8,
+        "beforeMs": 0.607056,
+        "afterMs": 0.210639
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 9,
+        "beforeMs": 0.767247,
+        "afterMs": 0.214382
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 10,
+        "beforeMs": 0.449004,
+        "afterMs": 0.469337
+      },
+      {
+        "pattern": 3,
+        "writing": false,
+        "round": 11,
+        "beforeMs": 0.63642,
+        "afterMs": 0.332892
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 0,
+        "beforeMs": 3.15908,
+        "afterMs": 3.60991
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 1,
+        "beforeMs": 3.59608,
+        "afterMs": 3.28172
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 2,
+        "beforeMs": 3.4229,
+        "afterMs": 3.29135
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 3,
+        "beforeMs": 3.32911,
+        "afterMs": 3.21178
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 4,
+        "beforeMs": 2.65218,
+        "afterMs": 3.02928
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 5,
+        "beforeMs": 3.41448,
+        "afterMs": 2.8954
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 6,
+        "beforeMs": 3.71836,
+        "afterMs": 2.634
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 7,
+        "beforeMs": 3.01672,
+        "afterMs": 2.56212
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 8,
+        "beforeMs": 3.11442,
+        "afterMs": 2.73857
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 9,
+        "beforeMs": 3.31002,
+        "afterMs": 3.26585
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 10,
+        "beforeMs": 2.73238,
+        "afterMs": 2.68639
+      },
+      {
+        "pattern": 4,
+        "writing": true,
+        "round": 11,
+        "beforeMs": 2.88702,
+        "afterMs": 3.48815
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 0,
+        "beforeMs": 2.26125,
+        "afterMs": 2.62503
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 1,
+        "beforeMs": 2.39315,
+        "afterMs": 1.80928
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 2,
+        "beforeMs": 2.42223,
+        "afterMs": 1.99505
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 3,
+        "beforeMs": 2.33776,
+        "afterMs": 1.70922
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 4,
+        "beforeMs": 1.98273,
+        "afterMs": 1.97367
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 5,
+        "beforeMs": 2.71642,
+        "afterMs": 1.51234
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 6,
+        "beforeMs": 2.02745,
+        "afterMs": 1.38133
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 7,
+        "beforeMs": 1.83764,
+        "afterMs": 1.33408
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 8,
+        "beforeMs": 2.26802,
+        "afterMs": 2.52842
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 9,
+        "beforeMs": 2.41368,
+        "afterMs": 2.12047
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 10,
+        "beforeMs": 2.4518,
+        "afterMs": 2.16859
+      },
+      {
+        "pattern": 4,
+        "writing": false,
+        "round": 11,
+        "beforeMs": 2.08784,
+        "afterMs": 2.6285
+      }
+    ],
+    "sanitizers": false,
+    "scope": "production VM methods; portable serial copy adapter; no game/device/storage timing"
+  },
+  "summary": [
+    {
+      "pattern": 0,
+      "writing": true,
+      "beforeMedianMs": 1.8215949999999999,
+      "afterMedianMs": 1.31913,
+      "timeReductionPercent": 27.583793323982555,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 0,
+      "writing": false,
+      "beforeMedianMs": 0.3376355,
+      "afterMedianMs": 0.021217,
+      "timeReductionPercent": 93.71600438934887,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 1,
+      "writing": true,
+      "beforeMedianMs": 3.560825,
+      "afterMedianMs": 3.28425,
+      "timeReductionPercent": 7.767160700118647,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 1,
+      "writing": false,
+      "beforeMedianMs": 2.30592,
+      "afterMedianMs": 1.977695,
+      "timeReductionPercent": 14.234015056897032,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 3,
+      "writing": true,
+      "beforeMedianMs": 1.759305,
+      "afterMedianMs": 1.6804100000000002,
+      "timeReductionPercent": 4.484441299263042,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 3,
+      "writing": false,
+      "beforeMedianMs": 0.52803,
+      "afterMedianMs": 0.2125105,
+      "timeReductionPercent": 59.75408594208662,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 4,
+      "writing": true,
+      "beforeMedianMs": 3.2122200000000003,
+      "afterMedianMs": 2.96234,
+      "timeReductionPercent": 7.779043776578199,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 4,
+      "writing": false,
+      "beforeMedianMs": 2.3028899999999997,
+      "afterMedianMs": 1.9843600000000001,
+      "timeReductionPercent": 13.831750539539433,
+      "retainedRounds": 10
+    }
+  ],
+  "correctness": {
+    "passed": true,
+    "cases": 160,
+    "sameUncompressedBytes": true,
+    "sameBreatheBoundaries": true,
+    "maxPayloadTransfer": 65536,
+    "densePayloadTransfersBefore": 2048,
+    "densePayloadTransfersAfter": 129,
+    "measurements": [],
+    "sanitizers": true,
+    "scope": "production VM methods; portable serial copy adapter; no game/device/storage timing"
+  },
+  "stream": {
+    "passed": true,
+    "realZstd": true,
+    "realSerialMethods": true,
+    "cases": [
+      {
+        "bytes": 1052672,
+        "pattern": 0,
+        "beforeBufferCapacity": 1048576,
+        "afterBufferCapacity": 1048576
+      },
+      {
+        "bytes": 1052672,
+        "pattern": 1,
+        "beforeBufferCapacity": 2097152,
+        "afterBufferCapacity": 2097152
+      },
+      {
+        "bytes": 1052672,
+        "pattern": 2,
+        "beforeBufferCapacity": 2097152,
+        "afterBufferCapacity": 2097152
+      },
+      {
+        "bytes": 1052672,
+        "pattern": 3,
+        "beforeBufferCapacity": 1048576,
+        "afterBufferCapacity": 1048576
+      },
+      {
+        "bytes": 33554432,
+        "pattern": 0,
+        "beforeBufferCapacity": 1048576,
+        "afterBufferCapacity": 1048576
+      },
+      {
+        "bytes": 33554432,
+        "pattern": 1,
+        "beforeBufferCapacity": 16777216,
+        "afterBufferCapacity": 16777216
+      },
+      {
+        "bytes": 33554432,
+        "pattern": 2,
+        "beforeBufferCapacity": 16777216,
+        "afterBufferCapacity": 16777216
+      },
+      {
+        "bytes": 33554432,
+        "pattern": 3,
+        "beforeBufferCapacity": 2097152,
+        "afterBufferCapacity": 2097152
+      }
+    ],
+    "sanitizers": true,
+    "scope": "real VM+serial+ZSTD; portable files/threads; capacities are not physical RAM"
+  },
+  "limits": {
+    "physicalDevice": false,
+    "gameplay": false,
+    "storageTiming": false,
+    "thermalControl": false,
+    "coldGameCache": false,
+    "confidenceIntervalCalculated": false,
+    "discardedRounds": [
+      0,
+      1
+    ]
+  }
+}

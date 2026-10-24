@@ -1,0 +1,179 @@
+{
+  "schema": 1,
+  "baselineAppBuild": 522,
+  "baselineBranch": "139f3d791323f84c4245dcb9030ac637baa214bb",
+  "baselineCoreSource": "1ae41b6400688d20a8d72173d3d80d0a1fe19710",
+  "baselineCoreRun": 40095061758,
+  "patch": "8d664d969dda9a548caf042631ec3f336c2fbbfc810a2ebbe60cb187b66531b7",
+  "memoryProbe": [
+    {
+      "pattern": 0,
+      "writing": true,
+      "beforeMedianMs": 1.8215949999999999,
+      "afterMedianMs": 1.31913,
+      "timeReductionPercent": 27.583793323982555,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 0,
+      "writing": false,
+      "beforeMedianMs": 0.3376355,
+      "afterMedianMs": 0.021217,
+      "timeReductionPercent": 93.71600438934887,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 1,
+      "writing": true,
+      "beforeMedianMs": 3.560825,
+      "afterMedianMs": 3.28425,
+      "timeReductionPercent": 7.767160700118647,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 1,
+      "writing": false,
+      "beforeMedianMs": 2.30592,
+      "afterMedianMs": 1.977695,
+      "timeReductionPercent": 14.234015056897032,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 3,
+      "writing": true,
+      "beforeMedianMs": 1.759305,
+      "afterMedianMs": 1.6804100000000002,
+      "timeReductionPercent": 4.484441299263042,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 3,
+      "writing": false,
+      "beforeMedianMs": 0.52803,
+      "afterMedianMs": 0.2125105,
+      "timeReductionPercent": 59.75408594208662,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 4,
+      "writing": true,
+      "beforeMedianMs": 3.2122200000000003,
+      "afterMedianMs": 2.96234,
+      "timeReductionPercent": 7.779043776578199,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 4,
+      "writing": false,
+      "beforeMedianMs": 2.3028899999999997,
+      "afterMedianMs": 1.9843600000000001,
+      "timeReductionPercent": 13.831750539539433,
+      "retainedRounds": 10
+    }
+  ],
+  "localProofs": {
+    "memory": {
+      "passed": true,
+      "cases": 160,
+      "sameUncompressedBytes": true,
+      "sameBreatheBoundaries": true,
+      "maxPayloadTransfer": 65536,
+      "densePayloadTransfersBefore": 2048,
+      "densePayloadTransfersAfter": 129,
+      "measurements": [],
+      "sanitizers": true,
+      "scope": "production VM methods; portable serial copy adapter; no game/device/storage timing"
+    },
+    "stream": {
+      "passed": true,
+      "realZstd": true,
+      "realSerialMethods": true,
+      "cases": [
+        {
+          "bytes": 1052672,
+          "pattern": 0,
+          "beforeBufferCapacity": 1048576,
+          "afterBufferCapacity": 1048576
+        },
+        {
+          "bytes": 1052672,
+          "pattern": 1,
+          "beforeBufferCapacity": 2097152,
+          "afterBufferCapacity": 2097152
+        },
+        {
+          "bytes": 1052672,
+          "pattern": 2,
+          "beforeBufferCapacity": 2097152,
+          "afterBufferCapacity": 2097152
+        },
+        {
+          "bytes": 1052672,
+          "pattern": 3,
+          "beforeBufferCapacity": 1048576,
+          "afterBufferCapacity": 1048576
+        },
+        {
+          "bytes": 33554432,
+          "pattern": 0,
+          "beforeBufferCapacity": 1048576,
+          "afterBufferCapacity": 1048576
+        },
+        {
+          "bytes": 33554432,
+          "pattern": 1,
+          "beforeBufferCapacity": 16777216,
+          "afterBufferCapacity": 16777216
+        },
+        {
+          "bytes": 33554432,
+          "pattern": 2,
+          "beforeBufferCapacity": 16777216,
+          "afterBufferCapacity": 16777216
+        },
+        {
+          "bytes": 33554432,
+          "pattern": 3,
+          "beforeBufferCapacity": 2097152,
+          "afterBufferCapacity": 2097152
+        }
+      ],
+      "sanitizers": true,
+      "scope": "real VM+serial+ZSTD; portable files/threads; capacities are not physical RAM"
+    },
+    "restore": {
+      "passed": true,
+      "stdout": "PASS actual FXO: reference/pointer/null/bulk/already-initialized, stream positions, no write/normal-boot tracing, per-restore cap/reset/thread isolation; HLE cases=39, missing-page negative control",
+      "actualFXOHeader": true,
+      "actualBoundedTrace": true,
+      "actualRangePolicy": true,
+      "sanitizers": true,
+      "scope": "production template/trace/range; portable archive/page-map/log adapters; no game restore"
+    },
+    "executor": {
+      "passed": true,
+      "stdout": "PASS 16 owned restore cases: actual old UIKit negative control; UI handoff, API serialization, bounded admission, stale-after-dequeue and late-cleanup cancellation, lifecycle reject, exception, closed queue, concurrent joins, self-join refusal, same-worker second restore",
+      "actualExecutor": true,
+      "actualContinuation": true,
+      "actualReloadPath": true,
+      "originalAutoSaveBodyPreserved": true,
+      "sanitizers": true,
+      "scope": "real owned native worker and production methods; Core/UI/filesystem doubles; no guest/device restore"
+    },
+    "gpuSnapshot": {
+      "passed": true,
+      "stdout": "PASS empty/64-bit/category units/sampler count, held-writer nonblocking refusal, 30000 reset/rebuild epochs, coherent observations=3972, skipped=3606487, empty reset; no GPU operation",
+      "actualSnapshot": true,
+      "actualPoolLookup": true,
+      "sanitizers": true,
+      "scope": "production snapshot/getter; portable registry/shared mutex; no GPU residency/device measurement"
+    }
+  },
+  "nativeBuild": {
+    "status": "pending"
+  },
+  "ipa": {
+    "status": "pending"
+  },
+  "physicalDeviceAfterChangeTested": false
+}

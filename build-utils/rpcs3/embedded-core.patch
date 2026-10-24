@@ -14715,18 +14715,21 @@ index ada374a..4efb448 100644
  
  				overlay_pass::emit_geometry(cmd, program);
 diff --git a/rpcs3/Emu/RSX/VK/VKResourceManager.cpp b/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
-index 95b81bf..b50c0b7 100644
+index 95b81bf..3b683e3 100644
 --- a/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
-@@ -5,6 +5,7 @@
+@@ -5,8 +5,10 @@
  #include "vkutils/VRAMBudgetPolicy.h"
  
  #ifdef RPCS3_IOS
 +#include "Emu/System.h"
  #include "ios/IOSMemoryPressurePolicy.h"
  #include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSGraphicsMemorySnapshot.h"
  #endif
-@@ -47,6 +48,18 @@ namespace vk
+ 
+ namespace vk
+@@ -47,6 +49,18 @@ namespace vk
  		rpcs3::ios::process_memory_pressure process_severity = rpcs3::ios::process_memory_pressure::low;
  		rsx::problem_severity combined_severity = rsx::problem_severity::low;
  		std::chrono::steady_clock::time_point next_report{};
@@ -14745,7 +14748,7 @@ index 95b81bf..b50c0b7 100644
  	} g_ios_process_memory_pressure;
  
  	static rsx::problem_severity to_problem_severity(rpcs3::ios::process_memory_pressure severity)
-@@ -165,6 +178,9 @@ namespace vk
+@@ -165,6 +179,9 @@ namespace vk
  		}
  
  		g_vmm_stats.pool_usage[pool] += memory_size;
@@ -14755,7 +14758,7 @@ index 95b81bf..b50c0b7 100644
  
  		auto& vmm_size = g_vmm_stats.memory_usage[memory_type];
  		vmm_size += memory_size;
-@@ -185,6 +201,9 @@ namespace vk
+@@ -185,6 +202,9 @@ namespace vk
  			found != g_vmm_stats.allocations.end())
  		{
  			const auto& info = found->second;
@@ -14765,7 +14768,7 @@ index 95b81bf..b50c0b7 100644
  			g_vmm_stats.memory_usage[info.type_index] -= info.size;
  			g_vmm_stats.pool_usage[info.pool] -= info.size;
  			g_vmm_stats.allocations.erase(found);
-@@ -251,9 +270,16 @@ namespace vk
+@@ -251,9 +271,16 @@ namespace vk
  
  #ifdef RPCS3_IOS
  		const u64 process_headroom = rpcs3::ios::available_process_memory_headroom();
@@ -14783,7 +14786,7 @@ index 95b81bf..b50c0b7 100644
  		const auto process_severity = to_problem_severity(g_ios_process_memory_pressure.process_severity);
  #else
  		constexpr auto process_severity = rsx::problem_severity::low;
-@@ -334,12 +360,21 @@ namespace vk
+@@ -334,12 +361,21 @@ namespace vk
  		{
  			const auto mem_info = get_current_renderer()->get_memory_mapping();
  			const auto local_memory_usage = vmm_get_application_memory_usage_impl(mem_info.device_local);
@@ -14807,7 +14810,7 @@ index 95b81bf..b50c0b7 100644
  			g_ios_process_memory_pressure.next_report = now + std::chrono::seconds(5);
  		}
  		else if (severity_changed && previous_severity >= rsx::problem_severity::moderate)
-@@ -364,13 +399,103 @@ namespace vk
+@@ -364,13 +400,103 @@ namespace vk
  		return false;
  	}
  
@@ -14818,7 +14821,8 @@ index 95b81bf..b50c0b7 100644
 -			load_severity >= rsx::problem_severity::moderate)
 +		const auto load_severity = vmm_determine_memory_load_severity();
 +		if (load_severity < rsx::problem_severity::moderate)
-+		{
+ 		{
+-			vmm_handle_memory_pressure(load_severity);
 +#ifdef RPCS3_IOS
 +			g_ios_process_memory_pressure.next_reclaim = {};
 +			g_ios_process_memory_pressure.next_aggressive_reclaim = {};
@@ -14827,7 +14831,7 @@ index 95b81bf..b50c0b7 100644
 +			g_ios_process_memory_pressure.moderate_reclaim_delay_ms = 0;
 +#endif
 +			return load_severity;
-+		}
+ 		}
 +
 +#ifdef RPCS3_IOS
 +		const auto now = std::chrono::steady_clock::now();
@@ -14903,11 +14907,10 @@ index 95b81bf..b50c0b7 100644
 +			}
 +		}
 +		else
- 		{
--			vmm_handle_memory_pressure(load_severity);
++		{
 +			g_ios_process_memory_pressure.next_reclaim = now +
 +				(relieved ? std::chrono::milliseconds(750) : std::chrono::milliseconds(1500));
- 		}
++		}
 +#else
 +		vmm_handle_memory_pressure(load_severity);
 +#endif
@@ -14915,6 +14918,28 @@ index 95b81bf..b50c0b7 100644
  	}
  
  	void vmm_notify_object_allocated(vmm_allocation_pool pool)
+@@ -389,3 +515,21 @@ namespace vk
+ 		g_vmm_stats.pool_usage[pool]--;
+ 	}
+ }
++
++#ifdef RPCS3_IOS
++rpcs3::ios::graphics_memory_snapshot rpcs3::ios::capture_graphics_memory_snapshot() noexcept
++{
++	std::shared_lock lock(vk::g_vmm_stats.mutex, std::try_to_lock);
++	if (!lock.owns_lock()) return {};
++	graphics_memory_snapshot result;
++	result.system = vk::vmm_get_application_pool_usage_impl(vk::VMM_ALLOCATION_POOL_SYSTEM);
++	result.surfaces = vk::vmm_get_application_pool_usage_impl(vk::VMM_ALLOCATION_POOL_SURFACE_CACHE);
++	result.textures = vk::vmm_get_application_pool_usage_impl(vk::VMM_ALLOCATION_POOL_TEXTURE_CACHE);
++	result.swapchain = vk::vmm_get_application_pool_usage_impl(vk::VMM_ALLOCATION_POOL_SWAPCHAIN);
++	result.scratch = vk::vmm_get_application_pool_usage_impl(vk::VMM_ALLOCATION_POOL_SCRATCH);
++	result.other = vk::vmm_get_application_pool_usage_impl(vk::VMM_ALLOCATION_POOL_UNDEFINED);
++	result.samplers = vk::vmm_get_application_pool_usage_impl(vk::VMM_ALLOCATION_POOL_SAMPLER);
++	result.valid = true;
++	return result;
++}
++#endif
 diff --git a/rpcs3/Emu/RSX/VK/VKResourceManager.h b/rpcs3/Emu/RSX/VK/VKResourceManager.h
 index c9bbf4e..2bc13d6 100644
 --- a/rpcs3/Emu/RSX/VK/VKResourceManager.h
@@ -16777,20 +16802,45 @@ index 1f53c64..ae78132 100644
  	{
  		// Reset boot path in case of ISO
 diff --git a/rpcs3/Emu/savestate_utils.cpp b/rpcs3/Emu/savestate_utils.cpp
-index f43643d..f1d0ca7 100644
+index f43643d..dbcb500 100644
 --- a/rpcs3/Emu/savestate_utils.cpp
 +++ b/rpcs3/Emu/savestate_utils.cpp
-@@ -9,6 +9,9 @@
+@@ -9,6 +9,10 @@
  #include "savestate_utils.hpp"
  
  #include "System.h"
 +#ifdef RPCS3_IOS
 +#include "Cell/timers.hpp"
++#include "ios/IOSRestoreExecutor.h"
 +#endif
  
  #include <set>
  #include <span>
-@@ -579,6 +582,33 @@ void clean_savestates(std::string_view title_id, std::string_view boot_path, usz
+@@ -512,12 +516,19 @@ bool boot_current_game_savestate(bool testing, u32 index)
+ 			// iOS dispatches final Kill() cleanup back to UIKit's main queue. Waiting for
+ 			// GracefulShutdown() on that queue deadlocks because the queued cleanup can
+ 			// never reach system_state::stopped. Boot only after asynchronous cleanup.
+-			Emu.after_kill_callback = [savestate_path]()
++			const u64 restore_generation = rpcs3::ios::savestate_restore_generation();
++			Emu.after_kill_callback = [savestate_path, restore_generation]()
+ 			{
+-				if (game_boot_result error = Emu.BootGame(savestate_path, "", true); error != game_boot_result::no_errors)
++				if (!rpcs3::ios::defer_savestate_restore([savestate_path]()
++				{
++					if (game_boot_result error = Emu.BootGame(savestate_path, "", true); error != game_boot_result::no_errors)
++					{
++						Emu.SetContinuousMode(false);
++						sys_log.error("Failed to boot savestate \'%s\' using the Reload shortcut. (error: %s)", savestate_path, error);
++					}
++				}, restore_generation))
+ 				{
+-					Emu.SetContinuousMode(false);
+-					sys_log.error("Failed to boot savestate \'%s\' using the Reload shortcut. (error: %s)", savestate_path, error);
++					sys_log.error("SAVESTATE_RESTORE phase=worker_admission_failed");
+ 				}
+ 			};
+ 
+@@ -579,6 +590,33 @@ void clean_savestates(std::string_view title_id, std::string_view boot_path, usz
  	}
  }
  
@@ -16824,7 +16874,7 @@ index f43643d..f1d0ca7 100644
  bool load_and_check_reserved(utils::serial& ar, usz size)
  {
  	u8 bytes[4096];
-@@ -602,6 +632,37 @@ bool load_and_check_reserved(utils::serial& ar, usz size)
+@@ -602,6 +640,37 @@ bool load_and_check_reserved(utils::serial& ar, usz size)
  
  namespace stx
  {
@@ -17856,6 +17906,26 @@ index 0000000..3b8c4d2
 +    }
 +}
 +}
+diff --git a/rpcs3/ios/IOSGraphicsMemorySnapshot.h b/rpcs3/ios/IOSGraphicsMemorySnapshot.h
+new file mode 100644
+index 0000000..56877cf
+--- /dev/null
++++ b/rpcs3/ios/IOSGraphicsMemorySnapshot.h
+@@ -0,0 +1,14 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++#pragma once
++#include <cstdint>
++namespace rpcs3::ios {
++struct graphics_memory_snapshot {
++    bool valid = false;
++    std::uint64_t system = 0, surfaces = 0, textures = 0, swapchain = 0, scratch = 0, other = 0;
++    std::uint64_t samplers = 0; // object count, never bytes
++};
++// Existing allocation registry, one try-reader-lock, no allocation or wait.
++// Requested bytes classify VMA allocations; they are NOT additional physical
++// RAM and must not be added to VMA/resident/NeoSwap/alias statistics.
++graphics_memory_snapshot capture_graphics_memory_snapshot() noexcept;
++}
 diff --git a/rpcs3/ios/IOSMemoryPressurePolicy.h b/rpcs3/ios/IOSMemoryPressurePolicy.h
 index 6dc9a20..ae705ec 100644
 --- a/rpcs3/ios/IOSMemoryPressurePolicy.h
@@ -18041,6 +18111,58 @@ index 6dc9a20..ae705ec 100644
  	constexpr bool has_safe_savestate_headroom(std::uint64_t available_bytes)
  	{
  		// Streaming compression is bounded, but committing guest/RSX state can
+diff --git a/rpcs3/ios/IOSRestoreExecutor.h b/rpcs3/ios/IOSRestoreExecutor.h
+new file mode 100644
+index 0000000..31b2c81
+--- /dev/null
++++ b/rpcs3/ios/IOSRestoreExecutor.h
+@@ -0,0 +1,46 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++#pragma once
++#include <atomic>
++#include <condition_variable>
++#include <cstdint>
++#include <functional>
++#include <mutex>
++#include <optional>
++#include <thread>
++
++namespace rpcs3::ios {
++// One owned worker, created only on the first internal restore. One admission
++// at a time; no unbounded queue, detached thread or new host ABI. Cancellation
++// invalidates a task even after dequeue while it waits for the Core API lock.
++class restore_executor final {
++public:
++    using task = std::function<void(std::uint64_t)>;
++    restore_executor() = default;
++    ~restore_executor();
++    restore_executor(const restore_executor&) = delete;
++    restore_executor& operator=(const restore_executor&) = delete;
++    bool post(task work, std::uint64_t token) noexcept;
++    bool cancel() noexcept;
++    bool current(std::uint64_t token) const noexcept;
++    std::uint64_t generation() const noexcept { return generation_.load(std::memory_order_acquire); }
++    bool close() noexcept; // join outside emulator/API/UI locks
++private:
++    struct job { std::uint64_t token; task work; };
++    std::mutex mutex_, join_mutex_;
++    std::condition_variable changed_;
++    std::optional<job> pending_;
++    std::thread worker_;
++    std::thread::id worker_id_{}; // mutex_: self-close check never reads a joining std::thread
++    std::atomic<std::uint64_t> generation_{1};
++    bool closed_ = false, active_ = false;
++    void run() noexcept;
++};
++// Called after UIKit has completed the existing stop/renderer cleanup.
++// The continuation runs under the Core API mutex, after generation and
++// lifecycle checks. A failure is reported; it never falls back to UIKit I/O.
++std::uint64_t savestate_restore_generation() noexcept;
++// True means scheduled OR an obsolete request safely discarded. False means
++// admission failed for the still-current request. No stale callback may mutate
++// a newer title, even if UIKit delivers it only after a later boot/stop.
++bool defer_savestate_restore(std::function<void()> continuation, std::uint64_t token) noexcept;
++}
 diff --git a/rpcs3/ios/IOSTextureHash.cpp b/rpcs3/ios/IOSTextureHash.cpp
 index 4d7a339..cb021bc 100644
 --- a/rpcs3/ios/IOSTextureHash.cpp
@@ -19756,7 +19878,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..a25a736 100644
+index 74a6dc7..c1e96a5 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,14 @@
@@ -19799,7 +19921,25 @@ index 74a6dc7..a25a736 100644
  #include "Emu/IdManager.h"
  #include "Emu/Audio/IOS/IOSAudioBackend.h"
  #include "Emu/Audio/Null/null_enumerator.h"
-@@ -110,6 +125,8 @@ std::string g_application_support_path;
+@@ -98,6 +113,8 @@
+ #include <thread>
+ #include <unordered_map>
+ #include <vector>
++#include "IOSRestoreExecutor.h"
++#include <pthread.h>
+ 
+ namespace
+ {
+@@ -106,10 +123,17 @@ std::mutex g_progress_mutex;
+ rpcs3::ios::lifecycle g_lifecycle;
+ rpcs3::ios::error_store g_last_error;
+ rpcs3_ios_config g_config{};
++rpcs3::ios::restore_executor& restore_jobs()
++{
++	static rpcs3::ios::restore_executor jobs;
++	return jobs;
++}
+ std::string g_application_support_path;
  std::string g_cache_path;
  std::string g_preferred_language = "en";
  bool g_emu_started = false;
@@ -19808,7 +19948,7 @@ index 74a6dc7..a25a736 100644
  std::atomic_bool g_accept_display_surfaces = false;
  std::atomic_bool g_accept_pad_state = false;
  rpcs3::ios::display_surface_registry g_display_surface;
-@@ -312,7 +329,8 @@ boot_progress_snapshot capture_boot_progress()
+@@ -312,7 +336,8 @@ boot_progress_snapshot capture_boot_progress()
  	};
  
  	boot_progress_snapshot snapshot = read();
@@ -19818,7 +19958,7 @@ index 74a6dc7..a25a736 100644
  	{
  		boot_progress_snapshot next = read();
  		if (next == snapshot)
-@@ -321,6 +339,7 @@ boot_progress_snapshot capture_boot_progress()
+@@ -321,6 +346,7 @@ boot_progress_snapshot capture_boot_progress()
  		}
  		snapshot = std::move(next);
  	}
@@ -19826,7 +19966,7 @@ index 74a6dc7..a25a736 100644
  }
  
  rpcs3_ios_emulation_state current_emulation_state() noexcept
-@@ -378,6 +397,11 @@ void emit_log(int32_t level, std::string_view message)
+@@ -378,6 +404,11 @@ void emit_log(int32_t level, std::string_view message)
  	g_config.log_callback(g_config.user_context, level, terminated.c_str());
  }
  
@@ -19838,7 +19978,7 @@ index 74a6dc7..a25a736 100644
  void emit_jit_arena_statistics(std::string_view phase)
  {
  	constexpr usz mib = 1024 * 1024;
-@@ -385,7 +409,7 @@ void emit_jit_arena_statistics(std::string_view phase)
+@@ -385,7 +416,7 @@ void emit_jit_arena_statistics(std::string_view phase)
  	emit_log(4, fmt::format(
  		"iOS JIT arena %s: code live=%u MiB, free=%u MiB (%llu bytes), largest_free=%u MiB (%llu bytes), "
  		"runtime=%u MiB, peak=%u MiB; data live=%u MiB, free=%u MiB (%llu bytes), "
@@ -19847,7 +19987,7 @@ index 74a6dc7..a25a736 100644
  		phase,
  		stats.live_code_bytes / mib,
  		stats.free_code_bytes / mib,
-@@ -401,7 +425,15 @@ void emit_jit_arena_statistics(std::string_view phase)
+@@ -401,7 +432,15 @@ void emit_jit_arena_statistics(std::string_view phase)
  		static_cast<u64>(stats.largest_free_data_bytes),
  		stats.runtime_data_bytes / mib,
  		stats.peak_data_bytes / mib,
@@ -19864,7 +20004,7 @@ index 74a6dc7..a25a736 100644
  }
  
  class callback_log_listener final : public logs::listener
-@@ -448,16 +480,32 @@ private:
+@@ -448,16 +487,32 @@ private:
  	std::string m_name;
  };
  
@@ -19901,7 +20041,7 @@ index 74a6dc7..a25a736 100644
  }
  
  bool apply_database_settings_for_api(std::string_view title_id)
-@@ -904,10 +952,10 @@ EmuCallbacks make_callbacks()
+@@ -904,10 +959,10 @@ EmuCallbacks make_callbacks()
  		g_config.main_thread_callback(g_config.user_context, &invoke_main_thread_payload, payload);
  	};
  
@@ -19914,7 +20054,7 @@ index 74a6dc7..a25a736 100644
  	callbacks.on_ready = []() {};
  	callbacks.on_missing_fw = []() { emit_log(5, "PlayStation 3 firmware is not installed yet"); };
  	callbacks.on_emulation_stop_no_response = [](std::shared_ptr<atomic_t<bool>>, int)
-@@ -1267,15 +1315,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
+@@ -1267,15 +1322,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
  
  extern "C" const char* rpcs3_ios_build_info(void) noexcept
  {
@@ -19933,7 +20073,7 @@ index 74a6dc7..a25a736 100644
  		return RPCS3_IOS_INVALID_STATE;
  	}
  
-@@ -1289,40 +1337,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1289,40 +1344,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		return result;
  	}
  
@@ -19979,9 +20119,7 @@ index 74a6dc7..a25a736 100644
 -		return RPCS3_IOS_JIT_UNAVAILABLE;
 +		return fail_initialize(RPCS3_IOS_JIT_UNAVAILABLE, "debugger_readiness",
 +			rpcs3::ios::jit::last_error());
- 	}
--	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
--		!rpcs3::ios::jit::seal_arena())
++	}
 +
 +	emit_jit_arena_statistics("before JIT preparation");
 +	emit_log(2, fmt::format("requested_code_capacity policy=%u", config->expanded_jit_arena));
@@ -20022,21 +20160,23 @@ index 74a6dc7..a25a736 100644
 +	trampoline_error.clear();
 +	emit_log(2, "spu_trampoline_init_begin");
 +	if (!spu_runtime::initialize_static_trampolines(trampoline_error))
- 	{
--		set_error(rpcs3::ios::jit::last_error());
--		g_lifecycle.finish_initialize(false);
--		return RPCS3_IOS_JIT_MAPPING_FAILED;
++	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "spu_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
  	}
+-	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
+-		!rpcs3::ios::jit::seal_arena())
 +	emit_log(2, "spu_trampoline_init_end");
 +
 +	emit_jit_arena_statistics("after JIT preparation before seal");
 +	if (!rpcs3::ios::jit::seal_arena())
-+	{
+ 	{
+-		set_error(rpcs3::ios::jit::last_error());
+-		g_lifecycle.finish_initialize(false);
+-		return RPCS3_IOS_JIT_MAPPING_FAILED;
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "arena_seal",
 +			rpcs3::ios::jit::last_error());
-+	}
+ 	}
 +	emit_log(2, "jit_initialize_success");
  
  	try
@@ -20062,7 +20202,7 @@ index 74a6dc7..a25a736 100644
  		// A developer can request one bounded SPU profile through the injected
  		// cache root. Consume the request so subsequent launches stay unchanged.
  		const std::string profile_request = fs::get_cache_dir() + "jit-profile.once";
-@@ -1385,18 +1498,25 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1385,18 +1505,25 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		Emu.SetCallbacks(make_callbacks());
  		Emu.SetSupportedRenderers({video_renderer::vulkan});
  		Emu.SetDefaultRenderer(video_renderer::vulkan);
@@ -20090,7 +20230,7 @@ index 74a6dc7..a25a736 100644
  		emit_jit_arena_statistics("after core initialization");
  		return RPCS3_IOS_OK;
  	}
-@@ -1519,6 +1639,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
+@@ -1519,6 +1646,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
  
  		using test_function = uint64_t (*)(uint64_t);
  		const auto function_address = compiler.get("rpcs3_ios_test_function");
@@ -20098,7 +20238,7 @@ index 74a6dc7..a25a736 100644
  		if (!function_address)
  		{
  			set_error("LLVM did not publish the self-test function");
-@@ -3161,7 +3282,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
+@@ -3161,7 +3289,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
  		}
  		bool custom_config = false;
  		const bool loaded = load_settings_for_api(title_id, custom_config);
@@ -20107,7 +20247,7 @@ index 74a6dc7..a25a736 100644
  		if (!loaded)
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3233,12 +3354,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3233,12 +3361,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  		{
  			return result;
  		}
@@ -20126,7 +20266,7 @@ index 74a6dc7..a25a736 100644
  		return RPCS3_IOS_OK;
  	}
  	catch (const std::exception& error)
-@@ -3310,7 +3434,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
+@@ -3310,7 +3441,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
  
  	try
  	{
@@ -20136,7 +20276,7 @@ index 74a6dc7..a25a736 100644
  		{
  			set_error(fmt::format("Unable to remove the custom configuration for %s", title_id));
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3388,10 +3513,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
+@@ -3388,10 +3520,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
@@ -20147,7 +20287,7 @@ index 74a6dc7..a25a736 100644
  		normalize_current_game_resolution(game.resolution);
  		const auto result = finish_game_settings_preset_result(
  			rpcs3::ios::save_current_game_settings_preset(title_id, name));
-@@ -4444,6 +4565,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4444,6 +4572,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  	const char* savestate_id) noexcept
  {
  	std::lock_guard lock(g_api_mutex);
@@ -20160,7 +20300,16 @@ index 74a6dc7..a25a736 100644
  	if (!title_id || !title_id[0])
  	{
  		set_error("An installed title ID is required");
-@@ -4486,7 +4613,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4471,6 +4605,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+ 		set_error("RPCS3Core must be ready and emulation stopped before booting a game");
+ 		return result;
+ 	}
++	restore_jobs().cancel(); // A new explicit boot invalidates an old queued restore.
++
+ 	if (!g_display_surface.snapshot().valid())
+ 	{
+ 		set_error("Attach a valid iOS Metal display surface before booting a game");
+@@ -4486,7 +4622,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  			return RPCS3_IOS_GAME_NOT_FOUND;
  		}
  
@@ -20199,7 +20348,7 @@ index 74a6dc7..a25a736 100644
  		if (!requested_savestate_id.empty())
  		{
  			const auto savestates = enumerate_title_savestates(game->title_id, game->path);
-@@ -4503,21 +4660,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4503,21 +4669,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  				return RPCS3_IOS_BOOT_FAILED;
  			}
  			boot_path = selected->path;
@@ -20221,7 +20370,7 @@ index 74a6dc7..a25a736 100644
  		}
  
  		if (requested_savestate_id.empty())
-@@ -4644,7 +4786,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
+@@ -4644,7 +4795,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
  		if (result != RPCS3_IOS_OK)
  		{
  			set_error("Performance metrics require a compatible output structure");
@@ -20259,7 +20408,7 @@ index 74a6dc7..a25a736 100644
  		return result;
  	}
  	catch (const std::exception& error)
-@@ -4730,9 +4902,184 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
+@@ -4730,15 +4911,200 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
  	return RPCS3_IOS_INTERNAL_ERROR;
  }
  
@@ -20302,31 +20451,39 @@ index 74a6dc7..a25a736 100644
 +                neostation::savestate::current.finish(false, "The game stopped before savestate preparation.");
 +                return;
 +            }
-+            Emu.after_kill_callback = [requested_slot]()
++            const auto restore_generation = rpcs3::ios::savestate_restore_generation();
++            Emu.after_kill_callback = [requested_slot, restore_generation]()
 +            {
-+                if (!neostation::savestate::current.read().committed)
++                if (!rpcs3::ios::defer_savestate_restore([requested_slot]()
++                {
++                    if (!neostation::savestate::current.read().committed)
++                    {
++                        Emu.SetContinuousMode(false);
++                        neostation::savestate::current.finish(false, "Savestate writing failed; automatic reload was cancelled.");
++                        return;
++                    }
++                    neostation::savestate::current.advance(neostation::savestate::phase::restarting);
++                    try
++                    {
++                        // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D4): NeoStation savestate creation restart.
++                        rpcs3::ios::boot_diagnostics::announce_restart(
++                            rpcs3::ios::boot_diagnostics::restart_reason::savestate_create, {},
++                            fmt::format("neostation_slot:%u", requested_slot));
++                        const auto result = Emu.Restart(true, false);
++                        if (result != game_boot_result::no_errors || Emu.GetStatus(false) == system_state::stopped)
++                            neostation::savestate::current.finish(false, "The savestate was written, but RPCS3 could not restore it.");
++                        else
++                            neostation::savestate::current.finish(true);
++                    }
++                    catch (const std::exception& error)
++                    {
++                        Emu.SetContinuousMode(false);
++                        neostation::savestate::current.finish(false, error.what());
++                    }
++                }, restore_generation))
 +                {
 +                    Emu.SetContinuousMode(false);
-+                    neostation::savestate::current.finish(false, "Savestate writing failed; automatic reload was cancelled.");
-+                    return;
-+                }
-+                neostation::savestate::current.advance(neostation::savestate::phase::restarting);
-+                try
-+                {
-+                    // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D4): NeoStation savestate creation restart.
-+                    rpcs3::ios::boot_diagnostics::announce_restart(
-+                        rpcs3::ios::boot_diagnostics::restart_reason::savestate_create, {},
-+                        fmt::format("neostation_slot:%u", requested_slot));
-+                    const auto result = Emu.Restart(true, false);
-+                    if (result != game_boot_result::no_errors || Emu.GetStatus(false) == system_state::stopped)
-+                        neostation::savestate::current.finish(false, "The savestate was written, but RPCS3 could not restore it.");
-+                    else
-+                        neostation::savestate::current.finish(true);
-+                }
-+                catch (const std::exception& error)
-+                {
-+                    Emu.SetContinuousMode(false);
-+                    neostation::savestate::current.finish(false, error.what());
++                    neostation::savestate::current.finish(false, "RPCS3 could not schedule savestate restoration.");
 +                }
 +            };
 +            Emu.SetContinuousMode(true);
@@ -20444,20 +20601,184 @@ index 74a6dc7..a25a736 100644
  	if (g_lifecycle.state() != RPCS3_IOS_STATE_READY)
  	{
  		set_error("RPCS3Core must be ready before stopping emulation");
-@@ -4784,6 +5131,12 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
+ 		return RPCS3_IOS_INVALID_STATE;
+ 	}
+ 
++	if (restore_jobs().cancel()) Emu.SetContinuousMode(false);
++
+ 	try
+ 	{
+ 		// An explicit wrapper stop leaves the full-screen session. It must not
+@@ -4783,7 +5149,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
+ 
  extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  {
- 	std::lock_guard lock(g_api_mutex);
+-	std::lock_guard lock(g_api_mutex);
++	std::unique_lock lock(g_api_mutex);
 +    // NEOSTATION_SAVE_EXCLUSIVE: asynchronous preparation still owns the game.
 +    if (neostation::savestate::current.read().active)
 +    {
 +        set_error("A savestate is in progress. Wait for creation and restoration to finish.");
 +        return RPCS3_IOS_INVALID_STATE;
 +    }
++	restore_jobs().cancel();
++
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4852,3 +5205,55 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4824,6 +5198,10 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
+ 		logs::listener::sync_all();
+ 		g_lifecycle.finish_shutdown(true);
+ 		emit_log(4, "RPCS3Core shutdown completed");
++		// A dequeued task may still be waiting for this mutex. Release it before
++		// joining the owned worker; its generation/lifecycle check then cancels it.
++		lock.unlock();
++		restore_jobs().close();
+ 		return RPCS3_IOS_OK;
+ 	}
+ 	catch (const std::exception& error)
+@@ -4846,9 +5224,196 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+ 	return copy.c_str();
+ }
+ 
++namespace rpcs3::ios {
++// REWINDBOX_RESTORE_EXECUTOR_BEGIN: portable owned-queue implementation.
++restore_executor::~restore_executor() { close(); }
++bool restore_executor::post(task work, std::uint64_t token) noexcept
++{
++	if (!work) return false;
++	try
++	{
++		std::lock_guard lock(mutex_);
++		if (closed_ || active_ || pending_ || !current(token)) return false;
++		if (!worker_.joinable())
++		{
++			worker_ = std::thread([this] { run(); });
++			worker_id_ = worker_.get_id();
++		}
++		pending_.emplace(job{token, std::move(work)});
++		changed_.notify_one();
++		return true;
++	}
++	catch (...) { return false; }
++}
++bool restore_executor::cancel() noexcept
++{
++	std::optional<job> retired;
++	bool had_work = false;
++	{
++		std::lock_guard lock(mutex_);
++		had_work = active_ || pending_.has_value();
++		generation_.fetch_add(1, std::memory_order_acq_rel);
++		retired.swap(pending_);
++	}
++	return had_work;
++}
++bool restore_executor::current(std::uint64_t token) const noexcept
++{
++	return token == generation_.load(std::memory_order_acquire);
++}
++bool restore_executor::close() noexcept
++{
++	{
++		std::lock_guard lock(mutex_);
++		if (worker_id_ == std::this_thread::get_id()) return false;
++	}
++	std::lock_guard join_lock(join_mutex_);
++	std::optional<job> retired;
++	{
++		std::lock_guard lock(mutex_);
++		closed_ = true;
++		generation_.fetch_add(1, std::memory_order_acq_rel);
++		retired.swap(pending_);
++	}
++	changed_.notify_all();
++	if (worker_.joinable()) worker_.join();
++	{
++		std::lock_guard lock(mutex_);
++		worker_id_ = {};
++	}
++	return true;
++}
++void restore_executor::run() noexcept
++{
++	for (;;)
++	{
++		std::optional<job> selected;
++		{
++			std::unique_lock lock(mutex_);
++			changed_.wait(lock, [this] { return closed_ || pending_.has_value(); });
++			if (closed_) return;
++			selected.swap(pending_);
++			active_ = true;
++		}
++		// The Core continuation wrapper reports execution errors. Always retire
++		// the task and keep queue ownership consistent on an unexpected exception.
++		try { selected->work(selected->token); } catch (...) {}
++		selected.reset();
++		{
++			std::lock_guard lock(mutex_);
++			active_ = false;
++		}
++	}
++}
++// REWINDBOX_RESTORE_EXECUTOR_END
++
++std::uint64_t savestate_restore_generation() noexcept
++{
++	return restore_jobs().generation();
++}
++
++bool defer_savestate_restore(std::function<void()> continuation, std::uint64_t token) noexcept
++{
++	try
++	{
++		const bool admitted = restore_jobs().post([continuation = std::move(continuation)](std::uint64_t generation)
++		{
++			std::lock_guard api_lock(g_api_mutex);
++			if (!restore_jobs().current(generation))
++			{
++				emit_log(4, "SAVESTATE_RESTORE phase=worker_cancelled");
++				return; // Do not finish or mutate a newer title's save operation.
++			}
++			if (g_lifecycle.state() != RPCS3_IOS_STATE_READY ||
++				!g_accept_display_surfaces.load() || Emu.GetStatus(false) != system_state::stopped)
++			{
++				emit_log(1, "SAVESTATE_RESTORE phase=worker_state_rejected");
++				neostation::savestate::current.finish(false, "RPCS3 was no longer ready for savestate restoration.");
++				return;
++			}
++			thread_base::set_name("RPCS3 Restore");
++			emit_log(4, fmt::format("SAVESTATE_RESTORE phase=worker_begin main_thread=%u", pthread_main_np() ? 1u : 0u));
++			try { continuation(); }
++			catch (const std::exception& error)
++			{
++				Emu.SetContinuousMode(false);
++				neostation::savestate::current.finish(false, error.what());
++				emit_log(1, "SAVESTATE_RESTORE phase=worker_exception");
++			}
++			catch (...)
++			{
++				Emu.SetContinuousMode(false);
++				neostation::savestate::current.finish(false, "RPCS3 could not restore the savestate.");
++				emit_log(1, "SAVESTATE_RESTORE phase=worker_exception");
++			}
++			emit_log(4, "SAVESTATE_RESTORE phase=worker_end");
++		}, token);
++		if (!admitted && !restore_jobs().current(token))
++		{
++			emit_log(4, "SAVESTATE_RESTORE phase=worker_cancelled_before_admission");
++			return true;
++		}
++		return admitted;
++	}
++	catch (...) { return false; }
++}
++}
++
+ [[noreturn]] void report_fatal_error(std::string_view text, bool, bool)
+ {
+ 	set_error(std::string{text});
  	emit_log(1, text);
  	std::abort();
  }
@@ -21966,12 +22287,13 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..2b8ff88 100644
+index d800542..afd79ce 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,170 @@
+@@ -1,26 +1,171 @@
  #include "stdafx.h"
 +#include "RPCS3IOSWriterCounters.h"
++#include "IOSGraphicsMemorySnapshot.h"
  #include "RPCS3IOSPerformance.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
@@ -22140,7 +22462,7 @@ index d800542..2b8ff88 100644
  
  u64 process_memory_footprint()
  {
-@@ -41,28 +185,346 @@ u64 process_memory_footprint()
+@@ -41,28 +186,346 @@ u64 process_memory_footprint()
  class performance_registry final
  {
  public:
@@ -22497,7 +22819,7 @@ index d800542..2b8ff88 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +534,10 @@ public:
+@@ -72,10 +535,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -22510,7 +22832,7 @@ index d800542..2b8ff88 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +570,429 @@ public:
+@@ -108,12 +571,432 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -22749,13 +23071,16 @@ index d800542..2b8ff88 100644
 +		const u64 memory_reclaims = m_memory_reclaim_attempts.exchange(0, std::memory_order_relaxed);
 +		const u64 memory_reclaim_effective = m_memory_reclaim_effective.exchange(0, std::memory_order_relaxed);
 +		const u64 memory_reclaim_deferred = m_memory_reclaim_deferred.exchange(0, std::memory_order_relaxed);
-+		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu",
++		const auto gpu_memory = capture_graphics_memory_snapshot();
++		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu gpu_pools_valid=%u gpu_system_requested=%llu gpu_surfaces_requested=%llu gpu_textures_requested=%llu gpu_swapchain_requested=%llu gpu_scratch_requested=%llu gpu_other_requested=%llu gpu_samplers=%llu gpu_pool_scope=requested_allocation_bytes_not_physical_ram",
 +			jit_memory::active.load(), jit_memory::peak_active.exchange(0), jit_memory::samples.exchange(0),
 +			static_cast<double>(jit_memory::footprint_peak.exchange(0)) / 0x100000,
 +			static_cast<double>(jit_memory::headroom_min.load() == UINT64_MAX ? 0 : jit_memory::headroom_min.exchange(UINT64_MAX)) / 0x100000,
 +			jit_memory::cache_index_hits.exchange(0), jit_memory::cache_buffer_hits.exchange(0),
 +			jit_memory::texture_hash_bytes.exchange(0), jit_memory::texture_hash_ticks.exchange(0),
-+			jit_memory::vma_block_bytes.load(), jit_memory::vma_allocated.load(), jit_memory::vma_unused.load());
++			jit_memory::vma_block_bytes.load(), jit_memory::vma_allocated.load(), jit_memory::vma_unused.load(),
++			gpu_memory.valid ? 1u : 0u, gpu_memory.system, gpu_memory.surfaces, gpu_memory.textures,
++			gpu_memory.swapchain, gpu_memory.scratch, gpu_memory.other, gpu_memory.samplers);
 +
 +		const u32 memory_pressure_peak = m_memory_pressure_peak.exchange(0, std::memory_order_relaxed);
 +		const u64 vram_allocations = m_vram_allocations.exchange(0, std::memory_order_relaxed);
@@ -22941,7 +23266,7 @@ index d800542..2b8ff88 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1000,91 @@ private:
+@@ -121,6 +1004,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -23033,7 +23358,7 @@ index d800542..2b8ff88 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1092,79 @@ performance_registry g_performance_registry;
+@@ -128,6 +1096,79 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -23113,7 +23438,7 @@ index d800542..2b8ff88 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1175,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1179,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -23242,7 +23567,7 @@ index d800542..2b8ff88 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1306,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1310,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

@@ -78,7 +78,7 @@ def run(core,before,report,sanitize):
    paths=json.loads((ROOT/'build-utils/rpcs3/canonical-source.json').read_text())['cell523']['paths']
    for p in paths:
     dest=baseline_root/p;dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(core/p,dest)
-   subprocess.run(['git','apply','--reverse',str(ROOT/'test/fixtures/rpcs3_restore523.diff')],cwd=baseline_root,check=True)
+   subprocess.run(['git','apply','--unidiff-zero','--reverse',str(ROOT/'test/fixtures/rpcs3_restore523.diff')],cwd=baseline_root,check=True)
    baseline=(baseline_root/'rpcs3/Emu/Memory/vm.cpp').read_text()
   cpp=w/'test.cpp';cpp.write_text(program(core,baseline))
   common=cxx+['-std=c++20','-O1','-g','-pthread','-DRPCS3_IOS','-I'+str(zstd),'-I'+str(core/'rpcs3/ios'),str(cpp)]

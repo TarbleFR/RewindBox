@@ -24,7 +24,7 @@ def main():
    metadata=json.loads((ROOT/'build-utils/rpcs3/canonical-source.json').read_text())['cell523']
    for relative in metadata['paths']:
     target=previous/relative;target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(a.source/relative,target)
-   subprocess.run(['git','apply','--reverse',str(ROOT/'test/fixtures/rpcs3_restore523.diff')],cwd=previous,check=True)
+   subprocess.run(['git','apply','--unidiff-zero','--reverse',str(ROOT/'test/fixtures/rpcs3_restore523.diff')],cwd=previous,check=True)
    import hashlib
    for relative,expected in metadata['before_sha256'].items():assert hashlib.sha256((previous/relative).read_bytes()).hexdigest()==expected,relative
    before=(previous/'rpcs3/Emu/Memory/vm.cpp').read_text()
