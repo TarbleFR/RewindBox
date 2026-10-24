@@ -27,7 +27,7 @@ def manifest():return json.loads((ROOT/'build-utils/rpcs3/canonical-source.json'
 def old(p):return command('git','show',BASE+':'+p)
 def inputs():
  paths=set(pin_module().CORE_INPUTS)|set(EXTRA)|HOST_CHANGED|{t[1] for t in TESTS}
- paths|={str(p.relative_to(ROOT)) for p in (ROOT/'native/neoswap-storage').rglob('*') if p.is_file() and '.git' not in p.parts}
+ paths|=set(command('git','ls-files','--','native/neoswap-storage').decode().splitlines())
  paths|={'build-utils/validate_source_archive_evidence.py'}
  return {p:sha((ROOT/p).read_bytes()) for p in sorted(paths)}
 def source_contract(source=None):
@@ -97,10 +97,13 @@ def prepare(source):
    payload=json.loads(report.read_bytes());state.update(report_sha256=sha(report.read_bytes()),passed=payload.get('passed') is True)
   receipt['tests'][name]=state;(OUT/'cell528-proof.json').write_text(json.dumps(receipt,indent=2)+'\n')
   assert proc.returncode==0 and state.get('passed'),name
+ assert current==inputs(),'Tracked build/test inputs changed during execution'
  receipt['all_tests_passed']=True;(OUT/'cell528-proof.json').write_text(json.dumps(receipt,indent=2)+'\n')
 def verify(path,source=None):
  proof=json.loads(path.read_bytes());assert proof['source']==command('git','rev-parse','HEAD').decode().strip()
- assert proof['input_sha256']==source_contract(source) and proof['native_source_sha256']==manifest()['files_sha256']
+ current=source_contract(source)
+ assert proof['input_sha256']==current,{p for p in set(current)|set(proof['input_sha256']) if current.get(p)!=proof['input_sha256'].get(p)}
+ assert proof['native_source_sha256']==manifest()['files_sha256']
  assert proof['all_tests_passed'] and proof['physical_device_tested'] is False
  assert set(proof['tests'])=={t[0] for t in TESTS}
  for name,state in proof['tests'].items():

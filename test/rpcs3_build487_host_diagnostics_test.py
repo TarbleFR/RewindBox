@@ -173,7 +173,10 @@ require('if (strcmp(phase, "sample") == 0 && !RPCS3Build487AdmitGuestSampleExt(l
         'neoswap_guest_sample_ext change-only rule must apply to the sample phase only')
 require('now - lastWrite >= 60.0' in host, 'neoswap_guest_sample_ext must still be written every 60 s')
 require('rotateDiagnosticFileAtPath:path' in diag and '@".1.log"' in diag, 'diagnostic rotation keeps no previous file')
-require(diag.index('rotateDiagnosticFileAtPath:path]') < diag.index('truncateFileAtOffset:0'),
+# Bound the existing check to the main writer: the separate528 performance
+# history has its own independently tested rotation/fallback earlier in the file.
+diagnostic_writer = diag[diag.index('- (void)writeDiagnosticStage:', diag.index('@implementation')):]
+require(diagnostic_writer.index('rotateDiagnosticFileAtPath:path]') < diagnostic_writer.index('truncateFileAtOffset:0'),
         'in-place truncation must remain only the fallback of a failed rotation')
 mirror_struct = abi.split('typedef struct rpcs3_ios_performance_metrics {', 1)[1].split('} rpcs3_ios_performance_metrics;', 1)[0]
 fields = re.findall(r'^\s*(u?int\d+_t|double)\s+(\w+);', mirror_struct, re.M)
