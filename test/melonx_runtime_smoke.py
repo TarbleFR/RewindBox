@@ -51,20 +51,28 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        let root=documents.appendingPathComponent("MeloNX")
        let runtime=try MeloNXRuntimeAPI(library:frameworks.appendingPathComponent("MeloNXCore.framework/MeloNXCore"),frameworks:frameworks,root:root)
        observedRuntime=runtime
+       NSLog("SMOKE boundary 54")
        let content=try runtime.content(operation:3)
        guard content["success"] as? Bool == true, content["root"] as? String == root.path else {throw NSError(domain:"actual-bootstrap",code:1)}
        let journal=documents.appendingPathComponent("app.log")
+       NSLog("SMOKE boundary 57")
        MeloNXLaunchJournal.configure(path:journal.path)
+       NSLog("SMOKE boundary 58")
        let journalSetup=try runtime.content(path:journal.path,operation:9)
        guard journalSetup["success"] as? Bool == true else {throw NSError(domain:"actual-launch-journal-configuration",code:23)}
+       NSLog("SMOKE boundary 60")
        let storage=try runtime.content(operation:6)
        guard storage["success"] as? Bool == true, storage["profiles"] is [[String:Any]] else {throw NSError(domain:"actual-save-profiles",code:4)}
+       NSLog("SMOKE boundary 62")
        let badSave=try runtime.content(path:"{\"titleId\":\"invalid\",\"profileId\":\"invalid\"}",operation:7)
        guard badSave["success"] as? Bool == false else {throw NSError(domain:"actual-save-validation",code:5)}
        report["storageProfilesRecognized"]=true;report["invalidSaveAssociationRejected"]=true
+       NSLog("SMOKE boundary 65")
        try runtime.session.initialize(root:root)
+       NSLog("SMOKE boundary 66")
        let invalid=try runtime.content(path:root.appendingPathComponent("missing.nsp").path,operation:0)
        guard invalid["success"] as? Bool == false, runtime.session.state == 0 else {throw NSError(domain:"actual-content",code:2)}
+       NSLog("SMOKE boundary 68")
        try runtime.prepareGraphics(["resolution":0.5,"shaderCache":false,"asyncShaders":true,"vsync":true,"filter":"bilinear"],universalJit:false)
        let rejected=runtime.session.prepare(game:root.appendingPathComponent("missing.nro"),locale:"fr-FR",width:1280,height:720)
        guard rejected == -2, runtime.session.state == 0 else {throw NSError(domain:"actual-prepare",code:3)}
@@ -72,6 +80,7 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        // engine must report missing personal keys before allocating a guest.
        let package=root.appendingPathComponent("empty.nsp")
        try Data([0x50,0x46,0x53,0x30]+Array(repeating:UInt8(0),count:12)).write(to:package)
+       NSLog("SMOKE boundary 75")
        let missingKeys=try runtime.content(path:package.path,operation:8)
        guard missingKeys["success"] as? Bool == false, missingKeys["errorCode"] as? String == "keysMissing", missingKeys["nativeStatus"] is NSNumber, runtime.session.state == 0 else {throw NSError(domain:"actual-key-preflight",code:6)}
        let persisted=try String(contentsOf:journal,encoding:.utf8)
@@ -84,6 +93,7 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        let candidate=staged.appendingPathComponent("prod.keys")
        let fixture="header_key = "+String(repeating:"a",count:64)+"\nfuture_console_key = "+String(repeating:"b",count:32)+"\nmariko_master_kek_source_05 = "+String(repeating:"c",count:34)
        try fixture.write(to:candidate,atomically:true,encoding:.utf8)
+       NSLog("SMOKE boundary 87")
        let keyPreview=try runtime.content(path:candidate.path,operation:2)
        guard keyPreview["success"] as? Bool == true,
              (keyPreview["recognizedKeys"] as? NSNumber)?.intValue == 1,
@@ -92,9 +102,11 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        let installed=root.appendingPathComponent("system/prod.keys")
        guard !FileManager.default.fileExists(atPath:installed.path) else {throw NSError(domain:"preview-mutated-installed-keys",code:17)}
        try fixture.write(to:installed,atomically:true,encoding:.utf8)
+       NSLog("SMOKE boundary 95")
        let reloaded=try runtime.content(operation:2)
        guard reloaded["success"] as? Bool == true else {throw NSError(domain:"actual-key-reload",code:18)}
        try "header_key = aa".write(to:candidate,atomically:true,encoding:.utf8)
+       NSLog("SMOKE boundary 98")
        let badKey=try runtime.content(path:candidate.path,operation:2)
        guard badKey["success"] as? Bool == false, badKey["errorCode"] as? String == "keySize",
              try String(contentsOf:installed,encoding:.utf8) == fixture else {throw NSError(domain:"actual-key-refusal",code:19)}
@@ -104,6 +116,7 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        report["mixedInvalidKeySizeAccepted"]=true
        report["keyRefusalCodePreserved"]=true;report["personalKeysUsed"]=false
        do {
+         NSLog("SMOKE boundary 107")
          try runtime.prepareGraphics(["resolution":9],universalJit:false)
          throw NSError(domain:"invalid-graphics-accepted",code:13)
        } catch MeloNXHostError.operation(let stage,let status,let detail) {
@@ -112,13 +125,16 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        }
        // Resolve and exercise the new entry point in the actual NativeAOT image.
        for ratio in 0...5 {
+         NSLog("SMOKE boundary 115")
          try runtime.prepareGraphics(["aspectRatio":ratio,"hostMemoryBudget":true,"textureRecompression":true,"showRamGraph":true],universalJit:false)
        }
        guard !runtime.setAspectRatio(5,generation:12345) else {throw NSError(domain:"stale-display-generation",code:20)}
+       NSLog("SMOKE boundary 118")
        try runtime.prepareGraphics(["aspectRatio":1],universalJit:false)
        report["displayAndMemoryConfigurationAccepted"]=true
        // Simulator-only executable mapping proof with the real ARM64 engine.
        // It does not exercise iPhone signing, its helper or Universal JIT.
+       NSLog("SMOKE boundary 122")
        try runtime.prepareJit();try runtime.prepareJit()
        typealias SignalQuery = @convention(c) (Int32,UnsafePointer<Darwin.sigaction>?,UnsafeMutablePointer<Darwin.sigaction>?) -> Int32
        let inspectSignal=unsafeBitCast(dlsym(dlopen(nil,RTLD_NOW)!,"sigaction")!,to:SignalQuery.self)
@@ -139,6 +155,7 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        word(0x20,0);word(0x24,0x1000);word(0x28,0x1000);word(0x2c,0x1000);word(0x30,0x2000);word(0x34,0x1000);word(0x38,0x1000)
        word(0x80,0xd2800000);word(0x84,0xd40000e1);word(0x88,0x14000000)
        try nro.write(to:homebrew)
+       NSLog("SMOKE boundary 142")
        let hb=try runtime.content(path:homebrew.path,operation:8)
        guard hb["success"] as? Bool == true else {throw NSError(domain:"homebrew-preflight",code:8)}
        var sessions=0
