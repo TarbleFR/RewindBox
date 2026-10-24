@@ -39,6 +39,7 @@ namespace stx {
 }
 
 static unsigned lookups = 0, opens = 0;
+static volatile usz observed_name_length = 0;
 static utils::serial* observed_archive = nullptr;
 static bool expect_invalid_vle = false;
 namespace fmt {
@@ -76,7 +77,11 @@ struct lv2_fs_mount_info {};
 struct lv2_fs_mount_info_map
 {
     lv2_fs_mount_info mount;
-    const lv2_fs_mount_info& lookup(std::string_view) { ++lookups; return mount; }
+    const lv2_fs_mount_info& lookup(std::string_view name) {
+        // A real mount lookup consumes the name. Preserve that observation
+        // so Clang cannot delete the negative control's strlen as dead code.
+        observed_name_length = name.size(); ++lookups; return mount;
+    }
 };
 struct loaded_npdrm_keys
 {

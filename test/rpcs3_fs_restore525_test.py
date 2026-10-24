@@ -75,7 +75,7 @@ def main():
                 valid.check_returncode()
             corrupt = subprocess.run([str(exe), 'unterminated'], capture_output=True, text=True, timeout=60, env=env)
             if name == 'before':
-                assert corrupt.returncode != 0 and 'AddressSanitizer: heap-buffer-overflow' in corrupt.stderr, corrupt.stderr
+                assert corrupt.returncode != 0 and 'AddressSanitizer: heap-buffer-overflow' in corrupt.stderr, (corrupt.returncode, corrupt.stdout, corrupt.stderr)
                 assert 'strlen' in corrupt.stderr, corrupt.stderr
             else:
                 assert corrupt.returncode == 88 and 'REJECT unterminated before mount lookup' in corrupt.stderr, corrupt.stderr
