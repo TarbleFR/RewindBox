@@ -60,7 +60,7 @@
     "pubspec.yaml": "09cb00db684ff0649a1f4a501d1ce4b3e6547b5403ec98477da1e68f675bf83b",
     "pubspec_overrides.yaml": "392a1ad26ff8e4cdfa2c4035b56638e0923e0b91c2895bac2ad4b0527f65f3c5",
     "packages/melonx_internal_bridge/pubspec.yaml": "259d5c8a691b74775054042916bb25f12b6299e581c9b3e8d6bacb78e2973df5",
-    "packages/melonx_internal_bridge/ios/melonx_internal_bridge.podspec": "794c13b098df31b9e5c71fc29f3a59d7a19997f678fb90aa5ab96ae780997104",
+    "packages/melonx_internal_bridge/ios/melonx_internal_bridge.podspec": "a394a46ebe8518c91c014590613461022b988e3c1bd7b1b9b7f6038d865cd07f",
     "packages/melonx_jit_helper/ios/melonx_jit_helper.podspec": "95a9c03b3e25673e68454e8bab53809bd59b7787392f1fd12c7682f4f30ab35b"
   },
   "summary": {
@@ -10931,5 +10931,24 @@
     "change": "Expose the own NeoSwapCompilerAPI.h C header to the RPCS3 bridge; no dependency, source URL or pod license change.",
     "own_compiler_sources_spdx": "GPL-2.0-or-later",
     "existing_notices_preserved": true
+  },
+  "melonx_ram_donor_build_followup": {
+    "review_date": "2026-10-24",
+    "host_source": "a279185aec23fcbf9dfbd389a62f5c0e90d83bc6",
+    "previous_declaration_sha256": "794c13b098df31b9e5c71fc29f3a59d7a19997f678fb90aa5ab96ae780997104",
+    "changes": [
+      "Include and preserve the original pinned donor host headers and Objective-C implementation in Memory/.",
+      "Enable Clang modules for the actual Objective-C++ host target."
+    ],
+    "unchanged_declarations": [
+      "license",
+      "source",
+      "author",
+      "dependencies",
+      "frameworks",
+      "libraries"
+    ],
+    "donor_upstream": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+    "scope": "MeloNX Pod source selection and compilation settings only. Existing source notices and mixed upstream MIT/GPL statements are preserved; no blanket license clearance is inferred."
   }
 }

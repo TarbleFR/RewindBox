@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import plistlib
 import zipfile
+from ipa_extension_versions import validate_extension_versions
 
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser()
@@ -34,15 +35,12 @@ with zipfile.ZipFile(a.ipa) as z:
         assert marker in dart, 'Missing compiled UI correction: ' + repr(marker)
     # The generated source string is actually consumed by the AOT renderer.
     assert profile.strip() in dart, 'Full author tracks not present in the compiled renderer'
-    bundles = [n for n in names if n.startswith(root + 'PlugIns/') and n.endswith('.appex/Info.plist')]
-    assert len(bundles) == 6
-    for bundle in bundles:
-        assert str(plistlib.loads(z.read(bundle))['CFBundleVersion']) == str(a.build_number)
+    extension_count = validate_extension_versions(z, root, a.build_number)
 record = {'result': 'passed', 'build': a.build_number,
     'ipaSHA256': hashlib.sha256(a.ipa.read_bytes()).hexdigest(),
     'completeAuthorSegments': 21, 'originalFPS': 60, 'authorTracksPresentInAOT': True,
     'depthSortedCoverFlowLinked': True, 'sameFrameHeaderBodyLayoutLinked': True,
-    'appAndSixExtensionsAligned': True, 'physicalDeviceTested': False}
+    'appAndExtensionVersionsAligned': True, 'alignedExtensionCount': extension_count, 'physicalDeviceTested': False}
 a.report.parent.mkdir(parents=True, exist_ok=True)
 a.report.write_text(json.dumps(record, indent=2) + '\n')
-print('PASS signed IPA: complete author tracks, Cover Flow, measured header and six aligned extensions.')
+print('PASS signed IPA: complete author tracks, Cover Flow, measured header and', extension_count, 'aligned extensions.')
