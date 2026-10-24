@@ -48,7 +48,7 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       shell: bash
-      run: "set -euo pipefail\nfor formula in ccache ninja cmake llvm@22; do\n  brew list --versions \"$formula\"\
+      run: "set -euo pipefail\nfor formula in ccache ninja cmake llvm@22 ffmpeg; do\n  brew list --versions \"$formula\"\
         \ >/dev/null 2>&1 || brew install \"$formula\"\ndone\nSOURCE=\"$RUNNER_TEMP/cell521-source-preflight\"\n\
         git init -q \"$SOURCE\"\ngit -C \"$SOURCE\" remote add origin https://github.com/XITRIX/rpcs3.git\ngit -C\
         \ \"$SOURCE\" fetch --depth 1 origin 22f1152783cef1f7e04af7b1c895173e28fd5b03\ngit -C \"$SOURCE\" checkout\
