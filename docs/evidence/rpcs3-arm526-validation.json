@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "Final aligned native Core compiled and verified; private IPA assembly pending",
+  "status": "Private Build526 delivered; native Core and decrypted IPA independently verified; physical gameplay/performance unverified",
   "build": 526,
   "base": "ed08da84f11a7182e133d80ecc9b2f602ce895ea",
   "native_patch_sha256": "5ba0430b436e30ffb10e0d390e74a0cba97358f526519c71508c07b1bfe8d563",
@@ -503,7 +503,7 @@
   "phone_fps_gain_measured": false,
   "phone_memory_gain_measured": false,
   "core_built": true,
-  "ipa_delivered": false,
+  "ipa_delivered": true,
   "native_attempts": [
     {
       "source": "053c605e9e085c5d05a248e236c25f7c4be8e925",
@@ -6925,5 +6925,237 @@
     "partial_receipt_sha256": "57c90907200a85aa481a99c11fb924e6a8d0f6020d0b4a2db21b55948f7bda20",
     "all_tests_passed": true,
     "physical_device_tested": false
+  },
+  "private_delivery": {
+    "build": 526,
+    "version": "0.0.8",
+    "source": "44d2e5ca8bad85afa42feb280b4ce00a5b54f38f",
+    "run": 40129842972,
+    "job": 120979017435,
+    "conclusion": "success",
+    "ipa_file": "RewindBox-Build526.ipa",
+    "ipa_bytes": 186645935,
+    "ipa_sha256": "569c5a1219aeb9a1a9463060642ec4ad1aa5974620133e2946236a1ec6df7704",
+    "artifact_metadata": [
+      {
+        "id": 12574603271,
+        "name": "RewindBox-Build-526-44d2e5ca8bad85afa42feb280b4ce00a5b54f38f-core-reuse-part01",
+        "size_in_bytes": 46716270,
+        "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12574603271",
+        "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12574603271/zip",
+        "expired": false,
+        "created_at": "2026-10-24T20:29:46Z",
+        "expires_at": "2026-11-07T20:29:43Z",
+        "updated_at": "2026-10-24T20:29:46Z",
+        "digest": "sha256:8d40292e43ba860e1d8ad82bbf2c3caa3c30337044c47318251aa88dde4069e1",
+        "workflow_run": {
+          "id": 40129842972,
+          "repository_id": 1329032710,
+          "head_repository_id": 1329032710,
+          "head_branch": "Claude",
+          "head_sha": "44d2e5ca8bad85afa42feb280b4ce00a5b54f38f"
+        }
+      },
+      {
+        "id": 12574333385,
+        "name": "RewindBox-Build-526-44d2e5ca8bad85afa42feb280b4ce00a5b54f38f-core-reuse-part03",
+        "size_in_bytes": 46716270,
+        "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12574333385",
+        "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12574333385/zip",
+        "expired": false,
+        "created_at": "2026-10-24T20:29:52Z",
+        "expires_at": "2026-11-07T20:29:49Z",
+        "updated_at": "2026-10-24T20:29:52Z",
+        "digest": "sha256:c6b4c1e841122a094627e259f40ef17ab0b434b132ce3cb3cd95c2f687c11821",
+        "workflow_run": {
+          "id": 40129842972,
+          "repository_id": 1329032710,
+          "head_repository_id": 1329032710,
+          "head_branch": "Claude",
+          "head_sha": "44d2e5ca8bad85afa42feb280b4ce00a5b54f38f"
+        }
+      },
+      {
+        "id": 12574333360,
+        "name": "RewindBox-Build-526-44d2e5ca8bad85afa42feb280b4ce00a5b54f38f-core-reuse-part00",
+        "size_in_bytes": 46716270,
+        "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12574333360",
+        "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12574333360/zip",
+        "expired": false,
+        "created_at": "2026-10-24T20:29:43Z",
+        "expires_at": "2026-11-07T20:29:40Z",
+        "updated_at": "2026-10-24T20:29:43Z",
+        "digest": "sha256:2420db713886bad98bc8d272854aba031841821c403efe1469fc84fc004db42a",
+        "workflow_run": {
+          "id": 40129842972,
+          "repository_id": 1329032710,
+          "head_repository_id": 1329032710,
+          "head_branch": "Claude",
+          "head_sha": "44d2e5ca8bad85afa42feb280b4ce00a5b54f38f"
+        }
+      },
+      {
+        "id": 12574158494,
+        "name": "RewindBox-Build-526-44d2e5ca8bad85afa42feb280b4ce00a5b54f38f-diagnostics",
+        "size_in_bytes": 221597,
+        "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12574158494",
+        "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12574158494/zip",
+        "expired": false,
+        "created_at": "2026-10-24T20:29:54Z",
+        "expires_at": "2026-11-07T20:29:53Z",
+        "updated_at": "2026-10-24T20:29:54Z",
+        "digest": "sha256:73a0cd8c9583bd7e934dcfb13dca09fd898a983cb1d1311dcbd902e0796952c4",
+        "workflow_run": {
+          "id": 40129842972,
+          "repository_id": 1329032710,
+          "head_repository_id": 1329032710,
+          "head_branch": "Claude",
+          "head_sha": "44d2e5ca8bad85afa42feb280b4ce00a5b54f38f"
+        }
+      },
+      {
+        "id": 12574018539,
+        "name": "RewindBox-Build-526-44d2e5ca8bad85afa42feb280b4ce00a5b54f38f-core-reuse-part02",
+        "size_in_bytes": 46716270,
+        "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12574018539",
+        "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12574018539/zip",
+        "expired": false,
+        "created_at": "2026-10-24T20:29:49Z",
+        "expires_at": "2026-11-07T20:29:47Z",
+        "updated_at": "2026-10-24T20:29:49Z",
+        "digest": "sha256:63b0acbe9b6415801f55fa7c9ef7e2946d706a972773ecdb5498b572b48dd3bc",
+        "workflow_run": {
+          "id": 40129842972,
+          "repository_id": 1329032710,
+          "head_repository_id": 1329032710,
+          "head_branch": "Claude",
+          "head_sha": "44d2e5ca8bad85afa42feb280b4ce00a5b54f38f"
+        }
+      }
+    ],
+    "independent_validation": {
+      "result": "passed",
+      "build": 526,
+      "ipaSHA256": "569c5a1219aeb9a1a9463060642ec4ad1aa5974620133e2946236a1ec6df7704",
+      "coreSource": "1deb79bf93ab65f1b71b86ba03b10a55efe908c7",
+      "coreRun": 40128792897,
+      "sourceArtifactSHA256": "863d81225880c8ec604e00ddb8bc676ab86de7210ab60b7367d9eb4c01810883",
+      "compiledCorePayloadFingerprint": "7fe8613a3a89b429e8ba8e2761d111ca3a5a30ea70d1f985870d5a21eb272376",
+      "sharedCompilerBrokerLinked": true,
+      "optionalCoreBinderLinked": true,
+      "productionMinimalSPULinkerEnabled": false,
+      "physicalDeviceTested": false,
+      "physicalPerformanceMeasured": false,
+      "gow3BootAndVmaSourceVerified": true,
+      "compiledAppSource": "c1f550f8be86c91d65dc564ebddff593f2e3fe46",
+      "compiledAppRun": 40104064265,
+      "appCodeRecompiled": false,
+      "unchangedOtherARM64Images": 86,
+      "preservedAssetEntries": 4410,
+      "preservedAssetRootSHA256": "754e938ac9214f564d2e1cbe7202f45e37661337d94037b9de9a307cde3c5407",
+      "allRuntimeEntitlementsUnchanged": true,
+      "extensionVersionsChecked": 7,
+      "nativeSourceAndLicensesRetained": true,
+      "assemblySource": "44d2e5ca8bad85afa42feb280b4ce00a5b54f38f",
+      "assemblyRun": 40129842972,
+      "ipaBytes": 186645935,
+      "version": "0.0.8",
+      "minimumIOS": "18.0",
+      "nativeNonLinkeditSegmentsUnchanged": true,
+      "packagedCoreSHA256": "a95ca2aa064ad9e3b3ac6e8da0ad1337f904e69c73997195c5c4158bf7312a18",
+      "sourceCoreArtifact": 12574852306,
+      "sourceCoreSHA256": "863d81225880c8ec604e00ddb8bc676ab86de7210ab60b7367d9eb4c01810883",
+      "allARM64ImagesVerified": 87,
+      "allSealedThinImagesVerified": 84,
+      "normalizedAssetsVerified": 4410,
+      "bundlesVerified": 8,
+      "coreExportsVerified": 88,
+      "runtimeEntitlementsUnchanged": true,
+      "legalBundleVerified": true,
+      "distribution": {
+        "ipa": "RewindBox-Build526.ipa",
+        "installationUnits": 1,
+        "hostBundleIdentifier": "com.neogamelab.neostation",
+        "embeddedExtensions": [
+          {
+            "bundle": "ARMSX2JITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.armsx2jithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "DolphinJITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.dolphinjithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "MeloNXJITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.melonxjithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "MeloNXRamDonor.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.melonxramdonor",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "NeoSwapDonor.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.neoswapdonor",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "NeoSwapPageRelay.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.NeoSwapPageRelay",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "RPCS3JITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.rpcs3jithelper",
+            "extensionPoint": "com.apple.share-services"
+          }
+        ],
+        "embeddedPacketTunnelPresent": false,
+        "networkExtensionEntitlementPresent": false,
+        "externalJITTransport": "LocalDevVPN",
+        "userSignsOneIPA": true,
+        "neoSwapDonorRequestedEntitlements": {
+          "get-task-allow": true,
+          "com.apple.developer.kernel.increased-memory-limit": true,
+          "com.apple.developer.kernel.increased-debugging-memory-limit": true
+        },
+        "neoSwapDonorCount": 1,
+        "neoSwapRelayCount": 1,
+        "neoSwapRelayRequestedEntitlements": {
+          "get-task-allow": true,
+          "com.apple.developer.kernel.increased-memory-limit": true,
+          "com.apple.developer.kernel.increased-debugging-memory-limit": true
+        },
+        "neoSwapRelayEffectiveDeviceProfileValidated": false,
+        "neoSwapRelayResidentMemoryValidated": false,
+        "neoSwapDonorProcessInstancesValidated": false,
+        "neoSwapDonorEffectiveDeviceProfileValidated": false,
+        "deviceRuntimeTested": false,
+        "nestedSigningOrder": [
+          "NeoStation.app/PlugIns/ARMSX2JITHelper.appex",
+          "NeoStation.app/PlugIns/DolphinJITHelper.appex",
+          "NeoStation.app/PlugIns/MeloNXJITHelper.appex",
+          "NeoStation.app/PlugIns/MeloNXRamDonor.appex",
+          "NeoStation.app/PlugIns/NeoSwapDonor.appex",
+          "NeoStation.app/PlugIns/NeoSwapPageRelay.appex",
+          "NeoStation.app/PlugIns/RPCS3JITHelper.appex",
+          "NeoStation.app"
+        ],
+        "machOImagesCheckedForVPNEntitlements": 87
+      },
+      "signatureCount": 87,
+      "ciStrictSignaturesAllVerified": true,
+      "installationMethod": "SideStore re-signing",
+      "appleProvisioningVerified": false
+    },
+    "transport_verified": true,
+    "private_download_provided": true,
+    "private_download_url_stored_in_public_repository": false,
+    "main_modified": false,
+    "tags_created": false,
+    "github_release_published": false
   }
 }
