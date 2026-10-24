@@ -1,4 +1,4 @@
-"""Reuse the exact 523 compiled app and admit only the source-built 526 Core."""
+"""Assemble private Build526 from the exact app523 and verified native Core."""
 import argparse
 import json
 import os
