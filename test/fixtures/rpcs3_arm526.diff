@@ -1,5 +1,5 @@
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index c05c86e7..cd08ae88 100644
+index c05c86e..cd08ae8 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
 @@ -47,6 +47,9 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
@@ -32,7 +32,7 @@ index c05c86e7..cd08ae88 100644
          ../../Utilities/JITObjectBuffer.h
 diff --git a/rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h b/rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h
 new file mode 100644
-index 00000000..7771e2d7
+index 0000000..7771e2d
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h
 @@ -0,0 +1,55 @@
@@ -92,7 +92,7 @@ index 00000000..7771e2d7
 +}
 +} // namespace rpcs3::cell::arm64
 diff --git a/rpcs3/Emu/Cell/PPUTranslator.cpp b/rpcs3/Emu/Cell/PPUTranslator.cpp
-index 8891153e..6d1f478b 100644
+index 8891153..6d1f478 100644
 --- a/rpcs3/Emu/Cell/PPUTranslator.cpp
 +++ b/rpcs3/Emu/Cell/PPUTranslator.cpp
 @@ -18,6 +18,7 @@
@@ -170,7 +170,7 @@ index 8891153e..6d1f478b 100644
  
  void PPUTranslator::VMSUMUHS(ppu_opcode_t op)
 diff --git a/rpcs3/Emu/Cell/SPUInterpreter.cpp b/rpcs3/Emu/Cell/SPUInterpreter.cpp
-index 1324ab82..3169134a 100644
+index 1324ab8..3169134 100644
 --- a/rpcs3/Emu/Cell/SPUInterpreter.cpp
 +++ b/rpcs3/Emu/Cell/SPUInterpreter.cpp
 @@ -20,13 +20,6 @@
@@ -1589,7 +1589,7 @@ index 1324ab82..3169134a 100644
  
  bool spu_interpreter::diagnose(spu_thread& spu, spu_opcode_t op, spu_intrp_func_t execute)
 diff --git a/rpcs3/Emu/Cell/lv2/sys_fs.cpp b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
-index 620df451..73647a59 100644
+index 620df45..73647a5 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_fs.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
 @@ -627,6 +627,21 @@ u64 lv2_file::op_write(const fs::file& file, vm::cptr<void> buf, u64 size)
@@ -1658,7 +1658,7 @@ index 620df451..73647a59 100644
  		ar.pos += sizeof(u64);
  		ensure(!!g_cfg.savestate.state_inspection_mode);
 diff --git a/rpcs3/Emu/RSX/Common/BufferUtils.cpp b/rpcs3/Emu/RSX/Common/BufferUtils.cpp
-index 1595a16c..d261a3d7 100644
+index 1595a16..d261a3d 100644
 --- a/rpcs3/Emu/RSX/Common/BufferUtils.cpp
 +++ b/rpcs3/Emu/RSX/Common/BufferUtils.cpp
 @@ -15,13 +15,6 @@
@@ -1698,7 +1698,7 @@ index 1595a16c..d261a3d7 100644
  #endif
  		for (; i < count; ++i)
 diff --git a/rpcs3/Emu/RSX/Common/buffer_stream.hpp b/rpcs3/Emu/RSX/Common/buffer_stream.hpp
-index 5cf4da22..bb721d88 100644
+index 5cf4da2..bb721d8 100644
 --- a/rpcs3/Emu/RSX/Common/buffer_stream.hpp
 +++ b/rpcs3/Emu/RSX/Common/buffer_stream.hpp
 @@ -1,23 +1,6 @@
@@ -1754,7 +1754,7 @@ index 5cf4da22..bb721d88 100644
  	}
  }
 diff --git a/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp b/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp
-index 0178ba5e..ab8c6b16 100644
+index 0178ba5..ab8c6b1 100644
 --- a/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp
 +++ b/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp
 @@ -6,21 +6,9 @@
@@ -1798,7 +1798,7 @@ index 0178ba5e..ab8c6b16 100644
  
  	FlowGraph deconstruct_fragment_program(const RSXFragmentProgram& prog)
 diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
-index 13c99544..84314883 100644
+index 13c9954..8431488 100644
 --- a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
 +++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
 @@ -7,22 +7,7 @@
@@ -1903,7 +1903,7 @@ index 13c99544..84314883 100644
  		write_fragment_constants_to_buffer_fallback(buffer, rsx_prog, offsets_cache, sanitize);
  #endif
 diff --git a/rpcs3/Emu/RSX/RSXTexture.cpp b/rpcs3/Emu/RSX/RSXTexture.cpp
-index a710d663..f6c2cbc5 100644
+index a710d66..f6c2cbc 100644
 --- a/rpcs3/Emu/RSX/RSXTexture.cpp
 +++ b/rpcs3/Emu/RSX/RSXTexture.cpp
 @@ -14,13 +14,6 @@
@@ -1960,10 +1960,10 @@ index a710d663..f6c2cbc5 100644
  
  	color4f fragment_texture::remapped_border_color(bool apply_colorspace_remapping) const
 diff --git a/rpcs3/util/simd.hpp b/rpcs3/util/simd.hpp
-index e5de73dc..a7ffd3b7 100644
+index e5de73d..117bd36 100644
 --- a/rpcs3/util/simd.hpp
 +++ b/rpcs3/util/simd.hpp
-@@ -3274,6 +3274,318 @@ inline v128 gv_to_be32(const v128& vec)
+@@ -3274,6 +3274,320 @@ inline v128 gv_to_be32(const v128& vec)
  	return vec;
  }
  
@@ -2219,10 +2219,12 @@ index e5de73dc..a7ffd3b7 100644
 +
 +// Variable byte windows deliberately retain the measured native load/store
 +// algorithm. A TBL1 version was slower on the matched Apple ARM64 host probe.
-+// These are only temporary host vectors: the guest alignment contract is unchanged.
++// Preserve the original 32/64-byte temporary alignment: a variable load must
++// not acquire avoidable cache-line splits during the API migration. These are
++// host temporaries only; the guest/register alignment contract remains 16 bytes.
 +inline v128 gv_rotl128_bytes(const v128& a, u32 count)
 +{
-+	alignas(16) const v128 window[2]{a, a};
++	alignas(32) const v128 window[2]{a, a};
 +	return v128::loadu(reinterpret_cast<const u8*>(window) + (16 - (count & 15)));
 +}
 +
@@ -2231,14 +2233,14 @@ index e5de73dc..a7ffd3b7 100644
 +	// Counts 16..31 naturally select only zero bytes; clamping to 31 keeps
 +	// every window within these 48 bytes. Existing &31 callers fold the clamp.
 +	count = std::min<u32>(count, 31);
-+	alignas(16) const v128 window[3]{{}, {}, a};
++	alignas(64) const v128 window[3]{{}, {}, a};
 +	return v128::loadu(reinterpret_cast<const u8*>(window) + (32 - count));
 +}
 +
 +inline v128 gv_shr128_bytes(const v128& a, u32 count)
 +{
 +	count = std::min<u32>(count, 31);
-+	alignas(16) const v128 window[3]{a, {}, {}};
++	alignas(64) const v128 window[3]{a, {}, {}};
 +	return v128::loadu(reinterpret_cast<const u8*>(window) + count);
 +}
 +

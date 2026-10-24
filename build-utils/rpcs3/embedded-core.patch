@@ -32526,10 +32526,10 @@ index cd3dfab..e6901e4 100644
  }
  
 diff --git a/rpcs3/util/simd.hpp b/rpcs3/util/simd.hpp
-index e5de73d..a7ffd3b 100644
+index e5de73d..117bd36 100644
 --- a/rpcs3/util/simd.hpp
 +++ b/rpcs3/util/simd.hpp
-@@ -3274,6 +3274,318 @@ inline v128 gv_to_be32(const v128& vec)
+@@ -3274,6 +3274,320 @@ inline v128 gv_to_be32(const v128& vec)
  	return vec;
  }
  
@@ -32785,10 +32785,12 @@ index e5de73d..a7ffd3b 100644
 +
 +// Variable byte windows deliberately retain the measured native load/store
 +// algorithm. A TBL1 version was slower on the matched Apple ARM64 host probe.
-+// These are only temporary host vectors: the guest alignment contract is unchanged.
++// Preserve the original 32/64-byte temporary alignment: a variable load must
++// not acquire avoidable cache-line splits during the API migration. These are
++// host temporaries only; the guest/register alignment contract remains 16 bytes.
 +inline v128 gv_rotl128_bytes(const v128& a, u32 count)
 +{
-+	alignas(16) const v128 window[2]{a, a};
++	alignas(32) const v128 window[2]{a, a};
 +	return v128::loadu(reinterpret_cast<const u8*>(window) + (16 - (count & 15)));
 +}
 +
@@ -32797,14 +32799,14 @@ index e5de73d..a7ffd3b 100644
 +	// Counts 16..31 naturally select only zero bytes; clamping to 31 keeps
 +	// every window within these 48 bytes. Existing &31 callers fold the clamp.
 +	count = std::min<u32>(count, 31);
-+	alignas(16) const v128 window[3]{{}, {}, a};
++	alignas(64) const v128 window[3]{{}, {}, a};
 +	return v128::loadu(reinterpret_cast<const u8*>(window) + (32 - count));
 +}
 +
 +inline v128 gv_shr128_bytes(const v128& a, u32 count)
 +{
 +	count = std::min<u32>(count, 31);
-+	alignas(16) const v128 window[3]{a, {}, {}};
++	alignas(64) const v128 window[3]{a, {}, {}};
 +	return v128::loadu(reinterpret_cast<const u8*>(window) + count);
 +}
 +
