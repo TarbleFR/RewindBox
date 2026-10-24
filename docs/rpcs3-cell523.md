@@ -100,13 +100,67 @@ modification de MeloNX, autres moteurs, traductions ou fonctions d'interface.
 
 ## Construction et essai sur appareil
 
-Le [reçu de validation](evidence/rpcs3-cell523-validation.json) est complété avec
-les identités de compilation et de livraison après vérification. À ce stade,
-la compilation complète iPhone et l'IPA 523 ne sont pas encore revendiquées. Le premier
-passage SDK (`40101861338`) a refusé deux diagnostics ajoutés (qualification de
-namespace et inclusion `shared_mutex`) ; ils sont corrigés. L'arrêt concurrent
-est aussi vérifié avec le véritable code de l'API et du cycle de vie : un
-contrôle négatif refuse la fin d'arrêt avant jonction du worker.
+Le Core final a réellement compilé pour iPhoneOS depuis
+`e8437623a1ba37874adfacd8521c596e94d055c3`,
+[Actions 40103133192](https://github.com/TarbleFR/RewindBox/actions/runs/40103133192).
+Les 42 unités du contrôle SDK passent, puis le moteur complet est lié.
+Le [reçu de validation](evidence/rpcs3-cell523-validation.json) conserve les
+artefacts, leurs empreintes et les résultats natifs : 17 cas worker, 39 cas HLE/FXO,
+instantanés GPU avec 30000 reconstructions concurrentes, ASan/UBSan. Les 160 cas VM
+et 8 flux serial/ZSTD inchangés sont authentifiés depuis la campagne M1.
+Un contrôle local supplémentaire compare les positions exactes des 160 séries
+`breathe()`, avec la transformation du harness et ses empreintes enregistrées.
+
+L'artefact téléchargé est vérifié indépendamment : 127 entrées natives, ABI 30,
+88 exports exacts, ARM64/iPhoneOS, minimum de déploiement du Core 16.3,
+PPU `9013390836efe46e` / SPU `a601a98f20f30c80` inchangés. Le contrôle statique
+de chargement passif ne remplace pas un `dlopen` ou un JIT exécuté sur appareil.
+SHA-256 du Core avant signature :
+`d678bce3c8bb56a137393bb72bc6eea5d96a3053106c3cef78da8d63b438e9b4`.
+
+Le premier passage SDK (`40101861338`) a refusé deux diagnostics ajoutés
+(qualification de namespace et inclusion `shared_mutex`) ; ils sont corrigés et
+ce passage n'a produit aucun Core et n'est pas livré. Le contrôle négatif de l'arrêt concurrent rejette
+l'ancienne variante qui terminait le cycle avant la jonction du worker.
+Le workflow générique `40103133217` échoue toujours avant compilation sur son ancien
+test lexical Build 487 (`FREEZE_DUMP end`). Le test et le fichier natif concerné
+sont identiques à ceux du Core 522 ; cette garde n'est pas affaiblie. Les contrôles
+dédiés 523 ci-dessus passent. Aucun succès de toute la CI n'est revendiqué.
+
+La **Build 523**, version **0.0.8**, a ensuite été reconstruite depuis
+`c1f550f8be86c91d65dc564ebddff593f2e3fe46` sur `Claude` :
+[Actions 40104064265](https://github.com/TarbleFR/RewindBox/actions/runs/40104064265),
+jobs `checks`, `native` et `Release device build • cold` réussis.
+Les composants validés non modifiés sont réutilisés avec leurs identités exactes.
+Les sources produit de l'application restent identiques au Build 522
+(`ace28d4231b96aad749cc948a05d03206a6f6662`).
+
+Les quatre morceaux chiffrés ont été téléchargés, vérifiés contre leurs SHA-256
+GitHub et leur manifeste commun, assemblés puis déchiffrés. L'IPA finale fait
+**186268879 octets**, SHA-256 :
+`7fa958570e802c489db4d4df07b7388cde4bb18f94c2555bcce060db9aedb8a1`.
+Les identités du Core, ses sections de code/données, les segments hors LINKEDIT,
+les exports et les dépendances sont vérifiés sur les octets téléchargés.
+Les 84 images fines du reçu de scellement correspondent ; les 87 images Mach-O
+sont contrôlées pour les entitlements VPN. Les 87 signatures ad hoc ont passé
+`codesign --verify --strict` sur macOS, avec contrôle profond du ZIP final.
+L'application demande iOS 18.0 et conserve sa garde CPU ARMv8.4-A.
+Les signatures Apple et l'installation sur iPhone restent à effectuer par
+re-signature **SideStore**. Aucun VPN interne, tag, changement de `main` ou
+release GitHub n'est produit. Le lien privé de l'IPA est remis dans la conversation.
+
+Les empreintes des autres cœurs embarqués sont identiques au Build 522.
+Le pont Swift MeloNX est recompilé sans modification de source : seules ses
+sections de stubs changent dans les octets comparés, avec dépendances et symboles
+identiques. Il n'est pas déclaré bit-identique ; aucun correctif MeloNX n'est ajouté.
+Les modifications d'images compilées sont consignées dans le reçu.
+
+Pour revérifier l'IPA téléchargée depuis ce commit d'assemblage :
+
+```sh
+python3 build-utils/validate_rpcs3_cell523_ipa.py RewindBox-Build523.ipa --build-number 523
+python3 packages/dolphin_internal_bridge/ci/verify_ipa.py RewindBox-Build523.ipa
+```
 
 Aucun iPhone ni dump légal du jeu n'est accessible dans cet environnement.
 Restent à vérifier sur appareil : restauration de la copie du même état, lancement,
