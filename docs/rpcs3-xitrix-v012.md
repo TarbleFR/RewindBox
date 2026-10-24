@@ -148,3 +148,31 @@ COREPROF, JITMEM/JITPAGES and guest-frame diagnostics. Measure launch time,
 PPU/SPU/RSX CPU windows, p95/p99 frame times, stutters and sampled maximum
 footprint. Distinguish native progress-dialog frames from game frames. No
 automatic telemetry or performance gain is claimed.
+
+## Delivered build 520
+
+[Actions run 40044710281](https://github.com/TarbleFR/RewindBox/actions/runs/40044710281)
+succeeded for app source `91040ba37e3ab0f5aef01ce3dff18f079568f3ed`.
+Both modified bridge translation units were compiled for iPhoneOS ARM64;
+the source-built Core remains the independently verified `407ea8f` artifact.
+The unchanged application components come from successful concurrent Build 519,
+run `40043376467`, frozen source `f93323768831428186c3aeb21b7e7a6130897836`.
+No MeloNX code was edited by this RPCS3 task.
+
+The final IPA is 186,250,708 bytes, version 0.0.8 / build 520, minimum iOS 18.0,
+SHA-256 `5625290ad436b8b06c5ab0fccec04163b8df27163c92e4dc0135aa0521f8a9e3`.
+It was recovered unchanged from four hash-verified, source/run-bound Actions
+transport artifacts. Independent checks passed for ZIP CRC, structure,
+dependencies, original Core identity and signed payload fingerprint, embedded
+runtime entitlements, and the compiled `early_jit_escrow_skipped` guard marker.
+The distribution has one IPA, seven extensions and no internal packet tunnel
+or VPN entitlement across the 87 inspected Mach-O images.
+
+CI verified all 87 ad-hoc signatures and confirmed that signing preserved
+compiled code/data and ABI metadata. The IPA still requires user re-signing
+with SideStore; Apple provisioning, installation, launch and effective runtime
+entitlements have not been verified on an iPhone. ARMv8.4-A remains required;
+an ARMv8-A compatibility Core is not included. Existing PPU/SPU caches remain
+on disk, but their new codegen identities require recompilation on first use.
+
+Only `Claude` was updated. No main change, tag or GitHub release was made.

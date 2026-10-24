@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "status": "native-passed-IPA-queued",
+  "status": "delivered-build-520-verified",
   "nativeCore": {
     "source": "407ea8f7462db0645590e799adcdff9ed56b1b21",
     "run": 40039707148,
@@ -129,5 +129,67 @@
     "job": 120719443020,
     "result": "success",
     "ourMeloNXSourceChanges": false
+  },
+  "delivery": {
+    "result": "success",
+    "build": 520,
+    "source": "91040ba37e3ab0f5aef01ce3dff18f079568f3ed",
+    "run": 40044710281,
+    "ipaSHA256": "5625290ad436b8b06c5ab0fccec04163b8df27163c92e4dc0135aa0521f8a9e3",
+    "bytes": 186250708,
+    "zipCRC": true,
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "minimumIOS": "18.0",
+    "cpuGateBeforeEscrowMarkerLinked": true,
+    "runtimeEntitlementsVerified": true,
+    "noInternalVPN": true,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false,
+    "job": 120723734180,
+    "version": "0.0.8",
+    "transportArtifacts": [
+      {
+        "id": 12541471437,
+        "name": "RewindBox-Build-520-91040ba37e3ab0f5aef01ce3dff18f079568f3ed-cold-part00",
+        "zipSHA256": "b8f30ffbe5baadb8c498c93e376adf9ce2a9b4d2d5579fc3242352022ea8e4e4",
+        "bytes": 46627694
+      },
+      {
+        "id": 12541501365,
+        "name": "RewindBox-Build-520-91040ba37e3ab0f5aef01ce3dff18f079568f3ed-cold-part01",
+        "zipSHA256": "41d822f04288ee22f12a2fdce1cda2d67f3a19b73c7814c0b32571f0c7daefef",
+        "bytes": 46627694
+      },
+      {
+        "id": 12541282295,
+        "name": "RewindBox-Build-520-91040ba37e3ab0f5aef01ce3dff18f079568f3ed-cold-part02",
+        "zipSHA256": "63e046c5ef46af804f8683e6ca504cc38271fc4a41e1e7f22a9b91bb7577a3d5",
+        "bytes": 46627694
+      },
+      {
+        "id": 12540719934,
+        "name": "RewindBox-Build-520-91040ba37e3ab0f5aef01ce3dff18f079568f3ed-cold-part03",
+        "zipSHA256": "158307b2372196d89c3d2d9fac574c6a05650271f4cc401306619d44b911270e",
+        "bytes": 46627694
+      }
+    ],
+    "CIAdHocSignaturesVerified": 87,
+    "appleProvisioningVerified": false,
+    "directAppleInstallationReady": false,
+    "installationMethod": "SideStore re-signing",
+    "signedCompiledSectionsAndABIMetadataUnchanged": true,
+    "compiledNativeBridgeUnits": [
+      "Rpcs3InternalBridgePlugin.mm",
+      "Rpcs3JitBridgePlugin.mm"
+    ],
+    "compiledCorePayloadFingerprint": "ea68f83ca7845a73eb984bc6c566a4bcd8aa8cccfa7268fa09314558b96e32c3",
+    "independentChecks": [
+      "Core source identity, payload fingerprint and ABI",
+      "CPU escrow guard marker in compiled bridge",
+      "IPA structure/dependencies",
+      "single IPA / 7 extensions / no internal VPN across 87 Mach-O images",
+      "embedded runtime entitlements",
+      "ZIP CRC / SHA-256 / four source-bound transport pieces"
+    ]
   }
 }
