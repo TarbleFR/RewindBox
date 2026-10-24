@@ -25169,7 +25169,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..fb1658e 100644
+index d800542..5d9ece8 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,174 @@
@@ -25953,7 +25953,7 @@ index d800542..fb1658e 100644
 +                    rpcs3::ios::diagnostics::GuestFrameWindow::histogram_upper_us(bin), guest_frames.histogram[bin]);
 +        }
 +        ios_core_profiler.notice(
-+            "FRAMEPROF527 session=%llu window=%llu phase=%s state=%u native_ui_visible=%u intervals=%llu unavailable=%llu "
++            "COREPROF FRAMEPROF527 session=%llu window=%llu phase=%s state=%u native_ui_visible=%u intervals=%llu unavailable=%llu "
 +            "median_ms=%.3f p95_ms=%.3f p99_ms=%.3f max_ms=%.3f over50ms=%llu over100ms=%llu "
 +            "guest_only=1 interval_quantization_us=1 total_interval_ms=%.3f window_ms=%.3f histogram_upper_us=%s "
 +            "phase_scope=report_snapshot interval_saturation_us=4294967295",
@@ -25965,7 +25965,7 @@ index d800542..fb1658e 100644
 +        // Fence scope excludes wait_flush(); range scope is one whole episode;
 +        // semaphore measures guest semaphore polling; admission is host-budget wait.
 +        ios_core_profiler.notice(
-+            "WAITPROF527 session=%llu window=%llu tuple=count:total_ms:max_ms "
++            "COREPROF WAITPROF527 session=%llu window=%llu tuple=count:total_ms:max_ms "
 +            "pipeline_queue=%llu:%.3f:%.3f pipeline_build_callback=%llu:%.3f:%.3f "
 +            "cpu_gpu_fence=%llu:%.3f:%.3f vm_range_episode=%llu:%.3f:%.3f "
 +            "guest_rsx_semaphore=%llu:%.3f:%.3f llvm_budget_cv=%llu:%.3f:%.3f "
@@ -25980,7 +25980,7 @@ index d800542..fb1658e 100644
 +        const auto& mem = memory_window.latest;
 +        const auto& peak = memory_window.peak;
 +        ios_core_profiler.notice(
-+            "MEMPROF527 session=%llu window=%llu samples=%llu valid=%u sample_period_target_ms=500 "
++            "COREPROF MEMPROF527 session=%llu window=%llu samples=%llu valid=%u sample_period_target_ms=500 "
 +            "footprint=%llu resident=%llu compressed=%llu virtual=%llu "
 +            "peak_footprint=%llu peak_resident=%llu peak_compressed=%llu peak_virtual=%llu "
 +            "scope=session_sampled_process_bytes shared_physical=unmeasured peaks_not_additive=1",
@@ -25988,7 +25988,7 @@ index d800542..fb1658e 100644
 +            mem.footprint, mem.resident, mem.compressed, mem.virtual_bytes,
 +            peak.footprint, peak.resident, peak.compressed, peak.virtual_bytes);
 +        ios_core_profiler.notice(
-+            "JITPUB527 session=%llu window=%llu calls=%llu empty_calls=%llu deferred_calls=%llu history_ranges=%llu dirty_ranges=%llu "
++            "COREPROF JITPUB527 session=%llu window=%llu calls=%llu empty_calls=%llu deferred_calls=%llu history_ranges=%llu dirty_ranges=%llu "
 +            "flushed_bytes=%llu total_ms=%.3f max_ms=%.3f retained_metadata_bytes=%llu peak_metadata_bytes=%llu "
 +            "scope=process_window_counters window_boundary_approximate=1",
 +            profile_session, profile_window, publication.calls, publication.empty_calls, publication.deferred_calls, publication.history_ranges, publication.dirty_ranges,

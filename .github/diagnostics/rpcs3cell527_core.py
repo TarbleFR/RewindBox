@@ -17,6 +17,7 @@ import tempfile
 import zipfile
 import rpcs3arm526_core as previous
 import rpcs3cell527_partial as partial_reuse
+import rpcs3cell527_success as completed_reuse
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = 'd1354170efa22d18ab6cca898998a340239a90c2'
@@ -26,7 +27,7 @@ PRIOR_ARTIFACT = 12573877967
 PRIOR_BYTES = 99337231
 PRIOR_SHA = '0c6120cb458e595924bac79c69518d2dd088afb5016d152bb32fa80e3b2cc982'
 FIXTURE = 'test/fixtures/rpcs3_cell527.diff'
-FIXED_INPUTS = ('.github/diagnostics/rpcs3cell527_core.py', '.github/diagnostics/rpcs3cell527_partial.py', '.github/workflows/rpcs3-cell527-core.yml', FIXTURE)
+FIXED_INPUTS = ('.github/diagnostics/rpcs3cell527_core.py', '.github/diagnostics/rpcs3cell527_success.py', '.github/diagnostics/rpcs3cell527_partial.py', '.github/workflows/rpcs3-cell527-core.yml', FIXTURE)
 CHANGED_REPOSITORY_INPUTS = frozenset({'build-utils/rpcs3/canonical-source.json',
     'build-utils/rpcs3/embedded-core.patch', 'test/neo_swap_core_pin_test.py',
     'build-utils/build_rpcs3_embedded_core.sh', '.github/workflows/rpcs3-core.yml'})
@@ -221,7 +222,7 @@ def execution_environment():
 def execute_tests(source, directory, current, reused=None, environment=None):
     environment = environment or execution_environment()
     reused = reused or {}
-    assert set(reused) <= partial_reuse.ALL_CASES
+    assert set(reused) <= completed_reuse.CASES
     partial = dict(schema=1, source=command('git', 'rev-parse', 'HEAD').decode().strip(),
         input_sha256=current, native_source_sha256=manifest()['files_sha256'],
         physical_device_tested=False, all_tests_passed=False, tests={},
@@ -247,7 +248,7 @@ def execute_tests(source, directory, current, reused=None, environment=None):
             payload = json.loads(item['report'])
             payload['reused_validation'] = item['provenance']
             report.write_text(json.dumps(payload, indent=2) + '\n')
-            output = (f"REUSED individually passed {name} from failed preflight {item['provenance']['run']}; no Core inferred.\n").encode() + item['output']
+            output = (f"REUSED unchanged {name} from completed Core run {item['provenance']['run']}; no Core binary reused.\n").encode() + item['output']
             state.update(returncode=0, status='passed', executed_here=False, reused_from=item['provenance'])
             for relative, data in item.get('artifacts', {}).items():
                 assert name in {'ppu-simd526-regression', 'ppu-sum-sanitized', 'ppu-sum-benchmark'}
@@ -298,38 +299,30 @@ def execute_tests(source, directory, current, reused=None, environment=None):
 def prepare(source, output):
     output.unlink(missing_ok=True)
     current = source_contract(source)
-    files, metadata_sha = prior_bundle(download=True)
-    prior = validate_prior(files, metadata_sha, source)
     directory = ROOT / 'build/rpcs3-core-diagnostics'
     directory.mkdir(parents=True, exist_ok=True)
-    (directory / 'cell527-prior526.json').write_text(json.dumps(prior, indent=2) + '\n')
     environment = execution_environment()
-    reused, reuse_attempts = {}, {}
-    for label, pin, admit in (('attempt1', partial_reuse.PIN1, partial_reuse.admitted),
-                              ('attempt2', partial_reuse.PIN2, partial_reuse.admitted_second)):
-        try:
-            if 'toolchain' not in environment:
-                environment['toolchain'] = partial_reuse.current_toolchain()
-            candidates = admit(sys.modules[__name__], current, environment, download=True)
-            assert not set(candidates) & set(reused)
-            reused.update(candidates)
-            reuse_attempts[label] = dict(status='admitted', cases=sorted(candidates),
-                source=pin['source'], run=pin['run'], artifact=pin['artifact'], archive_sha256=pin['sha256'],
-                container_conclusion='failure', core_built=False)
-        except (AssertionError, OSError, KeyError, ValueError, TypeError, subprocess.SubprocessError, zipfile.BadZipFile) as error:
-            reuse_attempts[label] = dict(status='not-admitted', reason=str(error),
-                source=pin['source'], run=pin['run'], artifact=pin['artifact'], archive_sha256=pin['sha256'])
-            print('Individual527 passes from ' + label + ' not admitted; affected cases execute: ' + str(error), flush=True)
+    try:
+        environment['toolchain'] = partial_reuse.current_toolchain()
+        reused = completed_reuse.admitted(sys.modules[__name__], source, current, environment, download=True)
+        reuse_attempt = dict(status='admitted', cases=sorted(reused), source=completed_reuse.SOURCE,
+            run=completed_reuse.RUN, artifact=completed_reuse.ARTIFACT, archive_sha256=completed_reuse.SHA,
+            completed_core_validation_success=True, core_binary_reused=False)
+    except (AssertionError, OSError, KeyError, ValueError, TypeError, subprocess.SubprocessError, zipfile.BadZipFile) as error:
+        reused = {}
+        reuse_attempt = dict(status='not-admitted', reason=str(error), source=completed_reuse.SOURCE,
+            run=completed_reuse.RUN, artifact=completed_reuse.ARTIFACT, archive_sha256=completed_reuse.SHA)
+        print('Unchanged completed-Core cases not admitted; affected cases execute: ' + str(error), flush=True)
     partial, reports = execute_tests(source, directory, current, reused=reused, environment=environment)
     result = dict(schema=1, source=partial['source'], input_sha256=current,
-        native_source_sha256=manifest()['files_sha256'], prior_source=PRIOR_SOURCE,
-        prior_run=PRIOR_RUN, prior_artifact=PRIOR_ARTIFACT, prior_archive_sha256=PRIOR_SHA,
-        prior_metadata_sha256=metadata_sha, prior_validation=prior,
-        fixture_sha256=record()['fixture_sha256'], reports_sha256=reports,
-        partial_receipt_sha256=sha((directory / 'cell527-partial.json').read_bytes()),
+        native_source_sha256=manifest()['files_sha256'], fixture_sha256=record()['fixture_sha256'],
+        reports_sha256=reports, partial_receipt_sha256=sha((directory / 'cell527-partial.json').read_bytes()),
         log_sha256=sha((directory / 'cell527-proof.txt').read_bytes()),
-        all_tests_passed=True, physical_device_tested=False,
-        environment=environment, environment_sha256=partial['environment_sha256'], partial_reuse_attempts=reuse_attempts)
+        completed_core_reference=dict(source=completed_reuse.SOURCE, run=completed_reuse.RUN,
+            artifact=completed_reuse.ARTIFACT, archive_sha256=completed_reuse.SHA,
+            core_binary_reused=False, changed_native_paths=[completed_reuse.PERFORMANCE]),
+        completed_core_reuse_attempt=reuse_attempt, all_tests_passed=True, physical_device_tested=False,
+        environment=environment, environment_sha256=partial['environment_sha256'])
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2) + '\n')
 
@@ -339,8 +332,11 @@ def verify(path, source):
     assert proof['source'] == command('git', 'rev-parse', 'HEAD').decode().strip()
     assert proof['input_sha256'] == source_contract(source)
     assert proof['native_source_sha256'] == manifest()['files_sha256']
-    assert proof['prior_archive_sha256'] == PRIOR_SHA and proof['fixture_sha256'] == record()['fixture_sha256']
+    assert proof['fixture_sha256'] == record()['fixture_sha256']
     assert proof['all_tests_passed'] is True and proof['physical_device_tested'] is False
+    assert proof['completed_core_reference'] == dict(source=completed_reuse.SOURCE, run=completed_reuse.RUN,
+        artifact=completed_reuse.ARTIFACT, archive_sha256=completed_reuse.SHA,
+        core_binary_reused=False, changed_native_paths=[completed_reuse.PERFORMANCE])
     directory = ROOT / 'build/rpcs3-core-diagnostics'
     partial_path = directory / 'cell527-partial.json'
     assert sha(partial_path.read_bytes()) == proof['partial_receipt_sha256']
@@ -360,33 +356,24 @@ def verify(path, source):
         assert sha((directory / state['report']).read_bytes()) == state['report_sha256']
         assert sha((directory / state['output']).read_bytes()) == state['output_sha256']
     reused_names = {name for name, state in partial['tests'].items() if 'reused_from' in state}
-    assert reused_names <= partial_reuse.ALL_CASES
-    for label, cases, admit in (('attempt1', partial_reuse.CASES, partial_reuse.admitted),
-                                ('attempt2', partial_reuse.SECOND_CASES, partial_reuse.admitted_second)):
-        selected = reused_names & cases
-        if selected:
-            admitted = admit(sys.modules[__name__], proof['input_sha256'], proof['environment'], download=False)
-            assert selected == set(admitted) == cases
-            assert proof['partial_reuse_attempts'][label]['status'] == 'admitted'
-            for name, item in admitted.items():
-                state = partial['tests'][name]
-                assert state['executed_here'] is False and state['reused_from'] == item['provenance']
-                payload = json.loads(item['report'])
-                payload['reused_validation'] = item['provenance']
-                assert (directory / state['report']).read_bytes() == (json.dumps(payload, indent=2) + '\n').encode()
-                expected_output = (f"REUSED individually passed {name} from failed preflight {item['provenance']['run']}; no Core inferred.\n").encode() + item['output']
-                assert (directory / state['output']).read_bytes() == expected_output
-                for relative, data in item.get('artifacts', {}).items():
-                    assert (directory / relative).read_bytes() == data
-        else:
-            assert proof['partial_reuse_attempts'][label]['status'] == 'not-admitted'
-    # The already authenticated archive is rebound to every current unchanged
-    # dependency using the actual materialized source again by the builder.
-    files, metadata_sha = prior_bundle(download=False)
-    assert metadata_sha == proof['prior_metadata_sha256']
-    assert proof['prior_validation'] == validate_prior(files, metadata_sha, source)
-    assert proof['prior_validation'] == json.loads((directory / 'cell527-prior526.json').read_bytes())
-    print('PASS exact source-bound Build527 delta and authenticated unchanged526 evidence; no iPhone performance claim')
+    assert reused_names <= completed_reuse.CASES
+    if reused_names:
+        admitted = completed_reuse.admitted(sys.modules[__name__], source, proof['input_sha256'], proof['environment'], download=False)
+        assert reused_names == set(admitted) == completed_reuse.CASES
+        assert proof['completed_core_reuse_attempt']['status'] == 'admitted'
+        for name, item in admitted.items():
+            state = partial['tests'][name]
+            assert state['executed_here'] is False and state['reused_from'] == item['provenance']
+            payload = json.loads(item['report'])
+            payload['reused_validation'] = item['provenance']
+            assert (directory / state['report']).read_bytes() == (json.dumps(payload, indent=2) + '\n').encode()
+            expected_output = (f"REUSED unchanged {name} from completed Core run {item['provenance']['run']}; no Core binary reused.\n").encode() + item['output']
+            assert (directory / state['output']).read_bytes() == expected_output
+            for relative, data in item.get('artifacts', {}).items():
+                assert (directory / relative).read_bytes() == data
+    else:
+        assert proof['completed_core_reuse_attempt']['status'] == 'not-admitted'
+    print('PASS current routing delta and unchanged completed-Core components; actual current Core rebuild still required')
 
 
 
@@ -403,6 +390,8 @@ def write_core_identity(directory):
     assert image['platform'] == 2 and len(image['definedSymbols']) == 88
     for marker in record()['required_binary_markers']:
         assert marker.encode() in data, 'Missing527 implementation: ' + marker
+    for marker in completed_reuse.PREFIXES:
+        assert b'COREPROF ' + marker + b' session=' in data, 'Required host-routed527 binary format missing'
     buildlog = (ROOT / 'build/rpcs3-core-diagnostics/build.log').read_text()
     actual = {kind: re.findall(r'NeoStation ' + kind + r' codegen identity: ([0-9a-f]{16})', buildlog)
               for kind in ('PPU', 'SPU')}
