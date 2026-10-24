@@ -79,7 +79,31 @@ du jeu n'est accessible. Une future comparaison sur appareil devra conserver
 le même jeu/update, état, scène, réglages, température et caches froids puis chauds.
 Créer une copie des sauvegardes originales pour les essais.
 
-Compilation du Core Apple et IPA privée : **en attente**. La livraison doit
-réutiliser l'application 523 inchangée et reconstruire/signaturer son paquet
-avec le nouveau cœur réellement compilé ; aucune nouvelle campagne Flutter
-n'est nécessaire pour cette modification exclusivement native.
+Le Core iPhone a compilé depuis `a7a109b955d2e60de005fd663eb4391f6c93e88d`,
+[Actions 40110663507](https://github.com/TarbleFR/RewindBox/actions/runs/40110663507).
+Le contrôle Apple natif passe avant la compilation complète. Les artefacts
+ont été téléchargés et vérifiés indépendamment : SHA-256 du Core
+`382bd3e2b27eb186c059fde7b5294de33f1334117ee2f593957b76658625fff0`, ABI 30, 88 exports exacts et 42 unités SDK.
+Les identités PPU/SPU restent `9013390836efe46e` / `a601a98f20f30c80`.
+Le contrôle négatif et les 20 cas passent avec les méthodes HLE réelles,
+le moteur d'attente RPCS3 et `os_sync_wait_on_address` sur ARM64 macOS.
+Cela ne constitue pas un essai de sauvegarde ou de gameplay sur iPhone. Le premier passage `40110380865` a
+échoué à la compilation de la méthode `lock()` inutilisée dans le test avec
+Xcode 16.4 ; cette définition a été retirée de l'extraction. Les trois méthodes
+d'admission exercées et toutes les assertions restent celles du moteur réel.
+Le correctif moteur n'a pas changé et ce premier passage n'a produit aucun Core.
+
+L'assemblage privé 524 réutilise le cache chiffré et authentifié de l'application
+523, source `c1f550f8`, run `40104064265`. Une empreinte de la véritable IPA 523
+identifie les **87 images ARM64**, leurs entitlements et **4410 ressources**
+conservées. Les numéros de build de l'application et de ses extensions, les
+signatures et les métadonnées natives/source listées sont les seules exceptions.
+Le code des autres moteurs, du frontend et du pont natif doit rester identique.
+Les trois images universelles sont comparées sur leur tranche ARM64 utilisable.
+Le test sur l'IPA réelle accepte le changement de numéro et refuse un identifiant
+ou une instruction de l'application modifiés. Aucun binaire d'IPA externe n'est utilisé.
+
+L'IPA 524 reste **en attente d'assemblage et vérification**. La préparation conserve
+les notices originales et ajoute le delta canonique, son manifeste et la recette
+native au paquet de sources. Elle resigne le paquet avec le cœur source compilé ;
+aucune nouvelle campagne Flutter n'est lancée.

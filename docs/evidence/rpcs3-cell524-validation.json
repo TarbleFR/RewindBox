@@ -42,7 +42,7 @@
     "scope": "native synchronization fixture; no game, device, FPS or RAM measurement"
   },
   "nativeBuild": {
-    "status": "pending",
+    "status": "success",
     "failedAttempts": [
       {
         "source": "9c761ab30149bcf83aca0ceadda0859b306a564f",
@@ -53,13 +53,174 @@
         "coreProduced": false,
         "nativeFixChanged": false
       }
-    ]
+    ],
+    "source": "a7a109b955d2e60de005fd663eb4391f6c93e88d",
+    "run": 40110663507,
+    "job": 120921508605,
+    "artifacts": [
+      {
+        "id": 12566613108,
+        "kind": "diagnostics",
+        "archiveSHA256": "917a901c81bb07d627e6309f7eff25ca68463ad60626b56721ff750e1a0ef3f7"
+      },
+      {
+        "id": 12566473543,
+        "kind": "Core",
+        "archiveSHA256": "864b60fd7435ae14b2d83ebcee20c8f7cd866359aa63b5b9407efd1320f9eace"
+      }
+    ],
+    "independentValidation": {
+      "result": "passed",
+      "source": "a7a109b955d2e60de005fd663eb4391f6c93e88d",
+      "upstreamSource": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+      "sha256": "382bd3e2b27eb186c059fde7b5294de33f1334117ee2f593957b76658625fff0",
+      "bytes": 77001872,
+      "abi": 30,
+      "architecture": "arm64",
+      "minimumOS": "16.3.0",
+      "exportCount": 88,
+      "nativeInputsVerified": 132,
+      "compiledCorePayloadFingerprint": "0bc7fcfa88c6295bc84411c6a79642235472cebb9dedadbd19584942d81cfec6",
+      "syntaxGateUnits": [
+        "RPCS3IOS.cpp",
+        "RPCS3IOSPerformance.cpp",
+        "RPCS3IOSFreezeDump.cpp",
+        "RPCS3IOSSettings.cpp",
+        "savestate_utils.cpp",
+        "System.cpp",
+        "system_config_types.cpp",
+        "JITASM.cpp",
+        "JITLLVM.cpp",
+        "SourceClient.cpp",
+        "JITIOS.cpp",
+        "RPCS3IOSExperimentalPolicy.cpp",
+        "IOSTextureHash.cpp",
+        "TAR.cpp",
+        "ISO.cpp",
+        "PPUAnalyser.cpp",
+        "PPUFunction.cpp",
+        "PPUModule.cpp",
+        "PPUThread.cpp",
+        "PPUTranslator.cpp",
+        "SPUCommonRecompiler.cpp",
+        "SPULLVMRecompiler.cpp",
+        "SPUThread.cpp",
+        "sys_game.cpp",
+        "sys_mutex.cpp",
+        "cellVdec.cpp",
+        "vm.cpp",
+        "BufferUtils.cpp",
+        "nv406e.cpp",
+        "overlay_home_menu_main_menu.cpp",
+        "overlay_home_menu_savestate.cpp",
+        "RSXFIFO.cpp",
+        "RSXThread.cpp",
+        "fsr_pass.cpp",
+        "buffer_object.cpp",
+        "data_heap.cpp",
+        "memory.cpp",
+        "device.cpp",
+        "VKGSRender.cpp",
+        "VKProgramPipeline.cpp",
+        "VKResourceManager.cpp",
+        "VKTextureCache.cpp"
+      ],
+      "wakeProof": {
+        "passed": true,
+        "actualHLEMethods": true,
+        "actualAtomicWaitEngine": true,
+        "beforeMethodSHA256": "05aeb95ee311c7f51d8607fdbe83282cc60c2da829b8a154c49e10cde1faf1f5",
+        "sourceInputs": {
+          "rpcs3/Emu/savestate_utils.cpp": "799466dedec54aadc57f24440905837e726936e20a1ae8032e46fb9e0359ce61",
+          "rpcs3/Emu/savestate_utils.hpp": "8f6c7ccf781e71ae6ac559c464063e3657eeeb44616373e1831e584310e729d0",
+          "rpcs3/util/atomic.cpp": "7fd0a17fa78d4ef6f078cb87a4735e8f20431d744b620b46801a314a89202d66",
+          "rpcs3/util/atomic.hpp": "5333cb88153e713e47eae1240b7a2684472a7cc0c44b832274f9ba53d698c677",
+          "Utilities/sync.h": "3fff9bafc7228c1ab718fedef27d3a27fb5d2896ef34ef49eaa3a6b4d1c61a7d",
+          "rpcs3/ios/tests/MinecraftAtomicSupport.cpp": "f394b8362ddfae74f8fa97a33040ca2c3d340c2cf53e9752b4ab21a8fff41902"
+        },
+        "cases": [
+          {
+            "variant": "before",
+            "exit": 7,
+            "stdout": "",
+            "stderr": "FAIL aborted HLE finalization left 8 registered native waits asleep; fixture notify_all rescued them"
+          },
+          {
+            "variant": "candidate",
+            "exit": 0,
+            "stdout": "PASS 20 HLE cases: parked waiters resume after abort, retry succeeds, finalized rejects, active locks and initial rejection preserved; actual RPCS3 wait engine",
+            "stderr": ""
+          }
+        ],
+        "sanitizers": true,
+        "platform": "Darwin",
+        "machine": "arm64",
+        "nativeWaitBackend": "Apple os_sync_wait_on_address",
+        "scope": "native synchronization fixture; no game, device, FPS or RAM measurement"
+      },
+      "codegen": {
+        "actual": {
+          "PPU": [
+            "9013390836efe46e"
+          ],
+          "SPU": [
+            "a601a98f20f30c80"
+          ]
+        },
+        "prior": {
+          "PPU": [
+            "9013390836efe46e"
+          ],
+          "SPU": [
+            "a601a98f20f30c80"
+          ]
+        },
+        "coldCompileRequired": false,
+        "deviceTested": false
+      },
+      "passiveDlopen": {
+        "initializerCount": 2792,
+        "initializerSymbols": 911,
+        "marker": "NEOSTATION_BUILD301_PASSIVE_DLOPEN_V1",
+        "forbiddenReachability": false,
+        "scope": "named forbidden functions via direct ARM64 B/BL edges, maximum depth 16",
+        "deviceRuntimeTested": false
+      },
+      "deviceRuntimeTested": false
+    }
   },
   "ipa": {
-    "status": "pending"
+    "status": "prepared; private workflow not yet run",
+    "baselineCacheKey": "neostation-device-v2-macOS-ARM64-xcode26.3-flutter3.47.2-c1f550f8be86c91d65dc564ebddff593f2e3fe46-523-09b8aa7d1bc439098e74eaba3735094714b3cd5740c469e7c84be8dd2fec6336-normal",
+    "baselinePayloadFixtureSHA256": "a4cbe634f3eb9cc06ae115b47553b9c3813ce4c7ef72a80111289def4774f13a",
+    "appCodeRecompiled": false
   },
   "knownLogLimit": "No new Build523 device capture; recorded Build522 stop is in PPU restoration, not a demonstrated occurrence of aborted HLE save finalization.",
   "physicalDeviceTested": false,
   "gamePerformanceMeasured": false,
-  "physicalRAMReductionMeasured": false
+  "physicalRAMReductionMeasured": false,
+  "appReuseInvariant": {
+    "passed": true,
+    "realIPA": 523,
+    "ipaSHA256": "7fa958570e802c489db4d4df07b7388cde4bb18f94c2555bcce060db9aedb8a1",
+    "cases": [
+      {
+        "case": "baseline",
+        "accepted": true
+      },
+      {
+        "case": "version",
+        "accepted": true
+      },
+      {
+        "case": "identifier",
+        "accepted": false
+      },
+      {
+        "case": "code",
+        "accepted": false
+      }
+    ],
+    "purpose": "actual app reuse invariant; no device/game performance measurement"
+  }
 }
