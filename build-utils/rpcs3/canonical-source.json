@@ -22,7 +22,7 @@
     "rpcs3/Crypto/unself.cpp": "c2f3a028fc767fde316a450d8f507f6cddee9c47392c9084ba3bfecccf1928f2",
     "rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp": "be86d611ce7288dbb83af424ef1f1076269b86df7727efc8fbfb20a1662f3e69",
     "rpcs3/Emu/Audio/IOS/IOSAudioBackend.h": "505080c1a9992c10511f8076086090bc350deefdad9d95488eef348f903fed67",
-    "rpcs3/Emu/CMakeLists.txt": "16afea601fecb11c4048d2295bda02727232c5fd86618b1fce69f2d4ff0ca4d6",
+    "rpcs3/Emu/CMakeLists.txt": "395de2909c670712fd3c51480f91699f35b5a14bf0dfaabfab7cb597e1dda2d2",
     "rpcs3/Emu/CPU/Backends/AArch64/SPUInterpreterGateway.h": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3",
     "rpcs3/Emu/CPU/Backends/AArch64/SPUReservationHash.h": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3",
     "rpcs3/Emu/CPU/CPUTranslator.h": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce",
@@ -36,13 +36,13 @@
     "rpcs3/Emu/Cell/PPUNoSizeSplitPolicy.h": "b1b2ec0e276aec3ac8d65c568e577092a4f64d1fd3304e74acb7043180340526",
     "rpcs3/Emu/Cell/PPUThread.cpp": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
     "rpcs3/Emu/Cell/PPUThread.h": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3",
-    "rpcs3/Emu/Cell/PPUTranslator.cpp": "ca045fcf45d11eba12fb4f0b309bb12dfc7b6e48c29201a26f6188258bd6b730",
+    "rpcs3/Emu/Cell/PPUTranslator.cpp": "39e90825625f0000464cc8183222cabb9b4507857f917fe99d6b02c323889b8b",
     "rpcs3/Emu/Cell/PPUTranslator.h": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3",
     "rpcs3/Emu/Cell/SPUARM64CompareLowering.h": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958",
     "rpcs3/Emu/Cell/SPUARM64Lowering.h": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d",
     "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp": "4699b7d26b6db826dc0c98c49a711d4b00fd3dc70512df3a162801a76f263db0",
     "rpcs3/Emu/Cell/SPUDeferredCompilePolicy.h": "07acd939941971fda3425eda2dc8dea7c35f63faf36a48e34af6af619fa58108",
-    "rpcs3/Emu/Cell/SPUInterpreter.cpp": "cb333853b65df6cb4a1f1254539eb193b685fc3e91c752ab4eb7b014e3c17e8f",
+    "rpcs3/Emu/Cell/SPUInterpreter.cpp": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3",
     "rpcs3/Emu/Cell/SPUInterpreter.h": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3",
     "rpcs3/Emu/Cell/SPUInterpreterDiagnostics.h": "698a0bda23a761ef425e66a7c669ea727b6d24f9bc858c9635b6b046b76c2a28",
     "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "613a7fa9ff59420720c810b0040e3d3b89cae89ea41e3715e7daf62de20c9be7",
@@ -60,7 +60,7 @@
     "rpcs3/Emu/Memory/vm_locking.h": "8729d3ce7f4a705c355bbfe91318eb34b3843b99bb50b19c033974a758527927",
     "rpcs3/Emu/Memory/vm_reservation.h": "b729ef505c3e197e14de86db688e95737c5158f9a33ef7b7d7eba488c5192288",
     "rpcs3/Emu/RSX/Capture/rsx_replay.h": "9fa252bfa76b05a65fef8216426794eba432cf7085084f29fa7179e9a0da1941",
-    "rpcs3/Emu/RSX/Common/BufferUtils.cpp": "337d2fb0563df4723d8506f0ca62fd3f0c6b1b97067472caf3c7885039df3552",
+    "rpcs3/Emu/RSX/Common/BufferUtils.cpp": "271b827c3dba1558a0b4f50766954f3c94254792847768795d79a313d8bec13c",
     "rpcs3/Emu/RSX/Common/BufferUtils.h": "ecb0bd1da421563ece47bdcbb73be9cbc6da7ae0f9eaf0e37f62e095a5d1f36c",
     "rpcs3/Emu/RSX/Common/aligned_malloc.hpp": "70fcf5afdfb765593a38ddff7ddefce5895480a62003e0f1a4b9cd6cb9d9f26d",
     "rpcs3/Emu/RSX/Common/sampler_invalidation.h": "b487df3b5ac2907349b6988cb758e52a81cd8649269486c404f3921ccb7072c4",
@@ -79,7 +79,7 @@
     "rpcs3/Emu/RSX/Program/GLSLSnippets/GPUDeswizzle.glsl": "53de345ad8305c1a864e21008c7b793833002ef8c141d8e926a883ea2ef742ee",
     "rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXROPEpilogue.glsl": "9fadaf367a67f83022488ecfb6b05b0673be27e9bd6daa459764de345503fb2b",
     "rpcs3/Emu/RSX/Program/GLSLTypes.h": "80668e419f75c9a10bf917c03157e3238e6cbb8946dd6be7f069e972d0de48b4",
-    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "0b0c19bb7eace654b2b49a4461d5db2f203bbca5a1171b91e421e47bc80c9a72",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "c2c03e8352c5caabec4b34bdbe6f92f53244d7e88affe8bfcc6d99fb4cfd80f1",
     "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "a0289c3fe4f050009bb0ee71d0ac441f2541ed2328607272386db28d15eeaec3",
     "rpcs3/Emu/RSX/RSXFIFO.cpp": "b238769efe2bbc332a940fda2a87ee9ca17bae54e3303d5dfce98be5a9fb2c9b",
     "rpcs3/Emu/RSX/RSXOffload.cpp": "239ea3c28baff6ee519d1ae745e4259fc329f3e5e61313ea6bc4594316f8b602",
@@ -257,12 +257,17 @@
     "rpcs3/util/fixed_typemap.hpp": "60ac7431c1c12780c98faa391b9acc6d0879ba86a72f4caf06fe26e1edaf72b1",
     "rpcs3/ios/IOSRestoreExecutor.h": "3e02896bc6b0d7b99524d36ca851abdc4f80114d2b3c06d34f429b9e941c15bc",
     "rpcs3/ios/IOSGraphicsMemorySnapshot.h": "0fbf6e36beed020e6de5ff5bb2e0988639b3ee829b0530c4297c7a7775c4d0be",
-    "rpcs3/Emu/Cell/lv2/sys_fs.cpp": "9662e72b1b3db28da2e47f0d7907b75fd1506ab7ef0dfe904e2862a8e4fa1de1",
+    "rpcs3/Emu/Cell/lv2/sys_fs.cpp": "f4fd1df596029052420730f8a3bba50a6943bb0d6ba80e7fbeb98231c352bc08",
     "rpcs3/Emu/IdManager.h": "366efb1f439a38646e53e2431e95d06a43c9f99b246b84dad8859a91fcfabf2e",
-    "rpcs3/ios/IOSGPUMemoryProfile.h": "bc5f673312a950e6c50151b5f772e6dfbad8439b900d2d0b5ac91f13192d56aa"
+    "rpcs3/ios/IOSGPUMemoryProfile.h": "bc5f673312a950e6c50151b5f772e6dfbad8439b900d2d0b5ac91f13192d56aa",
+    "rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h": "06417bbf616bbca35175b0901821ed05c4c19076aa66e48bccc63e98d1656bd4",
+    "rpcs3/Emu/RSX/Common/buffer_stream.hpp": "a475324b6c2277250feb51fa8c8347947fe9f9c6d986f45a33a5ada7cebcfbb9",
+    "rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp": "6de3359f6661b3ca57aeeb18d29cb08c5ddf8ffa41e3f538442e2defb25436d5",
+    "rpcs3/Emu/RSX/RSXTexture.cpp": "6c8818a94f847bfc63b8fbf59d82d37cdc856e9b6ca192e6cf2a0c9f1918be7b",
+    "rpcs3/util/simd.hpp": "910971d051610881933a52b1ba3b2eec02ab0a9d7c1feac50219ae6d1506d881"
   },
-  "patch_sha256": "3c08064ece47cbade52b453292c693d7fe5ca93c8071fb11055a1a08e3413168",
-  "policy": "Build353 experimental; selective XITRIX Preview 0.10 engine backports (ARM64 SPU/PPU, VM reservations, RSX/Metal, audio recovery, savestate and graphics correctness); Build352 God of War III bounded-memory policy and Build350 lifecycle baseline retained; NeoSwap v1 opt-in host-owned file-backed RSX CPU data allocator, existing JIT/VM/GPU policies unchanged; selective XITRIX v0.10.1 SPU BID continuation, disabled-texture eviction, MoltenVK conditional-rendering fixes; SPU object cache v5 retires old CFG objects; optional NeoSwap client diagnostics ABI 1, main Core ABI 30 unchanged; NeoSwap coherent host-visible Vulkan SYSTEM buffer imports (1-256MiB), strict external-memory/type/alignment checks, deferred GPU resource disposal and allocator fallback; optional NeoSwap guest page relay ABI 1 for guest data shared aliases, host-owned preparation after authenticated creator exit and ordinary file fallback before first published mapping; Build395: measured God of War III opt-in for RSX CPU aligned buffers 64KiB-1MiB via verified donor loans only, fixed metadata budgets, fast pressure gate and original heap fallback; no JIT/VM/GPU/private allocations redirected; Build409: additive NeoSwap client kinds (GPU host-visible imports, owned video-frame mappings) through the unchanged allocator ABI 1, relay host loans selected by the host budget controller; no JIT/VM/GPU/private allocations redirected; Post-410: loading-time SPU guest metadata warmup and telemetry, no ARM64 object persistence; ready-only fast NeoSwap host loans and ordinary guest backing for new gameplay allocations; existing published alias coherence retained; physical device validation pending; Build435 Core delta (10 October 2026): measured per-process allowance in IOSMemoryPressurePolicy (relative moderate stage, adaptive reclaim cooldown), deferred SPU LLVM compilation on a worker pool with legacy-interpreter hand-off, unlocked snapshot precheck before vm::writer_lock on PUTLLC/stcx; no device validation; Build436: the Build435 deferred SPU compilation is switched off (deferred_compile_enabled=false) after God of War III froze about 5 s after boot on the iPhone in 3 of 3 Build435 sessions and another title stopped on SPU STOP 0x0; SPU misses compile inline as in Build434; the measured memory allowance and the writer-lock precheck are kept; no device validation of Build436.; Build436 XITRIX v0.11: five RSX/Vulkan engine commits imported verbatim with their fixtures (framebuffer source selection, Vulkan image-pool race, rendering overhead, divided vertex range, alpha-to-one); no SPU, PPU, JIT, VM or lifecycle change; no device validation of the XITRIX v0.11 import. Build441: optional prepared guest relay ABI 1 permits new eligible shared-memory objects during gameplay by borrowing host-prepared exact-size tokens only; no slow create during gameplay, no migration of published or FILE backing, unchanged alias and retirement semantics, four inline alias records, optional process-lifetime client metrics; no iPhone gameplay validation.; Build444 (11 October 2026, maintainer request): optional direct guest admission ABI 1 (NeoSwapDirectRelayAPI.try_create) lets a gameplay stock miss or an oversize request create an exact-size relay object without waiting, under the host budget allowance; no blocking create, extension request, lock wait, published-object migration or FILE migration in gameplay; optional client diagnostics extension ABI 1 (direct outcomes, live FILE exclusion, boot creations); JITPROF phase counters (PPU translate/opt/verify/codegen/cache/load/finalize/symbols, SPU build/passes/codegen, headroom minimum) in Utilities/JITPhaseProfile.h; PPU object cache name v9 with the codegen identity (LLVM release, configure-time source digest NEOSTATION_PPU_CODEGEN_ID, target features); opt-in ARM64 PPU EarlyCSE (ppu_llvm_ir_passes, default off, hashed into the settings bits); deferred SPU compilation stays off; no device validation of Build444.; Build481 persistent ARM64 SPU object cache: the SPU translator references the host only through symbols (spu_timebase_offs mapped per engine instead of a baked &g_timebase_offs), a relocatability guard refuses to persist any module that turns a host address into a pointer constant, objects are validated (parsed, entry symbol required) before MCJIT and removed when invalid, the directory key folds the cache format, settings, device features, CPU, LLVM release and the configure-time SPU codegen digest NEOSTATION_SPU_CODEGEN_ID, directories of other keys are removed, the directory is bounded to 40000 files or 512 MiB with oldest-first eviction to 90 percent, retry variants carry -notbl2/-nofma name suffixes, a hit skips the pass pipeline and verification; JITPROF phases spu_cache_read/spu_object_load/spu_cache_write and SPUPROF obj_* counters added; Persistent SPU Object Cache Automatic resolves to enabled on ARM64; interpreter module stays process-local; deferred SPU compilation stays off; no device validation of Build481.; Build483 LLVM pipelines: SPU pipeline gains InstCombine between SimplifyCFG and DSE as upstream RPCS3 x86-64 and ARMSX3 ARM64 (setting SPU LLVM Pipeline, default Upstream InstCombine, Reference 481 keeps the previous pipeline), both m_test_state calls carry their callee convention (InstCombine turns a mismatched direct call into unreachable), the SPU pipeline is folded into the object-cache key; PPU LLVM Pipeline setting (Upstream ARM64 default = no IR pass, EarlyCSE = x86-64 pipeline = the Build 444 boolean, Extended = EarlyCSE SimplifyCFG InstCombine DSE LICM ADCE) with objects named per level (arm64_ir_passes, arm64_ir_passes_extended) and PPUThread.cpp in the PPU codegen digest; JITPROF reports ppu_pipeline/ppu_ir_passes/spu_pipeline; deferred SPU compilation stays off; no device validation of Build483. Build487 (19 October 2026, maintainer request after docs/rpcs3-bottleneck-audit-2026-10-18.md): observability of the audit (metrics grow additively to 72 bytes under struct_size with guest frames, native-UI flag, emulator state and boot progress; COREPROF other/top threads and windows without frames; CONFIG_LAYERS, NEOSTATION_RESTART, JITPROF_BOOT, SAVESTATE_BOOT, bounded FREEZE_DUMP and MUTEX_DESTROY_BUSY lines; RANGELOCKPROF maximum holds; time-based RSX load) and four iOS Experimental settings whose defaults keep the Build 483 gameplay behaviour (SPU Spin Timing Reference, RSX FIFO Idle Wait Yield with a new Bounded sleep value, SPU Warmup Scope God of War III) except the cache-only SPU Object Cache Retained Keys (2); code-generation sources and object-cache key lines unchanged; the PPU and SPU codegen digests change because PPUThread.cpp, JITPhaseProfile.h and SPUCommonRecompiler.cpp changed, so each title recompiles once; deferred SPU compilation stays off; no device validation of Build487. Build 499 fixes the SHUFB 64-bit insertion mask and conditional branch-target ordering, gates compile disassembly behind explicit SPU debug, and includes the branch helper/opcode decoder in the SPU codegen digest; NeoSwap and ABI 30 remain unchanged. 23 October memory audit: bounded owned LLVM object streaming, validated PPU handoff, shared NeoSwap compiler admission and in-flight observations, fault-before-reservation ordering, data-only free-page advice, measured VMA heap granularity; minimal SPU linker remains a guarded prototype. God of War III build 508 log follow-up: mounted ISO metadata on state resume, restored archive path ownership, per-game effective JIT target diagnostics, preferred 64 MiB VMA blocks on reported iOS heaps above 4 GiB through 8 GiB; allocation ceilings and PPU/SPU codegen inputs unchanged; no device gain measured. Build 513 bounds iOS TAR restore buffers and recognizes transient LLVM JIT threads; no PPU/SPU translation or settings policy change. Restore follow-up bounds the TAR reader by its declared chunk count, preserves unsatisfied RSX acquire dependencies with bounded host waits, and retains complete bounded freeze snapshots and restore phase diagnostics; save formats and PPU/SPU code generation remain unchanged. Selective XITRIX Preview 0.12 source backports: ISO parent directory identity, ARM64 GHC PPU far jumps, constant SPU TBL1 folding, session-local shader capability fallback, dedicated grown Vulkan heaps and proven-complete mip copy clears. CPU minimum is checked by the host before JIT or dlopen. Existing NeoSwap, RSX acquire and restore deltas remain; no physical-device performance gain measured.",
+  "patch_sha256": "ca3c3332f7ef1f8a2d1221fb51fa567737fa9406e28543700b23376e0d68e5ae",
+  "policy": "Build353 experimental; selective XITRIX Preview 0.10 engine backports (ARM64 SPU/PPU, VM reservations, RSX/Metal, audio recovery, savestate and graphics correctness); Build352 God of War III bounded-memory policy and Build350 lifecycle baseline retained; NeoSwap v1 opt-in host-owned file-backed RSX CPU data allocator, existing JIT/VM/GPU policies unchanged; selective XITRIX v0.10.1 SPU BID continuation, disabled-texture eviction, MoltenVK conditional-rendering fixes; SPU object cache v5 retires old CFG objects; optional NeoSwap client diagnostics ABI 1, main Core ABI 30 unchanged; NeoSwap coherent host-visible Vulkan SYSTEM buffer imports (1-256MiB), strict external-memory/type/alignment checks, deferred GPU resource disposal and allocator fallback; optional NeoSwap guest page relay ABI 1 for guest data shared aliases, host-owned preparation after authenticated creator exit and ordinary file fallback before first published mapping; Build395: measured God of War III opt-in for RSX CPU aligned buffers 64KiB-1MiB via verified donor loans only, fixed metadata budgets, fast pressure gate and original heap fallback; no JIT/VM/GPU/private allocations redirected; Build409: additive NeoSwap client kinds (GPU host-visible imports, owned video-frame mappings) through the unchanged allocator ABI 1, relay host loans selected by the host budget controller; no JIT/VM/GPU/private allocations redirected; Post-410: loading-time SPU guest metadata warmup and telemetry, no ARM64 object persistence; ready-only fast NeoSwap host loans and ordinary guest backing for new gameplay allocations; existing published alias coherence retained; physical device validation pending; Build435 Core delta (10 October 2026): measured per-process allowance in IOSMemoryPressurePolicy (relative moderate stage, adaptive reclaim cooldown), deferred SPU LLVM compilation on a worker pool with legacy-interpreter hand-off, unlocked snapshot precheck before vm::writer_lock on PUTLLC/stcx; no device validation; Build436: the Build435 deferred SPU compilation is switched off (deferred_compile_enabled=false) after God of War III froze about 5 s after boot on the iPhone in 3 of 3 Build435 sessions and another title stopped on SPU STOP 0x0; SPU misses compile inline as in Build434; the measured memory allowance and the writer-lock precheck are kept; no device validation of Build436.; Build436 XITRIX v0.11: five RSX/Vulkan engine commits imported verbatim with their fixtures (framebuffer source selection, Vulkan image-pool race, rendering overhead, divided vertex range, alpha-to-one); no SPU, PPU, JIT, VM or lifecycle change; no device validation of the XITRIX v0.11 import. Build441: optional prepared guest relay ABI 1 permits new eligible shared-memory objects during gameplay by borrowing host-prepared exact-size tokens only; no slow create during gameplay, no migration of published or FILE backing, unchanged alias and retirement semantics, four inline alias records, optional process-lifetime client metrics; no iPhone gameplay validation.; Build444 (11 October 2026, maintainer request): optional direct guest admission ABI 1 (NeoSwapDirectRelayAPI.try_create) lets a gameplay stock miss or an oversize request create an exact-size relay object without waiting, under the host budget allowance; no blocking create, extension request, lock wait, published-object migration or FILE migration in gameplay; optional client diagnostics extension ABI 1 (direct outcomes, live FILE exclusion, boot creations); JITPROF phase counters (PPU translate/opt/verify/codegen/cache/load/finalize/symbols, SPU build/passes/codegen, headroom minimum) in Utilities/JITPhaseProfile.h; PPU object cache name v9 with the codegen identity (LLVM release, configure-time source digest NEOSTATION_PPU_CODEGEN_ID, target features); opt-in ARM64 PPU EarlyCSE (ppu_llvm_ir_passes, default off, hashed into the settings bits); deferred SPU compilation stays off; no device validation of Build444.; Build481 persistent ARM64 SPU object cache: the SPU translator references the host only through symbols (spu_timebase_offs mapped per engine instead of a baked &g_timebase_offs), a relocatability guard refuses to persist any module that turns a host address into a pointer constant, objects are validated (parsed, entry symbol required) before MCJIT and removed when invalid, the directory key folds the cache format, settings, device features, CPU, LLVM release and the configure-time SPU codegen digest NEOSTATION_SPU_CODEGEN_ID, directories of other keys are removed, the directory is bounded to 40000 files or 512 MiB with oldest-first eviction to 90 percent, retry variants carry -notbl2/-nofma name suffixes, a hit skips the pass pipeline and verification; JITPROF phases spu_cache_read/spu_object_load/spu_cache_write and SPUPROF obj_* counters added; Persistent SPU Object Cache Automatic resolves to enabled on ARM64; interpreter module stays process-local; deferred SPU compilation stays off; no device validation of Build481.; Build483 LLVM pipelines: SPU pipeline gains InstCombine between SimplifyCFG and DSE as upstream RPCS3 x86-64 and ARMSX3 ARM64 (setting SPU LLVM Pipeline, default Upstream InstCombine, Reference 481 keeps the previous pipeline), both m_test_state calls carry their callee convention (InstCombine turns a mismatched direct call into unreachable), the SPU pipeline is folded into the object-cache key; PPU LLVM Pipeline setting (Upstream ARM64 default = no IR pass, EarlyCSE = x86-64 pipeline = the Build 444 boolean, Extended = EarlyCSE SimplifyCFG InstCombine DSE LICM ADCE) with objects named per level (arm64_ir_passes, arm64_ir_passes_extended) and PPUThread.cpp in the PPU codegen digest; JITPROF reports ppu_pipeline/ppu_ir_passes/spu_pipeline; deferred SPU compilation stays off; no device validation of Build483. Build487 (19 October 2026, maintainer request after docs/rpcs3-bottleneck-audit-2026-10-18.md): observability of the audit (metrics grow additively to 72 bytes under struct_size with guest frames, native-UI flag, emulator state and boot progress; COREPROF other/top threads and windows without frames; CONFIG_LAYERS, NEOSTATION_RESTART, JITPROF_BOOT, SAVESTATE_BOOT, bounded FREEZE_DUMP and MUTEX_DESTROY_BUSY lines; RANGELOCKPROF maximum holds; time-based RSX load) and four iOS Experimental settings whose defaults keep the Build 483 gameplay behaviour (SPU Spin Timing Reference, RSX FIFO Idle Wait Yield with a new Bounded sleep value, SPU Warmup Scope God of War III) except the cache-only SPU Object Cache Retained Keys (2); code-generation sources and object-cache key lines unchanged; the PPU and SPU codegen digests change because PPUThread.cpp, JITPhaseProfile.h and SPUCommonRecompiler.cpp changed, so each title recompiles once; deferred SPU compilation stays off; no device validation of Build487. Build 499 fixes the SHUFB 64-bit insertion mask and conditional branch-target ordering, gates compile disassembly behind explicit SPU debug, and includes the branch helper/opcode decoder in the SPU codegen digest; NeoSwap and ABI 30 remain unchanged. 23 October memory audit: bounded owned LLVM object streaming, validated PPU handoff, shared NeoSwap compiler admission and in-flight observations, fault-before-reservation ordering, data-only free-page advice, measured VMA heap granularity; minimal SPU linker remains a guarded prototype. God of War III build 508 log follow-up: mounted ISO metadata on state resume, restored archive path ownership, per-game effective JIT target diagnostics, preferred 64 MiB VMA blocks on reported iOS heaps above 4 GiB through 8 GiB; allocation ceilings and PPU/SPU codegen inputs unchanged; no device gain measured. Build 513 bounds iOS TAR restore buffers and recognizes transient LLVM JIT threads; no PPU/SPU translation or settings policy change. Restore follow-up bounds the TAR reader by its declared chunk count, preserves unsatisfied RSX acquire dependencies with bounded host waits, and retains complete bounded freeze snapshots and restore phase diagnostics; save formats and PPU/SPU code generation remain unchanged. Selective XITRIX Preview 0.12 source backports: ISO parent directory identity, ARM64 GHC PPU far jumps, constant SPU TBL1 folding, session-local shader capability fallback, dedicated grown Vulkan heaps and proven-complete mip copy clears. CPU minimum is checked by the host before JIT or dlopen. Existing NeoSwap, RSX acquire and restore deltas remain; no physical-device performance gain measured. Build526 migrates active legacy SIMD users to the common ARM64 NEON backend, adds exact PPU VMSUM lowering and bounded failed-file diagnostics; no synchronization or memory quotas change.",
   "schema_version": 2,
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "upstream_repository": "XITRIX/rpcs3",
@@ -1092,5 +1097,118 @@
     ],
     "physical_device_tested": false,
     "game_performance_gain_measured": false
+  },
+  "arm526": {
+    "modified_paths": [
+      "rpcs3/Emu/CMakeLists.txt",
+      "rpcs3/Emu/Cell/PPUTranslator.cpp",
+      "rpcs3/Emu/Cell/SPUInterpreter.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_fs.cpp",
+      "rpcs3/Emu/RSX/Common/BufferUtils.cpp",
+      "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp"
+    ],
+    "new_delta_paths": [
+      "rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h",
+      "rpcs3/Emu/RSX/Common/buffer_stream.hpp",
+      "rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp",
+      "rpcs3/Emu/RSX/RSXTexture.cpp",
+      "rpcs3/util/simd.hpp"
+    ],
+    "new_files": [
+      "rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h"
+    ],
+    "before_sha256": {
+      "rpcs3/Emu/CMakeLists.txt": "16afea601fecb11c4048d2295bda02727232c5fd86618b1fce69f2d4ff0ca4d6",
+      "rpcs3/Emu/Cell/PPUTranslator.cpp": "ca045fcf45d11eba12fb4f0b309bb12dfc7b6e48c29201a26f6188258bd6b730",
+      "rpcs3/Emu/Cell/SPUInterpreter.cpp": "cb333853b65df6cb4a1f1254539eb193b685fc3e91c752ab4eb7b014e3c17e8f",
+      "rpcs3/Emu/Cell/lv2/sys_fs.cpp": "9662e72b1b3db28da2e47f0d7907b75fd1506ab7ef0dfe904e2862a8e4fa1de1",
+      "rpcs3/Emu/RSX/Common/BufferUtils.cpp": "337d2fb0563df4723d8506f0ca62fd3f0c6b1b97067472caf3c7885039df3552",
+      "rpcs3/Emu/RSX/Common/buffer_stream.hpp": "7dd1ed851c7bd3bfb031ce15b5b904ed54dc4cb38c5c8abd57bccf7e0c45be6a",
+      "rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp": "b4c8b207ef0889a61a58e14e07a441014cd9b97cfd49f2672b12a00ae6225774",
+      "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "0b0c19bb7eace654b2b49a4461d5db2f203bbca5a1171b91e421e47bc80c9a72",
+      "rpcs3/Emu/RSX/RSXTexture.cpp": "266cbc7607f5cdbc8bf1ce9c885ca7dc43daadf8d86ab711e927dc7f8303ea8f",
+      "rpcs3/util/simd.hpp": "d68f509d7eed53fc9f5bfec0bff86dcdc580f49fc84e30f9124ed1c94daceb1a"
+    },
+    "fixture_sha256": "b87c157dde26b4a659a107279077ea3c2e2775803c1bd987193fa6697c078bad",
+    "codegen": {
+      "PPU": "b77f5996577e4a4d",
+      "SPU": "35f4bbf84d9c21c3"
+    },
+    "codegen_before": {
+      "PPU": "ed8b442fb38656b6",
+      "SPU": "a601a98f20f30c80"
+    },
+    "extra_inputs": [
+      "test/rpcs3_simd526_test.py",
+      "test/native/rpcs3_simd526.cpp",
+      "test/fixtures/rpcs3_simd526_spu.diff",
+      "test/rpcs3_rsx_simd526_test.py",
+      "test/native/rpcs3_rsx_simd526.cpp",
+      "test/fixtures/rpcs3_rsx_simd526.diff",
+      "test/rpcs3_ppu_simd526_test.py",
+      "test/native/rpcs3_ppu_dot526.cpp",
+      "test/fixtures/rpcs3_ppu_dot526_before.inc",
+      "test/rpcs3_fs_diagnostic526_test.py",
+      "test/native/rpcs3_fs_diagnostic526.cpp",
+      "test/rpcs3_simd_gate526_test.py"
+    ],
+    "tests": [
+      {
+        "script": "test/rpcs3_simd526_test.py",
+        "name": "spu-simd",
+        "args": [
+          "--sanitize"
+        ],
+        "timeout": 900
+      },
+      {
+        "script": "test/rpcs3_simd526_test.py",
+        "name": "spu-simd-benchmark",
+        "args": [
+          "--benchmark"
+        ],
+        "timeout": 900
+      },
+      {
+        "script": "test/rpcs3_rsx_simd526_test.py",
+        "name": "rsx-simd",
+        "args": [
+          "--sanitize"
+        ],
+        "timeout": 300
+      },
+      {
+        "script": "test/rpcs3_rsx_simd526_test.py",
+        "name": "rsx-simd-benchmark",
+        "args": [
+          "--benchmark"
+        ],
+        "timeout": 300
+      },
+      {
+        "script": "test/rpcs3_ppu_simd526_test.py",
+        "name": "ppu-simd",
+        "args": [
+          "--require-llvm",
+          "--artifacts",
+          "build/rpcs3-core-diagnostics/ppu-simd-asm"
+        ],
+        "timeout": 600
+      },
+      {
+        "script": "test/rpcs3_fs_diagnostic526_test.py",
+        "name": "fs-diagnostic",
+        "args": [],
+        "timeout": 300
+      },
+      {
+        "script": "test/rpcs3_simd_gate526_test.py",
+        "name": "simd-gate",
+        "args": [],
+        "timeout": 120
+      }
+    ],
+    "scope": "Six active SSE2NEON consumers migrate to the common native backend; four PPU VMSUM lowerings and bounded failed-open diagnostics. No memory-order, precision setting, JIT permission or unrelated app change.",
+    "device_runtime_tested": false
   }
 }

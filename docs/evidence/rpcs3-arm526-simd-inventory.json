@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "scope": "Textual static inventory; excludes thirdparty/tests; count includes all architecture branches and declarations, not runtime frequency or iOS reachability.",
+  "sse2neon_consumers": [
+    {
+      "path": "rpcs3/Emu/Cell/SPUInterpreter.cpp",
+      "sha256": "cb333853b65df6cb4a1f1254539eb193b685fc3e91c752ab4eb7b014e3c17e8f",
+      "sse_textual_calls": 464,
+      "sse_unique_operations": 75,
+      "operations": [
+        "_mm_add_epi16",
+        "_mm_add_epi32",
+        "_mm_add_epi8",
+        "_mm_add_pd",
+        "_mm_add_ps",
+        "_mm_and_ps",
+        "_mm_and_si128",
+        "_mm_andnot_ps",
+        "_mm_andnot_si128",
+        "_mm_avg_epu8",
+        "_mm_castps_si128",
+        "_mm_castsi128_ps",
+        "_mm_cmpeq_epi16",
+        "_mm_cmpeq_epi32",
+        "_mm_cmpeq_epi8",
+        "_mm_cmpeq_ps",
+        "_mm_cmpge_ps",
+        "_mm_cmpgt_epi16",
+        "_mm_cmpgt_epi32",
+        "_mm_cmpgt_epi8",
+        "_mm_cmplt_ps",
+        "_mm_cmpneq_ps",
+        "_mm_cmpunord_ps",
+        "_mm_cvtepi32_ps",
+        "_mm_cvtpd_ps",
+        "_mm_cvtps_pd",
+        "_mm_cvttps_epi32",
+        "_mm_getcsr",
+        "_mm_loadu_si128",
+        "_mm_madd_epi16",
+        "_mm_max_ps",
+        "_mm_movemask_epi8",
+        "_mm_movemask_ps",
+        "_mm_mul_pd",
+        "_mm_mul_ps",
+        "_mm_mulhi_epi16",
+        "_mm_mulhi_epu16",
+        "_mm_mullo_epi16",
+        "_mm_or_ps",
+        "_mm_or_si128",
+        "_mm_packs_epi16",
+        "_mm_rcp_ps",
+        "_mm_set1_epi16",
+        "_mm_set1_epi32",
+        "_mm_set1_epi8",
+        "_mm_set1_pd",
+        "_mm_set1_ps",
+        "_mm_set_epi16",
+        "_mm_set_epi32",
+        "_mm_set_epi8",
+        "_mm_setzero_si128",
+        "_mm_shuffle_epi32",
+        "_mm_shuffle_ps",
+        "_mm_shufflehi_epi16",
+        "_mm_shufflelo_epi16",
+        "_mm_slli_epi16",
+        "_mm_slli_epi32",
+        "_mm_slli_epi64",
+        "_mm_slli_si128",
+        "_mm_srai_epi16",
+        "_mm_srai_epi32",
+        "_mm_srli_epi16",
+        "_mm_srli_epi32",
+        "_mm_srli_epi64",
+        "_mm_srli_si128",
+        "_mm_sub_epi16",
+        "_mm_sub_epi32",
+        "_mm_sub_pd",
+        "_mm_sub_ps",
+        "_mm_unpackhi_epi16",
+        "_mm_unpackhi_epi8",
+        "_mm_unpacklo_epi8",
+        "_mm_xor_pd",
+        "_mm_xor_ps",
+        "_mm_xor_si128"
+      ]
+    },
+    {
+      "path": "rpcs3/Emu/RSX/RSXTexture.cpp",
+      "sha256": "266cbc7607f5cdbc8bf1ce9c885ca7dc43daadf8d86ab711e927dc7f8303ea8f",
+      "sse_textual_calls": 11,
+      "sse_unique_operations": 11,
+      "operations": [
+        "_mm_cvtsi128_si32",
+        "_mm_cvtsi32_si128",
+        "_mm_packs_epi32",
+        "_mm_packus_epi16",
+        "_mm_set1_epi32",
+        "_mm_setzero_si128",
+        "_mm_slli_epi32",
+        "_mm_srli_epi32",
+        "_mm_sub_epi32",
+        "_mm_unpacklo_epi16",
+        "_mm_unpacklo_epi8"
+      ]
+    },
+    {
+      "path": "rpcs3/Emu/RSX/Common/BufferUtils.cpp",
+      "sha256": "337d2fb0563df4723d8506f0ca62fd3f0c6b1b97067472caf3c7885039df3552",
+      "sse_textual_calls": 4,
+      "sse_unique_operations": 4,
+      "operations": [
+        "_mm_add_epi16",
+        "_mm_set1_epi16",
+        "_mm_set_epi16",
+        "_mm_stream_si128"
+      ]
+    },
+    {
+      "path": "rpcs3/Emu/RSX/Common/buffer_stream.hpp",
+      "sha256": "13e42a253cf358f9f8798fe9b7d597ce0f991e515aacab2162710000f08a9918",
+      "sse_textual_calls": 4,
+      "sse_unique_operations": 3,
+      "operations": [
+        "_mm_loadu_si128",
+        "_mm_set_epi32",
+        "_mm_stream_si128"
+      ]
+    },
+    {
+      "path": "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp",
+      "sha256": "0b0c19bb7eace654b2b49a4461d5db2f203bbca5a1171b91e421e47bc80c9a72",
+      "sse_textual_calls": 13,
+      "sse_unique_operations": 8,
+      "operations": [
+        "_mm_and_si128",
+        "_mm_cmplt_epi32",
+        "_mm_loadu_si128",
+        "_mm_or_si128",
+        "_mm_set1_epi32",
+        "_mm_slli_epi16",
+        "_mm_srli_epi16",
+        "_mm_stream_si128"
+      ]
+    },
+    {
+      "path": "rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp",
+      "sha256": "9fe696fe095231b216e7f2944b8f398f740a682edad9ece2ed41cb9d3c48ba00",
+      "sse_textual_calls": 7,
+      "sse_unique_operations": 5,
+      "operations": [
+        "_mm_and_si128",
+        "_mm_or_si128",
+        "_mm_set1_epi32",
+        "_mm_slli_epi32",
+        "_mm_srli_epi32"
+      ]
+    }
+  ],
+  "gv_simd_definition_unique_names": 171,
+  "gv_simd_arm64_branch_count": 180,
+  "gv_users": [
+    {
+      "path": "rpcs3/Emu/Cell/PPUInterpreter.cpp",
+      "textual_calls": 481,
+      "unique_operations": 147
+    },
+    {
+      "path": "rpcs3/util/simd.hpp",
+      "textual_calls": 437,
+      "unique_operations": 171
+    },
+    {
+      "path": "rpcs3/Emu/Cell/Modules/cellAdec.cpp",
+      "textual_calls": 63,
+      "unique_operations": 13
+    },
+    {
+      "path": "rpcs3/Emu/Cell/SPUInterpreter.cpp",
+      "textual_calls": 31,
+      "unique_operations": 20
+    },
+    {
+      "path": "rpcs3/Emu/Cell/SPUThread.cpp",
+      "textual_calls": 11,
+      "unique_operations": 4
+    },
+    {
+      "path": "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp",
+      "textual_calls": 6,
+      "unique_operations": 3
+    },
+    {
+      "path": "rpcs3/Emu/Cell/PPUThread.cpp",
+      "textual_calls": 5,
+      "unique_operations": 5
+    },
+    {
+      "path": "rpcs3/Emu/Cell/Modules/cellSpursSpu.cpp",
+      "textual_calls": 4,
+      "unique_operations": 1
+    },
+    {
+      "path": "rpcs3/Emu/Memory/vm.cpp",
+      "textual_calls": 1,
+      "unique_operations": 1
+    }
+  ]
+}
