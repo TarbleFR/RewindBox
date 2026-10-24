@@ -2,7 +2,7 @@
   "schema": 1,
   "coreSource": "1ae41b6400688d20a8d72173d3d80d0a1fe19710",
   "coreRun": 40095061758,
-  "nativeBuildStatus": "pending",
+  "nativeBuildStatus": "passed",
   "physicalIPhoneTested": false,
   "gameplayAfterMeasured": false,
   "localTests": {
@@ -532,5 +532,377 @@
     },
     "retained": "sharded counters with unchanged destructor",
     "rejected": "moving global counters after unlock; inconsistent/regressing results"
-  }
+  },
+  "apple521ReadAheadInjectedExperiment": {
+    "result": "passed",
+    "injectedSourceReadDelayMs": 8,
+    "payloadBytes": 1382400,
+    "coldConsumerMedianMs": 78.4169,
+    "readyConsumerMedianMs": 0.169833,
+    "producerPrefetchMedianMs": 91.2711,
+    "peakPrefetchPayloadBytes": 8294400,
+    "maximumPayloadBytes": 8388608,
+    "readyConsumerStorageCalls": 0,
+    "physicalIPhoneTested": false,
+    "gameplayMeasured": false
+  },
+  "apple521VideoLoanExperiment": {
+    "before": {
+      "payloadBytes": 1382400,
+      "frames": 8,
+      "loanBackingBytes": 16777216,
+      "genericBoundsVerified": true,
+      "physicalIPhoneTested": false
+    },
+    "after": {
+      "payloadBytes": 1382400,
+      "frames": 8,
+      "loanBackingBytes": 11534336,
+      "genericBoundsVerified": true,
+      "physicalIPhoneTested": false
+    },
+    "physicalIPhoneTested": false,
+    "footprintMeasured": false,
+    "payloadIdentityAndGenericBoundsVerified": true
+  },
+  "native521Proof": {
+    "source": "93f82e6f98d9fbdf59e848e357bf85f7487af93f",
+    "run": 40093526893,
+    "job": 120870922082,
+    "coreArtifact": 12559474211,
+    "coreArtifactZipSHA256": "6ff3cd4d1dd10562795a43f080b8a494521e1d343f2824eed14668dfc51c9eb5",
+    "diagnosticsArtifact": 12559508915,
+    "diagnosticsZipSHA256": "8c1e1fc11e5a65734628b53ad9074feaac9d917fe08bd76e3a650ad794410115",
+    "codegen": {
+      "actual": {
+        "PPU": [
+          "9013390836efe46e"
+        ],
+        "SPU": [
+          "a601a98f20f30c80"
+        ]
+      },
+      "prior": {
+        "PPU": [
+          "9013390836efe46e"
+        ],
+        "SPU": [
+          "a601a98f20f30c80"
+        ]
+      },
+      "coldCompileRequired": false,
+      "deviceTested": false
+    }
+  },
+  "native522Proof": {
+    "source": "1ae41b6400688d20a8d72173d3d80d0a1fe19710",
+    "run": 40095061758,
+    "job": 120875454686,
+    "coreArtifact": 12560871234,
+    "coreArtifactZipSHA256": "9cf8ca25dc2d452393acb1dc86996c5b8f1a8581d698740119b982039fe91540",
+    "diagnosticsArtifact": 12559704852,
+    "diagnosticsZipSHA256": "7bd27ada1d3af6d8c6bfc717cffe41efd0623454371c085ff225504fe8890a04",
+    "independentBinaryValidation": {
+      "sha256": "13904c678ad87a0030051634e02129fdb46eea8eff4f6308e5352cb3defa87ec",
+      "bytes": 76978304,
+      "exportCount": 88,
+      "platform": 2,
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMIDI.framework/CoreMIDI",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalFX.framework/MetalFX",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        }
+      ],
+      "minimumOS": "16.3.0",
+      "passive": {
+        "initializerCount": 2792,
+        "initializerSymbols": 919,
+        "marker": "NEOSTATION_BUILD301_PASSIVE_DLOPEN_V1",
+        "forbiddenReachability": false,
+        "scope": "named forbidden functions via direct ARM64 B/BL edges, maximum depth 16",
+        "deviceRuntimeTested": false
+      },
+      "depsUnchangedFrom521": true
+    },
+    "codegen": {
+      "actual": {
+        "PPU": [
+          "9013390836efe46e"
+        ],
+        "SPU": [
+          "a601a98f20f30c80"
+        ]
+      },
+      "prior": {
+        "PPU": [
+          "9013390836efe46e"
+        ],
+        "SPU": [
+          "a601a98f20f30c80"
+        ]
+      },
+      "coldCompileRequired": false,
+      "deviceTested": false
+    },
+    "proof": {
+      "schema": 1,
+      "source": "1ae41b6400688d20a8d72173d3d80d0a1fe19710",
+      "input_sha256": {
+        "test/rpcs3_restore_eof_test.py": "866bb431a21ba7159a8dd3df9cbf556eeab36e482fd95bc4d75c1ecc967c744b",
+        "test/native/rpcs3_savestate_harness.cpp": "16740ecf9009a7c3f6597f7f9e160aeb6ebded8a648c27d760d00abeeb2e25dc",
+        "test/rpcs3_build265_core_test.py": "8b7964f38cabba94ee98b21e3bfa87babbbfbf12ac26a79d689465bb62666658",
+        "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm": "2ce0353536c5e27da3c3874379e3df76b9604b08599b6626bf599ed6b98dfd50",
+        "test/rpcs3_gow3_restore_regression_test.py": "a1cff8eac96fe40f696e715f8d6bcab872df20f32f5fab340d0f34a56a9df30c",
+        "test/fixtures/rpcs3_gow3_restore.diff": "de97e829e1b6b4781a5931ebb8e1e6039d84e47d664e6ea920bef8b0010d1084",
+        ".github/diagnostics/rpcs3gow3_core.py": "2c2c83cd5f594040477e46b48f84f27231f5db15110ae038838323fc38c8d661",
+        "test/rpcs3_gow3_boot_regression_test.py": "23b89e483f93cb9ae4b83f93a5c8d4b22f619455d1b887e6c0a9bb15a064800b",
+        "test/fixtures/rpcs3_memory_audit/JITLLVM.diff": "9f883117157a1ded4a069adc1cae7f6a0751b282f29568e01cf9503a26220714",
+        ".github/workflows/rpcs3-memory-audit.yml": "3cf4366d869f1095530dea893834d195b8dc7bfa8cd9b78681555f6fb0d60ad1",
+        "test/rpcs3_core_syntax_gate_test.py": "c36913517a1ec734999c311d7b2f89a6b9fb523c78ab1501a7325d148ce6dda7",
+        "test/rpcs3_memory_audit_test.py": "ddf8fee13f91f1aab5f1739035d1061610e669c332186bef84308bb6b7ba3cde",
+        "test/native/rpcs3_memory_audit_test.cpp": "b2c2048b09d2a2ce3891fedaeaae40a13d4e24dff57ef432b6a0e5b4c6b15ebc",
+        "packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+        "packages/neo_swap/ios/Classes/NeoSwapCompilerBudget.h": "2c2aaf6fad9aaf138145174034a0e8ac7653dffce35fc9624585688b66b25d71",
+        "native/neoswap-storage/StorageABI.h": "561696eecc439a6c55a685b4c456c944411fa689f822a13b709ed652032d7b7c",
+        "native/neoswap-storage/Client.h": "5698f528fe8e8916f2e9d2901234f8d719ab90df67fa724d97d6340ee82a1c79",
+        "native/neoswap-storage/ShaderKey.h": "95c492262f49f3d22791596cef412f446c9ae3a6ec5d2696302863a2a6697bdd",
+        "test/rpcs3_shader_storage_test.py": "67151cdd1b9ec4e6b3d9d1549aa337b6389140ce2d7b6eb80d12777f6409ef64",
+        "test/native/rpcs3_shader_storage_client_test.cpp": "1db819e79809f41dc58915db75a4ca2c0962b243f7f21a291848abf5aa6e106f",
+        "native/neoswap-storage/SourceABI.h": "395955dc389c492bace3584f7818b48676ac977eb43ec117a322e90aade207e9",
+        "native/neoswap-storage/SourceClient.h": "514dfe36544460ce3b5826a1493f1ebd81abc16151efa9126d50d83bd97d8f45",
+        "native/neoswap-storage/SourceClient.cpp": "356543139596b23abb51df85734244b10f66a58e1b2ec82f06b3b210c6b8c7c7",
+        "native/neoswap-storage/FrameClient.h": "05549e1d6d9830658fc48eb519c5519a4eb9c168305f41c91c04bd2c8f4d7139",
+        "native/neoswap-storage/VideoBuffer.h": "96969e0c76af6e506815a6cdc9323c523e68bf636445bb511dcb844723ffe140",
+        "test/rpcs3_video_frame_archive_test.py": "63d52127195d7ca6bd4fa6b8209f5396184dd4b5be71d0b4a443115ee1eea34b",
+        "test/native/rpcs3_video_frame_archive_test.cpp": "ffe75a00448fc8af9b85a6f457ee686e5a45357620c8257645c7468554cb9e4d",
+        "build-utils/run_vdec_archive_validation.sh": "727177595d1c0e43e6d86b52b35683b21c951aad44b2f68f22b22a1b6b72c979",
+        "test/rpcs3_source_archive_test.py": "81cf54411611fa51f7a4bffaccb0a7cdf765e90237f9474163c532b5f0a50499",
+        "test/native/rpcs3_source_archive_client_test.cpp": "436972a9549e6e811f24f86a36fa775b6e08adda6e5ec4a658d04f37493ad5dd",
+        "build-utils/build_rpcs3_embedded_core.sh": "5d8374c3b9bd573c3b9af7273941d451965f80054f6341185ea712794d4938bb",
+        "build-utils/materialize_rpcs3_core.py": "0f06b5befb249a398fa6e22d326f57794979bfa01eae971d7f28cbb2f3933889",
+        "build-utils/apply_rpcs3_llvm_patch.py": "a9a06a9c2d3639b980901585af6456f9fc9a561ec82760bebc78be56a1ebacfc",
+        "build-utils/rpcs3/canonical-source.json": "8fd4a220d9e596b52eeec0da53f5eec2186bdc14b4517a5e9c9ee4fb530d32ac",
+        "build-utils/rpcs3/embedded-core.patch": "d699ae0ee3bc8c2f2a55b1ccfdaa75a2f9db55d3e5417918bad2e8488efc17c4",
+        "build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch": "8db9dc0e3701069ca3d42c534b2bcd0bba5eea1f21fbd54c466fb454130a9a3f",
+        "build-utils/rpcs3_core_syntax_gate.py": "92c33a1a71d8f0d92f6fc8a43cbe58ed5d92adfeb1b18c599a720547ba65260d",
+        "build-utils/validate_rpcs3_embedded_core.py": "f0a70357087e099c6dfb7187d8564c724f7b9b5ce8c7cbacb808539f03e0ca89",
+        "build-utils/validate_rpcs3_passive_dlopen.py": "e051ffc47d722e1f53e28a9919ef29502022edb68b34a545e81d2b5f01258b9a",
+        "build-utils/patch_rpcs3_build301_passive_dlopen.py": "bd22b3f77aedab664b64088c7691b1230a88c547a0dff32d6fc7599ddbea998a",
+        "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3CoreABI.h": "b819a02685eb2b74b8e10aee3a2c74b086033540559c712a4815729e998ea99b",
+        "packages/neo_swap/ios/Classes/NeoSwap.h": "88b334240200a68775aef35f1f5d632e04b8fcc43e504d42f65096760c7c292c",
+        "packages/neo_swap/ios/Classes/NeoSwapClientStats.h": "55e745b85142d109075f2b8f220a288e1a5501f69a79eb8d4de15c7b993902fc",
+        "packages/neo_swap/ios/Classes/NeoSwapRelay.h": "11027a70e37efb55a0ca096b9a7c027519d4fdc8a175f98a6bcea38b0b4810dc",
+        "native/neoswap/NeoSwapClient.h": "ed6bf9bc70d4bf106463359aa87158f3352d9d0be46896c084d0c21638b5a9ab",
+        "test/neo_swap_core_pin_test.py": "00693b84d0c4e491d98b9451b1eb23d199c4ce0af37dc7c192d9553a805ef2a8",
+        "test/neoswap_rpcs3_allocator_test.cpp": "20d262c5bb2a97a348e9b9b1a6aa64e8875e409ba75fb84fc51a95b9ea984d5c",
+        "test/neoswap_cpu_buffers_test.cpp": "78d8cd9dc0de795f0dcd8c6e3e5d9d4b40ec81d1f9b270ca3b1308d5b344bc0b",
+        "test/rpcs3_neoswap_vulkan_buffer_test.py": "6f694f9fc0538087e5e40f6412c627a342af7b816432ffc06ed77976d2032672",
+        "test/native/rpcs3_neoswap_vulkan_buffer_test.cpp": "38aeedc549ce7d34f53c86d50c8e16e846cad9de4cd5b9c423e0edd870ec4dbe",
+        "test/rpcs3_neoswap_relay_test.py": "231b55231573bf2600d807e7e73d5447822643b1039d68817fa9d0c1c9402c08",
+        "test/native/rpcs3_neoswap_relay_test.cpp": "58548d5bab23a36fcf08d728c5640d92cd63bc76503ee4ea768f9735717db646",
+        "test/rpcs3_embedded_core_validator_test.py": "889a07d7b85530f79ad216276ac2a176f776a9d1366d8852f0e791d3ecf37cc1",
+        "test/rpcs3_preprocessor_balance_test.py": "55c70c40ed32c2463aca93fcfc1ef04a666c86ee3f8c9f1f191cc6637298dba9",
+        "test/rpcs3_build301_passive_dlopen_test.py": "9c51fa9479c13a12be04f0d1e14118548849ec04a7c85e382e222a1f520994c7",
+        "test/rpcs3_atomic_startup_test.py": "a6ae0de05363681d5c82a1ed69ee4c1b137d2dce655eef1a3918c934d5e691c3",
+        "test/rpcs3_failed_startup_test.py": "b35bb9911c63605884d5b5d0ddcdc1e05b4bb86cd1dff535b07db71a0153f853",
+        "test/rpcs3_build264_gow3_core_test.py": "f7abfcece81dca34f85706c3e6e510fc882dc11afd07b21511aba9cad624a8ed",
+        "test/rpcs3_build351_gow3_engine_test.py": "8c5c9974d64c461fbf16278304f865d54b5078c0ed44afec3e17b9cd596d215b",
+        "test/rpcs3_build352_gow3_memory_test.py": "4f94744c8c905e64cb3cb593b19f24627fda3b643321e2b86e335f6c63b56450",
+        "test/rpcs3_build353_xitrix_v010_test.py": "663aeced15af5cb343fbcfd8c5faea17a188d39e8988e2913bf99f9a7cff8435",
+        "test/rpcs3_armsx3_performance_patch_test.py": "f5ee563929ff520aa0f4385bb54e2ce5628141f4594934a39a3d3bd901257d8e",
+        "test/rpcs3_build435_core_delta_test.py": "648cabf9ff7cfe601c486928f40d3677b0c58991540f319d211b6c4092e8c8a0",
+        "test/native/rpcs3_build435_core_delta_test.cpp": "8aef04558a2522899c5ed0b9d4b9dc7803a7d094d568c25c4c275fb15043e10a",
+        "test/rpcs3_build444_core_delta_test.py": "f3f474628cfbc7d1a20ff40080a51be41ec36f9bd5f8831f4b0e33fe2657ca1a",
+        "test/native/rpcs3_build444_core_delta_test.cpp": "e72d9c167cc9d7055164e93c6eb02217f59769d6b10cb6764f447dd343b516f5",
+        "test/rpcs3_build481_spu_object_cache_test.py": "f784c65d9c8a8842a11cda3e8cd226a7dc1bac043fa4c8e2b315a80cf9fcad25",
+        "test/native/rpcs3_build481_spu_object_cache_test.cpp": "79775e43775ea0eb1595df4a778c1249cfe885e818225297643e09dac3cbc2c7",
+        "test/native/rpcs3_spu_object_relocation_test.cpp": "892308f964f507aa02aadd20b784dac62af1091834e142d78826f9d485cfd378",
+        "test/rpcs3_build483_llvm_pipeline_test.py": "d0fcdf0f14be9fbebf65216f13ce5a8c9934599a91ca0338320ca1e2187eda4d",
+        "test/native/rpcs3_llvm_pipeline_harness.cpp": "6b86bc751a97b56d53aa21b482d0f2b740ea2b52d33c8f211c03c08933e32aa9",
+        "test/rpcs3_build499_spu_audit_test.py": "2738bb4c3de4fe1efacf9c4c19321009dbe3e799b31da54b2b48ad8191d18867",
+        "test/native/rpcs3_build499_spu_audit_test.cpp": "848bda735b932beb91cbf1ced6c67e094c1967a4a0614c06f6e0569f2d5611d3",
+        "test/rpcs3_build487_core_diagnostics_test.py": "1fe3661903dde902d131c37e37155b3a73e0de651b56e1b461d9a59224b052dd",
+        "test/native/rpcs3_build487_profiler_helpers_test.cpp": "a28b0404046cab9cbb194d9d5444855e23cfd922c685feb3934c3452b075b808",
+        "test/native/rpcs3_build487_boot_diagnostics_test.cpp": "de3266f0527bc7eaf218a50592693aff89c667a67027534e4c356929781969da",
+        "test/native/rpcs3_build487_lever_helpers_test.cpp": "e834f6ec1082a4b8022fbce892f417a03205029da8af63a3b5454c105b263116",
+        "test/native/rpcs3_build487_retention_sequence_test.cpp": "10247800219dc4d2ce755a97c5b26835b68b165800eec3d071cb23bea9a5222f",
+        "test/rpcs3_build487_host_diagnostics_test.py": "eadf3ffe42e4b52e023dcefbf820d59e6eaf22ec7592e4b1735e01ba3038337a",
+        "test/rpcs3_build258_core_architecture_test.py": "509fdee858f18a85b5de87f9129b5492d7c4d3d316b10577127ce6305ef746f3",
+        "test/rpcs3_ios_ppu_compile_budget_test.cpp": "b3461cf3032805e77e2f1493e038857dadabe16056a064b7b90a33f3f456d41c",
+        "test/rpcs3_ppu_no_size_split_policy_test.cpp": "85b4938ca30d40379006b07938d0cc22d710a5674768515270b732bd4d1926b6",
+        "test/rpcs3_xitrix_v0101_native_test.py": "292d2a28389cf1b3fcb731d03c11c442d1881b2d5fa569e526cfd639cdbdf340",
+        "test/rpcs3_xitrix_v011_native_test.py": "a6b055c93589a065375a7f336599e2d2ae5e784b06a6cf5a3f6b5dfe6d33b4c0",
+        "test/native/rpcs3_spu_analyzer_support.h": "67e90e91c47a394a71a7bbedbc0986fbe16910bb0a5edf5635ea4d9a68333864",
+        "test/native/rpcs3_spu_branch_analyzer_test.cpp": "69c855b80c49f6d9b4c9fe06211c61e774ef7afdc4ac454d348e072db36ef33e",
+        "test/rpcs3_spu_warmup_test.py": "98f4ba81dd6b5ff8f5bc83f41e2fdf4aec23df946603253f8ae9a86cff326661",
+        "test/native/rpcs3_spu_warmup_test.cpp": "eae4b3c3196ec2c55a8f0ed44ab54cc1cbc2b94c45f805f0a53548fec700cb94",
+        "test/native/rpcs3_vk_memory_pressure_test.cpp": "b7033e5e27d9259591df5b5a62fbacafe98c527df508fec1be84c60aff7d8fab",
+        "test/native/rpcs3_vk_conditional_render_test.cpp": "fb925a69c80a7a07a53ed64f71bbcf35e01d857746476edefcf68eacca1634d1",
+        "test/native/rpcs3_neoswap_stats_getter_test.cpp": "72b4c84a0c06335ed302be1af18057972057a92cde068fc6dca94d57756044b0",
+        ".github/workflows/rpcs3-core.yml": "3d7f01c6404f7d8251c4fdeb407f04370662b7786a2fd4878a1f5cdb2e3776d4",
+        ".github/diagnostics/rpcs3v012_core.py": "d33e749d6a7cfcfa369aa3244b04c99e0a9fd8c7150c36e17789702edfe6fe48",
+        ".github/workflows/rpcs3-v012.yml": "3d9b27e6a8dd91acec51e276d6f30bf5f6091c793239c9fd88d66ed45ed4185a",
+        "test/rpcs3_xitrix_v012_native_test.py": "146cba5043dc35e29d3a46ed54f6468ce6fa9356c51810c8f7fce21aab2f0b3d",
+        "test/rpcs3_v012_provenance_test.py": "16baeb8b0ba8c51ee1c973368c6e23463b1bfd83971b9d1b46575133d7a3d2a5",
+        "packages/rpcs3_internal_bridge/ios/Classes/RPCS3CPUCompatibility.h": "d80dc0eebd9a1822f75702a359aac547fbfe43b39bb0b8ab30de188e786f313d",
+        "packages/rpcs3_internal_bridge/ios/Classes/RPCS3CPUCompatibilityPolicy.h": "42bf9d19766d07e455d54b7d8cbdd1ab2efb814a447d84a16c9998e0a920fceb",
+        "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3JitBridgePlugin.mm": "d1e4c587c17345b112a3adcf7ad79573cf8e248cfb897e543702cd5fea6ac324",
+        ".github/diagnostics/rpcs3cell521_core.py": "ce3db522ba8fad33810b2412f5a04b1fa97c1c802bc06e1e15417032a08f1648",
+        ".github/workflows/rpcs3-cell521-core.yml": "d7996788952c12db93b3640e468405a01c5ac11b272eee437e44156792adc13d",
+        "test/rpcs3_frame521_read_ahead_test.py": "187d0d2ef5c3dc2e9d894bdc79ed905bdb85ed9f851f0fc924ed383a062ddb21",
+        "test/native/rpcs3_frame521_read_ahead.cpp": "b30d6b68baa99eccda1bd2641c0f9e7bc5a3ed335f5c5095fb5475d56bc77b8e",
+        "test/rpcs3_video521_loans_test.py": "f36e60da1ee8a9b8c6ac41d4a68d408941dac44106e76354e95b303cdc426940",
+        "test/neoswap_relay_loans_test.cpp": "5013852e4ce4173c49767f1bc7313b4241143b97ee6d566f1f3b8f723625b34a",
+        "packages/neo_swap/ios/Classes/NeoSwap.cpp": "3205f66023fc3e43b0ea8e73375cb70d4def7578123da70196a7cf4dde765680",
+        "native/neoswap-storage/tests/frame_archive_test.cpp": "6039061b3e78c3b422002cabb30e6927fef6e8f8f29e0b98f28651d149a9da38",
+        "native/neoswap-storage/tests/source_archive_test.cpp": "a689d4bdd8c7f285916c4337c69dda6cca7f7cb37cb6fae4c3f0e0da4f69f3ea",
+        "native/neoswap-storage/run_source_validation.py": "9a4a95a4b520a660116315f79d76bb7a3a710dbee550a5d820e572e2c3aa3b59",
+        ".github/diagnostics/rpcs3cell522_core.py": "ed9d84a6e20554c086ab4811294d8e2699ec0f9d37f2e1fa2cc8d4839ae69d7b",
+        ".github/workflows/rpcs3-cell522-core.yml": "979c0eedb6534ebaac7d0df7af62dbae0e254fb20ca876ea6e2919869a12cbea",
+        "test/rpcs3_writer522_test.py": "64973a0ab7fb020271db44f68fb6bbe74b6210ff918933175c386c66b9497fb7",
+        "test/fixtures/rpcs3_writer522.diff": "f8a51396aa25e46fe0e966dd86b3f1a4643db28f958f5e3e9db4a046d22986b4",
+        "test/native/rpcs3_writer521_shards.h": "8d45ea7c664c629bde484f1bd93ed10efe5c18798683e99cd4f48147c46a9548"
+      },
+      "prior_source": "93f82e6f98d9fbdf59e848e357bf85f7487af93f",
+      "prior_run": 40093526893,
+      "prior_artifact": 12559508915,
+      "prior_archive_sha256": "8c1e1fc11e5a65734628b53ad9074feaac9d917fe08bd76e3a650ad794410115",
+      "writer_probe_source": "2deaeed298814650886cfb09a1b055bb2f365bb9",
+      "writer_probe_run": 40094678344,
+      "writer_probe_artifact": 12560296853,
+      "writer_probe_sha256": "103fb3c50be176e2c1178c4dc6566017ba1bb59264e0e2474d0fca83a1e05129",
+      "log_sha256": "8ef5da282e361ecc3c957349f92be2d4b2cdc59d74e80ddc3b844cd0a8156559",
+      "fixture_sha256": "f8a51396aa25e46fe0e966dd86b3f1a4643db28f958f5e3e9db4a046d22986b4",
+      "physical_device_tested": false
+    }
+  },
+  "legacyGenericWorkflow": {
+    "run": 40095061749,
+    "job": 120875455058,
+    "conclusion": "failure",
+    "reason": "historical Build487 guard expects a quote immediately before FREEZE_DUMP end; bounded snapshot uses a newline prefix",
+    "freezeDumpSHA256": "68b30b9ebe8b869051d8d18f88ebc1aac36de25b940fc7b12c072625e3a815fc",
+    "guardSHA256": "1fe3661903dde902d131c37e37155b3a73e0de651b56e1b461d9a59224b052dd",
+    "bothInputsByteIdenticalToBaseline520": true,
+    "guardModified": false,
+    "specializedNative522WorkflowSucceeded": true
+  },
+  "status": "delivered-private-build-522-verified",
+  "application": {
+    "source": "ace28d4231b96aad749cc948a05d03206a6f6662",
+    "run": 40095283306,
+    "job": 120877773232,
+    "conclusion": "success",
+    "build": 522,
+    "version": "0.0.8",
+    "minimumIOS": "18.0",
+    "signatureCount": 87,
+    "strictSignaturesVerifiedInCI": true,
+    "installationMethod": "SideStore re-signing",
+    "deviceInstallationTested": false
+  },
+  "ipa": {
+    "filename": "RewindBox-Build522.ipa",
+    "bytes": 186260483,
+    "sha256": "0b5447d29be2f4d1c55f45b2b3b510c11781bbcc0b47b242d12b954d51cbe5c5",
+    "allFourZipDigestsVerified": true,
+    "allFourPartDigestsVerified": true,
+    "allZipEntriesVerified": true,
+    "matchesFinalCIHash": true,
+    "privateDeliverySaved": true,
+    "compiledCorePayloadFingerprint": "a4244a6741b6fba9db744be0e60071d6101432935eb985810498e1b6445dc576",
+    "packagedCoreSHA256": "839fa94dd9e5d09f374fcd56d3d3677aa5df89b1703cb3965a06e332b99ba4df",
+    "nativeNonLinkeditSegmentsUnchanged": true,
+    "coreExportCount": 88,
+    "internalVPNPresent": false,
+    "networkExtensionEntitlementPresent": false,
+    "sourceBuiltCoreSHA256": "13904c678ad87a0030051634e02129fdb46eea8eff4f6308e5352cb3defa87ec"
+  },
+  "independentIPAReportSHA256": "9d3ee437bb61c00947d8e87a3ebfd50dd18688e772a3b4e5960ed75e1667ed3e",
+  "encryptedTransportParts": [
+    {
+      "index": 0,
+      "artifact": 12560394261,
+      "zipSHA256": "25cd008f111073fdf9b9b4e8c05f23cd44ed2081bed0ad5f53fe40a55541e9c8"
+    },
+    {
+      "index": 1,
+      "artifact": 12560782690,
+      "zipSHA256": "7a4c850dee24c6e0c6d7376fd8b26abfc59dff6f17bff6ece492a9f68e5d7976"
+    },
+    {
+      "index": 2,
+      "artifact": 12560767811,
+      "zipSHA256": "dcd1bc3d31bcabe352ae3cdb9dce0b32246564b974483dc24e5d30ce7c096e26"
+    },
+    {
+      "index": 3,
+      "artifact": 12561091811,
+      "zipSHA256": "6fb6f2436074dcfe6f5241edb8a59a63d9a59f8ab0dd6b6315c6883f4a8bb58e"
+    }
+  ]
 }
