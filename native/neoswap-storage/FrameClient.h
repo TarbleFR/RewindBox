@@ -26,6 +26,8 @@ inline constinit std::atomic<uint32_t> frame_prefetch_count{0};
 inline constinit std::atomic<uint64_t> frame_prefetch_hits{0},frame_prefetch_requests{0};
 inline constinit std::atomic<uint64_t> frame_prefetch_failures{0},frame_prefetch_refusals{0};
 inline constinit std::atomic<uint64_t> frame_demand_reads{0},frame_prefetch_wait_max_us{0};
+inline constinit std::atomic<uint64_t> frame_prefetch_read_us{0},frame_prefetch_read_max_us{0};
+inline constinit std::atomic<uint64_t> frame_demand_read_us{0},frame_demand_read_max_us{0};
 inline constexpr bool frame_requires_restore_slot(bool archived, bool has_output) noexcept {
     // Normal/warm/default-off consumption keeps the original producer wakeup.
     return archived && has_output;

@@ -125,7 +125,7 @@ void errors(const std::string& dir){
 void throttled_progress(const std::string& dir){
     auto c=config();c.managed.store.max_write_bytes_per_second=128*1024;
     Archive a(dir,14,c);reset(a,14);ColdFrame f;
-    const auto pixels=fixture(3*65536,991);
+    const auto pixels=fixture(3*config().managed.chunk_bytes,991);
     CHECK(f.offload(pixels.data(),pixels.size()));
     // A real write-rate limit plus an injected transient deferral after one
     // verified chunk. Store's rate limiter delays writes, not admission.

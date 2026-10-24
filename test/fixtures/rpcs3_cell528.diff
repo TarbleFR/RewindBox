@@ -1,0 +1,383 @@
+diff --git a/rpcs3/Emu/Cell/Modules/cellVdec.cpp b/rpcs3/Emu/Cell/Modules/cellVdec.cpp
+index f0234c9..41a61fd 100644
+--- a/rpcs3/Emu/Cell/Modules/cellVdec.cpp
++++ b/rpcs3/Emu/Cell/Modules/cellVdec.cpp
+@@ -283,7 +283,7 @@ struct vdec_context final
+ 			++pixel_frames_archived;
+ 			pixel_payload_archived += static_cast<u64>(bytes);
+ 			if (pixel_frames_archived == 1 || !(pixel_frames_archived % 16))
+-				cellVdec.notice("NEOSWAP_VDEC cold_frames=%llu pixel_payload_bytes=%llu queue=%u mapped_live=%llu unmapped_bytes=%llu unmap_failures=%llu scope=exclusive_software_pixels",
++				cellVdec.notice("COREPROF NEOSWAP_VDEC cold_frames=%llu pixel_payload_bytes=%llu queue=%u mapped_live=%llu unmapped_bytes=%llu unmap_failures=%llu scope=exclusive_software_pixels",
+ 					pixel_frames_archived, pixel_payload_archived, static_cast<u32>(out_queue.size()),
+ 					video_mapped_bytes.load(), video_unmapped_bytes.load(), video_unmap_failures.load());
+ 			return;
+@@ -1952,7 +1952,7 @@ error_code cellVdecGetPictureExt(ppu_thread& ppu, u32 handle, vm::cptr<CellVdecP
+ 			while (peak < elapsed && !vdec->pixel_restore_max_us.compare_exchange_weak(peak, elapsed)) {}
+ 			const u64 restored_count = vdec->pixel_frames_restored.fetch_add(1) + 1;
+ 			if (restored_count == 1 || !(restored_count % 16) || elapsed >= 50'000)
+-				cellVdec.notice("NEOSWAP_VDEC restored_frames=%llu bytes=%llu read_us=%llu max_read_us=%llu mapped_live=%llu prefetched=%u prefetch_payload_live=%llu prefetch_payload_peak=%llu prefetch_hits=%llu demand_reads=%llu prefetch_failures=%llu prefetch_wait_max_us=%llu prefetch_scope=process_lifetime scope=cpu_archive_read_not_nand_benchmark",
++				cellVdec.notice("COREPROF NEOSWAP_VDEC restored_frames=%llu bytes=%llu read_us=%llu max_read_us=%llu mapped_live=%llu prefetched=%u prefetch_payload_live=%llu prefetch_payload_peak=%llu prefetch_hits=%llu demand_reads=%llu prefetch_failures=%llu prefetch_wait_max_us=%llu prefetch_scope=process_lifetime scope=cpu_archive_read_not_nand_benchmark",
+ 					restored_count, static_cast<u64>(restored_pixels.size()), elapsed,
+ 					vdec->pixel_restore_max_us.load(), neostation::source_client::video_mapped_bytes.load(), prefetched ? 1u : 0u,
+ 					neostation::source_client::frame_prefetch_payload_bytes.load(), neostation::source_client::frame_prefetch_peak_bytes.load(),
+diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
+index 6f1a015..9b7a528 100644
+--- a/rpcs3/Emu/Cell/PPUModule.cpp
++++ b/rpcs3/Emu/Cell/PPUModule.cpp
+@@ -1,4 +1,7 @@
+ #include "stdafx.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSRestoreFailure.h"
++#endif
+ #include "Emu/Cell/PPUModule.h"
+ 
+ #include "Utilities/bin_patch.h"
+@@ -2737,6 +2740,7 @@ bool ppu_load_exec(const ppu_exec_object& elf, bool virtual_load, const std::str
+ #endif
+ 		init_fxo_for_exec(ar, false);
+ #ifdef RPCS3_IOS
++        if (ar && rpcs3::ios::restore_failure::failed()) return false;
+ 		restore_phase("ppu_fxo_end");
+ #endif
+ 
+diff --git a/rpcs3/Emu/Cell/lv2/sys_fs.cpp b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
+index 73647a5..6e65059 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_fs.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
+@@ -1,4 +1,7 @@
+ #include "stdafx.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSRestoreFailure.h"
++#endif
+ #include "sys_sync.h"
+ #include "sys_fs.h"
+ #include "sys_memory.h"
+@@ -726,6 +729,16 @@ lv2_file::lv2_file(utils::serial& ar)
+ 		stx::serial_restore_fs_trace(ar, "file_unavailable", idm::last_id(), static_cast<u32>(type), static_cast<u32>(res.error));
+ #endif
+ 		sys_fs.error("Failed to load \'%s\' file for savestates (res=%s, vpath=\'%s\', real-path=\'%s\', type=%s, flags=0x%x)", name.data(), res.error, retrieve_real, real_path, type, flags);
++#ifdef RPCS3_IOS
++        if (!g_cfg.savestate.state_inspection_mode)
++        {
++            rpcs3::ios::restore_failure::missing(idm::last_id(), static_cast<u32>(res.error), retrieve_real);
++            const auto& failure = rpcs3::ios::restore_failure::current;
++            sys_fs.error("SAVESTATE_RESTORE phase=missing_resource id=%u error=0x%x guest_disc_path=%s action=mount_original_disc_and_retry original_state_preserved=1",
++                failure.id, failure.error, failure.disc_path.data());
++            return; // ID/FXO loaders propagate failure without another read.
++        }
++#endif
+ 		ar.pos += sizeof(u64);
+ 		ensure(!!g_cfg.savestate.state_inspection_mode);
+ 		return;
+diff --git a/rpcs3/Emu/IdManager.h b/rpcs3/Emu/IdManager.h
+index 6763630..b53b5d6 100644
+--- a/rpcs3/Emu/IdManager.h
++++ b/rpcs3/Emu/IdManager.h
+@@ -365,6 +365,9 @@ namespace id_manager
+ 				vec_keys[object_index] = id_key(id, static_cast<u32>(static_cast<u64>(type_init_pos >> 64)));
+ 				fs_trace("id_load_begin", id, type_hash);
+ 				info->load(ar)(&obj);
++#ifdef RPCS3_IOS
++                if (rpcs3::ios::restore_failure::failed()) return;
++#endif
+ 				fs_trace("id_load_end", id, type_hash);
+ 			}
+ 		}
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index b316a42..d6a4ab9 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -489,6 +489,13 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+ 		m_shader_mode = shader_mode::recompiler;
+ 	}
+ 
++#ifdef RPCS3_IOS
++    rsx_log.notice("COREPROF SHADERCFG528 configured=%u applied=%u interpreter_supported=%u fallback=%u settings_preserved=1",
++        static_cast<u32>(g_cfg.video.shadermode.get()), static_cast<u32>(m_shader_mode),
++        m_device->gpu().get_shader_interpreter_support() ? 1u : 0u,
++        m_shader_mode != g_cfg.video.shadermode.get() ? 1u : 0u);
++#endif
++
+ 	m_swapchain_dims.width = m_frame->client_width();
+ 	m_swapchain_dims.height = m_frame->client_height();
+ 
+diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
+index 3497d6d..dd6ed94 100644
+--- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
++++ b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
+@@ -119,7 +119,12 @@ namespace vk
+             // path unchanged, then transfer this otherwise retained CPU text
+             // to the host. Refusal keeps the original string intact; disk I/O
+             // and verified eviction happen later on the host utility queue.
+-            (void)m_source_archive.offload(m_source, static_cast<uint32_t>(type));
++            // Small GLSL debug snapshots in the observed title cost a verified
++            // disk checkpoint while the original text is only a few KiB. Keep
++            // that text for dumps; only larger sources enter the cold archive.
++            // No shader, SPIR-V, GPU module or user's compiler mode is changed.
++            if (m_source.size() >= 64 * 1024)
++                (void)m_source_archive.offload(m_source, static_cast<uint32_t>(type));
+             return m_handle;
+ #else
+ 
+diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
+index ae78132..78f6c86 100644
+--- a/rpcs3/Emu/System.cpp
++++ b/rpcs3/Emu/System.cpp
+@@ -1,4 +1,7 @@
+ #include "stdafx.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSRestoreFailure.h"
++#endif
+ #include "VFS.h"
+ #include "Utilities/bin_patch.h"
+ #include "Emu/Memory/vm.h"
+@@ -262,6 +265,20 @@ void init_fxo_for_exec(utils::serial* ar, bool full = false)
+ 
+ 	g_fxo->init(false, ar, [](){ Emu.ExecPostponedInitCode(); });
+ 
++#ifdef RPCS3_IOS
++    if (ar && rpcs3::ios::restore_failure::failed())
++    {
++        // Never release runnable guest workers into the partial restored FXO.
++        // Abortion is non-joining; release standby threads, then BootGame's
++        // existing failure cleanup can Kill/clear in its normal order.
++        g_fxo->request_thread_state(thread_state::aborting);
++        stx::g_launch_retainer = 0;
++        stx::g_launch_retainer.notify_all();
++        sys_log.error("SAVESTATE_RESTORE phase=fxo_resource_abort partial_fxo_not_resumed=1");
++        return;
++    }
++#endif
++
+ #ifdef RPCS3_IOS
+ 	restore_phase("fxo_constructors_end");
+ 	restore_phase("graphics_begin");
+@@ -2690,6 +2707,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 				}
+ 
+ 				init_fxo_for_exec(DeserialManager(), true);
++#ifdef RPCS3_IOS
++                if (rpcs3::ios::restore_failure::failed()) { Kill(false); return game_boot_result::savestate_corrupted; }
++#endif
+ 
+ 				return game_boot_result::no_errors;
+ 			}
+@@ -2907,6 +2927,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 					// A restored PPU snapshot cannot be retried as an overlay ELF.
+ 					// Leave the original state file intact and return the real failure.
+ 					SetContinuousMode(false);
++#ifdef RPCS3_IOS
++                    Kill(false); // Return stopped/stopping, never a runnable partial FXO.
++#endif
+ 					return game_boot_result::savestate_corrupted;
+ 				}
+ 			}
+diff --git a/rpcs3/Emu/savestate_utils.cpp b/rpcs3/Emu/savestate_utils.cpp
+index 144b4a5..d18da52 100644
+--- a/rpcs3/Emu/savestate_utils.cpp
++++ b/rpcs3/Emu/savestate_utils.cpp
+@@ -1,4 +1,7 @@
+ #include "stdafx.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSRestoreFailure.h"
++#endif
+ #include "util/types.hpp"
+ #include "util/logs.hpp"
+ #include "util/v128.hpp"
+@@ -654,6 +657,7 @@ namespace stx
+ 	extern void serial_restore_trace_reset() noexcept
+ 	{
+ 		s_restore_trace = {0, get_system_time(), 0};
++        rpcs3::ios::restore_failure::reset();
+ 	}
+ 	extern void serial_restore_trace(utils::serial& ar, std::string_view name, bool begin) noexcept
+ 	{
+diff --git a/rpcs3/ios/IOSRestoreFailure.h b/rpcs3/ios/IOSRestoreFailure.h
+new file mode 100644
+index 0000000..8c8be8d
+--- /dev/null
++++ b/rpcs3/ios/IOSRestoreFailure.h
+@@ -0,0 +1,35 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++#include <array>
++#include <cstdint>
++#include <cstring>
++#include <string_view>
++
++// A recoverable missing-resource failure on the one restore worker. No throws
++// cross the noexcept ID constructors, and no serialized format is changed.
++namespace rpcs3::ios::restore_failure
++{
++struct failure
++{
++    std::uint32_t id = 0, error = 0;
++    std::array<char, 256> disc_path{};
++    bool active = false;
++};
++inline constinit thread_local failure current{};
++inline void reset() noexcept { current = {}; }
++inline bool failed() noexcept { return current.active; }
++inline void missing(std::uint32_t id, std::uint32_t error, std::string_view path) noexcept
++{
++    if (current.active) return; // Preserve the first cause.
++    current.id = id; current.error = error; current.active = true;
++    // Only disc-relative guest names can be exported. Never an iOS container,
++    // host_root, user save name, file content or a persisted absolute host path.
++    if (!path.starts_with("/dev_bdvd/")) return;
++    const auto count = path.size() < current.disc_path.size() ? path.size() : current.disc_path.size() - 1;
++    for (std::size_t i = 0; i < count; ++i)
++    {
++        const auto c = static_cast<unsigned char>(path[i]);
++        current.disc_path[i] = c >= 32 && c < 127 ? static_cast<char>(c) : '?';
++    }
++}
++}
+diff --git a/rpcs3/ios/NeoSwapStorage/FrameClient.h b/rpcs3/ios/NeoSwapStorage/FrameClient.h
+index 339261b..e0724fa 100644
+--- a/rpcs3/ios/NeoSwapStorage/FrameClient.h
++++ b/rpcs3/ios/NeoSwapStorage/FrameClient.h
+@@ -26,6 +26,8 @@ inline constinit std::atomic<uint32_t> frame_prefetch_count{0};
+ inline constinit std::atomic<uint64_t> frame_prefetch_hits{0},frame_prefetch_requests{0};
+ inline constinit std::atomic<uint64_t> frame_prefetch_failures{0},frame_prefetch_refusals{0};
+ inline constinit std::atomic<uint64_t> frame_demand_reads{0},frame_prefetch_wait_max_us{0};
++inline constinit std::atomic<uint64_t> frame_prefetch_read_us{0},frame_prefetch_read_max_us{0};
++inline constinit std::atomic<uint64_t> frame_demand_read_us{0},frame_demand_read_max_us{0};
+ inline constexpr bool frame_requires_restore_slot(bool archived, bool has_output) noexcept {
+     // Normal/warm/default-off consumption keeps the original producer wakeup.
+     return archived && has_output;
+diff --git a/rpcs3/ios/NeoSwapStorage/SourceClient.cpp b/rpcs3/ios/NeoSwapStorage/SourceClient.cpp
+index 59075bf..02c18dd 100644
+--- a/rpcs3/ios/NeoSwapStorage/SourceClient.cpp
++++ b/rpcs3/ios/NeoSwapStorage/SourceClient.cpp
+@@ -86,7 +86,18 @@ void release_frame_payload(uint64_t bytes) noexcept {
+     frame_prefetch_payload_bytes.fetch_sub(bytes,std::memory_order_relaxed);
+     frame_prefetch_count.fetch_sub(1,std::memory_order_relaxed);
+ }
+-int read_frame_payload(const FrameReference& frame,std::string& output,int& os_error) noexcept {
++int read_frame_payload(const FrameReference& frame,std::string& output,int& os_error,bool speculative=false) noexcept {
++    struct ReadCost {
++        bool prefetch;
++        std::chrono::steady_clock::time_point start=std::chrono::steady_clock::now();
++        ~ReadCost(){
++            const auto elapsed=static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
++                std::chrono::steady_clock::now()-start).count());
++            auto& total=prefetch?frame_prefetch_read_us:frame_demand_read_us;
++            auto& maximum=prefetch?frame_prefetch_read_max_us:frame_demand_read_max_us;
++            total.fetch_add(elapsed,std::memory_order_relaxed);frame_peak(maximum,elapsed);
++        }
++    } cost{speculative};
+     try {
+         output.resize(static_cast<size_t>(frame.bytes));size_t offset=0;
+         for(uint32_t index=0;index<frame.count;++index){
+@@ -120,7 +131,7 @@ bool ColdFrame::prefetch() const noexcept {
+         }
+         frame_prefetch_requests.fetch_add(1);
+         std::string pixels;int error=0;
+-        const int result=read_frame_payload(*frame,pixels,error);
++        const int result=read_frame_payload(*frame,pixels,error,true);
+         {
+             std::lock_guard lock(frame->warm_mutex);
+             if(result==NS_SOURCE_OK){
+diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
+index b1d728d..b95b602 100644
+--- a/rpcs3/ios/RPCS3IOS.cpp
++++ b/rpcs3/ios/RPCS3IOS.cpp
+@@ -1,3 +1,4 @@
++#include "IOSRestoreFailure.h"
+ #include "IOSCompileAdmission.h"
+ #include <os/proc.h>
+ #include <mach/mach.h>
+@@ -4970,7 +4971,12 @@ static rpcs3_ios_status neostation_rpcs3_ios_save_state_impl(uint32_t requested_
+                             fmt::format("neostation_slot:%u", requested_slot));
+                         const auto result = Emu.Restart(true, false);
+                         if (result != game_boot_result::no_errors || Emu.GetStatus(false) == system_state::stopped)
+-                            neostation::savestate::current.finish(false, "The savestate was written, but RPCS3 could not restore it.");
++                        {
++                            const auto& missing = rpcs3::ios::restore_failure::current;
++                            neostation::savestate::current.finish(false, missing.active
++                                ? fmt::format("Savestate needs file descriptor %u (error 0x%x, disc file '%s'). Mount the same game disc/dump and update used to create it, then retry. The original savestate is unchanged.", missing.id, missing.error, missing.disc_path.data())
++                                : "The savestate was written, but RPCS3 could not restore it.");
++                        }
+                         else
+                             neostation::savestate::current.finish(true);
+                     }
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 5d9ece8..19ae3a4 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -1,4 +1,5 @@
+ #include "stdafx.h"
++#include "ios/NeoSwapStorage/FrameClient.h"
+ #include "RPCS3IOSWriterCounters.h"
+ #include "IOSGraphicsMemorySnapshot.h"
+ #include "IOSGPUMemoryProfile.h"
+@@ -809,6 +810,19 @@ private:
+             guest_frames.intervals, guest_frames.unavailable, guest_frames.median_us / 1000.0,
+             guest_frames.p95_us / 1000.0, guest_frames.p99_us / 1000.0, guest_frames.maximum_us / 1000.0,
+             guest_frames.over_50ms, guest_frames.over_100ms, guest_frames.total_us / 1000.0, elapsed_ms, frame_histogram.empty() ? "none" : frame_histogram);
++        {
++            using namespace neostation::source_client;
++            ios_core_profiler.notice(
++                "COREPROF VDECIO528 session=%llu window=%llu prefetch_requests=%llu prefetch_hits=%llu "
++                "prefetch_failures=%llu prefetch_read_total_us=%llu prefetch_read_max_us=%llu "
++                "demand_reads=%llu demand_read_total_us=%llu demand_read_max_us=%llu "
++                "consumer_prefetch_wait_max_us=%llu warm_payload_live=%llu warm_payload_peak=%llu "
++                "scope=process_lifetime_host_read_includes_queue_and_copy overlaps_parent_restore=1",
++                profile_session, profile_window, frame_prefetch_requests.load(), frame_prefetch_hits.load(),
++                frame_prefetch_failures.load(), frame_prefetch_read_us.load(), frame_prefetch_read_max_us.load(),
++                frame_demand_reads.load(), frame_demand_read_us.load(), frame_demand_read_max_us.load(),
++                frame_prefetch_wait_max_us.load(), frame_prefetch_payload_bytes.load(), frame_prefetch_peak_bytes.load());
++        }
+         // Queue time is asynchronous job residence, not a proved RSX stall.
+         // Fence scope excludes wait_flush(); range scope is one whole episode;
+         // semaphore measures guest semaphore polling; admission is host-budget wait.
+diff --git a/rpcs3/util/fixed_typemap.hpp b/rpcs3/util/fixed_typemap.hpp
+index 2c145de..b8fd3bc 100644
+--- a/rpcs3/util/fixed_typemap.hpp
++++ b/rpcs3/util/fixed_typemap.hpp
+@@ -4,6 +4,9 @@
+ 
+ #include "util/types.hpp"
+ #include "util/typeindices.hpp"
++#ifdef RPCS3_IOS
++#include "ios/IOSRestoreFailure.h"
++#endif
+ 
+ #include <utility>
+ #include <type_traits>
+@@ -313,6 +316,15 @@ namespace stx
+ 					*m_info++ = &type;
+ 					m_init[id] = true;
+ 
++#ifdef RPCS3_IOS
++                    // Register the completed object's destructor above, then
++                    // stop BEFORE reading another tag or launching threads.
++                    if (ar && rpcs3::ios::restore_failure::failed())
++                    {
++                        g_tls_serialize_name = {};
++                        return;
++                    }
++#endif
+ 					if (ar && saveable && type.save)
+ 					{
+ 						serial_breathe_and_tag(*ar, type.name, false);
+@@ -340,6 +352,18 @@ namespace stx
+ 			g_tls_serialize_name = {};
+ 		}
+ 
++#ifdef RPCS3_IOS
++        // Non-joining abort first; callers release the global launch gate
++        // before ordinary Kill/clear joins partially constructed workers.
++        void request_thread_state(thread_state state) noexcept
++        {
++            usz count = 0;
++            for (const bool initialized : m_init) count += initialized ? 1u : 0u;
++            for (usz i = 0; i < count; ++i)
++                if (const auto op = (*std::prev(m_info, i + 1))->thread_op)
++                    op(*std::prev(m_order, i + 1), state);
++        }
++#endif
+ 		void clear()
+ 		{
+ 			if (!is_init())

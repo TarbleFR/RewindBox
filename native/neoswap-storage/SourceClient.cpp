@@ -86,7 +86,18 @@ void release_frame_payload(uint64_t bytes) noexcept {
     frame_prefetch_payload_bytes.fetch_sub(bytes,std::memory_order_relaxed);
     frame_prefetch_count.fetch_sub(1,std::memory_order_relaxed);
 }
-int read_frame_payload(const FrameReference& frame,std::string& output,int& os_error) noexcept {
+int read_frame_payload(const FrameReference& frame,std::string& output,int& os_error,bool speculative=false) noexcept {
+    struct ReadCost {
+        bool prefetch;
+        std::chrono::steady_clock::time_point start=std::chrono::steady_clock::now();
+        ~ReadCost(){
+            const auto elapsed=static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now()-start).count());
+            auto& total=prefetch?frame_prefetch_read_us:frame_demand_read_us;
+            auto& maximum=prefetch?frame_prefetch_read_max_us:frame_demand_read_max_us;
+            total.fetch_add(elapsed,std::memory_order_relaxed);frame_peak(maximum,elapsed);
+        }
+    } cost{speculative};
     try {
         output.resize(static_cast<size_t>(frame.bytes));size_t offset=0;
         for(uint32_t index=0;index<frame.count;++index){
@@ -120,7 +131,7 @@ bool ColdFrame::prefetch() const noexcept {
         }
         frame_prefetch_requests.fetch_add(1);
         std::string pixels;int error=0;
-        const int result=read_frame_payload(*frame,pixels,error);
+        const int result=read_frame_payload(*frame,pixels,error,true);
         {
             std::lock_guard lock(frame->warm_mutex);
             if(result==NS_SOURCE_OK){

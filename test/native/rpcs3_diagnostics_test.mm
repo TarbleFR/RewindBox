@@ -98,6 +98,33 @@ int main(int argc, const char* argv[]) {
     RPCS3Diagnostic(nil, nil);
     RPCS3DiagnosticsFlushForTesting();
     assert([readEntries(path).lastObject[@"stage"] isEqualToString:@""]);
+
+    // CELL528: verbose restore details can rotate the ordinary journal while
+    // complete runtime windows remain exportable in their own bounded history.
+    NSString* runtime = [testDocuments stringByAppendingPathComponent:@"RPCS3-performance.log"];
+    RPCS3Diagnostic(@"core_log", @"COREPROF FRAMEPROF527 session=7 window=1 marker=before_restore");
+    for (unsigned i = 0; i < 1300; ++i)
+      RPCS3Diagnostic(@"core_log", [@"SAVESTATE_RESTORE phase=fxo_type_begin " stringByAppendingString:large]);
+    RPCS3Diagnostic(@"core_log", @"SAVESTATE_RESTORE phase=missing_resource id=5 error=0x80010006 guest_disc_path=/dev_bdvd/PS3_GAME/USRDIR/missing.bin ");
+    RPCS3DiagnosticsFlushForTesting();
+    NSArray<NSDictionary*>* history = readEntries(runtime);
+    assert(history.count == 2);
+    assert([history.firstObject[@"message"] containsString:@"before_restore"]);
+    assert([history.lastObject[@"message"] containsString:@"missing_resource"]);
+    for (NSDictionary* row in history) {
+      assert([row[@"clockMonotonicBeginUs"] unsignedLongLongValue] <= [row[@"clockMonotonicEndUs"] unsignedLongLongValue]);
+      assert([row[@"clockAnchorScope"] isEqualToString:@"native_log_capture_not_file_write"]);
+    }
+    NSString* bigRuntime = [@"COREPROF WAITPROF527 " stringByAppendingString:
+        [@"r" stringByPaddingToLength:64 * 1024 withString:@"r" startingAtIndex:0]];
+    for (unsigned i = 0; i < 50; ++i) RPCS3Diagnostic(@"core_log", bigRuntime);
+    RPCS3Diagnostic(@"core_log", @"COREPROF MEMPROF527 session=7 window=2 marker=after_rotation");
+    RPCS3DiagnosticsFlushForTesting();
+    NSString* runtimePrevious = [testDocuments stringByAppendingPathComponent:@"RPCS3-performance.1.log"];
+    assert([[[NSFileManager defaultManager] attributesOfItemAtPath:runtime error:nil] fileSize] <= 2 * 1024 * 1024);
+    assert([[[NSFileManager defaultManager] attributesOfItemAtPath:runtimePrevious error:nil] fileSize] <= 2 * 1024 * 1024);
+    assert([readEntries(runtime).lastObject[@"message"] containsString:@"after_rotation"]);
+    assert(readEntries(runtime).count + readEntries(runtimePrevious).count == 53);
   }
   return 0;
 }

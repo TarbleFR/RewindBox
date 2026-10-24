@@ -449,8 +449,15 @@ NSDictionary* NeoSwapStorage_DrainOperations(void){
     const NSUInteger count=MIN(s.operationEvents.count,128u);
     NSArray* events=[s.operationEvents subarrayWithRange:NSMakeRange(0,count)];
     [s.operationEvents removeObjectsInRange:NSMakeRange(0,count)];
+    // A native paired-clock anchor, independent of Flutter/log-write delay.
+    // The bracketing monotonic reads bound the sampling skew explicitly.
+    const uint64_t anchorBegin=monotonicUs();
+    const uint64_t unixUs=static_cast<uint64_t>(NSDate.date.timeIntervalSince1970*1000000.0);
+    const uint64_t anchorEnd=monotonicUs();
     return @{@"events":events,@"droppedEventsCumulative":@(s.operationDrops),
-        @"pendingEvents":@(s.operationEvents.count),@"completeHistory":@(s.operationDrops==0)};
+        @"pendingEvents":@(s.operationEvents.count),@"completeHistory":@(s.operationDrops==0),
+        @"clockMonotonicBeginUs":@(anchorBegin),@"clockMonotonicEndUs":@(anchorEnd),
+        @"clockUnixUs":@(unixUs),@"clockAnchorScope":@"native_drain_not_event_time"};
 }
 #ifdef NEOSWAP_STORAGE_TESTING
 void NeoSwapStorage_TestSetMemory(uint64_t available,bool valid,uint32_t pressure){

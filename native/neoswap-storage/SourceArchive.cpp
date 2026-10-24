@@ -82,9 +82,12 @@ OperationBatch Archive::drain_operations(){
     out.dropped=operation_dropped_;out.pending=operation_count_;return out;
 }
 Config::Config(){
-    managed.chunk_bytes=65536;managed.resident_bytes=8ULL<<20;
+    // Keep the same 8 MiB managed envelope and 4 MiB admission staging.
+    // 256 KiB reduces the observed 691200-byte pixel image from 11 serial
+    // verified checkpoints/reads to 3, without growing Store RAM (1 MiB).
+    managed.chunk_bytes=256U<<10;managed.resident_bytes=8ULL<<20;
     managed.logical_bytes=128ULL<<20;managed.max_objects=4096;
-    managed.store.max_blob=65536;managed.store.max_entries=4096;
+    managed.store.max_blob=256U<<10;managed.store.max_entries=4096;
     managed.store.ram_bytes=1ULL<<20;managed.store.warm_bytes=0;
     managed.store.disk_bytes=128ULL<<20;managed.store.compression=true;
     managed.store.compression_budget_us=500;
