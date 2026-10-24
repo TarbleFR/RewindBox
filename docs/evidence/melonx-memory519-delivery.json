@@ -1,0 +1,584 @@
+{
+  "schemaVersion": 1,
+  "status": "delivered",
+  "build": 519,
+  "branch": "Claude",
+  "source": "f93323768831428186c3aeb21b7e7a6130897836",
+  "workflowSource": "df96b0d85f12d1442060e8d426175f3928fcb7bc",
+  "functionalSource": "a279185aec23fcbf9dfbd389a62f5c0e90d83bc6",
+  "deliveryRun": 40043376467,
+  "deliveryRunConclusion": "success",
+  "concurrentRPCS3ChangesPreserved": "dbd9205ab12221f5203d6123545ca90999d23970",
+  "headerLayoutFixSource": "a279185aec23fcbf9dfbd389a62f5c0e90d83bc6",
+  "headerModuleValidation": {
+    "result": "passed",
+    "source": "f93323768831428186c3aeb21b7e7a6130897836",
+    "oldSource": "5445f9bb3bd1b04ba88e4e4f03852e6dfbd4763e",
+    "oldRelocatedHeaderFailed": true,
+    "currentRelocatedHeaderPassed": true,
+    "oldObjectiveCxxModulesFailed": true,
+    "currentObjectiveCxxModulesPassed": true,
+    "podConfigurationActual": true,
+    "actualIPhoneSDK": true,
+    "gameplayTested": false,
+    "inputs": {
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.h": "8cb4bc31f70ac0caef8f6ba8ced9c27c79a319edb4d0853fcbd8d40ac2915e6d",
+      "packages/melonx_internal_bridge/ios/melonx_internal_bridge.podspec": "a394a46ebe8518c91c014590613461022b988e3c1bd7b1b9b7f6038d865cd07f",
+      "test/melonx_header_module_test.py": "cf22ef19870655b0cf3affdb683b168ae7bc8a0961c9eb2fe2ab17b5a771c58d"
+    }
+  },
+  "headerSDKValidation": {
+    "source": "f93323768831428186c3aeb21b7e7a6130897836",
+    "inputs": {
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInputRouter.swift": "5e8f5d0e650d4e71402f46f683c64b6ca633afdb3ebc05cb809704a3d56396c0",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "bb640c2bcf596132fcd75140c39babe38c7b677e202ddb4ec9890948dfd458ca",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMappingView.swift": "a32c0c084ac3257f304037c906058c0fc6a7eadbac8d4bb08e5f338301767cfd",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryGraph.swift": "c56512588ec36622ce99c35ed45011a7cb8e768db22d65aea6d4d023838a7638",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryLease.swift": "13b64bbe7d3c4304439f9cf01eb58427d3905f746a90ad1a1ebec5cbd29deaef",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": "c7ea4ff6314a72500ceadecff5095f3ef757efb8e4ff1f493ae5347bdfdb575a",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXPresentation.swift": "94882dac3c73ebc3cda382a90267cae14586afeab12349c6ac81e2c8ac277b1f",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "81ae89813c459db4b3a7f2010bf8ec0986cfb9bcbbbd36e925cd0b473dae3020",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "3b2dd81f65c177ce461aa5bbba1feac4a0445cb137f0e6b7ce789a5ad6920a73",
+      "packages/melonx_internal_bridge/ios/Controller/Buttons/ButtonConfiguration.swift": "16d6d8edc5359582081a97efaab8f7d85ab4ceb5938a7c2545185b2dd9dcf987",
+      "packages/melonx_internal_bridge/ios/Controller/Buttons/ButtonView.swift": "4016694e0b900520fe9aebb1c886e11ff0363998a7ca77e6e5e83e458d2a696e",
+      "packages/melonx_internal_bridge/ios/Controller/Buttons/ControllerButton.swift": "2ebdb7690db965423493b61712bd5617bbec26f0333037f4df19bcc9cfa9ce8c",
+      "packages/melonx_internal_bridge/ios/Controller/Controller.swift": "8a795ec9f5957d4de64b6dc32e4fc5348199d3552e1f5c264b26d5a5e79f5e76",
+      "packages/melonx_internal_bridge/ios/Controller/ControllerHandler.swift": "7406c1a319a08879145fac0f695d5cdc861edb4b2f7253c12c68c3d11f527aea",
+      "packages/melonx_internal_bridge/ios/Controller/ControllerView.swift": "d2930bf28f3080c45af93b38bcd12db60df3a7f00932a56aeaeb45fdc9e9d041",
+      "packages/melonx_internal_bridge/ios/Controller/Haptics/Haptics.swift": "da61f5c110a8b513cc2f36b3466859d1050ac326970d635b511a9860d8b27fbd",
+      "packages/melonx_internal_bridge/ios/Controller/Joystick/Joystick.swift": "0079fa88874cb20393f6ae1672505f052b8c9fc68546a33d8306567f1e673ac0",
+      "packages/melonx_internal_bridge/ios/Controller/Joystick/JoystickDPadPoint.swift": "a02b3d2820c6cd63843811fa5c6ffa829840b7d5d1245e373202a61766c1e102",
+      "packages/melonx_internal_bridge/ios/Controller/Joystick/JoystickView.swift": "d4f086dd3fb6f6e1a9e749228cd028be081318e11d14b330b9fc3ff0fed1d5e2",
+      "packages/melonx_internal_bridge/ios/Controller/Joystick/JoystickViewRepresentable.swift": "77272b5365f2168af283f5c46b4580e5d85da76a1a77dacabef339884c8aaad2",
+      "packages/melonx_internal_bridge/ios/Controller/Layout/CopyLayoutView.swift": "e62ab7ed9c798e0e016471b7bff1caf8e482c00ded0551fad20bfa33631eb715",
+      "packages/melonx_internal_bridge/ios/Controller/Layout/LayoutEditorView.swift": "8c267082be7359f79e96e1c5cff1f9521b6f56dba688d7f14a18d1dd98f47577",
+      "packages/melonx_internal_bridge/ios/Controller/Layout/LayoutManager.swift": "ae830778cb9f831c5fa59230e737e186b48b613e5debad328faae2f5657de030",
+      "packages/melonx_internal_bridge/ios/Controller/Layout/LayoutOptionsView.swift": "86377529eb4461c78eb1d42aa825df8b74fce9b62d9d4554cae5ae8a23a6c84d",
+      "packages/melonx_internal_bridge/ios/Controller/MeloNXControllerMapping.swift": "a857e253a183854627fbeee5d48e2f34631a59aeb669dcad5dd1ac581824acf2",
+      "packages/melonx_internal_bridge/ios/Controller/MeloNXStrings.swift": "50c161d18ffaf5e1ee2451c710338b2f9fb1faa77dae3bf65763e021a7ded8e6",
+      "packages/melonx_internal_bridge/ios/Controller/MeloNXVirtualControllerButton.swift": "d697f9e2f64cfc34041f02e833e0b9b49220cd9ea152146b25d021321b4864ac",
+      "packages/melonx_internal_bridge/ios/Controller/Models/Layout.swift": "fb81a4f9fda9ed7e42305d0ed4613c179a5ba60a501939e139ce68019aec160a",
+      "packages/melonx_internal_bridge/ios/Controller/Models/VirtualControllerButton.swift": "1a300504f30c59e122bd72003a1559679fad9520d80d54a316faa3c7bc9dc251",
+      "packages/melonx_internal_bridge/ios/Controller/Models/Window.swift": "be08c9a391cd5ae1ebb1eebd526e25d5b9b7db2b3deea8c3bf30f2c7718aee7e",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h": "db1d1d686e879d16cf54d12d6e38764aa1b74c73688065153a7db41082152a42",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.h": "8cb4bc31f70ac0caef8f6ba8ced9c27c79a319edb4d0853fcbd8d40ac2915e6d",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.mm": "8b7b761a311ee7cae7a8fea0e77fd050a1aba1105d21c8a91de895d24ee112b7",
+      "test/melonx_session_host_test.py": "6b71b9ddf1b49869f76e5e53b2725d2297068ac0e137152815601c0354a1d113"
+    },
+    "iphoneSDKTypecheck": true,
+    "nativeABIDoubleReexecuted": false,
+    "unchangedABIDoubleRun": 40031804127,
+    "gameplayTested": false
+  },
+  "failedAssemblyAttempts": [
+    {
+      "source": "e43937263fd506c149a7cf3960c5a925217f2e1a",
+      "workflowSource": "236b5c23caba74031794730ca85d5866dd9c4abe",
+      "run": 40039329972,
+      "job": 120709637916,
+      "reason": "CocoaPods flattened public headers; ../Memory/MLXRamDonor.h was not found"
+    },
+    {
+      "source": "20b2b11f210d9c85b54ecdbad8d3e3164e0a3d01",
+      "workflowSource": "ed6319476fa9231b6fe23c1954e6202d60e693f5",
+      "run": 40041292331,
+      "job": 120712824069,
+      "reason": "Original donor header uses @import Foundation; actual Objective-C++ Pod flags lacked -fcxx-modules"
+    },
+    {
+      "source": "635ff2f0e270b35f31b8e2f13f05a13fa0c9c96a",
+      "workflowSource": "bed62fe615cdb3710841e407340c088ae1b99a2f",
+      "run": 40042163338,
+      "job": 120715615266,
+      "reason": "Build succeeded; source/license declaration manifest still contained the old MeloNX Pod SHA256",
+      "deviceCompilationPassed": true
+    }
+  ],
+  "packagingFollowup": "Reviewed three-line Pod delta; 27 packaging and 6 exact extension-set/version cases passed",
+  "packageDeclarationFollowup": {
+    "review_date": "2026-10-24",
+    "host_source": "a279185aec23fcbf9dfbd389a62f5c0e90d83bc6",
+    "previous_declaration_sha256": "794c13b098df31b9e5c71fc29f3a59d7a19997f678fb90aa5ab96ae780997104",
+    "changes": [
+      "Include and preserve the original pinned donor host headers and Objective-C implementation in Memory/.",
+      "Enable Clang modules for the actual Objective-C++ host target."
+    ],
+    "unchanged_declarations": [
+      "license",
+      "source",
+      "author",
+      "dependencies",
+      "frameworks",
+      "libraries"
+    ],
+    "donor_upstream": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+    "scope": "MeloNX Pod source selection and compilation settings only. Existing source notices and mixed upstream MIT/GPL statements are preserved; no blanket license clearance is inferred."
+  },
+  "host": {
+    "source": "5445f9bb3bd1b04ba88e4e4f03852e6dfbd4763e",
+    "run": 40038955791,
+    "job": 120705207702,
+    "result": "success",
+    "artifact": 12538433554,
+    "reports": {
+      "checks.json": {
+        "source": "5445f9bb3bd1b04ba88e4e4f03852e6dfbd4763e",
+        "inputs": {
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXInputRouter.swift": "5e8f5d0e650d4e71402f46f683c64b6ca633afdb3ebc05cb809704a3d56396c0",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "bb640c2bcf596132fcd75140c39babe38c7b677e202ddb4ec9890948dfd458ca",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMappingView.swift": "a32c0c084ac3257f304037c906058c0fc6a7eadbac8d4bb08e5f338301767cfd",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryGraph.swift": "c56512588ec36622ce99c35ed45011a7cb8e768db22d65aea6d4d023838a7638",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryLease.swift": "13b64bbe7d3c4304439f9cf01eb58427d3905f746a90ad1a1ebec5cbd29deaef",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": "c7ea4ff6314a72500ceadecff5095f3ef757efb8e4ff1f493ae5347bdfdb575a",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXPresentation.swift": "94882dac3c73ebc3cda382a90267cae14586afeab12349c6ac81e2c8ac277b1f",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "81ae89813c459db4b3a7f2010bf8ec0986cfb9bcbbbd36e925cd0b473dae3020",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "3b2dd81f65c177ce461aa5bbba1feac4a0445cb137f0e6b7ce789a5ad6920a73",
+          "packages/melonx_internal_bridge/ios/Controller/Buttons/ButtonConfiguration.swift": "16d6d8edc5359582081a97efaab8f7d85ab4ceb5938a7c2545185b2dd9dcf987",
+          "packages/melonx_internal_bridge/ios/Controller/Buttons/ButtonView.swift": "4016694e0b900520fe9aebb1c886e11ff0363998a7ca77e6e5e83e458d2a696e",
+          "packages/melonx_internal_bridge/ios/Controller/Buttons/ControllerButton.swift": "2ebdb7690db965423493b61712bd5617bbec26f0333037f4df19bcc9cfa9ce8c",
+          "packages/melonx_internal_bridge/ios/Controller/Controller.swift": "8a795ec9f5957d4de64b6dc32e4fc5348199d3552e1f5c264b26d5a5e79f5e76",
+          "packages/melonx_internal_bridge/ios/Controller/ControllerHandler.swift": "7406c1a319a08879145fac0f695d5cdc861edb4b2f7253c12c68c3d11f527aea",
+          "packages/melonx_internal_bridge/ios/Controller/ControllerView.swift": "d2930bf28f3080c45af93b38bcd12db60df3a7f00932a56aeaeb45fdc9e9d041",
+          "packages/melonx_internal_bridge/ios/Controller/Haptics/Haptics.swift": "da61f5c110a8b513cc2f36b3466859d1050ac326970d635b511a9860d8b27fbd",
+          "packages/melonx_internal_bridge/ios/Controller/Joystick/Joystick.swift": "0079fa88874cb20393f6ae1672505f052b8c9fc68546a33d8306567f1e673ac0",
+          "packages/melonx_internal_bridge/ios/Controller/Joystick/JoystickDPadPoint.swift": "a02b3d2820c6cd63843811fa5c6ffa829840b7d5d1245e373202a61766c1e102",
+          "packages/melonx_internal_bridge/ios/Controller/Joystick/JoystickView.swift": "d4f086dd3fb6f6e1a9e749228cd028be081318e11d14b330b9fc3ff0fed1d5e2",
+          "packages/melonx_internal_bridge/ios/Controller/Joystick/JoystickViewRepresentable.swift": "77272b5365f2168af283f5c46b4580e5d85da76a1a77dacabef339884c8aaad2",
+          "packages/melonx_internal_bridge/ios/Controller/Layout/CopyLayoutView.swift": "e62ab7ed9c798e0e016471b7bff1caf8e482c00ded0551fad20bfa33631eb715",
+          "packages/melonx_internal_bridge/ios/Controller/Layout/LayoutEditorView.swift": "8c267082be7359f79e96e1c5cff1f9521b6f56dba688d7f14a18d1dd98f47577",
+          "packages/melonx_internal_bridge/ios/Controller/Layout/LayoutManager.swift": "ae830778cb9f831c5fa59230e737e186b48b613e5debad328faae2f5657de030",
+          "packages/melonx_internal_bridge/ios/Controller/Layout/LayoutOptionsView.swift": "86377529eb4461c78eb1d42aa825df8b74fce9b62d9d4554cae5ae8a23a6c84d",
+          "packages/melonx_internal_bridge/ios/Controller/MeloNXControllerMapping.swift": "a857e253a183854627fbeee5d48e2f34631a59aeb669dcad5dd1ac581824acf2",
+          "packages/melonx_internal_bridge/ios/Controller/MeloNXStrings.swift": "50c161d18ffaf5e1ee2451c710338b2f9fb1faa77dae3bf65763e021a7ded8e6",
+          "packages/melonx_internal_bridge/ios/Controller/MeloNXVirtualControllerButton.swift": "d697f9e2f64cfc34041f02e833e0b9b49220cd9ea152146b25d021321b4864ac",
+          "packages/melonx_internal_bridge/ios/Controller/Models/Layout.swift": "fb81a4f9fda9ed7e42305d0ed4613c179a5ba60a501939e139ce68019aec160a",
+          "packages/melonx_internal_bridge/ios/Controller/Models/VirtualControllerButton.swift": "1a300504f30c59e122bd72003a1559679fad9520d80d54a316faa3c7bc9dc251",
+          "packages/melonx_internal_bridge/ios/Controller/Models/Window.swift": "be08c9a391cd5ae1ebb1eebd526e25d5b9b7db2b3deea8c3bf30f2c7718aee7e",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h": "db1d1d686e879d16cf54d12d6e38764aa1b74c73688065153a7db41082152a42",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.h": "523db3eaa36e418b66f8649eead4e9115921a451d40ccd2689e85867754bc588",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.mm": "8b7b761a311ee7cae7a8fea0e77fd050a1aba1105d21c8a91de895d24ee112b7",
+          "test/melonx_session_host_test.py": "6b71b9ddf1b49869f76e5e53b2725d2297068ac0e137152815601c0354a1d113"
+        },
+        "iphoneSDKTypecheck": true,
+        "nativeABIDoubleReexecuted": false,
+        "unchangedABIDoubleRun": 40031804127,
+        "gameplayTested": false
+      },
+      "presentation.json": {
+        "result": "passed",
+        "source": "5445f9bb3bd1b04ba88e4e4f03852e6dfbd4763e",
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+        "oldControlSource": "fa6d056e668e55fb7b96959b20cc15064e52e68a",
+        "reports": [
+          {
+            "actualFlutterFramework": true,
+            "actualUIKit": true,
+            "checks": 4,
+            "detachCalls": 2,
+            "detail": "old registration/retry failure reproduced",
+            "engineAndJitDouble": true,
+            "gameplayTested": false,
+            "guestFrameDouble": true,
+            "oldControl": true,
+            "physicalDeviceTested": false,
+            "presentedSessions": 0,
+            "registrarBoundaryDouble": true,
+            "result": "passed"
+          },
+          {
+            "actualFlutterFramework": true,
+            "actualUIKit": true,
+            "checks": 14,
+            "detachCalls": 1,
+            "detail": "presentation, retry and donor quarantine passed",
+            "engineAndJitDouble": true,
+            "gameplayTested": false,
+            "guestFrameDouble": true,
+            "oldControl": false,
+            "physicalDeviceTested": false,
+            "presentedSessions": 3,
+            "registrarBoundaryDouble": true,
+            "result": "passed"
+          }
+        ],
+        "inputs": {
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "bb640c2bcf596132fcd75140c39babe38c7b677e202ddb4ec9890948dfd458ca",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXPresentation.swift": "94882dac3c73ebc3cda382a90267cae14586afeab12349c6ac81e2c8ac277b1f",
+          "test/melonx_presentation_test.py": "d49cda0f5f395ef5cea7c0d3666a4ae823860c9b020c9fbd612e2c3c0b461020",
+          "test/melonx_presentation/App.swift": "2d40df9b9c657254ac5cc01a7d77fbe1f31185d862e923f0dfd68ad24ed7b6e6",
+          "test/melonx_presentation/Doubles.swift": "1dbcb9fd650f051b86cc3440206604fa9c5961c8870398c405f36b6ce4966500",
+          "test/melonx_presentation/Registrar.h": "f033df62f4cd06c95d651c1944a62694fe3aa4aa6bff0584df61d31dd22c1715",
+          "test/melonx_presentation/Registrar.m": "26d97d355c659107fe3527dcedf4083f33c5f7dfba44d0a9c6982ae1177e99b2"
+        },
+        "physicalDeviceTested": false,
+        "gameplayTested": false
+      },
+      "extension.json": {
+        "result": "passed",
+        "extensionBuilt": true,
+        "configurationIdempotent": true,
+        "metadata": {
+          "BuildMachineOSBuild": "25G83",
+          "CFBundleDevelopmentRegion": "en",
+          "CFBundleDisplayName": "MeloNX RAM",
+          "CFBundleExecutable": "MeloNXRamDonor",
+          "CFBundleIdentifier": "com.neogamelab.neostation.melonxramdonor",
+          "CFBundleInfoDictionaryVersion": "6.0",
+          "CFBundleName": "MeloNXRamDonor",
+          "CFBundlePackageType": "XPC!",
+          "CFBundleShortVersionString": "0.0.8",
+          "CFBundleSupportedPlatforms": [
+            "iPhoneSimulator"
+          ],
+          "CFBundleVersion": "519",
+          "DTCompiler": "com.apple.compilers.llvm.clang.1_0",
+          "DTPlatformBuild": "23F81a",
+          "DTPlatformName": "iphonesimulator",
+          "DTPlatformVersion": "26.5",
+          "DTSDKBuild": "23F81a",
+          "DTSDKName": "iphonesimulator26.5",
+          "DTXcode": "2660",
+          "DTXcodeBuild": "17F113",
+          "MinimumOSVersion": "18.0",
+          "NSExtension": {
+            "NSExtensionAttributes": {
+              "NSExtensionActivationRule": "FALSEPREDICATE"
+            },
+            "NSExtensionContextClass": "NSExtensionContext",
+            "NSExtensionContextHostClass": "NSExtensionContext",
+            "NSExtensionPointIdentifier": "com.apple.ar.viewer",
+            "NSExtensionPrincipalClass": "MLXRamDonorHandler"
+          },
+          "RewindBoxMeloNXRamDonor": "1",
+          "UIDeviceFamily": [
+            1,
+            2
+          ],
+          "XPCService": {
+            "ServiceType": "Application",
+            "_MultipleInstances": true,
+            "_ProcessType": "App"
+          }
+        },
+        "upstream": {
+          "upstream": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+          "originals": {
+            "MLXRamDonor.h": "3a9f8399b6192b84558d674cd09ef2a2f73516729f17bc23fc1f1473d06e3afa",
+            "MLXRamDonor.m": "bed73401c6838a7d9e75c9b178b987d398d6a6a07df09259899314fd067d8778",
+            "MLXRamDonorProtocol.h": "b8cfe359022fc75757b25cec89e9541b8b283c1a9ab5ace849fe37e8a3cf8218"
+          },
+          "helperOriginal": "9df04a99c3783e666aacefd19f37ec6edb9c8fe8c90587566e8fa4585cba21d9",
+          "adapted": {
+            "MLXRamDonor.h": "55af71234f4371985845d755ee03110f4477d7259026a3cb3a0b316f3486e784",
+            "MLXRamDonorProtocol.h": "b8cfe359022fc75757b25cec89e9541b8b283c1a9ab5ace849fe37e8a3cf8218",
+            "MLXRamDonor.m": "e39103c5003c4831c96b1b052662f63fa8ac358820d6cdc8c1607e8af90d3ff2",
+            "Helper/MeloNXRamDonor.m": "1a287bdbb7f96ac5a6adad71749c8cb58ee76fe0edc9cef137f087f8e277b83c"
+          }
+        },
+        "actualDonorProcessStarted": false
+      },
+      "lease.json": {
+        "result": "passed",
+        "summary": "PASS 17 production lease cases; Core and donor IPC doubles, no physical loan claim.\n",
+        "inputs": {
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryLease.swift": "13b64bbe7d3c4304439f9cf01eb58427d3905f746a90ad1a1ebec5cbd29deaef",
+          "test/melonx_memory_lease_test.py": "4ae60cc2682281c2e73115a79fb2adbb3d8e7b5723035b6db985b211349d9975"
+        },
+        "actualDonorTested": false
+      },
+      "memory.json": {
+        "actualFootprintBytes": 11212160,
+        "cases": 11,
+        "result": "passed",
+        "gameplayTested": false,
+        "inputs": {
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryGraph.swift": "c56512588ec36622ce99c35ed45011a7cb8e768db22d65aea6d4d023838a7638",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.mm": "8b7b761a311ee7cae7a8fea0e77fd050a1aba1105d21c8a91de895d24ee112b7",
+          "test/melonx_memory_graph_test.py": "874256e9dcaf8c83b36baaf6a5ef2eeef42112ce2bc6c709cd983cf9f7850016"
+        },
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5"
+      }
+    }
+  },
+  "flutter": {
+    "source": "5445f9bb3bd1b04ba88e4e4f03852e6dfbd4763e",
+    "run": 40038955747,
+    "job": 120705206942,
+    "result": "success",
+    "reusedUnchangedWidgetSource": "c8424c32d2437b930870222fee1a07481d2b117d",
+    "reusedUnchangedWidgetRun": 40038088301
+  },
+  "engine": {
+    "source": "c8424c32d2437b930870222fee1a07481d2b117d",
+    "run": 40038087907,
+    "job": 120702383999,
+    "artifact": 12538566496,
+    "bytes": 37486080,
+    "sha256": "f2d0f6bcd69af444d5371878f79cc944706c202edee7fe7fe9e8f031eea62e07",
+    "exports": 43,
+    "allocatorAndDisplay": {
+      "result": "passed",
+      "summary": "/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/EmbeddedMemory.cs(18,24): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryOffer(nint, ulong)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/EmbeddedMemory.cs(33,24): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryWithdraw()' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/EmbeddedMemory.cs(45,13): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Snapshot(out ulong, out ulong, out ulong)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/Program.cs(41,8): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Free(nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/Program.cs(36,25): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Owns(nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/Program.cs(34,8): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryAllocate(ulong, out nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/Program.cs(37,34): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Owns(nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/Program.cs(42,8): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryAllocate(ulong, out nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/Program.cs(38,51): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryWithdraw()' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/Program.cs(43,8): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Free(nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/Program.cs(48,9): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.TryAllocate(ulong, out nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\n/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/Program.cs(38,81): warning CA1416: This call site is reachable on all platforms. 'DonatedMemory.Owns(nint)' is only supported on: 'ios', 'maccatalyst'. (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1416) [/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/melonx-display-5fc7shq7/test.csproj]\nPASS 43 graphics, generation and real donated allocator cases; window double, no gameplay claim.\n",
+      "inputs": {
+        "native/melonx/EmbeddedGraphicsSettings.cs": "ecf6471194d578a87420eb137aa0704a98b4276f9741397dbcb3a494431a3106",
+        "native/melonx/EmbeddedSessionCoordinator.cs": "2a6e32fb2c304365d8eb4036b83ab1dac950d9b2bba1870dbbc6cb04dd70c268",
+        "native/melonx/EmbeddedMemory.cs": "fb58520f5581c579a6ca1e79a0bb91bf9d5df51caaa8cee108a2788b543c8150",
+        "build-utils/melonx/adapt_memory.py": "72869c566a1f0774c3a88388fa79df38de419b078469977b7af44331960d9ac2",
+        "test/melonx_display_native_test.py": "f76502af5eb0649de7bb6da998e0893bd2f3c47796499ac559e11cf8d5bb2d54"
+      },
+      "gameplayTested": false
+    },
+    "actualSimulator": {
+      "actualCoreDonatedBackingSessions": 2,
+      "actualDarwinThreeArgumentHandlersVerified": true,
+      "actualKeyImportABIValidated": true,
+      "actualNativeAOT": true,
+      "actualSimulatorCodeArenaVerified": true,
+      "displayAndMemoryConfigurationAccepted": true,
+      "donorProcessUsedInSmoke": false,
+      "gameplayTested": false,
+      "graphicsAccepted": true,
+      "homebrewProducesVideo": false,
+      "homebrewSimulatorSessions": 2,
+      "initializationAndIdempotency": true,
+      "invalidContentRejected": true,
+      "invalidGraphicsCodePreserved": true,
+      "invalidGuestRejected": true,
+      "invalidSaveAssociationRejected": true,
+      "iphoneGuestExecutionTested": false,
+      "jitTested": false,
+      "keyRefusalCodePreserved": true,
+      "keyUnknownEntryAccepted": true,
+      "missingKeysRejectedBeforeGuest": true,
+      "mixedInvalidKeySizeAccepted": true,
+      "originalHomebrewGuestSvcConfirmed": true,
+      "personalKeysUsed": false,
+      "result": "passed",
+      "storageProfilesRecognized": true,
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+      "coreSha256": "bcfc63f445432bf765844f08086fd1e211bf562a38d36ca646434af37cf6a7c9",
+      "inputs": {
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "3b2dd81f65c177ce461aa5bbba1feac4a0445cb137f0e6b7ce789a5ad6920a73",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "81ae89813c459db4b3a7f2010bf8ec0986cfb9bcbbbd36e925cd0b473dae3020",
+        "test/melonx_runtime_smoke.py": "953abc3974c07063493f6fb36121a1fe6cd01d33f301017e630117a7400236be"
+      },
+      "retrievedFromJobLog": 120702383999,
+      "jobLogSHA256": "3e0ff8136272e0569f17c5ff53d04eebf9dc33ef3d96da45d87b72fcb1756186"
+    }
+  },
+  "preserved": {
+    "delivered518Source": "9d064ad1e757e27dc2fc133a17b3e791178a9871",
+    "delivered518Run": 40033179437,
+    "RPCS3CoreSource": "a69860297d7b26dbb688df0daf16a31b42046462",
+    "RPCS3CoreRun": 39982269326,
+    "otherPrebuiltPayloadsPreserved": true
+  },
+  "ipa": {
+    "build": 519,
+    "version": "0.0.8",
+    "ipaFilename": "RewindBox-Build519.ipa",
+    "ipaBytes": 186248745,
+    "ipaSHA256": "2790348d9d9d33a2fee47856cf8669e23b251ac1f782d88e4a95b37ef46403aa",
+    "alignedVersionedBundles": 8,
+    "machOImages": 87,
+    "codeDirectories": 117,
+    "verifiedCodePageHashes": 132733,
+    "encryptedImages": 0,
+    "appleReSigningRequired": true
+  },
+  "artifacts": [
+    {
+      "id": 12540771526,
+      "name": "RewindBox-Build-519-f93323768831428186c3aeb21b7e7a6130897836-cold-part03",
+      "size_in_bytes": 46629614,
+      "digest": "sha256:3d92398c57283009bc6d1fb5e80d41cca182f8ecf328a506156990b4aec7bf42"
+    },
+    {
+      "id": 12540612098,
+      "name": "RewindBox-Build-519-f93323768831428186c3aeb21b7e7a6130897836-cold-part02",
+      "size_in_bytes": 46629614,
+      "digest": "sha256:c018ae405afea74b9e4dc3efed83e7f3d12d90cc3e22d7ece8ca270fb35fd436"
+    },
+    {
+      "id": 12540342786,
+      "name": "RewindBox-Build-519-f93323768831428186c3aeb21b7e7a6130897836-cold-part01",
+      "size_in_bytes": 46629614,
+      "digest": "sha256:ef793c3ab73d0d0caea042cedab38ad59690c7f8b6e66c6baefe6397593800f7"
+    },
+    {
+      "id": 12539769824,
+      "name": "RewindBox-Build-519-f93323768831428186c3aeb21b7e7a6130897836-cold-part00",
+      "size_in_bytes": 46629614,
+      "digest": "sha256:e762233f2fd7303ba71d74a7d1dbbd6819cf3ba7766fbe8693f02564280d5104"
+    }
+  ],
+  "packagedMemoryDisplay": {
+    "result": "passed",
+    "build": 519,
+    "source": "f93323768831428186c3aeb21b7e7a6130897836",
+    "ipaSHA256": "2790348d9d9d33a2fee47856cf8669e23b251ac1f782d88e4a95b37ef46403aa",
+    "memoryDisplay": {
+      "schemaVersion": 1,
+      "source": "a279185aec23fcbf9dfbd389a62f5c0e90d83bc6",
+      "hostSource": "5445f9bb3bd1b04ba88e4e4f03852e6dfbd4763e",
+      "hostRun": 40038955791,
+      "headerLayoutFixSource": "a279185aec23fcbf9dfbd389a62f5c0e90d83bc6",
+      "headerLayoutValidatedInDelivery": true,
+      "flutterSource": "5445f9bb3bd1b04ba88e4e4f03852e6dfbd4763e",
+      "flutterRun": 40038955747,
+      "coreSource": "c8424c32d2437b930870222fee1a07481d2b117d",
+      "coreRun": 40038087907,
+      "inputs": {
+        "lib/l10n/melonx_library_locale.dart": "a2018c5f4b641fe98890567fb338d7b473ba1a8060f0308ab431cafe77762576",
+        "lib/services/melonx_internal_service.dart": "e71fcd47411bfe0b3ed0022c22fb69e82c20313019563690542367f38f9d8163",
+        "lib/widgets/melonx_internal_playlist_actions.dart": "9e98debb744ff8afd595c71eac78214150432fa5124bc3a37d24691e81d8360d",
+        "native/melonx/EmbeddedGraphicsSettings.cs": "ecf6471194d578a87420eb137aa0704a98b4276f9741397dbcb3a494431a3106",
+        "native/melonx/EmbeddedMemory.cs": "fb58520f5581c579a6ca1e79a0bb91bf9d5df51caaa8cee108a2788b543c8150",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "bb640c2bcf596132fcd75140c39babe38c7b677e202ddb4ec9890948dfd458ca",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.h": "8cb4bc31f70ac0caef8f6ba8ced9c27c79a319edb4d0853fcbd8d40ac2915e6d",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.mm": "8b7b761a311ee7cae7a8fea0e77fd050a1aba1105d21c8a91de895d24ee112b7",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryGraph.swift": "c56512588ec36622ce99c35ed45011a7cb8e768db22d65aea6d4d023838a7638",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryLease.swift": "13b64bbe7d3c4304439f9cf01eb58427d3905f746a90ad1a1ebec5cbd29deaef",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": "c7ea4ff6314a72500ceadecff5095f3ef757efb8e4ff1f493ae5347bdfdb575a",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "81ae89813c459db4b3a7f2010bf8ec0986cfb9bcbbbd36e925cd0b473dae3020",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h": "db1d1d686e879d16cf54d12d6e38764aa1b74c73688065153a7db41082152a42",
+        "packages/melonx_internal_bridge/ios/melonx_internal_bridge.podspec": "a394a46ebe8518c91c014590613461022b988e3c1bd7b1b9b7f6038d865cd07f"
+      },
+      "donorSource": {
+        "upstream": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+        "originals": {
+          "MLXRamDonor.h": "3a9f8399b6192b84558d674cd09ef2a2f73516729f17bc23fc1f1473d06e3afa",
+          "MLXRamDonor.m": "bed73401c6838a7d9e75c9b178b987d398d6a6a07df09259899314fd067d8778",
+          "MLXRamDonorProtocol.h": "b8cfe359022fc75757b25cec89e9541b8b283c1a9ab5ace849fe37e8a3cf8218"
+        },
+        "helperOriginal": "9df04a99c3783e666aacefd19f37ec6edb9c8fe8c90587566e8fa4585cba21d9",
+        "adapted": {
+          "MLXRamDonor.h": "55af71234f4371985845d755ee03110f4477d7259026a3cb3a0b316f3486e784",
+          "MLXRamDonorProtocol.h": "b8cfe359022fc75757b25cec89e9541b8b283c1a9ab5ace849fe37e8a3cf8218",
+          "MLXRamDonor.m": "e39103c5003c4831c96b1b052662f63fa8ac358820d6cdc8c1607e8af90d3ff2",
+          "Helper/MeloNXRamDonor.m": "1a287bdbb7f96ac5a6adad71749c8cb58ee76fe0edc9cef137f087f8e277b83c"
+        }
+      },
+      "ramMeasurement": "TASK_VM_INFO.phys_footprint",
+      "historySamples": 120,
+      "sampleHz": 2,
+      "memoryMappedIsNotResident": true,
+      "normalAllocationFallback": true,
+      "physicalDonorActivationTested": false,
+      "physicalDeviceTested": false,
+      "gameplayTested": false
+    },
+    "presentation": {
+      "result": "passed",
+      "build": 519,
+      "source": "f93323768831428186c3aeb21b7e7a6130897836",
+      "presentation": {
+        "schemaVersion": 1,
+        "presentationSource": "a279185aec23fcbf9dfbd389a62f5c0e90d83bc6",
+        "hostSource": "5445f9bb3bd1b04ba88e4e4f03852e6dfbd4763e",
+        "hostRun": 40038955791,
+        "flutterSource": "5445f9bb3bd1b04ba88e4e4f03852e6dfbd4763e",
+        "flutterRun": 40038955747,
+        "inputs": {
+          "lib/l10n/melonx_library_locale.dart": "a2018c5f4b641fe98890567fb338d7b473ba1a8060f0308ab431cafe77762576",
+          "lib/services/melonx_internal_service.dart": "e71fcd47411bfe0b3ed0022c22fb69e82c20313019563690542367f38f9d8163",
+          "lib/widgets/melonx_internal_playlist_actions.dart": "9e98debb744ff8afd595c71eac78214150432fa5124bc3a37d24691e81d8360d",
+          "native/melonx/EmbeddedGraphicsSettings.cs": "ecf6471194d578a87420eb137aa0704a98b4276f9741397dbcb3a494431a3106",
+          "native/melonx/EmbeddedMemory.cs": "fb58520f5581c579a6ca1e79a0bb91bf9d5df51caaa8cee108a2788b543c8150",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "bb640c2bcf596132fcd75140c39babe38c7b677e202ddb4ec9890948dfd458ca",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.h": "8cb4bc31f70ac0caef8f6ba8ced9c27c79a319edb4d0853fcbd8d40ac2915e6d",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.mm": "8b7b761a311ee7cae7a8fea0e77fd050a1aba1105d21c8a91de895d24ee112b7",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryGraph.swift": "c56512588ec36622ce99c35ed45011a7cb8e768db22d65aea6d4d023838a7638",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryLease.swift": "13b64bbe7d3c4304439f9cf01eb58427d3905f746a90ad1a1ebec5cbd29deaef",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": "c7ea4ff6314a72500ceadecff5095f3ef757efb8e4ff1f493ae5347bdfdb575a",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "81ae89813c459db4b3a7f2010bf8ec0986cfb9bcbbbd36e925cd0b473dae3020",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h": "db1d1d686e879d16cf54d12d6e38764aa1b74c73688065153a7db41082152a42",
+          "packages/melonx_internal_bridge/ios/melonx_internal_bridge.podspec": "a394a46ebe8518c91c014590613461022b988e3c1bd7b1b9b7f6038d865cd07f"
+        },
+        "realFrameStillRequired": true,
+        "physicalDeviceTested": false,
+        "gameplayTested": false
+      },
+      "ipaSHA256": "2790348d9d9d33a2fee47856cf8669e23b251ac1f782d88e4a95b37ef46403aa",
+      "compiledHostMarkersVerified": true,
+      "physicalDeviceTested": false,
+      "gameplayTested": false
+    },
+    "actualExtensionIncluded": true,
+    "compiledBridgeAndCoreExportsVerified": true,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false
+  },
+  "keyImportValidation": {
+    "result": "passed",
+    "build": 519,
+    "source": "c8424c32d2437b930870222fee1a07481d2b117d",
+    "coreRun": 40038087907,
+    "reusedKeyProofSource": "e0a1196d70469a28f04cc8a3628f43d484015581",
+    "ipaSHA256": "2790348d9d9d33a2fee47856cf8669e23b251ac1f782d88e4a95b37ef46403aa",
+    "sourceCoreSHA256": "f2d0f6bcd69af444d5371878f79cc944706c202edee7fe7fe9e8f031eea62e07",
+    "compiledCorePayloadFingerprint": "0b879a5554034d85064788358a6223f55528539a8d8a365ed238d2f766c3a485",
+    "nativeAndDartMarkersVerified": true,
+    "personalKeysBundled": false,
+    "physicalDeviceTested": false
+  },
+  "transport": {
+    "result": "verified",
+    "run": 40043376467,
+    "source": "f93323768831428186c3aeb21b7e7a6130897836",
+    "reconstructedEncryptedFilesExactly": true,
+    "files": {
+      "artifact.tar.enc": {
+        "bytes": 186509856,
+        "sha256": "90e235e6676781d11fd61579e3cb3591f206321fc68913d8af59c33a8aea8aa4"
+      },
+      "format.json": {
+        "bytes": 133,
+        "sha256": "82cae9fd5975b6f0768716fbea66ab175de91406d5b63429db85c3d34fc6895b"
+      },
+      "password.rsa": {
+        "bytes": 384,
+        "sha256": "71c8e6ec41297ebe2bd58109cedf5c7398e32e50238fe90ed32d3aee020c68ed"
+      }
+    },
+    "rebuilt": false,
+    "decryptedDuringTransport": false,
+    "parts": [
+      {
+        "index": 0,
+        "artifact": 12539769824,
+        "archiveSHA256": "e762233f2fd7303ba71d74a7d1dbbd6819cf3ba7766fbe8693f02564280d5104",
+        "bytes": 46627464,
+        "sha256": "77208a327ae53de3b6154408217e8a5dd5b1d950b49399468832adb544b3e163"
+      },
+      {
+        "index": 1,
+        "artifact": 12540342786,
+        "archiveSHA256": "ef793c3ab73d0d0caea042cedab38ad59690c7f8b6e66c6baefe6397593800f7",
+        "bytes": 46627464,
+        "sha256": "11b35f642c1af2c187076b02c60cc11db191267e7f94572ac7c428d0e28a4c92"
+      },
+      {
+        "index": 2,
+        "artifact": 12540612098,
+        "archiveSHA256": "c018ae405afea74b9e4dc3efed83e7f3d12d90cc3e22d7ece8ca270fb35fd436",
+        "bytes": 46627464,
+        "sha256": "9dcdbf4d4b3c0182097b4c29c3d7ea78694a33d36d7dee245dfbee61adad6d42"
+      },
+      {
+        "index": 3,
+        "artifact": 12540771526,
+        "archiveSHA256": "3d92398c57283009bc6d1fb5e80d41cca182f8ecf328a506156990b4aec7bf42",
+        "bytes": 46627464,
+        "sha256": "298147ddbc812867a81c580e137d873bada03a27d15505b195beb47f3b3148ae"
+      }
+    ]
+  },
+  "finalSignaturePagesVerified": true,
+  "personalKeysBundled": false,
+  "physicalDonorActivationTested": false,
+  "physicalDeviceTested": false,
+  "physicalPerformanceMeasured": false,
+  "releasePublished": false,
+  "mainUpdated": false
+}
