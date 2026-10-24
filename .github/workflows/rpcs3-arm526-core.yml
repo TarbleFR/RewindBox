@@ -1,5 +1,5 @@
 name: RPCS3 ARM526 ARM64 NEON migration and native diagnostics
-run-name: "RPCS3 ARM526 iPhone Core \u2022 ${{ github.sha }}"
+run-name: "RPCS3 ARM526 source-built iPhone Core \u2022 ${{ github.sha }}"
 'on':
   push:
     branches:
