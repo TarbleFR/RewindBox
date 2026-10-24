@@ -47,3 +47,25 @@ for change in ['missing','version','principal','point','service','context','enti
  elif change=='identity':bad[APP+'MeloNX-native-identity.json']=b'{}'
  bad[prefix+'Info.plist']=plistlib.dumps(info);run(bad,False);cases += 3
 print('PASS',cases,'MeloNX donor packaging cases across distribution, Dolphin packaging and RPCS3 validators; synthetic Mach-O only.')
+sys.path.insert(0,str(ROOT/'build-utils'))
+from ipa_extension_versions import validate_extension_versions
+for variant in ['current','legacy','missing','extra','version','undeclared']:
+ members=copy.deepcopy(m);accepted=variant in {'current','legacy'}
+ if variant=='legacy':
+  members={k:v for k,v in members.items() if not k.startswith(prefix)}
+  members[APP+'MeloNX-native-identity.json']=b'{}'
+ elif variant=='missing':members.pop(prefix+'Info.plist')
+ elif variant=='extra':members[APP+'PlugIns/Unknown.appex/Info.plist']=members[prefix+'Info.plist']
+ elif variant=='version':
+  info=plistlib.loads(members[prefix+'Info.plist']);info['CFBundleVersion']='999';members[prefix+'Info.plist']=plistlib.dumps(info)
+ elif variant=='undeclared':members[APP+'MeloNX-native-identity.json']=b'{}'
+ with tempfile.TemporaryDirectory() as d:
+  path=Path(d)/'test.ipa'
+  with zipfile.ZipFile(path,'w') as z:
+   for k,v in members.items():z.writestr(k,v)
+  try:
+   with zipfile.ZipFile(path) as z:count=validate_extension_versions(z,APP,host['CFBundleVersion'])
+  except AssertionError:
+   assert not accepted,variant
+  else:assert accepted and count==(6 if variant=='legacy' else 7),variant
+print('PASS 6 exact extension-set/version cases shared by all three UI validators.')

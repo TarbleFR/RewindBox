@@ -6,6 +6,7 @@ from pathlib import Path
 import plistlib
 import re
 import zipfile
+from ipa_extension_versions import validate_extension_versions
 
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
@@ -27,16 +28,12 @@ with zipfile.ZipFile(args.ipa) as z:
         b'tabs-container', b'melonx-import-menu', b'main-menu-capsule-pulse',
         b'console-cover-flow-scroll']:
         assert marker in dart, 'Missing linked interface: ' + repr(marker)
-    extensions = [n for n in z.namelist()
-        if n.startswith(root + 'PlugIns/') and n.endswith('.appex/Info.plist')]
-    assert len(extensions) == 6
-    for path in extensions:
-        assert str(plistlib.loads(z.read(path))['CFBundleVersion']) == str(args.build_number)
+    extension_count = validate_extension_versions(z, root, args.build_number)
 record = {'result': 'passed', 'build': args.build_number, 'version': version,
     'ipaSHA256': hashlib.sha256(args.ipa.read_bytes()).hexdigest(),
     'directSwitchPlaylistAndImportLinked': True,
     'measuredLiquidGlassHeaderLinked': True, 'completeMotionAndCoverFlowRetained': True,
-    'appAndSixExtensionsAligned': True, 'physicalDeviceTested': False}
+    'appAndExtensionVersionsAligned': True, 'alignedExtensionCount': extension_count, 'physicalDeviceTested': False}
 args.report.parent.mkdir(parents=True, exist_ok=True)
 args.report.write_text(json.dumps(record, indent=2) + '\n')
 print('PASS final signed IPA: direct Switch playlist, import and compact Liquid Glass header linked.')

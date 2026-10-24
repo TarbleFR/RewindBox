@@ -6,6 +6,7 @@ import json
 from pathlib import Path, PurePosixPath
 import plistlib
 import zipfile
+from ipa_extension_versions import validate_extension_versions
 ROOT = Path(__file__).resolve().parents[1]
 p = argparse.ArgumentParser();p.add_argument('ipa', type=Path);p.add_argument('--report',type=Path,required=True)
 p.add_argument('--build-number', type=int, default=507)
@@ -33,11 +34,9 @@ with zipfile.ZipFile(a.ipa) as z:
             native.append((name,z.read(name)))
     assert any(b'RBLiquidProgressView' in data and b'liquidTick:' in data for _,data in native), 'UIKit liquid view is not linked'
     assert any(b'neostation/ui_refresh_rate/power' in data for _,data in native), 'Native power event channel is not linked'
-    extensions=[n for n in names if n.startswith(prefix+'PlugIns/') and n.endswith('.appex/Info.plist')]
-    assert len(extensions)==6, extensions
-    for name in extensions: assert str(plistlib.loads(z.read(name))['CFBundleVersion'])==str(a.build_number), name
+    extension_count=validate_extension_versions(z,prefix,a.build_number)
 record={'result':'passed','build':a.build_number,'ipaSHA256':hashlib.sha256(a.ipa.read_bytes()).hexdigest(),
         'assets':digests,'nativeLiquidViewLinked':True,'nativePowerChannelLinked':True,
-        'compiledDartMotionPresent':True,'appAndSixExtensionVersionsMatched':True,'deviceTested':False}
+        'compiledDartMotionPresent':True,'appAndExtensionVersionsMatched':True,'alignedExtensionCount':extension_count,'deviceTested':False}
 a.report.parent.mkdir(parents=True,exist_ok=True);a.report.write_text(json.dumps(record,indent=2)+'\n')
 print('PASS final signed IPA: author asset/profile, full notices, Dart components, UIKit material and power channel.')

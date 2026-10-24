@@ -28,7 +28,9 @@ ASSEMBLY={'packages/dolphin_internal_bridge/ci/verify_ipa.py','build-utils/valid
  '.github/diagnostics/melonxmemory519_delivery.py',
  'build-utils/delivery-519-chatgpt-recipient.pem','build-utils/validate_melonx_memory_ipa.py',
  'build-utils/validate_melonx_keys_ipa.py',
- 'docs/melonx-memory-display-build519.md','docs/evidence/melonx-memory519-delivery.json'}
+ 'docs/melonx-memory-display-build519.md','docs/evidence/melonx-memory519-delivery.json',
+ 'docs/evidence/package-sources-license-audit-2026-10-21.json','build-utils/ipa_extension_versions.py',
+ 'build-utils/validate_motion507_ipa.py','build-utils/validate_ui_correction511_ipa.py','build-utils/validate_navigation512_ipa.py'}
 
 def source_closure():
  assert os.environ.get('GITHUB_REF_NAME')=='Claude'
@@ -52,6 +54,7 @@ def source_closure():
  assert not base.command(['git','diff','--name-only','c8424c32d2437b930870222fee1a07481d2b117d','HEAD','--','test/melonx_presentation_widgets_test.dart','lib/widgets/melonx_internal_playlist_actions.dart'])
  previous.core_module().validate_source_contract()
  previous.core_module().validate_exact_pin(CORE_SOURCE)
+ base.command(['python3','-c',"import sys; from pathlib import Path; sys.path.insert(0,'build-utils'); from collect_build_source_evidence import repository_inputs; repository_inputs(Path('.'))"])
  old=base.command(['git','show',DELIVERED+':.github/workflows/retroarch-delivery.yml'])
  current=(ROOT/'.github/workflows/retroarch-delivery.yml').read_text()
  for line in old.splitlines():
