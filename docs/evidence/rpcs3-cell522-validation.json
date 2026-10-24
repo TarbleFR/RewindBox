@@ -1,0 +1,536 @@
+{
+  "schema": 1,
+  "coreSource": "1ae41b6400688d20a8d72173d3d80d0a1fe19710",
+  "coreRun": 40095061758,
+  "nativeBuildStatus": "pending",
+  "physicalIPhoneTested": false,
+  "gameplayAfterMeasured": false,
+  "localTests": {
+    "readAhead": {
+      "result": "passed",
+      "injectedSourceReadDelayMs": 8,
+      "payloadBytes": 1382400,
+      "coldConsumerMedianMs": 17.1804,
+      "readyConsumerMedianMs": 0.238737,
+      "producerPrefetchMedianMs": 17.1519,
+      "peakPrefetchPayloadBytes": 8294400,
+      "maximumPayloadBytes": 8388608,
+      "readyConsumerStorageCalls": 0,
+      "physicalIPhoneTested": false,
+      "gameplayMeasured": false
+    },
+    "videoLoans": {
+      "before": {
+        "payloadBytes": 1382400,
+        "frames": 8,
+        "loanBackingBytes": 16777216,
+        "genericBoundsVerified": true,
+        "physicalIPhoneTested": false
+      },
+      "after": {
+        "payloadBytes": 1382400,
+        "frames": 8,
+        "loanBackingBytes": 11534336,
+        "genericBoundsVerified": true,
+        "physicalIPhoneTested": false
+      },
+      "physicalIPhoneTested": false,
+      "footprintMeasured": false,
+      "payloadIdentityAndGenericBoundsVerified": true
+    },
+    "sourceArchive": {
+      "schema": 1,
+      "sourceCommit": "a4b2f27775b4038b7bd143d6cf723a6fc56f5a13",
+      "platform": "Linux",
+      "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+      "physicalIPhoneValidated": false,
+      "realRPCS3GameplayValidated": false,
+      "kernelSwapPorted": false,
+      "automaticGuestPagingActivated": false,
+      "sanitizers": {
+        "address": true,
+        "undefined": true
+      },
+      "faultsAreInjected": true,
+      "syntheticByteWorkloadNotRealGameplay": true,
+      "c11HeaderVerified": true,
+      "core": {
+        "passed": true,
+        "coreClientExecuted": true,
+        "ramStorageRamCycleVerified": true,
+        "byteIdentityVerified": true,
+        "admissionNoDiskIO": true,
+        "pressureAndQuotaVerified": true,
+        "persistenceFailureRetainsSnapshot": true,
+        "failedRestoreClearsOutput": true,
+        "staleEpochRejected": true,
+        "sharedRetirementVerified": true,
+        "logicalTouchedBytes": 67108864,
+        "restoredBytes": 67108864,
+        "coreReleasedCapacityBytes": 67108864,
+        "stagingPeakBytes": 1048576,
+        "stagingLimitBytes": 4194304,
+        "managedMappedPeakBytes": 1048576,
+        "managedMappedLimitBytes": 8388608,
+        "diskReadBytes": 134299648,
+        "diskWriteBytes": 67149824
+      },
+      "frames": {
+        "passed": true,
+        "softwarePixelBytesSimulated": true,
+        "realDecoderExecuted": false,
+        "byteIdentityVerified": true,
+        "transactionalAdmissionVerified": true,
+        "partialRestoreNeverConsumed": true,
+        "oldHostFallbackVerified": true,
+        "warmAndReferencedPixelsRetained": true,
+        "throttledProgressResumed": true,
+        "logicalPixelBytes": 66355200,
+        "returnedPixelBytes": 66355200,
+        "stagingPeakBytes": 1384448,
+        "physicalIPhoneValidated": false,
+        "gameplayValidated": false
+      },
+      "sourceWork": {
+        "passed": true,
+        "actualPrivateFileCheckpointAndRestore": true,
+        "wholeRecordFifoBacklogReproduced": true,
+        "demandPrecedesContinuation": true,
+        "maintenanceCoalesced": true,
+        "ramDemandNoDiskIO": true,
+        "partialQuantumRetainsFullSnapshot": true,
+        "pressureResumeExact": true,
+        "invalidMemoryFailsClosed": true,
+        "physicalIPhoneValidated": false,
+        "realRPCS3GameplayValidated": false
+      },
+      "inputSHA256": {
+        "build-utils/configure_neoswap_storage.py": "cca15d7c640e26bd8da29472ca7ae099bc6bc5e5899f2150cfbae89f63ff8d05",
+        "build-utils/rpcs3/canonical-source.json": "88abf98be2492f2db29bd4671774ce25ce675dfdcac12b12d5b9c496fb12970f",
+        "build-utils/rpcs3/embedded-core.patch": "cab2f0d6c4690a23e00afc150c0359da7700fe471021deafd75aa1ae2348432d",
+        "build-utils/validate_source_archive_evidence.py": "69ed4946529eba0769072ab0e6e7f079a699935e30b248836373ac08f832da9e",
+        "native/neoswap-storage/FrameClient.h": "05549e1d6d9830658fc48eb519c5519a4eb9c168305f41c91c04bd2c8f4d7139",
+        "native/neoswap-storage/ManagedSwap.cpp": "1221ad2d606687debaca39f65858027554fd5548a3b8a0af80bed98199b70564",
+        "native/neoswap-storage/ManagedSwap.h": "92466b8076496c0c1171769959f3df98a2c9aa9d554d7860d0fbec7366e047df",
+        "native/neoswap-storage/Metrics.cpp": "058a7e1fa32c56bff17e302985d5989355333d49717b83abc4de2625b1fe0614",
+        "native/neoswap-storage/SourceABI.h": "395955dc389c492bace3584f7818b48676ac977eb43ec117a322e90aade207e9",
+        "native/neoswap-storage/SourceArchive.cpp": "b474c21094ffa54f32b38cb8055d195bc76bbad30ece1ec3f7f0e563e04973c3",
+        "native/neoswap-storage/SourceArchive.h": "eb8192a423da47c3824864d58fe65e03d45601fc67633784e7e430a506981973",
+        "native/neoswap-storage/SourceClient.cpp": "356543139596b23abb51df85734244b10f66a58e1b2ec82f06b3b210c6b8c7c7",
+        "native/neoswap-storage/SourceClient.h": "514dfe36544460ce3b5826a1493f1ebd81abc16151efa9126d50d83bd97d8f45",
+        "native/neoswap-storage/Store.cpp": "127c266c74a37c06bc92972c840745e5318a98d3321bf3ebd18777931edb98fe",
+        "native/neoswap-storage/Store.h": "e65745ea27975190992bf14ae84f02edad2ccfa97355514a3277c4308290459c",
+        "native/neoswap-storage/run_source_validation.py": "9a4a95a4b520a660116315f79d76bb7a3a710dbee550a5d820e572e2c3aa3b59",
+        "native/neoswap-storage/tests/frame_archive_test.cpp": "6039061b3e78c3b422002cabb30e6927fef6e8f8f29e0b98f28651d149a9da38",
+        "native/neoswap-storage/tests/source_archive_test.cpp": "a689d4bdd8c7f285916c4337c69dda6cca7f7cb37cb6fae4c3f0e0da4f69f3ea",
+        "native/neoswap-storage/tests/source_work_test.cpp": "5d39bba8d6703489364cf7388bfea8f55990f803f86e984e9386580cd7b82800",
+        "packages/neo_swap/ios/Classes/NeoSwapExperiment.h": "cf3d595daa8dae0c66095ba26ffb100b4619e56d6c72210fa1677da67e468065",
+        "packages/neo_swap/ios/Classes/NeoSwapSourceWork.h": "07fbd1c802c6e421bbce81c42a7d1f7cf267b34c30558dcdc9127b79fe81d4b6",
+        "packages/neo_swap/ios/Classes/NeoSwapStorageService.h": "890a3d3f39ca2d5409c4aaef4684abee288d48f1224b59459b3e7b7d60236ae6",
+        "packages/neo_swap/ios/Classes/NeoSwapStorageService.mm": "6f080be9433af41233970673359767e7e2a68011302f83fc3ebfb1ecbd653d78",
+        "packages/neo_swap/ios/Classes/SourceABI.h": "395955dc389c492bace3584f7818b48676ac977eb43ec117a322e90aade207e9",
+        "packages/neo_swap/ios/neo_swap.podspec": "9f45282a24451f6475517cfbf5b109208cd702d38215f322b4a8ffe394d3d6ec",
+        "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm": "2ce0353536c5e27da3c3874379e3df76b9604b08599b6626bf599ed6b98dfd50",
+        "test/native/rpcs3_source_archive_client_test.cpp": "436972a9549e6e811f24f86a36fa775b6e08adda6e5ec4a658d04f37493ad5dd",
+        "test/neoswap_source_archive_host_test.py": "74e131fadcbf7f24d0fe06a4d7dba6d36a9fa8a39530bbd13573d4d1c9116361",
+        "test/neoswap_source_work_test.py": "097c75f583a8c03d2bbf64846a7f4921890da62240bbc600ed926703b84076f9",
+        "test/rpcs3_source_archive_test.py": "81cf54411611fa51f7a4bffaccb0a7cdf765e90237f9474163c532b5f0a50499"
+      },
+      "passed": true
+    }
+  },
+  "localTestBinding": "Working candidate validated before commit; production/test input hashes are preserved. The local sourceArchive.sourceCommit is the baseline environment label, not an artifact identity.",
+  "reservationComparisonProbe": {
+    "source": "a4b2f27775b4038b7bd143d6cf723a6fc56f5a13",
+    "run": 40092024229,
+    "job": 120866489043,
+    "artifact": 12559034399,
+    "artifactZipSHA256": "cb10a7d2438d0d10d5389a1fbe692bb74b13a2f152479489b8ca37ace13e4570",
+    "measurements": {
+      "correctnessChecks": 295014,
+      "guardPages": true,
+      "results": [
+        {
+          "function": "original_multiply_accumulate",
+          "pairs": 1,
+          "pattern": 0,
+          "medianNs": 1.97636,
+          "minimumNs": 1.93081,
+          "maximumNs": 4.4199
+        },
+        {
+          "function": "xor_tree",
+          "pairs": 1,
+          "pattern": 0,
+          "medianNs": 1.9914,
+          "minimumNs": 1.79869,
+          "maximumNs": 2.44067
+        },
+        {
+          "function": "equality_tree",
+          "pairs": 1,
+          "pattern": 0,
+          "medianNs": 1.98472,
+          "minimumNs": 1.8729,
+          "maximumNs": 3.14252
+        },
+        {
+          "function": "original_multiply_accumulate",
+          "pairs": 1,
+          "pattern": 1,
+          "medianNs": 1.99257,
+          "minimumNs": 1.83056,
+          "maximumNs": 2.37248
+        },
+        {
+          "function": "xor_tree",
+          "pairs": 1,
+          "pattern": 1,
+          "medianNs": 1.90426,
+          "minimumNs": 1.76523,
+          "maximumNs": 2.07037
+        },
+        {
+          "function": "equality_tree",
+          "pairs": 1,
+          "pattern": 1,
+          "medianNs": 2.01389,
+          "minimumNs": 1.83131,
+          "maximumNs": 2.19902
+        },
+        {
+          "function": "original_multiply_accumulate",
+          "pairs": 1,
+          "pattern": 2,
+          "medianNs": 2.16702,
+          "minimumNs": 1.96623,
+          "maximumNs": 7.92819
+        },
+        {
+          "function": "xor_tree",
+          "pairs": 1,
+          "pattern": 2,
+          "medianNs": 1.99061,
+          "minimumNs": 1.93817,
+          "maximumNs": 5.14148
+        },
+        {
+          "function": "equality_tree",
+          "pairs": 1,
+          "pattern": 2,
+          "medianNs": 2.11722,
+          "minimumNs": 1.99835,
+          "maximumNs": 3.71531
+        },
+        {
+          "function": "original_multiply_accumulate",
+          "pairs": 4096,
+          "pattern": 0,
+          "medianNs": 3.28235,
+          "minimumNs": 3.07698,
+          "maximumNs": 7.78148
+        },
+        {
+          "function": "xor_tree",
+          "pairs": 4096,
+          "pattern": 0,
+          "medianNs": 3.22555,
+          "minimumNs": 3.12521,
+          "maximumNs": 4.29465
+        },
+        {
+          "function": "equality_tree",
+          "pairs": 4096,
+          "pattern": 0,
+          "medianNs": 3.27017,
+          "minimumNs": 3.07321,
+          "maximumNs": 6.25575
+        },
+        {
+          "function": "original_multiply_accumulate",
+          "pairs": 4096,
+          "pattern": 1,
+          "medianNs": 3.29035,
+          "minimumNs": 3.23571,
+          "maximumNs": 3.96231
+        },
+        {
+          "function": "xor_tree",
+          "pairs": 4096,
+          "pattern": 1,
+          "medianNs": 3.34844,
+          "minimumNs": 3.2499,
+          "maximumNs": 3.91492
+        },
+        {
+          "function": "equality_tree",
+          "pairs": 4096,
+          "pattern": 1,
+          "medianNs": 3.34122,
+          "minimumNs": 3.25215,
+          "maximumNs": 6.33752
+        },
+        {
+          "function": "original_multiply_accumulate",
+          "pairs": 4096,
+          "pattern": 2,
+          "medianNs": 3.20793,
+          "minimumNs": 3.00619,
+          "maximumNs": 4.17917
+        },
+        {
+          "function": "xor_tree",
+          "pairs": 4096,
+          "pattern": 2,
+          "medianNs": 3.56676,
+          "minimumNs": 2.96798,
+          "maximumNs": 6.38767
+        },
+        {
+          "function": "equality_tree",
+          "pairs": 4096,
+          "pattern": 2,
+          "medianNs": 3.23683,
+          "minimumNs": 3.13477,
+          "maximumNs": 3.5079
+        }
+      ],
+      "physicalIPhoneTested": false,
+      "gameplayTested": false,
+      "source": "a4b2f27775b4038b7bd143d6cf723a6fc56f5a13",
+      "baselineProductionSHA256": "5080718e2d44a91f245e487da9efb6ac2d4de852ad36d572863ad15282a9cf40",
+      "hardware": "Apple M1 (Virtual)",
+      "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+      "method": "14 rotated-order rounds; discard first 2; median/min/max of 12 samples, 2M calls each; hot and 1MiB paired working sets",
+      "functionCallOverheadIncluded": true,
+      "productionChanged": false,
+      "inputs": {
+        "test/rpcs3_reservation521_probe.py": "7532cbeb5860ef169c3daa175e563ec000987cba3623f326771874e7d4bd27cf",
+        "test/native/rpcs3_reservation521_bench.cpp": "a4db7d6652e47aa4908298a31dad5a2435a155e846f8a168de5de426b04485d2",
+        "test/native/rpcs3_reservation521_candidates.h": "ab95e14ae5353be2ed308a6e64da6931a8c913bb9b6e07047ec3c6094c584c9b",
+        "build-utils/rpcs3/canonical-source.json": "28d1fcac4aa3dfd97aec9ec222b6b89029fa51a0bb44c79b7b4a7860fd7abddb"
+      }
+    },
+    "decision": "reject production replacement: no robust improvement across workloads",
+    "currentComparedRegionByteIdentical": true
+  },
+  "intermediate521IndependentValidation": {
+    "sha256": "be6305d3ad8f841b73662d9fe5fc206b43e2eab5492181550b1361bb7b68f137",
+    "bytes": 76977816,
+    "exportCount": 88,
+    "platform": 2,
+    "dependencies": [
+      {
+        "path": "/System/Library/Frameworks/Security.framework/Security",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+        "weak": false
+      },
+      {
+        "path": "/usr/lib/libSystem.B.dylib",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/Metal.framework/Metal",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/CoreMIDI.framework/CoreMIDI",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+        "weak": false
+      },
+      {
+        "path": "/System/Library/Frameworks/MetalFX.framework/MetalFX",
+        "weak": false
+      },
+      {
+        "path": "/usr/lib/libiconv.2.dylib",
+        "weak": false
+      },
+      {
+        "path": "/usr/lib/libc++.1.dylib",
+        "weak": false
+      },
+      {
+        "path": "/usr/lib/libobjc.A.dylib",
+        "weak": false
+      }
+    ],
+    "minimumOS": "16.3.0",
+    "passive": {
+      "initializerCount": 2792,
+      "initializerSymbols": 919,
+      "marker": "NEOSTATION_BUILD301_PASSIVE_DLOPEN_V1",
+      "forbiddenReachability": false,
+      "scope": "named forbidden functions via direct ARM64 B/BL edges, maximum depth 16",
+      "deviceRuntimeTested": false
+    }
+  },
+  "writerCountersProbe": {
+    "source": "2deaeed298814650886cfb09a1b055bb2f365bb9",
+    "run": 40094678344,
+    "job": 120874334872,
+    "artifact": 12560296853,
+    "artifactZipSHA256": "103fb3c50be176e2c1178c4dc6566017ba1bb59264e0e2474d0fca83a1e05129",
+    "measurements": {
+      "productionAtomicAdapters": true,
+      "concurrentShardConservation": true,
+      "shardThreads": 96,
+      "parkedProfilerReleasesCellLockOnlyAfterFix": true,
+      "physicalIPhoneTested": false,
+      "gameplayMeasured": false,
+      "samples": [
+        {
+          "range": false,
+          "threads": 1,
+          "beforeMedianNs": 14.5072,
+          "afterMedianNs": 10.8507,
+          "shardedInsideMedianNs": 15.8365,
+          "shardedInsideMinNs": 14.1993,
+          "shardedInsideMaxNs": 24.4754,
+          "beforeMinNs": 13.6358,
+          "beforeMaxNs": 17.67,
+          "afterMinNs": 9.97111,
+          "afterMaxNs": 14.0343
+        },
+        {
+          "range": false,
+          "threads": 2,
+          "beforeMedianNs": 21.0192,
+          "afterMedianNs": 35.249,
+          "shardedInsideMedianNs": 19.2586,
+          "shardedInsideMinNs": 15.3613,
+          "shardedInsideMaxNs": 26.3574,
+          "beforeMinNs": 17.7753,
+          "beforeMaxNs": 23.8519,
+          "afterMinNs": 16.9541,
+          "afterMaxNs": 44.6427
+        },
+        {
+          "range": false,
+          "threads": 4,
+          "beforeMedianNs": 16.1999,
+          "afterMedianNs": 18.5266,
+          "shardedInsideMedianNs": 15.8904,
+          "shardedInsideMinNs": 14.1281,
+          "shardedInsideMaxNs": 19.8884,
+          "beforeMinNs": 13.9751,
+          "beforeMaxNs": 17.8745,
+          "afterMinNs": 13.1779,
+          "afterMaxNs": 33.1869
+        },
+        {
+          "range": false,
+          "threads": 6,
+          "beforeMedianNs": 16.0275,
+          "afterMedianNs": 18.5223,
+          "shardedInsideMedianNs": 16.5797,
+          "shardedInsideMinNs": 14.9759,
+          "shardedInsideMaxNs": 19.4566,
+          "beforeMinNs": 13.3657,
+          "beforeMaxNs": 18.268,
+          "afterMinNs": 14.9333,
+          "afterMaxNs": 26.365
+        },
+        {
+          "range": true,
+          "threads": 1,
+          "beforeMedianNs": 19.5608,
+          "afterMedianNs": 21.0988,
+          "shardedInsideMedianNs": 18.8979,
+          "shardedInsideMinNs": 17.3268,
+          "shardedInsideMaxNs": 27.4028,
+          "beforeMinNs": 18.5642,
+          "beforeMaxNs": 26.7264,
+          "afterMinNs": 20.0839,
+          "afterMaxNs": 24.6404
+        },
+        {
+          "range": true,
+          "threads": 2,
+          "beforeMedianNs": 60.9179,
+          "afterMedianNs": 68.1347,
+          "shardedInsideMedianNs": 48.0237,
+          "shardedInsideMinNs": 19.5581,
+          "shardedInsideMaxNs": 57.639,
+          "beforeMinNs": 46.483,
+          "beforeMaxNs": 69.1801,
+          "afterMinNs": 56.1358,
+          "afterMaxNs": 91.3403
+        },
+        {
+          "range": true,
+          "threads": 4,
+          "beforeMedianNs": 97.9553,
+          "afterMedianNs": 99.2407,
+          "shardedInsideMedianNs": 57.502,
+          "shardedInsideMinNs": 46.4212,
+          "shardedInsideMaxNs": 73.4816,
+          "beforeMinNs": 74.6737,
+          "beforeMaxNs": 112.769,
+          "afterMinNs": 74.4776,
+          "afterMaxNs": 119.466
+        },
+        {
+          "range": true,
+          "threads": 6,
+          "beforeMedianNs": 86.738,
+          "afterMedianNs": 98.6683,
+          "shardedInsideMedianNs": 54.362,
+          "shardedInsideMinNs": 45.464,
+          "shardedInsideMaxNs": 67.4927,
+          "beforeMinNs": 69.9708,
+          "beforeMaxNs": 106.436,
+          "afterMinNs": 73.3326,
+          "afterMaxNs": 115.961
+        }
+      ],
+      "source": "2deaeed298814650886cfb09a1b055bb2f365bb9",
+      "originalDestructorSHA256": "46bb71320af40d59fab311f66f98533e25cfa970de46f77eab50cb6411d19751",
+      "candidateDestructorSHA256": "7fcc5094100659b4020b479475ef1fae573ed959ffd4845066b96be327ef99b1",
+      "recordMethodSHA256": "e1b52862fc687ae2fb1d45640802797a98042d4d2c70464410683d8c7ac0e1f5",
+      "maximumMethodSHA256": "00c50045d47290ebbecc61394b82a65e11dbb017f7ba06757826f07f58549264",
+      "method": "15 rotated three-variant rounds, discard first 3; median/min/max of 12 rounds; 300000 operations per thread (3000 with sanitizers); includes acquisition, protected payload and 3 atomic counters + maximum",
+      "platform": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+      "hardware": "Apple M1 (Virtual)",
+      "sanitizer": false,
+      "productionChanged": false,
+      "shardHeaderSHA256": "8d45ea7c664c629bde484f1bd93ed10efe5c18798683e99cd4f48147c46a9548"
+    },
+    "retained": "sharded counters with unchanged destructor",
+    "rejected": "moving global counters after unlock; inconsistent/regressing results"
+  }
+}
