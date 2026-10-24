@@ -32,7 +32,7 @@ def run_managed(work):
     project.mkdir()
     shutil.copyfile(ROOT / "native/melonx/EmbeddedLaunchDiagnostics.cs", project / "Journal.cs")
     (project / "Probe.csproj").write_text("""<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
-      <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+      <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
       </PropertyGroup></Project>""")
     (project / "Program.cs").write_text(r'''using System;
 using System.Diagnostics;
@@ -86,7 +86,8 @@ if(mode=="many") {
 
     # Failure to open the destination and the size ceiling never change native
     # behavior. The diagnostic ring is still bounded independently of the file.
-    subprocess.run([*probe, str(work / "absent/app.log"), "many"], check=True)
+    # Configuration reports an unavailable destination; the application catches
+    # this optional failure. A destination removed after setup must also be safe.
     capped = work / "capped/app.log"
     capped.parent.mkdir()
     with capped.open("wb") as target:

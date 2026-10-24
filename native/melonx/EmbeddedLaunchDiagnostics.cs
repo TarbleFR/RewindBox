@@ -10,18 +10,19 @@ namespace Ryujinx.Common;
 
 // A bounded, caller-polled journal, independent of console redirection. Never
 // retain key values, decrypted buffers, logger Data objects or register dumps.
-public static class EmbeddedLaunchDiagnostics
+public static partial class EmbeddedLaunchDiagnostics
 {
     private static readonly object Gate = new();
     private static readonly Queue<(long Id, string Stage, string Status, int Code, string Detail)> Events = new();
     private static long Sequence;
     private static string JournalPath;
-    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
-    private static extern int OpenJournal(string path, int flags, int mode);
-    [DllImport("libc", EntryPoint = "write", SetLastError = true)]
-    private static extern nint WriteJournal(int descriptor, byte[] record, nuint length);
-    [DllImport("libc", EntryPoint = "close")]
-    private static extern int CloseJournal(int descriptor);
+    private static string JournalFailure = "";
+    [LibraryImport("libc", EntryPoint = "open", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int OpenJournal(string path, int flags);
+    [LibraryImport("libc", EntryPoint = "write", SetLastError = true)]
+    private static unsafe partial nint WriteJournal(int descriptor, byte* record, nuint length);
+    [LibraryImport("libc", EntryPoint = "close")]
+    private static partial int CloseJournal(int descriptor);
     public static string Stage { get; private set; } = "nativeAot";
     public static string ErrorCode { get; private set; } = "";
     public static string ErrorDetail { get; private set; } = "";
@@ -30,10 +31,13 @@ public static class EmbeddedLaunchDiagnostics
     {
         if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path) ||
             Path.GetFileName(path) != "app.log") throw new ArgumentException("Invalid application journal path.");
-        lock (Gate) JournalPath = path;
+        // Darwin's open mode is a variadic argument. Let the runtime create
+        // the file with its platform ABI, then append via the two-argument call.
+        using (var file = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite)) { }
+        lock (Gate) { JournalPath = path; JournalFailure = ""; }
     }
 
-    private static void Persist(long sequence, string stage, string status, int code, string detail)
+    private static unsafe void Persist(long sequence, string stage, string status, int code, string detail)
     {
         if (JournalPath == null) return;
         try
@@ -60,17 +64,21 @@ public static class EmbeddedLaunchDiagnostics
             // and Dart may append to this file at the same time. The syscall
             // returns before control reaches the next native operation.
             bool darwin = OperatingSystem.IsIOS() || OperatingSystem.IsMacOS() || OperatingSystem.IsMacCatalyst();
-            int descriptor = OpenJournal(JournalPath, 1 | (darwin ? 0x8 | 0x200 : 0x400 | 0x40), 0x180);
-            if (descriptor < 0) return;
+            int descriptor = OpenJournal(JournalPath, 1 | (darwin ? 0x8 : 0x400));
+            if (descriptor < 0) { JournalFailure = "open errno=" + Marshal.GetLastPInvokeError(); return; }
             try
             {
                 nint count;
-                do { count = WriteJournal(descriptor, record, (nuint)record.Length); }
-                while (count < 0 && Marshal.GetLastPInvokeError() == 4); // EINTR
+                fixed (byte* bytes = record)
+                {
+                    do { count = WriteJournal(descriptor, bytes, (nuint)record.Length); }
+                    while (count < 0 && Marshal.GetLastPInvokeError() == 4); // EINTR
+                }
+                if (count != record.Length) JournalFailure = "write errno=" + Marshal.GetLastPInvokeError();
             }
             finally { CloseJournal(descriptor); }
         }
-        catch { /* Diagnostic I/O must never alter engine behavior. */ }
+        catch (Exception error) { JournalFailure = Safe(error.GetType().Name + ": " + error.Message); }
     }
 
     public static string Safe(string value)
@@ -131,6 +139,7 @@ public static class EmbeddedLaunchDiagnostics
                 json.WriteStartObject();
                 json.WriteString("stage", Stage); json.WriteString("errorCode", ErrorCode);
                 json.WriteString("diagnostic", ErrorDetail);
+                json.WriteString("journalError", JournalFailure);
                 json.WriteStartArray("events");
                 foreach (var item in Events)
                 {
