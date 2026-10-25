@@ -188,7 +188,7 @@ Les sessions simulateur sont homebrew, sans jeu commercial, JIT ni iPhone
 que l'engine reconstruit démarre, ferme et relance, pas que Smash ferme sur
 iPhone.
 
-Non exécutés : IPA (§ 9). Aucune des séquences sur iPhone demandées (fermeture
+IPA privée 544 compilée et vérifiée (§ 9). Aucune des séquences sur iPhone demandées (fermeture
 depuis le jeu ou RewindBox, pendant un chargement ou une compilation,
 enchaînement, session longue) n'a pu être réalisée : elles restent la
 validation à faire avec l'IPA de test.
@@ -203,19 +203,32 @@ validation à faire avec l'IPA de test.
 4. En cas de quarantaine : la boîte affiche l'explication, se ferme à
    l'acquittement, et la relance demande de redémarrer RewindBox.
 
-## 9. IPA de test
+## 9. IPA de test — livraison privée 544
 
-Non compilée dans cette session. Pendant ce travail, une autre session a poussé
-sur `Claude` le cœur RPCS3 543 (aa7ac546) et prépare la livraison privée 543 :
-une seconde livraison en parallèle aurait pris le même numéro ou produit deux
-IPA divergentes. La prochaine livraison privée doit embarquer :
+L'IPA 543 de la session RPCS3 ne contient pas ces correctifs : son exécuteur
+restaure `lib/` et `packages/` à 3494edc. La 544 est donc une livraison séparée,
+sur le même principe inversé (`.github/diagnostics/melonxclose544_tree.py`) :
+hôte 542 validé, cœur RPCS3 542 (`3b318612`, run 40201679650) et uniquement les
+fichiers MeloNX de fermeture. Le travail RPCS3 543 en est exclu ; l'historique
+Git n'est pas modifié.
 
-- engine `MeloNX-engine-d9f35c2783f7368d31b61f644d970f41bb7bc47b`, run
-  40210266656 (source d9f35c27) ;
-- hôte `MeloNX-host-eabc057f4058520192f79f361cbd92eba5795f98`, run 40209413009 ;
-- dépendances natives inchangées (`MeloNX-native-dependencies-66737aa9…`).
+- Source `a5bd2bb7`, run 40213735246 : `checks` et compilation Release réussis,
+  tous les validateurs IPA passés, dont `validate_melonx_close544_ipa.py`
+  (sources GPU adaptées, diagnostics compilés dans le moteur, requête
+  `isSessionQuarantined` du plugin, gestion Dart de la fermeture).
+- Moteur d9f35c27 (run 40210266656), hôte eabc057f (run 40209413009). Le service
+  MeloNX modifié est couvert par une nouvelle exécution des 12 tests d'import et
+  des tests de fermeture, audio, retour et lancement
+  (`docs/evidence/melonx-close544-local.json`) ; les autres entrées gardent leur
+  reçu 537.
+- Fichier remis : `RewindBox-Build544.ipa`, version 0.0.8 (544), iOS 18 minimum,
+  **186 348 693 octets**, SHA-256
+  `69293526a449fa4f01d36d9bbe1144115f917ee34da2caab5f38071e4507180f`, égal à
+  `SHA256SUMS` et à `signed-payload-identity.json` ; 87 signatures vérifiées.
+  Artefact chiffré `12607122894` (clé `build-utils/delivery-544-recipient.pem`,
+  clé privée hors Git), conservé jusqu'au 8 novembre 2026.
+- Le validateur de fermeture a été rejoué localement sur l'IPA déchiffrée.
 
-L'ABI de l'engine est inchangée ; les validateurs IPA 540 s'appliquent. Les
-reçus qui figent `lib/services/melonx_internal_service.dart` et
-`MeloNXInternalBridgePlugin.swift` doivent être rebasés sur eabc057f. Aucune
-release, aucun tag, aucune fusion vers `main`.
+Réinstallation par SideStore obligatoire (re-signature). Aucune validation sur
+iPhone : le protocole du § 8 reste à exécuter. Aucune release, aucun tag,
+aucune fusion vers `main`. Ne pas réutiliser le numéro 544.

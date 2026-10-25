@@ -1421,8 +1421,7 @@
     "flutterVersion": "3.47.2"
   },
   "notExecuted": [
-    "iPhone gameplay, close or relaunch",
-    "IPA assembly (concurrent private 543 RPCS3 delivery on the same branch)"
+    "iPhone gameplay, close or relaunch"
   ],
   "ci": {
     "engine": {
@@ -1475,5 +1474,13 @@
       "test": "test/retroarch_baseline_scope_test.py",
       "causedByThisChange": false
     }
+  },
+  "privateDelivery": {
+    "build": 544,
+    "source": "a5bd2bb7ef87b835ae8175a024c34cbda60db428",
+    "run": 40213735246,
+    "ipaSHA256": "69293526a449fa4f01d36d9bbe1144115f917ee34da2caab5f38071e4507180f",
+    "evidence": "docs/evidence/melonx-close544-delivery.json",
+    "physicalDeviceTested": false
   }
 }

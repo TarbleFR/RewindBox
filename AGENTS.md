@@ -30,9 +30,14 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   Flutter close-status/audio/route/launch-flow tests pass on 3.47.2. CI: engine
   d9f35c27 run 40210266656 (macOS harness, NativeAOT ABI, two ARM64 simulator
   homebrew sessions with close and relaunch) and host eabc057f run 40209413009
-  succeeded. No IPA or iPhone validation yet: the next private delivery must pin
-  those two artifacts and rebase receipts that hash melonx_internal_service.dart
-  or MeloNXInternalBridgePlugin.swift onto eabc057f.
+  succeeded. Private IPA **0.0.8 (544)** from `a5bd2bb7`, run 40213735246:
+  validated 542 host + RPCS3 542 Core + only the MeloNX close files (runner pin
+  `.github/diagnostics/melonxclose544_tree.py`; RPCS3 543 excluded). IPA
+  186,348,693 bytes, SHA-256 `69293526…507180f`, encrypted artifact
+  12607122894 for `build-utils/delivery-544-recipient.pem` (private key outside
+  Git), decrypted and re-validated, delivered for SideStore re-signing.
+  Evidence: `docs/evidence/melonx-close544-delivery.json`. No iPhone validation
+  yet. **Do not reuse 544.**
 - Persona 4 Golden (010062B01525C000, v0): no error after the 530 host-import
   fix in the supplied journals; its 10:59 `localGameRequired` is a stale
   container path right after reinstall, not a regression. Persona 5 Royal black
