@@ -1,4 +1,5 @@
 name: Audit Claude-main merge for fix 0.0.9
+# Execute this audit without merging or publishing anything.
 on:
   push:
     branches: [Claude]
