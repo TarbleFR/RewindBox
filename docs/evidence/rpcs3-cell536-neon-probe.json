@@ -1,0 +1,436 @@
+{
+  "source": "fc8c8f5580ce7d1608875c9f7bac420775dd8199",
+  "baseline": "2fa4ad668446b9166017b434e302836287d015b0",
+  "platform": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)\nTarget: arm64-apple-darwin24.6.0\nThread model: posix\nInstalledDir: /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin",
+  "flags": [
+    "-std=c++20",
+    "-O3",
+    "-mcpu=apple-m1",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "productionSHA256": "06984142180aec71967ac609bc92cce9d7332483b749a952c3db14e4c93363e6",
+  "extractedBaselineSHA256": "5080718e2d44a91f245e487da9efb6ac2d4de852ad36d572863ad15282a9cf40",
+  "harnessSHA256": "a89e681d170cdfe13c79071bc7cd7951a9d6686618091c003104c2ce852bc990",
+  "scriptSHA256": "5c4914dc2c70a92ddfe73c58d7ecf58a46e60488f782caebe9ca8e2ee6e09085",
+  "verifiedCases": 26026,
+  "medianNsPerCall": {
+    "32": {
+      "reference": 2.00383,
+      "xor": 1.91517,
+      "dual": 1.9959
+    },
+    "4096": {
+      "reference": 5.07256,
+      "xor": 5.5739,
+      "dual": 5.39123
+    }
+  },
+  "samples": [
+    {
+      "kernel": "reference",
+      "pairs": 32,
+      "round": 0,
+      "nsPerCall": 1.979,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 32,
+      "round": 0,
+      "nsPerCall": 1.87794,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 32,
+      "round": 0,
+      "nsPerCall": 1.94694,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 32,
+      "round": 1,
+      "nsPerCall": 1.91517,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 32,
+      "round": 1,
+      "nsPerCall": 1.96148,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 32,
+      "round": 1,
+      "nsPerCall": 1.94112,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 32,
+      "round": 2,
+      "nsPerCall": 1.94231,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 32,
+      "round": 2,
+      "nsPerCall": 2.00383,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 32,
+      "round": 2,
+      "nsPerCall": 1.92419,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 32,
+      "round": 3,
+      "nsPerCall": 1.97206,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 32,
+      "round": 3,
+      "nsPerCall": 1.89263,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 32,
+      "round": 3,
+      "nsPerCall": 1.9959,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 32,
+      "round": 4,
+      "nsPerCall": 1.88275,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 32,
+      "round": 4,
+      "nsPerCall": 2.06042,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 32,
+      "round": 4,
+      "nsPerCall": 3.07094,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 32,
+      "round": 5,
+      "nsPerCall": 2.23077,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 32,
+      "round": 5,
+      "nsPerCall": 5.14504,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 32,
+      "round": 5,
+      "nsPerCall": 3.42808,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 32,
+      "round": 6,
+      "nsPerCall": 2.889,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 32,
+      "round": 6,
+      "nsPerCall": 3.17908,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 32,
+      "round": 6,
+      "nsPerCall": 3.24146,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 4096,
+      "round": 0,
+      "nsPerCall": 6.05421,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 4096,
+      "round": 0,
+      "nsPerCall": 6.45185,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 4096,
+      "round": 0,
+      "nsPerCall": 7.51521,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 4096,
+      "round": 1,
+      "nsPerCall": 6.57498,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 4096,
+      "round": 1,
+      "nsPerCall": 5.39123,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 4096,
+      "round": 1,
+      "nsPerCall": 4.80223,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 4096,
+      "round": 2,
+      "nsPerCall": 4.87933,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 4096,
+      "round": 2,
+      "nsPerCall": 4.77233,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 4096,
+      "round": 2,
+      "nsPerCall": 4.77058,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 4096,
+      "round": 3,
+      "nsPerCall": 5.89133,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 4096,
+      "round": 3,
+      "nsPerCall": 5.21902,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 4096,
+      "round": 3,
+      "nsPerCall": 6.54329,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 4096,
+      "round": 4,
+      "nsPerCall": 5.69354,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 4096,
+      "round": 4,
+      "nsPerCall": 4.81912,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 4096,
+      "round": 4,
+      "nsPerCall": 5.07256,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 4096,
+      "round": 5,
+      "nsPerCall": 4.77177,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 4096,
+      "round": 5,
+      "nsPerCall": 5.00387,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 4096,
+      "round": 5,
+      "nsPerCall": 5.5739,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "reference",
+      "pairs": 4096,
+      "round": 6,
+      "nsPerCall": 6.12615,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "xor",
+      "pairs": 4096,
+      "round": 6,
+      "nsPerCall": 4.87983,
+      "checksum": 1005000
+    },
+    {
+      "kernel": "dual",
+      "pairs": 4096,
+      "round": 6,
+      "nsPerCall": 6.96925,
+      "checksum": 1005000
+    }
+  ],
+  "physicalIPhoneTested": false,
+  "gameplayMeasured": false,
+  "productionChanged": false,
+  "scope": "Fixed-size comparison only; rotating order, warmed 8 KiB and 1 MiB pair sets. No reservation or GPU synchronization is removed.",
+  "provenance": {
+    "source": "fc8c8f5580ce7d1608875c9f7bac420775dd8199",
+    "run": 40185401716,
+    "artifact": 12595827129,
+    "archiveSHA256": "c631ae0483b6bf9f91fd259b395865562d24c867713632fee1f4931007f3bf41"
+  },
+  "decision": "Keep the production comparator. XOR is slightly faster at 8 KiB but slower at 1 MiB; dual accumulator is not a consistent improvement. No game or A18 Pro claim.",
+  "generatedAssembly": {
+    "reference536": [
+      "ldp\tq0, q1, [x0]",
+      "ldp\tq2, q3, [x1]",
+      "cmeq.8h\tv0, v0, v2",
+      "cmeq.8h\tv1, v1, v3",
+      "and.16b\tv0, v1, v0",
+      "ldp\tq1, q2, [x0, #32]",
+      "ldp\tq3, q4, [x1, #32]",
+      "cmeq.8h\tv1, v1, v3",
+      "movi.8h\tv3, #1",
+      "cmeq.8h\tv2, v2, v4",
+      "and.16b\tv1, v2, v1",
+      "and.16b\tv1, v1, v3",
+      "sub.8h\tv0, v1, v0",
+      "ldp\tq1, q2, [x0, #64]",
+      "ldp\tq3, q4, [x1, #64]",
+      "cmeq.8h\tv1, v1, v3",
+      "cmeq.8h\tv2, v2, v4",
+      "and.16b\tv1, v2, v1",
+      "sub.8h\tv0, v0, v1",
+      "ldp\tq1, q2, [x0, #96]",
+      "ldp\tq3, q4, [x1, #96]",
+      "cmeq.8h\tv1, v1, v3",
+      "cmeq.8h\tv2, v2, v4",
+      "and.16b\tv1, v2, v1",
+      "sub.8h\tv0, v0, v1",
+      "addv.8h\th0, v0",
+      "umov.h\tw8, v0[0]",
+      "cmp\tw8, #32",
+      "cset\tw0, eq",
+      "ret"
+    ],
+    "xor536": [
+      "ldp\tq0, q1, [x0]",
+      "ldp\tq2, q3, [x1]",
+      "eor.16b\tv0, v2, v0",
+      "eor.16b\tv1, v3, v1",
+      "ldp\tq2, q3, [x0, #32]",
+      "ldp\tq4, q5, [x1, #32]",
+      "eor.16b\tv2, v4, v2",
+      "eor.16b\tv3, v5, v3",
+      "ldp\tq4, q5, [x0, #64]",
+      "ldp\tq6, q7, [x1, #64]",
+      "eor.16b\tv4, v6, v4",
+      "eor.16b\tv5, v7, v5",
+      "ldp\tq6, q7, [x0, #96]",
+      "ldp\tq16, q17, [x1, #96]",
+      "eor.16b\tv6, v16, v6",
+      "eor.16b\tv7, v17, v7",
+      "orr.16b\tv0, v1, v0",
+      "orr.16b\tv1, v2, v3",
+      "orr.16b\tv0, v0, v1",
+      "orr.16b\tv1, v4, v5",
+      "orr.16b\tv1, v1, v6",
+      "orr.16b\tv0, v0, v1",
+      "orr.16b\tv0, v0, v7",
+      "umaxv.16b\tb0, v0",
+      "fmov\tw8, s0",
+      "cmp\tw8, #0",
+      "cset\tw0, eq",
+      "ret"
+    ],
+    "dual536": [
+      "ldp\tq0, q1, [x0]",
+      "ldp\tq2, q3, [x1]",
+      "cmeq.8h\tv0, v0, v2",
+      "cmeq.8h\tv1, v1, v3",
+      "and.16b\tv0, v1, v0",
+      "movi.8h\tv1, #1",
+      "ldp\tq2, q3, [x0, #32]",
+      "ldp\tq4, q5, [x1, #32]",
+      "cmeq.8h\tv2, v2, v4",
+      "cmeq.8h\tv3, v3, v5",
+      "and.16b\tv2, v3, v2",
+      "and.16b\tv1, v2, v1",
+      "ldp\tq2, q3, [x0, #64]",
+      "ldp\tq4, q5, [x1, #64]",
+      "cmeq.8h\tv2, v2, v4",
+      "cmeq.8h\tv3, v3, v5",
+      "and.16b\tv2, v3, v2",
+      "ldp\tq3, q4, [x0, #96]",
+      "ldp\tq5, q6, [x1, #96]",
+      "cmeq.8h\tv3, v3, v5",
+      "cmeq.8h\tv4, v4, v6",
+      "and.16b\tv3, v4, v3",
+      "sub.8h\tv0, v1, v0",
+      "sub.8h\tv0, v0, v2",
+      "sub.8h\tv0, v0, v3",
+      "addv.8h\th0, v0",
+      "umov.h\tw8, v0[0]",
+      "cmp\tw8, #32",
+      "cset\tw0, eq",
+      "ret"
+    ]
+  },
+  "assemblySHA256": "8a37d714654a2545f430999ad919f39bd244c507ea6f719ce063148fe8e95a71"
+}

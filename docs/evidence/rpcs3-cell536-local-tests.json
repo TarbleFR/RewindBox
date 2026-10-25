@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "sanitized": true,
+  "baseline": "2fa4ad668446b9166017b434e302836287d015b0",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "results": {
+    "writer": {
+      "passed": true,
+      "productionBodySHA256": {
+        "before": "46bb71320af40d59fab311f66f98533e25cfa970de46f77eab50cb6411d19751",
+        "after": "71eca379fda4e511b097f6d474d3436fbdd29b0b6ad5dbeaf21d7dc3791e8a0a"
+      }
+    },
+    "store": {
+      "passed": true,
+      "productionBodySHA256": {
+        "before": "321f25bb3af0adfd8733af0f0d5aedb41a8a760e4f6dd2ff0927fa074f5fef8b",
+        "after": "1bd156879d49603f229db35306b48f9b4ab60804f92b83a954b9ff7f65b735e2"
+      }
+    },
+    "configuration": {
+      "passed": true,
+      "concurrentPublications": 10000
+    }
+  },
+  "scope": "Production destructor and complete STORE128 body, controlled VM/RSX/CPU boundaries; actual concurrent atomics and configuration snapshot. No real GPU readback or guest timing."
+}
