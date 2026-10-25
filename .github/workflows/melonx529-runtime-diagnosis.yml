@@ -39,3 +39,5 @@ jobs:
         path: dist/melonx-smoke
         if-no-files-found: ignore
         retention-days: 30
+
+# Parse native JSON records using Foundation newline boundaries.
