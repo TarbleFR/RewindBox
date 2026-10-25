@@ -1,13 +1,13 @@
 {
   "result": "passed",
-  "summary": "PASS 22 effective graphics/journal assertions; old masking reproduced; no GPU test.",
+  "summary": "PASS 26 effective graphics/journal assertions; old masking reproduced; no GPU test.",
   "baseline": "cb3e5d5bd2ba740164002fdb54951a482219fa22",
   "upstream": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
   "inputs": {
-    "native/melonx/EmbeddedSession.cs": "37bb11a513e313fc65bd17fada65ed2110830c3b3472c6d34e807d588bfb8cca",
-    "native/melonx/EmbeddedGraphicsSettings.cs": "f85f747c850c755621e66d0d40c2449a6b5d413d6aed42d71f40a34fcaea4aca",
+    "native/melonx/EmbeddedSession.cs": "b2c305b1489dace8bd599785f1f584bf12c51be3b3e63e0a99befcaccb474d99",
+    "native/melonx/EmbeddedGraphicsSettings.cs": "3c7bf21b4565bd060d2fad8eced3be24ab0e56fc3ef56398f4b10a5af78005f6",
     "native/melonx/EmbeddedLaunchDiagnostics.cs": "ab9c49b1c8fa293c7780a5f75abb99e8c09afad189b76e004b40fbb334c1677c",
-    "test/melonx_effective_graphics_journal_test.py": "6813a4cd6d165952b1cf48495d007c511acb561121cef908f3a82c5892f2f874"
+    "test/melonx_effective_graphics_journal_test.py": "873c28e19118b75cadc165db18d969d8abdb5ace2b7072a1a5fb80b031d33183"
   },
   "upstreamInputs": {
     "src/Ryujinx.Library/Options.cs": "7a08bd9243f16ace3a6529b6a11e6d0ce2972fa8ddf462696db399eb076e2af7",

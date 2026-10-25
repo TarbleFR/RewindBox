@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-display-') as d:
  shutil.copyfile(source/'src/Ryujinx.Memory/DonatedMemory.cs',allocator)
  apply(w/'source');shutil.move(allocator,w/'DonatedMemory.cs')
  enums=[]
- for name in ['AspectRatioExtensions','ScalingFilter']:
+ for name in ['AspectRatioExtensions','ScalingFilter','BackendThreading']:
   text=(source/'src/Ryujinx.Common/Configuration'/f'{name}.cs').read_text()
   enums.append(re.search(r'public enum \w+\s*\{[^}]*\}',text)[0])
  text=(source/'src/Ryujinx.Common/Configuration/VSyncMode.cs').read_text()
@@ -66,7 +66,15 @@ foreach(int ratio in new[]{0,1,2,3,4,5}) {
  var options=EmbeddedGraphicsSettings.Parse("{\"aspectRatio\":"+ratio+",\"hostMemoryBudget\":true,\"textureRecompression\":true}").Apply(new());
  Check((int)options.AspectRatio==ratio && options.EnableHostMemoryBudgetTracking && options.EnableTextureRecompression);
 }
-foreach(var text in new[]{"{\"aspectRatio\":-1}","{\"aspectRatio\":6}","{\"aspectRatio\":1.5}","{\"aspectRatio\":\"stretch\"}","{\"hostMemoryBudget\":1}","{\"textureRecompression\":null}","{\"showRamGraph\":true}"}) {
+// Backend threading: an absent key keeps the base (On, as EmbeddedSession builds
+// it, matching standalone); explicit false is the per-game escape hatch.
+var threadedDefault=EmbeddedGraphicsSettings.Parse("{}").Apply(new(){BackendThreading=BackendThreading.On});
+Check(threadedDefault.BackendThreading==BackendThreading.On);
+var threadedOff=EmbeddedGraphicsSettings.Parse("{\"backendThreading\":false}").Apply(new(){BackendThreading=BackendThreading.On});
+Check(threadedOff.BackendThreading==BackendThreading.Off);
+var threadedOn=EmbeddedGraphicsSettings.Parse("{\"backendThreading\":true}").Apply(new(){BackendThreading=BackendThreading.Off});
+Check(threadedOn.BackendThreading==BackendThreading.On);
+foreach(var text in new[]{"{\"aspectRatio\":-1}","{\"aspectRatio\":6}","{\"aspectRatio\":1.5}","{\"aspectRatio\":\"stretch\"}","{\"hostMemoryBudget\":1}","{\"textureRecompression\":null}","{\"showRamGraph\":true}","{\"backendThreading\":1}"}) {
  bool rejected=false;try{EmbeddedGraphicsSettings.Parse(text);}catch(Exception){rejected=true;}Check(rejected);
 }
 var restored=EmbeddedGraphicsSettings.Parse("{\"aspectRatio\":1,\"hostMemoryBudget\":false,\"textureRecompression\":false}").Apply(new(){EnableHostMemoryBudgetTracking=true,EnableTextureRecompression=true});
