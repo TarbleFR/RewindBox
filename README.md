@@ -9,53 +9,69 @@
 [![Platform](https://img.shields.io/badge/iOS-18%2B-blue)](https://github.com/TarbleFR/RewindBox/releases/latest)
 [![Frontend license](https://img.shields.io/badge/Frontend-GPLv3-blue)](LICENSE.md)
 
-
-**[Download 0.0.8](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.8)** · **[Credits and licenses](docs/LEGAL_AND_CREDITS.md)**
+**[Download latest: fix 0.0.9 (Build 530)](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1)** · **[IPA download](https://github.com/TarbleFR/RewindBox/releases/download/0.0.9-fix.1/RewindBox-Build530.ipa)** · **[Sources and credits](docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)**
 
 </div>
 
-**RewindBox is the independent iOS/iPadOS fork maintained by TarbleFR.**
-For help with this app, use [RewindBox Issues](https://github.com/TarbleFR/RewindBox/issues) or the [RewindBox community](https://discord.gg/G48u46ppX).
+**RewindBox is an independently maintained iOS/iPadOS fork** of
+[NeoStation](https://github.com/misobadev/neostation-frontend), maintained
+by [@TarbleFR](https://github.com/TarbleFR). This is not an official
+NeoStation release; please use [RewindBox Issues](https://github.com/TarbleFR/RewindBox/issues)
+or the [RewindBox community](https://discord.gg/G48u46ppX), not upstream
+NeoStation support, for help with this fork.
 
-RewindBox brings a game library and embedded emulators into one
-sideloaded app. It is an independently maintained iOS/iPadOS fork of
-[NeoStation](https://github.com/misobadev/neostation-frontend), maintained by
-[@TarbleFR](https://github.com/TarbleFR).
+RewindBox combines a game library with **embedded emulation runtimes** for
+compatible systems. Libretro cores run inside RewindBox, as do the
+integrated **MeloNX** Nintendo Switch engine, Dolphin, ARMSX2 and RPCS3.
+A separate MeloNX app is not used to launch games from RewindBox. Users
+provide their own compatible games, firmware, keys and BIOS where required.
 
-**RetroArch's Libretro cores are embedded directly in RewindBox.** Supported
-local games run inside the app, with RewindBox's own menu and controls.
-A separate RetroArch installation is not required. The old external **MeloNX**
-launcher has been removed on the development branch. Embedded Nintendo Switch
-support is being integrated and is not yet available in a new test IPA.
+## Latest release — fix 0.0.9 (Build 530)
 
-## What's new in 0.0.8
+**Published 25 October 2026 · GitHub tag `0.0.9-fix.1`**
 
-- **Unified cheat catalogue:** a single download for supported Libretro cores,
-  arcade, PS2, PS3, GameCube and Wii games, with automatic edition matching,
-  faster searches and direct on/off switches.
-- **More immersive controls:** visible button presses on compatible skins and
-  improved touch handling.
-- **Scraping:** reduced memory use for large files, correcting the reported
-  iPhone 15 Pro Max crash.
-- **Stability:** fixes for game startup, skins, shaders and closing games.
-- **First launch:** skip folder selection and add games later.
+- **MeloNX Vulkan stability:** addresses the identified iOS failure path where
+  `VK_EXT_external_memory_host` led to `ErrorFeatureNotPresent` after a
+  Switch game started rendering. The embedded engine uses its existing
+  normal-buffer readback fallback instead of the unsupported direct host
+  memory import on iOS.
+- **Integrated Nintendo Switch emulator:** direct Switch playlist and
+  local-game imports, save/configuration management and user-supplied
+  firmware/keys, with the native JIT and capability checks required by iOS.
+- **RPCS3 and other engines retained:** the release reuses the validated
+  RPCS3 Core 528 and keeps the other embedded runtimes. NeoSwap remains
+  experimental; this release does not promise higher FPS.
+- **Existing features preserved:** 3D covers/manuals, HD texture catalogue,
+  updated touch controls, cheats, skins, AirPlay and media-library tools.
 
-[Read the release notes](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.8).
+The new MeloNX engine and IPA **passed automated compilation, ARM64 iOS
+simulator, source-identity and packaging/signature checks**. A sustained
+commercial-game session on a physical iPhone has **not** been independently
+confirmed stable. Include the game, iPhone/iOS version and internal
+app log when reporting remaining failures.
 
-## Next release — in preparation
+**Version distinction:** `fix 0.0.9` is the *GitHub release title*; the
+actual IPA is **Build 530** and still reports internal app version **0.0.8**
+(`CFBundleShortVersionString`). The earlier [`0.0.9` / Build 527](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9)
+release remains available separately.
 
-The [English announcement draft](docs/RELEASE_NEXT.md) covers the changes since
-0.0.8: the expanded HD texture catalogue, RAR support, editable touch controls,
-3D game boxes and manuals, PS2 blending settings, and PSP/RPCS3 improvements.
-The [license preparation record](docs/RELEASE_NEXT_LICENSE_REVIEW.md) identifies
-the added notices, preserved source references and remaining questions.
-The [source access guide](docs/SOURCE_CODE_ACCESS.md) links the exact package
-archives, local modifications, engine sources and build dependency records.
-No new version, release asset or playable Switch integration is announced here.
+[Read release notes](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1) ·
+[Exact Build 530 source and dependency manifest](docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md) ·
+[Source access guide](docs/SOURCE_CODE_ACCESS.md).
+
+## Other additions since the 0.0.8 baseline
+
+RewindBox also includes the expanded HD texture catalogue and supported RAR
+imports, interactive 3D game boxes and PDF manual handling, customizable
+touch layouts, PS2 blending and texture options, and PSP relaunch work.
+Actual availability and compatibility depend on the engine, title and
+user-supplied files. The earlier
+[feature preparation notes](docs/RELEASE_NEXT.md) are **historical**, not a
+description of a pending Switch integration or of the latest release.
 
 ## Unified cheats and patches
 
-Version **0.0.8** includes the unified catalogue and withholds the eight Pokémon France programs pending permission:
+The reviewed catalogue withholds the eight Pokémon France programs pending permission. The 0.0.8 source audit recorded:
 **50 active contributing source entries**, **2,395,541 programs and edition variants**,
 and **1,926 source-backed 60 FPS selections** for supported native adapters.
 One common installation serves the embedded engines. Matching uses the detected
@@ -132,10 +148,11 @@ RewindBox’s frontend license does not relicense third-party codes.
 
 | Integration | Systems / purpose |
 | --- | --- |
-| **Libretro — 35 cores in the development tree** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
+| **Libretro — 35 cores embedded in Build 530** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
 | **Dolphin / DolphiniOS** | GameCube and Wii |
 | **ARMSX2 / PCSX2** | PlayStation 2 |
 | **RPCS3 / XITRIX iOS fork** | PlayStation 3 |
+| **MeloNX — fully embedded** | Nintendo Switch; requires user-owned games/system files, the appropriate iOS JIT method and device entitlements |
 
 RewindBox no longer includes native game ports, nor the Ports playlist.
 KartPad (Mario Kart Wii) and Dusklight (Twilight Princess) were embedded in
@@ -146,8 +163,8 @@ installs it as a separate app. Twilight Princess remains playable from its
 GameCube or Wii version with Dolphin. Files already in RewindBox's
 `Ports/KartPad` and `Ports/Dusklight` folders are left untouched.
 
-Public 0.0.8 / Build 480 contains 34 Libretro cores; the current source tree
-contains 35, with Mesen added as an optional NES engine for compatible HD packs.
+The old 0.0.8 / Build 480 release contained 34 Libretro cores. **Build 530
+ships 35**, with Mesen added as an optional NES engine for compatible HD packs.
 [All current core credits and license references](assets/legal/libretro/LIBRETRO_CORES.md)
 are preserved. The number of cores differs from the number of console profiles. Compatibility,
 features and performance depend on the game, core and device.
@@ -174,7 +191,7 @@ features and performance depend on the game, core and device.
   Portuguese, Russian, Indonesian, Japanese, Korean, Simplified Chinese and
   Traditional Chinese.
 
-[Skin compatibility and import guide](https://github.com/TarbleFR/RewindBox/blob/0.0.7/docs/SKINS.md)
+[Skin compatibility and import guide](docs/SKINS.md)
 
 ## BIOS, saves and storage
 
@@ -209,8 +226,8 @@ All processes use the **same physical device RAM**. NeoSwap does not create
 extra physical memory, guarantee a fixed allocation, or guarantee higher FPS.
 Results depend on the game, device and allocation paths actually used.
 
-[Allocation details](https://github.com/TarbleFR/RewindBox/blob/0.0.7/docs/neoswap-build441.md)
-· [RPCS3 / NeoSwap / LLVM notes](https://github.com/TarbleFR/RewindBox/blob/0.0.7/docs/rpcs3-neoswap-llvm-build444-audit.md)
+[Allocation details](docs/neoswap-build441.md)
+· [RPCS3 / NeoSwap / LLVM notes](docs/rpcs3-neoswap-llvm-build444-audit.md)
 
 ## Requirements and installation
 
