@@ -57,8 +57,10 @@ settings in the ring and file, exercise a comma-decimal host culture, and keep
 synthetic personal key material redacted. Exact input hashes are recorded in
 `docs/evidence/melonx-effective-graphics-journal.json`.
 
-This is a diagnostics-only source fix. There is no rebuilt IPA or physical GPU
-validation for it. The visible-rendering issue remains open. A screenshot or
-short recording of the actual defect in-game, with the scene identified, is
-the missing evidence needed to select a renderer regression test or correction.
+This particular change is diagnostics-only. The subsequently clarified short
+recording shows the Persona 5 Royal main menu with black regions. The other
+recording shows Persona 4 Golden; it is not a same-scene comparison. The original
+journal still does not prove the cause of those pixels. A separate reproduced
+pipeline-lifetime defect and its private candidate are documented in
+`docs/melonx-pipeline540.md`. Physical GPU validation remains outstanding.
 No IPS/Jetsam reports are required.

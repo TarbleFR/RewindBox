@@ -1,0 +1,423 @@
+{
+  "source": "97915e506fa71be02ab38794529e81fad6780803",
+  "run": 40196037086,
+  "artifact": {
+    "id": 12599619752,
+    "name": "MeloNX-engine-97915e506fa71be02ab38794529e81fad6780803",
+    "size_in_bytes": 102302331,
+    "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599619752",
+    "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599619752/zip",
+    "expired": false,
+    "created_at": "2026-10-25T13:15:19Z",
+    "expires_at": "2026-11-08T13:15:11Z",
+    "updated_at": "2026-10-25T13:15:19Z",
+    "digest": "sha256:c5956f8e126ca9f669037fe7f87082e5cf37d0296181372bd8d5f404f41800a1",
+    "workflow_run": {
+      "id": 40196037086,
+      "repository_id": 1329032710,
+      "head_repository_id": 1329032710,
+      "head_branch": "Claude",
+      "head_sha": "97915e506fa71be02ab38794529e81fad6780803"
+    }
+  },
+  "jobs": [
+    {
+      "id": 121177302986,
+      "name": "core",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 40196037086,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Run actions/download-artifact@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Execute the embedded storage boundary",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Execute session ownership and render teardown",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Reuse unchanged successful firmware and game header checks",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Reuse unchanged firmware archive proof",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Verify iOS Vulkan host-import fallback contract",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 10
+        },
+        {
+          "name": "Verify SDL3 audio never queues synthetic silence on producer underrun",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 11
+        },
+        {
+          "name": "Fetch exact MeloNX source",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Execute production audio accounting and Vulkan failure regressions",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 13
+        },
+        {
+          "name": "Retain exact unchanged runtime and graphics tests",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14
+        },
+        {
+          "name": "Exercise the selected Apple audio backend and update target selection",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15
+        },
+        {
+          "name": "Exercise speculative pipeline recovery and preserve fatal GPU errors",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16
+        },
+        {
+          "name": "Retain effective graphics journal regression proof",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17
+        },
+        {
+          "name": "Reuse exact successful Darwin and homebrew proofs",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18
+        },
+        {
+          "name": "Reuse exact successful key, personal configuration and launch validation",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19
+        },
+        {
+          "name": "Execute production input driver ownership",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20
+        },
+        {
+          "name": "Exercise display ratios, existing memory settings and stale-session refusal",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 21
+        },
+        {
+          "name": "Compile NativeAOT library and verify exported ABI",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22
+        },
+        {
+          "name": "Audit patched SDL3 audio callback in exact NativeAOT source receipt",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23
+        },
+        {
+          "name": "Run actions/download-artifact@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 24
+        },
+        {
+          "name": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 25
+        },
+        {
+          "name": "Retain actual runtime evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26
+        },
+        {
+          "name": "Run actions/upload-artifact@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27
+        },
+        {
+          "name": "Post Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 52
+        },
+        {
+          "name": "Post Run actions/setup-dotnet@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 53
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 54
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 55
+        }
+      ]
+    }
+  ],
+  "physicalDeviceTested": false,
+  "deviceCore": {
+    "source": {
+      "repository": "https://starforgejo.dev/projects/MeloNX.git",
+      "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "dotnet": "10.0.100",
+      "libHacFeed": "https://starforgejo.dev/api/packages/Ryulynx/nuget/index.json",
+      "libHac": {
+        "repository": "https://starforgejo.dev/archive/LibHac_Ryubing.git",
+        "revision": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+        "package": "Ryujinx.LibHac",
+        "version": "0.21.0-alpha.129",
+        "consumerChange": "cc6d2dc162ca00a3db9af09f176798a8297926ab",
+        "provenance": "Source reconstruction: matching NACP language-buffer change, ten minutes before the consumer moves from alpha.126 to alpha.129. Original NuGet package identity unavailable; byte equivalence is not asserted."
+      },
+      "controller": {
+        "repository": "https://github.com/stossy11/Melo-Controller.git",
+        "revision": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
+      },
+      "runtimeIdentifier": "ios-arm64"
+    },
+    "host": "97915e506fa71be02ab38794529e81fad6780803",
+    "size": 37502536,
+    "sha256": "5cf5deac13ffeecc2908954bd50699275fd188626885a06f6fb831f678411b69",
+    "exports": [
+      "initialize",
+      "main_ryujinx_sdl",
+      "set_native_window",
+      "stop_emulation",
+      "toggle_pause_emulation",
+      "load_keyset",
+      "install_firmware",
+      "installed_firmware_version",
+      "get_game_info",
+      "set_gamepad_button_state",
+      "set_gamepad_stick_axis",
+      "RegisterCallback",
+      "neostation_melonx_bootstrap_abi",
+      "neostation_melonx_initialize",
+      "neostation_melonx_session_abi",
+      "neostation_melonx_session_state",
+      "neostation_melonx_session_error",
+      "neostation_melonx_prepare",
+      "neostation_melonx_run",
+      "neostation_melonx_stop",
+      "neostation_melonx_cancel_prepared",
+      "neostation_melonx_pause",
+      "neostation_melonx_input_abi",
+      "neostation_melonx_input_attach",
+      "neostation_melonx_input_detach",
+      "neostation_melonx_input_button",
+      "neostation_melonx_input_stick",
+      "neostation_melonx_input_reset",
+      "neostation_melonx_library_abi",
+      "neostation_melonx_content_progress",
+      "neostation_melonx_cancel_content",
+      "neostation_melonx_runtime_abi",
+      "neostation_melonx_configure_native",
+      "neostation_melonx_configure_jit",
+      "neostation_melonx_content",
+      "neostation_melonx_configure_graphics",
+      "neostation_melonx_diagnostics_abi",
+      "neostation_melonx_diagnostics",
+      "neostation_melonx_prepare_jit",
+      "neostation_melonx_set_aspect_ratio",
+      "neostation_melonx_memory_offer",
+      "neostation_melonx_memory_withdraw",
+      "neostation_melonx_memory_snapshot"
+    ],
+    "status": "compiled-not-gameplay-tested",
+    "adaptations": {
+      "native/melonx/EmbeddedAddonSelection.cs": "5a37e4e21596141896598eeaefcbe68a208ee9be0df459473102c9609c27bad6",
+      "native/melonx/EmbeddedAddons.cs": "bb159cfec55c92ffc14fc5ac52a342e3112c4d95b7c1350b571f8cab29fd754f",
+      "native/melonx/EmbeddedBootstrap.cs": "00060cff6b7eaab09a2943b1f43f82431541210316460faf7c5197591c78c009",
+      "native/melonx/EmbeddedContent.cs": "9659a22900a07eb4f9a77a3d98a62fe8424e7d48745bf270f8ee0b72bd246100",
+      "native/melonx/EmbeddedDarwinSignals.cs": "99c916dc81b8b361461f20c919ec69705276c7ad2cf598a3da405af127c8e3a3",
+      "native/melonx/EmbeddedDataRoot.cs": "0a0c9137403d5b2fbfa3a2f6c6c208d810fce0f5bebfc8ee435e0c313c89adb8",
+      "native/melonx/EmbeddedFirmwareArchive.cs": "d0f87ab671e8b701c4e986e4b748d1a20686e66069b42f0a46d6deaef2ba287f",
+      "native/melonx/EmbeddedFirmwareStore.cs": "5f336703e04676d91c7abe54b74b86d5f68eb90c075877fa85a87aebf5d61397",
+      "native/melonx/EmbeddedGameHeader.cs": "37d0621130800781281d7d098a516d7573f7e784ca192fb9cab2098418311b09",
+      "native/melonx/EmbeddedGraphicsSettings.cs": "f85f747c850c755621e66d0d40c2449a6b5d413d6aed42d71f40a34fcaea4aca",
+      "native/melonx/EmbeddedHomebrewAssets.cs": "94e7ec96cf9dbaed2b2bd6ed1b61d12a0d86102ecc03798fce597602498902cd",
+      "native/melonx/EmbeddedInitializationState.cs": "b563680eab89d135cf33bd5353db403404e3719089d854f76945a4e3c9531b36",
+      "native/melonx/EmbeddedInput.cs": "73ebf6f4e267686c0cfbdb591afe8700beeb04f3f9c7f7bca6cee719ccee234c",
+      "native/melonx/EmbeddedKeyValidation.cs": "7a86d2bd470afe653c14a00cdb098c06a2305ba11c67750f25c04735537fe597",
+      "native/melonx/EmbeddedLaunchDiagnostics.cs": "ab9c49b1c8fa293c7780a5f75abb99e8c09afad189b76e004b40fbb334c1677c",
+      "native/melonx/EmbeddedLaunchPreflight.cs": "3d6c7a46cd6f912156aed04a1256b6d065a11324cef2d2dc2640ef11b96aa331",
+      "native/melonx/EmbeddedMemory.cs": "fb58520f5581c579a6ca1e79a0bb91bf9d5df51caaa8cee108a2788b543c8150",
+      "native/melonx/EmbeddedNativeGamepadLease.cs": "3a0aa693b32906acbf8e09f4d29d99d5ad00a414f4a9b63d34191c0f8e98dfad",
+      "native/melonx/EmbeddedNativeLibraries.cs": "238d072c289cfd2d1d714b2b5e425040351bf42d929f903c45c3f6759ae55265",
+      "native/melonx/EmbeddedPersonalOptions.cs": "aebfe555c9604ae89a0204a1e5e6c4ada2ade210c90daa0bb80dcfb753127619",
+      "native/melonx/EmbeddedRuntime.cs": "1f0f61895a246bc44aca643bda4b042d6cdcd8c6c3243f6a7cc064d6f94c40a0",
+      "native/melonx/EmbeddedSaveTransfer.cs": "9d2cdda63fcd0c2ad1332bf163fbaa3e09b8511065b0df85f8b5a85e5d5799b0",
+      "native/melonx/EmbeddedSession.cs": "37bb11a513e313fc65bd17fada65ed2110830c3b3472c6d34e807d588bfb8cca",
+      "native/melonx/EmbeddedSessionCoordinator.cs": "2a6e32fb2c304365d8eb4036b83ab1dac950d9b2bba1870dbbc6cb04dd70c268",
+      "native/melonx/EmbeddedWindowLifetime.cs": "a1726a7fac456b649ed0b8b8f3749ae0491324457b999807451ab90fd5910359",
+      "build-utils/melonx/prepare_embedded.py": "3250d089621c43f905e9c2ea8041e6ce003c37cd01b77a53f746fd6840716e0f",
+      "build-utils/melonx/adapt_session.py": "032b92e2e8dbc8b84dce688fd4c8f312d2b34a9cc3e23180249484b8ab1e32b3",
+      "build-utils/melonx/adapt_input.py": "8fdb73313e64d667ba9d74e7f4d076e0c65621a7b9f46e89d5d8a9459cf433ae",
+      "build-utils/melonx/adapt_runtime.py": "4ce4c0889498a030c6a767b5a0ca9190e91f6623f4987614ab0c44b8395fed84",
+      "build-utils/melonx/adapt_audio.py": "26a705e5b299876431a6a28b035ccd9d0c5ca6ea280102baa02485c3d6edfdbd",
+      "build-utils/melonx/adapt_apple_audio.py": "161a334e4821b64b00d77c2a24e69a8f39276fbc4dfe45c0e6f984d63a3d61c3",
+      "build-utils/melonx/adapt_firmware.py": "abceebc559458f09fed299ca917d0d2242a9b2cdbe83dbd3f7234e435eb68922",
+      "build-utils/melonx/adapt_memory.py": "72869c566a1f0774c3a88388fa79df38de419b078469977b7af44331960d9ac2",
+      "build-utils/melonx/adapt_pipeline.py": "f34a5525ecba0e47c90efed5e79264f846957f506268a22ea7f023a644d61280"
+    },
+    "libHac": {
+      "source": {
+        "repository": "https://starforgejo.dev/archive/LibHac_Ryubing.git",
+        "revision": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+        "package": "Ryujinx.LibHac",
+        "version": "0.21.0-alpha.129",
+        "consumerChange": "cc6d2dc162ca00a3db9af09f176798a8297926ab",
+        "provenance": "Source reconstruction: matching NACP language-buffer change, ten minutes before the consumer moves from alpha.126 to alpha.129. Original NuGet package identity unavailable; byte equivalence is not asserted."
+      },
+      "reconstructed": true,
+      "originalPackageRecovered": false,
+      "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+      "packageBytes": 740404,
+      "generatedInputs": {
+        "src/LibHac/Common/FixedArrays.Generated.cs": "67f0e7b142c9a86213cd707e84839e268f2c48219bf34a792e92c064578a5ad2",
+        "src/LibHac/Common/Keys/DefaultKeySet.Generated.cs": "478a968d866ace297236d51e23b1665db679863475c352dc5632439bae9c5e4d",
+        "src/LibHac/Common/ResultNameResolver.Generated.cs": "1da2266d06202e16401809fdae354522a6b97f14d80e705d91e3c850e05ba836"
+      },
+      "layoutTests": "LibHac.Tests.Ns.TypeLayoutTests",
+      "upstreamSourceSha256": "36e4cf34575a36e3844b55fd8cc3834bfb1cddc68ccebbb21fc0f7bb28e8373b"
+    },
+    "embeddedSessionImplemented": true,
+    "embeddedLibraryAbi": 2,
+    "embeddedSessionDeviceVerified": false,
+    "runtimeIdentifier": "ios-arm64"
+  },
+  "actualRuntime": {
+    "actualCoreDonatedBackingSessions": 2,
+    "actualDarwinThreeArgumentHandlersVerified": true,
+    "actualKeyImportABIValidated": true,
+    "actualNativeAOT": true,
+    "actualNativeLaunchJournalWritten": true,
+    "actualSimulatorCodeArenaVerified": true,
+    "displayAndMemoryConfigurationAccepted": true,
+    "donorProcessUsedInSmoke": false,
+    "gameplayTested": false,
+    "graphicsAccepted": true,
+    "homebrewProducesVideo": false,
+    "homebrewSimulatorSessions": 2,
+    "initializationAndIdempotency": true,
+    "invalidContentRejected": true,
+    "invalidGraphicsCodePreserved": true,
+    "invalidGuestRejected": true,
+    "invalidSaveAssociationRejected": true,
+    "iphoneGuestExecutionTested": false,
+    "jitTested": false,
+    "keyRefusalCodePreserved": true,
+    "keyUnknownEntryAccepted": true,
+    "missingKeysRejectedBeforeGuest": true,
+    "mixedInvalidKeySizeAccepted": true,
+    "originalHomebrewGuestSvcConfirmed": true,
+    "personalKeysUsed": false,
+    "result": "passed",
+    "storageProfilesRecognized": true,
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+    "coreSha256": "0411b596b53ed5d1c045331f4125c5c374262d1383d51b69b07955612ffcf04b",
+    "inputs": {
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "1c633f4c9767f566e350353fd98296dce92d6f14c1f3cd4fdb4276e83489a615",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "81ae89813c459db4b3a7f2010bf8ec0986cfb9bcbbbd36e925cd0b473dae3020",
+      "test/melonx_runtime_smoke.py": "36f497df0adf8655e4988135876fc0a649068b8900e6fc064f7b47ae9a1d46d2"
+    }
+  },
+  "pipelineRegression": {
+    "result": "passed",
+    "reports": [
+      {
+        "mode": "control",
+        "checks": 29,
+        "passed": true,
+        "reproducedPoisonedProgram": true,
+        "physicalDeviceTested": false,
+        "vulkanDouble": true
+      },
+      {
+        "mode": "fixed",
+        "checks": 29,
+        "passed": true,
+        "reproducedPoisonedProgram": false,
+        "physicalDeviceTested": false,
+        "vulkanDouble": true
+      }
+    ],
+    "physicalDeviceTested": false,
+    "vulkanDouble": true,
+    "inputs": {
+      "build-utils/melonx/adapt_pipeline.py": "f34a5525ecba0e47c90efed5e79264f846957f506268a22ea7f023a644d61280",
+      "test/melonx_pipeline_failure_test.py": "8006606f9fad59902f154e05ef8fae09078682eb9a5a0d9191879e3b075c223b",
+      "test/melonx_pipeline/Double.cs": "336be8af02ceec729c9ac25abc779891338eff2fcceaab052a087e6ebd4c70e1",
+      "test/melonx_pipeline/Program.cs": "e0e477ce156339fa49fb5d4b2bc9af7188d5950337be68b7ba0f963f0debf6a7"
+    },
+    "upstreamInputs": {
+      "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs": "24187cd708419ea41f1bdb5b912bb04796858fc05d5dce7b94ff339aed54661a",
+      "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "eb644cb1c8b8d0a68527e8c641bdf2814d101fad718dfed1757f2f5d8d647202",
+      "src/Ryujinx.Graphics.Vulkan/VulkanException.cs": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c"
+    }
+  }
+}
