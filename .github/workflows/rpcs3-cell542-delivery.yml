@@ -232,7 +232,7 @@ jobs:
         # The independent host broker/donation is rebuilt by this IPA job.\n# Only the Core source, client ABI, recipe and\
         \ native tests are pinned.\n# The guard above validates all original Core inputs in an exact ABI view.\npython3 -\
         \ <<'PY'\nimport json, os, shutil, sys\nfrom pathlib import Path\nsys.path.insert(0, 'build-utils')\nsys.path.insert(0,\
-        \ 'test')\nsys.path.insert(0, '.github/diagnostics')\nfrom melonxpipeline540_delivery import validate_rpc_core_identity\
+        \ 'test')\nsys.path.insert(0, '.github/diagnostics')\nfrom rpcs3cell542_delivery import validate_rpc_core_identity\
         \ as validate_core_input_identity\nfrom validate_rpcs3_ipa import validate_core_identity\nfrom validate_rpcs3_embedded_core\
         \ import validate_core\nfrom validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen\n\nsource =\
         \ Path('dist/rpcs3-native/libRPCS3Core.dylib')\nidentity_path = Path('dist/rpcs3-native/identity.json')\ndestination\
