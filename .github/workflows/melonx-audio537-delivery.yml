@@ -85,8 +85,6 @@ jobs:
       with:
         name: MeloNX-audio537-checks-${{ github.sha }}
         path: build/delivery
-    - name: Require exact successful skin sessions and cheat catalogue/core checks
-      run: python3 .github/diagnostics/melonxaudio537_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
       uses: maxim-lobanov/setup-xcode@v1
       with:
@@ -413,6 +411,8 @@ jobs:
         \    'libretroCores': {core['id']: core['sha256'] for core in identity['cores']},\n})\nfast_path.write_text(json.dumps(fast,\
         \ indent=2) + '\\n')\nprint('Verified', len(identity['cores']), 'libretro cores and', len(identity['files']), 'files')\n\
         PY\n"
+    - name: Require successful exact MeloNX engine and iPhone host before packaging
+      run: python3 .github/diagnostics/melonxaudio537_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Download the exact source-built MeloNX engine
       uses: actions/download-artifact@v4
       with:
