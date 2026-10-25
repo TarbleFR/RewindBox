@@ -3,6 +3,34 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Private 549: Liquid Glass + RPCS3 547 Core + MeloNX threading and FPS counter — 25 October 2026
+
+- A user reported Persona 4 Golden flicker and slowdowns absent from standalone
+  MeloNX: the embedded engine forced `BackendThreading.Off`. Diagnosis and fix:
+  `docs/melonx-persona-performance-2026-10-25.md`. Threading is now On by
+  default (per-game "Backend threading" switch, 12 languages); the window
+  lifetime releases the threaded renderer from the controlling thread after the
+  render loop drains (`NotifyRenderDrained`), keeping quarantine guarantees.
+  The RAM overlay shows the engine's game FPS
+  (`neostation_melonx_performance_snapshot`, resolved optionally by the host).
+- Engine `9bf068b3` run 40235589254 (attempt 2; attempt 1 died fetching the
+  upstream source and left a same-named artifact with the previous engine, so
+  deliveries take artifact 12614789426 by ID and digest); host run 40235589280.
+- Private IPA **0.0.8 (549)** from `c605eafd`, run 40242492444: the 546
+  delivery tree with the RPCS3 547 Core files (as in 547), the Liquid Glass
+  interface (as in 548) and the 11 MeloNX files; the three sets share no file
+  (`.github/diagnostics/melonxthreading549_tree.py`). 186,489,037 bytes,
+  SHA-256 `63a1ff6a…076e95e`, encrypted artifact 12617463688 for
+  `build-utils/delivery-549-recipient.pem` (private key outside Git);
+  decrypted, re-validated locally, delivered for SideStore re-signing. Installs
+  over 547 and 548 without losing either. Evidence:
+  `docs/evidence/melonx-threading549-delivery.json`,
+  `docs/evidence/melonx-threading549-local.json`. `melonx_transfer_test.dart`
+  still fails one Liquid Glass Import-icon contrast case, identically on the
+  delivered 548 tree. No iPhone validation yet. **Do not reuse 549.** Per the
+  other sessions: 550 is suggested for the next interface IPA and 551 is
+  claimed for the next RPCS3 delivery; check before using either.
+
 ## RPCS3 547: GPU fence wait and SPU compile pressure — 25 October 2026
 
 - First step of the deep optimisation phase (`docs/rpcs3-cell547.md`: the five

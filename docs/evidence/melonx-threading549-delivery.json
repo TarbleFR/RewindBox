@@ -1,0 +1,281 @@
+{
+  "downloadedIPA": {
+    "result": "passed",
+    "file": "RewindBox-Build549.ipa",
+    "bytes": 186489037,
+    "sha256": "63a1ff6a69ebf49d1fbbbc80aea1ae67064871721289b4628ce320830076e95e",
+    "build": "549",
+    "version": "0.0.8",
+    "minimumIOS": "18.0",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "source": "c605eafdea4064b13cc316524c851ef2c75257c2",
+    "signedBundles": 86,
+    "signing": "SideStore re-signing",
+    "physicalDeviceTested": false
+  },
+  "deliveryRun": 40242492444,
+  "encryptedArtifact": {
+    "id": 12617463688,
+    "zipSHA256": "c8d3f6103d0410d96298e20f6a307b700848d444fa4a522054a12d7a0f05015d",
+    "recipient": "build-utils/delivery-549-recipient.pem",
+    "expires": "2026-11-08"
+  },
+  "sha256SumsAndSignedPayloadAgree": true,
+  "hostTree": {
+    "pinned": "6c6c624179540b860de16eab9c08323efaf12683",
+    "restoredPaths": 1,
+    "keptFiles": 146,
+    "productTrees": {
+      "lib": "6a0ca954275b43f32369fc1dda738e927187b9f5",
+      "native": "43f34401d7d32c35d027c037bef6a1654ce3d94a",
+      "packages": "aa7ffd1e8e197ee36a49e6ab344af33d5fe71496",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "source547": "08f2f7fa8c9081ff8f049eb96d31f054d549f278",
+    "source548": "5a9f1502973f3b9c37ddbc5f32abb5457b86ee80"
+  },
+  "components": {
+    "rpcs3Core": {
+      "source": "1b5c278c2f86c55bc626911124975a2bbb09dc2c",
+      "run": 40232640441,
+      "deliveredIn": 547
+    },
+    "liquidGlassInterface": {
+      "source": "5a9f1502973f3b9c37ddbc5f32abb5457b86ee80",
+      "run": 40238111186,
+      "deliveredIn": 548,
+      "changedFiles": 78,
+      "receiptTests": 367
+    },
+    "melonxEngine": {
+      "source": "9bf068b3a1dbbd16875f7d843ace4b44402fef13",
+      "run": 40235589254,
+      "artifact": 12614789426,
+      "firstAttemptFailed": "upstream source fetch (early EOF)",
+      "coreSHA256": "b803d20742e04445bccf9dd85d5d29f488a335590639e1458f3ee8e752c13b85"
+    },
+    "melonxHost": {
+      "source": "9bf068b3a1dbbd16875f7d843ace4b44402fef13",
+      "run": 40235589280,
+      "artifact": 12615322102
+    }
+  },
+  "melonxChanges": {
+    "backendThreadingDefault": "On",
+    "fpsCounter": "Device.Statistics game FPS in the RAM overlay title row",
+    "changedProduct": [
+      "lib/l10n/melonx_library_locale.dart",
+      "lib/services/melonx_internal_service.dart",
+      "lib/widgets/melonx_internal_playlist_actions.dart",
+      "native/melonx/EmbeddedGraphicsSettings.cs",
+      "native/melonx/EmbeddedPerformance.cs",
+      "native/melonx/EmbeddedSession.cs",
+      "native/melonx/EmbeddedWindowLifetime.cs",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryGraph.swift",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h"
+    ],
+    "engineEvidence": {
+      "coreSHA256": "b803d20742e04445bccf9dd85d5d29f488a335590639e1458f3ee8e752c13b85",
+      "sessionCases": 25,
+      "displaySummary": "PASS 57 graphics, FPS snapshot, generation and real donated allocator cases; window double, no gameplay claim.",
+      "livePerformanceSnapshotSessions": 2,
+      "threadedSimulatorRelaunches": 2,
+      "fpsLabelCases": 14,
+      "iphoneSDKTypecheck": true
+    }
+  },
+  "compiledMarkersVerified": {
+    "melonxCore": [
+      "_neostation_melonx_performance_snapshot (export)",
+      "backendThreading (UTF-16 literal)"
+    ],
+    "melonxBridge": [
+      "neostation_melonx_performance_snapshot"
+    ],
+    "dart": [
+      "backendThreading",
+      "Backend threading",
+      "Multithreading du backend"
+    ],
+    "liquidGlassDart": [
+      "rewindbox_interface_style_v1",
+      "interface-style-",
+      "interface-style-unsaved",
+      "interface-style-preview",
+      "interface-style-preview-tabs",
+      "main-menu-capsule-blur",
+      "main-menu-tab-indicator",
+      "glass-segment-thumb",
+      "Interface utilisateur",
+      "Liquid Glass",
+      "Flottante",
+      "\u4f7f\u7528\u8005\u4ecb\u9762"
+    ],
+    "liquidGlassNative": [
+      "flutter.rewindbox_interface_style_v1",
+      "liquidGlass"
+    ]
+  },
+  "frontendRerun": {
+    "receipt": "docs/evidence/melonx-threading549-local.json",
+    "liquidGlassSuite": 342,
+    "applicationAnalyzer": {
+      "issues": 108,
+      "errors": 0,
+      "warnings": 0
+    },
+    "knownFailing": {
+      "test": "test/melonx_transfer_test.dart",
+      "sameOnDelivered548": true
+    }
+  },
+  "localRevalidation": {
+    "validators": [
+      "build-utils/validate_melonx_threading549_ipa.py",
+      "build-utils/validate_liquid_glass549_ipa.py",
+      "build-utils/validate_melonx_keys_ipa.py",
+      "build-utils/validate_melonx_launch_ipa.py"
+    ],
+    "result": "passed",
+    "context": "Decrypted IPA, clone pinned at c605eafd, the downloaded engine/host artifacts and the vendored controls"
+  },
+  "packageReports": {
+    "diagnostics546-tests.json": {
+      "sha256": "771b09d9097317e43c4d3601b5f77ab7811d4c12ad68eafee1771c3c5a8b2756",
+      "bytes": 1533
+    },
+    "environment.json": {
+      "sha256": "85af7c506eeadfee0e562c85c2ffe350601591251ab9a3e1d9c30cda76ae0fa3",
+      "bytes": 1010
+    },
+    "final-structure.json": {
+      "sha256": "ff777af4d4d1065eb77fa6214a105ed7b3732a977877ff5e9bd2707c4c426dd6",
+      "bytes": 174284
+    },
+    "hd-textures-ipa-validation.json": {
+      "sha256": "fd72d16cfa5ff98a5b198cbbe15d5cd4bb6998b24a10a0629028e4bd66d73e48",
+      "bytes": 919
+    },
+    "host-tree549.json": {
+      "sha256": "5a13a55382b96f7869a3bc1a955b2c33066f00e6a5532c71fa0baac535a293ef",
+      "bytes": 8628
+    },
+    "liquid-glass-ui-ipa-validation.json": {
+      "sha256": "155c0cd6b2cf3de66541cc46c44ec7a582b79f80fb6be4bcbffefdb835a01cf7",
+      "bytes": 19375
+    },
+    "liquid-glass-ui-tests.json": {
+      "sha256": "e5950532374d4eef54a589dcb73ac61f7abd13e75a450d283bd78f75b4f064e8",
+      "bytes": 17796
+    },
+    "melonx-components549.json": {
+      "sha256": "97f5918e4e2a29a3f36a1d0b8ad58b6e4a0ed7eb45bc83c83ae124c7e7e9d90d",
+      "bytes": 19469
+    },
+    "melonx-delete509-embedded.json": {
+      "sha256": "04a7bdb6a374ccc6567dad1df0ede102148dd054d163a77c865c45fefe052c49",
+      "bytes": 995
+    },
+    "melonx-delete509-ipa.json": {
+      "sha256": "cef0a81526a9dc225218fb4947e68d5fc9cd9f75ca992fb5a962296105a69298",
+      "bytes": 1078
+    },
+    "melonx-engine-evidence549.json": {
+      "sha256": "0e53236502fecb061208bd4dbdcfefc5f81f49bcd08eb87eecf43dfed5525799",
+      "bytes": 19540
+    },
+    "melonx-header-sdk.json": {
+      "sha256": "e369c8d5ca1ba80044295e57de271c775806617783c438fcf6b2996dfbdbee0b",
+      "bytes": 5197
+    },
+    "melonx-import537-tests.json": {
+      "sha256": "e36ba513e6688d1b0089eb2731ac2fa8792c2f41599b48da4543e6a58bb50937",
+      "bytes": 12930
+    },
+    "melonx-ipa.json": {
+      "sha256": "aa181e0294d2e96c20dfd8719b82e16c35b4573931c3146d42d19974c71ec799",
+      "bytes": 362
+    },
+    "melonx-keys517-ipa-validation.json": {
+      "sha256": "53ea617c853094314df040bcae8cd70961309eb7017064dc26da4196e9b89af8",
+      "bytes": 575
+    },
+    "melonx-launch514-ipa-validation.json": {
+      "sha256": "01ad2c5f76b9ba010e2632b2bb1bd67775094a653a88b7d918cef9bba3978d9c",
+      "bytes": 815
+    },
+    "melonx-threading549-ipa-validation.json": {
+      "sha256": "3302c66467978b849b43f570af2e29f83240eba7a28ba17ce17a6346805c4512",
+      "bytes": 38405
+    },
+    "melonx-threading549-tests.json": {
+      "sha256": "bc9b9b9e41cf686dc82952cb95c9194026bc41b673813688a47ceff0f688fc04",
+      "bytes": 51883
+    },
+    "motion507-ipa-validation.json": {
+      "sha256": "f63a1f15dfec66b4851e4d90463ad464f53ff0f536b4e2b873f98e6401af98b7",
+      "bytes": 793
+    },
+    "navigation512-ipa-validation.json": {
+      "sha256": "6d1e71a95938692b0ec2fad35f45dc314c9f94a7a1e0ebe9973154843f838d80",
+      "bytes": 387
+    },
+    "observed-timings.json": {
+      "sha256": "dae3eaea803c2a9e4a75d2d3a1838b06f32d2e9f1d15232a0b5dc3116cde3db3",
+      "bytes": 4821
+    },
+    "retention536-tests.json": {
+      "sha256": "870ee4b0a6274d0568a7d662056303c1fb4cd2c67bd843eeab691ab4bb62b429",
+      "bytes": 1675
+    },
+    "reused-validation549.json": {
+      "sha256": "e179217ee48b89010609c3f9c560a9c847fde88cf4a22ea0dfe0abdbf78d5193",
+      "bytes": 19281
+    },
+    "rpcs3-diag487-ipa-validation.json": {
+      "sha256": "0d34c7fc0d14056126277b3c827ae6320ba67e9557e4d175704c10e87dfc8059",
+      "bytes": 373
+    },
+    "rpcs3-memory-audit-ipa.json": {
+      "sha256": "7ad0b9d50e7f67e88d90169065ccca421ed6100578a8ca4ddfad1a8ef9750aac",
+      "bytes": 641
+    },
+    "rpcs3-memory-embedded.json": {
+      "sha256": "6498aedc0cbe26b18c62672a4c05d47d6deb4599bc75e76e3fa94279e3914bc8",
+      "bytes": 223
+    },
+    "signature.json": {
+      "sha256": "463ed2cbfbb9e88f3aaf8de3b8983107cc7393d59f0f96a67891a9bfe4d6adb0",
+      "bytes": 15175
+    },
+    "signed-payload-identity.json": {
+      "sha256": "661f9b0a20049e803b2b8dfc9e2cad6f8e644035ed7107e99d05fc1e5c2b7f00",
+      "bytes": 11125
+    },
+    "skin-session-evidence.json": {
+      "sha256": "f0e25af08106e5177fa4f37a3c503a795021d9d75e319de63c839b1b1b9faf2d",
+      "bytes": 20376
+    },
+    "ui-correction511-ipa-validation.json": {
+      "sha256": "b4b753997bd48dc91adc9ad54200c2d5c175e5d3cb0189a050ba0bc606f5507f",
+      "bytes": 399
+    },
+    "unified-cheats-ipa-validation.json": {
+      "sha256": "5ba40f545bee6d680a8baaaf4c528a34020feb070a5e48e08d6fafbf8d4fbb45",
+      "bytes": 906
+    }
+  },
+  "installsOver": [
+    "547",
+    "548"
+  ],
+  "physicalDeviceTested": false,
+  "threadingDeviceVerified": false,
+  "fpsCounterDeviceVerified": false,
+  "interfaceDeviceReviewed": false,
+  "fpsClaimed": false
+}
