@@ -27,8 +27,12 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
 - Executed on Linux .NET 10.0.100 against the compiled pinned Gpu/Cpu/Memory
   projects (GAL double only): control reproduces the device stack; fixed passes
   7 scenarios (`test/melonx_gpu_teardown_test.py`, wired into melonx-core.yml).
-  Flutter close-status/audio/route/launch-flow tests pass on 3.47.2. No Swift,
-  NativeAOT, simulator, IPA or iPhone validation was run here.
+  Flutter close-status/audio/route/launch-flow tests pass on 3.47.2. CI: engine
+  d9f35c27 run 40210266656 (macOS harness, NativeAOT ABI, two ARM64 simulator
+  homebrew sessions with close and relaunch) and host eabc057f run 40209413009
+  succeeded. No IPA or iPhone validation yet: the next private delivery must pin
+  those two artifacts and rebase receipts that hash melonx_internal_service.dart
+  or MeloNXInternalBridgePlugin.swift onto eabc057f.
 - Persona 4 Golden (010062B01525C000, v0): no error after the 530 host-import
   fix in the supplied journals; its 10:59 `localGameRequired` is a stale
   container path right after reinstall, not a regression. Persona 5 Royal black

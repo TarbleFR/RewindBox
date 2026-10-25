@@ -171,11 +171,27 @@ Exécutés dans ce conteneur Linux (.NET SDK 10.0.100, Flutter 3.47.2) :
   `test/melonx_launch_flow_test.py` (11) : réussis. `flutter analyze` : aucune
   nouvelle remarque.
 
-Non exécutés ici : compilation Swift et UIKit (`melonx-host.yml`), engine
-NativeAOT et deux sessions ARM64 simulateur (`melonx-core.yml`), IPA. Aucune des
-séquences sur iPhone demandées (fermeture depuis le jeu ou RewindBox, pendant un
-chargement ou une compilation, enchaînement, session longue) n'a pu être
-réalisée : elles restent la validation à faire avec l'IPA de test.
+Exécutés sur GitHub Actions (macOS 26, Xcode 26.3) :
+
+| Workflow | Commit | Run | Résultat |
+| --- | --- | --- | --- |
+| MeloNX engine | d9f35c27 | 40210266656 | réussi : harnais GPU compilé sur macOS (contrôle + corrigé), engine NativeAOT et ABI exportée, deux sessions homebrew ARM64 simulateur iOS 26.5 avec fermeture et relance (`close begin` → caches de pipeline sauvegardés → `sessionResult passed`, puis seconde session `session passed (2)`), artefact `MeloNX-engine-d9f35c27…` |
+| MeloNX engine | eabc057f | 40209413061 | échec du harnais seul : chemins temporaires macOS symboliques (`/var` → `/private/var`), corrigé par d9f35c27 |
+| MeloNX host | eabc057f | 40209413009 | réussi : hôte iPhone et scénarios ABI natifs, audio/présentation, plugin enregistré dans UIKit réel |
+| MeloNX launch checks | eabc057f | 40209413008 | réussi |
+| Embedded game return label | eabc057f | 40209413017 | réussi (contrôle négatif et parcours de quarantaine) |
+| MeloNX display and memory settings | eabc057f | 40209413010 | réussi |
+| MeloNX external retirement and embedded | eabc057f | 40209413021 | échec préexistant : `retroarch_baseline_scope_test` (empreintes NeoSwap), identique avant ces commits |
+
+Les sessions simulateur sont homebrew, sans jeu commercial, JIT ni iPhone
+(`gameplayTested: false`, `iphoneGuestExecutionTested: false`) : elles prouvent
+que l'engine reconstruit démarre, ferme et relance, pas que Smash ferme sur
+iPhone.
+
+Non exécutés : IPA (§ 9). Aucune des séquences sur iPhone demandées (fermeture
+depuis le jeu ou RewindBox, pendant un chargement ou une compilation,
+enchaînement, session longue) n'a pu être réalisée : elles restent la
+validation à faire avec l'IPA de test.
 
 ## 8. Protocole iPhone proposé
 
@@ -186,3 +202,20 @@ réalisée : elles restent la validation à faire avec l'IPA de test.
    teardown skipped…` et les compteurs de l'analyseur.
 4. En cas de quarantaine : la boîte affiche l'explication, se ferme à
    l'acquittement, et la relance demande de redémarrer RewindBox.
+
+## 9. IPA de test
+
+Non compilée dans cette session. Pendant ce travail, une autre session a poussé
+sur `Claude` le cœur RPCS3 543 (aa7ac546) et prépare la livraison privée 543 :
+une seconde livraison en parallèle aurait pris le même numéro ou produit deux
+IPA divergentes. La prochaine livraison privée doit embarquer :
+
+- engine `MeloNX-engine-d9f35c2783f7368d31b61f644d970f41bb7bc47b`, run
+  40210266656 (source d9f35c27) ;
+- hôte `MeloNX-host-eabc057f4058520192f79f361cbd92eba5795f98`, run 40209413009 ;
+- dépendances natives inchangées (`MeloNX-native-dependencies-66737aa9…`).
+
+L'ABI de l'engine est inchangée ; les validateurs IPA 540 s'appliquent. Les
+reçus qui figent `lib/services/melonx_internal_service.dart` et
+`MeloNXInternalBridgePlugin.swift` doivent être rebasés sur eabc057f. Aucune
+release, aucun tag, aucune fusion vers `main`.

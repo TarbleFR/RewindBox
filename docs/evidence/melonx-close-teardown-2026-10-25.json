@@ -1422,8 +1422,58 @@
   },
   "notExecuted": [
     "iPhone gameplay, close or relaunch",
-    "Swift compilation (no Xcode on Linux; melonx-host.yml runs it on macOS)",
-    "NativeAOT engine build and ARM64 simulator smoke (melonx-core.yml)",
-    "IPA assembly"
-  ]
+    "IPA assembly (concurrent private 543 RPCS3 delivery on the same branch)"
+  ],
+  "ci": {
+    "engine": {
+      "workflow": "melonx-core.yml",
+      "source": "d9f35c2783f7368d31b61f644d970f41bb7bc47b",
+      "run": 40210266656,
+      "conclusion": "success",
+      "artifact": "MeloNX-engine-d9f35c2783f7368d31b61f644d970f41bb7bc47b",
+      "gpuTeardownHarnessOnMacOS": "passed",
+      "nativeAOTAndExportedABI": "passed",
+      "simulatorSmoke": {
+        "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+        "homebrewSessions": 2,
+        "closeAndRelaunch": "passed",
+        "gameplayTested": false,
+        "iphoneGuestExecutionTested": false,
+        "jitTested": false
+      }
+    },
+    "engineFirstAttempt": {
+      "source": "eabc057f4058520192f79f361cbd92eba5795f98",
+      "run": 40209413061,
+      "conclusion": "failure",
+      "cause": "harness only: macOS temporary path symlink (/var -> /private/var) loaded referenced projects twice; fixed by d9f35c27"
+    },
+    "host": {
+      "workflow": "melonx-host.yml",
+      "source": "eabc057f4058520192f79f361cbd92eba5795f98",
+      "run": 40209413009,
+      "conclusion": "success",
+      "artifact": "MeloNX-host-eabc057f4058520192f79f361cbd92eba5795f98"
+    },
+    "flutter": {
+      "MeloNX launch checks": [
+        40209413008,
+        "success"
+      ],
+      "Embedded game return label": [
+        40209413017,
+        "success"
+      ],
+      "MeloNX display and memory settings": [
+        40209413010,
+        "success"
+      ]
+    },
+    "preexistingFailure": {
+      "workflow": "MeloNX external retirement and embedded",
+      "run": 40209413021,
+      "test": "test/retroarch_baseline_scope_test.py",
+      "causedByThisChange": false
+    }
+  }
 }
