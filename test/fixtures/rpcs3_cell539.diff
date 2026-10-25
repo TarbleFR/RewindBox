@@ -134,7 +134,7 @@ index 8f61bf9..d67babe 100644
  	}
  }
 diff --git a/rpcs3/ios/RPCS3IOSWriterCounters.h b/rpcs3/ios/RPCS3IOSWriterCounters.h
-index cd3836b..617d8f2 100644
+index cd3836b..ad612a8 100644
 --- a/rpcs3/ios/RPCS3IOSWriterCounters.h
 +++ b/rpcs3/ios/RPCS3IOSWriterCounters.h
 @@ -2,27 +2,47 @@
@@ -154,13 +154,13 @@ index cd3836b..617d8f2 100644
 -  entry.count.fetch_add(1,std::memory_order_relaxed);
 -  entry.acquire.fetch_add(acquire,std::memory_order_relaxed);
 -  entry.hold.fetch_add(hold,std::memory_order_relaxed);
-+  const auto& slot=thread_slot();
-+  auto& entry=shards_[slot.index].source[source<sources?source:0];
++  const auto slot=thread_slot();
++  auto& entry=shards_[slot].source[source<sources?source:0];
 +  // CELL539_WRITER_COUNTERS: a unique live writer owns each normal slot.
 +  // The reporter only reads cumulative totals, so these increments need no
 +  // read-modify-write instruction. Fields stay atomic for the concurrent reader.
 +  // Overflow threads share the last slot and retain exact atomic increments.
-+  if(slot.index==shard_count-1){
++  if(slot==shard_count-1){
 +   entry.count.fetch_add(1,std::memory_order_relaxed);
 +   if(acquire)entry.acquire.fetch_add(acquire,std::memory_order_relaxed);
 +   if(hold)entry.hold.fetch_add(hold,std::memory_order_relaxed);
@@ -193,37 +193,42 @@ index cd3836b..617d8f2 100644
     const auto maximum=entry.maximum.exchange(0,std::memory_order_relaxed);
     if(maximum>total.maximum)total.maximum=maximum;
    }
-@@ -31,13 +51,32 @@ public:
+@@ -31,13 +51,37 @@ public:
  private:
   struct Entry {std::atomic<uint64_t> count{0},acquire{0},hold{0},maximum{0};};
   struct alignas(128) Shard {std::array<Entry,sources> source{};};
-- static uint32_t thread_slot() noexcept {
--  static std::atomic<uint32_t> next{0};
--  // Only the first event on a thread registers. Slots contain no thread
--  // pointers and need no retirement; collisions retain exact atomic counters.
--  static thread_local const uint32_t slot=next.fetch_add(1,std::memory_order_relaxed)%shard_count;
 + // Slot ownership is per live thread, independent of a counter object's lifetime.
 + // TLS retirement touches only this process-static bitmap, never a registry or
 + // a destroyed counter. Acquire/release hands cumulative stores to a new owner.
 + inline static constinit std::atomic<uint64_t> occupied_{0};
-+ struct ThreadSlot {
-+  uint32_t index=shard_count-1;
-+  ThreadSlot() noexcept {
++ // A late TLS destructor may still record after our lease is retired. Keep
++ // the trivial index alive and route such calls through the shared RMW slot.
++ inline static thread_local constinit uint32_t slot_index_=shard_count-1;
++ struct ThreadLease {
++  ThreadLease() noexcept {
 +   constexpr uint64_t exclusive_mask=(uint64_t{1}<<(shard_count-1))-1;
 +   auto used=occupied_.load(std::memory_order_relaxed);
 +   while(const auto available=~used&exclusive_mask){
 +    const auto candidate=static_cast<uint32_t>(std::countr_zero(available));
 +    if(occupied_.compare_exchange_weak(used,used|(uint64_t{1}<<candidate),std::memory_order_acquire,std::memory_order_relaxed)){
-+     index=candidate;return;
++     slot_index_=candidate;return;
 +    }
 +   }
 +  }
-+  ~ThreadSlot(){if(index<shard_count-1)occupied_.fetch_and(~(uint64_t{1}<<index),std::memory_order_release);}
-+  ThreadSlot(const ThreadSlot&)=delete;
++  ~ThreadLease(){
++   const auto index=slot_index_;slot_index_=shard_count-1;
++   if(index<shard_count-1)occupied_.fetch_and(~(uint64_t{1}<<index),std::memory_order_release);
++  }
++  ThreadLease(const ThreadLease&)=delete;
 + };
-+ static const ThreadSlot& thread_slot() noexcept {
-+  static thread_local const ThreadSlot slot;
-   return slot;
+  static uint32_t thread_slot() noexcept {
+-  static std::atomic<uint32_t> next{0};
+-  // Only the first event on a thread registers. Slots contain no thread
+-  // pointers and need no retirement; collisions retain exact atomic counters.
+-  static thread_local const uint32_t slot=next.fetch_add(1,std::memory_order_relaxed)%shard_count;
+-  return slot;
++  static thread_local const ThreadLease lease;
++  return slot_index_;
   }
   std::array<Shard,shard_count> shards_{};
 + struct Cursor {uint64_t count=0,acquire=0,hold=0;};

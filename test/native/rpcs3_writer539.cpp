@@ -60,6 +60,22 @@ template<class C> void accuracy() {
  for(int i=0;i<16;++i){C fresh;fresh.record(1,2,3);auto v=fresh.drain();assert(v[1].count==1&&v[1].acquire==2&&v[1].hold==3);}
 }
 
+// Construct this TLS cleanup before the first record, so it runs after the
+// profiler lease has retired. A new writer claims a free slot concurrently.
+template<class C> void late_tls_cleanup() {
+ C counters;std::atomic<bool> retired=false,go=false;
+ constexpr unsigned n=100000;
+ struct Cleanup {
+  C* counters;std::atomic<bool>* retired;std::atomic<bool>* go;
+  ~Cleanup(){retired->store(true);while(!go->load())std::this_thread::yield();for(unsigned i=0;i<n;++i)counters->record(1,3,2);}
+ };
+ std::thread first([&]{thread_local Cleanup cleanup{&counters,&retired,&go};counters.record(1,3,2);});
+ while(!retired.load())std::this_thread::yield();
+ std::thread second([&]{counters.record(1,3,2);go=true;for(unsigned i=0;i<n;++i)counters.record(1,3,2);});
+ first.join();second.join();auto result=counters.drain();
+ assert(result[1].count==2*(n+1)&&result[1].acquire==6*(n+1)&&result[1].hold==4*(n+1));
+}
+
 template<class C> double bench(unsigned threads) {
  C counters;std::barrier start(threads+1);std::vector<std::thread> workers;
  constexpr unsigned iterations=250000;
@@ -74,7 +90,7 @@ template<class C> double bench(unsigned threads) {
 }
 int main() {
  using Before=before::WriterCounters;using After=after::WriterCounters;
- accuracy<Before>();accuracy<After>();
+ accuracy<Before>();accuracy<After>();late_tls_cleanup<Before>();late_tls_cleanup<After>();
  std::cout<<"{\"accuracy\":true,\"writers\":96,\"concurrentReaders\":2,\"retirementWaves\":128,\"bytesBefore\":"<<sizeof(Before)<<",\"bytesAfter\":"<<sizeof(After)<<",\"benchmarks\":[";
  for(unsigned threads:{1u,8u}) {
   std::array<double,5> a{},b{};

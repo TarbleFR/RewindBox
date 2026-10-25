@@ -12,15 +12,15 @@
         "threads": 1,
         "eventsPerThread": 250000,
         "trials": 5,
-        "beforeMedianMs": 8.40621,
-        "afterMedianMs": 17.4542
+        "beforeMedianMs": 7.35819,
+        "afterMedianMs": 9.69552
       },
       {
         "threads": 8,
         "eventsPerThread": 250000,
         "trials": 5,
-        "beforeMedianMs": 26.7239,
-        "afterMedianMs": 23.7138
+        "beforeMedianMs": 16.386,
+        "afterMedianMs": 26.9112
       }
     ]
   },
@@ -36,20 +36,20 @@
         "threads": 1,
         "eventsPerThread": 250000,
         "trials": 5,
-        "beforeMedianMs": 5.40631,
-        "afterMedianMs": 1.14203
+        "beforeMedianMs": 5.72053,
+        "afterMedianMs": 1.16873
       },
       {
         "threads": 8,
         "eventsPerThread": 250000,
         "trials": 5,
-        "beforeMedianMs": 16.0824,
-        "afterMedianMs": 2.32544
+        "beforeMedianMs": 19.2731,
+        "afterMedianMs": 4.69585
       }
     ]
   },
-  "assemblySHA256": "89b30e7af1607f80ad494fb2cfe910a321e2135eebb34a0800e5e3ba005799e6",
-  "counterSourceSHA256": "dcef02fec49363763b99d8e849ffc89842f84efbbba683fb7483bbd001727fcf",
+  "assemblySHA256": "33f8b4ad0d8ff1a7dcfb5b64d208ed3369ed94ebd7438af76eaf27148bdaefdc",
+  "counterSourceSHA256": "4f6f557403e4bc0615a887573583aa6eb67f4151bb53df4bd2fb222c35fd6d49",
   "physicalDeviceTested": false,
   "gameplayMeasured": false,
   "scope": "Actual header, 96 live writers and two reporters, exact aggregate counts/times/maxima, slot retirement, object recreation and unsigned wrap. Alternating five-trial host microbenchmark, not guest reservation or iPhone frame time."
