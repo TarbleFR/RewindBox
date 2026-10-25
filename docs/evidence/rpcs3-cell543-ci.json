@@ -301,5 +301,49 @@
     }
   },
   "physicalDeviceTested": false,
-  "gameplayMeasured": false
+  "gameplayMeasured": false,
+  "delivery": {
+    "run": 40213833532,
+    "event": "workflow_dispatch",
+    "ref": "Claude",
+    "source": "a5bd2bb7ef87b835ae8175a024c34cbda60db428",
+    "conclusion": "success",
+    "hostTree": "3494edc9e09fb60fecc35dd6cc301bcb93bc9434",
+    "restoredToHostTree": 22,
+    "rpcs3CoreFiles": 24,
+    "melonx": {
+      "source": "97915e506fa71be02ab38794529e81fad6780803",
+      "run": 40196037086,
+      "note": "as in 542; MeloNX close-teardown work after 3494edc is not in this IPA"
+    },
+    "artifact": {
+      "name": "RewindBox-Build543-a5bd2bb7ef87b835ae8175a024c34cbda60db428-cold",
+      "id": 12607225880,
+      "bytes": 186661277,
+      "zipSHA256": "d53b9ee0809aa7b9b0423cd62f03e0d28cf322a35b29fdc9d39e981d0cc448bc",
+      "encryption": "AES-256-CBC PBKDF2 200000, RSA-OAEP-SHA256 key envelope (build-utils/delivery-543-recipient.pem)"
+    },
+    "ipa": {
+      "file": "RewindBox-Build543-a5bd2bb7ef87b835ae8175a024c34cbda60db428-cold.ipa",
+      "bytes": 186362165,
+      "sha256": "bb9a975ff7714d6438f1294f1fcddf0a706babf0b59445219e97b404fc1e6f2e",
+      "bundleIdentifier": "com.neogamelab.neostation",
+      "version": "0.0.8",
+      "build": "543",
+      "minimumIOS": "18.0",
+      "installation": "SideStore re-signing",
+      "embeddedCore": {
+        "path": "Frameworks/libRPCS3Core.dylib",
+        "compiledCorePayloadFingerprint": "7919d4ed7a9927ab3a09939ae4a817fd5dd6571ffb93670adf3a8a094af86985",
+        "markers543Present": true,
+        "note": "re-signed inside the app, so its file hash differs from the Core artifact (489815d0...)"
+      }
+    },
+    "verifiedAfterDownload": {
+      "decrypted": true,
+      "sha256sumsMatch": true,
+      "zipIntegrity": true,
+      "deviceInstallationTested": false
+    }
+  }
 }

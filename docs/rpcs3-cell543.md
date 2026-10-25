@@ -102,4 +102,7 @@ Lecture des nouvelles mesures :
 
 ### IPA privée
 
-Voir la section ajoutée après exécution du workflow de livraison. Aucune IPA n'est déclarée avant vérification du fichier téléchargé.
+* Workflow `rpcs3-cell543-delivery.yml`, run `40213833532` (déclenché manuellement sur `Claude`, source `a5bd2bb`) : vérifications et build iPhone verts. Aucune release.
+* Contenu : l'arbre hôte validé du 542 (`3494edc`) plus les 24 fichiers du Core RPCS3 543 (Core `d3689eb`, run `40212465374`). MeloNX540 (`97915e50`) reste celui du 542. Les 22 chemins modifiés depuis `3494edc` par d'autres travaux (correctif MeloNX de fermeture, livraison 544, documents) sont restaurés dans le runner : entre 542 et 543, seul le Core change. L'historique Git n'est pas modifié.
+* Artefact chiffré `RewindBox-Build543-a5bd2bb…-cold` (id `12607225880`). Il a été téléchargé et déchiffré, puis vérifié : SHA256SUMS concordant, archive intègre, `CFBundleVersion` 543, `com.neogamelab.neostation`, iOS 18+, marqueurs 543 présents dans le `libRPCS3Core.dylib` embarqué, re-signature SideStore.
+* **IPA : `RewindBox-Build543-a5bd2bb7ef87b835ae8175a024c34cbda60db428-cold.ipa`, 186 362 165 octets, SHA-256 `bb9a975ff7714d6438f1294f1fcddf0a706babf0b59445219e97b404fc1e6f2e`.** Ni l'installation ni le jeu sur iPhone n'ont été testés.
