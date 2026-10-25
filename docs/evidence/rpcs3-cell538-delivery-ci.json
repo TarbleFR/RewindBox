@@ -1,0 +1,969 @@
+{
+  "source": "309af73d147c11bb11e278a231f05f839b9b021f",
+  "run": 40190818310,
+  "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40190818310",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 121161251140,
+      "name": "checks",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 40190818310,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Retain final highlighted-game import checks and successful RPCS3 logger evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Retain exact input-bound test receipts",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        }
+      ]
+    },
+    {
+      "id": 121161306237,
+      "name": "Release device build \u2022 cold",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 40190818310,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Checkout exact candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Load exact local import and historical Foundation receipts",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Select Xcode 26.3 for NeoPlay and Google Cast",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Set up Flutter 3.47.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Record exact build environment and start measurement",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Record empty device build cache",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Assert the benchmark device cache is empty",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8
+        },
+        {
+          "name": "Resolve locked Dart dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Prepare lightweight build tools",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Generate iOS host",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Download last published RewindBox IPA 527 (release 0.0.9)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Reuse verified components and resources from published IPA 527",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        },
+        {
+          "name": "Restore unchanged canonical StikJIT compilation interfaces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14
+        },
+        {
+          "name": "Build canonical StikJIT from pinned sources for iOS 18 26 and 27",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 15
+        },
+        {
+          "name": "Install verified cached StikJIT interfaces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16
+        },
+        {
+          "name": "Require completed exact NeoSwap Core before artifact download",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17
+        },
+        {
+          "name": "Wait for the exact source-built538 RPCS3 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18
+        },
+        {
+          "name": "Download pinned passive RPCS3 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19
+        },
+        {
+          "name": "Verify and install passive RPCS3 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20
+        },
+        {
+          "name": "Verify retained Dolphin Core from IPA 527",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21
+        },
+        {
+          "name": "Require completed exact ARMSX2 2.6 Core and remove its donor bootstrap",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22
+        },
+        {
+          "name": "Download pinned ARMSX2 2.6 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23
+        },
+        {
+          "name": "Verify pinned ARMSX2 Core identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 24
+        },
+        {
+          "name": "Require the completed pinned libretro cores",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 25
+        },
+        {
+          "name": "Download pinned libretro cores",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26
+        },
+        {
+          "name": "Verify pinned libretro cores identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27
+        },
+        {
+          "name": "Require successful exact MeloNX engine and iPhone host before packaging",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 28
+        },
+        {
+          "name": "Download the exact source-built MeloNX engine",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 29
+        },
+        {
+          "name": "Download successful exact audio ownership and UIKit host proofs",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 30
+        },
+        {
+          "name": "Download the source-built private MeloNX dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 31
+        },
+        {
+          "name": "Verify and materialize the six private MeloNX frameworks and original controls",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 32
+        },
+        {
+          "name": "Retain already compiled exact iPhone host evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 33
+        },
+        {
+          "name": "Prepare emulator build definitions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 34
+        },
+        {
+          "name": "Configure release host",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 35
+        },
+        {
+          "name": "Align application and extension versions to the pubspec version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 36
+        },
+        {
+          "name": "Compile Release device binary with measured AOT and Xcode phases",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 37
+        },
+        {
+          "name": "Embed NeoPlay source identity and dependency acknowledgements",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 38
+        },
+        {
+          "name": "Embed verified RPCS3 Core and signing metadata",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 39
+        },
+        {
+          "name": "Bind audited RPCS3 binary provenance and verify the linked host compiler broker",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 40
+        },
+        {
+          "name": "Bind the compiled Switch retirement and deletion fix to its exact app sources",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 41
+        },
+        {
+          "name": "Embed exact donor/display source and test identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 42
+        },
+        {
+          "name": "Embed lazy-loaded ARMSX2 Core framework",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 43
+        },
+        {
+          "name": "Embed lazy-loaded libretro cores, MoltenVK and system assets",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 44
+        },
+        {
+          "name": "Embed legal, license and source notices",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 45
+        },
+        {
+          "name": "Embed verified MeloNX runtime and actual build-source notices",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 46
+        },
+        {
+          "name": "Package and validate RewindBox IPA",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 47
+        },
+        {
+          "name": "Seal every executable, framework and extension for SideStore",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 48
+        },
+        {
+          "name": "Preserve sealed IPA and source receipts before final compatibility validators",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 49
+        },
+        {
+          "name": "Preserve sealed recovery piece 1 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 50
+        },
+        {
+          "name": "Preserve sealed recovery piece 2 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 51
+        },
+        {
+          "name": "Preserve sealed recovery piece 3 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 52
+        },
+        {
+          "name": "Preserve sealed recovery piece 4 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 53
+        },
+        {
+          "name": "Verify actual packaged MeloNX exports, helper identity and native notices",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 54
+        },
+        {
+          "name": "Verify final signed motion assets and linked native and Dart components",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 55
+        },
+        {
+          "name": "Verify final signed GoW3 Core identity and compiler broker",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 56
+        },
+        {
+          "name": "Verify the final signed Switch retirement and deletion fix",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 57
+        },
+        {
+          "name": "Verify complete selection tracks and compiled Cover Flow and header correction",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 58
+        },
+        {
+          "name": "Verify final signed direct Switch playlist and compact header",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 59
+        },
+        {
+          "name": "Verify the actual MeloNX launch ABI and signed memory entitlements",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 60
+        },
+        {
+          "name": "Verify the exact packaged key import correction",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 61
+        },
+        {
+          "name": "Verify the compiled foreground presentation correction",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 62
+        },
+        {
+          "name": "Finalize observed timings and artifact identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 63
+        },
+        {
+          "name": "Prepare encrypted delivery and evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 64
+        },
+        {
+          "name": "Upload encrypted IPA and verification reports",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 65
+        },
+        {
+          "name": "Prepare bounded encrypted transport pieces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 66
+        },
+        {
+          "name": "Upload encrypted transport piece 1 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 67
+        },
+        {
+          "name": "Upload encrypted transport piece 2 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 68
+        },
+        {
+          "name": "Upload encrypted transport piece 3 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 69
+        },
+        {
+          "name": "Upload encrypted transport piece 4 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 70
+        },
+        {
+          "name": "Collect diagnostic evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 71
+        },
+        {
+          "name": "Upload diagnostics",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 72
+        },
+        {
+          "name": "Remove temporary secrets",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 73
+        },
+        {
+          "name": "Post Restore unchanged canonical StikJIT compilation interfaces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 144
+        },
+        {
+          "name": "Post Set up Flutter 3.47.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 145
+        },
+        {
+          "name": "Post Checkout exact candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 146
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 147
+        }
+      ]
+    }
+  ],
+  "encryptedTransport": [
+    {
+      "id": 12597893548,
+      "name": "RewindBox-Build538-309af73d147c11bb11e278a231f05f839b9b021f-cold-part00",
+      "bytes": 46658158,
+      "sha256": "d295d198ecf0d964db51d613301b20553ff9bfdba364796dabbc326fe9116fdf"
+    },
+    {
+      "id": 12598282940,
+      "name": "RewindBox-Build538-309af73d147c11bb11e278a231f05f839b9b021f-cold-part01",
+      "bytes": 46658158,
+      "sha256": "59e548d94929f7d2cfc57dbab71903406c4f1e8e6569e22c6b7300be366f36ec"
+    },
+    {
+      "id": 12598298007,
+      "name": "RewindBox-Build538-309af73d147c11bb11e278a231f05f839b9b021f-cold-part02",
+      "bytes": 46658158,
+      "sha256": "3630752866decfc3cee6037621f134a395b64a1c6be30740f2c210110ddb15de"
+    },
+    {
+      "id": 12598298012,
+      "name": "RewindBox-Build538-309af73d147c11bb11e278a231f05f839b9b021f-cold-part03",
+      "bytes": 46658158,
+      "sha256": "7cad59c4b46cf5aa14e6727833433db16e9d2cd0734cacdafed3bc6a34719ed8"
+    }
+  ],
+  "localVerification": {
+    "source": "309af73d147c11bb11e278a231f05f839b9b021f",
+    "run": 40190818310,
+    "build": 538,
+    "bytes": 186334412,
+    "sha256": "57d38fba6e578cf34f60b5c5f94729a2fa3625dbba49f0b0941f7591948e2d45",
+    "zipCRCVerified": true,
+    "machoSlices": 87,
+    "allObservedCryptIDsZero": true,
+    "versions": {
+      "PlugIns/DolphinJITHelper.appex/Info.plist": "538",
+      "PlugIns/NeoSwapPageRelay.appex/Info.plist": "538",
+      "PlugIns/NeoSwapDonor.appex/Info.plist": "538",
+      "PlugIns/MeloNXJITHelper.appex/Info.plist": "538",
+      "PlugIns/ARMSX2JITHelper.appex/Info.plist": "538",
+      "PlugIns/RPCS3JITHelper.appex/Info.plist": "538",
+      "PlugIns/MeloNXRamDonor.appex/Info.plist": "538",
+      "Info.plist": "538"
+    },
+    "coreSource": "066a3fe6c015a3c25807a9feac07b392d2fc2cb4",
+    "coreSHA256": "071fc2871d6e61bfc015e21f147ec870ecf2fa65dc9440e06ff42468b16e3d7a",
+    "physicalDeviceTested": false,
+    "gameplayMeasured": false
+  },
+  "signedIdentity": {
+    "allCompiledCodeAndDataSectionsUnchangedBySigning": true,
+    "abiMetadataUnchangedBySigning": true,
+    "images": {
+      "Runner": "5b1f5634c6f6f53bd6dc7ac92d7497a10e42ede98aedb147f35ad5ff5344854e",
+      "Frameworks/libRPCS3Core.dylib": "e539e047aa570a1057d6fac69e54054aab8f1f19a23f93b6e33997388b25372a",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": "7a22292d47f0d92c7fcc75c9b4b72b71172edd0f11132d5edc20afc11ae36c3f",
+      "Frameworks/wakelock_plus.framework/wakelock_plus": "d80050230bafdff7725a634cb9e7dc8e24907f05bddd8c37d1cc2ad1e1892389",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro": "65d6dc5a241efda5ea1965443b3c9fe1e763538a36e14ca290d9ec571377d9e1",
+      "Frameworks/neo_texture_catalog.framework/neo_texture_catalog": "3e2a7ed24e5f4f472791163f1e272d66b82a5e75a2f287da51702c2e82a8784a",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro": "fd60db6eac893840535a18cf3e025730a5682814120f4aacf339f437c37aab1c",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro": "c1c03e755afc328ba64bfce2f8491f8838d224e6f9685a73f2bd060c67b4ff6e",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": "ad5aa730fb7862d5185da7b4c66fea236bbbdeb981d83f1be856800e5d675887",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge": "7a4bdf49919709ffec445d7f937a34f528e6220d4403936a8336f2e7839cd02f",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": "b85104bbc6e7464cd949b1cbf51989b6c3d6af16bddc10c33728cacca043700e",
+      "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog": "d5b679f6a0590b91bcd7e2a78d378ff59bad75d38c21e9f5e4b7d1a997fad9e9",
+      "Frameworks/neo_shader_kit.framework/neo_shader_kit": "1a3e84cc227507a89ffafdf7c517e57fdd8816c4e5f2eec1388c55c27f5842a5",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": "9f5496ac38b3b464ac3dfe0b2d90c0ac5a1a365fe6c160e07d5f67be0b8a276e",
+      "Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher": "02339ef6854598cf072ddace06510150fe6ee060e116416cf76ec5f6c016bad9",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro": "f648c6efc1455c280441c1f70dd62d3f2451a6e36b57268f3acf7ed6ff2256cb",
+      "Frameworks/pdfium_flutter.framework/pdfium_flutter": "f8b69b0c5db6615cb7eb409169d238a7bf7be5b89aa2759a6f0b4668c404c0fe",
+      "Frameworks/mesen_libretro.framework/mesen_libretro": "e76d6c1dd46f8eb51a5478a1a21b2808d79bae0c7175199594b0f6781ee38684",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": "ea81c0e4728457b9e2fa6faf6360232467bda505f5f2c3927376fe7535083aac",
+      "Frameworks/video_player_avfoundation.framework/video_player_avfoundation": "19d020b4ef646c50e78fd98c18ff41497c4164ad2dbc76857de6251e885a1aa2",
+      "Frameworks/MoltenVK.framework/MoltenVK": "7cbd35be66c78e741768528c7b0fbf3cf20f5b468dc5361893033d4924741520",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": "20febed54a2e7e53db2652fadcdf4fd7294c057f313225f9c89b01a7f1d8f5fb",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro": "e0326b241edce3f8860b85e3a08684806e611e292a21204534456b3af08ba788",
+      "Frameworks/MeloNXCore.framework/MeloNXCore": "6b118acefdf93d008e3d0e8db4478d097b167c47b2c2858a2216e5e822c355f5",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro": "82b4af35d8c61093d1e7edb0f6c3eeca361acb4b8c96d3e83ddf3ffbad5150af",
+      "Frameworks/ardens_libretro.framework/ardens_libretro": "5b1b62c69036580263c57d482cb8be16faa793a42614b556b5a32c7ff08ababc",
+      "Frameworks/potator_libretro.framework/potator_libretro": "19a67f1d4f65a819cc87cb1576d7348a8eb1451e1b509aad25d7d73636fea681",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": "21e108a787d92761ea6b49dbed20ae098b0e5dd94692e21377e19d866d3853b3",
+      "Frameworks/Flutter.framework/Flutter": "e2e4e0b9b6a52e5076e5596d65ff99df3ac654938d4dbcb47f69bbdc0dbf7194",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro": "dcccda5d6ca628c30dea61694cbe3115f4d35e04eef1615875b69ed02d15b9c1",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro": "847be8672c95558feebe0be55bdf3264e7e241009451b11a023a835b44d3e0ef",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": "e732f8a67cce93ad7bf2a3ad0c27bd8c6444882cb6ab67855b2354f1e838c7c1",
+      "Frameworks/mgba_libretro.framework/mgba_libretro": "a8f8613a1895d58cbac8effd04ccd84bb6dbb4c59a60cbc18efc2bf268a6d181",
+      "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge": "b7a48901cff7d4825cb978c04abf6792e4fc18ecc638c29c9e21d4587399dcc7",
+      "Frameworks/DolphinCore.framework/DolphinCore": "4c9573a7de3d97683d5d4e4f075d7a84b273343aee4452ad01718c41a795fba0",
+      "Frameworks/stella_libretro.framework/stella_libretro": "a44e78a4e58dc481233737681fa3547ecebdfef0178219de8213aa067e8cf368",
+      "Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin": "5b4e6c00ca523f3386850f266136eb53e1b538a6627b9f9afb6fdcfce1144666",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3": "cfd1e95b4fe64309b8f16efd2b2d3134cef3390cd6d5172bb13c4b8520aba942",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro": "18102405bbe565cbba25fc822871ba87bee1db7dda5cf1da02302f6904ce5aec",
+      "Frameworks/url_launcher_ios.framework/url_launcher_ios": "30c6a3196045d9f26a033a5ce34de897379672e6b42b245c3b4c3f0cd57124e3",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": "29cce20057b765de6d99d962ea5e55a1a4a47e86cee83255e6d16b0e1ba0c545",
+      "Frameworks/battery_plus.framework/battery_plus": "d1cf2c07f366d9bed11bdf691e43b63777386628b4d04626b258b9055b5134c8",
+      "Frameworks/device_info_plus.framework/device_info_plus": "1fed69ccf6856da70c0a22d66192f76c3556b15afccac3a640f94b50c0943d3c",
+      "Frameworks/PDFium.framework/PDFium": "5f41c44f13da07f6705ab25f1336b9c8f6ae1dd02f99210cbb7fb66a7d7717f5",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": "145e71994f9cf2d7b72bd8e30ba49a348099aebb805450e7736619dee916b904",
+      "Frameworks/flutter_localization.framework/flutter_localization": "d0e101cc9c513614e319fca07b30d869be7bbb9ca39daf6f509611966e05534f",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro": "3e803dca4a105e7d8469c3cd1ec79c41c5fe5d87137ebe3a91afbafc25957e30",
+      "Frameworks/o2em_libretro.framework/o2em_libretro": "535cdf027548eab1117dff0522d9a589ac403d996e8fc569b81996c5bc3f1209",
+      "Frameworks/StikJIT.framework/StikJIT": "57e75fbd4ee836e209772cb3a0f732626b1e7becdf7654d4f0f05111926542f6",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde",
+      "Frameworks/share_plus.framework/share_plus": "61c249aab903a51c4589eb9b9e5d84f51187fb87cba80ec7ae581ca6ec6607bb",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": "8eb3437fa0c5e247c15c959a18a9d3179f7646d1c616f6d6d6dc07ad59d70d16",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro": "377f669eacb492181ca3681e6ccd017bea78263b45320a575d8172dab2bd88c1",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge": "3152b8be536ddecdca6b4b09cf3f4b7716c0a5a4815a0abdb5c45d5825bbfab1",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": "15acad8827f4dc80c453647c5196c91e393c8eb52e3f6367d1838454f7dee1c9",
+      "Frameworks/stikjit_bridge.framework/stikjit_bridge": "82194eae5168f7493c7715f8b018fcfb0156118fdfa0b90c2534cfe5c38553b8",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": "e9f0abcb0f5b71111a6631e4e29f3ee0387325af3804e20a2a7a2717ec51a354",
+      "Frameworks/package_info_plus.framework/package_info_plus": "226edc0cfc9e2bc475a10410b7c0ce7a1146472b6d08e36c3ce280eb58f77b4b",
+      "Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation": "9454e9308d59d4af6675e2a5473fddab6c72a560ccafa558520f3decf0f5d0b5",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": "cad556ba3651eece2068166f1fb61671d33d56ff68444475865a0055d316c01d",
+      "Frameworks/flutter_7zip.framework/flutter_7zip": "a23619efbff2d9c1c9411ef39a35ead40154e488a1905df28c2324ad18105e7e",
+      "Frameworks/external_folder_access.framework/external_folder_access": "07e1590fad78b3533ccf2acb3937bf183d8abd737ac5bba951119b85f93d03f4",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge": "34016ab88822b7ac68eeecab68cb40f00b7d0b73b7bcbd14f6992895463363ae",
+      "Frameworks/external_display.framework/external_display": "452bc96b9543ee4e531e0368869fffdfb08723584f1f1d203a507be1052ae470",
+      "Frameworks/gamepads_darwin.framework/gamepads_darwin": "db696938860db88aa87680935052469824c6d786b343d8a66e89e3f94ce0b368",
+      "Frameworks/a5200_libretro.framework/a5200_libretro": "cfa6fedeb2b2ae954565491f0e103c67d62c0168edf3480fc08a301a9ca1a19b",
+      "Frameworks/azahar_libretro.framework/azahar_libretro": "65545169819d1c1270bf3d54a9f4dbabfb445affb54ccab8b27fbc615c7845fc",
+      "Frameworks/file_picker.framework/file_picker": "92ccfe734b09f99e8d4aa0c2de5e95a4987ac0a1655f56c59453606b42e05b92",
+      "Frameworks/neo_swap.framework/neo_swap": "c678163ea1ab54fc6615fc300f0cbf1ddd2107d77438856f244faa19da0fb98c",
+      "Frameworks/gw_libretro.framework/gw_libretro": "1561851ab719f3c1063bce1059d93982bd6fd0ad7ed8fa99144961ccd8fbd7c0",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge": "ef84ec2fe8d7ff2a2d762f95280dcb77e2b83d21c1c19ee61067154b35a00a73",
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core": "dd59e7ddd1a9a86f02dfc6bc579d0b0187ed3dd6bc4430e6950792911371e9fb",
+      "Frameworks/desmume_libretro.framework/desmume_libretro": "bd20ed434cc857b52dfdc9c3a5cdbd001bf15b4854c5ccdc162a653bbef5d12c",
+      "Frameworks/handy_libretro.framework/handy_libretro": "7a46ec1712e3e0f95db8a2c04c6626cc0882c374d904c4e1673d9e7781fcad31",
+      "Frameworks/neo_touch_layout.framework/neo_touch_layout": "0ef07193f658c28992e0bca860a31e898886671155b5de791c87c60a9a933b0a",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": "ba845fc8a78edf87639a750203b2d09eb0fd294cd7969473115ad816f9280286",
+      "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
+      "PlugIns/DolphinJITHelper.appex/DolphinJITHelper": "b2d0c1059f50fe99b17dacd983da53b408472030f8ddb6932c61ed55f260dd8e",
+      "PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay": "5080e7987821d08131c9e86b362b0426230048fdb98147ce9b7df3cd61431f57",
+      "PlugIns/NeoSwapDonor.appex/NeoSwapDonor": "8c9c7a6228b4e8f6e64bcb3b493d4caadedf3c77a4455a8b93b0ce3ea50dc8aa",
+      "PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper": "3dbf5aeac07a1b5108730bc6cfaf2563655d5df62dbdbb5faf559e82ad046ccb",
+      "PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper": "dc2cc7e498d72a16becc3bf21f3209fd9fed7af93205620c018366ba06f0be4e",
+      "PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper": "f8b2dc7f3bcf1c2151bfcfc4162c1e672c6ca3645b094d742f826e7ea7368df7",
+      "PlugIns/MeloNXRamDonor.appex/MeloNXRamDonor": "598a474f5eba496a5943a06f4aedeb611f060c79c3c0b416b811167f6bc7d0e0"
+    },
+    "ipaSha256": "57d38fba6e578cf34f60b5c5f94729a2fa3625dbba49f0b0941f7591948e2d45",
+    "ipaBytes": 186334412,
+    "sideStoreAppleReSigningRequired": true
+  },
+  "ciValidation": {
+    "rpcs3-memory-audit-ipa.json": {
+      "result": "passed",
+      "build": 538,
+      "ipaSHA256": "57d38fba6e578cf34f60b5c5f94729a2fa3625dbba49f0b0941f7591948e2d45",
+      "coreSource": "066a3fe6c015a3c25807a9feac07b392d2fc2cb4",
+      "coreRun": 40190600339,
+      "sourceArtifactSHA256": "071fc2871d6e61bfc015e21f147ec870ecf2fa65dc9440e06ff42468b16e3d7a",
+      "compiledCorePayloadFingerprint": "e539e047aa570a1057d6fac69e54054aab8f1f19a23f93b6e33997388b25372a",
+      "sharedCompilerBrokerLinked": true,
+      "optionalCoreBinderLinked": true,
+      "productionMinimalSPULinkerEnabled": false,
+      "physicalDeviceTested": false,
+      "physicalPerformanceMeasured": false,
+      "gow3BootAndVmaSourceVerified": true
+    },
+    "melonx-memory519-ipa-validation.json": {
+      "result": "passed",
+      "build": 538,
+      "source": "309af73d147c11bb11e278a231f05f839b9b021f",
+      "ipaSHA256": "57d38fba6e578cf34f60b5c5f94729a2fa3625dbba49f0b0941f7591948e2d45",
+      "memoryDisplay": {
+        "schemaVersion": 1,
+        "source": "084fdb5d71609d3529c39cca9efa26093459827d",
+        "hostSource": "084fdb5d71609d3529c39cca9efa26093459827d",
+        "hostRun": 40143289245,
+        "headerLayoutFixSource": "a279185aec23fcbf9dfbd389a62f5c0e90d83bc6",
+        "headerLayoutValidatedInDelivery": true,
+        "flutterSource": "084fdb5d71609d3529c39cca9efa26093459827d",
+        "flutterRun": 40143289228,
+        "coreSource": "23d92f17d0df716151ef136e64453fe774e8b6c7",
+        "coreRun": 40188516292,
+        "inputs": {
+          "lib/l10n/melonx_library_locale.dart": "a2018c5f4b641fe98890567fb338d7b473ba1a8060f0308ab431cafe77762576",
+          "native/melonx/EmbeddedGraphicsSettings.cs": "f85f747c850c755621e66d0d40c2449a6b5d413d6aed42d71f40a34fcaea4aca",
+          "native/melonx/EmbeddedLaunchDiagnostics.cs": "ab9c49b1c8fa293c7780a5f75abb99e8c09afad189b76e004b40fbb334c1677c",
+          "native/melonx/EmbeddedMemory.cs": "fb58520f5581c579a6ca1e79a0bb91bf9d5df51caaa8cee108a2788b543c8150",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.h": "8cb4bc31f70ac0caef8f6ba8ced9c27c79a319edb4d0853fcbd8d40ac2915e6d",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.mm": "8b7b761a311ee7cae7a8fea0e77fd050a1aba1105d21c8a91de895d24ee112b7",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryGraph.swift": "c56512588ec36622ce99c35ed45011a7cb8e768db22d65aea6d4d023838a7638",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryLease.swift": "13b64bbe7d3c4304439f9cf01eb58427d3905f746a90ad1a1ebec5cbd29deaef",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": "c7ea4ff6314a72500ceadecff5095f3ef757efb8e4ff1f493ae5347bdfdb575a",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "81ae89813c459db4b3a7f2010bf8ec0986cfb9bcbbbd36e925cd0b473dae3020",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h": "db1d1d686e879d16cf54d12d6e38764aa1b74c73688065153a7db41082152a42",
+          "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "1c633f4c9767f566e350353fd98296dce92d6f14c1f3cd4fdb4276e83489a615",
+          "packages/melonx_internal_bridge/ios/melonx_internal_bridge.podspec": "a394a46ebe8518c91c014590613461022b988e3c1bd7b1b9b7f6038d865cd07f"
+        },
+        "donorSource": {
+          "upstream": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+          "originals": {
+            "MLXRamDonor.h": "3a9f8399b6192b84558d674cd09ef2a2f73516729f17bc23fc1f1473d06e3afa",
+            "MLXRamDonor.m": "bed73401c6838a7d9e75c9b178b987d398d6a6a07df09259899314fd067d8778",
+            "MLXRamDonorProtocol.h": "b8cfe359022fc75757b25cec89e9541b8b283c1a9ab5ace849fe37e8a3cf8218"
+          },
+          "helperOriginal": "9df04a99c3783e666aacefd19f37ec6edb9c8fe8c90587566e8fa4585cba21d9",
+          "adapted": {
+            "MLXRamDonor.h": "55af71234f4371985845d755ee03110f4477d7259026a3cb3a0b316f3486e784",
+            "MLXRamDonorProtocol.h": "b8cfe359022fc75757b25cec89e9541b8b283c1a9ab5ace849fe37e8a3cf8218",
+            "MLXRamDonor.m": "e39103c5003c4831c96b1b052662f63fa8ac358820d6cdc8c1607e8af90d3ff2",
+            "Helper/MeloNXRamDonor.m": "1a287bdbb7f96ac5a6adad71749c8cb58ee76fe0edc9cef137f087f8e277b83c"
+          }
+        },
+        "ramMeasurement": "TASK_VM_INFO.phys_footprint",
+        "historySamples": 120,
+        "sampleHz": 2,
+        "memoryMappedIsNotResident": true,
+        "normalAllocationFallback": true,
+        "physicalDonorActivationTested": false,
+        "physicalDeviceTested": false,
+        "gameplayTested": false
+      },
+      "presentation": {
+        "result": "passed",
+        "build": 538,
+        "source": "309af73d147c11bb11e278a231f05f839b9b021f",
+        "presentation": {
+          "schemaVersion": 1,
+          "presentationSource": "084fdb5d71609d3529c39cca9efa26093459827d",
+          "hostSource": "084fdb5d71609d3529c39cca9efa26093459827d",
+          "hostRun": 40143289245,
+          "flutterSource": "084fdb5d71609d3529c39cca9efa26093459827d",
+          "flutterRun": 40143289228,
+          "inputs": {
+            "lib/l10n/melonx_library_locale.dart": "a2018c5f4b641fe98890567fb338d7b473ba1a8060f0308ab431cafe77762576",
+            "native/melonx/EmbeddedGraphicsSettings.cs": "f85f747c850c755621e66d0d40c2449a6b5d413d6aed42d71f40a34fcaea4aca",
+            "native/melonx/EmbeddedLaunchDiagnostics.cs": "ab9c49b1c8fa293c7780a5f75abb99e8c09afad189b76e004b40fbb334c1677c",
+            "native/melonx/EmbeddedMemory.cs": "fb58520f5581c579a6ca1e79a0bb91bf9d5df51caaa8cee108a2788b543c8150",
+            "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.h": "8cb4bc31f70ac0caef8f6ba8ced9c27c79a319edb4d0853fcbd8d40ac2915e6d",
+            "packages/melonx_internal_bridge/ios/Classes/MeloNXJitBridgePlugin.mm": "8b7b761a311ee7cae7a8fea0e77fd050a1aba1105d21c8a91de895d24ee112b7",
+            "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryGraph.swift": "c56512588ec36622ce99c35ed45011a7cb8e768db22d65aea6d4d023838a7638",
+            "packages/melonx_internal_bridge/ios/Classes/MeloNXMemoryLease.swift": "13b64bbe7d3c4304439f9cf01eb58427d3905f746a90ad1a1ebec5cbd29deaef",
+            "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift": "c7ea4ff6314a72500ceadecff5095f3ef757efb8e4ff1f493ae5347bdfdb575a",
+            "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "81ae89813c459db4b3a7f2010bf8ec0986cfb9bcbbbd36e925cd0b473dae3020",
+            "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h": "db1d1d686e879d16cf54d12d6e38764aa1b74c73688065153a7db41082152a42",
+            "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "1c633f4c9767f566e350353fd98296dce92d6f14c1f3cd4fdb4276e83489a615",
+            "packages/melonx_internal_bridge/ios/melonx_internal_bridge.podspec": "a394a46ebe8518c91c014590613461022b988e3c1bd7b1b9b7f6038d865cd07f"
+          },
+          "realFrameStillRequired": true,
+          "physicalDeviceTested": false,
+          "gameplayTested": false
+        },
+        "ipaSHA256": "57d38fba6e578cf34f60b5c5f94729a2fa3625dbba49f0b0941f7591948e2d45",
+        "compiledHostMarkersVerified": true,
+        "physicalDeviceTested": false,
+        "gameplayTested": false
+      },
+      "actualExtensionIncluded": true,
+      "compiledBridgeAndCoreExportsVerified": true,
+      "physicalDeviceTested": false,
+      "physicalPerformanceMeasured": false,
+      "appleAudioAndAutomaticUpdates": {
+        "source": "309af73d147c11bb11e278a231f05f839b9b021f",
+        "coreSource": "23d92f17d0df716151ef136e64453fe774e8b6c7",
+        "coreRun": 40188516292,
+        "hostSource": "94ae1314f653a4eb76f8020660273a9faf1b0680",
+        "hostRun": 40187994797,
+        "imports": {
+          "result": "passed",
+          "source": "753bbdb1d11c22746bd3bb32eff51d5b58957616",
+          "executor": "local Linux",
+          "passedTests": 12,
+          "flutterVersion": "3.47.2",
+          "test": "test/melonx_import_completion_test.dart",
+          "inputs": {
+            "lib/data/datasources/sqlite_service.dart": "f0404a994074575a5d532cddacb728baf23b19f3c85ff9087df3fbb4a83e59e5",
+            "lib/l10n/melonx_transfer_locale.dart": "df796a6c0619ea0727b49239b0ee6f2b81f0aab7c7b347598dbc979ccc7ff991",
+            "lib/services/melonx_embedded_library_service.dart": "274f714becdad585ce5b40aea1bb4765f0d3e36ac6e8a01dad890d1ac30cdca6",
+            "lib/services/melonx_import_progress.dart": "fc9b086ca2ac1fdf0b1bc9d8963c571f21a446f32e2c46919a0089debc28f3c5",
+            "lib/services/melonx_internal_service.dart": "79857a87680f458e0e95c34186e1af9137cf194d7a25be9e15cf85f0c7459f5a",
+            "lib/widgets/melonx_internal_playlist_actions.dart": "071a9b2f85c969cbdb8ef7025c639b621985163c9f048fb69d961f9c37307e20",
+            "lib/widgets/melonx_transfer_dialog.dart": "c50ba7c9637ebbcacac067dbe1bd826d9058b33f43a57487bcb35d203544802a",
+            "pubspec.lock": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+            "pubspec.yaml": "09cb00db684ff0649a1f4a501d1ce4b3e6547b5403ec98477da1e68f675bf83b",
+            "test/database_test_helper.dart": "4b2867dc1d201289c8b3a683e49c3f45ba1cec6d0d4cf9c0ab2e96854d57e9aa",
+            "test/melonx_import_completion_test.dart": "10fafb3adcb6e78da13c90a06ae00e94aac201c39ebddb63898a0cccea3a9ae6"
+          },
+          "flutterLog": "00:00 +0: loading /workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart\n00:00 +0: DLC multi-select installs each compatible file and reports a rejection\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: a.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC completed: a.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: wrong.nsp\n\u001b[38;5;196m[E]\u001b[0m  MeloNX import DLC failed: wrong.nsp  ERROR: Bad state: Fixture belongs to another base game\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: b.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC completed: b.nsp\n00:00 +1: update is selected in engine configuration and preserves prior paths\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update completed: update.nsp\n00:00 +2: configuration failure removes its copied addon and releases the lock\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: a.nsp\n\u001b[38;5;196m[E]\u001b[0m  MeloNX import DLC failed: a.nsp  ERROR: FormatException: Unexpected character (at character 1)\nnot JSON\n^\n\n00:00 +3: picker cancel and refused native gate both release Dart activity\n00:00 +4: import progress and completion strings cover all twelve locales\n00:00 +5: global update uses the inspected ID despite an unrelated filename\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: Unrelated game update.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update completed: Unrelated game update.nsp\n00:00 +6: global update refuses a missing base game before copying the NSP\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;196m[E]\u001b[0m  MeloNX import update failed: update.nsp  ERROR: FormatException: updateGameMissing\n00:00 +7: global update resolves legacy playlist metadata without a hash scan\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update completed: update.nsp\n00:00 +8: playlist update recognizes its game even when another game is highlighted\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update completed: update.nsp\n00:04 +9: game appears immediately without re-scanning all existing ROM bytes\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import game begin: chosen.nro\n\u001b[38;5;196m[E]\u001b[0m  Error saving config to SQLite: SqliteException(1): while preparing statement, table user_config has no column named legend_hidden, SQL logic error (code 1)\n  Causing statement: INSERT OR REPLACE INTO user_config (id, last_scan, system_view_mode, game_view_mode, theme_name, video_sound, show_game_info, is_fullscreen, bartop_exit_poweroff, scan_on_startup, ignore_hidden_files, setup_completed, hide_bottom_screen, sfx_enabled, use_12_hour_clock, system_sort_by, system_sort_order, app_language, hide_recent_card, legend_hidden, game_details_tab, hide_tab_achievements, hide_tab_scraper, hide_tab_search, auto_update_app, auto_update_systems, system_grid_columns, game_grid_columns, game_carousel_card_style, dock_apps, dock_enabled, dock_slot_count, now_playing_dim_delay, now_playing_dim_level, fanart_dim_level, esde_folder_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n\u001b[38;5;196m[E]\u001b[0m  Error adding ROM folder: SqliteException(1): while preparing statement, table user_config has no column named legend_hidden, SQL logic error (code 1)\n  Causing statement: INSERT OR REPLACE INTO user_config (id, last_scan, system_view_mode, game_view_mode, theme_name, video_sound, show_game_info, is_fullscreen, bartop_exit_poweroff, scan_on_startup, ignore_hidden_files, setup_completed, hide_bottom_screen, sfx_enabled, use_12_hour_clock, system_sort_by, system_sort_order, app_language, hide_recent_card, legend_hidden, game_details_tab, hide_tab_achievements, hide_tab_scraper, hide_tab_search, auto_update_app, auto_update_systems, system_grid_columns, game_grid_columns, game_carousel_card_style, dock_apps, dock_enabled, dock_slot_count, now_playing_dim_delay, now_playing_dim_level, fanart_dim_level, esde_folder_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n\u001b[38;5;12m[I]\u001b[0m  Detected systems loaded from DB: 1\n[D]   - switch: 1 ROMs\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import game completed: chosen.nro\n00:05 +10: update completion is explicit and does not start a library scan\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update completed: update.nsp\n00:06 +11: picker return and app resume cannot start recovery during an import\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: a.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC completed: a.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: b.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC completed: b.nsp\n00:09 +12: All tests passed!\n",
+          "analyzerLog": "Analyzing melonx_embedded_library_service.dart, melonx_import_progress.dart, melonx_internal_playlist_actions.dart, melonx_transfer_locale.dart, melonx_import_completion_test.dart...\n\n   info - lib/services/melonx_embedded_library_service.dart:63:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/services/melonx_embedded_library_service.dart:128:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/services/melonx_embedded_library_service.dart:202:19 - Use 'isEmpty' instead of 'length' to test whether the collection is empty. Try rewriting the expression to use 'isEmpty'. - prefer_is_empty\n   info - lib/services/melonx_embedded_library_service.dart:204:17 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/services/melonx_embedded_library_service.dart:264:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/services/melonx_embedded_library_service.dart:355:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/services/melonx_embedded_library_service.dart:548:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/widgets/melonx_internal_playlist_actions.dart:66:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/widgets/melonx_internal_playlist_actions.dart:112:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/widgets/melonx_internal_playlist_actions.dart:151:27 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/widgets/melonx_internal_playlist_actions.dart:277:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - test/melonx_import_completion_test.dart:129:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - test/melonx_import_completion_test.dart:183:9 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n\n13 issues found.\n",
+          "physicalDeviceTested": false,
+          "nativeContentInspectionMocked": true,
+          "executionContext": "Local working changes based on 056703e2ed1fb16cc0fafcef969cc9e7c79de14a; exact tested inputs subsequently committed as source.",
+          "negativeControlLog": "00:00 +0: loading /workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart\n00:00 +0: playlist update recognizes its game even when another game is highlighted\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;196m[E]\u001b[0m  MeloNX import update failed: update.nsp  ERROR: PlatformException(error, Expected: '0100123456780000'\n  Actual: '0100999988880000'\n   Which: is different.\n          Expected: 01001234567800 ...\n            Actual: 01009999888800 ...\n                        ^\n           Differ at offset 4\n, null, null)\n\u2550\u2550\u2561 EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK \u255e\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\nThe following TestFailure was thrown running a test:\nExpected: <true>\n  Actual: <false>\n\nWhen the exception was thrown, this was the stack:\n#4      main.until (file:///workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart:299:5)\n<asynchronous suspension>\n#5      main.<anonymous closure> (file:///workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart:397:5)\n<asynchronous suspension>\n#6      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)\n<asynchronous suspension>\n#7      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)\n<asynchronous suspension>\n<asynchronous suspension>\n(elided one frame from package:stack_trace)\n\nThis was caught by the test expectation on the following line:\n  file:///workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart line 299\nThe test description was:\n  playlist update recognizes its game even when another game is highlighted\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n00:09 +0 -1: playlist update recognizes its game even when another game is highlighted [E]\n  Test failed. See exception logs above.\n  The test description was: playlist update recognizes its game even when another game is highlighted\n  \n00:09 +0 -1: Some tests failed.\n\nFailing tests:\n  /workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart: playlist update recognizes its game even when another game is highlighted\n",
+          "negativeControlWidgetSource": "056703e2ed1fb16cc0fafcef969cc9e7c79de14a"
+        },
+        "audio": {
+          "result": "passed",
+          "reports": [
+            {
+              "result": "passed",
+              "control": true,
+              "assertions": 1,
+              "underflowFrames": 720,
+              "physicalDeviceTested": false,
+              "avFoundationDouble": true
+            },
+            {
+              "result": "passed",
+              "control": false,
+              "assertions": 21,
+              "underflowFrames": 0,
+              "physicalDeviceTested": false,
+              "avFoundationDouble": true
+            }
+          ],
+          "physicalDeviceTested": false,
+          "avFoundationDouble": true,
+          "backend": "AppleHardwareDeviceDriver",
+          "inputs": {
+            "build-utils/melonx/adapt_apple_audio.py": "161a334e4821b64b00d77c2a24e69a8f39276fbc4dfe45c0e6f984d63a3d61c3",
+            "build-utils/melonx/prepare_embedded.py": "19f9655122e4409a791f4574fa5dcffa4fd3246b30e993adbd9ab03df5c31de6",
+            "native/melonx/EmbeddedAddonSelection.cs": "5a37e4e21596141896598eeaefcbe68a208ee9be0df459473102c9609c27bad6",
+            "native/melonx/EmbeddedAddons.cs": "bb159cfec55c92ffc14fc5ac52a342e3112c4d95b7c1350b571f8cab29fd754f",
+            "native/melonx/EmbeddedContent.cs": "9659a22900a07eb4f9a77a3d98a62fe8424e7d48745bf270f8ee0b72bd246100",
+            "test/melonx_apple_audio_test.py": "80b9331c39006ccaec4464d57b22cb5f1189a27178f9ad5ea013e690347c3f0a",
+            "test/melonx_apple_audio/AVFoundationDouble.cs": "e2e4209cb6b535dd6a28ce6d7210d01e3d2f25f74ba49db9734ad957440f06e8",
+            "test/melonx_apple_audio/Program.cs": "120bf9efa6a4d0c17ef64ecb9e0a33834500441732307feb564f24552dbe0fdd"
+          },
+          "upstreamInputs": {
+            "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs": "370b0e95178b1e378c45ca23bf0ece012fc9c566e3c77d3dce3240ac52f06cc7",
+            "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceDriver.cs": "fca54f2112dac0260eb743cacd99bc55eb47e6ece04973564cad479b44889014",
+            "src/Ryujinx.Audio.Backends.Apple/AppleAudioBuffer.cs": "2e4500fe39821fb2b814fbb6a711d1e348a1658a8857f6db845a9bff4617167f",
+            "src/Ryujinx.Audio/Backends/Common/HardwareDeviceSessionOutputBase.cs": "453154f422748dccdb8ea7f6cec4b6b86610bab503aa76dcb730caee63645cee",
+            "src/Ryujinx.Audio/Backends/Common/BackendHelper.cs": "2a99a25ce65ad50bbb4b289dda6bf41204861118c7370381a2a0cc38ae84c111",
+            "src/Ryujinx.Audio/Common/AudioBuffer.cs": "1d08f5e845820a5bc1bbac44031d601a92393d217d922b42a0811abc1dc8ab69",
+            "src/Ryujinx.Audio/Common/SampleFormat.cs": "09ff4d4491822f2eae073a389c4c4a22ac473c7bf1d814ca27da1e438b5696db",
+            "src/Ryujinx.Audio/Integration/IHardwareDeviceDriver.cs": "4fec60900ed0250231b364304be7fbb6fab000941cef17653f30466ef715de8d",
+            "src/Ryujinx.Audio/Integration/IHardwareDeviceSession.cs": "9becaab33bfc06d638282eb07a1cc3660e36fe889572bd454d19e65841f636aa",
+            "src/Ryujinx.Audio.Backends.Apple/Native/AVFoundation.cs": "fdde2d96723601571f7f9a96afc8619d0d41ae9be82078dbe432094256d94534",
+            "src/Ryujinx.Library/Library.cs": "d40520115737c610a2dd8ac03493e444fd099e4e1bd699e2435ec72da3094c48"
+          }
+        },
+        "host": {
+          "result": "passed",
+          "summary": "PASS 11 production audio ownership assertions; AVAudioSession double, no iPhone audio claim\n",
+          "physicalDeviceTested": false,
+          "sessionDouble": true,
+          "iphoneSDKTypecheck": true,
+          "inputs": {
+            "packages/external_folder_access/ios/Classes/ExternalFolderAccessPlugin.swift": "e657a0f2f82c54a15e74e1204edd7429ec7f578573b5115fb98f7e6762c49133",
+            "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "18ba95f53d8c09a6a85c968402ee8a3f1d10067214693ac40680ba65b68e6b6c",
+            "test/melonx_audio_ownership_test.py": "c8eea730895fae9162d24d7b2f5e392c7822509d9ee000b3e10d9729910db28e"
+          }
+        },
+        "physicalDeviceTested": false
+      },
+      "compiledCorrectionMarkersVerified": true
+    },
+    "melonx-ipa.json": {
+      "result": "passed",
+      "build": "538",
+      "engineExportsVerified": 43,
+      "privateFrameworks": [
+        "MeloNXAvCodec",
+        "MeloNXAvUtil",
+        "MeloNXCore",
+        "MeloNXJitSupport",
+        "MeloNXMoltenVK",
+        "MeloNXSDL3"
+      ],
+      "nativeSourceNoticesVerified": 26,
+      "registeredFlutterBridge": true,
+      "gameplayTested": false,
+      "deviceInstallationTested": false
+    },
+    "retention536-tests.json": {
+      "passed": true,
+      "source": "5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c",
+      "run": "40186697206",
+      "inputs": {
+        "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm": "ac19be14d7fe4e7c5956840fff4b59f4d64519746bf63172b6c670ec71b1ca7a",
+        "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.h": "0fb24aacdaed388e0680c3fdbaa8ac3ef4f794092d9ef3798f41063c5fbad6a1",
+        "test/rpcs3_retention536_test.py": "c49723c592ddf297e3446bbb3e6a9907d7a5da74952126a5f390a480e6cc9b8c",
+        "test/rpcs3_diagnostics_native_test.py": "d59b11553745e6b5b9a9c4a055ef4cb186d9400291b84a3c4cf583006c013634",
+        "test/native/rpcs3_diagnostics_test.mm": "99d91efa07ea8a264738f7df32d85629c77c7e04f1213dd1d1f83868da5bf09d",
+        "test/native/rpcs3_diagnostics_core_writer.mm": "24bb224bbd51d05bbafe6dabbf22e83ce183a5e6cdee860c4c1392c07cf5447b",
+        "test/native/rpcs3_diagnostics_jit_writer.mm": "6b2a3f080dbce5e5997b0e4fa3e522869ee45154716a67d3ce065c1bd296bb90"
+      },
+      "results": {
+        "before": {
+          "returncode": -6,
+          "loggerSHA256": "137d81cef4ef408a01d4a6b4fba0b8f6909f69a24db97f4bc3e30cda7acc0ad5",
+          "expectedOutcome": true
+        },
+        "after": {
+          "returncode": 0,
+          "loggerSHA256": "ac19be14d7fe4e7c5956840fff4b59f4d64519746bf63172b6c670ec71b1ca7a",
+          "expectedOutcome": true
+        }
+      },
+      "generatedHarnessSHA256": "75c6895298cd586519aa38dfc10265bd8365da99dc95bf9b2f707cfe4d483cfb",
+      "physicalDeviceTested": false,
+      "scope": "Actual Foundation logger, two producers, rotation/reopen, 1300 verbose restore records followed by missing-resource error. Both attribution records survive in the bounded performance history; old source loses them."
+    },
+    "melonx-import537-tests.json": {
+      "result": "passed",
+      "source": "753bbdb1d11c22746bd3bb32eff51d5b58957616",
+      "executor": "local Linux",
+      "passedTests": 12,
+      "flutterVersion": "3.47.2",
+      "test": "test/melonx_import_completion_test.dart",
+      "inputs": {
+        "lib/data/datasources/sqlite_service.dart": "f0404a994074575a5d532cddacb728baf23b19f3c85ff9087df3fbb4a83e59e5",
+        "lib/l10n/melonx_transfer_locale.dart": "df796a6c0619ea0727b49239b0ee6f2b81f0aab7c7b347598dbc979ccc7ff991",
+        "lib/services/melonx_embedded_library_service.dart": "274f714becdad585ce5b40aea1bb4765f0d3e36ac6e8a01dad890d1ac30cdca6",
+        "lib/services/melonx_import_progress.dart": "fc9b086ca2ac1fdf0b1bc9d8963c571f21a446f32e2c46919a0089debc28f3c5",
+        "lib/services/melonx_internal_service.dart": "79857a87680f458e0e95c34186e1af9137cf194d7a25be9e15cf85f0c7459f5a",
+        "lib/widgets/melonx_internal_playlist_actions.dart": "071a9b2f85c969cbdb8ef7025c639b621985163c9f048fb69d961f9c37307e20",
+        "lib/widgets/melonx_transfer_dialog.dart": "c50ba7c9637ebbcacac067dbe1bd826d9058b33f43a57487bcb35d203544802a",
+        "pubspec.lock": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+        "pubspec.yaml": "09cb00db684ff0649a1f4a501d1ce4b3e6547b5403ec98477da1e68f675bf83b",
+        "test/database_test_helper.dart": "4b2867dc1d201289c8b3a683e49c3f45ba1cec6d0d4cf9c0ab2e96854d57e9aa",
+        "test/melonx_import_completion_test.dart": "10fafb3adcb6e78da13c90a06ae00e94aac201c39ebddb63898a0cccea3a9ae6"
+      },
+      "flutterLog": "00:00 +0: loading /workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart\n00:00 +0: DLC multi-select installs each compatible file and reports a rejection\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: a.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC completed: a.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: wrong.nsp\n\u001b[38;5;196m[E]\u001b[0m  MeloNX import DLC failed: wrong.nsp  ERROR: Bad state: Fixture belongs to another base game\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: b.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC completed: b.nsp\n00:00 +1: update is selected in engine configuration and preserves prior paths\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update completed: update.nsp\n00:00 +2: configuration failure removes its copied addon and releases the lock\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: a.nsp\n\u001b[38;5;196m[E]\u001b[0m  MeloNX import DLC failed: a.nsp  ERROR: FormatException: Unexpected character (at character 1)\nnot JSON\n^\n\n00:00 +3: picker cancel and refused native gate both release Dart activity\n00:00 +4: import progress and completion strings cover all twelve locales\n00:00 +5: global update uses the inspected ID despite an unrelated filename\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: Unrelated game update.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update completed: Unrelated game update.nsp\n00:00 +6: global update refuses a missing base game before copying the NSP\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;196m[E]\u001b[0m  MeloNX import update failed: update.nsp  ERROR: FormatException: updateGameMissing\n00:00 +7: global update resolves legacy playlist metadata without a hash scan\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update completed: update.nsp\n00:00 +8: playlist update recognizes its game even when another game is highlighted\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update completed: update.nsp\n00:04 +9: game appears immediately without re-scanning all existing ROM bytes\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import game begin: chosen.nro\n\u001b[38;5;196m[E]\u001b[0m  Error saving config to SQLite: SqliteException(1): while preparing statement, table user_config has no column named legend_hidden, SQL logic error (code 1)\n  Causing statement: INSERT OR REPLACE INTO user_config (id, last_scan, system_view_mode, game_view_mode, theme_name, video_sound, show_game_info, is_fullscreen, bartop_exit_poweroff, scan_on_startup, ignore_hidden_files, setup_completed, hide_bottom_screen, sfx_enabled, use_12_hour_clock, system_sort_by, system_sort_order, app_language, hide_recent_card, legend_hidden, game_details_tab, hide_tab_achievements, hide_tab_scraper, hide_tab_search, auto_update_app, auto_update_systems, system_grid_columns, game_grid_columns, game_carousel_card_style, dock_apps, dock_enabled, dock_slot_count, now_playing_dim_delay, now_playing_dim_level, fanart_dim_level, esde_folder_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n\u001b[38;5;196m[E]\u001b[0m  Error adding ROM folder: SqliteException(1): while preparing statement, table user_config has no column named legend_hidden, SQL logic error (code 1)\n  Causing statement: INSERT OR REPLACE INTO user_config (id, last_scan, system_view_mode, game_view_mode, theme_name, video_sound, show_game_info, is_fullscreen, bartop_exit_poweroff, scan_on_startup, ignore_hidden_files, setup_completed, hide_bottom_screen, sfx_enabled, use_12_hour_clock, system_sort_by, system_sort_order, app_language, hide_recent_card, legend_hidden, game_details_tab, hide_tab_achievements, hide_tab_scraper, hide_tab_search, auto_update_app, auto_update_systems, system_grid_columns, game_grid_columns, game_carousel_card_style, dock_apps, dock_enabled, dock_slot_count, now_playing_dim_delay, now_playing_dim_level, fanart_dim_level, esde_folder_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n\u001b[38;5;12m[I]\u001b[0m  Detected systems loaded from DB: 1\n[D]   - switch: 1 ROMs\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import game completed: chosen.nro\n00:05 +10: update completion is explicit and does not start a library scan\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update completed: update.nsp\n00:06 +11: picker return and app resume cannot start recovery during an import\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: a.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC completed: a.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC begin: b.nsp\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import DLC completed: b.nsp\n00:09 +12: All tests passed!\n",
+      "analyzerLog": "Analyzing melonx_embedded_library_service.dart, melonx_import_progress.dart, melonx_internal_playlist_actions.dart, melonx_transfer_locale.dart, melonx_import_completion_test.dart...\n\n   info - lib/services/melonx_embedded_library_service.dart:63:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/services/melonx_embedded_library_service.dart:128:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/services/melonx_embedded_library_service.dart:202:19 - Use 'isEmpty' instead of 'length' to test whether the collection is empty. Try rewriting the expression to use 'isEmpty'. - prefer_is_empty\n   info - lib/services/melonx_embedded_library_service.dart:204:17 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/services/melonx_embedded_library_service.dart:264:13 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/services/melonx_embedded_library_service.dart:355:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/services/melonx_embedded_library_service.dart:548:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/widgets/melonx_internal_playlist_actions.dart:66:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/widgets/melonx_internal_playlist_actions.dart:112:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/widgets/melonx_internal_playlist_actions.dart:151:27 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - lib/widgets/melonx_internal_playlist_actions.dart:277:9 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - test/melonx_import_completion_test.dart:129:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n   info - test/melonx_import_completion_test.dart:183:9 - Statements in a for should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures\n\n13 issues found.\n",
+      "physicalDeviceTested": false,
+      "nativeContentInspectionMocked": true,
+      "executionContext": "Local working changes based on 056703e2ed1fb16cc0fafcef969cc9e7c79de14a; exact tested inputs subsequently committed as source.",
+      "negativeControlLog": "00:00 +0: loading /workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart\n00:00 +0: playlist update recognizes its game even when another game is highlighted\n\u001b[38;5;12m[I]\u001b[0m  MeloNX import update begin: update.nsp\n\u001b[38;5;196m[E]\u001b[0m  MeloNX import update failed: update.nsp  ERROR: PlatformException(error, Expected: '0100123456780000'\n  Actual: '0100999988880000'\n   Which: is different.\n          Expected: 01001234567800 ...\n            Actual: 01009999888800 ...\n                        ^\n           Differ at offset 4\n, null, null)\n\u2550\u2550\u2561 EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK \u255e\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\nThe following TestFailure was thrown running a test:\nExpected: <true>\n  Actual: <false>\n\nWhen the exception was thrown, this was the stack:\n#4      main.until (file:///workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart:299:5)\n<asynchronous suspension>\n#5      main.<anonymous closure> (file:///workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart:397:5)\n<asynchronous suspension>\n#6      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)\n<asynchronous suspension>\n#7      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)\n<asynchronous suspension>\n<asynchronous suspension>\n(elided one frame from package:stack_trace)\n\nThis was caught by the test expectation on the following line:\n  file:///workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart line 299\nThe test description was:\n  playlist update recognizes its game even when another game is highlighted\n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n00:09 +0 -1: playlist update recognizes its game even when another game is highlighted [E]\n  Test failed. See exception logs above.\n  The test description was: playlist update recognizes its game even when another game is highlighted\n  \n00:09 +0 -1: Some tests failed.\n\nFailing tests:\n  /workspace/scratch/2a5657b15d38/analysis/melonx-followup-source/test/melonx_import_completion_test.dart: playlist update recognizes its game even when another game is highlighted\n",
+      "negativeControlWidgetSource": "056703e2ed1fb16cc0fafcef969cc9e7c79de14a"
+    }
+  },
+  "independentDownloadedRPCS3Validation": {
+    "result": "passed",
+    "build": 538,
+    "ipaSHA256": "57d38fba6e578cf34f60b5c5f94729a2fa3625dbba49f0b0941f7591948e2d45",
+    "coreSource": "066a3fe6c015a3c25807a9feac07b392d2fc2cb4",
+    "coreRun": 40190600339,
+    "sourceArtifactSHA256": "071fc2871d6e61bfc015e21f147ec870ecf2fa65dc9440e06ff42468b16e3d7a",
+    "compiledCorePayloadFingerprint": "e539e047aa570a1057d6fac69e54054aab8f1f19a23f93b6e33997388b25372a",
+    "sharedCompilerBrokerLinked": true,
+    "optionalCoreBinderLinked": true,
+    "productionMinimalSPULinkerEnabled": false,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false,
+    "gow3BootAndVmaSourceVerified": true
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "publication": "private IPA; no release and no main changes"
+}

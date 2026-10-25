@@ -1,0 +1,13 @@
+{
+  "source": "066a3fe6c015a3c25807a9feac07b392d2fc2cb4",
+  "run": 40190600296,
+  "job": 121160577029,
+  "conclusion": "failure",
+  "failedStep": "Validate startup contracts before compiling",
+  "failedAssertion": "test/rpcs3_build499_spu_audit_test.py:71 REFERENCE_THREAD_SHA256",
+  "unchangedFrom536": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c",
+    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "613a7fa9ff59420720c810b0040e3d3b89cae89ea41e3715e7daf62de20c9be7"
+  },
+  "scope": "General legacy workflow ran in addition to dedicated CELL538. Old full-file reconstruction assertion does not accommodate the unchanged CELL536 reservation changes. The failure is retained; no test or assertion was weakened. Dedicated CELL538 uses authenticated prior results only for unchanged inputs and executes affected tests plus actual Core compilation."
+}
