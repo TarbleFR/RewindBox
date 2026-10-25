@@ -124,6 +124,9 @@ final class MeloNXMetalSessionViewController: UIViewController {
             var values = MeloNXMemorySnapshot() as? [String:Any] ?? [:]
             for (key,value) in MeloNXMemoryLease.shared.snapshot() { values[key] = value }
             for (key,value) in self?.runtime?.memorySnapshot() ?? [:] { values[key] = value }
+            if let self, let runtime = self.runtime, let generation = self.generation, !self.closing {
+                for (key,value) in runtime.performanceSnapshot(generation:generation) { values[key] = value }
+            }
             return values
         }
         graph.translatesAutoresizingMaskIntoConstraints = false

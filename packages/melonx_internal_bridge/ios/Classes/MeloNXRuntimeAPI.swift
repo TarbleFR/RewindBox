@@ -8,6 +8,7 @@ final class MeloNXRuntimeAPI {
     private typealias StringCall = @convention(c) (UnsafePointer<CChar>?) -> Int32
     private typealias MemoryOffer = @convention(c) (UnsafeMutableRawPointer?, UInt64) -> Int32
     private typealias MemorySnapshot = @convention(c) (UnsafeMutablePointer<UInt64>?, Int32) -> Int32
+    private typealias PerformanceSnapshot = @convention(c) (Int64, UnsafeMutablePointer<Double>?, Int32) -> Int32
     private typealias Mode = @convention(c) (Int32) -> Int32
     private typealias Content = @convention(c) (UnsafePointer<CChar>?, Int32, UnsafeMutablePointer<CChar>?, Int32) -> Int32
     private typealias Attach = @convention(c) (Int64, Int32, UnsafePointer<CChar>?, Int32) -> Int32
@@ -47,6 +48,8 @@ final class MeloNXRuntimeAPI {
     private let memoryOffer: MemoryOffer
     private let memoryWithdraw: Version
     private let memorySnapshotFunction: MemorySnapshot
+    private let performanceSnapshotFunction: PerformanceSnapshot?
+    var providesPerformanceSnapshot: Bool { performanceSnapshotFunction != nil }
     private let configureJit: Mode
     private let contentFunction: Content
     private let contentProgressFunction: Version?
@@ -81,6 +84,8 @@ final class MeloNXRuntimeAPI {
         memoryOffer = try symbol("neostation_melonx_memory_offer", MemoryOffer.self)
         memoryWithdraw = try symbol("neostation_melonx_memory_withdraw", Version.self)
         memorySnapshotFunction = try symbol("neostation_melonx_memory_snapshot", MemorySnapshot.self)
+        // Optional: an older engine without it keeps the overlay RAM-only.
+        performanceSnapshotFunction = dlsym(handle, "neostation_melonx_performance_snapshot").map { unsafeBitCast($0, to: PerformanceSnapshot.self) }
         configureJit = try symbol("neostation_melonx_configure_jit", Mode.self)
         contentFunction = try symbol("neostation_melonx_content", Content.self)
         contentProgressFunction = dlsym(handle, "neostation_melonx_content_progress").map { unsafeBitCast($0, to: Version.self) }
@@ -120,6 +125,13 @@ final class MeloNXRuntimeAPI {
         var values = [UInt64](repeating:0,count:3)
         guard memorySnapshotFunction(&values,3) == 0 else { return [:] }
         return ["donorOfferedBytes":values[0],"donorUsedBytes":values[1],"donorAllocations":values[2]]
+    }
+    // The engine's own game FPS statistics; empty for a stale or stopped generation.
+    func performanceSnapshot(generation: Int64) -> [String:Any] {
+        guard let performanceSnapshotFunction else { return [:] }
+        var values = [Double](repeating:0,count:3)
+        guard performanceSnapshotFunction(generation,&values,3) == 0 else { return [:] }
+        return ["gameFps":values[0],"gameFrameTimeMs":values[1],"fifoPercent":values[2]]
     }
 
     func setAspectRatio(_ value: Int32, generation: Int64) -> Bool {

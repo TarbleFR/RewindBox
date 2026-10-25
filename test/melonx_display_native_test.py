@@ -7,7 +7,7 @@ ROOT=Path(__file__).resolve().parents[1]
 source=Path(sys.argv[1])
 with tempfile.TemporaryDirectory(prefix='melonx-display-') as d:
  w=Path(d)
- paths=['native/melonx/EmbeddedGraphicsSettings.cs','native/melonx/EmbeddedSessionCoordinator.cs','native/melonx/EmbeddedMemory.cs']
+ paths=['native/melonx/EmbeddedGraphicsSettings.cs','native/melonx/EmbeddedSessionCoordinator.cs','native/melonx/EmbeddedMemory.cs','native/melonx/EmbeddedPerformance.cs']
  for p in paths:shutil.copyfile(ROOT/p,w/Path(p).name)
  sys.path.insert(0,str(ROOT/'build-utils/melonx'))
  from adapt_memory import apply
@@ -35,7 +35,9 @@ namespace Ryujinx.Common {static class EmbeddedLaunchDiagnostics {public static 
 namespace Ryujinx.Library {
 public class Options {'''+''.join(fields)+'''}
 class Configuration {public AspectRatio AspectRatio {get;set;}}
-class Device {public Configuration Configuration=new();}
+// Same accessors as Ryujinx.HLE.PerformanceStatistics; frame time is 1000 / FPS.
+class PerformanceStatistics {public double Fps,Fifo;public double GetGameFrameRate()=>Fps;public double GetGameFrameTime()=>1000/Fps;public double GetFifoPercent()=>Fifo;}
+class Device {public Configuration Configuration=new();public PerformanceStatistics Statistics;}
 class Window {public Device Device=new();}
 partial class Library {
  static readonly object EmbeddedHostGate=new();
@@ -81,12 +83,26 @@ var restored=EmbeddedGraphicsSettings.Parse("{\"aspectRatio\":1,\"hostMemoryBudg
 Check(!restored.EnableHostMemoryBudgetTracking && !restored.EnableTextureRecompression);
 delegate* unmanaged<long,int,int> set=&Library.EmbeddedSetAspectRatio;
 Check(set(1,5)==2);var generation=Library.EmbeddedSessions.Prepare();
-Check(set(generation,5)==2);Library._window=new();
+Check(set(generation,5)==2);
+// Game FPS for the RAM overlay: the same session gate as the live ratio.
+delegate* unmanaged<long,double*,int,int> performance=&Library.EmbeddedPerformanceSnapshot;
+double* fps=stackalloc double[3];
+Check(performance(generation,null,3)==1 && performance(generation,fps,2)==1);
+Check(performance(generation,fps,3)==2);Library._window=new();
+Check(performance(generation,fps,3)==2);
+Library._window.Device.Statistics=new();
+Check(performance(generation,fps,3)==0 && fps[0]==0 && fps[1]==0 && fps[2]==0);
+Library._window.Device.Statistics.Fps=59.94;Library._window.Device.Statistics.Fifo=37.5;
+Check(performance(generation,fps,3)==0 && fps[0]==59.94 && fps[1]==1000/59.94 && fps[2]==37.5);
+Library._window.Device.Statistics.Fps=double.NaN;Library._window.Device.Statistics.Fifo=double.PositiveInfinity;
+Check(performance(generation,fps,3)==0 && fps[0]==0 && fps[1]==0 && fps[2]==0);
+Library._window.Device.Statistics.Fps=30;
+Check(performance(generation+1,fps,3)==2 && fps[0]==0);
 Check(set(generation,5)==0 && Library._window.Device.Configuration.AspectRatio==AspectRatio.Stretched);
 Check(set(generation,0)==0 && Library._window.Device.Configuration.AspectRatio==AspectRatio.Fixed4x3);
 Check(set(generation,6)==1 && Library._window.Device.Configuration.AspectRatio==AspectRatio.Fixed4x3);
 Check(set(generation+1,1)==2 && Library._window.Device.Configuration.AspectRatio==AspectRatio.Fixed4x3);
-Library.EmbeddedSessions.Stop(generation);Check(set(generation,5)==2);
+Library.EmbeddedSessions.Stop(generation);Check(set(generation,5)==2 && performance(generation,fps,3)==2);
 Library.EmbeddedSessions.CancelPrepared(generation);var second=Library.EmbeddedSessions.Prepare();
 Check(set(generation,5)==2 && set(second,1)==0);
 Library.EmbeddedSessions.CancelPrepared(second);
@@ -113,7 +129,7 @@ try {
  Check(offer(region,65536)==0 && withdraw()==0);
  Check(!DonatedMemory.TryAllocate(1,out _));
 } finally {NativeMemory.AlignedFree((void*)region);}
-Console.WriteLine($"PASS {checks} graphics, generation and real donated allocator cases; window double, no gameplay claim.");
+Console.WriteLine($"PASS {checks} graphics, FPS snapshot, generation and real donated allocator cases; window double, no gameplay claim.");
 }}''')
  result=subprocess.check_output(['dotnet','run','--project',str(w/'test.csproj'),'-c','Release'],text=True,stderr=subprocess.STDOUT,timeout=120)
  print(result)

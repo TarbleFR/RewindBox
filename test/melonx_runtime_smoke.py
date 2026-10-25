@@ -134,6 +134,9 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
          try runtime.prepareGraphics(["aspectRatio":ratio,"hostMemoryBudget":true,"textureRecompression":true,"showRamGraph":true],universalJit:false)
        }
        guard !runtime.setAspectRatio(5,generation:12345) else {throw NSError(domain:"stale-display-generation",code:20)}
+       // The RAM overlay's game FPS export: resolved in the actual image and
+       // refused for a generation that is not live.
+       guard runtime.providesPerformanceSnapshot,runtime.performanceSnapshot(generation:12345).isEmpty else {throw NSError(domain:"performance-snapshot-export",code:24)}
        NSLog("SMOKE boundary 118")
        try runtime.prepareGraphics(["aspectRatio":1],universalJit:false)
        report["displayAndMemoryConfigurationAccepted"]=true
@@ -170,10 +173,13 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        // it is explicitly NOT a donor process or reduced iPhone footprint proof.
        defer { if runtime.withdrawMemory() { munmap(donation,donationBytes) } }
        var donatedSessions=0
+       var livePerformanceSessions=0
        for _ in 0..<2 {
          guard runtime.offerMemory(donation,bytes:UInt64(donationBytes)) else {throw NSError(domain:"actual-memory-offer",code:22)}
          var borrowedWhileRunning=false
          var liveWithdrawalRefused=false
+         var liveGeneration:Int64=0
+         var livePerformance:[String:Any]=[:]
          let ended=DispatchSemaphore(value:0)
          var outcome:Result<Void,MeloNXHostError>?
          var owner:MeloNXSessionHost?
@@ -186,8 +192,9 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
            self.window!.rootViewController!.view.addSubview(view);surface=view
            let host=MeloNXSessionHost(api:runtime.session);owner=host
            do {
-             try host.start(game:homebrew,locale:"en",width:1280,height:720,surface:layer,pointer:Unmanaged.passUnretained(layer).toOpaque(),beforeRun:{true}) {result in outcome=result;ended.signal()}
+             try host.start(game:homebrew,locale:"en",width:1280,height:720,surface:layer,pointer:Unmanaged.passUnretained(layer).toOpaque(),prepared:{liveGeneration=$0},beforeRun:{true}) {result in outcome=result;ended.signal()}
              DispatchQueue.main.asyncAfter(deadline:.now()+2) {
+               livePerformance=runtime.performanceSnapshot(generation:liveGeneration)
                let memory=runtime.memorySnapshot()
                borrowedWhileRunning=((memory["donorUsedBytes"] as? NSNumber)?.uint64Value ?? 0)>0
                liveWithdrawalRefused = !runtime.withdrawMemory()
@@ -200,6 +207,14 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
          if case .failure(let error)=completedOutcome {throw error}
          guard runtime.session.state == 0, owner?.isSessionActive == false else {throw NSError(domain:"homebrew-session-cleanup",code:10)}
          DispatchQueue.main.sync {surface?.removeFromSuperview()}
+         // Homebrew presents no frames, so a live snapshot (when the window is
+         // already initialized) is well-formed zeros; it proves the gated path,
+         // not a game frame rate. The ended generation must be refused.
+         if !livePerformance.isEmpty {
+           guard ["gameFps","gameFrameTimeMs","fifoPercent"].allSatisfy({ key in (livePerformance[key] as? Double).map { $0.isFinite && $0 >= 0 } ?? false }) else {throw NSError(domain:"live-performance-snapshot",code:25)}
+           livePerformanceSessions += 1
+         }
+         guard liveGeneration > 0,runtime.performanceSnapshot(generation:liveGeneration).isEmpty else {throw NSError(domain:"ended-performance-generation",code:26)}
          guard borrowedWhileRunning,liveWithdrawalRefused,
                (runtime.memorySnapshot()["donorUsedBytes"] as? NSNumber)?.uint64Value == 0,
                runtime.withdrawMemory() else {throw NSError(domain:"actual-donation-lifetime",code:23)}
@@ -209,6 +224,8 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        let execution=runtime.diagnostics()["events"] as? [[String:Any]] ?? []
        guard execution.filter({$0["stage"] as? String == "guestExecution" && $0["status"] as? String == "passed"}).count >= 2 else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11)}
        report["actualCoreDonatedBackingSessions"]=donatedSessions
+       report["performanceSnapshotStaleAndEndedRefused"]=true
+       report["livePerformanceSnapshotSessions"]=livePerformanceSessions
        report["donorProcessUsedInSmoke"]=false
        report["originalHomebrewGuestSvcConfirmed"]=true;report["homebrewSimulatorSessions"]=sessions
        report["homebrewProducesVideo"]=false;report["iphoneGuestExecutionTested"]=false

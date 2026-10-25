@@ -1,5 +1,6 @@
 // Uses the same TASK_VM_INFO.phys_footprint measurement as MeloNX's original
 // PerformanceOverlay (Stossy11), with a bounded history and explicit failures.
+// The title row also shows the engine's game FPS when a live session reports it.
 import UIKit
 
 struct MeloNXMemoryPoint {
@@ -21,18 +22,20 @@ final class MeloNXMemoryGraph: UIView {
     private let title = UILabel()
     private let values = UILabel()
     private let historyLabel = UILabel()
+    private let fps = UILabel()
     private(set) var history = MeloNXMemoryHistory()
     private var timer: Timer?
     var now: () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     var sample: () -> [String:Any] = { MeloNXMemorySnapshot() as? [String:Any] ?? [:] }
     var isSampling: Bool { timer != nil }
+    var fpsText: String { fps.text ?? "" }
 
     override init(frame: CGRect) {
         super.init(frame:frame)
         isUserInteractionEnabled = false
         backgroundColor = UIColor.black.withAlphaComponent(0.72)
         layer.cornerRadius = 10
-        for label in [title,values,historyLabel] {
+        for label in [title,values,historyLabel,fps] {
             label.textColor = .white
             label.font = .monospacedSystemFont(ofSize:11,weight:.medium)
             label.numberOfLines = 0
@@ -41,12 +44,19 @@ final class MeloNXMemoryGraph: UIView {
         }
         title.text = MeloNXText("RewindBox RAM")
         historyLabel.text = MeloNXText("Last 60 s")
+        fps.numberOfLines = 1
+        fps.textAlignment = .right
+        fps.font = .monospacedSystemFont(ofSize:11,weight:.semibold)
+        fps.setContentHuggingPriority(.required,for:.horizontal)
+        fps.setContentCompressionResistancePriority(.required,for:.horizontal)
         NSLayoutConstraint.activate([
             title.leadingAnchor.constraint(equalTo:leadingAnchor,constant:9),
-            title.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-9),
+            title.trailingAnchor.constraint(lessThanOrEqualTo:fps.leadingAnchor,constant:-6),
             title.topAnchor.constraint(equalTo:topAnchor,constant:7),
+            fps.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-9),
+            fps.firstBaselineAnchor.constraint(equalTo:title.firstBaselineAnchor),
             values.leadingAnchor.constraint(equalTo:title.leadingAnchor),
-            values.trailingAnchor.constraint(equalTo:title.trailingAnchor),
+            values.trailingAnchor.constraint(equalTo:trailingAnchor,constant:-9),
             values.topAnchor.constraint(equalTo:title.bottomAnchor,constant:3),
             historyLabel.leadingAnchor.constraint(equalTo:title.leadingAnchor),
             historyLabel.bottomAnchor.constraint(equalTo:bottomAnchor,constant:-5)
@@ -68,6 +78,7 @@ final class MeloNXMemoryGraph: UIView {
         let value = sample()
         let footprint = value["footprintBytes"] as? NSNumber
         let headroom = value["availableBytes"] as? NSNumber
+        fps.text = (value["gameFps"] as? NSNumber).map { String(format:"%.0f FPS",$0.doubleValue) } ?? ""
         history.append(time:now(),bytes:footprint?.uint64Value)
         func size(_ value: NSNumber?) -> String {
             guard let value else { return MeloNXText("Unavailable") }
@@ -79,7 +90,7 @@ final class MeloNXMemoryGraph: UIView {
             values.text = (values.text ?? "") + "\n" + MeloNXText("Donor in use") + " " + size(value["donorUsedBytes"] as? NSNumber) +
                 " / " + size(value["donorMappedBytes"] as? NSNumber) + "\n" + MeloNXText("Donor " + state)
         }
-        accessibilityLabel = MeloNXText("RewindBox RAM") + ", " + (values.text ?? "")
+        accessibilityLabel = MeloNXText("RewindBox RAM") + ", " + (fpsText.isEmpty ? "" : fpsText + ", ") + (values.text ?? "")
         setNeedsDisplay()
     }
     override func draw(_ rect: CGRect) {

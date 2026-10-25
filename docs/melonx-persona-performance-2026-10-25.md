@@ -189,3 +189,31 @@ game…" route — reusing the build-544 close probe.
 No tags, main-branch changes, builds or releases were produced by this work. The
 threading change is committed to the `Claude` branch for review and an
 authorized Core rebuild; it is not validated on device.
+
+## In-game FPS counter
+
+To make slowdowns measurable without the standalone app, the in-game RAM overlay
+("RewindBox RAM", toggled by the existing **RAM graph** setting and menu entry)
+now also shows the game's frame rate, right-aligned on its title row (`60 FPS`).
+The value is the engine's own `Device.Statistics.GetGameFrameRate()`: the game
+FPS that standalone MeloNX reports through its `push_statistics` callback, which
+the embedded host never registers.
+
+- **Core.** `native/melonx/EmbeddedPerformance.cs` exports
+  `neostation_melonx_performance_snapshot(generation, double *values, 3)`: game
+  FPS, frame time (ms) and FIFO percent. It goes through the same session gate
+  as the live aspect ratio (stale, stopped or ended generations return 2) and
+  zeroes non-finite values (frame time is `1000 / 0` before the first measured
+  frame). It is in the required exported ABI of `build_core.sh`.
+- **Host.** `MeloNXRuntimeAPI` resolves the symbol optionally, so an older
+  Core leaves the overlay RAM-only instead of failing to launch. The session
+  view merges the snapshot for its live generation into the overlay's existing
+  0.5 s sample; nothing new is polled while the overlay is hidden or the app
+  is inactive.
+- **Validation.** `test/melonx_display_native_test.py` runs the production
+  export against a statistics double (argument refusal, no window, live values,
+  NaN/Infinity, stale and stopped generations). `test/melonx_memory_graph_test.py`
+  checks the label in UIKit (`60 FPS`, empty without a session, `30 FPS`).
+  `test/melonx_runtime_smoke.py` resolves the export in the real NativeAOT image
+  and checks that stale and ended generations are refused. The homebrew session
+  presents no frames, so a real game frame rate is only visible on device.
