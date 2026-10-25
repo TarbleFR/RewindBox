@@ -6,6 +6,9 @@ run-name: RewindBox Build 548 — Liquid Glass UI — ${{ github.sha }}
     - Claude
     paths:
     - .github/workflows/liquid-glass-ui-delivery.yml
+    - .github/diagnostics/liquidglass_ui_delivery.py
+    - build-utils/validate_liquid_glass_ipa.py
+    - docs/evidence/liquid-glass-ui-local.json
   workflow_dispatch:
     inputs:
       recipient:

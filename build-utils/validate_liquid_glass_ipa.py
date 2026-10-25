@@ -10,7 +10,10 @@ IDENTITY='LiquidGlass-ui-identity.json'
 # Dart string constants survive AOT compilation; each one names a compiled
 # part of the new interface: the preference key, the settings screen, the
 # preview, the tab bar options and the translated section titles.
-DART_MARKERS=['rewindbox_interface_style_v1','interface-style-preview','interface-style-apply','interface-style-reset',
+# Only literal constants survive as such: the row keys are interpolated at
+# runtime ('interface-style-' + row key), so the prefix and the constant keys
+# (unsaved chip, preview, preview tab strip) stand for the screen.
+DART_MARKERS=['rewindbox_interface_style_v1','interface-style-','interface-style-unsaved','interface-style-preview','interface-style-preview-tabs',
  'main-menu-capsule-blur','main-menu-tab-indicator','glass-segment-thumb','Interface utilisateur','Liquid Glass','Flottante','使用者介面']
 # The native catalogue pages read the same preference and apply system materials.
 NATIVE_MARKERS=['flutter.rewindbox_interface_style_v1','liquidGlass']
@@ -27,7 +30,8 @@ def expected():
   physicalDeviceTested=False,interfaceDeviceReviewed=False)
 
 def contains(data,text):
- return text.encode('utf-8') in data
+ # Dart stores non-Latin-1 string constants as two-byte (UTF-16) strings.
+ return text.encode('utf-8') in data or text.encode('utf-16le') in data
 
 def embed(app):
  (app/IDENTITY).write_text(json.dumps(expected(),indent=2)+'\n')
