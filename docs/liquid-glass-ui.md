@@ -1,6 +1,6 @@
-# Refonte Liquid Glass de l'interface — candidat privé 547
+# Refonte Liquid Glass de l'interface — candidat privé (numéro réservé : 548)
 
-Branche : `Claude`. Base hôte validée : `3494edc9e09fb60fecc35dd6cc301bcb93bc9434` (Build 542), à laquelle s'ajoutent le correctif MeloNX de fermeture (544, `d9f35c2`/`eabc057`), le Core RPCS3 546 et ses quatre fichiers hôte (`3436492`, run Core `40230183096`, livraison 546 `6c6c624`). Le numéro 546 appartient à cette livraison RPCS3 ; la refonte de l'interface prend le numéro **547**. Aucune fusion vers `main`, aucun tag, aucune release. Les moteurs, imports, sauvegardes, catalogues et identifiants persistants ne changent pas ; `lib/main.dart` et les fichiers de bibliothèque verrouillés sur la 419 sont intacts.
+Branche : `Claude`. Base hôte validée : `3494edc9e09fb60fecc35dd6cc301bcb93bc9434` (Build 542), à laquelle s'ajoutent le correctif MeloNX de fermeture (544, `d9f35c2`/`eabc057`) et le Core RPCS3 le plus récent livré par la session RPCS3 avec ses fichiers hôte (la recette `liquidglass_ui_delivery.py` importe la recette RPCS3 correspondante et vérifie ces fichiers octet par octet). Les numéros 546 et 547 appartiennent aux livraisons RPCS3 ; la refonte de l'interface prend le numéro **548** (à confirmer avec la session RPCS3 avant exécution). Aucune fusion vers `main`, aucun tag, aucune release. Les moteurs, imports, sauvegardes, catalogues et identifiants persistants ne changent pas ; `lib/main.dart` et les fichiers de bibliothèque verrouillés sur la 419 sont intacts.
 
 ## 1. Inventaire (état avant la refonte)
 
@@ -70,7 +70,7 @@ Jetons : espace standard entre deux bulles indépendantes 14.r (≈ 13 pt sur iP
 
 ## 7. Validation
 
-Locale (Flutter 3.47.2, Linux) : `flutter analyze` sans erreur ni avertissement (mêmes 107 informations préexistantes) ; les sept nouveaux fichiers de test et la série des tests existants concernés (barre d'onglets, en-tête, navigation, bulles, dialogues, réglages, thèmes, notifications, libretro) passent : 367 cas. Détail et empreintes dans `docs/evidence/liquid-glass-ui547-local.json`. Aucun rendu iPhone, aucune mesure de fréquence d'images.
+Locale (Flutter 3.47.2, Linux) : `flutter analyze` sans erreur ni avertissement (mêmes 107 informations préexistantes) ; les sept nouveaux fichiers de test et la série des tests existants concernés (barre d'onglets, en-tête, navigation, bulles, dialogues, réglages, thèmes, notifications, libretro) passent : 367 cas. Détail et empreintes dans `docs/evidence/liquid-glass-ui-local.json`. Aucun rendu iPhone, aucune mesure de fréquence d'images.
 
 Deux constats indépendants de cette refonte, consignés plutôt que masqués :
 
@@ -81,4 +81,4 @@ Le premier commit (`style:`) ne contient que le `dart format` de onze fichiers t
 
 ## Livraison
 
-Voir la section ajoutée après exécution du workflow `liquid-glass-ui547-delivery.yml`. Aucune IPA n'est déclarée avant vérification du fichier téléchargé.
+Voir la section ajoutée après exécution du workflow `liquid-glass-ui-delivery.yml`. Aucune IPA n'est déclarée avant vérification du fichier téléchargé.
