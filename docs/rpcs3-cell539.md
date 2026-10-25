@@ -1,6 +1,6 @@
 # RPCS3 iOS 539 — caches graphiques et coût des compteurs SPU
 
-Le candidat corrige des défauts reproductibles du cache de pipelines Vulkan et réduit le coût des mises à jour des compteurs de réservation. Les mesures hôtes ne sont pas des gains de FPS sur iPhone. Le nouveau cœur vient de `5987bcfe9d9c3e5b746c09dfc5e8980b0af203d7`, construit par le run `40196952217`. La livraison finale porte le numéro 541 pour inclure également les correctifs MeloNX 540 intervenus entre-temps. Les candidats privés 539/540 sont intermédiaires ; les sources, runs et vérifications finaux sont consignés séparément dans les preuves CI.
+Le candidat corrige des défauts reproductibles du cache de pipelines Vulkan et réduit le coût des mises à jour des compteurs de réservation. Les mesures hôtes ne sont pas des gains de FPS sur iPhone. Le nouveau cœur vient de `5987bcfe9d9c3e5b746c09dfc5e8980b0af203d7`, construit par le run `40196952217`. La livraison finale porte le numéro 541 pour inclure également les correctifs MeloNX 540 intervenus entre-temps. Les candidats privés 539/540 sont intermédiaires. La livraison retenue utilise la source `f6f3288d9826eba95b1a5173aa7f23be1bcc83f9`, run `40197078352` ; ses vérifications finales sont consignées dans les preuves CI.
 
 La lecture de `rpcs3-cell534.md` et de ses quatre preuves précède cette analyse. 534 possédait déjà le montage ISO corrigé, les archives NeoSwap temporaires sans `fsync` et les compteurs shader synchrones. 536 avait déjà raccourci la détention des writers et déplacé la préparation STORE128 avant l'exclusion. 538 avait supprimé la seconde recherche SPU sur disque, conservé les identités de cache compatibles et ajouté les limites temporelles des compilations longues. Ces changements ne sont pas revendiqués comme nouveaux.
 
@@ -42,7 +42,9 @@ Des fenêtres lentes n'ont aucune compilation shader/JIT. Dans la fenêtre 9, la
 3. **Hachage ordonné et cohérent avec l'égalité.** Le XOR annulait deux attachements identiques et ignorait leur ordre. Un temporaire de mélange des couleurs était copié puis jamais haché : nombre d'attachements et opération logique pouvaient également être omis. `rsx_cache` utilise ce hash dans le nom de fichier : les collisions déterministes pouvaient remplacer une description persistée par une autre. Le nouveau mélange FNV ordonné inclut ces champs et les constantes, sans l'adresse `pAttachments`.
 4. **État d'échantillonnage correct.** L'égalité ignorait tous les champs multisample lorsque le nombre d'échantillons était un, alors que certains restent transmis au compilateur. Elle compare maintenant cet état ; le masque stocké mais non transmis pour un seul échantillon est omis à la fois de l'égalité et du hash. Les masques multisample effectifs restent distincts.
 
-Les enregistrements shader existants gardent leur disposition binaire et restent chargés par le lecteur actuel. Les futurs fichiers portent le nouveau hash ; aucun effacement global ni changement de version du cache n'est imposé. Les comparaisons complètes restent actives dans le cache mémoire : un hash n'est jamais utilisé comme preuve d'égalité. Cette correction élimine les collisions démontrées, pas toute collision mathématiquement possible d'un hash 64 bits. Les traces disponibles ne comptent pas les anciennes collisions par dessin : aucun gain de jeu ne leur est attribué quantitativement.
+Les enregistrements shader existants gardent leur disposition binaire et restent chargés par le lecteur actuel. Les futurs fichiers portent le nouveau hash ; aucun effacement global ni changement de version du cache n'est imposé. Une description déjà écrasée par une ancienne collision ne peut pas être récupérée rétroactivement ; elle sera recréée si le jeu redemande cet état. Les comparaisons complètes restent actives dans le cache mémoire : un hash n'est jamais utilisé comme preuve d'égalité. Cette correction élimine les collisions démontrées, pas toute collision mathématiquement possible d'un hash 64 bits. Les traces disponibles ne comptent pas les anciennes collisions par dessin : aucun gain de jeu ne leur est attribué quantitativement.
+
+Le callback de fin de compilation appelle encore directement `m_shaders_cache->store` puis `fs::pending_file::commit` pour le cache persistant. Ce travail peut retenir le thread qui compile ; les événements actuels ne quantifient pas séparément ce coût de publication disque. Il ne doit pas être confondu avec les archives NeoSwap temporaires modifiées en 534. Aucun coût chiffré ni gain d'un déplacement asynchrone ne lui est attribué dans ce bilan.
 
 Les modes asynchrones existants ne sont pas forcés. Async simple peut omettre temporairement des dessins ; l'interpréteur requiert une validation de rendu et de mémoire sur ce titre. Le parallélisme de préchauffage existant reste en place. Cette livraison réduit les constructions évitables ; elle ne prétend pas accélérer arbitrairement le compilateur Metal pour un pipeline inédit.
 
@@ -60,6 +62,34 @@ Le premier candidat ARM64 (`cd85227e`, conservé dans `rpcs3-cell539-writer-arm6
 
 Un second protocole garde les mêmes threads vivants et les deux inscriptions TLS déjà initialisées durant sept essais alternés, un million d'événements par thread et par essai. Il conserve toutes les durées et le parallélisme matériel annoncé. Le temps de création/jonction des threads est exclu ; la synchronisation de départ et l'ordonnancement hôte restent inclus. Sur Linux, médianes à 1/4/8 threads : **23,141 → 2,862 ms**, **101,169 → 9,967 ms**, **164,345 → 13,777 ms**. Les dispersions sont importantes et restent visibles dans la preuve brute. Les mesures du candidat ARM64 final sont publiées séparément ; un résultat hôte ne constitue toujours pas une mesure de jeu.
 
+### Mesure ARM64 finale, avant complément de temps CPU
+
+Le preflight du cœur `5987bcfe` (run `40196952217`, artefact `12600542076`, SHA-256 `97b3a9781cc18546462762ccdc679fca45142bb88701a7311191c529605d8850`) authentifie les 141 entrées de test/build, les 264 postimages, les résultats et l'assembleur. Les tests ASan/UBSan et les régressions graphiques passent. Le runner déclare trois processeurs matériels disponibles : quatre/huit producteurs dépassent ce parallélisme.
+
+| ARM64 optimisé, temps écoulé médian | Avant ms | Après ms | Variation |
+|---|---:|---:|---:|
+| Court, 250 000 événements, 1 thread | 0,884 | 0,670 | −24,2 % |
+| Court, 250 000 événements/thread, 8 threads | 3,294 | 2,245 | −31,9 % |
+| Persistant, 1 000 000 événements, 1 thread | 17,703 | 8,157 | −53,9 % |
+| Persistant, 1 000 000 événements/thread, 4 threads | 13,947 | 28,736 | +106,0 % |
+| Persistant, 1 000 000 événements/thread, 8 threads | 16,850 | 17,062 | +1,3 % |
+
+Tous les résultats, y compris les régressions, sont conservés dans `evidence/rpcs3-writer539-arm64.json`. Les durées de certains essais varient d'un ordre de grandeur sur ce runner ; **le protocole écoulé persistant ne démontre pas un gain uniforme**. Cela justifie le complément `test/rpcs3_writer539_cpu_test.py`, sans nouveau changement du cœur : mêmes en-têtes immuables, mêmes boucles, deux lectures `CLOCK_THREAD_CPUTIME_ID` autour de chaque million d'événements. La somme du temps CPU de tous les producteurs est rapportée séparément du temps écoulé, sans soustraire des quantiles ni sélectionner les seuls essais favorables. Cette mesure ne neutralise pas les variations de fréquence/cache et ne remplace pas un essai iPhone.
+
+L'assembleur ARM64 final (`616d9b3f…fb56`) confirme **un seul accès TLS** dans `writer_after`, contre deux auparavant. La fonction `initialize_slot` est hors du chemin déjà initialisé. Les incréments exclusifs utilisent `ldr/add/str` ; les `ldadd` restent dans la branche partagée et le maximum conserve son CAS. Les résultats des transformations ne reposent pas sur une désactivation de l'instrumentation.
+
+### Complément CPU ARM64 final
+
+Le run `40197219268`, source `6436ec7c`, exécute le complément sur les en-têtes immuables du cœur `5987bcfe` avec Apple Clang 17/Xcode 16.4. Artefact `12600018081`, SHA-256 `5aa679d8c8f148c2a2c3c6816dae3d3de22fad19589510240f2e90d3d00ba588`. Les entrées et le harness généré ont les mêmes empreintes que le test Linux ; seule la cible/chaîne native diffère. Le rapport complet est `evidence/rpcs3-writer539-cpu-arm64.json`.
+
+| Producteurs | Temps CPU total médian avant ms | Après ms | Variation |
+|---|---:|---:|---:|
+| 1 | 3,05187 | 2,24825 | −26,3 % |
+| 4 | 20,3694 | 12,6894 | −37,7 % |
+| 8 | 34,0481 | 24,0131 | −29,5 % |
+
+Chaque essai représente un million d'événements **par producteur**. Les 21 comparaisons appariées CPU (sept par cas) baissent, sans sélection d'échantillons. Les médianes écoulées du même run sont 6,591 → 6,619 ms à un thread, 19,588 → 12,627 ms à quatre, 123,022 → 65,259 ms à huit : elles illustrent l'écart entre temps CPU et attente d'ordonnancement sur ce runner à trois processeurs. La conclusion défendable est une **réduction de 26–38 % du coût CPU des mises à jour des compteurs dans ce microtest ARM64**. Elle ne couvre ni les horodatages des réservations, ni l'ensemble des calculs SPU, ni un gain de FPS/p95/p99. Les contre-exemples écoulés du premier protocole restent publiés ci-dessus.
+
 ## NeoSwap, JIT et instrumentation conservée
 
 Le fichier NeoSwap contient 534/PID28939, 535/PID29297, 536/PID29509 et 538/PID29935. Pour 538 il s'arrête à **12:38:58,016**, juste après la première restauration, avec 146 snapshots, aucun lot d'opérations gérées, ni warning conservé. Les warnings des processus anciens ne sont pas réattribués à cette session. `VDECIO528` conserve zéro préchargement, zéro lecture demandée et zéro attente de préchargement dans ce processus : aucune restauration vidéo NeoSwap bloquante n'y est démontrée. L'activité ultérieure des checkpoints, les pertes d'opérations gérées, les pages sales et l'effet iPhone de la suppression des `fsync` restent non mesurés. Les limites et politiques de préchargement/éviction existantes ne sont pas augmentées.
@@ -69,6 +99,8 @@ Les PPU chargent 40 modules en cache en 680,372 ms, puis 45 en 714,930 ms et 45 
 L'instrumentation reste interne, bornée et exportable. Le journal de performance indépendant conserve deux générations de 2 MiB, protégées des traces verbeuses de restauration ; la preuve Foundation 536 est réutilisée après vérification des sources identiques. Ce fichier courant/tourné n'est pas dans les quatre pièces jointes. Les 32 enregistrements shader lents et leur compteur de pertes restent inchangés. Aucun historique utile n'est effacé pour rendre les traces plus favorables.
 
 ## Validation et limites de livraison
+
+Le cœur iPhone final a compilé avec succès, run `40196952217`. Son SHA-256 est `5963684ba06581aa86692bc9eeff754f42d40b0b6671dce41d387ce510b10c84`. Les 88 exports, l'ABI 30 et l'analyse statique bornée du chargement passif sont validés ; ce contrôle n'est pas une exécution du cœur sur iPhone. Les preuves natives complètes figurent dans `evidence/rpcs3-cell539-native-ci.json`.
 
 Le delta canonique unique et ses 264 postimages sont rematérialisés depuis l'upstream épinglé. Le fixture réversible reproduit les quatre préimages exactes. Les tests exécutent le corps réel de recherche de pipeline, la validation Vulkan, le bloc dirty-state, le hash, l'égalité et les classes de compteurs ; les objets GPU/compilateurs des microtests sont des adaptateurs, pas un rendu Metal. Une séquence construite de 1 000 requêtes équivalentes passe de huit constructions à une ; les décodages d'état inchangé passent de 1 000 à un. Quatre familles de collisions déterministes sont reproduites puis éliminées ; 4 096 variantes de masque vérifient l'invariant égalité/hash. Les changements de shader/canaux, renderpass, masque nul et publication asynchrone restent distincts lorsqu'ils doivent l'être.
 

@@ -1,0 +1,14 @@
+{
+  "source": "5987bcfe9d9c3e5b746c09dfc5e8980b0af203d7",
+  "run": 40196952217,
+  "artifact": 12600542076,
+  "artifactSHA256": "97b3a9781cc18546462762ccdc679fca45142bb88701a7311191c529605d8850",
+  "counterSHA256": "9c3b1f4e94ae3249e298df84bf026931330f19d37452076cf709e29739666beb",
+  "assemblySHA256": "616d9b3f550f6d44139454670bbeb78db461ddb8137aef4a496a66b7a5d2fb56",
+  "hotTLSLookupsBefore": 2,
+  "hotTLSLookupsAfter": 1,
+  "coldRegistrationSeparated": true,
+  "sharedRMWAndMaxCASPreserved": true,
+  "method": "Actual clang macOS ARM64 wrapper assembly from input-bound preflight, not an iPhone timing or rendered-game proof. All counter test raw timings, including regressions, retained separately.",
+  "physicalDeviceTested": false
+}

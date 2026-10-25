@@ -1,0 +1,154 @@
+{
+  "source": "5987bcfe9d9c3e5b746c09dfc5e8980b0af203d7",
+  "run": 40196952217,
+  "conclusion": "success",
+  "coreArtifact": 12599993565,
+  "coreArchiveSHA256": "7226f4dfaab0133ad915a5ed15a19689df507a5b70f52333f76c6b910966774e",
+  "diagnosticsArtifact": 12599604900,
+  "diagnosticsSHA256": "407a3e349c0722bddbef90f92d4337df209cb9995f0345de492c1fdf36857fc4",
+  "coreSHA256": "5963684ba06581aa86692bc9eeff754f42d40b0b6671dce41d387ce510b10c84",
+  "patchSHA256": "6b21804220f4b4a5be5ef83c88843e2ae06587e1a1160222f8929a70ec7fa6ef",
+  "abi": 30,
+  "nativePostimages": 264,
+  "boundInputs": 141,
+  "tests": {
+    "cell539": {
+      "command": [
+        "python3",
+        "test/rpcs3_cell539_test.py",
+        "/Users/runner/work/_temp/cell539-source-preflight",
+        "--report",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/cell539-result.json"
+      ],
+      "returncode": 0,
+      "output_sha256": "b070f45172a5e523411b5ddbbae94f024e6043486dbbcf9ca1eec7016087acd9",
+      "report_sha256": "b070f45172a5e523411b5ddbbae94f024e6043486dbbcf9ca1eec7016087acd9",
+      "passed": true
+    },
+    "writer539": {
+      "command": [
+        "python3",
+        "test/rpcs3_writer539_test.py",
+        "/Users/runner/work/_temp/cell539-source-preflight",
+        "--report",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/writer539-result.json"
+      ],
+      "returncode": 0,
+      "output_sha256": "432edd026ee343431e44b2ff91676e35d698b277cfb6e581c5774cd3f1c87916",
+      "report_sha256": "432edd026ee343431e44b2ff91676e35d698b277cfb6e581c5774cd3f1c87916",
+      "passed": true
+    }
+  },
+  "codegen": {
+    "actual": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "unchangedFrom536": true,
+    "coldCompileRequiredByThisChange": false,
+    "physicalDeviceTested": false
+  },
+  "jobs": [
+    {
+      "id": 121179745523,
+      "name": "RPCS3 CELL539: graphics cache, writer counters and iPhone Core",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 40196952217,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Checkout immutable candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Select Xcode16.4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Restore pinned dependencies and exact compiler objects",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Authenticate538 and execute affected539 native cases",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Preserve native measurements before full Core compilation",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Compile actual iPhone Core from the verified source",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Verify actual Core, exact exports, passive loading and 539 identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Upload source-built539 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Preserve verified dependencies and compiler objects",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Upload diagnostic results including partial failures",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Post Checkout immutable candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23
+        }
+      ]
+    }
+  ],
+  "cpuSupplement": {
+    "source": "6436ec7c0f1212199bdc8b4878714ad67f9b6c95",
+    "run": 40197219268,
+    "artifact": 12600018081,
+    "archiveSHA256": "5aa679d8c8f148c2a2c3c6816dae3d3de22fad19589510240f2e90d3d00ba588",
+    "resultSHA256": "83026da4735365b428a94b4a01ac231e2e3900b9cf93e8c49e9c7fa85e57278b"
+  },
+  "scope": "Actual iPhone-target Core compilation,88 exports, static bounded passive-loading reachability check, input-bound native ARM64 host regressions and microtests. No device runtime or gameplay measurement.",
+  "physicalDeviceTested": false
+}

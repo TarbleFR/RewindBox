@@ -1,0 +1,183 @@
+{
+  "passed": true,
+  "coreSource": "5987bcfe9d9c3e5b746c09dfc5e8980b0af203d7",
+  "source": "6436ec7c0f1212199bdc8b4878714ad67f9b6c95",
+  "inputSHA256": {
+    "build-utils/rpcs3/canonical-source.json": "2042076d5aa7125cf32695bda3332dea5303f93bff9f3494c1bf7bd9ef96f6c5",
+    "test/fixtures/rpcs3_cell539.diff": "20cdda8503e809735b7d5eaf0919bc7c3f79ed77c8349e505d9517f5da068522",
+    "test/native/rpcs3_writer539.cpp": "9e1419b317b9fee6f3c5d1001cedc07929dd8910b2720ca305ba11e20cbcb579",
+    "test/rpcs3_writer539_cpu_test.py": "ce07301b5fa15238f059085d01012bef3a4294a150d5fcbef790f62af2a7be74",
+    ".github/workflows/rpcs3-writer539-cpu.yml": "c693e69c0f716489e56cf92e95cfe9afab1d7a183169e64aaa118ca8faedc577"
+  },
+  "counterSHA256": "9c3b1f4e94ae3249e298df84bf026931330f19d37452076cf709e29739666beb",
+  "beforeCounterSHA256": "8d45ea7c664c629bde484f1bd93ed10efe5c18798683e99cd4f48147c46a9548",
+  "generatedHarnessSHA256": "27b6189607e322c83257f6cc8a785a1ccdee544b2a66852026672fd5d2b49ad6",
+  "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)\nTarget: arm64-apple-darwin24.6.0\nThread model: posix\nInstalledDir: /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "platform": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "measurements": {
+    "accuracy": true,
+    "writers": 96,
+    "concurrentReaders": 2,
+    "retirementWaves": 128,
+    "bytesBefore": 16384,
+    "bytesAfter": 24192,
+    "benchmarks": [
+      {
+        "threads": 1,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 0.784833,
+        "afterMedianMs": 0.625875
+      },
+      {
+        "threads": 8,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 3.97858,
+        "afterMedianMs": 2.46496
+      }
+    ],
+    "hardwareConcurrency": 3,
+    "steadyState": [
+      {
+        "threads": 1,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          3.844,
+          6.62071,
+          8.96371,
+          14.2258,
+          6.59138,
+          4.35388,
+          4.33896
+        ],
+        "afterSamplesMs": [
+          6.96846,
+          7.42883,
+          6.58737,
+          5.50867,
+          6.61888,
+          4.38887,
+          7.03263
+        ],
+        "beforeCpuSamplesMs": [
+          3.01554,
+          3.05896,
+          3.04583,
+          3.02637,
+          3.07567,
+          3.16104,
+          3.05187
+        ],
+        "afterCpuSamplesMs": [
+          2.26179,
+          2.24825,
+          2.2645,
+          2.26529,
+          2.24538,
+          2.24817,
+          2.24796
+        ],
+        "beforeCpuMedianMs": 3.05187,
+        "afterCpuMedianMs": 2.24825,
+        "beforeMedianMs": 6.59138,
+        "afterMedianMs": 6.61888
+      },
+      {
+        "threads": 4,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          10.4269,
+          12.4202,
+          30.78,
+          90.7222,
+          100.917,
+          9.06608,
+          19.5882
+        ],
+        "afterSamplesMs": [
+          8.79529,
+          13.2239,
+          53.63,
+          55.8484,
+          12.6269,
+          8.57208,
+          8.79246
+        ],
+        "beforeCpuSamplesMs": [
+          22.9314,
+          19.2166,
+          18.2083,
+          28.003,
+          45.82,
+          20.3694,
+          19.4403
+        ],
+        "afterCpuSamplesMs": [
+          15.1819,
+          13.7793,
+          11.2075,
+          12.1216,
+          13.2269,
+          12.6894,
+          12.275
+        ],
+        "beforeCpuMedianMs": 20.3694,
+        "afterCpuMedianMs": 12.6894,
+        "beforeMedianMs": 19.5882,
+        "afterMedianMs": 12.6269
+      },
+      {
+        "threads": 8,
+        "eventsPerThreadPerTrial": 1000000,
+        "trials": 7,
+        "beforeSamplesMs": [
+          18.4045,
+          130.318,
+          249.971,
+          140.518,
+          123.022,
+          71.4011,
+          100.327
+        ],
+        "afterSamplesMs": [
+          37.967,
+          58.0728,
+          130.64,
+          65.259,
+          237.145,
+          77.6224,
+          45.6208
+        ],
+        "beforeCpuSamplesMs": [
+          44.6226,
+          33.6086,
+          30.9078,
+          34.0481,
+          32.9124,
+          42.5859,
+          38.5943
+        ],
+        "afterCpuSamplesMs": [
+          27.0368,
+          20.9758,
+          23.7997,
+          24.0131,
+          23.5431,
+          28.3588,
+          26.7992
+        ],
+        "beforeCpuMedianMs": 34.0481,
+        "afterCpuMedianMs": 24.0131,
+        "beforeMedianMs": 123.022,
+        "afterMedianMs": 65.259
+      }
+    ]
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Actual immutable before/after headers. Two CLOCK_THREAD_CPUTIME_ID calls per million-event worker loop, no timing in record. CPU samples sum all workers; wall windows still include scheduling. Original correctness/short benchmarks retained. CPU time does not measure gameplay or eliminate frequency/cache effects."
+}
