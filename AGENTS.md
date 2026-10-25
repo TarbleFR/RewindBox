@@ -3,6 +3,38 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## MeloNX close teardown and Persona review — 25 October 2026
+
+- Smash Bros. Ultimate (PID 30506, build ≥539) stopped its guest, then the
+  render worker's single GpuContext.Dispose failed in PhysicalMemory.Destroy →
+  TextureCache.Dispose with ObjectDisposedException(RegionHandle). BufferCache
+  had already been disposed: Destroy ran once; a listed texture had already
+  released its tracking handles. The session was quarantined, the 4 GiB donor
+  lease retained, and the plugin answered isSessionActive=true forever, so the
+  Flutter "closing" route never ended. Report:
+  `docs/melonx-fermeture-persona-2026-10-25.md`; evidence:
+  `docs/evidence/melonx-close-teardown-2026-10-25.json`.
+- `build-utils/melonx/adapt_gpu_lifetime.py`: never evict the texture being
+  added/lifted (MeloNX 2.6 loop regression), idempotent Texture/TextureGroup
+  disposal, tolerant TextureCache teardown with journal counters, one
+  PhysicalMemory destruction, ConcurrentQueue deferred actions (RewindBox stops
+  the guest while rendering), complete renderer release before reporting an
+  error. Unknown release errors still quarantine; do not weaken that rule.
+- The plugin records a post-run quarantine: isSessionActive=false,
+  isSessionQuarantined=true, relaunch → `quarantined`/requiresRestart. Dart
+  shows the 12-language explanation until acknowledged and keeps frontend
+  audio paused. MeloNXSessionHost.swift stays identical to `084fdb5d`.
+- Executed on Linux .NET 10.0.100 against the compiled pinned Gpu/Cpu/Memory
+  projects (GAL double only): control reproduces the device stack; fixed passes
+  7 scenarios (`test/melonx_gpu_teardown_test.py`, wired into melonx-core.yml).
+  Flutter close-status/audio/route/launch-flow tests pass on 3.47.2. No Swift,
+  NativeAOT, simulator, IPA or iPhone validation was run here.
+- Persona 4 Golden (010062B01525C000, v0): no error after the 530 host-import
+  fix in the supplied journals; its 10:59 `localGameRequired` is a stale
+  container path right after reinstall, not a regression. Persona 5 Royal black
+  regions remain unconfirmed: no P5R session ≥540 was supplied. Do not apply a
+  P5R hypothesis to P4G. No release, tag or main change.
+
 ## RPCS3 memory audit implementation — 23 October 2026
 
 The maintainer explicitly asked Codex to implement the attached ARM64/iOS audit.

@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'audio_policy_service.dart';
 import 'game_service.dart';
+import 'melonx_internal_service.dart';
 import 'music_player_service.dart';
 import 'sfx_service.dart';
 
@@ -51,6 +52,11 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
   bool _initializationFailed = false;
   bool _preserveNativeAudio = false;
 
+  /// Localization key explaining a native end that the user must read before
+  /// the closed route is removed (MeloNX quarantine: RewindBox must restart).
+  String? _closeFailureKey;
+  String? get closeFailureKey => _closeFailureKey;
+
   // A rapid new launch must wait until the previous audio handoff finishes;
   // otherwise its delayed activation can interrupt the new native core.
   Future<void>? _finalization;
@@ -89,6 +95,9 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Whether the session management dialog can be manually closed.
   bool get canDismiss {
+    if (_phase == GameLaunchPhase.closed && _closeFailureKey != null) {
+      return true;
+    }
     if (_phase != GameLaunchPhase.playing) return false;
     // In-process iOS runtimes keep receiving controller input while Flutter
     // remains alive behind their native window. Never let A/B/Enter leak into
@@ -110,6 +119,7 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     _isClosing = false;
     _initializationFailed = false;
     _preserveNativeAudio = false;
+    _closeFailureKey = null;
     _activeEmulatorExe = null;
     unawaited(_embeddedSessionSubscription?.cancel());
     _embeddedSessionSubscription = null;
@@ -144,6 +154,12 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Handles an explicit user request to dismiss the session dialog.
   void userDismiss() {
+    if (_phase == GameLaunchPhase.closed && _closeFailureKey != null) {
+      _log.i('[GameLaunchManager] Native session failure acknowledged.');
+      _closeFailureKey = null;
+      notifyListeners();
+      return;
+    }
     if (!canDismiss) {
       _log.d(
         '[GameLaunchManager] userDismiss ignored — canDismiss=$_canDismiss phase=$_phase',
@@ -224,13 +240,14 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     _phase = null;
     _canDismiss = false;
     _isClosing = false;
+    _closeFailureKey = null;
     _activeEmulatorExe = null;
     _sfxWasEnabled = true;
     _resumedBeforeMonitoring = false;
     notifyListeners();
     _log.i(
       _preserveNativeAudio
-          ? '[GameLaunchManager] Failed native initialization quarantined; frontend audio remains paused.'
+          ? '[GameLaunchManager] Native session quarantined; frontend audio remains paused.'
           : '[GameLaunchManager] Session finalized — music resumed, SFX re-enabled '
                 'at ${DateTime.now().toUtc().toIso8601String()}.',
     );
@@ -288,6 +305,21 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     _startDesktopPolling(emulatorExe);
   }
 
+  /// MeloNX can return from a run while keeping native resources rooted until
+  /// RewindBox restarts. The game has ended: close its route, but hold it on
+  /// that explanation and keep frontend audio paused, as for a quarantined
+  /// initialization.
+  Future<void> _recordNativeQuarantine(String? emulatorExe) async {
+    if (emulatorExe != 'ios_melonx_internal') return;
+    if (!await MelonxInternalService.refreshSessionQuarantine()) return;
+    _preserveNativeAudio = true;
+    _closeFailureKey = 'quarantined';
+    _log.w(
+      '[GameLaunchManager] MeloNX ended with retained native resources; '
+      'RewindBox must restart before another Switch session.',
+    );
+  }
+
   /// Periodically polls the OS process list on desktop platforms to detect emulator exit.
   void _startDesktopPolling(String? emulatorExe) {
     Future.delayed(const Duration(seconds: 2), () {
@@ -303,6 +335,8 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
           final running = await GameService.isEmulatorRunning(emulatorExe);
           if (!running) {
             timer.cancel();
+            await _recordNativeQuarantine(emulatorExe);
+            if (_phase != GameLaunchPhase.playing) return;
             _triggerClose();
           }
         } catch (e) {

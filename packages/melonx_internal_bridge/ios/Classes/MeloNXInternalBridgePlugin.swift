@@ -19,6 +19,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     private var cancelling = false
     private var libraryMutation = false
     private var libraryRestartRequired = false
+    // A run that returned while its host stayed rooted (quarantined until process
+    // exit). The game ended; native resources and relaunch refusal remain.
+    private var sessionQuarantined = false
     private var contentProgress: (() -> Int32)?
     private var contentCancellation: (() -> Void)?
     private var launchReply: FlutterResult?
@@ -120,7 +123,10 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         case "cancelJit":
             guard host?.isSessionActive != true else { result(false); return }
             MeloNXJitAbortTransaction(); result(true)
-        case "isSessionActive": result(starting || host?.isSessionActive == true)
+        // The presented game. A quarantined run has ended and must not keep the
+        // frontend's closing route waiting forever; it still blocks relaunch.
+        case "isSessionActive": result(starting || (host?.isSessionActive == true && !sessionQuarantined))
+        case "isSessionQuarantined": result(sessionQuarantined)
         case "stop":
             if starting, sessionView == nil {
                 if !cancelling {
@@ -173,6 +179,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         guard access["allowed"] as? Bool == true else { MeloNXLaunchJournal.record("entitlements","failed",detail:"Required entitlements are absent from this signed process."); result(["success":false,"error":"memoryEntitlements","stage":"entitlements","access":access]); return }
         MeloNXLaunchJournal.record("entitlements", "passed")
         guard !libraryRestartRequired else { result(["success":false,"error":"libraryRestartRequired"]); return }
+        guard !sessionQuarantined else {
+            result(["success":false,"error":"quarantined","errorCode":"quarantined","stage":"close","sessionActive":true,"requiresRestart":true]); return
+        }
         guard !libraryMutation, !starting, host?.isSessionActive != true else { result(["success":false,"error":"busy"]); return }
         guard let path = arguments["gamePath"] as? String, path.hasPrefix("/"),
               FileManager.default.isReadableFile(atPath:path),
@@ -289,6 +298,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                                 if self.host?.isSessionActive != true { self.host = nil; self.restoreAudio() }
                                 if case .failure(let error) = outcome { self.lastFailure = error.description }
                                 self.diagnosticsTimer?.cancel(); self.diagnosticsTimer = nil
+                                // The completion runs after the native run returned. A host still
+                                // active now is retained, not presented: end the frontend route.
+                                if self.host?.isSessionActive == true { self.sessionQuarantined = true }
                                 MeloNXLaunchJournal.record("close",self.host?.isSessionActive == true ? "quarantined" : "passed")
                                 _ = self.replaceToken()
                             }

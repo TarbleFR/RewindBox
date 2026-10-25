@@ -56,6 +56,22 @@ abstract final class MelonxInternalService {
     });
   }
 
+  /// A run can return while its native resources stay retained until RewindBox
+  /// restarts (failed or unproven teardown). The game has ended, but no other
+  /// Switch session may start. Unknown answers never clear a known quarantine.
+  static Future<bool> refreshSessionQuarantine() async {
+    try {
+      if (await channel.invokeMethod<Object?>('isSessionQuarantined') == true) {
+        nativeQuarantined = true;
+      }
+    } on PlatformException {
+      // Keep the current state.
+    } on MissingPluginException {
+      // Keep the current state.
+    }
+    return nativeQuarantined;
+  }
+
   /// Holds the native launch gate while files used by the engine are changed.
   /// Unknown/native-error states fail closed, including a pending JIT launch.
   static Future<T> editLibrary<T>(Future<T> Function() operation) async {

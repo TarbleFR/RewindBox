@@ -59,6 +59,13 @@ def main():
             assert found and found.group(1).strip(), (path, key)
             translations[path.stem][key] = found.group(1)
     fr = translations['app_locale_fr']
+    failures = (ROOT / 'lib/l10n/melonx_launch_failure_locale.dart').read_text()
+    quarantine = {}
+    for language in ('en', 'fr'):
+        block = failures[failures.index('"' + language + '": {'):]
+        found = re.search(r'"quarantined":\s*"([^"\n]+)"', block)
+        assert found, language
+        quarantine[language] = found.group(1)
     localization = '''
 abstract final class AppLocale {
   static const launchingGame = 'launchingGame';
@@ -67,6 +74,10 @@ abstract final class AppLocale {
 }
 extension TestLocale on String {
   String getString(BuildContext context) => ''' + json.dumps(fr, ensure_ascii=False) + '''[this]!;
+}
+abstract final class MelonxLaunchFailureLocale {
+  static String text(Locale locale, String key) =>
+      {'quarantined': ''' + json.dumps(quarantine, ensure_ascii=False) + '''[locale.languageCode]!}[key]!;
 }
 '''
     source = (ROOT / DIALOG).read_text()
@@ -111,6 +122,8 @@ void main() {
     MusicPlayerService().playing = true;
     MusicPlayerService().wasPlaying = false;
     MusicPlayerService().failResume = false;
+    GameService.running = true;
+    MelonxInternalService.quarantined = false;
     await manager.beginSession();
   }
   Future<void> exercise(WidgetTester tester, String exe, {bool baseline = false,
@@ -184,6 +197,70 @@ void main() {
     GameService.cleanup = null;
     debugPrint('RETURN_CASE $exe baseline=$baseline desktop=$desktop passed');
   }
+  // Smash, 25 October 2026: MeloNX returned from its run but kept its native
+  // resources quarantined. Build 541 answered isSessionActive=true for that
+  // retained host forever, so the closing route never ended. The corrected
+  // bridge answers false and reports the quarantine for acknowledgement.
+  Future<void> quarantinedMeloNX(WidgetTester tester, {required bool fixedNative}) async {
+    debugPrint('QUARANTINE_CASE fixedNative=$fixedNative begin');
+    await prepare(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    int closed = 0;
+    await tester.pumpWidget(MaterialApp(navigatorKey: navigator,
+      home: const Scaffold(body: Text('library'))));
+    navigator.currentState!.push(PageRouteBuilder<void>(
+      transitionDuration: Duration.zero, reverseTransitionDuration: Duration.zero,
+      pageBuilder: (_, __, ___) => ReturnDialog(baseline: false,
+        onGameClosed: () { closed++; })));
+    await tester.pump();
+    manager.onGameStarted(emulatorExe: 'ios_melonx_internal');
+    await tester.pump();
+    final context = tester.element(find.byType(ReturnDialog));
+    final quarantined = MelonxLaunchFailureLocale.text(Localizations.localeOf(context), 'quarantined');
+    MelonxInternalService.quarantined = true;
+    GameService.running = !fixedNative;
+    for (var second = 0; second < 60; second++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    if (!fixedNative) {
+      // Negative control: the route stays on "closing" indefinitely.
+      expect(manager.phase, GameLaunchPhase.playing);
+      expect(find.text(AppLocale.closingGame.getString(context)), findsOneWidget);
+      expect(GameService.cleanupCalls, 0);
+      manager._triggerClose();
+      GameService.cleanup!.complete();
+      await tester.pumpAndSettle();
+      await flush();
+      expect(manager.phase, isNull);
+      await tester.pumpWidget(const SizedBox());
+      debugPrint('QUARANTINE_CASE fixedNative=$fixedNative reproduced');
+      return;
+    }
+    expect(GameService.cleanupCalls, 1);
+    GameService.cleanup!.complete();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 5));
+    // Recoverable failure: the explanation replaces the endless spinner text.
+    expect(manager.phase, GameLaunchPhase.closed);
+    expect(find.text(quarantined), findsOneWidget);
+    expect(find.text(AppLocale.closingGame.getString(context)), findsNothing);
+    expect(closed, 0);
+    expect(manager.canDismiss, isTrue);
+    manager.userDismiss();
+    await tester.pumpAndSettle();
+    await flush();
+    expect(find.byType(ReturnDialog), findsNothing);
+    expect(find.text('library'), findsOneWidget);
+    expect(closed, 1);
+    expect(manager.phase, isNull);
+    // As for a quarantined initialization, frontend audio stays paused until
+    // RewindBox restarts and the native audio owner is released.
+    expect(MusicPlayerService().playing, isFalse);
+    expect(AudioPolicyService().active, isFalse);
+    await tester.pumpWidget(const SizedBox());
+    GameService.cleanup = null;
+    debugPrint('QUARANTINE_CASE fixedNative=$fixedNative passed');
+  }
 '''
     # The production manager is a singleton and retains its completed audio
     # finalization Future. Keep sequential returns in ONE FakeAsync zone,
@@ -192,7 +269,9 @@ void main() {
     for exe in executables:
         code += f"await exercise(tester, '{exe}', baseline: true);\n"
         code += f"await exercise(tester, '{exe}');\n"
-    code += "await exercise(tester, 'retroarch', desktop: true);\n}, timeout: const Timeout(Duration(minutes: 2)));\n}\n"
+    code += "await exercise(tester, 'retroarch', desktop: true);\n"
+    code += "await quarantinedMeloNX(tester, fixedNative: false);\n"
+    code += "await quarantinedMeloNX(tester, fixedNative: true);\n}, timeout: const Timeout(Duration(minutes: 2)));\n}\n"
     with tempfile.TemporaryDirectory(prefix='neostation-close-status-') as directory:
         work = Path(directory)
         (work / 'test').mkdir()
@@ -214,6 +293,7 @@ dev_dependencies:
               'baselineReproductions': len(executables),
               'correctedReturnCases': len(executables),
               'desktopCases': 1, 'locales': translations,
+              'quarantineEndlessClosingReproduced': True, 'quarantineAcknowledgedCases': 1,
               'cleanupBeforeNativeEnd': False, 'physicalDeviceValidated': False}
     output = ROOT / 'build/close-status/verdict.json'
     output.parent.mkdir(parents=True, exist_ok=True)

@@ -35,7 +35,12 @@ class GameService {
   static void clearOnProcessExitCallback() {}
   static void setOnGameReturnedCallback(void Function(Object?) cb) {}
   static void setOnProcessExitCallback(void Function() cb) {}
-  static Future<bool> isEmulatorRunning(String? exe) async => true;
+  static bool running = true;
+  static Future<bool> isEmulatorRunning(String? exe) async => running;
+}
+class MelonxInternalService {
+  static bool quarantined = false;
+  static Future<bool> refreshSessionQuarantine() async => quarantined;
 }
 class Armsx2InternalBridge {
   static final controller = StreamController<Map<String, dynamic>>.broadcast();

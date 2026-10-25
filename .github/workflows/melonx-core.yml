@@ -20,6 +20,9 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_pipeline.py
     - test/melonx_pipeline_failure_test.py
     - test/melonx_pipeline/**
+    - build-utils/melonx/adapt_gpu_lifetime.py
+    - test/melonx_gpu_teardown_test.py
+    - test/melonx_gpu_teardown/**
     - build-utils/melonx/adapt_audio.py
     - build-utils/melonx/adapt_apple_audio.py
     - test/melonx_apple_audio_test.py
@@ -133,6 +136,8 @@ jobs:
       run: python3 test/melonx_apple_audio_test.py .native-sources/MeloNX
     - name: Exercise speculative pipeline recovery and preserve fatal GPU errors
       run: python3 test/melonx_pipeline_failure_test.py .native-sources/MeloNX
+    - name: Execute compiled GPU texture teardown ownership and deferred-release concurrency
+      run: python3 test/melonx_gpu_teardown_test.py .native-sources/MeloNX
     - name: Retain effective graphics journal regression proof
       run: |
         python3 - <<'PY'
@@ -186,6 +191,7 @@ jobs:
         evidence=json.loads((root/'embedded-inputs.json').read_text())
         assert 'build-utils/melonx/adapt_audio.py' in evidence
         assert 'build-utils/melonx/adapt_pipeline.py' in evidence
+        assert 'build-utils/melonx/adapt_gpu_lifetime.py' in evidence
         with zipfile.ZipFile(source) as z:
           shaders=z.read('src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs').decode('utf-8-sig')
           assert 'catch (VulkanException e) when (e.ResultCode is not' in shaders
@@ -197,6 +203,12 @@ jobs:
           assert 'Apple AVAudioEngine; rate:' in apple
           library=z.read('src/Ryujinx.Library/Library.cs').decode('utf-8-sig')
           assert 'new AppleHardwareDeviceDriver(),' in library
+          cache=z.read('src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs').decode('utf-8-sig')
+          assert 'if (_textures.First.Value == protectedTexture)' in cache and 'EnforceCapacity();' not in cache
+          context=z.read('src/Ryujinx.Graphics.Gpu/GpuContext.cs').decode('utf-8-sig')
+          assert 'internal ConcurrentQueue<Action> DeferredActions { get; }' in context
+          physical=z.read('src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs').decode('utf-8-sig')
+          assert 'Interlocked.Exchange(ref _disposeRequested, 1) == 0' in physical
         print('PASS actual Apple backend buffering and retained SDL3 correction in compiled source')
         PY
     - uses: actions/download-artifact@v4
