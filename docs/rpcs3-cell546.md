@@ -118,3 +118,28 @@ Même jeu, même scène, même sauvegarde, appareil refroidi, puis exporter
 4. **Session longue (> 30 min)** : p95/p99 par fenêtre, `host.available_min_bytes`,
    `lost.rotations`.
 5. **Restauration** : durée `vm_begin` → `finalize_run_end` (jalons) avant/après.
+
+## 6. Livraison privée 546
+
+IPA cumulative : hôte 542 validé, correctif MeloNX de fermeture (544), Core
+RPCS3 546 et ses quatre fichiers hôte. Aucune release, aucun tag, aucune fusion
+vers `main`.
+
+- Core : source `343649293c`, run 40230183096 (journaliseur Foundation, tests
+  natifs 546, compilation, exports, chargement passif, identités inchangées).
+  Delta canonique SHA-256 `5e07bf2f…a24d1`.
+- IPA : source `6c6c6241`, run 40231210331. Le journaliseur modifié a été
+  réexécuté par la livraison (536 : 545 → −6, 546 → 0 ; 546 : contrôle 545 → −6,
+  546 → 0) et lié au validateur `validate_rpcs3_546_ipa.py`.
+- Fichier remis : `RewindBox-Build546.ipa`, version 0.0.8 (546), iOS 18
+  minimum, **186 395 032 octets**, SHA-256
+  `4ae646904b20b0ff76d6d6667ec3df77622b248d20d7a602ef9bbf249e942742`, égal à
+  `SHA256SUMS` et à `signed-payload-identity.json` ; 87 signatures. Artefact
+  chiffré `12613457207` pour `build-utils/delivery-546-recipient.pem` (clé
+  privée hors Git), conservé jusqu'au 8 novembre 2026. Déchiffré et revérifié :
+  marqueurs du Core et du pont (`RPCS3-restore-trace.log`, `RPCS3-timeline.log`,
+  `LOG_BUDGET`, `LOG_ROTATION`) ; `validate_rpcs3_diag487_ipa.py` rejoué
+  localement.
+- S'installe par-dessus la 545 (même identifiant, numéro supérieur), après
+  re-signature SideStore. Aucune validation sur iPhone. Ne pas réutiliser le
+  numéro 546. Preuve : `docs/evidence/rpcs3-cell546-delivery.json`.

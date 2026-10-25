@@ -3,6 +3,26 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 546: build 541 logs, JIT object writes, bounded diagnostics — 25 October 2026
+
+- The maintainer sent build 541 logs (Bladestorm BLES00113, Dragon Ball Z HD
+  Collection BLES01658; no God of War III Core lines survived). Analysis, facts
+  versus hypotheses and the iPhone protocol: `docs/rpcs3-cell546.md`.
+- Core `343649293c` (run 40230183096), record `cell546`: zip() writes PPU/SPU
+  LLVM objects with zlib level 1 on iOS (3.58 s for one 6.66 MB object at
+  level 9; 4.4x faster on ARM64 code, +7 % bytes; caches stay valid); restore
+  trace only on a thread that began a restore. Codegen identities unchanged.
+- Host: bounded `RPCS3-restore-trace.log` (no fsync), milestone rotation
+  instead of truncation, `RPCS3-timeline.log` (one row per Core window,
+  2 MiB + .1), `LOG_BUDGET dropped=`, explicit GameDB publication log.
+- Private IPA **0.0.8 (546)** from `6c6c6241`, run 40231210331: 186,395,032
+  bytes, SHA-256 `4ae64690…942742`, encrypted artifact 12613457207 for
+  `build-utils/delivery-546-recipient.pem`; decrypted, re-validated and
+  delivered. Evidence: `docs/evidence/rpcs3-cell546-delivery.json`. No iPhone
+  validation yet. **Do not reuse 546.** The next RPCS3 IPA (Core cell 547:
+  fence wait, SPU compile pressure) is **547**; **548** is reserved for the
+  Liquid Glass interface candidate (`docs/liquid-glass-ui.md`).
+
 ## RPCS3 545: public ARMSX3 22528 fixes — 25 October 2026
 
 - The maintainer sent the ARMSX3 22528-eef0dc9c notes and chose "port the
