@@ -547,6 +547,23 @@ static BOOL RPCS3Build487AdmitBoundedLine(const char* message) {
   return mutexLines.fetch_add(1, std::memory_order_relaxed) < 64;
 }
 
+// CELL546: per-constructor and per-file restore steps (up to 512 + 256 lines
+// per restore) go to RPCS3-restore-trace.log. As milestones they cost ~0.17 ms
+// each (fsync on the restore thread) and their 512 KiB filled the milestone
+// file, whose truncation erased every earlier process in build 541. Restore
+// phases, limits and errors remain milestones.
+static BOOL RPCS3RestoreTraceDetail(const char* message) {
+  return strstr(message, "SAVESTATE_RESTORE phase=fxo_type_begin ") != nullptr ||
+      strstr(message, "SAVESTATE_RESTORE phase=fxo_type_end ") != nullptr ||
+      strstr(message, "SAVESTATE_RESTORE phase=fs_stage ") != nullptr;
+}
+
+// CELL546: lines refused by the per-second budget are counted and reported
+// with the first line of the next budget window instead of vanishing.
+static void RPCS3ReportDroppedLines(uint32_t dropped) {
+  RPCS3Diagnostic(@"core_log", [NSString stringWithFormat:@"LOG_BUDGET dropped=%u limit_per_s=128", dropped]);
+}
+
 // Milestones are bounded files: complete freeze snapshots fit within 66 KiB;
 // legacy begin summaries use 512 bytes and ordinary records use 1 KiB.
 static NSString* RPCS3Build487MilestoneText(const char* message) {
@@ -585,6 +602,9 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
     RPCS3Milestone(@"boot_policy", [NSString stringWithUTF8String:message] ?: @"");
   } else if (strstr(message, "Applied iOS God of War III") != nullptr) {
     RPCS3Milestone(@"gow3_mlaa_bypass", [NSString stringWithUTF8String:message] ?: @"");
+  } else if (RPCS3RestoreTraceDetail(message)) {
+    RPCS3RestoreTrace(RPCS3Build487MilestoneText(message));
+    return;
   } else if (const char* stage = RPCS3Build487MilestoneStage(message)) {
     // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: boot facts of the audit (D3, D4,
     // D5, D6, D8, D10) survive the 2 MiB diagnostic rotation as milestones.
@@ -623,17 +643,24 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
   static os_unfair_lock budgetLock = OS_UNFAIR_LOCK_INIT;
   static CFTimeInterval budgetWindow = 0;
   static uint32_t budgetCount = 0;
+  static uint32_t budgetDropped = 0;
   if (!profiler) {
     const CFTimeInterval now = CACurrentMediaTime();
     BOOL allowed = YES;
+    uint32_t dropped = 0;
     os_unfair_lock_lock(&budgetLock);
     if (budgetWindow == 0 || now - budgetWindow >= 1.0) {
       budgetWindow = now;
       budgetCount = 0;
+      dropped = budgetDropped;
+      budgetDropped = 0;
     }
-    if (budgetCount >= 128) allowed = NO;
-    else budgetCount++;
+    if (budgetCount >= 128) {
+      allowed = NO;
+      ++budgetDropped;
+    } else budgetCount++;
     os_unfair_lock_unlock(&budgetLock);
+    if (dropped) RPCS3ReportDroppedLines(dropped);
     if (!allowed) return;
   }
 

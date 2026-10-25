@@ -287,7 +287,7 @@ abstract final class Rpcs3GameProfileService {
   /// the background. Launch never waits on the network.
   static Future<void> publishDetectedProfilesIfReady() async {
     if (_detectedSerials.isEmpty) return;
-    await _publishDetected();
+    await _publishDetected(coreReady: false);
     unawaited(_refreshAndRepublish());
   }
 
@@ -295,9 +295,12 @@ abstract final class Rpcs3GameProfileService {
   /// initialized the Core and completed JIT handoff. No network refresh is
   /// started here; earlier publication may have found the Core still unloaded.
   static Future<void> publishDetectedProfilesForReadyRuntime() =>
-      _publishDetected();
+      _publishDetected(coreReady: true);
 
-  static Future<void> _publishDetected() async {
+  // Build 541 logs showed only "unavailable" lines: the library scan publishes
+  // before the Core is loaded (expected, retried after startup) and the later
+  // successful publication logged nothing. Both outcomes are now explicit.
+  static Future<void> _publishDetected({required bool coreReady}) async {
     try {
       final profiles = await Future.wait(_detectedSerials.map(resolveProfile));
       final managed = profiles
@@ -308,10 +311,18 @@ abstract final class Rpcs3GameProfileService {
       final report = await Rpcs3InternalBridge.updateConfigDatabase(
         _databasePayload(managed),
       );
-      if (report['success'] != true) {
+      final serials = managed.map((profile) => profile.serial).join(',');
+      if (report['success'] == true) {
         _log.i(
-          'RPCS3 GameDB publication unavailable: '
-          '${report['message'] ?? 'Core not ready'}',
+          'RPCS3 GameDB published: ${managed.length} profile(s) [$serials].',
+        );
+      } else {
+        final message = '${report['message'] ?? 'Core not ready'}';
+        final deferred = !coreReady && message.contains('must be initialized');
+        _log.i(
+          deferred
+              ? 'RPCS3 GameDB publication deferred until Core startup: $message'
+              : 'RPCS3 GameDB publication failed: $message',
         );
       }
     } catch (error) {
@@ -321,7 +332,7 @@ abstract final class Rpcs3GameProfileService {
 
   static Future<void> _refreshAndRepublish() async {
     if (await Rpcs3GameProfileDatabase.refreshIfStale()) {
-      await _publishDetected();
+      await _publishDetected(coreReady: false);
     }
   }
 }

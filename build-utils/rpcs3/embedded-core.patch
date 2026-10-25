@@ -3292,6 +3292,28 @@ index beae025..42b77a1 100644
  	}
  };
  
+diff --git a/rpcs3/Crypto/unzip.cpp b/rpcs3/Crypto/unzip.cpp
+index 6485e4d..0057235 100644
+--- a/rpcs3/Crypto/unzip.cpp
++++ b/rpcs3/Crypto/unzip.cpp
+@@ -141,7 +141,16 @@ bool zip(const void* src, usz size, fs::file& out, bool multi_thread_it)
+ 
+ 	utils::serial compressor;
+ 	compressor.set_expect_little_data(!multi_thread_it || size < 0x40'0000);
+-	compressor.m_file_handler = make_compressed_serialization_file_handler(out);
++	auto handler = make_compressed_serialization_file_handler(out);
++#ifdef RPCS3_IOS
++	// REWINDBOX_JIT_OBJECT_DEFLATE_LEVEL_V1: zip() stores the PPU/SPU LLVM
++	// objects on the compiling thread. Level 9 cost 3.58 s for one 6.66 MB PPU
++	// object on an iPhone (build 541), inside a 6.93 s code generation; level 1
++	// is 3.3x-9.5x faster on ARM64 code for 8-9% more bytes. The gzip stream
++	// stays readable by every Core, so no cache is invalidated.
++	handler->set_deflate_level(Z_BEST_SPEED);
++#endif
++	compressor.m_file_handler = std::move(handler);
+ 
+ 	std::string_view buffer_view{static_cast<const char*>(src), size};
+ 
 diff --git a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp b/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
 index 322dcff..12aa8d6 100644
 --- a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
@@ -21222,7 +21244,7 @@ index 1f53c64..d1270e1 100644
  	{
  		// Reset boot path in case of ISO
 diff --git a/rpcs3/Emu/savestate_utils.cpp b/rpcs3/Emu/savestate_utils.cpp
-index f43643d..d18da52 100644
+index f43643d..b6ca2d7 100644
 --- a/rpcs3/Emu/savestate_utils.cpp
 +++ b/rpcs3/Emu/savestate_utils.cpp
 @@ -1,4 +1,7 @@
@@ -21254,16 +21276,16 @@ index f43643d..d18da52 100644
  			{
 -				if (game_boot_result error = Emu.BootGame(savestate_path, "", true); error != game_boot_result::no_errors)
 +				if (!rpcs3::ios::defer_savestate_restore([savestate_path]()
-+				{
+ 				{
+-					Emu.SetContinuousMode(false);
+-					sys_log.error("Failed to boot savestate \'%s\' using the Reload shortcut. (error: %s)", savestate_path, error);
 +					if (game_boot_result error = Emu.BootGame(savestate_path, "", true); error != game_boot_result::no_errors)
 +					{
 +						Emu.SetContinuousMode(false);
 +						sys_log.error("Failed to boot savestate \'%s\' using the Reload shortcut. (error: %s)", savestate_path, error);
 +					}
 +				}, restore_generation))
- 				{
--					Emu.SetContinuousMode(false);
--					sys_log.error("Failed to boot savestate \'%s\' using the Reload shortcut. (error: %s)", savestate_path, error);
++				{
 +					sys_log.error("SAVESTATE_RESTORE phase=worker_admission_failed");
  				}
  			};
@@ -21302,7 +21324,7 @@ index f43643d..d18da52 100644
  bool load_and_check_reserved(utils::serial& ar, usz size)
  {
  	u8 bytes[4096];
-@@ -602,6 +643,57 @@ bool load_and_check_reserved(utils::serial& ar, usz size)
+@@ -602,6 +643,61 @@ bool load_and_check_reserved(utils::serial& ar, usz size)
  
  namespace stx
  {
@@ -21324,7 +21346,11 @@ index f43643d..d18da52 100644
 +	}
 +	extern void serial_restore_trace(utils::serial& ar, std::string_view name, bool begin) noexcept
 +	{
-+		if (ar.is_writing()) return;
++		// REWINDBOX_RESTORE_TRACE_SCOPE_V1: only a thread that began a restore
++		// traces. A fresh boot builds id_map<lv2_memory_container> from a 4-byte
++		// in-memory archive; build 541 logged it as a restore whose elapsed_us
++		// was the device uptime.
++		if (ar.is_writing() || !s_restore_trace.started_us) return;
 +		const u32 event = ++s_restore_trace.events;
 +		if (event > 512)
 +		{
@@ -21343,7 +21369,7 @@ index f43643d..d18da52 100644
 +	// This budget is independent of the enclosing FXO constructor trace.
 +	extern void serial_restore_fs_trace(utils::serial& ar, std::string_view stage, u32 id, u32 type, u64 value) noexcept
 +	{
-+		if (ar.is_writing()) return;
++		if (ar.is_writing() || !s_restore_trace.started_us) return;
 +		const u32 event = ++s_restore_trace.fs_events;
 +		if (event > 256)
 +		{
@@ -21360,7 +21386,7 @@ index f43643d..d18da52 100644
  	extern u16 serial_breathe_and_tag(utils::serial& ar, std::string_view name, bool tag_bit)
  	{
  		thread_local std::string_view s_tls_object_name = "none";
-@@ -706,6 +798,11 @@ bool hle_locks_t::try_finalize(std::function<bool()> test)
+@@ -706,6 +802,11 @@ bool hle_locks_t::try_finalize(std::function<bool()> test)
  	{
  		// Failed
  		ensure(lock_val.compare_and_swap_test(waiting_for_evaluation, 0));
@@ -35660,7 +35686,7 @@ index da54981..b0e3f84 100644
  
  		// Allow for memory saving operations: if writing, flush to file if too large. If reading, discard memory (not implemented).
 diff --git a/rpcs3/util/serialization_ext.cpp b/rpcs3/util/serialization_ext.cpp
-index cd3dfab..e6901e4 100644
+index cd3dfab..288b9a6 100644
 --- a/rpcs3/util/serialization_ext.cpp
 +++ b/rpcs3/util/serialization_ext.cpp
 @@ -14,6 +14,7 @@
@@ -35671,7 +35697,17 @@ index cd3dfab..e6901e4 100644
  
  LOG_CHANNEL(sys_log, "SYS");
  
-@@ -783,13 +784,8 @@ usz compressed_serialization_file_handler::get_size(const utils::serial& ar, usz
+@@ -213,7 +214,8 @@ void compressed_serialization_file_handler::initialize(utils::serial& ar)
+ 		}
+ 
+ 		m_zs = {};
+-		ensure(deflateInit2(&m_zs, ar.expect_little_data() ? 9 : 8, Z_DEFLATED, 16 + 15, 9, Z_DEFAULT_STRATEGY) == Z_OK);
++		const int level = m_deflate_level >= 0 ? m_deflate_level : (ar.expect_little_data() ? 9 : 8);
++		ensure(deflateInit2(&m_zs, level, Z_DEFLATED, 16 + 15, 9, Z_DEFAULT_STRATEGY) == Z_OK);
+ #ifndef _MSC_VER
+ #pragma GCC diagnostic pop
+ #endif
+@@ -783,13 +785,8 @@ usz compressed_serialization_file_handler::get_size(const utils::serial& ar, usz
  	return std::max<usz>(utils::mul_saturate<usz>(m_file->size(), 6), memory_available);
  }
  
@@ -35687,7 +35723,7 @@ index cd3dfab..e6901e4 100644
  
  void compressed_zstd_serialization_file_handler::initialize(utils::serial& ar)
  {
-@@ -815,6 +811,8 @@ void compressed_zstd_serialization_file_handler::initialize(utils::serial& ar)
+@@ -815,6 +812,8 @@ void compressed_zstd_serialization_file_handler::initialize(utils::serial& ar)
  
  		m_compression_threads.clear();
  		m_file_writer_thread.reset();
@@ -35696,7 +35732,7 @@ index cd3dfab..e6901e4 100644
  
  		// Make sure at least one thread is free. iOS also bounds the transient
  		// input/output working set on unified memory.
-@@ -851,9 +849,8 @@ void compressed_zstd_serialization_file_handler::initialize(utils::serial& ar)
+@@ -851,9 +850,8 @@ void compressed_zstd_serialization_file_handler::initialize(utils::serial& ar)
  
  		auto& m_zd = m_stream->m_zd;
  		m_zd = ZSTD_createDCtx();
@@ -35708,7 +35744,7 @@ index cd3dfab..e6901e4 100644
  	}
  }
  
-@@ -865,7 +862,12 @@ bool compressed_zstd_serialization_file_handler::handle_file_op(utils::serial& a
+@@ -865,7 +863,12 @@ bool compressed_zstd_serialization_file_handler::handle_file_op(utils::serial& a
  
  		if (m_errored)
  		{
@@ -35722,7 +35758,7 @@ index cd3dfab..e6901e4 100644
  		}
  
  		if (data)
-@@ -1044,8 +1046,6 @@ usz compressed_zstd_serialization_file_handler::read_at(utils::serial& ar, usz r
+@@ -1044,8 +1047,6 @@ usz compressed_zstd_serialization_file_handler::read_at(utils::serial& ar, usz r
  
  		for (bool is_first = true; read_size < total_to_read && avail_in; is_first = false)
  		{
@@ -35731,7 +35767,7 @@ index cd3dfab..e6901e4 100644
  			ZSTD_outBuffer outs{next_out, avail_out, 0};
  
  			// Try to extract previously held data first
-@@ -1055,11 +1055,10 @@ usz compressed_zstd_serialization_file_handler::read_at(utils::serial& ar, usz r
+@@ -1055,11 +1056,10 @@ usz compressed_zstd_serialization_file_handler::read_at(utils::serial& ar, usz r
  
  			if (ZSTD_isError(res))
  			{
@@ -35747,7 +35783,7 @@ index cd3dfab..e6901e4 100644
  			}
  
  			read_size += outs.pos;
-@@ -1069,11 +1068,6 @@ usz compressed_zstd_serialization_file_handler::read_at(utils::serial& ar, usz r
+@@ -1069,11 +1069,6 @@ usz compressed_zstd_serialization_file_handler::read_at(utils::serial& ar, usz r
  			avail_in -= ins.pos;
  
  			m_stream_data_index = next_in - m_stream_data.data();
@@ -35759,7 +35795,7 @@ index cd3dfab..e6901e4 100644
  		}
  
  		if (read_size >= total_to_read)
-@@ -1126,22 +1120,14 @@ void compressed_zstd_serialization_file_handler::skip_until(utils::serial& ar)
+@@ -1126,22 +1121,14 @@ void compressed_zstd_serialization_file_handler::skip_until(utils::serial& ar)
  
  void compressed_zstd_serialization_file_handler::finalize(utils::serial& ar)
  {
@@ -35785,7 +35821,7 @@ index cd3dfab..e6901e4 100644
  
  	const stx::shared_ptr<std::vector<u8>> empty_data = stx::make_single<std::vector<u8>>();
  	const stx::shared_ptr<std::vector<u8>> null_ptr = stx::null_ptr;
-@@ -1221,6 +1207,11 @@ void compressed_zstd_serialization_file_handler::finalize(utils::serial& ar)
+@@ -1221,6 +1208,11 @@ void compressed_zstd_serialization_file_handler::finalize(utils::serial& ar)
  	ar.data = {}; // Deallocate and clear
  
  	m_file->sync();
@@ -35797,7 +35833,7 @@ index cd3dfab..e6901e4 100644
  }
  
  void compressed_zstd_serialization_file_handler::stream_data_prepare_thread_op(usz thread_index)
-@@ -1249,17 +1240,25 @@ void compressed_zstd_serialization_file_handler::stream_data_prepare_thread_op(u
+@@ -1249,17 +1241,25 @@ void compressed_zstd_serialization_file_handler::stream_data_prepare_thread_op(u
  			break;
  		}
  
@@ -35832,7 +35868,7 @@ index cd3dfab..e6901e4 100644
  
  		const stx::shared_ptr<std::vector<u8>> data_ptr = make_single<std::vector<u8>>(std::move(stream_data));
  
-@@ -1296,7 +1295,11 @@ void compressed_zstd_serialization_file_handler::file_writer_thread_op()
+@@ -1296,7 +1296,11 @@ void compressed_zstd_serialization_file_handler::file_writer_thread_op()
  			break;
  		}
  
@@ -35845,6 +35881,32 @@ index cd3dfab..e6901e4 100644
  	}
  }
  
+diff --git a/rpcs3/util/serialization_ext.hpp b/rpcs3/util/serialization_ext.hpp
+index 5bdeab0..0ed624b 100644
+--- a/rpcs3/util/serialization_ext.hpp
++++ b/rpcs3/util/serialization_ext.hpp
+@@ -89,6 +89,13 @@ struct compressed_serialization_file_handler : utils::serialization_file_handler
+ 
+ 	void finalize(utils::serial& ar) override;
+ 
++	// REWINDBOX_JIT_OBJECT_DEFLATE_LEVEL_V1: zlib level for the next write
++	// stream; negative keeps the upstream choice (9 for little data, else 8).
++	void set_deflate_level(int level) noexcept
++	{
++		m_deflate_level = level;
++	}
++
+ private:
+ 	const std::unique_ptr<fs::file> m_file_storage;
+ 	const std::add_pointer_t<const fs::file> m_file;
+@@ -100,6 +107,7 @@ private:
+ 	bool m_write_inited = false;
+ 	bool m_read_inited = false;
+ 	bool m_errored = false;
++	int m_deflate_level = -1;
+ 	std::shared_ptr<compressed_stream_data> m_stream;
+ 	std::unique_ptr<named_thread<std::function<void()>>> m_stream_data_prepare_thread;
+ 	std::unique_ptr<named_thread<std::function<void()>>> m_file_writer_thread;
 diff --git a/rpcs3/util/simd.hpp b/rpcs3/util/simd.hpp
 index e5de73d..117bd36 100644
 --- a/rpcs3/util/simd.hpp
