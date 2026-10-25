@@ -1,0 +1,38 @@
+{
+  "result": "passed",
+  "tests": [
+    "test/melonx_import_completion_test.dart",
+    "test/melonx_presentation_widgets_test.dart",
+    "test/melonx_library_files_test.dart",
+    "test/melonx_transfer_test.dart"
+  ],
+  "negativeControl": "old post-import scan reopens unrelated ROM files",
+  "retainedSuites": {
+    "source": "6ddf9d7c8d33de468dae75cdc210073990620f3d",
+    "run": 40184536490,
+    "job": 121142416733,
+    "tests": [
+      "test/melonx_presentation_widgets_test.dart",
+      "test/melonx_library_files_test.dart",
+      "test/melonx_transfer_test.dart"
+    ],
+    "passedTests": 39
+  },
+  "source": "35ed01854848d51a0b3f0b0f1c40a29960ad3331",
+  "run": "40184947714",
+  "inputs": {
+    "lib/l10n/melonx_transfer_locale.dart": "902c2a27f78bb860901fed002752445b61d14d0f463fff096f2e3f4e7bb41d41",
+    "lib/services/melonx_embedded_library_service.dart": "04cdd53a21755557557f57fa9a8496284596d48b7f3e834fd015832fcd52d202",
+    "lib/services/melonx_import_progress.dart": "a0dbe7066ae75e4aff769cad642d3c3991ca01329867d8f41b7606794a2fc427",
+    "lib/services/melonx_internal_service.dart": "79857a87680f458e0e95c34186e1af9137cf194d7a25be9e15cf85f0c7459f5a",
+    "lib/widgets/melonx_internal_playlist_actions.dart": "837d37b8c47ed35328dfe3a93eaa380e1881221c668be276c96cd207a567dc19",
+    "lib/widgets/melonx_transfer_dialog.dart": "c50ba7c9637ebbcacac067dbe1bd826d9058b33f43a57487bcb35d203544802a",
+    "test/melonx_import_completion_test.dart": "35d8b184bbd2edc5af389d2b3b0b0b8e961034fe0af4e917aaf8f7c88de56586",
+    "test/melonx_import_completion_test.py": "8f3345bcb38b9bb85e94491c8ef955d0f3c7cc36c8019cd95783fa05b91921ad",
+    "test/melonx_library_files_test.dart": "8d01c66add4b9f8707aadf3db54c297cb0669ba31744288811117788ef8b4e4a",
+    "test/melonx_presentation_widgets_test.dart": "9345817dcb5b6dfc57607027d42567360ca06cb96437696fe1525083fa0312f0",
+    "test/melonx_transfer_test.dart": "f5bd47a316bb79527b52698dae1760b15b01de751852643a55e8f594d54fdaa0"
+  },
+  "physicalDeviceTested": false,
+  "nativeContentInspectionMocked": true
+}
