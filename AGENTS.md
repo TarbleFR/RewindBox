@@ -18,8 +18,9 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   bytes, SHA-256 `09030d12…d9e4e6`, encrypted artifact 12614695376 for
   `build-utils/delivery-547-recipient.pem`; decrypted, re-validated, delivered.
   Evidence: `docs/evidence/rpcs3-cell547-delivery.json`. No iPhone validation
-  yet. **Do not reuse 547.** 548 is the Liquid Glass interface; the next RPCS3
-  IPA is **549** or later.
+  yet. **Do not reuse 547.** 548 is the Liquid Glass interface, built on the 546
+  tree: it carries the RPCS3 546 Core, not 547, so installing 548 over 547 drops
+  the 547 Core changes. A build combining both needs a new number (549+).
 
 ## RPCS3 546: build 541 logs, JIT object writes, bounded diagnostics — 25 October 2026
 
