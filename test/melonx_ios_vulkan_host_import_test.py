@@ -22,8 +22,8 @@ class HostImportFallbackTest(unittest.TestCase):
             file.parent.mkdir(parents=True, exist_ok=True)
         self.initialization.write_text(
             'using System;\nusing System.Linq;\n'
-            'var enabledExtensions = _requiredExtensions.Union(_desirableExtensions.Intersect(physicalDevice.DeviceExtensions)).ToArray();\n'
-            .replace('var enabledExtensions', '            var enabledExtensions')
+            'string[] enabledExtensions = _requiredExtensions.Union(_desirableExtensions.Intersect(physicalDevice.DeviceExtensions)).ToArray();\n'
+            .replace('string[] enabledExtensions', '            string[] enabledExtensions')
         )
         self.renderer.write_text(
             '            new HardwareCapabilities(\n'
