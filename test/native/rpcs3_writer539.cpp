@@ -88,6 +88,39 @@ template<class C> double bench(unsigned threads) {
  uint64_t count=0;for(auto s:counters.drain())count+=s.count;assert(count==uint64_t{threads}*(iterations+1));
  return elapsed;
 }
+// Reuse live workers and both warmed TLS registrations across all rounds.
+// Timed windows exclude thread construction/join and first-use registration.
+// Retain every sample because oversubscribed hosts can have scheduler noise.
+void steady_bench(unsigned threads) {
+ before::WriterCounters old;after::WriterCounters current;
+ constexpr unsigned iterations=1000000,trials=7;
+ std::barrier start(threads+1),finish(threads+1);
+ std::vector<std::thread> workers;
+ std::array<double,trials> a{},b{};
+ for(unsigned t=0;t<threads;++t)workers.emplace_back([&,t] {
+  old.record(t%5,3,2);current.record(t%5,3,2);
+  for(unsigned trial=0;trial<trials;++trial)for(unsigned pass=0;pass<2;++pass){
+   start.arrive_and_wait();
+   const bool updated=(trial&1)?pass==0:pass==1;
+   if(updated){for(unsigned i=0;i<iterations;++i)current.record(t%5,3+(i&7),1+(i&3));}
+   else{for(unsigned i=0;i<iterations;++i)old.record(t%5,3+(i&7),1+(i&3));}
+   finish.arrive_and_wait();
+  }
+ });
+ for(unsigned trial=0;trial<trials;++trial)for(unsigned pass=0;pass<2;++pass){
+  const bool updated=(trial&1)?pass==0:pass==1;
+  const auto begin=std::chrono::steady_clock::now();start.arrive_and_wait();finish.arrive_and_wait();
+  (updated?b:a)[trial]=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-begin).count();
+ }
+ for(auto& w:workers)w.join();
+ uint64_t ca=0,cb=0;for(auto v:old.drain())ca+=v.count;for(auto v:current.drain())cb+=v.count;
+ assert(ca==uint64_t{threads}*(trials*iterations+1)&&ca==cb);
+ std::cout<<"{\"threads\":"<<threads<<",\"eventsPerThreadPerTrial\":"<<iterations<<",\"trials\":"<<trials;
+ auto print=[](const char* label,const auto& values){std::cout<<",\""<<label<<"\":[";for(unsigned i=0;i<values.size();++i){if(i)std::cout<<',';std::cout<<values[i];}std::cout<<']';};
+ print("beforeSamplesMs",a);print("afterSamplesMs",b);
+ std::sort(a.begin(),a.end());std::sort(b.begin(),b.end());
+ std::cout<<",\"beforeMedianMs\":"<<a[trials/2]<<",\"afterMedianMs\":"<<b[trials/2]<<'}';
+}
 int main() {
  using Before=before::WriterCounters;using After=after::WriterCounters;
  accuracy<Before>();accuracy<After>();late_tls_cleanup<Before>();late_tls_cleanup<After>();
@@ -99,5 +132,7 @@ int main() {
   if(threads!=1)std::cout<<',';
   std::cout<<"{\"threads\":"<<threads<<",\"eventsPerThread\":250000,\"trials\":5,\"beforeMedianMs\":"<<a[2]<<",\"afterMedianMs\":"<<b[2]<<'}';
  }
+ std::cout<<"],\"hardwareConcurrency\":"<<std::thread::hardware_concurrency()<<",\"steadyState\":[";
+ for(unsigned threads:{1u,4u,8u}){if(threads!=1)std::cout<<',';steady_bench(threads);}
  std::cout<<"]}\n";
 }

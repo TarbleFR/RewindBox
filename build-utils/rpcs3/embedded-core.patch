@@ -27912,10 +27912,10 @@ index 74abaa0..b00e894 100644
  game_settings_preset_result enumerate_game_settings_presets(
 diff --git a/rpcs3/ios/RPCS3IOSWriterCounters.h b/rpcs3/ios/RPCS3IOSWriterCounters.h
 new file mode 100644
-index 0000000..ad612a8
+index 0000000..f54ef27
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSWriterCounters.h
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,95 @@
 +// SPDX-License-Identifier: MIT
 +#pragma once
 +#include <array>
@@ -27975,9 +27975,10 @@ index 0000000..ad612a8
 + inline static constinit std::atomic<uint64_t> occupied_{0};
 + // A late TLS destructor may still record after our lease is retired. Keep
 + // the trivial index alive and route such calls through the shared RMW slot.
-+ inline static thread_local constinit uint32_t slot_index_=shard_count-1;
++ inline static thread_local constinit uint32_t slot_index_=shard_count;
 + struct ThreadLease {
 +  ThreadLease() noexcept {
++   slot_index_=shard_count-1;
 +   constexpr uint64_t exclusive_mask=(uint64_t{1}<<(shard_count-1))-1;
 +   auto used=occupied_.load(std::memory_order_relaxed);
 +   while(const auto available=~used&exclusive_mask){
@@ -27993,9 +27994,16 @@ index 0000000..ad612a8
 +  }
 +  ThreadLease(const ThreadLease&)=delete;
 + };
-+ static uint32_t thread_slot() noexcept {
++ // Keep registration/destructor setup off the per-event path. Darwin TLS
++ // access itself needs a call; the initialized path reads only this one index,
++ // without a second TLS guard lookup. Retired/overflow threads keep index63.
++ [[gnu::noinline]] static uint32_t initialize_slot() noexcept {
 +  static thread_local const ThreadLease lease;
 +  return slot_index_;
++ }
++ static uint32_t thread_slot() noexcept {
++  const auto index=slot_index_;
++  return index<shard_count?index:initialize_slot();
 + }
 + std::array<Shard,shard_count> shards_{};
 + struct Cursor {uint64_t count=0,acquire=0,hold=0;};

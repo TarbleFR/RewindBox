@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "sanitized": {
+    "accuracy": true,
+    "writers": 96,
+    "concurrentReaders": 2,
+    "retirementWaves": 128,
+    "bytesBefore": 16384,
+    "bytesAfter": 24192,
+    "benchmarks": [
+      {
+        "threads": 1,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 2.63212,
+        "afterMedianMs": 4.36142
+      },
+      {
+        "threads": 8,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 12.1705,
+        "afterMedianMs": 13.0321
+      }
+    ]
+  },
+  "optimized": {
+    "accuracy": true,
+    "writers": 96,
+    "concurrentReaders": 2,
+    "retirementWaves": 128,
+    "bytesBefore": 16384,
+    "bytesAfter": 24192,
+    "benchmarks": [
+      {
+        "threads": 1,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 2.29496,
+        "afterMedianMs": 1.02325
+      },
+      {
+        "threads": 8,
+        "eventsPerThread": 250000,
+        "trials": 5,
+        "beforeMedianMs": 3.14113,
+        "afterMedianMs": 3.66842
+      }
+    ]
+  },
+  "assemblySHA256": "603b4f436d06b46c8179561aaff1b56fa7a8d50a13951d3ab1382acca3ee7cd9",
+  "counterSourceSHA256": "dcef02fec49363763b99d8e849ffc89842f84efbbba683fb7483bbd001727fcf",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Actual header, 96 live writers and two reporters, exact aggregate counts/times/maxima, slot retirement, object recreation and unsigned wrap. Alternating five-trial host microbenchmark, not guest reservation or iPhone frame time."
+}

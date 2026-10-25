@@ -66,6 +66,16 @@ jobs:
           LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
           LLVM_DIR="$(brew --prefix llvm@22)/lib/cmake/llvm" \
             python3 .github/diagnostics/rpcs3cell539_core.py --source "$SOURCE"
+      - name: Preserve native measurements before full Core compilation
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-preflight-${{ github.sha }}
+          path: |
+            build/rpcs3-core-diagnostics/*-result.json
+            build/rpcs3-core-diagnostics/*-result.s
+            build/rpcs3-core-diagnostics/cell539-proof.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Compile actual iPhone Core from the verified source
         shell: bash
         env:
