@@ -16679,10 +16679,20 @@ index a604696..819de43 100644
  			ensure(single_target_pass != VK_NULL_HANDLE);
  
 diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
-index 20a4250..dd6ed94 100644
+index 20a4250..d8d8c8d 100644
 --- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
-@@ -14,32 +14,6 @@ namespace vk
+@@ -7,6 +7,9 @@
+ #include "vkutils/sampler.h"
+ 
+ #include "../Program/SPIRVCommon.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSShaderTiming.h"
++#endif
+ 
+ namespace vk
+ {
+@@ -14,32 +17,6 @@ namespace vk
  	{
  		using namespace ::glsl;
  
@@ -16715,7 +16725,7 @@ index 20a4250..dd6ed94 100644
  		bool operator == (const descriptor_slot_t& a, const std::span<const VkDescriptorImageInfoEx>& b)
  		{
  			const auto ptr = std::get_if<descriptor_image_array_t>(&a);
-@@ -100,11 +74,60 @@ namespace vk
+@@ -100,11 +77,62 @@ namespace vk
  		void shader::create(::glsl::program_domain domain, const std::string& source)
  		{
  			type     = domain;
@@ -16738,6 +16748,7 @@ index 20a4250..dd6ed94 100644
 +            const auto result = neostation::storage_client::compile(
 +                m_storage_ticket, m_compiled,
 +                [&](std::vector<u32>& binary) {
++                    rpcs3::ios::shader_timing::Scope timing(rpcs3::ios::shader_timing::Stage::source);
 +                    return spirv::compile_glsl_to_spv(binary, m_source, type, ::glsl::glsl_rules_vulkan);
 +                },
 +                [&](const uint32_t* words, size_t bytes) {
@@ -16745,6 +16756,7 @@ index 20a4250..dd6ed94 100644
 +                    info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 +                    info.pCode = words;
 +                    info.codeSize = bytes;
++                    rpcs3::ios::shader_timing::Scope timing(rpcs3::ios::shader_timing::Stage::module);
 +                    native_result = vkCreateShaderModule(*g_render_device, &info, nullptr, &m_handle);
 +                    if (native_result == VK_SUCCESS && m_handle)
 +                        return neostation::storage_client::ModuleResult::ok;
@@ -16776,7 +16788,7 @@ index 20a4250..dd6ed94 100644
  			ensure(m_handle == VK_NULL_HANDLE);
  
  			if (!spirv::compile_glsl_to_spv(m_compiled, m_source, type, ::glsl::glsl_rules_vulkan))
-@@ -123,10 +146,14 @@ namespace vk
+@@ -123,10 +151,14 @@ namespace vk
  			vkCreateShaderModule(*g_render_device, &vs_info, nullptr, &m_handle);
  
  			return m_handle;
@@ -16791,7 +16803,7 @@ index 20a4250..dd6ed94 100644
  			m_source.clear();
  			m_compiled.clear();
  
-@@ -137,13 +164,39 @@ namespace vk
+@@ -137,13 +169,40 @@ namespace vk
  			}
  		}
  
@@ -16825,6 +16837,7 @@ index 20a4250..dd6ed94 100644
 +            {
 +                std::vector<u32> regenerated;
 +                auto source = get_source();
++                rpcs3::ios::shader_timing::Scope timing(rpcs3::ios::shader_timing::Stage::debug_source);
 +                ensure(spirv::compile_glsl_to_spv(regenerated, source, type, ::glsl::glsl_rules_vulkan));
 +                return regenerated;
 +            }
@@ -16832,7 +16845,26 @@ index 20a4250..dd6ed94 100644
  			return m_compiled;
  		}
  
-@@ -320,36 +373,6 @@ namespace vk
+@@ -274,12 +333,18 @@ namespace vk
+ 			{
+ 				VkGraphicsPipelineCreateInfo create_info = *p_graphics_info;
+ 				create_info.layout = m_pipeline_layout;
++#ifdef RPCS3_IOS
++                rpcs3::ios::shader_timing::Scope timing(rpcs3::ios::shader_timing::Stage::graphics);
++#endif
+ 				CHECK_RESULT(vkCreateGraphicsPipelines(m_device, pipeline_cache, 1, &create_info, nullptr, &m_pipeline));
+ 			}
+ 			else
+ 			{
+ 				VkComputePipelineCreateInfo create_info = *p_compute_info;
+ 				create_info.layout = m_pipeline_layout;
++#ifdef RPCS3_IOS
++                rpcs3::ios::shader_timing::Scope timing(rpcs3::ios::shader_timing::Stage::compute);
++#endif
+ 				CHECK_RESULT(vkCreateComputePipelines(m_device, pipeline_cache, 1, &create_info, nullptr, &m_pipeline));
+ 			}
+ 
+@@ -320,36 +385,6 @@ namespace vk
  			return { umax, umax };
  		}
  
@@ -18814,7 +18846,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..78f6c86 100644
+index 1f53c64..d1270e1 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -18991,7 +19023,22 @@ index 1f53c64..78f6c86 100644
  				m_path = iso_device::virtual_device_name + "/" + argv[0];
  
  				resolve_path_as_vfs_path = false;
-@@ -1680,6 +1754,17 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1671,6 +1745,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 		{
+ 			m_dir = "/dev_bdvd/PS3_GAME/";
+ 			m_cat = "DG"sv;
++#ifdef RPCS3_IOS
++			// REWINDBOX_ISO_MOUNT534: disc_info/m_path_real identify the host
++			// archive; disc is a directory used by the final VFS mounts below.
++			// A title-ID savestate puts the ISO filename in disc during lookup.
++			// Never overwrite load_iso's virtual mount with <disc.iso>/PS3_GAME.
++			if (!disc.empty()) disc = iso_device::virtual_device_name + "/";
++			sys_log.notice("SAVESTATE_MOUNT534 source=iso directory=virtual_archive title=%s restore=%u", m_title_id, m_ar ? 1u : 0u);
++#endif
+ 		}
+ 
+ 		const std::string elf_dir = fs::get_parent_dir(m_path);
+@@ -1680,6 +1762,17 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  		// Load PARAM.SFO (TODO)
  		{
@@ -19009,7 +19056,7 @@ index 1f53c64..78f6c86 100644
  			if (fs::is_dir(m_path))
  			{
  				// Special case (directory scan)
-@@ -1733,6 +1818,16 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1733,6 +1826,16 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			// This one setting is global-only. Custom title files are complete cfg
  			// snapshots, so preserve config.yml's value before applying one.
  			const auto ios_global_persistent_spu_cache = g_cfg.ios_experimental.persistent_spu_object_cache.get();
@@ -19026,7 +19073,7 @@ index 1f53c64..78f6c86 100644
  #endif
  
  			if (m_config_mode == cfg_mode::database_config || m_config_mode == cfg_mode::custom)
-@@ -1762,6 +1857,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1762,6 +1865,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					if (g_cfg.from_string(cfg_file.to_string()))
  					{
  						g_cfg.name = m_config_path;
@@ -19037,7 +19084,7 @@ index 1f53c64..78f6c86 100644
  					}
  					else
  					{
-@@ -1793,6 +1892,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1793,6 +1900,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  						if (g_cfg.from_string(cfg_file.to_string()))
  						{
@@ -19047,7 +19094,7 @@ index 1f53c64..78f6c86 100644
  							g_cfg.name = config_path;
  							m_config_path = config_path;
  
-@@ -1818,6 +1920,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1818,6 +1928,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				if (g_cfg.from_string(*m_db_config))
  				{
  					g_cfg.name = "database_config";
@@ -19057,7 +19104,7 @@ index 1f53c64..78f6c86 100644
  				}
  				else
  				{
-@@ -1825,6 +1930,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1825,6 +1938,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
@@ -19085,7 +19132,7 @@ index 1f53c64..78f6c86 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +1973,67 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +1981,67 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -19153,7 +19200,7 @@ index 1f53c64..78f6c86 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2691,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2699,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -19168,7 +19215,7 @@ index 1f53c64..78f6c86 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2707,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2715,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -19178,7 +19225,7 @@ index 1f53c64..78f6c86 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2783,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2791,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -19193,7 +19240,7 @@ index 1f53c64..78f6c86 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +2913,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +2921,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -19222,7 +19269,7 @@ index 1f53c64..78f6c86 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2943,6 +3167,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3175,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -19233,7 +19280,7 @@ index 1f53c64..78f6c86 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2990,6 +3218,10 @@ void Emulator::FinalizeRunRequest()
+@@ -2990,6 +3226,10 @@ void Emulator::FinalizeRunRequest()
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
  
@@ -19244,7 +19291,7 @@ index 1f53c64..78f6c86 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3711,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3719,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -19257,7 +19304,7 @@ index 1f53c64..78f6c86 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3731,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3739,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -19280,7 +19327,7 @@ index 1f53c64..78f6c86 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3787,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3795,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -19288,7 +19335,7 @@ index 1f53c64..78f6c86 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3798,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3806,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -19296,7 +19343,7 @@ index 1f53c64..78f6c86 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3808,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3816,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -19304,7 +19351,7 @@ index 1f53c64..78f6c86 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +3896,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +3904,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -19315,7 +19362,7 @@ index 1f53c64..78f6c86 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +3962,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +3970,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -19324,7 +19371,7 @@ index 1f53c64..78f6c86 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4076,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4084,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -19339,7 +19386,7 @@ index 1f53c64..78f6c86 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4111,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4119,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -19347,7 +19394,7 @@ index 1f53c64..78f6c86 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4229,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4237,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -19361,7 +19408,7 @@ index 1f53c64..78f6c86 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4284,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4292,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -19374,7 +19421,7 @@ index 1f53c64..78f6c86 100644
  			});
  
  			// Join it
-@@ -4075,10 +4354,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4362,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -19394,7 +19441,7 @@ index 1f53c64..78f6c86 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4308,10 +4596,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4604,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -21163,6 +21210,49 @@ index 0000000..433344e
 +    ProcessMemorySample latest{}, peak{};
 +    std::uint64_t samples = 0;
 +};
++}
+diff --git a/rpcs3/ios/IOSShaderTiming.h b/rpcs3/ios/IOSShaderTiming.h
+new file mode 100644
+index 0000000..b0a06a6
+--- /dev/null
++++ b/rpcs3/ios/IOSShaderTiming.h
+@@ -0,0 +1,37 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "IOSRuntimeMetrics.h"
++#include <chrono>
++
++namespace rpcs3::ios::shader_timing
++{
++// Measure the actual Vulkan/compiler entry points: the legacy synchronous
++// path does not visit the asynchronous pipeline worker's existing counters.
++// Fixed process-wide storage, no allocation, no logs and no emulation choices.
++enum class Stage : std::size_t { source, module, graphics, compute, debug_source, count };
++inline std::array<diagnostics::EventCost, static_cast<std::size_t>(Stage::count)> costs{};
++
++class Scope final
++{
++    using Clock = std::chrono::steady_clock;
++    Stage stage_;
++    Clock::time_point begin_ = Clock::now();
++public:
++    explicit Scope(Stage stage) noexcept : stage_(stage) {}
++    Scope(const Scope&) = delete;
++    Scope& operator=(const Scope&) = delete;
++    ~Scope() noexcept
++    {
++        const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - begin_).count();
++        costs[static_cast<std::size_t>(stage_)].record(static_cast<std::uint64_t>(std::max<std::int64_t>(elapsed, 0)));
++    }
++};
++
++inline auto take() noexcept
++{
++    std::array<diagnostics::EventCost::Sample, costs.size()> result{};
++    for (std::size_t i = 0; i < result.size(); ++i) result[i] = costs[i].take();
++    return result;
++}
 +}
 diff --git a/rpcs3/ios/IOSTextureHash.cpp b/rpcs3/ios/IOSTextureHash.cpp
 index 4d7a339..cb021bc 100644
@@ -25334,10 +25424,10 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..19ae3a4 100644
+index d800542..0da5904 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,175 @@
+@@ -1,26 +1,176 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -25353,6 +25443,7 @@ index d800542..19ae3a4 100644
 +#include "Utilities/JITMemoryProfile.h"
 +#include "IOSCompileAdmission.h"
 +#include "IOSRuntimeMetrics.h"
++#include "IOSShaderTiming.h"
 +#include "Utilities/JITPublicationQueue.h"
  
  #include "util/cpu_stats.hpp"
@@ -25513,7 +25604,7 @@ index d800542..19ae3a4 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +187,387 @@ u64 process_memory_footprint()
+@@ -38,31 +188,387 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -25911,7 +26002,7 @@ index d800542..19ae3a4 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +577,10 @@ public:
+@@ -72,10 +578,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -25924,7 +26015,7 @@ index d800542..19ae3a4 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +613,526 @@ public:
+@@ -108,12 +614,540 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -26141,6 +26232,20 @@ index d800542..19ae3a4 100644
 +                frame_prefetch_wait_max_us.load(), frame_prefetch_payload_bytes.load(), frame_prefetch_peak_bytes.load());
 +        }
 +        // Queue time is asynchronous job residence, not a proved RSX stall.
++        {
++            const auto shader = rpcs3::ios::shader_timing::take();
++            ios_core_profiler.notice(
++                "COREPROF SHADERCOST534 session=%llu window=%llu tuple=count:total_us:max_us "
++                "source=%llu:%llu:%llu module=%llu:%llu:%llu graphics=%llu:%llu:%llu "
++                "compute=%llu:%llu:%llu debug_source=%llu:%llu:%llu "
++                "scope=process_window sync_and_async=1 overlaps_pipeline_callback=1 window_boundary_approximate=1",
++                profile_session, profile_window,
++                shader[0].count, shader[0].total, shader[0].maximum,
++                shader[1].count, shader[1].total, shader[1].maximum,
++                shader[2].count, shader[2].total, shader[2].maximum,
++                shader[3].count, shader[3].total, shader[3].maximum,
++                shader[4].count, shader[4].total, shader[4].maximum);
++        }
 +        // Fence scope excludes wait_flush(); range scope is one whole episode;
 +        // semaphore measures guest semaphore polling; admission is host-budget wait.
 +        ios_core_profiler.notice(
@@ -26453,7 +26558,7 @@ index d800542..19ae3a4 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1140,91 @@ private:
+@@ -121,6 +1155,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -26545,7 +26650,7 @@ index d800542..19ae3a4 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1232,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1247,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -26633,7 +26738,7 @@ index d800542..19ae3a4 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1323,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1338,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -26762,7 +26867,7 @@ index d800542..19ae3a4 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1454,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1469,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

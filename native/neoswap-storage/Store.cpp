@@ -245,11 +245,17 @@ struct Store::Impl {
         uint64_t offset=0;const uint64_t span=aligned(sizeof(head)+payload->size());int err=allocate_extent(span,offset);
         const bool reserved=!err;
         if(!err){err=transfer(&head,sizeof(head),offset,true);if(!err)err=transfer(payload->data(),payload->size(),offset+sizeof(head),true);}
-        if(!err){
+        if(!err && config.sync_writes){
+            const auto sync_begin=Clock::now();
 #ifdef NEOSWAP_STORAGE_TESTING
             if(hit(Fault::sync_error))err=EIO;else
 #endif
             {int ret;do{ret=::fsync(fd);}while(ret<0&&errno==EINTR);if(ret<0)err=errno;}
+            const auto elapsed=us(sync_begin);
+            std::lock_guard t(tm);++stats.sync_calls;stats.sync_us+=elapsed;
+            stats.sync_max_us=std::max(stats.sync_max_us,elapsed);
+        }else if(!err){
+            std::lock_guard t(tm);++stats.sync_skipped;
         }
         struct stat st{};const bool stat_ok=::fstat(fd,&st)==0;
         {std::lock_guard t(tm);writes.add(us(begin));stats.reserved_file_bytes=tail;if(stat_ok)stats.allocated_file_bytes=uint64_t(st.st_blocks)*512;}

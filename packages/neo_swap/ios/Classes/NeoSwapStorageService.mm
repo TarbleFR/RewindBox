@@ -143,6 +143,9 @@ NSDictionary* sourceDictionary(neostation::source_archive::Archive& archive,Stat
         @"demandUtilityQueueWaitUsCumulative":@(s.sourceReadTiming.queue_us.load()),
         @"demandUtilityQueueWaitMaxUs":@(s.sourceReadTiming.queue_max_us.load()),
         @"demandReadUsCumulative":@(s.sourceReadTiming.read_us.load()),@"demandReadMaxUs":@(s.sourceReadTiming.read_max_us.load()),
+        @"sourceDeviceSyncCalls":@(m.store.sync_calls),@"sourceDeviceSyncUs":@(m.store.sync_us),
+        @"sourceDeviceSyncMaxUs":@(m.store.sync_max_us),@"sourceDeviceSyncSkipped":@(m.store.sync_skipped),
+        @"sourcePersistenceScope":@"process_private_verified_readback",
         @"checkpointedBytesCumulative":@(m.checkpointed_bytes),@"releasedOwnedMappedBytesCumulative":@(m.released_owned_bytes),
         @"diskReadBytes":@(d.bytes_read),@"diskWriteBytes":@(d.bytes_written),@"allocatedFileBytes":@(d.allocated_file_bytes),
         @"restoredDiskLogicalBytesCumulative":@(d.restored_logical_bytes),
@@ -250,7 +253,7 @@ void enqueueSourceWork(State& s){
                 }
                 if(source)source->discard(command.object);
             }
-            // One verified 64KiB chunk, never a whole pixel record. Requests
+            // One verified chunk, never a whole pixel record. Requests
             // arriving during it run before its continuation at the FIFO tail.
             if(!x.sourceWork.demand_pending()){
                 if(auto source=x.sourceArchive.control_load())more=source->maintain(1,4);

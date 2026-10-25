@@ -81,7 +81,8 @@ void pressure_and_limits(const std::string& directory){
 void persistence_failures(const std::string& directory){
     using Fault=neostation::storage::Store::Fault;
     for(auto fault:{Fault::write_error,Fault::sync_error,Fault::read_error,Fault::corrupt,Fault::truncate}){
-        Archive archive(directory,3,config());active=&archive;ColdSource owner;
+        auto policy=config();policy.managed.store.sync_writes=fault==Fault::sync_error;
+        Archive archive(directory,3,policy);active=&archive;ColdSource owner;
         auto source=fixture(128*1024,81);const auto expected=source;
         CHECK(owner.offload(source,1));archive.inject(fault);archive.maintain();
         auto stats=archive.snapshot();CHECK(stats.archive_failures==1 && stats.staging_bytes==128*1024);
