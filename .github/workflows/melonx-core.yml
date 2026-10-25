@@ -17,6 +17,7 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_input.py
     - build-utils/melonx/adapt_memory.py
     - build-utils/melonx/adapt_runtime.py
+    - build-utils/melonx/reuse_keys_validation.py
     - build-utils/melonx/adapt_firmware.py
     - native/melonx/*.cs
     - test/melonx_homebrew_test.py
