@@ -19,6 +19,9 @@ internal sealed class EmbeddedGraphicsSettings
     internal bool AsyncShaders = false;
     internal VSyncMode Vsync = VSyncMode.Switch;
     internal ScalingFilter Filter = ScalingFilter.Bilinear;
+    // Null leaves the base default (On, matching standalone). An explicit
+    // per-game value is the escape hatch for a title that misbehaves threaded.
+    internal BackendThreading? Threading;
 
     internal static EmbeddedGraphicsSettings Parse(string text)
     {
@@ -40,6 +43,7 @@ internal sealed class EmbeddedGraphicsSettings
                 case "shaderCache": settings.ShaderCache = property.Value.GetBoolean(); break;
                 case "asyncShaders": settings.AsyncShaders = property.Value.GetBoolean(); break;
                 case "vsync": settings.Vsync = property.Value.GetBoolean() ? VSyncMode.Switch : VSyncMode.Unbounded; break;
+                case "backendThreading": settings.Threading = property.Value.GetBoolean() ? BackendThreading.On : BackendThreading.Off; break;
                 case "filter":
                     settings.Filter = property.Value.GetString() switch
                     {
@@ -66,6 +70,7 @@ internal sealed class EmbeddedGraphicsSettings
         options.EnableAsyncShaderCompilation = AsyncShaders;
         options.VSyncMode = Vsync;
         options.ScalingFilter = Filter;
+        if (Threading.HasValue) options.BackendThreading = Threading.Value;
         return options;
     }
 }

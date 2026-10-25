@@ -151,7 +151,12 @@ partial class Library
             InputPath = path, BaseDataDir = Ryujinx.Common.Configuration.AppDataManager.BaseDirPath,
             ExclusiveFullscreenWidth = width, ExclusiveFullscreenHeight = height,
             IsExclusiveFullscreen = true, IsFullscreen = true,
-            GraphicsBackend = GraphicsBackend.Vulkan, BackendThreading = BackendThreading.Off,
+            // Backend (GPU) threading on by default, matching the standalone
+            // MeloNX app, which forces BackendThreading.On before every launch.
+            // Off serialized guest FIFO, Vulkan->Metal submission, pipeline
+            // compilation and present on one thread and caused the slowdowns the
+            // standalone did not have. An explicit per-game value still overrides.
+            GraphicsBackend = GraphicsBackend.Vulkan, BackendThreading = BackendThreading.On,
             ResScale = 1, MaxAnisotropy = -1, AspectRatio = AspectRatio.Fixed16x9,
             ScalingFilter = ScalingFilter.Bilinear, ScalingFilterLevel = 60, MetalFxUpscaleFactor = 2,
             EnableHostMemoryBudgetTracking = true, EnableTextureRecompression = true,

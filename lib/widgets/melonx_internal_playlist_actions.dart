@@ -481,6 +481,7 @@ class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
                       ('shaderCache', 'Shader cache', true),
                       ('asyncShaders', 'Async shaders', false),
                       ('vsync', 'VSync', true),
+                      ('backendThreading', 'Backend threading', true),
                     ])
                       SwitchListTile(
                         title: Text(_text(item.$2)),

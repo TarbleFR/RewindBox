@@ -92,10 +92,14 @@ var explicitOther=EmbeddedGraphicsSettings.Parse("""
  "hostMemoryBudget":false,"textureRecompression":true}
 """).Apply(new Options {BackendThreading=BackendThreading.Off});
 Record(explicitOther);
+var threaded=EmbeddedGraphicsSettings.Parse("""
+{"resolution":1,"backendThreading":true}
+""").Apply(new Options {BackendThreading=BackendThreading.Off});
+Record(threaded);
 EmbeddedLaunchDiagnostics.Record("keys","failed",detail:"header_key = "+new string('a',64));
 using var snapshot=JsonDocument.Parse(EmbeddedLaunchDiagnostics.Snapshot());
 var events=snapshot.RootElement.GetProperty("events");
-Check(events.GetArrayLength()==4,"Unexpected journal events");
+Check(events.GetArrayLength()==5,"Unexpected journal events");
 string Detail(int index)=>events[index].GetProperty("diagnostic").GetString();
 Check(Detail(0)=="[redacted key entry]","Old production false positive was not reproduced");
 foreach(string field in new[]{"resolution=0.75","shaderCache=True","asyncShaders=False",
@@ -104,10 +108,15 @@ foreach(string field in new[]{"resolution=0.75","shaderCache=True","asyncShaders
 foreach(string field in new[]{"resolution=1.5","shaderCache=False","asyncShaders=True",
  "vsync=Unbounded","hostMemoryBudget=False","textureRecompression=True"})
  Check(Detail(2).Contains(field),"Explicit option did not survive: "+field);
-Check(Detail(3)=="[redacted key entry]","Key assignment no longer redacted");
+// Default (no backendThreading key) keeps the base value; an explicit per-game
+// value overrides it. threading=On is the shipped default from EmbeddedSession.
+Check(Detail(1).Contains("threading=Off"),"Absent backendThreading changed the base value");
+foreach(string field in new[]{"resolution=1","threading=On"})
+ Check(Detail(3).Contains(field),"Explicit backendThreading override did not survive: "+field);
+Check(Detail(4)=="[redacted key entry]","Key assignment no longer redacted");
 Check(!File.ReadAllText(journal).Contains(new string('a',64)),"Synthetic key reached file");
 var lines=File.ReadAllLines(journal);
-Check(lines.Length==4,"Journal record count");
+Check(lines.Length==5,"Journal record count");
 for(int index=0;index<lines.Length;index++) {
  using var disk=JsonDocument.Parse(lines[index]["[MeloNX:core] ".Length..]);
  Check(disk.RootElement.GetProperty("diagnostic").GetString()==Detail(index),"File and snapshot differ");

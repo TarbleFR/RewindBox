@@ -177,10 +177,14 @@ def apply(source):
 
                     _pauseEvent.WaitOne();''', '''                    _embeddedLifetime.WaitUntilResumed();
                     if (!_embeddedLifetime.RenderAllowed) break;''')
+    # Report that the GPU render loop has drained (replaces the upstream
+    # _gpuDoneEvent signal) so the lifetime can dispose the renderer from the
+    # controlling thread. FinalizeWindowRenderer moves into the GPU release.
     once(window, '''                _gpuDoneEvent.Set();
             });
 
-            FinalizeWindowRenderer();''', '''            });''')
+            FinalizeWindowRenderer();''', '''                _embeddedLifetime.NotifyRenderDrained();
+            });''')
     section(window, '        public void Exit()\n', '        public static void ProcessMainThreadQueue()', '''        public void Exit()
         {
             _embeddedLifetime.RequestStop();

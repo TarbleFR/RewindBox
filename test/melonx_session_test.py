@@ -110,7 +110,7 @@ Case("stop during load still services and retires the already-created guest", ()
     int releases = 0; life.Dispose(() => releases++); life.Dispose(() => releases++);
     Check(guestStopped && gpuReleased && releases == 1 && !life.InputAllowed && !life.RenderAllowed);
 });
-Case("guest stops before GPU release and worker join", () => {
+Case("guest stops before GPU release on the controlling thread", () => {
     var life = new EmbeddedWindowLifetime(); using var rendered = new ManualResetEventSlim();
     int phase = 0; int gpuThread = 0;
     life.Run(() => { Wait(rendered); life.RequestStop(); }, () => {
@@ -118,10 +118,37 @@ Case("guest stops before GPU release and worker join", () => {
         while (life.RenderAllowed) Thread.Yield();
         Check(Volatile.Read(ref phase) == 1);
     }, () => { Check(life.RenderAllowed && !life.InputAllowed); Volatile.Write(ref phase, 1); }, () => {
-        Check(phase == 1 && Environment.CurrentManagedThreadId == gpuThread); phase = 2;
+        // GPU release runs on the controlling thread, not the render worker, so
+        // a threaded renderer parked in RenderLoop can be disposed and unblocked.
+        Check(phase == 1 && Environment.CurrentManagedThreadId != gpuThread); phase = 2;
     });
     life.Dispose(() => { Check(phase == 2 && !life.RenderAllowed); phase = 3; });
     Check(phase == 3);
+});
+Case("threaded render loop is released from the controlling thread", () => {
+    // Mimics the backend-threaded renderer: render() blocks until the renderer
+    // is disposed (releaseGpu), while a separate GPU thread runs the loop body
+    // and reports it drained. The controlling thread must break the deadlock by
+    // disposing from outside the parked worker.
+    var life = new EmbeddedWindowLifetime();
+    using var started = new ManualResetEventSlim(); using var disposed = new ManualResetEventSlim();
+    int renderThread = 0, releaseThread = 0; bool drained = false;
+    life.Run(() => { Wait(started); life.RequestStop(); }, () => {
+        renderThread = Environment.CurrentManagedThreadId;
+        var gpu = new Thread(() => {
+            started.Set();
+            while (life.RenderAllowed) Thread.Yield();
+            Volatile.Write(ref drained, true);
+            life.NotifyRenderDrained();
+        });
+        gpu.Start();
+        Wait(disposed); // RenderLoop returns only once the renderer is disposed.
+        gpu.Join();
+    }, () => {}, () => {
+        Check(Volatile.Read(ref drained)); releaseThread = Environment.CurrentManagedThreadId; disposed.Set();
+    });
+    Check(releaseThread != renderThread && releaseThread != 0 && !life.RenderAllowed);
+    life.Dispose(() => {});
 });
 Case("stop releases a paused render worker", () => {
     var life = new EmbeddedWindowLifetime(); life.SetPaused(true);
@@ -144,7 +171,7 @@ Case("input exception still stops guest and joins GPU", () => {
         () => { while (life.RenderAllowed) Thread.Yield(); }, () => guest = true, () => { Check(guest); gpu = true; }));
     Check(guest && gpu); life.Dispose(() => {});
 });
-Case("guest stop failure joins worker and retains unsafe resources", () => {
+Case("guest stop failure retains unsafe resources", () => {
     var life = new EmbeddedWindowLifetime(); bool gpu = false;
     Throws(() => life.Run(() => {}, () => { while (life.RenderAllowed) Thread.Yield(); },
         () => throw new InvalidOperationException("guest sentinel"), () => gpu = true));

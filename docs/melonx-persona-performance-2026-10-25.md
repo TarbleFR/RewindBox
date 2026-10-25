@@ -134,41 +134,58 @@ journaled, so the P4 flicker is most likely the un-journaled frame-pacing
 instability (threading) and/or the texture-disposal hypothesis above, rather than
 a distinct confirmed P4G rendering bug.
 
-## Recommended fix
+## Fix implemented
 
-1. **Test build 544 first** (already delivered, unvalidated): it carries the
-   idempotent texture-disposal fix that is the leading candidate for the
-   black-region flicker, plus the close/quarantine fixes. This needs no new code.
-2. **Enable backend threading for the embedded engine** — the primary fix for the
-   slowdowns, matching the standalone and the frontend's existing intent. Two
-   coordinated Core changes are required:
-   - Restructure `EmbeddedWindowLifetime` so that, in threaded mode, the renderer
-     dispose (`releaseGpu`) runs from the controlling thread while the render
-     worker is still blocked in `RenderLoop()` — mirroring the standalone
-     `WindowBase.Execute`/`Exit` split. The unthreaded path must keep its current
-     behaviour, so the change is mode-dependent, and the quarantine guarantees
-     (`GuestStopFailed`, `EmbeddedGpuReleased`, exactly-once release,
-     `FinalizeWindowRenderer` after `DisposeGpu`) must be preserved.
-   - Make `backendThreading` a parsed per-game graphics option in
-     `EmbeddedGraphicsSettings` defaulting to On (an explicit per-game Off remains
-     an escape hatch), set the base `EmbeddedOptions` default to On, and expose a
-     toggle in the RewindBox graphics dialog. The effective-options journal
-     already logs `threading=...`.
-   This change is concurrency-critical and touches the safety-critical session
-   teardown. It cannot be validated in this environment (no iPhone; a Core
-   rebuild and IPA are required and were not authorized here). It must be built
-   and validated on device before acceptance, ideally alongside the build-544
-   close probe (`Texture cache kept…` / teardown counters) already added.
+Backend threading is now enabled by default for the embedded engine, matching
+the standalone app. Because enabling it alone would deadlock the session
+teardown, the lifetime was restructured first. The change is in two parts:
 
-## Immediate workaround (no rebuild)
+1. **Teardown restructure** (`native/melonx/EmbeddedWindowLifetime.cs`,
+   `build-utils/melonx/adapt_session.py`). The GPU render loop now reports it has
+   drained through `EmbeddedWindowLifetime.NotifyRenderDrained()` (called where
+   the upstream `_gpuDoneEvent` signal was), and the renderer is disposed
+   (`releaseGpu`) from the controlling thread after that signal, not from the
+   render worker. With the threaded renderer the worker is parked in
+   `RenderLoop()`; disposing from the controlling thread unblocks it, mirroring
+   the standalone `WindowBase.Execute`/`Exit` split. The unthreaded path is
+   unchanged in effect (render returns on its own, then the dispose runs). The
+   quarantine guarantees are preserved: on a guest-stop failure the renderer and,
+   when threaded, the parked background render worker are left rooted until
+   process exit, and the worker is not joined (its `RenderLoop` would never
+   return); `GuestStopFailed`, `EmbeddedGpuReleased`, exactly-once release and
+   `FinalizeWindowRenderer` after `DisposeGpu` all still hold. The build-544
+   idempotent GPU-texture disposal (`adapt_gpu_lifetime.py`) makes this release
+   path safe even if a dispose step throws.
+2. **Threading default + per-game override.** `EmbeddedSession.cs` now builds
+   options with `BackendThreading.On`. `EmbeddedGraphicsSettings` parses a
+   per-game `backendThreading` boolean (absent = base On; `false` = the escape
+   hatch for a title that misbehaves threaded). The RewindBox graphics dialog has
+   a "Backend threading" toggle (default on, localized in all twelve locales),
+   and `migratedGraphics` carries the setting over from an imported standalone
+   `config.json`. The effective-options journal already logs `threading=…`.
+
+**Validation status.** Updated the managed lifecycle test
+(`test/melonx_session_test.py`: GPU release now asserted on the controlling
+thread, plus a new threaded-render-loop case that disposes from outside the
+parked worker) and the effective-graphics test
+(`test/melonx_effective_graphics_journal_test.py`: default preserved when the
+key is absent, explicit `threading=On` override). These are managed-host
+coverage. The change is concurrency-critical and touches the session teardown;
+it **must be built and validated on a physical iPhone** before acceptance (no
+iPhone here, and no Core rebuild or IPA was produced). Suggested on-device check:
+launch Persona, confirm the journal shows `threading=On`, play, then close from
+RewindBox and from in-game (including during a load) and confirm `close passed`,
+`memory released` and a clean return to the playlist, with no stuck "Closing the
+game…" route — reusing the build-544 close probe.
+
+## Immediate workaround (until the rebuilt Core is installed)
 
 - For Persona 5 Royal, set the per-game **Resolution to 1.0x** (integer) in the
   RewindBox graphics dialog to remove the non-integer-scale flicker contributor.
   Persona 4 Golden already runs at 1.0x, so this does not apply there.
 - Reinstall the latest test build (544) to pick up the texture-disposal and
-  close fixes.
-- The slowdowns require the backend-threading change above; no current frontend
-  setting enables threading, because the native parser ignores it.
+  close fixes. The threading change above needs a new Core build on top of that.
 
-No tags, main-branch changes, builds or releases were produced by this
-investigation.
+No tags, main-branch changes, builds or releases were produced by this work. The
+threading change is committed to the `Claude` branch for review and an
+authorized Core rebuild; it is not validated on device.

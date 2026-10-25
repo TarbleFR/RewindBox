@@ -173,6 +173,10 @@ abstract final class MelonxInternalService {
       result['vsync'] = source['vSyncMode'] == 0;
     else if (source['disableVSync'] is bool)
       result['vsync'] = !(source['disableVSync'] as bool);
+    // BackendThreading enum: 0=Auto, 1=Off, 2=On. Auto resolves to On for the
+    // Vulkan backend, so only an explicit Off maps to disabled.
+    if (source['backendThreading'] is int)
+      result['backendThreading'] = source['backendThreading'] != 1;
     if (source['donateGuestMemory'] is bool) result['donateMemory'] = source['donateGuestMemory'];
     final aspect = source['aspectRatio'];
     if (aspect is int && aspect >= 0 && aspect <= 5) result['aspectRatio'] = aspect;
