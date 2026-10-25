@@ -1,0 +1,58 @@
+name: Recheck exact patched MeloNX audio engine on a clean iOS simulator
+'on':
+  push:
+    branches:
+      - diag/melonx532-simulator-rerun
+    paths:
+      - .github/workflows/melonx532-simulator-recheck.yml
+permissions:
+  contents: read
+  actions: read
+jobs:
+  simulator:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6c08b52dac577b4d547f3e7bdd9cf5a7ed5a5b39
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: MeloNX-engine-6c08b52dac577b4d547f3e7bdd9cf5a7ed5a5b39
+          run-id: 40162516773
+          github-token: ${{ github.token }}
+          path: dist/melonx
+      - uses: actions/download-artifact@v4
+        with:
+          name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
+          run-id: 39854858591
+          github-token: ${{ github.token }}
+          path: dist/melonx-native
+      - name: Verify exact failed-run audio-engine artifact and patch source
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,hashlib,zipfile
+          from pathlib import Path
+          p=Path('dist/melonx')
+          assert (p/'iossimulator-arm64/Ryujinx.Library.dylib').is_file()
+          assert (p/'ios-arm64/Ryujinx.Library.dylib').is_file()
+          ident=json.loads((p/'iossimulator-arm64/identity.json').read_text())
+          assert ident['host']=='6c08b52dac577b4d547f3e7bdd9cf5a7ed5a5b39'
+          assert hashlib.sha256((p/'iossimulator-arm64/Ryujinx.Library.dylib').read_bytes()).hexdigest()==ident['sha256']
+          with zipfile.ZipFile(p/'embedded-adapted-source.zip') as z:
+            src=z.read('src/Ryujinx.Audio.Backends.SDL3/SDL3HardwareDeviceSession.cs')
+          assert b'SDL_PutAudioStreamData(streamDevice, (nint)pStreamDst, byteCount);' in src
+          assert b'SDL_PutAudioStreamData(streamDevice, (nint)pStreamDst, additionalAmount);' not in src
+          print('PASS pristine compiled NativeAOT engine and adapted SDL3 audio source')
+          PY
+      - name: Run existing real iOS Simulator homebrew session smoke on a fresh runner
+        run: python3 test/melonx_runtime_smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MeloNX-audio532-simulator-verification-${{ github.run_id }}
+          path: dist/melonx-smoke/
+          retention-days: 14
+          if-no-files-found: ignore
