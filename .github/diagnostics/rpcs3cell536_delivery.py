@@ -13,6 +13,7 @@ IMPORT_JOB=121143666725
 IMPORT_ARTIFACT=12595557429
 IMPORT_ZIP_SHA='3723adde48b9ad408aa54c9cfad5bad6277697ed29625b45c66f055a32511a79'
 IMPORT_RECEIPT_SHA='337929402e37703d547ad91675ca9e7bcb77d0e75f0098e3fbe2d28c8334d8a4'
+LOGGER='packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm'
 validate_psp_core_identity=previous.validate_psp_core_identity
 def command(*args):return subprocess.check_output(args,cwd=ROOT,text=True).strip()
 def validate_rpc_core_identity(identity):
@@ -55,13 +56,19 @@ def retain_import_checks():
 def source_contract():
     assert os.environ['BUILD_NUMBER']=='536' and os.environ.get('GITHUB_REF_NAME','Claude')=='Claude'
     assert os.environ['GITHUB_SHA']==command('git','rev-parse','HEAD')
-    native.source_contract()
-    changed=command('git','diff','--name-only',BASE,'HEAD','--','lib','native','packages','assets','ios','pubspec.yaml','pubspec.lock')
-    assert not changed,changed
+    # The already-built Core's exact inputs remain immutable; the separate
+    # host logger change below is tested with Foundation in this delivery.
+    native.pin_module().validate_source_contract()
+    for p,h in native.inputs().items():
+        assert hashlib.sha256(subprocess.check_output(['git','show',CORE_SOURCE+':'+p],cwd=ROOT)).hexdigest()==h,p
+    changed=set(command('git','diff','--name-only',BASE,'HEAD','--','lib','native','packages','assets','ios','pubspec.yaml','pubspec.lock').splitlines())
+    assert changed=={LOGGER},changed
+    before=subprocess.check_output(['git','show',BASE+':'+LOGGER],cwd=ROOT)
+    assert (ROOT/LOGGER).read_bytes()==before.replace(b'@"JITPROF ",\n',b'@"JITPROF ",\n      @"RANGELOCKPROF ", @"COREPROF_RESILIENCE ",\n')
     validate_import_receipt(json.loads((ROOT/'docs/evidence/melonx-import535-retained536.json').read_bytes()))
     identity=ROOT/'dist/rpcs3-native/identity.json'
     if identity.exists():validate_rpc_core_identity(json.loads(identity.read_bytes()))
-    return dict(source=command('git','rev-parse','HEAD'),build=536,hostBaseline=BASE,hostSourceUnchanged=True,
+    return dict(source=command('git','rev-parse','HEAD'),build=536,hostBaseline=BASE,hostChanged=[LOGGER],otherEmulatorsUnchanged=True,
                 coreSource=CORE_SOURCE,coreRun=CORE_RUN,physicalDeviceTested=False,physicalPerformanceMeasured=False)
 def main():
     p=argparse.ArgumentParser();p.add_argument('--rpc-core-inputs');p.add_argument('core_paths',nargs='*')

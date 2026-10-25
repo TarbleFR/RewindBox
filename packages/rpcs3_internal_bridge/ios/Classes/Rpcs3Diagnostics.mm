@@ -16,6 +16,7 @@ static uint64_t RPCS3MonotonicUs() {
 // It shares the existing asynchronous diagnostics worker, not a guest thread.
 static BOOL RPCS3KeepRuntimeHistory(NSString* message) {
   for (NSString* token in @[@"COREPROF ", @"SPUPROF ", @"JITPROF ",
+      @"RANGELOCKPROF ", @"COREPROF_RESILIENCE ",
       @"JITPROF_BOOT ", @"CONFIG_LAYERS ", @"JITMEM ", @"NEOSWAP_VDEC ",
       @"FREEZE_DUMP snapshot\n", @"SAVESTATE_RESTORE phase=missing_resource ",
       @"SAVESTATE_RESTORE phase=fxo_resource_abort ",

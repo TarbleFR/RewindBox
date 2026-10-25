@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import plistlib
+import subprocess
 import sys
 import zipfile
 
@@ -14,6 +15,8 @@ sys.path.insert(0, str(ROOT / 'packages/dolphin_internal_bridge/ci'))
 from rpcs3cell536_delivery import CORE_SOURCE, CORE_RUN, HOST, validate_rpc_core_identity
 from delivery_benchmark import payload_fingerprint
 from verify_ipa import macho
+sys.path.insert(0,str(ROOT/"test"))
+from rpcs3_retention536_test import input_hashes as retention_inputs
 
 RECEIPT = 'RPCS3-cell536-identity.json'
 CORE = 'Frameworks/libRPCS3Core.dylib'
@@ -21,6 +24,13 @@ CORE = 'Frameworks/libRPCS3Core.dylib'
 
 def inspect(core, images, receipt):
     validate_rpc_core_identity(receipt['coreIdentity'])
+    retention=receipt['hostRetentionProof']
+    assert retention['passed'] and not retention['physicalDeviceTested']
+    assert retention['source']==subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
+    assert retention['inputs']==retention_inputs()
+    assert retention['results']['before']['returncode']==-6 and retention['results']['after']['returncode']==0
+    assert any(b'RANGELOCKPROF \x00' in data and b'COREPROF_RESILIENCE \x00' in data for data in images.values()), 'Host retention filter is not compiled'
+
     assert receipt['coreRun'] == CORE_RUN and receipt['coreSource'] == CORE_SOURCE
     assert receipt['productionMinimalSPULinkerEnabled'] is False
     assert receipt['physicalDeviceTested'] is False
@@ -50,6 +60,7 @@ def embed(app, core_path, identity_path):
     validate_rpc_core_identity(identity)
     assert identity['sha256'] == hashlib.sha256(original).hexdigest()
     receipt = {'schemaVersion': 1, 'coreSource': CORE_SOURCE, 'coreRun': CORE_RUN,
+        'hostRetentionProof': json.loads((ROOT/'build/delivery/retention536-tests.json').read_bytes()),
         'coreIdentity': identity, 'compiledCorePayloadFingerprint': payload_fingerprint(original),
         'hostInputSHA256': {relative: hashlib.sha256((ROOT / relative).read_bytes()).hexdigest() for relative in sorted(HOST)},
         'productionMinimalSPULinkerEnabled': False, 'physicalDeviceTested': False,
