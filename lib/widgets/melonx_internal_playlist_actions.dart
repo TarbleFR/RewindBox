@@ -385,8 +385,8 @@ class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
                           setState(() => settings['resolution'] = value),
                     ),
                     for (final item in [
-                      ('shaderCache', 'Shader cache', false),
-                      ('asyncShaders', 'Async shaders', true),
+                      ('shaderCache', 'Shader cache', true),
+                      ('asyncShaders', 'Async shaders', false),
                       ('vsync', 'VSync', true),
                     ])
                       SwitchListTile(

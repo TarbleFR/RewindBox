@@ -12,8 +12,11 @@ internal sealed class EmbeddedGraphicsSettings
     internal bool? HostMemoryBudget;
     internal bool? TextureRecompression;
     internal float Resolution = 1;
-    internal bool ShaderCache;
-    internal bool AsyncShaders = true;
+    // iOS compatibility default: never skip a draw while compiling its pipeline.
+    // Persist completed shaders where the engine cache budget allows it.
+    // Explicit per-game values still override these conservative defaults.
+    internal bool ShaderCache = true;
+    internal bool AsyncShaders = false;
     internal VSyncMode Vsync = VSyncMode.Switch;
     internal ScalingFilter Filter = ScalingFilter.Bilinear;
 
