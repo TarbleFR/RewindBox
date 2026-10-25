@@ -78,7 +78,7 @@ jobs:
   build:
     # The host integration reuses the already built, provenance-checked Core;
     # ios-ci validates its unchanged source, recipe, ABI, and binary identity.
-    if: ${{ inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') && !contains(github.event.head_commit.message, '[rpcs3-cell527-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell528-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell534-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell536-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell539-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell542-core]') }}
+    if: ${{ inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') && !contains(github.event.head_commit.message, '[rpcs3-cell527-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell528-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell534-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell536-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell539-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell542-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell543-core]') }}
     # A host-only push must not cancel the exact Core referenced by its IPA.
     # Keep distinct source revisions independent and never cancel a running build.
     concurrency:

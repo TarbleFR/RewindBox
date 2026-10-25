@@ -1,0 +1,344 @@
+{
+  "cell": 543,
+  "baseline_host": "3494edc9e09fb60fecc35dd6cc301bcb93bc9434",
+  "source": "materialized canonical delta on pristine XITRIX/rpcs3 22f1152783cef1f7e04af7b1c895173e28fd5b03; baseline reconstructed by reverse-applying test/fixtures/rpcs3_cell543.diff",
+  "patch_sha256": "77d6a7fcae999287ff258e7caa0601008097d68565508d6c9f4189d6fd30abfc",
+  "host": {
+    "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "os": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+    "filesystem_note": "container scratch filesystem; real fsync, not iPhone flash"
+  },
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "other_local_checks": {
+    "static_core_tests_pass": [
+      "rpcs3_preprocessor_balance_test",
+      "rpcs3_build301_passive_dlopen_test",
+      "rpcs3_atomic_startup_test",
+      "rpcs3_failed_startup_test",
+      "rpcs3_build264_gow3_core_test",
+      "rpcs3_build351_gow3_engine_test",
+      "rpcs3_build352_gow3_memory_test",
+      "rpcs3_build353_xitrix_v010_test",
+      "rpcs3_armsx3_performance_patch_test",
+      "rpcs3_build258_runtime_resilience_test",
+      "rpcs3_shader_storage_test",
+      "rpcs3_source_archive_test",
+      "rpcs3_core_syntax_gate_test"
+    ],
+    "syntax_only_clang18": [
+      "VKProgramPipeline.cpp (with and without RPCS3_IOS)",
+      "VKPipelineCompiler.cpp (with and without RPCS3_IOS)"
+    ],
+    "not_runnable_here": {
+      "check_neo_swap_scope": "shallow clone lacks historical commit; fails identically on 542",
+      "rpcs3_glsl528_test": "shallow clone lacks historical commit; fails identically on 542",
+      "neo_swap_core_pin_test": "pre-existing: pinned Core cfe92344 lacks test/rpcs3_restore_eof_test.py; identical on 542",
+      "RPCS3IOSPerformance.cpp": "Apple-only headers; compiled by the iPhone Core build"
+    },
+    "clang18_compile": "harness compiles with clang++ 18 -Wall -Wextra -Werror; container lacks compiler-rt sanitizer archives for linking"
+  },
+  "report": {
+    "passed": true,
+    "sanitizers": [
+      "address",
+      "undefined",
+      "thread"
+    ],
+    "physicalDeviceTested": false,
+    "gameplayMeasured": false,
+    "results": {
+      "asan": {
+        "lookupBefore": {
+          "concurrentRequests": 16,
+          "concurrentBuilds": 1,
+          "concurrentNullReturns": 15,
+          "concurrentDistinct": 1,
+          "preloadBuilds": 1,
+          "preloadNullReturns": 7,
+          "failureBuilds": 1,
+          "failureExceptions": 1,
+          "failureNullReturns": 4,
+          "failureStickyNull": 1,
+          "nullResultRetryNull": 1,
+          "asyncRequests": 8,
+          "asyncJobs": 1,
+          "missFlagMismatches": 0,
+          "dsRequests": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "dsBuilds": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "hashPairs": 4096,
+          "hashDistinct": 64
+        },
+        "lookupAfter": {
+          "concurrentRequests": 16,
+          "concurrentBuilds": 1,
+          "concurrentNullReturns": 0,
+          "concurrentDistinct": 1,
+          "preloadBuilds": 1,
+          "preloadNullReturns": 7,
+          "failureBuilds": 2,
+          "failureExceptions": 1,
+          "failureNullReturns": 1,
+          "failureStickyNull": 0,
+          "nullResultRetryNull": 0,
+          "asyncRequests": 8,
+          "asyncJobs": 1,
+          "missFlagMismatches": 0,
+          "dsRequests": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "dsBuilds": [
+            1,
+            1,
+            17,
+            7,
+            17
+          ],
+          "hashPairs": 4096,
+          "hashDistinct": 4096
+        },
+        "depthStencilReferenceCases": 13824,
+        "regression542Builds": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "regression542BlendCases": 115520,
+        "storeHostFsyncBefore": {
+          "records": 48,
+          "producers": 1,
+          "filesVerified": 48,
+          "tempFilesLeft": 0,
+          "callerP50Us": 1330.0,
+          "callerMaxUs": 3979.8,
+          "callerTotalMs": 68.471,
+          "fsyncs": 144
+        },
+        "storeHostFsyncAfter": {
+          "records": 48,
+          "producers": 1,
+          "filesVerified": 48,
+          "tempFilesLeft": 0,
+          "callerP50Us": 22.5,
+          "callerMaxUs": 496.2,
+          "callerTotalMs": 2.755,
+          "fsyncs": 144
+        },
+        "storeInjected10msBefore": {
+          "records": 24,
+          "producers": 1,
+          "filesVerified": 24,
+          "tempFilesLeft": 0,
+          "callerP50Us": 34624.6,
+          "callerMaxUs": 49972.1,
+          "callerTotalMs": 850.355,
+          "fsyncs": 72
+        },
+        "storeInjected10msAfter": {
+          "records": 24,
+          "producers": 1,
+          "filesVerified": 24,
+          "tempFilesLeft": 0,
+          "callerP50Us": 16.4,
+          "callerMaxUs": 167.5,
+          "callerTotalMs": 0.812,
+          "fsyncs": 72
+        },
+        "storeConcurrentAfter": {
+          "records": 400,
+          "producers": 8,
+          "filesVerified": 400,
+          "tempFilesLeft": 0,
+          "callerP50Us": 112.1,
+          "callerMaxUs": 8324.2,
+          "callerTotalMs": 620.15,
+          "fsyncs": 1056
+        },
+        "storeBoundedAfter": {
+          "records": 300,
+          "producers": 1,
+          "filesVerified": 300,
+          "tempFilesLeft": 0,
+          "callerP50Us": 11.6,
+          "callerMaxUs": 30872.5,
+          "callerTotalMs": 237.999,
+          "fsyncs": 856
+        },
+        "boundedDeferred": 280,
+        "boundedInline": 20,
+        "boundedDepthPeak": 257,
+        "deferredOrdered": 500,
+        "deferredConcurrent": 8000,
+        "deferredInline": 6,
+        "feedbackBitCases": 34,
+        "saveCases": 6,
+        "fingerprintCases": 5,
+        "harnessSHA256": "10b71024f31b22234ed2b120acb9044be8db99381a9aa9291e5c1d75e8518ff4"
+      },
+      "tsan": {
+        "lookupBefore": {
+          "concurrentRequests": 16,
+          "concurrentBuilds": 1,
+          "concurrentNullReturns": 15,
+          "concurrentDistinct": 1,
+          "preloadBuilds": 1,
+          "preloadNullReturns": 7,
+          "failureBuilds": 1,
+          "failureExceptions": 1,
+          "failureNullReturns": 4,
+          "failureStickyNull": 1,
+          "nullResultRetryNull": 1,
+          "asyncRequests": 8,
+          "asyncJobs": 1,
+          "missFlagMismatches": 0,
+          "dsRequests": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "dsBuilds": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "hashPairs": 4096,
+          "hashDistinct": 64
+        },
+        "lookupAfter": {
+          "concurrentRequests": 16,
+          "concurrentBuilds": 1,
+          "concurrentNullReturns": 0,
+          "concurrentDistinct": 1,
+          "preloadBuilds": 1,
+          "preloadNullReturns": 7,
+          "failureBuilds": 2,
+          "failureExceptions": 1,
+          "failureNullReturns": 1,
+          "failureStickyNull": 0,
+          "nullResultRetryNull": 0,
+          "asyncRequests": 8,
+          "asyncJobs": 1,
+          "missFlagMismatches": 0,
+          "dsRequests": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "dsBuilds": [
+            1,
+            1,
+            17,
+            7,
+            17
+          ],
+          "hashPairs": 4096,
+          "hashDistinct": 4096
+        },
+        "depthStencilReferenceCases": 13824,
+        "regression542Builds": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "regression542BlendCases": 115520,
+        "storeHostFsyncBefore": {
+          "records": 48,
+          "producers": 1,
+          "filesVerified": 48,
+          "tempFilesLeft": 0,
+          "callerP50Us": 1993.9,
+          "callerMaxUs": 4600.3,
+          "callerTotalMs": 103.245,
+          "fsyncs": 144
+        },
+        "storeHostFsyncAfter": {
+          "records": 48,
+          "producers": 1,
+          "filesVerified": 48,
+          "tempFilesLeft": 0,
+          "callerP50Us": 16.2,
+          "callerMaxUs": 495.1,
+          "callerTotalMs": 1.369,
+          "fsyncs": 144
+        },
+        "storeInjected10msBefore": {
+          "records": 24,
+          "producers": 1,
+          "filesVerified": 24,
+          "tempFilesLeft": 0,
+          "callerP50Us": 35174.8,
+          "callerMaxUs": 37133.7,
+          "callerTotalMs": 841.291,
+          "fsyncs": 72
+        },
+        "storeInjected10msAfter": {
+          "records": 24,
+          "producers": 1,
+          "filesVerified": 24,
+          "tempFilesLeft": 0,
+          "callerP50Us": 26.1,
+          "callerMaxUs": 464.3,
+          "callerTotalMs": 1.193,
+          "fsyncs": 72
+        },
+        "storeConcurrentAfter": {
+          "records": 400,
+          "producers": 8,
+          "filesVerified": 400,
+          "tempFilesLeft": 0,
+          "callerP50Us": 147.6,
+          "callerMaxUs": 8842.1,
+          "callerTotalMs": 611.029,
+          "fsyncs": 1056
+        },
+        "storeBoundedAfter": {
+          "records": 300,
+          "producers": 1,
+          "filesVerified": 300,
+          "tempFilesLeft": 0,
+          "callerP50Us": 15.3,
+          "callerMaxUs": 11729.0,
+          "callerTotalMs": 217.286,
+          "fsyncs": 856
+        },
+        "boundedDeferred": 280,
+        "boundedInline": 20,
+        "boundedDepthPeak": 257,
+        "deferredOrdered": 500,
+        "deferredConcurrent": 8000,
+        "deferredInline": 6,
+        "feedbackBitCases": 34,
+        "saveCases": 6,
+        "fingerprintCases": 5,
+        "harnessSHA256": "10b71024f31b22234ed2b120acb9044be8db99381a9aa9291e5c1d75e8518ff4"
+      }
+    },
+    "scope": "Exact production lookup/single-flight, depth-stencil normalization, shader-cache publication, creation-feedback interpretation and VkPipelineCache save skipping with adapters. Synthetic requests and injected disk latency; no Metal compilation, rendering or iPhone frame-time measurement."
+  }
+}

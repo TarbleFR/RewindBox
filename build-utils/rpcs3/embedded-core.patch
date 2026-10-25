@@ -14186,6 +14186,204 @@ index 5cf4da2..bb721d8 100644
  		}
  	}
  }
+diff --git a/rpcs3/Emu/RSX/Common/deferred_publisher.h b/rpcs3/Emu/RSX/Common/deferred_publisher.h
+new file mode 100644
+index 0000000..eeef7e2
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Common/deferred_publisher.h
+@@ -0,0 +1,192 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <algorithm>
++#include <condition_variable>
++#include <cstddef>
++#include <cstdint>
++#include <deque>
++#include <functional>
++#include <mutex>
++#include <thread>
++#include <utility>
++
++namespace rsx
++{
++	// CELL543: persistent shader-cache records are not needed to draw the
++	// current frame. One worker writes them in submission order, outside the
++	// RSX thread. The queue is bounded: when it is full, or when no worker can
++	// be started, the caller writes the record itself as before. No accepted
++	// record is dropped; destruction drains the queue before joining.
++	template <typename Record>
++	class deferred_publisher
++	{
++	public:
++		using sink_t = std::function<void(Record&)>;
++		using start_t = std::function<void()>;
++
++		struct stats_t
++		{
++			std::uint64_t deferred = 0;       // accepted by the worker queue
++			std::uint64_t inline_writes = 0;  // written by the caller (queue full or no worker)
++			std::uint64_t written = 0;        // completed by the worker
++			std::uint64_t sink_failures = 0;  // worker sink threw; the worker continues
++			std::uint64_t peak_depth = 0;
++		};
++
++		deferred_publisher(std::size_t capacity, sink_t sink, start_t on_start = {})
++			: m_capacity(std::max<std::size_t>(capacity, 1))
++			, m_sink(std::move(sink))
++			, m_on_start(std::move(on_start))
++		{
++		}
++
++		deferred_publisher(const deferred_publisher&) = delete;
++		deferred_publisher& operator=(const deferred_publisher&) = delete;
++
++		~deferred_publisher()
++		{
++			{
++				std::lock_guard lock(m_mutex);
++				m_stopping = true;
++			}
++
++			m_wake.notify_all();
++
++			if (m_worker.joinable())
++			{
++				m_worker.join();
++			}
++		}
++
++		// Returns true when the record was queued, false when the caller wrote it.
++		bool submit(Record&& record)
++		{
++			std::unique_lock lock(m_mutex);
++
++			if (!m_stopping && m_queue.size() < m_capacity && start_worker())
++			{
++				m_queue.push_back(std::move(record));
++				m_stats.deferred++;
++				m_stats.peak_depth = std::max<std::uint64_t>(m_stats.peak_depth, m_queue.size());
++				lock.unlock();
++				m_wake.notify_one();
++				return true;
++			}
++
++			m_stats.inline_writes++;
++			lock.unlock();
++			m_sink(record);
++			return false;
++		}
++
++		// Blocks until every queued record has been written.
++		void drain()
++		{
++			std::unique_lock lock(m_mutex);
++			m_idle.wait(lock, [this] { return m_queue.empty() && !m_busy; });
++		}
++
++		stats_t stats() const
++		{
++			std::lock_guard lock(m_mutex);
++			return m_stats;
++		}
++
++		std::size_t depth() const
++		{
++			std::lock_guard lock(m_mutex);
++			return m_queue.size() + (m_busy ? 1 : 0);
++		}
++
++	private:
++		// Called with m_mutex held.
++		bool start_worker()
++		{
++			if (m_worker.joinable())
++			{
++				return true;
++			}
++
++			if (m_start_failed)
++			{
++				return false;
++			}
++
++			try
++			{
++				m_worker = std::thread([this] { run(); });
++				return true;
++			}
++			catch (...)
++			{
++				m_start_failed = true;
++				return false;
++			}
++		}
++
++		void run()
++		{
++			if (m_on_start)
++			{
++				m_on_start();
++			}
++
++			std::unique_lock lock(m_mutex);
++
++			while (true)
++			{
++				m_wake.wait(lock, [this] { return m_stopping || !m_queue.empty(); });
++
++				if (m_queue.empty())
++				{
++					// Only reached when stopping: every accepted record was written.
++					break;
++				}
++
++				Record record = std::move(m_queue.front());
++				m_queue.pop_front();
++				m_busy = true;
++				lock.unlock();
++
++				bool failed = false;
++				try
++				{
++					m_sink(record);
++				}
++				catch (...)
++				{
++					failed = true;
++				}
++
++				lock.lock();
++				m_busy = false;
++				m_stats.written++;
++				m_stats.sink_failures += failed ? 1 : 0;
++
++				if (m_queue.empty())
++				{
++					m_idle.notify_all();
++				}
++			}
++
++			m_idle.notify_all();
++		}
++
++		const std::size_t m_capacity;
++		const sink_t m_sink;
++		const start_t m_on_start;
++
++		mutable std::mutex m_mutex;
++		std::condition_variable m_wake;
++		std::condition_variable m_idle;
++		std::deque<Record> m_queue;
++		stats_t m_stats{};
++		bool m_busy = false;
++		bool m_stopping = false;
++		bool m_start_failed = false;
++
++		// Last member: started after every field above is initialized.
++		std::thread m_worker;
++	};
++}
 diff --git a/rpcs3/Emu/RSX/Common/sampler_invalidation.h b/rpcs3/Emu/RSX/Common/sampler_invalidation.h
 new file mode 100644
 index 0000000..9345076
@@ -15175,10 +15373,26 @@ index 221e24e..8431488 100644
  		write_fragment_constants_to_buffer_fallback(buffer, rsx_prog, offsets_cache, sanitize);
  #endif
 diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.h b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
-index e1bdc88..b63abe7 100644
+index e1bdc88..fb3cab4 100644
 --- a/rpcs3/Emu/RSX/Program/ProgramStateCache.h
 +++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
-@@ -56,6 +56,7 @@ namespace program_hash_util
+@@ -9,8 +9,15 @@
+ #include "util/v128.hpp"
+ #include <util/bless.hpp>
+ 
++#include <condition_variable>
++#include <mutex>
+ #include <span>
+ #include <unordered_map>
++#include <unordered_set>
++
++#ifdef RPCS3_IOS
++#include "ios/IOSShaderTiming.h"
++#endif
+ 
+ enum class SHADER_TYPE
+ {
+@@ -56,6 +63,7 @@ namespace program_hash_util
  			u32 program_ucode_length;
  			u32 program_constants_buffer_length;
  			u16 referenced_textures_mask;
@@ -15186,7 +15400,73 @@ index e1bdc88..b63abe7 100644
  			u16 bx2_texture_reads_mask;
  
  			bool has_pack_instructions;
-@@ -365,15 +366,18 @@ public:
+@@ -176,17 +184,24 @@ class program_state_cache
+ 		u32 vertex_program_id;
+ 		u32 fragment_program_id;
+ 		pipeline_properties properties;
++		// CELL543: computed once from the validated key; never an identity.
++		usz hash = 0;
+ 	};
+ 
+ 	struct pipeline_key_hash
+ 	{
++		// Ordered mixing: XOR made swapped program IDs (and IDs equal to each
++		// other) cancel, lengthening collision chains for small sequential IDs.
++		static usz compute(const pipeline_key& key)
++		{
++			usz seed = rpcs3::hash64(rpcs3::fnv_seed, key.vertex_program_id);
++			seed = rpcs3::hash64(seed, key.fragment_program_id);
++			return rpcs3::hash64(seed, static_cast<u64>(rpcs3::hash_struct<pipeline_properties>(key.properties)));
++		}
++
+ 		usz operator()(const pipeline_key &key) const
+ 		{
+-			usz hashValue = 0;
+-			hashValue ^= rpcs3::hash_base<unsigned>(key.vertex_program_id);
+-			hashValue ^= rpcs3::hash_base<unsigned>(key.fragment_program_id);
+-			hashValue ^= rpcs3::hash_struct<pipeline_properties>(key.properties);
+-			return hashValue;
++			return key.hash;
+ 		}
+ 	};
+ 
+@@ -194,7 +209,8 @@ class program_state_cache
+ 	{
+ 		bool operator()(const pipeline_key &key1, const pipeline_key &key2) const
+ 		{
+-			return (key1.vertex_program_id == key2.vertex_program_id) && (key1.fragment_program_id == key2.fragment_program_id) && (key1.properties == key2.properties);
++			// A matching hash is only a filter; equality still compares every field.
++			return key1.hash == key2.hash && (key1.vertex_program_id == key2.vertex_program_id) && (key1.fragment_program_id == key2.fragment_program_id) && (key1.properties == key2.properties);
+ 		}
+ 	};
+ 
+@@ -207,7 +223,9 @@ protected:
+ 	shared_mutex m_decompiler_mutex;
+ 
+ 	atomic_t<usz> m_next_id = 0;
+-	bool m_cache_miss_flag; // Set if last lookup did not find any usable cached programs
++	// Set if this thread's last lookup did not find a usable cached program.
++	// CELL543: per thread; cached-shader workers no longer race the RSX value.
++	inline static thread_local bool m_cache_miss_flag = false;
+ 
+ 	binary_to_vertex_program m_vertex_shader_cache;
+ 	binary_to_fragment_program m_fragment_shader_cache;
+@@ -215,6 +233,14 @@ protected:
+ 
+ 	decompiler_callback_t notify_pipeline_compiled;
+ 
++	// CELL543_SINGLE_FLIGHT: keys being built inline. Another inline requester
++	// of the same key waits for that result instead of receiving the null
++	// placeholder, which would skip its draw. Guarded by m_pipeline_mutex.
++	std::unordered_set<pipeline_key, pipeline_key_hash, pipeline_key_compare> m_inline_builds;
++	std::mutex m_build_mutex;
++	std::condition_variable m_build_cv;
++	u64 m_build_generation = 0; // Guarded by m_build_mutex
++
+ 	vertex_program_type __null_vertex_program;
+ 	fragment_program_type __null_fragment_program;
+ 	pipeline_storage_type __null_pipeline_handle;
+@@ -365,39 +391,46 @@ public:
  		const bool already_existing_vertex_program = std::get<1>(vp_search);
  		const vertex_program_type& vertex_program = std::get<0>(vp_search);
  		const fragment_program_type& fragment_program = std::get<0>(fp_search);
@@ -15197,6 +15477,7 @@ index e1bdc88..b63abe7 100644
 +		// may write channels the current shader does not define.
 +		pipeline_key key = { vertex_program.id, fragment_program.id, pipeline_properties };
 +		backend_traits::validate_pipeline_properties(vertex_program, fragment_program, key.properties);
++		key.hash = pipeline_key_hash::compute(key);
  
  		m_cache_miss_flag = true;
  
@@ -15206,37 +15487,211 @@ index e1bdc88..b63abe7 100644
 -			backend_traits::validate_pipeline_properties(vertex_program, fragment_program, pipeline_properties);
 -
  			reader_lock lock(m_pipeline_mutex);
- 			if (const auto I = m_storage.find(key); I != m_storage.end())
- 			{
-@@ -385,15 +389,14 @@ public:
- 		{
- 			std::lock_guard lock(m_pipeline_mutex);
- 
--			// Check if another submission completed in the mean time
 -			if (const auto I = m_storage.find(key); I != m_storage.end())
-+			// Atomically find or insert the placeholder under the writer lock.
-+			// try_emplace leaves the null handle untouched when another submission won.
-+			auto [I, inserted] = m_storage.try_emplace(key, std::move(__null_pipeline_handle));
-+			if (!inserted)
++			if (const auto I = m_storage.find(key); I != m_storage.end() && I->second)
  			{
- 				m_cache_miss_flag = (I->second == __null_pipeline_handle);
+-				m_cache_miss_flag = (I->second == __null_pipeline_handle);
++				m_cache_miss_flag = false;
  				return { I->second.get(), &vertex_program, &fragment_program };
  			}
+ 		}
+ 
++		// Draw requests need this exact pipeline. Cached-shader preload requests
++		// (no notification) do not use the result and move on to their next entry.
++		const bool wait_for_inline_build = !compile_async && allow_notification;
++		bool claimed = false;
++		if (pipeline_type* existing = acquire_pipeline(key, compile_async, wait_for_inline_build, claimed); !claimed)
+ 		{
+-			std::lock_guard lock(m_pipeline_mutex);
+-
+-			// Check if another submission completed in the mean time
+-			if (const auto I = m_storage.find(key); I != m_storage.end())
+-			{
+-				m_cache_miss_flag = (I->second == __null_pipeline_handle);
+-				return { I->second.get(), &vertex_program, &fragment_program };
+-			}
 -
 -			// Insert a placeholder if the key still doesn't exist to avoid re-linking of the same pipeline
 -			m_storage[key] = std::move(__null_pipeline_handle);
++			// Published by another request, or an asynchronous build is pending.
++			m_cache_miss_flag = !existing;
++			return { existing, &vertex_program, &fragment_program };
  		}
  
  		rsx_log.notice("Add program (vp id = %d, fp id = %d)", vertex_program.id, fragment_program.id);
-@@ -438,7 +441,7 @@ public:
- 		auto result = backend_traits::build_pipeline(
- 			vertex_program,                 // VS, must already be decompiled and recompiled above
- 			fragment_program,               // FS, must already be decompiled and recompiled above
+ 
++#ifdef RPCS3_IOS
++		const u32 origin = (already_existing_vertex_program ? 0u : 1u) | (already_existing_fragment_program ? 0u : 2u) | (compile_async ? 8u : 4u);
++		rpcs3::ios::shader_timing::BuildOriginScope origin_scope(origin);
++		rpcs3::ios::shader_timing::pipeline_profile.record_origin(origin);
++#endif
++
+ 		std::function<pipeline_type* (pipeline_storage_type&)> callback;
+ 
+ 		if (allow_notification)
+@@ -411,12 +444,10 @@ public:
+ 				}
+ 
+ 				rsx_log.success("Program compiled successfully");
++				// Publish before the disk notification so equal requesters resume first.
++				pipeline_type* published = publish_pipeline(key, pipeline);
+ 				notify_pipeline_compiled(key.properties, vertex_shader, fragment_shader_);
+-
+-				std::lock_guard lock(m_pipeline_mutex);
+-				auto& pipe_result = m_storage[key];
+-				pipe_result = std::move(pipeline);
+-				return pipe_result.get();
++				return published;
+ 			};
+ 		}
+ 		else
+@@ -428,24 +459,128 @@ public:
+ 					return nullptr;
+ 				}
+ 
+-				std::lock_guard lock(m_pipeline_mutex);
+-				auto& pipe_result = m_storage[key];
+-				pipe_result = std::move(pipeline);
+-				return pipe_result.get();
++				return publish_pipeline(key, pipeline);
+ 			};
+ 		}
+ 
+-		auto result = backend_traits::build_pipeline(
+-			vertex_program,                 // VS, must already be decompiled and recompiled above
+-			fragment_program,               // FS, must already be decompiled and recompiled above
 -			pipeline_properties,             // Pipeline state
-+			key.properties,                  // Same state as the cache key
- 			compile_async,                  // Allow asynchronous compilation
- 			callback,                       // Insertion and notification callback
- 			std::forward<Args>(args)...);   // Other arguments
+-			compile_async,                  // Allow asynchronous compilation
+-			callback,                       // Insertion and notification callback
+-			std::forward<Args>(args)...);   // Other arguments
++		pipeline_type* result = nullptr;
++		try
++		{
++			result = backend_traits::build_pipeline(
++				vertex_program,                 // VS, must already be decompiled and recompiled above
++				fragment_program,               // FS, must already be decompiled and recompiled above
++				key.properties,                  // Same state as the cache key
++				compile_async,                  // Allow asynchronous compilation
++				callback,                       // Insertion and notification callback
++				std::forward<Args>(args)...);   // Other arguments
++		}
++		catch (...)
++		{
++			// Never leave a placeholder that turns every later lookup into a miss.
++			abandon_pipeline_build(key);
++			throw;
++		}
++
++		if (!result && !compile_async)
++		{
++			// An inline build that produced nothing: allow a later retry.
++			abandon_pipeline_build(key);
++		}
+ 
+ 		return { result, &vertex_program, &fragment_program };
+ 	}
+ 
++private:
++	// CELL543_SINGLE_FLIGHT: returns the published pipeline, or nullptr for a
++	// pending build, or claims the build (claimed = true). With wait_for_inline,
++	// a key another thread builds inline is awaited instead of returning null.
++	pipeline_type* acquire_pipeline(const pipeline_key& key, bool compile_async, bool wait_for_inline, bool& claimed)
++	{
++		claimed = false;
++		std::unique_lock lock(m_pipeline_mutex);
++
++		while (true)
++		{
++			// try_emplace leaves the existing handle untouched when another submission won.
++			auto [I, inserted] = m_storage.try_emplace(key, std::move(__null_pipeline_handle));
++			if (inserted)
++			{
++				if (!compile_async)
++				{
++					m_inline_builds.insert(key);
++				}
++
++				claimed = true;
++				return nullptr;
++			}
++
++			if (I->second || !wait_for_inline || !m_inline_builds.contains(key))
++			{
++				return I->second.get();
++			}
++
++#ifdef RPCS3_IOS
++			const auto wait_started = std::chrono::steady_clock::now();
++#endif
++			{
++				std::unique_lock wait_lock(m_build_mutex);
++				const u64 generation = m_build_generation;
++				lock.unlock();
++				m_build_cv.wait(wait_lock, [&] { return m_build_generation != generation; });
++			}
++#ifdef RPCS3_IOS
++			rpcs3::ios::shader_timing::pipeline_profile.pending_wait.record(static_cast<u64>(
++				std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - wait_started).count()));
++#endif
++			lock.lock();
++		}
++	}
++
++	pipeline_type* publish_pipeline(const pipeline_key& key, pipeline_storage_type& pipeline)
++	{
++		pipeline_type* result;
++		{
++			std::lock_guard lock(m_pipeline_mutex);
++			auto& pipe_result = m_storage[key];
++			pipe_result = std::move(pipeline);
++			result = pipe_result.get();
++			m_inline_builds.erase(key);
++		}
++
++		wake_pipeline_waiters();
++		return result;
++	}
++
++	void abandon_pipeline_build(const pipeline_key& key)
++	{
++		{
++			std::lock_guard lock(m_pipeline_mutex);
++			if (const auto I = m_storage.find(key); I != m_storage.end() && !I->second)
++			{
++				m_storage.erase(I);
++			}
++
++			m_inline_builds.erase(key);
++		}
++
++#ifdef RPCS3_IOS
++		rpcs3::ios::shader_timing::pipeline_profile.abandoned.fetch_add(1, std::memory_order_relaxed);
++#endif
++		wake_pipeline_waiters();
++	}
++
++	void wake_pipeline_waiters()
++	{
++		{
++			std::lock_guard lock(m_build_mutex);
++			m_build_generation++;
++		}
++
++		m_build_cv.notify_all();
++	}
++
++public:
++
+ 	void fill_fragment_constants_buffer(std::span<f32> dst_buffer, const fragment_program_type& fragment_program, const RSXFragmentProgram& rsx_prog, bool sanitize = false) const
+ 	{
+ 		if (dst_buffer.size_bytes() < (fragment_program.constant_offsets.size() * 16))
+@@ -466,5 +601,6 @@ public:
+ 		m_fragment_shader_cache.clear();
+ 		m_vertex_shader_cache.clear();
+ 		m_storage.clear();
++		m_inline_builds.clear();
+ 	}
+ };
 diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
 index a36ce52..7196cc9 100644
 --- a/rpcs3/Emu/RSX/RSXFIFO.cpp
@@ -16199,7 +16654,7 @@ index af6a25a..68145ed 100644
  	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
  	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28..267f3c3 100644
+index 63cab28..bb1ca86 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 @@ -16,10 +16,15 @@
@@ -16218,7 +16673,7 @@ index 63cab28..267f3c3 100644
  
  #include "../Program/SPIRVCommon.h"
  
-@@ -475,6 +480,26 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -475,6 +480,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  	vk::set_current_renderer(m_swapchain->get_device());
  	vk::init();
  
@@ -16236,6 +16691,10 @@ index 63cab28..267f3c3 100644
 +    rpcs3::ios::shader_timing::configuration.begin(this,
 +        static_cast<u32>(g_cfg.video.shadermode.get()), static_cast<u32>(m_shader_mode),
 +        m_device->gpu().get_shader_interpreter_support());
++    // CELL543: fingerprints are module-handle based, valid for one renderer only.
++    rpcs3::ios::shader_timing::pipeline_profile.fingerprints.reset();
++    rsx_log.notice("COREPROF SHADERFEEDBACK543 creation_feedback=%u settings_preserved=1",
++        m_device->get_pipeline_creation_feedback_support() ? 1u : 0u);
 +    rsx_log.notice("COREPROF SHADERCFG528 configured=%u applied=%u interpreter_supported=%u fallback=%u settings_preserved=1",
 +        static_cast<u32>(g_cfg.video.shadermode.get()), static_cast<u32>(m_shader_mode),
 +        m_device->gpu().get_shader_interpreter_support() ? 1u : 0u,
@@ -16245,7 +16704,7 @@ index 63cab28..267f3c3 100644
  	m_swapchain_dims.width = m_frame->client_width();
  	m_swapchain_dims.height = m_frame->client_height();
  
-@@ -537,7 +562,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -537,7 +566,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  	m_flushable_data_heaps = vk::data_heap_manager::to_list().filter(FN(x->has_shadow()));
  
@@ -16254,7 +16713,7 @@ index 63cab28..267f3c3 100644
  
  	if (shadermode == shader_mode::async_with_interpreter || shadermode == shader_mode::interpreter_only)
  	{
-@@ -796,6 +821,9 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -796,6 +825,9 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  VKGSRender::~VKGSRender()
  {
@@ -16264,7 +16723,7 @@ index 63cab28..267f3c3 100644
  	if (m_device == VK_NULL_HANDLE)
  	{
  		//Initialization failed
-@@ -1019,12 +1047,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
+@@ -1019,12 +1051,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
  
  void VKGSRender::on_semaphore_acquire_wait()
  {
@@ -16304,7 +16763,7 @@ index 63cab28..267f3c3 100644
  }
  
  bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
-@@ -1048,6 +1103,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1048,6 +1107,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  				for (auto i = 0ull; i < texture_array.size(); ++i)
  				{
  					const auto& tex = texture_array[i];
@@ -16318,7 +16777,7 @@ index 63cab28..267f3c3 100644
  					const auto addr = rsx::get_address(tex.offset(), tex.location());
  					exclusion_list.insert(addr);
  				}
-@@ -1096,33 +1158,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1096,33 +1162,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  		return any_cache_relieved;
  	}
  
@@ -16345,6 +16804,9 @@ index 63cab28..267f3c3 100644
 -				}
 -			}
 -		};
+-
+-		scan_array(rsx::method_registers.fragment_textures, fs_sampler_state);
+-		scan_array(rsx::method_registers.vertex_textures, vs_sampler_state);
 +		// Spilling and resolve-cache eviction destroy image views. Invalidate
 +		// every cached framebuffer descriptor, even when a global refresh is
 +		// already pending: load_texture_env only refreshes the current shader's
@@ -16354,15 +16816,12 @@ index 63cab28..267f3c3 100644
 +		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
 +			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
  
--		scan_array(rsx::method_registers.fragment_textures, fs_sampler_state);
--		scan_array(rsx::method_registers.vertex_textures, vs_sampler_state);
--
 -		if (invalidate_samplers)
 +		if (invalidate_fragment_samplers || invalidate_vertex_samplers)
  		{
  			m_samplers_dirty.store(true);
  		}
-@@ -1250,8 +1297,8 @@ void VKGSRender::on_init_thread()
+@@ -1250,8 +1301,8 @@ void VKGSRender::on_init_thread()
  	GSRender::on_init_thread();
  	zcull_ctrl.reset(static_cast<::rsx::reports::ZCULL_control*>(this));
  
@@ -16373,7 +16832,7 @@ index 63cab28..267f3c3 100644
  	{
  		std::unique_ptr<rsx::shader_loading_dialog> dlg = m_overlay_manager
  			? std::make_unique<rsx::shader_loading_dialog_native>(this)
-@@ -1260,7 +1307,7 @@ void VKGSRender::on_init_thread()
+@@ -1260,7 +1311,7 @@ void VKGSRender::on_init_thread()
  		dlg->close();
  	}
  
@@ -16382,7 +16841,7 @@ index 63cab28..267f3c3 100644
  	{
  		if (!m_overlay_manager)
  		{
-@@ -1276,6 +1323,19 @@ void VKGSRender::on_init_thread()
+@@ -1276,12 +1327,30 @@ void VKGSRender::on_init_thread()
  			m_shaders_cache->load(&dlg);
  		}
  	}
@@ -16402,7 +16861,18 @@ index 63cab28..267f3c3 100644
  }
  
  void VKGSRender::on_exit()
-@@ -1801,7 +1861,7 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
+ {
+ 	GSRender::on_exit();
+ 	vk::destroy_pipe_compiler(); // Ensure no pending shaders being compiled
++	// CELL543: asynchronous workers may have queued disk records until joined.
++	if (m_shaders_cache)
++	{
++		m_shaders_cache->flush_pending_writes();
++	}
+ 	zcull_ctrl.release();
+ }
+ 
+@@ -1801,7 +1870,7 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
  
  bool VKGSRender::load_program()
  {
@@ -16411,7 +16881,7 @@ index 63cab28..267f3c3 100644
  
  	// TODO: EXT_dynamic_state should get rid of this sillyness soon (kd)
  	const auto vertex_state = vk::decode_vertex_input_assembly_state();
-@@ -1862,6 +1922,10 @@ bool VKGSRender::load_program()
+@@ -1862,6 +1931,10 @@ bool VKGSRender::load_program()
  		);
  
  		properties.renderpass_key = m_current_renderpass_key;
@@ -16422,7 +16892,7 @@ index 63cab28..267f3c3 100644
  		if (m_program &&
  			!m_shader_interpreter.is_interpreter(m_program) &&
  			m_pipeline_properties == properties)
-@@ -1872,7 +1936,6 @@ bool VKGSRender::load_program()
+@@ -1872,7 +1945,6 @@ bool VKGSRender::load_program()
  
  		// Fallthrough
  		m_pipeline_properties = properties;
@@ -16430,7 +16900,7 @@ index 63cab28..267f3c3 100644
  	}
  	else
  	{
-@@ -1912,7 +1975,11 @@ bool VKGSRender::load_program()
+@@ -1912,7 +1984,11 @@ bool VKGSRender::load_program()
  
  		vk::leave_uninterruptible();
  
@@ -16899,7 +17369,7 @@ index a604696..819de43 100644
  			ensure(single_target_pass != VK_NULL_HANDLE);
  
 diff --git a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
-index ad7d5a0..c1c23b9 100644
+index ad7d5a0..038d9a3 100644
 --- a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
 +++ b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
 @@ -2,6 +2,7 @@
@@ -16910,7 +17380,7 @@ index ad7d5a0..c1c23b9 100644
  #include "../Program/ProgramStateCache.h"
  
  namespace vk
-@@ -38,6 +39,10 @@ namespace vk
+@@ -38,6 +39,11 @@ namespace vk
  			properties.state.att_state[1].colorWriteMask &= fp.output_color_masks[1];
  			properties.state.att_state[2].colorWriteMask &= fp.output_color_masks[2];
  			properties.state.att_state[3].colorWriteMask &= fp.output_color_masks[3];
@@ -16918,24 +17388,28 @@ index ad7d5a0..c1c23b9 100644
 +			// Guest state, actual render passes and image barriers stay intact.
 +			properties.renderpass_key = compatible_pipeline_renderpass_key(properties.renderpass_key);
 +			normalize_pipeline_blending(properties.state);
++			normalize_pipeline_depth_stencil(properties.state, properties.renderpass_key);
  		}
  
  		static
 diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
-index 20a4250..d8d8c8d 100644
+index 20a4250..e98454b 100644
 --- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
-@@ -7,6 +7,9 @@
+@@ -7,6 +7,12 @@
  #include "vkutils/sampler.h"
  
  #include "../Program/SPIRVCommon.h"
 +#ifdef RPCS3_IOS
 +#include "ios/IOSShaderTiming.h"
 +#endif
++
++#include <array>
++#include <chrono>
  
  namespace vk
  {
-@@ -14,32 +17,6 @@ namespace vk
+@@ -14,32 +20,6 @@ namespace vk
  	{
  		using namespace ::glsl;
  
@@ -16968,7 +17442,7 @@ index 20a4250..d8d8c8d 100644
  		bool operator == (const descriptor_slot_t& a, const std::span<const VkDescriptorImageInfoEx>& b)
  		{
  			const auto ptr = std::get_if<descriptor_image_array_t>(&a);
-@@ -100,11 +77,62 @@ namespace vk
+@@ -100,11 +80,62 @@ namespace vk
  		void shader::create(::glsl::program_domain domain, const std::string& source)
  		{
  			type     = domain;
@@ -17031,7 +17505,7 @@ index 20a4250..d8d8c8d 100644
  			ensure(m_handle == VK_NULL_HANDLE);
  
  			if (!spirv::compile_glsl_to_spv(m_compiled, m_source, type, ::glsl::glsl_rules_vulkan))
-@@ -123,10 +151,14 @@ namespace vk
+@@ -123,10 +154,14 @@ namespace vk
  			vkCreateShaderModule(*g_render_device, &vs_info, nullptr, &m_handle);
  
  			return m_handle;
@@ -17046,7 +17520,7 @@ index 20a4250..d8d8c8d 100644
  			m_source.clear();
  			m_compiled.clear();
  
-@@ -137,13 +169,40 @@ namespace vk
+@@ -137,13 +172,40 @@ namespace vk
  			}
  		}
  
@@ -17088,26 +17562,181 @@ index 20a4250..d8d8c8d 100644
  			return m_compiled;
  		}
  
-@@ -274,12 +333,18 @@ namespace vk
+@@ -176,6 +238,12 @@ namespace vk
+ 
+ 		program::~program()
+ 		{
++#ifdef RPCS3_IOS
++			if (m_pipeline)
++			{
++				rpcs3::ios::shader_timing::pipeline_profile.live.fetch_sub(1, std::memory_order_relaxed);
++			}
++#endif
+ 			vkDestroyPipeline(m_device, m_pipeline, nullptr);
+ 
+ 			if (m_pipeline_layout)
+@@ -203,6 +271,79 @@ namespace vk
+ 			return *this;
+ 		}
+ 
++		namespace
++		{
++			// CELL543: VK_EXT_pipeline_creation_feedback, verified in MoltenVK 1.4.2:
++			// a stage is VALID once its Metal function exists and carries
++			// APPLICATION_PIPELINE_CACHE_HIT only when its MSL library came from
++			// the VkPipelineCache. VALID without HIT means the library was added.
++			// Bits: 1 chained, 2 pipeline valid, 4/8 vertex or compute valid/hit,
++			// 16/32 fragment valid/hit.
++			struct creation_feedback
++			{
++				VkPipelineCreationFeedback pipeline{};
++				std::array<VkPipelineCreationFeedback, 2> stages{};
++				VkPipelineCreationFeedbackCreateInfo info{ VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO };
++				bool chained = false;
++
++				template <typename CreateInfo>
++				void chain(CreateInfo& create_info, u32 stage_count)
++				{
++					if (stage_count > stages.size())
++					{
++						return;
++					}
++
++					info.pNext = create_info.pNext;
++					info.pPipelineCreationFeedback = &pipeline;
++					info.pipelineStageCreationFeedbackCount = stage_count;
++					info.pPipelineStageCreationFeedbacks = stages.data();
++					create_info.pNext = &info;
++					chained = true;
++				}
++
++				u32 bits(const VkPipelineShaderStageCreateInfo* shader_stages, u32 stage_count, u32& libraries_added) const
++				{
++					libraries_added = 0;
++					if (!chained)
++					{
++						return 0;
++					}
++
++					u32 result = 1;
++					if (pipeline.flags & VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT)
++					{
++						result |= 2;
++					}
++
++					for (u32 i = 0; i < stage_count; ++i)
++					{
++						const auto flags = stages[i].flags;
++						if (!(flags & VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT))
++						{
++							continue;
++						}
++
++						const bool hit = !!(flags & VK_PIPELINE_CREATION_FEEDBACK_APPLICATION_PIPELINE_CACHE_HIT_BIT);
++						const u32 shift = shader_stages[i].stage == VK_SHADER_STAGE_FRAGMENT_BIT ? 4 : 2;
++						result |= (1u << shift) | (hit ? (2u << shift) : 0u);
++						libraries_added += hit ? 0 : 1;
++					}
++
++					return result;
++				}
++			};
++
++			// Unknown cache effect counts as an addition: the cache stays saved.
++			void note_cache_effect(VkPipelineCache cache, const creation_feedback& feedback, u32 libraries_added)
++			{
++				if (cache && g_render_device)
++				{
++					g_render_device->note_pipeline_cache_update(!feedback.chained || libraries_added != 0);
++				}
++			}
++		}
++
+ 		program& program::link(bool separate_objects)
+ 		{
+ 			auto p_graphics_info = std::get_if<VkGraphicsPipelineCreateInfo>(&m_info);
+@@ -270,17 +411,78 @@ namespace vk
+ 				? g_render_device->get_pipeline_cache()
+ 				: VK_NULL_HANDLE;
+ 
++			creation_feedback feedback;
++			const bool chain_feedback = pipeline_cache && g_render_device->get_pipeline_creation_feedback_support();
++			u32 libraries_added = 0;
++
+ 			if (is_graphics_pipe)
  			{
  				VkGraphicsPipelineCreateInfo create_info = *p_graphics_info;
  				create_info.layout = m_pipeline_layout;
+-				CHECK_RESULT(vkCreateGraphicsPipelines(m_device, pipeline_cache, 1, &create_info, nullptr, &m_pipeline));
++				if (chain_feedback)
++				{
++					feedback.chain(create_info, create_info.stageCount);
++				}
 +#ifdef RPCS3_IOS
-+                rpcs3::ios::shader_timing::Scope timing(rpcs3::ios::shader_timing::Stage::graphics);
++                using namespace rpcs3::ios::shader_timing;
++                auto& context = pipeline_context;
++                context.feedback = 0;
++                context.driver_ns = context.vertex_ns = context.fragment_ns = 0;
++                context.thread_cpu_us = context.process_cpu_us = 0;
++                context.concurrent = pipeline_profile.in_driver.fetch_add(1, std::memory_order_relaxed);
++                const auto cpu_before = CpuClock::now();
++                const auto wall_before = std::chrono::steady_clock::now();
++                Scope timing(Stage::graphics);
 +#endif
- 				CHECK_RESULT(vkCreateGraphicsPipelines(m_device, pipeline_cache, 1, &create_info, nullptr, &m_pipeline));
++				const VkResult result = vkCreateGraphicsPipelines(m_device, pipeline_cache, 1, &create_info, nullptr, &m_pipeline);
++				const u32 bits = feedback.bits(create_info.pStages, create_info.stageCount, libraries_added);
++				note_cache_effect(pipeline_cache, feedback, libraries_added);
++#ifdef RPCS3_IOS
++                // Filled before timing's destructor so a slow record carries them.
++                const auto cpu_after = CpuClock::now();
++                pipeline_profile.in_driver.fetch_sub(1, std::memory_order_relaxed);
++                context.feedback = bits;
++                context.thread_cpu_us = cpu_after.thread_us - std::min(cpu_after.thread_us, cpu_before.thread_us);
++                context.process_cpu_us = cpu_after.process_us - std::min(cpu_after.process_us, cpu_before.process_us);
++                if (bits & 2) context.driver_ns = feedback.pipeline.duration;
++                for (u32 i = 0; i < create_info.stageCount && i < feedback.stages.size(); ++i)
++                {
++                    (create_info.pStages[i].stage == VK_SHADER_STAGE_FRAGMENT_BIT ? context.fragment_ns : context.vertex_ns) = feedback.stages[i].duration;
++                }
++                pipeline_profile.record_feedback(bits);
++                pipeline_profile.cache_additions.fetch_add(libraries_added, std::memory_order_relaxed);
++                if (result == VK_SUCCESS)
++                {
++                    pipeline_profile.live.fetch_add(1, std::memory_order_relaxed);
++                    pipeline_profile.fingerprints.record(FingerprintTable::fingerprint(context), static_cast<u64>(
++                        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - wall_before).count()));
++                }
++#else
++				static_cast<void>(bits);
++#endif
++				CHECK_RESULT(result);
  			}
  			else
  			{
  				VkComputePipelineCreateInfo create_info = *p_compute_info;
  				create_info.layout = m_pipeline_layout;
+-				CHECK_RESULT(vkCreateComputePipelines(m_device, pipeline_cache, 1, &create_info, nullptr, &m_pipeline));
++				if (chain_feedback)
++				{
++					feedback.chain(create_info, 1);
++				}
 +#ifdef RPCS3_IOS
 +                rpcs3::ios::shader_timing::Scope timing(rpcs3::ios::shader_timing::Stage::compute);
 +#endif
- 				CHECK_RESULT(vkCreateComputePipelines(m_device, pipeline_cache, 1, &create_info, nullptr, &m_pipeline));
++				const VkResult result = vkCreateComputePipelines(m_device, pipeline_cache, 1, &create_info, nullptr, &m_pipeline);
++				static_cast<void>(feedback.bits(&create_info.stage, 1, libraries_added));
++				note_cache_effect(pipeline_cache, feedback, libraries_added);
++#ifdef RPCS3_IOS
++                if (result == VK_SUCCESS)
++                {
++                    rpcs3::ios::shader_timing::pipeline_profile.live.fetch_add(1, std::memory_order_relaxed);
++                }
++#endif
++				CHECK_RESULT(result);
  			}
  
-@@ -320,36 +385,6 @@ namespace vk
+ 			m_linked = true;
+@@ -320,36 +522,6 @@ namespace vk
  			return { umax, umax };
  		}
  
@@ -18275,10 +18904,59 @@ index 9534b5f..cff7774 100644
  
  		if (notify_on_grow)
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.cpp b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
-index 2b2e2c3..dede943 100644
+index 2b2e2c3..32265ad 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
-@@ -412,6 +412,7 @@ namespace vk
+@@ -162,6 +162,9 @@ namespace vk
+ 			return;
+ 		}
+ 
++		m_pipeline_cache_unsaved.store(0, std::memory_order_relaxed);
++		m_pipeline_cache_restored.store(create_info.initialDataSize != 0, std::memory_order_relaxed);
++
+ 		if (!create_info.initialDataSize)
+ 		{
+ 			rsx_log.notice("Vulkan driver pipeline cache initialized empty.");
+@@ -181,6 +184,17 @@ namespace vk
+ 			return;
+ 		}
+ 
++		// CELL543: MoltenVK's cache holds shader libraries only. When creation
++		// feedback proves none was added since the accepted file was restored
++		// or last saved, rewriting would serialize, fsync and rename identical
++		// data (under the driver's cache lock) on the RSX thread.
++		const u64 unsaved = m_pipeline_cache_unsaved.load(std::memory_order_relaxed);
++		if (!unsaved && m_pipeline_cache_restored.load(std::memory_order_relaxed))
++		{
++			rsx_log.notice("NEOSTATION_CELL543_PIPELINE_CACHE: no library added since the persisted cache; save skipped.");
++			return;
++		}
++
+ 		std::vector<u8> data;
+ 		for (u32 attempt = 0; attempt < 2; ++attempt)
+ 		{
+@@ -242,7 +256,10 @@ namespace vk
+ 			return;
+ 		}
+ 
+-		rsx_log.notice("Vulkan driver pipeline cache saved (%llu bytes).", static_cast<u64>(data.size()));
++		// Libraries added during the save stay counted for the next one.
++		m_pipeline_cache_unsaved.fetch_sub(unsaved, std::memory_order_relaxed);
++		m_pipeline_cache_restored.store(true, std::memory_order_relaxed);
++		rsx_log.notice("Vulkan driver pipeline cache saved (%llu bytes, %llu added libraries).", static_cast<u64>(data.size()), unsaved);
+ 	}
+ 
+ 	void render_device::save_and_destroy_pipeline_cache()
+@@ -381,6 +398,8 @@ namespace vk
+ #ifdef __APPLE__
+ 		optional_features_support.portability              = device_extensions.is_supported(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
+ 		optional_features_support.metal_objects            = device_extensions.is_supported(VK_EXT_METAL_OBJECTS_EXTENSION_NAME);
++		// Reporting only (MoltenVK 1.4.2 lists it for iOS); no rendering state changes.
++		optional_features_support.pipeline_creation_feedback = device_extensions.is_supported(VK_EXT_PIPELINE_CREATION_FEEDBACK_EXTENSION_NAME);
+ #endif
+ 
+ 		optional_features_support.debug_utils              = instance_extensions.is_supported(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+@@ -412,6 +431,7 @@ namespace vk
  		// Core properties only
  		vkGetPhysicalDeviceMemoryProperties(dev, &memory_properties);
  		vkGetPhysicalDeviceProperties(dev, &props);
@@ -18286,7 +18964,7 @@ index 2b2e2c3..dede943 100644
  
  		if (!allow_extensions)
  		{
-@@ -459,6 +460,15 @@ namespace vk
+@@ -459,6 +479,15 @@ namespace vk
  		vkGetPhysicalDeviceProperties2(dev, &properties2);
  		props = properties2.properties;
  
@@ -18302,11 +18980,31 @@ index 2b2e2c3..dede943 100644
  		if (descriptor_indexing_support)
  		{
  			if (descriptor_indexing_props.maxUpdateAfterBindDescriptorsInAllPools < 800'000)
+@@ -823,6 +852,11 @@ namespace vk
+ 		{
+ 			requested_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
+ 		}
++
++		if (pgpu->optional_features_support.pipeline_creation_feedback)
++		{
++			requested_extensions.push_back(VK_EXT_PIPELINE_CREATION_FEEDBACK_EXTENSION_NAME);
++		}
+ 		
+ #ifdef __APPLE__
+ 		if (pgpu->optional_features_support.portability)
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.h b/rpcs3/Emu/RSX/VK/vkutils/device.h
-index ffafbae..c126dc9 100644
+index ffafbae..311b9cf 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.h
-@@ -83,6 +83,7 @@ namespace vk
+@@ -5,6 +5,7 @@
+ #include "pipeline_binding_table.h"
+ #include "memory.h"
+ 
++#include <atomic>
+ #include <string>
+ #include <vector>
+ #include <unordered_map>
+@@ -83,6 +84,7 @@ namespace vk
  		VkPhysicalDeviceDriverPropertiesKHR driver_properties{};
  
  		u32 descriptor_max_draw_calls = DESCRIPTOR_MAX_DRAW_CALLS;
@@ -18314,7 +19012,15 @@ index ffafbae..c126dc9 100644
  		descriptor_indexing_features descriptor_indexing_support{};
  
  		custom_border_color_features custom_border_color_support{};
-@@ -132,6 +133,11 @@ namespace vk
+@@ -105,6 +107,7 @@ namespace vk
+ 			bool texture_compression_bc = false;
+ 			bool portability = false;
+ 			bool provoking_vertex_last = false;
++			bool pipeline_creation_feedback = false;
+ 		} optional_features_support;
+ 
+ 		friend class render_device;
+@@ -132,6 +135,11 @@ namespace vk
  		const VkQueueFamilyProperties& get_queue_properties(u32 queue);
  		const VkPhysicalDeviceMemoryProperties& get_memory_properties() const;
  		const VkPhysicalDeviceLimits& get_limits() const;
@@ -18326,7 +19032,18 @@ index ffafbae..c126dc9 100644
  
  		operator VkPhysicalDevice() const;
  		operator VkInstance() const;
-@@ -171,6 +177,10 @@ namespace vk
+@@ -149,6 +157,10 @@ namespace vk
+ 		VkPipelineCache m_pipeline_cache = VK_NULL_HANDLE;
+ 		// Captured at creation: Emu's active title may change during teardown.
+ 		std::string m_pipeline_cache_path;
++		// CELL543: the file's libraries were accepted by the driver at creation,
++		// and how many libraries were added since the last successful save.
++		mutable std::atomic<bool> m_pipeline_cache_restored{false};
++		mutable std::atomic<u64> m_pipeline_cache_unsaved{0};
+ 
+ 		VkQueue m_graphics_queue = VK_NULL_HANDLE;
+ 		VkQueue m_present_queue = VK_NULL_HANDLE;
+@@ -171,6 +183,10 @@ namespace vk
  
  		void create(vk::physical_device& pdev, u32 graphics_queue_idx, u32 present_queue_idx, u32 transfer_queue_idx);
  		void destroy();
@@ -18337,6 +19054,24 @@ index ffafbae..c126dc9 100644
  
  		const VkFormatProperties get_format_properties(VkFormat format) const;
  
+@@ -207,6 +223,17 @@ namespace vk
+ 		bool get_extended_device_fault_support() const { return pgpu->optional_features_support.extended_device_fault; }
+ 		bool get_texture_compression_bc_support() const { return pgpu->optional_features_support.texture_compression_bc; }
+ 		bool get_provoking_vertex_last_support() const { return pgpu->optional_features_support.provoking_vertex_last; }
++		bool get_pipeline_creation_feedback_support() const { return pgpu->optional_features_support.pipeline_creation_feedback; }
++
++		// CELL543: one call per pipeline created with the shared cache. Without
++		// feedback every creation counts as an addition, preserving old saves.
++		void note_pipeline_cache_update(bool added) const noexcept
++		{
++			if (added)
++			{
++				m_pipeline_cache_unsaved.fetch_add(1, std::memory_order_relaxed);
++			}
++		}
+ 
+ 		u64 get_descriptor_update_after_bind_support() const { return pgpu->descriptor_indexing_support.update_after_bind_mask; }
+ 		u32 get_descriptor_max_draw_calls() const { return pgpu->descriptor_max_draw_calls; }
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp b/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp
 new file mode 100644
 index 0000000..44ac28b
@@ -18625,10 +19360,10 @@ index 0000000..504190d
 +}
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h b/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h
 new file mode 100644
-index 0000000..95b4aff
+index 0000000..b5f8e66
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,92 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -18679,6 +19414,45 @@ index 0000000..95b4aff
 +                a.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 +                a.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
 +            }
++        }
++    }
++
++    // CELL543: depth/stencil state that the compatible render pass cannot
++    // observe. Bits 8..15 of the key hold the depth/stencil attachment format
++    // (0: none). Vulkan ignores pDepthStencilState for a subpass without a
++    // depth/stencil attachment; the stencil test is skipped and stencil is
++    // never written without a stencil aspect; a disabled depth test performs
++    // no comparison and no depth write. Compare/write masks and references
++    // stay as decoded (they are dynamic state). Only the private key changes.
++    constexpr bool depth_format_has_stencil(u32 format) noexcept
++    {
++        return format == VK_FORMAT_S8_UINT || format == VK_FORMAT_D16_UNORM_S8_UINT ||
++            format == VK_FORMAT_D24_UNORM_S8_UINT || format == VK_FORMAT_D32_SFLOAT_S8_UINT;
++    }
++
++    inline void normalize_pipeline_depth_stencil(graphics_pipeline_state& state, u64 renderpass_key) noexcept
++    {
++        auto& ds = state.ds;
++        const u32 depth_format = static_cast<u32>((renderpass_key >> 8) & 0xFF);
++        if (!depth_format)
++        {
++            const VkStructureType type = ds.sType;
++            ds = {};
++            ds.sType = type;
++            return;
++        }
++
++        if (!ds.depthTestEnable)
++        {
++            ds.depthWriteEnable = VK_FALSE;
++            ds.depthCompareOp = VK_COMPARE_OP_NEVER;
++        }
++
++        if (!ds.stencilTestEnable || !depth_format_has_stencil(depth_format))
++        {
++            ds.stencilTestEnable = VK_FALSE;
++            ds.front = {};
++            ds.back = {};
 +        }
 +    }
 +}
@@ -18943,10 +19717,42 @@ index fe5cf89..a01d0b4 100644
  		// Meta
  		RSX_SHADER_CONTROL_META_USES_DISCARD       = (RSX_SHADER_CONTROL_USES_KIL | RSX_SHADER_CONTROL_TEXTURE_ALPHA_KILL | RSX_SHADER_CONTROL_ALPHA_TEST | RSX_SHADER_CONTROL_POLYGON_STIPPLE | RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE),
 diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
-index 625311f..11c8109 100644
+index 625311f..0a7b879 100644
 --- a/rpcs3/Emu/RSX/rsx_cache.h
 +++ b/rpcs3/Emu/RSX/rsx_cache.h
-@@ -74,6 +74,20 @@ namespace rsx
+@@ -11,8 +11,12 @@
+ #include "Emu/RSX/Program/RSXVertexProgram.h"
+ #include "Emu/RSX/Program/RSXFragmentProgram.h"
+ #include "Overlays/Shaders/shader_loading_dialog.h"
++#include "Common/deferred_publisher.h"
+ 
+ #include <chrono>
++#ifdef RPCS3_IOS
++#include "ios/IOSShaderTiming.h"
++#endif
+ 
+ #include "util/sysinfo.hpp"
+ #include "util/fnv_hash.hpp"
+@@ -67,6 +71,18 @@ namespace rsx
+ 			pipeline_storage_type pipeline_properties;
+ 		};
+ 
++		// CELL543: everything one persistent entry needs, copied from the
++		// caller so the writer never reads renderer or guest state.
++		struct pending_record
++		{
++			pipeline_data data;
++			std::vector<u32> vertex_words;
++			std::vector<u8> fragment_bytes;
++		};
++
++		// Bounded so a burst cannot retain unbounded copies; overflow writes inline.
++		static constexpr usz maximum_deferred_records = 256;
++
+ 		std::string version_prefix;
+ 		std::string root_path;
+ 		std::string pipeline_class_name;
+@@ -74,6 +90,28 @@ namespace rsx
  
  		backend_storage& m_storage;
  
@@ -18960,14 +19766,22 @@ index 625311f..11c8109 100644
 +			{
 +				return false;
 +			}
++#ifdef RPCS3_IOS
++			const auto started = std::chrono::steady_clock::now();
++#endif
 +			fs::pending_file pending{path};
-+			return pending.file && pending.file.write(data, size) == size && pending.commit();
++			const bool ok = pending.file && pending.file.write(data, size) == size && pending.commit();
++#ifdef RPCS3_IOS
++			rpcs3::ios::shader_timing::publication.commit.record(static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
++				std::chrono::steady_clock::now() - started).count()));
++#endif
++			return ok;
 +		}
 +
  		static std::string get_message(u32 index, u32 processed, u32 entry_count)
  		{
  			return fmt::format("%s pipeline object %u of %u", index == 0 ? "Loading" : "Compiling", processed, entry_count);
-@@ -109,7 +123,13 @@ namespace rsx
+@@ -109,7 +147,13 @@ namespace rsx
  					}
  
  					pipeline_data pdata{};
@@ -18982,36 +19796,127 @@ index 625311f..11c8109 100644
  
  					auto entry = unpack(pdata);
  
-@@ -305,16 +325,24 @@ namespace rsx
+@@ -220,8 +264,18 @@ namespace rsx
+ 					root_path = std::move(cache_path) + "shaders_cache/";
+ 				}
+ 			}
++
++			if (!root_path.empty())
++			{
++				m_publisher = std::make_unique<deferred_publisher<pending_record>>(maximum_deferred_records,
++					[this](pending_record& record) { write_record(record); },
++					[]() { thread_ctrl::set_native_priority(-1); });
++			}
+ 		}
+ 
++		// Destroys the writer first: every accepted record reaches disk.
++		~shaders_cache() = default;
++
+ 		template <typename... Args>
+ 		void load(shader_loading_dialog* dlg, Args&& ...args)
+ 		{
+@@ -300,21 +354,93 @@ namespace rsx
+ 				return;
+ 			}
+ 
+-			pipeline_data data = pack(pipeline, vp, fp);
++#ifdef RPCS3_IOS
++			const auto started = std::chrono::steady_clock::now();
++#endif
++			pending_record record;
++			record.data = pack(pipeline, vp, fp);
++			record.vertex_words = vp.data;
++			if (const auto* fp_data = static_cast<const u8*>(fp.get_data()); fp_data && fp.ucode_length)
++			{
++				record.fragment_bytes.assign(fp_data, fp_data + fp.ucode_length);
++			}
++
++			// The draw that created this pipeline does not need its disk copy.
++			// fsync and rename now run on the writer; a full queue writes here.
++			const bool deferred = m_publisher && m_publisher->submit(std::move(record));
++			if (!m_publisher)
++			{
++				write_record(record);
++			}
++#ifdef RPCS3_IOS
++			auto& profile = rpcs3::ios::shader_timing::publication;
++			(deferred ? profile.deferred : profile.inline_writes).fetch_add(1, std::memory_order_relaxed);
++			if (m_publisher)
++			{
++				rpcs3::ios::shader_timing::raise_to(profile.depth_peak, m_publisher->depth());
++			}
++			profile.caller.record(static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
++				std::chrono::steady_clock::now() - started).count()));
++#else
++			static_cast<void>(deferred);
++#endif
++		}
++
++		// Blocks until queued records are durable (session teardown, tests).
++		void flush_pending_writes()
++		{
++			if (m_publisher)
++			{
++				m_publisher->drain();
++			}
++		}
++
++	private:
++		bool write_record(const pending_record& record) const
++		{
++#ifdef RPCS3_IOS
++			const auto started = std::chrono::steady_clock::now();
++			const bool ok = write_record_files(record);
++			auto& profile = rpcs3::ios::shader_timing::publication;
++			profile.write.record(static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
++				std::chrono::steady_clock::now() - started).count()));
++			if (!ok)
++			{
++				profile.failures.fetch_add(1, std::memory_order_relaxed);
++			}
++			return ok;
++#else
++			return write_record_files(record);
++#endif
++		}
++
++		bool write_record_files(const pending_record& record) const
++		{
++			const pipeline_data& data = record.data;
++			const usz fp_size = record.fragment_bytes.size();
++			const usz vp_size = record.vertex_words.size() * sizeof(u32);
+ 
  			std::string fp_name = root_path + "/raw/" + fmt::format("%llX.fp", data.fragment_program_hash);
  			std::string vp_name = root_path + "/raw/" + fmt::format("%llX.vp", data.vertex_program_hash);
  
 -			// Writeback to cache either if file does not exist or it is invalid (unexpected size)
 -			// Note: fs::write_file is not atomic, if the process is terminated in the middle an empty file is created
+-			if (fs::stat_t s{}; !fs::get_stat(fp_name, s) || s.size != fp.ucode_length)
 +			// Replace invalid or absent raw programs atomically. Do not publish the
 +			// pipeline record unless both referenced payloads are durable.
- 			if (fs::stat_t s{}; !fs::get_stat(fp_name, s) || s.size != fp.ucode_length)
++			if (fs::stat_t s{}; !fs::get_stat(fp_name, s) || s.size != fp_size)
  			{
 -				fs::write_file(fp_name, fs::rewrite, fp.get_data(), fp.ucode_length);
-+				if (!write_atomically(fp_name, fp.get_data(), fp.ucode_length))
++				if (!write_atomically(fp_name, record.fragment_bytes.data(), fp_size))
 +				{
 +					rsx_log.error("Failed to save fragment shader cache entry atomically");
-+					return;
++					return false;
 +				}
  			}
  
- 			if (fs::stat_t s{}; !fs::get_stat(vp_name, s) || s.size != vp.data.size() * sizeof(u32))
+-			if (fs::stat_t s{}; !fs::get_stat(vp_name, s) || s.size != vp.data.size() * sizeof(u32))
++			if (fs::stat_t s{}; !fs::get_stat(vp_name, s) || s.size != vp_size)
  			{
 -				fs::write_file(vp_name, fs::rewrite, vp.data);
-+				if (!write_atomically(vp_name, vp.data.data(), vp.data.size() * sizeof(u32)))
++				if (!write_atomically(vp_name, record.vertex_words.data(), vp_size))
 +				{
 +					rsx_log.error("Failed to save vertex shader cache entry atomically");
-+					return;
++					return false;
 +				}
  			}
  
  			const u32 state_params[] =
-@@ -338,16 +366,34 @@ namespace rsx
+@@ -338,16 +464,38 @@ namespace rsx
  
  			const std::string pipeline_file_name = fmt::format("%llX+%llX+%llX+%llX.bin", data.vertex_program_hash, data.fragment_program_hash, data.pipeline_storage_hash, state_hash);
  			const std::string pipeline_path = root_path + "/pipelines/" + pipeline_class_name + "/" + version_prefix + "/" + pipeline_file_name;
@@ -19019,9 +19924,13 @@ index 625311f..11c8109 100644
 +			if (!write_atomically(pipeline_path, &data, sizeof(data)))
 +			{
 +				rsx_log.error("Failed to save pipeline cache entry atomically");
++				return false;
 +			}
++
++			return true;
  		}
  
++	public:
  		RSXVertexProgram load_vp_raw(u64 program_hash) const
  		{
  			RSXVertexProgram vp = {};
@@ -19051,7 +19960,7 @@ index 625311f..11c8109 100644
  			return vp;
  		}
  
-@@ -357,16 +403,28 @@ namespace rsx
+@@ -357,16 +505,28 @@ namespace rsx
  
  			RSXFragmentProgram fp = {};
  
@@ -19084,7 +19993,7 @@ index 625311f..11c8109 100644
  			fragment_program_data[fragment_program_data.push_begin()] = std::move(buf);
  			return fp;
  		}
-@@ -410,6 +468,25 @@ namespace rsx
+@@ -410,6 +570,25 @@ namespace rsx
  			fp.two_sided_lighting = !!(data.fp_lighting_flags & 0x1);
  			fp.mrt_buffers_count = data.fp_mrt_count;
  
@@ -19110,6 +20019,18 @@ index 625311f..11c8109 100644
  			return result;
  		}
  
+@@ -459,6 +638,11 @@ namespace rsx
+ 
+ 			return data_block;
+ 		}
++
++	private:
++		// Last member: destroyed first, draining queued writes while the
++		// paths above are still alive.
++		std::unique_ptr<deferred_publisher<pending_record>> m_publisher;
+ 	};
+ 
+ 	namespace vertex_cache
 diff --git a/rpcs3/Emu/RSX/rsx_methods.cpp b/rpcs3/Emu/RSX/rsx_methods.cpp
 index 8aea1a4..ab99381 100644
 --- a/rpcs3/Emu/RSX/rsx_methods.cpp
@@ -21515,10 +22436,10 @@ index 0000000..433344e
 +}
 diff --git a/rpcs3/ios/IOSShaderTiming.h b/rpcs3/ios/IOSShaderTiming.h
 new file mode 100644
-index 0000000..330f4cf
+index 0000000..3dc88bc
 --- /dev/null
 +++ b/rpcs3/ios/IOSShaderTiming.h
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,353 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -21528,6 +22449,8 @@ index 0000000..330f4cf
 +#include <chrono>
 +#include <cstdint>
 +#include <mutex>
++#include <ctime>
++#include <sys/resource.h>
 +
 +namespace rpcs3::ios::shader_timing
 +{
@@ -21543,8 +22466,46 @@ index 0000000..330f4cf
 +struct PipelineContext
 +{
 +    std::uint64_t properties = 0, renderpass = 0, vertex_module = 0, fragment_module = 0, flags = 0;
++    // CELL543: written once after the driver call returns, still per actual
++    // construction. Feedback bits: 1 chained, 2 pipeline valid, 4 VS valid,
++    // 8 VS from VkPipelineCache, 16 FS valid, 32 FS from VkPipelineCache.
++    // Durations are MoltenVK-reported; CPU deltas separate this thread's own
++    // conversion work from the rest of the process while it waits on Metal.
++    std::uint32_t feedback = 0, concurrent = 0;
++    std::uint64_t driver_ns = 0, vertex_ns = 0, fragment_ns = 0;
++    std::uint64_t thread_cpu_us = 0, process_cpu_us = 0;
 +};
 +inline thread_local PipelineContext pipeline_context;
++
++// CELL543: why the cache built: bit 1 new vertex program, 2 new fragment
++// program (neither: an existing shader pair met new state), 4 inline, 8 deferred.
++inline thread_local std::uint32_t build_origin = 0;
++class BuildOriginScope final
++{
++    std::uint32_t previous_ = build_origin;
++public:
++    explicit BuildOriginScope(std::uint32_t value) noexcept { build_origin = value; }
++    ~BuildOriginScope() noexcept { build_origin = previous_; }
++    BuildOriginScope(const BuildOriginScope&) = delete;
++    BuildOriginScope& operator=(const BuildOriginScope&) = delete;
++};
++
++struct CpuClock
++{
++    std::uint64_t thread_us = 0, process_us = 0;
++    static CpuClock now() noexcept
++    {
++        CpuClock result;
++        timespec thread_time{};
++        if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &thread_time) == 0)
++            result.thread_us = static_cast<std::uint64_t>(thread_time.tv_sec) * 1'000'000 + static_cast<std::uint64_t>(thread_time.tv_nsec) / 1000;
++        rusage usage{};
++        if (getrusage(RUSAGE_SELF, &usage) == 0)
++            result.process_us = (static_cast<std::uint64_t>(usage.ru_utime.tv_sec) + static_cast<std::uint64_t>(usage.ru_stime.tv_sec)) * 1'000'000 +
++                static_cast<std::uint64_t>(usage.ru_utime.tv_usec) + static_cast<std::uint64_t>(usage.ru_stime.tv_usec);
++        return result;
++    }
++};
 +// Set once per actual pipeline construction, never per draw or SPU operation.
 +// RAII restores nested contexts, exceptions and worker reuse without retaining
 +// pointers to a renderer or a previous session. Handles are process-local IDs.
@@ -21562,6 +22523,7 @@ index 0000000..330f4cf
 +    Stage stage{};
 +    std::uint64_t begin_us = 0, end_us = 0;
 +    PipelineContext pipeline{};
++    std::uint32_t origin = 0;
 +};
 +class SlowOperations final
 +{
@@ -21587,7 +22549,8 @@ index 0000000..330f4cf
 +            return;
 +        }
 +        events_[size_++] = {stage, begin_us, end_us,
-+            stage == Stage::graphics ? pipeline_context : PipelineContext{}};
++            stage == Stage::graphics ? pipeline_context : PipelineContext{},
++            stage == Stage::graphics ? build_origin : 0u};
 +    }
 +    Snapshot take() noexcept
 +    {
@@ -21664,6 +22627,171 @@ index 0000000..330f4cf
 +    for (std::size_t i = 0; i < result.size(); ++i) result[i] = costs[i].take();
 +    return result;
 +}
++
++inline void raise_to(std::atomic<std::uint64_t>& value, std::uint64_t candidate) noexcept
++{
++    auto old = value.load(std::memory_order_relaxed);
++    while (old < candidate && !value.compare_exchange_weak(old, candidate, std::memory_order_relaxed)) {}
++}
++
++// CELL543: shader-cache disk publication. caller = time the producing thread
++// (normally RSX) spends in store(); write = one complete record on the writer;
++// commit = each atomic temporary write, fsync and rename. Deferred and inline
++// counts show where the I/O ran. A full queue writes inline; nothing is dropped.
++struct PublicationProfile
++{
++    diagnostics::EventCost caller, write, commit;
++    std::atomic<std::uint64_t> deferred{0}, inline_writes{0}, failures{0}, depth_peak{0};
++    struct Sample
++    {
++        diagnostics::EventCost::Sample caller, write, commit;
++        std::uint64_t deferred = 0, inline_writes = 0, failures = 0, depth_peak = 0;
++    };
++    Sample take() noexcept
++    {
++        return {caller.take(), write.take(), commit.take(),
++            deferred.exchange(0, std::memory_order_relaxed), inline_writes.exchange(0, std::memory_order_relaxed),
++            failures.exchange(0, std::memory_order_relaxed), depth_peak.exchange(0, std::memory_order_relaxed)};
++    }
++};
++inline PublicationProfile publication;
++
++// CELL543: bounded per-fingerprint build aggregation. A fingerprint mixes the
++// complete key hash, render pass and both process-local module handles of one
++// actual construction. With exact single-flight lookup a repeat should stay 0;
++// a repeat exposes an identity defect or an abandoned build. Fixed storage,
++// try-lock producers, saturation counted, reset only for a new renderer.
++class FingerprintTable final
++{
++public:
++    static constexpr std::size_t capacity = 64;
++    struct Entry { std::uint64_t fingerprint = 0, builds = 0, total_us = 0, max_us = 0; };
++    struct Snapshot
++    {
++        std::uint64_t distinct = 0, repeated_builds = 0, dropped = 0;
++        std::array<Entry, 3> costliest{}, repeated{};
++        bool captured = false;
++    };
++    static std::uint64_t fingerprint(const PipelineContext& c) noexcept
++    {
++        auto mix = [](std::uint64_t seed, std::uint64_t value) noexcept
++        {
++            seed ^= value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2);
++            return seed;
++        };
++        const auto result = mix(mix(mix(mix(mix(0x51ed270b27aeb4ffull, c.properties), c.renderpass), c.vertex_module), c.fragment_module), c.flags);
++        return result ? result : 1;
++    }
++    void record(std::uint64_t key, std::uint64_t duration_us) noexcept
++    {
++        std::unique_lock lock(mutex_, std::try_to_lock);
++        if (!lock)
++        {
++            dropped_.fetch_add(1, std::memory_order_relaxed);
++            return;
++        }
++        for (std::size_t i = 0; i < capacity; ++i)
++        {
++            auto& entry = entries_[(key + i) % capacity];
++            if (entry.fingerprint && entry.fingerprint != key) continue;
++            entry.fingerprint = key;
++            entry.builds++;
++            entry.total_us += duration_us;
++            entry.max_us = std::max(entry.max_us, duration_us);
++            return;
++        }
++        dropped_.fetch_add(1, std::memory_order_relaxed);
++    }
++    Snapshot snapshot() noexcept
++    {
++        Snapshot result;
++        std::unique_lock lock(mutex_, std::try_to_lock);
++        if (!lock) return result;
++        result.captured = true;
++        result.dropped = dropped_.load(std::memory_order_relaxed);
++        for (const auto& entry : entries_)
++        {
++            if (!entry.fingerprint) continue;
++            result.distinct++;
++            result.repeated_builds += entry.builds - 1;
++            auto insert = [&entry](std::array<Entry, 3>& list, auto&& better)
++            {
++                for (auto& slot : list)
++                {
++                    if (!slot.fingerprint || better(entry, slot))
++                    {
++                        auto carry = entry;
++                        for (auto* it = &slot; it != list.data() + list.size(); ++it) std::swap(*it, carry);
++                        return;
++                    }
++                }
++            };
++            insert(result.costliest, [](const Entry& a, const Entry& b) { return a.max_us > b.max_us; });
++            if (entry.builds > 1) insert(result.repeated, [](const Entry& a, const Entry& b) { return a.builds > b.builds; });
++        }
++        return result;
++    }
++    void reset() noexcept
++    {
++        std::lock_guard lock(mutex_);
++        entries_ = {};
++        dropped_.store(0, std::memory_order_relaxed);
++    }
++private:
++    std::mutex mutex_;
++    std::array<Entry, capacity> entries_{};
++    std::atomic<std::uint64_t> dropped_{0};
++};
++
++// CELL543: single-flight, origin and MoltenVK cache attribution counters.
++// Updated once per actual build or wait, never per draw or SPU operation.
++struct PipelineProfile
++{
++    std::atomic<std::uint64_t> new_vertex{0}, new_fragment{0}, state_only{0}, abandoned{0};
++    diagnostics::EventCost pending_wait;
++    std::atomic<std::uint64_t> feedback{0}, vertex_cached{0}, vertex_compiled{0}, fragment_cached{0}, fragment_compiled{0}, cache_additions{0};
++    std::atomic<std::int64_t> live{0};
++    std::atomic<std::uint32_t> in_driver{0};
++    FingerprintTable fingerprints;
++    struct Sample
++    {
++        std::uint64_t new_vertex = 0, new_fragment = 0, state_only = 0, abandoned = 0;
++        diagnostics::EventCost::Sample pending_wait;
++        std::uint64_t feedback = 0, vertex_cached = 0, vertex_compiled = 0, fragment_cached = 0, fragment_compiled = 0, cache_additions = 0;
++        std::int64_t live = 0;
++    };
++    void record_origin(std::uint32_t origin) noexcept
++    {
++        if (origin & 1) new_vertex.fetch_add(1, std::memory_order_relaxed);
++        if (origin & 2) new_fragment.fetch_add(1, std::memory_order_relaxed);
++        if (!(origin & 3)) state_only.fetch_add(1, std::memory_order_relaxed);
++    }
++    void record_feedback(std::uint32_t bits) noexcept
++    {
++        if (!(bits & 1)) return;
++        feedback.fetch_add(1, std::memory_order_relaxed);
++        if (bits & 4) ((bits & 8) ? vertex_cached : vertex_compiled).fetch_add(1, std::memory_order_relaxed);
++        if (bits & 16) ((bits & 32) ? fragment_cached : fragment_compiled).fetch_add(1, std::memory_order_relaxed);
++    }
++    Sample take() noexcept
++    {
++        Sample result;
++        result.new_vertex = new_vertex.exchange(0, std::memory_order_relaxed);
++        result.new_fragment = new_fragment.exchange(0, std::memory_order_relaxed);
++        result.state_only = state_only.exchange(0, std::memory_order_relaxed);
++        result.abandoned = abandoned.exchange(0, std::memory_order_relaxed);
++        result.pending_wait = pending_wait.take();
++        result.feedback = feedback.exchange(0, std::memory_order_relaxed);
++        result.vertex_cached = vertex_cached.exchange(0, std::memory_order_relaxed);
++        result.vertex_compiled = vertex_compiled.exchange(0, std::memory_order_relaxed);
++        result.fragment_cached = fragment_cached.exchange(0, std::memory_order_relaxed);
++        result.fragment_compiled = fragment_compiled.exchange(0, std::memory_order_relaxed);
++        result.cache_additions = cache_additions.exchange(0, std::memory_order_relaxed);
++        result.live = live.load(std::memory_order_relaxed);
++        return result;
++    }
++};
++inline PipelineProfile pipeline_profile;
 +}
 diff --git a/rpcs3/ios/IOSTextureHash.cpp b/rpcs3/ios/IOSTextureHash.cpp
 index 4d7a339..cb021bc 100644
@@ -25835,7 +26963,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..67dc622 100644
+index d800542..264af0d 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,176 @@
@@ -26426,7 +27554,7 @@ index d800542..67dc622 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +614,569 @@ public:
+@@ -108,12 +614,615 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -26679,11 +27807,57 @@ index d800542..67dc622 100644
 +                ios_core_profiler.notice(
 +                    "COREPROF SHADERSTALL538_EVENT stage=%u begin_us=%llu end_us=%llu duration_us=%llu "
 +                    "scope=process_operation report_session=%llu report_window=%llu "
-+                    "context542=1 properties=%llx renderpass=%llx vp_module=%llx fp_module=%llx pipeline_flags=%llu",
++                    "context542=1 properties=%llx renderpass=%llx vp_module=%llx fp_module=%llx pipeline_flags=%llu "
++                    "context543=1 origin=%u feedback=%u driver_us=%llu vs_library_us=%llu fs_library_us=%llu "
++                    "thread_cpu_us=%llu process_cpu_us=%llu concurrent_driver_calls=%u",
 +                    static_cast<u32>(event.stage), event.begin_us, event.end_us,
 +                    event.end_us - event.begin_us, profile_session, profile_window,
 +                    event.pipeline.properties, event.pipeline.renderpass, event.pipeline.vertex_module,
-+                    event.pipeline.fragment_module, event.pipeline.flags);
++                    event.pipeline.fragment_module, event.pipeline.flags,
++                    event.origin, event.pipeline.feedback, event.pipeline.driver_ns / 1000,
++                    event.pipeline.vertex_ns / 1000, event.pipeline.fragment_ns / 1000,
++                    event.pipeline.thread_cpu_us, event.pipeline.process_cpu_us, event.pipeline.concurrent);
++            }
++        }
++        {
++            // CELL543: caller = RSX-side cost of store(); write/commit run on the
++            // shader-cache writer unless inline_writes reports a full queue.
++            const auto pub = rpcs3::ios::shader_timing::publication.take();
++            ios_core_profiler.notice(
++                "COREPROF SHADERPUB543 session=%llu window=%llu tuple=count:total_us:max_us "
++                "caller=%llu:%llu:%llu write=%llu:%llu:%llu commit=%llu:%llu:%llu "
++                "deferred=%llu inline_writes=%llu failures=%llu depth_peak=%llu capacity=256 durable_fsync=1",
++                profile_session, profile_window,
++                pub.caller.count, pub.caller.total, pub.caller.maximum,
++                pub.write.count, pub.write.total, pub.write.maximum,
++                pub.commit.count, pub.commit.total, pub.commit.maximum,
++                pub.deferred, pub.inline_writes, pub.failures, pub.depth_peak);
++            auto& pipelines = rpcs3::ios::shader_timing::pipeline_profile;
++            const auto pipe = pipelines.take();
++            const auto prints = pipelines.fingerprints.snapshot();
++            ios_core_profiler.notice(
++                "COREPROF SHADERPIPE543 session=%llu window=%llu new_vertex=%llu new_fragment=%llu state_only=%llu "
++                "abandoned=%llu pending_wait=%llu:%llu:%llu feedback=%llu vs_cached=%llu vs_compiled=%llu "
++                "fs_cached=%llu fs_compiled=%llu cache_additions=%llu live_pipelines=%lld "
++                "fingerprints_captured=%u distinct=%llu repeated_builds=%llu fingerprint_dropped=%llu",
++                profile_session, profile_window, pipe.new_vertex, pipe.new_fragment, pipe.state_only,
++                pipe.abandoned, pipe.pending_wait.count, pipe.pending_wait.total, pipe.pending_wait.maximum,
++                pipe.feedback, pipe.vertex_cached, pipe.vertex_compiled, pipe.fragment_cached, pipe.fragment_compiled,
++                pipe.cache_additions, static_cast<long long>(pipe.live), prints.captured ? 1u : 0u,
++                prints.distinct, prints.repeated_builds, prints.dropped);
++            for (const auto& entry : prints.costliest)
++            {
++                if (!entry.fingerprint) continue;
++                ios_core_profiler.notice(
++                    "COREPROF SHADERPIPE543_COSTLY session=%llu window=%llu fingerprint=%llx builds=%llu total_us=%llu max_us=%llu",
++                    profile_session, profile_window, entry.fingerprint, entry.builds, entry.total_us, entry.max_us);
++            }
++            for (const auto& entry : prints.repeated)
++            {
++                if (!entry.fingerprint) continue;
++                ios_core_profiler.notice(
++                    "COREPROF SHADERPIPE543_REPEAT session=%llu window=%llu fingerprint=%llx builds=%llu total_us=%llu max_us=%llu",
++                    profile_session, profile_window, entry.fingerprint, entry.builds, entry.total_us, entry.max_us);
 +            }
 +        }
 +        // Fence scope excludes wait_flush(); range scope is one whole episode;
@@ -26998,7 +28172,7 @@ index d800542..67dc622 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1184,91 @@ private:
+@@ -121,6 +1230,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -27090,7 +28264,7 @@ index d800542..67dc622 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1276,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1322,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -27178,7 +28352,7 @@ index d800542..67dc622 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1367,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1413,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -27307,7 +28481,7 @@ index d800542..67dc622 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1498,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1544,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
