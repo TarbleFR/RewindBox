@@ -1,6 +1,7 @@
 import '../l10n/melonx_transfer_locale.dart';
 import 'melonx_transfer_dialog.dart';
 import 'playlist_import_button.dart';
+
 import 'dart:io';
 import 'dart:async';
 
@@ -15,6 +16,8 @@ import '../services/melonx_internal_service.dart';
 import '../services/melonx_embedded_library_service.dart';
 import '../services/melonx_library_scanner.dart';
 import '../services/melonx_file_transaction.dart';
+import '../services/melonx_import_progress.dart';
+import '../services/storage/storage_import_activity.dart';
 
 class MelonxInternalPlaylistActions extends StatefulWidget {
   const MelonxInternalPlaylistActions({
@@ -42,10 +45,12 @@ class _MelonxInternalPlaylistActionsState
     with WidgetsBindingObserver {
   bool _busy = false;
   bool _interacting = false;
+  Future<void>? _recovering;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    MelonxInternalService.libraryEditing.addListener(_libraryActivityChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_discover()));
   }
 
@@ -55,13 +60,22 @@ class _MelonxInternalPlaylistActionsState
   }
 
   Future<void> _discover() async {
-    if (!mounted) return;
+    if (!mounted ||
+        MelonxInternalService.libraryEditing.value ||
+        StorageImportActivity.active)
+      return;
     try {
-      await MelonxInternalService.editLibrary(() async {
+      final recovery = MelonxInternalService.editLibrary(() async {
         await MelonxFileTransaction.recover(
           await MelonxInternalService.rootDirectory(),
         );
       });
+      _recovering = recovery;
+      try {
+        await recovery;
+      } finally {
+        _recovering = null;
+      }
       if (!mounted) return;
       final changed = await MelonxLibraryScanner.refresh(
         context.read<SqliteConfigProvider>(),
@@ -74,6 +88,10 @@ class _MelonxInternalPlaylistActionsState
 
   String _text(String key) =>
       MelonxLibraryLocale.text(Localizations.localeOf(context), key);
+  void _libraryActivityChanged() {
+    if (mounted) setState(() {});
+  }
+
   void _interaction(bool value) {
     _interacting = value;
     widget.onInteractionChanged?.call(value);
@@ -82,27 +100,39 @@ class _MelonxInternalPlaylistActionsState
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    MelonxInternalService.libraryEditing.removeListener(
+      _libraryActivityChanged,
+    );
     if (_interacting) widget.onInteractionChanged?.call(false);
     super.dispose();
   }
 
   void _notice(String message) {
     if (mounted)
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _selected(String action) async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
+      // Recovery is short and owned by this menu. Do not race its launch gate.
+      await _recovering;
+      if (!mounted) return;
       final config = context.read<SqliteConfigProvider>();
       bool changed = false;
+      bool discoverAfterImport = false;
       switch (action) {
         case 'games':
-          changed = await MelonxEmbeddedLibraryService.importGame(config);
+          changed = await _withImportProgress(
+            (progress) => MelonxEmbeddedLibraryService.importGame(
+              config,
+              onProgress: progress,
+            ),
+          );
         case 'firmware':
+          discoverAfterImport = true;
           changed = await MelonxEmbeddedLibraryService.importFirmware(
             install: (source) async {
               if (!mounted) return;
@@ -149,6 +179,7 @@ class _MelonxInternalPlaylistActionsState
             },
           );
         case 'keys':
+          discoverAfterImport = true;
           final report = await MelonxEmbeddedLibraryService.importKeys();
           if (!mounted) return;
           await showDialog<void>(
@@ -181,21 +212,22 @@ class _MelonxInternalPlaylistActionsState
         case 'saves':
           changed = await showMelonxTransfer(context, config, savesOnly: true);
         case 'migration':
+          discoverAfterImport = true;
           changed = await showMelonxTransfer(context, config, savesOnly: false);
         case 'discover':
           await _discover();
         case 'delete':
           await widget.onDelete?.call();
         case 'update':
-          changed = await MelonxEmbeddedLibraryService.importAddon(
-            widget.titleId!,
-            dlc: false,
-          );
         case 'dlc':
-          changed = await MelonxEmbeddedLibraryService.importAddon(
-            widget.titleId!,
-            dlc: true,
+          final report = await _withImportProgress(
+            (progress) => MelonxEmbeddedLibraryService.importAddon(
+              widget.titleId!,
+              dlc: action == 'dlc',
+              onProgress: progress,
+            ),
           );
+          if (mounted && !report.isEmpty) await _showAddonReport(report);
         case 'graphics':
           if (!mounted) return;
           await showDialog<void>(
@@ -224,14 +256,21 @@ class _MelonxInternalPlaylistActionsState
       if (changed && mounted) {
         final completedMessage = _text('Import completed');
         final onLibraryChanged = widget.onLibraryChanged;
-        await MelonxLibraryScanner.refresh(config);
-        if (!mounted) return;
+        final messenger = ScaffoldMessenger.of(context);
+        // Games are already committed to SQLite. Updates/DLC have no game-row
+        // changes. Never wait for a whole-library SHA-256 scan to finish them.
         await onLibraryChanged();
-        if (!mounted) return;
-        _notice(completedMessage);
+        if (messenger.mounted) {
+          messenger.showSnackBar(SnackBar(content: Text(completedMessage)));
+        }
+        if (discoverAfterImport && mounted) unawaited(_discover());
       }
-    } catch (error) {
-      LoggerService.instance.w('MeloNX library action failed: $error');
+    } catch (error, stack) {
+      LoggerService.instance.e(
+        'MeloNX library action failed: $error',
+        error: error,
+        stackTrace: stack,
+      );
       if (mounted)
         _notice(
           MelonxTransferLocale.text(
@@ -257,6 +296,57 @@ class _MelonxInternalPlaylistActionsState
     }
   }
 
+  Future<T> _withImportProgress<T>(
+    Future<T> Function(MelonxImportObserver) operation,
+  ) => runMelonxProgress(
+    context,
+    MelonxTransferControl(),
+    (progress) => operation((state) {
+      progress.value = MelonxProgress(
+        state.phase,
+        state.done,
+        state.total,
+        state.name.isEmpty
+            ? ''
+            : '${state.fileIndex} / ${state.fileCount} · ${state.name}',
+      );
+    }),
+    cancellable: false,
+  );
+
+  Future<void> _showAddonReport(MelonxAddonReport report) => showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(
+        report.refused.isEmpty
+            ? _text('Import completed')
+            : MelonxTransferLocale.text(ctx, 'importResults'),
+      ),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Text(
+            [
+              '${MelonxTransferLocale.text(ctx, 'imported')}: ${report.imported.length}',
+              ...report.imported,
+              if (report.refused.isNotEmpty) ...[
+                '${MelonxTransferLocale.text(ctx, 'rejected')}: ${report.refused.length}',
+                for (final entry in report.refused.entries)
+                  '${entry.key}: ${MelonxTransferLocale.text(ctx, entry.value)}',
+              ],
+            ].join('\n'),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(_text('Done')),
+        ),
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     if (defaultTargetPlatform != TargetPlatform.iOS) {
@@ -268,7 +358,7 @@ class _MelonxInternalPlaylistActionsState
     return PlaylistImportButton(
       menuKey: const ValueKey('melonx-import-menu'),
       tooltip: _text('Import'),
-      busy: _busy,
+      busy: _busy || MelonxInternalService.libraryEditing.value,
       embedded: widget.embedded,
       onOpened: () => _interaction(true),
       onCanceled: () => _interaction(false),

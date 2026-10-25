@@ -1,10 +1,14 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'dart:async';
 import 'dart:io';
+
 import 'package:external_folder_access/external_folder_access.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
+
 import '../data/datasources/sqlite_service.dart';
 import '../l10n/melonx_library_locale.dart';
 import '../l10n/melonx_transfer_locale.dart';
@@ -17,8 +21,14 @@ import '../services/melonx_transfer_source.dart';
 import '../services/storage/storage_import_activity.dart';
 
 class MelonxProgress {
-  const MelonxProgress(this.phase, [this.done = 0, this.total = 0]);
+  const MelonxProgress(
+    this.phase, [
+    this.done = 0,
+    this.total = 0,
+    this.detail = '',
+  ]);
   final String phase;
+  final String detail;
   final int done, total;
 }
 
@@ -43,6 +53,7 @@ Future<T> runMelonxProgress<T>(
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (state.detail.isNotEmpty) Text(state.detail),
               LinearProgressIndicator(
                 value: state.total > 0
                     ? (state.done / state.total).clamp(0, 1)

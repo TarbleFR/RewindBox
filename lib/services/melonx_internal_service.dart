@@ -22,7 +22,8 @@ abstract final class MelonxInternalService {
   static const gameExtensions = {'nsp', 'xci', 'nro', 'nso'};
   static const _jit = MethodChannel('neostation/melonx_jit');
   static bool _launching = false;
-  static bool _editing = false;
+  static final libraryEditing = ValueNotifier(false);
+  static bool get _editing => libraryEditing.value;
   static bool _diagnosticsInstalled = false;
   static bool nativeQuarantined = false;
 
@@ -59,7 +60,7 @@ abstract final class MelonxInternalService {
   /// Unknown/native-error states fail closed, including a pending JIT launch.
   static Future<T> editLibrary<T>(Future<T> Function() operation) async {
     if (_editing || _launching) throw StateError('libraryBusy');
-    _editing = true;
+    libraryEditing.value = true;
     var acquired = false;
     try {
       acquired =
@@ -70,7 +71,7 @@ abstract final class MelonxInternalService {
       try {
         if (acquired) await channel.invokeMethod<void>('endLibraryMutation');
       } finally {
-        _editing = false;
+        libraryEditing.value = false;
       }
     }
   }
