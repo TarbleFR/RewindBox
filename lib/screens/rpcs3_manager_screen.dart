@@ -55,9 +55,7 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
         // helper detaches. Do not regress the UI to Inactive on a later state
         // event that only describes the Core handshake phase.
         _jitReady =
-            _jitReady ||
-            state.jitReady ||
-            Rpcs3InternalService.jitPrepared;
+            _jitReady || state.jitReady || Rpcs3InternalService.jitPrepared;
         _coreReady = state.coreReady;
         _statusMessage = switch (state.phase) {
           Rpcs3RuntimePhase.checkingJit ||
@@ -77,7 +75,9 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
             state.phase == Rpcs3RuntimePhase.initializingCore;
       });
     });
-    _contentProgressSubscription = Rpcs3ContentImportService.progress.listen((event) {
+    _contentProgressSubscription = Rpcs3ContentImportService.progress.listen((
+      event,
+    ) {
       if (!mounted || !_busy) return;
       setState(() => _contentProgress = event);
     });
@@ -94,8 +94,9 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
 
   void _notice(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _readDiagnostics() async {
@@ -208,15 +209,11 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
       final result = await Rpcs3ContentImportService.importGames();
       if (result.imported > 0) {
         await widget.onLibraryChanged();
-        _notice(
-          _tf('gamesImported', {'count': result.imported}),
-        );
+        _notice(_tf('gamesImported', {'count': result.imported}));
       }
       if (result.rejected > 0) {
         _notice(
-          result.errors.isNotEmpty
-              ? result.errors.first
-              : _t('importRejected'),
+          result.errors.isNotEmpty ? result.errors.first : _t('importRejected'),
         );
       }
       await _readDiagnostics();
@@ -247,9 +244,7 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
     try {
       if (await Rpcs3ContentImportService.importExtractedGameFolder()) {
         await widget.onLibraryChanged();
-        _notice(
-          _t('folderImported'),
-        );
+        _notice(_t('folderImported'));
       }
       await _readDiagnostics();
     } on Rpcs3InternalException catch (error) {
@@ -435,9 +430,7 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          _t('embeddedDesc'),
-                        ),
+                        Text(_t('embeddedDesc')),
                         const SizedBox(height: 16),
                         _statusRow(
                           icon: _jitReady
@@ -462,9 +455,7 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
                               ? Icons.check_circle
                               : Icons.pause_circle_outline,
                           label: 'RPCS3 Core',
-                          value: _coreReady
-                              ? _t('coreReady')
-                              : _t('onDemand'),
+                          value: _coreReady ? _t('coreReady') : _t('onDemand'),
                           color: _coreReady
                               ? scheme.primary
                               : scheme.onSurfaceVariant,

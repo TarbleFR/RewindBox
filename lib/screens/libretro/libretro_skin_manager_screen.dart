@@ -27,7 +27,8 @@ import 'libretro_skin_catalog_screen.dart';
 /// (and Q/E) to the tab strip through [libretroPreviousTab] and
 /// [libretroNextTab]; pushed pages leave them unassigned.
 mixin LibretroPageNavigation<T extends StatefulWidget> on State<T> {
-  late final String _navigationLayer = 'libretro_page_${identityHashCode(this)}';
+  late final String _navigationLayer =
+      'libretro_page_${identityHashCode(this)}';
   late final GamepadNavigation _navigation = GamepadNavigation(
     onNavigateUp: () => _moveFocus(TraversalDirection.up),
     onNavigateDown: () => _moveFocus(TraversalDirection.down),
@@ -47,7 +48,10 @@ mixin LibretroPageNavigation<T extends StatefulWidget> on State<T> {
 
   /// Next main-bar tab (RB, E); see [libretroPreviousTab].
   VoidCallback? get libretroNextTab => null;
-  final FocusNode _pageFocus = FocusNode(debugLabel: 'Libretro page', skipTraversal: true);
+  final FocusNode _pageFocus = FocusNode(
+    debugLabel: 'Libretro page',
+    skipTraversal: true,
+  );
   bool _navigationLayerPushed = false;
 
   @override
@@ -81,15 +85,19 @@ mixin LibretroPageNavigation<T extends StatefulWidget> on State<T> {
   /// activation are switched off inside the page, so a key never acts twice.
   /// Text fields keep their arrow keys and their Enter (text input).
   Widget libretroPage(Widget child) => Shortcuts(
-        shortcuts: const <ShortcutActivator, Intent>{
-          SingleActivator(LogicalKeyboardKey.enter): DoNothingAndStopPropagationIntent(),
-          SingleActivator(LogicalKeyboardKey.numpadEnter): DoNothingAndStopPropagationIntent(),
-        },
-        child: Actions(
-          actions: <Type, Action<Intent>>{DirectionalFocusIntent: DoNothingAction()},
-          child: Focus(focusNode: _pageFocus, autofocus: true, child: child),
-        ),
-      );
+    shortcuts: const <ShortcutActivator, Intent>{
+      SingleActivator(LogicalKeyboardKey.enter):
+          DoNothingAndStopPropagationIntent(),
+      SingleActivator(LogicalKeyboardKey.numpadEnter):
+          DoNothingAndStopPropagationIntent(),
+    },
+    child: Actions(
+      actions: <Type, Action<Intent>>{
+        DirectionalFocusIntent: DoNothingAction(),
+      },
+      child: Focus(focusNode: _pageFocus, autofocus: true, child: child),
+    ),
+  );
 
   /// Stops reacting to the controller while a system sheet (Files picker)
   /// covers the page.
@@ -108,7 +116,8 @@ mixin LibretroPageNavigation<T extends StatefulWidget> on State<T> {
     final node = FocusManager.instance.primaryFocus;
     if (node == null || node.context == null) return false;
     // Nothing chosen on the page yet: start on its first control.
-    if (node == _pageFocus || (node is FocusScopeNode && node.focusedChild == null)) {
+    if (node == _pageFocus ||
+        (node is FocusScopeNode && node.focusedChild == null)) {
       for (final candidate in _pageFocus.traversalDescendants) {
         if (candidate.context == null) continue;
         FocusTraversalPolicy.defaultTraversalRequestFocusCallback(
@@ -133,11 +142,11 @@ mixin LibretroPageNavigation<T extends StatefulWidget> on State<T> {
 /// focus order: B already goes back, and the D-pad starts on the page's own
 /// controls.
 AppBar libretroPageAppBar(BuildContext context, String title) => AppBar(
-      leading: ModalRoute.of(context)?.impliesAppBarDismissal ?? false
-          ? const ExcludeFocus(child: BackButton())
-          : null,
-      title: Text(title),
-    );
+  leading: ModalRoute.of(context)?.impliesAppBarDismissal ?? false
+      ? const ExcludeFocus(child: BackButton())
+      : null,
+  title: Text(title),
+);
 
 /// Outline drawn while a control inside [child] has the focus. Controller and
 /// keyboard users see where they are whatever Flutter's highlight mode is;
@@ -214,11 +223,20 @@ Future<LibretroInstalledSkin?> showLibretroSkinImportResult(
       return null;
     }
     final replaced = await skins.replace(result);
-    if (!context.mounted) return replaced is LibretroSkinImported ? replaced.skin : null;
-    return showLibretroSkinImportResult(context, skins, replaced, console: console);
+    if (!context.mounted) {
+      return replaced is LibretroSkinImported ? replaced.skin : null;
+    }
+    return showLibretroSkinImportResult(
+      context,
+      skins,
+      replaced,
+      console: console,
+    );
   }
   if (result is LibretroSkinImported) {
-    if (context.mounted) _showSkinImported(context, result.skin, console: console);
+    if (context.mounted) {
+      _showSkinImported(context, result.skin, console: console);
+    }
     return result.skin;
   }
   if (result is LibretroSkinImportFailed) {
@@ -231,15 +249,19 @@ Future<LibretroInstalledSkin?> showLibretroSkinImportResult(
 }
 
 /// Product names of embedded consoles (ids without a known name are kept).
-String libretroConsoleNames(Iterable<String> consoles) =>
-    consoles.map((id) => LibretroCoreCatalog.consoles[id]?.name ?? id).join(', ');
+String libretroConsoleNames(Iterable<String> consoles) => consoles
+    .map((id) => LibretroCoreCatalog.consoles[id]?.name ?? id)
+    .join(', ');
 
 Locale _localeOf(BuildContext context) =>
     Localizations.maybeLocaleOf(context) ?? const Locale('en');
 
 /// Translated import remarks of a skin (native `SKIN_WARN_*` codes); codes
 /// without a translation are left out rather than shown raw.
-List<String> libretroSkinRemarks(BuildContext context, LibretroInstalledSkin skin) {
+List<String> libretroSkinRemarks(
+  BuildContext context,
+  LibretroInstalledSkin skin,
+) {
   final locale = _localeOf(context);
   return <String>[
     for (final code in skin.warnings)
@@ -251,13 +273,18 @@ List<String> libretroSkinRemarks(BuildContext context, LibretroInstalledSkin ski
 /// Translated reason of a refused import. The service reports LibretroLocale
 /// keys; a raw native `SKIN_*` code is translated too, and anything unknown
 /// falls back to the generic refusal.
-String libretroSkinFailureText(BuildContext context, LibretroSkinImportFailed failure) {
-  final key = LibretroLocale.skinErrorKeys[failure.messageKey] ?? failure.messageKey;
+String libretroSkinFailureText(
+  BuildContext context,
+  LibretroSkinImportFailed failure,
+) {
+  final key =
+      LibretroLocale.skinErrorKeys[failure.messageKey] ?? failure.messageKey;
   final known = LibretroLocale.values['en']!.containsKey(key);
   final parameters = <String, Object>{...failure.parameters};
   if (failure.messageKey == LibretroSkinMessages.notPlayable) {
     parameters['reasons'] = <String>{
-      for (final verdict in failure.compatibility) ...libretroSkinCompatibilityReasons(context, verdict),
+      for (final verdict in failure.compatibility)
+        ...libretroSkinCompatibilityReasons(context, verdict),
     }.join(' ');
   }
   return LibretroLocale.formatContext(
@@ -269,22 +296,28 @@ String libretroSkinFailureText(BuildContext context, LibretroSkinImportFailed fa
 
 /// Translated reasons of an iPhone verdict ({controls} and {count} filled):
 /// native SKIN_COMPAT_* codes and the catalogs' own reasons.
-List<String> libretroSkinCompatibilityReasons(BuildContext context, LibretroSkinCompatibility verdict) {
+List<String> libretroSkinCompatibilityReasons(
+  BuildContext context,
+  LibretroSkinCompatibility verdict,
+) {
   final locale = _localeOf(context);
   final english = LibretroLocale.values['en']!;
   String control(String name) => switch (name) {
-        'directions' => LibretroLocale.forLocale(locale, 'inputDpad'),
-        'touchScreen' => LibretroLocale.forLocale(locale, 'inputTouchScreen'),
-        _ => name.toUpperCase(),
-      };
+    'directions' => LibretroLocale.forLocale(locale, 'inputDpad'),
+    'touchScreen' => LibretroLocale.forLocale(locale, 'inputTouchScreen'),
+    _ => name.toUpperCase(),
+  };
   return <String>[
     for (final code in verdict.reasons)
-      if (english.containsKey(LibretroSkinMessages.compatibilityKeys[code] ??
-          LibretroSkinCompatibility.catalogReasonKeys[code] ??
-          ''))
+      if (english.containsKey(
+        LibretroSkinMessages.compatibilityKeys[code] ??
+            LibretroSkinCompatibility.catalogReasonKeys[code] ??
+            '',
+      ))
         LibretroLocale.format(
           locale,
-          LibretroSkinMessages.compatibilityKeys[code] ?? LibretroSkinCompatibility.catalogReasonKeys[code]!,
+          LibretroSkinMessages.compatibilityKeys[code] ??
+              LibretroSkinCompatibility.catalogReasonKeys[code]!,
           <String, Object?>{
             'controls': verdict.missingControls.map(control).join(', '),
             'count': verdict.deadItems,
@@ -295,7 +328,10 @@ List<String> libretroSkinCompatibilityReasons(BuildContext context, LibretroSkin
 
 /// A skin's iPhone verdict for one console and its translated reasons
 /// (central filter, LibretroSkinCompatibility): skin page and catalogs.
-List<Widget> libretroSkinVerdictRows(BuildContext context, LibretroSkinCompatibility verdict) {
+List<Widget> libretroSkinVerdictRows(
+  BuildContext context,
+  LibretroSkinCompatibility verdict,
+) {
   final theme = Theme.of(context);
   final color = switch (verdict.verdict) {
     LibretroSkinVerdict.compatible => theme.colorScheme.primary,
@@ -321,7 +357,10 @@ List<Widget> libretroSkinVerdictRows(BuildContext context, LibretroSkinCompatibi
           Flexible(
             child: Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.w600),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -337,27 +376,39 @@ List<Widget> libretroSkinVerdictRows(BuildContext context, LibretroSkinCompatibi
 
 /// LibretroLocale key of a verdict's badge.
 String libretroSkinVerdictKey(LibretroSkinVerdict verdict) => switch (verdict) {
-      LibretroSkinVerdict.compatible => 'skinStatusCompatible',
-      LibretroSkinVerdict.adaptable => 'skinStatusAdaptable',
-      LibretroSkinVerdict.incompatible => 'skinStatusIncompatible',
-    };
+  LibretroSkinVerdict.compatible => 'skinStatusCompatible',
+  LibretroSkinVerdict.adaptable => 'skinStatusAdaptable',
+  LibretroSkinVerdict.incompatible => 'skinStatusIncompatible',
+};
 
-void _showSkinImported(BuildContext context, LibretroInstalledSkin skin, {String? console}) {
+void _showSkinImported(
+  BuildContext context,
+  LibretroInstalledSkin skin, {
+  String? console,
+}) {
   final remarks = libretroSkinRemarks(context, skin);
   final elsewhere = console != null && !skin.consoles.contains(console);
   ScaffoldMessenger.maybeOf(context)?.showSnackBar(
     SnackBar(
-      duration: Duration(seconds: remarks.isNotEmpty ? 10 : (elsewhere ? 8 : 4)),
+      duration: Duration(
+        seconds: remarks.isNotEmpty ? 10 : (elsewhere ? 8 : 4),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(LibretroLocale.formatContext(context, 'skinsImported', {'name': skin.name})),
+          Text(
+            LibretroLocale.formatContext(context, 'skinsImported', {
+              'name': skin.name,
+            }),
+          ),
           if (elsewhere)
             _SnackLine(
-              text: LibretroLocale.formatContext(context, 'skinInstalledForOtherConsoles', {
-                'consoles': libretroConsoleNames(skin.consoles),
-              }),
+              text: LibretroLocale.formatContext(
+                context,
+                'skinInstalledForOtherConsoles',
+                {'consoles': libretroConsoleNames(skin.consoles)},
+              ),
             ),
           if (remarks.isNotEmpty) ...[
             const SizedBox(height: 6),
@@ -370,9 +421,15 @@ void _showSkinImported(BuildContext context, LibretroInstalledSkin skin, {String
   );
 }
 
-void _showSkinImportFailed(BuildContext context, LibretroSkinImportFailed failure) {
+void _showSkinImportFailed(
+  BuildContext context,
+  LibretroSkinImportFailed failure,
+) {
   final reason = libretroSkinFailureText(context, failure);
-  final generic = LibretroLocale.text(context, LibretroSkinMessages.importFailed);
+  final generic = LibretroLocale.text(
+    context,
+    LibretroSkinMessages.importFailed,
+  );
   ScaffoldMessenger.maybeOf(context)?.showSnackBar(
     SnackBar(
       duration: const Duration(seconds: 8),
@@ -395,18 +452,18 @@ class _SnackLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 2, right: 6),
-              child: Icon(Icons.info_outline, size: 14),
-            ),
-            Expanded(child: Text(text)),
-          ],
+    padding: const EdgeInsets.only(top: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 2, right: 6),
+          child: Icon(Icons.info_outline, size: 14),
         ),
-      );
+        Expanded(child: Text(text)),
+      ],
+    ),
+  );
 }
 
 /// Skins of one embedded console: the current portrait and landscape
@@ -414,7 +471,11 @@ class _SnackLine extends StatelessWidget {
 /// the console, with previews drawn by the native renderer, import from
 /// Files or from the Provenance catalog, and deletion.
 class LibretroSkinManagerScreen extends StatefulWidget {
-  const LibretroSkinManagerScreen({super.key, required this.console, this.service});
+  const LibretroSkinManagerScreen({
+    super.key,
+    required this.console,
+    this.service,
+  });
 
   /// Console id (a key of [LibretroCoreCatalog.consoles]).
   final String console;
@@ -431,7 +492,8 @@ class LibretroSkinManagerScreen extends StatefulWidget {
   static void resetPreviewMode() => _previewMode = previewBoth;
 
   @override
-  State<LibretroSkinManagerScreen> createState() => _LibretroSkinManagerScreenState();
+  State<LibretroSkinManagerScreen> createState() =>
+      _LibretroSkinManagerScreenState();
 }
 
 class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
@@ -440,24 +502,28 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
 
   /// Previews already drawn in this run, shared by every manager page and
   /// kept in insertion order (a map literal), so the oldest goes first.
-  static final Map<String, Future<Uint8List?>> _previews = <String, Future<Uint8List?>>{};
+  static final Map<String, Future<Uint8List?>> _previews =
+      <String, Future<Uint8List?>>{};
   static const int _previewCacheSize = 64;
 
   /// Previews the renderer could not draw: not asked for again while this
   /// page is open, asked for again on the next visit.
-  final Map<String, Future<Uint8List?>> _missingPreviews = <String, Future<Uint8List?>>{};
+  final Map<String, Future<Uint8List?>> _missingPreviews =
+      <String, Future<Uint8List?>>{};
 
   static const String previewBoth = LibretroSkinManagerScreen.previewBoth;
 
   String get _previewMode => LibretroSkinManagerScreen._previewMode;
-  set _previewMode(String value) => LibretroSkinManagerScreen._previewMode = value;
+  set _previewMode(String value) =>
+      LibretroSkinManagerScreen._previewMode = value;
 
   LibretroSkinService? _skins;
   List<LibretroInstalledSkin> _installed = const <LibretroInstalledSkin>[];
   Map<String, String?> _selected = const <String, String?>{};
 
   /// iPhone verdict of each installed skin for this console (skin id).
-  Map<String, LibretroSkinCompatibility> _verdicts = const <String, LibretroSkinCompatibility>{};
+  Map<String, LibretroSkinCompatibility> _verdicts =
+      const <String, LibretroSkinCompatibility>{};
   bool _loading = true;
   bool _busy = false;
 
@@ -465,7 +531,8 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
   String _f(String key, Map<String, Object?> values) =>
       LibretroLocale.formatContext(context, key, values);
 
-  String get _consoleName => LibretroCoreCatalog.consoles[widget.console]?.name ?? widget.console;
+  String get _consoleName =>
+      LibretroCoreCatalog.consoles[widget.console]?.name ?? widget.console;
 
   @override
   void initState() {
@@ -495,7 +562,9 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
       try {
         selected = await skins.selectedSkins(widget.console);
       } catch (error) {
-        _log.w('Libretro skin selections unreadable for ${widget.console}: $error');
+        _log.w(
+          'Libretro skin selections unreadable for ${widget.console}: $error',
+        );
       }
     }
     final verdicts = <String, LibretroSkinCompatibility>{};
@@ -514,7 +583,9 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
     });
   }
 
-  Future<void> _run(Future<void> Function(LibretroSkinService skins) action) async {
+  Future<void> _run(
+    Future<void> Function(LibretroSkinService skins) action,
+  ) async {
     final skins = _skins;
     if (skins == null || _busy) return;
     setState(() => _busy = true);
@@ -527,12 +598,22 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
     if (mounted) setState(() => _busy = false);
   }
 
-  Future<void> _use(LibretroInstalledSkin? skin, List<String> orientations) => _run((skins) async {
+  Future<void> _use(LibretroInstalledSkin? skin, List<String> orientations) =>
+      _run((skins) async {
         for (final orientation in orientations) {
           final stored = skin == null
-              ? await skins.resetToDefault(console: widget.console, orientation: orientation)
-              : await skins.select(console: widget.console, orientation: orientation, skinId: skin.id);
-          if (!stored) _log.w('Libretro skin choice refused: ${skin?.id} $orientation');
+              ? await skins.resetToDefault(
+                  console: widget.console,
+                  orientation: orientation,
+                )
+              : await skins.select(
+                  console: widget.console,
+                  orientation: orientation,
+                  skinId: skin.id,
+                );
+          if (!stored) {
+            _log.w('Libretro skin choice refused: ${skin?.id} $orientation');
+          }
         }
       });
 
@@ -562,12 +643,20 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
     try {
       result = await skins.pickAndImport();
     } catch (error) {
-      result = LibretroSkinImportFailed(LibretroSkinMessages.importFailed, technicalDetails: '$error');
+      result = LibretroSkinImportFailed(
+        LibretroSkinMessages.importFailed,
+        technicalDetails: '$error',
+      );
     } finally {
       resumePageNavigation();
     }
     if (mounted) {
-      await showLibretroSkinImportResult(context, skins, result, console: widget.console);
+      await showLibretroSkinImportResult(
+        context,
+        skins,
+        result,
+        console: widget.console,
+      );
     } else if (result is LibretroSkinNeedsReplaceConfirmation) {
       await skins.discard(result);
     }
@@ -580,16 +669,23 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
     if (skins == null || _busy) return;
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LibretroSkinCatalogScreen(console: widget.console, skins: skins),
+        builder: (_) =>
+            LibretroSkinCatalogScreen(console: widget.console, skins: skins),
       ),
     );
     await _reload();
   }
 
-  Future<Uint8List?> _preview(LibretroInstalledSkin? skin, String orientation, Size view, double scale) {
+  Future<Uint8List?> _preview(
+    LibretroInstalledSkin? skin,
+    String orientation,
+    Size view,
+    double scale,
+  ) {
     final skins = _skins;
     if (skins == null) return Future<Uint8List?>.value();
-    final key = '${skin?.directory ?? LibretroSkinService.defaultSkinId}|${widget.console}|$orientation|'
+    final key =
+        '${skin?.directory ?? LibretroSkinService.defaultSkinId}|${widget.console}|$orientation|'
         '${view.width.round()}x${view.height.round()}@${scale.toStringAsFixed(2)}';
     final cached = _previews[key] ?? _missingPreviews[key];
     if (cached != null) return cached;
@@ -603,12 +699,12 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
           scale: scale,
         )
         .then((image) {
-      if (image == null) {
-        _previews.remove(key);
-        _missingPreviews[key] = Future<Uint8List?>.value();
-      }
-      return image;
-    });
+          if (image == null) {
+            _previews.remove(key);
+            _missingPreviews[key] = Future<Uint8List?>.value();
+          }
+          return image;
+        });
     _previews[key] = request;
     while (_previews.length > _previewCacheSize) {
       _previews.remove(_previews.keys.first);
@@ -617,7 +713,9 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
   }
 
   String _skinName(String? id) {
-    if (id == null || id == LibretroSkinService.defaultSkinId) return _t('skinDefaultName');
+    if (id == null || id == LibretroSkinService.defaultSkinId) {
+      return _t('skinDefaultName');
+    }
     for (final skin in _installed) {
       if (skin.id == id) return skin.name;
     }
@@ -638,72 +736,80 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
 
   @override
   Widget build(BuildContext context) {
-    return libretroPage(Scaffold(
-      appBar: libretroPageAppBar(context, _f('skinsTitle', {'console': _consoleName})),
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 860),
-                  // Every card is built (no lazy list), so the D-pad can
-                  // always reach the next one.
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (_busy) const LiquidProgressIndicator(),
-                        _buildSelections(context),
-                        const SizedBox(height: 12),
-                        _buildHeaderActions(),
-                        const SizedBox(height: 12),
-                        _buildPreviewMode(context),
-                        const SizedBox(height: 12),
-                        _buildSkinCard(context, null),
-                        if (_installed.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-                            child: Text(
-                              _t('skinsInstalled'),
-                              style: Theme.of(context).textTheme.titleMedium,
+    return libretroPage(
+      Scaffold(
+        appBar: libretroPageAppBar(
+          context,
+          _f('skinsTitle', {'console': _consoleName}),
+        ),
+        body: SafeArea(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 860),
+                    // Every card is built (no lazy list), so the D-pad can
+                    // always reach the next one.
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_busy) const LiquidProgressIndicator(),
+                          _buildSelections(context),
+                          const SizedBox(height: 12),
+                          _buildHeaderActions(),
+                          const SizedBox(height: 12),
+                          _buildPreviewMode(context),
+                          const SizedBox(height: 12),
+                          _buildSkinCard(context, null),
+                          if (_installed.isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+                              child: Text(
+                                _t('skinsInstalled'),
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
                             ),
-                          ),
-                          for (final skin in _installed) _buildSkinCard(context, skin),
+                            for (final skin in _installed)
+                              _buildSkinCard(context, skin),
+                          ],
+                          const SizedBox(height: 16),
+                          _footer(context, _t('skinFallbackFooter')),
+                          const SizedBox(height: 8),
+                          _footer(context, _t('skinsLicenseNotice')),
                         ],
-                        const SizedBox(height: 16),
-                        _footer(context, _t('skinFallbackFooter')),
-                        const SizedBox(height: 8),
-                        _footer(context, _t('skinsLicenseNotice')),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
+        ),
       ),
-    ));
+    );
   }
 
   Widget _footer(BuildContext context, String text) {
     final theme = Theme.of(context);
     return Text(
       text,
-      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+      ),
     );
   }
 
   Widget _buildSelections(BuildContext context) {
     final theme = Theme.of(context);
     Widget line(IconData icon, String text) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
-              const SizedBox(width: 10),
-              Expanded(child: Text(text, style: theme.textTheme.bodyLarge)),
-            ],
-          ),
-        );
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: theme.colorScheme.primary),
+          const SizedBox(width: 10),
+          Expanded(child: Text(text, style: theme.textTheme.bodyLarge)),
+        ],
+      ),
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -712,11 +818,15 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
           children: [
             line(
               Icons.stay_current_portrait,
-              _f('skinsSelectedPortrait', {'name': _skinName(_selected[LibretroSkinService.portrait])}),
+              _f('skinsSelectedPortrait', {
+                'name': _skinName(_selected[LibretroSkinService.portrait]),
+              }),
             ),
             line(
               Icons.stay_current_landscape,
-              _f('skinsSelectedLandscape', {'name': _skinName(_selected[LibretroSkinService.landscape])}),
+              _f('skinsSelectedLandscape', {
+                'name': _skinName(_selected[LibretroSkinService.landscape]),
+              }),
             ),
           ],
         ),
@@ -757,7 +867,10 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text(SkinBrowserLocale.text(context, SkinBrowserLocale.preview), style: theme.textTheme.labelLarge),
+        Text(
+          SkinBrowserLocale.text(context, SkinBrowserLocale.preview),
+          style: theme.textTheme.labelLarge,
+        ),
         LibretroFocusRing(
           child: SegmentedButton<String>(
             key: const ValueKey('skin-preview-mode'),
@@ -780,7 +893,8 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
               ),
             ],
             selected: <String>{_previewMode},
-            onSelectionChanged: (selection) => setState(() => _previewMode = selection.single),
+            onSelectionChanged: (selection) =>
+                setState(() => _previewMode = selection.single),
           ),
         ),
       ],
@@ -790,39 +904,54 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
   Widget _buildSkinCard(BuildContext context, LibretroInstalledSkin? skin) {
     final theme = Theme.of(context);
     final iPad = MediaQuery.sizeOf(context).shortestSide >= 600;
-    final portrait = skin?.supports(LibretroSkinService.portrait, iPad: iPad) ?? true;
-    final landscape = skin?.supports(LibretroSkinService.landscape, iPad: iPad) ?? true;
-    final remarks = skin == null ? const <String>[] : libretroSkinRemarks(context, skin);
-    final muted = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final portrait =
+        skin?.supports(LibretroSkinService.portrait, iPad: iPad) ?? true;
+    final landscape =
+        skin?.supports(LibretroSkinService.landscape, iPad: iPad) ?? true;
+    final remarks = skin == null
+        ? const <String>[]
+        : libretroSkinRemarks(context, skin);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
     final enabled = _skins != null && !_busy;
 
     final orientationLabel = portrait && landscape
         ? _t('skinBothOrientations')
         : portrait
-            ? _t('skinPortraitOnly')
-            : landscape
-                ? _t('skinLandscapeOnly')
-                : null;
+        ? _t('skinPortraitOnly')
+        : landscape
+        ? _t('skinLandscapeOnly')
+        : null;
 
     final details = <Widget>[
-      Text(skin?.name ?? _t('skinDefaultName'), style: theme.textTheme.titleMedium),
+      Text(
+        skin?.name ?? _t('skinDefaultName'),
+        style: theme.textTheme.titleMedium,
+      ),
       if (skin != null) ...[
         const SizedBox(height: 4),
         Text(
           _f('skinsCredits', {
             'author': skin.author ?? _t('skinsAuthorUnknown'),
-            'source': skin.source == LibretroSkinService.sourceFile ? _t('skinsSourceFiles') : skin.source,
+            'source': skin.source == LibretroSkinService.sourceFile
+                ? _t('skinsSourceFiles')
+                : skin.source,
           }),
           style: muted,
         ),
-        if (skin.license != null) Text(_f('skinsLicense', {'license': skin.license}), style: muted),
+        if (skin.license != null)
+          Text(_f('skinsLicense', {'license': skin.license}), style: muted),
         Text(
-          _f('skinsForConsoles', {'consoles': libretroConsoleNames(skin.consoles)}),
+          _f('skinsForConsoles', {
+            'consoles': libretroConsoleNames(skin.consoles),
+          }),
           style: muted,
         ),
       ],
       if (orientationLabel != null) Text(orientationLabel, style: muted),
-      if (skin != null && _verdicts[skin.id] != null) ..._buildVerdict(context, _verdicts[skin.id]!),
+      if (skin != null && _verdicts[skin.id] != null)
+        ..._buildVerdict(context, _verdicts[skin.id]!),
       for (final remark in remarks)
         Padding(
           padding: const EdgeInsets.only(top: 4),
@@ -831,7 +960,11 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
             children: [
               Padding(
                 padding: const EdgeInsets.only(top: 1, right: 6),
-                child: Icon(Icons.info_outline, size: 16, color: theme.colorScheme.tertiary),
+                child: Icon(
+                  Icons.info_outline,
+                  size: 16,
+                  color: theme.colorScheme.tertiary,
+                ),
               ),
               Expanded(child: Text(remark, style: theme.textTheme.bodySmall)),
             ],
@@ -843,20 +976,28 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
       if (_isSelected(skin, LibretroSkinService.portrait))
         _badge(context, Icons.stay_current_portrait, _t('orientationPortrait')),
       if (_isSelected(skin, LibretroSkinService.landscape))
-        _badge(context, Icons.stay_current_landscape, _t('orientationLandscape')),
+        _badge(
+          context,
+          Icons.stay_current_landscape,
+          _t('orientationLandscape'),
+        ),
     ];
 
     final actions = <Widget>[
       LibretroFocusRing(
         child: FilledButton.tonalIcon(
-          onPressed: enabled && portrait ? () => _use(skin, const [LibretroSkinService.portrait]) : null,
+          onPressed: enabled && portrait
+              ? () => _use(skin, const [LibretroSkinService.portrait])
+              : null,
           icon: const Icon(Icons.stay_current_portrait),
           label: Text(_t('skinsUseForPortrait')),
         ),
       ),
       LibretroFocusRing(
         child: FilledButton.tonalIcon(
-          onPressed: enabled && landscape ? () => _use(skin, const [LibretroSkinService.landscape]) : null,
+          onPressed: enabled && landscape
+              ? () => _use(skin, const [LibretroSkinService.landscape])
+              : null,
           icon: const Icon(Icons.stay_current_landscape),
           label: Text(_t('skinsUseForLandscape')),
         ),
@@ -874,7 +1015,9 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
       else
         LibretroFocusRing(
           child: FilledButton.tonalIcon(
-            onPressed: enabled ? () => _use(null, LibretroSkinService.orientationNames) : null,
+            onPressed: enabled
+                ? () => _use(null, LibretroSkinService.orientationNames)
+                : null,
             icon: const Icon(Icons.restart_alt),
             label: Text(_t('skinsResetDefault')),
           ),
@@ -882,7 +1025,9 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
       if (skin != null)
         LibretroFocusRing(
           child: TextButton.icon(
-            style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.error,
+            ),
             onPressed: enabled ? () => _delete(skin) : null,
             icon: const Icon(Icons.delete_outline),
             label: Text(_t('skinsDelete')),
@@ -894,7 +1039,10 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: details),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: details,
+          ),
         ),
         if (badges.isNotEmpty) ...[
           const SizedBox(width: 8),
@@ -945,8 +1093,10 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
     );
   }
 
-  List<Widget> _buildVerdict(BuildContext context, LibretroSkinCompatibility verdict) =>
-      libretroSkinVerdictRows(context, verdict);
+  List<Widget> _buildVerdict(
+    BuildContext context,
+    LibretroSkinCompatibility verdict,
+  ) => libretroSkinVerdictRows(context, verdict);
 
   Widget _badge(BuildContext context, IconData icon, String label) {
     final scheme = Theme.of(context).colorScheme;
@@ -963,7 +1113,10 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
           const SizedBox(width: 2),
           Icon(icon, size: 14, color: scheme.onPrimaryContainer),
           const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(color: scheme.onPrimaryContainer, fontSize: 12),
+          ),
         ],
       ),
     );
@@ -981,8 +1134,12 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
     required double maxWidth,
   }) {
     final media = MediaQuery.of(context);
-    final shortest = media.size.shortestSide <= 0 ? 390.0 : media.size.shortestSide;
-    final longest = media.size.longestSide <= 0 ? 844.0 : media.size.longestSide;
+    final shortest = media.size.shortestSide <= 0
+        ? 390.0
+        : media.size.shortestSide;
+    final longest = media.size.longestSide <= 0
+        ? 844.0
+        : media.size.longestSide;
     final ratio = media.devicePixelRatio <= 0 ? 2.0 : media.devicePixelRatio;
     final mode = _previewMode;
     final onlyPortrait = mode == LibretroSkinService.portrait && portrait;
@@ -993,15 +1150,26 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
     final landscapeHeight = (single ? 210.0 : 112.0)
         .clamp(60.0, (maxWidth - 8) * shortest / longest)
         .toDouble();
-    final portraitBox = Size(portraitHeight * shortest / longest, portraitHeight);
-    final landscapeBox = Size(landscapeHeight * longest / shortest, landscapeHeight);
+    final portraitBox = Size(
+      portraitHeight * shortest / longest,
+      portraitHeight,
+    );
+    final landscapeBox = Size(
+      landscapeHeight * longest / shortest,
+      landscapeHeight,
+    );
     final showPortrait = portrait && !onlyLandscape;
     final showLandscape = landscape && !onlyPortrait;
 
     Widget thumbnail(String orientation, Size box) {
-      final view = orientation == LibretroSkinService.portrait ? Size(shortest, longest) : Size(longest, shortest);
+      final view = orientation == LibretroSkinService.portrait
+          ? Size(shortest, longest)
+          : Size(longest, shortest);
       final scale = (box.width * ratio / view.width).clamp(0.1, 3.0).toDouble();
-      return _SkinPreview(image: _preview(skin, orientation, view, scale), size: box);
+      return _SkinPreview(
+        image: _preview(skin, orientation, view, scale),
+        size: box,
+      );
     }
 
     return Wrap(
@@ -1011,7 +1179,8 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
       crossAxisAlignment: WrapCrossAlignment.end,
       children: [
         if (showPortrait) thumbnail(LibretroSkinService.portrait, portraitBox),
-        if (showLandscape) thumbnail(LibretroSkinService.landscape, landscapeBox),
+        if (showLandscape)
+          thumbnail(LibretroSkinService.landscape, landscapeBox),
       ],
     );
   }
@@ -1040,19 +1209,32 @@ class _SkinPreview extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Center(
-              child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             );
           }
           final bytes = snapshot.data;
           if (bytes == null) {
-            return Center(child: Icon(Icons.image_not_supported_outlined, color: scheme.onSurfaceVariant));
+            return Center(
+              child: Icon(
+                Icons.image_not_supported_outlined,
+                color: scheme.onSurfaceVariant,
+              ),
+            );
           }
           return Image.memory(
             bytes,
             fit: BoxFit.contain,
             gaplessPlayback: true,
-            errorBuilder: (context, error, stackTrace) =>
-                Center(child: Icon(Icons.image_not_supported_outlined, color: scheme.onSurfaceVariant)),
+            errorBuilder: (context, error, stackTrace) => Center(
+              child: Icon(
+                Icons.image_not_supported_outlined,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
           );
         },
       ),

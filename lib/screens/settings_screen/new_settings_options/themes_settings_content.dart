@@ -346,7 +346,9 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
                       );
                 final state = AmbientMusicLocale.text(
                   context,
-                  music.enabled ? AmbientMusicLocale.on : AmbientMusicLocale.off,
+                  music.enabled
+                      ? AmbientMusicLocale.on
+                      : AmbientMusicLocale.off,
                 );
 
                 return Container(

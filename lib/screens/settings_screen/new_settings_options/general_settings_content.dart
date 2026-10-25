@@ -469,7 +469,6 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                   );
                 }(),
 
-
                 // Setting: Ambient music (Build 448) — switch and volume.
                 SizedBox(height: 12.r),
                 () {

@@ -231,7 +231,9 @@ class AboutSettingsContentState extends State<AboutSettingsContent> {
                       _buildInfoCard(
                         icon: Symbols.language_rounded,
                         title: ForkAboutLocale.upstreamWebsiteTitle(context),
-                        value: ForkAboutLocale.upstreamWebsiteDescription(context),
+                        value: ForkAboutLocale.upstreamWebsiteDescription(
+                          context,
+                        ),
                         url: 'https://neostation.dev/',
                         theme: theme,
                         isFocused:

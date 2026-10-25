@@ -785,7 +785,12 @@ class _SearchScreenState extends State<SearchScreen> {
         : Stack(
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(12.r + safeLeft, 0, 12.r + safeRight, 0),
+                padding: EdgeInsets.fromLTRB(
+                  12.r + safeLeft,
+                  0,
+                  12.r + safeRight,
+                  0,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [

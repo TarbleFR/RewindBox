@@ -280,9 +280,7 @@ class _RAContentState extends State<RAContent>
                         ScrollViewKeyboardDismissBehavior.onDrag,
                     padding: EdgeInsets.only(bottom: keyboardInset + 16.r),
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: viewport.maxWidth,
-                      ),
+                      constraints: BoxConstraints(minWidth: viewport.maxWidth),
                       child: Align(
                         alignment: Alignment.topCenter,
                         child: ConstrainedBox(
@@ -295,9 +293,7 @@ class _RAContentState extends State<RAContent>
                                 final useColumns = content.maxWidth >= 720;
                                 if (useColumns) {
                                   return Row(
-                                    key: const ValueKey(
-                                      'ra-two-column-layout',
-                                    ),
+                                    key: const ValueKey('ra-two-column-layout'),
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
@@ -318,7 +314,8 @@ class _RAContentState extends State<RAContent>
                                 }
                                 return Column(
                                   key: const ValueKey('ra-stacked-layout'),
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     _buildLandscapeConnectionForm(
                                       context,

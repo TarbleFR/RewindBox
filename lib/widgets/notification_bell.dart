@@ -340,7 +340,8 @@ class _NotificationDropdownItem extends StatelessWidget {
                     state: data.type == GlobalNotificationType.error
                         ? LiquidProgressState.error
                         : data.type == GlobalNotificationType.success
-                        ? LiquidProgressState.success : LiquidProgressState.running,
+                        ? LiquidProgressState.success
+                        : LiquidProgressState.running,
                     borderRadius: BorderRadius.circular(2.r),
                   ),
                 ],

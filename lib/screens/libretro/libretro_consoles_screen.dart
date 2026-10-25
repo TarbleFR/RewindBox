@@ -100,16 +100,23 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   ScaffoldMessengerState? _messenger;
   Locale _locale = const Locale('en');
 
-  LibretroMainMenu get _mainMenu => widget.mainMenu ?? LibretroMainMenu.instance;
-  EmbeddedEnginePolicy get _policy => widget.policy ?? EmbeddedEnginePolicy.instance;
+  LibretroMainMenu get _mainMenu =>
+      widget.mainMenu ?? LibretroMainMenu.instance;
+  EmbeddedEnginePolicy get _policy =>
+      widget.policy ?? EmbeddedEnginePolicy.instance;
 
   bool get _busy =>
-      _importing != null || _libraryAction != null || _changing != null || _bulk != null;
+      _importing != null ||
+      _libraryAction != null ||
+      _changing != null ||
+      _bulk != null;
 
   String _t(String key) => LibretroLocale.forLocale(_locale, key);
-  String _f(String key, Map<String, Object?> values) => LibretroLocale.format(_locale, key, values);
+  String _f(String key, Map<String, Object?> values) =>
+      LibretroLocale.format(_locale, key, values);
   String _c(String key) => ConsoleManagerLocale.forLocale(_locale, key);
-  String _cf(String key, Map<String, Object?> values) => ConsoleManagerLocale.format(_locale, key, values);
+  String _cf(String key, Map<String, Object?> values) =>
+      ConsoleManagerLocale.format(_locale, key, values);
 
   void _notice(String message) {
     final messenger = _messenger;
@@ -158,10 +165,12 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   }
 
   @override
-  VoidCallback? get libretroPreviousTab => widget.inMainBar ? () => _switchTab(widget.onPreviousTab) : null;
+  VoidCallback? get libretroPreviousTab =>
+      widget.inMainBar ? () => _switchTab(widget.onPreviousTab) : null;
 
   @override
-  VoidCallback? get libretroNextTab => widget.inMainBar ? () => _switchTab(widget.onNextTab) : null;
+  VoidCallback? get libretroNextTab =>
+      widget.inMainBar ? () => _switchTab(widget.onNextTab) : null;
 
   /// Leaving the tab disposes the page: the controller keeps it while an
   /// import, a library action or a change of the main menu is running.
@@ -184,14 +193,19 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
 
   /// The system games of [console] are imported into, from the provider's
   /// systems (the database when they are not loaded yet).
-  Future<SystemModel?> _importSystem(SqliteConfigProvider provider, LibretroConsole console) async {
+  Future<SystemModel?> _importSystem(
+    SqliteConfigProvider provider,
+    LibretroConsole console,
+  ) async {
     for (final system in provider.availableSystems) {
       if (system.id == console.importSystem) return system;
     }
     try {
       return await SystemRepository.getSystemById(console.importSystem);
     } catch (error) {
-      _log.w('Libretro import system ${console.importSystem} unavailable: $error');
+      _log.w(
+        'Libretro import system ${console.importSystem} unavailable: $error',
+      );
       return null;
     }
   }
@@ -202,9 +216,14 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     String systemFolder,
     SystemModel? imported,
   ) async {
-    if (imported != null && LibretroInternalService.systemKey(imported) == systemFolder) return imported;
+    if (imported != null &&
+        LibretroInternalService.systemKey(imported) == systemFolder) {
+      return imported;
+    }
     for (final system in provider.availableSystems) {
-      if (LibretroInternalService.systemKey(system) == systemFolder) return system;
+      if (LibretroInternalService.systemKey(system) == systemFolder) {
+        return system;
+      }
     }
     try {
       return await SystemRepository.getSystemByFolderName(systemFolder);
@@ -224,11 +243,14 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     SystemModel? system,
     String? createdLibraryRoot,
   ) async {
-    if (createdLibraryRoot != null && !provider.config.romFolders.contains(createdLibraryRoot)) {
+    if (createdLibraryRoot != null &&
+        !provider.config.romFolders.contains(createdLibraryRoot)) {
       await provider.addRomFolder(createdLibraryRoot, scan: false);
       // addRomFolder reports a failed save through `error` only: never
       // announce games the library cannot list.
-      if (!provider.config.romFolders.contains(createdLibraryRoot)) return provider.error ?? createdLibraryRoot;
+      if (!provider.config.romFolders.contains(createdLibraryRoot)) {
+        return provider.error ?? createdLibraryRoot;
+      }
     }
     if (system != null) {
       await provider.rescanSystemSilent(system);
@@ -247,9 +269,13 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       if (!mounted) return;
       final destination = await chooseLibretroImportDestination(
         context,
-        systemFolder: system != null ? LibretroInternalService.systemKey(system) : console.importSystem,
+        systemFolder: system != null
+            ? LibretroInternalService.systemKey(system)
+            : console.importSystem,
         registeredRoots: provider.config.romFolders,
-        folderAliases: system == null ? const <String>[] : <String>[system.folderName, ...system.folders],
+        folderAliases: system == null
+            ? const <String>[]
+            : <String>[system.folderName, ...system.folders],
       );
       if (destination.unavailable) {
         _notice(_t('importLibraryUnavailable'));
@@ -264,15 +290,25 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       );
       resumePageNavigation();
       if (result.imported > 0) {
-        final target = await _rescanTarget(provider, result.systemFolder, system);
-        final failure = await _refreshLibrary(provider, target, result.createdLibraryRoot);
+        final target = await _rescanTarget(
+          provider,
+          result.systemFolder,
+          system,
+        );
+        final failure = await _refreshLibrary(
+          provider,
+          target,
+          result.createdLibraryRoot,
+        );
         _notice(
           failure == null
               ? _f('gamesImported', {'count': result.imported})
               : _f('importFailed', {'error': failure}),
         );
       }
-      if (result.alreadyPresent > 0) _notice(_f('importAlreadyPresent', {'count': result.alreadyPresent}));
+      if (result.alreadyPresent > 0) {
+        _notice(_f('importAlreadyPresent', {'count': result.alreadyPresent}));
+      }
       if (result.rejected > 0) _notice(_t('gamesRejected'));
     } catch (error) {
       _log.w('Libretro import failed for ${console.id}: $error');
@@ -362,19 +398,36 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
           children: [
             Row(
               children: [
-                Icon(Icons.folder_special_outlined, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.folder_special_outlined,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: Text(_t('libraryTitle'), style: theme.textTheme.titleMedium)),
+                Expanded(
+                  child: Text(
+                    _t('libraryTitle'),
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
                 if (_libraryAction != null)
-                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
               _libraryAction == 'move' && _moveTotal > 0
-                  ? _f('libraryMoving', {'done': _moveDone, 'total': _moveTotal})
+                  ? _f('libraryMoving', {
+                      'done': _moveDone,
+                      'total': _moveTotal,
+                    })
                   : _t('libraryIntro'),
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 10),
             Wrap(
@@ -424,7 +477,11 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
           _notice(_t('consoleSystemUnknown'));
         case LibretroMainMenuAddStatus.failed:
           _log.w('Console ${entry.id} visibility not changed: ${result.error}');
-          _notice(_cf(ConsoleManagerLocale.changeFailed, {'error': result.error ?? ''}));
+          _notice(
+            _cf(ConsoleManagerLocale.changeFailed, {
+              'error': result.error ?? '',
+            }),
+          );
       }
     } finally {
       if (mounted) setState(() => _changing = null);
@@ -437,7 +494,11 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     setState(() => _changing = entry.id);
     try {
       if (!await _policy.setConsoleEnabled(entry.id, enabled)) {
-        _notice(_cf(ConsoleManagerLocale.changeFailed, {'error': EmbeddedEnginePolicy.disabledPreferenceKey}));
+        _notice(
+          _cf(ConsoleManagerLocale.changeFailed, {
+            'error': EmbeddedEnginePolicy.disabledPreferenceKey,
+          }),
+        );
       }
     } finally {
       if (mounted) setState(() => _changing = null);
@@ -449,7 +510,11 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     final provider = context.read<SqliteConfigProvider>();
     final missing = <ConsoleEntry>[
       for (final entry in ConsoleCatalog.entries)
-        if (!LibretroMainMenu.stateOfEntry(entry, provider.detectedSystems, provider.hiddenSystemFolders).isPresent)
+        if (!LibretroMainMenu.stateOfEntry(
+          entry,
+          provider.detectedSystems,
+          provider.hiddenSystemFolders,
+        ).isPresent)
           entry,
     ];
     if (missing.isEmpty) {
@@ -469,7 +534,11 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       final result = await _mainMenu.showAll(missing, provider);
       _notice(_cf(ConsoleManagerLocale.showAllDone, {'count': result.shown}));
       if (result.failed.isNotEmpty) {
-        _notice(_cf(ConsoleManagerLocale.changeFailed, {'error': result.failed.join(', ')}));
+        _notice(
+          _cf(ConsoleManagerLocale.changeFailed, {
+            'error': result.failed.join(', '),
+          }),
+        );
       }
     } catch (error) {
       _log.w('Show all consoles failed: $error');
@@ -492,17 +561,22 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     if (!confirmed || !mounted) return;
     setState(() => _bulk = 'restore');
     try {
-      final result = await _mainMenu.restoreDefaults(ConsoleCatalog.entries, provider);
+      final result = await _mainMenu.restoreDefaults(
+        ConsoleCatalog.entries,
+        provider,
+      );
       final engines = await _policy.enableAllConsoles();
       if (result.failed.isEmpty && engines) {
         _notice(_c(ConsoleManagerLocale.restoreDone));
       } else {
-        _notice(_cf(ConsoleManagerLocale.changeFailed, {
-          'error': <String>[
-            ...result.failed,
-            if (!engines) EmbeddedEnginePolicy.disabledPreferenceKey,
-          ].join(', '),
-        }));
+        _notice(
+          _cf(ConsoleManagerLocale.changeFailed, {
+            'error': <String>[
+              ...result.failed,
+              if (!engines) EmbeddedEnginePolicy.disabledPreferenceKey,
+            ].join(', '),
+          }),
+        );
       }
     } catch (error) {
       _log.w('Console defaults not restored: $error');
@@ -514,27 +588,30 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
 
   Future<void> _openSkins(LibretroConsole console) async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => LibretroSkinManagerScreen(console: console.id)),
+      MaterialPageRoute<void>(
+        builder: (_) => LibretroSkinManagerScreen(console: console.id),
+      ),
     );
   }
 
   Future<void> _open3dsSystem() => LibretroEngineSettingsPanel.pushPage(
-        context,
-        LibretroEnginePage.systemData3ds,
-        '3ds',
-      );
+    context,
+    LibretroEnginePage.systemData3ds,
+    '3ds',
+  );
 
-  Future<void> _openResolution(LibretroConsole console) => LibretroEngineSettingsPanel.pushPage(
+  Future<void> _openResolution(LibretroConsole console) =>
+      LibretroEngineSettingsPanel.pushPage(
         context,
         LibretroEnginePage.resolution,
         console.id,
       );
 
   bool _matches(LibretroMainMenuState state) => switch (_filter) {
-        ConsoleListFilter.all => true,
-        ConsoleListFilter.shown => state.isPresent,
-        ConsoleListFilter.hidden => state.isHidden,
-      };
+    ConsoleListFilter.all => true,
+    ConsoleListFilter.shown => state.isPresent,
+    ConsoleListFilter.hidden => state.isHidden,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -542,7 +619,11 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     final provider = context.watch<SqliteConfigProvider>();
     final states = <ConsoleEntry, LibretroMainMenuState>{
       for (final entry in ConsoleCatalog.entries)
-        entry: LibretroMainMenu.stateOfEntry(entry, provider.detectedSystems, provider.hiddenSystemFolders),
+        entry: LibretroMainMenu.stateOfEntry(
+          entry,
+          provider.detectedSystems,
+          provider.hiddenSystemFolders,
+        ),
     };
     final embedded = <ConsoleEntry>[
       for (final entry in ConsoleCatalog.entries)
@@ -565,26 +646,40 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
               if (widget.inMainBar)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
-                  child: Text(_c(ConsoleManagerLocale.tabTitle), style: theme.textTheme.titleLarge),
+                  child: Text(
+                    _c(ConsoleManagerLocale.tabTitle),
+                    style: theme.textTheme.titleLarge,
+                  ),
                 ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
                 child: Text(
                   _c(ConsoleManagerLocale.tabIntro),
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
-              if (_policy.loaded && !_policy.useEmbedded) _buildGlobalOff(context),
+              if (_policy.loaded && !_policy.useEmbedded)
+                _buildGlobalOff(context),
               _buildToolbar(context),
               const SizedBox(height: 12),
               _buildLibrary(context),
               if (embedded.isNotEmpty) ...[
-                _buildSection(context, _c(ConsoleManagerLocale.sectionEmbedded)),
-                for (final entry in embedded) _buildConsole(context, entry, states[entry]!),
+                _buildSection(
+                  context,
+                  _c(ConsoleManagerLocale.sectionEmbedded),
+                ),
+                for (final entry in embedded)
+                  _buildConsole(context, entry, states[entry]!),
               ],
               if (external.isNotEmpty) ...[
-                _buildSection(context, _c(ConsoleManagerLocale.sectionExternal)),
-                for (final entry in external) _buildConsole(context, entry, states[entry]!),
+                _buildSection(
+                  context,
+                  _c(ConsoleManagerLocale.sectionExternal),
+                ),
+                for (final entry in external)
+                  _buildConsole(context, entry, states[entry]!),
               ],
               if (embedded.isEmpty && external.isEmpty)
                 Padding(
@@ -593,7 +688,9 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
                   child: Text(
                     _c(ConsoleManagerLocale.noMatch),
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
             ],
@@ -627,10 +724,12 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         ),
       );
     }
-    return libretroPage(Scaffold(
-      appBar: libretroPageAppBar(context, _c(ConsoleManagerLocale.tabTitle)),
-      body: SafeArea(child: list),
-    ));
+    return libretroPage(
+      Scaffold(
+        appBar: libretroPageAppBar(context, _c(ConsoleManagerLocale.tabTitle)),
+        body: SafeArea(child: list),
+      ),
+    );
   }
 
   Widget _buildGlobalOff(BuildContext context) {
@@ -643,12 +742,17 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            Icon(Icons.info_outline, color: theme.colorScheme.onSecondaryContainer),
+            Icon(
+              Icons.info_outline,
+              color: theme.colorScheme.onSecondaryContainer,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 _c(ConsoleManagerLocale.globalOff),
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSecondaryContainer,
+                ),
               ),
             ),
           ],
@@ -660,13 +764,13 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   Widget _buildToolbar(BuildContext context) {
     final busy = _busy;
     Widget filter(ConsoleListFilter value, String key) => LibretroFocusRing(
-          child: ChoiceChip(
-            key: ValueKey('consoles-filter-${value.name}'),
-            label: Text(_c(key)),
-            selected: _filter == value,
-            onSelected: (_) => setState(() => _filter = value),
-          ),
-        );
+      child: ChoiceChip(
+        key: ValueKey('consoles-filter-${value.name}'),
+        label: Text(_c(key)),
+        selected: _filter == value,
+        onSelected: (_) => setState(() => _filter = value),
+      ),
+    );
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -680,7 +784,11 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
             key: const ValueKey('consoles-show-all'),
             onPressed: busy ? null : _showAll,
             icon: _bulk == 'showAll'
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.visibility_outlined),
             label: Text(_c(ConsoleManagerLocale.showAll)),
           ),
@@ -690,7 +798,11 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
             key: const ValueKey('consoles-restore-defaults'),
             onPressed: busy ? null : _restoreDefaults,
             icon: _bulk == 'restore'
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.settings_backup_restore),
             label: Text(_c(ConsoleManagerLocale.restoreDefaults)),
           ),
@@ -705,12 +817,21 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
       child: Text(
         title,
-        style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w700),
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
 
-  Widget _buildStatus(BuildContext context, IconData icon, String text, {Key? key, Color? color}) {
+  Widget _buildStatus(
+    BuildContext context,
+    IconData icon,
+    String text, {
+    Key? key,
+    Color? color,
+  }) {
     final theme = Theme.of(context);
     final tint = color ?? theme.colorScheme.onSurfaceVariant;
     return Padding(
@@ -724,7 +845,12 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
             child: Icon(icon, size: 15, color: tint),
           ),
           const SizedBox(width: 6),
-          Expanded(child: Text(text, style: theme.textTheme.bodySmall?.copyWith(color: tint))),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodySmall?.copyWith(color: tint),
+            ),
+          ),
         ],
       ),
     );
@@ -734,9 +860,13 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     switch (entry.engine) {
       case ConsoleEngine.libretro:
         final binding = LibretroCoreCatalog.bindingFor(entry.importSystem);
-        final core = binding == null ? null : LibretroCoreCatalog.cores[binding.coreId];
+        final core = binding == null
+            ? null
+            : LibretroCoreCatalog.cores[binding.coreId];
         return _cf(ConsoleManagerLocale.engineBuiltIn, {
-          'engine': core == null ? 'libretro' : '${core.displayName} (libretro)',
+          'engine': core == null
+              ? 'libretro'
+              : '${core.displayName} (libretro)',
         });
       case ConsoleEngine.dolphin:
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'Dolphin'});
@@ -752,8 +882,12 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   }
 
   String _fallbackLine(ConsoleEntry entry) {
-    if (entry.engine == ConsoleEngine.armsx2) return _c(ConsoleManagerLocale.fallbackRetroArchPs2);
-    if (entry.retroArchFallback) return _c(ConsoleManagerLocale.fallbackRetroArch);
+    if (entry.engine == ConsoleEngine.armsx2) {
+      return _c(ConsoleManagerLocale.fallbackRetroArchPs2);
+    }
+    if (entry.retroArchFallback) {
+      return _c(ConsoleManagerLocale.fallbackRetroArch);
+    }
     return _c(ConsoleManagerLocale.fallbackNone);
   }
 
@@ -766,7 +900,8 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         entry.logoAsset,
         color: tint,
         fit: BoxFit.contain,
-        errorBuilder: (context, error, stack) => Icon(Icons.sports_esports_outlined, color: tint),
+        errorBuilder: (context, error, stack) =>
+            Icon(Icons.sports_esports_outlined, color: tint),
       ),
     );
   }
@@ -782,19 +917,24 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        LibretroFocusRing(
-          child: Switch(
-            key: key,
-            value: value,
-            onChanged: onChanged,
+        Text(
+          label,
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
           ),
+        ),
+        LibretroFocusRing(
+          child: Switch(key: key, value: value, onChanged: onChanged),
         ),
       ],
     );
   }
 
-  Widget _buildConsole(BuildContext context, ConsoleEntry entry, LibretroMainMenuState state) {
+  Widget _buildConsole(
+    BuildContext context,
+    ConsoleEntry entry,
+    LibretroMainMenuState state,
+  ) {
     final theme = Theme.of(context);
     final busy = _busy;
     final changing = _changing == entry.id || _importing == entry.id;
@@ -817,17 +957,28 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
           label: _c(ConsoleManagerLocale.engineLabel),
           // The console's own choice, kept while the global switch is off.
           value: engineOn && !unavailable,
-          onChanged: busy || unavailable || !_policy.useEmbedded ? null : (value) => _setEngine(entry, value),
+          onChanged: busy || unavailable || !_policy.useEmbedded
+              ? null
+              : (value) => _setEngine(entry, value),
         ),
     ];
     final details = <Widget>[
       Row(
         children: [
           Expanded(child: Text(entry.name, style: theme.textTheme.titleMedium)),
-          if (changing) const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+          if (changing)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
         ],
       ),
-      _buildStatus(context, entry.hasEmbeddedEngine ? Icons.memory : Icons.open_in_new, _engineLine(entry)),
+      _buildStatus(
+        context,
+        entry.hasEmbeddedEngine ? Icons.memory : Icons.open_in_new,
+        _engineLine(entry),
+      ),
       if (state.isPresent)
         _buildStatus(
           context,
@@ -914,11 +1065,23 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
             final header = Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(padding: const EdgeInsets.only(top: 2, right: 12), child: _logo(context, entry)),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: details)),
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, right: 12),
+                  child: _logo(context, entry),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: details,
+                  ),
+                ),
                 if (wide) ...[
                   const SizedBox(width: 8),
-                  for (final item in switches) Padding(padding: const EdgeInsets.only(left: 4), child: item),
+                  for (final item in switches)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: item,
+                    ),
                 ],
               ],
             );
