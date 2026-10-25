@@ -1,6 +1,6 @@
 # Embedded Libretro cores — Build 530 source and licenses
 
-The published [**fix 0.0.9 / Build 530**](../../../releases/tag/0.0.9-fix.1)
+The published [**fix 0.0.9 / Build 530**](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1)
 IPA contains **35 iOS ARM64 Libretro cores**, including Azahar
 2127.0-alpha1 and the optional Mesen NES engine. Public 0.0.8 / Build 480
 previously contained 34 cores; 0.0.7 / Build 455 contained 14.
