@@ -217,3 +217,26 @@ the embedded host never registers.
   `test/melonx_runtime_smoke.py` resolves the export in the real NativeAOT image
   and checks that stale and ended generations are refused. The homebrew session
   presents no frames, so a real game frame rate is only visible on device.
+
+## Private build 549
+
+Build 549 combines three validated deliveries on the 546 delivery tree, which
+do not share a file: the RPCS3 547 Core files (as delivered in 547), the Liquid
+Glass interface (as delivered in 548) and the MeloNX threading default and FPS
+counter above. Installing 549 over 547 or 548 loses nothing from either.
+
+- Recipe: `.github/diagnostics/melonxthreading549_tree.py` (pin),
+  `melonxthreading549_delivery.py` (source contract, components by artifact ID
+  and digest), `build-utils/validate_melonx_threading549_ipa.py` and
+  `validate_liquid_glass549_ipa.py`, workflow `melonx-threading549-delivery.yml`.
+- Engine 9bf068b run 40235589254 (attempt 2, artifact 12614789426) and host run
+  40235589280 (artifact 12615322102).
+- Frontend re-run on the exact pinned tree (`docs/evidence/melonx-threading549-local.json`):
+  12 import, close-status (negative control reproduced), 5 audio, 7 route,
+  11 launch-flow, 4 display and 3 threading tests, the 342-test Liquid Glass
+  suite and the full-application analyzer (no error or warning).
+  `test/melonx_transfer_test.dart` fails one Liquid Glass Import-icon contrast
+  case identically on the delivered 548 tree; it is not changed here.
+- On iPhone, check: the journal line `threading=On`; Persona 4 Golden fluidity
+  and flicker against the standalone app; the `NN FPS` counter in the RAM
+  overlay; closing from RewindBox and in game, then relaunching.
