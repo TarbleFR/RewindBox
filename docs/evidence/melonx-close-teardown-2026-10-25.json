@@ -1276,7 +1276,7 @@
     "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
     "inputs": {
       "build-utils/melonx/adapt_gpu_lifetime.py": "92ec7a6dad603dab1192baa41ecc86e027cbd08952ad3b4ab4aca50e1bf7bcc6",
-      "test/melonx_gpu_teardown_test.py": "18fd900543081d732762f6a1f34a8a52b73d8cf55fbf562163603a119ad16617",
+      "test/melonx_gpu_teardown_test.py": "2925df6ac6bc96e30ddb37b6213d0fe5cccfeb11251588dfaf3eb0cccc1f6362",
       "test/melonx_gpu_teardown/Program.cs": "815f6b0203ac71b9633f36e7987dd9a723783d5913939fbce99aa39a6a749e25",
       "test/melonx_gpu_teardown/Fakes.cs": "03cd63fdfbae9f8745f8a58fed05ecbb6434acfc48d737261a45a8be1d06519a"
     },
@@ -1335,9 +1335,9 @@
       },
       "concurrentDeferredActions": {
         "actions": 80000,
-        "lost": 970,
+        "lost": 60049,
         "duplicated": 0,
-        "queueFailures": 1502
+        "queueFailures": 1044
       },
       "consecutiveSessions": {
         "cpuReferencesAfterEachSession": [
@@ -1411,7 +1411,7 @@
       "Gpu Dispose: Texture cache teardown skipped 1 texture(s) already released while still listed and 0 stale tracking handle owner(s).",
       "Gpu Dispose: Texture cache teardown skipped 0 texture(s) already released while still listed and 1 stale tracking handle owner(s)."
     ],
-    "platform": "Linux x64, .NET SDK 10.0.100 (macOS CI re-executes it in melonx-core.yml)"
+    "platform": "Linux x64, pinned .NET SDK 10.0.100 (also passed with a symlinked temporary root); melonx-core.yml re-executes it on macOS"
   },
   "flutterChecks": {
     "test/game_close_status_test.py": "11 return cases + quarantine negative control (endless closing reproduced) + quarantine acknowledgement: passed",

@@ -46,6 +46,9 @@ def build_variant(work: Path, fixed: bool) -> dict:
     assert text.count('</Project>') == 1
     # Test-only access to the internal production types; product unchanged.
     gpu.write_text(text.replace('</Project>', '  <ItemGroup><InternalsVisibleTo Include="MeloNXGpuTeardownProbe" /></ItemGroup>\n</Project>'))
+    # The probe lives outside the source tree. Pin the same SDK as build_core.sh;
+    # a runner's newer preinstalled SDK would otherwise compile preview C#.
+    (work / 'global.json').write_text(json.dumps({'sdk': {'version': PIN['dotnet'], 'rollForward': 'disable'}}))
     probe = work / 'probe'
     probe.mkdir()
     for name in ['Program.cs', 'Fakes.cs']:
@@ -66,7 +69,8 @@ def build_variant(work: Path, fixed: bool) -> dict:
     build = subprocess.run(['dotnet', 'build', str(probe), '-c', 'Release', '-nologo', '-v', 'q'],
                            capture_output=True, text=True, timeout=900)
     if build.returncode:
-        print(build.stdout[-6000:], build.stderr[-3000:])
+        errors = [line for line in build.stdout.splitlines() if ': error ' in line]
+        print('\n'.join(dict.fromkeys(errors[:40])), build.stdout[-3000:], build.stderr[-3000:], sep='\n')
         build.check_returncode()
     run = subprocess.run(['dotnet', str(probe / 'bin/Release/net10.0/MeloNXGpuTeardownProbe.dll'), variant],
                          capture_output=True, text=True, timeout=300)
@@ -146,8 +150,11 @@ def check(control: dict, fixed: dict):
 
 
 with tempfile.TemporaryDirectory(prefix='melonx-gpu-teardown-') as temporary:
-    control = build_variant(Path(temporary) / 'control', False)
-    fixed = build_variant(Path(temporary) / 'fixed', True)
+    # macOS temporary paths are symlinks (/var -> /private/var). MSBuild would
+    # load the same referenced projects under both spellings and race on them.
+    work = Path(temporary).resolve()
+    control = build_variant(work / 'control', False)
+    fixed = build_variant(work / 'fixed', True)
 failures = check(control, fixed)
 inputs = ['build-utils/melonx/adapt_gpu_lifetime.py', 'test/melonx_gpu_teardown_test.py',
           'test/melonx_gpu_teardown/Program.cs', 'test/melonx_gpu_teardown/Fakes.cs']
