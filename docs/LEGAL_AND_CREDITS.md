@@ -231,10 +231,11 @@ RewindBox release documentation therefore identifies:
 3. RewindBox's integration patches and build scripts;
 4. the license and notice documents associated with those components.
 
-See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md) for the
-first public GitHub release, [the 0.0.8 manifest](RELEASE_0.0.8_SOURCE_MANIFEST.md)
-for the current public IPA, and [the current/historical runtime inventory](EMBEDDED_RUNTIME_PROVENANCE.md)
-for the later rebuilt components. The RPCS3 source record retains both original
+See the [Build 530 source manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)
+for the current public IPA, [the 0.0.8 manifest](RELEASE_0.0.8_SOURCE_MANIFEST.md)
+and [the initial source manifest](RELEASE_0.0.1_SOURCE_MANIFEST.md) for their
+historical builds, and the [current/historical engine source inventory](EMBEDDED_RUNTIME_PROVENANCE.md)
+for later rebuilt components. The RPCS3 source record retains both original
 RPCS3 and ARMSX3 commit lineage for the two Build 499 backports; it does not
 claim the private revision of the inspected ARMSX3 IPA is public source.
 
@@ -325,11 +326,12 @@ Pokémon France remains excluded; attribution is retained for the historical
 use. The other permission and mirror-authority questions remain documented in
 the [review](SOURCE_RIGHTS_REVIEW_2026-10-18.md).
 
-The current publication has 2,395,541 programs/edition variants in 50,282 typed identity
+The reviewed catalogue snapshot had 2,395,541 programs/edition variants in 50,282 typed identity
 groups. [The research inventory](../native/cheats/catalogue/SOURCES.md) also lists
 excluded references, which are not counted among the 50 active profiles.
-This source-tree update does not publish a release or change a previously
-distributed IPA. The official release remains 0.0.8 / Build 480.
+That historical source-audit update did not itself publish or change an IPA.
+The latest published release is now **fix 0.0.9 / Build 530**; unchanged
+historical catalogue statistics must not be interpreted as a new count.
 
 ## HD texture catalogue — expanded since Build 486
 
@@ -500,7 +502,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **ARMSX2 / PCSX2** | [ARMSX2](https://github.com/ARMSX2/ARMSX2) team and contributors; ARMSX2 is based on the long-running [PCSX2](https://github.com/PCSX2/pcsx2) project. |
 | **Dusklight** (earlier builds only) | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. No longer included in RewindBox since 20 October 2026. |
 | **KartPad / WiiCompiled** (earlier builds only) | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). No longer included in RewindBox since 19 October 2026. |
-| **MeloNX / Ryujinx** (development only) | [MeloNX](https://starforgejo.dev/projects/MeloNX) contributors, stossy11 and Ryujinx/Ryubing contributors; LibHac and Melo-Controller retain separate notices. The old external integration is retired; the embedded runtime is unfinished. |
+| **MeloNX / Ryujinx** (embedded in Build 530) | [MeloNX](https://starforgejo.dev/projects/MeloNX) contributors, stossy11 and Ryujinx/Ryubing contributors; LibHac and Melo-Controller retain separate notices. The old external integration is retired. The current iOS engine uses a Vulkan host-import fallback; gameplay stability and complete native-source/license coverage are not guaranteed. |
 | **RetroArch / Libretro** | [RetroArch](https://github.com/libretro/RetroArch) and Libretro contributors, for the API, core ecosystem and buildbot distributions used by **Embedded RetroArch** inside RewindBox. Individual emulator authors are credited below. |
 | **Provenance Skin Catalog** | [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins), maintained by the Provenance team and community contributors; one of the sources used to discover controller skins. |
 | **DeltaStyles / Delta Skins** | [DeltaStyles](https://deltastyles.com/), [Delta Skins](https://delta-skins.github.io/) and their individual skin creators, for compatible catalog entries and community layouts. |
@@ -508,7 +510,7 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **Delta / DeltaCore** | [Riley Testut and DeltaCore contributors](https://github.com/rileytestut/DeltaCore), for the controller-skin format referenced by compatible imports. |
 | **Community skin creators** | The original authors of each skin's artwork and layout. Available author and source credits are preserved; each creator's terms apply. |
 | **StikJIT** | [StikDebug/StikJIT](https://github.com/StikDebug/StikJIT) and its contributors. |
-| **NeoSwap memory research** | Stossy/MeloNX for the allocation ideas [studied and adapted](https://github.com/TarbleFR/RewindBox/blob/0.0.7/docs/neoswap-melonx-2026-10-11.md), and Guest Page Relay contributors for the [MIT-licensed relay prototype](../assets/legal/Guest-Page-Relay-MIT.txt). |
+| **NeoSwap memory research** | Stossy/MeloNX for the allocation ideas [studied and adapted](neoswap-melonx-2026-10-11.md), and Guest Page Relay contributors for the [MIT-licensed relay prototype](../assets/legal/Guest-Page-Relay-MIT.txt). |
 | **ScreenScraper** | [ScreenScraper.fr](https://www.screenscraper.fr/) metadata and media service. |
 | **RetroAchievements** | [RetroAchievements](https://retroachievements.org/) project, API and community. |
 | **GameDB / GameDB-PS3** | **Niema / [@niemasd](https://github.com/niemasd)**, creator of [GameDB](https://github.com/niemasd/GameDB) and [GameDB-PS3](https://github.com/niemasd/GameDB-PS3). RewindBox uses `PS3.titles.json` as a fallback title catalog. GameDB asks downstream projects to credit GameDB and its source datasets; GameDB-PS3 lists **MiSTer Addons** and **Redump** as sources. |
