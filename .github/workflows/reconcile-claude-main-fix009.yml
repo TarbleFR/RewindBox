@@ -20,10 +20,61 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git branch --show-current)" = "Claude"
-          test "$(git rev-parse HEAD)" = "21a788a085f9d7b8292a564b4d720b9b3b7352ab" || {
-            echo "Claude changed since conflict audit. Refusing stale automated merge."
+          git merge-base --is-ancestor 21a788a085f9d7b8292a564b4d720b9b3b7352ab HEAD
+          changes="$(git diff --name-only 21a788a085f9d7b8292a564b4d720b9b3b7352ab HEAD | grep -v '^.github/workflows/reconcile-claude-main-fix009.yml
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "8e9fc17b04bef2a9480b8cf4c4a2a471f71ee59a" || {
+            echo "main changed since conflict audit. Refusing stale automated merge."
             exit 1
           }
+          git config user.name "RewindBox GitHub Actions"
+          git config user.email "actions@users.noreply.github.com"
+          merge_status=0
+          git merge --no-ff --no-commit origin/main || merge_status=$?
+          test "$merge_status" -le 1
+          python3 - <<'PY'
+          import pathlib,subprocess
+          conflicted=subprocess.check_output(['git','diff','--name-only','--diff-filter=U','-z']).split(b'\0')
+          paths=[p.decode() for p in conflicted if p]
+          print('Resolving conflicts with current Claude implementation:',len(paths))
+          for path in paths:
+              # Prefer current Claude: newer emulator source and removal of discontinued
+              # Dusklight/KartPad/old external MeloNX. Nonconflicting main branding
+              # changes are retained by the three-way merge automatically.
+              valid=subprocess.run(['git','cat-file','-e','HEAD:'+path],
+                  stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode == 0
+              if valid:
+                  data=subprocess.check_output(['git','show','HEAD:'+path])
+                  dest=pathlib.Path(path)
+                  dest.parent.mkdir(parents=True,exist_ok=True)
+                  dest.write_bytes(data)
+                  subprocess.run(['git','add','--',path],check=True)
+              else:
+                  subprocess.run(['git','rm','-f','--ignore-unmatch','--',path],check=True)
+              print(path,'<- Claude' if valid else '<- deleted in Claude')
+          PY
+          test -z "$(git diff --name-only --diff-filter=U)"
+          # Never reintroduce discontinued game-port package dependencies.
+          if grep -E 'dusklight_internal_bridge|kartpad_internal_bridge' pubspec.yaml; then
+            echo "Removed port dependency reintroduced"; exit 1
+          fi
+          if grep -E 'dusklight_internal_bridge|kartpad_internal_bridge' lib/main.dart; then
+            echo "Removed port import reintroduced"; exit 1
+          fi
+          if grep -E '<<<<<<< |=======|>>>>>>> ' README.md lib/main.dart pubspec.yaml; then
+            echo "Unresolved merge marker"; exit 1
+          fi
+          git add -A
+          git diff --cached --check
+          echo "=== Diff stats after merge ==="
+          git diff --cached --stat | tail -25
+          git commit -m "merge: bring main RewindBox identity into Claude with MeloNX Vulkan fix"
+          git push origin HEAD:refs/heads/Claude
+          echo "MERGED_HEAD=$(git rev-parse HEAD)"
+ || true)"
+          if [ -n "$changes" ]; then
+            echo "Claude project changed since audit: $changes"; exit 1
+          fi
           git fetch origin main
           test "$(git rev-parse origin/main)" = "8e9fc17b04bef2a9480b8cf4c4a2a471f71ee59a" || {
             echo "main changed since conflict audit. Refusing stale automated merge."
