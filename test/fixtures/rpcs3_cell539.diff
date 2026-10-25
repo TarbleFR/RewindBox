@@ -1,0 +1,233 @@
+diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.h b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
+index 4045e7a..b63abe7 100644
+--- a/rpcs3/Emu/RSX/Program/ProgramStateCache.h
++++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
+@@ -366,15 +366,18 @@ public:
+ 		const bool already_existing_vertex_program = std::get<1>(vp_search);
+ 		const vertex_program_type& vertex_program = std::get<0>(vp_search);
+ 		const fragment_program_type& fragment_program = std::get<0>(fp_search);
+-		const pipeline_key key = { vertex_program.id, fragment_program.id, pipeline_properties };
++		// CELL539_PIPELINE_KEY: build, lookup, publication and disk notification
++		// must all use the same validated state, including the first shader use.
++		// Keep the caller's guest register state intact: a later fragment shader
++		// may write channels the current shader does not define.
++		pipeline_key key = { vertex_program.id, fragment_program.id, pipeline_properties };
++		backend_traits::validate_pipeline_properties(vertex_program, fragment_program, key.properties);
+ 
+ 		m_cache_miss_flag = true;
+ 
+ 		if (already_existing_vertex_program && already_existing_fragment_program)
+ 		{
+ 			// There is a high chance the pipeline object was compiled if the two shaders already existed before
+-			backend_traits::validate_pipeline_properties(vertex_program, fragment_program, pipeline_properties);
+-
+ 			reader_lock lock(m_pipeline_mutex);
+ 			if (const auto I = m_storage.find(key); I != m_storage.end())
+ 			{
+@@ -438,7 +441,7 @@ public:
+ 		auto result = backend_traits::build_pipeline(
+ 			vertex_program,                 // VS, must already be decompiled and recompiled above
+ 			fragment_program,               // FS, must already be decompiled and recompiled above
+-			pipeline_properties,             // Pipeline state
++			key.properties,                  // Same state as the cache key
+ 			compile_async,                  // Allow asynchronous compilation
+ 			callback,                       // Insertion and notification callback
+ 			std::forward<Args>(args)...);   // Other arguments
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index 268a6ef..267f3c3 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -1922,6 +1922,10 @@ bool VKGSRender::load_program()
+ 		);
+ 
+ 		properties.renderpass_key = m_current_renderpass_key;
++		// CELL539_PIPELINE_DIRTY: this register state has been decoded even
++		// when it resolves to the currently bound pipeline. A later register
++		// change will mark it dirty again through the existing invalidation.
++		m_graphics_state.clear(rsx::pipeline_state::pipeline_config_dirty);
+ 		if (m_program &&
+ 			!m_shader_interpreter.is_interpreter(m_program) &&
+ 			m_pipeline_properties == properties)
+@@ -1932,7 +1936,6 @@ bool VKGSRender::load_program()
+ 
+ 		// Fallthrough
+ 		m_pipeline_properties = properties;
+-		m_graphics_state.clear(rsx::pipeline_state::pipeline_config_dirty);
+ 	}
+ 	else
+ 	{
+diff --git a/rpcs3/Emu/RSX/VK/VKPipelineCompiler.h b/rpcs3/Emu/RSX/VK/VKPipelineCompiler.h
+index 8f61bf9..d67babe 100644
+--- a/rpcs3/Emu/RSX/VK/VKPipelineCompiler.h
++++ b/rpcs3/Emu/RSX/VK/VKPipelineCompiler.h
+@@ -38,14 +38,15 @@ namespace vk
+ 			if (memcmp(&state.ds, &other.state.ds, sizeof(VkPipelineDepthStencilStateCreateInfo)))
+ 				return false;
+ 
+-			if (state.ms.rasterizationSamples != VK_SAMPLE_COUNT_1_BIT)
+-			{
+-				if (memcmp(&state.ms, &other.state.ms, sizeof(VkPipelineMultisampleStateCreateInfo)))
+-					return false;
++			// CELL539_PIPELINE_HASH: alpha/sample shading still affect a one-sample
++			// pipeline. Only the stored sample mask is unused by both compilers
++			// when rasterizationSamples == 1 (pSampleMask remains null).
++			if (memcmp(&state.ms, &other.state.ms, sizeof(VkPipelineMultisampleStateCreateInfo)))
++				return false;
+ 
+-				if (state.temp_storage.msaa_sample_mask != other.state.temp_storage.msaa_sample_mask)
+-					return false;
+-			}
++			if (state.ms.rasterizationSamples != VK_SAMPLE_COUNT_1_BIT &&
++				state.temp_storage.msaa_sample_mask != other.state.temp_storage.msaa_sample_mask)
++				return false;
+ 
+ 			return true;
+ 		}
+@@ -235,22 +236,34 @@ namespace rpcs3
+ 	template <>
+ 	inline usz hash_struct<vk::pipeline_props>(const vk::pipeline_props& pipelineProperties)
+ 	{
+-		usz seed = hash_base(pipelineProperties.renderpass_key);
+-		seed ^= hash_struct(pipelineProperties.state.ia);
+-		seed ^= hash_struct(pipelineProperties.state.ds);
+-		seed ^= hash_struct(pipelineProperties.state.rs);
+-		seed ^= hash_struct(pipelineProperties.state.ms);
+-		seed ^= hash_base(pipelineProperties.state.temp_storage.msaa_sample_mask);
+-
+-		// Do not compare pointers to memory!
+-		VkPipelineColorBlendStateCreateInfo tmp;
+-		memcpy(&tmp, &pipelineProperties.state.cs, sizeof(VkPipelineColorBlendStateCreateInfo));
+-		tmp.pAttachments = nullptr;
+-
+-		for (usz i = 0; i < pipelineProperties.state.cs.attachmentCount; ++i)
++		// Ordered mixing: XOR cancelled identical attachments and ignored their
++		// positions. That also made distinct persistent records share a filename.
++		usz seed = hash64(fnv_seed, pipelineProperties.renderpass_key);
++		seed = hash64(seed, hash_struct(pipelineProperties.state.ia));
++		seed = hash64(seed, hash_struct(pipelineProperties.state.ds));
++		seed = hash64(seed, hash_struct(pipelineProperties.state.rs));
++		seed = hash64(seed, hash_struct(pipelineProperties.state.ms));
++		if (pipelineProperties.state.ms.rasterizationSamples != VK_SAMPLE_COUNT_1_BIT)
++		{
++			seed = hash64(seed, pipelineProperties.state.temp_storage.msaa_sample_mask);
++		}
++
++		// Match equality, exclude pAttachments, and include color-blend state
++		// that was previously copied into an unused temporary instead of hashed.
++		const auto& blend = pipelineProperties.state.cs;
++		seed = hash64(seed, blend.attachmentCount);
++		seed = hash64(seed, blend.logicOpEnable);
++		seed = hash64(seed, static_cast<u32>(blend.logicOp));
++		for (f32 value : blend.blendConstants)
++		{
++			u32 bits;
++			std::memcpy(&bits, &value, sizeof(bits));
++			seed = hash64(seed, bits);
++		}
++		for (usz i = 0; i < blend.attachmentCount; ++i)
+ 		{
+-			seed ^= hash_struct(pipelineProperties.state.att_state[i]);
++			seed = hash64(seed, hash_struct(pipelineProperties.state.att_state[i]));
+ 		}
+-		return hash_base(seed);
++		return seed;
+ 	}
+ }
+diff --git a/rpcs3/ios/RPCS3IOSWriterCounters.h b/rpcs3/ios/RPCS3IOSWriterCounters.h
+index cd3836b..617d8f2 100644
+--- a/rpcs3/ios/RPCS3IOSWriterCounters.h
++++ b/rpcs3/ios/RPCS3IOSWriterCounters.h
+@@ -2,27 +2,47 @@
+ #pragma once
+ #include <array>
+ #include <atomic>
++#include <bit>
+ #include <cstdint>
++#include <mutex>
+ namespace rpcs3::ios::diagnostics {
+ class WriterCounters final {
+ public:
+  static constexpr uint32_t sources=5, shard_count=64;
+  struct Total {uint64_t count=0,acquire=0,hold=0,maximum=0;};
+  void record(uint32_t source,uint64_t acquire,uint64_t hold) noexcept {
+-  auto& entry=shards_[thread_slot()].source[source<sources?source:0];
+-  entry.count.fetch_add(1,std::memory_order_relaxed);
+-  entry.acquire.fetch_add(acquire,std::memory_order_relaxed);
+-  entry.hold.fetch_add(hold,std::memory_order_relaxed);
++  const auto& slot=thread_slot();
++  auto& entry=shards_[slot.index].source[source<sources?source:0];
++  // CELL539_WRITER_COUNTERS: a unique live writer owns each normal slot.
++  // The reporter only reads cumulative totals, so these increments need no
++  // read-modify-write instruction. Fields stay atomic for the concurrent reader.
++  // Overflow threads share the last slot and retain exact atomic increments.
++  if(slot.index==shard_count-1){
++   entry.count.fetch_add(1,std::memory_order_relaxed);
++   if(acquire)entry.acquire.fetch_add(acquire,std::memory_order_relaxed);
++   if(hold)entry.hold.fetch_add(hold,std::memory_order_relaxed);
++  }else{
++   entry.count.store(entry.count.load(std::memory_order_relaxed)+1,std::memory_order_relaxed);
++   if(acquire)entry.acquire.store(entry.acquire.load(std::memory_order_relaxed)+acquire,std::memory_order_relaxed);
++   if(hold)entry.hold.store(entry.hold.load(std::memory_order_relaxed)+hold,std::memory_order_relaxed);
++  }
+   auto maximum=entry.maximum.load(std::memory_order_relaxed);
+   while(maximum<hold&&!entry.maximum.compare_exchange_weak(maximum,hold,std::memory_order_relaxed)){}
+  }
+  std::array<Total,sources> drain() noexcept {
++  // No writer takes this mutex. Serialize reporter/reset cursors only.
++  std::lock_guard lock(drain_mutex_);
+   std::array<Total,sources> result{};
+-  for(auto& shard:shards_)for(uint32_t i=0;i<sources;++i){
++  for(uint32_t s=0;s<shard_count;++s)for(uint32_t i=0;i<sources;++i){
++   auto& shard=shards_[s];auto& cursor=cursors_[s][i];
+    auto& entry=shard.source[i];auto& total=result[i];
+-   total.count+=entry.count.exchange(0,std::memory_order_relaxed);
+-   total.acquire+=entry.acquire.exchange(0,std::memory_order_relaxed);
+-   total.hold+=entry.hold.exchange(0,std::memory_order_relaxed);
++   const auto count=entry.count.load(std::memory_order_relaxed);
++   const auto acquire=entry.acquire.load(std::memory_order_relaxed);
++   const auto hold=entry.hold.load(std::memory_order_relaxed);
++   // Unsigned subtraction also preserves totals across counter wraparound.
++   total.count+=count-cursor.count;cursor.count=count;
++   total.acquire+=acquire-cursor.acquire;cursor.acquire=acquire;
++   total.hold+=hold-cursor.hold;cursor.hold=hold;
+    const auto maximum=entry.maximum.exchange(0,std::memory_order_relaxed);
+    if(maximum>total.maximum)total.maximum=maximum;
+   }
+@@ -31,13 +51,32 @@ public:
+ private:
+  struct Entry {std::atomic<uint64_t> count{0},acquire{0},hold{0},maximum{0};};
+  struct alignas(128) Shard {std::array<Entry,sources> source{};};
+- static uint32_t thread_slot() noexcept {
+-  static std::atomic<uint32_t> next{0};
+-  // Only the first event on a thread registers. Slots contain no thread
+-  // pointers and need no retirement; collisions retain exact atomic counters.
+-  static thread_local const uint32_t slot=next.fetch_add(1,std::memory_order_relaxed)%shard_count;
++ // Slot ownership is per live thread, independent of a counter object's lifetime.
++ // TLS retirement touches only this process-static bitmap, never a registry or
++ // a destroyed counter. Acquire/release hands cumulative stores to a new owner.
++ inline static constinit std::atomic<uint64_t> occupied_{0};
++ struct ThreadSlot {
++  uint32_t index=shard_count-1;
++  ThreadSlot() noexcept {
++   constexpr uint64_t exclusive_mask=(uint64_t{1}<<(shard_count-1))-1;
++   auto used=occupied_.load(std::memory_order_relaxed);
++   while(const auto available=~used&exclusive_mask){
++    const auto candidate=static_cast<uint32_t>(std::countr_zero(available));
++    if(occupied_.compare_exchange_weak(used,used|(uint64_t{1}<<candidate),std::memory_order_acquire,std::memory_order_relaxed)){
++     index=candidate;return;
++    }
++   }
++  }
++  ~ThreadSlot(){if(index<shard_count-1)occupied_.fetch_and(~(uint64_t{1}<<index),std::memory_order_release);}
++  ThreadSlot(const ThreadSlot&)=delete;
++ };
++ static const ThreadSlot& thread_slot() noexcept {
++  static thread_local const ThreadSlot slot;
+   return slot;
+  }
+  std::array<Shard,shard_count> shards_{};
++ struct Cursor {uint64_t count=0,acquire=0,hold=0;};
++ std::array<std::array<Cursor,sources>,shard_count> cursors_{};
++ std::mutex drain_mutex_;
+ };
+ }

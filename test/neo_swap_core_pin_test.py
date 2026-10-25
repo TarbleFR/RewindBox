@@ -17,7 +17,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = '22f1152783cef1f7e04af7b1c895173e28fd5b03'
-PATCH_SHA256 = '67bdd169fd56c2072c75606d75e2b710f41b4162b30577563ca5262e19938b4b'
+PATCH_SHA256 = 'b53bad00a74414ec7a34041deb1c90373ef7e570da48bea7b0c8268c7ab89fed'
 BACKPORTS = (
     '8bd938e9de9ff6455f312cdf8bd64bd37a064c4e',
     '1d13d1e6bbabfbb7a873f2c608c52525ff470e25',
@@ -161,7 +161,7 @@ def validate_core_scheduling(workflow: str) -> None:
             'Workflow-level concurrency can cancel a pinned Core even when the build job is skipped')
     require('    concurrency:\n      group: neostation-rpcs3-core-${{ github.sha }}\n      cancel-in-progress: false\n' in workflow,
             'Core job must preserve running builds and isolate immutable source SHAs')
-    require("    if: ${{ inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') && !contains(github.event.head_commit.message, '[rpcs3-cell527-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell528-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell534-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell536-core]') }}" in workflow,
+    require("    if: ${{ inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') && !contains(github.event.head_commit.message, '[rpcs3-cell527-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell528-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell534-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell536-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell539-core]') }}" in workflow,
             'Host-only integration must not rebuild the referenced Core')
 
 
