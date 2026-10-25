@@ -22,8 +22,8 @@ def disable_ios_host_import(source):
     # Do not enable an extension on MoltenVK that is never safe to use here.
     # MoltenVK may expose it even when host-import buffer creation later fails.
     once(initialization,
-         '            var enabledExtensions = _requiredExtensions.Union(_desirableExtensions.Intersect(physicalDevice.DeviceExtensions)).ToArray();',
-         '''            var enabledExtensions = _requiredExtensions.Union(
+         '            string[] enabledExtensions = _requiredExtensions.Union(_desirableExtensions.Intersect(physicalDevice.DeviceExtensions)).ToArray();',
+         '''            string[] enabledExtensions = _requiredExtensions.Union(
                 _desirableExtensions.Intersect(physicalDevice.DeviceExtensions)
                     .Where(extension => !OperatingSystem.IsIOS() || extension != ExtExternalMemoryHost.ExtensionName)).ToArray();''')
     # A physical device can advertise an extension that was deliberately not
