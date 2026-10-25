@@ -1,0 +1,21 @@
+{
+  "result": "passed",
+  "summary": "PASS 22 effective graphics/journal assertions; old masking reproduced; no GPU test.",
+  "baseline": "cb3e5d5bd2ba740164002fdb54951a482219fa22",
+  "upstream": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "inputs": {
+    "native/melonx/EmbeddedSession.cs": "37bb11a513e313fc65bd17fada65ed2110830c3b3472c6d34e807d588bfb8cca",
+    "native/melonx/EmbeddedGraphicsSettings.cs": "f85f747c850c755621e66d0d40c2449a6b5d413d6aed42d71f40a34fcaea4aca",
+    "native/melonx/EmbeddedLaunchDiagnostics.cs": "ab9c49b1c8fa293c7780a5f75abb99e8c09afad189b76e004b40fbb334c1677c",
+    "test/melonx_effective_graphics_journal_test.py": "6813a4cd6d165952b1cf48495d007c511acb561121cef908f3a82c5892f2f874"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Library/Options.cs": "7a08bd9243f16ace3a6529b6a11e6d0ce2972fa8ddf462696db399eb076e2af7",
+    "src/Ryujinx.Common/Configuration/AspectRatioExtensions.cs": "c74e7f30abf2369daa9369af5914b8561cc37f87314bd935e40fa94fa7b5b9a6",
+    "src/Ryujinx.Common/Configuration/ScalingFilter.cs": "893fc8257ce88adbf8b16065546c67158c4eff8f3efc7ec2b47b298d61dc5792",
+    "src/Ryujinx.Common/Configuration/VSyncMode.cs": "b850c1c49457f66b49da6aadc5a282aa34d4ec2a5afe3796adb3d9df2fc373d4",
+    "src/Ryujinx.Common/Configuration/BackendThreading.cs": "a3a1afc5e45b57342abcdc9af9dfe8300e3f3750ada574bd6321781c91c6e8c3"
+  },
+  "gpuRenderingTested": false,
+  "deviceTested": false
+}
