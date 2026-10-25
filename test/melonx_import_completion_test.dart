@@ -383,10 +383,11 @@ void main() {
     expect(rows.single['title_id'], title);
   });
 
-  testWidgets('playlist menu imports an update and names its game without selecting one', (tester) async {
-    await mount(tester, () async {}, selectedTitle: null);
+  testWidgets('playlist update recognizes its game even when another game is highlighted', (tester) async {
+    await mount(tester, () async {}, selectedTitle: '0100999988880000');
     await tester.runAsync(() async {
       await installedGame('Recognized game');
+      await installedGame('Highlighted game', id: '0100999988880000');
       picker.files = [await file('update.nsp')];
     });
     await tester.tap(find.byKey(const ValueKey('melonx-import-menu')));
@@ -396,6 +397,7 @@ void main() {
     await until(tester, () => find.text('Import completed').evaluate().isNotEmpty);
     expect(find.textContaining('Recognized game — update.nsp'), findsOneWidget);
     expect(find.text('Choose the game'), findsNothing);
+    expect(File('${temp.path}/MeloNX/games/0100999988880000/updates.json').existsSync(), false);
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox());
@@ -440,6 +442,7 @@ void main() {
     'update completion is explicit and does not start a library scan',
     (tester) async {
       await mount(tester, () async {});
+      await tester.runAsync(() => installedGame('Installed game'));
       picker.files = [(await tester.runAsync(() => file('update.nsp')))!];
       await tester.runAsync(() => file('MeloNX/roms/switch/unrelated.nro'));
       final before = metadata;

@@ -222,7 +222,9 @@ class _MelonxInternalPlaylistActionsState
         case 'dlc':
           final report = await _withImportProgress(
             (progress) => MelonxEmbeddedLibraryService.importAddon(
-              widget.titleId,
+              // Playlist menus also receive the merely highlighted game.
+              // Updates identify their own installed base from the NSP.
+              action == 'dlc' ? widget.titleId : null,
               dlc: action == 'dlc',
               onProgress: progress,
             ),
