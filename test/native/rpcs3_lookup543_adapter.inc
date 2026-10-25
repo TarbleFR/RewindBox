@@ -15,7 +15,7 @@ struct Traits {
     using pipeline_storage_type=std::unique_ptr<Pipeline>;
     using pipeline_type=Pipeline;
     inline static BuildCounter builds{};
-    inline static std::atomic<int> delay_us{0}, throw_on{-1};
+    inline static std::atomic<int> delay_us{0}, null_on{-1};
     inline static std::atomic<bool> return_null{false};
     inline static std::mutex pending_mutex;
     inline static std::vector<std::function<void()>> pending;
@@ -24,7 +24,8 @@ struct Traits {
                                     std::function<Pipeline*(pipeline_storage_type&)> callback) {
         const int n=static_cast<int>(++builds);
         if (const int delay=delay_us.load()) std::this_thread::sleep_for(std::chrono::microseconds(delay));
-        if (n==throw_on.load()) throw std::runtime_error("simulated driver failure");
+        // RPCS3 builds without exceptions: the reachable failure is a null result.
+        if (n==null_on.load()) { pipeline_storage_type none; return callback(none); }
         if (async) {
             std::lock_guard lock(pending_mutex);
             pending.emplace_back([props,callback] { auto p=std::make_unique<Pipeline>(Pipeline{props}); callback(p); });
@@ -34,7 +35,7 @@ struct Traits {
         auto p=std::make_unique<Pipeline>(Pipeline{props}); return callback(p);
     }
     static void reset() {
-        builds=0; delay_us=0; throw_on=-1; return_null=false;
+        builds=0; delay_us=0; null_on=-1; return_null=false;
         std::lock_guard lock(pending_mutex); pending.clear();
     }
 };

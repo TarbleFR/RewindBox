@@ -120,6 +120,28 @@ def feedback_section(tree: Path) -> str:
     return text.replace('// SAVE_BODY', save)
 
 
+def exception_free(source: Path) -> int:
+    """The iOS Core compiles these files with -fno-exceptions; the host harness
+    needs exceptions for the 542 RAII case, so check the production text."""
+    pipeline = (source / 'rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp').read_text()
+    device = (source / 'rpcs3/Emu/RSX/VK/vkutils/device.cpp').read_text()
+    lookup = (source / 'rpcs3/Emu/RSX/Program/ProgramStateCache.h').read_text()
+    cache = (source / 'rpcs3/Emu/RSX/rsx_cache.h').read_text()
+    bodies = [(source / 'rpcs3/Emu/RSX/Common/deferred_publisher.h').read_text(),
+              (source / 'rpcs3/ios/IOSShaderTiming.h').read_text(),
+              (source / 'rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h').read_text(),
+              braced(pipeline, 'struct creation_feedback\n'), braced(pipeline, 'program& program::link('),
+              braced(device, 'void render_device::save_pipeline_cache() const')]
+    bodies += [braced(lookup, head) for head in ['pipeline_data_type get_graphics_pipeline(', 'pipeline_type* acquire_pipeline(',
+                                                  'pipeline_type* publish_pipeline(', 'void abandon_pipeline_build(']]
+    bodies += [braced(cache, head) for head in ['void store(const pipeline_storage_type &pipeline', 'bool write_record(const pending_record& record) const',
+                                                 'bool write_record_files(const pending_record& record) const', 'static bool write_atomically(']]
+    for body in bodies:
+        code = re.sub(r'//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\])*"', '', body, flags=re.S)
+        assert not re.search(r'\b(try|catch|throw)\b', code), code[:200]
+    return len(bodies)
+
+
 def build(source: Path, before: Path, work: Path, sanitizer: str, cxx: list[str]) -> tuple[Path, bytes]:
     code = '#define VK_NO_PROTOTYPES\n#define RPCS3_IOS 1\n' + ''.join('#include <' + h + '>\n' for h in HEADERS)
     code += '#include "ios/IOSShaderTiming.h"\n#include "Emu/RSX/Common/deferred_publisher.h"\n'
@@ -176,6 +198,7 @@ def main():
                 run.check_returncode()
             results[sanitizer] = json.loads(run.stdout)
             results[sanitizer]['harnessSHA256'] = sha(code)
+    results['exceptionFreeProductionBodies'] = exception_free(source)
     # Source-bound checks for paths the host harness cannot execute.
     perf = (source / 'rpcs3/ios/RPCS3IOSPerformance.cpp').read_text()
     for marker in ('COREPROF SHADERPUB543', 'COREPROF SHADERPIPE543', 'context543=1 origin=%u feedback=%u'):

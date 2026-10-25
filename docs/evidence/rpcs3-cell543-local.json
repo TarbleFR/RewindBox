@@ -2,7 +2,7 @@
   "cell": 543,
   "baseline_host": "3494edc9e09fb60fecc35dd6cc301bcb93bc9434",
   "source": "materialized canonical delta on pristine XITRIX/rpcs3 22f1152783cef1f7e04af7b1c895173e28fd5b03; baseline reconstructed by reverse-applying test/fixtures/rpcs3_cell543.diff",
-  "patch_sha256": "77d6a7fcae999287ff258e7caa0601008097d68565508d6c9f4189d6fd30abfc",
+  "patch_sha256": "9ed7d2c286d232cb9b39c90353f0e5ae65affa2207d5c9e524e67951974ea344",
   "host": {
     "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
     "os": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
@@ -38,7 +38,31 @@
       "neo_swap_core_pin_test": "pre-existing: pinned Core cfe92344 lacks test/rpcs3_restore_eof_test.py; identical on 542",
       "RPCS3IOSPerformance.cpp": "Apple-only headers; compiled by the iPhone Core build"
     },
-    "clang18_compile": "harness compiles with clang++ 18 -Wall -Wextra -Werror; container lacks compiler-rt sanitizer archives for linking"
+    "clang18_compile": "harness compiles with clang++ 18 -Wall -Wextra -Werror (rerun on the materialized tree); container lacks compiler-rt sanitizer archives for linking",
+    "syntax_only_clang18_no_exceptions": {
+      "flags": "-std=c++20 -fsyntax-only -fno-exceptions -DRPCS3_IOS -DHAVE_VULKAN",
+      "units": [
+        "VKGSRender.cpp",
+        "VKTextureCache.cpp",
+        "device.cpp",
+        "ProgramStateCache.cpp",
+        "VKResourceManager.cpp",
+        "RSXThread.cpp",
+        "VKProgramPipeline.cpp",
+        "fsr_pass.cpp",
+        "VKShaderInterpreter.cpp",
+        "VKDraw.cpp",
+        "VKPipelineCompiler.cpp"
+      ],
+      "result": "no error apart from Linux-only stand-ins (swapchain_unix, asm.hpp) absent from the iOS build; the aa7ac54 tree reproduces the CI error \"cannot use try with exceptions disabled\""
+    },
+    "negative_result": {
+      "ci_run": 40210639364,
+      "commit": "aa7ac546f181ca198de2fd33ae06754c0fe9a367",
+      "failure": "iOS syntax gate: VKGSRender.cpp, cannot use try with exceptions disabled (deferred_publisher.h, ProgramStateCache.h)",
+      "cause": "RPCS3 builds with -fno-exceptions; the host harness compiled with exceptions enabled and did not catch it",
+      "fix": "no try/catch/throw in production bodies; the writer sink returns bool; the harness now asserts exception-free production bodies"
+    }
   },
   "report": {
     "passed": true,
@@ -59,7 +83,6 @@
           "preloadBuilds": 1,
           "preloadNullReturns": 7,
           "failureBuilds": 1,
-          "failureExceptions": 1,
           "failureNullReturns": 4,
           "failureStickyNull": 1,
           "nullResultRetryNull": 1,
@@ -91,7 +114,6 @@
           "preloadBuilds": 1,
           "preloadNullReturns": 7,
           "failureBuilds": 2,
-          "failureExceptions": 1,
           "failureNullReturns": 1,
           "failureStickyNull": 0,
           "nullResultRetryNull": 0,
@@ -128,9 +150,9 @@
           "producers": 1,
           "filesVerified": 48,
           "tempFilesLeft": 0,
-          "callerP50Us": 1330.0,
-          "callerMaxUs": 3979.8,
-          "callerTotalMs": 68.471,
+          "callerP50Us": 1488.8,
+          "callerMaxUs": 8181.7,
+          "callerTotalMs": 79.85,
           "fsyncs": 144
         },
         "storeHostFsyncAfter": {
@@ -138,9 +160,9 @@
           "producers": 1,
           "filesVerified": 48,
           "tempFilesLeft": 0,
-          "callerP50Us": 22.5,
-          "callerMaxUs": 496.2,
-          "callerTotalMs": 2.755,
+          "callerP50Us": 16.9,
+          "callerMaxUs": 323.2,
+          "callerTotalMs": 1.663,
           "fsyncs": 144
         },
         "storeInjected10msBefore": {
@@ -148,9 +170,9 @@
           "producers": 1,
           "filesVerified": 24,
           "tempFilesLeft": 0,
-          "callerP50Us": 34624.6,
-          "callerMaxUs": 49972.1,
-          "callerTotalMs": 850.355,
+          "callerP50Us": 34408.3,
+          "callerMaxUs": 40319.0,
+          "callerTotalMs": 834.326,
           "fsyncs": 72
         },
         "storeInjected10msAfter": {
@@ -158,9 +180,9 @@
           "producers": 1,
           "filesVerified": 24,
           "tempFilesLeft": 0,
-          "callerP50Us": 16.4,
-          "callerMaxUs": 167.5,
-          "callerTotalMs": 0.812,
+          "callerP50Us": 27.3,
+          "callerMaxUs": 199.9,
+          "callerTotalMs": 0.836,
           "fsyncs": 72
         },
         "storeConcurrentAfter": {
@@ -168,19 +190,19 @@
           "producers": 8,
           "filesVerified": 400,
           "tempFilesLeft": 0,
-          "callerP50Us": 112.1,
-          "callerMaxUs": 8324.2,
-          "callerTotalMs": 620.15,
-          "fsyncs": 1056
+          "callerP50Us": 83.3,
+          "callerMaxUs": 8752.0,
+          "callerTotalMs": 570.926,
+          "fsyncs": 1057
         },
         "storeBoundedAfter": {
           "records": 300,
           "producers": 1,
           "filesVerified": 300,
           "tempFilesLeft": 0,
-          "callerP50Us": 11.6,
-          "callerMaxUs": 30872.5,
-          "callerTotalMs": 237.999,
+          "callerP50Us": 12.0,
+          "callerMaxUs": 10685.4,
+          "callerTotalMs": 192.466,
           "fsyncs": 856
         },
         "boundedDeferred": 280,
@@ -192,7 +214,7 @@
         "feedbackBitCases": 34,
         "saveCases": 6,
         "fingerprintCases": 5,
-        "harnessSHA256": "10b71024f31b22234ed2b120acb9044be8db99381a9aa9291e5c1d75e8518ff4"
+        "harnessSHA256": "5d560ece912a2f3a32a8940a9c10cffe55bc2deae765d536a5295c6cacdc8d93"
       },
       "tsan": {
         "lookupBefore": {
@@ -203,7 +225,6 @@
           "preloadBuilds": 1,
           "preloadNullReturns": 7,
           "failureBuilds": 1,
-          "failureExceptions": 1,
           "failureNullReturns": 4,
           "failureStickyNull": 1,
           "nullResultRetryNull": 1,
@@ -235,7 +256,6 @@
           "preloadBuilds": 1,
           "preloadNullReturns": 7,
           "failureBuilds": 2,
-          "failureExceptions": 1,
           "failureNullReturns": 1,
           "failureStickyNull": 0,
           "nullResultRetryNull": 0,
@@ -272,9 +292,9 @@
           "producers": 1,
           "filesVerified": 48,
           "tempFilesLeft": 0,
-          "callerP50Us": 1993.9,
-          "callerMaxUs": 4600.3,
-          "callerTotalMs": 103.245,
+          "callerP50Us": 1844.7,
+          "callerMaxUs": 5403.2,
+          "callerTotalMs": 99.019,
           "fsyncs": 144
         },
         "storeHostFsyncAfter": {
@@ -282,9 +302,9 @@
           "producers": 1,
           "filesVerified": 48,
           "tempFilesLeft": 0,
-          "callerP50Us": 16.2,
-          "callerMaxUs": 495.1,
-          "callerTotalMs": 1.369,
+          "callerP50Us": 19.9,
+          "callerMaxUs": 375.9,
+          "callerTotalMs": 1.809,
           "fsyncs": 144
         },
         "storeInjected10msBefore": {
@@ -292,9 +312,9 @@
           "producers": 1,
           "filesVerified": 24,
           "tempFilesLeft": 0,
-          "callerP50Us": 35174.8,
-          "callerMaxUs": 37133.7,
-          "callerTotalMs": 841.291,
+          "callerP50Us": 34591.2,
+          "callerMaxUs": 36969.5,
+          "callerTotalMs": 833.52,
           "fsyncs": 72
         },
         "storeInjected10msAfter": {
@@ -302,9 +322,9 @@
           "producers": 1,
           "filesVerified": 24,
           "tempFilesLeft": 0,
-          "callerP50Us": 26.1,
-          "callerMaxUs": 464.3,
-          "callerTotalMs": 1.193,
+          "callerP50Us": 24.6,
+          "callerMaxUs": 391.1,
+          "callerTotalMs": 1.213,
           "fsyncs": 72
         },
         "storeConcurrentAfter": {
@@ -312,19 +332,19 @@
           "producers": 8,
           "filesVerified": 400,
           "tempFilesLeft": 0,
-          "callerP50Us": 147.6,
-          "callerMaxUs": 8842.1,
-          "callerTotalMs": 611.029,
-          "fsyncs": 1056
+          "callerP50Us": 194.7,
+          "callerMaxUs": 11992.5,
+          "callerTotalMs": 761.45,
+          "fsyncs": 1057
         },
         "storeBoundedAfter": {
           "records": 300,
           "producers": 1,
           "filesVerified": 300,
           "tempFilesLeft": 0,
-          "callerP50Us": 15.3,
-          "callerMaxUs": 11729.0,
-          "callerTotalMs": 217.286,
+          "callerP50Us": 14.0,
+          "callerMaxUs": 11071.9,
+          "callerTotalMs": 198.631,
           "fsyncs": 856
         },
         "boundedDeferred": 280,
@@ -336,8 +356,9 @@
         "feedbackBitCases": 34,
         "saveCases": 6,
         "fingerprintCases": 5,
-        "harnessSHA256": "10b71024f31b22234ed2b120acb9044be8db99381a9aa9291e5c1d75e8518ff4"
-      }
+        "harnessSHA256": "5d560ece912a2f3a32a8940a9c10cffe55bc2deae765d536a5295c6cacdc8d93"
+      },
+      "exceptionFreeProductionBodies": 14
     },
     "scope": "Exact production lookup/single-flight, depth-stencil normalization, shader-cache publication, creation-feedback interpretation and VkPipelineCache save skipping with adapters. Synthetic requests and injected disk latency; no Metal compilation, rendering or iPhone frame-time measurement."
   }

@@ -8,7 +8,7 @@ DeferredMetrics deferred_test() {
     {
         std::vector<int> written; std::thread::id worker;
         {
-            deferred_publisher<int> pub(1024,[&](int& v) { std::this_thread::sleep_for(std::chrono::microseconds(50)); written.push_back(v); },
+            deferred_publisher<int> pub(1024,[&](int& v) { std::this_thread::sleep_for(std::chrono::microseconds(50)); written.push_back(v); return true; },
                 [&] { worker=std::this_thread::get_id(); });
             for (int i=0;i<500;++i) assert(pub.submit(int(i)));
         }
@@ -21,7 +21,7 @@ DeferredMetrics deferred_test() {
     {
         std::mutex lock; std::multiset<int> written;
         {
-            deferred_publisher<int> pub(16,[&](int& v) { std::lock_guard g(lock); written.insert(v); });
+            deferred_publisher<int> pub(16,[&](int& v) { std::lock_guard g(lock); written.insert(v); return true; });
             std::vector<std::thread> pool;
             for (int t=0;t<8;++t) pool.emplace_back([&,t] { for (int i=0;i<1000;++i) pub.submit(t*1000+i); });
             for (auto& p:pool) p.join();
@@ -38,7 +38,7 @@ DeferredMetrics deferred_test() {
         std::mutex who_lock;
         deferred_publisher<int> pub(4,[&](int&) {
             if (!first_started.exchange(1)) { std::lock_guard g(gate); }
-            std::lock_guard g(who_lock); who.push_back(std::this_thread::get_id()); ++written;
+            std::lock_guard g(who_lock); who.push_back(std::this_thread::get_id()); ++written; return true;
         });
         assert(pub.submit(0));
         while (!first_started.load()) std::this_thread::yield();
@@ -51,10 +51,10 @@ DeferredMetrics deferred_test() {
         assert(written==11 && pub.depth()==0 && pub.stats().written==5);
         m.inline_writes=inline_count; m.drained=unsigned(written.load());
     }
-    // A throwing sink is counted; later records still reach the sink.
+    // A failed write is counted; later records still reach the sink.
     {
         std::atomic<int> seen{0};
-        deferred_publisher<int> pub(8,[&](int& v) { ++seen; if (v==1) throw std::runtime_error("disk"); });
+        deferred_publisher<int> pub(8,[&](int& v) { ++seen; return v!=1; });
         for (int i=0;i<4;++i) assert(pub.submit(int(i)));
         pub.drain();
         assert(seen==4 && pub.stats().sink_failures==1 && pub.stats().written==4);
@@ -64,7 +64,7 @@ DeferredMetrics deferred_test() {
     {
         std::atomic<int> written{0};
         {
-            deferred_publisher<int> pub(64,[&](int&) { std::this_thread::sleep_for(std::chrono::milliseconds(2)); ++written; });
+            deferred_publisher<int> pub(64,[&](int&) { std::this_thread::sleep_for(std::chrono::milliseconds(2)); ++written; return true; });
             for (int i=0;i<40;++i) pub.submit(int(i));
         }
         assert(written==40);

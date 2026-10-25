@@ -14188,10 +14188,10 @@ index 5cf4da2..bb721d8 100644
  }
 diff --git a/rpcs3/Emu/RSX/Common/deferred_publisher.h b/rpcs3/Emu/RSX/Common/deferred_publisher.h
 new file mode 100644
-index 0000000..eeef7e2
+index 0000000..91b9be7
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Common/deferred_publisher.h
-@@ -0,0 +1,192 @@
+@@ -0,0 +1,172 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -14209,22 +14209,23 @@ index 0000000..eeef7e2
 +{
 +	// CELL543: persistent shader-cache records are not needed to draw the
 +	// current frame. One worker writes them in submission order, outside the
-+	// RSX thread. The queue is bounded: when it is full, or when no worker can
-+	// be started, the caller writes the record itself as before. No accepted
-+	// record is dropped; destruction drains the queue before joining.
++	// RSX thread. The queue is bounded: when it is full the caller writes the
++	// record itself as before. No accepted record is dropped; destruction
++	// drains the queue before joining. Written for -fno-exceptions builds: the
++	// sink reports failure by returning false.
 +	template <typename Record>
 +	class deferred_publisher
 +	{
 +	public:
-+		using sink_t = std::function<void(Record&)>;
++		using sink_t = std::function<bool(Record&)>;
 +		using start_t = std::function<void()>;
 +
 +		struct stats_t
 +		{
 +			std::uint64_t deferred = 0;       // accepted by the worker queue
-+			std::uint64_t inline_writes = 0;  // written by the caller (queue full or no worker)
++			std::uint64_t inline_writes = 0;  // written by the caller (queue full)
 +			std::uint64_t written = 0;        // completed by the worker
-+			std::uint64_t sink_failures = 0;  // worker sink threw; the worker continues
++			std::uint64_t sink_failures = 0;  // the sink returned false (queued or inline)
 +			std::uint64_t peak_depth = 0;
 +		};
 +
@@ -14258,8 +14259,9 @@ index 0000000..eeef7e2
 +		{
 +			std::unique_lock lock(m_mutex);
 +
-+			if (!m_stopping && m_queue.size() < m_capacity && start_worker())
++			if (!m_stopping && m_queue.size() < m_capacity)
 +			{
++				start_worker();
 +				m_queue.push_back(std::move(record));
 +				m_stats.deferred++;
 +				m_stats.peak_depth = std::max<std::uint64_t>(m_stats.peak_depth, m_queue.size());
@@ -14270,7 +14272,9 @@ index 0000000..eeef7e2
 +
 +			m_stats.inline_writes++;
 +			lock.unlock();
-+			m_sink(record);
++			const bool ok = m_sink(record);
++			lock.lock();
++			m_stats.sink_failures += ok ? 0 : 1;
 +			return false;
 +		}
 +
@@ -14294,28 +14298,13 @@ index 0000000..eeef7e2
 +		}
 +
 +	private:
-+		// Called with m_mutex held.
-+		bool start_worker()
++		// Called with m_mutex held. Started on first use: sessions that never
++		// compile a new pipeline create no thread.
++		void start_worker()
 +		{
-+			if (m_worker.joinable())
-+			{
-+				return true;
-+			}
-+
-+			if (m_start_failed)
-+			{
-+				return false;
-+			}
-+
-+			try
++			if (!m_worker.joinable())
 +			{
 +				m_worker = std::thread([this] { run(); });
-+				return true;
-+			}
-+			catch (...)
-+			{
-+				m_start_failed = true;
-+				return false;
 +			}
 +		}
 +
@@ -14343,20 +14332,12 @@ index 0000000..eeef7e2
 +				m_busy = true;
 +				lock.unlock();
 +
-+				bool failed = false;
-+				try
-+				{
-+					m_sink(record);
-+				}
-+				catch (...)
-+				{
-+					failed = true;
-+				}
++				const bool ok = m_sink(record);
 +
 +				lock.lock();
 +				m_busy = false;
 +				m_stats.written++;
-+				m_stats.sink_failures += failed ? 1 : 0;
++				m_stats.sink_failures += ok ? 0 : 1;
 +
 +				if (m_queue.empty())
 +				{
@@ -14378,7 +14359,6 @@ index 0000000..eeef7e2
 +		stats_t m_stats{};
 +		bool m_busy = false;
 +		bool m_stopping = false;
-+		bool m_start_failed = false;
 +
 +		// Last member: started after every field above is initialized.
 +		std::thread m_worker;
@@ -15373,7 +15353,7 @@ index 221e24e..8431488 100644
  		write_fragment_constants_to_buffer_fallback(buffer, rsx_prog, offsets_cache, sanitize);
  #endif
 diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.h b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
-index e1bdc88..fb3cab4 100644
+index e1bdc88..65c5068 100644
 --- a/rpcs3/Emu/RSX/Program/ProgramStateCache.h
 +++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
 @@ -9,8 +9,15 @@
@@ -15545,7 +15525,7 @@ index e1bdc88..fb3cab4 100644
  			};
  		}
  		else
-@@ -428,24 +459,128 @@ public:
+@@ -428,24 +459,121 @@ public:
  					return nullptr;
  				}
  
@@ -15558,36 +15538,24 @@ index e1bdc88..fb3cab4 100644
  		}
  
 -		auto result = backend_traits::build_pipeline(
--			vertex_program,                 // VS, must already be decompiled and recompiled above
--			fragment_program,               // FS, must already be decompiled and recompiled above
++		// RPCS3 builds without C++ exceptions: a failed driver call reports a
++		// fatal error and never unwinds through here.
++		pipeline_type* result = backend_traits::build_pipeline(
+ 			vertex_program,                 // VS, must already be decompiled and recompiled above
+ 			fragment_program,               // FS, must already be decompiled and recompiled above
 -			pipeline_properties,             // Pipeline state
--			compile_async,                  // Allow asynchronous compilation
--			callback,                       // Insertion and notification callback
--			std::forward<Args>(args)...);   // Other arguments
-+		pipeline_type* result = nullptr;
-+		try
-+		{
-+			result = backend_traits::build_pipeline(
-+				vertex_program,                 // VS, must already be decompiled and recompiled above
-+				fragment_program,               // FS, must already be decompiled and recompiled above
-+				key.properties,                  // Same state as the cache key
-+				compile_async,                  // Allow asynchronous compilation
-+				callback,                       // Insertion and notification callback
-+				std::forward<Args>(args)...);   // Other arguments
-+		}
-+		catch (...)
-+		{
-+			// Never leave a placeholder that turns every later lookup into a miss.
-+			abandon_pipeline_build(key);
-+			throw;
-+		}
-+
++			key.properties,                  // Same state as the cache key
+ 			compile_async,                  // Allow asynchronous compilation
+ 			callback,                       // Insertion and notification callback
+ 			std::forward<Args>(args)...);   // Other arguments
+ 
 +		if (!result && !compile_async)
 +		{
-+			// An inline build that produced nothing: allow a later retry.
++			// An inline build that produced nothing must not leave a placeholder
++			// that turns every later lookup of this key into a skipped draw.
 +			abandon_pipeline_build(key);
 +		}
- 
++
  		return { result, &vertex_program, &fragment_program };
  	}
  
@@ -15685,7 +15653,7 @@ index e1bdc88..fb3cab4 100644
  	void fill_fragment_constants_buffer(std::span<f32> dst_buffer, const fragment_program_type& fragment_program, const RSXFragmentProgram& rsx_prog, bool sanitize = false) const
  	{
  		if (dst_buffer.size_bytes() < (fragment_program.constant_offsets.size() * 16))
-@@ -466,5 +601,6 @@ public:
+@@ -466,5 +594,6 @@ public:
  		m_fragment_shader_cache.clear();
  		m_vertex_shader_cache.clear();
  		m_storage.clear();
@@ -19717,7 +19685,7 @@ index fe5cf89..a01d0b4 100644
  		// Meta
  		RSX_SHADER_CONTROL_META_USES_DISCARD       = (RSX_SHADER_CONTROL_USES_KIL | RSX_SHADER_CONTROL_TEXTURE_ALPHA_KILL | RSX_SHADER_CONTROL_ALPHA_TEST | RSX_SHADER_CONTROL_POLYGON_STIPPLE | RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE),
 diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
-index 625311f..0a7b879 100644
+index 625311f..465461f 100644
 --- a/rpcs3/Emu/RSX/rsx_cache.h
 +++ b/rpcs3/Emu/RSX/rsx_cache.h
 @@ -11,8 +11,12 @@
@@ -19804,7 +19772,7 @@ index 625311f..0a7b879 100644
 +			if (!root_path.empty())
 +			{
 +				m_publisher = std::make_unique<deferred_publisher<pending_record>>(maximum_deferred_records,
-+					[this](pending_record& record) { write_record(record); },
++					[this](pending_record& record) { return write_record(record); },
 +					[]() { thread_ctrl::set_native_priority(-1); });
 +			}
  		}

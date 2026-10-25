@@ -1,11 +1,11 @@
 template<class M> std::string lookup_json(const M& m) {
     char out[1024];
     std::snprintf(out,sizeof(out),"{\"concurrentRequests\":%u,\"concurrentBuilds\":%u,\"concurrentNullReturns\":%u,\"concurrentDistinct\":%u,"
-        "\"preloadBuilds\":%u,\"preloadNullReturns\":%u,\"failureBuilds\":%u,\"failureExceptions\":%u,\"failureNullReturns\":%u,"
+        "\"preloadBuilds\":%u,\"preloadNullReturns\":%u,\"failureBuilds\":%u,\"failureNullReturns\":%u,"
         "\"failureStickyNull\":%u,\"nullResultRetryNull\":%u,\"asyncRequests\":%u,\"asyncJobs\":%u,\"missFlagMismatches\":%u,"
         "\"dsRequests\":[%u,%u,%u,%u,%u],\"dsBuilds\":[%u,%u,%u,%u,%u],\"hashPairs\":%u,\"hashDistinct\":%u}",
         m.concurrent_requests,m.concurrent_builds,m.concurrent_null_returns,m.concurrent_distinct,m.preload_builds,m.preload_null_returns,
-        m.failure_builds,m.failure_exceptions,m.failure_null_returns,m.failure_sticky_null,m.null_result_retry_null,m.async_requests,
+        m.failure_builds,m.failure_null_returns,m.failure_sticky_null,m.null_result_retry_null,m.async_requests,
         m.async_jobs,m.miss_flag_mismatches,m.ds_requests[0],m.ds_requests[1],m.ds_requests[2],m.ds_requests[3],m.ds_requests[4],
         m.ds_builds[0],m.ds_builds[1],m.ds_builds[2],m.ds_builds[3],m.ds_builds[4],m.hash_pairs,m.hash_distinct);
     return out;

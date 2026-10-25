@@ -3,7 +3,7 @@
 struct LookupMetrics {
     unsigned concurrent_requests=0, concurrent_builds=0, concurrent_null_returns=0, concurrent_distinct=0;
     unsigned preload_builds=0, preload_null_returns=0;
-    unsigned failure_builds=0, failure_exceptions=0, failure_null_returns=0, failure_sticky_null=0;
+    unsigned failure_builds=0, failure_null_returns=0, failure_sticky_null=0;
     unsigned null_result_retry_null=0;
     unsigned async_requests=0, async_jobs=0;
     unsigned miss_flag_mismatches=0;
@@ -24,9 +24,8 @@ Pipeline* lookup(Cache& cache, Props props, bool async=false, bool notify=true) 
 }
 
 // Every thread starts together; the first claims the build, the others race it.
-std::vector<Pipeline*> concurrent(Cache& cache, const Props& props, unsigned threads, bool notify,
-                                  unsigned& exceptions) {
-    std::atomic<unsigned> ready{0}, thrown{0};
+std::vector<Pipeline*> concurrent(Cache& cache, const Props& props, unsigned threads, bool notify) {
+    std::atomic<unsigned> ready{0};
     std::atomic<bool> go{false};
     std::vector<Pipeline*> results(threads,nullptr);
     std::vector<std::thread> pool;
@@ -34,12 +33,11 @@ std::vector<Pipeline*> concurrent(Cache& cache, const Props& props, unsigned thr
         ++ready; while (!go.load()) std::this_thread::yield();
         // Stagger arrivals so later requests meet the in-flight placeholder.
         if (i) std::this_thread::sleep_for(std::chrono::milliseconds(2));
-        try { results[i]=lookup(cache,props,false,notify); } catch (const std::runtime_error&) { ++thrown; }
+        results[i]=lookup(cache,props,false,notify);
     });
     while (ready.load()<threads) std::this_thread::yield();
     go=true;
     for (auto& t:pool) t.join();
-    exceptions=thrown.load();
     return results;
 }
 
@@ -89,9 +87,8 @@ LookupMetrics lookup_test() {
     // 1. Draw requests for one key while it is being built inline.
     {
         Traits::reset(); Traits::delay_us=30000;
-        Cache cache; cache.mark_known(); unsigned thrown=0;
-        auto results=concurrent(cache,ds_props(VK_FORMAT_D32_SFLOAT_S8_UINT),16,true,thrown);
-        assert(!thrown);
+        Cache cache; cache.mark_known();
+        auto results=concurrent(cache,ds_props(VK_FORMAT_D32_SFLOAT_S8_UINT),16,true);
         m.concurrent_requests=16; m.concurrent_builds=Traits::builds;
         std::set<Pipeline*> distinct;
         for (auto* p:results) { m.concurrent_null_returns+=!p; if (p) distinct.insert(p); }
@@ -104,29 +101,27 @@ LookupMetrics lookup_test() {
     // 2. Cached-shader preload duplicates do not need the result: no waiting.
     {
         Traits::reset(); Traits::delay_us=30000;
-        Cache cache; cache.mark_known(); unsigned thrown=0;
+        Cache cache; cache.mark_known();
         auto start=std::chrono::steady_clock::now();
-        auto results=concurrent(cache,ds_props(VK_FORMAT_D32_SFLOAT_S8_UINT),8,false,thrown);
+        auto results=concurrent(cache,ds_props(VK_FORMAT_D32_SFLOAT_S8_UINT),8,false);
         m.preload_builds=Traits::builds;
         for (auto* p:results) m.preload_null_returns+=!p;
-        assert(!thrown && m.preload_builds==1 && m.preload_null_returns==7);
+        assert(m.preload_builds==1 && m.preload_null_returns==7);
         // Losers return immediately; the single build bounds the whole phase.
         assert(std::chrono::steady_clock::now()-start<std::chrono::milliseconds(2000));
         assert(lookup(cache,ds_props(VK_FORMAT_D32_SFLOAT_S8_UINT)));
     }
     // 3. A failing build must not poison the key nor drop the waiting draws.
     {
-        Traits::reset(); Traits::delay_us=30000; Traits::throw_on=1;
-        Cache cache; cache.mark_known(); unsigned thrown=0;
-        auto results=concurrent(cache,ds_props(VK_FORMAT_D32_SFLOAT_S8_UINT),4,true,thrown);
-        m.failure_exceptions=thrown;
+        Traits::reset(); Traits::delay_us=30000; Traits::null_on=1;
+        Cache cache; cache.mark_known();
+        auto results=concurrent(cache,ds_props(VK_FORMAT_D32_SFLOAT_S8_UINT),4,true);
         for (auto* p:results) m.failure_null_returns+=!p;
         Traits::delay_us=0;
         m.failure_sticky_null=!lookup(cache,ds_props(VK_FORMAT_D32_SFLOAT_S8_UINT));
         m.failure_builds=Traits::builds;
-        assert(thrown==1);
 #ifdef CELL543_AFTER
-        // Thread 0 threw; the three waiters retried once and shared build 2.
+        // The failing builder gets null; the three waiters retried once and shared build 2.
         assert(m.failure_null_returns==1 && !m.failure_sticky_null && m.failure_builds==2);
         assert(cache.entries()==1 && !cache.null_entries());
 #endif
