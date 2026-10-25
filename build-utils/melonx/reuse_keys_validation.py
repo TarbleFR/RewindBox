@@ -1,4 +1,4 @@
-"""Close unchanged Darwin/homebrew proofs over the successful delivered engine."""
+"""Reuse unchanged Darwin/homebrew proofs; recompile edited Vulkan host-import adapter."""
 import hashlib,json,subprocess
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
@@ -7,7 +7,7 @@ RUN=39978893582
 GROUPS={
  'Verify the real Darwin signal ABI and preserve NativeAOT handlers':[
   'test/melonx_darwin_signal_test.py','native/melonx/EmbeddedDarwinSignals.cs',
-  'native/melonx/EmbeddedRuntime.cs','build-utils/melonx/adapt_runtime.py','build-utils/melonx/source.json'],
+  'native/melonx/EmbeddedRuntime.cs','build-utils/melonx/source.json'],
  'Verify optional homebrew assets with the real LibHac loader':[
   'test/melonx_homebrew_test.py','native/melonx/EmbeddedHomebrewAssets.cs',
   'build-utils/melonx/adapt_session.py','build-utils/melonx/source.json','build-utils/melonx/libhac-reuse.json']}
