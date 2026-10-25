@@ -28,6 +28,7 @@ namespace Ryujinx.Audio.Backends.Apple.Native {
         static readonly Dictionary<nint, uint> channels = new();
         internal static int Now, StartAt = int.MaxValue, EmptyFrames, Plays, Starts, Releases;
         internal static bool Running, Playing;
+        internal static bool CanStart = true;
         internal static float Volume = 1;
         internal static readonly List<float> Rendered = new();
         internal static nint Alloc(string name) => (nint)(++next);
@@ -37,7 +38,7 @@ namespace Ryujinx.Audio.Backends.Apple.Native {
         internal static nint MainMixerNode(nint e) => e;
         internal static void Connect(nint e, nint p, nint target, nint format) {}
         internal static void Prepare(nint e) {}
-        internal static bool Start(nint e, out nint error) { error = 0; Running = true; Starts++; return true; }
+        internal static bool Start(nint e, out nint error) { error = 0; Starts++; if (!CanStart) return false; Running = true; return true; }
         internal static bool IsRunning(nint e) => Running;
         internal static void Play(nint p) { Plays++; Playing = true; StartAt = Now; }
         internal static void PlayBuffered(nint p, double lead) { Plays++; Playing = true; StartAt = Now + (int)Math.Round(lead * 48000); }
@@ -85,7 +86,7 @@ namespace Ryujinx.Audio.Backends.Apple.Native {
         internal static void Reset() {
             if (pcm.Count != 0 || queue.Count != 0 || blocks.Count != 0) throw new Exception("Native resources leaked");
             Now = EmptyFrames = Plays = Starts = Releases = 0; StartAt = int.MaxValue; Running = Playing = false;
-            Volume = 1; Rendered.Clear(); channels.Clear();
+            Volume = 1; CanStart = true; Rendered.Clear(); channels.Clear();
         }
     }
 }

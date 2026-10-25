@@ -7,7 +7,7 @@ def apply(source):
     native = session.parent / 'Native/AVFoundation.cs'
     library = source / 'src/Ryujinx.Library/Library.cs'
     assert 'new AppleHardwareDeviceDriver(),' in library.read_text(encoding='utf-8-sig')
-    once(session, '        private bool _started;', '        private bool _started;\n        private bool _playing;')
+    once(session, '        private bool _started;', '        private bool _started;\n        private bool _playing;\n        private volatile bool _restartPending;')
     once(session, '        public override void QueueBuffer(AudioBuffer buffer)\n        {',
          '''        // Keep scheduling and teardown mutually exclusive. Completion
         // callbacks remain lock-free: stopping a node may invoke them.
@@ -35,9 +35,22 @@ def apply(source):
             // changing the guest's started flag. Resume the actual engine.
             if (!AVFoundation.IsRunning(_engine))
             {
-                if (!AVFoundation.Start(_engine, out _))
-                    throw new InvalidOperationException("Apple audio engine restart failed.");
                 _playing = false;
+                if (!AVFoundation.Start(_engine, out _))
+                {
+                    // Interruption recovery can be deferred by iOS. Keep the
+                    // real queued PCM and retry from the next consumer poll,
+                    // including when the guest submitted only one short block.
+                    if (!_restartPending)
+                        Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("audio", "restartDeferred");
+                    _restartPending = true;
+                    return;
+                }
+            }
+            if (_restartPending)
+            {
+                _restartPending = false;
+                Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("audio", "restarted");
             }
             if (_playing) return;
             // The DSP supplies 5 ms blocks. Starting an empty player, then
@@ -50,6 +63,7 @@ def apply(source):
         }
 
         public override ulong GetPlayedSampleCount()''')
+    once(session, '        public override ulong GetPlayedSampleCount()\n            => Interlocked.Read(ref _playedSampleCount);', '        public override ulong GetPlayedSampleCount()\n        {\n            if (_restartPending)\n            {\n                lock (_lock) StartBufferedPlayback();\n            }\n            return Interlocked.Read(ref _playedSampleCount);\n        }')
     once(session, '                UpdateEffectiveVolume();', '''                UpdateEffectiveVolume();
                 Ryujinx.Common.EmbeddedLaunchDiagnostics.Record("audio", "backendReady",
                     detail: $"Apple AVAudioEngine; rate: {RequestedSampleRate}; channels: {RequestedChannelCount}; startup lead ms: 20");''')

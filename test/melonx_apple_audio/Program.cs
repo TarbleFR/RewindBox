@@ -50,9 +50,13 @@ class Program {
             Check(!AVFoundation.Playing, "Paused stream restarted while scheduling");
             session.Start(); AVFoundation.AdvanceTo(2120);
             Check(session.GetPlayedSampleCount() == 200, "Pause/resume lost PCM");
-            AVFoundation.Running = false;
+            AVFoundation.Running = false; AVFoundation.CanStart = false;
             session.QueueBuffer(Buffer(200, 100, 1));
-            Check(AVFoundation.Running && AVFoundation.Starts == 2, "Stopped audio engine was never restarted");
+            Check(!AVFoundation.Running && session.GetPlayedSampleCount() == 200, "Temporary interruption lost or falsely consumed queued PCM");
+            AVFoundation.CanStart = true;
+            // No additional producer buffer: consumer polling must recover the
+            // single queued block after the OS permits activation again.
+            Check(session.GetPlayedSampleCount() == 200 && AVFoundation.Running && AVFoundation.Starts == 4, "Deferred audio engine never recovered from polling");
             AVFoundation.AdvanceTo(3180);
             Check(session.GetPlayedSampleCount() == 300, "Restarted engine did not complete audio");
             driver.Volume = 0.5f; session.SetVolume(0.25f);
