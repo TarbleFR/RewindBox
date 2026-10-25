@@ -14,9 +14,9 @@ static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
 static const unsigned long long kRPCS3RuntimeHistoryLimit = 2 * 1024 * 1024;
 // CELL546: one restore writes up to ~350 KiB of constructor/file stages.
 static const unsigned long long kRPCS3RestoreTraceLimit = 1024 * 1024;
-// CELL546: one compact row per Core report window (~5 s, ~1.5 KiB): the
-// current plus one previous generation cover several hours of play.
-static const unsigned long long kRPCS3TimelineLimit = 1024 * 1024;
+// CELL546: one compact row per Core report window (~5 s, ~1.9 KiB): each
+// generation holds ~1100 windows (~90 min); with the previous one, ~3 h.
+static const unsigned long long kRPCS3TimelineLimit = 2 * 1024 * 1024;
 static uint64_t RPCS3MonotonicUs() {
   return std::chrono::duration_cast<std::chrono::microseconds>(
       std::chrono::steady_clock::now().time_since_epoch()).count();
