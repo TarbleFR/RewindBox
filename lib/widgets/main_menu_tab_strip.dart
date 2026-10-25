@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import '../services/frontend_media_gate.dart';
 import '../themes/liquid_glass_theme.dart';
+import 'bumper_glyph.dart';
 import 'neo_glass_bubble.dart';
 import 'mau_ali_tab_motion.dart';
 import 'liquid_motion_clock.dart';
@@ -12,10 +13,10 @@ import 'liquid_motion_clock.dart';
 ///
 /// The capsule, the selection indicator, the icon size and the optional tab
 /// labels follow Settings › Themes › User interface ([LiquidGlassTheme]):
-/// floating, compact or classic bar; lens, pill or underline indicator;
-/// small, medium or large icons; labels hidden, on the selected tab or
-/// always. Cell geometry stays uniform whatever the choice, so navigation,
-/// swipes and hit regions are unchanged.
+/// floating, compact or classic bar; lens, pill, underline or NeoStation's
+/// solid indicator; small, medium or large icons; labels hidden, on the
+/// selected tab or always; optional LB/RB glyphs. Cell geometry stays uniform
+/// whatever the choice, so navigation, swipes and hit regions are unchanged.
 class MainMenuTabStrip extends StatefulWidget {
   const MainMenuTabStrip({
     super.key,
@@ -59,10 +60,22 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
       !_foreground ||
       !TickerMode.valuesOf(context).enabled ||
       FrontendMediaGate.instance.blocked;
+
+  /// NeoStation's solid pill slides in 160 ms without deforming, as upstream.
+  static const _solidDuration = Duration(milliseconds: 160);
+  bool get _solid =>
+      LiquidGlassTheme.of(context).settings.tabIndicator ==
+      TabIndicatorStyle.solid;
   MauAliSelectionFrame get _frame =>
       MauAliTabMotion.sample(_segment, _motion.value);
-  double get _position => _from + (_to - _from) * _frame.position;
+  double get _position =>
+      _from +
+      (_to - _from) *
+          (_solid
+              ? Curves.easeInOut.transform(_motion.value)
+              : _frame.position);
   (double, double, double) get _shape {
+    if (_solid) return (1, 1, 1);
     final f = _frame;
     // Blend interrupted deformation back into the author's track in four frames.
     // Carrying it through another peak would accumulate scale on repeated taps.
@@ -119,8 +132,10 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
       _segment = MauAliTabMotion.segmentFor(current, _slot, widget.tabs.length);
       _from = current;
       _to = _slot.toDouble();
-      _carry = (shape.$1 - 1, shape.$2 - 1, shape.$3 - 1);
-      _motion.duration = MauAliTabMotion.durationFor(_segment);
+      _carry = _solid ? (0, 0, 0) : (shape.$1 - 1, shape.$2 - 1, shape.$3 - 1);
+      _motion.duration = _solid
+          ? _solidDuration
+          : MauAliTabMotion.durationFor(_segment);
       _motion.forward(from: 0);
     }
   }
@@ -262,8 +277,11 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
           ];
     final sheen = classic ? null : glass.sheen(context, GlassRole.chrome);
 
+    final solid = indicator == TabIndicatorStyle.solid;
+    final onAccent = theme.colorScheme.onPrimary;
+
     // Padding reserves the maximum author capsule pulse and lens deformation.
-    return Padding(
+    final strip = Padding(
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 5.r : 7.r,
         vertical: compact ? 3.r : 5.r,
@@ -280,6 +298,14 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
           );
           final lensPath = frame.contour(rect.size).shift(rect.topLeft);
           final refracting = indicator == TabIndicatorStyle.lens;
+          // NeoStation's pill spans the cell minus an eighth above and below.
+          final solidPath = Path()
+            ..addRRect(
+              RRect.fromRectAndRadius(
+                Rect.fromLTWH(_position * cell, cell * .125, cell, cell * .75),
+                Radius.circular(cell * .18),
+              ),
+            );
           return Transform.scale(
             key: const ValueKey('main-menu-capsule-pulse'),
             scale: shape.$3,
@@ -363,6 +389,9 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                                     : theme.colorScheme.onSurface,
                                 strength: effect,
                               ),
+                            TabIndicatorStyle.solid => SolidSelectionPainter(
+                              color: theme.colorScheme.primary,
+                            ),
                           },
                         ),
                       ),
@@ -376,6 +405,21 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                             alignment: Alignment(
                               (_position + .5) / tabs.length * 2 - 1,
                               0,
+                            ),
+                            child: icons(),
+                          ),
+                        ),
+                      ),
+                    // Under the solid pill the icons take the accent's contrast
+                    // colour, exactly where the pill currently is.
+                    if (widget.iconBuilder != null && solid)
+                      IgnorePointer(
+                        child: ClipPath(
+                          clipper: _SelectionClip(solidPath),
+                          child: ColorFiltered(
+                            colorFilter: ColorFilter.mode(
+                              onAccent,
+                              BlendMode.srcIn,
                             ),
                             child: icons(),
                           ),
@@ -398,6 +442,20 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
           );
         },
       ),
+    );
+    if (!settings.showTabBumpers) return strip;
+    // LB/RB glyphs outside the capsule, as in NeoStation: hardware hints, not
+    // part of the switch (no hit region, no semantics).
+    Widget bumper(bool left) => ExcludeSemantics(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 2.r),
+        child: BumperGlyph(isLeft: left, size: cell * .75),
+      ),
+    );
+    return Row(
+      key: const ValueKey('main-menu-tab-bumpers'),
+      mainAxisSize: MainAxisSize.min,
+      children: [bumper(true), strip, bumper(false)],
     );
   }
 }
@@ -568,6 +626,29 @@ class UnderlineSelectionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(UnderlineSelectionPainter old) => true;
+}
+
+/// NeoStation's selection: a solid accent pill under the selected icon.
+class SolidSelectionPainter extends CustomPainter {
+  const SolidSelectionPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(
+      0,
+      size.height * .125,
+      size.width,
+      size.height * .75,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, Radius.circular(size.width * .18)),
+      Paint()..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(SolidSelectionPainter old) => old.color != color;
 }
 
 /// Icon of a navigation tab, drawn in a 16.r box like every other tab: its

@@ -9,6 +9,7 @@ import '../../../services/game_service.dart';
 import '../../../services/sfx_service.dart';
 import '../../../utils/gamepad_nav.dart';
 import '../../../widgets/custom_notification.dart';
+import '../../../widgets/custom_toggle_switch.dart';
 import '../../../widgets/glass/glass.dart';
 import 'interface_style_preview.dart';
 
@@ -24,13 +25,11 @@ class InterfaceStyleScreen extends StatefulWidget {
 
   static const String gamepadLayer = 'interface_style_screen';
 
-  /// Opens the screen over the current content, so the preview's glass shows
-  /// the real application behind it.
+  /// Opens the screen on its own backdrop: the settings behind it never show
+  /// through, and the preview's glass shows its own sample background.
   static Future<void> open(BuildContext context) =>
       Navigator.of(context, rootNavigator: true).push(
         PageRouteBuilder<void>(
-          opaque: false,
-          barrierColor: Theme.of(context).dialogTheme.barrierColor,
           barrierDismissible: false,
           transitionDuration: LiquidGlassTheme.of(
             context,
@@ -84,6 +83,20 @@ class _ChoiceRow<T> extends _Row {
   /// Typed entry point for callers holding the row through its base type:
   /// a `ValueChanged<T>` cannot be invoked through `_ChoiceRow<dynamic>`.
   void select(Object? chosen) => onChanged(chosen as T);
+}
+
+class _ToggleRow extends _Row {
+  const _ToggleRow(
+    super.key, {
+    required this.title,
+    required this.value,
+    required this.onChanged,
+    this.subtitle,
+  });
+  final String title;
+  final String? subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
 }
 
 class _SliderRow extends _Row {
@@ -196,6 +209,9 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
       row.step(delta);
     } else if (row is _SliderRow) {
       row.step(delta);
+    } else if (row is _ToggleRow && row.value != delta > 0) {
+      SfxService().playNavSound();
+      row.onChanged(delta > 0);
     }
   }
 
@@ -209,6 +225,9 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
     } else if (row is _ChoiceRow) {
       SfxService().playNavSound();
       row.next();
+    } else if (row is _ToggleRow) {
+      SfxService().playNavSound();
+      row.onChanged(!row.value);
     }
   }
 
@@ -233,6 +252,12 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
       InterfaceStyleLocale.text(context, InterfaceStyleLocale.applied),
       type: NotificationType.success,
     );
+  }
+
+  /// Drops the draft and goes back to the applied style.
+  void _revert() {
+    if (!_dirty) return;
+    setState(() => _draft = _applied);
   }
 
   Future<void> _reset() async {
@@ -274,6 +299,9 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
           ),
           InterfaceStyle.classic => _t(InterfaceStyleLocale.styleClassicHint),
           InterfaceStyle.minimal => _t(InterfaceStyleLocale.styleMinimalHint),
+          InterfaceStyle.neoStation => _t(
+            InterfaceStyleLocale.styleNeoStationHint,
+          ),
         },
         segments: [
           GlassSegment(
@@ -290,6 +318,11 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
             value: InterfaceStyle.minimal,
             label: _t(InterfaceStyleLocale.styleMinimal),
             icon: Symbols.remove_rounded,
+          ),
+          GlassSegment(
+            value: InterfaceStyle.neoStation,
+            label: _t(InterfaceStyleLocale.styleNeoStation),
+            icon: Symbols.sports_esports_rounded,
           ),
         ],
         value: d.style,
@@ -336,6 +369,10 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
             value: TabIndicatorStyle.underline,
             label: _t(InterfaceStyleLocale.indicatorUnderline),
           ),
+          GlassSegment(
+            value: TabIndicatorStyle.solid,
+            label: _t(InterfaceStyleLocale.indicatorSolid),
+          ),
         ],
         value: d.tabIndicator,
         onChanged: (v) => _update(d.copyWith(tabIndicator: v)),
@@ -380,6 +417,13 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
         value: d.tabLabels,
         onChanged: (v) => _update(d.copyWith(tabLabels: v)),
       ),
+      _ToggleRow(
+        'tabBumpers',
+        title: _t(InterfaceStyleLocale.tabBumpers),
+        subtitle: _t(InterfaceStyleLocale.tabBumpersHint),
+        value: d.showTabBumpers,
+        onChanged: (v) => _update(d.copyWith(showTabBumpers: v)),
+      ),
       _SliderRow(
         'tabEffects',
         title: _t(InterfaceStyleLocale.tabEffects),
@@ -387,26 +431,63 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
         onChanged: (v) => _update(d.copyWith(tabEffectIntensity: v)),
       ),
       _SectionRow(
-        'section.surfaces',
-        label: _t(InterfaceStyleLocale.sectionSurfaces),
+        'section.statusBar',
+        label: _t(InterfaceStyleLocale.sectionStatusBar),
       ),
-      _SliderRow(
-        'glassIntensity',
-        title: _t(InterfaceStyleLocale.glassIntensity),
-        value: d.glassIntensity,
-        onChanged: (v) => _update(d.copyWith(glassIntensity: v)),
+      _ToggleRow(
+        'statusClock',
+        title: _t(InterfaceStyleLocale.statusClock),
+        subtitle: _t(InterfaceStyleLocale.statusBarHint),
+        value: d.showClock,
+        onChanged: (v) => _update(d.copyWith(showClock: v)),
       ),
-      _SliderRow(
-        'transparency',
-        title: _t(InterfaceStyleLocale.transparency),
-        value: d.transparency,
-        onChanged: (v) => _update(d.copyWith(transparency: v)),
+      _ToggleRow(
+        'statusNotifications',
+        title: _t(InterfaceStyleLocale.statusNotifications),
+        value: d.showNotifications,
+        onChanged: (v) => _update(d.copyWith(showNotifications: v)),
       ),
-      _SliderRow(
-        'blur',
-        title: _t(InterfaceStyleLocale.blur),
-        value: d.blur,
-        onChanged: (v) => _update(d.copyWith(blur: v)),
+      _ToggleRow(
+        'statusDeviceBattery',
+        title: _t(InterfaceStyleLocale.statusDeviceBattery),
+        value: d.showDeviceBattery,
+        onChanged: (v) => _update(d.copyWith(showDeviceBattery: v)),
+      ),
+      _ToggleRow(
+        'statusControllerBattery',
+        title: _t(InterfaceStyleLocale.statusControllerBattery),
+        value: d.showControllerBattery,
+        onChanged: (v) => _update(d.copyWith(showControllerBattery: v)),
+      ),
+      _SectionRow(
+        'section.colors',
+        label: _t(InterfaceStyleLocale.sectionColors),
+      ),
+      _ChoiceRow<AccentColor>(
+        'accent',
+        title: _t(InterfaceStyleLocale.accentColor),
+        subtitle: _t(InterfaceStyleLocale.accentHint),
+        segments: [
+          for (final (accent, key) in const [
+            (AccentColor.theme, InterfaceStyleLocale.accentTheme),
+            (AccentColor.rose, InterfaceStyleLocale.accentRose),
+            (AccentColor.violet, InterfaceStyleLocale.accentViolet),
+            (AccentColor.blue, InterfaceStyleLocale.accentBlue),
+            (AccentColor.cyan, InterfaceStyleLocale.accentCyan),
+            (AccentColor.green, InterfaceStyleLocale.accentGreen),
+            (AccentColor.amber, InterfaceStyleLocale.accentAmber),
+            (AccentColor.red, InterfaceStyleLocale.accentRed),
+          ])
+            GlassSegment(
+              value: accent,
+              label: _t(key),
+              swatch:
+                  accentColorOf(accent) ??
+                  context.read<ThemeProvider>().baseTheme.colorScheme.primary,
+            ),
+        ],
+        value: d.accent,
+        onChanged: (v) => _update(d.copyWith(accent: v)),
       ),
       _ChoiceRow<GlassTint>(
         'tint',
@@ -435,6 +516,48 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
         ],
         value: d.tint,
         onChanged: (v) => _update(d.copyWith(tint: v)),
+      ),
+      _ChoiceRow<FocusIndicatorStyle>(
+        'focusIndicator',
+        title: _t(InterfaceStyleLocale.focusIndicator),
+        segments: [
+          GlassSegment(
+            value: FocusIndicatorStyle.ring,
+            label: _t(InterfaceStyleLocale.focusRing),
+          ),
+          GlassSegment(
+            value: FocusIndicatorStyle.glow,
+            label: _t(InterfaceStyleLocale.focusGlow),
+          ),
+          GlassSegment(
+            value: FocusIndicatorStyle.ringGlow,
+            label: _t(InterfaceStyleLocale.focusRingGlow),
+          ),
+        ],
+        value: d.focusIndicator,
+        onChanged: (v) => _update(d.copyWith(focusIndicator: v)),
+      ),
+      _SectionRow(
+        'section.surfaces',
+        label: _t(InterfaceStyleLocale.sectionSurfaces),
+      ),
+      _SliderRow(
+        'glassIntensity',
+        title: _t(InterfaceStyleLocale.glassIntensity),
+        value: d.glassIntensity,
+        onChanged: (v) => _update(d.copyWith(glassIntensity: v)),
+      ),
+      _SliderRow(
+        'transparency',
+        title: _t(InterfaceStyleLocale.transparency),
+        value: d.transparency,
+        onChanged: (v) => _update(d.copyWith(transparency: v)),
+      ),
+      _SliderRow(
+        'blur',
+        title: _t(InterfaceStyleLocale.blur),
+        value: d.blur,
+        onChanged: (v) => _update(d.copyWith(blur: v)),
       ),
       _SliderRow(
         'contrast',
@@ -473,6 +596,13 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
         title: _t(InterfaceStyleLocale.depth),
         value: d.depth,
         onChanged: (v) => _update(d.copyWith(depth: v)),
+      ),
+      _ToggleRow(
+        'sidePanel',
+        title: _t(InterfaceStyleLocale.sidePanel),
+        subtitle: _t(InterfaceStyleLocale.sidePanelHint),
+        value: d.showSideMenuPanel,
+        onChanged: (v) => _update(d.copyWith(showSideMenuPanel: v)),
       ),
       _SectionRow(
         'section.motion',
@@ -532,48 +662,50 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
         .copyWith(textTheme: theme.textTheme, iconTheme: theme.iconTheme);
     final safe = MediaQuery.viewPaddingOf(context);
 
-    return Material(
-      color: Colors.transparent,
-      child: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            glass.margin + safe.left * 0,
-            glass.gap,
-            glass.margin,
-            glass.gap,
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 620;
-              final list = _buildList(theme, glass, focusedKey);
-              final preview = _buildPreview(theme, glass, previewTheme, wide);
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildHeader(theme, glass),
-                  SizedBox(height: glass.gap),
-                  Expanded(
-                    child: wide
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(flex: 11, child: list),
-                              SizedBox(width: glass.gap),
-                              Expanded(flex: 9, child: preview),
-                            ],
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              SizedBox(height: 150.r, child: preview),
-                              SizedBox(height: glass.gap),
-                              Expanded(child: list),
-                            ],
-                          ),
-                  ),
-                ],
-              );
-            },
+    return GlassBackdrop(
+      child: Material(
+        color: Colors.transparent,
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              glass.margin + safe.left * 0,
+              glass.gap,
+              glass.margin,
+              glass.gap,
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth >= 620;
+                final list = _buildList(theme, glass, focusedKey);
+                final preview = _buildPreview(theme, glass, previewTheme, wide);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildHeader(theme, glass),
+                    SizedBox(height: glass.gap),
+                    Expanded(
+                      child: wide
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(flex: 11, child: list),
+                                SizedBox(width: glass.gap),
+                                Expanded(flex: 9, child: preview),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SizedBox(height: 150.r, child: preview),
+                                SizedBox(height: glass.gap),
+                                Expanded(child: list),
+                              ],
+                            ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -654,6 +786,8 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
         children.add(_choiceBubble(theme, glass, row, isFocused, key));
       } else if (row is _SliderRow) {
         children.add(_sliderBubble(theme, glass, row, isFocused, key));
+      } else if (row is _ToggleRow) {
+        children.add(_toggleBubble(theme, glass, row, isFocused, key));
       } else if (row is _ActionRow) {
         children.add(
           KeyedSubtree(
@@ -744,6 +878,68 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
             onChanged: row.select,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _toggleBubble(
+    ThemeData theme,
+    LiquidGlassTheme glass,
+    _ToggleRow row,
+    bool focused,
+    Key? key,
+  ) {
+    return GestureDetector(
+      key: key,
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        SfxService().playNavSound();
+        row.onChanged(!row.value);
+      },
+      child: GlassSurface(
+        role: GlassRole.bubble,
+        focused: focused,
+        padding: glass.bubblePadding,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    row.title,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontSize: 11.r,
+                      fontWeight: FontWeight.w500,
+                      color: focused
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  if (row.subtitle != null) ...[
+                    SizedBox(height: 2.r),
+                    Text(
+                      row.subtitle!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: 8.5.r,
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            SizedBox(width: 10.r),
+            CustomToggleSwitch(
+              key: ValueKey('interface-style-${row.key}'),
+              value: row.value,
+              onChanged: row.onChanged,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -844,6 +1040,10 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
                 key: const ValueKey('interface-style-preview'),
                 settings: _draft,
                 compact: !wide,
+                dirty: _dirty,
+                onChanged: _update,
+                onApply: _apply,
+                onRevert: _revert,
               ),
             ),
           ),

@@ -13,13 +13,18 @@ enum InterfaceStyle {
 
   /// Flat, opaque surfaces, no blur, no sheen, reduced motion.
   minimal,
+
+  /// The original NeoStation look: matte surface-tinted pills, a solid
+  /// accent pill sliding under the selected tab, LB/RB glyphs.
+  neoStation,
 }
 
 /// Shape of the main navigation bar.
 enum TabBarStyle { floating, compact, classic }
 
-/// Selection marker of the main navigation bar.
-enum TabIndicatorStyle { lens, pill, underline }
+/// Selection marker of the main navigation bar. [solid] is NeoStation's
+/// accent pill: the icon under it switches to the accent's contrast colour.
+enum TabIndicatorStyle { lens, pill, underline, solid }
 
 enum TabIconSize { small, medium, large }
 
@@ -34,6 +39,12 @@ enum InterfaceDensity { compact, regular, comfortable }
 /// How much of the interface motion plays. iOS accessibility settings always
 /// take precedence (see [LiquidGlassTheme.motionEnabled]).
 enum MotionLevel { full, reduced, essential }
+
+/// Accent replacing the theme's primary colour, or the theme's own.
+enum AccentColor { theme, rose, violet, blue, cyan, green, amber, red }
+
+/// How a control focused with the gamepad stands out.
+enum FocusIndicatorStyle { ring, glow, ringGlow }
 
 /// User-adjustable presentation of the interface. Every slider is stored as
 /// a 0..1 fraction; the resolver maps it onto a bounded range so no value can
@@ -56,9 +67,17 @@ class InterfaceStyleSettings {
     this.density = InterfaceDensity.regular,
     this.depth = 0.5,
     this.motion = MotionLevel.full,
+    this.showTabBumpers = false,
+    this.showClock = true,
+    this.showNotifications = true,
+    this.showDeviceBattery = true,
+    this.showControllerBattery = true,
+    this.accent = AccentColor.theme,
+    this.focusIndicator = FocusIndicatorStyle.ring,
+    this.showSideMenuPanel = false,
   });
 
-  static const int schemaVersion = 1;
+  static const int schemaVersion = 2;
   static const InterfaceStyleSettings defaults = InterfaceStyleSettings();
 
   final InterfaceStyle style;
@@ -91,7 +110,24 @@ class InterfaceStyleSettings {
   final double depth;
   final MotionLevel motion;
 
-  /// Values every surface slider snaps back to when a style preset is chosen.
+  /// LB/RB glyphs on each side of the navigation bar.
+  final bool showTabBumpers;
+
+  /// Status pill of the main header: each element can be hidden to keep the
+  /// header on one line.
+  final bool showClock;
+  final bool showNotifications;
+  final bool showDeviceBattery;
+  final bool showControllerBattery;
+  final AccentColor accent;
+  final FocusIndicatorStyle focusIndicator;
+
+  /// Translucent panel behind the settings and scraper side menus. Hidden by
+  /// default: only the category bubbles float over the background.
+  final bool showSideMenuPanel;
+
+  /// A general style sets its surfaces, its navigation bar and its motion;
+  /// labels, icon size, density, tint, colours and the status pill are kept.
   static InterfaceStyleSettings presetFor(
     InterfaceStyle style, {
     InterfaceStyleSettings? keep,
@@ -100,6 +136,9 @@ class InterfaceStyleSettings {
     return switch (style) {
       InterfaceStyle.liquidGlass => base.copyWith(
         style: style,
+        tabBarStyle: TabBarStyle.floating,
+        tabIndicator: TabIndicatorStyle.lens,
+        showTabBumpers: false,
         glassIntensity: 0.5,
         transparency: 0.5,
         blur: 0.5,
@@ -109,6 +148,9 @@ class InterfaceStyleSettings {
       ),
       InterfaceStyle.classic => base.copyWith(
         style: style,
+        tabBarStyle: TabBarStyle.classic,
+        tabIndicator: TabIndicatorStyle.pill,
+        showTabBumpers: false,
         glassIntensity: 0.3,
         transparency: 0.25,
         blur: 0.25,
@@ -118,12 +160,29 @@ class InterfaceStyleSettings {
       ),
       InterfaceStyle.minimal => base.copyWith(
         style: style,
+        tabBarStyle: TabBarStyle.compact,
+        tabIndicator: TabIndicatorStyle.underline,
+        showTabBumpers: false,
         glassIntensity: 0.1,
         transparency: 0.1,
         blur: 0.0,
         contrast: 0.65,
         depth: 0.15,
         motion: MotionLevel.reduced,
+      ),
+      // Upstream NeoStation: no blur, a surface tint about 83 % opaque, a
+      // visible rim, the solid sliding pill and the shoulder glyphs.
+      InterfaceStyle.neoStation => base.copyWith(
+        style: style,
+        tabBarStyle: TabBarStyle.classic,
+        tabIndicator: TabIndicatorStyle.solid,
+        showTabBumpers: true,
+        glassIntensity: 0.35,
+        transparency: 0.3,
+        blur: 0.0,
+        contrast: 0.55,
+        depth: 0.3,
+        motion: MotionLevel.full,
       ),
     };
   }
@@ -158,6 +217,14 @@ class InterfaceStyleSettings {
     InterfaceDensity? density,
     double? depth,
     MotionLevel? motion,
+    bool? showTabBumpers,
+    bool? showClock,
+    bool? showNotifications,
+    bool? showDeviceBattery,
+    bool? showControllerBattery,
+    AccentColor? accent,
+    FocusIndicatorStyle? focusIndicator,
+    bool? showSideMenuPanel,
   }) => InterfaceStyleSettings(
     style: style ?? this.style,
     tabBarStyle: tabBarStyle ?? this.tabBarStyle,
@@ -174,6 +241,14 @@ class InterfaceStyleSettings {
     density: density ?? this.density,
     depth: depth ?? this.depth,
     motion: motion ?? this.motion,
+    showTabBumpers: showTabBumpers ?? this.showTabBumpers,
+    showClock: showClock ?? this.showClock,
+    showNotifications: showNotifications ?? this.showNotifications,
+    showDeviceBattery: showDeviceBattery ?? this.showDeviceBattery,
+    showControllerBattery: showControllerBattery ?? this.showControllerBattery,
+    accent: accent ?? this.accent,
+    focusIndicator: focusIndicator ?? this.focusIndicator,
+    showSideMenuPanel: showSideMenuPanel ?? this.showSideMenuPanel,
   );
 
   Map<String, Object> toJson() => <String, Object>{
@@ -193,6 +268,14 @@ class InterfaceStyleSettings {
     'density': density.name,
     'depth': depth,
     'motion': motion.name,
+    'showTabBumpers': showTabBumpers,
+    'showClock': showClock,
+    'showNotifications': showNotifications,
+    'showDeviceBattery': showDeviceBattery,
+    'showControllerBattery': showControllerBattery,
+    'accent': accent.name,
+    'focusIndicator': focusIndicator.name,
+    'showSideMenuPanel': showSideMenuPanel,
   };
 
   String encode() => jsonEncode(toJson());
@@ -216,6 +299,11 @@ class InterfaceStyleSettings {
       return fallback;
     }
 
+    bool flag(String key, bool fallback) {
+      final raw = json[key];
+      return raw is bool ? raw : fallback;
+    }
+
     const d = defaults;
     return InterfaceStyleSettings(
       style: pick('style', InterfaceStyle.values, d.style),
@@ -237,6 +325,21 @@ class InterfaceStyleSettings {
       density: pick('density', InterfaceDensity.values, d.density),
       depth: fraction('depth', d.depth),
       motion: pick('motion', MotionLevel.values, d.motion),
+      showTabBumpers: flag('showTabBumpers', d.showTabBumpers),
+      showClock: flag('showClock', d.showClock),
+      showNotifications: flag('showNotifications', d.showNotifications),
+      showDeviceBattery: flag('showDeviceBattery', d.showDeviceBattery),
+      showControllerBattery: flag(
+        'showControllerBattery',
+        d.showControllerBattery,
+      ),
+      accent: pick('accent', AccentColor.values, d.accent),
+      focusIndicator: pick(
+        'focusIndicator',
+        FocusIndicatorStyle.values,
+        d.focusIndicator,
+      ),
+      showSideMenuPanel: flag('showSideMenuPanel', d.showSideMenuPanel),
     );
   }
 
@@ -267,10 +370,18 @@ class InterfaceStyleSettings {
       other.cornerRadius == cornerRadius &&
       other.density == density &&
       other.depth == depth &&
-      other.motion == motion;
+      other.motion == motion &&
+      other.showTabBumpers == showTabBumpers &&
+      other.showClock == showClock &&
+      other.showNotifications == showNotifications &&
+      other.showDeviceBattery == showDeviceBattery &&
+      other.showControllerBattery == showControllerBattery &&
+      other.accent == accent &&
+      other.focusIndicator == focusIndicator &&
+      other.showSideMenuPanel == showSideMenuPanel;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     style,
     tabBarStyle,
     tabIndicator,
@@ -286,7 +397,15 @@ class InterfaceStyleSettings {
     density,
     depth,
     motion,
-  );
+    showTabBumpers,
+    showClock,
+    showNotifications,
+    showDeviceBattery,
+    showControllerBattery,
+    accent,
+    focusIndicator,
+    showSideMenuPanel,
+  ]);
 
   @override
   String toString() => 'InterfaceStyleSettings(${encode()})';

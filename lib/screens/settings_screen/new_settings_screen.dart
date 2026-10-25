@@ -449,15 +449,21 @@ class _NewSettingsScreenState extends State<NewSettingsScreen> {
 
   Widget _buildLeftMenu(ThemeData theme) {
     final glass = LiquidGlassTheme.of(context);
-    // Category rail: one translucent surface (no blur over such a large
-    // area), with the standard gap between its independent bubbles.
+    // Category rail: the standard gap between its independent bubbles; its
+    // optional translucent panel never blurs such a large area.
     final bubbleGap = glass.gap * 0.75;
+    // Floating bubbles by default: the rail's panel is only drawn when the
+    // user asks for it (Settings › Themes › User interface).
+    final panel = glass.settings.showSideMenuPanel;
     return GlassSurface(
+      key: const ValueKey('side-menu-rail'),
       role: GlassRole.rail,
       radius: BorderRadius.zero,
       borderWidth: 0,
       rimColor: Colors.transparent,
       showSheen: false,
+      fillColor: panel ? null : Colors.transparent,
+      shadow: panel ? null : GlassShadow.none,
       width: MediaQuery.of(context).size.width * 0.25,
       child: ListView.builder(
         padding: EdgeInsets.symmetric(

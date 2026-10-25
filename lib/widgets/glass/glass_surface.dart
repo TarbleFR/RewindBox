@@ -117,10 +117,13 @@ class GlassSurface extends StatelessWidget {
     if (pressed) {
       fill = Color.alphaBlend(scheme.shadow.withValues(alpha: 0.10), fill);
     }
-    final rim = focused
+    // Gamepad focus: the accent ring, the accent halo or both, as chosen in
+    // Settings › Themes › User interface.
+    final ring = focused && glass.focusDrawsRing;
+    final rim = ring
         ? glass.focusRing(context)
         : (rimColor ?? glass.rim(context, role));
-    final rimWidth = focused ? 2.0 : (borderWidth ?? 1.0);
+    final rimWidth = ring ? 2.0 : (borderWidth ?? 1.0);
     final sheen = (showSheen ?? role != GlassRole.card)
         ? glass.sheen(context, role)
         : null;
@@ -168,7 +171,10 @@ class GlassSurface extends StatelessWidget {
           : decorated,
     );
 
-    final shadows = glass.shadows(context, shadow ?? defaultShadow(role));
+    final shadows = [
+      ...glass.shadows(context, shadow ?? defaultShadow(role)),
+      if (focused) ...glass.focusGlow(context),
+    ];
     if (shadows.isNotEmpty) {
       surface = DecoratedBox(
         decoration: BoxDecoration(

@@ -6,10 +6,18 @@ import 'glass_surface.dart';
 
 /// One option of a [GlassSegmentedControl].
 class GlassSegment<T> {
-  const GlassSegment({required this.value, required this.label, this.icon});
+  const GlassSegment({
+    required this.value,
+    required this.label,
+    this.icon,
+    this.swatch,
+  });
   final T value;
   final String label;
   final IconData? icon;
+
+  /// Colour dot drawn before the label (accent choices).
+  final Color? swatch;
 }
 
 /// Pill track with a sliding glass thumb under the selected option.
@@ -78,6 +86,23 @@ class GlassSegmentedControl<T> extends StatelessWidget {
                       ? MainAxisSize.min
                       : MainAxisSize.max,
                   children: [
+                    if (segment.swatch != null) ...[
+                      Container(
+                        width: dense ? 8.r : 10.r,
+                        height: dense ? 8.r : 10.r,
+                        decoration: BoxDecoration(
+                          color: segment.swatch,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: selected ? 0.9 : 0.3,
+                            ),
+                            width: selected ? 1.5 : 0.8,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 3.r),
+                    ],
                     if (segment.icon != null) ...[
                       Icon(
                         segment.icon,

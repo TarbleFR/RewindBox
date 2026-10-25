@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/themes/app_themes.dart';
 import 'package:neostation/themes/liquid_glass_theme.dart';
 import 'package:neostation/utils/nav_tabs.dart';
+import 'package:neostation/widgets/bumper_glyph.dart';
 import 'package:neostation/widgets/main_menu_tab_strip.dart';
 
 /// Every navigation-bar option keeps the geometry the navigation relies on:
@@ -163,5 +164,83 @@ void main() {
           .left,
       closeTo(cell(tester, NavTab.settings).left, 0.01),
     );
+  });
+
+  testWidgets(
+    'NeoStation: the solid pill slides in 160 ms under LB/RB glyphs',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(844, 390));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final neo = InterfaceStyleSettings.presetFor(InterfaceStyle.neoStation);
+      await pump(tester, neo, selected: NavTab.systems, labels: false);
+      expect(find.byType(BumperGlyph), findsNWidgets(2));
+      final painter =
+          tester
+                  .widget<CustomPaint>(
+                    find.byKey(const ValueKey('main-menu-tab-indicator')),
+                  )
+                  .painter!
+              as SolidSelectionPainter;
+      final theme = Theme.of(tester.element(find.byType(MainMenuTabStrip)));
+      expect(painter.color, theme.colorScheme.primary);
+      // The icon copy under the pill is recoloured to the accent's contrast.
+      expect(
+        find.descendant(
+          of: find.byType(MainMenuTabStrip),
+          matching: find.byType(ColorFiltered),
+        ),
+        findsOneWidget,
+      );
+
+      final start = cell(tester, NavTab.systems).left;
+      final end = cell(tester, NavTab.settings).left;
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(640, 480),
+          builder: (context, child) => MaterialApp(
+            theme: applyLiquidGlass(AppThemes.darkTheme, neo),
+            home: Scaffold(
+              body: Center(
+                child: MainMenuTabStrip(
+                  tabs: NavTab.values,
+                  selected: NavTab.settings,
+                  cellExtent: 32,
+                  tabBuilder: (tab) => const SizedBox.expand(),
+                  iconBuilder: (tab) => const Icon(Icons.circle, size: 16),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final lens = find.byKey(const ValueKey('main-menu-tab-indicator'));
+      await tester.pump(const Duration(milliseconds: 80));
+      final midway = tester.getRect(lens).left;
+      expect(midway, greaterThan(start));
+      expect(midway, lessThan(end));
+      // No Mau Ali deformation: the pill keeps the cell's size while moving.
+      expect(
+        tester.getSize(lens).width,
+        closeTo(cell(tester, NavTab.systems).width, .01),
+      );
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(tester.getRect(lens).left, closeTo(end, .01));
+    },
+  );
+
+  testWidgets('LB/RB glyphs follow their own switch', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await pump(tester, const InterfaceStyleSettings(), labels: false);
+    expect(find.byType(BumperGlyph), findsNothing);
+    await pump(
+      tester,
+      const InterfaceStyleSettings(showTabBumpers: true),
+      labels: false,
+    );
+    expect(find.byType(BumperGlyph), findsNWidgets(2));
+    // The glyphs sit outside the cells, which keep their order and size.
+    final glyphs = tester.getRect(find.byType(BumperGlyph).first);
+    expect(glyphs.right, lessThanOrEqualTo(cell(tester, NavTab.systems).left));
   });
 }

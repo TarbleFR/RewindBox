@@ -9,10 +9,17 @@ void main() {
   final placeholders = RegExp(r'\{\w+\}');
   final english = InterfaceStyleLocale.values['en']!;
 
-  // Product names and a bare percentage read the same in several languages.
+  // Product names, a bare percentage and a few words shared with English
+  // (French "Notifications", "Violet", "Cyan", "Halo"; German "Cyan") read the
+  // same in several languages.
   const sameAsEnglishAllowed = <String>{
     InterfaceStyleLocale.styleLiquidGlass,
+    InterfaceStyleLocale.styleNeoStation,
     InterfaceStyleLocale.valuePercent,
+    InterfaceStyleLocale.statusNotifications,
+    InterfaceStyleLocale.accentViolet,
+    InterfaceStyleLocale.accentCyan,
+    InterfaceStyleLocale.focusGlow,
   };
 
   test('the catalog covers exactly the twelve languages', () {
@@ -24,7 +31,7 @@ void main() {
   });
 
   test('English holds every key the screen uses', () {
-    expect(english.length, greaterThanOrEqualTo(68));
+    expect(english.length, greaterThanOrEqualTo(100));
     for (final key in [
       InterfaceStyleLocale.title,
       InterfaceStyleLocale.sectionStyle,
@@ -32,6 +39,10 @@ void main() {
       InterfaceStyleLocale.sectionSurfaces,
       InterfaceStyleLocale.sectionMotion,
       InterfaceStyleLocale.sectionPreview,
+      InterfaceStyleLocale.sectionStatusBar,
+      InterfaceStyleLocale.sectionColors,
+      InterfaceStyleLocale.styleNeoStation,
+      InterfaceStyleLocale.sidePanel,
       InterfaceStyleLocale.apply,
       InterfaceStyleLocale.resetDefaults,
       InterfaceStyleLocale.valuePercent,

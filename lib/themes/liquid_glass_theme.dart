@@ -206,6 +206,8 @@ class LiquidGlassTheme extends ThemeExtension<LiquidGlassTheme> {
       InterfaceStyle.liquidGlass => alpha,
       InterfaceStyle.classic => math.max(alpha, 0.84),
       InterfaceStyle.minimal => math.max(alpha, 0.94),
+      // NeoStation's default tint: the surface at about 83 % opacity.
+      InterfaceStyle.neoStation => math.max(alpha, 0.8),
     };
     final upper = style == InterfaceStyle.liquidGlass ? max : 0.97;
     alpha = alpha.clamp(min, upper).toDouble();
@@ -334,6 +336,25 @@ class LiquidGlassTheme extends ThemeExtension<LiquidGlassTheme> {
   /// Colour of a focus ring (gamepad focus) around a surface.
   Color focusRing(BuildContext context) =>
       Theme.of(context).colorScheme.primary;
+
+  /// Whether a focused control draws the accent ring, the accent halo, or both.
+  bool get focusDrawsRing =>
+      settings.focusIndicator != FocusIndicatorStyle.glow;
+  bool get focusDrawsGlow =>
+      settings.focusIndicator != FocusIndicatorStyle.ring;
+
+  /// Accent halo around a control focused with the gamepad (empty when the
+  /// chosen indicator is the ring alone).
+  List<BoxShadow> focusGlow(BuildContext context) {
+    if (!focusDrawsGlow) return const [];
+    return [
+      BoxShadow(
+        color: focusRing(context).withValues(alpha: 0.55),
+        blurRadius: 10.r,
+        spreadRadius: 0.5.r,
+      ),
+    ];
+  }
 
   // ---------------------------------------------------------------------------
   // Shadows
@@ -489,12 +510,57 @@ class LiquidGlassTheme extends ThemeExtension<LiquidGlassTheme> {
 ///
 /// Called by [ThemeProvider] for the live theme and by the Settings preview
 /// for a draft; it never persists anything.
+/// Primary colour of each accent choice; `null` keeps the theme's own.
+Color? accentColorOf(AccentColor accent) => switch (accent) {
+  AccentColor.theme => null,
+  AccentColor.rose => const Color(0xFFEC4899),
+  AccentColor.violet => const Color(0xFF8B5CF6),
+  AccentColor.blue => const Color(0xFF3B82F6),
+  AccentColor.cyan => const Color(0xFF06B6D4),
+  AccentColor.green => const Color(0xFF22C55E),
+  AccentColor.amber => const Color(0xFFF59E0B),
+  AccentColor.red => const Color(0xFFEF4444),
+};
+
+/// [base] with its primary colour replaced by the chosen accent.
+ThemeData withAccent(ThemeData base, AccentColor accent) {
+  final color = accentColorOf(accent);
+  if (color == null) return base;
+  // Black or white, whichever contrasts more with the accent (amber reads
+  // better with black text, violet with white).
+  final luminance = color.computeLuminance();
+  final on = (luminance + 0.05) / 0.05 >= 1.05 / (luminance + 0.05)
+      ? Colors.black
+      : Colors.white;
+  final scheme = base.colorScheme;
+  final light = scheme.brightness == Brightness.light;
+  return base.copyWith(
+    colorScheme: scheme.copyWith(
+      primary: color,
+      onPrimary: on,
+      primaryContainer: Color.alphaBlend(
+        color.withValues(alpha: light ? 0.18 : 0.32),
+        scheme.surface,
+      ),
+      onPrimaryContainer: scheme.onSurface,
+      surfaceTint: color,
+    ),
+    textSelectionTheme: base.textSelectionTheme.copyWith(
+      cursorColor: color,
+      selectionColor: color.withValues(alpha: 0.35),
+      selectionHandleColor: color,
+    ),
+    progressIndicatorTheme: base.progressIndicatorTheme.copyWith(color: color),
+  );
+}
+
 ThemeData applyLiquidGlass(
-  ThemeData base,
+  ThemeData themeBase,
   InterfaceStyleSettings settings, {
   double blurBudget = 1,
   double depthBudget = 1,
 }) {
+  final base = withAccent(themeBase, settings.accent);
   final glass = LiquidGlassTheme(
     settings: settings.normalized(),
     blurBudget: blurBudget.clamp(0.0, 1.0).toDouble(),

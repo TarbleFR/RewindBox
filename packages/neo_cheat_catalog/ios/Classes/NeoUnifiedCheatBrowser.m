@@ -17,7 +17,9 @@ static NSString *RBGlassInterfaceStyle(void) {
 }
 
 static BOOL RBGlassTranslucent(NSString *style) {
-  return ![style isEqualToString:@"minimal"] && !UIAccessibilityIsReduceTransparencyEnabled();
+  // Minimal and the original NeoStation style keep the plain system pages.
+  return ![style isEqualToString:@"minimal"] && ![style isEqualToString:@"neoStation"] &&
+         !UIAccessibilityIsReduceTransparencyEnabled();
 }
 
 static void RBGlassApplyToPage(UITableViewController *page) {

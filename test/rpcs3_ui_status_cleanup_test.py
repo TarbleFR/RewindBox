@@ -48,17 +48,15 @@ require("value: 'saves'" not in playlist,
 require("value: 'restoreSaves'" not in playlist,
         "playlist popup still exposes Import save data")
 
-require("header-jit-active-dot" in header,
-        "main header JIT active dot is missing")
-require("Rpcs3InternalService.runtimeStates.listen" in header and
-        "Rpcs3InternalService.jitEnabledForUi()" in header and
-        "Duration(seconds: 2)" in header,
-        "main header JIT dot does not poll the native integrated-StikJIT state")
+# The maintainer retired the header JIT dot (25 October 2026): the main
+# header no longer shows or polls the JIT state; the native CS_DEBUGGED
+# probe stays available to the RPCS3 screens.
+require("header-jit-active-dot" not in header and
+        "jitEnabledForUi" not in header and
+        "Color(0xFF22C55E)" not in header,
+        "main header still draws or polls the retired JIT dot")
 require("status['debugged'] == true" in service and
         "static Future<bool> jitEnabledForUi()" in service,
         "UI JIT state is not backed by the native CS_DEBUGGED result")
-require("Color(0xFF22C55E)" in header and
-        "header-jit-active-dot" in header,
-        "main header JIT dot is not green/labeled")
 
-print("PASS: startup non-blocking, popup clean, JIT status and green header dot authoritative")
+print("PASS: startup non-blocking, popup clean, JIT status backed by CS_DEBUGGED, header JIT dot retired")

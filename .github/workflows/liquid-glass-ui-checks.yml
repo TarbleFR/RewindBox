@@ -18,6 +18,8 @@ on:
       - test/liquid_glass_*
       - test/glass_performance_governor_test.dart
       - test/main_menu_tab_strip_styles_test.dart
+      - test/header_one_line_test.dart
+      - lib/widgets/header_layout.dart
   workflow_dispatch:
 permissions:
   contents: read
@@ -85,11 +87,16 @@ jobs:
           test/library_reader_settings_sections_test.dart
           test/neoplay_dialog_test.dart
           test/neo_swap_dialog_test.dart
-      - name: Keep the host's startup, storage, models, engines and dependencies unchanged
-        # Only presentation sources may differ from the validated 542 host;
-        # the one reviewed exception, the MeloNX close fix in
-        # game_launch_dialog.dart, is byte-checked by the delivery recipe.
+          test/header_one_line_test.dart
+          test/new_scraper_options_screen_test.dart
+          test/libretro_main_menu_test.dart
+          test/rpcs3_rap_import_menu_test.dart
+          test/scraping_notification_listener_test.dart
+      - name: Keep the startup, storage, models, assets and dependencies unchanged
+        # The interface changes presentation sources only. Engine sources
+        # (native/) are left out: the MeloNX and RPCS3 sessions change them,
+        # and each delivery recipe binds its own engine and host proofs.
         run: >-
           git diff --quiet 3494edc9e09fb60fecc35dd6cc301bcb93bc9434 HEAD --
           lib/main.dart lib/data lib/repositories lib/models lib/utils lib/sync
-          native assets ios pubspec.yaml pubspec.lock
+          assets ios pubspec.yaml pubspec.lock

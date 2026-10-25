@@ -19,7 +19,9 @@ class GlassBackdrop extends StatelessWidget {
     final scheme = theme.colorScheme;
     final light = ChromeSurfaceLuminance.isLight(theme);
     switch (glass.style) {
+      // NeoStation and Minimal paint the theme's own background, untouched.
       case InterfaceStyle.minimal:
+      case InterfaceStyle.neoStation:
         return BoxDecoration(color: base);
       case InterfaceStyle.classic:
         return BoxDecoration(

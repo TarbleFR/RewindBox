@@ -525,12 +525,18 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
   Widget _buildLeftMenu(ThemeData theme) {
     final glass = LiquidGlassTheme.of(context);
     final bubbleGap = glass.gap * 0.75;
+    // Floating bubbles by default: the rail's panel is only drawn when the
+    // user asks for it (Settings › Themes › User interface).
+    final panel = glass.settings.showSideMenuPanel;
     return GlassSurface(
+      key: const ValueKey('side-menu-rail'),
       role: GlassRole.rail,
       radius: BorderRadius.zero,
       borderWidth: 0,
       rimColor: Colors.transparent,
       showSheen: false,
+      fillColor: panel ? null : Colors.transparent,
+      shadow: panel ? null : GlassShadow.none,
       width: MediaQuery.of(context).size.width * 0.25,
       child: ListView.builder(
         // Only seven categories exist; caching the whole side menu guarantees

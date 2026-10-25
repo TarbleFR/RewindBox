@@ -1,9 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/providers/theme_provider.dart';
 import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/themes/corner_radii.dart';
-import 'package:neostation/themes/liquid_glass_theme.dart';
+import 'package:neostation/widgets/glass/glass_surface.dart';
 
 /// The resolver must keep every surface readable whatever the user chooses,
 /// reproduce the previous appearance at the default settings, and give every
@@ -229,5 +232,112 @@ void main() {
     );
     expect(provider.interfaceStyle, InterfaceStyleSettings.defaults);
     expect(identical(first, provider.currentTheme), isTrue);
+  });
+
+  test('the accent replaces the primary colour, the theme keeps its own', () {
+    for (final entry in palettes.entries) {
+      final own = applyLiquidGlass(
+        entry.value,
+        InterfaceStyleSettings.defaults,
+      );
+      expect(own.colorScheme.primary, entry.value.colorScheme.primary);
+      for (final accent in AccentColor.values.skip(1)) {
+        final composed = applyLiquidGlass(
+          entry.value,
+          InterfaceStyleSettings(accent: accent),
+        );
+        final color = accentColorOf(accent)!;
+        expect(composed.colorScheme.primary, color, reason: entry.key);
+        // Text on the accent keeps a readable contrast.
+        final on = composed.colorScheme.onPrimary;
+        final light = color.computeLuminance(), dark = on.computeLuminance();
+        final ratio =
+            (math.max(light, dark) + 0.05) / (math.min(light, dark) + 0.05);
+        expect(ratio, greaterThan(4.5), reason: '${entry.key} $accent');
+      }
+    }
+  });
+
+  test('NeoStation surfaces keep the original matte tint', () {
+    final base = palettes.values.first;
+    final neo = applyLiquidGlass(
+      base,
+      InterfaceStyleSettings.presetFor(InterfaceStyle.neoStation),
+    ).extension<LiquidGlassTheme>()!;
+    for (final role in roles) {
+      expect(neo.fillAlpha(base, role), greaterThanOrEqualTo(0.8));
+    }
+    expect(neo.sheenEnabled, isFalse);
+    expect(neo.blurEnabled, isFalse);
+  });
+
+  testWidgets('a focused surface draws the chosen ring and halo', (
+    tester,
+  ) async {
+    Future<BoxDecoration?> halo(FocusIndicatorStyle style) async {
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: const Size(640, 480),
+          builder: (_, _) => MaterialApp(
+            theme: applyLiquidGlass(
+              palettes.values.first,
+              InterfaceStyleSettings(focusIndicator: style),
+            ),
+            home: const Scaffold(
+              body: Center(
+                child: GlassSurface(
+                  role: GlassRole.bubble,
+                  focused: true,
+                  width: 120,
+                  height: 40,
+                  child: SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      // Let MaterialApp's theme transition reach the new settings.
+      await tester.pumpAndSettle();
+      final primary = Theme.of(
+        tester.element(find.byType(GlassSurface)),
+      ).colorScheme.primary;
+      for (final box in tester.widgetList<DecoratedBox>(
+        find.descendant(
+          of: find.byType(GlassSurface),
+          matching: find.byType(DecoratedBox),
+        ),
+      )) {
+        final decoration = box.decoration;
+        if (decoration is BoxDecoration &&
+            (decoration.boxShadow ?? const []).any(
+              (s) =>
+                  s.color.withValues(alpha: 1) == primary.withValues(alpha: 1),
+            )) {
+          return decoration;
+        }
+      }
+      return null;
+    }
+
+    Color? ring() {
+      for (final box in tester.widgetList<DecoratedBox>(
+        find.descendant(
+          of: find.byType(GlassSurface),
+          matching: find.byType(DecoratedBox),
+        ),
+      )) {
+        final border = (box.decoration as BoxDecoration?)?.border;
+        if (border is Border && border.top.width == 2) return border.top.color;
+      }
+      return null;
+    }
+
+    expect(await halo(FocusIndicatorStyle.ring), isNull);
+    expect(ring(), isNotNull);
+    expect(await halo(FocusIndicatorStyle.glow), isNotNull);
+    expect(ring(), isNull);
+    expect(await halo(FocusIndicatorStyle.ringGlow), isNotNull);
+    expect(ring(), isNotNull);
   });
 }

@@ -10,6 +10,9 @@ import 'package:neostation/screens/settings_screen/interface_style/interface_sty
 import 'package:neostation/screens/settings_screen/interface_style/interface_style_screen.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/liquid_glass_theme.dart';
+import 'package:neostation/widgets/bumper_glyph.dart';
+import 'package:neostation/widgets/custom_toggle_switch.dart';
+import 'package:neostation/widgets/glass/glass_backdrop.dart';
 import 'package:neostation/widgets/glass/glass_controls.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -167,6 +170,125 @@ void main() {
     expect(previewGlass(tester).settings.blur, 1.0);
     expect(find.text('100 %'), findsWidgets);
     expect(find.byType(GlassSlider), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('every control of the preview works', (tester) async {
+    final provider = await pumpScreen(tester);
+    // The screen draws its own backdrop: nothing behind it shows through.
+    expect(
+      find.ancestor(
+        of: find.byType(InterfaceStylePreview),
+        matching: find.byType(GlassBackdrop),
+      ),
+      findsOneWidget,
+    );
+    final chip = find.byKey(
+      const ValueKey('interface-style-preview-style-chip'),
+    );
+    expect(
+      find.descendant(
+        of: chip,
+        matching: find.text(en(InterfaceStyleLocale.styleLiquidGlass)),
+      ),
+      findsOneWidget,
+    );
+    // The value chip shows the draft style and switches it when touched.
+    await tester.tap(chip);
+    await tester.pumpAndSettle();
+    expect(previewGlass(tester).style, InterfaceStyle.classic);
+    expect(
+      find.descendant(
+        of: chip,
+        matching: find.text(en(InterfaceStyleLocale.styleClassic)),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('interface-style-unsaved')), findsOne);
+
+    // Undo drops the draft.
+    await tester.tap(
+      find.byKey(const ValueKey('interface-style-preview-revert')),
+    );
+    await tester.pumpAndSettle();
+    expect(previewGlass(tester).style, InterfaceStyle.liquidGlass);
+    expect(find.byKey(const ValueKey('interface-style-unsaved')), findsNothing);
+
+    // The menu offers every style, NeoStation included.
+    await tester.tap(
+      find.byKey(const ValueKey('interface-style-preview-menu')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(
+        CheckedPopupMenuItem<InterfaceStyle>,
+        en(InterfaceStyleLocale.styleNeoStation),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(previewGlass(tester).style, InterfaceStyle.neoStation);
+    expect(
+      find.descendant(
+        of: find.byType(InterfaceStylePreview),
+        matching: find.byType(BumperGlyph),
+      ),
+      findsNWidgets(2),
+    );
+
+    // The switch toggles the tab labels of the draft.
+    await tester.tap(
+      find.byKey(const ValueKey('interface-style-preview-labels')),
+    );
+    await tester.pumpAndSettle();
+    expect(previewGlass(tester).settings.tabLabels, TabLabelMode.always);
+
+    // Apply from the preview persists the draft.
+    await tester.tap(
+      find.byKey(const ValueKey('interface-style-preview-apply')),
+    );
+    await tester.pumpAndSettle();
+    expect(provider.interfaceStyle.style, InterfaceStyle.neoStation);
+    expect(provider.interfaceStyle.tabLabels, TabLabelMode.always);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('status bar, colours, focus and side menu rows edit the draft', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+    // A toggle row's key names its switch.
+    Future<void> toggle(String key) async {
+      await reveal(tester, row(key));
+      expect(tester.widget(row(key)), isA<CustomToggleSwitch>());
+      await tester.tap(row(key));
+      await tester.pumpAndSettle();
+    }
+
+    // Top to bottom: the list builds its rows lazily.
+    await toggle('tabBumpers');
+    await toggle('statusClock');
+    await toggle('statusControllerBattery');
+    await reveal(tester, row('accent'));
+    await tester.tap(segment('accent', en(InterfaceStyleLocale.accentGreen)));
+    await tester.pumpAndSettle();
+    await reveal(tester, row('focusIndicator'));
+    await tester.tap(
+      segment('focusIndicator', en(InterfaceStyleLocale.focusRingGlow)),
+    );
+    await tester.pumpAndSettle();
+    await toggle('sidePanel');
+    final draft = previewGlass(tester).settings;
+    expect(draft.showClock, isFalse);
+    expect(draft.showControllerBattery, isFalse);
+    expect(draft.showSideMenuPanel, isTrue);
+    expect(draft.showTabBumpers, isTrue);
+    expect(draft.accent, AccentColor.green);
+    expect(draft.focusIndicator, FocusIndicatorStyle.ringGlow);
+    // The accent reaches the preview's theme.
+    final previewTheme = Theme.of(
+      tester.element(find.byType(InterfaceStylePreview)),
+    );
+    expect(previewTheme.colorScheme.primary, accentColorOf(AccentColor.green));
     expect(tester.takeException(), isNull);
   });
 }
