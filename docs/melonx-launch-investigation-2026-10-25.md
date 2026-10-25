@@ -57,27 +57,64 @@ No key value, firmware or game payload is requested, logged or bundled. The
 selected JIT method, mappings, helper protocol and other emulator sources stay
 unchanged.
 
-## Validation and remaining work
+## Validation and private delivery
 
-Completed locally on Linux / .NET 10.0.100:
+The candidate is delivered as RewindBox Build 529. The completed delivery is
+source `3473995858e4893c8c2a8f4a19a9239d8b23048c`, workflow source
+`5b8f2bd13fec4a7977620b4d10e595191e060e3b`, run `40147724203` (success).
+The complete output IPA is 186,302,256 bytes, SHA-256:
+`33b98a43792b3ba62a8e5e015d8d61ada0262d6f681a959a54ed572f6bdb1437`.
 
-- 13 production preflight, real-LibHac schema and journal assertions passed.
-- Production managed-journal regression reproduced the old lost-event behavior
-  with an abruptly terminated child. The corrected journal retained its final
-  milestone. Two independent native writers plus a frontend-like append writer
-  retained 601 complete native records and all 301 frontend lines; redaction,
-  the bounded ring, full-file ceiling and failed-I/O isolation passed.
-- The targeted Python runners compile and `git diff --check` passes.
+The native bootstrap and retained Dolphin resources now come from the last
+published valid IPA, Build 527 in release 0.0.9. Its full archive hash is
+`884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e`.
+The older delivery recipe still referenced the retired Build 350 donor; it is
+not used by this delivery. The current main delivery workflow uses this exact
+corrected candidate. Historical frozen workflows are not a source for new
+assemblies: select the latest validated IPA and independently validated Cores.
 
-The Swift journal test and updated production Flutter launch-flow tests are
-prepared but have not run locally: this host has neither the Apple SDK nor a
-Flutter installation. The NativeAOT engine must be rebuilt for the additive
-content operation 9 and synchronous Core journal. Its existing focused workflow
-now reuses unchanged key/personal proofs and executes the changed diagnostic
-tests; the actual ARM64 smoke also checks operation 9 and persisted errors.
+RPCS3 uses the successfully compiled **Core 528**, source
+`17ee65469c39e560c91fdb6d55604ab590992f59`, run `40142369420`.
+Its original binary SHA-256 is
+`0ad782b8ee49508165dfb694d19c9400f18c659c5584482228215bfdfc316dcb`.
+All 140 required source identities match the candidate; the final signed
+binary has the same compiled payload fingerprint as that artifact.
 
-No push, GitHub Actions run, IPA, tag, main update or public release is claimed
-by this local preparation. After the focused Apple/Flutter checks, an identified
-test IPA and a physical launch are still required to establish whether the
-reported termination is resolved or to read the actual synchronous failing
-milestone. Do not present the candidate as a confirmed device repair.
+MeloNX uses engine source `329d9de706a647481e9d192aee890e92bb0b56ef`,
+run `40144482367`, with actual iPhone binary SHA-256
+`2e8979b263f3fa7b45389b4ea17a8f706116b232a53be90316bb3c5acb3e6073`.
+That compilation run failed its original smoke assertion: the test searched
+for `keysMissing` in a journal that intentionally records stage/status.
+Corrected run `40145060306`, source
+`291439626dd6bc10ecd918e16f29e8fda5f111ed`, passed against the exact compiled
+engine. It executed two original unencrypted homebrew sessions on the actual
+ARM64 iOS simulator runtime, including durable Core journal configuration.
+This is not an iPhone or commercial-title gameplay test. All 30 adaptation
+source hashes match the packaged iPhone engine.
+
+Other completed checks:
+
+- 13 production preflight and real-LibHac schema assertions; abrupt-process
+  journal persistence, 601 concurrent native records, frontend coexistence,
+  redaction, size bounds and failed-I/O isolation.
+- Focused Flutter launch-flow, UIKit host/SDK and display/persistence checks.
+- Full iPhone Release compilation, final ZIP structural/dependency checks,
+  and strict deep ad hoc signature verification on extracted IPA bytes.
+- Independent verification after downloading: all four transport ZIP digests,
+  encrypted-payload hashes, source receipts, RPCS3/Dolphin payload fingerprints,
+  journal launch contract, absence of KartPad/Dusklight and 87 signed images'
+  CodeDirectory page hashes. No personal keys, firmware or games are bundled.
+
+The existing CPU eligibility guard and private MeloNX helper additions are
+now normalized exactly by historical JIT comparisons; all other historical
+JIT state-machine and verifier bytes remain checked. Build 529's launch IPA
+validator requires `configureLaunchJournal` and rejects the removed duplicate
+Dart `contentPreflight` marker. The mandatory native preflight remains tested.
+A sealed encrypted recovery snapshot is preserved before final validators so
+a later assertion failure does not discard an already compiled IPA.
+
+The output requires the user's usual Apple re-signing before installation.
+The reported termination is **not yet confirmed resolved on the physical
+phone**. If it persists, synchronous milestones now survive process loss and
+can identify the operation reached. No tag, main change or public release was
+created. Detailed receipts: `docs/evidence/melonx-launch529-delivery.json`.

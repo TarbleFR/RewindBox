@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "project": "RewindBox",
+  "build": 529,
+  "assemblySource": "3473995858e4893c8c2a8f4a19a9239d8b23048c",
+  "workflowSource": "5b8f2bd13fec4a7977620b4d10e595191e060e3b",
+  "workflowRun": 40147724203,
+  "baseline": {
+    "release": "0.0.9",
+    "build": 527,
+    "ipaSHA256": "884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e",
+    "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.9/RewindBox-Build527.ipa",
+    "retiredComponentsPresent": false
+  },
+  "rpcs3": {
+    "build": 528,
+    "source": "17ee65469c39e560c91fdb6d55604ab590992f59",
+    "run": 40142369420,
+    "coreSHA256": "0ad782b8ee49508165dfb694d19c9400f18c659c5584482228215bfdfc316dcb",
+    "sourceInputs": 140
+  },
+  "melonx": {
+    "engineSource": "329d9de706a647481e9d192aee890e92bb0b56ef",
+    "engineRun": 40144482367,
+    "engineRunOverallConclusion": "failure",
+    "retainedFailure": "Initial runtime smoke checked an errorCode string absent from the actual stage/status journal format. The exact compiled artifact was subsequently exercised by the corrected real runtime test.",
+    "iosCoreSHA256": "2e8979b263f3fa7b45389b4ea17a8f706116b232a53be90316bb3c5acb3e6073",
+    "actualRuntimeValidation": {
+      "source": "291439626dd6bc10ecd918e16f29e8fda5f111ed",
+      "run": 40145060306,
+      "result": "success",
+      "platform": "ARM64 iOS simulator"
+    },
+    "adaptationSourceInputs": 30
+  },
+  "physicalDeviceTested": false,
+  "reportedPhoneTerminationConfirmedResolved": false,
+  "privateReleaseOnly": true,
+  "publicReleaseOrTagCreated": false,
+  "previousCompiledCandidate": {
+    "source": "736870f81be7253b8f3184a84a6b345676eb1adb",
+    "run": 40146557263,
+    "conclusion": "failure",
+    "reason": "Legacy validator required the deleted duplicate Dart contentPreflight marker. Compile, packaging, ad hoc signing and preceding final checks passed. The updated validator requires configureLaunchJournal and absence of contentPreflight for Build 529."
+  },
+  "workflowConclusion": "success",
+  "ipa": {
+    "name": "RewindBox-Build529.ipa",
+    "bytes": 186302256,
+    "sha256": "33b98a43792b3ba62a8e5e015d8d61ada0262d6f681a959a54ed572f6bdb1437",
+    "signedImagesIndependentlyVerified": 87,
+    "appleReSigningRequired": true
+  },
+  "transportArtifacts": [
+    {
+      "id": 12582025599,
+      "name": "RewindBox-Build529-3473995858e4893c8c2a8f4a19a9239d8b23048c-cold-part00",
+      "bytes": 46642926,
+      "sha256": "9f0070b90427c60320d73a6f03a133fde79e4085a387252720fd1ab1ce4ce7a9"
+    },
+    {
+      "id": 12581830906,
+      "name": "RewindBox-Build529-3473995858e4893c8c2a8f4a19a9239d8b23048c-cold-part01",
+      "bytes": 46642926,
+      "sha256": "c68c2dfa1cb0024b6641ed21f839e4b610af645ff31fcc3ce3c3c5325b6aba6a"
+    },
+    {
+      "id": 12582395341,
+      "name": "RewindBox-Build529-3473995858e4893c8c2a8f4a19a9239d8b23048c-cold-part02",
+      "bytes": 46642926,
+      "sha256": "dbc117ca10ef3d191436fad38bd29ea8a7d1cea4616afa3ef5dfac883cf8cdbd"
+    },
+    {
+      "id": 12581970733,
+      "name": "RewindBox-Build529-3473995858e4893c8c2a8f4a19a9239d8b23048c-cold-part03",
+      "bytes": 46642926,
+      "sha256": "03d074edce8f84e6f4be1c5ec681dc2ca6f033c5d88554111aea785ab5823a9c"
+    }
+  ]
+}

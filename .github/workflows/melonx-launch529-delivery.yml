@@ -678,7 +678,9 @@ jobs:
 
         '
     - name: Preserve sealed IPA and source receipts before final compatibility validators
-      run: 'set -euo pipefail
+      run: 'export GITHUB_SHA=3473995858e4893c8c2a8f4a19a9239d8b23048c
+
+        set -euo pipefail
 
         mkdir -p build/recovery-artifact
 

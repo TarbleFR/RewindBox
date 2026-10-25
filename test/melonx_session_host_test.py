@@ -34,12 +34,12 @@ for source in [memory/'MLXRamDonor.m',memory/'Helper/MeloNXRamDonor.m']:
         '-target','arm64-apple-ios18.0','-isysroot',sdk,'-I',str(memory),str(source)],check=True)
 if '--sdk-only' in sys.argv:
     unchanged = 'packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift'
-    assert subprocess.check_output(['git','show','303d9084db73b3016d29a5dca9bf439fa44ed7c7:'+unchanged],cwd=root) == (root/unchanged).read_bytes()
+    assert subprocess.check_output(['git','show','084fdb5d71609d3529c39cca9efa26093459827d:'+unchanged],cwd=root) == (root/unchanged).read_bytes()
     inputs=[*sources,*controller_sources,header,jit_header,jit_header.with_suffix('.mm'),Path(__file__)]
     out=root/'dist/melonx-host/checks.json';out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(dict(source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
         inputs={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs},
-        iphoneSDKTypecheck=True,nativeABIDoubleReexecuted=False,unchangedABIDoubleRun=40031804127,gameplayTested=False),indent=2)+'\n')
+        iphoneSDKTypecheck=True,nativeABIDoubleReexecuted=False,unchangedABIDoubleRun=40143289245,gameplayTested=False),indent=2)+'\n')
     print('PASS complete iPhone SDK Swift/ObjC++ typecheck; unchanged session ABI fixtures not reexecuted.')
     raise SystemExit(0)
 with tempfile.TemporaryDirectory(prefix='melonx-host-') as temporary:

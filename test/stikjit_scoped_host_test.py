@@ -15,6 +15,17 @@ for lower,cls in (('rpcs3','Rpcs3'),('armsx2','Armsx2')):
     # JIT baseline. Normalize the product name before proving the host state
     # machine and diagnostics remain byte-equivalent.
     new=new.replace('RewindBox','NeoStation')
+    if lower=='rpcs3':
+        # Build 526 added the pre-existing armv8.4 CPU eligibility gate.
+        # Remove only its exact reviewed import/early return when comparing
+        # the retained JIT state machine against the older legacy baseline.
+        cpu_import='#import "RPCS3CPUCompatibility.h"\n'
+        cpu_gate=('  if (NSString* cpuError = RPCS3CPUCompatibilityError()) {\n'
+                  '    result(@{@"success": @NO, @"code": @"RPCS3_CPU_INCOMPATIBLE", @"message": cpuError});\n'
+                  '    return;\n'
+                  '  }\n\n')
+        assert new.count(cpu_import)==1 and new.count(cpu_gate)==1
+        new=new.replace(cpu_import,'').replace(cpu_gate,'')
     if lower=='armsx2':
         start=new.index('  // Export legacy startup evidence only;')
         end=new.index('\n}\nstatic void ARMSX2Milestone',start)
@@ -28,6 +39,12 @@ for lower,cls in (('rpcs3','Rpcs3'),('armsx2','Armsx2')):
     assert old==new,p+' changed outside diagnostics'
 p='packages/dolphin_internal_bridge/ci/verify_ipa.py'
 new=(ROOT/p).read_text()
+# Normalize only the exact private MeloNX packaging additions.
+melonx_helpers="        expected_helpers = dict(EXPECTED_HELPERS)\n        if app + '/MeloNX-native-identity.json' in names:\n            expected_helpers['MeloNXJITHelper.appex'] = {\n                'bundleSuffix': '.melonxjithelper',\n                'principalClass': 'MeloNXJITRequestHandler',\n                'marker': 'NeoStationMeloNXJITHelper',\n            }\n            if 'ramDonorSource' in json.loads(z.read(app + '/MeloNX-native-identity.json')):\n                expected_helpers['MeloNXRamDonor.appex'] = {\n                    'bundleSuffix': '.melonxramdonor', 'principalClass': 'MLXRamDonorHandler',\n                    'marker': 'RewindBoxMeloNXRamDonor',\n                }\n            for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):\n                demand(app + f'/Frameworks/{component}.framework/{component}' in names,\n                       'MeloNX identity requires the complete private runtime: ' + component)\n"
+assert new.count(melonx_helpers)==1
+new=new.replace(melonx_helpers,'')
+assert new.count('expected_helpers')==4
+new=new.replace('expected_helpers','EXPECTED_HELPERS')
 # The shared IPA contains the NeoSwap donor and separate guest-page relay.
 # Normalize only these reviewed packaging additions; every original
 # Dolphin/JIT check must remain byte-exact. Each addition occurs exactly once.
@@ -40,7 +57,7 @@ replacements = (
     ('    **DONOR_CONTRACTS,\n', ''),
     ('    **RELAY_CONTRACTS,\n', ''),
     ('    validate_distribution(ipa)\n', ''),
-    ('(DONOR_EXTENSION_POINT if bundle_name in DONOR_CONTRACTS or bundle_name in RELAY_CONTRACTS else SHARE_EXTENSION_POINT)',
+    ("(DONOR_EXTENSION_POINT if bundle_name in DONOR_CONTRACTS or bundle_name in RELAY_CONTRACTS or bundle_name == 'MeloNXRamDonor.appex' else SHARE_EXTENSION_POINT)",
      'SHARE_EXTENSION_POINT'),
 )
 for added, previous in replacements:
@@ -61,4 +78,4 @@ assert new.replace("== '1.9.0', 'Wrong StikJIT version'", "== '1.5.0', 'Wrong St
 p='packages/dolphin_jit_helper/ios/Classes/DolphinJITRequestHandlerBase.swift'
 dolphin_helper=(ROOT/p).read_text().replace('RewindBox','NeoStation')
 assert dolphin_helper.replace('StikJIT 1.9.0','StikJIT 1.5.0')==original(p)
-print('PASS: exact retained JIT host state machines; only timeout text/legacy log; Dolphin algorithm unchanged')
+print('PASS: exact retained JIT host state machines; reviewed CPU gate and diagnostic additions; Dolphin algorithm unchanged')

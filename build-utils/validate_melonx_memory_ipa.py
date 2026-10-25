@@ -3,7 +3,7 @@ import argparse,hashlib,json,plistlib,subprocess,sys,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'.github/diagnostics'))
-import melonxmemory519_delivery as proof
+import melonxlaunch529_delivery as proof
 import validate_melonx_presentation_ipa as presentation
 IDENTITY='MeloNX-memory-display-identity.json'
 def expected():

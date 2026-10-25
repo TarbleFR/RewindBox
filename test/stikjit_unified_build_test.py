@@ -27,6 +27,17 @@ for path in paths:
     # JIT baseline predates that rebrand. Normalize only the visible brand
     # token before proving all runtime/patch bytes remain unchanged.
     current=current.replace(b'RewindBox',b'NeoStation')
+    if path=='packages/rpcs3_internal_bridge/ios/Classes/Rpcs3JitBridgePlugin.mm':
+        # Build 526 added the pre-existing armv8.4 CPU eligibility gate.
+        # Remove only its exact reviewed import/early return when comparing
+        # the retained JIT state machine against the older legacy baseline.
+        cpu_import=b'#import "RPCS3CPUCompatibility.h"\n'
+        cpu_gate=(b'  if (NSString* cpuError = RPCS3CPUCompatibilityError()) {\n'
+                  b'    result(@{@"success": @NO, @"code": @"RPCS3_CPU_INCOMPATIBLE", @"message": cpuError});\n'
+                  b'    return;\n'
+                  b'  }\n\n')
+        assert current.count(cpu_import)==1 and current.count(cpu_gate)==1
+        current=current.replace(cpu_import,b'').replace(cpu_gate,b'')
     assert current==old,'Runtime JIT changed: '+path
 for path in ('.github/workflows/ios-ci.yml','build-utils/prepare_fast_native_runtime.py',
              'packages/dolphin_internal_bridge/ci/build_support.py'):
@@ -60,4 +71,4 @@ if identity_path.is_file():
                   for file in ('StikjitBridgePlugin','StikjitBridgePluginV2'))
     exports=set(re.findall(r'Self.resolve\(\s*"([a-z][a-z0-9_]+)"',bridge))
     assert set(identity['dynamicFFIExports'])==exports
-print('PASS: canonical source build; no obsolete donor JIT; all 11 JIT runtime/patch files identical to Build363')
+print('PASS: canonical source build; no obsolete donor JIT; 11 JIT runtime/patch files retain Build363 behavior plus the reviewed CPU eligibility gate')

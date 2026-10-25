@@ -51,8 +51,16 @@ def validate(ipa, build=514):
         for value in [b'launchDiagnostic', b'launchPreflight', b'neostation_melonx_prepare_jit']:
             assert value in bridge, value
         dart = archive.read(root + 'Frameworks/App.framework/App')
-        for value in [b'[MeloNX:launch]', b'jitMappingConfirmed', b'firstMetalFramePresented', b'contentPreflight']:
+        for value in [b'[MeloNX:launch]', b'jitMappingConfirmed', b'firstMetalFramePresented']:
             assert value in dart, value
+        if int(build) >= 529:
+            # The native serial worker now owns the sole full preflight.
+            # Require the synchronous journal setup and reject the removed
+            # duplicate Dart preflight marker in the actual AOT image.
+            assert b'configureLaunchJournal' in dart
+            assert b'contentPreflight' not in dart
+        else:
+            assert b'contentPreflight' in dart
         declared = entitlements(archive.read(root + info['CFBundleExecutable']))
         for key in ['com.apple.developer.kernel.increased-memory-limit', 'com.apple.developer.kernel.extended-virtual-addressing']:
             assert declared.get(key) is True, key
