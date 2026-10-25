@@ -4,6 +4,7 @@ run-name: "RewindBox Build 529 \u2014 3473995858e4893c8c2a8f4a19a9239d8b23048c"
   push:
     branches:
     - Claude
+    - delivery529-chatgpt-20261025
     paths:
     - .github/workflows/melonx-launch529-delivery.yml
 permissions:
@@ -59,7 +60,7 @@ jobs:
     - native
     env:
       BUILD_NUMBER: '529'
-      DELIVERY_RECIPIENT: build-utils/delivery-529-recipient.pem
+      DELIVERY_RECIPIENT: build/delivery529-ephemeral-recipient.pem
       IPA_NAME: NeoStation
       ARTIFACT_NAME: RewindBox-Build529-3473995858e4893c8c2a8f4a19a9239d8b23048c-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
@@ -88,6 +89,22 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: 3473995858e4893c8c2a8f4a19a9239d8b23048c
+    - name: Install one-time public key for private Build 529 handoff
+      run: |
+        mkdir -p build
+        cat > build/delivery529-ephemeral-recipient.pem <<'KEY'
+        -----BEGIN PUBLIC KEY-----
+        MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAxH3fD31kbDhaGVqf0WqU
+        n6t9UFYl/DEfa1F5ycv210ZPwLbMYWWOav49MRib2X1Bp12yfI7oc+xdCd+d2rRb
+        KZDdyoCaeUM5G7gc9dtljWMtGdVEqEmurOY+NTVctX9N4zIqJ7lgj8BCv+nFmgSi
+        z/frifRSB2wZlc4gMqW/CCvKDFh5vEFtX03U/z/lybAbeNzYwTzBl93jZNb3AZhD
+        3wEPVHyLIIsiTDsFFcsJXMRDNkjJo0SzArXe+PdA8NmzFwZ0BegkJZzxj+5WiMZO
+        RFJsa/3150y4Im0t8jPv5zp129gHu+pMN4IIyvphxGEdLKY1EsXVFvNsWf7uzd0D
+        u0bxPRebGjyuaj2hvoyENxixblEhdon3LpdS1fMlfd2iGp+xvpdU4QzMXvr2o4tm
+        C797ydLzzfgSN7LAYVVQ8uIXYnnTJaUKMuZ9kv6ICLMuhjSZqPPnBVCdVvH88yWu
+        5wZ9ieBAaB9Kx2O2p0zJCjY+f9uXqoZMIT1KXQYl0xtLAgMBAAE=
+        -----END PUBLIC KEY-----
+        KEY
     - name: Require exact successful skin sessions and cheat catalogue/core checks
       run: 'export GITHUB_SHA=3473995858e4893c8c2a8f4a19a9239d8b23048c
 
