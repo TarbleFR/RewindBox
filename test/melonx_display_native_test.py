@@ -56,10 +56,10 @@ EmbeddedGraphicsSettings.Parse("{}").Apply(safeDefault);
 Check(!safeDefault.DisableShaderCache && !safeDefault.EnableAsyncShaderCompilation);
 // Respect deliberate pre-existing per-game overrides; do not silently mutate
 // migrated standalone profiles or already persisted user preferences.
-var explicitOld = EmbeddedGraphicsSettings.Parse("{\\"shaderCache\\":false,\\"asyncShaders\\":true}")
+var explicitOld = EmbeddedGraphicsSettings.Parse("{\"shaderCache\":false,\"asyncShaders\":true}")
     .Apply(new Options {DisableShaderCache=false,EnableAsyncShaderCompilation=false});
 Check(explicitOld.DisableShaderCache && explicitOld.EnableAsyncShaderCompilation);
-var explicitSafe = EmbeddedGraphicsSettings.Parse("{\\"shaderCache\\":true,\\"asyncShaders\\":false}")
+var explicitSafe = EmbeddedGraphicsSettings.Parse("{\"shaderCache\":true,\"asyncShaders\":false}")
     .Apply(new Options {DisableShaderCache=true,EnableAsyncShaderCompilation=true});
 Check(!explicitSafe.DisableShaderCache && !explicitSafe.EnableAsyncShaderCompilation);
 foreach(int ratio in new[]{0,1,2,3,4,5}) {
