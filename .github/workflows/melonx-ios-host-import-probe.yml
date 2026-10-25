@@ -27,6 +27,10 @@ jobs:
           git -C .native-sources/MeloNX remote add origin https://starforgejo.dev/projects/MeloNX.git
           git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
           git -C .native-sources/MeloNX checkout --detach FETCH_HEAD
+          echo "========== exact Vulkan extension source =========="
+          grep -n -C 5 -E 'enabledExtensions|desirableExtensions|ExtExternalMemoryHost|SupportsHostImportedMemory' .native-sources/MeloNX/src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs | tail -95
+          echo "========== exact renderer source =========="
+          grep -n -C 3 -E 'ExtExternalMemoryHost|PrepareHostMapping' .native-sources/MeloNX/src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs | tail -65
           python3 - <<'PY'
           from pathlib import Path
           import sys
