@@ -2674,11 +2674,263 @@ index 4010442..67c3815 100644
      set_source_files_properties(ios/FirmwareInstaller.cpp ios/GameLibrary.cpp ios/GameUpdateManifest.cpp ios/RPCS3IOSConfigDatabase.cpp ios/TrophyLibrary.cpp ios/RPCS3IOS.cpp ios/RPCS3IOSLocalization.cpp ios/RPCS3IOSPerformance.cpp ios/RPCS3IOSRuntimePatches.cpp ios/RPCS3IOSSaveDialog.cpp ios/RPCS3IOSSettings.cpp PROPERTIES COMPILE_OPTIONS -fexceptions)
  
      set_target_properties(RPCS3Core PROPERTIES
+diff --git a/rpcs3/Crypto/unpkg.cpp b/rpcs3/Crypto/unpkg.cpp
+index c9a4934..fc76179 100644
+--- a/rpcs3/Crypto/unpkg.cpp
++++ b/rpcs3/Crypto/unpkg.cpp
+@@ -14,9 +14,100 @@
+ #include "Loader/PSF.h"
+ 
+ #include <filesystem>
++#include <optional>
+ 
+ LOG_CHANNEL(pkg_log, "PKG");
+ 
++// NEOSTATION_CELL545_PKG_PATHS (RPCS3 36eaed481, c4d834480): a name that is absolute or has a "." or ".."
++// component leaves the directory it is installed into. Checked on the raw name bytes.
++static bool leaves_directory(std::string_view name)
++{
++	if (name.starts_with('/'))
++	{
++		return true;
++	}
++
++	for (std::string_view rest = name; !rest.empty();)
++	{
++		const usz sep = rest.find('/');
++		const std::string_view component = rest.substr(0, sep);
++		rest = sep == umax ? std::string_view{} : rest.substr(sep + 1);
++
++		if (component == "." || component == "..")
++		{
++			return true;
++		}
++	}
++
++	return false;
++}
++
++// NEOSTATION_CELL545_PKG_PATHS (ARMSX3 471b57b36): where a name that leaves its directory lands, for a package
++// unpacking on the emulated hard drive. "Custom installer" packages (PS3 avatar and mod packs) declare an ordinary
++// content type, then name their files from the root: "../../dev_hdd0/home/psn_avatar/PSNA_....edat" from
++// dev_hdd0/theme/, which a PS3 resolves from the install directory. Resolved the same way from install_dir, the
++// install directory's PS3 path ("dev_hdd0/theme/"). The result is the path below dev_hdd0 (empty for dev_hdd0
++// itself), or nothing when the name leaves the emulated hard drive.
++static std::optional<std::string> resolve_on_hdd0(std::string_view install_dir, std::string_view name)
++{
++	if (install_dir.empty() || name.starts_with('/'))
++	{
++		return std::nullopt;
++	}
++
++	std::vector<std::string_view> parts;
++
++	const auto append = [&parts](std::string_view path)
++	{
++		for (std::string_view rest = path; !rest.empty();)
++		{
++			const usz sep = rest.find('/');
++			const std::string_view component = rest.substr(0, sep);
++			rest = sep == umax ? std::string_view{} : rest.substr(sep + 1);
++
++			if (component.empty() || component == ".")
++			{
++				continue;
++			}
++
++			if (component == "..")
++			{
++				// Above the root: a PS3 has nothing there
++				if (parts.empty())
++				{
++					return false;
++				}
++
++				parts.pop_back();
++				continue;
++			}
++
++			parts.push_back(component);
++		}
++
++		return true;
++	};
++
++	if (!append(install_dir) || !append(name) || parts.empty() || parts[0] != "dev_hdd0")
++	{
++		return std::nullopt;
++	}
++
++	std::string result;
++
++	for (usz i = 1; i < parts.size(); i++)
++	{
++		if (i > 1)
++		{
++			result += '/';
++		}
++
++		result += parts[i];
++	}
++
++	return result;
++}
++
+ package_reader::package_reader(const std::string& path, fs::file file)
+ 	: m_path(path)
+ 	, m_file(std::move(file))
+@@ -855,7 +946,16 @@ bool package_reader::set_install_path()
+ 	// TODO: Verify whether other content types require appending title ID
+ 	// Append title ID depending on content type
+ 	if (m_metadata.content_type != PKG_CONTENT_TYPE_THEME && m_metadata.content_type != PKG_CONTENT_TYPE_LICENSE)
+-		dir += m_install_dir + '/';
++	{
++		// The name is read as it comes from the package
++		if (m_install_dir.empty() || leaves_directory(m_install_dir))
++		{
++			pkg_log.error("Invalid installation directory name '%s'", m_install_dir);
++			return false;
++		}
++
++		dir += vfs::escape(m_install_dir) + '/';
++	}
+ 
+ 	// If false, an existing directory is being overwritten: cannot cancel the operation
+ 	m_was_null = !fs::is_dir(dir);
+@@ -877,6 +977,18 @@ bool package_reader::fill_data(std::map<std::string, install_entry*>& all_instal
+ 		return false;
+ 	}
+ 
++	// The install directory's PS3 path, for the names a custom installer gives from the root (resolve_on_hdd0).
++	// What those names reach is held to dev_hdd0 instead of the install directory.
++	const std::string hdd0_dir = rpcs3::utils::get_hdd0_dir();
++	const std::string guest_install_dir = m_install_path.starts_with(hdd0_dir) ? "dev_hdd0/" + m_install_path.substr(hdd0_dir.size()) : std::string{};
++
++	std::string_view hdd0_trimmed = hdd0_dir;
++
++	while (hdd0_trimmed.ends_with('/'))
++	{
++		hdd0_trimmed.remove_suffix(1);
++	}
++
+ 	m_install_entries.clear();
+ 	m_bootable_file_path.clear();
+ 	m_entry_indexer = 0;
+@@ -914,7 +1026,26 @@ bool package_reader::fill_data(std::map<std::string, install_entry*>& all_instal
+ 
+ 		std::string_view name = fmt::trim_back_sv(name_buf, "\0"sv);
+ 
+-		std::string path = m_install_path + vfs::escape(name);
++		std::string path;
++
++		if (leaves_directory(name))
++		{
++			// Named from the root by a custom installer: accepted only where it lands inside dev_hdd0
++			const std::optional<std::string> below_hdd0 = resolve_on_hdd0(guest_install_dir, name);
++
++			if (!below_hdd0)
++			{
++				num_failures++;
++				pkg_log.error("PKG entry path escapes installation directory: '%s'", name);
++				break;
++			}
++
++			path = below_hdd0->empty() ? std::string(hdd0_trimmed) : hdd0_dir + vfs::escape(*below_hdd0);
++		}
++		else
++		{
++			path = m_install_path + vfs::escape(name);
++		}
+ 
+ 		if (entry.pad || (entry.type & ~PKG_FILE_ENTRY_KNOWN_BITS))
+ 		{
 diff --git a/rpcs3/Crypto/unself.cpp b/rpcs3/Crypto/unself.cpp
-index eb6a2c7..ffd5fd6 100644
+index eb6a2c7..bee8bdf 100644
 --- a/rpcs3/Crypto/unself.cpp
 +++ b/rpcs3/Crypto/unself.cpp
-@@ -1232,14 +1232,36 @@ bool SELFDecrypter::DecryptData()
+@@ -735,7 +735,7 @@ bool SCEDecrypter::DecryptData()
+ 		if (hdr.encrypted == 3)
+ 		{
+ 			// Make sure the key and iv are not out of boundaries.
+-			if ((hdr.key_idx < meta_hdr.key_count) && (hdr.iv_idx <= meta_hdr.key_count))
++			if ((hdr.key_idx < meta_hdr.key_count) && (hdr.iv_idx < meta_hdr.key_count))
+ 			{
+ 				// Get the key and iv from the previously stored key buffer.
+ 				const std::array<u8, 0x10> data_key = read_from_ptr<std::array<u8, 0x10>>(data_keys, static_cast<usz>(hdr.key_idx) * 0x10);
+@@ -1134,6 +1134,47 @@ const NPD_HEADER* SELFDecrypter::GetNPDHeader() const
+ 
+ bool SELFDecrypter::LoadMetadata(const u8* klic_key)
+ {
++	// Debug/Fake SELF: no metadata structures exist.
++	// Synthesize meta_shdr from segment_ext_headers.
++	if ((sce_hdr.se_flags & 0x8000) == 0x8000)
++	{
++		meta_shdr.clear();
++
++		for (u32 i = 0; i < m_seg_ext_hdr.size(); ++i)
++		{
++			const auto& seg = m_seg_ext_hdr[i];
++
++			// Skip segments with no data or whose offset falls within
++			// the SELF header area (i.e. no independent data stored).
++			// In compressed debug SELFs, sub-segments whose data is
++			// already covered by a parent segment's compressed stream
++			// have their offset set to 0.
++			if (seg.size == 0 || seg.offset < sce_hdr.se_hsize)
++			{
++				continue;
++			}
++
++			MetadataSectionHeader msh{};
++			msh.data_offset = seg.offset;
++			msh.data_size = seg.size;
++			msh.type = 2;                     // PHDR type (triggers write path in WriteElf)
++			msh.program_idx = i;
++			msh.compressed = seg.compression; // 1=plain, 2=zlib
++			msh.encrypted = 1;                // not encrypted
++			msh.hashed = 0;
++			msh.sha1_idx = 0;
++			msh.key_idx = 0;
++			msh.iv_idx = 0;
++			meta_shdr.push_back(msh);
++		}
++
++		// No data keys needed for debug SELF.
++		meta_hdr = {};
++		data_keys.clear();
++
++		return true;
++	}
++
+ 	aes_context aes;
+ 	std::vector<u8> metadata_info(sizeof(meta_info));
+ 	constexpr usz sizeof_meta_and_header = sizeof(meta_info) + sizeof(sce_hdr);
+@@ -1229,17 +1270,61 @@ bool SELFDecrypter::LoadMetadata(const u8* klic_key)
+ 
+ bool SELFDecrypter::DecryptData()
+ {
++	// Debug/Fake SELF: data is not encrypted, read directly.
++	if ((sce_hdr.se_flags & 0x8000) == 0x8000)
++	{
++		usz data_buf_length = 0;
++		for (const MetadataSectionHeader& hdr : meta_shdr)
++		{
++			data_buf_length += ::narrow<u32>(hdr.data_size);
++		}
++
++		data_buf.resize(data_buf_length);
++		u32 data_buf_offset = 0;
++
++		for (const MetadataSectionHeader& hdr : meta_shdr)
++		{
++			self_f.seek(hdr.data_offset);
++			self_f.read(data_buf.data() + data_buf_offset, hdr.data_size);
++			data_buf_offset += ::narrow<u32>(hdr.data_size);
++		}
++
++		return true;
++	}
++
  	aes_context aes;
  	usz data_buf_length = 0;
  
@@ -2690,9 +2942,7 @@ index eb6a2c7..ffd5fd6 100644
  	{
 -		if (hdr.encrypted == 3)
 +		if (hdr.type != 2)
- 		{
--			if ((hdr.key_idx < meta_hdr.key_count) && (hdr.iv_idx <= meta_hdr.key_count))
--				data_buf_length += ::narrow<u32>(hdr.data_size);
++		{
 +			continue;
 +		}
 +
@@ -2710,7 +2960,9 @@ index eb6a2c7..ffd5fd6 100644
 +
 +		if (hdr.data_offset > self_f.size() || hdr.data_size > self_f.size() - hdr.data_offset ||
 +			hdr.data_size > u32{umax} - data_buf_length)
-+		{
+ 		{
+-			if ((hdr.key_idx < meta_hdr.key_count) && (hdr.iv_idx <= meta_hdr.key_count))
+-				data_buf_length += ::narrow<u32>(hdr.data_size);
 +			self_log.error("Invalid SELF program section data range");
 +			return false;
  		}
@@ -2719,7 +2971,7 @@ index eb6a2c7..ffd5fd6 100644
  	}
  
  	// Allocate a buffer to store decrypted data.
-@@ -1252,41 +1274,38 @@ bool SELFDecrypter::DecryptData()
+@@ -1252,41 +1337,38 @@ bool SELFDecrypter::DecryptData()
  	std::vector<u8> buf;
  	u8 ctr_stream_block[0x10];
  
@@ -2785,6 +3037,261 @@ index eb6a2c7..ffd5fd6 100644
  	}
  
  	return true;
+@@ -1306,6 +1388,117 @@ fs::file SELFDecrypter::MakeElf(bool isElf32)
+ 		WriteElf(e, elf64_hdr, shdr64_arr, phdr64_arr);
+ 	}
+ 
++	// Debug SELF: fill ELF data not covered by any program header or
++	// the section header table. Build a sorted list of regions that
++	// WriteElf already wrote (segments + SHDR table), then stream-
++	// copy the gaps from the SELF file. After each known region in
++	// the SELF the cursor advances to seg_ext.offset + seg_ext.size
++	// (for segments) or shdr_offset + table_size (for the SHDR
++	// table), so gap bytes are read from the correct position even
++	// when segments are compressed.
++	if ((sce_hdr.se_flags & 0x8000) == 0x8000 && m_ext_hdr.shdr_offset != 0)
++	{
++		const auto write_gap_data = [&](const auto& phdrs, const auto& shdrs, u64 e_shoff, u16 e_shnum, u16 e_shentsize)
++		{
++			struct region
++			{
++				u64 elf_off;
++				u64 elf_end;
++				u64 self_end;
++			};
++
++			std::vector<region> regions;
++
++			for (u32 i = 0; i < m_seg_ext_hdr.size(); ++i)
++			{
++				const auto& seg = m_seg_ext_hdr[i];
++
++				if (seg.offset < sce_hdr.se_hsize)
++				{
++					continue;
++				}
++
++				const auto& phdr = ::at32(phdrs, i);
++
++				regions.push_back({phdr.p_offset,
++					phdr.p_offset + phdr.p_filesz,
++					seg.offset + seg.size});
++			}
++
++			const u64 shdr_table_size = static_cast<u64>(e_shnum) * e_shentsize;
++			regions.push_back({e_shoff,
++				e_shoff + shdr_table_size,
++				m_ext_hdr.shdr_offset + shdr_table_size});
++
++			std::sort(regions.begin(), regions.end(),
++				[](const region& a, const region& b) { return a.elf_off < b.elf_off; });
++
++			const u64 self_size = self_f.size();
++			u64 elf_cursor = 0;
++			u64 self_cursor = sce_hdr.se_hsize;
++
++			for (const auto& r : regions)
++			{
++				if (elf_cursor < r.elf_off && self_cursor < self_size)
++				{
++					const u64 gap = r.elf_off - elf_cursor;
++					const u64 avail = std::min(gap, self_size - self_cursor);
++
++					if (avail > 0)
++					{
++						std::vector<u8> buf(avail);
++						self_f.seek(self_cursor);
++						self_f.read(buf.data(), buf.size());
++
++						e.seek(elf_cursor);
++						e.write(buf.data(), buf.size());
++					}
++				}
++
++				elf_cursor = r.elf_end;
++				self_cursor = r.self_end;
++			}
++
++			// Copy any trailing data after the last region (e.g. section
++			// data placed after the section header table).
++			// Compute the true end of the ELF file from section headers
++			// to avoid copying SELF trailing padding into the output.
++			u64 elf_file_end = e_shoff + static_cast<u64>(e_shnum) * e_shentsize;
++
++			for (const auto& shdr : shdrs)
++			{
++				if (shdr.sh_type != 8 /* SHT_NOBITS */ && shdr.sh_size > 0)
++				{
++					elf_file_end = std::max<u64>(elf_file_end, shdr.sh_offset + shdr.sh_size);
++				}
++			}
++
++			if (self_cursor < self_size && elf_cursor < elf_file_end)
++			{
++				const u64 remaining = std::min(elf_file_end - elf_cursor, self_size - self_cursor);
++
++				if (remaining > 0)
++				{
++					std::vector<u8> buf(remaining);
++					self_f.seek(self_cursor);
++					self_f.read(buf.data(), buf.size());
++
++					e.seek(elf_cursor);
++					e.write(buf.data(), buf.size());
++				}
++			}
++		};
++
++		if (isElf32)
++		{
++			write_gap_data(phdr32_arr, shdr32_arr, elf32_hdr.e_shoff, elf32_hdr.e_shnum, elf32_hdr.e_shentsize);
++		}
++		else
++		{
++			write_gap_data(phdr64_arr, shdr64_arr, elf64_hdr.e_shoff, elf64_hdr.e_shnum, elf64_hdr.e_shentsize);
++		}
++	}
++
+ 	return e;
+ }
+ 
+@@ -1362,69 +1555,6 @@ static bool IsSelfElf32(const fs::file& f)
+ 	return (elf_class[4] == 1);
+ }
+ 
+-static bool IsDebugSelf(const fs::file& f)
+-{
+-	if (f.size() < 0x18)
+-	{
+-		return false;
+-	}
+-
+-	// Get the key version.
+-	f.seek(0x08);
+-
+-	const u16 key_version = f.read<le_t<u16>>();
+-
+-	// Check for DEBUG version.
+-	if (key_version == 0x80 || key_version == 0xc0)
+-	{
+-		return true;
+-	}
+-
+-	return false;
+-}
+-
+-static fs::file CheckDebugSelf(const fs::file& s)
+-{
+-	if (s.size() < 0x18)
+-	{
+-		return {};
+-	}
+-
+-	// Get the key version.
+-	s.seek(0x08);
+-
+-	const u16 key_version = s.read<le_t<u16>>();
+-
+-	// Check for DEBUG version.
+-	if (key_version == 0x80 || key_version == 0xc0)
+-	{
+-		self_log.warning("Debug SELF detected! Removing fake header...");
+-
+-		// Get the real elf offset.
+-		s.seek(0x10);
+-
+-		// Read the real elf offset.
+-		usz read_pos = key_version == 0x80 ? +s.read<be_t<u64>>() : +s.read<le_t<u64>>();
+-
+-		// Write the real ELF file back.
+-		fs::file e = fs::make_stream<std::vector<u8>>();
+-
+-		// Copy the data.
+-		std::vector<u8> buf(std::min<usz>(s.size(), 4096));
+-
+-		while (const u64 size = s.read_at(read_pos, buf.data(), buf.size()))
+-		{
+-			e.write(buf.data(), size);
+-			read_pos += size;
+-		}
+-
+-		return e;
+-	}
+-
+-	// Leave the file untouched.
+-	return {};
+-}
+-
+ fs::file decrypt_self(const fs::file& elf_or_self, const u8* klic_key, SelfAdditionalInfo* out_info)
+ {
+ 	if (out_info)
+@@ -1445,12 +1575,6 @@ fs::file decrypt_self(const fs::file& elf_or_self, const u8* klic_key, SelfAddit
+ 
+ 	if (file_type == "SCE\0"_u32)
+ 	{
+-		if (fs::file res = CheckDebugSelf(elf_or_self))
+-		{
+-			// TODO: Decrypt
+-			return res;
+-		}
+-
+ 		// Check the ELF file class (32 or 64 bit).
+ 		const bool isElf32 = IsSelfElf32(elf_or_self);
+ 
+@@ -1509,7 +1633,7 @@ bool verify_npdrm_self_headers(const fs::file& self, u8* klic_key, NPD_HEADER* n
+ 
+ 	self.seek(0);
+ 
+-	if (self.size() >= 4 && self.read<u32>() == "SCE\0"_u32 && !IsDebugSelf(self))
++	if (self.size() >= 4 && self.read<u32>() == "SCE\0"_u32)
+ 	{
+ 		// Check the ELF file class (32 or 64 bit).
+ 		const bool isElf32 = IsSelfElf32(self);
+@@ -1550,7 +1674,7 @@ bool get_npdrm_self_header(const fs::file& self, NPD_HEADER &npd_out)
+ 
+ 	self.seek(0);
+ 
+-	if (self.size() >= 4 && self.read<u32>() == "SCE\0"_u32 && !IsDebugSelf(self))
++	if (self.size() >= 4 && self.read<u32>() == "SCE\0"_u32)
+ 	{
+ 		// Check the ELF file class (32 or 64 bit).
+ 		const bool isElf32 = IsSelfElf32(self);
+diff --git a/rpcs3/Crypto/unself.h b/rpcs3/Crypto/unself.h
+index beae025..42b77a1 100644
+--- a/rpcs3/Crypto/unself.h
++++ b/rpcs3/Crypto/unself.h
+@@ -490,12 +490,6 @@ private:
+ 		// Write ELF header.
+ 		WriteEhdr(e, ehdr);
+ 
+-		// Write program headers.
+-		for (const PHdr& phdr : phdrs)
+-		{
+-			WritePhdr(e, phdr);
+-		}
+-
+ 		// Tmp buffer
+ 		std::vector<u8> decomp_buf;
+ 
+@@ -567,6 +561,18 @@ private:
+ 				WriteShdr(e, shdr);
+ 			}
+ 		}
++		
++		// Write program headers at e_phoff. Do it at last step so segment data can't overwrite them
++		// This is needed for ELFs that have relocated tables (e.g. ELFs patched with SPRXPatcher)
++		if (!phdrs.empty())
++		{
++			e.seek(ehdr.e_phoff);
++			
++			for (const PHdr& phdr : phdrs)
++			{
++				WritePhdr(e, phdr);
++			}
++		}
+ 	}
+ };
+ 
 diff --git a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp b/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
 index 322dcff..12aa8d6 100644
 --- a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
@@ -3306,10 +3813,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..1724808
+index 0000000..537dc2c
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,20 @@
 +# CELL538: the exact reviewed JITLLVM change only suppresses a second SPU
 +# cache probe after a validated miss. It changes neither generated objects nor
 +# their ABI. Preserve the 536 identity for this exact source snapshot only.
@@ -3319,6 +3826,13 @@ index 0000000..1724808
 +    if(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
 +       actual STREQUAL "d7094a664f5b59510e518e09e115a01ec0c1cd899d2550dab324b5e925a02fc9")
 +        set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
++    # CELL545: spu_cache::initialize only drops duplicate programs and orders the
++    # warmup biggest first (RPCS3 4cf9ad1e7, d3ef196ff). Each program still goes
++    # through the same analyser and translator: generated objects are unchanged.
++    # Keep the 543 identity for this exact source snapshot only.
++    elseif(source STREQUAL "Cell/SPUCommonRecompiler.cpp" AND
++           actual STREQUAL "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb")
++        set(${output} "4699b7d26b6db826dc0c98c49a711d4b00fd3dc70512df3a162801a76f263db0" PARENT_SCOPE)
 +    else()
 +        set(${output} "${actual}" PARENT_SCOPE)
 +    endif()
@@ -3630,6 +4144,23 @@ index a88ac6e..5a8d88e 100644
  	audio_ringbuffer(cell_audio_config &cfg);
  	~audio_ringbuffer();
  
+diff --git a/rpcs3/Emu/Cell/Modules/cellSaveData.cpp b/rpcs3/Emu/Cell/Modules/cellSaveData.cpp
+index 5f6fd0e..1710843 100644
+--- a/rpcs3/Emu/Cell/Modules/cellSaveData.cpp
++++ b/rpcs3/Emu/Cell/Modules/cellSaveData.cpp
+@@ -1595,6 +1595,12 @@ static NEVER_INLINE error_code savedata_op(ppu_thread& ppu, u32 operation, u32 v
+ 		});
+ 		// clang-format on
+ 
++		// Up to SDK 2.6, or with fileListMax 0, fileNum and sizeKB only cover the files that fit in fileList
++		if ((g_ps3_process_info.sdk_ver <= 0x26FFFF || !setBuf->fileListMax) && files_sorted.size() > setBuf->fileListMax)
++		{
++			files_sorted.erase(files_sorted.begin() + setBuf->fileListMax, files_sorted.end());
++		}
++
+ 		for (auto&& entry : files_sorted)
+ 		{
+ 			{
 diff --git a/rpcs3/Emu/Cell/Modules/cellVdec.cpp b/rpcs3/Emu/Cell/Modules/cellVdec.cpp
 index 1847c8c..41a61fd 100644
 --- a/rpcs3/Emu/Cell/Modules/cellVdec.cpp
@@ -6355,7 +6886,7 @@ index 0000000..665988a
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp b/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
-index d451a94..85216b8 100644
+index d451a94..9088421 100644
 --- a/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
 @@ -1,5 +1,6 @@
@@ -7071,7 +7602,7 @@ index d451a94..85216b8 100644
  	const std::string ppu_cache = rpcs3::cache::get_ppu_cache();
  
  	if (ppu_cache.empty())
-@@ -974,8 +1403,22 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -974,8 +1403,35 @@ void spu_cache::initialize(bool build_existing_cache)
  		return;
  	}
  
@@ -7093,10 +7624,23 @@ index d451a94..85216b8 100644
 +	{
 +		spu_log.notice("NeoStation: SPU cache warmup deferred; LLVM compiles blocks on demand; disk cache retained.");
 +	}
++
++	// NEOSTATION_CELL545_SPU_WARMUP_ORDER (RPCS3 4cf9ad1e7, d3ef196ff): the runtime
++	// treats equal programs as one function, so compile each once, and build the
++	// biggest first so that none of them ends up running alone at the end.
++	const usz cached_func_count = func_list.size();
++	std::sort(func_list.begin(), func_list.end());
++	func_list.erase(std::unique(func_list.begin(), func_list.end()), func_list.end());
++	std::stable_sort(func_list.begin(), func_list.end(), FN(x.data.size() > y.data.size()));
++
++	if (func_list.size() != cached_func_count)
++	{
++		spu_log.notice("SPUWARMUP duplicates removed=%llu kept=%llu", static_cast<u64>(cached_func_count - func_list.size()), static_cast<u64>(func_list.size()));
++	}
  	atomic_t<usz> fnext{};
  	atomic_t<u8> fail_flag{0};
  
-@@ -989,12 +1432,23 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -989,12 +1445,23 @@ void spu_cache::initialize(bool build_existing_cache)
  		total_precompile += sec.funcs.size();
  	}
  
@@ -7122,7 +7666,7 @@ index d451a94..85216b8 100644
  	}
  	else if (!build_existing_cache)
  	{
-@@ -1046,6 +1500,9 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1046,6 +1513,9 @@ void spu_cache::initialize(bool build_existing_cache)
  		}
  
  		worker_count = std::min<u32>(rpcs3::utils::get_max_threads(), ::narrow<u32>(add_count));
@@ -7132,7 +7676,7 @@ index d451a94..85216b8 100644
  	}
  
  	atomic_t<u32> pending_progress = 0;
-@@ -1058,8 +1515,20 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1058,8 +1528,20 @@ void spu_cache::initialize(bool build_existing_cache)
  		progress_dialog.emplace(get_localized_string(localized_string_id::PROGRESS_DIALOG_BUILDING_SPU_CACHE));
  	}
  
@@ -7153,7 +7697,7 @@ index d451a94..85216b8 100644
  #ifdef __APPLE__
  		// Apple Silicon W^X: enable JIT write mode for this worker and
  		// pair it with an RAII guard so execute mode is restored on
-@@ -1170,8 +1639,14 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1170,8 +1652,14 @@ void spu_cache::initialize(bool build_existing_cache)
  			// Call analyser
  			spu_program func2 = compiler->analyse(ls.data(), func.entry_point);
  
@@ -7168,7 +7712,7 @@ index d451a94..85216b8 100644
  				spu_log.error("[0x%05x] SPU Analyser failed, %u vs %u", func2.entry_point, func2.data.size(), size0);
  
  				if (logged_error < 2)
-@@ -1182,16 +1657,20 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1182,16 +1670,20 @@ void spu_cache::initialize(bool build_existing_cache)
  					logged_error++;
  				}
  			}
@@ -7196,7 +7740,7 @@ index d451a94..85216b8 100644
  			result++;
  
  			if (is_first_thread && !showing_progress)
-@@ -1211,6 +1690,7 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1211,6 +1703,7 @@ void spu_cache::initialize(bool build_existing_cache)
  			}
  		}
  
@@ -7204,7 +7748,7 @@ index d451a94..85216b8 100644
  		u32 last_sec_idx = umax;
  
  		for (func_i = data_indexer++;; func_i = data_indexer++, (showing_progress ? g_progr_pdone : pending_progress) += build_existing_cache ? 1 : 0)
-@@ -1302,7 +1782,7 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1302,7 +1795,7 @@ void spu_cache::initialize(bool build_existing_cache)
  				{
  					if (ls[start_new / 4] && g_spu_itype.decode(ls[start_new / 4]) != spu_itype::UNK)
  					{
@@ -7213,7 +7757,7 @@ index d451a94..85216b8 100644
  						func2 = compiler->analyse(ls.data(), start_new, &targets);
  						block_addr = start_new;
  						continue;
-@@ -1366,7 +1846,7 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1366,7 +1859,7 @@ void spu_cache::initialize(bool build_existing_cache)
  				}
  
  
@@ -7222,7 +7766,7 @@ index d451a94..85216b8 100644
  				func2 = compiler->analyse(ls.data(), new_entry, &targets);
  				block_addr = new_entry;
  			}
-@@ -1408,6 +1888,11 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1408,6 +1901,11 @@ void spu_cache::initialize(bool build_existing_cache)
  	}
  
  #ifdef RPCS3_IOS
@@ -7234,7 +7778,7 @@ index d451a94..85216b8 100644
  	if (const u64 released = rpcs3::ios::relieve_process_memory_pressure())
  	{
  		spu_log.notice("iOS released %llu MiB of transient SPU compilation memory", released / rpcs3::ios::process_memory_mib);
-@@ -1432,9 +1917,10 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1432,9 +1930,10 @@ void spu_cache::initialize(bool build_existing_cache)
  	}
  
  	// Initialize global cache instance
@@ -7246,7 +7790,7 @@ index d451a94..85216b8 100644
  	}
  }
  
-@@ -1497,11 +1983,18 @@ spu_runtime::spu_runtime()
+@@ -1497,11 +1996,18 @@ spu_runtime::spu_runtime()
  	}
  
  #ifdef RPCS3_IOS
@@ -7270,7 +7814,7 @@ index d451a94..85216b8 100644
  		sha1_context ctx;
  		u8 key[20];
  		sha1_starts(&ctx);
-@@ -1511,7 +2004,16 @@ spu_runtime::spu_runtime()
+@@ -1511,7 +2017,16 @@ spu_runtime::spu_runtime()
  			sha1_update(&ctx, reinterpret_cast<const u8*>(&value), sizeof(value));
  		};
  
@@ -7288,7 +7832,7 @@ index d451a94..85216b8 100644
  		const u32 xfloat = static_cast<u32>(g_cfg.core.spu_xfloat_accuracy.get());
  		const u32 block_size = static_cast<u32>(g_cfg.core.spu_block_size.get());
  		const u32 clocks_scale = static_cast<u32>(g_cfg.core.clocks_scale.get());
-@@ -1540,40 +2042,167 @@ spu_runtime::spu_runtime()
+@@ -1540,40 +2055,167 @@ spu_runtime::spu_runtime()
  		fold(hw);
  		fold(tsc_freq);
  
@@ -7471,7 +8015,7 @@ index d451a94..85216b8 100644
  #endif
  }
  
-@@ -1889,7 +2518,12 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
+@@ -1889,7 +2531,12 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
  			if (w.level >= w.beg->first.size() || w.level >= it->first.size())
  			{
  				// If functions cannot be compared, assume smallest function
@@ -7485,7 +8029,7 @@ index d451a94..85216b8 100644
  #if defined(ARCH_X64)
  				make_jump(0xe9, w.beg->second); // jmp rel32
  #elif defined(ARCH_ARM64)
-@@ -1928,7 +2562,7 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
+@@ -1928,7 +2575,7 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
  
  			if (it == m_flat_list.end())
  			{
@@ -7494,7 +8038,7 @@ index d451a94..85216b8 100644
  #if defined(ARCH_X64)
  				make_jump(0xe9, w.beg->second); // jmp rel32
  #elif defined(ARCH_ARM64)
-@@ -2414,6 +3048,13 @@ void spu_recompiler_base::dispatch(spu_thread& spu, void*, u8* rip)
+@@ -2414,6 +3061,13 @@ void spu_recompiler_base::dispatch(spu_thread& spu, void*, u8* rip)
  		return;
  	}
  
@@ -7508,7 +8052,7 @@ index d451a94..85216b8 100644
  	const auto func = compile_spu_llvm_with_retry(spu.jit, program);
  #else
  	const auto func = spu.jit->compile(std::move(program));
-@@ -2564,6 +3205,7 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
+@@ -2564,6 +3218,7 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
  
  	// LS pointer
  	const auto base = static_cast<const u8*>(ls);
@@ -7516,7 +8060,7 @@ index d451a94..85216b8 100644
  
  	while (true)
  	{
-@@ -2577,12 +3219,34 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
+@@ -2577,12 +3232,34 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
  			(spu.pc < spu.interp_fallback_begin || spu.pc >= spu.interp_fallback_end)) [[unlikely]]
  		{
  			spu.interp_fallback = false;
@@ -7552,7 +8096,7 @@ index d451a94..85216b8 100644
  	}
  }
  
-@@ -3174,6 +3838,55 @@ struct block_reg_info
+@@ -3174,6 +3851,55 @@ struct block_reg_info
  	}
  };
  
@@ -7608,7 +8152,7 @@ index d451a94..85216b8 100644
  spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, std::map<u32, std::vector<u32>>* out_target_list)
  {
  	// Result: addr + raw instruction data
-@@ -3401,11 +4114,23 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -3401,11 +4127,23 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				const u32 target = spu_branch_target(av);
  
@@ -7633,7 +8177,7 @@ index d451a94..85216b8 100644
  					break;
  				}
  
-@@ -5789,7 +6514,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5789,7 +6527,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				getllar_starts[previous.lsa_pc] = true;
  				g_fxo->get<putllc16_statistics_t>().breaking_reason[cause]++;
  
@@ -7642,7 +8186,7 @@ index d451a94..85216b8 100644
  				{
  					return;
  				}
-@@ -5829,7 +6554,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5829,7 +6567,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -7651,7 +8195,7 @@ index d451a94..85216b8 100644
  			}
  		};
  
-@@ -5846,7 +6571,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5846,7 +6584,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  				g_fxo->get<rchcnt_statistics_t>().breaking_reason[cause]++;
  
@@ -7660,7 +8204,7 @@ index d451a94..85216b8 100644
  				{
  					return;
  				}
-@@ -5886,7 +6611,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5886,7 +6624,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -7669,7 +8213,7 @@ index d451a94..85216b8 100644
  			}
  		};
  
-@@ -5896,7 +6621,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5896,7 +6634,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				g_fxo->get<reduced_statistics_t>().breaking_reason[cause]++;
  
@@ -7678,7 +8222,7 @@ index d451a94..85216b8 100644
  				{
  					return;
  				}
-@@ -5941,12 +6666,12 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5941,12 +6679,12 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -7693,7 +8237,7 @@ index d451a94..85216b8 100644
  			}
  		};
  
-@@ -6157,7 +6882,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6157,7 +6895,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  						{
  							if (!std::exchange(logged_block[target_pc / 4], true))
  							{
@@ -7702,7 +8246,7 @@ index d451a94..85216b8 100644
  							}
  
  							state_it->parent_target_index++;
-@@ -6830,7 +7555,14 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6830,7 +7568,14 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				const reg_state_t& rt = vregs[op.rt];
  
@@ -7718,7 +8262,7 @@ index d451a94..85216b8 100644
  				{
  					if (rchcnt_loop->conditioned)
  					{
-@@ -6841,7 +7573,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6841,7 +7586,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  					rchcnt_loop->conditioned = true;
  					rchcnt_loop->branch_pc = pos;
@@ -7731,7 +8275,7 @@ index d451a94..85216b8 100644
  				}
  
  				break;
-@@ -7679,7 +8415,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -7679,7 +8428,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  							if (getllar_starts.emplace(atomic16->lsa_pc, false).second)
  							{
  								g_fxo->get<putllc16_statistics_t>().all++;
@@ -7740,7 +8284,7 @@ index d451a94..85216b8 100644
  							}
  						}
  
-@@ -8745,7 +9481,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -8745,7 +9494,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  			if (rchcnt_loop->active)
  			{
@@ -7749,7 +8293,7 @@ index d451a94..85216b8 100644
  				{
  					if (op.si10 != 0 && op.si10 != 1)
  					{
-@@ -8754,7 +9490,9 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -8754,7 +9503,9 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  					}
  
  					rchcnt_loop->ch_product = vregs[op.rt];
@@ -7760,7 +8304,7 @@ index d451a94..85216b8 100644
  				}
  			}
  
-@@ -9007,7 +9745,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9007,7 +9758,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			add_pattern(inst_attr::putllc16, pattern.put_pc - result.entry_point, value.data);
  		}
  
@@ -7769,7 +8313,7 @@ index d451a94..85216b8 100644
  			, pattern.mem_count, pattern.put_pc, value.type == v_relative, value.off18, value.type == v_const, value.type == v_reg2, value.reg, value.runtime16_select, entry_point, func_hash, pattern_hash, +stats.nowrite, ++stats.single, +stats.all);
  	}
  
-@@ -9024,6 +9762,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9024,6 +9775,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			continue;
  		}
  
@@ -7781,7 +8325,7 @@ index d451a94..85216b8 100644
  		if (inst_attr attr = m_inst_attrs[(read_pc - entry_point) / 4]; attr == inst_attr::none)
  		{
  			add_pattern(inst_attr::rchcnt_loop, read_pc - result.entry_point, 0);
-@@ -9113,7 +9856,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9113,7 +9869,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  	if (likely_putllc_loop && !had_putllc_evaluation)
  	{
@@ -7790,7 +8334,7 @@ index d451a94..85216b8 100644
  	}
  
  	if (result.data.empty())
-@@ -9359,7 +10102,7 @@ struct spu_llvm_worker
+@@ -9359,7 +10115,7 @@ struct spu_llvm_worker
  			}
  
  			// Clear fake LS
@@ -12803,7 +13347,7 @@ index 0000000..eb97f59
 +};
 +}
 diff --git a/rpcs3/Emu/Cell/lv2/sys_fs.cpp b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
-index 79c74da..6e65059 100644
+index 79c74da..f5d1993 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_fs.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
 @@ -1,4 +1,7 @@
@@ -12976,7 +13520,26 @@ index 79c74da..6e65059 100644
  }
  
  void lv2_file::save(utils::serial& ar)
-@@ -740,18 +837,38 @@ lv2_dir::lv2_dir(utils::serial& ar)
+@@ -718,15 +815,13 @@ void lv2_file::save(utils::serial& ar)
+ 
+ 		ar(stats);
+ 
+-		const usz old_end = ar.pad_from_end(stats.size);
+-
+-		if (usz read_size = file.read_at(0, &ar.data[old_end], stats.size); read_size != stats.size)
++		if (usz read_size = file.read_at(0, ar.pad_from_end(stats.size), stats.size); read_size != stats.size)
+ 		{
+ 			ensure(read_size < stats.size);
+ 			sys_fs.error("Read less than expected! (new-size=0x%x)", read_size);
++			ar.trunc(stats.size - read_size);
+ 			stats.size = read_size;
+-			ar.data.resize(old_end + stats.size);
+-			write_to_ptr<fs::stat_t>(ar.data, patch_stats_pos, stats);
++			ar.patch_raw_data(patch_stats_pos, &stats, sizeof(stats));
+ 		}
+ 	}
+ 
+@@ -740,18 +835,38 @@ lv2_dir::lv2_dir(utils::serial& ar)
  		std::vector<fs::dir_entry> entries;
  
  		u64 size = 0;
@@ -35034,7 +35597,7 @@ index bcb5f36..b8fd3bc 100644
  
  			*m_order++ = obj;
 diff --git a/rpcs3/util/logs.cpp b/rpcs3/util/logs.cpp
-index 930cdaa..b37b326 100644
+index 930cdaa..5a4ef70 100644
 --- a/rpcs3/util/logs.cpp
 +++ b/rpcs3/util/logs.cpp
 @@ -212,7 +212,14 @@ namespace logs
@@ -35052,6 +35615,50 @@ index 930cdaa..b37b326 100644
  		}
  	}
  
+@@ -785,8 +792,19 @@ logs::file_listener::file_listener(const std::string& path, u64 max_size)
+ 
+ void logs::file_listener::log(u64 stamp, const logs::message& msg, std::string_view prefix, std::string_view _text)
+ {
+-	/*constinit thread_local*/ std::string text;
+-	text.reserve(50000);
++	thread_local bool tls_destroyed = false;
++
++	struct tls_buffer
++	{
++		std::string text;
++		tls_buffer() { text.reserve(50000); }
++		~tls_buffer() { tls_destroyed = true; }
++	};
++
++	thread_local tls_buffer tls;
++	std::string local_text;
++	std::string& text = tls_destroyed ? local_text : tls.text;
++	text.clear();
+ 
+ 	// Used character: U+00B7 (Middle Dot)
+ 	switch (msg)
+diff --git a/rpcs3/util/serialization.hpp b/rpcs3/util/serialization.hpp
+index da54981..b0e3f84 100644
+--- a/rpcs3/util/serialization.hpp
++++ b/rpcs3/util/serialization.hpp
+@@ -550,12 +550,13 @@ public:
+ 			return old_pos;
+ 		}
+ 
+-		usz pad_from_end(usz forwards)
++		u8* pad_from_end(usz forwards)
+ 		{
+ 			ensure(is_writing());
+-			pos = data.size() + data_offset;
+-			data.resize(data.size() + forwards);
+-			return pos;
++			const usz old_size = data.size();
++			data.resize(old_size + forwards);
++			seek_end();
++			return data.data() + old_size;
+ 		}
+ 
+ 		// Allow for memory saving operations: if writing, flush to file if too large. If reading, discard memory (not implemented).
 diff --git a/rpcs3/util/serialization_ext.cpp b/rpcs3/util/serialization_ext.cpp
 index cd3dfab..e6901e4 100644
 --- a/rpcs3/util/serialization_ext.cpp
