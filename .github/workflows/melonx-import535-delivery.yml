@@ -43,7 +43,7 @@ jobs:
         cache: true
     - name: Resolve exact Dart dependencies
       run: flutter pub get --enforce-lockfile
-    - name: Exercise real import files, database, progress and widget completion
+    - name: Verify import completion and reuse successful unchanged transfer checks
       run: python3 test/melonx_import_completion_test.py
     - name: Retain exact import test receipt
       uses: actions/upload-artifact@v4

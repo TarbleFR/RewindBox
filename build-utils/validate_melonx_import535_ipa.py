@@ -31,6 +31,9 @@ def check_receipt(receipt):
         'test/melonx_library_files_test.dart','test/melonx_transfer_test.dart']
     assert receipt['physicalDeviceTested'] is False
     assert receipt['nativeContentInspectionMocked'] is True
+    assert receipt['retainedSuites']==dict(
+        source='6ddf9d7c8d33de468dae75cdc210073990620f3d', run=40184536490,
+        job=121142416733, tests=receipt['tests'][1:], passedTests=39)
 
 def embed(app):
     receipt=json.loads((ROOT/'build/delivery/melonx-import535-tests.json').read_bytes())

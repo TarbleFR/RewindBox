@@ -123,7 +123,7 @@ void main() {
       }
       if (call.method == 'inspectDlc' || call.method == 'inspectUpdate') {
         final args = call.arguments as Map;
-        expect(args['titleId'], title);
+        expectSync(args['titleId'], title);
         if (args['path'].toString().endsWith('wrong.nsp'))
           return {
             'success': false,
