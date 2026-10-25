@@ -17,6 +17,9 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_input.py
     - build-utils/melonx/adapt_memory.py
     - build-utils/melonx/adapt_runtime.py
+    - build-utils/melonx/adapt_pipeline.py
+    - test/melonx_pipeline_failure_test.py
+    - test/melonx_pipeline/**
     - build-utils/melonx/adapt_audio.py
     - build-utils/melonx/adapt_apple_audio.py
     - test/melonx_apple_audio_test.py
@@ -128,6 +131,22 @@ jobs:
       run: python3 build-utils/melonx/reuse_apple_update_validation.py
     - name: Exercise the selected Apple audio backend and update target selection
       run: python3 test/melonx_apple_audio_test.py .native-sources/MeloNX
+    - name: Exercise speculative pipeline recovery and preserve fatal GPU errors
+      run: python3 test/melonx_pipeline_failure_test.py .native-sources/MeloNX
+    - name: Retain effective graphics journal regression proof
+      run: |
+        python3 - <<'PY'
+        import hashlib,json,pathlib,shutil
+        root=pathlib.Path('.')
+        receipt=root/'docs/evidence/melonx-effective-graphics-journal.json'
+        proof=json.loads(receipt.read_text())
+        assert proof['result']=='passed' and proof['deviceTested'] is False and proof['gpuRenderingTested'] is False
+        for p,h in proof['inputs'].items():
+          assert hashlib.sha256((root/p).read_bytes()).hexdigest()==h,p
+        for p,h in proof['upstreamInputs'].items():
+          assert hashlib.sha256((root/'.native-sources/MeloNX'/p).read_bytes()).hexdigest()==h,p
+        shutil.copyfile(receipt,root/'dist/melonx/effective-graphics-journal.json')
+        PY
     - name: Reuse exact successful Darwin and homebrew proofs
       env:
         GH_TOKEN: ${{ github.token }}
@@ -166,7 +185,13 @@ jobs:
           assert 'if (byteCount == 0)' in patched
         evidence=json.loads((root/'embedded-inputs.json').read_text())
         assert 'build-utils/melonx/adapt_audio.py' in evidence
+        assert 'build-utils/melonx/adapt_pipeline.py' in evidence
         with zipfile.ZipFile(source) as z:
+          shaders=z.read('src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs').decode('utf-8-sig')
+          assert 'catch (VulkanException e) when (e.ResultCode is not' in shaders
+          assert 'Background Compilation failed:' not in shaders
+          pipeline=z.read('src/Ryujinx.Graphics.Vulkan/PipelineState.cs').decode('utf-8-sig')
+          assert 'Graphics pipeline creation failed:' in pipeline
           apple=z.read('src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs').decode('utf-8-sig')
           assert 'AVFoundation.PlayBuffered(_playerNode, 0.020);' in apple
           assert 'Apple AVAudioEngine; rate:' in apple

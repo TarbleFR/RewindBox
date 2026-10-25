@@ -1,0 +1,34 @@
+{
+  "result": "passed",
+  "reports": [
+    {
+      "mode": "control",
+      "checks": 29,
+      "passed": true,
+      "reproducedPoisonedProgram": true,
+      "physicalDeviceTested": false,
+      "vulkanDouble": true
+    },
+    {
+      "mode": "fixed",
+      "checks": 29,
+      "passed": true,
+      "reproducedPoisonedProgram": false,
+      "physicalDeviceTested": false,
+      "vulkanDouble": true
+    }
+  ],
+  "physicalDeviceTested": false,
+  "vulkanDouble": true,
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline.py": "f34a5525ecba0e47c90efed5e79264f846957f506268a22ea7f023a644d61280",
+    "test/melonx_pipeline_failure_test.py": "8006606f9fad59902f154e05ef8fae09078682eb9a5a0d9191879e3b075c223b",
+    "test/melonx_pipeline/Double.cs": "336be8af02ceec729c9ac25abc779891338eff2fcceaab052a087e6ebd4c70e1",
+    "test/melonx_pipeline/Program.cs": "e0e477ce156339fa49fb5d4b2bc9af7188d5950337be68b7ba0f963f0debf6a7"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs": "24187cd708419ea41f1bdb5b912bb04796858fc05d5dce7b94ff339aed54661a",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs": "eb644cb1c8b8d0a68527e8c641bdf2814d101fad718dfed1757f2f5d8d647202",
+    "src/Ryujinx.Graphics.Vulkan/VulkanException.cs": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c"
+  }
+}

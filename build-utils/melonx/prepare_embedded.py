@@ -13,6 +13,7 @@ from adapt_audio import apply as adapt_audio
 from adapt_apple_audio import apply as adapt_apple_audio
 from adapt_firmware import apply as adapt_firmware
 from adapt_memory import apply as adapt_memory
+from adapt_pipeline import apply as adapt_pipeline
 
 
 def replace_once(path, old, new):
@@ -46,6 +47,7 @@ def main():
     adapted += adapt_apple_audio(source)
     adapted += adapt_firmware(source)
     adapted += adapt_memory(source)
+    adapted += adapt_pipeline(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -75,6 +77,8 @@ def main():
     inputs['build-utils/melonx/adapt_firmware.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_memory.py')
     inputs['build-utils/melonx/adapt_memory.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    adapter = Path(__file__).with_name('adapt_pipeline.py')
+    inputs['build-utils/melonx/adapt_pipeline.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
     output.mkdir(parents=True, exist_ok=True)
     (output / 'embedded-inputs.json').write_text(json.dumps(inputs, indent=2) + '\n')
