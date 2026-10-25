@@ -64,7 +64,7 @@ Un second protocole garde les mêmes threads vivants et les deux inscriptions TL
 
 ### Mesure ARM64 finale, avant complément de temps CPU
 
-Le preflight du cœur `5987bcfe` (run `40196952217`, artefact `12600542076`, SHA-256 `97b3a9781cc18546462762ccdc679fca45142bb88701a7311191c529605d8850`) authentifie les 141 entrées de test/build, les 264 postimages, les résultats et l'assembleur. Les tests ASan/UBSan et les régressions graphiques passent. Le runner déclare trois processeurs matériels disponibles : quatre/huit producteurs dépassent ce parallélisme.
+Le preflight du cœur `5987bcfe` (run `40196952217`, artefact `12600542076`, SHA-256 `97b3a9781cc18546462762ccdc679fca45142bb88701a7311191c529605d8850`) authentifie les 141 entrées de test/build, les 264 postimages, les résultats et l'assembleur. Les tests ASan/UBSan et les régressions graphiques passent. Le runner déclare trois processeurs logiques disponibles : quatre/huit producteurs dépassent ce parallélisme.
 
 | ARM64 optimisé, temps écoulé médian | Avant ms | Après ms | Variation |
 |---|---:|---:|---:|
@@ -107,3 +107,9 @@ Le delta canonique unique et ses 264 postimages sont rematérialisés depuis l'u
 Le workflow historique général est routé vers le workflow dédié pour le marqueur 539, comme les autres candidats dédiés. L'échec historique 538 du checksum intégral SPU499 reste documenté ; il n'est ni réparé fictivement ni masqué dans son résultat passé. Les preuves de chemins inchangés sont authentifiées ; les compteurs modifiés sont exécutés de nouveau et leurs anciens microbenchmarks ne sont pas utilisés comme validation actuelle.
 
 À mesurer sur l'iPhone : mêmes scènes et réglages du build 538, conditions thermiques comparables, caches froids dédiés puis chauds, cinématique séparée du gameplay, puis 30 minutes. Conserver les caches compatibles et les originaux des états ; tester une copie de restauration. Comparer p95/p99, maxima, seuils 50/100/500 ms, opérations shader, footprint/pression et rendu. **Aucun gain de FPS, de p95/p99, de mémoire globale ou de stabilité prolongée du 539 sur appareil n'est encore mesuré.**
+
+## Livraison privée 541 vérifiée
+
+Le run `40197078352` est terminé avec succès. L'IPA finale mesure **186 339 733 octets**, SHA-256 **`9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd`**. Les quatre morceaux privés ont été authentifiés puis déchiffrés ; l'intégrité ZIP, les 87 images Mach-O observées (`cryptid=0`), le build 541 de l'application et des sept extensions sont vérifiés localement. Le validateur RPCS3 complet passe de nouveau sur cette IPA et retrouve le même payload compilé que le cœur source. Les rapports finaux des autres composants portent exactement le même SHA-256 d'IPA et leurs étapes CI réussissent. Les trois contrôles initialement exécutés avant signature (textures, cheats et diagnostics RPCS3 historiques) ont aussi été réexécutés localement sur l'IPA finale signée, avec succès.
+
+Le moteur MeloNX `97915e50` / run `40196037086` est conservé avec ses correctifs de pipeline, diagnostics graphiques, audio et runtime. Le rapport ultérieur de livraison MeloNX540 a également été préservé sur `Claude`. L'IPA 541 remplace les candidats intermédiaires de cette session. La livraison demeure privée, sans release ni modification de `main`. Elle est destinée à une re-signature Apple via SideStore ; l'installation physique reste non testée. Les reçus et leurs portées exactes sont dans `evidence/rpcs3-cell541-delivery-ci.json`.

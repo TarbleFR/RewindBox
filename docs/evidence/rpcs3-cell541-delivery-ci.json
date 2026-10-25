@@ -1,0 +1,1279 @@
+{
+  "privateIPA": {
+    "source": "f6f3288d9826eba95b1a5173aa7f23be1bcc83f9",
+    "run": 40197078352,
+    "build": 541,
+    "bytes": 186339733,
+    "sha256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd",
+    "zipCRCVerified": true,
+    "machoSlices": 87,
+    "allObservedCryptIDsZero": true,
+    "versions": {
+      "PlugIns/DolphinJITHelper.appex/Info.plist": "541",
+      "PlugIns/NeoSwapPageRelay.appex/Info.plist": "541",
+      "PlugIns/NeoSwapDonor.appex/Info.plist": "541",
+      "PlugIns/MeloNXJITHelper.appex/Info.plist": "541",
+      "PlugIns/ARMSX2JITHelper.appex/Info.plist": "541",
+      "PlugIns/RPCS3JITHelper.appex/Info.plist": "541",
+      "PlugIns/MeloNXRamDonor.appex/Info.plist": "541",
+      "Info.plist": "541"
+    },
+    "coreSource": "5987bcfe9d9c3e5b746c09dfc5e8980b0af203d7",
+    "coreSHA256": "5963684ba06581aa86692bc9eeff754f42d40b0b6671dce41d387ce510b10c84",
+    "physicalDeviceTested": false,
+    "gameplayMeasured": false
+  },
+  "corePayloadVerification": {
+    "result": "passed",
+    "build": 541,
+    "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd",
+    "coreSource": "5987bcfe9d9c3e5b746c09dfc5e8980b0af203d7",
+    "coreRun": 40196952217,
+    "sourceArtifactSHA256": "5963684ba06581aa86692bc9eeff754f42d40b0b6671dce41d387ce510b10c84",
+    "compiledCorePayloadFingerprint": "64e01e5c2d1a72534c9358d86e639d8939b976dfe47793f5e28cfd59d09b0577",
+    "sharedCompilerBrokerLinked": true,
+    "optionalCoreBinderLinked": true,
+    "productionMinimalSPULinkerEnabled": false,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false,
+    "gow3BootAndVmaSourceVerified": true
+  },
+  "signature": {
+    "installationMethod": "SideStore re-signing",
+    "directAppleInstallationReady": false,
+    "deviceInstallationTested": false,
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "build": "541",
+    "version": "0.0.8",
+    "minimumIOS": "18.0",
+    "architectures": [
+      "arm64"
+    ],
+    "signatures": [
+      {
+        "bundle": "PlugIns/DolphinJITHelper.appex",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "PlugIns/NeoSwapPageRelay.appex",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "PlugIns/NeoSwapDonor.appex",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "PlugIns/MeloNXJITHelper.appex",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "PlugIns/ARMSX2JITHelper.appex",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "PlugIns/RPCS3JITHelper.appex",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "PlugIns/MeloNXRamDonor.appex",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/mednafen_ngp_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/wakelock_plus.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/objective_c.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/picodrive_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/neo_texture_catalog.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/freechaf_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/pokemini_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/mednafen_pcfx_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/melonx_internal_bridge.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/sqlite3.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/MeloNXJitSupport.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/neo_cheat_catalog.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/neo_shader_kit.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/gearcoleco_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/GTMSessionFetcher.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/sameduck_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/pdfium_flutter.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/mesen_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/MeloNXMoltenVK.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/video_player_avfoundation.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/MoltenVK.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/mednafen_psx_hw_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/snes9x_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/MeloNXCore.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/prosystem_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/ardens_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/potator_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/mednafen_psx_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/Flutter.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/freeintv_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/nestopia_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/genesis_plus_gx_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/mgba_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/armsx2_internal_bridge.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/DolphinCore.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/stella_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/flutter_secure_storage_darwin.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/App.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/MeloNXSDL3.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/fbneo_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/url_launcher_ios.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/mednafen_wswan_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/battery_plus.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/device_info_plus.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/PDFium.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/genesis_plus_gx_wide_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/flutter_localization.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/gambatte_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/o2em_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/StikJIT.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/wasm4_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/share_plus.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/mednafen_vb_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/ppsspp_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/libretro_internal_bridge.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/MeloNXAvUtil.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/stikjit_bridge.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/mednafen_pce_fast_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/package_info_plus.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/shared_preferences_foundation.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/MeloNXAvCodec.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/flutter_7zip.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/external_folder_access.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/dolphin_internal_bridge.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/external_display.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/gamepads_darwin.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/a5200_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/azahar_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/file_picker.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/neo_swap.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/gw_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/rpcs3_internal_bridge.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/ARMSX2Core.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/desmume_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/handy_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/neo_touch_layout.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/mupen64plus_next_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/uzem_libretro.framework",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": "Frameworks/libRPCS3Core.dylib",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      },
+      {
+        "bundle": ".",
+        "signatureVerified": true,
+        "signature": "adhoc",
+        "appleProvisioningVerified": false
+      }
+    ]
+  },
+  "signedPayload": {
+    "allCompiledCodeAndDataSectionsUnchangedBySigning": true,
+    "abiMetadataUnchangedBySigning": true,
+    "ipaSha256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd",
+    "ipaBytes": 186339733,
+    "sideStoreAppleReSigningRequired": true
+  },
+  "verifiedMachOImages": 84,
+  "finalPackageReports": {
+    "melonx-keys517-ipa-validation.json": {
+      "reportSHA256": "545f0b62b2f1806c842e8eea4d2a2f0a8c12d62b927c133318709bcd75271c95",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "signed-payload-identity.json": {
+      "reportSHA256": "5f8aa19964bcd9961a9645a215fd20895ca64e56e421e1af5ec472b07d68d909",
+      "result": null,
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "melonx-memory519-ipa-validation.json": {
+      "reportSHA256": "452907649ca2607cd416f0182bc17dbac1692809c5016609cd1402c44fb7cf8c",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "melonx-launch514-ipa-validation.json": {
+      "reportSHA256": "077231c15e225d82c207422226a22875de4507329c94d969dc99e33421aca20b",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "melonx-delete509-ipa.json": {
+      "reportSHA256": "e98bf71c98ff3ea2c5f8ae7d685280d717019490fe5aebc4563394c71fcf3b83",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "motion507-ipa-validation.json": {
+      "reportSHA256": "47e9e7561c9154720040391b9ae0e3a95a665d7a6d9a6650e075682ec9f14858",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "navigation512-ipa-validation.json": {
+      "reportSHA256": "6c68bca8fc56651a8904c2cecb8397fdc566a31461ce87f4e4c2a36ec7f73316",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "ui-correction511-ipa-validation.json": {
+      "reportSHA256": "7972b700fd231da2108905983feada7a288c431e8995a6c9b6193c89fbfe5921",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "rpcs3-memory-audit-ipa.json": {
+      "reportSHA256": "afab80bf6a13d085dfa1d0afd6d6996b1f83a34d076d5db61ca36cf22a9c9e43",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "local-final-hd_textures": {
+      "reportSHA256": "c8e9bd053e3ee8a1f3a0fe95f93dab819283d534244b6fc4f9ec8be4447dc056",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "local-final-unified_cheats": {
+      "reportSHA256": "dc9a8012e66e6885133277bfe452702c354565b14a1e71c3960d10ff43c8251f",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    },
+    "local-final-rpcs3_diag487": {
+      "reportSHA256": "278f988da7cdfb053d88674ffbefe888c80e27932bf68c604d212657a98b3e25",
+      "result": "passed",
+      "ipaSHA256": "9f937af560e2b9c2ba45cc59136c1770705419267dbec0381d4b809b0dd417bd"
+    }
+  },
+  "preSealingReportsRetained": {
+    "hd-textures-ipa-validation.json": {
+      "reportSHA256": "4db5935c57d7bb69ff24e0dbeab70b2b8e13a85ea06b728df98d9c002cf97350",
+      "result": "passed",
+      "ipaSHA256": "b18f577cf89c456aeed51780b8eddda12b8a153a83c11023b593326631325522"
+    },
+    "unified-cheats-ipa-validation.json": {
+      "reportSHA256": "a7560013bce1fc02eab3f84f4b14859c6dd8689d80e52ff1d2994d5babc8503f",
+      "result": "passed",
+      "ipaSHA256": "b18f577cf89c456aeed51780b8eddda12b8a153a83c11023b593326631325522"
+    },
+    "rpcs3-diag487-ipa-validation.json": {
+      "reportSHA256": "28395a61b65ebf8cf5d7f79f5368bc45f974c8746f1ae34fe1acac7d9cf27ab0",
+      "result": "passed",
+      "ipaSHA256": "b18f577cf89c456aeed51780b8eddda12b8a153a83c11023b593326631325522"
+    }
+  },
+  "melonx": {
+    "coreSource": "97915e506fa71be02ab38794529e81fad6780803",
+    "coreRun": 40196037086,
+    "compiledPipelineCorrectionVerified": true,
+    "compiledGraphicsJournalVerified": true,
+    "physicalDeviceTested": false
+  },
+  "transportParts": [
+    {
+      "id": 12599859963,
+      "name": "RewindBox-Build541-f6f3288d9826eba95b1a5173aa7f23be1bcc83f9-cold-part00",
+      "size_in_bytes": 46660334,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599859963",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599859963/zip",
+      "expired": false,
+      "created_at": "2026-10-25T13:40:59Z",
+      "expires_at": "2026-11-08T13:40:58Z",
+      "updated_at": "2026-10-25T13:40:59Z",
+      "digest": "sha256:f3683bb8359f97dad512873415dc867443a0b657b7872d24e298b145591fc18c",
+      "workflow_run": {
+        "id": 40197078352,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "f6f3288d9826eba95b1a5173aa7f23be1bcc83f9"
+      },
+      "localZip": "part00.zip",
+      "sha256": "f3683bb8359f97dad512873415dc867443a0b657b7872d24e298b145591fc18c"
+    },
+    {
+      "id": 12599969778,
+      "name": "RewindBox-Build541-f6f3288d9826eba95b1a5173aa7f23be1bcc83f9-cold-part01",
+      "size_in_bytes": 46660334,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599969778",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599969778/zip",
+      "expired": false,
+      "created_at": "2026-10-25T13:41:01Z",
+      "expires_at": "2026-11-08T13:40:59Z",
+      "updated_at": "2026-10-25T13:41:01Z",
+      "digest": "sha256:d4caee4d576f7c5ce4e2616e44748a2ccb9ec428a7c3a8d63b8ba46d76243986",
+      "workflow_run": {
+        "id": 40197078352,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "f6f3288d9826eba95b1a5173aa7f23be1bcc83f9"
+      },
+      "localZip": "part01.zip",
+      "sha256": "d4caee4d576f7c5ce4e2616e44748a2ccb9ec428a7c3a8d63b8ba46d76243986"
+    },
+    {
+      "id": 12601185040,
+      "name": "RewindBox-Build541-f6f3288d9826eba95b1a5173aa7f23be1bcc83f9-cold-part02",
+      "size_in_bytes": 46660334,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12601185040",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12601185040/zip",
+      "expired": false,
+      "created_at": "2026-10-25T13:41:03Z",
+      "expires_at": "2026-11-08T13:41:01Z",
+      "updated_at": "2026-10-25T13:41:03Z",
+      "digest": "sha256:fdce48e60d3e055a7ce26d03cb2d8d947b08af5c85e8e5e2568cc1b8c24fbe12",
+      "workflow_run": {
+        "id": 40197078352,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "f6f3288d9826eba95b1a5173aa7f23be1bcc83f9"
+      },
+      "localZip": "part02.zip",
+      "sha256": "fdce48e60d3e055a7ce26d03cb2d8d947b08af5c85e8e5e2568cc1b8c24fbe12"
+    },
+    {
+      "id": 12599999695,
+      "name": "RewindBox-Build541-f6f3288d9826eba95b1a5173aa7f23be1bcc83f9-cold-part03",
+      "size_in_bytes": 46660334,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599999695",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12599999695/zip",
+      "expired": false,
+      "created_at": "2026-10-25T13:41:04Z",
+      "expires_at": "2026-11-08T13:41:03Z",
+      "updated_at": "2026-10-25T13:41:04Z",
+      "digest": "sha256:fc0d6eb53f9708cabb05dc888720537500a40751c37d1e8f103e26a8bee83dae",
+      "workflow_run": {
+        "id": 40197078352,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "f6f3288d9826eba95b1a5173aa7f23be1bcc83f9"
+      },
+      "localZip": "part03.zip",
+      "sha256": "fc0d6eb53f9708cabb05dc888720537500a40751c37d1e8f103e26a8bee83dae"
+    }
+  ],
+  "ciJobs": [
+    {
+      "id": 121180134990,
+      "name": "checks",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 40197078352,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Retain final highlighted-game import checks and successful RPCS3 logger evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Retain exact input-bound test receipts",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        }
+      ]
+    },
+    {
+      "id": 121180199090,
+      "name": "Release device build \u2022 cold",
+      "status": "completed",
+      "conclusion": "success",
+      "run_id": 40197078352,
+      "logs_url": null,
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1
+        },
+        {
+          "name": "Checkout exact candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2
+        },
+        {
+          "name": "Load exact local import and historical Foundation receipts",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3
+        },
+        {
+          "name": "Select Xcode 26.3 for NeoPlay and Google Cast",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4
+        },
+        {
+          "name": "Set up Flutter 3.47.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5
+        },
+        {
+          "name": "Record exact build environment and start measurement",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6
+        },
+        {
+          "name": "Record empty device build cache",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7
+        },
+        {
+          "name": "Assert the benchmark device cache is empty",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 8
+        },
+        {
+          "name": "Resolve locked Dart dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9
+        },
+        {
+          "name": "Prepare lightweight build tools",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10
+        },
+        {
+          "name": "Generate iOS host",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 11
+        },
+        {
+          "name": "Download last published RewindBox IPA 527 (release 0.0.9)",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12
+        },
+        {
+          "name": "Reuse verified components and resources from published IPA 527",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13
+        },
+        {
+          "name": "Restore unchanged canonical StikJIT compilation interfaces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14
+        },
+        {
+          "name": "Build canonical StikJIT from pinned sources for iOS 18 26 and 27",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 15
+        },
+        {
+          "name": "Install verified cached StikJIT interfaces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16
+        },
+        {
+          "name": "Require completed exact NeoSwap Core before artifact download",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17
+        },
+        {
+          "name": "Wait for the exact source-built539 RPCS3 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18
+        },
+        {
+          "name": "Download pinned passive RPCS3 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19
+        },
+        {
+          "name": "Verify and install passive RPCS3 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 20
+        },
+        {
+          "name": "Verify retained Dolphin Core from IPA 527",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 21
+        },
+        {
+          "name": "Require completed exact ARMSX2 2.6 Core and remove its donor bootstrap",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 22
+        },
+        {
+          "name": "Download pinned ARMSX2 2.6 Core",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 23
+        },
+        {
+          "name": "Verify pinned ARMSX2 Core identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 24
+        },
+        {
+          "name": "Require the completed pinned libretro cores",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 25
+        },
+        {
+          "name": "Download pinned libretro cores",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 26
+        },
+        {
+          "name": "Verify pinned libretro cores identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 27
+        },
+        {
+          "name": "Require successful exact MeloNX engine and iPhone host before packaging",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 28
+        },
+        {
+          "name": "Download the exact source-built MeloNX engine",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 29
+        },
+        {
+          "name": "Download successful exact audio ownership and UIKit host proofs",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 30
+        },
+        {
+          "name": "Download the source-built private MeloNX dependencies",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 31
+        },
+        {
+          "name": "Verify and materialize the six private MeloNX frameworks and original controls",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 32
+        },
+        {
+          "name": "Retain already compiled exact iPhone host evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 33
+        },
+        {
+          "name": "Prepare emulator build definitions",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 34
+        },
+        {
+          "name": "Configure release host",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 35
+        },
+        {
+          "name": "Align application and extension versions to the pubspec version",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 36
+        },
+        {
+          "name": "Compile Release device binary with measured AOT and Xcode phases",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 37
+        },
+        {
+          "name": "Embed NeoPlay source identity and dependency acknowledgements",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 38
+        },
+        {
+          "name": "Embed verified RPCS3 Core and signing metadata",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 39
+        },
+        {
+          "name": "Bind audited RPCS3 binary provenance and verify the linked host compiler broker",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 40
+        },
+        {
+          "name": "Bind the compiled Switch retirement and deletion fix to its exact app sources",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 41
+        },
+        {
+          "name": "Embed exact donor/display source and test identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 42
+        },
+        {
+          "name": "Embed lazy-loaded ARMSX2 Core framework",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 43
+        },
+        {
+          "name": "Embed lazy-loaded libretro cores, MoltenVK and system assets",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 44
+        },
+        {
+          "name": "Embed legal, license and source notices",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 45
+        },
+        {
+          "name": "Embed verified MeloNX runtime and actual build-source notices",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 46
+        },
+        {
+          "name": "Package and validate RewindBox IPA",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 47
+        },
+        {
+          "name": "Seal every executable, framework and extension for SideStore",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 48
+        },
+        {
+          "name": "Preserve sealed IPA and source receipts before final compatibility validators",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 49
+        },
+        {
+          "name": "Preserve sealed recovery piece 1 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 50
+        },
+        {
+          "name": "Preserve sealed recovery piece 2 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 51
+        },
+        {
+          "name": "Preserve sealed recovery piece 3 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 52
+        },
+        {
+          "name": "Preserve sealed recovery piece 4 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 53
+        },
+        {
+          "name": "Verify actual packaged MeloNX exports, helper identity and native notices",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 54
+        },
+        {
+          "name": "Verify final signed motion assets and linked native and Dart components",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 55
+        },
+        {
+          "name": "Verify final signed GoW3 Core identity and compiler broker",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 56
+        },
+        {
+          "name": "Verify the final signed Switch retirement and deletion fix",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 57
+        },
+        {
+          "name": "Verify complete selection tracks and compiled Cover Flow and header correction",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 58
+        },
+        {
+          "name": "Verify final signed direct Switch playlist and compact header",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 59
+        },
+        {
+          "name": "Verify the actual MeloNX launch ABI and signed memory entitlements",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 60
+        },
+        {
+          "name": "Verify the exact packaged key import correction",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 61
+        },
+        {
+          "name": "Verify the compiled foreground presentation correction",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 62
+        },
+        {
+          "name": "Finalize observed timings and artifact identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 63
+        },
+        {
+          "name": "Prepare encrypted delivery and evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 64
+        },
+        {
+          "name": "Upload encrypted IPA and verification reports",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 65
+        },
+        {
+          "name": "Prepare bounded encrypted transport pieces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 66
+        },
+        {
+          "name": "Upload encrypted transport piece 1 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 67
+        },
+        {
+          "name": "Upload encrypted transport piece 2 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 68
+        },
+        {
+          "name": "Upload encrypted transport piece 3 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 69
+        },
+        {
+          "name": "Upload encrypted transport piece 4 of 4",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 70
+        },
+        {
+          "name": "Collect diagnostic evidence",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 71
+        },
+        {
+          "name": "Upload diagnostics",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 72
+        },
+        {
+          "name": "Remove temporary secrets",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 73
+        },
+        {
+          "name": "Post Restore unchanged canonical StikJIT compilation interfaces",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 144
+        },
+        {
+          "name": "Post Set up Flutter 3.47.2",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 145
+        },
+        {
+          "name": "Post Checkout exact candidate",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 146
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 147
+        }
+      ]
+    }
+  ],
+  "localVerification": "All final transport digests, matching manifests, decryption, SHA256SUMS, ZIP CRC, observed FairPlay cryptIDs, application/extension versions and full RPCS3 payload validator passed locally. The three pre-sealing report checks (textures, cheats, prior RPC diagnostics) were rerun locally on the final signed IPA and passed. Other final component validators are authenticated from successful same-IPA CI reports. No physical-device installation, rendering or gameplay test claimed.",
+  "publication": "Private encrypted CI transport and private decrypted attachment; no release or main change."
+}
