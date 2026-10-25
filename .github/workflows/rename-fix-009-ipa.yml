@@ -1,0 +1,35 @@
+name: Rename fix 0.0.9 IPA release asset
+'on':
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/rename-fix-009-ipa.yml
+permissions:
+  contents: write
+jobs:
+  fix-asset-name:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Give the verified IPA its RewindBox download filename
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="0.0.9-fix.1"
+          asset_id=673954201
+          asset=$(gh api "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id")
+          name=$(echo "$asset" | jq -r .name)
+          size=$(echo "$asset" | jq -r .size)
+          test "$size" = 186305438
+          if [ "$name" = "RewindBox-Build530.ipa" ]; then
+            echo "Already renamed"; exit 0
+          fi
+          test "$name" = "NeoStation.ipa"
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" \
+            -f name=RewindBox-Build530.ipa \
+            -f label=RewindBox-Build530.ipa > /tmp/renamed.json
+          test "$(jq -r .name /tmp/renamed.json)" = "RewindBox-Build530.ipa"
+          test "$(jq -r .size /tmp/renamed.json)" = 186305438
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json url,name,tagName,assets
