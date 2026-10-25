@@ -67,3 +67,16 @@ jobs:
               if hits>500:break
             if hits>500:break
           PY
+
+      - name: Inspect exact SDL3 audio stream callback and sample buffers
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== PINNED SDL3 AUDIO SESSION FULL ==="
+          nl -ba /tmp/melonx-src/src/Ryujinx.Audio.Backends.SDL3/SDL3HardwareDeviceSession.cs | head -260
+          echo "=== PINNED SDL3 DRIVER FULL ==="
+          nl -ba /tmp/melonx-src/src/Ryujinx.Audio.Backends.SDL3/SDL3HardwareDeviceDriver.cs | head -225
+          echo "=== PINNED AUDIO INITIALIZATION ==="
+          rg -n -C 15 'new SDL3HardwareDeviceDriver|new CompatLayerHardwareDeviceDriver|InitializeAudio' /tmp/melonx-src/src/Ryujinx.Library /tmp/melonx-src/src/Ryujinx.Audio 2>/dev/null | head -230 || true
+          echo "=== PINNED RING BUFFER WRITER ==="
+          nl -ba /tmp/melonx-src/src/Ryujinx.Audio/Backends/Common/DynamicRingBuffer.cs | head -170
