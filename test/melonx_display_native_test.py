@@ -49,6 +49,19 @@ int checks=0;void Check(bool v){if(!v)throw new Exception("display assertion "+c
 var old=new Options {AspectRatio=AspectRatio.Fixed21x9,EnableHostMemoryBudgetTracking=false,EnableTextureRecompression=false};
 EmbeddedGraphicsSettings.Parse("{}").Apply(old);
 Check(old.AspectRatio==AspectRatio.Fixed21x9 && !old.EnableHostMemoryBudgetTracking && !old.EnableTextureRecompression);
+// Build 531 regression: missing settings must not enable async draw-skipping
+// (observed on Persona 5 Royal), and completed shaders must be cacheable.
+var safeDefault = new Options {DisableShaderCache=true,EnableAsyncShaderCompilation=true};
+EmbeddedGraphicsSettings.Parse("{}").Apply(safeDefault);
+Check(!safeDefault.DisableShaderCache && !safeDefault.EnableAsyncShaderCompilation);
+// Respect deliberate pre-existing per-game overrides; do not silently mutate
+// migrated standalone profiles or already persisted user preferences.
+var explicitOld = EmbeddedGraphicsSettings.Parse("{\\"shaderCache\\":false,\\"asyncShaders\\":true}")
+    .Apply(new Options {DisableShaderCache=false,EnableAsyncShaderCompilation=false});
+Check(explicitOld.DisableShaderCache && explicitOld.EnableAsyncShaderCompilation);
+var explicitSafe = EmbeddedGraphicsSettings.Parse("{\\"shaderCache\\":true,\\"asyncShaders\\":false}")
+    .Apply(new Options {DisableShaderCache=true,EnableAsyncShaderCompilation=true});
+Check(!explicitSafe.DisableShaderCache && !explicitSafe.EnableAsyncShaderCompilation);
 foreach(int ratio in new[]{0,1,2,3,4,5}) {
  var options=EmbeddedGraphicsSettings.Parse("{\"aspectRatio\":"+ratio+",\"hostMemoryBudget\":true,\"textureRecompression\":true}").Apply(new());
  Check((int)options.AspectRatio==ratio && options.EnableHostMemoryBudgetTracking && options.EnableTextureRecompression);
