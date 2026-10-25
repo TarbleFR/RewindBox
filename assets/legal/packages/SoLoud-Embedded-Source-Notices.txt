@@ -1,0 +1,1475 @@
+Native source notices from the exact flutter_soloud 4.0.12 pub.dev archive.
+
+========================================================================
+src/pffft/pffft.c
+========================================================================
+/* Copyright (c) 2013  Julien Pommier ( pommier@modartt.com )
+
+   Based on original fortran 77 code from FFTPACKv4 from NETLIB
+   (http://www.netlib.org/fftpack), authored by Dr Paul Swarztrauber
+   of NCAR, in 1985.
+
+   As confirmed by the NCAR fftpack software curators, the following
+   FFTPACKv5 license applies to FFTPACKv4 sources. My changes are
+   released under the same terms.
+
+   FFTPACK license:
+
+   http://www.cisl.ucar.edu/css/software/fftpack5/ftpk.html
+
+   Copyright (c) 2004 the University Corporation for Atmospheric
+   Research ("UCAR"). All rights reserved. Developed by NCAR's
+   Computational and Information Systems Laboratory, UCAR,
+   www.cisl.ucar.edu.
+
+   Redistribution and use of the Software in source and binary forms,
+   with or without modification, is permitted provided that the
+   following conditions are met:
+
+   - Neither the names of NCAR's Computational and Information Systems
+   Laboratory, the University Corporation for Atmospheric Research,
+   nor the names of its sponsors or contributors may be used to
+   endorse or promote products derived from this Software without
+   specific prior written permission.
+
+   - Redistributions of source code must retain the above copyright
+   notices, this list of conditions, and the disclaimer below.
+
+   - Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions, and the disclaimer below in the
+   documentation and/or other materials provided with the
+   distribution.
+
+   THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE CONTRIBUTORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, INDIRECT, INCIDENTAL, SPECIAL,
+   EXEMPLARY, OR CONSEQUENTIAL DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+   ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE
+   SOFTWARE.
+
+
+   PFFFT : a Pretty Fast FFT.
+
+   This file is largerly based on the original FFTPACK implementation, modified in
+   order to take advantage of SIMD instructions of modern CPUs.
+*/
+
+========================================================================
+src/pffft/pffft.h
+========================================================================
+/* Copyright (c) 2013  Julien Pommier ( pommier@modartt.com )
+
+   Based on original fortran 77 code from FFTPACKv4 from NETLIB,
+   authored by Dr Paul Swarztrauber of NCAR, in 1985.
+
+   As confirmed by the NCAR fftpack software curators, the following
+   FFTPACKv5 license applies to FFTPACKv4 sources. My changes are
+   released under the same terms.
+
+   FFTPACK license:
+
+   http://www.cisl.ucar.edu/css/software/fftpack5/ftpk.html
+
+   Copyright (c) 2004 the University Corporation for Atmospheric
+   Research ("UCAR"). All rights reserved. Developed by NCAR's
+   Computational and Information Systems Laboratory, UCAR,
+   www.cisl.ucar.edu.
+
+   Redistribution and use of the Software in source and binary forms,
+   with or without modification, is permitted provided that the
+   following conditions are met:
+
+   - Neither the names of NCAR's Computational and Information Systems
+   Laboratory, the University Corporation for Atmospheric Research,
+   nor the names of its sponsors or contributors may be used to
+   endorse or promote products derived from this Software without
+   specific prior written permission.
+
+   - Redistributions of source code must retain the above copyright
+   notices, this list of conditions, and the disclaimer below.
+
+   - Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions, and the disclaimer below in the
+   documentation and/or other materials provided with the
+   distribution.
+
+   THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE CONTRIBUTORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, INDIRECT, INCIDENTAL, SPECIAL,
+   EXEMPLARY, OR CONSEQUENTIAL DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+   ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS WITH THE
+   SOFTWARE.
+*/
+
+========================================================================
+src/soloud/include/soloud.h
+src/soloud/include/soloud_bus.h
+src/soloud/include/soloud_echofilter.h
+src/soloud/include/soloud_eqfilter.h
+src/soloud/include/soloud_file_hack_off.h
+src/soloud/include/soloud_file_hack_on.h
+src/soloud/include/soloud_flangerfilter.h
+src/soloud/include/soloud_freeverbfilter.h
+src/soloud/include/soloud_lofifilter.h
+src/soloud/src/backend/nosound/soloud_nosound.cpp
+src/soloud/src/core/soloud.cpp
+src/soloud/src/core/soloud_bus.cpp
+src/soloud/src/filter/soloud_bassboostfilter.cpp
+src/soloud/src/filter/soloud_echofilter.cpp
+src/soloud/src/filter/soloud_eqfilter.cpp
+src/soloud/src/filter/soloud_fftfilter.cpp
+src/soloud/src/filter/soloud_flangerfilter.cpp
+src/soloud/src/filter/soloud_freeverbfilter.cpp
+src/soloud/src/filter/soloud_lofifilter.cpp
+src/soloud/src/filter/soloud_waveshaperfilter.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2013-2020 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_audiosource.h
+src/soloud/include/soloud_bassboostfilter.h
+src/soloud/include/soloud_dcremovalfilter.h
+src/soloud/include/soloud_fft.h
+src/soloud/include/soloud_fftfilter.h
+src/soloud/include/soloud_file.h
+src/soloud/include/soloud_internal.h
+src/soloud/include/soloud_speech.h
+src/soloud/src/backend/alsa/soloud_alsa.cpp
+src/soloud/src/backend/null/soloud_null.cpp
+src/soloud/src/backend/opensles/soloud_opensles.cpp
+src/soloud/src/backend/sdl2_static/soloud_sdl2_static.cpp
+src/soloud/src/core/soloud_core_3d.cpp
+src/soloud/src/core/soloud_core_basicops.cpp
+src/soloud/src/core/soloud_core_faderops.cpp
+src/soloud/src/core/soloud_core_filterops.cpp
+src/soloud/src/core/soloud_core_getters.cpp
+src/soloud/src/core/soloud_core_setters.cpp
+src/soloud/src/core/soloud_core_voicegroup.cpp
+src/soloud/src/core/soloud_core_voiceops.cpp
+src/soloud/src/core/soloud_thread.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2013-2015 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_ay.h
+src/soloud/src/audiosource/ay/soloud_ay.cpp
+========================================================================
+/*
+AY module for SoLoud audio engine
+Copyright (c) 2020 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_biquadresonantfilter.h
+src/soloud/include/soloud_error.h
+src/soloud/include/soloud_fader.h
+src/soloud/include/soloud_filter.h
+src/soloud/include/soloud_thread.h
+src/soloud/src/backend/openal/soloud_openal.cpp
+src/soloud/src/backend/openal/soloud_openal_dll.c
+src/soloud/src/backend/oss/soloud_oss.cpp
+src/soloud/src/backend/portaudio/soloud_portaudio.cpp
+src/soloud/src/backend/portaudio/soloud_portaudio_dll.c
+src/soloud/src/backend/sdl/soloud_sdl1.cpp
+src/soloud/src/backend/sdl/soloud_sdl1_dll.c
+src/soloud/src/backend/sdl_static/soloud_sdl_static.cpp
+src/soloud/src/backend/winmm/soloud_winmm.cpp
+src/soloud/src/backend/xaudio2/soloud_xaudio2.cpp
+src/soloud/src/core/soloud_audiosource.cpp
+src/soloud/src/core/soloud_fader.cpp
+src/soloud/src/core/soloud_filter.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2013-2014 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_duckfilter.h
+src/soloud/src/filter/soloud_duckfilter.cpp
+src/synth/basic_wave.cpp
+src/synth/basic_wave.h
+src/synth/soloud_adsr.h
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2013-2021 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_misc.h
+src/soloud/include/soloud_noise.h
+src/soloud/include/soloud_robotizefilter.h
+src/soloud/src/audiosource/noise/soloud_noise.cpp
+src/soloud/src/core/soloud_misc.cpp
+src/soloud/src/filter/soloud_robotizefilter.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2020 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_monotone.h
+src/soloud/src/audiosource/monotone/soloud_monotone.cpp
+========================================================================
+/*
+MONOTONE module for SoLoud audio engine
+Copyright (c) 2013-2020 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_openmpt.h
+src/soloud/src/audiosource/openmpt/soloud_openmpt.cpp
+src/soloud/src/audiosource/openmpt/soloud_openmpt_dll.c
+========================================================================
+/*
+Openmpt module for SoLoud audio engine
+Copyright (c) 2016 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_queue.h
+src/soloud/include/soloud_wav.h
+src/soloud/include/soloud_waveshaperfilter.h
+src/soloud/include/soloud_wavstream.h
+src/soloud/src/audiosource/speech/soloud_speech.cpp
+src/soloud/src/audiosource/wav/soloud_wav.cpp
+src/soloud/src/audiosource/wav/soloud_wavstream.cpp
+src/soloud/src/backend/sdl/soloud_sdl2.cpp
+src/soloud/src/backend/sdl/soloud_sdl2_dll.c
+src/soloud/src/core/soloud_fft.cpp
+src/soloud/src/core/soloud_queue.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2013-2018 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_sfxr.h
+src/soloud/src/audiosource/sfxr/soloud_sfxr.cpp
+========================================================================
+/*
+SFXR module for SoLoud audio engine
+Copyright (c) 2014 Jari Komppa
+Based on code (c) by Tomas Pettersson, re-licensed under zlib by permission
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_tedsid.h
+========================================================================
+/*
+TED/SID module for SoLoud audio engine
+Copyright (c) 2013-2015 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_vic.h
+src/soloud/src/audiosource/vic/soloud_vic.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2015 Jari Komppa
+
+VIC 6560/6561 sound chip emulator
+Copyright (c) 2015 Petri Hakkinen
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/include/soloud_vizsn.h
+src/soloud/src/audiosource/vizsn/soloud_vizsn.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2013-2018 Jari Komppa
+
+vizsn speech synthesizer (c) by Ville-Matias Heikkilä,
+released under WTFPL, http://www.wtfpl.net/txt/copying/
+(in short, "do whatever you want to")
+
+Integration and changes to work with SoLoud by Jari Komppa,
+released under same license.
+*/
+
+========================================================================
+src/soloud/include/zx7decompress.h
+========================================================================
+/*
+ * zx7 decompress by Jari Komppa, under public domain / unlicense
+ *
+ * Heavily based on zx7 decompressor by Einar Saukas. 
+ * Einar Saukas requests that you mention the use of dx7, but
+ * this is not enforced by any way.
+ *
+ * Note that compressor has a different license!
+ */
+
+========================================================================
+src/soloud/src/audiosource/ay/sndchip.cpp
+src/soloud/src/audiosource/ay/sndchip.h
+========================================================================
+/*
+   YM-2149F emulator for Unreal Speccy project
+   created under public domain license by SMT, jan.2006
+*/
+
+========================================================================
+src/soloud/src/audiosource/ay/sndrender.cpp
+src/soloud/src/audiosource/ay/sndrender.h
+========================================================================
+/*
+   sound resampling core for Unreal Speccy project
+   created under public domain license by SMT, jan.2006
+*/
+
+========================================================================
+src/soloud/src/audiosource/tedsid/soloud_tedsid.cpp
+========================================================================
+/*
+TED/SID module for SoLoud audio engine
+Copyright (c) 2015-2020 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/src/audiosource/wav/dr_flac.h
+========================================================================
+/*
+FLAC audio decoder. Choice of public domain or MIT-0. See license statements at the end of this file.
+dr_flac - v0.13.2 - 2025-12-02
+
+David Reid - mackron@gmail.com
+
+GitHub: https://github.com/mackron/dr_libs
+*/
+
+========================================================================
+src/soloud/src/audiosource/wav/dr_mp3.h
+========================================================================
+/*
+MP3 audio decoder. Choice of public domain or MIT-0. See license statements at the end of this file.
+dr_mp3 - v0.7.2 - 2025-12-02
+
+David Reid - mackron@gmail.com
+
+GitHub: https://github.com/mackron/dr_libs
+
+Based on minimp3 (https://github.com/lieff/minimp3) which is where the real work was done. See the bottom of this file for differences between minimp3 and dr_mp3.
+*/
+
+========================================================================
+src/soloud/src/audiosource/wav/dr_wav.h
+========================================================================
+/*
+WAV audio loader and writer. Choice of public domain or MIT-0. See license statements at the end of this file.
+dr_wav - v0.14.2 - 2025-12-02
+
+David Reid - mackron@gmail.com
+
+GitHub: https://github.com/mackron/dr_libs
+*/
+
+========================================================================
+src/soloud/src/backend/coreaudio/soloud_coreaudio.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2015 Jari Komppa
+
+Core Audio backend for Mac OS X
+Copyright (c) 2015 Petri Häkkinen
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/src/backend/jack/soloud_jack.cpp
+========================================================================
+/*
+Copyright (c) 2019 Samson Close
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+*/
+
+========================================================================
+src/soloud/src/backend/miniaudio/miniaudio.h
+========================================================================
+/*
+Audio playback and capture library. Choice of public domain or MIT-0. See license statements at the end of this file.
+miniaudio - v0.11.25 - 2026-03-04
+
+David Reid - mackron@gmail.com
+
+Website:       https://miniaud.io
+Documentation: https://miniaud.io/docs
+GitHub:        https://github.com/mackron/miniaudio
+*/
+
+========================================================================
+src/soloud/src/backend/miniaudio/soloud_miniaudio.cpp
+src/soloud/src/tools/sanity/sanity.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2013-2020 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+claim that you wrote the original software. If you use this software
+in a product, an acknowledgment in the product documentation would be
+appreciated but is not required.
+
+2. Altered source versions must be plainly marked as such, and must not be
+misrepresented as being the original software.
+
+3. This notice may not be removed or altered from any source
+distribution.
+*/
+
+========================================================================
+src/soloud/src/backend/vita_homebrew/soloud_vita_homebrew.cpp
+========================================================================
+/*
+SoLoud Vita homebrew output backend
+Copyright (c) 2017 Ilya Zhuravlev
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/src/backend/wasapi/soloud_wasapi.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2013-2019 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/src/core/soloud_file.cpp
+src/soloud/src/tools/lutgen/main.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2013-2015 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+claim that you wrote the original software. If you use this software
+in a product, an acknowledgment in the product documentation would be
+appreciated but is not required.
+
+2. Altered source versions must be plainly marked as such, and must not be
+misrepresented as being the original software.
+
+3. This notice may not be removed or altered from any source
+distribution.
+*/
+
+========================================================================
+src/soloud/src/filter/soloud_biquadresonantfilter.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2013-2020 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+
+--
+
+Based on "Using the Biquad Resonant Filter", 
+Phil Burk, Game Programming Gems 3, p. 606
+*/
+
+========================================================================
+src/soloud/src/filter/soloud_dcremovalfilter.cpp
+========================================================================
+/*
+SoLoud audio engine
+Copyright (c) 2015 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/src/tools/resamplerlab/main.cpp
+========================================================================
+/*
+SoLoud audio engine - tool to develop resamplers with
+Copyright (c) 2013-2015 Jari Komppa
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+*/
+
+========================================================================
+src/soloud/src/tools/resamplerlab/stb_image_write.h
+========================================================================
+/* stb_image_write - v0.98 - public domain - http://nothings.org/stb/stb_image_write.h
+   writes out PNG/BMP/TGA images to C stdio - Sean Barrett 2010
+                            no warranty implied; use at your own risk
+
+
+   Before #including,
+
+       #define STB_IMAGE_WRITE_IMPLEMENTATION
+
+   in the file that you want to have the implementation.
+
+   Will probably not work correctly with strict-aliasing optimizations.
+
+ABOUT:
+
+   This header file is a library for writing images to C stdio. It could be
+   adapted to write to memory or a general streaming interface; let me know.
+
+   The PNG output is not optimal; it is 20-50% larger than the file
+   written by a decent optimizing implementation. This library is designed
+   for source code compactness and simplicitly, not optimal image file size
+   or run-time performance.
+
+BUILDING:
+
+   You can #define STBIW_ASSERT(x) before the #include to avoid using assert.h.
+   You can #define STBIW_MALLOC(), STBIW_REALLOC(), and STBIW_FREE() to replace
+   malloc,realloc,free.
+   You can define STBIW_MEMMOVE() to replace memmove()
+
+USAGE:
+
+   There are four functions, one for each image file format:
+
+     int stbi_write_png(char const *filename, int w, int h, int comp, const void *data, int stride_in_bytes);
+     int stbi_write_bmp(char const *filename, int w, int h, int comp, const void *data);
+     int stbi_write_tga(char const *filename, int w, int h, int comp, const void *data);
+     int stbi_write_hdr(char const *filename, int w, int h, int comp, const void *data);
+
+   Each function returns 0 on failure and non-0 on success.
+
+   The functions create an image file defined by the parameters. The image
+   is a rectangle of pixels stored from left-to-right, top-to-bottom.
+   Each pixel contains 'comp' channels of data stored interleaved with 8-bits
+   per channel, in the following order: 1=Y, 2=YA, 3=RGB, 4=RGBA. (Y is
+   monochrome color.) The rectangle is 'w' pixels wide and 'h' pixels tall.
+   The *data pointer points to the first byte of the top-left-most pixel.
+   For PNG, "stride_in_bytes" is the distance in bytes from the first byte of
+   a row of pixels to the first byte of the next row of pixels.
+
+   PNG creates output files with the same number of components as the input.
+   The BMP format expands Y to RGB in the file format and does not
+   output alpha.
+
+   PNG supports writing rectangles of data even when the bytes storing rows of
+   data are not consecutive in memory (e.g. sub-rectangles of a larger image),
+   by supplying the stride between the beginning of adjacent rows. The other
+   formats do not. (Thus you cannot write a native-format BMP through the BMP
+   writer, both because it is in BGR order and because it may have padding
+   at the end of the line.)
+
+   HDR expects linear float data. Since the format is always 32-bit rgb(e)
+   data, alpha (if provided) is discarded, and for monochrome data it is
+   replicated across all three channels.
+
+CREDITS:
+
+   PNG/BMP/TGA
+      Sean Barrett
+   HDR
+      Baldur Karlsson
+   TGA monochrome:
+      Jean-Sebastien Guay
+   misc enhancements:
+      Tim Kelsey
+   bugfixes:
+      github:Chribba
+*/
+
+========================================================================
+src/soloud/src/audiosource/wav/dr_flac.h (license footer)
+src/soloud/src/audiosource/wav/dr_wav.h (license footer)
+src/soloud/src/audiosource/wav/dr_mp3.h (license footer)
+========================================================================
+/*
+This software is available as a choice of the following licenses. Choose
+whichever you prefer.
+
+===============================================================================
+ALTERNATIVE 1 - Public Domain (www.unlicense.org)
+===============================================================================
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this
+software, either in source code form or as a compiled binary, for any purpose,
+commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this
+software dedicate any and all copyright interest in the software to the public
+domain. We make this dedication for the benefit of the public at large and to
+the detriment of our heirs and successors. We intend this dedication to be an
+overt act of relinquishment in perpetuity of all present and future rights to
+this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <http://unlicense.org/>
+
+===============================================================================
+ALTERNATIVE 2 - MIT No Attribution
+===============================================================================
+Copyright 2023 David Reid
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+========================================================================
+src/soloud/src/audiosource/wav/dr_mp3.h (license footer)
+========================================================================
+/*
+REVISION HISTORY
+================
+v0.7.2 - 2025-12-02
+  - Reduce stack space to improve robustness on embedded systems.
+  - Fix a compilation error with MSVC Clang toolset relating to cpuid.
+  - Fix an error with APE tag parsing.
+
+v0.7.1 - 2025-09-10
+  - Silence a warning with GCC.
+  - Fix an error with the NXDK build.
+  - Fix a decoding inconsistency when seeking. Prior to this change, reading to the end of the stream immediately after initializing will result in a different number of samples read than if the stream is seeked to the start and read to the end.
+
+v0.7.0 - 2025-07-23
+  - The old `DRMP3_IMPLEMENTATION` has been removed. Use `DR_MP3_IMPLEMENTATION` instead. The reason for this change is that in the future everything will eventually be using the underscored naming convention in the future, so `drmp3` will become `dr_mp3`.
+  - API CHANGE: Seek origins have been renamed to match the naming convention used by dr_wav and my other libraries.
+    - drmp3_seek_origin_start   -> DRMP3_SEEK_SET
+    - drmp3_seek_origin_current -> DRMP3_SEEK_CUR
+    - DRMP3_SEEK_END (new)
+  - API CHANGE: Add DRMP3_SEEK_END as a seek origin for the seek callback. This is required for detection of ID3v1 and APE tags.
+  - API CHANGE: Add onTell callback to `drmp3_init()`. This is needed in order to track the location of ID3v1 and APE tags.
+  - API CHANGE: Add onMeta callback to `drmp3_init()`. This is used for reporting tag data back to the caller. Currently this only reports the raw tag data which means applications need to parse the data themselves.
+  - API CHANGE: Rename `drmp3dec_frame_info.hz` to `drmp3dec_frame_info.sample_rate`.
+  - Add detection of ID3v2, ID3v1, APE and Xing/VBRI tags. This should fix errors with some files where the decoder was reading tags as audio data.
+  - Delay and padding samples from LAME tags are now handled.
+  - Fix compilation for AIX OS.
+
+v0.6.40 - 2024-12-17
+  - Improve detection of ARM64EC
+
+v0.6.39 - 2024-02-27
+  - Fix a Wdouble-promotion warning.
+
+v0.6.38 - 2023-11-02
+  - Fix build for ARMv6-M.
+
+v0.6.37 - 2023-07-07
+  - Silence a static analysis warning.
+
+v0.6.36 - 2023-06-17
+  - Fix an incorrect date in revision history. No functional change.
+
+v0.6.35 - 2023-05-22
+  - Minor code restructure. No functional change.
+
+v0.6.34 - 2022-09-17
+  - Fix compilation with DJGPP.
+  - Fix compilation when compiling with x86 with no SSE2.
+  - Remove an unnecessary variable from the drmp3 structure.
+
+v0.6.33 - 2022-04-10
+  - Fix compilation error with the MSVC ARM64 build.
+  - Fix compilation error on older versions of GCC.
+  - Remove some unused functions.
+
+v0.6.32 - 2021-12-11
+  - Fix a warning with Clang.
+
+v0.6.31 - 2021-08-22
+  - Fix a bug when loading from memory.
+
+v0.6.30 - 2021-08-16
+  - Silence some warnings.
+  - Replace memory operations with DRMP3_* macros.
+
+v0.6.29 - 2021-08-08
+  - Bring up to date with minimp3.
+
+v0.6.28 - 2021-07-31
+  - Fix platform detection for ARM64.
+  - Fix a compilation error with C89.
+
+v0.6.27 - 2021-02-21
+  - Fix a warning due to referencing _MSC_VER when it is undefined.
+
+v0.6.26 - 2021-01-31
+  - Bring up to date with minimp3.
+
+v0.6.25 - 2020-12-26
+  - Remove DRMP3_DEFAULT_CHANNELS and DRMP3_DEFAULT_SAMPLE_RATE which are leftovers from some removed APIs.
+
+v0.6.24 - 2020-12-07
+  - Fix a typo in version date for 0.6.23.
+
+v0.6.23 - 2020-12-03
+  - Fix an error where a file can be closed twice when initialization of the decoder fails.
+
+v0.6.22 - 2020-12-02
+  - Fix an error where it's possible for a file handle to be left open when initialization of the decoder fails.
+
+v0.6.21 - 2020-11-28
+  - Bring up to date with minimp3.
+
+v0.6.20 - 2020-11-21
+  - Fix compilation with OpenWatcom.
+
+v0.6.19 - 2020-11-13
+  - Minor code clean up.
+
+v0.6.18 - 2020-11-01
+  - Improve compiler support for older versions of GCC.
+
+v0.6.17 - 2020-09-28
+  - Bring up to date with minimp3.
+
+v0.6.16 - 2020-08-02
+  - Simplify sized types.
+
+v0.6.15 - 2020-07-25
+  - Fix a compilation warning.
+
+v0.6.14 - 2020-07-23
+  - Fix undefined behaviour with memmove().
+
+v0.6.13 - 2020-07-06
+  - Fix a bug when converting from s16 to f32 in drmp3_read_pcm_frames_f32().
+
+v0.6.12 - 2020-06-23
+  - Add include guard for the implementation section.
+
+v0.6.11 - 2020-05-26
+  - Fix use of uninitialized variable error.
+
+v0.6.10 - 2020-05-16
+  - Add compile-time and run-time version querying.
+    - DRMP3_VERSION_MINOR
+    - DRMP3_VERSION_MAJOR
+    - DRMP3_VERSION_REVISION
+    - DRMP3_VERSION_STRING
+    - drmp3_version()
+    - drmp3_version_string()
+
+v0.6.9 - 2020-04-30
+  - Change the `pcm` parameter of drmp3dec_decode_frame() to a `const drmp3_uint8*` for consistency with internal APIs.
+
+v0.6.8 - 2020-04-26
+  - Optimizations to decoding when initializing from memory.
+
+v0.6.7 - 2020-04-25
+  - Fix a compilation error with DR_MP3_NO_STDIO
+  - Optimization to decoding by reducing some data movement.
+
+v0.6.6 - 2020-04-23
+  - Fix a minor bug with the running PCM frame counter.
+
+v0.6.5 - 2020-04-19
+  - Fix compilation error on ARM builds.
+
+v0.6.4 - 2020-04-19
+  - Bring up to date with changes to minimp3.
+
+v0.6.3 - 2020-04-13
+  - Fix some pedantic warnings.
+
+v0.6.2 - 2020-04-10
+  - Fix a crash in drmp3_open_*_and_read_pcm_frames_*() if the output config object is NULL.
+
+v0.6.1 - 2020-04-05
+  - Fix warnings.
+
+v0.6.0 - 2020-04-04
+  - API CHANGE: Remove the pConfig parameter from the following APIs:
+    - drmp3_init()
+    - drmp3_init_memory()
+    - drmp3_init_file()
+  - Add drmp3_init_file_w() for opening a file from a wchar_t encoded path.
+
+v0.5.6 - 2020-02-12
+  - Bring up to date with minimp3.
+
+v0.5.5 - 2020-01-29
+  - Fix a memory allocation bug in high level s16 decoding APIs.
+
+v0.5.4 - 2019-12-02
+  - Fix a possible null pointer dereference when using custom memory allocators for realloc().
+
+v0.5.3 - 2019-11-14
+  - Fix typos in documentation.
+
+v0.5.2 - 2019-11-02
+  - Bring up to date with minimp3.
+
+v0.5.1 - 2019-10-08
+  - Fix a warning with GCC.
+
+v0.5.0 - 2019-10-07
+  - API CHANGE: Add support for user defined memory allocation routines. This system allows the program to specify their own memory allocation
+    routines with a user data pointer for client-specific contextual data. This adds an extra parameter to the end of the following APIs:
+    - drmp3_init()
+    - drmp3_init_file()
+    - drmp3_init_memory()
+    - drmp3_open_and_read_pcm_frames_f32()
+    - drmp3_open_and_read_pcm_frames_s16()
+    - drmp3_open_memory_and_read_pcm_frames_f32()
+    - drmp3_open_memory_and_read_pcm_frames_s16()
+    - drmp3_open_file_and_read_pcm_frames_f32()
+    - drmp3_open_file_and_read_pcm_frames_s16()
+  - API CHANGE: Renamed the following APIs:
+    - drmp3_open_and_read_f32()        -> drmp3_open_and_read_pcm_frames_f32()
+    - drmp3_open_and_read_s16()        -> drmp3_open_and_read_pcm_frames_s16()
+    - drmp3_open_memory_and_read_f32() -> drmp3_open_memory_and_read_pcm_frames_f32()
+    - drmp3_open_memory_and_read_s16() -> drmp3_open_memory_and_read_pcm_frames_s16()
+    - drmp3_open_file_and_read_f32()   -> drmp3_open_file_and_read_pcm_frames_f32()
+    - drmp3_open_file_and_read_s16()   -> drmp3_open_file_and_read_pcm_frames_s16()
+
+v0.4.7 - 2019-07-28
+  - Fix a compiler error.
+
+v0.4.6 - 2019-06-14
+  - Fix a compiler error.
+
+v0.4.5 - 2019-06-06
+  - Bring up to date with minimp3.
+
+v0.4.4 - 2019-05-06
+  - Fixes to the VC6 build.
+
+v0.4.3 - 2019-05-05
+  - Use the channel count and/or sample rate of the first MP3 frame instead of DRMP3_DEFAULT_CHANNELS and
+    DRMP3_DEFAULT_SAMPLE_RATE when they are set to 0. To use the old behaviour, just set the relevant property to
+    DRMP3_DEFAULT_CHANNELS or DRMP3_DEFAULT_SAMPLE_RATE.
+  - Add s16 reading APIs
+    - drmp3_read_pcm_frames_s16
+    - drmp3_open_memory_and_read_pcm_frames_s16
+    - drmp3_open_and_read_pcm_frames_s16
+    - drmp3_open_file_and_read_pcm_frames_s16
+  - Add drmp3_get_mp3_and_pcm_frame_count() to the public header section.
+  - Add support for C89.
+  - Change license to choice of public domain or MIT-0.
+
+v0.4.2 - 2019-02-21
+  - Fix a warning.
+
+v0.4.1 - 2018-12-30
+  - Fix a warning.
+
+v0.4.0 - 2018-12-16
+  - API CHANGE: Rename some APIs:
+    - drmp3_read_f32 -> to drmp3_read_pcm_frames_f32
+    - drmp3_seek_to_frame -> drmp3_seek_to_pcm_frame
+    - drmp3_open_and_decode_f32 -> drmp3_open_and_read_pcm_frames_f32
+    - drmp3_open_and_decode_memory_f32 -> drmp3_open_memory_and_read_pcm_frames_f32
+    - drmp3_open_and_decode_file_f32 -> drmp3_open_file_and_read_pcm_frames_f32
+  - Add drmp3_get_pcm_frame_count().
+  - Add drmp3_get_mp3_frame_count().
+  - Improve seeking performance.
+
+v0.3.2 - 2018-09-11
+  - Fix a couple of memory leaks.
+  - Bring up to date with minimp3.
+
+v0.3.1 - 2018-08-25
+  - Fix C++ build.
+
+v0.3.0 - 2018-08-25
+  - Bring up to date with minimp3. This has a minor API change: the "pcm" parameter of drmp3dec_decode_frame() has
+    been changed from short* to void* because it can now output both s16 and f32 samples, depending on whether or
+    not the DR_MP3_FLOAT_OUTPUT option is set.
+
+v0.2.11 - 2018-08-08
+  - Fix a bug where the last part of a file is not read.
+
+v0.2.10 - 2018-08-07
+  - Improve 64-bit detection.
+
+v0.2.9 - 2018-08-05
+  - Fix C++ build on older versions of GCC.
+  - Bring up to date with minimp3.
+
+v0.2.8 - 2018-08-02
+  - Fix compilation errors with older versions of GCC.
+
+v0.2.7 - 2018-07-13
+  - Bring up to date with minimp3.
+
+v0.2.6 - 2018-07-12
+  - Bring up to date with minimp3.
+
+v0.2.5 - 2018-06-22
+  - Bring up to date with minimp3.
+
+v0.2.4 - 2018-05-12
+  - Bring up to date with minimp3.
+
+v0.2.3 - 2018-04-29
+  - Fix TCC build.
+
+v0.2.2 - 2018-04-28
+  - Fix bug when opening a decoder from memory.
+
+v0.2.1 - 2018-04-27
+  - Efficiency improvements when the decoder reaches the end of the stream.
+
+v0.2 - 2018-04-21
+  - Bring up to date with minimp3.
+  - Start using major.minor.revision versioning.
+
+v0.1d - 2018-03-30
+  - Bring up to date with minimp3.
+
+v0.1c - 2018-03-11
+  - Fix C++ build error.
+
+v0.1b - 2018-03-07
+  - Bring up to date with minimp3.
+
+v0.1a - 2018-02-28
+  - Fix compilation error on GCC/Clang.
+  - Fix some warnings.
+
+v0.1 - 2018-02-xx
+  - Initial versioned release.
+*/
+
+========================================================================
+src/soloud/src/audiosource/wav/dr_mp3.h (license footer)
+========================================================================
+/*
+    https://github.com/lieff/minimp3
+    To the extent possible under law, the author(s) have dedicated all copyright and related and neighboring rights to this software to the public domain worldwide.
+    This software is distributed without any warranty.
+    See <http://creativecommons.org/publicdomain/zero/1.0/>.
+*/
+
+========================================================================
+src/soloud/src/audiosource/wav/stb_vorbis.c (license footer)
+========================================================================
+/*
+------------------------------------------------------------------------------
+This software is available under 2 licenses -- choose whichever you prefer.
+------------------------------------------------------------------------------
+ALTERNATIVE A - MIT License
+Copyright (c) 2017 Sean Barrett
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+------------------------------------------------------------------------------
+ALTERNATIVE B - Public Domain (www.unlicense.org)
+This is free and unencumbered software released into the public domain.
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this
+software, either in source code form or as a compiled binary, for any purpose,
+commercial or non-commercial, and by any means.
+In jurisdictions that recognize copyright laws, the author or authors of this
+software dedicate any and all copyright interest in the software to the public
+domain. We make this dedication for the benefit of the public at large and to
+the detriment of our heirs and successors. We intend this dedication to be an
+overt act of relinquishment in perpetuity of all present and future rights to
+this software under copyright law.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+------------------------------------------------------------------------------
+*/
+
+========================================================================
+src/soloud/src/backend/miniaudio/miniaudio.h (license footer)
+========================================================================
+/*
+This software is available as a choice of the following licenses. Choose
+whichever you prefer.
+
+===============================================================================
+ALTERNATIVE 1 - Public Domain (www.unlicense.org)
+===============================================================================
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this
+software, either in source code form or as a compiled binary, for any purpose,
+commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this
+software dedicate any and all copyright interest in the software to the public
+domain. We make this dedication for the benefit of the public at large and to
+the detriment of our heirs and successors. We intend this dedication to be an
+overt act of relinquishment in perpetuity of all present and future rights to
+this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <http://unlicense.org/>
+
+===============================================================================
+ALTERNATIVE 2 - MIT No Attribution
+===============================================================================
+Copyright 2026 David Reid
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+========================================================================
+src/soloud/src/core/soloud_fft.cpp
+========================================================================
+// FFT based on fftreal by Laurent de Soras, under WTFPL
+
+========================================================================
+src/soloud/src/core/soloud_fft.cpp
+========================================================================
+// Based on http://www.kurims.kyoto-u.ac.jp/~ooura/fft.html
+// "Copyright Takuya OOURA, 1996-2001 
+//  You may use, copy, modify and distribute this code for any purpose 
+//  (include commercial use) and without fee. Please refer to this package 
+//  when you modify this code."
+
+========================================================================
+src/soloud/src/filter/soloud_freeverbfilter.cpp
+========================================================================
+// Based on code written by Jezar at Dreampoint, June 2000 http://www.dreampoint.co.uk, 
+		// which was placed in public domain. The code was massaged quite a bit by 
+		// Jari Komppa, result in the license listed at top of this file.

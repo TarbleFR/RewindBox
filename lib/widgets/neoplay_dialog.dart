@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:neostation/l10n/neoplay_companion_locale.dart';
 import 'package:neostation/l10n/neoplay_discovery_locale.dart';
 import 'package:neostation/widgets/neoplay_apple_tv_card.dart';
@@ -7,14 +8,21 @@ import 'package:flutter/services.dart';
 import 'package:neoplay_bridge/neoplay_bridge.dart';
 import 'package:neostation/l10n/neoplay_locale.dart';
 
-Future<void> showNeoPlayDialog(BuildContext context) => showDialog<void>(context: context, builder: (_) => const NeoPlayDialog());
+Future<void> showNeoPlayDialog(BuildContext context) =>
+    showDialog<void>(context: context, builder: (_) => const NeoPlayDialog());
 
 class NeoPlayDialog extends StatefulWidget {
-  const NeoPlayDialog({super.key});
+  const NeoPlayDialog({super.key, this.embedded = false});
+
+  /// Reuse receiver selection in the main AirPlay tab without a modal route.
+  /// Merely entering this view never starts discovery or screen capture.
+  final bool embedded;
   @override
   State<NeoPlayDialog> createState() => _NeoPlayDialogState();
 }
-class _NeoPlayDialogState extends State<NeoPlayDialog> with WidgetsBindingObserver {
+
+class _NeoPlayDialogState extends State<NeoPlayDialog>
+    with WidgetsBindingObserver {
   StreamSubscription<Map<String, dynamic>>? subscription;
   Map<String, dynamic> snapshot = const {'state': 'idle', 'receivers': []};
   bool error = false;
@@ -23,64 +31,205 @@ class _NeoPlayDialogState extends State<NeoPlayDialog> with WidgetsBindingObserv
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    subscription = NeoPlayBridge.events.listen((value) { if (mounted) setState(() { snapshot = value; error = value['error'] != null; }); }, onError: (_) { if (mounted) setState(() => error = true); });
+    subscription = NeoPlayBridge.events.listen(
+      (value) {
+        if (mounted) {
+          setState(() {
+            snapshot = value;
+            error = value['error'] != null;
+          });
+        }
+      },
+      onError: (_) {
+        if (mounted) setState(() => error = true);
+      },
+    );
   }
+
   @override
-  void dispose() { WidgetsBinding.instance.removeObserver(this); unawaited(subscription?.cancel()); unawaited(NeoPlayBridge.stopDiscovery().catchError((Object _) {})); super.dispose(); }
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(subscription?.cancel());
+    unawaited(NeoPlayBridge.stopDiscovery().catchError((Object _) {}));
+    super.dispose();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Rebuild the explicit search after a Settings/Wi-Fi round trip. Opening
     // this dialog alone must never scan or prompt for local network access.
     if (state == AppLifecycleState.resumed && searching) unawaited(search());
   }
+
   Future<void> search() async {
-    setState(() { searching = true; error = false; });
+    setState(() {
+      searching = true;
+      error = false;
+    });
     await action(NeoPlayBridge.discover);
   }
+
   Future<void> action(Future<void> Function() callback) async {
-    try { await callback(); } catch (_) { if (mounted) setState(() => error = true); }
+    try {
+      await callback();
+    } catch (_) {
+      if (mounted) setState(() => error = true);
+    }
   }
+
   Future<void> connect(Map receiver) async {
     var pin = '';
     if (receiver['kind'] == 'windows') {
       final input = TextEditingController();
-      final value = await showDialog<String>(context: context, builder: (context) => AlertDialog(
-        title: Text(NeoPlayLocale.get(context, 'pin')),
-        content: TextField(controller: input, autofocus: true, keyboardType: TextInputType.number, maxLength: 6, inputFormatters: [FilteringTextInputFormatter.digitsOnly], onSubmitted: (value) { if (value.length == 6) Navigator.pop(context, value); }),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(NeoPlayLocale.get(context, 'close'))), TextButton(onPressed: () { if (input.text.length == 6) Navigator.pop(context, input.text); }, child: Text(NeoPlayLocale.get(context, 'connect')))],
-      ));
+      final value = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(NeoPlayLocale.get(context, 'pin')),
+          content: TextField(
+            controller: input,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            onSubmitted: (value) {
+              if (value.length == 6) Navigator.pop(context, value);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(NeoPlayLocale.get(context, 'close')),
+            ),
+            TextButton(
+              onPressed: () {
+                if (input.text.length == 6) Navigator.pop(context, input.text);
+              },
+              child: Text(NeoPlayLocale.get(context, 'connect')),
+            ),
+          ],
+        ),
+      );
       // Dispose after the dialog's reverse transition releases its TextField.
       Future<void>.delayed(const Duration(seconds: 1), input.dispose);
-      if (value == null || !mounted) return; pin = value;
+      if (value == null || !mounted) return;
+      pin = value;
     }
     if (!mounted) return;
     final label = NeoPlayLocale.get(context, 'disconnect');
-    await action(() => NeoPlayBridge.connect(id: receiver['id'] as String, pin: pin, stopLabel: label));
+    await action(
+      () => NeoPlayBridge.connect(
+        id: receiver['id'] as String,
+        pin: pin,
+        stopLabel: label,
+      ),
+    );
   }
+
   @override
   Widget build(BuildContext context) {
     String text(String key) => NeoPlayLocale.get(context, key);
     final state = snapshot['state'] as String? ?? 'idle';
-    final busy = const ['connecting','capturing','streaming'].contains(state);
-    final receivers = (snapshot['receivers'] as List? ?? const []).whereType<Map>().toList();
+    final busy = const ['connecting', 'capturing', 'streaming'].contains(state);
+    final receivers = (snapshot['receivers'] as List? ?? const [])
+        .whereType<Map>()
+        .toList();
+    final content = SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(text('description')),
+          const SizedBox(height: 10),
+          Text(text('windows')),
+          const SizedBox(height: 6),
+          Text(text('cast')),
+          const SizedBox(height: 10),
+          NeoPlayAppleTVCard(
+            facts: Map<String, dynamic>.from(
+              snapshot['appleTV'] as Map? ?? const {},
+            ),
+            streamBusy: busy,
+          ),
+          Text(NeoPlayCompanionLocale.get(context, 'batteryHelp')),
+          const SizedBox(height: 10),
+          Text(text(state)),
+          if (error)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                text('error'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          Text(NeoPlayDiscoveryLocale.get(context, 'networkHelp')),
+          TextButton.icon(
+            onPressed: search,
+            icon: const Icon(Icons.cast),
+            label: Text(
+              searching
+                  ? NeoPlayDiscoveryLocale.get(context, 'refresh')
+                  : text('discover'),
+            ),
+          ),
+          receivers.isEmpty
+              ? Center(child: Text(text('empty')))
+              : ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: receivers.length,
+                  itemBuilder: (context, index) {
+                    final receiver = receivers[index];
+                    return ListTile(
+                      leading: Icon(
+                        receiver['kind'] == 'windows'
+                            ? Icons.desktop_windows
+                            : Icons.cast,
+                      ),
+                      title: Text(receiver['name'] as String? ?? 'NeoPlay'),
+                      selected: snapshot['selected'] == receiver['id'],
+                      enabled: !busy,
+                      onTap: () => connect(receiver),
+                    );
+                  },
+                ),
+          Text(text('prototype'), style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+    final actions = <Widget>[
+      if (busy)
+        TextButton(
+          onPressed: () => action(NeoPlayBridge.disconnect),
+          child: Text(text('disconnect')),
+        ),
+      if (!widget.embedded)
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(text('close')),
+        ),
+    ];
+    if (widget.embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'AirPlay · ${text('subtitle')}',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          Expanded(child: content),
+          if (actions.isNotEmpty)
+            Wrap(alignment: WrapAlignment.end, children: actions),
+        ],
+      );
+    }
     return AlertDialog(
       title: const Text('NeoPlay'),
-      content: SizedBox(width: 620, height: MediaQuery.sizeOf(context).height * 0.6, child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(text('description')), const SizedBox(height: 10), Text(text('windows')), const SizedBox(height: 6), Text(text('cast')),
-        const SizedBox(height: 10),
-        NeoPlayAppleTVCard(facts: Map<String,dynamic>.from(snapshot['appleTV'] as Map? ?? const {}),streamBusy:busy),
-        Text(NeoPlayCompanionLocale.get(context,'batteryHelp')),
-        const SizedBox(height: 10), Text(text(state)),
-        if (error) Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(text('error'), style: TextStyle(color: Theme.of(context).colorScheme.error))),
-        Text(NeoPlayDiscoveryLocale.get(context, 'networkHelp')),
-        TextButton.icon(onPressed: search, icon: const Icon(Icons.cast), label: Text(searching ? NeoPlayDiscoveryLocale.get(context, 'refresh') : text('discover'))),
-        receivers.isEmpty ? Center(child: Text(text('empty'))) : ListView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: receivers.length, itemBuilder: (context,index) {
-          final receiver = receivers[index];
-          return ListTile(leading: Icon(receiver['kind'] == 'windows' ? Icons.desktop_windows : Icons.cast), title: Text(receiver['name'] as String? ?? 'NeoPlay'), selected: snapshot['selected'] == receiver['id'], enabled: !busy, onTap: () => connect(receiver));
-        }),
-        Text(text('prototype'), style: Theme.of(context).textTheme.bodySmall),
-      ]))),
-      actions: [if (busy) TextButton(onPressed: () => action(NeoPlayBridge.disconnect), child: Text(text('disconnect'))), TextButton(onPressed: () => Navigator.pop(context), child: Text(text('close')))],
+      content: SizedBox(
+        width: 620,
+        height: MediaQuery.sizeOf(context).height * 0.6,
+        child: content,
+      ),
+      actions: actions,
     );
   }
 }

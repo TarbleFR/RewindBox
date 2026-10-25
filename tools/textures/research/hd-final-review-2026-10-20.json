@@ -1,0 +1,409 @@
+{
+  "checked_at": "2026-10-20",
+  "baseline_commit": "b332bc2e59e4f44d4e820aa4879520a058bfd76b",
+  "purpose": "Final renewed HD catalogue research. This file is not a runtime catalogue. new_reference counts only newly identified HD projects absent from the prior source/research set; re-reviews, tools, ports, secondary indexes and mirrors are not discoveries.",
+  "new_hd_project_references": 6,
+  "repository_query_pages": [
+    {
+      "query": "texture ppsspp",
+      "page": 1,
+      "returned_repositories": 100
+    },
+    {
+      "query": "texture ppsspp",
+      "page": 2,
+      "returned_repositories": 60
+    },
+    {
+      "query": "texture citra",
+      "page": 1,
+      "returned_repositories": 7
+    },
+    {
+      "query": "texture dolphin fork:false",
+      "page": 1,
+      "returned_repositories": 47
+    },
+    {
+      "query": "texture gamecube fork:false",
+      "page": 1,
+      "returned_repositories": 32
+    },
+    {
+      "query": "texture azahar fork:false",
+      "page": 1,
+      "returned_repositories": 0
+    },
+    {
+      "query": "textures 3ds fork:false",
+      "page": 1,
+      "returned_repositories": 100
+    },
+    {
+      "query": "texture psp fork:false",
+      "page": 1,
+      "returned_repositories": 47
+    },
+    {
+      "query": "texture Wii fork:false",
+      "page": 1,
+      "returned_repositories": 49
+    },
+    {
+      "query": "topic:hd-textures fork:false",
+      "page": 1,
+      "returned_repositories": 17
+    },
+    {
+      "query": "topic:texture-pack -minecraft fork:false",
+      "page": 1,
+      "returned_repositories": 100
+    },
+    {
+      "query": "\"HD\" \"Citra\" fork:false",
+      "page": 1,
+      "returned_repositories": 5
+    },
+    {
+      "query": "\"texture\" \"Fire-Emblem\" fork:false",
+      "page": 1,
+      "returned_repositories": 3
+    },
+    {
+      "query": "texture Beetle fork:false",
+      "page": 1,
+      "returned_repositories": 3
+    },
+    {
+      "query": "\"texture pack\" \"pcsx2\" fork:false",
+      "page": 1,
+      "returned_repositories": 13
+    },
+    {
+      "query": "\"HD\" \"PS2\" fork:false",
+      "page": 1,
+      "returned_repositories": 55
+    },
+    {
+      "query": "\"upscale\" \"PSP\" fork:false",
+      "page": 1,
+      "returned_repositories": 5
+    },
+    {
+      "query": "\"texture\" \"Nintendo 3DS\" fork:false",
+      "page": 1,
+      "returned_repositories": 9
+    },
+    {
+      "query": "\"texture\" \"Nintendo\" fork:false",
+      "page": 1,
+      "returned_repositories": 57
+    },
+    {
+      "query": "\"HD\" \"citra\" in:name,description,readme fork:false",
+      "page": 1,
+      "returned_repositories": 100
+    },
+    {
+      "query": "texture 3ds fork:false",
+      "page": 2,
+      "returned_repositories": 22
+    },
+    {
+      "query": "texture azahar in:name,description,readme fork:false",
+      "page": 1,
+      "returned_repositories": 100
+    },
+    {
+      "query": "\"texture pack\" \"azahar\" in:readme fork:false",
+      "page": 1,
+      "returned_repositories": 41
+    },
+    {
+      "query": "\"HD textures\" \"citra\" in:readme fork:false",
+      "page": 1,
+      "returned_repositories": 12
+    },
+    {
+      "query": "\"texture\" \"beetle\" in:readme fork:false",
+      "page": 1,
+      "returned_repositories": 100
+    },
+    {
+      "query": "\"texture pack\" \"Dolphin\" in:readme fork:false",
+      "page": 1,
+      "returned_repositories": 100
+    },
+    {
+      "query": "\"textures\" \"PPSSPP\" in:readme fork:false",
+      "page": 1,
+      "returned_repositories": 100
+    }
+  ],
+  "web_scope": [
+    "creator pages and download pages",
+    "PPSSPP, Dolphin, GBAtemp, GameBanana, Citra/Azahar, Serenes Forest and FEUniverse",
+    "GitLab/Codeberg indexed searches; no new original compatible archive established",
+    "ModDB, itch.io, DeviantArt and original GitHub releases/history",
+    "English, French, Japanese, Chinese and Korean queries; noisy or empty results did not establish absence"
+  ],
+  "limitations": "Broad discovery and targeted primary verification, not proof that the entire Internet or private communities have been exhausted. Existing successful archive checks were reused. Access walls, quota and unavailable original sources were not bypassed.",
+  "entries": [
+    {
+      "id": "3ds-pokemon-alpha-sapphire-ghibli-dinopandaa",
+      "system": "3ds",
+      "title": "Pokémon Alpha Sapphire Ghibli-style HD, DinoPandaa30",
+      "new_reference": true,
+      "kind": "hd-pack",
+      "page_url": "https://github.com/DinoPandaa30/Pokemon-Alpha-Sapphire-Ghibli-Style/releases/tag/v0.0.3",
+      "disposition": "verified-integration",
+      "identity": "000400000011C500",
+      "reason": "New original release discovered through README-inclusive repository search. v0.0.3 ZIP, 68,957,902 bytes advertised; release notes claim HD text in EN/FR/DE/ES/IT and selected environments, HUD and three Pokémon. Only the creator's Alpha Sapphire ID is retained; no Omega Ruby ID inferred. Native CI run 39450675080 installed 336 valid PNGs plus pack.json with new hashes and PNG flip; exact archive size and SHA-256 retained. The earlier repository-only no-op run is not verification evidence."
+    },
+    {
+      "id": "gc-turok-evolution-r4x4",
+      "system": "gc",
+      "title": "Turok Evolution HD, R4X4",
+      "new_reference": true,
+      "kind": "hd-pack",
+      "page_url": "https://www.moddb.com/mods/turok-evolution-hd-texture-pack-for-dolphin-emulator",
+      "download_page": "https://www.moddb.com/mods/turok-evolution-hd-texture-pack-for-dolphin-emulator/downloads/gtke51",
+      "disposition": "adaptation-required",
+      "identity": "GTKE51",
+      "reason": "Original creator download page identifies GTKE51.rar, 384,308,136 bytes, May 26 2023, MD5 928c664dd6407a40264c5b8cab7a2f7b. PC texture comparison plus 2x upscale; creator notes possible end-boss glitches. RAR is unsupported by the native archive reader. File bytes not downloaded, hashed or installed; page metadata is not a successful download."
+    },
+    {
+      "id": "wii-spyro-dotd-freezy",
+      "system": "wii",
+      "title": "The Legend of Spyro: Dawn of the Dragon HD, FreezyTheDragon",
+      "new_reference": true,
+      "kind": "hd-pack",
+      "page_url": "https://www.deviantart.com/freezythedragon/art/HD-Texture-Pack-For-Dawn-Of-The-Dragon-On-The-Wii-1114920113",
+      "disposition": "identity-and-download-unverified",
+      "reason": "Creator page describes PS3 texture ports, edited/original textures and upscaled font; credits dragonoficeandfire, InfinateXtremer and voltaradragoness. Exact Wii game ID, archive layout and distribution terms not established. A later direct page read returned 403; no bypass or runtime availability claim."
+    },
+    {
+      "id": "gc-spiderman2-wavelength",
+      "system": "gc",
+      "title": "WaveLength: Spider-Man 2, Lance Leeder / Mohammed Abdalla",
+      "new_reference": true,
+      "kind": "hd-pack",
+      "page_url": "https://devlanket.itch.io/wavelength-spiderman2-gamecube-texture-pack",
+      "disposition": "identity-download-and-rights-unverified",
+      "reason": "Creator describes an unfinished artistic retexture built from Dalek Caan's Webbed Up upscale. An external download is advertised, but exact game ID and archive were not verified. Derivative artwork permission is not established by the claim that files were edited. No new runtime family or mirrored archive."
+    },
+    {
+      "id": "gc-spiderman2-webbed-up-dalek-caan",
+      "system": "gc",
+      "title": "Spider-Man 2: Webbed Up, Dalek Caan / RE Mods UI",
+      "new_reference": true,
+      "kind": "hd-pack",
+      "page_url": "https://www.moddb.com/mods/add-file-edit-file-archive-delete-spider-man-2-webbed-up/downloads/webbed-up-v1",
+      "download_page": "https://www.moddb.com/downloads/start/199189",
+      "identity": "GK2E52",
+      "disposition": "download-protected",
+      "reason": "Following WaveLength back to its original base revealed a separate original creator release absent from the baseline. Page identifies WebbedUpV1.1.7z, 317,392,447 bytes, MD5 9757dd46e7d52594559db7907dde644e, August 18 2020, exact USA GK2E52 folder. Major characters/world/UI upscaled; Black Cat intentionally native. Live request to original download-start page returns HTTP 403. Search cache exposed only an expired signed CDN redirect; it is not reused and no mirror or alternate runner circumvents the refusal. No payload installation/availability claimed."
+    },
+    {
+      "id": "future-switch-mhgu-monkbreh",
+      "system": "switch",
+      "title": "MHGU HD Project, Monkbreh",
+      "new_reference": true,
+      "kind": "hd-pack",
+      "page_url": "https://github.com/Monkbreh/MHGU-HD-Project/releases/tag/v.2.4.5",
+      "disposition": "future-reference",
+      "reason": "Original release metadata and creator README inspected; RomFS overlay for Switch MHGU/MHXX, seven languages including a French UI component. All future flags remain false. Not a 3DS/Azahar replacement pack; no exact game ID/build or archive payload verification. One project despite many component/controller/language assets."
+    },
+    {
+      "id": "3ds-mirai-dx-hd-ps-buttons-ayumi",
+      "system": "3ds",
+      "title": "Project Mirai DX HD PlayStation buttons",
+      "new_reference": false,
+      "kind": "hd-pack",
+      "page_url": "https://github.com/ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style/tree/fc8d371776a3f70f1cb26857adacd1b458d7e8b7",
+      "disposition": "verified-integration",
+      "reason": "Re-review of an existing cosmetic-only exclusion. Two PNG sheets measure 4096x512 and 512x512, replacing 1024x128 and 256x256 sheets: genuine 4x/2x HD UI, allowed by the renewed request. Creator explicitly names 0004000000148C00. Only Citra subtree installed, no real3ds/Luma payload. Native CI run 39449348701 passed."
+    },
+    {
+      "id": "psp-tekken6-hd-kharij",
+      "system": "psp",
+      "title": "Tekken 6 HD, Kharij",
+      "new_reference": false,
+      "kind": "hd-pack",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=25479",
+      "disposition": "verified-integration",
+      "reason": "Re-review of missing-ID exclusion: creator's thread explicitly identifies ULUS10466 and links own GitHub. Current pinned KTX2 archive passes native installation. 8,649 installed files, 933 absent INI targets and 20 case mismatches; partial coverage disclosed. No other region inferred and no creator files altered. Latest repository archive used, not an unlicensed fork or an older revision counted again."
+    },
+    {
+      "id": "psp-type0-exvesel",
+      "system": "psp",
+      "title": "Final Fantasy Type-0 HD, EX-VES-EL",
+      "new_reference": false,
+      "kind": "hd-pack",
+      "page_url": "https://gbatemp.net/threads/psp-final-fantasy-type-0-ntsc-j-hd-textures-v1-0.679101/",
+      "disposition": "version-and-payload-verification-required",
+      "reason": "Corrected the prior GameBanana URL and false KTX2 decoder exclusion. Delivered PPSSPP has KTX2/UASTC/Zstandard transcoder symbols; raw .basis is different. Creator specifies Skybladecloud English v2 / NPJH50443 and Vulkan, with 11.2 GB ZIP. Patched-game hash mapping and archive installation remain unverified. Creator's original-resolution dump is not retrieved."
+    },
+    {
+      "id": "wii-reaver-split-zips",
+      "system": "wii",
+      "title": "ReaverXIII HOTD 2 & 3 / Overkill / Umbrella Chronicles",
+      "new_reference": false,
+      "kind": "existing-exclusion",
+      "page_url": "https://github.com/ReaverXIII/Dolphin-HD-Textures/releases",
+      "disposition": "adaptation-required",
+      "reason": "Releases independently rechecked: split .z01/.z02/... ZIP volumes, not concatenable plain ZIP chunks. Existing exclusion retained; no 2.5–15 GB bulk download and no changes to the archive reader."
+    },
+    {
+      "id": "psp-patapon3-wallso",
+      "system": "psp",
+      "title": "WallSoGB Patapon 3",
+      "new_reference": false,
+      "kind": "existing-project-lineage",
+      "page_url": "https://github.com/WallSoGB/Patapon3Textures",
+      "disposition": "duplicate-lineage",
+      "reason": "Creator README marks development stalled and redirects to Lin-zl522's already-catalogued successor. Explicit EU/NA/JP/CN IDs do not make four families; INFN00001 is a mod ID."
+    },
+    {
+      "id": "psp-p2-fr-chenetulipe",
+      "system": "psp",
+      "title": "Persona 2 Innocent Sin French HD accents",
+      "new_reference": false,
+      "kind": "existing-exclusion",
+      "page_url": "https://github.com/chenetulipe/P2-FR-IS-PSP",
+      "disposition": "adaptation-required",
+      "reason": "Updated primary README requires an xdelta-patched ULES01557 game and overlaying the FR texture patch on the existing GameBanana base HD UI. Existing exclusion retained; no implicit merging or new automatic match to an unmodified game."
+    },
+    {
+      "id": "psp-tf3-moki",
+      "system": "psp",
+      "title": "Yu-Gi-Oh! GX Tag Force 3 Anime/TCG, Moki.all.Games",
+      "new_reference": false,
+      "kind": "existing-reference",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=45232",
+      "disposition": "existing-reference-retained",
+      "reason": "Oct 15 2026 post rechecked, but already present in psp-x3.json and earlier probes. 9.56 GB, ULES01183; requires custom rendering cheat for full coverage and exclusive Anime/TCG INIs. Cheats and VBS are not installed and alternatives are not separately counted."
+    },
+    {
+      "id": "psp-gos-thepunisher-lite",
+      "system": "psp",
+      "title": "Ghost of Sparta HD Lite, ThePunisher009",
+      "new_reference": false,
+      "kind": "existing-reference",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=40782",
+      "disposition": "existing-reference-retained",
+      "reason": "Already catalogued. Primary post explicitly credits Modder Espartano as original creator; mobile optimization is not a new family from the same project's larger version. No additional download validation was repeated."
+    },
+    {
+      "id": "fe-por-originals",
+      "system": "gc",
+      "title": "Path of Radiance creator alternatives",
+      "new_reference": false,
+      "kind": "existing-references",
+      "page_url": "https://forums.serenesforest.net/topic/93389-fe-por-hd-texture-pack/",
+      "disposition": "existing-limits-retained",
+      "reason": "AppleBoi original RAR still requires external extraction; Panda_Venom original host was previously protected; ThatTextureGuy original thread describes USA. No new French/PAL archive verified. Sebastrion PAL remains original-download/permission-unverified; Thorn relationship unresolved, so not a separate counted mirror."
+    },
+    {
+      "id": "fe-rd-fr-and-ui",
+      "system": "wii",
+      "title": "Radiant Dawn French and UI leads",
+      "new_reference": false,
+      "kind": "existing-references",
+      "page_url": "https://feuniverse.us/t/fe10-want-higher-quality-text-that-isnt-ai-upscaled-en/37941",
+      "disposition": "adaptation-required",
+      "reason": "EagleEyeValor requires Riivolution and Graphics Mods, outside plain texture loader. TenGu314's indexed FR announcement credits Bl4ckH4nd, but the original video account/download was not available in prior primary checks. Link_to_the_past legacy hash/layout remains unverified. No extra language or family counted."
+    },
+    {
+      "id": "fe-3ds-components",
+      "system": "3ds",
+      "title": "Awakening / Fates / Echoes",
+      "new_reference": false,
+      "kind": "existing-references",
+      "page_url": "https://gamebanana.com/mods/400809",
+      "disposition": "existing-limits-retained",
+      "reason": "Awakening AAHD P1 and Fates Character Artwork already verified, not complete multi-component projects. Echoes 506672 remains protected/unverified. CrystalMods QoL collection links that same pack and adds gameplay modifications; it is not a new creator HD project or a justified rehost."
+    },
+    {
+      "id": "3ds-dekui",
+      "system": "3ds",
+      "title": "DekUI",
+      "new_reference": false,
+      "kind": "non-pack-research-result",
+      "page_url": "https://github.com/tgacquin/mm3d-dekui",
+      "disposition": "different-runtime",
+      "reason": "Custom Azahar fork, single-screen UI hooks and Project Restoration for USA 1.1; French support does not turn its executable/patch workflow into a plain interchangeable HD texture pack."
+    },
+    {
+      "id": "ps1-parasite-eve-ports",
+      "system": "ps1",
+      "title": "Parasite Eve I / II HD Remaster, faligame",
+      "new_reference": false,
+      "kind": "non-pack-research-result",
+      "page_url": "https://github.com/faligame/Parasite-Eve-2-HD-Remaster",
+      "related_url": "https://github.com/faligame/Parasite-Eve-HD-Remaster",
+      "disposition": "different-runtime",
+      "reason": "Native PC recompilation/runtime projects; PE2 advertises game-file and DuckStation texture naming, not the embedded Beetle hash-palette layout. Public-release/payload compatibility not established. No PS1 pack promoted."
+    },
+    {
+      "id": "faithful-remaster-tool",
+      "system": "multiple",
+      "title": "Faithful Remaster",
+      "new_reference": false,
+      "kind": "non-pack-research-result",
+      "page_url": "https://github.com/Drm1986/Faithful-Remaster",
+      "disposition": "tool-not-pack",
+      "reason": "A ComfyUI-based Windows texture-production workspace, not ready-to-install packs or a blanket licence for resulting game assets."
+    },
+    {
+      "id": "emucored-cross-reference",
+      "system": "3ds",
+      "title": "EmuCoreD texture index",
+      "new_reference": false,
+      "kind": "secondary-index",
+      "page_url": "https://github.com/sashkinbro/EmuCoreD-Textures/blob/main/textures.json",
+      "disposition": "duplicate-sources",
+      "reason": "Six references: known PokeTex/MM3D/linuxkafe lineages plus LovePlus translation. No additional verified pack found. Third-party manifest is not installation or licence evidence."
+    },
+    {
+      "id": "ps2-raw-dumps",
+      "system": "ps2",
+      "title": "MGS2/MGS3 PS2 texture collections",
+      "new_reference": false,
+      "kind": "non-pack-research-result",
+      "page_url": "https://github.com/dotlessone/MGS2-PS2-Textures",
+      "disposition": "raw-game-assets-not-pack",
+      "reason": "Texture dumps for Master Collection modding/research are not ready-to-use PCSX2 HD replacement packs; no unmodified protected texture redistribution."
+    },
+    {
+      "id": "psp-k-on-ko",
+      "system": "psp",
+      "title": "K-On! Houkago Live Korean",
+      "new_reference": false,
+      "kind": "non-pack-research-result",
+      "page_url": "https://github.com/cailet0422/kon-houkago-live-korean",
+      "disposition": "translation-not-hd-pack",
+      "reason": "Primary README describes xdelta/GUI patchers for the exact Japanese ISO ULJM05709. Translated texture content alone is not a PPSSPP HD replacement release."
+    },
+    {
+      "id": "github-forks-pages",
+      "system": "multiple",
+      "title": "Repository fork and README searches",
+      "new_reference": false,
+      "kind": "search-observation",
+      "page_url": "https://github.com/search?q=texture+ppsspp&type=repositories",
+      "disposition": "duplicates-and-tools",
+      "reason": "Both pages of texture-PPSSPP results inspected; later page mostly Tekken/WipEout/MGS/Patapon/Toukiden forks. No mirror counted as a new project. README-inclusive Azahar query found the original DinoPandaa release absent from filename-only searches."
+    },
+    {
+      "id": "other-retro-limits",
+      "system": "retro",
+      "title": "N64, NES and Nintendo DS compatibility boundary",
+      "new_reference": false,
+      "kind": "existing-platform-limits",
+      "page_url": "https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/hd-textures-nes-mesen.md",
+      "disposition": "existing-limits-retained",
+      "reason": "Existing N64 GLideN64 and NES Mesen packs retained. Mesen 2/fork-only packs and romhack/Lua-dependent releases do not become compatible with the bundled Mesen 106 reader. Embedded DS cores have no texture-replacement adapter. No speculative platform packs counted."
+    }
+  ]
+}

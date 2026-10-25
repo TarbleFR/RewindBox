@@ -1,3 +1,4 @@
+import '../../widgets/neo_glass_bubble.dart';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -452,7 +453,7 @@ class _NewSettingsScreenState extends State<NewSettingsScreen> {
         color: theme.cardColor.withValues(alpha: 0.25),
         border: Border(
           right: BorderSide(
-            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
             width: 1.r,
           ),
         ),
@@ -478,28 +479,15 @@ class _NewSettingsScreenState extends State<NewSettingsScreen> {
               hoverColor: Colors.transparent,
               highlightColor: Colors.transparent,
               splashColor: Colors.transparent,
-              child: Container(
+              child: NeoGlassBubble(
+                selected: isSelected,
+                radius: 22.r,
                 padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 12.r),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? theme.colorScheme.primary.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  border: Border(
-                    left: BorderSide(
-                      color: isSelected && _focusOnMenu
-                          ? theme.colorScheme.primary
-                          : Colors.transparent,
-                      width: 3.r,
-                    ),
-                  ),
-                ),
                 child: Row(
                   children: [
                     Icon(
                       item.icon,
-                      color: isSelected && _focusOnMenu
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface,
+                      color: theme.colorScheme.onSurface,
                       size: 20.r,
                     ),
                     SizedBox(width: 12.r),
@@ -507,9 +495,7 @@ class _NewSettingsScreenState extends State<NewSettingsScreen> {
                       child: Text(
                         item.localeKey.getString(context),
                         style: theme.textTheme.bodyLarge?.copyWith(
-                          color: isSelected && _focusOnMenu
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface,
+                          color: theme.colorScheme.onSurface,
                           fontWeight: isSelected
                               ? FontWeight.w600
                               : FontWeight.normal,

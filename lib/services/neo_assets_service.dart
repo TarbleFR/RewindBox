@@ -5,6 +5,8 @@ import 'package:path/path.dart' as path;
 import 'config_service.dart';
 import 'logger_service.dart';
 import '../utils/bounded_concurrency.dart';
+import 'system_art/canvas_es_de_capsules.dart';
+import 'system_art/neoassets_public_catalog.dart';
 
 const _baseRaw =
     'https://raw.githubusercontent.com/misobadev/neostation-assets/main';
@@ -18,6 +20,17 @@ const _riisuRaw =
 const _riisuThemeFolder = 'RiiSU';
 const _riisuPreviewUrl =
     '$_riisuRaw/themes/RiiSU/backgrounds/switch.webp';
+
+// Curated third-party System Art pack: zenandiko's Canvas-Capsule custom
+// edition of Siddy212's Canvas theme for ES-DE. It publishes no theme.json and
+// names its square capsules after ES-DE folders, so NeoStation pins one
+// immutable revision, maps folders through canvasEsDeCapsuleByFolder and keeps
+// the images hosted by the original repository.
+const _canvasRaw =
+    'https://raw.githubusercontent.com/zenandiko/canvas-es-de/'
+    '$canvasEsDeRevision/theme/flat/webp';
+const _canvasThemeFolder = 'CanvasESDE';
+const _canvasPreviewUrl = '$_canvasRaw/ps2.webp';
 
 final _log = LoggerService.instance;
 
@@ -74,6 +87,9 @@ class NeoAssetsTheme {
   /// Whether the theme assets were generated using AI.
   final bool isAi;
 
+  /// Catalogue provider, distinct from older locally installed packs.
+  final String source;
+
   const NeoAssetsTheme({
     required this.name,
     required this.folder,
@@ -81,6 +97,7 @@ class NeoAssetsTheme {
     required this.previewUrl,
     required this.previewSource,
     required this.isAi,
+    this.source = '',
   });
 
   factory NeoAssetsTheme.fromJson(Map<String, dynamic> json) {
@@ -92,6 +109,7 @@ class NeoAssetsTheme {
       previewUrl: _resolvePreviewUrl(previewSource),
       previewSource: previewSource,
       isAi: _parseAi(json['ai']),
+      source: json['source']?.toString() ?? '',
     );
   }
 
@@ -102,6 +120,7 @@ class NeoAssetsTheme {
     String? previewUrl,
     String? previewSource,
     bool? isAi,
+    String? source,
   }) {
     return NeoAssetsTheme(
       name: name ?? this.name,
@@ -110,6 +129,7 @@ class NeoAssetsTheme {
       previewUrl: previewUrl ?? this.previewUrl,
       previewSource: previewSource ?? this.previewSource,
       isAi: isAi ?? this.isAi,
+      source: source ?? this.source,
     );
   }
 
@@ -214,6 +234,19 @@ class NeoAssetsService {
   static List<NeoAssetsTheme>? _cachedThemes;
   static String? _cachedThemeDir;
 
+  // Only published NeoAssets slugs enter this registry. Never assume every
+  // legacy/cache folder name is an API slug.
+  static final Map<String, String> _neoAssetsSlugs = {};
+  static final Map<String, Map<String, String>> _neoAssetsBackgroundUrls = {};
+
+  static void _registerNeoAssets(List<NeoAssetsTheme> themes) {
+    for (final theme in themes) {
+      if (theme.source != 'neoassets') continue;
+      final slug = NeoAssetsPublicCatalog.slugForLocalFolder(theme.folder);
+      if (slug != null) _neoAssetsSlugs[theme.folder] = slug;
+    }
+  }
+
   /// Adds curated System Art packs that are hosted outside the default
   /// neostation-assets repository. Folder IDs remain unique because they
   /// are also used as the local cache key.
@@ -233,7 +266,38 @@ class NeoAssetsService {
         ),
       );
     }
+    if (!result.any((theme) => theme.folder == _canvasThemeFolder)) {
+      result.add(
+        const NeoAssetsTheme(
+          name: 'Canvas (ES-DE)',
+          folder: _canvasThemeFolder,
+          author: 'zenandiko, from Canvas by Siddy212',
+          previewUrl: _canvasPreviewUrl,
+          previewSource: _canvasPreviewUrl,
+          isAi: false,
+        ),
+      );
+    }
     return result;
+  }
+
+  /// Canvas (ES-DE) capsule for a ROM folder name, or null when the pack has
+  /// no image for that system.
+  static String? canvasCapsuleFor(String systemFolderName) {
+    return canvasEsDeCapsuleByFolder[systemFolderName.trim().toLowerCase()];
+  }
+
+  /// Metadata of the Canvas (ES-DE) pack, built in the app because upstream
+  /// publishes no theme.json. The pinned revision is the version, so moving
+  /// the pin redownloads the pack.
+  static Map<String, dynamic> _canvasThemeMetadata() {
+    return {
+      'id': _canvasThemeFolder,
+      'name': 'Canvas (ES-DE)',
+      'author': 'zenandiko, from Canvas by Siddy212',
+      'version': canvasEsDeRevision,
+      'ai': false,
+    };
   }
 
   /// Fetches the global manifest of available themes.
@@ -251,6 +315,7 @@ class NeoAssetsService {
 
     final remote = await _fetchRemoteThemes();
     if (remote != null) {
+      _registerNeoAssets(remote);
       final merged = await _mergeWithLocalThemes(
         _withCuratedExternalThemes(remote),
       );
@@ -259,8 +324,10 @@ class NeoAssetsService {
     }
 
     // Offline: last cached manifest, floored by locally downloaded themes.
+    final cached = await _readCachedManifest();
+    _registerNeoAssets(cached);
     final fallback = await _mergeWithLocalThemes(
-      _withCuratedExternalThemes(await _readCachedManifest()),
+      _withCuratedExternalThemes(cached),
     );
     if (fallback.isNotEmpty) {
       _log.i('Themes: offline fallback served ${fallback.length} theme(s)');
@@ -274,6 +341,21 @@ class NeoAssetsService {
   /// offline reuse. Returns null on any network failure so callers can fall
   /// back to the on-disk copy.
   static Future<List<NeoAssetsTheme>?> _fetchRemoteThemes() async {
+    // NeoAssets publishes a public, paginated API. Its CDN is independent of
+    // the historical neostation-assets GitHub manifest.
+    try {
+      final packs = await NeoAssetsPublicCatalog.fetchPublishedPacks();
+      if (packs.isNotEmpty) {
+        final entries = packs.map(NeoAssetsPublicCatalog.manifestEntry).toList();
+        await _writeCachedManifest(jsonEncode({'themes': entries}));
+        return entries.map(NeoAssetsTheme.fromJson).toList();
+      }
+    } catch (e) {
+      _log.w('NeoAssets public catalogue unavailable: $e');
+    }
+
+    // Compatibility fallback for older installations; never discard an
+    // offline copy of the official catalogue if this host also fails.
     try {
       final response = await http.get(Uri.parse(_manifestUrl));
       if (response.statusCode != 200) {
@@ -401,12 +483,24 @@ class NeoAssetsService {
     return '$_baseRaw/themes/$themeFolder';
   }
 
-  /// Returns the remote URL for a specific system background within a theme.
-  static String getBackgroundUrl(
+  /// Canvas (ES-DE) only publishes WebP capsules. An unmapped folder or another
+  /// format yields null, so nothing is requested from the repository.
+  static String? _canvasBackgroundUrl(String systemFolderName, String ext) {
+    final capsule = canvasCapsuleFor(systemFolderName);
+    if (capsule == null || ext != 'webp') return null;
+    return '$_canvasRaw/$capsule.webp';
+  }
+
+  /// Returns the remote URL for a specific system background within a theme,
+  /// or null when the theme cannot provide that system in that format.
+  static String? getBackgroundUrl(
     String themeFolder,
     String systemFolderName, {
     String ext = 'webp',
   }) {
+    if (themeFolder == _canvasThemeFolder) {
+      return _canvasBackgroundUrl(systemFolderName, ext);
+    }
     return '${_themeBaseUrl(themeFolder)}/backgrounds/$systemFolderName.$ext';
   }
 
@@ -509,6 +603,44 @@ class NeoAssetsService {
   static Future<Map<String, dynamic>?> _fetchThemeMetadata(
     String themeFolder,
   ) async {
+    if (themeFolder == _canvasThemeFolder) return _canvasThemeMetadata();
+    final slug = _neoAssetsSlugs[themeFolder];
+    if (slug != null) {
+      try {
+        final detail = await NeoAssetsPublicCatalog.fetchDetail(slug);
+        if (detail != null) {
+          final metadata =
+              NeoAssetsPublicCatalog.cacheableMetadata(slug, detail);
+          final urls = metadata['background_urls'];
+          if (urls is Map && urls.isNotEmpty) {
+            _neoAssetsBackgroundUrls[themeFolder] =
+                Map<String, String>.from(urls);
+            return metadata;
+          }
+        }
+      } catch (e) {
+        _log.w('NeoAssets pack detail unavailable for "$slug": $e');
+      }
+      // Offline: already-downloaded artwork remains usable with the exact
+      // source URLs from the last successful installation.
+      try {
+        final file = File(await themeMetadataCachePath(themeFolder));
+        if (await file.exists()) {
+          final saved = jsonDecode(await file.readAsString());
+          if (saved is Map<String, dynamic> &&
+              saved['source'] == 'neoassets' &&
+              saved['slug'] == slug &&
+              saved['background_urls'] is Map) {
+            _neoAssetsBackgroundUrls[themeFolder] =
+                Map<String, String>.from(saved['background_urls'] as Map);
+            return saved;
+          }
+        }
+      } catch (e) {
+        _log.w('Could not read cached NeoAssets pack "$slug": $e');
+      }
+      return null;
+    }
     try {
       final response = await http.get(
         Uri.parse(getThemeMetadataUrl(themeFolder)),
@@ -541,6 +673,19 @@ class NeoAssetsService {
       _log.w('Error reading local theme metadata for "$themeFolder": $e');
       return null;
     }
+  }
+
+  /// Which catalogue produced an existing on-disk pack (for safe migration).
+  static Future<String> _readLocalThemeSource(String folder) async {
+    try {
+      final file = File(await themeMetadataCachePath(folder));
+      if (!await file.exists()) return '';
+      final data = jsonDecode(await file.readAsString());
+      if (data is Map) return data['source']?.toString() ?? '';
+    } catch (_) {
+      // A malformed old cache is handled by the normal reinstall path.
+    }
+    return '';
   }
 
   /// Persists the theme metadata to the local cache.
@@ -637,9 +782,15 @@ class NeoAssetsService {
   /// the list is absent (older themes / offline metadata), returns all of the
   /// user's systems and relies on the `.missing` negative-cache fallback.
   static List<String> _resolveCoveredSystems(
+    String themeFolder,
     Map<String, dynamic>? remoteMetadata,
     List<String> systemFolderNames,
   ) {
+    if (themeFolder == _canvasThemeFolder) {
+      return systemFolderNames
+          .where((system) => canvasCapsuleFor(system) != null)
+          .toList();
+    }
     final declared = remoteMetadata?['systems'];
     if (declared is! List) return systemFolderNames;
     final covered = declared.map((e) => e.toString()).toSet();
@@ -652,20 +803,30 @@ class NeoAssetsService {
     List<String> systemFolderNames,
   ) async {
     final remoteMetadata = await _fetchThemeMetadata(themeFolder);
+    if (_neoAssetsSlugs.containsKey(themeFolder) && remoteMetadata == null) {
+      throw StateError('NeoAssets pack metadata unavailable: $themeFolder');
+    }
     final localVersion = await readLocalThemeVersion(themeFolder);
     final remoteVersion = remoteMetadata?['version']?.toString();
 
     final coveredSystems = _resolveCoveredSystems(
+      themeFolder,
       remoteMetadata,
       systemFolderNames,
     );
 
-    final forceRedownload =
+    // NeoStation and RiiSU retain their old installation folder IDs, but
+    // their source may move from the historical GitHub host to NeoAssets CDN.
+    // Replace stale files and .missing markers on the first such migration.
+    final migratedSource = _neoAssetsSlugs.containsKey(themeFolder) &&
         localVersion != null &&
-        remoteVersion != null &&
-        localVersion.isNotEmpty &&
-        remoteVersion.isNotEmpty &&
-        localVersion != remoteVersion;
+        await _readLocalThemeSource(themeFolder) != 'neoassets';
+    final forceRedownload = migratedSource ||
+        (localVersion != null &&
+            remoteVersion != null &&
+            localVersion.isNotEmpty &&
+            remoteVersion.isNotEmpty &&
+            localVersion != remoteVersion);
 
     final totalAssetsToDownload = forceRedownload
         ? coveredSystems.length
@@ -695,10 +856,34 @@ class NeoAssetsService {
     String themeFolder,
     String systemFolderName,
   ) async {
+    if (_neoAssetsSlugs.containsKey(themeFolder)) {
+      // Detail APIs expose exact CDN URLs. Pixel UI is mostly GIF, while
+      // converted assets can have a WebP URL and an older .png file_name.
+      final url = _neoAssetsBackgroundUrls[themeFolder]?[systemFolderName];
+      if (url == null) {
+        await _writeMissingMarker(themeFolder, systemFolderName);
+        return null;
+      }
+      final ext = Uri.parse(url).path.toLowerCase().endsWith('.gif')
+          ? 'gif'
+          : 'webp';
+      final cached = await backgroundCachePath(
+        themeFolder,
+        systemFolderName,
+        ext: ext,
+      );
+      if (await File(cached).exists()) return cached;
+      // Do not mark a network failure as "missing": retry on selection.
+      return downloadAndCacheAsset(url, cached);
+    }
+
     final webpPath = await backgroundCachePath(themeFolder, systemFolderName);
     final webpUrl = getBackgroundUrl(themeFolder, systemFolderName);
-    var result = await downloadAndCacheAsset(webpUrl, webpPath);
-    if (result != null) return result;
+    String? result;
+    if (webpUrl != null) {
+      result = await downloadAndCacheAsset(webpUrl, webpPath);
+      if (result != null) return result;
+    }
 
     final gifPath = await backgroundCachePath(
       themeFolder,
@@ -706,8 +891,10 @@ class NeoAssetsService {
       ext: 'gif',
     );
     final gifUrl = getBackgroundUrl(themeFolder, systemFolderName, ext: 'gif');
-    result = await downloadAndCacheAsset(gifUrl, gifPath);
-    if (result != null) return result;
+    if (gifUrl != null) {
+      result = await downloadAndCacheAsset(gifUrl, gifPath);
+      if (result != null) return result;
+    }
 
     // Neither format exists remotely: record a negative-cache marker so this
     // system is not re-probed on every re-selection of the theme.
@@ -768,6 +955,39 @@ class NeoAssetsService {
       (system) => getCachedBackground(themeFolder, system),
       onEach: () => onProgress?.call(++done, missingTotal),
     );
+  }
+
+  /// Whether a newly selected pack has downloaded artwork successfully.
+  static Future<bool> hasCachedThemeArt(
+    String themeFolder,
+    List<String> systems,
+  ) async {
+    for (final system in systems) {
+      final webp = await backgroundCachePath(themeFolder, system);
+      final gif = await backgroundCachePath(
+        themeFolder,
+        system,
+        ext: 'gif',
+      );
+      if (await File(webp).exists() || await File(gif).exists()) return true;
+    }
+    return false;
+  }
+
+  static bool isNeoAssetsPack(String folder) =>
+      _neoAssetsSlugs.containsKey(folder);
+
+  /// Tell NeoAssets a pack was actually installed, never just browsed.
+  static Future<void> registerSuccessfulNeoAssetsInstall(String folder) async {
+    final slug = _neoAssetsSlugs[folder];
+    if (slug == null) return;
+    try {
+      if (!await NeoAssetsPublicCatalog.recordInstall(slug)) {
+        _log.w('NeoAssets did not record install for "$slug"');
+      }
+    } catch (e) {
+      _log.w('NeoAssets install counter unavailable for "$slug": $e');
+    }
   }
 
   /// Deletes all cached assets for a specific theme folder.

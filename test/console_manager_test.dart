@@ -43,7 +43,8 @@ void main() {
 
     test('every iOS-runnable system belongs to exactly one console', () {
       final systems = iosSystems();
-      expect(systems.length, 107);
+      // 107 until assets/systems/ports.json left with Dusklight (20 October 2026).
+      expect(systems.length, 106);
       for (final id in systems.keys) {
         final entry = ConsoleCatalog.entryForKey(id);
         expect(entry, isNotNull, reason: '$id has no console');
@@ -70,11 +71,9 @@ void main() {
             expect(definitions, everyElement(containsPair('url_scheme', 'retroarch')), reason: entry.id);
             expect(LibretroCoreCatalog.handles(entry.importSystem), isFalse, reason: entry.id);
           case ConsoleEngine.melonx:
-            expect(definitions, everyElement(containsPair('url_scheme', 'melonx')), reason: entry.id);
           case ConsoleEngine.dolphin:
           case ConsoleEngine.armsx2:
           case ConsoleEngine.rpcs3:
-          case ConsoleEngine.ports:
             expect(definitions, everyElement(containsPair('embedded', true)), reason: entry.id);
           case ConsoleEngine.libretro:
             expect(LibretroCoreCatalog.handles(entry.importSystem), isTrue, reason: entry.id);
@@ -85,7 +84,6 @@ void main() {
         ConsoleEngine.dolphin: 2,
         ConsoleEngine.armsx2: 1,
         ConsoleEngine.rpcs3: 1,
-        ConsoleEngine.ports: 1,
         ConsoleEngine.melonx: 1,
         // 61 before lot 1, whose 21 consoles moved to the libretro engine
         // with their ids (docs/libretro-consoles-lot1.md), then 4 more with
@@ -113,11 +111,13 @@ void main() {
           if (entry.retroArchFallback) entry.id,
       };
       expect(fallback, containsAll(<String>['nes', 'psx', '3ds', 'pico', 'ps2', '2600', 'pce', 'tg16', 'chf', 'intv']));
-      for (final id in ['gc', 'wii', 'ps3', 'ports', 'switch', 'c64', 'vect', 'jag']) {
+      for (final id in ['gc', 'wii', 'ps3', 'switch', 'c64', 'vect', 'jag']) {
         expect(fallback, isNot(contains(id)), reason: id);
       }
-      expect(ConsoleCatalog.byId('switch')!.hasEmbeddedEngine, isFalse);
+      expect(ConsoleCatalog.byId('switch')!.hasEmbeddedEngine, isTrue);
       expect(ConsoleCatalog.byId('c64')!.hasEmbeddedEngine, isFalse);
+      // The Ports console left with Dusklight and KartPad (docs/ports-removal-2026-10-20.md).
+      expect(ConsoleCatalog.byId('ports'), isNull);
       // Lot 1: the Atari 2600 keeps its id and gains the embedded engine.
       expect(ConsoleCatalog.byId('2600')!.hasEmbeddedEngine, isTrue);
       expect(ConsoleCatalog.byId('2600')!.engine, ConsoleEngine.libretro);

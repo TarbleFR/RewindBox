@@ -1,0 +1,31 @@
+name: Build 485 targeted checks
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - test/build485_targeted_test.py
+      - .github/workflows/build485-checks.yml
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  targeted:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env: {GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}'}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Restore exact locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: HD texture packs - Dart panel, pack readers (plain and sanitized), twelve locales, ARMSX2 ABI 8 contracts
+        run: python3 test/build485_targeted_test.py
+      - name: Preserve exact targeted proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build485-${{ github.sha }}
+          path: build/build485/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "note": "Software and catalogue-metadata notices only. Texture artwork remains under the individual creators' terms; no blanket licence or permission for packs is granted here. Copies of notices do not attest a future IPA.",
+  "components": [
+    {
+      "component": "libarchive RAR reader",
+      "repository": "https://github.com/libarchive/libarchive",
+      "revision": "v3.8.10",
+      "distribution_scope": "embedded-reader",
+      "license": "BSD-2-Clause and file-specific permissive notices; BLAKE2 CC0 option",
+      "source_manifest": "packages/neo_texture_catalog/ios/ThirdParty/libarchive/source.json",
+      "files": [
+        {
+          "path": "libarchive-LICENSE.txt",
+          "copied_from": "packages/neo_texture_catalog/ios/Resources/libarchive-LICENSE.txt",
+          "source_url": "https://github.com/libarchive/libarchive/tree/v3.8.10",
+          "upstream_path": "COPYING and the individual headers of the selected reader subset",
+          "sha256": "1e3b4df1b63c9de719b5b3bf8d70c9d07c6e20443a87a796bf1afa14ca2e9528"
+        }
+      ]
+    },
+    {
+      "component": "ps2ktxpak catalogue metadata",
+      "repository": "https://github.com/ps2ktxpak/catalog",
+      "revision": "807733e50aceb10ded2fa95620c2180efce8585a",
+      "distribution_scope": "catalogue-metadata-not-pack-artwork",
+      "license": "MIT",
+      "files": [
+        {
+          "path": "ps2ktxpak-MIT.txt",
+          "copied_from": "packages/neo_texture_catalog/ios/Resources/ps2ktxpak-LICENSE.txt",
+          "upstream_path": "LICENSE",
+          "source_url": "https://github.com/ps2ktxpak/catalog/blob/807733e50aceb10ded2fa95620c2180efce8585a/LICENSE",
+          "sha256": "675226630f793d766fc9e2344f28138c049b4b428b02ba1aab5fb0993d931b0c"
+        }
+      ]
+    },
+    {
+      "component": "LZMA SDK C reader subset",
+      "repository": "https://www.7-zip.org/",
+      "revision": "24.09",
+      "distribution_scope": "embedded-reader",
+      "license": "Public domain (Igor Pavlov dedication)",
+      "source_files": [
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7z.h",
+          "sha256": "b3f59ce743927000b704d925aa6e31795c572acb43814a7e50ebbcc785bfccf1"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zArcIn.c",
+          "sha256": "9b863803e963b276fe74f2dabb8c25f4094e98ef5bf9974d5720dc02a29082a5"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zBuf.c",
+          "sha256": "54ecf8ed84545b20f2fb8519de4de309efcef6434353b03383dea6bd79e9c4c7"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zBuf.h",
+          "sha256": "8077b812692353fa662bcb267a38737cdca7660d4b086067afac16dfe5809c3d"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zCrc.c",
+          "sha256": "6c826585a824f991488d16fc4fa236ab6abe317b8f853fea77282e31d5160c54"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zCrc.h",
+          "sha256": "75ff8362de5ef390c286adfec246f16eceaff6dff1090a80240495c47d88e923"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zCrcOpt.c",
+          "sha256": "df23d84d9297358f401e36c0a0a5b004304f72f588f0f1db346a74d30e10036a"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zDec.c",
+          "sha256": "774c32cfa322175be5a43073a6fb1ff918ec9dcaa9014ea949d96701aa740079"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zStream.c",
+          "sha256": "835941df3324d828770bc09749a976bad8449e3733896d51bf102557c9ac0acb"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zTypes.h",
+          "sha256": "5de943c886d5d7bbcf16203e9b292a9e7be327b43fe3dfd9f4ad07d6d0870ef6"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zVersion.h",
+          "sha256": "b2b1f2e5cb73afb74ca9800e23df6876c4457f88402de4de447c613a7f902a0c"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/7zWindows.h",
+          "sha256": "8e7d4ed4f6599ca599514d5c1710668a61865f0c11c44b47994aede33f4cac16"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/Bcj2.c",
+          "sha256": "52f5c6bbaf512f867fe46a378d79888825a5b4e31abbd4c94f007058a890174e"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/Bcj2.h",
+          "sha256": "e45c841e5d805deeb2ae3f212c8860ce312252efdc55f713f52f837cf8c4452f"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/Bra.h",
+          "sha256": "bf4addce6209562a700edf040a8efc5b392bb33d4427b1513b6e3a877d04f431"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/Compiler.h",
+          "sha256": "959dac87ac7109502f6467e910d0722b932176e243153bf8c663479aa8c29b20"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/CpuArch.c",
+          "sha256": "9f215eaf12eaafdb6e83755bb3ac82fe3629905fcd9d257880a89ef2edd67755"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/CpuArch.h",
+          "sha256": "051d8a61373d9b6c90eb3b80f2aa1d932126fec7091242b085276e0bbd9bec03"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/Delta.h",
+          "sha256": "ce359ff7eb4c9d806777e21d0ec0416cf06c1f556242cbbcf565492b47141eeb"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/Lzma2Dec.c",
+          "sha256": "3d691d30e4a1f4b661d56fc483db702167ff6a91781d143a017c793c1860476f"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/Lzma2Dec.h",
+          "sha256": "a4b97083c3817d3e1e3049f8b1abc0b4ca3e91192606497c02bb5351b57422c7"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/LzmaDec.c",
+          "sha256": "b9ca2b8707400347c75d6fef288d1354a3b4cf93e8da42f26207b8bd4c4d5e59"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/LzmaDec.h",
+          "sha256": "3aaf07b4ae4173a2d103179455dc7089b5ddbc7fc3db3c0e40964a7499c69266"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/Precomp.h",
+          "sha256": "fea249c753dfbbdd69d9397e91497205452b784279f70cad4658dc567cd2f85f"
+        },
+        {
+          "path": "packages/neo_texture_catalog/ios/ThirdParty/lzma/RotateDefs.h",
+          "sha256": "9bc3ff572bec5611c5c2508b7d0c18706a1dc4c908ea3bd432237c33056e1f28"
+        }
+      ],
+      "files": [
+        {
+          "path": "LZMA-SDK-Public-Domain.txt",
+          "source_url": "https://www.7-zip.org/sdk.html",
+          "upstream_path": "C/*.c and C/*.h leading notices; C/7zVersion.h",
+          "generated_from": "packages/neo_texture_catalog/ios/ThirdParty/lzma",
+          "sha256": "9f3d06106ef294f6184851e8664ea9bcb46d3bfa9c6b54bf6527dc3eb5832810"
+        }
+      ]
+    },
+    {
+      "component": "ARMSX2 texture archive readers",
+      "repository": "https://github.com/ARMSX2/ARMSX2",
+      "revision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+      "distribution_scope": "embedded-reader",
+      "license": "GPL-3.0-or-later",
+      "source_files": [
+        {
+          "path": "packages/armsx2_internal_bridge/ios/Classes/upstream/TexturePackPaths.h",
+          "upstream_path": "platforms/ios/app/src/main/cpp/IOS/TexturePackPaths.h",
+          "sha256": "ea2f929a77c9d620a13fec5cc91e04b0fc8e6e41a860dca775fe1cb318e374c2"
+        },
+        {
+          "path": "packages/armsx2_internal_bridge/ios/Classes/upstream/TexturePackTar.h",
+          "upstream_path": "platforms/ios/app/src/main/cpp/IOS/TexturePackTar.h",
+          "sha256": "295d032b3f81ffb95c42c1686b41d8f928304ac3e3ecfde0e3351360b8ca158f"
+        }
+      ],
+      "files": [
+        {
+          "path": "ARMSX2-Texture-Reader-Notices.txt",
+          "source_url": "https://github.com/ARMSX2/ARMSX2/tree/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe/platforms/ios/app/src/main/cpp/IOS",
+          "upstream_path": "TexturePackPaths.h and TexturePackTar.h SPDX headers",
+          "sha256": "09047141290aa5740dd77d709734994bf97255597be6142cce57cec643598d30"
+        }
+      ]
+    }
+  ]
+}

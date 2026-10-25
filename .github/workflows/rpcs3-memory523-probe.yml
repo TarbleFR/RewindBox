@@ -1,0 +1,59 @@
+name: RPCS3 VM serialization ARM64 measurement
+'on':
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/rpcs3-memory523-probe.yml
+      - test/rpcs3_memory523_test.py
+      - test/native/rpcs3_memory523.cpp
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-memory523-probe]')
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Measure exact production VM candidate and reject source drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$RUNNER_TEMP/rpcs3-memory523-probe-source"
+          git init -q "$SOURCE"
+          git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
+          git -C "$SOURCE" fetch --depth 1 origin 22f1152783cef1f7e04af7b1c895173e28fd5b03
+          git -C "$SOURCE" checkout -q --detach FETCH_HEAD
+          python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
+          git -C "$SOURCE" submodule update --init --depth 1 3rdparty/zstd/zstd
+          mkdir -p build/rpcs3-memory523-probe
+          uname -a > build/rpcs3-memory523-probe/runner.txt
+          sysctl machdep.cpu.brand_string >> build/rpcs3-memory523-probe/runner.txt
+          export CXX="$(xcrun --sdk macosx --find clang++)"
+          export HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          python3 test/rpcs3_memory523_test.py "$SOURCE" --benchmark --report build/rpcs3-memory523-probe/measurements.json
+          python3 test/rpcs3_memory523_test.py "$SOURCE" --sanitize --report build/rpcs3-memory523-probe/correctness.json
+          python3 test/rpcs3_restore523_test.py "$SOURCE" --report build/rpcs3-memory523-probe/restore.json
+          python3 test/rpcs3_memory523_stream_test.py "$SOURCE" --sanitize --report build/rpcs3-memory523-probe/stream.json
+          python3 - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'rpcs3-memory523-probe-source'
+          inputs=['test/rpcs3_memory523_test.py','test/native/rpcs3_memory523.cpp','test/rpcs3_restore523_test.py','test/native/rpcs3_restore523.cpp','test/rpcs3_memory523_stream_test.py','test/fixtures/rpcs3_restore523.diff']
+          files=json.loads(Path('build-utils/rpcs3/canonical-source.json').read_text())['cell523']['paths']
+          sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+          Path('build/rpcs3-memory523-probe/identity.json').write_text(json.dumps(dict(source=os.environ['GITHUB_SHA'],nativeInputs={p:sha(root/p) for p in files},fixtureInputs={p:sha(Path(p)) for p in inputs},physicalDeviceTested=False),indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RPCS3-memory523-probe-${{ github.sha }}
+          path: build/rpcs3-memory523-probe/
+          if-no-files-found: error

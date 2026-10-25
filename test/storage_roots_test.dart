@@ -6,9 +6,11 @@ import 'package:neostation/services/storage/storage_categorizer.dart';
 import 'package:neostation/services/storage/storage_roots.dart';
 import 'package:path/path.dart' as p;
 
-/// Registry of docs/storage-audit-cleanup.md § 3.1: 29 roots in table
-/// order, deepest rule with the never-lists first, library folders always
-/// protected, whitelist resolved, nothing created.
+/// Registry of docs/storage-audit-cleanup.md § 3.1: 28 roots in table
+/// order (INV-13, Dusklight, left with that engine:
+/// docs/ports-removal-2026-10-20.md), deepest rule with the never-lists
+/// first, library folders always protected, whitelist resolved, nothing
+/// created.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -39,11 +41,12 @@ void main() {
     bundleIdentifier: bundle,
   );
 
-  test('exposes the 29 inventory roots in table order with allowed labels', () {
+  test('exposes the 28 inventory roots in table order with allowed labels', () {
     final roots = registry().roots;
     expect(roots.map((root) => root.id), [
       for (var index = 1; index <= 29; index++)
-        'INV-${index.toString().padLeft(2, '0')}',
+        // INV-13 is retired with Dusklight; its id is not reused.
+        if (index != 13) 'INV-${index.toString().padLeft(2, '0')}',
     ]);
     const labels = {
       'rootLibrary',
@@ -146,7 +149,6 @@ void main() {
       'INV-02',
     );
     expect(value.rootIdFor(cac('KartPad/shaders/x')), 'INV-12');
-    expect(value.rootIdFor(cac('Dusklight/x')), 'INV-13');
     expect(value.rootIdFor(cac('SoLoudLoader-Temp-Files/x')), 'INV-28');
     expect(
       value.ruleFor(cac('com.example.renamed/fsCachedData/a'))!.id,
@@ -480,7 +482,6 @@ void main() {
       final categorizer = StorageCategorizer(value);
       for (final (path, root, rule) in [
         (cac('KartPad/pipeline.bin'), 'INV-12', 'INV-12.cache'),
-        (cac('Dusklight/shaders/x'), 'INV-13', 'INV-13.cache'),
         (cac('SoLoudLoader-Temp-Files/x.wav'), 'INV-28', 'INV-28.soloudCache'),
         (cac('scan_-123456.mp3'), 'INV-29', 'INV-28.musicCopy'),
       ]) {
@@ -500,6 +501,47 @@ void main() {
       expect(value.ruleFor(tmp('KartPad/x'))!.id, 'INV-28.temporary');
     },
   );
+
+  test('what Dusklight left is unknown, hence never deletable', () {
+    // Dusklight and the Ports playlist were removed
+    // (docs/ports-removal-2026-10-20.md): its games, saves, settings, mods
+    // and caches stay where they were, outside every rule, and nothing
+    // proposes them.
+    final value = registry();
+    final categorizer = StorageCategorizer(value);
+    for (final path in [
+      doc('Ports/Dusklight/Games/GZ2E01.rvz'),
+      doc('Ports/Dusklight/Games/GZ2E01.rvz.part'),
+      doc('Ports/Dusklight/Saves/save.bin'),
+      doc('Ports/Dusklight/Config/settings.json'),
+      doc('Ports/Dusklight/Mods/x'),
+      cac('Dusklight/shaders/x'),
+    ]) {
+      expect(value.ruleFor(path), isNull, reason: path);
+      final classification = categorizer.classify(path, StorageEntryKind.file);
+      expect(classification.category, StorageCategory.unknown, reason: path);
+      expect(
+        classification.deletionClass,
+        StorageDeletionClass.never,
+        reason: path,
+      );
+      expect(
+        classification.protectedReason,
+        StorageProtectedReason.unknown,
+        reason: path,
+      );
+    }
+    // The database copy made before the Ports rows left data.sqlite is
+    // protected by the *.sqlite never-list (only the maintenance rotation's
+    // own data-<stamp>.sqlite copies are exempt from it, and those are
+    // never proposed either).
+    final copy = categorizer.classify(
+      sup('NeoStation/Maintenance/data-before-ports-removal-20261020-101010.sqlite'),
+      StorageEntryKind.file,
+    );
+    expect(copy.deletionClass, StorageDeletionClass.never);
+    expect(copy.ruleId, 'NEVER.sqlite');
+  });
 
   test('3DS backups are never proposed, staging is temporary, the NAND stays '
       'never', () {

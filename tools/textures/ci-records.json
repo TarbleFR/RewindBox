@@ -1,0 +1,831 @@
+{
+  "comment": "CI runs whose artifacts hold the verification records of packs published as repository archives and of manual packs fetched from the authors' file hosts (checked by tools/textures/check_ci_records.py). superseded: packs a later registered run verified again.",
+  "runs": [
+    {
+      "run": 39188364133,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories)",
+      "source": "8fbfd4ad94b0c4a5d36bde61e8283877f58193d7",
+      "artifact_prefix": "hdtex486-repositories",
+      "consoles": [
+        "ps2",
+        "dolphin",
+        "psp",
+        "3ds"
+      ],
+      "records": 64
+    },
+    {
+      "run": 39254972220,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only the packs without a successful record)",
+      "source": "dc9d1da55682b01cce46f517465824c1089dc7f1",
+      "artifact_prefix": "hdtex486-repositories",
+      "consoles": [
+        "ps2",
+        "dolphin",
+        "psp",
+        "3ds"
+      ],
+      "records": 12
+    },
+    {
+      "run": 39257349302,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only the packs without a record)",
+      "source": "1cebc63590614a1a6a3dce008fb65a5752bcca29",
+      "artifact_prefix": "hdtex486-repositories",
+      "consoles": [
+        "ps2",
+        "dolphin",
+        "psp",
+        "3ds"
+      ],
+      "records": 9
+    },
+    {
+      "run": 39258904471,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only psp-ridge-racers-2-jp-hd-codyv59)",
+      "source": "a37b0bce9b24e8e4d980875ab55712b9c493ee3b",
+      "artifact_prefix": "hdtex486-repositories",
+      "consoles": [
+        "ps2",
+        "dolphin",
+        "psp",
+        "3ds",
+        "n64"
+      ],
+      "records": 1
+    },
+    {
+      "run": 39264550682,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only the two N64 repository packs)",
+      "source": "cdfc96101c2bd8b140a2dd80ab0fa6b7ac03065c",
+      "artifact_prefix": "hdtex486-repositories",
+      "consoles": [
+        "ps2",
+        "dolphin",
+        "psp",
+        "3ds",
+        "n64"
+      ],
+      "records": 2
+    },
+    {
+      "run": 39278264111,
+      "source": "4b29fe393a14dba866fdf9a3800273d7744adecf",
+      "consoles": [
+        "3ds",
+        "dolphin",
+        "psp"
+      ],
+      "records": 48,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "3ds-acnl-trueshade-4k-thisstombi": 39291901789,
+        "gc-thps3-esrgan-rapka": 39321682524
+      }
+    },
+    {
+      "run": 39285447608,
+      "source": "8a29965cbce456a4efe496cb52f1ebec36973cf9",
+      "consoles": [
+        "3ds",
+        "dolphin",
+        "psp"
+      ],
+      "records": 18,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "3ds-oot3d-4k-henriko-1080p": 39291901789
+      }
+    },
+    {
+      "run": 39285456991,
+      "source": "8a29965cbce456a4efe496cb52f1ebec36973cf9",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 22,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "gc-sonic-heroes-ai-hd-png-chaotixsoda": 39291901789,
+        "gc-smb-hd-4x-png": 39291901789,
+        "gc-harvest-moon-awl-kupo-png": 39291901789,
+        "gc-harvest-moon-awl-kupo-dds": 39291901789
+      }
+    },
+    {
+      "run": 39287261791,
+      "source": "76ec1082ff96997c7b42629629c292e443110ae1",
+      "consoles": [
+        "3ds",
+        "ps1"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories)",
+      "artifact_prefix": "hdtex486-repositories"
+    },
+    {
+      "run": 39291901789,
+      "source": "1c4020f3774e7b09b55292651b30f31c4de27c43",
+      "consoles": [
+        "3ds",
+        "dolphin"
+      ],
+      "records": 8,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39292371113,
+      "source": "a261f73bfd9c202e7e78e1b8bb257133e72db9dd",
+      "consoles": [
+        "3ds",
+        "dolphin"
+      ],
+      "records": 23,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39292473994,
+      "source": "b012c8fe4ae303dac6ad6f3105dde6ddad83d9ec",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories)",
+      "artifact_prefix": "hdtex486-repositories"
+    },
+    {
+      "run": 39295194320,
+      "source": "6d0eedf7c984865c126846a765c9e9fac615fd1b",
+      "consoles": [
+        "3ds",
+        "dolphin",
+        "psp"
+      ],
+      "records": 20,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39302744958,
+      "source": "99a1c1dbb22907d9fb5236083cd91c3cd20214cb",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 4,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39308850492,
+      "source": "b4f396a4a02689b24f3b9b95a7766661ffe3b916",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 9,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "wii-sonic-unleashed-hd-hud-raisyu": 39311640163
+      }
+    },
+    {
+      "run": 39311640163,
+      "source": "d4cf566f173851586d3b34b47e9f28ef19cf3acd",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39321682524,
+      "source": "62315def939a03e4c8849cb8a12299bccc2de186",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 13,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39325465870,
+      "source": "6b1e0e47586e7ffe46e70af030b39b75cf7a50b7",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 8,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39325643427,
+      "source": "d7413dc6c4abbd078ddba344bf567e47eb0252ed",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 4,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39325882604,
+      "source": "70f10d2cf98daab4fd7671cde59b8c06f6758afd",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39328775629,
+      "source": "96e1ed4ffe157f4e3699d05cd45971b61f9cbb1e",
+      "consoles": [
+        "psp"
+      ],
+      "records": 10,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39334091920,
+      "source": "6062c53f5e9cd5a5bf0e85a20624744db1f958e5",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 10,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, manual packs fetched from the authors' file hosts)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39367466788,
+      "source": "92b368cec9ff0110dfa020922a856289832e9730",
+      "consoles": [
+        "nes",
+        "ps1"
+      ],
+      "records": 5,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only the four NES repository packs and Wip3out)",
+      "artifact_prefix": "hdtex486-repositories"
+    },
+    {
+      "run": 39401863622,
+      "source": "5a700c59a0a8d3239e56cd5d2d4359eafc3044ba",
+      "consoles": [
+        "dolphin",
+        "3ds",
+        "psp"
+      ],
+      "records": 11,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, exploration candidates; failed downloads are recorded too)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39403154413,
+      "source": "b6a522ece7f1d9cb0f9427b7c0b5a21cd387b2ed",
+      "consoles": [
+        "dolphin",
+        "3ds",
+        "psp"
+      ],
+      "records": 10,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, exploration candidates including manual RAR downloads)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "gc-fe-por-hd-appleboi": 39458288578,
+        "psp-yugioh-tag-force2-spanish-brahian": 39456541876,
+        "3ds-radiant-historia-serbagz": 39456551008
+      }
+    },
+    {
+      "run": 39403548138,
+      "source": "230c6b95f487e529650d4c383d128901bd035cd0",
+      "consoles": [
+        "3ds"
+      ],
+      "records": 4,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, recovered 3DS original creator downloads)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39403837549,
+      "source": "52edb48d2390fd51a0010729f89357ca7ff4f291",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, GitLab creator archive; host refusal is retained)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39406754238,
+      "source": "0d9c46cf41241cad34934f14fae93547815845bb",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 104,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; first 104/210 candidates preserved before cancellation and split into remaining-only batches)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-007-from-russia-with-love-thomasweissenfluh": 39408412029,
+        "ps2-ktx-bujingai-the-forsaken-city-darthdarklord": 39408412029,
+        "ps2-ktx-maximo-ghosts-to-glory-maximocapcom": 39408412029,
+        "ps2-ktx-devil-kings-i-emu-play": 39417046479,
+        "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-akirus": 39417046479,
+        "ps2-ktx-disney-s-kim-possible-what-s-the-switch-sal9im": 39456534062,
+        "ps2-ktx-dynasty-warriors-3-xtreme-legends-gvngnir": 39456534062,
+        "ps2-ktx-final-fantasy-x-international-curse-arms": 39456534062,
+        "ps2-ktx-final-fight-streetwise-curse-arms": 39456534062,
+        "ps2-ktx-gauntlet-seven-sorrows-mvp899-2": 39456534062,
+        "ps2-ktx-hulk-gvngnir": 39461093167,
+        "ps2-ktx-maximo-ghosts-to-glory-marcelus": 39456534062,
+        "ps2-ktx-metal-arms-glitch-in-the-system-curse-arms": 39456534062,
+        "ps2-ktx-blood-will-tell-curse-arms": 39456541876,
+        "ps2-ktx-colosseum-road-to-freedom-curse-arms": 39456541876,
+        "ps2-ktx-gregory-horror-show-curse-arms": 39456541876,
+        "ps2-ktx-hungry-ghosts-curse-arms": 39456541876,
+        "ps2-ktx-michigan-report-from-hell-curse-arms": 39456541876,
+        "ps2-ktx-arc-the-lad-twilight-of-the-spirits-curse-arms": 39461093167,
+        "ps2-ktx-crash-twinsanity-yamijpg": 39456551008,
+        "ps2-ktx-eternal-poison-curse-arms": 39456551008,
+        "ps2-ktx-final-fantasy-x-2-curse-arms": 39456551008,
+        "ps2-ktx-forbidden-siren-2-curse-arms": 39456551008,
+        "ps2-ktx-god-of-war-ii-mvp899": 39456551008,
+        "ps2-ktx-jade-cocoon-2-curse-arms": 39461093167,
+        "ps2-ktx-jak-2-renegade-marcelus": 39461093167,
+        "ps2-ktx-killzone-curse-arms": 39456551008,
+        "ps2-ktx-lego-batman-the-videogame-mzzvxm": 39456551008,
+        "ps2-ktx-metal-gear-solid-2-sons-of-liberty-curse-arms": 39456551008,
+        "ps2-ktx-metal-gear-solid-3-subsistence-curse-arms": 39456551008,
+        "ps2-ktx-midnight-club-street-racing-mvp899": 39456551008
+      },
+      "partial_run": true,
+      "conclusion": "cancelled after 104 completed records; always-upload artifact preserved every completed observation"
+    },
+    {
+      "run": 39407659263,
+      "source": "ae1ef3719eb4f74008455665ec6cb4540ccc8764",
+      "consoles": [
+        "psp",
+        "3ds",
+        "ps2"
+      ],
+      "records": 8,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, targeted original author archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-ace-combat-04-shattered-skies-superostrich": 39410496846,
+        "ps2-ktx-flatout-2-kupo-on-gbatem": 39410496846
+      }
+    },
+    {
+      "run": 39408412029,
+      "source": "c68eb845cb96be28abf54a4116ed5db8496d7f79",
+      "consoles": [
+        "3ds",
+        "dolphin",
+        "ps2"
+      ],
+      "records": 13,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, targeted original author archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-the-lord-of-the-rings-the-two-towers-maximocapcom": 39411115471
+      }
+    },
+    {
+      "run": 39410496846,
+      "source": "428c4dcceb4a3617fa0a552a47c7330664d99698",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 4,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, isolated Ace Combat subtrees and corrected German FlatOut identity)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-ace-combat-04-shattered-skies-superostrich": 39411315570,
+        "ps2-ktx-ace-combat-5-the-unsung-war-superostrich": 39411315570,
+        "ps2-ktx-ace-combat-zero-the-belkan-war-superostrich": 39411315570
+      }
+    },
+    {
+      "run": 39411115471,
+      "source": "765bf57f4dbe995867f5ab200d2734099beee42f",
+      "consoles": [
+        "ps2",
+        "3ds"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, corrected Spanish Two Towers; DQ7 original creator archive)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39411315570,
+      "source": "6996f35a09e9dd061a266855b7f084e170a88aee",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, retain tested per-game exclusion rules in Ace Combat records)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39412734596,
+      "source": "c4f51b134c1c70d976b06bfa13308ccab22aeb62",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original Pixeldrain Ninja Assault/God of War II/Cold Fear archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-god-of-war-ii-yamijpg": 39456534062,
+        "ps2-ktx-cold-fear-yamijpg": 39456541876
+      }
+    },
+    {
+      "run": 39414433422,
+      "source": "7b03a8c99ec0d16e37a9cc493632bcd3d30a0eb5",
+      "consoles": [
+        "psp"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, creator Ace Combat X/Joint Assault archives; Hezi Bleach original ZIP)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39414729610,
+      "source": "fc1bfd395d8b00e9ba37426e0b97c006831f7f6c",
+      "consoles": [
+        "psp",
+        "dolphin"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original Kuledawg Super Monkey Ball 2 and RobyNoob Jeanne/Brave Story archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39415047885,
+      "source": "ceb527e96f6b33605d3df8b17bf0548c389991b8",
+      "consoles": [
+        "psp",
+        "dolphin"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original MetalTxus Disgaea UI and PandaVenom Tales of Symphonia archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39415625937,
+      "source": "12a2ae8789d228c2031c31814aa1336e18b23033",
+      "consoles": [
+        "psp"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, SkyDR4GON original forum ZIP and DARK ARON GTA VCS 7z)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39415931085,
+      "source": "ba76f09f93ff74885d7b82146e46388ca70fcece",
+      "consoles": [
+        "psp"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, recent Huekage Chains of Olympus ZIP and PandaVenom Tetris 7z)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39416625497,
+      "source": "ba76f09f93ff74885d7b82146e46388ca70fcece",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 34,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, remaining-only batch 1/3, no completed test repeated)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-sengoku-basara-2-heroes-i-emu-play": 39420495984,
+        "ps2-ktx-silent-hill-3-curse-arms": 39420495984,
+        "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers": 39420495984,
+        "ps2-ktx-ms-saga-a-new-dawn-curse-arms": 39456534062,
+        "ps2-ktx-raiden-iii-curse-arms": 39456534062,
+        "ps2-ktx-ratchet-clank-up-your-arsenal-reddyxd": 39456534062,
+        "ps2-ktx-second-sight-curse-arms": 39456534062,
+        "ps2-ktx-shadow-of-the-colossus-curse-arms": 39461093167,
+        "ps2-ktx-sly-2-band-of-thieves-curse-arms": 39456534062,
+        "ps2-ktx-spartan-total-warrior-alufolie69": 39456534062,
+        "ps2-ktx-rogue-trooper-curse-arms": 39456541876,
+        "ps2-ktx-scarface-the-world-is-yours-curse-arms": 39456541876,
+        "ps2-ktx-the-sword-of-etheria-curse-arms": 39456541876,
+        "ps2-ktx-star-wars-bounty-hunter-curse-arms": 39456551008,
+        "ps2-ktx-wild-arms-3-curse-arms": 39456551008
+      }
+    },
+    {
+      "run": 39417046479,
+      "source": "c5e552ca10e7cd243b5b1cadabe3629d14c99c36",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, corrected USA targets for Devil Kings and Akirus DBZ Tenkaichi 3)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39420074282,
+      "source": "aa496897886661e45d1a0d9ea803950c66c19c04",
+      "consoles": [
+        "psp"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original Daxter HUD ZIP; viewer navigation did not establish an access wall)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39420495984,
+      "source": "39998c43c5241cfe3fdeafc65ffbc46a194adcb2",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 3,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, corrected original-archive targets: Basara JP, Silent Hill 3 USA, WWE SVR 2007 USA)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39423463863,
+      "source": "1c72df49d772dd3f3ed9eb1ebc8d23affb598bdc",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original Panda_Venom Wave Race 7z; protected, not promoted)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39423064189,
+      "source": "999d441354929635b0c6c248ae5433bb093d888c",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, first original public Yandex files: Prince of Persia installs; God of War times out)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39424078919,
+      "source": "fb4eccda541b142db636a054ad3a18783fb217b7",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original creator PAL Alone in the Dark archive)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39426288197,
+      "source": "97871b79e054d9fda75633f4deb08bc874142ba8",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, original vicmuller Kirby Wii cancelled WIP ZIP)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39416632997,
+      "source": "ba76f09f93ff74885d7b82146e46388ca70fcece",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 34,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, remaining-only batch 2/3; six native successes, four genuine HD families retained)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-mx-unleashed-mvp899": 39456534062,
+        "ps2-ktx-naruto-shippuden-ultimate-ninja-4-sal9im": 39456541876,
+        "ps2-ktx-police-24-7-mvp899": 39456541876,
+        "ps2-ktx-red-faction-ii-mvp899": 39456541876,
+        "ps2-ktx-samurai-western-curse-arms": 39456541876,
+        "ps2-ktx-the-red-star-curse-arms": 39462581049,
+        "ps2-ktx-obscure-curse-arms": 39456551008,
+        "ps2-ktx-valkyrie-profile-2-silmeria-curse-arms": 39456551008,
+        "ps2-ktx-warhammer-40-000-fire-warrior-curse-arms": 39461093167
+      }
+    },
+    {
+      "run": 39416642896,
+      "source": "ba76f09f93ff74885d7b82146e46388ca70fcece",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 33,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, remaining-only batch 3; cancelled after 33 completed records, final MEGA transfer unverified)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight": 39431381794,
+        "ps2-ktx-naruto-uzumaki-chronicles-2-sal9im": 39456534062,
+        "ps2-ktx-project-zero-2-crimson-butterfly-curse-arms": 39456534062,
+        "ps2-ktx-resident-evil-dead-aim-curse-arms": 39456541876,
+        "ps2-ktx-rygar-the-legendary-adventure-curse-arms": 39456541876,
+        "ps2-ktx-shadow-hearts-covenant-curse-arms": 39456541876,
+        "ps2-ktx-tom-clancy-s-splinter-cell-chaos-theory-curse-arms": 39456541876,
+        "ps2-ktx-tsugunai-atonement-curse-arms": 39456541876,
+        "ps2-ktx-power-rangers-super-legends-yamijpg": 39456551008,
+        "ps2-ktx-ratchet-clank-trippypit": 39456551008
+      }
+    },
+    {
+      "run": 39431381794,
+      "source": "69ab9510472672800d22f3be756c2a586fc760a5",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, corrected USA Tenchu Wrath of Heaven target on unchanged original archive bytes)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39449348701,
+      "source": "d6fa85695f219ad0b66ef71bc9429d11c8e8abd9",
+      "consoles": [
+        "3ds",
+        "psp"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: repositories, only Mirai DX HD buttons and Tekken 6; original pinned creator archives)",
+      "artifact_prefix": "hdtex486-repositories"
+    },
+    {
+      "run": 39450675080,
+      "source": "c6ebee7f407c2833e20914db9a16682228a13a92",
+      "consoles": [
+        "3ds"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: releases, original Alpha Sapphire v0.0.3 creator ZIP; repository-only no-op run not counted)",
+      "artifact_prefix": "hdtex486-releases"
+    },
+    {
+      "run": 39456452641,
+      "source": "bd9e76909805473be9b3cc9173349ffe268f1c38",
+      "consoles": [
+        "dolphin",
+        "ps2",
+        "psp"
+      ],
+      "records": 15,
+      "workflow": ".github/workflows/hd-textures.yml (parts: releases; original creator archives verified with the native RAR reader)",
+      "artifact_prefix": "hdtex486-releases"
+    },
+    {
+      "run": 39456534062,
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "consoles": [
+        "dolphin",
+        "ps2"
+      ],
+      "records": 20,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "gc-fe-por-hd-appleboi": 39458288578,
+        "ps2-ktx-hulk-gvngnir": 39461093167,
+        "ps2-ktx-shadow-of-the-colossus-curse-arms": 39461093167
+      }
+    },
+    {
+      "run": 39456541876,
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "consoles": [
+        "psp",
+        "ps2"
+      ],
+      "records": 20,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-the-red-star-curse-arms": 39462581049
+      }
+    },
+    {
+      "run": 39456551008,
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "consoles": [
+        "3ds",
+        "ps2"
+      ],
+      "records": 21,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "superseded": {
+        "ps2-ktx-arc-the-lad-twilight-of-the-spirits-curse-arms": 39461093167,
+        "ps2-ktx-jade-cocoon-2-curse-arms": 39461093167,
+        "ps2-ktx-jak-2-renegade-marcelus": 39461093167,
+        "ps2-ktx-warhammer-40-000-fire-warrior-curse-arms": 39461093167
+      }
+    },
+    {
+      "run": 39456603817,
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "consoles": [
+        "psp"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39458288578,
+      "source": "1912a6de8d487437da53e97d0c88e872c84b300e",
+      "consoles": [
+        "dolphin"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39461093167,
+      "source": "a8515db878bde6df67070a0289d443d334f049eb",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 6,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39462581049,
+      "source": "67eb1a385c9e03b67e5d7efbd5eef156197f0af6",
+      "consoles": [
+        "ps2"
+      ],
+      "records": 1,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts; native installation of original pinned public archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39475381324,
+      "source": "0ed658654bd6edbb44257762421d7867d79d26b7",
+      "consoles": [
+        "ps1"
+      ],
+      "records": 2,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, only the new PS1 original archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39475695835,
+      "source": "070557e734dec9c1aa064fea11967afc525b9148",
+      "consoles": [
+        "ps1"
+      ],
+      "records": 10,
+      "workflow": ".github/workflows/hd-textures.yml (parts: hosts, only the new PS1 original archives)",
+      "artifact_name": "hdtex-hosts-{console}-{run}"
+    },
+    {
+      "run": 39479736059,
+      "workflow": ".github/workflows/hd-textures.yml (parts: ps1-hosts, four original public PS1 archives only)",
+      "source": "0a2fdbabeaf3802b9abe7aa8e05d74f2c00f4d1b",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "consoles": [
+        "ps1"
+      ],
+      "records": 4
+    },
+    {
+      "run": 39482826008,
+      "workflow": ".github/workflows/hd-textures.yml (parts: ps1-hosts, two newly recovered SomberTwilight original public PS1 archives only)",
+      "source": "0cd67e5830f271a7dc6010b55a893c74af2c01be",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "consoles": [
+        "ps1"
+      ],
+      "records": 2,
+      "artifact_id": 12292196821,
+      "artifact_zip_sha256": "f17827288a9ef440291f1b36c1de9d24aa90ee196a8a74a55b56e16038bcb8d8",
+      "job_id": 118835525317
+    },
+    {
+      "run": 39483666586,
+      "workflow": ".github/workflows/hd-textures.yml (parts: ps1-hosts, CAC GAMER original public partial Gran Turismo 2 archive only)",
+      "source": "fba188684d75867808eaa2de9c122fc19fcfdad3",
+      "artifact_name": "hdtex-hosts-{console}-{run}",
+      "consoles": [
+        "ps1"
+      ],
+      "records": 1,
+      "artifact_id": 12292053506,
+      "artifact_zip_sha256": "17fde7d8ec9262bf759b7fd505f035230a364623905b1f38e569f5fabee51055",
+      "job_id": 118838442112
+    }
+  ]
+}

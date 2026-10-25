@@ -1,0 +1,123 @@
+[
+  {
+    "id": "ps1-linnaealyn-xenogears-perfect-art-works",
+    "family": "ps1-linnaealyn-xenogears-perfect-art-works",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Xenogears Perfect ART Works — linnaealyn",
+    "version": "1.8 AIO",
+    "games": [
+      {
+        "title": "Xenogears",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00664"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00669"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLPS-01160"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLPS-01161"
+          }
+        ],
+        "regions": [
+          "USA",
+          "Japan"
+        ]
+      }
+    ],
+    "authors": [
+      "linnaealyn"
+    ],
+    "page_url": "https://scientia.godsibb.net/t/xenogears-perfect-art-works-paw-retroarch-texture-pack/1158",
+    "source_id": "author:linnaealyn",
+    "licence": {
+      "summary": "No redistribution licence found; original download only.",
+      "redistribution": "Original author download only; no rehosting."
+    },
+    "credits": "linnaealyn",
+    "requirements": "Beetle PSX HW Vulkan; no physical iPhone rendering claim.",
+    "notes": "Exact creator archive passed current production C++ installer and PNG decoding checks on Linux; not yet published in runtime catalogue or canonical CI registry. 399 default PNGs installed; 139 matching PNGs in optional subfolders were not installed or merged. English/Japanese/PWB controls variants remain one family. PWB face-resize/face-fix/PW Roni patches conflict according to creator. New 1.8 UI elements may depend on a newer Beetle core; rendering must be checked on the embedded pinned core.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://lifehold.godsibb.net/seafhttp/f/89ffdb1c690e48ac991f/?op=view",
+        "sha256": "f0ee62801b50c0f372be4b1f6e793b25dd26482917b6254aa89fc04a458aee15"
+      }
+    },
+    "install": {
+      "folders": [
+        {
+          "from": "[your .cue or .m3u file name here]-texture-replacements/",
+          "to": "{id}"
+        }
+      ]
+    },
+    "scope": "ui",
+    "promotion_blockers": [
+      "Canonical CI archive verification/registration pending",
+      "Refresh original author link and recheck exact archive identity before promotion"
+    ]
+  },
+  {
+    "id": "ps1-faospark-suikoden-ii-project-kyaro",
+    "family": "ps1-faospark-suikoden-ii-project-kyaro",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Suikoden II — Project Kyaro — Faospark",
+    "version": "2.6",
+    "games": [
+      {
+        "title": "Suikoden II",
+        "identities": [],
+        "regions": [
+          "USA"
+        ]
+      }
+    ],
+    "authors": [
+      "Faospark"
+    ],
+    "page_url": "https://sites.google.com/view/hub-of-faospark/project-kyaro",
+    "source_id": "author:faospark",
+    "licence": {
+      "summary": "No redistribution licence found; original download only.",
+      "redistribution": "Original author download only; no rehosting."
+    },
+    "credits": "Faospark",
+    "requirements": "Beetle PSX HW Vulkan; no physical iPhone rendering claim.",
+    "notes": "Exact creator archive passed current production C++ installer and PNG decoding checks on Linux; not yet published in runtime catalogue or canonical CI registry. The old PS1 v2.6 pack is separate from Project Kyaro Suite for the PC HD Remaster. Archive title attests USA; PAL/international support is not inferred from accented text. No independently sourced disc serial recorded.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://www.dropbox.com/s/uvnteyqqavkxwq2/Suikoden%20II%20%28USA%29-texture-replacements.zip?dl=1",
+        "sha256": "c39266d573fee304ef30fdb82f8358ec6a8d127b77401a127e984b7953168070"
+      }
+    },
+    "install": {
+      "folders": [
+        {
+          "from": "Suikoden II (USA)-texture-replacements/",
+          "to": "{id}"
+        }
+      ]
+    },
+    "scope": "partial",
+    "promotion_blockers": [
+      "Canonical CI archive verification/registration pending",
+      "Refresh original author link and recheck exact archive identity before promotion",
+      "Independently sourced disc serial pending"
+    ]
+  }
+]

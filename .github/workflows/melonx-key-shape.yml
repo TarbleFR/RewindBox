@@ -1,0 +1,34 @@
+name: MeloNX import refusal diagnosis
+run-name: MeloNX exact key shape probe • ${{ github.sha }}
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/melonx-key-shape.yml
+      - test/melonx_key_shape_probe.py
+      - test/fixtures/melonx_key_shape_517.json
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  diagnose:
+    runs-on: macos-26
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-dotnet@v4
+        with: {dotnet-version: 10.0.100}
+      - uses: actions/download-artifact@v4
+        with:
+          name: MeloNX-engine-5a917d154a886481fb00d424b9cfc8fe149ece37
+          run-id: 40017275406
+          github-token: ${{ github.token }}
+          path: dist/melonx
+      - name: Compare both shapes with the actual shipped native validator
+        run: python3 test/melonx_key_shape_probe.py dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MeloNX-key-shape-${{ github.sha }}
+          path: dist/key-shape-probe/
+          retention-days: 14

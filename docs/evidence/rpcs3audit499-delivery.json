@@ -1,0 +1,448 @@
+{
+  "result": "passed",
+  "source": "4fc50a8701db627607821ab393a1522d21fd00c4",
+  "coreSource": "0b18a23460b0a9840406fda2e3d6da4c5cdb7273",
+  "coreRun": 39472233521,
+  "ipaRun": 39482319527,
+  "ipaBytes": 168388839,
+  "ipaSHA256": "fe0925f294addabd0a11c74c4af0db237e38a00d1d177348fa1e3ad58d4a1c4e",
+  "members": 4609,
+  "versionBundles": 6,
+  "coreUnsignedSHA256": "87bd77794232fc44b61d421e55d71bae3b2829a58b87ee36b2a176730d78004f",
+  "coreSignedSHA256": "49033f06bcbe5bfb635a956783f87e35934f21d9be5fd3d84b4d902adb190a63",
+  "coreSectionsMatchBuiltArtifact": true,
+  "newSHUFBRecordPresent": true,
+  "oldSHUFBRecordAbsent": true,
+  "SPU499MarkerPresent": true,
+  "PPUCodegen": "cf1718033f6fda2d",
+  "SPUCodegen": "42c4b3542f924d07",
+  "coreABI": 30,
+  "coreInputCount": 78,
+  "catalogueRevision": "2026-10-20.169a7760ffbe",
+  "catalogueSHA256": "f1ffd564157dc5383cb926f4fbec5d560fc9bdd73cdf8caf9302d42227007504",
+  "ps1References": 34,
+  "neoSwapSectionsUnchanged": true,
+  "otherCoresSectionsUnchanged": true,
+  "machoImagesCompared": 75,
+  "imagesWithSameCompiledSections": [
+    {
+      "file": "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/DolphinJITHelper",
+      "byteIdentical": false,
+      "compiledSectionsIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay",
+      "byteIdentical": false,
+      "compiledSectionsIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/NeoSwapDonor",
+      "byteIdentical": false,
+      "compiledSectionsIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper",
+      "byteIdentical": false,
+      "compiledSectionsIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper",
+      "byteIdentical": false,
+      "compiledSectionsIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/wakelock_plus.framework/wakelock_plus",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/picodrive_libretro.framework/picodrive_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "byteIdentical": false,
+      "compiledSectionsIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/freechaf_libretro.framework/freechaf_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/pokemini_libretro.framework/pokemini_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/neo_shader_kit.framework/neo_shader_kit",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/sameduck_libretro.framework/sameduck_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/pdfium_flutter.framework/pdfium_flutter",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/mesen_libretro.framework/mesen_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/video_player_avfoundation.framework/video_player_avfoundation",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/MoltenVK.framework/MoltenVK",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/snes9x_libretro.framework/snes9x_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/prosystem_libretro.framework/prosystem_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/ardens_libretro.framework/ardens_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/potator_libretro.framework/potator_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/Flutter.framework/Flutter",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/freeintv_libretro.framework/freeintv_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/nestopia_libretro.framework/nestopia_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/mgba_libretro.framework/mgba_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/DolphinCore.framework/DolphinCore",
+      "byteIdentical": false,
+      "compiledSectionsIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/stella_libretro.framework/stella_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/fbneo_libretro.framework/fbneo_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/url_launcher_ios.framework/url_launcher_ios",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/battery_plus.framework/battery_plus",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/device_info_plus.framework/device_info_plus",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/PDFium.framework/PDFium",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/flutter_localization.framework/flutter_localization",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/gambatte_libretro.framework/gambatte_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/o2em_libretro.framework/o2em_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/StikJIT.framework/StikJIT",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/wasm4_libretro.framework/wasm4_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/share_plus.framework/share_plus",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/stikjit_bridge.framework/stikjit_bridge",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/package_info_plus.framework/package_info_plus",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/flutter_7zip.framework/flutter_7zip",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/external_folder_access.framework/external_folder_access",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/external_display.framework/external_display",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/gamepads_darwin.framework/gamepads_darwin",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/a5200_libretro.framework/a5200_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/azahar_libretro.framework/azahar_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/file_picker.framework/file_picker",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/neo_swap.framework/neo_swap",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/gw_libretro.framework/gw_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/desmume_libretro.framework/desmume_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/handy_libretro.framework/handy_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/neo_touch_layout.framework/neo_touch_layout",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro",
+      "byteIdentical": true
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/uzem_libretro.framework/uzem_libretro",
+      "byteIdentical": true
+    }
+  ],
+  "imagesWithChangedCompiledSections": [
+    {
+      "file": "Payload/NeoStation.app/Runner",
+      "sectionsChanged": [
+        "__TEXT,__const",
+        "__TEXT,__objc_stubs",
+        "__TEXT,__stubs"
+      ]
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/libRPCS3Core.dylib",
+      "sectionsChanged": [
+        "__DATA,__data",
+        "__DATA,__objc_const",
+        "__DATA,__objc_selrefs",
+        "__DATA,__thread_data",
+        "__DATA_CONST,__cfstring",
+        "__DATA_CONST,__const",
+        "__TEXT,__cstring",
+        "__TEXT,__eh_frame",
+        "__TEXT,__gcc_except_tab",
+        "__TEXT,__init_offsets",
+        "__TEXT,__objc_methlist",
+        "__TEXT,__objc_stubs",
+        "__TEXT,__stubs",
+        "__TEXT,__text",
+        "__TEXT,__unwind_info"
+      ]
+    },
+    {
+      "file": "Payload/NeoStation.app/Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "sectionsChanged": [
+        "__TEXT,__objc_stubs",
+        "__TEXT,__stubs"
+      ]
+    }
+  ],
+  "addedMembers": [],
+  "removedMembers": [],
+  "physicalDeviceValidated": false,
+  "sideStoreAppleReSigningRequired": true,
+  "stubContinuity": {
+    "result": "passed",
+    "images": [
+      {
+        "image": "Payload/NeoStation.app/Runner",
+        "sections": {
+          "__stubs": {
+            "stubs": 943,
+            "identicalBoundSymbolAndSelectorAtEveryIndex": true
+          },
+          "__objc_stubs": {
+            "stubs": 6816,
+            "identicalBoundSymbolAndSelectorAtEveryIndex": true
+          }
+        },
+        "constantChange": "Runner-498 -> Runner-499 only"
+      },
+      {
+        "image": "Payload/NeoStation.app/Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+        "sections": {
+          "__stubs": {
+            "stubs": 315,
+            "identicalBoundSymbolAndSelectorAtEveryIndex": true
+          },
+          "__objc_stubs": {
+            "stubs": 2036,
+            "identicalBoundSymbolAndSelectorAtEveryIndex": true
+          }
+        }
+      }
+    ],
+    "meaning": "Each unchanged callsite still resolves to the same imported function or Objective-C selector; only pointer slot encodings changed."
+  },
+  "ci": {
+    "workflowCommit": "e91ce81bd2ace6d7820d260cac31d32aca6798dd",
+    "run": 39482319527,
+    "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39482319527",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 118833790360,
+        "name": "delivery499 / Build 498 host reuse, PS1 catalogue and new RPCS3 Core proof",
+        "conclusion": "success",
+        "started_at": "2026-10-20T19:18:31Z",
+        "completed_at": "2026-10-20T19:19:03Z"
+      },
+      {
+        "id": 118833792448,
+        "name": "RPCS3 Core arm64 with NeoSwap client",
+        "conclusion": "skipped",
+        "started_at": "2026-10-20T19:18:29Z",
+        "completed_at": "2026-10-20T19:18:29Z"
+      },
+      {
+        "id": 118834068090,
+        "name": "delivery499 / Release device build \u2022 cold \u2022 RPCS3 audit",
+        "conclusion": "success",
+        "started_at": "2026-10-20T19:19:08Z",
+        "completed_at": "2026-10-20T19:29:06Z"
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 12292826550,
+        "name": "NeoStation-Build-499-4fc50a8701db627607821ab393a1522d21fd00c4-cold",
+        "size": 168601501,
+        "sha256": "8899a346956228bd69f065ada982001e85bacacf5679eaa14fb3974ce7058953"
+      },
+      {
+        "id": 12292377071,
+        "name": "NeoStation-Build-499-4fc50a8701db627607821ab393a1522d21fd00c4-cold-diagnostics",
+        "size": 5974706,
+        "sha256": "e6d103d59fa7e59011df99e2f0eb0e4467d02a3f0e6ca3703756e8d171252d20"
+      },
+      {
+        "id": 12291912305,
+        "name": "rpcs3-audit-499-validation-e91ce81bd2ace6d7820d260cac31d32aca6798dd",
+        "size": 1535,
+        "sha256": "cdec6b1dd96ecf68a8c3ca303865dfeb786077e4a1643a471efe1c2799b02019"
+      }
+    ]
+  },
+  "scope": "Build 498 native/Dart product, new RPCS3 Core 499, and the exact separately proved PS1 catalogue frozen at 4fc50a87. Later PS1 research staging is not part of this IPA."
+}

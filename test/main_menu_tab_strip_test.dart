@@ -30,7 +30,7 @@ void main() {
                     child: MainMenuTabStrip(
                       tabs: tabs,
                       selected: selected,
-                      showAirPlay: true,
+
                       tabBuilder: (tab) =>
                           TextButton(onPressed: () {}, child: Text(tab.name)),
                     ),
@@ -41,7 +41,7 @@ void main() {
           );
           await tester.pumpAndSettle();
           final strip = find.byKey(const ValueKey('main-menu-tab-strip'));
-          final airPlay = find.byKey(const ValueKey('main-menu-airplay-cell'));
+          final airPlay = find.byKey(const ValueKey('main-menu-cell-airplay'));
           expect(find.descendant(of: strip, matching: airPlay), findsOneWidget);
           final airRect = tester.getRect(airPlay);
           final systemRect = tester.getRect(
@@ -88,15 +88,15 @@ void main() {
         designSize: const Size(640, 480),
         builder: (context, child) => MaterialApp(
           home: MainMenuTabStrip(
-            tabs: NavTab.values,
+            tabs: NavTab.values.where((tab) => tab != NavTab.airplay).toList(),
             selected: NavTab.settings,
-            showAirPlay: false,
+
             tabBuilder: (tab) => Text(tab.name),
           ),
         ),
       ),
     );
-    expect(find.byKey(const ValueKey('main-menu-airplay-cell')), findsNothing);
+    expect(find.byKey(const ValueKey('main-menu-cell-airplay')), findsNothing);
     expect(NavTab.achievements.index, 2);
     expect(NavTab.settings.index, 4);
     // Build 440: the consoles tab is appended, it does not renumber the others.
@@ -132,7 +132,7 @@ void main() {
                     child: MainMenuTabStrip(
                       tabs: tabs,
                       selected: selected,
-                      showAirPlay: true,
+
                       tabBuilder: (tab) =>
                           TextButton(onPressed: () {}, child: Text(tab.name)),
                     ),
@@ -148,7 +148,7 @@ void main() {
           final systems = cell(NavTab.systems);
           final consoles = cell(NavTab.consoles);
           final airPlay = tester.getRect(
-            find.byKey(const ValueKey('main-menu-airplay-cell')),
+            find.byKey(const ValueKey('main-menu-cell-airplay')),
           );
           expect(consoles.size, systems.size);
           expect(consoles.top, systems.top);

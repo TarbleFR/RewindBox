@@ -1,0 +1,388 @@
+{
+  "date": "2026-10-20",
+  "goal_installable_families": 400,
+  "baseline_revision": "2026-10-20.809cfd2df68f",
+  "baseline_families": 295,
+  "checkpoint": true,
+  "revision": "2026-10-20.d64e1ff29d79",
+  "manifest_sha256": "5c39b799fbe4053d4eff74ac664315c37fa593e0ca81a83372549422533764dd",
+  "runtime_entries": 1083,
+  "sources": 440,
+  "counts": {
+    "gc": {
+      "distinct": 77,
+      "entries": 102,
+      "variants": 25,
+      "complete": 53,
+      "partial": 8,
+      "ui": 16,
+      "oneTapFamilies": 23,
+      "manualVerifiedFamilies": 54,
+      "games": 54
+    },
+    "wii": {
+      "distinct": 43,
+      "entries": 65,
+      "variants": 22,
+      "complete": 24,
+      "partial": 6,
+      "ui": 13,
+      "oneTapFamilies": 14,
+      "manualVerifiedFamilies": 29,
+      "games": 33
+    },
+    "3ds": {
+      "distinct": 47,
+      "entries": 53,
+      "variants": 6,
+      "complete": 17,
+      "partial": 15,
+      "ui": 15,
+      "oneTapFamilies": 15,
+      "manualVerifiedFamilies": 32,
+      "games": 54
+    },
+    "psp": {
+      "distinct": 90,
+      "entries": 104,
+      "variants": 14,
+      "complete": 62,
+      "partial": 11,
+      "ui": 17,
+      "oneTapFamilies": 57,
+      "manualVerifiedFamilies": 33,
+      "games": 108
+    },
+    "ps2": {
+      "distinct": 76,
+      "entries": 90,
+      "variants": 14,
+      "complete": 48,
+      "partial": 19,
+      "ui": 9,
+      "oneTapFamilies": 33,
+      "manualVerifiedFamilies": 43,
+      "games": 87
+    },
+    "n64": {
+      "distinct": 14,
+      "entries": 21,
+      "variants": 7,
+      "complete": 12,
+      "partial": 2,
+      "ui": 0,
+      "oneTapFamilies": 14,
+      "manualVerifiedFamilies": 0,
+      "games": 11
+    },
+    "ps1": {
+      "distinct": 2,
+      "entries": 2,
+      "variants": 0,
+      "complete": 1,
+      "partial": 1,
+      "ui": 0,
+      "oneTapFamilies": 2,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "nes": {
+      "distinct": 5,
+      "entries": 5,
+      "variants": 0,
+      "complete": 5,
+      "partial": 0,
+      "ui": 0,
+      "oneTapFamilies": 5,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "total": {
+      "distinct": 352,
+      "entries": 437,
+      "variants": 85,
+      "complete": 220,
+      "partial": 62,
+      "ui": 70,
+      "oneTapFamilies": 161,
+      "manualVerifiedFamilies": 191,
+      "games": 351
+    }
+  },
+  "exact_ci_records": 263,
+  "artifacts": [
+    {
+      "run": 39407659263,
+      "artifact": 12258092463,
+      "console": "psp",
+      "sha256": "1c0a06733865862124f730a7480bd6b0f45c71e73bbb5714a517bb4d8258bf37"
+    },
+    {
+      "run": 39407659263,
+      "artifact": 12257329108,
+      "console": "3ds",
+      "sha256": "b431ecb85fea4d6003c2631f0872fdba7ce4c7555a8e422b419026d19ec3c1d9"
+    },
+    {
+      "run": 39408412029,
+      "artifact": 12258700366,
+      "console": "3ds",
+      "sha256": "c612ead78d4bb903b2a788fbe214ae4578c857aea8a3c10793a464f59efe019c"
+    },
+    {
+      "run": 39408412029,
+      "artifact": 12258119172,
+      "console": "dolphin",
+      "sha256": "f964a960c4e30fead8adc1c5e43e9c7cef82fbeca746c1520e1d83f38239d842"
+    },
+    {
+      "run": 39407659263,
+      "artifact": 12259405441,
+      "console": "ps2",
+      "sha256": "0f9248a48805cc102d2f4f2e1804ba2b9d2c17ccfa0003be11b48cf4c6e8e270"
+    },
+    {
+      "run": 39408412029,
+      "artifact": 12258892413,
+      "console": "ps2",
+      "sha256": "fafd78ad2fff762e6ba9c2d18c494887b75aab6730b682b81db1e45a17bc6e14"
+    },
+    {
+      "run": 39410496846,
+      "artifact": 12259261788,
+      "console": "ps2",
+      "sha256": "d5f644fa9d6b0dec46ee56b9d999790efd27f9514208548d8e6d4230b89bfae5"
+    },
+    {
+      "run": 39411115471,
+      "artifact": 12259572218,
+      "console": "ps2",
+      "sha256": "836062a6ce651ababd61810dad43fd896c51ebbcb5c43099aa708bd3e22b7fe5"
+    },
+    {
+      "run": 39411115471,
+      "artifact": 12259382206,
+      "console": "3ds",
+      "sha256": "221796e9eaf3de4f0034c0f978eb8df0348544e0a4be711574585e1a794b6012"
+    },
+    {
+      "run": 39411315570,
+      "artifact": 12258939706,
+      "console": "ps2",
+      "sha256": "e1a6d00aa2c581a8c3a2414baf41ad4066eeb76ad496454aa76d5cefdc1479af"
+    },
+    {
+      "run": 39412734596,
+      "artifact": 12259822609,
+      "console": "ps2",
+      "sha256": "af09fac78d51148267212241d9fd6989c8844f67a8bf7adf302d78a3f7baa10d"
+    },
+    {
+      "run": 39414433422,
+      "artifact": 12260159715,
+      "console": "psp",
+      "sha256": "ce9b2f6804c86d2c4d0b57893aa438e0dec38531bee00991ee47a323c2119076"
+    },
+    {
+      "run": 39414729610,
+      "artifact": 12261515659,
+      "console": "psp",
+      "sha256": "35c39c0db97dbcacf1b56bd88560931b0d1ca403e0fd115a5b3f2311fa7139c6"
+    },
+    {
+      "run": 39414729610,
+      "artifact": 12260946949,
+      "console": "dolphin",
+      "sha256": "470d035fb887345abcc8fc32569153d80ff4767e44cff36b2ce266ca1e453a2b"
+    },
+    {
+      "run": 39415047885,
+      "artifact": 12261026727,
+      "console": "psp",
+      "sha256": "ae4e310dbec63c43f4dfb016b49354a872864015ba855e145e64e3b5742a5a52"
+    },
+    {
+      "run": 39415047885,
+      "artifact": 12260997016,
+      "console": "dolphin",
+      "sha256": "b4e19fe19fc97f79587182ea445aafc858dda24b31d98be7b036666be41bccfd"
+    },
+    {
+      "run": 39415625937,
+      "artifact": 12261167298,
+      "console": "psp",
+      "sha256": "473b300e80ef9a023a5c327ec8790adf3d464f6dfbdd15bacb98977670a9962d"
+    },
+    {
+      "run": 39415931085,
+      "artifact": 12261167831,
+      "console": "psp",
+      "sha256": "83ceaef73be875e07456d04c75deff147a5a200207cfd6a061eafdc99df48340"
+    },
+    {
+      "run": 39406754238,
+      "artifact": 12261972376,
+      "console": "ps2",
+      "sha256": "d225fda8feb58a881c48bcd26481683adba4ea0fcfc41aaa691ed231a71cb377"
+    },
+    {
+      "run": 39417046479,
+      "artifact": 12260944867,
+      "console": "ps2",
+      "sha256": "22ad012d719333022964d29b65a63ac90132bd7aed7bbadb6f167f164249164f"
+    },
+    {
+      "run": 39416625497,
+      "artifact": 12263297343,
+      "console": "ps2",
+      "sha256": "5aa9b3a1f2ac488acff2701bf922ab894b926ca597f52d5eb4f09acdd7d68a01"
+    },
+    {
+      "run": 39420074282,
+      "artifact": 12262508351,
+      "console": "psp",
+      "sha256": "3af5825730df12c3cc1f1a92db99a6b427440e268707d0ef6c385e489471635e"
+    },
+    {
+      "run": 39420495984,
+      "artifact": 12263821659,
+      "console": "ps2",
+      "sha256": "3f81c4523cc518149ee33efc29ffd90b10d8b488b9121ca26cb314bf1835182b"
+    },
+    {
+      "run": 39423463863,
+      "artifact": 12264458102,
+      "console": "dolphin",
+      "sha256": "525b3ab1b3415ab44fb5f36ed7fdca782a5c51d03516a021c96344d86e58c899"
+    },
+    {
+      "run": 39423064189,
+      "artifact": 12264608869,
+      "console": "ps2",
+      "sha256": "a7bf18d4372dd6232e4375f13ad841278b5b1db3f73d669aa4c0864e3b346c16"
+    },
+    {
+      "run": 39424078919,
+      "artifact": 12265009304,
+      "console": "ps2",
+      "sha256": "456452057d127eb07e230fb7847a383464d3042b9d53ca08bc79dd2a09351751"
+    },
+    {
+      "run": 39426288197,
+      "artifact": 12266735473,
+      "console": "dolphin",
+      "sha256": "e47d1cd28c9118507605b482b9147362e5d21e3d5aea1ad8b8f0b8fe1b2f3762"
+    },
+    {
+      "run": 39416632997,
+      "artifact": 12266241858,
+      "console": "ps2",
+      "sha256": "69c442e92969ea3e56a8120f8b5eeab23a91d061bf7f7a21b9b463c437d1fdd5"
+    },
+    {
+      "run": 39416642896,
+      "artifact": 12268085981,
+      "console": "ps2",
+      "sha256": "e8572ead1b79de8c44a3ef03ebb85847dc1c2524fc6ebfe6b962e9fa77cde57e"
+    },
+    {
+      "run": 39431381794,
+      "artifact": 12269455417,
+      "console": "ps2",
+      "sha256": "011e4fd6a81e30a2a80d61b31587380655cc5260f71eb62118567474b34cbc5f"
+    }
+  ],
+  "research_artifacts": [
+    {
+      "run": 39406152144,
+      "artifact": 12257762456,
+      "sha256": "497836056ca3e24be0b526bfacc2e05f9eecaa5b566a1b8386dd9f14a83eac28"
+    },
+    {
+      "run": 39407069947,
+      "artifact": 12256888195,
+      "sha256": "6dc36e7c0156fc58d7b1acff7c4f8a901ccc87011f77cd1585fe45d248403615"
+    },
+    {
+      "run": 39409327497,
+      "artifact": 12257859720,
+      "sha256": "e4db13be2c5d5270b5d5a413c189d40573f21368ca2a06819c8250764edde2a6"
+    },
+    {
+      "run": 39413582743,
+      "artifact": 12259704485,
+      "sha256": "e3d4ca4a3a9f61ecf2009b6ad270d9b02c1946284deb4728ba26d3a060874979"
+    }
+  ],
+  "ps2_pending_runs": [],
+  "switch_runtime": 0,
+  "native_inputs_changed": false,
+  "iphone_rendering_validated": false,
+  "ipa_produced": false,
+  "release_published": false,
+  "verification_tool_fix": {
+    "source": "6996f35a09e9dd061a266855b7f084e170a88aee",
+    "file": "tools/textures/verify_packs.py",
+    "change": "Retain the actual ARMSX2 excluded folders in installed records, so the existing builder preserves distinct game subtrees and does not discard their exclusion rules. No native installer change.",
+    "regression": "Two-game ZIP through unchanged production texture_verify driver: excluded other-game folder absent from native plan, one file installed, recorded exclude list retained. PASS.",
+    "targeted_checks": "texture_verify_checks_test.py passed with the changed verifier import; Python compilation passed. Full unchanged app/core suites not repeated.",
+    "real_archive_reverification_run": 39411315570
+  },
+  "new_installable_families": 57,
+  "new_installable_profiles": 60,
+  "current_candidate_records": 248,
+  "superseded_records": 15,
+  "baseline_installable_pack_objects_unchanged": true,
+  "baseline_verification_records_unchanged": true,
+  "switch_future_references": 4,
+  "bulk_progress": {
+    "original_candidates": 210,
+    "completed_first_batch": 104,
+    "cancelled_first_run": 39406754238,
+    "preserved_artifact": 12261972376,
+    "unseen_candidates_in_three_batches": 102,
+    "already_checked_in_later_original_archive_runs": 4,
+    "no_completed_tests_repeated": true,
+    "completed_remaining_batches": [
+      34,
+      34,
+      33
+    ],
+    "completed_original_candidates": 209,
+    "uncompleted_original_candidates": 1,
+    "uncompleted_ids": [
+      "ps2-ktx-xenosaga-episode-ii-jenseits-von-gut-und-bose-panda-venom"
+    ],
+    "last_run_cancelled_after_records": 33
+  },
+  "publication_identity_guard": {
+    "file": "tools/textures/build_catalogue.py",
+    "rule": "Reject an otherwise successful ARMSX2 record when its native plan explicitly identifies another disc serial. Correct the source identities and verify the actual target before publication.",
+    "regression": "test/texture_catalogue_publication_test.py: PASS locally on the actual old Akirus CI observation, both corrected USA records and the existing NCAA pack-name control. No archive test repeated.",
+    "ci": "The existing host-check job runs the new regression before Flutter setup; no unchanged app/core suite is rerun for this change.",
+    "manifest_bytes_changed_by_guard": false
+  },
+  "public_file_host_extension": {
+    "provider": "Yandex Disk",
+    "source": "999d441354929635b0c6c248ae5433bb093d888c",
+    "access": "Standard anonymous public-resource metadata and download API; one file only. No accounts, folder copying or quota workarounds. Temporary CDN links are not retained. Provider SHA-256 checked against actual bytes.",
+    "local_test": "test/texture_yandex_host_test.py: 7 tests passed; texture_verify_checks_test.py: 16 checks passed with the changed host import.",
+    "real_original_archive_run": 39423064189,
+    "result": "Prince of Persia passes native import with provider-matching SHA-256; God of War times out and is not promoted."
+  },
+  "observation_status_counts": {
+    "ok": 79,
+    "tooLarge": 2,
+    "protected": 76,
+    "unsupportedArchive": 58,
+    "gone": 28,
+    "html": 4,
+    "quota": 9,
+    "install": 3,
+    "unsupported": 2,
+    "network": 2
+  },
+  "phase_complete": true,
+  "target_reached": false,
+  "baseline_git_revision": "4850653"
+}

@@ -1,3 +1,5 @@
+import '../../../../l10n/melonx_transfer_locale.dart';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,6 +14,9 @@ import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/repositories/game_repository.dart';
 import 'package:neostation/screens/settings_screen/new_settings_options/widgets/setting_row.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
+import 'package:neostation/services/melonx_internal_service.dart';
+import 'package:neostation/l10n/texture_catalog_locale.dart';
+import 'package:neostation/services/texture_catalog_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/utils/enabled_index_nav.dart';
@@ -57,9 +62,14 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
   GlobalKey _itemKey(int navIndex) =>
       _itemKeys.putIfAbsent(navIndex, () => GlobalKey());
 
-  int get _playTimeIdx => 0;
-  int get _deleteIdx => 1;
-  int get _totalItems => 2;
+  // Build 486: the HD textures page of the game's embedded engine first.
+  bool get _hasTextures =>
+      TextureCatalogService.supports(_targetSystemFolder) &&
+      (widget.game.romPath?.startsWith('/') ?? false);
+  int get _texturesIdx => _hasTextures ? 0 : -1;
+  int get _playTimeIdx => _hasTextures ? 1 : 0;
+  int get _deleteIdx => _playTimeIdx + 1;
+  int get _totalItems => _deleteIdx + 1;
 
   String get _targetSystemFolder =>
       widget.isAllMode && widget.game.systemFolderName != null
@@ -97,7 +107,9 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
   }
 
   void trigger() {
-    if (_selectedIndex == _playTimeIdx) {
+    if (_selectedIndex == _texturesIdx) {
+      _openTextures();
+    } else if (_selectedIndex == _playTimeIdx) {
       if ((widget.game.playTime ?? 0) > 0 && !_isResettingPlayTime) {
         _confirmResetPlayTime();
       }
@@ -118,6 +130,24 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
         );
       }
     });
+  }
+
+  Future<void> _openTextures() async {
+    SfxService().playNavSound();
+    final opened = await TextureCatalogService.openGame(
+      system: widget.system,
+      game: widget.game,
+    );
+    if (!opened && mounted) {
+      AppNotification.showNotification(
+        context,
+        TextureCatalogLocale.text(
+          Localizations.localeOf(context),
+          'openFailed',
+        ),
+        type: NotificationType.error,
+      );
+    }
   }
 
   Future<void> _confirmResetPlayTime() async {
@@ -162,7 +192,14 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       barrierDismissible: false,
       builder: (ctx) => DeleteGameDialog(
         gameName: widget.game.name,
-        romName: widget.game.romname,
+        romName: _targetSystemFolder.toLowerCase() == 'switch'
+            ? (widget.game.romPath ?? widget.game.romname)
+            : widget.game.romname,
+        confirmationBody:
+            _targetSystemFolder.toLowerCase() == 'switch' &&
+                MelonxInternalService.isRetiredLink(widget.game.romPath ?? '')
+            ? MelonxTransferLocale.text(context, 'deleteRetiredConfirm')
+            : null,
       ),
     );
     if (confirmed == true && mounted) _deleteGame();
@@ -177,8 +214,6 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
     final isDolphinInternal =
         Platform.isIOS &&
         DolphinInternalV2Service.isDolphinSystem(_targetSystemFolder);
-    final isPortsInternal =
-        Platform.isIOS && _targetSystemFolder.toLowerCase() == 'ports';
     var deleted = false;
 
     try {
@@ -199,8 +234,11 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
         await context
             .read<SqliteConfigProvider>()
             .refreshDolphinInternalLibrary(_targetSystemFolder);
-      } else if (isPortsInternal && mounted) {
-        await context.read<SqliteConfigProvider>().refreshPortsInternalLibrary();
+      }
+      if (Platform.isIOS &&
+          _targetSystemFolder.toLowerCase() == 'switch' &&
+          mounted) {
+        await context.read<SqliteConfigProvider>().refreshDetectedSystems();
       }
       deleted = true;
     } catch (e) {
@@ -208,7 +246,11 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       if (mounted) {
         AppNotification.showNotification(
           context,
-          e.toString(),
+          _targetSystemFolder.toLowerCase() == 'switch'
+              ? (e.toString().contains('libraryBusy')
+                    ? MelonxTransferLocale.text(context, 'libraryBusy')
+                    : '${MelonxTransferLocale.text(context, 'deleteFailed')}\n$e')
+              : e.toString(),
           type: NotificationType.error,
         );
       }
@@ -234,6 +276,32 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_hasTextures) ...[
+            GestureDetector(
+              onTap: () {
+                setState(() => _selectedIndex = _texturesIdx);
+                _openTextures();
+              },
+              child: SettingRow(
+                key: _itemKey(_texturesIdx),
+                focused: _selectedIndex == _texturesIdx,
+                title: TextureCatalogLocale.text(
+                  Localizations.localeOf(context),
+                  'menuTitle',
+                ),
+                subtitle: TextureCatalogLocale.text(
+                  Localizations.localeOf(context),
+                  'menuSubtitle',
+                ),
+                trailing: Icon(
+                  Icons.hd_outlined,
+                  size: 20.r,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+            SizedBox(height: 12.r),
+          ],
           GestureDetector(
             onTap: () {
               SfxService().playNavSound();

@@ -1,0 +1,619 @@
+{
+  "purpose": "Exact earlier CI records superseded by corrected extraction/region checks. Not runtime source data.",
+  "records": [
+    {
+      "run": 39407659263,
+      "superseded_by": 39410496846,
+      "record": {
+        "download_seconds": 2.3,
+        "file_name": "actrilogy-hud-upgrade-v1.2.1.zip",
+        "format": "zip",
+        "host": "gdrive",
+        "id": "ps2-ktx-ace-combat-04-shattered-skies-superostrich",
+        "installed": [
+          {
+            "bytes": 546593,
+            "files": 38,
+            "formats": {
+              "png": "38"
+            },
+            "from": "",
+            "to": "SLUS-20152/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "1fb4d7510c62071cb6c3cf3774b3d252a7a8f53ddd784f820b273891e7d3000f",
+            "size": 6391233,
+            "url": "https://drive.google.com/uc?export=download&id=1xhYvVMScGS1uVN18_V6qh_PKPuvts9Vy"
+          }
+        ],
+        "plan": {
+          "bytes": "546593",
+          "error": "",
+          "excluded": "230",
+          "files": "38",
+          "match": "same",
+          "pack": "SLUS-20152",
+          "regionConflict": "0",
+          "serials": "SLUS-20152,SLUS-20851,SLUS-21346,",
+          "skipped": "32"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39407659263,
+      "superseded_by": 39410496846,
+      "record": {
+        "download_seconds": 19.0,
+        "expanded": {
+          "bytes": 3541211712,
+          "files": 8720
+        },
+        "file_name": "FlatOut 2 (PAL-D) v1.1.7z",
+        "format": "7z",
+        "host": "gdrive",
+        "id": "ps2-ktx-flatout-2-kupo-on-gbatem",
+        "installed": [
+          {
+            "bytes": 3541211712,
+            "files": 8720,
+            "formats": {
+              "ddsBc7": "8720"
+            },
+            "from": "",
+            "to": "SLES-54002/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "444c29e28f4c8edf44706239cfc7a41358a250baa3675957b24215e0887498cc",
+            "size": 2027498129,
+            "url": "https://drive.google.com/file/d/1m9NyTEoeotFdzgMeaYb2SHUgAHAP2xMj/view"
+          }
+        ],
+        "plan": {
+          "bytes": "3541211712",
+          "error": "",
+          "excluded": "0",
+          "files": "8720",
+          "match": "otherSerial",
+          "pack": "SLES-54003",
+          "regionConflict": "0",
+          "serials": "SLES-54003,",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39410496846,
+      "superseded_by": 39411315570,
+      "record": {
+        "download_seconds": 1.7,
+        "expanded": {
+          "bytes": 546593,
+          "files": 38
+        },
+        "file_name": "actrilogy-hud-upgrade-v1.2.1.zip",
+        "format": "zip",
+        "host": "gdrive",
+        "id": "ps2-ktx-ace-combat-04-shattered-skies-superostrich",
+        "installed": [
+          {
+            "bytes": 546593,
+            "files": 38,
+            "formats": {
+              "png": "38"
+            },
+            "from": "",
+            "to": "SLUS-20152/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "1fb4d7510c62071cb6c3cf3774b3d252a7a8f53ddd784f820b273891e7d3000f",
+            "size": 6391233,
+            "url": "https://drive.google.com/uc?export=download&id=1xhYvVMScGS1uVN18_V6qh_PKPuvts9Vy"
+          }
+        ],
+        "plan": {
+          "bytes": "546593",
+          "error": "",
+          "excluded": "0",
+          "files": "38",
+          "match": "same",
+          "pack": "SLUS-20152",
+          "regionConflict": "0",
+          "serials": "SLUS-20152,",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39410496846,
+      "superseded_by": 39411315570,
+      "record": {
+        "download_seconds": 1.3,
+        "expanded": {
+          "bytes": 3084547,
+          "files": 57
+        },
+        "file_name": "actrilogy-hud-upgrade-v1.2.1.zip",
+        "format": "zip",
+        "host": "gdrive",
+        "id": "ps2-ktx-ace-combat-5-the-unsung-war-superostrich",
+        "installed": [
+          {
+            "bytes": 3084547,
+            "files": 57,
+            "formats": {
+              "png": "57"
+            },
+            "from": "",
+            "to": "SLUS-20851/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "1fb4d7510c62071cb6c3cf3774b3d252a7a8f53ddd784f820b273891e7d3000f",
+            "size": 6391233,
+            "url": "https://drive.google.com/uc?export=download&id=1xhYvVMScGS1uVN18_V6qh_PKPuvts9Vy"
+          }
+        ],
+        "plan": {
+          "bytes": "3084547",
+          "error": "",
+          "excluded": "0",
+          "files": "57",
+          "match": "same",
+          "pack": "SLUS-20851",
+          "regionConflict": "0",
+          "serials": "SLUS-20851,",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39410496846,
+      "superseded_by": 39411315570,
+      "record": {
+        "download_seconds": 1.2,
+        "expanded": {
+          "bytes": 2668659,
+          "files": 173
+        },
+        "file_name": "actrilogy-hud-upgrade-v1.2.1.zip",
+        "format": "zip",
+        "host": "gdrive",
+        "id": "ps2-ktx-ace-combat-zero-the-belkan-war-superostrich",
+        "installed": [
+          {
+            "bytes": 2668659,
+            "files": 173,
+            "formats": {
+              "png": "173"
+            },
+            "from": "",
+            "to": "SLUS-21346/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "1fb4d7510c62071cb6c3cf3774b3d252a7a8f53ddd784f820b273891e7d3000f",
+            "size": 6391233,
+            "url": "https://drive.google.com/uc?export=download&id=1xhYvVMScGS1uVN18_V6qh_PKPuvts9Vy"
+          }
+        ],
+        "plan": {
+          "bytes": "2668659",
+          "error": "",
+          "excluded": "0",
+          "files": "173",
+          "match": "same",
+          "pack": "SLUS-21346",
+          "regionConflict": "0",
+          "serials": "SLUS-21346,",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39408412029,
+      "superseded_by": 39411115471,
+      "record": {
+        "download_seconds": 50.1,
+        "file_name": "replacements.zip",
+        "format": "zip",
+        "host": "direct",
+        "id": "ps2-ktx-the-lord-of-the-rings-the-two-towers-maximocapcom",
+        "installed": [
+          {
+            "bytes": 2177276007,
+            "files": 392,
+            "formats": {
+              "png": "392"
+            },
+            "from": "",
+            "to": "SLES-51252/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "ea58e35d2c33c01c00bae3804122bada14d36b2be0267f791560b58e8cc7d1f7",
+            "size": 2167482868,
+            "url": "https://archive.org/download/lord-of-the-rings-the-two-towers-remastered-icons-and-characters/replacements.zip"
+          }
+        ],
+        "plan": {
+          "bytes": "2177276007",
+          "error": "",
+          "excluded": "0",
+          "files": "392",
+          "match": "noSerial",
+          "pack": "",
+          "regionConflict": "0",
+          "serials": "",
+          "skipped": "1"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39406754238,
+      "superseded_by": 39408412029,
+      "record": {
+        "error": "bot challenge",
+        "id": "ps2-ktx-007-from-russia-with-love-thomasweissenfluh",
+        "manual": true,
+        "status": "protected",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39406754238,
+      "superseded_by": 39408412029,
+      "record": {
+        "error": "bot challenge",
+        "id": "ps2-ktx-bujingai-the-forsaken-city-darthdarklord",
+        "manual": true,
+        "status": "protected",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39406754238,
+      "superseded_by": 39408412029,
+      "record": {
+        "error": "web page instead of a file",
+        "id": "ps2-ktx-maximo-ghosts-to-glory-maximocapcom",
+        "manual": true,
+        "status": "html",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39406754238,
+      "superseded_by": 39417046479,
+      "record": {
+        "download_seconds": 19.9,
+        "expanded": {
+          "bytes": 995926973,
+          "files": 1654
+        },
+        "file_name": "SLUS-21297.7z",
+        "format": "7z",
+        "host": "mega",
+        "id": "ps2-ktx-devil-kings-i-emu-play",
+        "installed": [
+          {
+            "bytes": 995926973,
+            "files": 1654,
+            "formats": {
+              "png": "1654"
+            },
+            "from": "",
+            "to": "SLES-53870/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "bad98855e9dbafd0c96476ffbe28a7e137b307067b7892beca577d96b2b08013",
+            "size": 964065204,
+            "url": "https://mega.nz/file/weJRHCBB#SWlEMnp0cO-ko6Ob6KqUA9cX5FEku-7ONPM62ATlgwo"
+          }
+        ],
+        "plan": {
+          "bytes": "995926973",
+          "error": "",
+          "excluded": "0",
+          "files": "1654",
+          "match": "noSerial",
+          "pack": "",
+          "regionConflict": "0",
+          "serials": "",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39406754238,
+      "superseded_by": 39417046479,
+      "record": {
+        "download_seconds": 6.7,
+        "expanded": {
+          "bytes": 1907374997,
+          "files": 2223
+        },
+        "file_name": "HD_169.7z",
+        "format": "7z",
+        "host": "gdrive",
+        "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-akirus",
+        "installed": [
+          {
+            "bytes": 1907374997,
+            "files": 2223,
+            "formats": {
+              "ddsBc3": "2221",
+              "png": "2"
+            },
+            "from": "",
+            "to": "SLES-54945/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "5b2f5f3fceaa1ee23155d1c35cf8399222c6e8864bac700cae960d57ed299e15",
+            "size": 219008991,
+            "url": "https://drive.google.com/file/d/1MyUzpU7D_4HiP3szxK8YhkkF--YSGZnd/view"
+          }
+        ],
+        "plan": {
+          "bytes": "1907374997",
+          "error": "",
+          "excluded": "0",
+          "files": "2223",
+          "match": "otherSerial",
+          "pack": "SLUS-21678",
+          "regionConflict": "0",
+          "serials": "SLUS-21678,",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39416625497,
+      "superseded_by": 39420495984,
+      "record": {
+        "download_seconds": 77.5,
+        "expanded": {
+          "bytes": 3043451076,
+          "files": 4589
+        },
+        "file_name": "SLPM-66848.7z",
+        "format": "7z",
+        "host": "mega",
+        "id": "ps2-ktx-sengoku-basara-2-heroes-i-emu-play",
+        "installed": [
+          {
+            "bytes": 3043451076,
+            "exclude": [],
+            "files": 4589,
+            "formats": {
+              "png": "4589"
+            },
+            "from": "",
+            "to": "SLKA-25412/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "6a44d041b0dcf00898215bcdb704ab3f79f092848e0c5d8113e1aa0419fa24ed",
+            "size": 2898489391,
+            "url": "https://mega.nz/file/lPRmTQaA#XB6DlwyGZD0Ym9QEtLCFTODF-aNE79SNs2-IZ0Pnl2U"
+          }
+        ],
+        "plan": {
+          "bytes": "3043451076",
+          "error": "",
+          "excluded": "0",
+          "files": "4589",
+          "match": "noSerial",
+          "pack": "",
+          "regionConflict": "0",
+          "serials": "",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39416625497,
+      "superseded_by": 39420495984,
+      "record": {
+        "download_seconds": 74.8,
+        "expanded": {
+          "bytes": 18106204931,
+          "files": 4199
+        },
+        "file_name": "Silent Hill 3 (USA) [SLUS-20622] HD Remaster.7z",
+        "format": "7z",
+        "host": "gdrive",
+        "id": "ps2-ktx-silent-hill-3-curse-arms",
+        "installed": [
+          {
+            "bytes": 18106204931,
+            "exclude": [],
+            "files": 4199,
+            "formats": {
+              "ddsBc3": "4198",
+              "png": "1"
+            },
+            "from": "",
+            "to": "SLES-51434/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "c7e22d5c1a7c7d8e885e2bd6bf379f2ea13403aca57d1dad6f529cdc4068f1b1",
+            "size": 5011382759,
+            "url": "https://drive.usercontent.google.com/download?id=1l3QAcvaZRWdZ1dn43NRTxE4_txSA_Ip5&export=download&authuser=0"
+          }
+        ],
+        "plan": {
+          "bytes": "18106204931",
+          "error": "",
+          "excluded": "0",
+          "files": "4199",
+          "match": "otherSerial",
+          "pack": "SLUS-20622",
+          "regionConflict": "1",
+          "serials": "SLUS-20622,",
+          "skipped": "0"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39416625497,
+      "superseded_by": 39420495984,
+      "record": {
+        "download_seconds": 5.3,
+        "file_name": "SVR2007 HD Texture by MininGaming.zip",
+        "format": "zip",
+        "host": "gdrive",
+        "id": "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers",
+        "installed": [
+          {
+            "bytes": 509525321,
+            "exclude": [],
+            "files": 2493,
+            "formats": {
+              "png": "2493"
+            },
+            "from": "",
+            "to": "SLES-52781/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "2b90c81f79f19c135b29a6c0b5185299fae3d5ad714aea927618046fb61c7fed",
+            "size": 509877379,
+            "url": "https://drive.google.com/file/d/14dLlinaNIZHUHaO4zjqi19e3Za35XUQZ/view"
+          }
+        ],
+        "plan": {
+          "bytes": "509525321",
+          "error": "",
+          "excluded": "0",
+          "files": "2493",
+          "match": "noSerial",
+          "pack": "",
+          "regionConflict": "0",
+          "serials": "",
+          "skipped": "1"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39416642896,
+      "superseded_by": 39431381794,
+      "record": {
+        "download_seconds": 859.6,
+        "file_name": "WOH LAST ROUND.zip",
+        "format": "zip",
+        "host": "mega",
+        "id": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight",
+        "installed": [
+          {
+            "bytes": 4495527821,
+            "exclude": [],
+            "files": 3528,
+            "formats": {
+              "png": "3528"
+            },
+            "from": "",
+            "to": "SLES-50679/replacements",
+            "unsupported": 0
+          }
+        ],
+        "manual": true,
+        "parts": [
+          {
+            "sha256": "5d28ed70e94ddb979181fa10bc34300ae1189b0087c8936cf2b8463d00bc324b",
+            "size": 4454221666,
+            "url": "https://mega.nz/file/UeE2lZ5Q#8cfwYSVugF-uKpDymen0ZWA4qE_F9tPmUxvugz1_ZmU"
+          }
+        ],
+        "plan": {
+          "bytes": "4495527821",
+          "error": "",
+          "excluded": "0",
+          "files": "3528",
+          "match": "otherSerial",
+          "pack": "SLUS-20397",
+          "regionConflict": "0",
+          "serials": "SLUS-20397,",
+          "skipped": "35"
+        },
+        "status": "ok",
+        "system": "ps2",
+        "verified_at": "2026-10-20"
+      }
+    }
+  ]
+}

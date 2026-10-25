@@ -23,10 +23,13 @@ def main():
     args=parser.parse_args()
     core=(ROOT/'packages/armsx2_internal_bridge/core/ARMSX2Core.mm').read_text()
     core=core.replace('#include "ARMSX2Patches.inc"', (ROOT/'packages/armsx2_internal_bridge/core/ARMSX2Patches.inc').read_text())
+    core=core.replace('#include "ARMSX2BlendingAccuracy.inc"', (ROOT/'packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.inc').read_text())
     headers=ROOT/'packages/armsx2_internal_bridge/ios/Classes'
     abi=(headers/'ARMSX2CoreABI.h').read_text()
     manifest=json.loads((ROOT/'build-utils/armsx2/source.json').read_text())
-    assert manifest['abi_version']==int(re.search(r'NEO_ARMSX2_ABI_VERSION (\d+)u',abi)[1])==6
+    assert manifest['abi_version']==int(re.search(r'NEO_ARMSX2_ABI_VERSION (\d+)u',abi)[1])==8
+    assert 'get_blending_accuracy_json' in abi and 'set_blending_accuracy' in abi
+    assert 'int get_blending_accuracy_json(' in core and 'int set_blending_accuracy(' in core
     assert 'get_available_patches_json' in abi and 'set_patch_state' in abi
     assert 'int get_available_patches_json(' in core and 'int set_patch_state(' in core
     start=core.index('      VMBootParameters parameters;')
@@ -44,7 +47,11 @@ def main():
         config=(args.upstream/'pcsx2/Pcsx2Config.cpp').read_text()
         for key in keys:
             assert re.search(r'SettingsWrapBitBoolEx\([^\n]*"'+re.escape(key)+r'"\)',config), key
+        # Build 485: the HD texture keys are plain GS booleans of the pinned engine.
+        for key in ('LoadTextureReplacements','LoadTextureReplacementsAsync','PrecacheTextureReplacements'):
+            assert 'SettingsWrapBitBool('+key+')' in config, key
         bridge=(args.upstream/'platforms/ios/app/src/main/cpp/ARMSX2Bridge.mm').read_text()
+        assert '+ (nullable NSNumber *)perGameINIBoolIfPresent:' in bridge
         assert 'ARMSX2SyncClaimsIfPinnedHackKey(si, section, key);' in bridge
         assert 'ARMSX2RequestPerGameSettingsReload();' in bridge
         print('Verified boolean GS keys and per-game persistence against pinned upstream',revision)
@@ -55,6 +62,7 @@ def main():
     program=r'''
 #include "ARMSX2CoreABI.h"
 #include "ARMSX2GraphicsHacks.h"
+#include "ARMSX2BlendingAccuracy.h"
 #include <iostream>
 #include <string>
 #include <stdexcept>
@@ -102,20 +110,44 @@ int main() {
   }
   require(!NeoARMSX2ValidGraphicsHack("Renderer",1),"Renderer is not a hack");
   require(!NeoARMSX2ValidGraphicsHack("unknown",1),"Arbitrary setting accepted");
-  std::cout<<"PASS: BIOS/disc/ELF parameters; path rejection; 13-key whitelist; inherit/on/off validation\n";
+  // Build 482: only the five levels that change the iPhone picture are offered.
+  for(int level:{0,1,3,4,5}) require(NeoARMSX2BlendingLevelOffered(level),"Offered blending level rejected");
+  for(int level:{-1,2,6,NEO_ARMSX2_BLENDING_INHERIT}) require(!NeoARMSX2BlendingLevelOffered(level),"Medium or out-of-range blending level offered");
+  require(kNeoARMSX2BlendingDefault==1 && kNeoARMSX2BlendingMaximum==5 && kNeoARMSX2BlendingMedium==2,"AccBlendLevel constants changed");
+  static_assert(NEO_ARMSX2_BLENDING_SCOPE_GAME!=NEO_ARMSX2_BLENDING_SCOPE_DEFAULT,"scopes");
+  std::cout<<"PASS: BIOS/disc/ELF parameters; path rejection; 13-key whitelist; inherit/on/off validation; five iPhone blending levels\n";
 }
 '''
     with tempfile.TemporaryDirectory(prefix='armsx2-bios-hacks-') as directory:
         source=Path(directory)/'test.cpp'; binary=Path(directory)/'test'
         source.write_text(program)
-        subprocess.run([compiler,'-std=c++17','-Wall','-Wextra','-Werror','-I',str(headers),str(source),'-o',str(binary)],check=True)
+        subprocess.run([compiler,'-std=c++17','-Wall','-Wextra','-Werror','-I',str(headers),'-I',str(ROOT/'packages/armsx2_internal_bridge/core'),str(source),'-o',str(binary)],check=True)
         subprocess.run([str(binary)],check=True,timeout=10)
     # Source guards complement, not replace, the executable tests above.
-    setter=core[core.index('int set_graphics_hack('):core.index('const NeoARMSX2API api=')]
+    setter=core[core.index('int set_graphics_hack('):core.index('#include "ARMSX2GraphicsAssets.inc"')]
+    # Build 482: the blending setter writes this game's INI on the CPU thread and, for the
+    # default scope only, the one base key of the whole adapter (accurate_blending_unit).
+    blending=core[core.index('int set_blending_accuracy('):core.index('const NeoARMSX2API api=')]
+    assert 'setGraphicsHackPinned:' not in blending and 'setINIBool:' not in blending
+    assert 'deletePerGameINIValue:' in blending and 'setPerGameINIInt:' in blending and 'Host::RunOnCPUThread' in blending
+    assert blending.count('setINIInt:')==1 and 'NEO_ARMSX2_BLENDING_SCOPE_DEFAULT' in blending
     assert 'setGraphicsHackPinned:' not in setter, 'Must not alter global hack claims'
     assert 'setINIBool:' not in setter, 'Must not alter global settings'
     assert 'deletePerGameINIValue:' in setter and 'setPerGameINIBool:' in setter
     assert 'Host::RunOnCPUThread' in setter
-    print('PASS: per-game-only writes on the owned CPU thread')
+    # Build 485 (ABI 8): HD textures write only this game's INI on the CPU thread,
+    # never the base layer, never a whole-pack preload, and reach a game's INI
+    # from the library choice after the disc is identified, before the first frame.
+    textures=(ROOT/'packages/armsx2_internal_bridge/core/ARMSX2TextureReplacements.inc').read_text()
+    for name in ('get_texture_replacements_json','set_texture_replacements','reload_texture_replacements',
+                 'set_texture_boot_preferences','expand_texture_archive'):
+        assert name in abi and 'int '+name+'(' in textures, name
+    assert 'setINIBool:' not in textures and 'setINIInt:' not in textures and 'setINIString:' not in textures
+    assert 'key:@"PrecacheTextureReplacements" value:NO' in textures
+    assert 'PrecacheTextureReplacements" value:YES' not in textures
+    assert textures.count('Host::RunOnCPUThread')==3 and textures.count('MTGS::WaitGS(false);')==2
+    assert 'apply_texture_boot_preference();\n      VMManager::SetState(VMState::Running);' in core
+    assert 'void apply_texture_boot_preference();' in core.split('void vm_worker()')[0]
+    print('PASS: per-game-only writes on the owned CPU thread (graphics hacks, blending, HD textures)')
 
 if __name__=='__main__': main()

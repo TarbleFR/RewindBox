@@ -157,8 +157,8 @@ class _ExternalDisplayEnabledRowState
       return Text(text(ExternalDisplayLocale.gameOnExternal), style: muted);
     }
     if (state.suspended) {
-      // The running engine (Dusklight, KartPad) cannot draw there: the
-      // window is hidden and iOS mirrors the iPhone.
+      // An engine holds the window hidden (RPCS3 while its core stops):
+      // iOS mirrors the iPhone.
       return Text(text(ExternalDisplayLocale.unsupportedEngine), style: warning);
     }
     // Outside a game iOS mirrors the iPhone (Build 449): the screen that is

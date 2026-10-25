@@ -1,0 +1,288 @@
+{
+  "artifacts": [
+    {
+      "run": 39456452641,
+      "source": "bd9e76909805473be9b3cc9173349ffe268f1c38",
+      "id": 12279744261,
+      "name": "hdtex486-releases-dolphin-bd9e76909805473be9b3cc9173349ffe268f1c38",
+      "sha256": "697bbeb19c67a66a30b09ce0b3c7b8b8e4aca6c927c39fb729e8cd74ab6ac0b1",
+      "records": 1,
+      "zip_path": "build/hd-direct400/artifacts/12279744261.zip",
+      "members": [
+        {
+          "name": "verified-dolphin.jsonl",
+          "path": "build/hd-direct400/artifacts/verified-dolphin.jsonl",
+          "sha256": "ecbefa1a13271b2d8b9edbbdeb6cbaf8a646b7903e30fc33bf10c8f66c631eb4",
+          "evidence_path": "docs/evidence/hd-direct400-observations/39456452641-verified-dolphin.jsonl"
+        }
+      ]
+    },
+    {
+      "run": 39456452641,
+      "source": "bd9e76909805473be9b3cc9173349ffe268f1c38",
+      "id": 12280747772,
+      "name": "hdtex486-releases-ps2-bd9e76909805473be9b3cc9173349ffe268f1c38",
+      "sha256": "c386b742c5667cb296dfaf57999cb0466601e55bb053d02df545e2a89383ecd4",
+      "records": 5,
+      "zip_path": "build/hd-direct400/ci/39456452641/12280747772/artifact.zip",
+      "members": [
+        {
+          "name": "verified-ps2.jsonl",
+          "path": "build/hd-direct400/ci/39456452641/12280747772/verified-ps2.jsonl",
+          "sha256": "8c2b962e9a6edc041f51ecbd2f3e2fbf64a6fa413cf63d8ebee71936750ad8b8",
+          "evidence_path": "docs/evidence/hd-direct400-observations/39456452641-verified-ps2.jsonl"
+        }
+      ]
+    },
+    {
+      "run": 39456452641,
+      "source": "bd9e76909805473be9b3cc9173349ffe268f1c38",
+      "id": 12281487837,
+      "name": "hdtex486-releases-psp-bd9e76909805473be9b3cc9173349ffe268f1c38",
+      "sha256": "042e23f45dbdeb1df3d15399ec2dd1a00ec88a9638bc854eefbae494718a9cf7",
+      "records": 9,
+      "zip_path": "build/hd-direct400/ci/39456452641/12281487837/artifact.zip",
+      "members": [
+        {
+          "name": "verified-psp.jsonl",
+          "path": "build/hd-direct400/ci/39456452641/12281487837/verified-psp.jsonl",
+          "sha256": "a6c556931cda1f2a426f02fc5a21ac555f122fb8af88e6fdf3c06ef1e2cd6f14",
+          "evidence_path": "docs/evidence/hd-direct400-observations/39456452641-verified-psp.jsonl"
+        }
+      ]
+    },
+    {
+      "run": 39456534062,
+      "id": 12281237376,
+      "name": "hdtex-hosts-dolphin-39456534062",
+      "size": 578,
+      "digest": "sha256:d81e67f9498ba5caff7715ff23950e471f2f094325191f987b46dbf25cf9c062",
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "sha256": "d81e67f9498ba5caff7715ff23950e471f2f094325191f987b46dbf25cf9c062",
+      "members": [
+        {
+          "name": "verified-hosts-dolphin.jsonl",
+          "path": "build/hd-direct400/ci/39456534062/12281237376/verified-hosts-dolphin.jsonl",
+          "bytes": 586,
+          "sha256": "6c78eb824be991674c80c549c3e55c244953c1a3e9987328f371d630fa60033c",
+          "records": 1,
+          "evidence_path": "docs/evidence/hd-direct400-observations/39456534062-verified-hosts-dolphin.jsonl"
+        }
+      ],
+      "records": 1,
+      "statuses": {
+        "ok": 1
+      }
+    },
+    {
+      "run": 39456534062,
+      "id": 12281359688,
+      "name": "hdtex-hosts-ps2-39456534062",
+      "size": 3829,
+      "digest": "sha256:a43e241b768b08696ecd950336b43c0a5128d54f2ea4ae28e2db7b3ef1447383",
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "sha256": "a43e241b768b08696ecd950336b43c0a5128d54f2ea4ae28e2db7b3ef1447383",
+      "members": [
+        {
+          "name": "verified-hosts-ps2.jsonl",
+          "path": "build/hd-direct400/ci/39456534062/12281359688/verified-hosts-ps2.jsonl",
+          "bytes": 13817,
+          "sha256": "d1a939540d918469b9603f93bd1c5e03fc713408290fdb70a3a1d5706955e734",
+          "records": 19,
+          "evidence_path": "docs/evidence/hd-direct400-observations/39456534062-verified-hosts-ps2.jsonl"
+        }
+      ],
+      "records": 19,
+      "statuses": {
+        "ok": 16,
+        "install": 3
+      }
+    },
+    {
+      "run": 39456541876,
+      "id": 12280328009,
+      "name": "hdtex-hosts-psp-39456541876",
+      "size": 633,
+      "digest": "sha256:42d129ff5651695de6a57cb56b03c66082685c450839f63a99123a99f74193d7",
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "sha256": "42d129ff5651695de6a57cb56b03c66082685c450839f63a99123a99f74193d7",
+      "members": [
+        {
+          "name": "verified-hosts-psp.jsonl",
+          "path": "build/hd-direct400/ci/39456541876/12280328009/verified-hosts-psp.jsonl",
+          "bytes": 694,
+          "sha256": "2a5daa17de4814a2eca33cce4a2ab79aca37dfdda0d44746c692c0cd91c8b489",
+          "records": 1,
+          "evidence_path": "docs/evidence/hd-direct400-observations/39456541876-verified-hosts-psp.jsonl"
+        }
+      ],
+      "records": 1,
+      "statuses": {
+        "ok": 1
+      }
+    },
+    {
+      "run": 39456541876,
+      "id": 12283900442,
+      "name": "hdtex-hosts-ps2-39456541876",
+      "size": 3773,
+      "digest": "sha256:f9c1cfaf769d727530bade506e681bae9ce5b95330321cb4112b8b815529c2cc",
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "sha256": "f9c1cfaf769d727530bade506e681bae9ce5b95330321cb4112b8b815529c2cc",
+      "members": [
+        {
+          "name": "verified-hosts-ps2.jsonl",
+          "path": "build/hd-direct400/ci/39456541876/12283900442/verified-hosts-ps2.jsonl",
+          "bytes": 14198,
+          "sha256": "28302dab7efa60b3f2e389e24bafd7fa9618d6580d3466cec95856688a255423",
+          "records": 19,
+          "evidence_path": "docs/evidence/hd-direct400-observations/39456541876-verified-hosts-ps2.jsonl"
+        }
+      ],
+      "records": 19,
+      "statuses": {
+        "ok": 17,
+        "install": 2
+      }
+    },
+    {
+      "run": 39456551008,
+      "id": 12281746189,
+      "name": "hdtex-hosts-3ds-39456551008",
+      "size": 588,
+      "digest": "sha256:1f8e5be5c7383e766d48f2eb8514e5e8e3eb0c5b6f667c6cb838cb90982e7edb",
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "sha256": "1f8e5be5c7383e766d48f2eb8514e5e8e3eb0c5b6f667c6cb838cb90982e7edb",
+      "members": [
+        {
+          "name": "verified-hosts-3ds.jsonl",
+          "path": "build/hd-direct400/ci/39456551008/12281746189/verified-hosts-3ds.jsonl",
+          "bytes": 662,
+          "sha256": "16a3c7c1faddbcd7d4d116b51ff59f101642a0abf6eeef33e70dc8480df0772f",
+          "records": 1,
+          "evidence_path": "docs/evidence/hd-direct400-observations/39456551008-verified-hosts-3ds.jsonl"
+        }
+      ],
+      "records": 1,
+      "statuses": {
+        "ok": 1
+      }
+    },
+    {
+      "run": 39456551008,
+      "id": 12282650977,
+      "name": "hdtex-hosts-ps2-39456551008",
+      "size": 3833,
+      "digest": "sha256:8e1e78526318b7a8c94e8d9d642061f9220da9c2d95fe63d0929427bc00e4153",
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "sha256": "8e1e78526318b7a8c94e8d9d642061f9220da9c2d95fe63d0929427bc00e4153",
+      "members": [
+        {
+          "name": "verified-hosts-ps2.jsonl",
+          "path": "build/hd-direct400/ci/39456551008/12282650977/verified-hosts-ps2.jsonl",
+          "bytes": 13993,
+          "sha256": "944ccd4104531e9abdc1b120d955b48d351999bb381ad2c84e158639c98dac03",
+          "records": 20,
+          "evidence_path": "docs/evidence/hd-direct400-observations/39456551008-verified-hosts-ps2.jsonl"
+        }
+      ],
+      "records": 20,
+      "statuses": {
+        "ok": 15,
+        "install": 5
+      }
+    },
+    {
+      "run": 39456603817,
+      "id": 12281327639,
+      "name": "hdtex-hosts-psp-39456603817",
+      "size": 624,
+      "digest": "sha256:ac6b7a25f27dea493edd89e28b14147d3f64506cffee597cba76f4b5c776b495",
+      "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+      "sha256": "ac6b7a25f27dea493edd89e28b14147d3f64506cffee597cba76f4b5c776b495",
+      "members": [
+        {
+          "name": "verified-hosts-psp.jsonl",
+          "path": "build/hd-direct400/ci/39456603817/12281327639/verified-hosts-psp.jsonl",
+          "bytes": 681,
+          "sha256": "f4df798f2736c36a15c0db1746d7f7b2ef8e7b3e58c11c8836c32c69d82a1952",
+          "records": 1,
+          "evidence_path": "docs/evidence/hd-direct400-observations/39456603817-verified-hosts-psp.jsonl"
+        }
+      ],
+      "records": 1,
+      "statuses": {
+        "ok": 1
+      }
+    },
+    {
+      "run": 39458288578,
+      "id": 12281732751,
+      "name": "hdtex-hosts-dolphin-39458288578",
+      "size": 582,
+      "digest": "sha256:4b88890b1dbac3d283c3302f4c6d18fedc5b26e1067c6fe97ebc6fff962422cd",
+      "source": "1912a6de8d487437da53e97d0c88e872c84b300e",
+      "sha256": "4b88890b1dbac3d283c3302f4c6d18fedc5b26e1067c6fe97ebc6fff962422cd",
+      "members": [
+        {
+          "name": "verified-hosts-dolphin.jsonl",
+          "path": "build/hd-direct400/ci/39458288578/12281732751/verified-hosts-dolphin.jsonl",
+          "bytes": 596,
+          "sha256": "38eb16c354c6aca93d87ad176be177899cb76d698ee7143799351efba85c774f",
+          "records": 1,
+          "evidence_path": "docs/evidence/hd-direct400-observations/39458288578-verified-hosts-dolphin.jsonl"
+        }
+      ],
+      "records": 1,
+      "statuses": {
+        "ok": 1
+      }
+    },
+    {
+      "run": 39461093167,
+      "id": 12284055176,
+      "name": "hdtex-hosts-ps2-39461093167",
+      "size": 1580,
+      "digest": "sha256:16f03a88a1a6bdf49577b2ec22f33d0d6cda605cc382ce94c743c29e8837e52c",
+      "source": "a8515db878bde6df67070a0289d443d334f049eb",
+      "sha256": "16f03a88a1a6bdf49577b2ec22f33d0d6cda605cc382ce94c743c29e8837e52c",
+      "members": [
+        {
+          "name": "verified-hosts-ps2.jsonl",
+          "path": "build/hd-direct400/ci/39461093167/12284055176/verified-hosts-ps2.jsonl",
+          "bytes": 4562,
+          "sha256": "1ead18227d46b308fbd51d501b938cdfcf3acb794d206c1da105432c10eee7b3",
+          "records": 6,
+          "evidence_path": "docs/evidence/hd-direct400-observations/39461093167-verified-hosts-ps2.jsonl"
+        }
+      ],
+      "records": 6,
+      "statuses": {
+        "ok": 6
+      }
+    },
+    {
+      "run": 39462581049,
+      "id": 12282599059,
+      "name": "hdtex-hosts-ps2-39462581049",
+      "size": 652,
+      "digest": "sha256:bab647d45c0e35f8a33738cd002238b8a2b13c43d23d726556050e388154f393",
+      "source": "67eb1a385c9e03b67e5d7efbd5eef156197f0af6",
+      "sha256": "bab647d45c0e35f8a33738cd002238b8a2b13c43d23d726556050e388154f393",
+      "members": [
+        {
+          "name": "verified-hosts-ps2.jsonl",
+          "path": "build/hd-direct400/ci/39462581049/12282599059/verified-hosts-ps2.jsonl",
+          "bytes": 764,
+          "sha256": "085884f2c4cd5953afcd944e20fed47d75e8972e27d3f58ce32c34e2728e28aa",
+          "records": 1,
+          "evidence_path": "docs/evidence/hd-direct400-observations/39462581049-verified-hosts-ps2.jsonl"
+        }
+      ],
+      "records": 1,
+      "statuses": {
+        "ok": 1
+      }
+    }
+  ]
+}

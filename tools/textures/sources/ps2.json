@@ -1,0 +1,3222 @@
+[
+ {
+  "id": "ps2-mgs2-hd-ui-nathanhigley",
+  "title": "MGS2 HD Collection Font & HUD Port (MGS2-HD-UI)",
+  "version": "2.2",
+  "games": [
+   {
+    "title": "Metal Gear Solid 2: Substance",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20554"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "NathanHigley"
+  ],
+  "page_url": "https://github.com/NathanHigley/MGS2-HD-UI/releases/tag/2.2",
+  "source_id": "github:NathanHigley/MGS2-HD-UI",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "credits": "README credits: CTXR Converter Tool by 316austin316; MGS2HD Texture Archive by Afevis.",
+  "requirements": "README: internal resolution 2x (720p) recommended. DDS textures (BC7, BC3 and uncompressed).",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MGS2-HD-UI.zip",
+   "parts": [
+    {
+     "url": "https://github.com/NathanHigley/MGS2-HD-UI/releases/download/2.2/MGS2-HD-UI.zip",
+     "size": 14808012,
+     "sha256": "a5254af6033e62ce3872bb3515833d3e1301900371d4d9b329fc050d7ce8d250"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-the-warriors-xbox-textures-eternights",
+  "title": "The Warriors: Xbox texture port (XboxTexturePack.TheWarriors)",
+  "version": "release",
+  "games": [
+   {
+    "title": "The Warriors",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21215"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "eternights"
+  ],
+  "page_url": "https://github.com/eternights/XboxTexturePack.TheWarriors/releases/tag/release",
+  "source_id": "github:eternights/XboxTexturePack.TheWarriors",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "XboxTexturePack.TheWarriors.zip",
+   "parts": [
+    {
+     "url": "https://github.com/eternights/XboxTexturePack.TheWarriors/releases/download/release/XboxTexturePack.TheWarriors.zip",
+     "size": 152878697
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-speed-racer-hd-bmt619",
+  "title": "Speed Racer PCSX2 HD Texture Pack",
+  "version": "v1.0",
+  "games": [
+   {
+    "title": "Speed Racer: The Videogame",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21812"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "BMT619"
+  ],
+  "page_url": "https://github.com/BMT619/Speed-Racer-PCSX2-HD-Texture-Pack/releases/tag/v1.0",
+  "source_id": "github:BMT619/Speed-Racer-PCSX2-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "SLUS-21812.zip",
+   "parts": [
+    {
+     "url": "https://github.com/BMT619/Speed-Racer-PCSX2-HD-Texture-Pack/releases/download/v1.0/SLUS-21812.zip",
+     "size": 1190071056
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-gta-vcs-asi-factory-pc",
+  "title": "GTA Vice City Stories Texture Pack (PC Vice City textures)",
+  "version": "latest",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21590"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "ASI-Factory"
+  ],
+  "page_url": "https://github.com/ASI-Factory/GTA-VCS-Texture-Pack-PS2/releases/tag/latest",
+  "source_id": "github:ASI-Factory/GTA-VCS-Texture-Pack-PS2",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The author republishes the \"latest\" release from CI: the verified file is pinned by its SHA-256.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "GTA-VCS-Texure-Pack.zip",
+   "parts": [
+    {
+     "url": "https://github.com/ASI-Factory/GTA-VCS-Texture-Pack-PS2/releases/download/latest/GTA-VCS-Texure-Pack.zip",
+     "size": 74099655
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-gta-vcs-asi-factory-de",
+  "title": "GTA Vice City Stories Texture Pack (Definitive Edition textures)",
+  "version": "latest",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21590"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "ASI-Factory"
+  ],
+  "page_url": "https://github.com/ASI-Factory/GTA-VCS-Texture-Pack-PS2/releases/tag/latest",
+  "source_id": "github:ASI-Factory/GTA-VCS-Texture-Pack-PS2",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The author republishes the \"latest\" release from CI: the verified file is pinned by its SHA-256.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "GTA-VCS-Texure-Pack-DE.7z",
+   "parts": [
+    {
+     "url": "https://github.com/ASI-Factory/GTA-VCS-Texture-Pack-PS2/releases/download/latest/GTA-VCS-Texure-Pack-DE.7z",
+     "size": 616305898
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-burnout3-hd-vehicle-icons-goatsevens",
+  "title": "B3 HD Vehicle Icons",
+  "version": "1-5-25",
+  "games": [
+   {
+    "title": "Burnout 3: Takedown",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21050"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "GoatSevens"
+  ],
+  "page_url": "https://github.com/GoatSevens/B3-HD-Vehicle-Icons/releases/tag/1-5-25",
+  "source_id": "github:GoatSevens/B3-HD-Vehicle-Icons",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Only the replacements folder is installed; the optional bonus textures stay out.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "B3.HD.Vehicle.Icons.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GoatSevens/B3-HD-Vehicle-Icons/releases/download/1-5-25/B3.HD.Vehicle.Icons.zip",
+     "size": 169786087
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-burnout-revenge-360-textures-goatsevens",
+  "title": "Burnout Revenge: Xbox 360 tracks and props textures",
+  "version": "1-5-25",
+  "games": [
+   {
+    "title": "Burnout Revenge",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21242"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "GoatSevens"
+  ],
+  "page_url": "https://github.com/GoatSevens/Revenge-360-Textures-to-PS2/releases/tag/1-5-25",
+  "source_id": "github:GoatSevens/Revenge-360-Textures-to-PS2",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Only the replacements folder is installed; the optional bonus textures stay out.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Revenge.360.Tracks.Props.Textures.to.PS2.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GoatSevens/Revenge-360-Textures-to-PS2/releases/download/1-5-25/Revenge.360.Tracks.Props.Textures.to.PS2.zip",
+     "size": 715338047
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-burnout-revenge-enhanced-interface-goatsevens",
+  "title": "Burnout Revenge Enhanced Interface",
+  "version": "9-6-26",
+  "games": [
+   {
+    "title": "Burnout Revenge",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21242"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "GoatSevens"
+  ],
+  "page_url": "https://github.com/GoatSevens/Revenge-Enhanced-Interface/releases/tag/9-6-26",
+  "source_id": "github:GoatSevens/Revenge-Enhanced-Interface",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Only the replacements folder is installed; the optional bonus textures stay out.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Revenge.Enhanced.Interface.zip",
+   "parts": [
+    {
+     "url": "https://github.com/GoatSevens/Revenge-Enhanced-Interface/releases/download/9-6-26/Revenge.Enhanced.Interface.zip",
+     "size": 172846810,
+     "sha256": "6d3d2b12b2d680885e05763ff771fa2d233ab34cab2e6f64bb55642c4bf70d6c"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-mk-deception-remastered-vstar925",
+  "title": "Mortal Kombat Deception Remastered (PCSX2 build)",
+  "version": "1.13-EA",
+  "games": [
+   {
+    "title": "Mortal Kombat: Deception",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20881"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "vStar925"
+  ],
+  "page_url": "https://github.com/vStar925/Mortal-Kombat-Deception-Remastered/releases/tag/PCSX2-1.13",
+  "source_id": "github:vStar925/Mortal-Kombat-Deception-Remastered",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Only SLUS-20881/replacements is installed; the original dumps and the optional replacements stay out.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "MKDeception.Remastered.1.13.7z",
+   "parts": [
+    {
+     "url": "https://github.com/vStar925/Mortal-Kombat-Deception-Remastered/releases/download/PCSX2-1.13/MKDeception.Remastered.1.13.7z",
+     "size": 568918267
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SLUS-20881/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-mk-armageddon-hd-ckiscxrsed",
+  "title": "Mortal Kombat Armageddon HD Texture Pack",
+  "version": "v1.5",
+  "games": [
+   {
+    "title": "Mortal Kombat: Armageddon",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21410"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "ckiscxrsed"
+  ],
+  "page_url": "https://github.com/ckiscxrsed/Mortal-Kombat-Armageddon-HD-Textures/releases/latest",
+  "source_id": "github:ckiscxrsed/Mortal-Kombat-Armageddon-HD-Textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The author's original SLUS-21410.rar from release v1.5 was verified with NeoStation's native RAR extraction and PNG installation into SLUS-21410/replacements for USA. Only the original v1.5 release has an actual archive asset as checked 20 October 2026; newer empty release pages are not a downloadable version.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "SLUS-21410.rar",
+   "parts": [
+    {
+     "url": "https://github.com/ckiscxrsed/Mortal-Kombat-Armageddon-HD-Textures/releases/download/v1.5/SLUS-21410.rar"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "manual"
+ },
+ {
+  "id": "ps2-monster-hunter-g-hd-justshrub",
+  "title": "MHG-HD",
+  "version": "V0.10",
+  "games": [
+   {
+    "title": "Monster Hunter G",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-65869"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "JustShrub"
+  ],
+  "page_url": "https://github.com/JustShrub/MHG-HD/releases/tag/V0.10",
+  "source_id": "github:JustShrub/MHG-HD",
+  "licence": {
+   "summary": "GPL-3.0 (repository LICENSE)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "MHG-HD_V0.10.7z",
+   "parts": [
+    {
+     "url": "https://github.com/JustShrub/MHG-HD/releases/download/V0.10/MHG-HD_V0.10.7z",
+     "size": 1104993315
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-mh2dos-hdui-paulbury-4-3_2x",
+  "title": "MH2Dos-HDUI (4:3 UI, 2x)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Monster Hunter 2 (Dos)",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-66280"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "PaulBury"
+  ],
+  "page_url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/tag/releases",
+  "source_id": "github:PaulBury/MH2Dos-HDUI",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (LICENSE-CC-BY-NC-SA); README: credit the author in forks",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Fan-made high resolution UI, work in progress. One variant per aspect ratio and scale: install only one.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "MH2DosHDUI_0.2_4-3_2x.7z",
+   "parts": [
+    {
+     "url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/download/releases/MH2DosHDUI_0.2_4-3_2x.7z",
+     "size": 656074
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-mh2dos-hdui-paulbury-4-3_4x",
+  "title": "MH2Dos-HDUI (4:3 UI, 4x)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Monster Hunter 2 (Dos)",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-66280"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "PaulBury"
+  ],
+  "page_url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/tag/releases",
+  "source_id": "github:PaulBury/MH2Dos-HDUI",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (LICENSE-CC-BY-NC-SA); README: credit the author in forks",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Fan-made high resolution UI, work in progress. One variant per aspect ratio and scale: install only one.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "MH2DosHDUI_0.2_4-3_4x.7z",
+   "parts": [
+    {
+     "url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/download/releases/MH2DosHDUI_0.2_4-3_4x.7z",
+     "size": 1594036
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-mh2dos-hdui-paulbury-4-3_8x",
+  "title": "MH2Dos-HDUI (4:3 UI, 8x)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Monster Hunter 2 (Dos)",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-66280"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "PaulBury"
+  ],
+  "page_url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/tag/releases",
+  "source_id": "github:PaulBury/MH2Dos-HDUI",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (LICENSE-CC-BY-NC-SA); README: credit the author in forks",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Fan-made high resolution UI, work in progress. One variant per aspect ratio and scale: install only one.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "MH2DosHDUI_0.2_4-3_8x.7z",
+   "parts": [
+    {
+     "url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/download/releases/MH2DosHDUI_0.2_4-3_8x.7z",
+     "size": 4009115
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-mh2dos-hdui-paulbury-4-3_16x",
+  "title": "MH2Dos-HDUI (4:3 UI, 16x)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Monster Hunter 2 (Dos)",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-66280"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "PaulBury"
+  ],
+  "page_url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/tag/releases",
+  "source_id": "github:PaulBury/MH2Dos-HDUI",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (LICENSE-CC-BY-NC-SA); README: credit the author in forks",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Fan-made high resolution UI, work in progress. One variant per aspect ratio and scale: install only one.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "MH2DosHDUI_0.2_4-3_16x.7z",
+   "parts": [
+    {
+     "url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/download/releases/MH2DosHDUI_0.2_4-3_16x.7z",
+     "size": 12984584
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-mh2dos-hdui-paulbury-16-9_2x",
+  "title": "MH2Dos-HDUI (16:9 UI, 2x)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Monster Hunter 2 (Dos)",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-66280"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "PaulBury"
+  ],
+  "page_url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/tag/releases",
+  "source_id": "github:PaulBury/MH2Dos-HDUI",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (LICENSE-CC-BY-NC-SA); README: credit the author in forks",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Fan-made high resolution UI, work in progress. One variant per aspect ratio and scale: install only one.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "MH2DosHDUI_0.2_16-9_2x.7z",
+   "parts": [
+    {
+     "url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/download/releases/MH2DosHDUI_0.2_16-9_2x.7z",
+     "size": 627915
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-mh2dos-hdui-paulbury-16-9_4x",
+  "title": "MH2Dos-HDUI (16:9 UI, 4x)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Monster Hunter 2 (Dos)",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-66280"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "PaulBury"
+  ],
+  "page_url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/tag/releases",
+  "source_id": "github:PaulBury/MH2Dos-HDUI",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (LICENSE-CC-BY-NC-SA); README: credit the author in forks",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Fan-made high resolution UI, work in progress. One variant per aspect ratio and scale: install only one.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "MH2DosHDUI_0.2_16-9_4x.7z",
+   "parts": [
+    {
+     "url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/download/releases/MH2DosHDUI_0.2_16-9_4x.7z",
+     "size": 1508769
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-mh2dos-hdui-paulbury-16-9_8x",
+  "title": "MH2Dos-HDUI (16:9 UI, 8x)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Monster Hunter 2 (Dos)",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-66280"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "PaulBury"
+  ],
+  "page_url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/tag/releases",
+  "source_id": "github:PaulBury/MH2Dos-HDUI",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (LICENSE-CC-BY-NC-SA); README: credit the author in forks",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Fan-made high resolution UI, work in progress. One variant per aspect ratio and scale: install only one.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "MH2DosHDUI_0.2_16-9_8x.7z",
+   "parts": [
+    {
+     "url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/download/releases/MH2DosHDUI_0.2_16-9_8x.7z",
+     "size": 3712855
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-mh2dos-hdui-paulbury-16-9_16x",
+  "title": "MH2Dos-HDUI (16:9 UI, 16x)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Monster Hunter 2 (Dos)",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-66280"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "PaulBury"
+  ],
+  "page_url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/tag/releases",
+  "source_id": "github:PaulBury/MH2Dos-HDUI",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (LICENSE-CC-BY-NC-SA); README: credit the author in forks",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Fan-made high resolution UI, work in progress. One variant per aspect ratio and scale: install only one.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "MH2DosHDUI_0.2_16-9_16x.7z",
+   "parts": [
+    {
+     "url": "https://github.com/PaulBury/MH2Dos-HDUI/releases/download/releases/MH2DosHDUI_0.2_16-9_16x.7z",
+     "size": 10357634
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-lmast-realism-nexxusdrako",
+  "title": "LMAST Realism Mod",
+  "version": "V1.5",
+  "games": [
+   {
+    "title": "Let's Make a Soccer Team!",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-54151"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "NexxusDrakoMultimedia"
+  ],
+  "page_url": "https://github.com/NexxusDrakoMultimedia/LMAST-Realism/releases/tag/V1.5",
+  "source_id": "github:NexxusDrakoMultimedia/LMAST-Realism",
+  "licence": {
+   "summary": "README.txt: \"Distribute freely and widely, but keep this README attached to all unmodified releases\"",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "LMAST.Realism.V1.5.zip",
+   "parts": [
+    {
+     "url": "https://github.com/NexxusDrakoMultimedia/LMAST-Realism/releases/download/V1.5/LMAST.Realism.V1.5.zip",
+     "size": 7696572
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-battle-gear-3-english-ludusregard",
+  "title": "Battle Gear 3 PS2 English Translation (textures)",
+  "version": "v1",
+  "games": [
+   {
+    "title": "Battle Gear 3",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-65434"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "ludusregard"
+  ],
+  "page_url": "https://github.com/ludusregard/Battle-Gear-3-PS2-Translation-Project/releases/tag/PCSX2",
+  "source_id": "github:ludusregard/Battle-Gear-3-PS2-Translation-Project",
+  "licence": {
+   "summary": "No licence file; README: \"feel free to use anything here\" for other translations",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "BG3_PS2_EN_v1.zip",
+   "parts": [
+    {
+     "url": "https://github.com/ludusregard/Battle-Gear-3-PS2-Translation-Project/releases/download/PCSX2/BG3_PS2_EN_v1.zip",
+     "size": 1455316,
+     "sha256": "283d4fe0f7cf03da97563e3235dab3ef5030f4d83f4ca503da1d84a1c00cbe6c"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-ac2aa-hd-4x-kaedeichigo",
+  "title": "AC2AA 4x HD Texture Pack (community testing release)",
+  "version": "v0.1.0-beta.1",
+  "games": [
+   {
+    "title": "Armored Core 2: Another Age",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20249"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "KaedeIchigo"
+  ],
+  "page_url": "https://github.com/KaedeIchigo/ac2aa-hd-texture-pack/releases/tag/v0.1.0-beta.1",
+  "source_id": "github:KaedeIchigo/ac2aa-hd-texture-pack",
+  "licence": {
+   "summary": "ASSET-NOTICE.md: the repository grants no licence to the underlying game artwork",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Published as two independent ZIP files that must both be extracted into one folder: download them from the author, merge them, then import the folder from Files.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/KaedeIchigo/ac2aa-hd-texture-pack/releases/tag/v0.1.0-beta.1"
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "manual"
+ },
+ {
+  "id": "ps2-kelly-slater-pro-surfer-gustavocontreiras",
+  "title": "Kelly Slater's Pro Surfer upscaled textures",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Kelly Slater's Pro Surfer",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20334"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "GustavoContreiras"
+  ],
+  "page_url": "https://github.com/GustavoContreiras/texture-pack-ps2-kelly-slaters-pro-surfer/releases/tag/1.0",
+  "source_id": "github:GustavoContreiras/texture-pack-ps2-kelly-slaters-pro-surfer",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "A 7z archive in three volumes, joined after download.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "SLUS-20334-replacements.7z",
+   "parts": [
+    {
+     "url": "https://github.com/GustavoContreiras/texture-pack-ps2-kelly-slaters-pro-surfer/releases/download/1.0/SLUS-20334-replacements.7z.001",
+     "size": 1048576000,
+     "sha256": "c691f1977a74e485d1231fc0ffe9676207daceaabc4a778ce4d5757bde6e365b"
+    },
+    {
+     "url": "https://github.com/GustavoContreiras/texture-pack-ps2-kelly-slaters-pro-surfer/releases/download/1.0/SLUS-20334-replacements.7z.002",
+     "size": 1048576000,
+     "sha256": "b854c32c4bbfa98a4d1b2fe90b5693d80cce30f50eeca14f319abe13d423b312"
+    },
+    {
+     "url": "https://github.com/GustavoContreiras/texture-pack-ps2-kelly-slaters-pro-surfer/releases/download/1.0/SLUS-20334-replacements.7z.003",
+     "size": 119989098,
+     "sha256": "8cee35dd417d27fa57353e2db9b1237ec7b82ee5159e858815c6e0c74094cb00"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-bloody-roar-4-hd-meskh4h4",
+  "title": "Bloody Roar 4 HD texture (PNG, PNG vivid, DDS, DDS vivid)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Bloody Roar 4",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20795"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Bloody-Roar-4/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Bloody-Roar-4",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The author's original SLUS-20795-DDS.rar from release 1.0 was verified with NeoStation's native RAR extraction and BC3 DDS installation into SLUS-20795/replacements for USA. Only this DDS variant was verified; PNG and Vivid alternatives belong to the same project.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "SLUS-20795-DDS.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Bloody-Roar-4/releases/download/1.0/SLUS-20795-DDS.rar",
+     "sha256": "faf526412a6919454496271385062a23309312af50e2a50e68aa49c5b0a7983f"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "manual"
+ },
+ {
+  "id": "ps2-galactic-wrestling-featuring-ultimate-muscle-hd-meskh4h4",
+  "title": "Galactic Wrestling: Featuring Ultimate Muscle HD texture (PNG, PNG vivid, DDS, DDS vivid)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Galactic Wrestling: Featuring Ultimate Muscle",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20822"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Galactic-Wrestling-Featuring-Ultimate-Muscle/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Galactic-Wrestling-Featuring-Ultimate-Muscle",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The author's original SLUS-20822-DDS.rar from release 1.0 was verified with NeoStation's native RAR extraction and BC3 DDS installation into SLUS-20822/replacements for USA. Only this DDS variant was verified; PNG and Vivid alternatives belong to the same project.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "SLUS-20822-DDS.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Galactic-Wrestling-Featuring-Ultimate-Muscle/releases/download/1.0/SLUS-20822-DDS.rar",
+     "sha256": "0ba6fcbbb57498f91401c67c5950c4f5c5e8fd84040c9a7e50685ce737632968"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "manual"
+ },
+ {
+  "id": "ps2-inuyasha-feudal-combat-hd-meskh4h4",
+  "title": "InuYasha: Feudal Combat HD texture (PNG, PNG vivid, DDS, DDS vivid)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "InuYasha: Feudal Combat",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21193"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/InuYasha-Feudal-Combat/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/InuYasha-Feudal-Combat",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The author's original SLUS-21193-DDS.rar from release 1.0 was verified with NeoStation's native RAR extraction and BC3 DDS installation into SLUS-21193/replacements for USA. Only this DDS variant was verified; PNG and Vivid alternatives belong to the same project.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "SLUS-21193-DDS.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/InuYasha-Feudal-Combat/releases/download/1.0/SLUS-21193-DDS.rar",
+     "sha256": "4c5c88efb06669c83752d598a2f62703cfd8aa6b5ad99bfa072d41d0ff77d185"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "manual"
+ },
+ {
+  "id": "ps2-heartbeat-boxing-hd-meskh4h4",
+  "title": "Heartbeat Boxing HD texture (PNG, PNG vivid, DDS, DDS vivid)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Heartbeat Boxing",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-51865"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Heartbeat-Boxing/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Heartbeat-Boxing",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The author's original SLES-51865-DDS.rar from release 1.0 was verified with NeoStation's native RAR extraction and BC3 DDS installation into SLES-51865/replacements for Europe. Only this DDS variant was verified; PNG and Vivid alternatives belong to the same project.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "SLES-51865-DDS.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Heartbeat-Boxing/releases/download/1.0/SLES-51865-DDS.rar",
+     "sha256": "eb6546e63fb9ca187225428a5045838a79a9e3a2f5fddf9319ea08b0be4570ad"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "manual"
+ },
+ {
+  "id": "ps2-crash-nitro-kart-hd-crasharki",
+  "title": "Crash Nitro Kart HD Texture Pack",
+  "version": "4bb4bed6",
+  "games": [
+   {
+    "title": "Crash Nitro Kart",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20649"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Crash Nitro Kart",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-51511"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Crash Nitro Kart",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-65580"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "CRASHARKI"
+  ],
+  "page_url": "https://github.com/CRASHARKI/cnk-tp",
+  "source_id": "github:CRASHARKI/cnk-tp",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: Load Textures and Asynchronous Texture Loading; to update, delete the previous replacements first.",
+  "notes": null,
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "cnk-tp-4bb4bed6cba8416a50338191380904e145966ec1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/CRASHARKI/cnk-tp/zip/4bb4bed6cba8416a50338191380904e145966ec1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/CRASHARKI/cnk-tp",
+    "commit": "4bb4bed6cba8416a50338191380904e145966ec1"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "cnk-tp-4bb4bed6cba8416a50338191380904e145966ec1/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-crash-twinsanity-hd-crasharki",
+  "title": "Crash Twinsanity HD Texture Pack",
+  "version": "1eca568f",
+  "games": [
+   {
+    "title": "Crash Twinsanity",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20909"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Crash Twinsanity",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-52568"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Crash Twinsanity",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-65801"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "CRASHARKI"
+  ],
+  "page_url": "https://github.com/CRASHARKI/ctwin-tp",
+  "source_id": "github:CRASHARKI/ctwin-tp",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: Load Textures and Asynchronous Texture Loading; to update, delete the previous replacements first.",
+  "notes": null,
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ctwin-tp-1eca568f7e3a4b0aff568ac357b46a6fd1e93580.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/CRASHARKI/ctwin-tp/zip/1eca568f7e3a4b0aff568ac357b46a6fd1e93580"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/CRASHARKI/ctwin-tp",
+    "commit": "1eca568f7e3a4b0aff568ac357b46a6fd1e93580"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ctwin-tp-1eca568f7e3a4b0aff568ac357b46a6fd1e93580/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-spyro-a-heros-tail-hd-crasharki",
+  "title": "Spyro: A Hero's Tail HD Texture Pack",
+  "version": "0fe1458c",
+  "games": [
+   {
+    "title": "Spyro: A Hero's Tail",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20884"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Spyro: A Hero's Tail",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-52569"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "CRASHARKI"
+  ],
+  "page_url": "https://github.com/CRASHARKI/saht-tp",
+  "source_id": "github:CRASHARKI/saht-tp",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: Load Textures and Asynchronous Texture Loading; to update, delete the previous replacements first.",
+  "notes": null,
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "saht-tp-0fe1458c0e15143c70ca459c2394023b6cd27609.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/CRASHARKI/saht-tp/zip/0fe1458c0e15143c70ca459c2394023b6cd27609"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/CRASHARKI/saht-tp",
+    "commit": "0fe1458c0e15143c70ca459c2394023b6cd27609"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "saht-tp-0fe1458c0e15143c70ca459c2394023b6cd27609/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-crash-tag-team-racing-hd-crasharki",
+  "title": "Crash Tag Team Racing HD Texture Pack",
+  "version": "6c2445ee",
+  "games": [
+   {
+    "title": "Crash Tag Team Racing",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21191"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Crash Tag Team Racing",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-53439"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Crash Tag Team Racing",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-66090"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "CRASHARKI"
+  ],
+  "page_url": "https://github.com/CRASHARKI/cttr-tp",
+  "source_id": "github:CRASHARKI/cttr-tp",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: Load Textures and Asynchronous Texture Loading; to update, delete the previous replacements first.",
+  "notes": null,
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "cttr-tp-6c2445eefb30f24aa4f53bb525e24976abb1349d.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/CRASHARKI/cttr-tp/zip/6c2445eefb30f24aa4f53bb525e24976abb1349d"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/CRASHARKI/cttr-tp",
+    "commit": "6c2445eefb30f24aa4f53bb525e24976abb1349d"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "cttr-tp-6c2445eefb30f24aa4f53bb525e24976abb1349d/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-crash-of-the-titans-hd-crasharki",
+  "title": "Crash of the Titans HD Texture Pack (PlayStation buttons)",
+  "version": "fe8ac511",
+  "games": [
+   {
+    "title": "Crash of the Titans",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21583"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Crash of the Titans",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-54841"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Crash of the Titans",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-54842"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Crash of the Titans",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-54843"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "CRASHARKI"
+  ],
+  "page_url": "https://github.com/CRASHARKI/cott-tp",
+  "source_id": "github:CRASHARKI/cott-tp",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: Load Textures and Asynchronous Texture Loading; to update, delete the previous replacements first.",
+  "notes": "The Wii and Xbox button variants share texture names with the PlayStation buttons and are left out, as the README asks.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "cott-tp-fe8ac511ce6f381654e85c24da9efeed4bc6ab8c.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/CRASHARKI/cott-tp/zip/fe8ac511ce6f381654e85c24da9efeed4bc6ab8c"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/CRASHARKI/cott-tp",
+    "commit": "fe8ac511ce6f381654e85c24da9efeed4bc6ab8c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "cott-tp-fe8ac511ce6f381654e85c24da9efeed4bc6ab8c/",
+     "to": "{id}/replacements",
+     "exclude": [
+      "Wii Buttons/",
+      "Xbox Buttons/"
+     ]
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-crash-mind-over-mutant-hd-crasharki",
+  "title": "Crash: Mind over Mutant HD Texture Pack",
+  "version": "75b0d241",
+  "games": [
+   {
+    "title": "Crash: Mind over Mutant",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21728"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Crash: Mind over Mutant",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-55204"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Crash: Mind over Mutant",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-55205"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Crash: Mind over Mutant",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-55206"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "CRASHARKI"
+  ],
+  "page_url": "https://github.com/CRASHARKI/cmom-tp",
+  "source_id": "github:CRASHARKI/cmom-tp",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: Load Textures and Asynchronous Texture Loading; to update, delete the previous replacements first.",
+  "notes": null,
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "cmom-tp-75b0d241d0e3b6eb1090a29a0152a279992139a1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/CRASHARKI/cmom-tp/zip/75b0d241d0e3b6eb1090a29a0152a279992139a1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/CRASHARKI/cmom-tp",
+    "commit": "75b0d241d0e3b6eb1090a29a0152a279992139a1"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "cmom-tp-75b0d241d0e3b6eb1090a29a0152a279992139a1/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-chicken-little-hd-kyugg",
+  "title": "Disney's Chicken Little PS2 HD Texture Pack",
+  "version": "0cb80eaf",
+  "games": [
+   {
+    "title": "Chicken Little (Disney's)",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21088"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "KyuGG"
+  ],
+  "page_url": "https://github.com/KyuGG/chicken-little-hd-textures",
+  "source_id": "github:KyuGG/chicken-little-hd-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: tested on SLUS-21088 (NTSC-U); anisotropic filtering 4x or higher.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "chicken-little-hd-textures-0cb80eaf22cc645a3219e2fe9727a6ae7ef8466e.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/KyuGG/chicken-little-hd-textures/zip/0cb80eaf22cc645a3219e2fe9727a6ae7ef8466e"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/KyuGG/chicken-little-hd-textures",
+    "commit": "0cb80eaf22cc645a3219e2fe9727a6ae7ef8466e"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "chicken-little-hd-textures-0cb80eaf22cc645a3219e2fe9727a6ae7ef8466e/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-dynamite-deka-english-seonggino",
+  "title": "Dynamite Deka: English UI and subtitles (texture replacement)",
+  "version": "08acc5c3",
+  "games": [
+   {
+    "title": "Sega Ages 2500 Series Vol. 26: Dynamite Deka",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-62717"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "SeongGino"
+  ],
+  "page_url": "https://github.com/SeongGino/SLPM-62717",
+  "source_id": "github:SeongGino/SLPM-62717",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: for PCSX2 2.0 or newer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "SLPM-62717-08acc5c32318cfdcdbd0ccab5fc0d5574f0d2281.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/SeongGino/SLPM-62717/zip/08acc5c32318cfdcdbd0ccab5fc0d5574f0d2281"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/SeongGino/SLPM-62717",
+    "commit": "08acc5c32318cfdcdbd0ccab5fc0d5574f0d2281"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SLPM-62717-08acc5c32318cfdcdbd0ccab5fc0d5574f0d2281/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-wipeout-fusion-hd-sethvm",
+  "title": "WipEout Fusion High-Definition Texture Pack",
+  "version": "f4500c04",
+  "games": [
+   {
+    "title": "WipEout Fusion",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SCES-50005"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "WipEout Fusion",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20462"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "sethvm (NR74W)"
+  ],
+  "page_url": "https://github.com/sethvm/WipEout-Fusion-HD-Texture-Pack",
+  "source_id": "github:sethvm/WipEout-Fusion-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Notes.txt: texture filtering \"Bilinear (PS2)\"; the USA version is recommended.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "WipEout-Fusion-HD-Texture-Pack-f4500c049f6687b6fcd10ec036d10ce5ff61097d.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/sethvm/WipEout-Fusion-HD-Texture-Pack/zip/f4500c049f6687b6fcd10ec036d10ce5ff61097d"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/sethvm/WipEout-Fusion-HD-Texture-Pack",
+    "commit": "f4500c049f6687b6fcd10ec036d10ce5ff61097d"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "WipEout-Fusion-HD-Texture-Pack-f4500c049f6687b6fcd10ec036d10ce5ff61097d/textures/serial/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-doa2-hardcore-hd-sheikproject",
+  "title": "Dead or Alive 2 - Hard*Core HD Remaster",
+  "version": "8294b4c4",
+  "games": [
+   {
+    "title": "Dead or Alive 2: Hardcore",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPS-25026"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "sheikproject"
+  ],
+  "page_url": "https://github.com/sheikproject/Dead-or-Alive-2-Hard-Core-HD-Remaster",
+  "source_id": "github:sheikproject/Dead-or-Alive-2-Hard-Core-HD-Remaster",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: Japanese version. The author also provides PCSX2 game settings, which NeoStation does not install.",
+  "notes": "Only SLPS-25026/replacements is installed (the optional textures stay out).",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Dead-or-Alive-2-Hard-Core-HD-Remaster-8294b4c45fb692d5a451652ed52488aed0a74e4a.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/sheikproject/Dead-or-Alive-2-Hard-Core-HD-Remaster/zip/8294b4c45fb692d5a451652ed52488aed0a74e4a"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/sheikproject/Dead-or-Alive-2-Hard-Core-HD-Remaster",
+    "commit": "8294b4c45fb692d5a451652ed52488aed0a74e4a"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Dead-or-Alive-2-Hard-Core-HD-Remaster-8294b4c45fb692d5a451652ed52488aed0a74e4a/SLPS-25026/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-burnout-2-hd-mironter",
+  "title": "Burnout 2: Point of Impact HD texture pack",
+  "version": "31ee6340",
+  "games": [
+   {
+    "title": "Burnout 2: Point of Impact",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20497"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MIRONTER"
+  ],
+  "page_url": "https://github.com/MIRONTER/Burnout_2_Point_of_Impact_NTSC_PS2_Texture_Pack",
+  "source_id": "github:MIRONTER/Burnout_2_Point_of_Impact_NTSC_PS2_Texture_Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Only SLUS-20497/replacements is installed; the original dumps kept in the repository stay out.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Burnout_2_Point_of_Impact_NTSC_PS2_Texture_Pack-31ee6340bbd4d1b13b1ce1e6f21636ddd83a2b3e.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/MIRONTER/Burnout_2_Point_of_Impact_NTSC_PS2_Texture_Pack/zip/31ee6340bbd4d1b13b1ce1e6f21636ddd83a2b3e"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/MIRONTER/Burnout_2_Point_of_Impact_NTSC_PS2_Texture_Pack",
+    "commit": "31ee6340bbd4d1b13b1ce1e6f21636ddd83a2b3e"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Burnout_2_Point_of_Impact_NTSC_PS2_Texture_Pack-31ee6340bbd4d1b13b1ce1e6f21636ddd83a2b3e/SLUS-20497/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-crazy-frog-racer-2-hd-mironter",
+  "title": "Crazy Frog Racer 2 HD texture pack",
+  "version": "abd76da4",
+  "games": [
+   {
+    "title": "Crazy Frog Racer 2",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21634"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MIRONTER"
+  ],
+  "page_url": "https://github.com/MIRONTER/Crazy_Frog_Racer_2_NTSC_PAL_PS2_Texture_Pack",
+  "source_id": "github:MIRONTER/Crazy_Frog_Racer_2_NTSC_PAL_PS2_Texture_Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Only SLUS-21634/replacements is installed; the original dumps kept in the repository stay out.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Crazy_Frog_Racer_2_NTSC_PAL_PS2_Texture_Pack-abd76da4abd67e179ade72a107088573084857ce.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/MIRONTER/Crazy_Frog_Racer_2_NTSC_PAL_PS2_Texture_Pack/zip/abd76da4abd67e179ade72a107088573084857ce"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/MIRONTER/Crazy_Frog_Racer_2_NTSC_PAL_PS2_Texture_Pack",
+    "commit": "abd76da4abd67e179ade72a107088573084857ce"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Crazy_Frog_Racer_2_NTSC_PAL_PS2_Texture_Pack-abd76da4abd67e179ade72a107088573084857ce/SLUS-21634/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-arthur-and-the-invisibles-hd-mironter",
+  "title": "Arthur and the Invisibles HD texture pack",
+  "version": "d34e5b59",
+  "games": [
+   {
+    "title": "Arthur and the Invisibles",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21305"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MIRONTER"
+  ],
+  "page_url": "https://github.com/MIRONTER/Arthur_and_the_Invisibles_NTSC_PAL_PS2_Texture_Pack",
+  "source_id": "github:MIRONTER/Arthur_and_the_Invisibles_NTSC_PAL_PS2_Texture_Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Only SLUS-21305/replacements is installed; the original dumps kept in the repository stay out.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Arthur_and_the_Invisibles_NTSC_PAL_PS2_Texture_Pack-d34e5b5910270f37198e56b1d9d980d3a63ebfc5.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/MIRONTER/Arthur_and_the_Invisibles_NTSC_PAL_PS2_Texture_Pack/zip/d34e5b5910270f37198e56b1d9d980d3a63ebfc5"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/MIRONTER/Arthur_and_the_Invisibles_NTSC_PAL_PS2_Texture_Pack",
+    "commit": "d34e5b5910270f37198e56b1d9d980d3a63ebfc5"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Arthur_and_the_Invisibles_NTSC_PAL_PS2_Texture_Pack-d34e5b5910270f37198e56b1d9d980d3a63ebfc5/SLUS-21305/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-midnight-club-hd-mironter",
+  "title": "Midnight Club: Street Racing HD texture pack",
+  "version": "673faed3",
+  "games": [
+   {
+    "title": "Midnight Club: Street Racing",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20063"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MIRONTER"
+  ],
+  "page_url": "https://github.com/MIRONTER/Midnight_Club_Street_Racing_NTSC_PS2_Texture_Pack",
+  "source_id": "github:MIRONTER/Midnight_Club_Street_Racing_NTSC_PS2_Texture_Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Only SLUS-20063/replacements is installed; the original dumps kept in the repository stay out.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Midnight_Club_Street_Racing_NTSC_PS2_Texture_Pack-673faed33a112b60461e44c79da68a79ed2db65a.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/MIRONTER/Midnight_Club_Street_Racing_NTSC_PS2_Texture_Pack/zip/673faed33a112b60461e44c79da68a79ed2db65a"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/MIRONTER/Midnight_Club_Street_Racing_NTSC_PS2_Texture_Pack",
+    "commit": "673faed33a112b60461e44c79da68a79ed2db65a"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Midnight_Club_Street_Racing_NTSC_PS2_Texture_Pack-673faed33a112b60461e44c79da68a79ed2db65a/SLUS-20063/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-midnight-club-2-hd-mironter",
+  "title": "Midnight Club II HD texture pack",
+  "version": "4fac11d9",
+  "games": [
+   {
+    "title": "Midnight Club II",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20209"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MIRONTER"
+  ],
+  "page_url": "https://github.com/MIRONTER/Midnight_Club_II_NTSC_PS2_Texture_Pack",
+  "source_id": "github:MIRONTER/Midnight_Club_II_NTSC_PS2_Texture_Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Only SLUS-20209/replacements is installed; the original dumps kept in the repository stay out.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Midnight_Club_II_NTSC_PS2_Texture_Pack-4fac11d9a981e396176d74c595a8ab86b5272c01.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/MIRONTER/Midnight_Club_II_NTSC_PS2_Texture_Pack/zip/4fac11d9a981e396176d74c595a8ab86b5272c01"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/MIRONTER/Midnight_Club_II_NTSC_PS2_Texture_Pack",
+    "commit": "4fac11d9a981e396176d74c595a8ab86b5272c01"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Midnight_Club_II_NTSC_PS2_Texture_Pack-4fac11d9a981e396176d74c595a8ab86b5272c01/SLUS-20209/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-pimp-my-ride-hd-mironter",
+  "title": "MTV Pimp My Ride: Street Racing HD texture pack",
+  "version": "3007a147",
+  "games": [
+   {
+    "title": "MTV Pimp My Ride: Street Racing",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21872"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MIRONTER"
+  ],
+  "page_url": "https://github.com/MIRONTER/MTV_Pimp_My_Ride_Street_Racing_NTSC_PAL_PS2_Texture_Pack",
+  "source_id": "github:MIRONTER/MTV_Pimp_My_Ride_Street_Racing_NTSC_PAL_PS2_Texture_Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Only SLUS-21872/replacements is installed; the original dumps kept in the repository stay out.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MTV_Pimp_My_Ride_Street_Racing_NTSC_PAL_PS2_Texture_Pack-3007a14741826467ff760e34755eb5bb1d3be948.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/MIRONTER/MTV_Pimp_My_Ride_Street_Racing_NTSC_PAL_PS2_Texture_Pack/zip/3007a14741826467ff760e34755eb5bb1d3be948"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/MIRONTER/MTV_Pimp_My_Ride_Street_Racing_NTSC_PAL_PS2_Texture_Pack",
+    "commit": "3007a14741826467ff760e34755eb5bb1d3be948"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "MTV_Pimp_My_Ride_Street_Racing_NTSC_PAL_PS2_Texture_Pack-3007a14741826467ff760e34755eb5bb1d3be948/SLUS-21872/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-flatout-hd-mironter",
+  "title": "FlatOut HD texture pack",
+  "version": "repository",
+  "games": [
+   {
+    "title": "FlatOut",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20901"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MIRONTER"
+  ],
+  "page_url": "https://github.com/MIRONTER/FlatOut_NTSC_PS2_Texture_Pack",
+  "source_id": "github:MIRONTER/FlatOut_NTSC_PS2_Texture_Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The textures alone are 14.2 GB: not offered as a direct download on iPhone. Download the repository on a computer and import SLUS-20901/replacements from Files.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MIRONTER/FlatOut_NTSC_PS2_Texture_Pack"
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "manual"
+ },
+ {
+  "id": "ps2-flatout-2-hd-mironter",
+  "title": "FlatOut 2 HD texture pack",
+  "version": "repository",
+  "games": [
+   {
+    "title": "FlatOut 2",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21251"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MIRONTER"
+  ],
+  "page_url": "https://github.com/MIRONTER/FlatOut_2_NTSC_PS2_Texture_Pack",
+  "source_id": "github:MIRONTER/FlatOut_2_NTSC_PS2_Texture_Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The textures alone are 14.0 GB: not offered as a direct download on iPhone. Download the repository on a computer and import SLUS-21251/replacements from Files.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/MIRONTER/FlatOut_2_NTSC_PS2_Texture_Pack"
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "manual"
+ },
+ {
+  "id": "ps2-ncaa-06-next-vanilla",
+  "title": "NCAA 06 Football Next - Vanilla Pack",
+  "version": "V1",
+  "games": [
+   {
+    "title": "NCAA Football 06",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21214"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "NCAA NEXT team (Ok and!?, H4wduk3n, Antdroid and contributors)"
+  ],
+  "page_url": "https://github.com/ncaanext/ncaa06-next-vanilla",
+  "source_id": "github:ncaanext/ncaa06-next-vanilla",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (LICENSE)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: made for the original game.",
+  "notes": "Alternate uniforms share texture names; the engine keeps one of them.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ncaa06-next-vanilla-65176b23780f27c10512624da15a49589ee0ad4c.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/ncaanext/ncaa06-next-vanilla/zip/65176b23780f27c10512624da15a49589ee0ad4c"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/ncaanext/ncaa06-next-vanilla",
+    "commit": "65176b23780f27c10512624da15a49589ee0ad4c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "ncaa06-next-vanilla-65176b23780f27c10512624da15a49589ee0ad4c/textures/SLUS-21214/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-madden-06-next-antdroidx",
+  "title": "MADDEN 06 NEXT",
+  "version": "442a0fda",
+  "games": [
+   {
+    "title": "Madden NFL 06",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21213"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "antdroidx"
+  ],
+  "page_url": "https://github.com/antdroidx/madden06next",
+  "source_id": "github:antdroidx/madden06next",
+  "licence": {
+   "summary": "GPL-3.0 (LICENSE)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The Alternates folder of the repository stays out.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "madden06next-442a0fdabe1d09814b3462e268cd7c4cf0257931.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/antdroidx/madden06next/zip/442a0fdabe1d09814b3462e268cd7c4cf0257931"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/antdroidx/madden06next",
+    "commit": "442a0fdabe1d09814b3462e268cd7c4cf0257931"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "madden06next-442a0fdabe1d09814b3462e268cd7c4cf0257931/PCSX2/Textures/SLUS-21213/Replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-burnout3-buttons-ps-feralai",
+  "title": "Burnout 3 button textures (PlayStation)",
+  "version": "8a09ed78",
+  "games": [
+   {
+    "title": "Burnout 3: Takedown",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21050"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "FeralAI"
+  ],
+  "page_url": "https://github.com/FeralAI/pcsx2-burnout-3",
+  "source_id": "github:FeralAI/pcsx2-burnout-3",
+  "licence": {
+   "summary": "No licence stated; button art credited to Wikimedia Commons, Metal-Txus (DeviantArt) and Sub-Zero (RocketLauncher forums)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Made to be layered over a full HD pack; installed alone it replaces only the button prompts, and it replaces any other pack of this game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pcsx2-burnout-3-8a09ed787728ad622c91f28912f21702c619f863.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/FeralAI/pcsx2-burnout-3/zip/8a09ed787728ad622c91f28912f21702c619f863"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/FeralAI/pcsx2-burnout-3",
+    "commit": "8a09ed787728ad622c91f28912f21702c619f863"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "pcsx2-burnout-3-8a09ed787728ad622c91f28912f21702c619f863/buttons-ps/SLUS-21050/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-burnout3-buttons-x360-feralai",
+  "title": "Burnout 3 button textures (Xbox 360)",
+  "version": "8a09ed78",
+  "games": [
+   {
+    "title": "Burnout 3: Takedown",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21050"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "FeralAI"
+  ],
+  "page_url": "https://github.com/FeralAI/pcsx2-burnout-3",
+  "source_id": "github:FeralAI/pcsx2-burnout-3",
+  "licence": {
+   "summary": "No licence stated; button art credited to Wikimedia Commons, Metal-Txus (DeviantArt) and Sub-Zero (RocketLauncher forums)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Made to be layered over a full HD pack; installed alone it replaces only the button prompts, and it replaces any other pack of this game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pcsx2-burnout-3-8a09ed787728ad622c91f28912f21702c619f863.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/FeralAI/pcsx2-burnout-3/zip/8a09ed787728ad622c91f28912f21702c619f863"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/FeralAI/pcsx2-burnout-3",
+    "commit": "8a09ed787728ad622c91f28912f21702c619f863"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "pcsx2-burnout-3-8a09ed787728ad622c91f28912f21702c619f863/buttons-x360/SLUS-21050/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-burnout3-buttons-xb1-feralai",
+  "title": "Burnout 3 button textures (Xbox One)",
+  "version": "8a09ed78",
+  "games": [
+   {
+    "title": "Burnout 3: Takedown",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21050"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "FeralAI"
+  ],
+  "page_url": "https://github.com/FeralAI/pcsx2-burnout-3",
+  "source_id": "github:FeralAI/pcsx2-burnout-3",
+  "licence": {
+   "summary": "No licence stated; button art credited to Wikimedia Commons, Metal-Txus (DeviantArt) and Sub-Zero (RocketLauncher forums)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Made to be layered over a full HD pack; installed alone it replaces only the button prompts, and it replaces any other pack of this game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pcsx2-burnout-3-8a09ed787728ad622c91f28912f21702c619f863.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/FeralAI/pcsx2-burnout-3/zip/8a09ed787728ad622c91f28912f21702c619f863"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/FeralAI/pcsx2-burnout-3",
+    "commit": "8a09ed787728ad622c91f28912f21702c619f863"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "pcsx2-burnout-3-8a09ed787728ad622c91f28912f21702c619f863/buttons-xb1/SLUS-21050/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-burnout-revenge-buttons-ps-feralai",
+  "title": "Burnout Revenge button textures (PlayStation)",
+  "version": "6dd0c0eb",
+  "games": [
+   {
+    "title": "Burnout Revenge",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21242"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "FeralAI"
+  ],
+  "page_url": "https://github.com/FeralAI/pcsx2-burnout-revenge",
+  "source_id": "github:FeralAI/pcsx2-burnout-revenge",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Made to be layered over a full HD pack; installed alone it replaces only the button prompts, and it replaces any other pack of this game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pcsx2-burnout-revenge-6dd0c0eb05e1388f1197cfc472d4478d3c057e3c.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/FeralAI/pcsx2-burnout-revenge/zip/6dd0c0eb05e1388f1197cfc472d4478d3c057e3c"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/FeralAI/pcsx2-burnout-revenge",
+    "commit": "6dd0c0eb05e1388f1197cfc472d4478d3c057e3c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "pcsx2-burnout-revenge-6dd0c0eb05e1388f1197cfc472d4478d3c057e3c/buttons-ps/SLUS-21242/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-burnout-revenge-buttons-x360-feralai",
+  "title": "Burnout Revenge button textures (Xbox 360)",
+  "version": "6dd0c0eb",
+  "games": [
+   {
+    "title": "Burnout Revenge",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21242"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "FeralAI"
+  ],
+  "page_url": "https://github.com/FeralAI/pcsx2-burnout-revenge",
+  "source_id": "github:FeralAI/pcsx2-burnout-revenge",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Made to be layered over a full HD pack; installed alone it replaces only the button prompts, and it replaces any other pack of this game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pcsx2-burnout-revenge-6dd0c0eb05e1388f1197cfc472d4478d3c057e3c.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/FeralAI/pcsx2-burnout-revenge/zip/6dd0c0eb05e1388f1197cfc472d4478d3c057e3c"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/FeralAI/pcsx2-burnout-revenge",
+    "commit": "6dd0c0eb05e1388f1197cfc472d4478d3c057e3c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "pcsx2-burnout-revenge-6dd0c0eb05e1388f1197cfc472d4478d3c057e3c/buttons-x360/SLUS-21242/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-burnout-revenge-buttons-xb1-feralai",
+  "title": "Burnout Revenge button textures (Xbox One)",
+  "version": "6dd0c0eb",
+  "games": [
+   {
+    "title": "Burnout Revenge",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21242"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "FeralAI"
+  ],
+  "page_url": "https://github.com/FeralAI/pcsx2-burnout-revenge",
+  "source_id": "github:FeralAI/pcsx2-burnout-revenge",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Made to be layered over a full HD pack; installed alone it replaces only the button prompts, and it replaces any other pack of this game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pcsx2-burnout-revenge-6dd0c0eb05e1388f1197cfc472d4478d3c057e3c.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/FeralAI/pcsx2-burnout-revenge/zip/6dd0c0eb05e1388f1197cfc472d4478d3c057e3c"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/FeralAI/pcsx2-burnout-revenge",
+    "commit": "6dd0c0eb05e1388f1197cfc472d4478d3c057e3c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "pcsx2-burnout-revenge-6dd0c0eb05e1388f1197cfc472d4478d3c057e3c/buttons-xb1/SLUS-21242/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ },
+ {
+  "id": "ps2-jojo-ougon-no-kaze-hd-kaykwill13",
+  "title": "JoJo no Kimyou na Bouken: Ougon no Kaze HD Texture Pack (AI upscaling)",
+  "version": "release",
+  "games": [
+   {
+    "title": "JoJo no Kimyou na Bouken: Ougon no Kaze",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPM-65140"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "kaykwill13"
+  ],
+  "page_url": "https://github.com/kaykwill13/JoJo-no-Kimyou-na-Bouken-Ougon-no-Kaze-HD-AI-Upscaling-Texture-Pack/releases",
+  "source_id": "github:kaykwill13/JoJo-no-Kimyou-na-Bouken-Ougon-no-Kaze-HD-AI-Upscaling-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The download is linked from the release page, not attached to it.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/kaykwill13/JoJo-no-Kimyou-na-Bouken-Ougon-no-Kaze-HD-AI-Upscaling-Texture-Pack/releases"
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "manual"
+ },
+ {
+  "id": "ps2-ncaa-next-24",
+  "title": "NCAA 06 Football Next 24 (full mod)",
+  "version": "repository",
+  "games": [
+   {
+    "title": "NCAA Football 06",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21214"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "NCAA NEXT team"
+  ],
+  "page_url": "https://github.com/ncaanext/ncaa-next-24",
+  "source_id": "github:ncaanext/ncaa-next-24",
+  "licence": {
+   "summary": "CC BY-NC-SA 4.0 (LICENSE)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "About 29,700 texture files (over 10 GB) and a modded game image: install it on a computer following the authors' guide.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/ncaanext/ncaa-next-24"
+  },
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "manual"
+ },
+ {
+  "id": "ps2-madden04-deluxe-maddendeluxe",
+  "system": "ps2",
+  "title": "Madden 04 Deluxe (full mod)",
+  "version": "See the creator's page",
+  "games": [
+   {
+    "title": "Madden NFL 2004",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-20752"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "maddendeluxe team"
+  ],
+  "page_url": "https://github.com/maddendeluxe/madden04deluxe",
+  "source_id": "github:maddendeluxe/madden04deluxe",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/maddendeluxe/madden04deluxe"
+  },
+  "engine": "armsx2",
+  "availability": "manual",
+  "notes": "Roster, uniform, stadium and field mod: its textures go with the authors' patched game image and roster files. Install it on a computer following the authors' guide."
+ },
+ {
+  "id": "ps2-madden05-deluxe-maddendeluxe",
+  "system": "ps2",
+  "title": "Madden 05 Deluxe (full mod)",
+  "version": "See the creator's page",
+  "games": [
+   {
+    "title": "Madden NFL 2005",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21000"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "maddendeluxe team"
+  ],
+  "page_url": "https://github.com/maddendeluxe/madden05deluxe",
+  "source_id": "github:maddendeluxe/madden05deluxe",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/maddendeluxe/madden05deluxe"
+  },
+  "engine": "armsx2",
+  "availability": "manual",
+  "notes": "Roster, uniform, stadium and field mod: its textures go with the authors' patched game image and roster files. Install it on a computer following the authors' guide."
+ },
+ {
+  "id": "ps2-madden09-deluxe-maddendeluxe",
+  "system": "ps2",
+  "title": "Madden 09 Deluxe (full mod)",
+  "version": "See the creator's page",
+  "games": [
+   {
+    "title": "Madden NFL 09",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21770"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "maddendeluxe team"
+  ],
+  "page_url": "https://github.com/maddendeluxe/madden09deluxe",
+  "source_id": "github:maddendeluxe/madden09deluxe",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/maddendeluxe/madden09deluxe"
+  },
+  "engine": "armsx2",
+  "availability": "manual",
+  "notes": "Roster, uniform, stadium and field mod: its textures go with the authors' patched game image and roster files. Install it on a computer following the authors' guide."
+ },
+ {
+  "id": "ps2-madden12-deluxe-maddendeluxe",
+  "system": "ps2",
+  "title": "Madden 12 Deluxe (full mod)",
+  "version": "See the creator's page",
+  "games": [
+   {
+    "title": "Madden NFL 12",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLUS-21946"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "maddendeluxe team"
+  ],
+  "page_url": "https://github.com/maddendeluxe/madden12deluxe",
+  "source_id": "github:maddendeluxe/madden12deluxe",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/maddendeluxe/madden12deluxe"
+  },
+  "engine": "armsx2",
+  "availability": "manual",
+  "notes": "Roster, uniform, stadium and field mod: its textures go with the authors' patched game image and roster files. Install it on a computer following the authors' guide."
+ },
+ {
+  "id": "ps2-srw-z-english-ui-retro-trans",
+  "title": "SRW Z English - PCSX2 texture pack (4x UI art)",
+  "version": "v0.9.88",
+  "games": [
+   {
+    "title": "Super Robot Taisen Z",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLPS-25887"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "binhlt0402 (retro-trans)"
+  ],
+  "page_url": "https://github.com/retro-trans/SRW-Z/releases/tag/v0.9.88",
+  "source_id": "github:retro-trans/SRW-Z",
+  "licence": {
+   "summary": "MIT (repository LICENSE, © 2026 binhlt0402)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Made for the original edition SLPS-25887 (README); the \"The Best\" edition is not covered. Part of the SRW Z English translation project: it replaces the Japanese UI-art textures with 4x English art and works with any build of the patch (README).",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "SRWZ-texture-pack.zip",
+   "parts": [
+    {
+     "url": "https://github.com/retro-trans/SRW-Z/releases/download/v0.9.88/SRWZ-texture-pack.zip"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/SLPS-25887/replacements/",
+     "to": "{id}/replacements"
+    }
+   ]
+  },
+  "notes": "UI only (status-bar labels, menu buttons). The two optional prologue cards in intro-cards are machine-specific (README) and not installed.",
+  "system": "ps2",
+  "engine": "armsx2",
+  "availability": "available"
+ }
+]

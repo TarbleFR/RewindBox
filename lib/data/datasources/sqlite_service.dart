@@ -16,6 +16,9 @@ import '../../models/database_game_model.dart';
 import 'sqlite_migrations.dart';
 import '../../services/config_service.dart'; // Required for ConfigService usage
 import '../../services/json_config_service.dart';
+// RETIRED_PORTS_BEGIN: backup_import
+import '../../services/retired_ports_backup.dart';
+// RETIRED_PORTS_END: backup_import
 import '../../services/logger_service.dart';
 
 /// Defines the behavior when a constraint violation occurs during a database operation.
@@ -449,6 +452,19 @@ class SqliteService {
   /// the database to maintain referential integrity.
   static Future<List<SystemModel>> loadAndSyncSystems() async {
     final configurations = await JsonConfigService.instance.loadSystems();
+    // RETIRED_PORTS_BEGIN: backup_before_prune
+    // The former Ports system left the bundled definitions: the sync below
+    // prunes it and, by cascade, its game rows. It runs only after a checked
+    // copy of the database (docs/ports-removal-2026-10-20.md). While that
+    // copy waits, the rows stay and the playlist stays out of the menus.
+    if (await RetiredPortsBackup.prepareForSync(configurations) ==
+        RetiredPortsSyncDecision.postponed) {
+      return [
+        for (final system in await loadSystemsFromDb())
+          if (system.folderName != RetiredPortsBackup.retiredFolderName) system,
+      ];
+    }
+    // RETIRED_PORTS_END: backup_before_prune
     final synced = await syncSystems(configurations);
     _cachedSystems = synced;
     return synced;
@@ -4038,7 +4054,7 @@ class SqliteService {
         ur.app_emulator_unique_id as emulator_name,
         s.id as system_id, s.real_name as system_real_name, s.folder_name as system_folder_name,
         s.short_name as system_short_name,
-        COALESCE(usm.real_name, CASE WHEN s.folder_name IN ('android', 'ports') OR LOWER(ur.rom_path) LIKE 'melonx://%' OR LOWER(ur.rom_path) LIKE 'rpcs3-library://%' THEN ur.title_name END, ur.filename) as game_display_name,
+        COALESCE(usm.real_name, CASE WHEN s.folder_name = 'android' OR LOWER(ur.rom_path) LIKE 'melonx://%' OR LOWER(ur.rom_path) LIKE 'rpcs3-library://%' THEN ur.title_name END, ur.filename) as game_display_name,
         usm.real_name as ss_real_name,
         COALESCE(usm.description_en, CASE WHEN s.folder_name IN ('android') THEN ur.description END) as description,
         usm.description_en, usm.description_es, usm.description_fr, usm.description_de, usm.description_it, usm.description_pt,
@@ -4081,7 +4097,7 @@ class SqliteService {
         ur.app_emulator_unique_id as emulator_name,
         s.id as system_id, s.real_name as system_real_name, s.folder_name as system_folder_name,
         s.short_name as system_short_name,
-        COALESCE(usm.real_name, CASE WHEN s.folder_name IN ('android', 'ports') OR LOWER(ur.rom_path) LIKE 'melonx://%' OR LOWER(ur.rom_path) LIKE 'rpcs3-library://%' THEN ur.title_name END, ur.filename) as game_display_name,
+        COALESCE(usm.real_name, CASE WHEN s.folder_name = 'android' OR LOWER(ur.rom_path) LIKE 'melonx://%' OR LOWER(ur.rom_path) LIKE 'rpcs3-library://%' THEN ur.title_name END, ur.filename) as game_display_name,
         usm.real_name as ss_real_name,
         COALESCE(usm.description_en, CASE WHEN s.folder_name IN ('android') THEN ur.description END) as description,
         usm.description_en, usm.description_es, usm.description_fr, usm.description_de, usm.description_it, usm.description_pt,
@@ -4113,7 +4129,7 @@ class SqliteService {
         ur.app_emulator_unique_id as emulator_name,
         s.id as system_id, s.real_name as system_real_name, s.folder_name as system_folder_name,
         s.short_name as system_short_name,
-        COALESCE(usm.real_name, CASE WHEN s.folder_name IN ('android', 'ports') OR LOWER(ur.rom_path) LIKE 'melonx://%' OR LOWER(ur.rom_path) LIKE 'rpcs3-library://%' THEN ur.title_name END, ur.filename) as game_display_name,
+        COALESCE(usm.real_name, CASE WHEN s.folder_name = 'android' OR LOWER(ur.rom_path) LIKE 'melonx://%' OR LOWER(ur.rom_path) LIKE 'rpcs3-library://%' THEN ur.title_name END, ur.filename) as game_display_name,
         usm.real_name as ss_real_name,
         COALESCE(usm.description_en, CASE WHEN s.folder_name IN ('android') THEN ur.description END) as description,
         usm.description_en, usm.description_es, usm.description_fr, usm.description_de, usm.description_it, usm.description_pt,
@@ -4149,7 +4165,7 @@ class SqliteService {
         ur.app_emulator_unique_id as emulator_name,
         s.id as system_id, s.real_name as system_real_name, s.folder_name as system_folder_name,
         s.short_name as system_short_name,
-        COALESCE(usm.real_name, CASE WHEN s.folder_name IN ('android', 'ports') OR LOWER(ur.rom_path) LIKE 'melonx://%' OR LOWER(ur.rom_path) LIKE 'rpcs3-library://%' THEN ur.title_name END, ur.filename) as game_display_name,
+        COALESCE(usm.real_name, CASE WHEN s.folder_name = 'android' OR LOWER(ur.rom_path) LIKE 'melonx://%' OR LOWER(ur.rom_path) LIKE 'rpcs3-library://%' THEN ur.title_name END, ur.filename) as game_display_name,
         usm.real_name as ss_real_name,
         COALESCE(usm.description_en, CASE WHEN s.folder_name IN ('android') THEN ur.description END) as description,
         usm.description_en, usm.description_es, usm.description_fr, usm.description_de, usm.description_it, usm.description_pt,

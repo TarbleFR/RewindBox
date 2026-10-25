@@ -212,7 +212,7 @@ void main() {
   const maintainerFrench = <String, String>{
     'toolTitle': 'Analyse et nettoyage du stockage',
     'toolSubtitle':
-        'Mesure l’espace utilisé par NeoStation et ses moteurs, puis propose '
+        'Mesure l’espace utilisé par RewindBox et ses moteurs, puis propose '
         'un nettoyage prévisualisé.',
     'scanning': 'Analyse en cours…',
     'scanAgain': 'Analyser à nouveau',

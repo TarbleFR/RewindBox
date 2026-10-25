@@ -1,5 +1,6 @@
 #import "Rpcs3JitBridgePlugin.h"
 #import "Rpcs3Diagnostics.h"
+#import "RPCS3CPUCompatibility.h"
 
 #import <Foundation/Foundation.h>
 #import <Security/Security.h>
@@ -639,6 +640,11 @@ BOOL RPCS3JitConfirmCoreLoadHandoff(void) {
 
   if (![call.method isEqualToString:@"prepareJit"]) {
     result(FlutterMethodNotImplemented);
+    return;
+  }
+
+  if (NSString* cpuError = RPCS3CPUCompatibilityError()) {
+    result(@{@"success": @NO, @"code": @"RPCS3_CPU_INCOMPATIBLE", @"message": cpuError});
     return;
   }
 

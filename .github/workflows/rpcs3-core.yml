@@ -2,7 +2,7 @@ name: RPCS3 NeoSwap v1 core
 run-name: RPCS3 NeoSwap v1 Core • ${{ github.sha }}
 on:
   push:
-    branches: [experimental]
+    branches: [experimental, Claude]
     paths:
       - '.github/workflows/rpcs3-core.yml'
       - 'build-utils/build_rpcs3_embedded_core.sh'
@@ -33,6 +33,11 @@ on:
       - 'test/native/rpcs3_build435_core_delta_test.cpp'
       - 'test/rpcs3_build444_core_delta_test.py'
       - 'test/native/rpcs3_build444_core_delta_test.cpp'
+      - 'test/rpcs3_build481_spu_object_cache_test.py'
+      - 'test/native/rpcs3_build481_spu_object_cache_test.cpp'
+      - 'test/native/rpcs3_spu_object_relocation_test.cpp'
+      - 'test/rpcs3_build483_llvm_pipeline_test.py'
+      - 'test/native/rpcs3_llvm_pipeline_harness.cpp'
       - 'test/native/rpcs3_vk_*'
       - 'test/native/rpcs3_neoswap_stats_getter_test.cpp'
       - 'test/rpcs3_neoswap_vulkan_buffer_test.py'
@@ -56,13 +61,24 @@ on:
       - 'test/rpcs3_source_archive_test.py'
       - 'test/native/rpcs3_source_archive_client_test.cpp'
   workflow_dispatch:
+    inputs:
+      phase:
+        description: Build the reviewed Core, or compose the pinned private IPA
+        type: choice
+        options: [core, delivery499, delivery500]
+        default: core
+      recipient:
+        description: Public PEM for the dedicated Build 499 delivery
+        type: string
+        default: build-utils/delivery-499-recipient.pem
 permissions:
   contents: read
+  actions: read
 jobs:
   build:
     # The host integration reuses the already built, provenance-checked Core;
     # ios-ci validates its unchanged source, recipe, ABI, and binary identity.
-    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-host-integration]') }}
+    if: ${{ inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') && !contains(github.event.head_commit.message, '[rpcs3-cell527-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell528-core]') }}
     # A host-only push must not cancel the exact Core referenced by its IPA.
     # Keep distinct source revisions independent and never cancel a running build.
     concurrency:
@@ -112,6 +128,9 @@ jobs:
           git -C "$STORAGE_SRC" fetch --depth 1 origin 22f1152783cef1f7e04af7b1c895173e28fd5b03
           git -C "$STORAGE_SRC" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$STORAGE_SRC"
+          mkdir -p build/rpcs3-core-diagnostics
+          CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
+            python3 test/rpcs3_build499_spu_audit_test.py "$STORAGE_SRC" 2>&1 | tee build/rpcs3-core-diagnostics/build499-proof.txt
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_spu_warmup_test.py "$STORAGE_SRC" --sanitize
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_build435_core_delta_test.py "$STORAGE_SRC" --sanitize
           CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_shader_storage_test.py "$STORAGE_SRC"
@@ -126,6 +145,28 @@ jobs:
             brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"
           done
           mkdir -p dist/rpcs3 build/rpcs3-core-diagnostics
+          # NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: policy, two-process MCJIT relocation
+          # proof with the LLVM 22 that builds the Core, and the translator wiring; fails
+          # here, before the expensive dependency and Core builds.
+          CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
+            python3 test/rpcs3_build481_spu_object_cache_test.py "$STORAGE_SRC" --sanitize --require-llvm 2>&1 | tee build/rpcs3-core-diagnostics/spu-object-cache-proof.txt
+          # NEOSTATION_BUILD483_LLVM_PIPELINES_V1: calling-convention hazard proof and the
+          # five Core pipelines on synthetic kernels (verification, IR/AArch64 counts,
+          # bit-exact host execution), then the pipeline wiring of the translators.
+          CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
+            python3 test/rpcs3_build483_llvm_pipeline_test.py "$STORAGE_SRC" --require-llvm --report build/rpcs3-core-diagnostics/llvm-pipeline-kernels.json 2>&1 | tee build/rpcs3-core-diagnostics/llvm-pipeline-proof.txt
+          # NEOSTATION_BUILD487_DIAGNOSTICS_V1: helpers of the audit diagnostics and levers
+          # executed on the host (profiler maths, boot lines, spin thresholds, directory
+          # retention against the real SPU object-cache policy), then the wiring and the
+          # unchanged defaults; the host bridge part (admission of the new Core lines,
+          # milestones, metrics mirror equal to the Core header, Foundation rotation).
+          CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
+            python3 test/rpcs3_build487_core_diagnostics_test.py "$STORAGE_SRC" 2>&1 | tee build/rpcs3-core-diagnostics/build487-core-proof.txt
+          python3 test/rpcs3_build258_core_architecture_test.py "$STORAGE_SRC" 2>&1 | tee -a build/rpcs3-core-diagnostics/build487-core-proof.txt
+          { python3 test/rpcs3_build487_host_diagnostics_test.py --core "$STORAGE_SRC"
+            python3 test/rpcs3_diagnostics_native_test.py
+            python3 test/rpcs3_build283_boot_stability_test.py
+            python3 test/rpcs3_performance_snapshot_test.py; } 2>&1 | tee build/rpcs3-core-diagnostics/build487-host-proof.txt
       - name: Build Core from the single reviewed source delta
         shell: bash
         run: |
@@ -197,3 +238,20 @@ jobs:
           path: build/rpcs3-core-diagnostics/
           if-no-files-found: warn
           retention-days: 14
+
+  delivery499:
+    if: ${{ inputs.phase == 'delivery499' }}
+    uses: ./.github/workflows/rpcs3-audit-delivery.yml
+    with:
+      build_number: '499'
+      recipient: ${{ inputs.recipient || 'build-utils/delivery-499-recipient.pem' }}
+    secrets: inherit
+
+
+  delivery500:
+    if: ${{ inputs.phase == 'delivery500' }}
+    uses: ./.github/workflows/ps1-rpcs3-delivery500.yml
+    with:
+      build_number: '500'
+      recipient: build-utils/delivery-500-recipient.pem
+    secrets: inherit

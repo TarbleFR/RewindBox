@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'build-utils'))
 
 import validate_single_ipa_distribution as validator
+import validate_rpcs3_ipa as rpcs3_validator
 from configure_rpcs3_ios_v2 import REQUIRED_RUNTIME_ENTITLEMENTS
 sys.path.insert(0, str(ROOT / 'packages/dolphin_internal_bridge/ci'))
 import verify_ipa as dolphin_validator
@@ -163,7 +164,7 @@ def complete_dolphin_packaging_members():
     members = complete_ipa_members()
     host = plistlib.loads(members[APP + 'Info.plist'])
     host.update(NSPhotoLibraryAddUsageDescription='Parser fixture',
-                LSApplicationQueriesSchemes=['retroarch', 'shortcuts', 'melonx'])
+                LSApplicationQueriesSchemes=['retroarch', 'shortcuts'])
     members[APP + 'Info.plist'] = plistlib.dumps(host)
     for path, data in list(members.items()):
         if data[:4] != b'\xcf\xfa\xed\xfe':
@@ -248,6 +249,59 @@ class SingleIPADistributionTests(unittest.TestCase):
         self.assertEqual(set(report['embeddedExtensions']), JIT_HELPERS | set(DONOR_IDENTITIES) | set(RELAY_CONTRACTS))
         self.assertIs(report['deviceLaunchValidated'], False)
         self.assertEqual(report['mainApplicationCount'], 1)
+
+    def test_embedded_melonx_requires_its_exact_helper_and_six_private_frameworks(self):
+        members = complete_dolphin_packaging_members()
+        members[APP + 'MeloNX-native-identity.json'] = b'{}'
+        original = APP + 'PlugIns/DolphinJITHelper.appex/'
+        target = APP + 'PlugIns/MeloNXJITHelper.appex/'
+        info = plistlib.loads(members[original + 'Info.plist'])
+        info.update(CFBundleExecutable='MeloNXJITHelper', CFBundleIdentifier='com.neogamelab.neostation.melonxjithelper')
+        info.pop('NeoStationDolphinJITHelper'); info['NeoStationMeloNXJITHelper'] = '1'
+        info['NSExtension']['NSExtensionPrincipalClass'] = 'MeloNXJITRequestHandler'
+        members[target + 'Info.plist'] = plistlib.dumps(info)
+        members[target + 'MeloNXJITHelper'] = members[original + 'DolphinJITHelper']
+        for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
+            members[APP + f'Frameworks/{component}.framework/{component}'] = packaging_image({}, filetype=6)
+        def check_rpcs3_helpers(candidate):
+            with tempfile.TemporaryDirectory(prefix='rpcs3-helper-contract-') as temporary:
+                root = Path(temporary)
+                for name, data in candidate.items():
+                    target = root / name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(data)
+                app = root / APP
+                return rpcs3_validator.validate_helper_bundles(app, plistlib.loads(candidate[APP + 'Info.plist']))
+
+        self.assertEqual(len(check_rpcs3_helpers(complete_ipa_members())), 5)
+        self.assertEqual(len(check_rpcs3_helpers(members)), 6)
+        without_identity = dict(members); del without_identity[APP + 'MeloNX-native-identity.json']
+        with self.assertRaisesRegex(rpcs3_validator.ValidationError, 'Unexpected app-extension set'):
+            check_rpcs3_helpers(without_identity)
+        for check in (validator.validate, dolphin_validator.validate):
+            with self.subTest(packager=check.__module__): self.validate_members(members, check)
+        broken = dict(members); del broken[APP + 'Frameworks/MeloNXSDL3.framework/MeloNXSDL3']
+        self.reject(broken, 'complete private runtime')
+        with self.assertRaisesRegex(rpcs3_validator.ValidationError, 'complete private runtime'):
+            check_rpcs3_helpers(broken)
+        broken = dict(members); del broken[target + 'Info.plist']; del broken[target + 'MeloNXJITHelper']
+        self.reject(broken, 'Unexpected app-extension set')
+        with self.assertRaisesRegex(rpcs3_validator.ValidationError, 'Unexpected app-extension set'):
+            check_rpcs3_helpers(broken)
+        self.modify_info(members, target, lambda info: info['NSExtension'].update(NSExtensionPrincipalClass='Wrong'))
+        self.reject(members, 'principal class')
+        with self.assertRaisesRegex(rpcs3_validator.ValidationError, 'principal class'):
+            check_rpcs3_helpers(members)
+
+    def test_packaging_rejects_retired_external_switch_queries(self):
+        for scheme in ('melonx', 'atariemulator'):
+            with self.subTest(scheme=scheme):
+                members = complete_dolphin_packaging_members()
+                host = plistlib.loads(members[APP + 'Info.plist'])
+                host['LSApplicationQueriesSchemes'].append(scheme)
+                members[APP + 'Info.plist'] = plistlib.dumps(host)
+                with self.assertRaisesRegex(ValueError, 'Retired external emulator query scheme found'):
+                    self.validate_members(members, dolphin_validator.validate)
 
     def test_requires_each_of_the_five_extensions(self):
         for name in JIT_HELPERS | set(DONOR_IDENTITIES) | set(RELAY_CONTRACTS):

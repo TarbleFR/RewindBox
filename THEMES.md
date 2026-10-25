@@ -42,6 +42,17 @@ Keep identifiers stable once shipped because the selected theme name is persiste
 
 System Art packs are not UI color themes. They provide downloadable artwork used by system cards and related presentation surfaces. Their manifest/cache code may still contain historical `theme` naming; do not merge those concepts with `ThemeProvider`.
 
+RewindBox discovers published System Art packs dynamically via
+[NeoAssets](https://neoassets.dev/app/sap), displays original creator names,
+and downloads the selected pack directly from the official asset CDN.
+The app does not bundle community artwork. The official API also supplies
+coverage and the real format of each system background (WebP or GIF);
+uncovered systems keep their default appearance. Installed packs remain
+available offline.
+
+The full pack/source/author inventory, API URLs and rights notes are in
+[docs/system-art/NEOASSETS_SOURCES.md](docs/system-art/NEOASSETS_SOURCES.md).
+
 ## Main-menu custom background
 
 The primary Systems menu can use a user-selected background. Supported formats are defined by `ImageUtils`:

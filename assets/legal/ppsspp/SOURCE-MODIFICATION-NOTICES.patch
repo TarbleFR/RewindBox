@@ -1,0 +1,40 @@
+--- a/Common/MemArenaDarwin.cpp
++++ b/Common/MemArenaDarwin.cpp
+@@ -1,3 +1,7 @@
++// NeoStation changed this file on 2026-10-20: managed Darwin backing arena
++// and versioned host-owned memory callbacks (Build 497).
++// This notice was added for source distribution on 2026-10-21.
++
+ // Copyright (C) 2003 Dolphin Project.
+ 
+ // This program is free software: you can redistribute it and/or modify
+--- a/Core/MemMap.cpp
++++ b/Core/MemMap.cpp
+@@ -1,3 +1,7 @@
++// NeoStation changed this file on 2026-10-20: release the managed backing
++// arena and clear the base after a failed memory-map setup (Build 497).
++// This notice was added for source distribution on 2026-10-21.
++
+ // Copyright (C) 2003 Dolphin Project / 2012 PPSSPP Project
+ 
+ // This program is free software: you can redistribute it and/or modify
+--- a/libretro/Makefile.common
++++ b/libretro/Makefile.common
+@@ -1,3 +1,7 @@
++# NeoStation changed this file on 2026-10-20: select Adreno driver objects
++# only for the Android arm64 platform (Build 497).
++# This notice was added for source distribution on 2026-10-21.
++
+ FFMPEGDIR		= $(CORE_DIR)/ffmpeg
+ LIBRETRODIR		= $(CORE_DIR)/libretro
+ COREDIR			= $(CORE_DIR)/Core
+--- a/Common/NeoStationPSPMemory.h
++++ b/Common/NeoStationPSPMemory.h
+@@ -1,3 +1,7 @@
++// NeoStation added this file on 2026-10-20: the version 1 C memory-ownership
++// ABI shared by the host and the PPSSPP Darwin allocator (Build 497).
++// This notice was added for source distribution on 2026-10-21.
++
+ // Versioned C ABI shared with the narrowly patched PPSSPP Darwin allocator.
+ // No C++ objects, platform-sized fields or ownership inferred from addresses.
+ #ifndef NEOSTATION_PSP_MEMORY_H

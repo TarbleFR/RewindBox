@@ -1,0 +1,46 @@
+[
+ {
+  "id": "3ds-ex-troopers-hd-pdragon128",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "E.X. Troopers HD (Japan / optional English 1.0.1)",
+  "version": "2024-06-01",
+  "games": [
+   {
+    "title": "E.X. Troopers",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000053700"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "pdragon128"
+  ],
+  "page_url": "https://gbatemp.net/threads/3ds-e-x-troopers-jpn-english-translation-hd-texture-pack.656525/",
+  "source_id": "gbatemp:656525",
+  "licence": {
+   "summary": "No licence stated by the creator",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/3ds-e-x-troopers-jpn-english-translation-hd-texture-pack.656525/",
+   "verify": {
+    "url": "https://pixeldrain.com/api/file/873AKcBf"
+   },
+   "file_name": "E.X. Troopers HD Texture Pack.zip",
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "3ds-ex-troopers-hd-pdragon128",
+  "notes": "Author marks the texture set complete. Japanese title; optional English fan translation 1.0.1 is external and not installed by this pack. Translation 1.0.2 misses some textures including the title. An update CIA changes the custom-texture path; use the base game or the author-described Mods-folder translation. No French support or iPhone rendering is asserted."
+ }
+]

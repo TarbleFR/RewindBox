@@ -242,12 +242,27 @@ def validate_helper_bundles(app: Path, info: dict, archive_root: Path | None = N
     extensions = sorted(path for path in (archive_root or app).rglob('*.appex') if path.is_dir())
     demand(all(path.parent == app / 'PlugIns' for path in extensions),
            'Every app extension must be nested in NeoStation/PlugIns')
-    demand({path.name for path in extensions} == set(EXPECTED_HELPERS),
+    expected_helpers = dict(EXPECTED_HELPERS)
+    if (app / 'MeloNX-native-identity.json').is_file():
+        expected_helpers['MeloNXJITHelper.appex'] = {
+            'bundleSuffix': '.melonxjithelper',
+            'principalClass': 'MeloNXJITRequestHandler',
+            'marker': 'NeoStationMeloNXJITHelper',
+        }
+        if 'ramDonorSource' in json.loads((app / 'MeloNX-native-identity.json').read_text()):
+            expected_helpers['MeloNXRamDonor.appex'] = {
+                'bundleSuffix': '.melonxramdonor', 'principalClass': 'MLXRamDonorHandler',
+                'marker': 'RewindBoxMeloNXRamDonor',
+            }
+        for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
+            demand((app / f'Frameworks/{component}.framework/{component}').is_file(),
+                   'MeloNX identity requires the complete private runtime: ' + component)
+    demand({path.name for path in extensions} == set(expected_helpers),
            'Unexpected app-extension set: expected '
-           f'{sorted(EXPECTED_HELPERS)}, got {sorted(path.name for path in extensions)}')
+           f'{sorted(expected_helpers)}, got {sorted(path.name for path in extensions)}')
     identifiers = {}
     for extension in extensions:
-        contract = EXPECTED_HELPERS[extension.name]
+        contract = expected_helpers[extension.name]
         is_relay = extension.name in RELAY_CONTRACTS
         extension_info = plistlib.loads((extension / 'Info.plist').read_bytes())
         demand(isinstance(extension_info, dict), f'{extension.name} property list is invalid')
@@ -256,7 +271,7 @@ def validate_helper_bundles(app: Path, info: dict, archive_root: Path | None = N
         point = extension_metadata.get('NSExtensionPointIdentifier')
         demand(point != PACKET_TUNNEL_EXTENSION_POINT,
                f'{extension.name} is a forbidden packet-tunnel provider')
-        demand(point == (DONOR_EXTENSION_POINT if extension.name in DONOR_CONTRACTS or is_relay else SHARE_EXTENSION_POINT),
+        demand(point == (DONOR_EXTENSION_POINT if extension.name in DONOR_CONTRACTS or is_relay or extension.name == 'MeloNXRamDonor.appex' else SHARE_EXTENSION_POINT),
                f'{extension.name} has an unexpected extension point: {point!r}')
         demand(extension_metadata.get('NSExtensionPrincipalClass') == contract['principalClass'],
                f'{extension.name} principal class is inconsistent')
@@ -282,6 +297,13 @@ def validate_helper_bundles(app: Path, info: dict, archive_root: Path | None = N
         require_arm64_executable(data, extension.name)
         capabilities = embedded_entitlements(data)
         reject_vpn_entitlements(capabilities, extension.name)
+        if extension.name == 'MeloNXRamDonor.appex':
+            demand(not capabilities, 'MeloNX donor entitlements differ from upstream')
+            demand(extension_info.get('MinimumOSVersion') == '18.0', 'Invalid MeloNX donor deployment')
+            demand(extension_info.get('XPCService') == DONOR_XPC_SERVICE, 'Invalid MeloNX donor service')
+            demand(extension_metadata.get('NSExtensionAttributes') == {'NSExtensionActivationRule':'FALSEPREDICATE'}, 'Invalid MeloNX donor activation')
+            for key in ['NSExtensionContextClass','NSExtensionContextHostClass']:
+                demand(extension_metadata.get(key) == 'NSExtensionContext', 'Invalid MeloNX donor context')
         if extension.name in DONOR_CONTRACTS:
             index = extension_info.get('NeoStationNeoSwapDonorIndex')
             demand(isinstance(index, str) and index == contract['index'],

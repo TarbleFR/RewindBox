@@ -1,5 +1,10 @@
 # AirPlay universel et écrans externes — conception et contrat (12 octobre 2026)
 
+> **20 octobre 2026.** KartPad (19 octobre), puis Dusklight et la playlist Ports ont quitté
+> NeoStation (`docs/ports-removal-2026-10-20.md`). Les mentions « Dusklight/KartPad » ci-dessous
+> décrivent les builds antérieures ; `suspendForUnsupportedEngine` reste utilisé par RPCS3 pendant
+> l'arrêt de son cœur, et `runUnsupportedEngineSession` n'a plus d'appelant en production.
+
 Chantier 1 de la grande mise à jour (`docs/grande-mise-a-jour-audit-2026-10-12.md`, § 3).
 Candidate : la prochaine IPA unique construite par-dessus la Build 446 ; numéro attribué
 à la livraison. Ce document fixe les noms, canaux, clés et fichiers **avant** le code ;

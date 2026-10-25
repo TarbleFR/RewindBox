@@ -1,0 +1,42 @@
+{
+  "build": 512,
+  "version": "0.0.8",
+  "commit": "02a0273494c50bc849b092c0fff395d9e5fd7ebf",
+  "run": 39959490510,
+  "artifact": 12504996829,
+  "artifactZipSHA256": "e005403a9ab30c37a8b56450245d00e24de1415b7ba738809b2240343c2316b2",
+  "ipaSHA256": "3728998c897c95c2bf89e852c753549720fc2be3ee1ec9f4f45ffa0647da35b3",
+  "ipaBytes": 186123342,
+  "signaturesVerified": 86,
+  "extensions": 6,
+  "minimumIOS": "18.0",
+  "architectures": [
+    "arm64"
+  ],
+  "physicalDeviceTested": false,
+  "appleReSigningRequired": true,
+  "schemaVersion": 1,
+  "result": "verified-and-delivered",
+  "branch": "Claude",
+  "ipaFilename": "RewindBox-Build512.ipa",
+  "workflowURL": "https://github.com/TarbleFR/RewindBox/actions/runs/39959490510",
+  "artifactURL": "https://github.com/TarbleFR/RewindBox/actions/runs/39959490510/artifacts/12504996829",
+  "releasePublished": false,
+  "mainUpdated": false,
+  "uiProof": {
+    "source": "377ff62b25e66565dc2e8f7835b999968b07284b",
+    "run": 39958450728,
+    "job": 120430071377,
+    "artifact": 12503229072,
+    "passingCases": 18
+  },
+  "packaging": {
+    "completeAuthorSegments": 21,
+    "fullAuthorTracksPresentInAOT": true,
+    "directSwitchAndHeaderLinked": true,
+    "sixExtensionsAligned": true,
+    "finalZIPSignaturesVerifiedInCI": true,
+    "compiledCodeDataAndABIUnchangedBySigning": true
+  },
+  "thermalTuningClaimed": false
+}

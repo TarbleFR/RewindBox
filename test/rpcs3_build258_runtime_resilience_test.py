@@ -122,9 +122,13 @@ def main() -> None:
         and "add_loc->compiled = fn;" in spu_llvm,
         "successful SPU compilations are not counted and timed",
     )
+    # Build 481: ARM64 SPU objects are persisted only when the module holds no
+    # baked host address (relocatability guard) and loaded only after validation.
     require(
-        "ARM64 objects embed process-specific host addresses" in spu_llvm,
-        "unsafe cross-process ARM64 SPU machine objects were re-enabled",
+        "spu_llvm_module_is_relocatable(*_module, offending)" in spu_llvm
+        and "compiled without persistence" in spu_llvm
+        and "jit_compiler::load_cached_object(spu_obj_cache + m_hash + \".obj\", m_hash)" in spu_llvm,
+        "cross-process ARM64 SPU machine objects must stay behind the relocatability guard and load validation",
     )
 
     for token in (

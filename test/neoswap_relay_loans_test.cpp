@@ -149,6 +149,44 @@ int main() {
     assert(neostation::relay::adopt(1, 16 * MiB, 4321, 1) == NEOSWAP_RELAY_OK);
     assert(neostation::relay::adopt(2, 16 * MiB, 4321, 1) == NEOSWAP_RELAY_OK);
     assert(relay().capacity_bytes == 32 * MiB);
+    if (std::getenv("RPCS3_VIDEO521_SPAN_PROBE")) {
+        // Same real broker/backend and mmap fixture for baseline and candidate.
+        constexpr uint64_t payload = 1382400;
+        assert(NeoSwap_SetRelayHostLoanPolicy(32 * MiB, 1, 1) == NEOSWAP_OK);
+        const auto* fast = api;
+        assert(fast);
+        std::vector<void*> frames(8);
+        for (auto& frame : frames) {
+            assert(fast->allocate(NEOSWAP_RPCS3, uint32_t(NEOSWAP_VIDEO_FRAME) | NEOSWAP_REQUEST_FAST, payload, 65536, &frame) != NEOSWAP_OK && !frame);
+        }
+        assert(NeoSwap_RelayLoanMaintain(0, 0) == NEOSWAP_OK);
+        for (auto& frame : frames) {
+            assert(fast->allocate(NEOSWAP_RPCS3, uint32_t(NEOSWAP_VIDEO_FRAME) | NEOSWAP_REQUEST_FAST, payload, 65536, &frame) == NEOSWAP_OK && frame);
+            assert(reinterpret_cast<uintptr_t>(frame) % 65536 == 0);
+            std::memset(frame, 0x73, payload);
+            assert(static_cast<unsigned char*>(frame)[payload - 1] == 0x73);
+        }
+        const auto charged = loans().live_bytes;
+        for (auto frame : frames) assert(api->release(frame) == NEOSWAP_OK);
+        assert(NeoSwap_RelayLoanMaintain(0, 0) == NEOSWAP_OK);
+        // A full-class generic request must NEVER borrow a smaller video loan.
+        void* full = nullptr;
+        const auto result = fast->allocate(NEOSWAP_RPCS3, NEOSWAP_CPU_DATA | NEOSWAP_REQUEST_FAST, 2 * MiB, 65536, &full);
+        if (result != NEOSWAP_OK) {
+            assert(!full && NeoSwap_RelayLoanMaintain(0, 0) == NEOSWAP_OK);
+            assert(fast->allocate(NEOSWAP_RPCS3, NEOSWAP_CPU_DATA | NEOSWAP_REQUEST_FAST, 2 * MiB, 65536, &full) == NEOSWAP_OK);
+        }
+        assert(full);
+        std::memset(full, 0x55, 2 * MiB); // sanitizer/actual mapping bounds
+        assert(static_cast<unsigned char*>(full)[2 * MiB - 1] == 0x55);
+        assert(api->release(full) == NEOSWAP_OK);
+        assert(NeoSwap_SetRelayHostLoanPolicy(0, 0, 1) == NEOSWAP_OK);
+        assert(NeoSwap_RelayLoanMaintain(0, 1) == NEOSWAP_OK);
+        assert(!loans().live_bytes && !loans().cached_bytes && !relay().live_bytes);
+        std::printf("{\"payloadBytes\":%llu,\"frames\":8,\"loanBackingBytes\":%llu,\"genericBoundsVerified\":true,\"physicalIPhoneTested\":false}\n",
+            static_cast<unsigned long long>(payload), static_cast<unsigned long long>(charged));
+        return 0;
+    }
     char directory[] = "/tmp/neoswap-relay-loans-dir-XXXXXX"; assert(::mkdtemp(directory));
 
     // Without a file policy and without admission the broker is disabled.

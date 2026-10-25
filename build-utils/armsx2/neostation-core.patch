@@ -466,3 +466,46 @@ index d9b0aacc6..de82446a0 100644
  
          if (!block)
              return;
+diff --git a/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp b/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp
+index bfab85a..c28c3f2 100644
+--- a/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp
++++ b/pcsx2/GS/Renderers/HW/GSTextureReplacements.cpp
+@@ -1146,6 +1146,19 @@ u32 GSTextureReplacements::GetLoadedTextureCount()
+ 	return static_cast<u32>(s_replacement_texture_cache.size());
+ }
+ 
++u32 GSTextureReplacements::GetIndexedReplacementCount()
++{
++	return static_cast<u32>(s_replacement_texture_filenames.size());
++}
++
++void GSTextureReplacements::GetReplacementCacheUsage(u64* bytes, u64* budget, bool* budget_hit)
++{
++	std::unique_lock<std::mutex> lock(s_replacement_texture_cache_mutex);
++	*bytes = s_replacement_texture_cache_bytes;
++	*budget = s_replacement_texture_cache_budget;
++	*budget_hit = s_replacement_cache_budget_hit;
++}
++
+ ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+ // Worker Thread
+ ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+diff --git a/pcsx2/GS/Renderers/HW/GSTextureReplacements.h b/pcsx2/GS/Renderers/HW/GSTextureReplacements.h
+index 7d17220..c99a793 100644
+--- a/pcsx2/GS/Renderers/HW/GSTextureReplacements.h
++++ b/pcsx2/GS/Renderers/HW/GSTextureReplacements.h
+@@ -53,6 +53,14 @@ namespace GSTextureReplacements
+ 	/// Get the number of replacement textures that have been loaded/cached.
+ 	u32 GetLoadedTextureCount();
+ 
++	/// NeoStation: replacement file names indexed for the current serial by the last
++	/// ReloadReplacementMap(). Read on the GS thread, which owns the map.
++	u32 GetIndexedReplacementCount();
++
++	/// NeoStation: bytes held by the replacement cache, its budget (0 until the first
++	/// insertion computes it; reading never computes it) and whether eviction began.
++	void GetReplacementCacheUsage(u64* bytes, u64* budget, bool* budget_hit);
++
+ 	/// Loader will take a filename and interpret the format (e.g. DDS, PNG, etc).
+ 	using ReplacementTextureLoader = bool (*)(const std::string& filename, GSTextureReplacements::ReplacementTexture* tex, bool only_base_image);
+ 	ReplacementTextureLoader GetLoader(const std::string_view filename);

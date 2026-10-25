@@ -1,0 +1,210 @@
+{
+  "build": "0.0.8 (497)",
+  "decision": "docs/build497-psp-managed-memory.md",
+  "baseline": {
+    "source": "b332bc2e59e4f44d4e820aa4879520a058bfd76b",
+    "run": 39445610738,
+    "build": "496",
+    "deviceResult": "PSP close/reopen still fails; superseded by the supplied new application log"
+  },
+  "diagnosis": {
+    "deviceLog": "app(2).log",
+    "confirmed": "Backing arena occupies its own RAM view target; vm_remap returns kernel error 3",
+    "backingBase": "0x17c000000",
+    "source": "0x17c204000",
+    "destination": "0x17c000000",
+    "size": "0x1f00000",
+    "priorAllocatorHistoryKnown": false
+  },
+  "testedSource": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+  "deliverySource": "e999a5fdc98a42f5d1995ca85fdfa04479d7f77a",
+  "workflowCommit": "9319dc98176dcfd89dca3489569b1dbf23fd3ba4",
+  "targetedChecks": {
+    "run": 39455712245,
+    "job": 118741920809,
+    "result": "success",
+    "artifact": {
+      "id": 12281188239,
+      "zipBytes": 349790,
+      "zipSHA256": "4feb10b49949d26221aeaa393f0185568b7ae4195a032c890d23f4efbb891b43"
+    },
+    "native": {
+      "source": "4d0a5b9ac250a44bbb4f935d99d1a47f066043e1",
+      "run": 39452491166,
+      "job": 118730959458,
+      "successfulStep": {
+        "name": "Reproduce arena self-collision and verify continuously owned mappings",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-10-20T15:54:04Z",
+        "completed_at": "2026-10-20T15:54:13Z"
+      },
+      "inputsUnchanged": true,
+      "reexecuted": false
+    },
+    "regression": "The old allocator reproduces the exact self-collision. The candidate passes 18 cycles, 32/64/76 MiB RAM, concurrent allocation pressure, partial failure cleanup and foreign mapping preservation; iPhone ARM64 SDK compilation passes.",
+    "simulator": {
+      "sessions": 7,
+      "pspSessions": 6,
+      "otherCoreSessions": 1,
+      "result": "All seven start, present a frame and stop; six PSP shutdowns retain the continuously owned views",
+      "renderer": "software",
+      "commercialGames": false,
+      "outcome": {
+        "simulator": "iPhone SE (3rd generation) iOS 26.2",
+        "finished": true,
+        "exitedEarly": false,
+        "seconds": 336.0,
+        "label": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036"
+      }
+    }
+  },
+  "core": {
+    "rebuilt": [
+      "ppsspp_libretro"
+    ],
+    "unchangedOtherLibretroCores": 34,
+    "upstream": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+    "bytes": 18024544,
+    "sha256": "a7d058581b657714e055dc9713e9a1252ad4acf6315b30610fcb2b1c81130b6f",
+    "managedMemoryABI": 1,
+    "KTX2DecoderPreserved": true,
+    "package": {
+      "run": 39455712245,
+      "artifact": 12280822192,
+      "zipBytes": 55566830,
+      "zipSHA256": "e06f641dd10409c815787fe1cf4ac6746920360a1023c83b23631b2bd693ba47"
+    },
+    "identityStage": "Verified framework before final IPA signing"
+  },
+  "catalogue": {
+    "source": "730e065ffb5d1b66735f6e440cbdbedc886c8163",
+    "revision": "2026-10-20.8a38a79c72f0",
+    "manifestSHA256": "f7d8c987b8cfe80ec923600682479b9bfcd6fea17fab120e853843f34683162f",
+    "references": 1086,
+    "installableFamilies": 355,
+    "profiles": 440,
+    "oneTapFamilies": 164,
+    "verifiedManualFamilies": 191,
+    "familiesBySystem": {
+      "gc": 77,
+      "wii": 43,
+      "3ds": 49,
+      "psp": 91,
+      "ps2": 76,
+      "n64": 14,
+      "ps1": 2,
+      "nes": 5
+    },
+    "sharedGCWiiFamiliesCountedOnce": 2,
+    "latestArchiveVerificationRuns": [
+      39449348701,
+      39450675080
+    ]
+  },
+  "physicalDeviceGameplayValidated": false,
+  "publicReleaseCreated": false,
+  "tagCreated": false,
+  "limits": [
+    "Simulator software rendering does not validate commercial-game gameplay or physical-iPhone OpenGLES.",
+    "The HD catalogue is bundled; creator texture archives are downloaded or imported separately.",
+    "Subsequent installer development on Claude is preserved but outside this frozen delivery source."
+  ],
+  "sourceSelection": {
+    "method": "workflow_dispatch on Claude; immutable checkout in all four jobs",
+    "sourceCommit": "e999a5fdc98a42f5d1995ca85fdfa04479d7f77a",
+    "workflowCommit": "9319dc98176dcfd89dca3489569b1dbf23fd3ba4",
+    "allShellStepsAssertCheckout": true,
+    "temporarySourcePinRestoredAfterDelivery": true
+  },
+  "delivery": {
+    "workflow": ".github/workflows/retroarch-delivery.yml",
+    "run": 39458674086,
+    "result": "success",
+    "gate": ".github/diagnostics/psprelaunch497_delivery.py",
+    "jobs": [
+      {
+        "name": "native",
+        "job": 118752112175,
+        "result": "success",
+        "started": "2026-10-20T16:34:53Z",
+        "completed": "2026-10-20T16:35:34Z"
+      },
+      {
+        "name": "checks",
+        "job": 118752112432,
+        "result": "success",
+        "started": "2026-10-20T16:34:49Z",
+        "completed": "2026-10-20T16:35:25Z"
+      },
+      {
+        "name": "Release device build \u2022 cold",
+        "job": 118752519961,
+        "result": "success",
+        "started": "2026-10-20T16:35:41Z",
+        "completed": "2026-10-20T16:48:09Z"
+      },
+      {
+        "name": "Release device build \u2022 warm",
+        "job": 118758828517,
+        "result": "skipped",
+        "started": "2026-10-20T16:48:09Z",
+        "completed": "2026-10-20T16:48:09Z"
+      }
+    ],
+    "toolchain": {
+      "xcode": "Xcode 26.3\nBuild version 17C529",
+      "sdk": "26.2",
+      "flutter": "3.47.2",
+      "macOS": "15.7.9"
+    },
+    "recipient": "build-utils/delivery-497-recipient.pem",
+    "artifact": {
+      "id": 12281544881,
+      "name": "NeoStation-Build-497-e999a5fdc98a42f5d1995ca85fdfa04479d7f77a-cold",
+      "zipBytes": 168428445,
+      "zipSHA256": "41ff22a7c7d986ea22d111ea26784c8374755f481270e3ab49a551e66ec07bcf",
+      "expiresAt": "2026-11-03T16:47:56Z",
+      "format": "AES-256-CBC PBKDF2 200000; RSA OAEP SHA256"
+    }
+  },
+  "ipa": {
+    "file": "NeoStation-Build497-PSP-HD.ipa",
+    "bytes": 168217798,
+    "sha256": "3481881ea6f880595f736b7bebfed240def38887bae69f5972e9a420c81f58eb",
+    "equalTo": [
+      "SHA256SUMS",
+      "signed-payload-identity.json",
+      "final-structure.json"
+    ],
+    "machOImages": 75,
+    "verifiedAdHocSignatures": 78,
+    "allCompiledCodeAndDataSectionsUnchangedBySigning": true,
+    "abiMetadataUnchangedBySigning": true,
+    "architecture": "arm64",
+    "platform": "iPhoneOS",
+    "appAndFiveExtensionsVersion": "0.0.8 (497)",
+    "sideStoreAppleReSigningRequired": true
+  },
+  "finalFileInspection": {
+    "zipIntegrity": "passed",
+    "catalogueByteIdenticalToBothFrozenManifests": true,
+    "pspPayloadFingerprintEqualsTestedCorePackage": true,
+    "libretroBridgeManagedMemoryExportsPresent": true,
+    "coreCount": 35,
+    "otherCorePayloadsIdenticalTo496": 34,
+    "workflowAndSourceCommitsIndependentlyVerified": true
+  },
+  "handover": {
+    "localFile": "NeoStation-Build497-PSP-HD.ipa",
+    "verifiedPCCopy": {
+      "path": "C:\\Users\\Coren\\Downloads\\NeoStation-Build497-PSP-HD.ipa",
+      "bytes": 168217798,
+      "sha256": "3481881ea6f880595f736b7bebfed240def38887bae69f5972e9a420c81f58eb"
+    },
+    "chatGPTLibrarySaved": false,
+    "chatGPTLibraryFailure": "hosted apps tools/list HTTP 403; no alternate Library mutation attempted",
+    "ephemeralPrivateKeyDestroyed": true
+  }
+}

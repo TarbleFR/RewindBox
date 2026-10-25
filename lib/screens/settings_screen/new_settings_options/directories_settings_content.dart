@@ -8,8 +8,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:external_folder_access/external_folder_access.dart';
 import 'package:neostation/services/retroarch_library_service.dart';
-import 'package:neostation/services/melonx_library_service.dart';
-import 'package:neostation/services/ios_shortcut_jit_launch_service.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/widgets/confirm_action_dialog.dart';
 import 'package:neostation/providers/file_provider.dart';
@@ -618,30 +616,6 @@ class DirectoriesSettingsContentState
     }
   }
 
-  Future<void> _syncWithMeloNX() async {
-    final opened = await MelonxLibraryService.requestLibrarySync();
-    if (!mounted) return;
-    AppNotification.showNotification(
-      context,
-      opened
-          ? AppLocale.iosMelonxSyncRequested.getString(context)
-          : AppLocale.iosMelonxUnavailable.getString(context),
-      type: opened ? NotificationType.info : NotificationType.error,
-    );
-  }
-
-  Future<void> _configureMeloNXLaunch() async {
-    final opened =
-        await IosShortcutJitLaunchService.openMeloNXShortcutInstaller();
-    if (!mounted || opened) return;
-
-    AppNotification.showNotification(
-      context,
-      AppLocale.shortcutSetupOpenError.getString(context),
-      type: NotificationType.error,
-    );
-  }
-
   List<Widget> _iosEmulatorCards(ThemeData theme) {
     if (!Platform.isIOS) return const [];
 
@@ -649,7 +623,6 @@ class DirectoriesSettingsContentState
       _buildIOSRetroArchSection(theme),
       // ARMSX2 is embedded and manages its own Files-visible storage from the
       // PS2 library import menu; the retired external-link card stays hidden.
-      _buildIOSMeloNXSection(theme),
     ];
   }
 
@@ -688,63 +661,6 @@ class DirectoriesSettingsContentState
             style: TextStyle(fontSize: 14.r),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildIOSMeloNXSection(ThemeData theme) {
-    final hasSynced = MelonxLibraryService.hasSyncedLibrary;
-
-    final statusText = hasSynced
-        ? AppLocale.iosMelonxStatusSynced.getString(context)
-        : AppLocale.iosMelonxStatusNeedsSync.getString(context);
-
-    return _buildIOSEmulatorCard(
-      theme: theme,
-      name: 'MeloNX',
-      icon: Symbols.videogame_asset_rounded,
-      statusText: statusText,
-      isLinked: hasSynced,
-      bookmarkKey: 'melonx-library-sync',
-      successMessage: '',
-      showLinkButton: false,
-      trailingAction: Row(
-        children: [
-          Expanded(
-            child: SizedBox(
-              height: 48.r,
-              child: FilledButton.icon(
-                onPressed: _syncWithMeloNX,
-                icon: Icon(Symbols.bolt_rounded, size: 20.r),
-                label: Text(
-                  hasSynced
-                      ? AppLocale.iosEmuResync.getString(context)
-                      : AppLocale.iosEmuSync.getString(context),
-                  style: TextStyle(fontSize: 14.r),
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 10.r),
-          Expanded(
-            child: SizedBox(
-              height: 48.r,
-              child: OutlinedButton.icon(
-                onPressed:
-                    IosShortcutJitLaunchService.hasMeloNXShortcutInstaller
-                    ? _configureMeloNXLaunch
-                    : null,
-                icon: Icon(Symbols.rocket_launch_rounded, size: 20.r),
-                label: Text(
-                  AppLocale.configureLaunch.getString(context),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13.r),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

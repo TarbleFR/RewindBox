@@ -1,10 +1,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:material_symbols_icons/symbols.dart';
+import '../../../../l10n/game_box_locale.dart';
 import '../../../../models/system_model.dart';
 import '../../../../models/game_model.dart';
 import '../../../../providers/file_provider.dart';
+import '../../../../services/game_box/game_box_media.dart';
 import '../../../../themes/corner_radii.dart';
+import '../../../../widgets/game_box/game_box_card.dart';
+import '../../../../widgets/game_box/game_box_library.dart';
 
 class GameDetailsBox2dTab extends StatefulWidget {
   final SystemModel system;
@@ -16,12 +21,17 @@ class GameDetailsBox2dTab extends StatefulWidget {
   /// copy this widget already holds.
   final int imageVersion;
 
+  /// Opens the box viewer. With it, the box is drawn in 3D like in the
+  /// carousel and the grid (docs/game-box-3d.md § 3); a tap opens the viewer.
+  final VoidCallback? onInspectBox;
+
   const GameDetailsBox2dTab({
     super.key,
     required this.system,
     required this.game,
     required this.fileProvider,
     this.imageVersion = 0,
+    this.onInspectBox,
   });
 
   @override
@@ -87,6 +97,59 @@ class _GameDetailsBox2dTabState extends State<GameDetailsBox2dTab> {
     super.dispose();
   }
 
+  /// The game's 3D box, at rest; a tap (or the 360° badge) opens the viewer.
+  Widget _box3d(String frontPath) {
+    final systemId = widget.system.id ?? widget.game.systemId;
+    GameBoxLibrary.ensureProfile(systemId, () {
+      if (mounted) setState(() {});
+    });
+    final folder = widget.system.primaryFolderName;
+    return Positioned(
+      left: 18.r,
+      right: 18.r,
+      top: 46.r,
+      bottom: 104.r,
+      child: Semantics(
+        button: true,
+        label: GameBoxLocale.text(context, GameBoxLocale.inspect),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onInspectBox,
+          child: Stack(children: [
+            Positioned.fill(
+              child: GameBoxCard(
+                key: ValueKey('details_box3d_${widget.game.romname}_v${widget.imageVersion}'),
+                frontPath: frontPath,
+                title: widget.game.name,
+                systemId: systemId,
+                spinePath: GameBoxLibrary.mediaPath(
+                  widget.game,
+                  folder,
+                  GameBoxMediaFolders.spine,
+                  widget.fileProvider,
+                  artworkVersion: widget.imageVersion,
+                ),
+                decodeWidth: 768,
+              ),
+            ),
+            Positioned(
+              right: 8.r,
+              bottom: 8.r,
+              child: Container(
+                padding: EdgeInsets.all(5.r),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Symbols.threed_rotation_rounded, size: 15.r, color: Colors.white),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final imageSystemFolder = widget.system.primaryFolderName;
@@ -96,6 +159,10 @@ class _GameDetailsBox2dTabState extends State<GameDetailsBox2dTab> {
       widget.fileProvider,
     );
     final box2dExists = File(box2dPath).existsSync();
+
+    if (box2dExists && widget.onInspectBox != null) {
+      return _box3d(box2dPath);
+    }
 
     if (box2dExists) {
       _loadImageAspectRatio(box2dPath);

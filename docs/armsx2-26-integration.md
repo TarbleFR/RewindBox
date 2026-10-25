@@ -54,7 +54,7 @@ prépare un dossier provisoire. L’installation ne devient visible qu’après 
 extraction réussie contenant des presets. Elle conserve stages, includes et
 textures et ne remplace pas un pack déjà utilisé par le moteur.
 
-L’ABI C passe à 6 : un ancien cœur est rejeté explicitement. Les nouveaux appels
+L’ABI C passe à 6 (puis à 7 avec la Build 482, qui ajoute la précision du blending ; voir `docs/build482-ps2-blending-ps3-ram.md`) : un ancien cœur est rejeté explicitement. Les nouveaux appels
 exposent le catalogue, le choix du shader, les niveaux d’OSD et l’installation du
 pack. Les écritures par jeu utilisent une transaction INI et un seul reload sur
 le thread CPU possédé par ARMSX2. La compilation du shader appartient au thread

@@ -1,0 +1,142 @@
+{
+ "build": 485,
+ "version": "0.0.8 (485)",
+ "result": "delivered",
+ "deliverySource": "85a28e9013eaf7613da0338b4bc44f5ab7268f10",
+ "deliveryRun": 39182252832,
+ "jobs": {
+  "checks": "success",
+  "native": "success",
+  "Release device build • cold": "success",
+  "Release device build • warm": "skipped"
+ },
+ "closure": ".github/diagnostics/hdtex485_delivery.py",
+ "testedSource": "587a9d9dc3a52cd613388abc73150f034474910a",
+ "coreSource": "1343906f05e33b40f10f7026a1a6e2327c338d0e",
+ "proofs": {
+  "armsx2Core": {
+   "run": 39178893158,
+   "source": "1343906f05e33b40f10f7026a1a6e2327c338d0e",
+   "jobs": {
+    "Compile pinned ARMSX2 iOS framework": 117827242395,
+    "Verify ARMSX2 Graphics menu and host ABI": 117827242154
+   },
+   "revision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+   "abi": 8,
+   "coreSHA256": "65df97dd253eca2d08bcf638e5fd2de40000579483d4321f585ef7d266319779",
+   "artifact": {
+    "id": 12155939578,
+    "bytes": 14060684
+   }
+  },
+  "targeted": {
+   "run": 39181081216,
+   "job": 117833762591,
+   "source": "587a9d9dc3a52cd613388abc73150f034474910a",
+   "coreToTestedChanges": [
+    "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec",
+    "test/build485_targeted_test.py"
+   ]
+  }
+ },
+ "deliveredBaseline": {
+  "build": 484,
+  "source": "e76f40b77fb45e8ce23f161d5d4f4b0dd6fbf3f3",
+  "run": 39177384518
+ },
+ "coreRebuilt": "ARMSX2 only (ABI 8); every other engine, core and helper reused by identity",
+ "corePins": {
+  "armsx2": {
+   "source": "1343906f05e33b40f10f7026a1a6e2327c338d0e",
+   "run": 39178893158
+  },
+  "rpcs3": {
+   "source": "1b4f65e2067823a518034ef1ee1ba06a5b5abe09",
+   "run": 39163125594
+  },
+  "dolphinCoreHost": "ae7d46f90dff64ce698b8c18e0c12510dbae96fe",
+  "dusklight": {
+   "source": "899d3c44f8f465c8da0d93c763817ffca519c00c",
+   "run": 37641472546
+  },
+  "libretroCores": {
+   "source": "c3408821b2b9c47c6e31ae25b45c113aa9fd3f74",
+   "run": 39081741396,
+   "count": 34
+  }
+ },
+ "xcodeBuildSeconds": 270.91,
+ "signatureAndExportSeconds": 48.11,
+ "toolchain": {
+  "xcode": "26.3 (17C529)",
+  "iphoneSDK": "26.2",
+  "flutter": "3.47.2",
+  "macOS": "15.7.9"
+ },
+ "encryptedArtifact": {
+  "id": 12157440577,
+  "name": "NeoStation-Build-485-85a28e9013eaf7613da0338b4bc44f5ab7268f10-cold",
+  "bytes": 227849117,
+  "zipSHA256": "660a1b7c7c7f19bc3d8cf9e9fdf635957f5196ea4ccf7e51e0a8314c8677c92a",
+  "expires": "2026-11-02T00:58:15Z",
+  "recipient": "build-utils/delivery-424-recipient.pem"
+ },
+ "sealedIpa": {
+  "name": "NeoStation-Build485-85a28e9013eaf7613da0338b4bc44f5ab7268f10-cold.ipa",
+  "bytes": 227624632,
+  "sha256": "e0d04987a1dcf6ce74f807edde5096975012ec0480b8e0495ae0c9867eaf522c",
+  "matches": [
+   "SHA256SUMS",
+   "signed-payload-identity.json"
+  ],
+  "windowsCopy": "C:\\Users\\Coren\\Downloads\\NeoStation-Build485-85a28e90.ipa",
+  "windowsCopySHA256Verified": true
+ },
+ "independentInspection": {
+  "bundleVersions": "host and five extensions 0.0.8 (485), read from the binary Info.plist files",
+  "imagesComparedWithBuild483": {
+   "total": 78,
+   "identical": 72,
+   "changed": [
+    "Runner",
+    "armsx2_internal_bridge",
+    "dolphin_internal_bridge",
+    "rpcs3_internal_bridge",
+    "ARMSX2Core"
+   ],
+   "new": [
+    "neo_touch_layout"
+   ],
+   "note": "dolphin/rpcs3 bridges and neo_touch_layout come from Build 484 (touch editor); the Build 485 product diff touches neither (source closure). Build 484's decrypted records were not on the PC, so 483 is the binary reference."
+  },
+  "markersPresentIn485AbsentIn483": {
+   "ARMSX2Core": [
+    "budgetReached",
+    "astcTextures"
+   ],
+   "armsx2_internal_bridge": [
+    "NeoStation-texture-pack.json",
+    ".neostation-import-",
+    "NeoStation-textures.json",
+    "textureSetEnabled"
+   ],
+   "App.framework": [
+    "textureSetEnabled",
+    "textureInstall",
+    "armsx2-hd-textures-toggle"
+   ]
+  },
+  "unchangedImages": "34 libretro cores, libRPCS3Core, DolphinCore, DusklightCore, MoltenVK, StikJIT, KartPad, five extensions and every other plugin: identical code/data fingerprints to Build 483"
+ },
+ "deviceInstallationTested": false,
+ "deviceGameplayValidated": false,
+ "hdTexturesRenderedInGame": false,
+ "sideStoreResigningRequired": true,
+ "publicRelease": false,
+ "mainUpdated": false,
+ "receiptSHA256": {
+  "docs/evidence/ps2blend482-delivery.json": "e9cb832b045d96c2bfdfc93ec3a50cdd861863ddf4219cc3afb3f7833c7c7d34",
+  "docs/evidence/llvmpipe483-delivery.json": "76ceca52fd3eec20ee415e6912b6b258f8bf184d03738d7140d5625dc0e6c683",
+  "docs/evidence/touch484-delivery.json": "62f034b88a840d64f6857cc0af1ac8a5927f5960ff3a64c9b6d23364cbcd5b7a"
+ }
+}

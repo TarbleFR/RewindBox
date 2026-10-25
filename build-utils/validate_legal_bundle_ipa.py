@@ -6,10 +6,19 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 import zipfile
 from pathlib import Path
 
-from embed_legal_bundle import REQUIRED_LEGAL_FILES, validate_libretro_notices
+sys.dont_write_bytecode = True
+from collect_build_source_evidence import validate_archive as validate_source_archive
+
+from embed_legal_bundle import (
+    REQUIRED_LEGAL_FILES,
+    validate_additional_notices,
+    validate_libretro_notices,
+    ROOT,
+)
 
 REQUIRED = (
     "NeoStation-NOTICE.md",
@@ -57,6 +66,14 @@ def main() -> None:
             if hashlib.sha256(archive.read(member)).hexdigest() != digest:
                 raise SystemExit(f"Changed packaged Libretro notice: {name}")
 
+        additional = validate_additional_notices()
+        for name, (_, digest) in additional.items():
+            member = prefix + name
+            if names.count(member) != 1:
+                raise SystemExit(f"Missing or duplicate additional notice: {name}")
+            if hashlib.sha256(archive.read(member)).hexdigest() != digest:
+                raise SystemExit(f"Changed packaged additional notice: {name}")
+
         identity = json.loads(
             archive.read(prefix + "BUILD_SOURCE_IDENTITY.json").decode("utf-8")
         )
@@ -68,6 +85,17 @@ def main() -> None:
             raise SystemExit(
                 f"Legal identity commit mismatch: {identity['host_commit']}"
             )
+        if identity.get("additional_notice_sha256") != {
+            name: digest for name, (_, digest) in additional.items()
+        }:
+            raise SystemExit("Additional notice identity differs from packaged sources")
+
+        validate_source_archive(archive, names, prefix, args.commit, ROOT)
+        source_manifest = archive.read(prefix + "Sources/BUILD_SOURCE_EVIDENCE.json")
+        if hashlib.sha256(source_manifest).hexdigest() != identity.get("build_source_evidence_sha256"):
+            raise SystemExit("Build source evidence differs from the legal identity")
+        if json.loads(source_manifest)["cocoapods"]["status"] != identity.get("cocoapods_resolution_status"):
+            raise SystemExit("CocoaPods source status differs from the legal identity")
 
         notice = archive.read(prefix + "NeoStation-NOTICE.md").decode("utf-8")
         if "UPSTREAM NEOSTATION ATTRIBUTION" not in notice:
@@ -78,8 +106,6 @@ def main() -> None:
             "Dolphin / DolphiniOS",
             "RPCS3 / XITRIX",
             "ARMSX2 / PCSX2",
-            "Dusklight",
-            "KartPad / WiiCompiled",
             "StikJIT",
             "GameDB / GameDB-PS3",
         ):

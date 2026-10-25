@@ -1,8 +1,8 @@
 {
   "date": "2026-10-21",
   "application": "RewindBox",
-  "base": "bcca4e4a4dc89a96b1dde05d66436af54efd327e",
-  "branch": "main",
+  "base": "08103f719d72f97f16f184ba1e367711ab6c19fe",
+  "branch": "Claude",
   "scope": "Branding only; no merge of unreleased development into main",
   "validation": "Targeted branding, baseline hashes, 12-language labels, generated localization snapshots, RPCS3 IPA validator fixtures, Python/JSON/plist/JavaScript syntax and diff whitespace",
   "not_run": [

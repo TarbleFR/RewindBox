@@ -1,0 +1,465 @@
+{
+  "date": "2026-10-20",
+  "baseline_commit": "6b0a905c9d506d45ea8a02393055e56f0caa2e6a",
+  "baseline_revision": "2026-10-20.212eb2401253",
+  "catalogue_revision": "2026-10-20.809cfd2df68f",
+  "manifest_sha256": "23e9115a721e87b54c5ae71388e4f89308a12e09d26c750b18e8302794274049",
+  "runtime_entries_before": 1050,
+  "runtime_entries_after": 1072,
+  "new_runtime_references": 22,
+  "new_verified_installable_families": 8,
+  "new_manual_rar_references": 3,
+  "new_page_only_unverified_references": 11,
+  "counts_before": {
+    "gc": {
+      "distinct": 76,
+      "entries": 101,
+      "variants": 25,
+      "complete": 52,
+      "partial": 8,
+      "ui": 16,
+      "oneTapFamilies": 23,
+      "manualVerifiedFamilies": 53,
+      "games": 53
+    },
+    "wii": {
+      "distinct": 39,
+      "entries": 60,
+      "variants": 21,
+      "complete": 23,
+      "partial": 4,
+      "ui": 12,
+      "oneTapFamilies": 14,
+      "manualVerifiedFamilies": 25,
+      "games": 30
+    },
+    "3ds": {
+      "distinct": 37,
+      "entries": 43,
+      "variants": 6,
+      "complete": 16,
+      "partial": 7,
+      "ui": 14,
+      "oneTapFamilies": 11,
+      "manualVerifiedFamilies": 26,
+      "games": 45
+    },
+    "psp": {
+      "distinct": 82,
+      "entries": 96,
+      "variants": 14,
+      "complete": 62,
+      "partial": 7,
+      "ui": 13,
+      "oneTapFamilies": 56,
+      "manualVerifiedFamilies": 26,
+      "games": 97
+    },
+    "ps2": {
+      "distinct": 34,
+      "entries": 46,
+      "variants": 12,
+      "complete": 26,
+      "partial": 1,
+      "ui": 7,
+      "oneTapFamilies": 33,
+      "manualVerifiedFamilies": 1,
+      "games": 45
+    },
+    "n64": {
+      "distinct": 14,
+      "entries": 21,
+      "variants": 7,
+      "complete": 12,
+      "partial": 2,
+      "ui": 0,
+      "oneTapFamilies": 14,
+      "manualVerifiedFamilies": 0,
+      "games": 11
+    },
+    "ps1": {
+      "distinct": 2,
+      "entries": 2,
+      "variants": 0,
+      "complete": 1,
+      "partial": 1,
+      "ui": 0,
+      "oneTapFamilies": 2,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "nes": {
+      "distinct": 5,
+      "entries": 5,
+      "variants": 0,
+      "complete": 5,
+      "partial": 0,
+      "ui": 0,
+      "oneTapFamilies": 5,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "total": {
+      "distinct": 287,
+      "entries": 369,
+      "variants": 82,
+      "complete": 195,
+      "partial": 30,
+      "ui": 62,
+      "oneTapFamilies": 156,
+      "manualVerifiedFamilies": 131,
+      "games": 285
+    }
+  },
+  "counts_after": {
+    "gc": {
+      "distinct": 76,
+      "entries": 101,
+      "variants": 25,
+      "complete": 52,
+      "partial": 8,
+      "ui": 16,
+      "oneTapFamilies": 23,
+      "manualVerifiedFamilies": 53,
+      "games": 53
+    },
+    "wii": {
+      "distinct": 41,
+      "entries": 62,
+      "variants": 21,
+      "complete": 23,
+      "partial": 5,
+      "ui": 13,
+      "oneTapFamilies": 14,
+      "manualVerifiedFamilies": 27,
+      "games": 31
+    },
+    "3ds": {
+      "distinct": 42,
+      "entries": 48,
+      "variants": 6,
+      "complete": 16,
+      "partial": 12,
+      "ui": 14,
+      "oneTapFamilies": 11,
+      "manualVerifiedFamilies": 31,
+      "games": 50
+    },
+    "psp": {
+      "distinct": 83,
+      "entries": 97,
+      "variants": 14,
+      "complete": 62,
+      "partial": 8,
+      "ui": 13,
+      "oneTapFamilies": 56,
+      "manualVerifiedFamilies": 27,
+      "games": 97
+    },
+    "ps2": {
+      "distinct": 34,
+      "entries": 46,
+      "variants": 12,
+      "complete": 26,
+      "partial": 1,
+      "ui": 7,
+      "oneTapFamilies": 33,
+      "manualVerifiedFamilies": 1,
+      "games": 45
+    },
+    "n64": {
+      "distinct": 14,
+      "entries": 21,
+      "variants": 7,
+      "complete": 12,
+      "partial": 2,
+      "ui": 0,
+      "oneTapFamilies": 14,
+      "manualVerifiedFamilies": 0,
+      "games": 11
+    },
+    "ps1": {
+      "distinct": 2,
+      "entries": 2,
+      "variants": 0,
+      "complete": 1,
+      "partial": 1,
+      "ui": 0,
+      "oneTapFamilies": 2,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "nes": {
+      "distinct": 5,
+      "entries": 5,
+      "variants": 0,
+      "complete": 5,
+      "partial": 0,
+      "ui": 0,
+      "oneTapFamilies": 5,
+      "manualVerifiedFamilies": 0,
+      "games": 4
+    },
+    "total": {
+      "distinct": 295,
+      "entries": 377,
+      "variants": 82,
+      "complete": 195,
+      "partial": 37,
+      "ui": 63,
+      "oneTapFamilies": 156,
+      "manualVerifiedFamilies": 139,
+      "games": 291
+    }
+  },
+  "checks": {
+    "builder_schema_and_freshness": "passed",
+    "all_baseline_pack_objects_unchanged": true,
+    "hosted_and_bundled_manifest_byte_identical": true,
+    "new_ci_records_exact_match_real_artifact_json": 26,
+    "rar_probe_records_exact_match_except_transient_final_url": 3,
+    "artifact_zip_digests_match_github_metadata": 9,
+    "switch_runtime_entries": 0,
+    "native_or_core_source_files_changed": 0,
+    "device_rendering_validated": false,
+    "ipa_built": false,
+    "github_release_published": false
+  },
+  "verification_statuses": {
+    "protected": 11,
+    "gone": 2,
+    "ok": 9,
+    "html": 1,
+    "unsupportedArchive": 3
+  },
+  "artifacts": [
+    {
+      "id": 12256085212,
+      "name": "hdtex-hosts-psp-39401863622",
+      "digest": "sha256:903090a32a1f5c440a9458b9b284d96ebce4243fd31bb097d61e32f53d24c0a2",
+      "size_in_bytes": 730,
+      "created_at": "2026-10-20T09:38:42Z",
+      "expires_at": "2026-11-03T09:38:41Z"
+    },
+    {
+      "id": 12256080679,
+      "name": "hdtex-hosts-3ds-39401863622",
+      "digest": "sha256:df23d6fe1bb5664bc0c59ba11743c5da5d53df73dcdbd66b81d33f2a2365377b",
+      "size_in_bytes": 973,
+      "created_at": "2026-10-20T09:40:26Z",
+      "expires_at": "2026-11-03T09:40:25Z"
+    },
+    {
+      "id": 12255590200,
+      "name": "hdtex-hosts-dolphin-39401863622",
+      "digest": "sha256:6a558d75f87cc53ad2e4be0ed2d06338af16e5cf8a94b41cb51d60036786bea8",
+      "size_in_bytes": 389,
+      "created_at": "2026-10-20T09:37:33Z",
+      "expires_at": "2026-11-03T09:37:32Z"
+    },
+    {
+      "id": 12255711919,
+      "name": "hdtex-hosts-3ds-39403154413",
+      "digest": "sha256:11de43cf100af4f612f763f01ec8aef46e6e0cb26fa1efa2a9c91a0b3b3dafa9",
+      "size_in_bytes": 1018,
+      "created_at": "2026-10-20T09:50:07Z",
+      "expires_at": "2026-11-03T09:50:06Z"
+    },
+    {
+      "id": 12255667092,
+      "name": "hdtex-hosts-psp-39403154413",
+      "digest": "sha256:7920d0030771f29d7d13f88ec2e5d78453508ac96922bf39479386072a302e0a",
+      "size_in_bytes": 481,
+      "created_at": "2026-10-20T09:50:42Z",
+      "expires_at": "2026-11-03T09:50:41Z"
+    },
+    {
+      "id": 12255427191,
+      "name": "hdtex-hosts-dolphin-39403154413",
+      "digest": "sha256:a3e8b4ea607a46f65bf08ae1a4385400324802ff041bd43c3306507e4ee149d9",
+      "size_in_bytes": 959,
+      "created_at": "2026-10-20T09:49:28Z",
+      "expires_at": "2026-11-03T09:49:27Z"
+    },
+    {
+      "id": 12255188171,
+      "name": "hdtex-hosts-3ds-39403548138",
+      "digest": "sha256:310609d7fb2f1b55854f2125f0bde7007860104ba7b984da5fb59664a75682cc",
+      "size_in_bytes": 713,
+      "created_at": "2026-10-20T09:54:17Z",
+      "expires_at": "2026-11-03T09:54:17Z"
+    },
+    {
+      "id": 12255557816,
+      "name": "hdtex-hosts-dolphin-39403837549",
+      "digest": "sha256:3ef9814850adb5ea7d13621ab39efdecad70b36d9ba361273a2d1c34f5d0f169",
+      "size_in_bytes": 289,
+      "created_at": "2026-10-20T09:55:06Z",
+      "expires_at": "2026-11-03T09:55:05Z"
+    },
+    {
+      "id": 12256687666,
+      "name": "hdtex-research-39403843636",
+      "digest": "sha256:79aeb7e31fa8caf032a30db0f0f80eb51082fa5d1ef832f34b059559d1a5f20a",
+      "size_in_bytes": 1413,
+      "created_at": "2026-10-20T09:53:56Z",
+      "expires_at": "2026-11-03T09:53:56Z"
+    }
+  ],
+  "new_entries": [
+    {
+      "id": "gc-fe-por-upscaled-thattextureguy",
+      "system": "gc",
+      "title": "Fire Emblem: Path of Radiance 4x (ThatTextureGuy)",
+      "page_url": "https://feuniverse.us/t/fe9-high-resolution-texture-pack-for-dolphin/6057",
+      "verified_file": false
+    },
+    {
+      "id": "gc-fe-por-hd-appleboi",
+      "system": "gc",
+      "title": "Fire Emblem: Path of Radiance HD (AppleBoi)",
+      "page_url": "https://forums.serenesforest.net/topic/93389-fe-por-hd-texture-pack/",
+      "verified_file": false
+    },
+    {
+      "id": "gc-fe-por-hd-panda-venom",
+      "system": "gc",
+      "title": "Fire Emblem: Path of Radiance HD (Panda_Venom)",
+      "page_url": "https://gbatemp.net/threads/gc-fire-emblem-path-of-radiance-usa-hd-textures.655722/",
+      "verified_file": false
+    },
+    {
+      "id": "gc-naruto-gnt4-hd-chris-margroff",
+      "system": "gc",
+      "title": "Naruto: Gekitou Ninja Taisen! 4 — HD UI / English",
+      "page_url": "https://gitlab.com/sora3087/ninja",
+      "verified_file": false
+    },
+    {
+      "id": "gc-lotr-return-king-the128rebits",
+      "system": "gc",
+      "title": "The Lord of the Rings: The Return of the King HD (Lite)",
+      "page_url": "https://www.gamefront.com/games/the-lord-of-the-rings-the-return-of-the-king/file/the-lord-of-the-rings-the-return-of-the-king-hd-textures-for-dolphin-lite",
+      "verified_file": false
+    },
+    {
+      "id": "gc-lotr-two-towers-the128rebits",
+      "system": "gc",
+      "title": "The Lord of the Rings: The Two Towers HD (Lite)",
+      "page_url": "https://www.gamefront.com/games/the-lord-of-the-rings-the-two-towers/file/the-lord-of-the-rings-the-two-towers-hd-textures-for-dolphin-lite",
+      "verified_file": false
+    },
+    {
+      "id": "wii-ms-sensen-0079-hd-png-callofcthuloo",
+      "system": "wii",
+      "title": "Mobile Suit Gundam: MS Sensen 0079 HD (PNG)",
+      "page_url": "https://gbatemp.net/threads/wii-mobile-suit-gundam-ms-sensen-0079-ntsc-j-hd-texture-pack-upscale.683779/",
+      "verified_file": false
+    },
+    {
+      "id": "wii-nsmbw-hd-title-tjshah",
+      "system": "wii",
+      "title": "New Super Mario Bros. Wii — custom HD title",
+      "page_url": "https://gamebanana.com/mods/417752",
+      "verified_file": true
+    },
+    {
+      "id": "wii-fit-plus-hd-gmans626",
+      "system": "wii",
+      "title": "Wii Fit Plus HD (WIP)",
+      "page_url": "https://gamebanana.com/wips/93626",
+      "verified_file": true
+    },
+    {
+      "id": "psp-300-hd-huekage",
+      "system": "psp",
+      "title": "300: March to Glory HD (Huekage)",
+      "page_url": "https://gbatemp.net/threads/psp-hd-textures-pack-300-march-to-glory-ulus10241-ntsc-ules00766-pal.684196/",
+      "verified_file": false
+    },
+    {
+      "id": "psp-megpoid-hd-english-gui-natspectrum",
+      "system": "psp",
+      "title": "Megpoid the Music♯ — HD English GUI",
+      "page_url": "https://natspectrum.itch.io/megpoid-the-music-hd-english-gui-texture-pack",
+      "verified_file": false
+    },
+    {
+      "id": "psp-swbf2-pc-ps2-textures-biotes",
+      "system": "psp",
+      "title": "Star Wars: Battlefront II — PC/PS2 texture port",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=42436",
+      "verified_file": true
+    },
+    {
+      "id": "psp-yugioh-tag-force2-spanish-brahian",
+      "system": "psp",
+      "title": "Yu-Gi-Oh! GX Tag Force 2 — HD Spanish",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=42180",
+      "verified_file": false
+    },
+    {
+      "id": "3ds-fantasy-life-4x-lttim",
+      "system": "3ds",
+      "title": "Fantasy Life — 4x textures (LtTim)",
+      "page_url": "https://web.archive.org/web/20240229193556/https://community.citra-emu.org/t/fantasy-life-hd-texture-pack-wip-03-07-20/183853",
+      "verified_file": true
+    },
+    {
+      "id": "3ds-fantasy-life-hd-ui-kapila",
+      "system": "3ds",
+      "title": "Fantasy Life — HD UI 0.5",
+      "page_url": "https://web.archive.org/web/20240229193556/https://community.citra-emu.org/t/fantasy-life-hd-texture-pack-wip-03-07-20/183853",
+      "verified_file": false
+    },
+    {
+      "id": "3ds-fe-awakening-aahd-p1-l498",
+      "system": "3ds",
+      "title": "Fire Emblem Awakening — Amateur Awakening HD (P1)",
+      "page_url": "https://gamebanana.com/mods/400809",
+      "verified_file": true
+    },
+    {
+      "id": "3ds-fe-echoes-hd-mikeyx",
+      "system": "3ds",
+      "title": "Fire Emblem Echoes: Shadows of Valentia HD (mikeyX)",
+      "page_url": "https://gamebanana.com/mods/506672",
+      "verified_file": false
+    },
+    {
+      "id": "3ds-fe-fates-combined-character-artwork",
+      "system": "3ds",
+      "title": "Fire Emblem Fates — Combined HD Pack (character artwork)",
+      "page_url": "https://gamebanana.com/mods/351105",
+      "verified_file": true
+    },
+    {
+      "id": "3ds-radiant-historia-serbagz",
+      "system": "3ds",
+      "title": "Radiant Historia: Perfect Chronology HD (+extras)",
+      "page_url": "https://gamebanana.com/mods/373806",
+      "verified_file": false
+    },
+    {
+      "id": "3ds-devil-survivor-overclocked-kierk",
+      "system": "3ds",
+      "title": "Shin Megami Tensei: Devil Survivor Overclocked HD",
+      "page_url": "https://web.archive.org/web/20240301170348/https://community.citra-emu.org/t/smt-devil-survivor-overclocked-hd-texture-pack/449665/",
+      "verified_file": false
+    },
+    {
+      "id": "3ds-smt-strange-journey-merkava",
+      "system": "3ds",
+      "title": "Shin Megami Tensei: Strange Journey Redux HD",
+      "page_url": "https://www.reddit.com/r/Megaten/comments/1b99gzf/smt_strange_journey_hd_texture_pack/",
+      "verified_file": true
+    },
+    {
+      "id": "3ds-sonipro-hd-cybertokyo",
+      "system": "3ds",
+      "title": "SoniPro HD Texture Pack (WIP)",
+      "page_url": "https://gamebanana.com/mods/712346",
+      "verified_file": true
+    }
+  ]
+}

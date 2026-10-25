@@ -1,10 +1,12 @@
+import 'playlist_import_button.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../l10n/libretro_locale.dart';
+import '../l10n/texture_catalog_locale.dart';
+import '../services/texture_catalog_service.dart';
 import '../models/system_model.dart';
 import '../screens/libretro/libretro_library_actions.dart';
 import '../screens/libretro/libretro_skin_manager_screen.dart';
@@ -109,8 +111,23 @@ class _LibretroInternalPlaylistActionsState
     }
   }
 
+  // Build 486: the console's HD textures page (PSP, 3DS; N64 since its catalogue).
+  Future<void> _openTextures() async {
+    _interaction(true);
+    try {
+      final opened = await TextureCatalogService.openConsole(widget.system.folderName, consoleKey: widget.systemFolder);
+      if (!opened && mounted) _notice(TextureCatalogLocale.text(Localizations.localeOf(context), 'openFailed'));
+    } finally {
+      if (mounted) _interaction(false);
+    }
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
+    if (action == 'textures') {
+      await _openTextures();
+      return;
+    }
     if (action == 'skins') {
       await _openSkins();
       return;
@@ -180,48 +197,36 @@ class _LibretroInternalPlaylistActionsState
   Widget build(BuildContext context) {
     // The embedded engine runs on iOS only (the platform Flutter reports, so
     // a widget test can stand in for an iPhone).
-    if (defaultTargetPlatform != TargetPlatform.iOS) return const SizedBox.shrink();
-    final scheme = Theme.of(context).colorScheme;
-    final button = SizedBox(
-      width: 36.r,
-      height: 36.r,
-      child: PopupMenuButton<String>(
-        key: const ValueKey('libretro-internal-import-menu'),
-        tooltip: _t('importMenu'),
-        enabled: !_busy,
-        padding: EdgeInsets.zero,
-        onOpened: () => _interaction(true),
-        onCanceled: () => _interaction(false),
-        onSelected: _selected,
-        icon: _busy
-            ? SizedBox(
-                width: 18.r,
-                height: 18.r,
-                child: const CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(
-                Icons.file_upload_outlined,
-                size: 18.r,
-                color: widget.embedded ? scheme.onSurface : scheme.onTertiaryFixed,
+    if (defaultTargetPlatform != TargetPlatform.iOS)
+      return const SizedBox.shrink();
+    return PlaylistImportButton(
+      menuKey: const ValueKey('libretro-internal-import-menu'),
+      tooltip: _t('importMenu'),
+      busy: _busy,
+      embedded: widget.embedded,
+      onOpened: () => _interaction(true),
+      onCanceled: () => _interaction(false),
+      onSelected: _selected,
+      items: (context) => [
+        PopupMenuItem(value: 'games', child: Text(_t('importGames'))),
+        // The 3DS reads its BIOS and system files from its own import
+        // (Azahar, Citra, Lime3DS user folder, GodMode9 dump, ZIP).
+        if (_console == _console3ds)
+          PopupMenuItem(value: 'system3ds', child: Text(_t('import3dsSystem'))),
+        PopupMenuItem(value: 'retroarch', child: Text(_t('importRetroArch'))),
+        if (_console != null)
+          PopupMenuItem(value: 'skins', child: Text(_t('skins'))),
+        if (TextureCatalogService.supports(widget.systemFolder))
+          PopupMenuItem(
+            value: 'textures',
+            child: Text(
+              TextureCatalogLocale.text(
+                Localizations.localeOf(context),
+                'menuTitle',
               ),
-        itemBuilder: (context) => [
-          PopupMenuItem(value: 'games', child: Text(_t('importGames'))),
-          // The 3DS reads its BIOS and system files from its own import
-          // (Azahar, Citra, Lime3DS user folder, GodMode9 dump, ZIP).
-          if (_console == _console3ds)
-            PopupMenuItem(value: 'system3ds', child: Text(_t('import3dsSystem'))),
-          PopupMenuItem(value: 'retroarch', child: Text(_t('importRetroArch'))),
-          if (_console != null)
-            PopupMenuItem(value: 'skins', child: Text(_t('skins'))),
-        ],
-      ),
-    );
-    if (widget.embedded) return button;
-    return Material(
-      color: scheme.tertiaryFixed,
-      borderRadius: BorderRadius.circular(10.r),
-      elevation: 2,
-      child: button,
+            ),
+          ),
+      ],
     );
   }
 }

@@ -1,0 +1,2234 @@
+Libretro common source notices used by PPSSPP's makefile
+
+These notices come from the explicit libretro-common C source inputs of
+libretro/Makefile.common at the PPSSPP revision below. File-specific licenses
+and author statements remain authoritative.
+
+
+=== libretro/libretro-common/compat/compat_posix_string.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (compat_posix_string.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+=== libretro/libretro-common/compat/fopen_utf8.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (fopen_utf8.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+=== libretro/libretro-common/compat/compat_strl.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (compat_strl.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+=== libretro/libretro-common/encodings/encoding_utf.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (encoding_utf.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* Windows 95 will return 0 from these functions with
+    * a UTF8 codepage set without MSLU.
+    *
+    * From an unknown MSDN version (others omit this info):
+    *   - CP_UTF8 Windows 98/Me, Windows NT 4.0 and later:
+    *   Translate using UTF-8. When this is set, dwFlags must be zero.
+    *   - Windows 95: Under the Microsoft Layer for Unicode,
+    *   MultiByteToWideChar also supports CP_UTF7 and CP_UTF8.
+    */
+
+=== libretro/libretro-common/file/file_path.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (file_path.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/**
+ * path_get_archive_delim:
+ * @path               : path
+ *
+ * Find delimiter of an archive file. Only the first '#'
+ * after a compression extension is considered.
+ *
+ * @return pointer to the delimiter in the path if it contains
+ * a path inside a compressed file, otherwise NULL.
+ **/
+
+/* Find delimiter position
+    * > Since filenames may contain '#' characters,
+    *   must loop until we find the first '#' that
+    *   is directly *after* a compression extension */
+
+/**
+ * fill_pathname_join_delim:
+ * @s                  : output path
+ * @dir                : directory
+ * @path               : path
+ * @delim              : delimiter
+ * @len                : size of output path
+ *
+ * Joins a directory (@dir) and path (@path) together
+ * using the given delimiter (@delim).
+ **/
+
+=== libretro/libretro-common/file/file_path_io.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (file_path_io.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+=== libretro/libretro-common/streams/file_stream.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (file_stream.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* MSVC-style "I" size prefix: I64 -> __int64 (==int64_t), I32
+       * -> 32-bit (==int), I alone -> ptrdiff_t / size_t.  This is a
+       * Microsoft extension some libretro core authors use on
+       * older MSVC toolchains that predate full C99 %lld support. */
+
+/* Scan one integer conversion. `base` is 0 for %i (auto-detect),
+ * else the explicit base (8/10/16). Returns chars consumed, or
+ * -1 on parse failure. On success, advances *pp.
+ *
+ * Width handling: a width of 0 from sp->width means "unlimited" — we
+ * normalize that to INT_MAX up front so every subsequent comparison
+ * is a single check (no special-casing of "<= 0 means unbounded"
+ * which broke when width was legitimately consumed down to 0 by
+ * the sign/0x prefix). */
+
+/* base autodetect / optional 0x prefix.
+    * Note: sscanf's "%x" / "%i" treat "0x" with no following hex
+    * digit as a successful match of the value 0, consuming the
+    * "0x" (2 chars). We mirror that by counting the leading "0"
+    * as our first digit when we commit to base 16 via "0x". */
+
+/* Wide-char scanf primitive.  `mode` selects the variant:
+ *   's' — skip ws, read non-ws wide chars until ws/width/end; NUL-terminate
+ *   'c' — read exactly width wide chars (default 1); no ws skip; no NUL
+ *   '[' — read wide chars while scanset matches; NUL-terminate
+ *
+ * Multibyte input is decoded as UTF-8 via libretro-common's stateless
+ * utf8_walk(); this avoids any dependency on the host libc's
+ * mbrtowc/mbstate_t (absent in DJGPP and other older toolchains) and
+ * gives the same behavior across platforms. The lead byte's UTF-8
+ * width is checked against the buffer's NUL boundary before walking
+ * so truncated input never reads past the terminator. */
+
+/* Read in a loop rather than trusting a single call to satisfy the
+    * whole request.  A read is permitted to come up short and try
+    * again: fread() loops internally so the buffered path always did
+    * return the full count, but a descriptor-backed one - which is
+    * what the hint above now selects - hands back whatever read(2)
+    * gave it, and a frontend-supplied VFS may do anything at all.
+    * The single call this replaces then returned a buffer holding
+    * fewer bytes than the file, with nothing to distinguish it from a
+    * complete read of a shorter file.
+    *
+    * Requests are capped so no single read exceeds what a platform's
+    * count argument can express: read(2) takes a size_t on POSIX but
+    * _read() takes an unsigned int on Windows and returns int, so a
+    * >2 GiB request there fails outright instead of coming up short.
+    *
+    * A genuinely short *file* - one truncated between the size query
+    * and the read - still succeeds with the byte count it had, which
+    * is what this function has always done. */
+
+=== libretro/libretro-common/streams/file_stream_transforms.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+*
+* ---------------------------------------------------------------------------------------
+* The following license statement only applies to this file (file_stream_transforms.c).
+* ---------------------------------------------------------------------------------------
+*
+* Permission is hereby granted, free of charge,
+* to any person obtaining a copy of this software and associated documentation files (the "Software"),
+* to deal in the Software without restriction, including without limitation the rights to
+* use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+* and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+* INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+=== libretro/libretro-common/string/rstrtod.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (rstrtod.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* The public entry points are ordinary functions, but inside the TU the
+ * scan is folded into them: the parse result then lives in registers
+ * instead of taking a trip through a stack struct that char reads
+ * cannot be reordered around. A hint is not enough at this size, so the
+ * GNU attribute is used where it exists; elsewhere this is an ordinary
+ * static function and everything still works, just with a call. */
+
+=== libretro/libretro-common/vfs/vfs_implementation.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+*
+* ---------------------------------------------------------------------------------------
+* The following license statement only applies to this file (vfs_implementation.c).
+* ---------------------------------------------------------------------------------------
+*
+* Permission is hereby granted, free of charge,
+* to any person obtaining a copy of this software and associated documentation files (the "Software"),
+* to deal in the Software without restriction, including without limitation the rights to
+* use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+* and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+* INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+* WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+* OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+/* copy_file_range() through syscall(): the glibc wrapper is only
+ * declared under _GNU_SOURCE, which standalone consumers of this file
+ * need not define, and the raw syscall number has been in the kernel
+ * headers since 4.5.  Define VFS_COPY_NO_FASTPATH to force the
+ * portable loop (used by the samples to test that path on a host
+ * that would otherwise never take it). */
+
+/* 64-bit seek on the buffered path.
+ *
+ * The existing ladder asked for _fseeki64 only under ATLEAST_VC2005
+ * (an _MSC_VER test, so never true for MinGW) and otherwise for
+ * fseeko under HAVE_64BIT_OFFSETS, whose POSIX feature macros no
+ * Windows toolchain defines by itself.  A MinGW build that did not
+ * happen to pass -D_FILE_OFFSET_BITS=64 therefore fell all the way
+ * through to fseek(fp, (long)offset, whence) and could not seek a
+ * stream past 2 GiB - the same failure as the descriptor path, in the
+ * path callers reach without asking for any hint at all.  Measured on
+ * an unfixed tree, both Windows targets: size -1073741824, seeks
+ * failing, tell reporting the truncation.
+ *
+ * Windows tiers, widest provenance last:
+ *
+ *   _fseeki64      MSVC 2005 and up, and MinGW/MinGW-w64, which
+ *                  declare it and import it from msvcrt.
+ *   fgetpos/       C89, in every CRT that has ever existed, including
+ *   fsetpos        the 2002 Xbox one - and on Windows fpos_t is a
+ *                  64-bit scalar (__int64) rather than the struct the
+ *                  standard permits, so it carries the whole range.
+ *                  This is the tier VC6 and the Xbox XDK land on.
+ *                  SEEK_END needs a length, taken from the handle
+ *                  with GetFileSize rather than from a CRT call, for
+ *                  the same reason SetFilePointer was chosen below.
+ *   fseek          Anything else: unchanged behaviour, with an
+ *                  unrepresentable offset refused rather than
+ *                  silently truncated.
+ */
+
+/* The pieces of winioctl.h that retro_vfs_file_punch_hole_impl needs,
+ * declared here rather than by including that header.
+ *
+ * winioctl.h defines the storage class GUIDs, and in a unity build --
+ * griffin.c, where this file is compiled alongside the D3D headers that
+ * set INITGUID -- those definitions collide with the ones already emitted
+ * in the same translation unit, which is twenty-odd C2374 "redefinition;
+ * multiple initialization" errors on MSVC. Nothing here needs a GUID.
+ *
+ * The two control codes are the documented CTL_CODE expansions:
+ *   FSCTL_SET_SPARSE    = CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 49, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+ *   FSCTL_SET_ZERO_DATA = CTL_CODE(FILE_DEVICE_FILE_SYSTEM, 50, METHOD_BUFFERED, FILE_WRITE_DATA)
+ * They carry their own names so a translation unit that also sees
+ * winioctl.h holds one definition of each. */
+
+/* fallocate() sits behind _GNU_SOURCE in glibc (it is gated on __USE_GNU),
+ * so whether it is *declared* depends on the consumer's feature-test
+ * macros rather than on anything this file controls.  <linux/falloc.h>
+ * supplies FALLOC_FL_PUNCH_HOLE either way, so testing the flag alone
+ * leaves a consumer that does not define _GNU_SOURCE calling an
+ * undeclared function -- a warning today, an error on stricter
+ * compilers, and wrong argument passing for the off_t pair on 32-bit.
+ * Require the declaration too, and fall through to the unsupported
+ * path when it is absent. uClibc declares it only from uClibc-ng 1.0
+ * on, and only with its Linux-specific API enabled. */
+
+/* Gate on the hint as well as the pointer, matching the read and
+    * seek paths: those consult 'mapped' only under the hint, so the
+    * map is authoritative for the file contents only when the hint
+    * put it there. */
+
+/* ---- copy: begin / step / close --------------------------------------
+ *
+ * A copy is a resumable state machine that the caller advances.  There
+ * is no thread in here and no lock: begin() does the up-front checks
+ * and opens both ends, step() moves at most the bytes it was asked to
+ * and returns, close() releases everything and removes a partial dst.
+ * Whoever wants the transfer off their own thread (RetroArch's task
+ * queue, a core's worker) makes that decision, not the VFS.
+ *
+ * Memory: the handle, its two path strings, the two open files, and on
+ * the portable path one transfer buffer (1 MiB, 64 KiB if that
+ * allocation fails).  The Linux path moves bytes with copy_file_range
+ * at explicit offsets, so it needs no buffer at all and resumes exactly
+ * where the last step stopped.  On APFS a same-volume copy is a
+ * clonefile() in begin(): O(1), no bytes move, step() reports DONE.
+ *
+ * Speed: with a large budget a step is the same kernel primitive a
+ * blocking copy would issue, so throughput is that of the primitive;
+ * with a small budget it is bounded latency.  The caller picks. */
+
+/* Unpaired surrogate: utf16_conv_utf8() stops at one, and NTFS
+    * permits them in names.  WideCharToMultiByte() substitutes U+FFFD
+    * and carries on, so fall back to it rather than hand back a name
+    * truncated at the bad unit.  Rare enough that the allocation this
+    * costs does not matter. */
+
+=== libretro/libretro-common/encodings/encoding_crc32.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (encoding_crc32.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* Baseline does not, but the toolchain can build the instructions into
+ * one function without raising the ISA for the translation unit, so
+ * compile them in and choose at runtime.  This is the common case: of
+ * everything in tree only Makefile.libnx passes +crc explicitly and
+ * arm64 macOS gets it from the compiler default, so without this
+ * branch Android, Linux ARM, iOS and tvOS would take the table path
+ * despite having the instructions.  Whether they get it is a property
+ * of the compiler, not the target: NDK r27c (clang 18) compiles this
+ * branch in for aarch64-linux-android, an older clang fails the
+ * predicate below and falls back.
+ *
+ * The version predicates are about the ACLE header, not codegen:
+ * target("crc") lets the compiler emit the instructions, but __crc32b()
+ * and friends still have to be declared.  GCC's aarch64 arm_acle.h has
+ * declared them behind '#pragma GCC target ("+nothing+crc")' since GCC 8.
+ * Clang gated them on __ARM_FEATURE_CRC32 alone through 15.x, which a
+ * plain armv8-a baseline does not set, so older clang fails on
+ * -Werror=implicit-function-declaration; 16.x added '|| __ARM_64BIT_STATE'.
+ * Apple numbers __clang_major__ its own way, so this also drops Xcode 15
+ * to the table path, which is the safe direction. */
+
+/* Being on x86 is necessary but not sufficient: the toolchain also has
+ * to be able to build the intrinsics.  Prefer the feature tests, and
+ * never fall back on a bare __GNUC__ version comparison -- Clang
+ * reports itself as GCC 4.2 forever, so a ">= 4.4" predicate rejects
+ * every Clang build, which is every Apple, Android NDK, Emscripten and
+ * PS4 toolchain.  The version fallback below carries !__clang__ for
+ * that reason and exists only for GCC old enough to lack
+ * __has_attribute. */
+
+=== libretro/libretro-common/encodings/encoding_deflate.c ===
+
+/* Copyright  (C) 2010-2024 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (encoding_deflate.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* ---------------- adler32 (RFC 1950), shared by both halves --------------
+ *
+ * Both the inflate and the deflate side of this file need adler32 over a
+ * byte range, so the kernel lives here rather than being written twice.
+ *
+ * The textbook loop is
+ *
+ *    for each byte:  a += *buf++;  b += a;
+ *
+ * whose b += a carries a serial dependency across every single byte.  Over
+ * a block of N bytes the same result is
+ *
+ *    a' = a + SUM(x[j])
+ *    b' = b + N*a + SUM((N-j)*x[j])
+ *
+ * two independent reductions with constant weights, which is the form that
+ * vectorises.  Accumulating across blocks rather than per block keeps even
+ * the N*a term out of the loop: with vs1 the running SUM of bytes, vps the
+ * running SUM of vs1 sampled before each block, and vs2 the running SUM of
+ * the per-block weighted sums, after K blocks of 16
+ *
+ *    a' = a + SUM(vs1)
+ *    b' = b + 16*K*a + 16*SUM(vps) + SUM(vs2)
+ *
+ * so the loop body is three vector adds and no cross-iteration scalar work
+ * at all.
+ *
+ * This is written by hand rather than left to the auto-vectoriser, which
+ * cannot be relied on for it: GCC takes the shape in one of the two
+ * adler32 sites in this file and declines the byte-identical other one
+ * ("loop nest containing two or more consecutive inner loops cannot be
+ * vectorized"), and clang declines both at -O2 and -O3.  Doing it
+ * explicitly also buys what the vectoriser will not reach for - psadbw
+ * for the unweighted sum, where the generic form pays an unpack and a
+ * pmaddwd instead.
+ *
+ * RD_ADLER_NMAX is the classic 5552 - the largest run for which b cannot
+ * overflow 32 bits - and every intermediate above stays inside it too.
+ * Worst case is 5552 bytes of 0xff seeded at the largest legal adler
+ * (a = b = 65520), which is 347 blocks of 16:
+ *
+ *    16*SUM(vps)  0xE994_8100   (the binding term)
+ *    16*K*a         363767040
+ *    SUM(vs2)        12033960
+ *    b                  65520
+ *    -------------------------
+ *    total        0xFFFB_C598   of 0xFFFF_FFFF, 277095 to spare
+ *
+ * so do not raise NMAX.  ktest covers exactly this input. */
+
+/* no SIMD: same decomposition, 32 bytes at a time.
+         *
+         * In its own function rather than inline in rd_adler_run: inline,
+         * the group loop and the byte tail read as two consecutive inner
+         * loops, a nest GCC's vectoriser refuses outright, so it would be
+         * emitted scalar on targets whose intrinsics are simply not
+         * covered above.  Correct either way. */
+
+/* left > 0 means incomplete; permitted only in degenerate cases,
+       * zlib accepts them for the distance table, so we allow it. */
+
+/* The fixed tables are the same two tables every time - RFC 1951 states
+ * their code lengths outright - so a stream that emits a run of fixed
+ * blocks was rebuilding identical content per block.  One PNG in a
+ * libretro core's asset set drove 28 of them, and each rebuild is two
+ * rinf_build calls, the most expensive thing in the decoder outside the
+ * symbol loop.  Skip it when lencode/distcode already hold them; a
+ * dynamic block clears the flag when it builds over them. */
+
+/* emit a byte to the output + window, updating adler */
+
+/* Append the output produced since the last commit, out[wcur..out_pos),
+ * to the ring window, so back-references into it still resolve once the
+ * caller binds another output buffer.  Called once per process()
+ * invocation rather than per byte; a caller may keep one buffer bound
+ * across many calls, so only the new bytes go in. */
+
+/* zran-style indexed access primitives: report deflate block
+ * boundaries, tell the exact input bit position, and start a resumed
+ * stream part-way into its first byte. Together with
+ * rinflate_set_dictionary these are the whole toolkit an index
+ * builder/extractor needs. */
+
+/* The output guard reserves the longest match plus the
+                * copy over-run pad: the inlined copies below write in
+                * whole 8- or 16-byte steps and may run up to 15 bytes
+                * past the match end.  Those bytes lie beyond out_pos,
+                * so they are scratch - either rewritten by later output
+                * or beyond the produced length entirely.  The margin in
+                * the careful path's hand-back check must stay equal to
+                * this one: a larger value there would re-enter a loop
+                * whose own guard immediately fails, bouncing control
+                * between the two paths without progress. */
+
+/* Literal chain: after one refill the buffer holds at
+                   * least 48 bits, and every packed literal costs at
+                   * most 15, so several literals can be emitted before
+                   * the next refill.  bitcnt >= 15 before each lookup
+                   * guarantees the entry's code length is covered; the
+                   * output side is covered by the loop guard's 258+16
+                   * reserve, which no chain can outrun (a literal code
+                   * is at least one bit, so at most 47 emissions). */
+
+/* Not enough buffered bits for the extra-bits
+                         * and distance group without a refill the loop
+                         * guard may no longer permit; park the decoded
+                         * symbol in the careful path's resume state and
+                         * let it finish this one group. */
+
+/* Clean-room RFC 1951 (DEFLATE) / RFC 1950 (zlib) deflate.
+ * Non-blocking, resumable, in the style of image_transfer.
+ *
+ * Strategy: this is a single-pass streaming compressor.  It buffers input
+ * into a 32 KiB-window-plus-lookahead history, finds matches with hash
+ * chains + lazy evaluation, accumulates a block's worth of symbols, then
+ * emits the block with whichever of stored / fixed / dynamic Huffman is
+ * smallest.  Output is produced through a bit writer that can suspend when
+ * the caller's output buffer fills. */
+
+/* start of the not-yet-emitted region             */
+
+/* emit state machine (for suspendable block output) */
+
+/* next symbol index to emit within the block    */
+
+/* is the block being emitted the last one       */
+
+/* Accumulate n bits (n <= 32) into the bit buffer.  This never suspends: the
+ * 64-bit buffer always has room for one symbol's worth of bits between
+ * flushes.  We opportunistically drain whole bytes when the buffer gets
+ * full enough that another putbits could overflow, but ignore a full output
+ * here -- the emit loop flushes explicitly at symbol boundaries where a
+ * suspend can be cleanly resumed. */
+
+/* store reversed, ready to emit */
+
+/* ------- emit accumulated symbols as one fixed-Huffman block ------- */
+
+/* returns 0 if suspended (output full), 1 when the whole block is written.
+ * emit_phase and an index cursor let us resume. */
+
+/* Emit one symbol (literal or match) with the fixed Huffman codes.
+ * Returns 0 if the output filled (suspend), 1 on success. */
+
+/* Emit the accumulated block using fixed Huffman.  Suspendable via
+ * emit_phase / sym_cursor.  Phases:
+ *   0 = write block header (BFINAL + BTYPE=01)
+ *   1 = write symbols[sym_cursor..]
+ *   2 = write end-of-block (256)
+ *   3 = done
+ */
+
+/* Each symbol emits at most ~48 bits (6 bytes); keeping an 8-byte
+       * output margin lets us emit and drain without per-byte bounds checks.
+       * When the margin is gone, fall back to the careful path so we can
+       * suspend cleanly at a symbol boundary. */
+
+/* longer match here: emit pos-1 as literal, defer this one */
+
+/* ------- stored (uncompressed) block emitter ------- */
+
+/* Emits win[block_start .. pos) as one or more stored blocks. Suspendable. */
+
+/* ------- length-limited Huffman code lengths -------
+ * Optimal prefix-code lengths for the given frequencies, capped at max_bits,
+ * always yielding a complete (Kraft-exact) code.  Builds a Huffman tree by
+ * repeated lowest-weight sibling merges, reads off depths, then repairs any
+ * over-long codes with a Kraft-sum redistribution. */
+
+/* emit the literal length once, then 16-repeats for the rest */
+
+/* emit one symbol using the dynamic tables */
+
+/* Emit the dynamic block. Phases:
+ * 0 hdr, 1 HLIT/HDIST/HCLEN, 2 CL lengths, 3 RLE stream, 4 symbols, 5 EOB */
+
+/* Choose whether the current block should be stored or fixed-Huffman, then
+ * emit it.  Returns 0 if suspended, 1 when fully emitted. */
+
+/* decide once, before we start emitting (emit_phase 0) */
+
+/* RFC 1952: ID1 ID2 CM FLG MTIME[4] XFL OS.  No optional fields,
+       * no mtime (0 means "not available"), OS 255 "unknown" - the same
+       * minimal header zlib emits when it is not given a gz_header. */
+
+/* We only emit once we know the block is complete: either the symbol
+    * buffer is full, the window is full, or input has finished. */
+
+/* Resume emitting a block that was mid-output */
+
+/* Block fully emitted: reset for next block */
+
+/* decide if a block is ready to emit */
+
+=== libretro/libretro-common/encodings/encoding_huffman.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (encoding_huffman.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* The symbol loop below is rhuff_dec_decode_one with the bit cache
+    * held in locals: same refill, same clamp, same unmapped-pattern
+    * handling (latch overflow, consume one bit, emit zero), with the
+    * consumed-bit accounting summed once at the end instead of a
+    * 64-bit compare per symbol. One symbol per output byte makes the
+    * per-call bookkeeping the dominant cost at hunk sizes, and this
+    * loop is the only place that decodes symbols in bulk. */
+
+=== libretro/libretro-common/encodings/encoding_rzstd.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (encoding_rzstd.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* Zstandard, written against RFC 8878.
+ *
+ * Every constant here traces to a clause of that document rather than
+ * to a reading of the reference implementation. Where the RFC gives a
+ * table, the table is reproduced; where it gives a rule, the rule is
+ * spelled out in a comment beside the code that applies it.
+ *
+ * ---------------------------------------------------------------------
+ * STATE OF THIS FILE
+ *
+ * Decoding works and is verified. Seven hundred frames taken from
+ * Zstandard-compressed disc images decode byte-for-byte against the
+ * reference implementation, covering both the raw and Huffman literal
+ * forms, predefined and FSE-coded sequence tables, and the streams a
+ * CD-framed hunk holds on both its halves. Corrupted frames decode
+ * without an ASan or UBSan fault.
+ *
+ * Encoding works. Three thousand inputs round-trip, and every frame is
+ * accepted by the reference implementation as well as by this decoder.
+ * It compresses within a small factor of the reference at level 3 --
+ * 1.1 to 1.2 times its output on file data and on long runs, wider on
+ * highly structured input where an optimal parse pays off -- which is
+ * the trade the design makes: one hash, no chain, no lazy matching,
+ * raw literals and the predefined sequence tables.
+ *
+ * Built and verified:
+ *
+ *   Frame header (3.1.1.1)      magic, descriptor byte, window
+ *                               descriptor and its base-plus-eighths
+ *                               encoding, dictionary ID field, frame
+ *                               content size in all four widths
+ *                               including the two-byte form's bias of
+ *                               256, and the single-segment case where
+ *                               the content size doubles as the window.
+ *   Blocks (3.1.1.2)            raw, RLE and compressed.
+ *   Reverse bitstream (4)       the backwards, MSB-first reader the
+ *                               entropy streams use, and the padding
+ *                               marker in the final byte.
+ *   FSE (4.1)                   normalised-count parsing and table
+ *                               construction.
+ *   Huffman (4.2)               weights in both the direct four-bit and
+ *                               FSE-coded forms, the conversion to a
+ *                               table, and one-stream and four-stream
+ *                               literal decoding.
+ *   Literals (3.1.1.3.1)        raw, RLE, Huffman and treeless.
+ *   Sequences (3.1.1.3.2)       the three tables in predefined, RLE,
+ *                               FSE and repeat modes.
+ *   Execution (3.1.1.4)         the copies, the three repeated offsets,
+ *                               and the shift in their meaning when a
+ *                               sequence has no literals.
+ *
+ * Not built:
+ *
+ *   Checksum                    a frame's XXH64 is skipped, not
+ *                               verified. A caller expecting a stated
+ *                               checksum to be checked does not get
+ *                               that.
+ *   Huffman literal encoding    literals are emitted raw. Legal, and
+ *                               costs ratio.
+ *   Encoder refinements         one hash with no chain, so only the
+ *                               most recent candidate at a position is
+ *                               tried; no lazy matching; no optimal
+ *                               parse; no repeated offsets. Each would
+ *                               narrow the gap to the reference.
+
+ *
+ * Deliberately excluded rather than pending:
+ *
+ *   Dictionaries                no format this tree reads uses one, and
+ *                               a frame requiring one is refused rather
+ *                               than decoded to something that looks
+ *                               like data.
+ *
+ * Why this exists at all, given that a vendored Zstandard already
+ * works: including <zstd.h> costs C89 conformance -- it declares
+ * long long -- so formats/chd/rchd.c cannot both read a Zstandard
+ * image and stay within the standard this tree targets. That is a
+ * reason for rchd to use this and not a reason for anything else to.
+ *
+ * MEASURED AGAINST THE REFERENCE IMPLEMENTATION
+ *
+ * Decoding, on whole Zstandard-compressed disc images read through
+ * formats/chd/rchd.c, which is what this exists for:
+ *
+ *   539 MB/s against 179, on an image of 2048-byte hunks
+ *   111 MB/s against  79, on a CD image of one frame per hunk
+ *    71 MB/s against  59, on another
+ *
+ * and 2.7 to 3.1 times its throughput on those frames alone.
+ *
+ * A frame here is a hunk, so two to twenty kilobytes. At that size a
+ * decoder is judged largely on what it does before it decodes
+ * anything, and the reference carries machinery this does not need: a
+ * context to allocate, a dictionary that is never present, a window
+ * that is always the whole frame.
+ *
+ * It reverses on a large frame. On four megabytes of sequence-heavy
+ * input this runs at about half the reference's speed, where its
+ * assembly and its scheduling tell. By workload on such frames: 2.0x
+ * on many short matches, 1.5x on long runs, 0.7x on stored blocks
+ * where both are memcpy, and 0.5x on sequence-heavy input.
+ *
+ * How the large-frame figures were reached, since each was a
+ * measurement rather than a guess: the match copy went a byte at a
+ * time and was six times slower than the reference until it was
+ * widened; the bit reader was forty-five per cent of the remainder in
+ * checks for bits its callers had already established; the four
+ * literal streams were decoded one after another when they exist to be
+ * decoded together; each sequence read its three table entries three
+ * times over; and the loop asked seven questions per sequence where
+ * the reference asks one and keeps a separate careful path for the end
+ * of a block.
+ *
+ * Encoding is slower and compresses worse: about a third of the
+ * reference's throughput on large input and rather better than that on
+ * small, where the match tables are sized to what the input can use, and output 1.1x its size on file data, 3.1x
+ * on synthetic structured data, 3.6x on data shaped like an input
+ * replay, and 0.8x on long runs of one value, where it wins. That
+ * replay figure decides where the encoder may be used, a replay payload
+ * being what the only caller that compresses compresses, and 3.6x is
+ * still too much to replace it.
+ *
+ * So this is the right decoder for rchd on both counts -- it needs
+ * C89, which <zstd.h> denies it, and it is faster at the frame sizes a
+ * disc image holds. It is not a replacement for the reference
+ * elsewhere: the encoder is not good enough and the streaming
+ * interface the header describes is not built.
+ * ---------------------------------------------------------------------
+ */
+
+/* The ranks are counted here, by the loops that produce the
+    * weights, rather than by a second walk over them in the build.
+    * Emitting is a serial chain -- state to table to state -- and the
+    * count rides in its shadow; the build's own histogram pass was an
+    * eighth of reading a literal tree. */
+
+/* The stream does not say how many weights it holds. It ends when
+       * updating a state would need more bits than remain, at which
+       * point both states still hold one symbol each and both are
+       * emitted (4.2.1.2). So the check is on the update, not on the
+       * symbol, and two symbols follow the loop rather than one. */
+
+/* -------- the counting-free reader --------
+ *
+ * The four-stream literal decode is limited by how much it must hold
+ * live: a buffer, a count and a cursor for each of four streams, plus
+ * four output positions. That is more than the register file has, and
+ * the emitted code spills.
+ *
+ * The count is what can be dropped. A load sets bit zero as a marker
+ * and consuming shifts left, so the marker's position is the number of
+ * bits consumed and trailing zeros recover it. Four counts disappear.
+ *
+ * Two invariants make it safe. Reads take the top eleven bits only, so
+ * nothing below bit fifty-three is ever read and the marker cannot be
+ * mistaken for data. And at most five symbols pass between reloads --
+ * fifty-five bits at the widest code -- so the marker stays inside the
+ * word.
+ */
+
+/* Five bytes wanted, eight written: the loop stops
+                      * four short of each stream's end, so the three
+                      * extra land inside the next round's five and are
+                      * overwritten by it. The last round writes into the
+                      * tail the counting reader below fills in. */
+
+/* The three predefined tables (3.1.1.3.2.2), spelled out rather than
+ * built on first use. They are constants of the format, and building
+ * them lazily left two threads racing on the ready flag and on the
+ * table contents -- a real hazard on weakly ordered machines, where a
+ * reader can observe the flag before the entries. The initialisers
+ * were emitted by the same rzstd_fse_build that used to fill them at
+ * run time, from the same default distributions, and byte-compare
+ * equal to what it builds. */
+
+/* One test decides whether this sequence needs any further ones.
+       *
+       * Everything the two copies require is checked together: room to
+       * overrun the output, room to read past the literals, enough
+       * literals left, and a match reaching no further back than the
+       * output goes. The limits are loop-invariant and hoisted, so this
+       * is three compares against registers and the copies that follow
+       * test nothing at all.
+       *
+       * The careful path repeats the checks singly and copies narrowly.
+       * It runs at the end of a block and on anything malformed, which
+       * is where that cost belongs. Doing it per sequence instead --
+       * seven tests where three do -- is what the reference avoids by
+       * splitting the two apart, and it costs more than any instruction
+       * choice inside the loop. */
+
+/* -------- encoding --------
+ *
+ * One caller compresses -- input replay payloads -- so this is sized
+ * for that and not for competing with the reference implementation's
+ * ratio. What it must do is produce frames any conforming decoder
+ * reads.
+ *
+ * Matches are found by hashing four bytes and walking a chain of
+ * candidates for the longest, which is where most of the ratio comes
+ * from. There is no lazy matching and no optimal parse. Literals go out
+ * raw rather than Huffman coded, and the sequence tables are the
+ * predefined ones, which between them cost some ratio and remove the
+ * need to build and transmit tables at all.
+ */
+
+/* -------- writing bits --------
+ *
+ * The decoder reads a stream from its last byte backwards, so the
+ * writer runs the other way: bits accumulate at increasing positions
+ * and whole bytes flush forward, which puts what was written last into
+ * the bytes read first. Everything the decoder wants first must
+ * therefore be written last, and that is why sequences are emitted in
+ * reverse order below.
+ */
+
+/* The largest a block may be, which is what the decoder accepts and
+ * twice what this used to emit. A match cannot cross a block boundary,
+ * so a smaller block simply forgets everything it has seen every time
+ * it starts one. */
+
+/* Whether a match may reach back past the block it is in, into the
+ * whole frame. On a memory image that is where most matches are -
+ * the same offset in a page written a megabyte earlier - and taking
+ * them is worth a sixth of the output; but every candidate that far
+ * back is a cache miss to read, and it makes the search three times
+ * slower. Levels below 5 keep the block-local search, which is what
+ * the replay checkpoints and the savestate writer run on the frame's
+ * time, and with it the predefined sequence tables and no weighing
+ * of short matches: those two are worth two percent on their own at
+ * a tenth of the speed, which is no trade at all, and only pay once
+ * the far matches are in. Levels 1 to 3 are the encoder as it was;
+ * 5 and up spend the time. */
+
+/* Bytes p and q agree on, up to limit: eight at a time where the
+ * platform reads unaligned words. */
+
+/* An offset is stored three higher than its distance, because 1 to 3
+ * are reserved for the recent-offset codes (3.1.1.4). This encoder
+ * never emits those, so every offset it writes is a literal distance. */
+
+/* Turns a distance into the value a sequence stores, naming one of the
+ * three remembered offsets when it can, and rotating the encoder's copy
+ * of that list exactly as the decoder will.
+ *
+ * A named offset costs a symbol and no extra bits; a distance costs the
+ * symbol plus its width, which is eleven bits at the distances this
+ * encoder was producing. Every sequence the reference emits on replay
+ * data names one, and none of mine did.
+ *
+ * The three codes mean different things depending on whether the
+ * sequence carries literals, and the list rotates for some of them and
+ * not others (3.1.1.4). Both are mirrored here rather than approximated,
+ * because an encoder whose idea of the list drifts from the decoder's
+ * produces a frame that decodes to something else entirely. */
+
+/* Emits one block as literals plus sequences, or reports that doing so
+ * would not be smaller than storing it. */
+
+/* -------- Huffman literals, encoder side --------
+ *
+ * A savestate's literals are most of its output, and they are bytes
+ * with a few bits of entropy each: stored raw they cost eight. This
+ * builds a length-limited Huffman code over the block's literals,
+ * transmits it as Zstandard weights - FSE-coded, or the direct form
+ * where the alphabet allows - and writes the literals as four
+ * streams, or one for a small block, in the layout rzstd_huf_decode()
+ * reads. The code assignment mirrors rzstd_huf_build(): slots by
+ * ascending weight, symbols in order within a weight, so what the
+ * decoder derives from the weights is what was used here. The tree
+ * as written is read back through rzstd_huf_read() before it is
+ * trusted; a tree that does not read back the same is not sent, and
+ * the literals go raw. */
+
+/* Sequence count, then a modes byte saying all three tables are the
+    * predefined ones, so none is transmitted. */
+
+/* Three FSE compression tables for rzstd_emit_block(), which used
+    * to hold them as locals - see the comment there.  Allocated with
+    * the match-finder scratch and freed with it. */
+
+=== libretro/libretro-common/formats/7z/r7z_lzma.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (r7z_lzma.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+=== libretro/libretro-common/formats/chd/rchd.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (rchd.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* Reader for MAME's CHD container. See FORMAT.md beside this file for
+ * the format description this is written against; every constant here
+ * traces to a measurement recorded there rather than to a reading of
+ * another implementation. The one exception is the framing of an A/V
+ * hunk's video bitstream, which FORMAT.md marks in place.
+ *
+ * No file I/O happens here. The decoder describes the byte ranges it
+ * needs and the caller supplies them, which is what lets one image be
+ * read from a task a few kilobytes at a time, from several fetches in
+ * flight, or from a plain blocking read, without the reader knowing
+ * which.
+ *
+ * ---------------------------------------------------------------------
+ * STATE OF THIS FILE
+ *
+ * Reading is complete for every image to hand. Fourteen commercial
+ * images spanning all five container versions decode hunk-for-hunk
+ * against an independent reader, including each image's final hunk.
+ * Nothing here writes.
+ *
+ * CONTAINER
+ *   Header               versions 1 to 5, including the geometry that
+ *                        versions 1 and 2 derive their size from rather
+ *                        than storing, and the unit size that nothing
+ *                        before version 5 records.
+ *   Maps                 all four forms: the packed 64-bit words of
+ *                        versions 1 and 2, the 16-byte entries of 3 and
+ *                        4 with their end-of-list cookie, and version
+ *                        5's flat array and Huffman-plus-RLE bitstream.
+ *   Metadata             the chain is walked at open and kept.
+ *   Tracks               CD and GD track tables, with each track padded
+ *                        to a four-frame boundary. A DVD image
+ *                        describes no tracks, so one standing for the
+ *                        whole image is made instead, marked
+ *                        synthesised.
+ *   Integrity            version 5's map CRC-16 and versions 3 and 4's
+ *                        per-hunk CRC-32 are checked.
+ *   ECC                  the Galois field tables a CD sector's parity
+ *                        needs are built once for the program, not per
+ *                        sector, as is the CRC-16 table the map check
+ *                        uses.
+ *
+ * CODECS  (each behind its own HAVE_RCHD_*, and absent means a hunk
+ *          using it is refused rather than mis-read)
+ *   none, zlib, lzma, huff, flac, zstd -- the last through rzstd
+ *   rather than the reference library, so that reading a Zstandard
+ *   image does not cost this file its C89 conformance
+ *   cdzl, cdlz, cdfl, cdzs   with the CD framing, ECC rebuild and
+ *                            subchannel interleave
+ *   avhu                     audio/video, and the same decoder serves
+ *                            compression enum 3 of versions below 5,
+ *                            which is the same codec under its earlier
+ *                            name. FLAC audio mode verified; the two
+ *                            older audio modes are written but have
+ *                            never run.
+ *
+ * ENTRY TYPES
+ *   compressed, uncompressed, mini, self-reference, parent-reference,
+ *   and version 5's hole-of-zeros, which is not an offset of zero.
+ *
+ * READING
+ *   By byte range, by hunk including a final hunk that is partly
+ *   padding, and by sector, where each sector is emitted at its own
+ *   track's size. Parent references chain through a bound parent.
+ *   One decoded hunk is cached.
+ *
+ * SUPPLYING BYTES
+ *   Requests are named by where they read from, so bytes can be
+ *   supplied out of order in principle. Borrowing avoids the copy
+ *   entirely for a caller that already holds the range.
+ *
+ * ---------------------------------------------------------------------
+ * NOT BUILT
+ *
+ *   Pipelined fetch      one request is outstanding at a time. The
+ *                        staging ring rchd_set_pipeline_depth() sizes
+ *                        does not exist, so a depth above one is
+ *                        refused rather than accepted and ignored.
+ *   avhu audio modes     the raw-delta and Huffman-delta modes are
+ *                        written but have never decoded a real stream:
+ *                        every hunk of the only A/V image to hand
+ *                        states FLAC. They are the audio the codec used
+ *                        before version 5 added FLAC, so an image from
+ *                        that era, or one converted from it, would
+ *                        settle both.
+ *   Pre-v5 A/V           compression enum 3 is accepted and decoded as
+ *                        avhu, on the argument that version 5 renamed
+ *                        the codec rather than replacing it. Untested:
+ *                        no image with that enum is to hand.
+ *   SHA-1 verification   the header's digests are parsed and exposed,
+ *                        never checked against the data. A caller that
+ *                        wants to know an image is intact has to do it.
+ *   Writing              nothing. No encoder, no repair, no conversion.
+ *   GD-ROM PAD field     a GD track carries a PAD the CD form does
+ *                        not. It describes the disc, not the file --
+ *                        placing tracks by it puts every track after
+ *                        the first at the wrong offset -- so it is
+ *                        read past. Whatever it is for, nothing here
+ *                        needs it. Decoding and track placement are
+ *                        verified on a GD image; anything that wants
+ *                        the disc geometry rather than the storage
+ *                        layout does not get it from here.
+ *
+ * ---------------------------------------------------------------------
+ */
+
+/* Container limits. A hunk is bounded by the format; the map and
+ * metadata bounds are ours, sized well above anything a real image
+ * carries, so a corrupt header cannot ask for an unbounded allocation. */
+
+/* A hunk count is stored rather than derived before version 5, so a
+ * corrupt one can name any number. The map is allocated from it, so it
+ * needs a bound of its own: this admits a 512 GiB image at the smallest
+ * plausible hunk size, well past anything real. */
+
+/* -------- codecs --------
+ *
+ * A hunk's compressed form is handed to whichever decoder its map entry
+ * names. The primitives all live elsewhere in this tree and are used as
+ * they are: nothing here wraps them beyond telling them what the
+ * container knows and they do not.
+ */
+
+/* GF(2^8) with primitive polynomial 0x11d, as ECMA-130 specifies.
+ *
+ * Built once for the program, not once per sector. The comment that
+ * stood here said "built once rather than carried as two 256-byte
+ * tables", which was the intent and not what the code did: the builder
+ * took the tables as arguments and every sector that needed its parity
+ * rebuilt filled them again. Five hundred and twelve iterations and
+ * five hundred and twelve bytes written, eight times a hunk.
+ *
+ * The construction is deterministic, so two threads racing to do it
+ * write the same bytes; the flag is an optimisation and being seen late
+ * costs a rebuild rather than correctness. */
+
+/* Sector data a track's type carries, which is not the 2352 a frame
+ * reserves for it unless the track is raw. A read addressed by sector
+ * emits each at its own track's size, so crossing a boundary gives what
+ * that track holds rather than a fixed stride. */
+
+/* =====================================================================
+ * Writing: uncompressed version 5
+ *
+ * No I/O here, for the same reason the decoder has none: the caller owns
+ * the destination. Bytes leave through a positioned-write callback, and
+ * the header and map -- which are only known once every hunk has landed
+ * -- are emitted at offset zero at the end.
+ *
+ * The layout follows what rchd_map_v5_raw reads: an uncompressed v5 map
+ * is a flat array of hunk INDICES, and a hunk's offset is index *
+ * hunk_bytes. So the file is a sequence of hunk-sized blocks, the header
+ * and map occupy the first few, and hunk data starts after them. Index
+ * zero is reserved -- the reader reads it as a hole rather than an
+ * offset -- which is also how an all-zero hunk is stored.
+ * ===================================================================== */
+
+=== libretro/libretro-common/formats/flac/rflac.c ===
+
+/* FLAC audio decoder. Choice of public domain or MIT-0. See license statements
+ * at the end of this file. rflac - v0.12.42 - 2023-11-02  David Reid -
+ * mackron@gmail.com  GitHub: https://github.com/mackron/dr_libs
+ *
+ * rflac is RetroArch's fork of dr_flac, trimmed and extended for this
+ * codebase. What it implements:
+ *
+ *  - Native (raw) FLAC streams as specified by RFC 9639: all bit depths
+ *    from 4 to 32 bits per sample, including the 32-bit extension with
+ *    its 33-bit stereo difference channels; mono through 8 channels; all
+ *    subframe types (CONSTANT, VERBATIM, FIXED, LPC) and both residual
+ *    coding methods (RICE and RICE2), including escaped partitions.
+ *  - Frame CRC-8 and CRC-16 verification, always on.
+ *  - Seeking, via the seektable when present, an integer binary search
+ *    otherwise, with brute force as the last resort.
+ *  - Metadata reporting through an optional callback (STREAMINFO,
+ *    seektable, Vorbis comments, cuesheet, pictures, application blocks)
+ *    and skipping of leading ID3v2 tags.
+ *  - Reading from memory or through user callbacks, with s16 and f32
+ *    output.
+ *
+ * What it does not implement:
+ *
+ *  - Ogg-encapsulated FLAC. Only native fLaC streams are accepted.
+ *  - Encoding of any kind.
+ *  - Negative LPC coefficient shifts (never emitted by known encoders;
+ *    such streams are rejected).
+ *
+ * How it is driven: the public interface in <formats/rflac.h> is a
+ * push API.  The caller hands in spans of the stream as it has them
+ * (rflac_set_in), points the decoder at an output block
+ * (rflac_set_out_s16 / _f32), and calls rflac_process, which reports
+ * bytes consumed and frames produced and returns NEXT while the
+ * stream continues, END after the last frame once rflac_set_eof has
+ * been called, or ERROR for a stream it cannot decode.  A span may
+ * end anywhere, including mid-frame: the decoder snapshots its state
+ * before each frame attempt and, when input runs out partway, rewinds
+ * and carries the unconsumed tail internally, so the frame is decoded
+ * exactly once when the rest arrives and the caller never re-sends
+ * bytes it was told were consumed.  rflac_seek and rflac_seek_resumed
+ * translate a target PCM frame into the byte position to feed from;
+ * rflac_reset rewinds to the start (a raw decoder in place, a headered
+ * one by re-parsing its header from the bytes fed after the reset).
+ *
+ * Two constructors: rflac_new decodes a whole headered file - fLaC
+ * marker, metadata, then frames - and reports the stream's format
+ * once the header has been parsed (rflac_format, rflac_total_frames).
+ * rflac_new_raw decodes a bare frame sequence with no header at all,
+ * taking the format from the caller instead; that is the shape CHD
+ * compression stores its FLAC hunks in, and libchdr and rchd are its
+ * consumers.  The dr_flac pull machinery underneath is not exported:
+ * its file-oriented assumptions (a short read is the end of the
+ * stream) are papered over at the refill and process layers, which is
+ * what the span carry above depends on. */
+
+/* Assume GNUC-style. */
+
+/* It's critical for competitive decoding performance that this function be
+    * highly optimal. With MSVC we can use the __lzcnt64() and __lzcnt()
+    * intrinsics to achieve good performance, however on GCC and Clang it's a
+    * little bit more annoying. The __builtin_clzl() and __builtin_clzll()
+    * intrinsics leave it undefined as to the return value when `x` is 0. We
+    * need this to be well defined as returning 32 or 64, depending on whether
+    * or not it's a 32- or 64-bit build. To work around this we would need to
+    * add a conditional to check for the x = 0 case, but this creates
+    * unnecessary inefficiency. To work around this problem I have written some
+    * inline assembly to emit the LZCNT (x86) or CLZ (ARM) instruction directly
+    * which removes the need to include the conditional. This has worked well in
+    * the past, but for some reason Clang's MSVC compatible driver, clang-cl,
+    * does not seem to be handling this in the same way as the normal Clang
+    * driver. It seems that `clang-cl` is just outputting the wrong results
+    * sometimes, maybe due to some register getting clobbered?  I'm not sure if
+    * this is a bug with rflac's inlined assembly (most likely), a bug in
+    * `clang-cl` or just a misunderstanding on my part with inline assembly
+    * rules for `clang-cl`. If somebody can identify an error in rflac's inlined
+    * assembly I'm happy to get that fixed.  Fortunately there is an easy
+    * workaround for this. Clang implements MSVC-specific intrinsics for
+    * compatibility. It also defines _MSC_VER for extra compatibility. We can
+    * therefore just check for _MSC_VER and use the MSVC intrinsic which,
+    * fortunately for us, Clang supports. It would still be nice to know how to
+    * fix the inlined assembly for correctness sake, however.
+    */
+
+/*
+This software is available as a choice of the following licenses. Choose
+whichever you prefer.
+
+===============================================================================
+ALTERNATIVE 1 - Public Domain (www.unlicense.org)
+===============================================================================
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this
+software, either in source code form or as a compiled binary, for any purpose,
+commercial or non-commercial, and by any means.
+
+In jurisdictions that recognize copyright laws, the author or authors of this
+software dedicate any and all copyright interest in the software to the public
+domain. We make this dedication for the benefit of the public at large and to
+the detriment of our heirs and successors. We intend this dedication to be an
+overt act of relinquishment in perpetuity of all present and future rights to
+this software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <http://unlicense.org/>
+
+===============================================================================
+ALTERNATIVE 2 - MIT No Attribution
+===============================================================================
+Copyright 2023 David Reid
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+/* A call either drains what is already decoded, or attempts exactly
+    * one new frame -- never both.
+    *
+    * The distinction matters because a call that spans the boundary can
+    * emit some frames and then underrun on the next, and the rewind
+    * that undoes the half-read frame would undo the good ones with it.
+    * Splitting the two makes an attempt all or nothing: there is
+    * nothing to lose by rewinding, because nothing was produced.
+    *
+    * It also keeps the promise that work between returns is bounded by
+    * the block size, whatever the caller asked for. */
+
+=== libretro/libretro-common/formats/png/rpng.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (rpng.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* Store all 8 lanes back as packed u8.  The caller guarantees 8 bytes of
+ * room; lanes past the stride are overwritten by later iterations or by
+ * the scalar tail. */
+
+/* Paeth reverse filter for any pixel stride from 1 to 8 bytes, i.e.
+ * every bpp rpng can produce: 1 (gray/palette 8), 2 (gray+alpha 8,
+ * gray 16), 3 (RGB8), 4 (RGBA8), 6 (RGB16), 8 (RGBA16).
+ *
+ * The loop advances by bpp but loads and stores a fixed window (4 bytes
+ * for bpp <= 4, 8 for the 16-bit colour types), so lanes at or past bpp
+ * hold values that are not yet final.  That is harmless: byte j only
+ * ever depends on decoded[j-bpp], prev[j] and prev[j-bpp], so lane
+ * k < bpp of a step reads lane k of the *previous* step's output, which
+ * was final.  Lanes >= bpp feed only lanes >= bpp, and every byte they
+ * write is either rewritten by a later step or fixed up by the scalar
+ * tail below.
+ *
+ * The window is also why the loop guard is i + 4 / i + 8 <= pitch rather
+ * than i + bpp <= pitch - reading or writing past the scanline would be
+ * out of bounds even though the extra lanes are discarded.
+ *
+ * Stride is a runtime value on purpose.  The chain through
+ * rpng_paeth_predictor_epi16 is latency-bound, so the loop has cycles to
+ * spare for a variable increment: measured throughput matches
+ * per-stride specialized copies to within 1% at every bpp, without the
+ * code size of six kernels. */
+
+/* --- Wavefront pair kernels --------------------------------------------
+ *
+ * Average and Paeth are bound by the serial chain through the left
+ * neighbour: one pixel per chain length, however wide the machine.
+ * But two consecutive rows carrying the same filter can be unfiltered
+ * in one interleaved pass along the classic diagonal wavefront: row 1
+ * runs one pixel behind row 0, so its up neighbour is the row 0 output
+ * produced in the *previous* iteration and the two carried chains
+ * never wait on each other inside an iteration.  Two pixels per chain
+ * length, on the two filters where the chain is the whole cost.
+ * (A row-at-a-time decoder cannot do this, whatever its ISA level.)
+ *
+ * Window and stride semantics are exactly those of the single-row
+ * kernels above: a fixed 4- or 8-byte window stepped by bpp, lanes at
+ * or past the stride rewritten by later steps or the scalar tails.
+ * Both rows share the frontier i at loop exit - row 1 trails by one
+ * step inside the loop and settles its last window in the epilogue -
+ * so both tails resume from i, row 0 first since row 1's tail reads
+ * dec0. */
+
+/* On 32-bit hosts the per-row decode mallocs cannot fit much
+    * more than 1 GiB of decoded RGBA, and an undersized malloc
+    * combined with attacker-controlled dimensions has historically
+    * been the heap-overflow primitive prompting the 0x4000 caps
+    * in rbmp.c, rtga.c and rwebp.c.  Keep the tight cap there.
+    *
+    * On 64-bit the (size_t) casts in rpng_reverse_filter_init and
+    * the final allocator make the per-row arithmetic overflow-safe
+    * regardless of dimensions, and the 4 GiB output guard further
+    * down in rpng_iterate_image already rejects images whose
+    * decoded buffer cannot be addressed.  Loading a 30000x30000
+    * RGBA image on a desktop with the RAM to spare is a legitimate
+    * use case (cf. IrfanView), so do not impose the 0x4000 cap
+    * there. */
+
+/* Ceiling on the accumulated IDAT stream.  The PNG specification sets
+ * no limit here: IDAT may repeat without bound and the accumulated
+ * compressed stream can legitimately be very large, so this is not a
+ * policy number - a 320 MiB screenshot or scan is a real file, not a
+ * hostile one.  What the arithmetic below genuinely needs is a value
+ * to subtract from so the running total, the per-chunk addition and
+ * the capacity doubling cannot overflow size_t.  Use the largest
+ * quantity that can actually be addressed: SIZE_MAX/2 leaves the
+ * doubling loop headroom (new_cap *= 2 stays representable) and still
+ * rejects only what malloc could never satisfy.
+ *
+ * The decompression-bomb concern the old, much lower cap also served
+ * is covered independently: the IHDR guards reject any image whose
+ * decoded output or intermediate inflate buffer would exceed 4 GiB, so
+ * an IDAT stream far larger than its declared geometry is refused at
+ * inflate time regardless of how much of it accumulated. */
+
+/* Two independent size caps, both at 4 GiB:
+          *
+          *   1) Output buffer — rpng always decodes to ARGB32 regardless
+          *      of the source depth, so the final buffer is always
+          *      width * height * 4 bytes.
+          *
+          *   2) Intermediate inflate buffer — sized by rpng_pass_geom
+          *      as (pitch + 1) * height.  For 8bpc RGBA this matches
+          *      the output (~4 bytes/pixel), but for 16bpc RGBA it is
+          *      2x (8 bytes/pixel), and palette/gray paths are smaller.
+          *      A 30000x30000 16bpc-RGBA image passes the output cap
+          *      (3.35 GiB) but needs a 7 GiB intermediate — reject it
+          *      here rather than relying on malloc to fail downstream.
+          *
+          * Both caps use 64-bit arithmetic; the ULL literal keeps the
+          * constant unambiguously 64-bit on LLP64 (Windows) where
+          * unsigned long is 32-bit.  rpng_pass_geom's arithmetic is
+          * itself size_t-wide after the prior widening commit, so the
+          * pass_size returned here is trustworthy.
+          *
+          * On ILP32 platforms (e.g. 32-bit PPC / i686), size_t is 32-bit
+          * and pass_size can never reach 2^32, so GCC warns that the
+          * pass_size cap is always false.  Preprocessor-gate it on
+          * 64-bit size_t; the output-size cap remains active on both
+          * 32-bit and 64-bit (width*height*4 can overflow 32-bit even
+          * when each factor is 32-bit). */
+
+=== libretro/libretro-common/formats/png/rpng_encode.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (rpng_encode.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* 16-bit-per-channel RGB. PNG stores 16-bit samples big-endian, so each
+ * host-order R,G,B sample is written most-significant byte first. Input is
+ * three uint16_t per pixel in R,G,B order (already the PNG channel order,
+ * unlike the BGR 8-bit path). */
+
+/* Emit one IDAT chunk.  `chunk_buf` is laid out as:
+ *     bytes [0..4): length field (filled in here, big-endian)
+ *     bytes [4..8): literal "IDAT"
+ *     bytes [8..8+payload_len): the deflate output produced by
+ *                               this chunk's worth of trans() calls
+ * Matches the layout png_write_idat_string expects. */
+
+/* empty chunk -- nothing to emit, not an error */
+
+/* Both deflate backends default to level 9, which is the wrong
+    * trade for a screenshot: it is a foreground action the user waits
+    * on, and on the content emulator screenshots actually contain the
+    * top levels buy nothing.  Measured at 1920x1080 and 3840x2160,
+    * BGR24, against libpng at its own default for scale:
+    *
+    *                  libpng        level 6        level 9
+    *   2D pixel art    59 ms/0.23    67 ms/0.23    591 ms/0.23
+    *   pixel art 4K   242 ms/0.88   272 ms/0.88   2221 ms/0.86
+    *   smooth ramp    460 ms/1.00   432 ms/1.00   2649 ms/0.92
+    *   3D scene       707 ms/2.82   458 ms/3.13    448 ms/3.13
+    *   3D scene 4K   2929 ms/11.26 1843 ms/12.49  1830 ms/12.49
+    *   menu frame      48 ms/0.01    56 ms/0.01     70 ms/0.01
+    *
+    * Level 9's deep chain search collapses on the repetitive content -
+    * flat runs, upscaled pixel art, smooth ramps - which is most of
+    * what gets captured, and returns 0-8% for 6-9x the time.  Where it
+    * does earn its keep, on noisy 3D output, level 6 matches it
+    * exactly.  Worst case here is 80 KB against 2.2 seconds.
+    *
+    * 6 is also zlib's and libpng's own default, so a screenshot is no
+    * longer larger or slower than what every other PNG writer emits. */
+
+/* All rows consumed.  Drain deflate with Z_FINISH, emitting IDATs
+ * on BUFFER_FULL, final partial on NONE (Z_STREAM_END); then IEND. */
+
+/* Z_OK during Z_FINISH with avail_in=0 means deflate has
+          * more output to emit but our buffer ran out of space.
+          * Flush the full chunk and give it more room. */
+
+=== libretro/libretro-common/formats/zip/rzip_archive.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (rzip_archive.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* Compressed input is pulled in pieces of this size when the archive is
+ * read through the callback; it is the inflater's window, not a limit
+ * on member size. */
+
+=== libretro/libretro-common/streams/interface_stream.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (interface_stream.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+=== libretro/libretro-common/streams/memory_stream.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (memory_stream.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+=== libretro/libretro-common/streams/trans_stream.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (trans_stream.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+=== libretro/libretro-common/streams/trans_stream_deflate.c ===
+
+/* Copyright  (C) 2010-2024 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (trans_stream_deflate.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* The codec's process() already loops internally -- ingesting input,
+    * parsing, emitting blocks and sliding its window -- until either the
+    * output buffer fills or the stream ends.  One call therefore consumes
+    * as much of the provided input as the output room allows. */
+
+=== libretro/libretro-common/streams/trans_stream_pipe.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (trans_stream_pipe.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+=== libretro/libretro-common/features/features_cpu.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (features_cpu.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/**
+ * parse_decimal:
+ *
+ * Parse an decimal integer starting from 'input', but not going further
+ * than 'limit'. Return the value into '*result'.
+ *
+ * NOTE: Does not skip over leading spaces, or deal with sign characters.
+ * NOTE: Ignores overflows.
+ *
+ * The function returns NULL in case of error (bad format), or the new
+ * position after the decimal number in case of success (which will always
+ * be <= 'limit').
+ *
+ * Leaf function.
+ **/
+
+/* Sleep until cpu_features_get_time_usec() reads at least @deadline.
+ * It lives here, beside the clock it is measured on, and nowhere a
+ * launcher compiles: the salamanders build rtime.c for localtime alone
+ * and never link this file.
+ *
+ * Absolute where the platform offers it, so the time between reading
+ * the clock and entering the kernel, and any early or interrupted
+ * wake, are not added to when the caller comes back. Never early
+ * against that clock on any backend; late as every sleep may be, and
+ * a caller that needs the instant itself sleeps short and spins the
+ * rest, as the frame limiter does with its measured margin. */
+
+=== libretro/libretro-common/queues/retro_spsc.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (retro_spsc.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* head is written only by the producer, i.e. by this thread, so
+    * reading our own last store needs no ordering: a relaxed load is
+    * enough (and on the MSVC/Apple/__sync backends the acquire load is
+    * a locked RMW, so this also removes a lock-prefixed instruction
+    * from every span commit).
+    * Release: the caller's stores into the span happen-before the
+    * consumer's acquire-load of head, same pairing as retro_spsc_write. */
+
+/* tail is written only by the consumer, i.e. by this thread, so a
+    * relaxed load of our own counter suffices; see retro_spsc_write_end.
+    * Release: our reads of the span happen-before the producer's
+    * acquire-load of tail sees the space as free. */
+
+=== libretro/libretro-common/queues/retro_waitable_spsc.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (retro_waitable_spsc.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+=== libretro/libretro-common/rthreads/retro_asym_eventcount.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (retro_asym_eventcount.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+ * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* See the header for the design. This file is the two protocols and the
+ * park.
+ *
+ * The park is a condition variable everywhere. That is deliberate for a
+ * first version: it is the cold side, a condvar is portable to every
+ * backend rthreads has, and the correctness argument is short --
+ * commit_wait re-checks the epoch under the lock and notify broadcasts
+ * under the same lock, so a wake cannot fall between the check and the
+ * sleep. A futex park on the epoch word would save a lock on the wake,
+ * and can replace this once the primitive has been on real SMP hardware.
+ */
+
+/* Relaxed. The barrier in prepare_wait is what orders this against
+       * a waiter's registration; a fence here would put the cost back
+       * where this primitive exists to remove it. */
+
+/* Someone is inside a prepare/commit window. Broadcast under the
+    * lock, which is what pairs with commit_wait's check-under-lock. */
+
+=== libretro/libretro-common/rthreads/retro_eventcount.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (retro_eventcount.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* Windows has no one primitive that reaches every version, so the
+ * waiter list is ours and only the sleep is delegated.  Three tiers,
+ * resolved once from ntdll:
+ *
+ *   ALERT  NtWaitForAlertByThreadId / NtAlertThreadByThreadId, Windows 8
+ *          and newer.  A per-thread wakeup that sticks if it arrives
+ *          before the wait, so no rendezvous accounting is needed.
+ *   KEYED  NtWaitForKeyedEvent / NtReleaseKeyedEvent, Windows XP and
+ *          newer.  A rendezvous: a release blocks until a waiter with
+ *          the same key arrives, so a waker may only release for a
+ *          block that has committed to sleeping.  The ASLEEP flag below
+ *          is what makes that exact.
+ *   EVENT  One auto-reset event per thread, kept in TLS for the
+ *          thread's life.  Works everywhere, including 9x.
+ *
+ * rthreads' scond resolves the same three and its protocol is the one
+ * copied here; what is dropped is the condition variable's mutex, which
+ * every scond_wait re-acquires before returning and which serialises a
+ * broadcast across its waiters.
+ */
+
+/* the waiter committed to the kernel wait */
+
+/* How long a waiter spins on its flag word before committing to the
+ * kernel, on multiprocessor only.  A budget in microseconds rather
+ * than a count of iterations: a PAUSE is worth an order of magnitude
+ * more cycles on some processors than others, so a fixed count is a
+ * different amount of time on every machine.  The count is derived
+ * from a measured relax at resolve time.
+ *
+ * Measured on Windows 11 x64, four waiters on one object, where a
+ * relax costs 11.8ns.  Round trip and broadcast per waiter, against
+ * what a spin that finds nothing costs:
+ *
+ *     spin      burn    round trip   broadcast/waiter
+ *        0     0.00us      4.21us          0.94us
+ *       64     0.76us      0.27us          0.96us
+ *      128     1.49us      0.11us          0.51us
+ *      256     2.99us      0.06us          0.11us
+ *      512     6.04us      0.08us          0.12us
+ *     4096    48.63us      0.07us          0.12us
+ *
+ * The knee is at 256 iterations there, which is 3us, and nothing above
+ * it buys anything -- a spin that finds nothing then costs about what
+ * the wake syscall it avoids would have.  RETRO_EVENTCOUNT_SPIN_US
+ * moves the budget; RETRO_EVENTCOUNT_SPIN sets the count outright and
+ * skips the calibration. */
+
+/* Anything else is the handle being unusable, which since
+             * the TLS fallback was fixed should not be reachable: a
+             * CreateEvent that fails is answered in ec_win32_park
+             * before the block is ever listed.  Reported as a wake
+             * because the caller re-checks its own predicate and a
+             * false timeout would be a lie, but slept on first: a bad
+             * handle fails immediately, and without this the caller's
+             * loop turns into a spin on a core that has no work.  A
+             * millisecond of poll is the right shape for something
+             * that should not happen at all.
+             *
+             * There is nowhere to report it from - this is
+             * libretro-common and has no logger - so the poll is the
+             * whole mitigation.  This branch is not exercised by any
+             * test: no way to induce a failing wait on a valid handle
+             * was found. */
+
+/* only ever for a block that has committed, so the rendezvous
+          * always finds its waiter */
+
+/* not yet committed: it sees the flag, no syscall */
+
+/* commit: past this a waker that takes the block must wake us */
+
+/* commit: past this a waker that takes the block must signal */
+
+/* taken before the commit: no signal sent */
+
+/* Taking the lock here cannot overtake a waiter's own re-check,
+    * because commit_wait does that re-check under this same lock and
+    * then sleeps on the condition variable, which releases it
+    * atomically. prepare_wait does NOT hold it - it registers and
+    * reads the epoch with atomics alone, which is what keeps N
+    * waiters from serialising here just to announce themselves. */
+
+/* Mirror of notify: register with a sequentially-consistent
+    * read-modify-write, then take a sequentially-consistent load of the
+    * epoch.  There are no standalone fences here any more - this
+    * comment used to name two.  The pair here and the pair in notify
+    * share one total order, which is what makes it impossible for a
+    * notify to see no waiters and for this thread to read the
+    * pre-notify epoch.
+    *
+    * Lock-free backends register with atomics alone. Where the
+    * atomics are not lock-free the bookkeeping is protected by
+    * ec->lock, just below -- but never held across the caller's
+    * predicate window either way. The epoch carries the handshake, so
+    * the condition-variable backend needs its mutex only across the
+    * re-check-and-sleep in commit_wait, which is what keeps N waiters
+    * from serialising on this object to register. */
+
+=== libretro/libretro-common/rthreads/retro_procbarrier.c ===
+
+/* Copyright  (C) 2010-2026 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (retro_procbarrier.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
+ * OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* Registration succeeding is not the same as the barrier working: a
+    * sandbox can permit the query and the registration and still refuse
+    * the expedited call. Issue one now and believe its return value. A
+    * tier that would silently fence nothing is worse than no tier. */
+
+/* Prove task_threads is permitted here; sandboxes can deny it. */
+
+/* Only threads on a CPU need interrupting; a thread that was
+          * switched out was drained by the switch. 'R' is runnable rather
+          * than strictly running, so under overcommit this can also wait
+          * for a preempted thread to be rescheduled -- bounded by a
+          * scheduler quantum, and acceptable on a path about to sleep. */
+
+=== libretro/libretro-common/rthreads/rthreads.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (rthreads.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/* Affinity: cpu_set_t, CPU_SET and pthread_setaffinity_np are GNU
+ * extensions, exposed only when this is set before the first system
+ * header. */
+
+/* Backported CondVar API from libctru 2.0, and under its license:
+   https://github.com/devkitPro/libctru
+   Slightly modified for compatibility with older libctru. */
+
+/* Both PS3 SDKs put the same lv2 primitives behind different names, so
+ * the backend below is written against one set of its own. The names
+ * are prefixed because a unity build drops this translation unit in
+ * beside every other one, where the SDK spellings may already mean
+ * something: nothing here can be what another file sees. */
+
+/* Win32 condition variable.
+ *
+ * The same shape as the one in ntdll: the scond is one word holding a
+ * lock-free list of waiter blocks that live on the waiting threads'
+ * stacks, each block with a flag word of its own. A wait pushes its
+ * block with a single compare-and-swap, releases the caller's lock,
+ * spins for a bounded time on its own flag word, and only then blocks
+ * in the kernel; a wake takes the block off the list and flips the flag,
+ * and issues a kernel wake only for a waiter that had committed to
+ * blocking, which is what makes a back-to-back wake cost no syscall at
+ * all. The spin is the hardware wait where there is one - mwaitx on AMD
+ * and umwait on Intel park the core on the flag word's cache line with
+ * a TSC deadline, so a sibling hyperthread is not disturbed - and a
+ * pause loop elsewhere; a single-processor machine does not spin.
+ *
+ * The kernel wait is chosen once per process from what ntdll exports:
+ * NtWaitForAlertByThreadId / NtAlertThreadByThreadId (Windows 8 and
+ * later), the keyed event pair (XP and later), and an auto-reset event
+ * per thread where neither exists (the Xbox targets). RTHREADS_SCOND in
+ * the environment picks one by name (alert, keyed, event),
+ * RTHREADS_SCOND_SPIN a spin mode (none, pause, mwaitx, umwait) and
+ * RTHREADS_SCOND_SPIN_CYCLES the TSC bound, for measurement.
+ *
+ * The spin defaults to the pause loop even where mwaitx or umwait exist:
+ * measured against the native variable at 600 dispatches a frame on a
+ * 9950X3D, pause is ahead of mwaitx at every thread count, because the
+ * hardware wait's exit latency is on the order of the whole interval
+ * between dispatches. The hardware waits remain selectable.
+ *
+ * Bit 0 of the scond word is a lock that wakers and timed-out waiters
+ * take to edit the list; pushes never take it. Signal wakes the oldest
+ * waiter, broadcast takes the whole list with one compare-and-swap. */
+
+/* the waiter committed to the kernel wait */
+
+/* Real-time round-robin at a middling priority: above every
+    * time-shared thread, below anything the system runs at the top of
+    * the band. Distributions that grant the audio group an rtprio
+    * limit allow this without root. Linux then falls back to what the
+    * process's rlimits allow; where nothing is granted the thread
+    * simply keeps its default, which is the caller's contract. */
+
+/* Without CAP_SYS_NICE a thread may take any real-time
+          * priority up to its RLIMIT_RTPRIO, so a limit below the
+          * middle of the band is asked for as it stands. */
+
+/* With real time refused, a thread may still lower its own nice
+       * value as far as 20 - RLIMIT_NICE; on Linux the nice value
+       * belongs to the thread, named by its tid. -11 is the level a
+       * sound server takes when it cannot have real time. */
+
+/* prctl rather than pthread_setname_np: it is available on every
+    * bionic and glibc version we build against, and takes the name as
+    * a plain buffer, so the caller cannot be rejected outright for
+    * overrunning the kernel's 16-byte limit. Copied rather than passed
+    * through so an over-long name truncates instead of failing. */
+
+/* bionic declares cpu_set_t and sched_setaffinity under _GNU_SOURCE
+ * only, which has to be set before the first system header - not
+ * something a unity build's include order provides. The kernel call
+ * takes a plain bit mask, so it is made directly. */
+
+/* the spin polls the waiter's own flag word: a plain load on x86 (the
+ * word is written by one waker with a locked op), an acquire elsewhere.
+ *
+ * The plain load has to be spelled per backend rather than by casting the
+ * field.  retro_atomic_int_t is a real atomic type on the C11, C++11 and
+ * __atomic backends -- mingw picks C11, so the field is an atomic_int --
+ * and reading one through a volatile LONG lvalue is a type pun that both
+ * breaks strict aliasing and is undefined besides.  Those three backends
+ * go through the API instead, which costs nothing here: their acquire
+ * load is a plain MOV on x86.  The MSVC, Apple, __sync and volatile
+ * backends type the field as a plain volatile integer, so it can just be
+ * read -- same type, no cast -- and that matters for them, because their
+ * acquire load is a locked RMW (InterlockedCompareExchangeAcquire,
+ * OSAtomicAdd32Barrier, __sync_fetch_and_add(p, 0)), far too heavy to run
+ * every iteration against a line one waker writes. */
+
+/* spin on the flag word before committing to the kernel */
+
+/* commit: after this a waker that takes the block must wake us */
+
+=== libretro/libretro-common/rthreads/tpool.c ===
+
+/*
+ * Copyright (c) 2010-2020 The RetroArch team
+ * Copyright (c) 2017 John Schember <john@nachtimwald.com>
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (tpool.c).
+ * ---------------------------------------------------------------------------------------
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE
+ */
+
+=== libretro/libretro-common/time/rtime.c ===
+
+/* Copyright  (C) 2010-2020 The RetroArch team
+ *
+ * ---------------------------------------------------------------------------------------
+ * The following license statement only applies to this file (rtime.c).
+ * ---------------------------------------------------------------------------------------
+ *
+ * Permission is hereby granted, free of charge,
+ * to any person obtaining a copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */

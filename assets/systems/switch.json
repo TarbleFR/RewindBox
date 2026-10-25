@@ -225,12 +225,12 @@
     },
     {
       "name": "MeloNX",
-      "unique_id": "switch.ios.melonx",
-      "description": "MeloNX standalone Nintendo Switch emulator for iOS.",
+      "unique_id": "switch.ios.melonx_internal",
+      "description": "Embedded MeloNX Nintendo Switch engine.",
       "is_retroachievements_compatible": false,
       "platforms": {
         "ios": {
-          "url_scheme": "melonx"
+          "embedded": true
         }
       }
     }

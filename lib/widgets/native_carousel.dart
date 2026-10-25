@@ -1,6 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
+
+import 'neo_glass_bubble.dart';
+import 'liquid_motion_clock.dart';
 
 enum CarouselPageChangeReason { manual, controller }
 
@@ -125,6 +130,10 @@ class NativeCarousel extends StatefulWidget {
   /// Shrink/fade envelope applied to off-centre pages.
   final CarouselDepth depth;
 
+  /// Console artwork only. Game boxes and grid/list views retain their own
+  /// geometry. This transforms the cached card, never the decoded artwork.
+  final bool perspective;
+
   const NativeCarousel({
     super.key,
     required this.itemCount,
@@ -134,6 +143,7 @@ class NativeCarousel extends StatefulWidget {
     this.initialIndex = 0,
     this.footerHeight,
     this.depth = const CarouselDepth(),
+    this.perspective = false,
   });
 
   @override
@@ -143,6 +153,8 @@ class NativeCarousel extends StatefulWidget {
 class NativeCarouselState extends State<NativeCarousel> {
   PageController? _pageController;
   int _currentIndex = 0;
+  int _navigationTarget = 0;
+  int _moveGeneration = 0;
   double _lastVpFraction = 0;
   int _lastReportedIndex = 0;
   final ValueNotifier<double> _pageNotifier = ValueNotifier(0.0);
@@ -161,6 +173,7 @@ class NativeCarouselState extends State<NativeCarousel> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _navigationTarget = widget.initialIndex;
     _lastReportedIndex = widget.initialIndex;
     _pageNotifier.value = widget.initialIndex.toDouble();
   }
@@ -193,6 +206,7 @@ class NativeCarouselState extends State<NativeCarousel> {
 
     _pageNotifier.value = page;
     _currentIndex = page.round();
+    if (_pointerDown || !_animating.value) _navigationTarget = _currentIndex;
     widget.onPageScrolled?.call(page);
 
     if (_currentIndex != _lastReportedIndex) {
@@ -208,12 +222,28 @@ class NativeCarouselState extends State<NativeCarousel> {
 
   void _ensureController(double vpFraction) {
     if (_pageController == null || vpFraction != _lastVpFraction) {
+      if (widget.perspective && _pageController != null) {
+        // During an interrupted flight, the app still owns the last reported
+        // focus. Restore that identity instead of silently centring an
+        // unreported fractional page and opening a different playlist.
+        final generation = ++_moveGeneration;
+        _currentIndex = _lastReportedIndex;
+        _navigationTarget = _currentIndex;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || generation != _moveGeneration) return;
+          _animating.value = false;
+          _pageNotifier.value = _currentIndex.toDouble();
+        });
+      }
       _pageController?.removeListener(_onPageScroll);
       _pageController?.dispose();
       _lastVpFraction = vpFraction;
       _pageController = PageController(
         viewportFraction: vpFraction,
         initialPage: _currentIndex,
+        // Console selection is owned here. A saved PageStorage offset from
+        // the old viewport must not override this index after rotation.
+        keepPage: !widget.perspective,
       );
       _pageController!.addListener(_onPageScroll);
       _lastReportedIndex = _currentIndex;
@@ -221,19 +251,29 @@ class NativeCarouselState extends State<NativeCarousel> {
   }
 
   void nextPage() {
-    if (_currentIndex < widget.itemCount - 1) {
-      _animateToPage(_currentIndex + 1);
+    final from = widget.perspective ? _navigationTarget : _currentIndex;
+    if (from < widget.itemCount - 1) {
+      _animateToPage(from + 1);
     }
   }
 
   void previousPage() {
-    if (_currentIndex > 0) {
-      _animateToPage(_currentIndex - 1);
+    final from = widget.perspective ? _navigationTarget : _currentIndex;
+    if (from > 0) {
+      _animateToPage(from - 1);
     }
   }
 
   void _animateToPage(int index, {bool gateInput = true}) {
+    final generation = ++_moveGeneration;
+    _navigationTarget = index;
     _pageChangeReason = CarouselPageChangeReason.controller;
+    if (NeoBubbleStyle.reduceMotion(context) ||
+        LiquidMotionClock.instance.lowPower) {
+      _animating.value = false;
+      _pageController?.jumpToPage(index);
+      return;
+    }
     // Never gate while a finger is on the glass: the user is mid-gesture and
     // owns the carousel until they lift it.
     if (gateInput && !_pointerDown) _animating.value = true;
@@ -241,17 +281,20 @@ class NativeCarouselState extends State<NativeCarousel> {
         ?.animateToPage(
           index,
           duration: const Duration(milliseconds: 260),
-          curve: Curves.easeOutQuart,
+          curve: widget.perspective ? Curves.easeOutBack : Curves.easeOutQuart,
         )
         // Completing or being interrupted both end the move, so this is where
         // the input gate lifts.
         .whenComplete(() {
-          if (!mounted) return;
+          if (!mounted || generation != _moveGeneration) return;
           _animating.value = false;
         });
   }
 
   void jumpToPage(int index) {
+    _moveGeneration++;
+    _animating.value = false;
+    _navigationTarget = index;
     _pageChangeReason = CarouselPageChangeReason.controller;
     _pageController?.jumpToPage(index);
   }
@@ -270,6 +313,66 @@ class NativeCarouselState extends State<NativeCarousel> {
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
         final maxHeight = constraints.maxHeight;
+
+        if (widget.perspective) {
+          final cardExtent = math.min(maxHeight * .91, availableWidth * .74);
+          final fraction = (cardExtent * .70 / availableWidth).clamp(.08, 1.0);
+          _ensureController(fraction);
+          return ValueListenableBuilder<bool>(
+            valueListenable: _animating,
+            builder: (context, moving, child) =>
+                IgnorePointer(ignoring: moving, child: child),
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (_) {
+                _pointerDown = true;
+                _pageChangeReason = CarouselPageChangeReason.manual;
+              },
+              onPointerUp: (_) => _pointerDown = false,
+              onPointerCancel: (_) => _pointerDown = false,
+              child: Semantics(
+                key: const ValueKey('console-cover-flow-scroll'),
+                container: true,
+                onScrollLeft: nextPage,
+                onScrollRight: previousPage,
+                child: Scrollable(
+                  excludeFromSemantics: true,
+                  key: ValueKey(('console-scroll', fraction)),
+                  axisDirection: AxisDirection.right,
+                  controller: _pageController,
+                  physics: _FlingPageScrollPhysics(viewportFraction: fraction),
+                  viewportBuilder: (context, offset) => Stack(
+                    children: [
+                      Viewport(
+                        axisDirection: AxisDirection.right,
+                        offset: offset,
+                        scrollCacheExtent: const ScrollCacheExtent.pixels(0),
+                        slivers: [
+                          SliverFillViewport(
+                            viewportFraction: fraction,
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) => const SizedBox.expand(),
+                              childCount: widget.itemCount,
+                            ),
+                          ),
+                        ],
+                      ),
+                      _ConsoleCoverFlow(
+                        page: _pageNotifier,
+                        cardExtent: cardExtent,
+                        reduced:
+                            NeoBubbleStyle.reduceMotion(context) ||
+                            LiquidMotionClock.instance.lowPower,
+                        itemCount: widget.itemCount,
+                        itemBuilder: widget.itemBuilder,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
 
         final double pageWidth;
         final double pageAspectRatio;
@@ -310,6 +413,9 @@ class NativeCarouselState extends State<NativeCarousel> {
               onPointerUp: (_) => _pointerDown = false,
               onPointerCancel: (_) => _pointerDown = false,
               child: PageView.builder(
+                // Scrollable otherwise retains physics with the old page
+                // pitch after rotation, whose ballistic snap drifts a card.
+                key: widget.perspective ? ValueKey(vpFraction) : null,
                 controller: _pageController,
                 clipBehavior: Clip.none,
                 padEnds: true,
@@ -377,4 +483,158 @@ class NativeCarouselState extends State<NativeCarousel> {
       },
     );
   }
+}
+
+/// Bounded artwork window; scroll frames repaint transforms without rebuilding
+/// or decoding cards. Flow paints far cards first and the centred card last.
+class _ConsoleCoverFlow extends StatefulWidget {
+  const _ConsoleCoverFlow({
+    required this.page,
+    required this.cardExtent,
+    required this.reduced,
+    required this.itemCount,
+    required this.itemBuilder,
+  });
+  final ValueListenable<double> page;
+  final double cardExtent;
+  final bool reduced;
+  final int itemCount;
+  final Widget Function(BuildContext, int) itemBuilder;
+  @override
+  State<_ConsoleCoverFlow> createState() => _ConsoleCoverFlowState();
+}
+
+class _ConsoleCoverFlowState extends State<_ConsoleCoverFlow> {
+  int _centre = 0;
+  final Map<int, Widget> _cards = {};
+  @override
+  void initState() {
+    super.initState();
+    _centre = widget.page.value.round();
+    widget.page.addListener(_window);
+  }
+
+  void _window() {
+    final next = widget.page.value.round().clamp(0, widget.itemCount - 1);
+    if (next != _centre) setState(() => _centre = next);
+  }
+
+  @override
+  void didUpdateWidget(_ConsoleCoverFlow old) {
+    super.didUpdateWidget(old);
+    if (old.page != widget.page) {
+      old.page.removeListener(_window);
+      widget.page.addListener(_window);
+    }
+    if (old.itemBuilder != widget.itemBuilder ||
+        old.cardExtent != widget.cardExtent) {
+      _cards.clear();
+    }
+    _centre = widget.page.value.round().clamp(0, widget.itemCount - 1);
+  }
+
+  @override
+  void dispose() {
+    widget.page.removeListener(_window);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final indices = [
+      for (
+        var i = math.max(0, _centre - 4);
+        i <= math.min(widget.itemCount - 1, _centre + 4);
+        i++
+      )
+        i,
+    ];
+    _cards.removeWhere((i, child) => !indices.contains(i));
+    return Flow(
+      key: const ValueKey('console-cover-flow'),
+      clipBehavior: Clip.none,
+      delegate: ConsoleCoverFlowDelegate(
+        page: widget.page,
+        indices: indices,
+        extent: widget.cardExtent,
+        reduced: widget.reduced,
+      ),
+      children: [
+        for (final i in indices)
+          _cards.putIfAbsent(
+            i,
+            () => RepaintBoundary(
+              key: ValueKey('console-perspective-$i'),
+              child: widget.itemBuilder(context, i),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class ConsoleCoverFlowDelegate extends FlowDelegate {
+  ConsoleCoverFlowDelegate({
+    required this.page,
+    required this.indices,
+    required this.extent,
+    required this.reduced,
+  }) : super(repaint: page);
+  final ValueListenable<double> page;
+  final List<int> indices;
+  final double extent;
+  final bool reduced;
+  @override
+  BoxConstraints getConstraintsForChild(int i, BoxConstraints constraints) =>
+      BoxConstraints.tight(Size.square(extent));
+  @override
+  Size getSize(BoxConstraints constraints) => constraints.biggest;
+  Matrix4 transformFor(int index, Size viewport) {
+    final offset = index - page.value, distance = offset.abs();
+    final sign = offset.sign;
+    final x = reduced
+        ? offset * extent * 1.05
+        : sign *
+              (distance <= 1 ? distance * .76 : .76 + (distance - 1) * .42) *
+              extent;
+    final scale = reduced ? 1.0 : (1 - distance * .14).clamp(.54, 1.0);
+    return Matrix4.identity()
+      ..translateByDouble(viewport.width / 2 + x, viewport.height / 2, 0, 1)
+      ..multiply(Matrix4.identity()..setEntry(3, 2, .0013))
+      ..translateByDouble(
+        0,
+        reduced ? 0 : distance * 5,
+        reduced ? 0 : -distance * 65,
+        1,
+      )
+      ..rotateY(reduced ? 0 : -sign * math.min(distance, 1) * .95)
+      ..scaleByDouble(scale, scale, 1, 1)
+      ..translateByDouble(-extent / 2, -extent / 2, 0, 1);
+  }
+
+  List<int> get paintOrder =>
+      [for (var i = 0; i < indices.length; i++) i]..sort(
+        (a, b) => (indices[b] - page.value).abs().compareTo(
+          (indices[a] - page.value).abs(),
+        ),
+      );
+  @override
+  void paintChildren(FlowPaintingContext context) {
+    for (final i in paintOrder) {
+      final distance = (indices[i] - page.value).abs();
+      if (distance > 3.4) continue;
+      context.paintChild(
+        i,
+        transform: transformFor(indices[i], context.size),
+        opacity: (1 - distance * .17).clamp(.32, 1.0),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(ConsoleCoverFlowDelegate old) =>
+      old.page != page ||
+      old.extent != extent ||
+      old.reduced != reduced ||
+      old.indices.toString() != indices.toString();
 }

@@ -156,6 +156,13 @@ abstract final class LibretroCoreCatalog {
       displayName: 'Nestopia',
       extensions: {'nes', 'fds', 'unf', 'unif', 'nsf'},
     ),
+    // Mesen: the NES engine that reads HD packs (hires.txt); a game is
+    // switched to it from the HD textures page or its Emulator settings.
+    'mesen': LibretroCore(
+      id: 'mesen',
+      displayName: 'Mesen',
+      extensions: {'nes', 'fds', 'unf', 'unif'},
+    ),
     'snes9x': LibretroCore(
       id: 'snes9x',
       displayName: 'Snes9x',
@@ -249,8 +256,26 @@ abstract final class LibretroCoreCatalog {
       displayName: 'Beetle PSX HW',
       extensions: {'cue', 'toc', 'm3u', 'ccd', 'exe', 'pbp', 'chd', 'bin'},
       biosAnyOf: ['scph5500.bin', 'scph5501.bin', 'scph5502.bin'],
-      // The iOS build links OpenGLES; its Vulkan renderer stays available.
-      preferredHardwareContext: LibretroHardwareContext.openGLES3,
+      // Vulkan (MoltenVK): Beetle's renderer choice (rhi_intf_open, "Hardware
+      // (Auto)") opens OpenGL only for an OpenGL or OpenGL Core preference and
+      // Vulkan for a Vulkan one, so the OpenGL ES 3 preference NeoStation gave
+      // until the Build 488 always ended in its software renderer. Vulkan is
+      // also the renderer its HD texture replacement is documented for. A
+      // Vulkan context that cannot be created leaves the core on its software
+      // renderer (the session reports it); a stored "software" choice wins.
+      preferredHardwareContext: LibretroHardwareContext.vulkan,
+      // HD texture packs (Track + Replace Textures, switched per game from the
+      // HD textures page): read from <Saves>/Beetle PSX HW, never written
+      // beside the user's games; no dump in normal use; decoded-texture
+      // caches bounded for an iPhone (the core's 3 GB / 2 GB defaults are
+      // desktop budgets) and filled on demand rather than every palette at once.
+      lockedOptions: {
+        'beetle_psx_hw_texture_directory': 'save',
+        'beetle_psx_hw_dump_textures': 'disabled',
+        'beetle_psx_hw_hd_caching_method': 'lazy',
+        'beetle_psx_hw_hd_cache_vram_budget': '512',
+        'beetle_psx_hw_hd_cache_ram_budget': '512',
+      },
       // No no-JIT override: the pinned iOS builds of both Beetle PSX cores
       // have no Lightrec dynarec option, and test/libretro_core_options_test.py
       // flags one if a future core build adds it. Build 455: the "Resolution
@@ -511,10 +536,10 @@ abstract final class LibretroCoreCatalog {
 
   static const Map<String, LibretroSystemBinding> systems =
       <String, LibretroSystemBinding>{
-    'nes': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', achievementsConsoleId: 7),
-    'fc': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', achievementsConsoleId: 7),
-    'nes-hacks': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', achievementsConsoleId: 7),
-    'fds': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', achievementsConsoleId: 7),
+    'nes': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', alternatives: ['mesen'], achievementsConsoleId: 7),
+    'fc': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', alternatives: ['mesen'], achievementsConsoleId: 7),
+    'nes-hacks': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', alternatives: ['mesen'], achievementsConsoleId: 7),
+    'fds': LibretroSystemBinding(coreId: 'nestopia', console: 'nes', alternatives: ['mesen'], achievementsConsoleId: 7),
     'snes': LibretroSystemBinding(coreId: 'snes9x', console: 'snes', achievementsConsoleId: 3),
     'sfc': LibretroSystemBinding(coreId: 'snes9x', console: 'snes', achievementsConsoleId: 3),
     'snes-hacks': LibretroSystemBinding(coreId: 'snes9x', console: 'snes', achievementsConsoleId: 3),

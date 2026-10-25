@@ -33,7 +33,7 @@ typedef LibretroEnginePageOpener =
 
 /// Identity of the embedded libretro engine ("Embedded RetroArch"), in the
 /// same style as the other engines compiled into NeoStation (DolphiniOS,
-/// ARMSX2, RPCS3, Dusklight): controller icon, product name, the embedded
+/// ARMSX2, RPCS3): controller icon, product name, the embedded
 /// status with the core that runs the system, and a check.
 class LibretroEngineIdentityTile extends StatelessWidget {
   const LibretroEngineIdentityTile({

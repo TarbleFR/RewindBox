@@ -21,7 +21,7 @@
 ///    a download, a copy the user started — is never assumed to be ours;
 ///    games and user content since the review of the storage services). The
 ///    partial files NeoStation itself writes in such folders have their own
-///    rules (`INV-10.exportPart`, `INV-12/13.gamePart`, `INV-15.importPart`).
+///    rules (`INV-10.exportPart`, `INV-12.gamePart`, `INV-15.importPart`).
 library;
 
 import 'package:path/path.dart' as p;

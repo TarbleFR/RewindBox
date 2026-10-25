@@ -125,14 +125,16 @@ void main() {
     expect(ios.containsKey('url_scheme'), isFalse);
   });
 
-  test('Switch exposes MeloNX on iOS through the melonx URL scheme', () {
+  test('Switch exposes only the embedded MeloNX route on iOS', () {
     final switchSystem = systems.firstWhere((s) => s.name == 'switch.json');
     final melonx = switchSystem.emulators.firstWhere(
-      (e) => e.uniqueId == 'switch.ios.melonx',
+      (e) => e.uniqueId == 'switch.ios.melonx_internal',
     );
     final ios = Map<String, dynamic>.from(melonx.platforms['ios'] as Map);
 
-    expect(ios['url_scheme'], 'melonx');
+    expect(ios['embedded'], isTrue);
+    expect(ios.containsKey('url_scheme'), isFalse);
+    expect(switchSystem.emulators.any((e) => e.uniqueId == 'switch.ios.melonx'), isFalse);
   });
 
   test('systems with supported iOS RetroArch integration expose one generic app', () {

@@ -1300,7 +1300,7 @@ class StorageOrphanDetector {
     StorageScanCancelToken? cancel,
   }) async {
     // Copies of the game folders: Documents/roms and the library folders
-    // (INV-01), Dolphin/Library (INV-20), Ports/*/Games, ARMSX2/Games.
+    // (INV-01), Dolphin/Library (INV-20), Ports/KartPad/Games, ARMSX2/Games.
     final searched = <StorageNode>[
       ...scan.nodesOfRoot('INV-01'),
       ...scan.nodesOfRoot('INV-20'),
@@ -1308,7 +1308,6 @@ class StorageOrphanDetector {
     for (final (root, relative, base) in [
       ('INV-11', StorageLayout.armsx2Games, StorageLayout.armsx2),
       ('INV-12', StorageLayout.kartpadGames, StorageLayout.kartpad),
-      ('INV-13', StorageLayout.dusklightGames, StorageLayout.dusklight),
     ]) {
       for (final location in scan.nodesOfRoot(root)) {
         if (location.container != StorageContainer.documents) continue;

@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'dolphin_display_locale.dart';
 import 'dolphin_extended_locale.dart';
 import 'dolphin_shake_locale.dart';
+import 'touch_layout_locale.dart';
 
 abstract final class DolphinImportLocale {
   static const values = <String, Map<String, String>>{
@@ -1753,6 +1754,8 @@ abstract final class DolphinImportLocale {
       ...DolphinExtendedLocale.labels(key),
       ...DolphinShakeLocale.labels(key),
       ...DolphinDisplayLocale.labels(key),
+      // Build 484: Touch controls page of the in-game menu.
+      ...TouchLayoutLocale.prefixedLabels(key),
       '__locale': key,
     };
   }

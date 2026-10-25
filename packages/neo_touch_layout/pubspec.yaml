@@ -1,0 +1,19 @@
+name: neo_touch_layout
+resolution: workspace
+description: Editable touch-control layouts and controller-aware visibility shared by RewindBox's embedded Dolphin, ARMSX2 and RPCS3 engines.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: '>=3.9.2'
+  flutter: '>=3.35.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: NeoTouchLayoutPlugin

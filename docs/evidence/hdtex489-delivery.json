@@ -1,0 +1,170 @@
+{
+ "build": 489,
+ "version": "0.0.8 (489)",
+ "result": "delivered",
+ "deliverySource": "a8065a993c0a9f791c40bad75c44726fa63e161d",
+ "deliverySourceTree": "9e3f2d9606228f13a5fd2bd837bf942f5c34b1eb",
+ "deliverySourceNote": "tag build-489 = Claude at 041d1d55 + the delivery gate pin (same change as ffdba26 on Claude); pushed from the maintainer's PC at his request because the session's proxy refuses tag pushes; four later commits of other sessions on Claude (Canvas ES-DE system art, KartPad, analyzer cleanups) are not part of Build 489",
+ "deliveryRun": 39340720047,
+ "jobs": {
+  "checks": "success (job 118361293375)",
+  "native": "success (job 118361293649)",
+  "Release device build • cold": "success (job 118361640130)",
+  "Release device build • warm": "skipped"
+ },
+ "closure": ".github/diagnostics/hdtex489_delivery.py",
+ "testedSource": "7c6a86e425f678607a885d3be70bb64221919732",
+ "proofs": {
+  "hdTextures": {
+   "host": {
+    "run": 39337036938,
+    "job": 118349013443,
+    "checks": 51,
+    "inputs": 207,
+    "ciRecords": "PASS 290 CI-verified records (repository archives, file hosts) in verified.jsonl are those of their CI runs",
+    "flutterTests": 130
+   },
+   "native": {
+    "run": 39337040395,
+    "job": 118349023281,
+    "checks": 7,
+    "inputs": 156
+   },
+   "uikit": {
+    "run": 39337043258,
+    "job": 118349032287,
+    "checks": 1,
+    "inputs": 151
+   }
+  },
+  "beetleSimulator": {
+   "run": 39337045728,
+   "job": 118349042081,
+   "device": "iPhone SE (3rd generation), iOS 26.2 Simulator",
+   "scenarios": {
+    "beetle-vulkan-frame": {
+     "renderer": "vulkan",
+     "replace": false,
+     "recognized": 0,
+     "frames": 611
+    },
+    "beetle-vulkan-pack": {
+     "renderer": "vulkan",
+     "replace": true,
+     "recognized": 5,
+     "filesWritten": 11,
+     "lifecycleChecks": 13,
+     "frames": 679
+    },
+    "beetle-vulkan-off": {
+     "renderer": "vulkan",
+     "replace": false,
+     "recognized": 5,
+     "frames": 616
+    }
+   },
+   "applied": 0,
+   "limit": "the Simulator's Metal refuses Beetle's CPU-to-VRAM copies: no texture replaced on screen, no state load, no disc change exercised"
+  }
+ },
+ "deliveredBaseline": {
+  "build": 488,
+  "source": "2bdca0d4b7a353af17016c528d2cf38ecacc9e9b",
+  "run": 39267021460,
+  "sealedIpaSHA256": "8405f8c42b121ea891fdbd98e4bc866e1e071239b98acd4d5fc9aa0d7040e2c5"
+ },
+ "coreRebuilt": false,
+ "catalogue": {
+  "revision": "2026-10-19.85092338c53c",
+  "indexSHA256": "3d46adc5d94ccd9694ae7d94d902f6ad0c001139605920ef8cf3ce56840eb6c4",
+  "indexBytes": 137799,
+  "entries": 1034,
+  "oneTap": 194,
+  "manualVerifiedFile": 168,
+  "linksWithoutVerifiedFile": 672,
+  "identities": 1387,
+  "sources": 392,
+  "perSystem": {
+   "ps2": 697,
+   "gc": 98,
+   "wii": 63,
+   "psp": 101,
+   "3ds": 53,
+   "n64": 21,
+   "ps1": 1
+  },
+  "installableFamilies": {
+   "gc": 76,
+   "wii": 39,
+   "3ds": 37,
+   "psp": 82,
+   "ps2": 33,
+   "n64": 14,
+   "ps1": 1,
+   "total": 280
+  },
+  "n0Families": {
+   "gc": 21,
+   "wii": 13,
+   "3ds": 10,
+   "psp": 56,
+   "ps2": 32,
+   "n64": 14,
+   "ps1": 0,
+   "total": 144
+  },
+  "renderVerifiedInGame": 0
+ },
+ "xcodeBuildSeconds": 319.21,
+ "toolchain": {
+  "xcode": "26.3 (17C529)",
+  "iphoneSDK": "26.2",
+  "flutter": "3.47.2"
+ },
+ "ciValidations": {
+  "preSealIpaSHA256": "afa03fc37ca573255db03cb222d6bacfcafd0034ea2515c4dbf2259afcfa07be",
+  "preSealIpaBytes": 223759085,
+  "hdTextures": "PASS HD texture catalogue in the actual IPA: index 2026-10-19.85092338c53c (1034 packs), labels, framework, Dart channel and the ARMSX2, Dolphin and libretro entry points",
+  "libretro": "Libretro IPA validation passed: 34 cores (mednafen_psx_hw included)",
+  "rpcs3Diag487": "PASS Build 487 diagnostics in the actual IPA: 9 Core and 14 bridge markers",
+  "others": [
+   "RPCS3 lazy-link validation passed across 42 NeoStation Mach-O binaries.",
+   "RPCS3 final IPA validation passed.",
+   "ARMSX2 IPA validation passed",
+   "NeoStation IPA legal bundle validated.",
+   "PASS final unified index, shared implementation and four compiled consumers"
+  ]
+ },
+ "encryptedArtifact": {
+  "id": 12229302711,
+  "name": "NeoStation-Build-489-a8065a993c0a9f791c40bad75c44726fa63e161d-cold",
+  "bytes": 228425629,
+  "zipSHA256": "e58988ba16c4227a7fd485f53ae4f75a9bb4f64f32fb8805fc2890e4619a2d7b",
+  "expires": "2026-11-02T23:33:22Z",
+  "recipient": "build-utils/delivery-424-recipient.pem"
+ },
+ "sealedIpa": {
+  "name": "NeoStation-Build489-a8065a993c0a9f791c40bad75c44726fa63e161d-cold.ipa",
+  "bytes": 228181989,
+  "sha256": "4aba0ca44a6a95052bd4082c710bf3dfb343a23b045e11c321517ddcdca76fe0",
+  "matches": [
+   "SHA256SUMS",
+   "signed-payload-identity.json"
+  ],
+  "catalogueIndexInIpa": {
+   "path": "Payload/NeoStation.app/Frameworks/neo_texture_catalog.framework/NeoTextureCatalog.bundle/manifest.json.gz",
+   "sha256": "3d46adc5d94ccd9694ae7d94d902f6ad0c001139605920ef8cf3ce56840eb6c4",
+   "equalsFrozenIndex": true
+  },
+  "windowsCopy": "C:\\Users\\Coren\\Downloads\\NeoStation-Build489-a8065a99.ipa",
+  "windowsCopySHA256Verified": true,
+  "decryptedOn": "maintainer PC with the 424 private key (C:\\Users\\Coren\\nsw\\b489\\decrypt-489.ps1, adapted from decrypt-488.ps1); session password and plaintext tar removed"
+ },
+ "notValidated": [
+  "physical iPhone",
+  "texture replacement rendered in a game (any engine)",
+  "Beetle PSX HW on an iPhone GPU",
+  "state load, disc change and memory cards during replacement on Beetle PSX HW"
+ ],
+ "sideStoreResigningRequired": true
+}

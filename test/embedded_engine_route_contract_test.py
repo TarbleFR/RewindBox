@@ -40,11 +40,20 @@ require('return _embeddedEngineOff(context, system);' in dolphin, 'Dolphin off i
 require('RetroArchLibraryService' not in dolphin and 'retroarch://' not in dolphin,
         'GameCube/Wii never fall through to RetroArch')
 
-ports = between(router, "if (Platform.isIOS && system.folderName.toLowerCase() == 'ports') {",
-                "'ios_dusklight_internal'")
-require(ports.index(POLICY) < ports.index('KartPadInternalService.ownsGamePath'),
-        'Ports ask the policy before KartPad or Dusklight')
-require('return _embeddedEngineOff(context, system);' in ports, 'Ports off is an explicit refusal')
+# KartPad (19 October 2026) then Dusklight and the Ports playlist
+# (20 October 2026, docs/ports-removal-2026-10-20.md) left NeoStation: no
+# route, refusal or session name of theirs is left in the router.
+for retired in ("'ports'", 'ios_dusklight_internal', 'ios_kartpad_internal',
+                'DusklightInternalService', 'KartPadInternalService',
+                'isRemovedKartPadGamePath'):
+    require(retired not in router, 'the router keeps no Ports route: ' + retired)
+
+switch = between(router, "if (Platform.isIOS && system.folderName.toLowerCase() == 'switch')", 'final isArmsx2VirtualRom')
+require(switch.index(POLICY) < switch.index('MelonxInternalService.launch('), 'Switch checks its embedded policy')
+require('GameSessionManager.cancelGameLaunch();' in switch, 'failed Switch launch cancels its session')
+require('MelonxInternalService.isRetiredLink' in switch, 'external-only rows require a file import')
+require('launchUrl' not in switch and 'RetroArch' not in switch, 'Switch has no external fallback')
+require('MelonxLibraryService' not in router, 'the external Switch route is absent')
 
 ps3 = between(router, 'if (isPs3 &&', "'ios_rpcs3_internal'")
 require(POLICY in ps3 and 'return _embeddedEngineOff(context, system);' in ps3,
@@ -58,7 +67,7 @@ require(libretro.index(POLICY) < libretro.index('LibretroInternalService.launch(
 
 generic = router[router.index("'ios_direct_launch'"):router.index("final configFileName = '${system.folderName}.json';")]
 require('GameSessionManager.cancelGameLaunch();' in generic, 'a refused handoff cancels its session')
-require(generic.count('return failExternal(') >= 7, 'every failure after the registration cancels it')
+require(generic.count('return failExternal(') >= 5, 'every failure after the registration cancels it')
 require('return GameLaunchResult.failure(' not in generic.replace('failExternal(GameLaunchResult.failure(', ''),
         'no failure escapes the cancellation')
 ps2 = between(generic, "if (system.folderName.toLowerCase() == 'ps2') {", 'retroArchFailure()')

@@ -1,0 +1,34 @@
+name: Build 482 targeted checks
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - lib/l10n/rpcs3_firmware_locale.dart
+      - lib/widgets/rpcs3_firmware_preflight_dialog.dart
+      - test/rpcs3_firmware_preflight_test.dart
+      - test/build482_targeted_test.py
+      - .github/workflows/build482-checks.yml
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+jobs:
+  targeted:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env: {GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}'}
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Restore exact locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: PS3 firmware preflight, RPCS3 menus, ARMSX2 ABI 7 contracts and twelve locales
+        run: python3 test/build482_targeted_test.py
+      - name: Preserve exact targeted proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build482-${{ github.sha }}
+          path: build/build482/
+          if-no-files-found: warn
+          retention-days: 14

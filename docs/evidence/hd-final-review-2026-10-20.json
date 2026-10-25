@@ -1,0 +1,485 @@
+{
+  "schema": 1,
+  "checked_at": "2026-10-20",
+  "baseline_commit": "b332bc2e59e4f44d4e820aa4879520a058bfd76b",
+  "preserved_concurrent_delivery_commit": "16e8b3edc4186f4f0df5f14082e44b3634789491",
+  "discovery": {
+    "new_hd_project_references": 6,
+    "new_current_platform_pending_projects": 4,
+    "new_future_switch_project": 1,
+    "existing_exclusions_re_reviewed_and_verified": 2,
+    "repository_query_pages": 27,
+    "returned_repository_rows_including_duplicates": 1284,
+    "selected_research_findings": 25,
+    "newly_discovered_verified_projects": 1,
+    "total_newly_integrated_verified_families": 3
+  },
+  "ci": [
+    {
+      "run": 39449348701,
+      "source": "d6fa85695f219ad0b66ef71bc9429d11c8e8abd9",
+      "console": "3ds",
+      "artifact": 12277740916,
+      "artifact_sha256": "0d0cf640eb69b55e5afe8cd29e75993fee096ee1e011a801098d87328a8bbe8b",
+      "record": {
+        "checks": {
+          "0004000000148C00": {
+            "badPng": [],
+            "dds": 0,
+            "pack_json": null,
+            "png": 2
+          }
+        },
+        "download_seconds": 0.7,
+        "format": "zip",
+        "id": "3ds-mirai-dx-hd-ps-buttons-ayumi",
+        "installed": [
+          {
+            "bytes": 2588414,
+            "exclude": [],
+            "files": 2,
+            "formats": {
+              "png": 2
+            },
+            "from": "mirai-dx-ps-button-icons-ia-vt-style-fc8d371776a3f70f1cb26857adacd1b458d7e8b7/citra/0004000000148C00/",
+            "to": "0004000000148C00"
+          }
+        ],
+        "layout": "declared",
+        "parts": [
+          {
+            "sha256": "48cfc209622e29d94445d185af8d17d43502a50739d90c9a4d6ad552483b6c4d",
+            "size": 2320985,
+            "url": "https://codeload.github.com/ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style/zip/fc8d371776a3f70f1cb26857adacd1b458d7e8b7"
+          }
+        ],
+        "status": "ok",
+        "system": "3ds",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39449348701,
+      "source": "d6fa85695f219ad0b66ef71bc9429d11c8e8abd9",
+      "console": "psp",
+      "artifact": 12275934867,
+      "artifact_sha256": "4e0a8824e50900068c68852f56e4f3b2f7803432890914234cf35ffb04220ea1",
+      "record": {
+        "checks": {
+          "ULUS10466": {
+            "caseMismatches": 20,
+            "dds": {
+              "bc1": 2
+            },
+            "hash": "xxh64",
+            "hashTargets": 9395,
+            "leadingSlash": 0,
+            "missingTargets": 933
+          }
+        },
+        "download_seconds": 18.8,
+        "format": "zip",
+        "id": "psp-tekken6-hd-kharij",
+        "installed": [
+          {
+            "bytes": 549397789,
+            "exclude": [],
+            "files": 8649,
+            "formats": {
+              "dds": 2,
+              "ini": 1,
+              "ktx2": 8645,
+              "zim": 1
+            },
+            "from": "Tekken-6-HD-Texture-Pack-443b17fad860c6e72c902bea403dbc1e2076afec/",
+            "to": "ULUS10466"
+          }
+        ],
+        "layout": "declared",
+        "parts": [
+          {
+            "sha256": "2fb8498c01585eb4998e3b49c54bdcc01db8e3ff779cc514d590f66208a3a2df",
+            "size": 549375801,
+            "url": "https://codeload.github.com/kharij/Tekken-6-HD-Texture-Pack/zip/443b17fad860c6e72c902bea403dbc1e2076afec"
+          }
+        ],
+        "status": "ok",
+        "system": "psp",
+        "verified_at": "2026-10-20"
+      }
+    },
+    {
+      "run": 39450675080,
+      "source": "c6ebee7f407c2833e20914db9a16682228a13a92",
+      "console": "3ds",
+      "artifact": 12279011296,
+      "artifact_sha256": "4b7245dca23d964b095280d6f7979abd885f6ae10fc0439c2f7992d117c125b6",
+      "record": {
+        "checks": {
+          "000400000011C500": {
+            "badPng": [],
+            "dds": 0,
+            "pack_json": {
+              "flip_png_files": true,
+              "skip_mipmap": false,
+              "use_new_hash": true
+            },
+            "png": 336
+          }
+        },
+        "download_seconds": 1.8,
+        "format": "zip",
+        "id": "3ds-pokemon-alpha-sapphire-ghibli-dinopandaa",
+        "installed": [
+          {
+            "bytes": 63537949,
+            "exclude": [],
+            "files": 337,
+            "formats": {
+              "json": 1,
+              "png": 336
+            },
+            "from": "Poke Texture/",
+            "to": "000400000011C500"
+          }
+        ],
+        "layout": "detected",
+        "other_region": false,
+        "parts": [
+          {
+            "sha256": "185b237404b61eb232b3665fedd78f22f2c2f2696e7c9413660f727b426a8062",
+            "size": 68957902,
+            "url": "https://github.com/DinoPandaa30/Pokemon-Alpha-Sapphire-Ghibli-Style/releases/download/v0.0.3/Poke.Texture.zip"
+          }
+        ],
+        "status": "ok",
+        "system": "3ds",
+        "verified_at": "2026-10-20"
+      }
+    }
+  ],
+  "no_verification_run": {
+    "run": 39449572012,
+    "source": "31ea4d43b2181a9a6b2b435b6ba4c0524ac2268f",
+    "artifact": 12277831503,
+    "artifact_sha256": "bed5000b7af994537311455ac9683837e595d57eeff27a66b1976c6c99e01c22",
+    "records": 0,
+    "reason": "Repository-only filter did not select the release asset. Not registered as a pack verification; workflow subsequently gained explicit releases dispatch."
+  },
+  "binary_review": {
+    "run": 39366986940,
+    "source": "4c2186204ce06b50b989689a9c2322068f523a58",
+    "artifact": 12239349073,
+    "artifact_sha256": "76d2cbab7a168dae0786b5030052946b77006099774af5b70969e8c49bd586db",
+    "member": "Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+    "bytes": 14856504,
+    "sha256": "40d3b6f81a726ff82a89f87df5332f20a5dcdecd9f6473fcae7cade60bcb0cf0",
+    "method": "Static strings/symbol inspection of the exact delivered binary, hash matched against docs/evidence/build479-libretro-source-identity.json; not core execution or an iPhone render.",
+    "symbols": [
+      "basisu_transcoder_supports_ktx2",
+      "basisu_transcoder_supports_ktx2_zstd",
+      "basisu_lowlevel_uastc_transcoder",
+      "ktx2_transcoder"
+    ],
+    "finding": "Raw .basis is rejected; UASTC in KTX2 is supported. Earlier Type-0 exclusion mixed the two containers.",
+    "tekken_sample_header": {
+      "commit": "443b17fad860c6e72c902bea403dbc1e2076afec",
+      "path": "character/ann/ann_1p_kami/ann_1p_kami.ktx2",
+      "vkFormat": 0,
+      "typeSize": 1,
+      "width": 256,
+      "height": 64,
+      "levelCount": 9,
+      "supercompressionScheme": 2
+    }
+  },
+  "mirai_dimensions": [
+    {
+      "file": "tex1_1024x128_FB8B0118B7772C28_4.png",
+      "png_dimensions": [
+        4096,
+        512
+      ],
+      "git_blob_sha1": "4c5b1680a968ec20cb12963706a78a629a305bd8",
+      "pinned_tree_commit": "fc8d371776a3f70f1cb26857adacd1b458d7e8b7",
+      "finding": "Locally inspected PNG bytes match the original pinned Git tree blob SHA; real3ds subtree is not installed."
+    },
+    {
+      "file": "tex1_256x256_D8FCDB146CF78062_4.png",
+      "png_dimensions": [
+        512,
+        512
+      ],
+      "git_blob_sha1": "84d27475f52fb2a68bc220479277bd9fd2ed9323",
+      "pinned_tree_commit": "fc8d371776a3f70f1cb26857adacd1b458d7e8b7",
+      "finding": "Locally inspected PNG bytes match the original pinned Git tree blob SHA; real3ds subtree is not installed."
+    }
+  ],
+  "counts": {
+    "before": {
+      "gc": {
+        "distinct": 77,
+        "entries": 102,
+        "variants": 25,
+        "complete": 53,
+        "partial": 8,
+        "ui": 16,
+        "oneTapFamilies": 23,
+        "manualVerifiedFamilies": 54,
+        "games": 54
+      },
+      "wii": {
+        "distinct": 43,
+        "entries": 65,
+        "variants": 22,
+        "complete": 24,
+        "partial": 6,
+        "ui": 13,
+        "oneTapFamilies": 14,
+        "manualVerifiedFamilies": 29,
+        "games": 33
+      },
+      "3ds": {
+        "distinct": 47,
+        "entries": 53,
+        "variants": 6,
+        "complete": 17,
+        "partial": 15,
+        "ui": 15,
+        "oneTapFamilies": 15,
+        "manualVerifiedFamilies": 32,
+        "games": 54
+      },
+      "psp": {
+        "distinct": 90,
+        "entries": 104,
+        "variants": 14,
+        "complete": 62,
+        "partial": 11,
+        "ui": 17,
+        "oneTapFamilies": 57,
+        "manualVerifiedFamilies": 33,
+        "games": 108
+      },
+      "ps2": {
+        "distinct": 76,
+        "entries": 90,
+        "variants": 14,
+        "complete": 48,
+        "partial": 19,
+        "ui": 9,
+        "oneTapFamilies": 33,
+        "manualVerifiedFamilies": 43,
+        "games": 87
+      },
+      "n64": {
+        "distinct": 14,
+        "entries": 21,
+        "variants": 7,
+        "complete": 12,
+        "partial": 2,
+        "ui": 0,
+        "oneTapFamilies": 14,
+        "manualVerifiedFamilies": 0,
+        "games": 11
+      },
+      "ps1": {
+        "distinct": 2,
+        "entries": 2,
+        "variants": 0,
+        "complete": 1,
+        "partial": 1,
+        "ui": 0,
+        "oneTapFamilies": 2,
+        "manualVerifiedFamilies": 0,
+        "games": 4
+      },
+      "nes": {
+        "distinct": 5,
+        "entries": 5,
+        "variants": 0,
+        "complete": 5,
+        "partial": 0,
+        "ui": 0,
+        "oneTapFamilies": 5,
+        "manualVerifiedFamilies": 0,
+        "games": 4
+      },
+      "total": {
+        "distinct": 352,
+        "entries": 437,
+        "variants": 85,
+        "complete": 220,
+        "partial": 62,
+        "ui": 70,
+        "oneTapFamilies": 161,
+        "manualVerifiedFamilies": 191,
+        "games": 351
+      }
+    },
+    "after": {
+      "gc": {
+        "distinct": 77,
+        "entries": 102,
+        "variants": 25,
+        "complete": 53,
+        "partial": 8,
+        "ui": 16,
+        "oneTapFamilies": 23,
+        "manualVerifiedFamilies": 54,
+        "games": 54
+      },
+      "wii": {
+        "distinct": 43,
+        "entries": 65,
+        "variants": 22,
+        "complete": 24,
+        "partial": 6,
+        "ui": 13,
+        "oneTapFamilies": 14,
+        "manualVerifiedFamilies": 29,
+        "games": 33
+      },
+      "3ds": {
+        "distinct": 49,
+        "entries": 55,
+        "variants": 6,
+        "complete": 17,
+        "partial": 16,
+        "ui": 16,
+        "oneTapFamilies": 17,
+        "manualVerifiedFamilies": 32,
+        "games": 56
+      },
+      "psp": {
+        "distinct": 91,
+        "entries": 105,
+        "variants": 14,
+        "complete": 62,
+        "partial": 12,
+        "ui": 17,
+        "oneTapFamilies": 58,
+        "manualVerifiedFamilies": 33,
+        "games": 109
+      },
+      "ps2": {
+        "distinct": 76,
+        "entries": 90,
+        "variants": 14,
+        "complete": 48,
+        "partial": 19,
+        "ui": 9,
+        "oneTapFamilies": 33,
+        "manualVerifiedFamilies": 43,
+        "games": 87
+      },
+      "n64": {
+        "distinct": 14,
+        "entries": 21,
+        "variants": 7,
+        "complete": 12,
+        "partial": 2,
+        "ui": 0,
+        "oneTapFamilies": 14,
+        "manualVerifiedFamilies": 0,
+        "games": 11
+      },
+      "ps1": {
+        "distinct": 2,
+        "entries": 2,
+        "variants": 0,
+        "complete": 1,
+        "partial": 1,
+        "ui": 0,
+        "oneTapFamilies": 2,
+        "manualVerifiedFamilies": 0,
+        "games": 4
+      },
+      "nes": {
+        "distinct": 5,
+        "entries": 5,
+        "variants": 0,
+        "complete": 5,
+        "partial": 0,
+        "ui": 0,
+        "oneTapFamilies": 5,
+        "manualVerifiedFamilies": 0,
+        "games": 4
+      },
+      "total": {
+        "distinct": 355,
+        "entries": 440,
+        "variants": 85,
+        "complete": 220,
+        "partial": 64,
+        "ui": 71,
+        "oneTapFamilies": 164,
+        "manualVerifiedFamilies": 191,
+        "games": 354
+      }
+    },
+    "gap_to_400": 45,
+    "gap_to_exceed_400": 46,
+    "shared_gc_wii_families_counted_once_globally": 2,
+    "future_switch_references_before": 4,
+    "future_switch_references_after": 5,
+    "new_verified_fire_emblem_families": 0,
+    "new_verified_french_pal_fire_emblem_families": 0
+  },
+  "catalogue": {
+    "baseline_revision": "2026-10-20.d64e1ff29d79",
+    "final_revision": "2026-10-20.8a38a79c72f0",
+    "runtime_entries_before": 1083,
+    "runtime_entries_after": 1086,
+    "new_available_ids": [
+      "3ds-mirai-dx-hd-ps-buttons-ayumi",
+      "3ds-pokemon-alpha-sapphire-ghibli-dinopandaa",
+      "psp-tekken6-hd-kharij"
+    ],
+    "compressed_bytes": 167616,
+    "compressed_sha256": "f7d8c987b8cfe80ec923600682479b9bfcd6fea17fab120e853843f34683162f",
+    "bundled_file_byte_identical": true
+  },
+  "preservation": {
+    "unchanged_existing_runtime_objects": 1083,
+    "unchanged_existing_active_source_entries": 1084,
+    "existing_verification_record_bytes_unchanged": true,
+    "existing_verification_records": 663,
+    "appended_raw_ci_records": 3,
+    "new_records_exactly_match_artifact_bytes": true,
+    "ci_registry_existing_entries_unchanged": true,
+    "counter_generator_verifier_code_unchanged": true,
+    "concurrent_delivery_files_preserved": [
+      "AGENTS.md",
+      "docs/build496-psp-hd-catalogue.md",
+      "docs/evidence/psprelaunch496-delivery.json"
+    ],
+    "switch_runtime_entries": 0,
+    "all_future_switch_runtime_engine_payload_and_automation_flags_false": true,
+    "concurrent_psp_files_preserved": [
+      ".github/diagnostics/ppsspp497/build.py",
+      ".github/workflows/build497-checks.yml",
+      "AGENTS.md",
+      "docs/build497-psp-managed-memory.md",
+      "native/ppsspp/managed-memory.patch",
+      "native/ppsspp/source.json",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAddressSpace.h",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAddressSpace.m",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroSession.m",
+      "packages/libretro_internal_bridge/ios/Classes/NeoStationPSPMemory.h",
+      "test/libretro_host/frontend/psp_managed_memory_test.m",
+      "test/psp_relaunch497.py"
+    ],
+    "concurrent_psp_files_no_worktree_changes": true
+  },
+  "validation": {
+    "catalogue_generation_and_check": "passed",
+    "distinct_family_count": "passed",
+    "semantic_preservation": "passed",
+    "git_diff_check": "passed",
+    "iphone_rendering": "not performed",
+    "unchanged_tests": "not rerun",
+    "official_release": "not created"
+  },
+  "preserved_concurrent_psp_commit": "ab9900b17a4ed21337c5b40f8b317711ef2ad06e"
+}

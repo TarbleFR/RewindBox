@@ -2,6 +2,9 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+/// Build 485: HD textures page (ARMSX2TexturePage.h, private to the pod).
+@protocol ARMSX2TextureHost;
+
 typedef void (^Armsx2SessionReadSnapshot)(
     void (^completion)(NSDictionary<NSString*, id>* _Nullable snapshot));
 typedef void (^Armsx2SessionCommand)(
@@ -40,6 +43,8 @@ typedef void (^Armsx2SessionPatchCommand)(
 @property(nonatomic, copy) Armsx2SessionReadPatches readPatches;
 @property(nonatomic, copy) void (^importCheats)(NSDictionary*, void (^)(NSDictionary*));
 @property(nonatomic, copy) Armsx2SessionPatchCommand performPatchCommand;
+/// Build 485: the running game's HD textures; nil hides nothing but disables the row.
+@property(nonatomic, strong, nullable) id<ARMSX2TextureHost> textureHost;
 @property(nonatomic, copy) dispatch_block_t resumeGame;
 @property(nonatomic, copy) dispatch_block_t quitGame;
 @end

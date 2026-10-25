@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define NEO_ARMSX2_ABI_VERSION 6u
+#define NEO_ARMSX2_ABI_VERSION 8u
 #define NEO_ARMSX2_BOOT_DISC 1u
 #define NEO_ARMSX2_BOOT_ELF 2u
 // No ROM: use the installed BIOS and the same owned VM lifecycle.
@@ -16,6 +16,11 @@ extern "C" {
 #define NEO_ARMSX2_RA_NOTIFICATIONS 3u
 #define NEO_ARMSX2_RA_LEADERBOARDS 4u
 #define NEO_ARMSX2_RA_OVERLAYS 5u
+// Blending accuracy scopes (ABI 7): this game's INI, or PCSX2.ini for all PS2 games.
+#define NEO_ARMSX2_BLENDING_SCOPE_GAME 0u
+#define NEO_ARMSX2_BLENDING_SCOPE_DEFAULT 1u
+// Game scope only: removes this game's choice; the default and the GameDB apply again.
+#define NEO_ARMSX2_BLENDING_INHERIT (-1)
 
 typedef void (*NeoARMSX2Event)(void* context, uint64_t transaction,
                              const char* event, const char* message);
@@ -89,6 +94,39 @@ typedef struct NeoARMSX2API {
   int (*set_shader_preset)(const char* stable_token, char* error, size_t capacity);
   int (*set_performance_overlay)(uint32_t preset, char* error, size_t capacity);
   int (*install_shader_pack)(const char* archive_path, char* error, size_t capacity);
+
+  // ABI 7: GSdx "Blending Accuracy" (EmuCore/GS accurate_blending_unit, 0..5).
+  // JSON: available, global (default for all PS2 games), game (-1 inherits),
+  // effective (EmuConfig after the GameDB), gamedbMinimum/gamedbMaximum/
+  // gamedbRecommended (-1 when the database has none) and levels: the only
+  // values this engine distinguishes on iPhone (core/ARMSX2BlendingAccuracy.h).
+  int (*get_blending_accuracy_json)(char* output, size_t capacity);
+  // Writes the INI layer of the scope, then applies live through VMManager.
+  // A level outside `levels` (Medium included) is refused: no option without effect.
+  int (*set_blending_accuracy)(uint32_t scope, int level, char* error, size_t capacity);
+
+  // ABI 8: HD replacement textures of the engine (GSTextureReplacements).
+  // JSON: available, serial, crc, version, title, game (-1 inherits, 0/1 this
+  // game's INI), global, effective/async/precache (EmuConfig), hardware, and from
+  // the GS thread indexed (file names the engine indexed), loaded (decoded and
+  // cached), cacheBytes, budgetBytes (0 until set), budgetReached, bcTextures,
+  // astcTextures; availableMemory (os_proc_available_memory). Errors are keys.
+  int (*get_texture_replacements_json)(char* output, size_t capacity);
+  // This game's INI: LoadTextureReplacements, and when on asynchronous loading
+  // without preloading the whole pack. Applied to the running game at once.
+  int (*set_texture_replacements)(int enabled, char* error, size_t capacity);
+  // Re-indexes the running game's replacements after their files changed.
+  int (*reload_texture_replacements)(char* error, size_t capacity);
+  // Before boot: {"games":{"<serial>":true|false}}, NeoStation's per-game choices.
+  // Once the disc is identified, the running game's choice is written to its INI
+  // before the first frame. Games absent from the map keep their INI.
+  int (*set_texture_boot_preferences)(const char* json, char* error, size_t capacity);
+  // Decodes a .tar.zst pack with the engine's own reader into [destination]
+  // (texture entries only, checked paths). Any thread; *cancel stops it,
+  // *consumed reports the compressed bytes read.
+  int (*expand_texture_archive)(const char* archive_path, const char* destination,
+                                uint64_t available_bytes, const volatile int* cancel,
+                                volatile uint64_t* consumed, char* error, size_t capacity);
 } NeoARMSX2API;
 
 typedef const NeoARMSX2API* (*NeoARMSX2GetAPI)(uint32_t version);

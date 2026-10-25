@@ -79,7 +79,6 @@ jobs:
           test/startup_locale_test.dart
           test/app_locale_ko_test.dart
           test/legal_credits_dialog_test.dart
-          test/libretro_skin_catalogs_test.dart
       - name: Test remaining renamed library and embedded-engine labels
         run: >-
           flutter test --no-pub

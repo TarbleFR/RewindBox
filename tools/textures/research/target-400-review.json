@@ -1,0 +1,1610 @@
+{
+  "checked_at": "2026-10-20",
+  "purpose": "Research evidence only; this file is outside build_catalogue.py source globs. The goal is 400 genuinely installable families, never 400 links or archive variants.",
+  "baseline": {
+    "commit": "4850653",
+    "revision": "2026-10-20.809cfd2df68f",
+    "installable_families": 295
+  },
+  "counting": "Unchanged count_packs.py: available or manual with exact verified archive; resolutions, formats, mirrors, regions and components of a project count once. RAR, ROM patches, shaders, system fonts, announcements and unverified links do not count.",
+  "discovery": {
+    "primary_pages": 475,
+    "page_run": 39406152144,
+    "page_source": "49003de67f53350a3f4680bf48e451b30f68eb28",
+    "page_result": "475 HTTP 403; no protection bypass or invented download links.",
+    "folder_probes": 20,
+    "folder_run": 39407069947,
+    "folder_source": "136fa563ccb90108054c12ccdcae1fc3bc244feb",
+    "ps2_original_catalogue": "ps2ktxpak/catalog@807733e50aceb10ded2fa95620c2180efce8585a",
+    "ps2_file_candidates": 210,
+    "ps2_selection": "Only free file links recovered from existing source trails. Paid access, rehosts without established author distribution, password/split archives, folder/page-only links and creator warnings about old PCSX2 hashes were not promoted.",
+    "ps2_result": {
+      "first_run": 39406754238,
+      "completed_observations": 104,
+      "native_ok": 17,
+      "immediately_promoted": 13,
+      "withheld_native_ok": [
+        {
+          "id": "ps2-ktx-devil-kings-i-emu-play",
+          "native_plan": {
+            "bytes": "995926973",
+            "error": "",
+            "excluded": "0",
+            "files": "1654",
+            "match": "noSerial",
+            "pack": "",
+            "regionConflict": "0",
+            "serials": "",
+            "skipped": "0"
+          },
+          "file_name": "SLUS-21297.7z",
+          "disposition": "corrected-usa-target-now-verified",
+          "verified_run": 39417046479
+        },
+        {
+          "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-akirus",
+          "native_plan": {
+            "bytes": "1907374997",
+            "error": "",
+            "excluded": "0",
+            "files": "2223",
+            "match": "otherSerial",
+            "pack": "SLUS-21678",
+            "regionConflict": "0",
+            "serials": "SLUS-21678,",
+            "skipped": "0"
+          },
+          "file_name": "HD_169.7z",
+          "disposition": "corrected-usa-target-now-verified",
+          "verified_run": 39417046479
+        },
+        {
+          "id": "ps2-ktx-dynasty-warriors-4-empires-sombertwilight",
+          "native_plan": {
+            "bytes": "1512542752",
+            "error": "",
+            "excluded": "0",
+            "files": "2652",
+            "match": "otherSerial",
+            "pack": "SLUS-20653",
+            "regionConflict": "0",
+            "serials": "SLUS-20653,",
+            "skipped": "0"
+          },
+          "file_name": "SLUS-20938.7z",
+          "disposition": "archive-identifies-different-game-withheld"
+        },
+        {
+          "id": "ps2-ktx-drakengard-irvinsmith",
+          "disposition": "creator-ntsc-versus-flat-pal-filename-conflict",
+          "reason": "Original creator explicitly says For NTSC; creator-linked archive is SLES-52322.7z, flat with no internal serial. Upstream PAL label and filename are insufficient to override the creator; native installation success is retained but not availability."
+        }
+      ],
+      "superseded_original_page_fetches": [
+        "ps2-ktx-007-from-russia-with-love-thomasweissenfluh",
+        "ps2-ktx-bujingai-the-forsaken-city-darthdarklord",
+        "ps2-ktx-maximo-ghosts-to-glory-maximocapcom"
+      ],
+      "remaining_unseen_candidates": 102,
+      "remaining_runs": [
+        39416625497,
+        39416632997,
+        39416642896
+      ],
+      "resume_source": "ba76f09f93ff74885d7b82146e46388ca70fcece",
+      "resume_policy": "Only IDs with no completed observation in the first bulk or a later dedicated run are submitted; 34 candidates per run. No known failure is retried and no completed native test is repeated.",
+      "first_run_cancellation": "After more than one hour of serial processing, preserve the 104 completed JSONL records with the workflow always-upload step, then split only unseen IDs into smaller batches; avoid losing the batch to the 300-minute job ceiling.",
+      "corrected_target_run": 39417046479,
+      "promoted_after_corrected_target_verification": 2
+    },
+    "scope_review": "Before promotion, candidate source completeness is retained explicitly: complete only when upstream marks complete, partial for WIP/unknown/partial; clearly named standalone UI/HUD projects are UI. This does not make a candidate available.",
+    "remaining_resolved_mapped_links": {
+      "total_not_in_first_bulk": 94,
+      "file": 37,
+      "folder": 27,
+      "unknown": 5,
+      "shop": 19,
+      "page": 6,
+      "limits": "Exclude 17 explicitly legacy-hash CCKrizalid files, paid shops, password/split bundles, Xbox format releases and already verified entries. OneDrive pages are not downloadable archives through the existing fetcher. Three original Pixeldrain candidates are verified separately."
+    },
+    "spreadsheet_review": {
+      "run": 39413582743,
+      "source": "f73564e91e2bdbec75e83ea12af4116fe1513793",
+      "artifact": 12259704485,
+      "artifact_zip_sha256": "e3d4ca4a3a9f61ecf2009b6ad270d9b02c1946284deb4728ba26d3a060874979",
+      "status": 200,
+      "method": "Public original Google XLSX export parsed with the existing research reader. All sheet contents retained in the exact artifact; original creator links followed only as discovery leads. No community mirrors downloaded.",
+      "rows": {
+        "PSP": 145,
+        "GC": 67,
+        "3DS": 8,
+        "Wii": 106,
+        "Switch": 18
+      },
+      "limits": "Most additional Wii/GC entries are paid Bl4ckH4nd packs or known references. Terabox mirrors are not used; the Fire Emblem rows add no new validated free original PoR/RD source. Switch rows are discovery metadata only."
+    },
+    "remaining_batch_1": {
+      "run": 39416625497,
+      "records": 34,
+      "native_ok": 6,
+      "promoted_without_reverification": [
+        "ps2-ktx-monster-hunter-toolatenate",
+        "ps2-ktx-onimusha-3-demon-siege-teodor-max",
+        "ps2-ktx-tenchu-fatal-shadows-sombertwilight"
+      ],
+      "note": "MH flat archive is attested by the original creator’s explicit SLUS-20896 instructions. SVR2007 ZIP cannot be published as the earlier game. Basara/SH3 use corrected actual IDs only after new verification. All three corrected targets passed run 39420495984 on the same original bytes; wrong earlier observations are retained in superseded history.",
+      "corrected_target_run": 39420495984,
+      "corrected_target_passed": [
+        "ps2-ktx-sengoku-basara-2-heroes-i-emu-play",
+        "ps2-ktx-silent-hill-3-curse-arms",
+        "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers"
+      ]
+    },
+    "onedrive_public_api_check": {
+      "checked_at": "2026-10-20",
+      "api": "https://api.onedrive.com/v1.0/shares/{encoded-public-link}/root",
+      "files": [
+        {
+          "url": "https://1drv.ms/u/s!ApJOQlD7y1v-kQt6geUpBAx2HccT?e=3gv30c",
+          "status": 401,
+          "code": "unauthenticated"
+        },
+        {
+          "url": "https://1drv.ms/u/s!ApJOQlD7y1v-kQNglYuqcNA0YjBQ?e=OMDflX",
+          "status": 401,
+          "code": "unauthenticated"
+        }
+      ],
+      "decision": "Stop; no account token, alternate endpoint, copied file or download attempted. An API requiring authentication is not proof that the original sharing page is private."
+    },
+    "additional_primary_page_sample": {
+      "pages": [
+        "https://gbatemp.net/threads/bionicle-heroes-pcsx2-hd-texture.675440/",
+        "https://gbatemp.net/threads/kinetica-pcsx2-hd-texture.669715/",
+        "https://gbatemp.net/threads/killzone-pcsx2-hd-texture.665500/",
+        "https://gbatemp.net/threads/007-quantum-of-solace-ps2-texture-remaster-hd-pack-sles-55345.675365/",
+        "https://gbatemp.net/threads/crash-bandicoot-nitro-kart-hd-textures.650401/",
+        "https://gbatemp.net/threads/disgaea-hour-of-darkness-texture-pack.679826/"
+      ],
+      "decision": "No original downloadable archive was resolved: three pages inaccessible to the research tool; Killzone links a Ko-fi page rather than a public file, Quantum of Solace an ouo.io shortener with inconsistent SLES numbers, Disgaea no resolved archive. These source references do not become installable by counting the announcements."
+    },
+    "additional_dolphin_sources": {
+      "rogue_leader_original_forum": "https://forums.dolphin-emu.org/Thread-hd-texture-star-wars-rogue-leader-rebel-strike-jedi-knight-15th-feb-2016",
+      "result": "Official Dolphin wiki references original Rogue Leader/Rebel Strike/Jedi Knight texture work, but the forum returns a bot challenge. No file or current-hash proof obtained; no bypass.",
+      "f_zero_original_forums": [
+        "https://forums.dolphin-emu.org/Thread-f-zero-gx-hd-05-01-2022",
+        "https://forums.dolphin-emu.org/Thread-f-zero-gx-hd-texture-pack?highlight=F-zero+gx&pid=370439"
+      ],
+      "f_zero_result": "Both official-wiki-linked original creator threads return bot challenges; no additional file or native import inferred.",
+      "donkey_kong_country_returns": {
+        "creator": "CTCaer",
+        "primary_page": "https://forums.dolphin-emu.org/Thread-wii-fhd-donkey-kong-country-returns-hd-textures-mod-v1-4?page=16",
+        "result": "Official creator thread is protected; secondary directories identify v1.4 but no original archive URL/permission can be checked. Existing sinceohsix reupload remains excluded; no creator file or native installation inferred."
+      }
+    },
+    "remaining_batch_2": {
+      "run": 39416632997,
+      "records": 34,
+      "native_ok": 6,
+      "retained_hd": [
+        "ps2-ktx-room-zoom-race-for-impact-mehrdad-jamshidiha",
+        "ps2-ktx-silent-line-armored-core-ninebreaker",
+        "ps2-ktx-ssx-3-whitelightning76",
+        "ps2-ktx-the-x-files-resist-or-serve-teodor-max"
+      ],
+      "withheld": [
+        "ps2-ktx-ratchet-and-clank-up-your-arsenal-theblazingdiamond",
+        "ps2-ktx-tony-hawk-s-pro-skater-3-headfonehead"
+      ],
+      "additional_adaptation": "WWE HCTP LLP998 is specifically for nero619’s HCTP 2x game mod, with mutually exclusive High Fidelity/Remacri versions and duplicate texture paths in the combined ZIP. Native plan refuses duplicate names; never mix variants or present it as a base-game pack. No second archive test needed.",
+      "shadow_of_colossus_resolution": "Original creator now links Ko-fi shop; old resolver selected a spreadsheet instead of a pack. CI-only spreadsheet URL removed; current price/file/terms remain unverified, no checkout or alternate-host download attempted."
+    },
+    "remaining_batch_3": {
+      "run": 39416642896,
+      "source": "ba76f09f93ff74885d7b82146e46388ca70fcece",
+      "records": 33,
+      "requested": 34,
+      "native_ok": 5,
+      "retained_hd": [
+        "ps2-ktx-mx-vs-atv-unleashed-sombershroud",
+        "ps2-ktx-sly-cooper-and-the-thievius-raccoonus-santins"
+      ],
+      "withheld_or_corrected_target_required": [
+        "ps2-ktx-scooby-doo-night-of-100-frights-nordbo",
+        "ps2-ktx-tenchu-fatal-shadows-sombertwilight-2"
+      ],
+      "cancelled_after_more_than_minutes": 100,
+      "not_completed": [
+        "ps2-ktx-xenosaga-episode-ii-jenseits-von-gut-und-bose-panda-venom"
+      ],
+      "reason": "Preserve 33 completed observations after lengthy MEGA transfers, including one classified as quota after its 45-minute transfer limit. The final original MEGA file has no completed result and is not retried through another runner or host. No non-MEGA input remains unobserved.",
+      "silent_scope_adaptation": "Original Silent Scope ZIP identifies SLUS-20078 but uses unsupported ZIP compression method 14 (LZMA); native staging fails. Original archive unchanged; no repackaging, method-limit relaxation or available family.",
+      "corrected_target_run": 39431381794,
+      "corrected_target_passed": [
+        "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight"
+      ]
+    },
+    "bulk_candidate_coverage": {
+      "candidates": 210,
+      "completed_ids": 209,
+      "uncompleted_ids": [
+        "ps2-ktx-xenosaga-episode-ii-jenseits-von-gut-und-bose-panda-venom"
+      ],
+      "known_failed_archives_retried": false,
+      "native_rechecks": "Only changed target or extraction metadata; old successful observations retained verbatim with run supersession maps."
+    }
+  },
+  "entries": [
+    {
+      "id": "psp-cod-roads-to-victory-search-400",
+      "system": "psp",
+      "title": "Call of Duty: Roads to Victory",
+      "sources": [
+        "https://www.moddb.com/members/amfanpokefanrefan/blogs/180-downloads-celebration",
+        "https://www.moddb.com/members/amfanpokefanrefan/addons",
+        "https://www.moddb.com/games/medal-of-honor-allied-assault/addons/82nd-airborne-texture-skin-for-medal-of-honor-heroes-2"
+      ],
+      "disposition": "no-downloadable-hd-pack-validated",
+      "reason": "The author's retrospective shows CoD beta/restoration/reskin experiments, not a published CoD texture archive. The 82nd Airborne download explicitly targets Medal of Honor Heroes 2. No validated CoD pack after English, French, Portuguese, Chinese, title and ULUS10218 searches; this is not a claim that none can exist."
+    },
+    {
+      "id": "3ds-new-style-boutique-3-p-tonino",
+      "system": "3ds",
+      "title": "New Style Boutique 3 / Style Savvy Styling Star — Improved Texture Pack",
+      "authors": [
+        "p_tonino"
+      ],
+      "page_url": "https://gbatemp.net/threads/fashion-boutique-3-style-savvy-styling-star-improved-texture-pack.673262/",
+      "download_url": "https://www.mediafire.com/file/qd7iazba5zv55cz/New_Style_Boutique_3_%28v1.0%29_Improved_Texture_Pack.zip/file",
+      "version": "1.0",
+      "disposition": "blocked-download-no-runtime-identity",
+      "reason": "Creator reports 62,421 textures / 8.94 GB, tested EUR v1.0.0 on Azahar, other regions untested. Exact archive inspection was stopped by HTTP 403 (research run 39409327497); no title ID or contents inferred. ReShade/OpenGL settings are separate PC effects. Preloading is explicitly discouraged by the creator."
+    },
+    {
+      "id": "3ds-srw-ux-pdragon128",
+      "system": "3ds",
+      "title": "Super Robot Wars UX HD",
+      "authors": [
+        "pdragon128"
+      ],
+      "page_url": "https://gbatemp.net/threads/3ds-super-robot-wars-ux-jpn-hd-texture-pack.656526/",
+      "disposition": "awaiting-full-author-link-and-archive",
+      "reason": "Known reference S132, not a new discovery. Original post marks Japanese upscale complete and links a 4.68 GB MEGA file. Accessible page extraction did not retain the complete file key; no key or compatible title ID is invented. Historical partial English translation is a different RomFS project."
+    },
+    {
+      "id": "3ds-dillon-pdragon128",
+      "system": "3ds",
+      "title": "Dillon's Dead-Heat Breakers HD",
+      "authors": [
+        "pdragon128"
+      ],
+      "page_url": "https://gbatemp.net/threads/3ds-dillons-dead-heat-breakers-usa-hd-texture-pack.656522/",
+      "disposition": "awaiting-full-author-link-and-archive",
+      "reason": "Known reference S131. Creator specifies USA and 3.12 GB, omitting Mii faces/animal variants, staff messages and jukebox assets. Full original MEGA file key and actual archive identity remain unverified; no whole-game or French support claim."
+    },
+    {
+      "id": "3ds-smm-hd-chs-andot",
+      "system": "3ds",
+      "title": "Super Mario Maker 3DS Chinese HD UI",
+      "page_url": "https://github.com/andot/smm3ds-hd-chs",
+      "disposition": "adaptation-required",
+      "reason": "2,928 PNGs under Japanese title 00040000001A0300, partial Chinese UI/font/Mashiko artwork. Requires an external Chinese 1.05 patch and system-font setup; repository includes NAND .app modules. Do not install system modules or treat this as a vanilla-game texture profile. No licence inferred."
+    },
+    {
+      "id": "psp-persona-fr-codebyhaamza",
+      "system": "psp",
+      "title": "Persona PSP French HD overlay",
+      "page_url": "https://github.com/CodeByHaamza/P1-FR-PSP",
+      "disposition": "overlay-and-iso-patch-not-new-hd-family",
+      "reason": "French translation requires a game patch. Optional script combines seven translated textures with Ryuubu's already catalogued HD UI; creator says that base pack cannot be redistributed. Not an independent HD family or a vanilla retail profile."
+    },
+    {
+      "id": "psp-jeanne-fr-gabin",
+      "system": "psp",
+      "title": "Jeanne d'Arc French translation",
+      "page_url": "https://github.com/Gabin-CC/jeanne-darc-psp-fr",
+      "disposition": "translation-patch-not-texture-pack",
+      "reason": "xdelta/ISO patch and native GIM assets for ULUS10261, not PPSSPP texture replacement. Outside the plain texture adapter."
+    },
+    {
+      "id": "psp-gt-atirutw",
+      "system": "psp",
+      "title": "Gran Turismo PSP HD project",
+      "page_url": "https://github.com/atirutw/Gran-Turismo-PSP-HD-Textures",
+      "disposition": "announcement-no-released-assets",
+      "reason": "Repository inspection found the project README without a usable released texture archive."
+    },
+    {
+      "id": "gc-skies-lewiswake",
+      "system": "gc",
+      "title": "Skies of Arcadia Legends HD continuation",
+      "page_url": "https://github.com/lewiswake/Skies-of-Arcadia-Legends-HD-Texture-Project",
+      "disposition": "work-in-progress-no-download",
+      "reason": "Creator describes 42,495 textures / 22.7 GB on the working machine and a continuation of Bighead/frozenwings. Public repository contains comparison-gallery images and documentation, not the proposed UI/character/environment texture releases. Existing Skies families are not recounted."
+    },
+    {
+      "id": "wii-other-m-mhbxyz",
+      "system": "wii",
+      "title": "Metroid Other M HD project",
+      "page_url": "https://github.com/mhbxyz/metroid-other-m-hd",
+      "disposition": "documentation-no-texture-release",
+      "reason": "Roadmap and documentation; no deployable texture archive. Redux/control patches are separate from PNG/DDS replacements."
+    },
+    {
+      "id": "gc-echoes-widescreen-nystrata",
+      "system": "gc",
+      "title": "Metroid Prime 2 Echoes widescreen HUD",
+      "page_url": "https://github.com/Nystrata/EchoesWidescreenHUD",
+      "disposition": "iso-patch-not-hd-texture-pack",
+      "reason": "Modifies GGuiSys.pak FRME/Standard.ntwk geometry for NTSC and experimental PAL. Uses other texture projects in screenshots; not a plain texture archive."
+    },
+    {
+      "id": "wii-wii-party-lucaspec72",
+      "system": "wii",
+      "title": "Wii Party HD",
+      "page_url": "https://github.com/Lucaspec72/Wii-Party-HD",
+      "disposition": "awaiting-author-archive",
+      "reason": "Repository holds screenshots and instructions pointing to a protected forum, not a texture archive. Screenshot disc IDs are not sufficient pack/region evidence."
+    },
+    {
+      "id": "psp-swbf2-uc-62-duplicate",
+      "system": "psp",
+      "title": "SWBF2:UC PC PS2 Texture Pack 6.2",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=42436",
+      "disposition": "already-integrated-project",
+      "reason": "PyroMann is BioTes, the same creator release integrated earlier today. No extra family is added for the forum announcement, UC use, version, or button choices."
+    },
+    {
+      "id": "cronic-future-multisystem",
+      "systems": [
+        "psp",
+        "gc",
+        "wii",
+        "ps2",
+        "ps1"
+      ],
+      "title": "CronicCanabis88 multi-system release announcement",
+      "page_url": "https://www.reddit.com/r/Flycast_texture_packs/comments/1qrcpdp/texture_pack_release_update_new_emulators_support/",
+      "disposition": "announcement-not-archive",
+      "reason": "Original creator announces future PPSSPP/PCSX2/Dolphin/DuckStation work and a public pCloud host, without establishing a specific compatible downloadable file in this post. Dreamcast or DuckStation files do not imply compatibility with the embedded adapters."
+    },
+    {
+      "id": "ps2-maximo-region-evidence",
+      "system": "ps2",
+      "title": "Maximo Ghosts to Glory (MaximoCapcom)",
+      "page_url": "https://gbatemp.net/threads/maximo-ghosts-to-glory-ultimate-remaster-texture-pack.677505/",
+      "disposition": "verified-original-flat-archive-author-attests-all-versions",
+      "reason": "The flat ZIP has no serial. The original Spanish creator post explicitly claims all game versions; existing database identities retain confirmation. 1,340 PNGs passed native import. No region-specific rendering is claimed."
+    },
+    {
+      "id": "ps2-lotr-two-towers-spanish-region",
+      "system": "ps2",
+      "title": "LOTR Two Towers (MaximoCapcom)",
+      "page_url": "https://gbatemp.net/threads/lord-of-the-rings-the-two-towers-remastered-only-icons-and-characters.678338/",
+      "disposition": "corrected-region-awaiting-reverification",
+      "reason": "Creator specifies Spain PAL, not arbitrary PAL. PCSX2 GameIndex maps the Spanish edition to SLES-51256; the formerly inferred SLES-51252 profile is removed. Partial icons/characters/environments only."
+    },
+    {
+      "id": "ps2-lotr-return-king-region-unknown",
+      "system": "ps2",
+      "title": "LOTR Return of the King (MaximoCapcom)",
+      "page_url": "https://gbatemp.net/threads/the-lord-of-the-rings-the-return-of-the-king-texture-pack-only-icons-and-characters.679700/",
+      "disposition": "archive-installs-but-exact-pal-edition-unattested",
+      "reason": "1,078 PNGs pass native import, but the flat ZIP has no serial and creator only specifies PAL. No English/French/Spanish edition is inferred from the creator location. The manual reference is retained without verified availability."
+    },
+    {
+      "id": "ps1-sotn-tarrantx",
+      "system": "ps1",
+      "title": "Castlevania Symphony of the Night HD x4",
+      "authors": [
+        "Tarrantx"
+      ],
+      "page_url": "https://gbatemp.net/threads/psx-castlevania-symphony-of-the-night-hd-x4-ntsc-us-slus-00067-beetle-psx-hw.685355/",
+      "other_author_page": "https://gbatemp.net/threads/psx-castlevania-symphony-of-the-night-hd-x4-ntsc-us-slus-00067-beetle-psx-hw.685354/",
+      "disposition": "awaiting-author-archive-link",
+      "reason": "Recent original creator posts describe about 100,000 textures / 10 GB for SLUS-00067, explicitly Beetle PSX HW only. Experimental static extraction, reconstructed background tiles, recreated text and restyled characters. Accessible post content exposes no usable download URL; no file format, loader compatibility or installation is inferred from the announcement. This is not DuckStation data."
+    },
+    {
+      "id": "3ds-dq7-hd-panda-venom",
+      "system": "3ds",
+      "engine": "azahar",
+      "title": "Dragon Quest VII — HD textures v2 (partial)",
+      "version": "2",
+      "games": [
+        {
+          "title": "Dragon Quest VII: Fragments of the Forgotten Past",
+          "identities": [
+            {
+              "type": "title_id",
+              "scheme": "3ds-title-id",
+              "value": "000400000018F000"
+            }
+          ],
+          "confirm": true
+        }
+      ],
+      "authors": [
+        "Panda_Venom"
+      ],
+      "page_url": "https://gbatemp.net/threads/3ds-dragon-quest-vii-fragments-of-the-forgotten-past-hd-textures.655732/",
+      "source_id": "gbatemp:655732",
+      "licence": {
+        "summary": "No licence stated by the creator",
+        "redistribution": "Manual original creator download only; NeoStation does not host, repackage or redistribute these texture files."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://gbatemp.net/threads/3ds-dragon-quest-vii-fragments-of-the-forgotten-past-hd-textures.655732/",
+        "verify": {
+          "url": "https://www.mediafire.com/file_premium/w91d8ev9yl5xxz4/000400000018F000_DQVII_v2.7z/file"
+        },
+        "file_name": "000400000018F000_DQVII_v2.7z"
+      },
+      "scope": "partial",
+      "family": "3ds-dq7-hd-panda-venom",
+      "notes": "Creator reports UI/fonts/items about 99%, backgrounds/monsters about 90% and character job artwork about 60%. Some world maps, dungeons and jobs are missing. The title ID is explicit in the creator download filename; no additional region or French support is inferred. Exact archive validation pending.",
+      "disposition": "blocked-original-archive-no-runtime-entry",
+      "reason": "Original creator download returns HTTP 403 in run 39411115471. Exact contents and native import are unverified; not promoted to runtime or counted as installable."
+    },
+    {
+      "id": "ps2-chicken-little-duplicate-check",
+      "system": "ps2",
+      "page_url": "https://github.com/KyuGG/chicken-little-hd-textures",
+      "disposition": "already-available-no-new-family",
+      "reason": "Already present and verified as ps2-chicken-little-hd-kyugg at the same 0cb80eaf commit before this task. A redundant source candidate was caught by the builder duplicate-ID guard, removed and its verification run 39411635428 cancelled. Existing pack and original evidence are preserved; no new count or replacement verification record."
+    },
+    {
+      "id": "psp-cod-web-recomp-not-pack",
+      "system": "psp",
+      "title": "Call of Duty Roads to Victory Web Recomp",
+      "page_url": "https://github.com/3Samourai/psp-web-recomp-call-of",
+      "disposition": "web-port-not-ppsspp-texture-pack",
+      "reason": "Different WebAssembly/WebGL2 game runtime with higher internal rendering resolution. Not a released PPSSPP textures.ini/replacement archive; no runtime catalogue entry or family count."
+    },
+    {
+      "id": "psp-bleach-heat-soul7-hezi",
+      "title": "Bleach: Heat the Soul 7 — Hezi English UI and portraits v2.0",
+      "system": "psp",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=27276",
+      "disposition": "protected-original-archive-not-installable",
+      "reason": "Creator original ZIP exists, but actual host verification returns a bot challenge. No protection bypass. The full candidate metadata is retained here and removed from runtime sources.",
+      "entry": {
+        "id": "psp-bleach-heat-soul7-hezi",
+        "system": "psp",
+        "engine": "ppsspp",
+        "title": "Bleach: Heat the Soul 7 — Hezi English UI and portraits v2.0",
+        "version": "author release checked 2026-10-20",
+        "games": [
+          {
+            "title": "Bleach: Heat the Soul 7",
+            "identities": [
+              {
+                "type": "disc_id",
+                "scheme": "psp-param-sfo-disc-id",
+                "value": "UCJS10110"
+              }
+            ],
+            "regions": [
+              "Japan"
+            ],
+            "confirm": true
+          }
+        ],
+        "authors": [
+          "HeziTheGreat",
+          "TridentOfTheAbyss"
+        ],
+        "page_url": "https://forums.ppsspp.org/showthread.php?tid=27276",
+        "source_id": "web:forums.ppsspp.org/showthread.php?tid=27276",
+        "licence": {
+          "summary": "No licence stated by the creator",
+          "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+        },
+        "download": {
+          "automatable": false,
+          "page": "https://forums.ppsspp.org/showthread.php?tid=27276",
+          "verify": {
+            "url": "https://www.mediafire.com/file/d5u68cacoiapgfc/BLEACH_HTS7_ENGLISH_MOD__V2.0_BY_HEZI_THE_GREAT.zip/file"
+          }
+        },
+        "scope": "partial",
+        "family": "psp-bleach-heat-soul7-hezi",
+        "notes": "Creator-authored PPSSPP texture replacement: redrawn/translated UI, portraits, backgrounds and some upscaled UI assets. This is a partial graphical project, not a complete HD replacement or an ISO translation. The primary thread discusses Japanese UCJS10110 and Shuren v1.01 support; actual INI/layout still requires review. Optional cheats and DLC are not applied; no French support or iPhone rendering claim."
+      }
+    },
+    {
+      "id": "psp-daxter-hud-armm1998",
+      "system": "psp",
+      "title": "Daxter HD HUD (unfinished)",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=26567",
+      "download_url": "https://drive.google.com/file/d/1JKGud9yGDj1KubM4aIajI-OvOkInVnal/view?usp=sharing",
+      "disposition": "original-archive-native-import-verified",
+      "reason": "The earlier text-only Drive viewer exposed a sign-in navigation link, which did not prove that the file required login. Standard anonymous original-file download succeeds without credentials or bypass; native import validates TEXTURES/UCUS98618/, 47 PNGs and a quick-hash INI. Creator specifies partial English HUD; other languages and iPhone rendering remain unvalidated.",
+      "verified_run": 39420074282
+    },
+    {
+      "id": "psp-toukiden-kiwami-saramagrean-link-review",
+      "system": "psp",
+      "title": "Toukiden Kiwami — original KTX2 release",
+      "page_url": "https://github.com/Saramagrean/TKD_KWM-HD-Texture-Pack",
+      "disposition": "known-reference-shortlink-unresolved",
+      "reason": "Creator README describes a March 2023 KTX2 update compatible with the embedded PPSSPP texture format, but original bit.ly/3yRjMob download cannot be resolved here. No mirrored GE2 re-upload is used; its explicit original-author no-reupload condition remains respected."
+    },
+    {
+      "id": "psp-jeanne-darc-robynoob",
+      "system": "psp",
+      "title": "Jeanne d’Arc — RobyNoob 4x textures / 8x UI",
+      "page_url": "https://gbatemp.net/threads/psp-jeanne-darc-ntsc-u-4x-upscaled-textures-8x-remade-ui.665156/",
+      "disposition": "protected-original-archive-not-installable",
+      "reason": "Creator original ZIP verified to exist on the publication, but the host returns HTTP 403 or a bot challenge. No protection bypass; exact failure is retained, candidate moved out of runtime sources.",
+      "entry": {
+        "id": "psp-jeanne-darc-robynoob",
+        "system": "psp",
+        "engine": "ppsspp",
+        "title": "Jeanne d’Arc — RobyNoob 4x textures / 8x UI",
+        "version": "1",
+        "games": [
+          {
+            "title": "Jeanne d’Arc",
+            "identities": [
+              {
+                "type": "disc_id",
+                "scheme": "psp-param-sfo-disc-id",
+                "value": "UCUS98700"
+              }
+            ],
+            "regions": [
+              "USA"
+            ],
+            "confirm": true
+          }
+        ],
+        "authors": [
+          "RobyNoob"
+        ],
+        "page_url": "https://gbatemp.net/threads/psp-jeanne-darc-ntsc-u-4x-upscaled-textures-8x-remade-ui.665156/",
+        "source_id": "gbatemp:665156",
+        "licence": {
+          "summary": "No licence stated by the creator",
+          "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+        },
+        "download": {
+          "automatable": false,
+          "page": "https://gbatemp.net/threads/psp-jeanne-darc-ntsc-u-4x-upscaled-textures-8x-remade-ui.665156/",
+          "verify": {
+            "url": "https://www.mediafire.com/file/ommcigdr8ensza2/JeanneDarc_NTSC-U_UCUS98700_v1.zip/file"
+          }
+        },
+        "family": "psp-jeanne-darc-robynoob",
+        "scope": "partial",
+        "notes": "Creator release v1: upscaled artwork and portraits, redrawn UI, softened shadows. Conversation/system-font text is not replaced; default Xbox prompts. The separately linked PSP system fonts and YouTube videos are not downloaded or installed. Only the creator-specified USA UCUS98700 identity is retained; no French patch or compatibility is implied. Game-icons.net icons are credited by the creator. No iPhone rendering claim."
+      }
+    },
+    {
+      "id": "psp-brave-story-robynoob",
+      "system": "psp",
+      "title": "Brave Story — RobyNoob 4x textures / 8x UI",
+      "page_url": "https://gbatemp.net/threads/psp-brave-story-new-traveler-ntsc-u-4x-upscaled-textures-8x-remade-ui.665250/",
+      "disposition": "protected-original-archive-not-installable",
+      "reason": "Creator original ZIP verified to exist on the publication, but the host returns HTTP 403 or a bot challenge. No protection bypass; exact failure is retained, candidate moved out of runtime sources.",
+      "entry": {
+        "id": "psp-brave-story-robynoob",
+        "system": "psp",
+        "engine": "ppsspp",
+        "title": "Brave Story — RobyNoob 4x textures / 8x UI",
+        "version": "1",
+        "games": [
+          {
+            "title": "Brave Story: New Traveler",
+            "identities": [
+              {
+                "type": "disc_id",
+                "scheme": "psp-param-sfo-disc-id",
+                "value": "ULUS10279"
+              }
+            ],
+            "regions": [
+              "USA"
+            ],
+            "confirm": true
+          }
+        ],
+        "authors": [
+          "RobyNoob"
+        ],
+        "page_url": "https://gbatemp.net/threads/psp-brave-story-new-traveler-ntsc-u-4x-upscaled-textures-8x-remade-ui.665250/",
+        "source_id": "gbatemp:665250",
+        "licence": {
+          "summary": "No licence stated by the creator",
+          "redistribution": "Manual download from the creator-linked original file only. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+        },
+        "download": {
+          "automatable": false,
+          "page": "https://gbatemp.net/threads/psp-brave-story-new-traveler-ntsc-u-4x-upscaled-textures-8x-remade-ui.665250/",
+          "verify": {
+            "url": "https://www.mediafire.com/file/52okvb882q30lwd/BraveStoryNewTraveler_NTSC-U_ULUS10279_v1.zip/file"
+          }
+        },
+        "family": "psp-brave-story-robynoob",
+        "scope": "partial",
+        "notes": "Creator release v1: upscaled textures, redrawn UI, menu portraits replaced with upscaled original artwork and default Xbox prompts. Some 256x1 model textures could not be reconstructed and remain original. Only the creator-specified USA ULUS10279 identity is retained. Game-icons.net icons are credited by the creator. No iPhone rendering claim."
+      }
+    },
+    {
+      "id": "gc-tales-symphonia-pandavenom",
+      "system": "gc",
+      "title": "Tales of Symphonia — PandaVenom v0.96 (2K)",
+      "page_url": "https://gbatemp.net/threads/gc-tales-of-symphonia-usa-hd-textures.655715/",
+      "disposition": "original-file-gone-not-installable",
+      "reason": "Actual verification of the creator-linked base 7z returns HTTP 404. No mirror or add-on is substituted. Candidate retained here, outside runtime.",
+      "entry": {
+        "id": "gc-tales-symphonia-pandavenom",
+        "system": "gc",
+        "engine": "dolphin",
+        "title": "Tales of Symphonia — PandaVenom v0.96 (2K)",
+        "version": "0.96",
+        "games": [
+          {
+            "title": "Tales of Symphonia",
+            "identities": [
+              {
+                "type": "game_id",
+                "scheme": "dolphin-disc-game-id",
+                "value": "GQSEAF"
+              }
+            ],
+            "regions": [
+              "USA"
+            ],
+            "confirm": true
+          }
+        ],
+        "authors": [
+          "Panda_Venom",
+          "Rowan",
+          "RadisNoir",
+          "Kaaboose"
+        ],
+        "page_url": "https://gbatemp.net/threads/gc-tales-of-symphonia-usa-hd-textures.655715/",
+        "source_id": "gbatemp:655715",
+        "licence": {
+          "summary": "No licence stated by the creator",
+          "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+        },
+        "download": {
+          "automatable": false,
+          "page": "https://gbatemp.net/threads/gc-tales-of-symphonia-usa-hd-textures.655715/",
+          "verify": {
+            "url": "https://www.mediafire.com/file/krivbim0rho3pfk/GQS_v0.96.7z/file"
+          }
+        },
+        "scope": "partial",
+        "family": "gc-tales-symphonia-pandavenom",
+        "notes": "Original base pack with 2K backgrounds; optional 4K and widescreen add-ons are not installed or counted. Creator reports roughly 10% of backgrounds missing, Ymir forest/water issues, transparency/color differences and flickering skits without prefetch. The author recommends at least 16 GB RAM for prefetch; NeoStation does not enable it. DDS BC7/DXT5 requires device support; only import can be tested here. USA source only; no French compatibility or iPhone rendering claim."
+      }
+    },
+    {
+      "id": "psp-gta-vcs-dark-aron",
+      "system": "psp",
+      "title": "GTA Vice City Stories — DARK ARON texture edits v0.1",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=26726",
+      "disposition": "protected-original-archive-not-installable",
+      "reason": "Original 7z exists, but the actual fetch returns a bot challenge; no bypass or mirror. Candidate removed from runtime and retained here.",
+      "entry": {
+        "id": "psp-gta-vcs-dark-aron",
+        "system": "psp",
+        "engine": "ppsspp",
+        "title": "GTA Vice City Stories — DARK ARON texture edits v0.1",
+        "version": "0.1",
+        "games": [
+          {
+            "title": "Grand Theft Auto: Vice City Stories",
+            "identities": [
+              {
+                "type": "disc_id",
+                "scheme": "psp-param-sfo-disc-id",
+                "value": "ULES00502"
+              }
+            ],
+            "regions": [
+              "Europe"
+            ],
+            "confirm": true
+          }
+        ],
+        "authors": [
+          "DARK ARON"
+        ],
+        "page_url": "https://forums.ppsspp.org/showthread.php?tid=26726",
+        "source_id": "ppsspp:26726",
+        "licence": {
+          "summary": "No licence stated by the creator",
+          "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+        },
+        "download": {
+          "automatable": false,
+          "page": "https://forums.ppsspp.org/showthread.php?tid=26726",
+          "verify": {
+            "url": "https://www.mediafire.com/file/adjdqrw5823csfi/ULES00502.7z/file"
+          }
+        },
+        "scope": "partial",
+        "family": "psp-gta-vcs-dark-aron",
+        "notes": "Creator publishes a partial texture-edit pack inspired by GTA V. The original linked 7z filename specifies ULES00502; no other region or complete coverage is inferred. Actual archive layout and INI must pass native verification before availability. No French-text coverage or iPhone rendering claim."
+      }
+    },
+    {
+      "id": "psp-gow-chains-olympus-huekage",
+      "system": "psp",
+      "title": "God of War: Chains of Olympus — Huekage HD v1.0",
+      "page_url": "https://gbatemp.net/threads/psp-hd-textures-pack-god-of-war-chains-of-olympus-ucus98653-ntsc-uces00842-pal.684496/",
+      "disposition": "original-file-gone",
+      "reason": "Actual original-file verification returns HTTP 404 for Chains of Olympus, a bot challenge for Tetris. No alternate rehost or protection bypass. Candidate retained here only.",
+      "entry": {
+        "id": "psp-gow-chains-olympus-huekage",
+        "system": "psp",
+        "engine": "ppsspp",
+        "title": "God of War: Chains of Olympus — Huekage HD v1.0",
+        "version": "1.0",
+        "games": [
+          {
+            "title": "God of War: Chains of Olympus",
+            "identities": [
+              {
+                "type": "disc_id",
+                "scheme": "psp-param-sfo-disc-id",
+                "value": "UCUS98653"
+              }
+            ],
+            "regions": [
+              "USA"
+            ],
+            "confirm": true
+          },
+          {
+            "title": "God of War: Chains of Olympus",
+            "identities": [
+              {
+                "type": "disc_id",
+                "scheme": "psp-param-sfo-disc-id",
+                "value": "UCES00842"
+              }
+            ],
+            "regions": [
+              "Europe"
+            ],
+            "confirm": true
+          }
+        ],
+        "authors": [
+          "Huekage"
+        ],
+        "page_url": "https://gbatemp.net/threads/psp-hd-textures-pack-god-of-war-chains-of-olympus-ucus98653-ntsc-uces00842-pal.684496/",
+        "source_id": "gbatemp:684496",
+        "licence": {
+          "summary": "No licence stated by the creator",
+          "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+        },
+        "download": {
+          "automatable": false,
+          "page": "https://gbatemp.net/threads/psp-hd-textures-pack-god-of-war-chains-of-olympus-ucus98653-ntsc-uces00842-pal.684496/",
+          "verify": {
+            "url": "https://www.mediafire.com/file/tdl5xbdwz9cbv4f/PSP_HD_Textures_-_God_of_War_-_Chains_of_Olympus_%28UCUS98653%29_%28NTSC%29_%26_%28UCES00842%29_%28PAL%29.zip/file"
+          }
+        },
+        "scope": "partial",
+        "family": "psp-gow-chains-olympus-huekage",
+        "notes": "Creator September 2026 v1.0 release advertises more than 5,000 textures upscaled 4x and explicitly lists the USA and PAL serials. Coverage is conservative pending payload review; no French-language text coverage is inferred. Distinct from the already referenced MESKH4H4 project. No iPhone rendering claim."
+      }
+    },
+    {
+      "id": "psp-tetris-pandavenom",
+      "system": "psp",
+      "title": "Tetris Minis — PandaVenom HD",
+      "page_url": "https://gbatemp.net/threads/psp-tetris-hd-textures.685051/",
+      "disposition": "protected-original-archive-not-installable",
+      "reason": "Actual original-file verification returns HTTP 404 for Chains of Olympus, a bot challenge for Tetris. No alternate rehost or protection bypass. Candidate retained here only.",
+      "entry": {
+        "id": "psp-tetris-pandavenom",
+        "system": "psp",
+        "engine": "ppsspp",
+        "title": "Tetris Minis — PandaVenom HD",
+        "version": "2026-10-06",
+        "games": [
+          {
+            "title": "Tetris",
+            "identities": [
+              {
+                "type": "disc_id",
+                "scheme": "psp-param-sfo-disc-id",
+                "value": "NPUZ00003"
+              }
+            ],
+            "regions": [
+              "USA"
+            ],
+            "confirm": true
+          }
+        ],
+        "authors": [
+          "Panda_Venom"
+        ],
+        "page_url": "https://gbatemp.net/threads/psp-tetris-hd-textures.685051/",
+        "source_id": "gbatemp:685051",
+        "licence": {
+          "summary": "No licence stated by the creator",
+          "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+        },
+        "download": {
+          "automatable": false,
+          "page": "https://gbatemp.net/threads/psp-tetris-hd-textures.685051/",
+          "verify": {
+            "url": "https://www.mediafire.com/file/qlk01ugv0fkmfuy/NPUZ00003_TETRIS.7z/file"
+          }
+        },
+        "scope": "partial",
+        "family": "psp-tetris-pandavenom",
+        "notes": "Creator October 2026 release specifies the NPUZ00003 texture directory and original 7z. Described as a game-wide upscale, but coverage remains conservative until actual texture contents can be inspected. No iPhone rendering claim."
+      }
+    },
+    {
+      "id": "wii-nights-behonart-original-link-review",
+      "system": "wii",
+      "title": "NiGHTS Journey of Dreams — BehonArt",
+      "page_url": "https://gbatemp.net/threads/wii-nights-journey-of-dreams-ntsc-u.680472/",
+      "disposition": "known-reference-original-download-unresolved",
+      "reason": "Original creator post describes a beta: characters and much of the UI improved, environmental/text refinements remain. A directory label of Complete is not retained. Primary accessible extraction shows DOWNLOAD but no usable original file link, so no identity or installation is invented."
+    },
+    {
+      "id": "ps2-ktx-drakengard-irvinsmith",
+      "system": "ps2",
+      "title": "Drakengard",
+      "page_url": "https://gbatemp.net/threads/drakengard-1-hd-texture-pack.653456/",
+      "disposition": "region-conflict-withheld",
+      "reason": "Partial replacement of ground-battle environments and some late aerial missions, using textures from other games/mods; characters, enemies and weapons stay original. Creator opening post says For NTSC, whereas the recovered flat original archive is named SLES-52322.7z (PAL) and has no internal serial. This region contradiction is unresolved; no verified availability or inferred cross-region support. NeoStation links the creator only and does not redistribute the assets."
+    },
+    {
+      "id": "gc-fe-por-thattextureguy-additional-primary-review",
+      "system": "gc",
+      "title": "ThatTextureGuy PoR alpha 0.0.1 — original regional and format evidence",
+      "page_url": "https://feuniverse.us/t/fe9-high-resolution-texture-pack-for-dolphin/6057",
+      "disposition": "known-usa-alpha-rar-no-new-installable-family",
+      "reason": "The creator explicitly requires GFEE01. March 2020 reply says Europe was untested and expected not to work; Radiant Dawn remained a todo item. Additional creator Drive links are labelled RAR/torrent; their text-only viewers expose sign-in navigation without establishing anonymous download access. Neither unsupported format is fetched, and no login or torrent is used. This strengthens USA/alpha and RAR limits; it is not another pack.",
+      "original_links": [
+        "https://drive.google.com/open?id=1lVIVQXKAEzX_0zml7KPdrwVH2WptR2f4",
+        "https://drive.google.com/open?id=1Pw0-FWj0RL6dnjzM34j7hZTgKjoflSsb"
+      ]
+    },
+    {
+      "id": "gc-resident-evil-code-veronica-juancho-1-4",
+      "system": "gc",
+      "title": "Resident Evil: Code Veronica X 1.4 — JuanchoTexHD",
+      "page_url": "https://gbatemp.net/threads/gc-resident-evil-code-veronica-x-1-4-full-release-all-regions.668307/",
+      "disposition": "multipart-original-archives-require-review",
+      "reason": "Primary author release provides two DDS volumes and two PNG volumes, 18.2/16.5 GB expanded. JP text incomplete and acknowledged color-gradation conversion defects. CI host verification accepts one original file, not an assumed complete multi-volume pack; format, all volumes, exact regional folders and the optional material maps remain unverified. No partial volume is promoted as the whole pack. No original archive downloaded."
+    },
+    {
+      "id": "gc-spider-man2-project-xxl-bussareas",
+      "system": "gc",
+      "title": "Spider-Man 2 Project XXL — Bussareas",
+      "page_url": "https://gbatemp.net/threads/gc-spider-man-2-2004-project-xxl-ntsc-u.683919/",
+      "original_page": "https://www.nexusmods.com/spiderman2/mods/71?tab=description",
+      "disposition": "original-download-and-engine-validation-pending",
+      "reason": "Primary author page confirms NTSC-U, DDS BC7, 8x–32x textures, and warns of Vulkan/OpenGL renderer requirements. Nexus Files page inaccessible to the research tool. Do not infer an account wall from a global navigation sign-in link, or compatibility with the embedded iOS backend from a creator PC screenshot. No reupload, optional distance cheat, conversion or download performed."
+    },
+    {
+      "id": "wii-system-menu-4k-travtube2006",
+      "system": "wii",
+      "title": "Wii System Menu / channels 4K — travtube2006",
+      "page_url": "https://github.com/travtube2006/Wii4KTexturePacks",
+      "disposition": "system-menu-adaptation-required",
+      "reason": "Creator README targets USA System Menu 4.3U and folder 0000000100000002. The many games listed are channel banners inside that system menu, not separate in-game HD texture families. Requires a future system-title adapter and validation; do not manufacture one family per listed game. No runtime entry or NAND download added."
+    },
+    {
+      "id": "wii-radiant-dawn-clean-items-search-lead",
+      "system": "wii",
+      "title": "Fire Emblem: Radiant Dawn clean item textures",
+      "page_url": "https://forums.dolphin-emu.org/archive/index.php?forum-42-6.html=",
+      "disposition": "original-file-unresolved",
+      "reason": "Primary Dolphin forum listing identifies a separate old thread with eight replies. Actual index request returns a bot challenge; no thread ID, author, downloadable file, modern texture hashes or regional support can be established. No challenge bypass or runtime entry."
+    },
+    {
+      "id": "3ds-etrian-odyssey-nexus-furizu",
+      "system": "3ds",
+      "title": "Etrian Odyssey Nexus HD v2 — Furizu",
+      "page_url": "https://gamebanana.com/mods/608253",
+      "disposition": "multipart-rar-external-extraction-required",
+      "reason": "Primary GameBanana API returns four original RAR volumes (IDs 1487091, 1487097, 1487100, 1487101); creator states 4x upscaling through Labyrinth 13 and PlayStation prompts. The app does not import RAR volumes. This separate partial project is not the existing rikimtasu portrait/text packs, but no native family is counted and no volume downloaded."
+    },
+    {
+      "id": "wii-fire-emblem-radiant-dawn-fr-tengu314",
+      "system": "wii",
+      "title": "Fire Emblem: Radiant Dawn — French supplement announced by TenGu314",
+      "page_url": "https://www.youtube.com/watch?v=9mnue34Apsg",
+      "published_at": "2026-06-10",
+      "disposition": "french-announcement-unavailable-original-file-and-permission-unverified",
+      "reason": "Search-indexed primary video description credits a Bl4ckH4nd base plus the uploader’s French additions and mentions Gofile/1fichier links without exposing usable URLs. An ordinary anonymous request to the original YouTube watch page returns HTTP 200 but player status ERROR: video unavailable because its associated account was closed. No archive, game ID, DDS format, modern hashes or upstream redistribution permission verified; no file downloaded, rehost used or runtime entry added."
+    },
+    {
+      "id": "gc-lotr-two-towers-128rebits-moddb-original",
+      "system": "gc",
+      "title": "The Two Towers HD — The128ReBits original ModDB release",
+      "page_url": "https://www.moddb.com/mods/the-two-towers-textures-4k-ai-remaster/addons/the-two-towers-textures-4k-ai-remaster-lite-version-175gb",
+      "disposition": "same-project-original-rar-external-extraction-required",
+      "reason": "Independent creator publication confirms Spanish PAL GLOS69 and an original Lite RAR of 1,502,903,915 bytes; Native is also RAR. This is the same already referenced project, not another family. The creator’s other GameFront ZIP reference was unavailable in the earlier verification. Do not relabel this RAR as the unverified ZIP or invent matching hashes. Original RAR was not downloaded."
+    },
+    {
+      "id": "gc-lotr-return-king-128rebits-moddb-original",
+      "system": "gc",
+      "title": "The Return of the King HD — The128ReBits original ModDB release",
+      "page_url": "https://www.moddb.com/mods/the-lord-of-the-rings-the-return-of-the-king-hd-texture-remaster/addons/the-return-of-the-king-hd-remastered-lite-version",
+      "disposition": "same-project-original-rar-external-extraction-required",
+      "reason": "Independent creator publication confirms Spanish PAL GKLS69, Lite filename RETURN_OF_THE_KING_TEXTURE_REMASTERED_LITE_VERSION.2.rar and size 1,238,159,577 bytes. Same already referenced project, not a new family or a verified native archive. External extraction plus existing folder import still needs payload/hash review; no original RAR downloaded."
+    },
+    {
+      "id": "gc-f-zero-gx-squadaloo",
+      "system": "gc",
+      "title": "F-Zero GX high resolution AI upscale — Squadaloo",
+      "page_url": "https://www.reddit.com/r/Fzero/comments/phyj4n/massive_ai_upscaled_high_resolution_texture_pack/",
+      "disposition": "known-gameplay-failure-requires-engine-validation",
+      "reason": "Primary creator release has a ZIP and original Drive link, but creator and users report races failing, off-course errors, clipping below the track and random crashes with textures enabled. The creator cannot offer a fix. Do not promote an archive merely because extraction could pass; compatibility and gameplay on the embedded engine need independent validation first. No archive downloaded."
+    }
+  ],
+  "region_database_evidence": {
+    "url": "https://github.com/PCSX2/pcsx2/blob/master/bin/resources/GameIndex.yaml",
+    "latest_file_commit": "67b9d18fbdbb9d8a2f3b971aa077fe074dca91fa",
+    "entries": {
+      "SLES-51256": {
+        "name": "El Señor de los Anillos - Las Dos Torres",
+        "region": "PAL-S"
+      },
+      "SLES-52020": {
+        "name": "El Señor de los Anillos - El Retorno del Rey",
+        "region": "PAL-S"
+      }
+    },
+    "limit": "The database maps a creator-attested edition to a serial; it does not establish pack compatibility by itself.",
+    "verified_profile_identity_audit": [
+      {
+        "id": "ps2-ktx-007-from-russia-with-love-thomasweissenfluh",
+        "title": "007: From Russia with Love",
+        "serials": [
+          "SLUS-21282"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21282",
+            "name": "007 - From Russia with Love",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ace-combat-04-shattered-skies-superostrich",
+        "title": "Ace Combat 04: Shattered Skies — Trilogy HD HUD",
+        "serials": [
+          "SLUS-20152"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20152",
+            "name": "Ace Combat 04 - Shattered Skies",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ace-combat-5-the-unsung-war-superostrich",
+        "title": "Ace Combat 5: The Unsung War — Trilogy HD HUD",
+        "serials": [
+          "SLUS-20851"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20851",
+            "name": "Ace Combat 5 - The Unsung War",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ace-combat-zero-the-belkan-war-superostrich",
+        "title": "Ace Combat Zero: The Belkan War — Trilogy HD HUD",
+        "serials": [
+          "SLUS-21346"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21346",
+            "name": "Ace Combat Zero - The Belkan War",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-alone-in-the-dark-the-new-nightmare-teodor-max",
+        "title": "Alone in the Dark: The New Nightmare",
+        "serials": [
+          "SLES-50185"
+        ],
+        "database": [
+          {
+            "serial": "SLES-50185",
+            "name": "Alone in the Dark - The New Nightmare",
+            "region": "PAL-M5"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ape-escape-2-armm1998",
+        "title": "Ape Escape 2",
+        "serials": [
+          "SLUS-20685"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20685",
+            "name": "Ape Escape 2",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-armored-core-nexus-ninebreaker",
+        "title": "Armored Core: Nexus",
+        "serials": [
+          "SLUS-20986"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20986",
+            "name": "Armored Core - Nexus [Disc 1]",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-asterix-at-the-olympic-games-santins",
+        "title": "Asterix at the Olympic Games",
+        "serials": [
+          "SLES-55034"
+        ],
+        "database": [
+          {
+            "serial": "SLES-55034",
+            "name": "Asterix at the Olympic Games",
+            "region": "PAL-M5"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-bloody-roar-4-yamijpg",
+        "title": "Bloody Roar 4",
+        "serials": [
+          "SLUS-20795"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20795",
+            "name": "Bloody Roar 4",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-bujingai-the-forsaken-city-darthdarklord",
+        "title": "Bujingai: The Forsaken City",
+        "serials": [
+          "SLUS-20895"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20895",
+            "name": "Bujingai - The Forsaken City",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-chulip-sombertwilight",
+        "title": "Chulip",
+        "serials": [
+          "SLUS-20742"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20742",
+            "name": "Chulip",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-crash-tag-team-racing-crazyrabbitstyle",
+        "title": "Crash Tag Team Racing",
+        "serials": [
+          "SLES-53439"
+        ],
+        "database": [
+          {
+            "serial": "SLES-53439",
+            "name": "Crash Tag Team Racing",
+            "region": "PAL-M6"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-devil-kings-i-emu-play",
+        "title": "Devil Kings",
+        "serials": [
+          "SLUS-21297"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21297",
+            "name": "Devil Kings",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-akirus",
+        "title": "Dragon Ball Z: Budokai Tenkaichi 3",
+        "serials": [
+          "SLUS-21678"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21678",
+            "name": "Dragon Ball Z - Budokai Tenkaichi 3",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-santins",
+        "title": "Dragon Ball Z: Budokai Tenkaichi 3",
+        "serials": [
+          "SLUS-21678"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21678",
+            "name": "Dragon Ball Z - Budokai Tenkaichi 3",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-dragon-quest-viii-journey-of-the-cursed-king-kupo-on-gbatem",
+        "title": "Dragon Quest VIII - Journey of the Cursed King",
+        "serials": [
+          "SLES-53974"
+        ],
+        "database": [
+          {
+            "serial": "SLES-53974",
+            "name": "Dragon Quest VIII - Journey of the Cursed King",
+            "region": "PAL-M5"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-flatout-2-kupo-on-gbatem",
+        "title": "FlatOut 2",
+        "serials": [
+          "SLES-54003"
+        ],
+        "database": [
+          {
+            "serial": "SLES-54003",
+            "name": "FlatOut 2",
+            "region": "PAL-G"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-frogger-s-adventures-the-rescue-tylermods",
+        "title": "Frogger's Adventures: The Rescue",
+        "serials": [
+          "SLUS-20734"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20734",
+            "name": "Frogger's Adventures - The Rescue",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-futurama-dahu",
+        "title": "Futurama",
+        "serials": [
+          "SLES-51507"
+        ],
+        "database": [
+          {
+            "serial": "SLES-51507",
+            "name": "Futurama",
+            "region": "PAL-M5"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ghost-rider-santins",
+        "title": "Ghost Rider",
+        "serials": [
+          "SLUS-21306"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21306",
+            "name": "Ghost Rider",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-god-of-war-ii-ewgeha",
+        "title": "God of War II",
+        "serials": [
+          "SCUS-97481"
+        ],
+        "database": [
+          {
+            "serial": "SCUS-97481",
+            "name": "God of War II",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-gun-yamijpg",
+        "title": "Gun",
+        "serials": [
+          "SLES-53523"
+        ],
+        "database": [
+          {
+            "serial": "SLES-53523",
+            "name": "Gun",
+            "region": "PAL-M4"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-headhunter-redemption-teodor-max",
+        "title": "Headhunter: Redemption",
+        "serials": [
+          "SLUS-20817"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20817",
+            "name": "Headhunter - Redemption",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-maximo-vs-army-of-zin-santins",
+        "title": "Maximo vs Army of Zin",
+        "serials": [
+          "SLUS-20722"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20722",
+            "name": "Maximo vs. Army of Zin",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-maximo-ghosts-to-glory-maximocapcom",
+        "title": "Maximo: Ghosts to Glory",
+        "serials": [
+          "SLPM-74004",
+          "SLUS-20017"
+        ],
+        "database": [
+          {
+            "serial": "SLPM-74004",
+            "name": "マキシモ [PlayStation2 the Best]",
+            "region": "NTSC-J"
+          },
+          {
+            "serial": "SLUS-20017",
+            "name": "Maximo - Ghosts to Glory",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-monster-hunter-toolatenate",
+        "title": "Monster Hunter",
+        "serials": [
+          "SLUS-20896"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20896",
+            "name": "Monster Hunter",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-mx-vs-atv-unleashed-sombershroud",
+        "title": "MX vs. ATV Unleashed",
+        "serials": [
+          "SLUS-21104"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21104",
+            "name": "MX vs. ATV Unleashed",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ninja-assault-joekoh27",
+        "title": "Ninja Assault",
+        "serials": [
+          "SLUS-20492"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20492",
+            "name": "Ninja Assault",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-onimusha-3-demon-siege-teodor-max",
+        "title": "Onimusha 3: Demon Siege",
+        "serials": [
+          "SLUS-20694"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20694",
+            "name": "Onimusha 3 - Demon Siege",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-prince-of-persia-the-sands-of-time-ewgeha",
+        "title": "Prince of Persia: The Sands of Time",
+        "serials": [
+          "SLUS-20743"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20743",
+            "name": "Prince of Persia - The Sands of Time",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-room-zoom-race-for-impact-mehrdad-jamshidiha",
+        "title": "Room Zoom: Race For Impact",
+        "serials": [
+          "SLES-52603"
+        ],
+        "database": [
+          {
+            "serial": "SLES-52603",
+            "name": "Room Zoom - Race for Impact",
+            "region": "PAL-M3"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-sengoku-basara-2-heroes-i-emu-play",
+        "title": "Sengoku Basara 2: Heroes",
+        "serials": [
+          "SLPM-66848"
+        ],
+        "database": [
+          {
+            "serial": "SLPM-66848",
+            "name": "戦国BASARA 2 英雄外伝",
+            "region": "NTSC-J"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-silent-hill-3-curse-arms",
+        "title": "Silent Hill 3",
+        "serials": [
+          "SLUS-20622"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20622",
+            "name": "Silent Hill 3",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-silent-line-armored-core-ninebreaker",
+        "title": "Silent Line: Armored Core",
+        "serials": [
+          "SLUS-20644"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20644",
+            "name": "Silent Line - Armored Core",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-sly-cooper-and-the-thievius-raccoonus-santins",
+        "title": "Sly Cooper and the Thievius Raccoonus",
+        "serials": [
+          "SCUS-97198"
+        ],
+        "database": [
+          {
+            "serial": "SCUS-97198",
+            "name": "Sly Cooper and the Thievius Raccoonus",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-ssx-3-whitelightning76",
+        "title": "SSX 3",
+        "serials": [
+          "SLUS-20772"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20772",
+            "name": "SSX 3",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-tenchu-fatal-shadows-sombertwilight",
+        "title": "Tenchu: Fatal Shadows",
+        "serials": [
+          "SLUS-21129"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21129",
+            "name": "Tenchu - Fatal Shadows",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-the-lord-of-the-rings-the-two-towers-maximocapcom",
+        "title": "The Lord of the Rings: The Two Towers",
+        "serials": [
+          "SLES-51256"
+        ],
+        "database": [
+          {
+            "serial": "SLES-51256",
+            "name": "El Señor de los Anillos - Las Dos Torres",
+            "region": "PAL-S"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-the-mark-of-kri-darthdarklord",
+        "title": "The Mark of Kri",
+        "serials": [
+          "SCUS-97140"
+        ],
+        "database": [
+          {
+            "serial": "SCUS-97140",
+            "name": "The Mark of Kri",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-the-suffering-proxcore-2000",
+        "title": "The Suffering",
+        "serials": [
+          "SLUS-20636"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20636",
+            "name": "The Suffering",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-the-thing-darthdarklord",
+        "title": "The Thing",
+        "serials": [
+          "SLUS-20371"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20371",
+            "name": "The Thing",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-the-x-files-resist-or-serve-teodor-max",
+        "title": "The X-Files: Resist or Serve",
+        "serials": [
+          "SLUS-20179"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20179",
+            "name": "The X-Files - Resist or Serve",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers",
+        "title": "WWE SmackDown! vs. Raw 2007",
+        "serials": [
+          "SLUS-21427"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-21427",
+            "name": "WWE SmackDown! vs. RAW 2007",
+            "region": "NTSC-U"
+          }
+        ]
+      },
+      {
+        "id": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight",
+        "title": "Tenchu: Wrath of Heaven",
+        "serials": [
+          "SLUS-20397"
+        ],
+        "database": [
+          {
+            "serial": "SLUS-20397",
+            "name": "Tenchu - Wrath of Heaven",
+            "region": "NTSC-U"
+          }
+        ]
+      }
+    ]
+  },
+  "additional_file_candidates": [
+    {
+      "id": "ps2-ktx-ninja-assault-joekoh27",
+      "original_url": "https://pixeldrain.com/u/VyCD3kwM",
+      "verification_url": "https://pixeldrain.com/api/file/VyCD3kwM"
+    },
+    {
+      "id": "ps2-ktx-god-of-war-ii-yamijpg",
+      "original_url": "https://pixeldrain.com/u/VYbosyNJ",
+      "verification_url": "https://pixeldrain.com/api/file/VYbosyNJ"
+    },
+    {
+      "id": "ps2-ktx-cold-fear-yamijpg",
+      "original_url": "https://pixeldrain.com/u/AGSfUwQi",
+      "verification_url": "https://pixeldrain.com/api/file/AGSfUwQi"
+    }
+  ],
+  "additional_file_candidate_note": "Three exact original Pixeldrain archives were downloaded in run 39412734596: Ninja Assault 7z passed production import (SLUS-20492, 1,196 BC3 DDS). God of War II and Cold Fear are RAR, unsupported for direct archive import and excluded from installable counts. No mirror or rehost was used."
+}

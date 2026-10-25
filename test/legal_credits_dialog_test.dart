@@ -12,9 +12,10 @@ void main() {
     final credits = await rootBundle.loadString(
       'assets/legal/libretro/LIBRETRO_CORES.md',
     );
-    // 14 cores, 30 with the sixteen of lot 1, then 34 with the four of lot 2
-    // (14 October 2026).
-    expect(credits, contains('34 iOS ARM64 libretro core binaries'));
+    // 14 cores, 30 with the sixteen of lot 1, 34 with the four of lot 2
+    // (14 October 2026), then 35 with Mesen (20 October 2026, NES HD packs).
+    expect(credits, contains('35 iOS ARM64 libretro core binaries'));
+    expect(credits, contains('Mesen'));
     expect(credits, contains('Snes9x'));
     expect(credits, contains('Beetle PCE Fast'));
     expect(credits, contains('Uzem'));
@@ -73,6 +74,13 @@ void main() {
       find.text('RetroArch / libretro'), 250,
       scrollable: find.byType(Scrollable).first,
     );
+    // Newly credited sources can move this row under the dialog's bottom
+    // actions. Position it within the *visible* list before tapping.
+    await Scrollable.ensureVisible(
+      tester.element(find.text('RetroArch / libretro')),
+      alignment: 0.25,
+    );
+    await tester.pumpAndSettle();
     expect(find.textContaining('External integration; upstream licenses apply'), findsNothing);
     expect(find.textContaining('Embedded cores:'), findsOneWidget);
     await tester.runAsync(() async {

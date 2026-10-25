@@ -1,0 +1,31 @@
+name: PS1 catalogue delivery guard
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/diagnostics/rpcs3audit499_delivery.py
+      - .github/workflows/ps1-catalogue-delivery-check.yml
+      - docs/evidence/ps1-hd-catalogue-checks.json
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+concurrency:
+  group: ps1-catalogue-delivery-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  guard:
+    name: Next delivery retains the exact verified PS1 catalogue
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Match the two successful CI jobs, their exact inputs and all preserved packs
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: python3 .github/diagnostics/rpcs3audit499_delivery.py --ps1-catalogue-only --output build/hd-ps1/delivery-guard.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ps1-delivery-guard-${{ github.sha }}
+          path: build/hd-ps1/delivery-guard.json
+          if-no-files-found: warn
+          retention-days: 14

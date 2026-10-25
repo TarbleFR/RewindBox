@@ -23,24 +23,12 @@ void main() {
     expect(await JitBackendPreferenceService.useStikDebugFallback(), isFalse);
   });
 
-  test('global fallback remains scoped to the legacy MeloNX shortcut path', () {
-    final launcher = File(
-      'lib/services/ios_shortcut_jit_launch_service.dart',
-    ).readAsStringSync();
-
-    expect(
-      launcher,
-      contains('JitBackendPreferenceService.useStikDebugFallback()'),
-    );
-    expect(
-      RegExp(
-        r'!useStikDebugFallback\s*&&\s*shortcutName == melonxShortcutName',
-      ).hasMatch(launcher),
-      isTrue,
-    );
-    expect(launcher, isNot(contains('armsx2ShortcutName')));
-    expect(launcher, isNot(contains('StikJitArmsx2Service')));
-    expect(launcher, contains('final shortcutUri = buildRunUri'));
+  test('retired external MeloNX shortcut cannot bypass the embedded route', () {
+    expect(File('lib/services/ios_shortcut_jit_launch_service.dart').existsSync(), isFalse);
+    final launcher = File('lib/services/melonx_internal_service.dart').readAsStringSync();
+    expect(launcher, isNot(contains('launchUrl')));
+    expect(launcher, isNot(contains('StikJitMeloNxService')));
+    expect(launcher, contains("MethodChannel('neostation/melonx_internal')"));
   });
 
   // Build 440 replaces the three-entry contract: screen sharing still lives

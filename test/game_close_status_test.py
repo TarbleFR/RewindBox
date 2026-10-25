@@ -43,9 +43,12 @@ def main():
     candidates = re.search(r'_embeddedIOSSessionExecutables = <String>\{(.*?)\};',
                            manager, re.S).group(1)
     executables = re.findall(r"'(ios_\w+)'", candidates)
+    # KartPad (19 October 2026) and Dusklight (20 October 2026,
+    # docs/ports-removal-2026-10-20.md) left RewindBox. MeloNX is now an
+    # embedded iOS runtime and follows the same native-return lifecycle.
     assert set(executables) == {'ios_libretro_internal', 'ios_dolphin_internal',
                                'ios_armsx2_internal', 'ios_rpcs3_internal',
-                               'ios_dusklight_internal', 'ios_kartpad_internal'}
+                               'ios_melonx_internal'}
     locale_paths = sorted((ROOT / 'lib/l10n').glob('app_locale_*.dart'))
     assert len(locale_paths) == 12, locale_paths
     translations = {}
@@ -185,7 +188,7 @@ void main() {
     # The production manager is a singleton and retains its completed audio
     # finalization Future. Keep sequential returns in ONE FakeAsync zone,
     # like one running app, rather than awaiting a Future from a dead test zone.
-    code += "testWidgets('thirteen return and cleanup scenarios in one app clock', (tester) async {\n"
+    code += "testWidgets('nine return and cleanup scenarios in one app clock', (tester) async {\n"
     for exe in executables:
         code += f"await exercise(tester, '{exe}', baseline: true);\n"
         code += f"await exercise(tester, '{exe}');\n"
@@ -208,7 +211,8 @@ dev_dependencies:
                         '--reporter', 'expanded'], cwd=work, check=True)
     result = {'result': 'passed', 'source': os.environ.get('GITHUB_SHA', 'local'),
               'baseline': BASE, 'embeddedExecutables': executables,
-              'baselineReproductions': 6, 'correctedReturnCases': 6,
+              'baselineReproductions': len(executables),
+              'correctedReturnCases': len(executables),
               'desktopCases': 1, 'locales': translations,
               'cleanupBeforeNativeEnd': False, 'physicalDeviceValidated': False}
     output = ROOT / 'build/close-status/verdict.json'

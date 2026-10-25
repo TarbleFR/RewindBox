@@ -918,6 +918,49 @@ BUILD444_DELTA = {
     'test/rpcs3_neoswap_relay_test.py',
 }
 DELTA |= BUILD444_DELTA
+# Build 481 (18 October 2026): persistent ARM64 SPU object cache of the RPCS3 Core;
+# host evidence files of the Core delta.
+BUILD481_DELTA = {
+    'test/native/rpcs3_build481_spu_object_cache_test.cpp',
+    'test/native/rpcs3_spu_object_relocation_test.cpp',
+    'test/rpcs3_build481_spu_object_cache_test.py',
+}
+DELTA |= BUILD481_DELTA
+# Build 483 (18 October 2026): selectable LLVM pipelines of the RPCS3 recompilers;
+# host evidence files of the Core delta.
+BUILD483_DELTA = {
+    'test/native/rpcs3_llvm_pipeline_harness.cpp',
+    'test/rpcs3_build483_llvm_pipeline_test.py',
+}
+DELTA |= BUILD483_DELTA
+# Build 487 (19 October 2026): diagnostics and levers of the RPCS3 bottleneck audit;
+# host evidence files of the Core delta and of the bridge diagnostics.
+BUILD487_DELTA = {
+    'test/rpcs3_build487_core_diagnostics_test.py',
+    'test/rpcs3_build487_host_diagnostics_test.py',
+    'test/native/rpcs3_build487_profiler_helpers_test.cpp',
+    'test/native/rpcs3_build487_boot_diagnostics_test.cpp',
+    'test/native/rpcs3_build487_lever_helpers_test.cpp',
+    'test/native/rpcs3_build487_retention_sequence_test.cpp',
+    'test/rpcs3_build258_core_architecture_test.py',
+    'test/native/rpcs3_diagnostics_test.mm',
+    'build-utils/rpcs3/regenerate_canonical_delta.py',
+    'build-utils/validate_rpcs3_diag487_ipa.py',
+    'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm',
+}
+DELTA |= BUILD487_DELTA
+# Build 482 (18 October 2026): ARMSX2 blending accuracy (Core ABI 7, in-game menu)
+# and the Get More RAM information before a PS3 firmware installation.
+BUILD482_DELTA = {
+    'packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.h',
+    'packages/armsx2_internal_bridge/core/ARMSX2BlendingAccuracy.inc',
+    'lib/l10n/rpcs3_firmware_locale.dart',
+    'lib/widgets/rpcs3_firmware_preflight_dialog.dart',
+    'test/armsx2_blending_accuracy_test.mm',
+    'test/rpcs3_firmware_preflight_test.dart',
+    'test/build482_targeted_test.py',
+}
+DELTA |= BUILD482_DELTA
 # New inputs of the libretro skin/touch commits 4da31544..f28525fd (other session,
 # 11-12 October 2026) present on Claude when Build 444 was delivered; listed so the
 # closed-tree check names them instead of refusing every later delivery.

@@ -1,0 +1,374 @@
+[
+ {
+  "id": "gc-fe-por-hd-panda-venom",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Fire Emblem: Path of Radiance HD (Panda_Venom)",
+  "version": "2024-05-11",
+  "games": [
+   {
+    "title": "Fire Emblem: Path of Radiance",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GFEE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Panda_Venom"
+  ],
+  "page_url": "https://gbatemp.net/threads/gc-fire-emblem-path-of-radiance-usa-hd-textures.655722/",
+  "source_id": "gbatemp:655722",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/gc-fire-emblem-path-of-radiance-usa-hd-textures.655722/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/ejm1q504v5cqzp4/GFE.7z/file"
+   },
+   "file_name": "GFE.7z"
+  },
+  "scope": "partial",
+  "family": "gc-fe-por-hd-panda-venom",
+  "notes": "UI, fonts, maps, backgrounds and characters; magic effects remain at original resolution. The author specifies USA, not PAL/French. DDS DXT5/BC7 requires BC texture support. NeoStation keeps prefetch disabled; no iPhone rendering has been verified."
+ },
+ {
+  "id": "wii-ms-sensen-0079-hd-png-callofcthuloo",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mobile Suit Gundam: MS Sensen 0079 HD (PNG)",
+  "version": "2026-08-15",
+  "games": [
+   {
+    "title": "Mobile Suit Gundam: MS Sensen 0079",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "R79JAF"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "callofcthuloo"
+  ],
+  "page_url": "https://gbatemp.net/threads/wii-mobile-suit-gundam-ms-sensen-0079-ntsc-j-hd-texture-pack-upscale.683779/",
+  "source_id": "gbatemp:683779",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/wii-mobile-suit-gundam-ms-sensen-0079-ntsc-j-hd-texture-pack-upscale.683779/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/lfs0kitngsy2n2h/Mobile%2BSuit%2BGundam%2B-%2BMS%2BSensen%2B0079%2B%5BR79JAF%5D%2BPNG.zip/file"
+   },
+   "file_name": "MS-Sensen-0079-PNG.zip"
+  },
+  "scope": "partial",
+  "family": "wii-ms-sensen-0079-hd-callofcthuloo",
+  "notes": "Characters, weapons, stages, menus and portraits. FMVs and most Combination Mode-exclusive assets are not replaced. Author reports support for the Japanese game and its English translation; no other region is claimed. The MediaFire page did not expose a download to CI; the file and native installation remain unverified."
+ },
+ {
+  "id": "gc-fe-por-hd-appleboi",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Fire Emblem: Path of Radiance HD (AppleBoi)",
+  "version": "author release (2020-12-06)",
+  "games": [
+   {
+    "title": "Fire Emblem: Path of Radiance",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GFEE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "AppleBoi"
+  ],
+  "page_url": "https://forums.serenesforest.net/topic/93389-fe-por-hd-texture-pack/",
+  "source_id": "serenesforest:93389",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.serenesforest.net/topic/93389-fe-por-hd-texture-pack/",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1uclRYNWV4-bvI-4i5wOr3bSBJ3zFxohU/view?usp=sharing",
+    "sha256": "9cc4a1c154cdca82fe7d9faccf6961cabf7058e3b2c4de43b5ba7c18ac4d81bc"
+   },
+   "file_name": "GFEE01.rar",
+   "in_app": true
+  },
+  "scope": "partial",
+  "family": "gc-fe-por-hd-appleboi",
+  "notes": "ESRGAN upscales of most textures, including backgrounds and portraits. USA folder GFEE01 only; no PAL/French validation. The author recommends 4:3 and reports seams with high anti-aliasing. The unchanged original 1,878,929,765-byte RAR passes native extraction and installation for GFEE01: 4,470 texture files, comprising 3,985 BC7 DDS and 485 PNG files. The corrected case-insensitive header check inspects every DDS; the original raw observation with an empty DDS diagnostic is retained separately. BC7 requires the existing Dolphin device-capability guard, and texture prefetch/memory protections remain unchanged. No iPhone rendering or performance has been verified."
+ },
+ {
+  "id": "gc-fe-por-upscaled-thattextureguy",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Fire Emblem: Path of Radiance 4x (ThatTextureGuy)",
+  "version": "alpha 0.0.1",
+  "games": [
+   {
+    "title": "Fire Emblem: Path of Radiance",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GFEE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "ThatTextureGuy"
+  ],
+  "page_url": "https://feuniverse.us/t/fe9-high-resolution-texture-pack-for-dolphin/6057",
+  "source_id": "feuniverse:6057",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://feuniverse.us/t/fe9-high-resolution-texture-pack-for-dolphin/6057",
+   "verify": {
+    "url": "https://f002.backblazeb2.com/file/TexturePacks/FE%20POR%20Upscaled%20Texture%20Pack.rar"
+   },
+   "file_name": "FE POR Upscaled Texture Pack.rar"
+  },
+  "scope": "partial",
+  "family": "gc-fe-por-upscaled-thattextureguy",
+  "notes": "Early 4x upscale of almost all dumped textures, with known facial artefacts. USA GFEE01 only. RAR: extract on a computer and import the texture folder; direct RAR import is unsupported. The later AppleBoi project is a separate author release, not another region of this pack. The original file host currently refuses automated access; archive validation remains pending."
+ },
+ {
+  "id": "gc-lotr-two-towers-the128rebits",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "The Lord of the Rings: The Two Towers HD (Lite)",
+  "version": "2026-10-05",
+  "games": [
+   {
+    "title": "The Lord of the Rings: The Two Towers",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GLOS69"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "The128ReBits"
+  ],
+  "page_url": "https://www.gamefront.com/games/the-lord-of-the-rings-the-two-towers/file/the-lord-of-the-rings-the-two-towers-hd-textures-for-dolphin-lite",
+  "source_id": "gamefront:the128rebits-two-towers",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.moddb.com/mods/the-two-towers-textures-4k-ai-remaster/addons/the-two-towers-textures-4k-ai-remaster-lite-version-175gb",
+   "file_name": "El_Seor_de_Los_anillos_Las_2_Torres_HD_TEXTURES_LITE_VERSION_175GB.rar"
+  },
+  "scope": "complete",
+  "family": "gc-lotr-two-towers-the128rebits",
+  "notes": "Creator’s original ModDB Lite release is RAR (1,502,903,915 bytes), explicitly Spanish PAL GLOS69. The older GameFront ZIP reference was unavailable; these are not interchangeable files or hashes. Native RAR import is unsupported. External extraction and existing folder import require review of the payload; neither this archive nor iPhone rendering was verified. Native/Lite remain one project family. No additional European or French edition is inferred."
+ },
+ {
+  "id": "gc-lotr-return-king-the128rebits",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "The Lord of the Rings: The Return of the King HD (Lite)",
+  "version": "2026-10-05",
+  "games": [
+   {
+    "title": "The Lord of the Rings: The Return of the King",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GKLS69"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "The128ReBits"
+  ],
+  "page_url": "https://www.gamefront.com/games/the-lord-of-the-rings-the-return-of-the-king/file/the-lord-of-the-rings-the-return-of-the-king-hd-textures-for-dolphin-lite",
+  "source_id": "gamefront:the128rebits-return-king",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://www.moddb.com/mods/the-lord-of-the-rings-the-return-of-the-king-hd-texture-remaster/addons/the-return-of-the-king-hd-remastered-lite-version",
+   "file_name": "RETURN_OF_THE_KING_TEXTURE_REMASTERED_LITE_VERSION.2.rar"
+  },
+  "scope": "complete",
+  "family": "gc-lotr-return-king-the128rebits",
+  "notes": "Creator’s original ModDB Lite release is RAR (1,238,159,577 bytes), explicitly Spanish PAL GKLS69. The older GameFront ZIP reference was unavailable; these are not interchangeable files or hashes. Native RAR import is unsupported. External extraction and existing folder import require review of the payload; neither this archive nor iPhone rendering was verified. Native/Lite remain one project family. No additional European or French edition is inferred."
+ },
+ {
+  "id": "wii-fit-plus-hd-gmans626",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Wii Fit Plus HD (WIP)",
+  "version": "0.1",
+  "games": [
+   {
+    "title": "Wii Fit Plus",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RFP"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "g-mans626"
+  ],
+  "page_url": "https://gamebanana.com/wips/93626",
+  "source_id": "gamebanana:wip:93626",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/wips/93626",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1453076"
+   },
+   "file_name": "wii_fit_plus_hd_v01.zip",
+   "in_app": true
+  },
+  "scope": "partial",
+  "family": "wii-fit-plus-hd-gmans626",
+  "notes": "Early WIP. The published instructions contain RSP, but the actual ZIP has Wii Fit Plus HD v0.1/RFP/ with 262 PNG replacements; NeoStation installs that RFP subtree. Regional and language coverage beyond that family prefix require confirmation."
+ },
+ {
+  "id": "wii-nsmbw-hd-title-tjshah",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "New Super Mario Bros. Wii — custom HD title",
+  "version": "2022",
+  "games": [
+   {
+    "title": "New Super Mario Bros. Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SMN"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "TJShah"
+  ],
+  "page_url": "https://gamebanana.com/mods/417752",
+  "source_id": "gamebanana:417752",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0; permission required for redistribution",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/417752",
+   "verify": {
+    "url": "https://gamebanana.com/dl/908195"
+   },
+   "file_name": "nsmbw_custom_hd_title.zip",
+   "in_app": true
+  },
+  "scope": "ui",
+  "family": "wii-nsmbw-hd-title-tjshah",
+  "notes": "HD title-screen artwork only, not a full-game texture pack. Standalone replacement; installing it replaces the currently selected pack. To combine it with a base HD set, merge on a computer and import one folder. Region/language coverage is not attested by the author."
+ },
+ {
+  "id": "gc-naruto-gnt4-hd-chris-margroff",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Naruto: Gekitou Ninja Taisen! 4 — HD UI / English",
+  "version": "e4e72d66ec54 (2021-12-24)",
+  "games": [
+   {
+    "title": "Naruto: Gekitou Ninja Taisen! 4",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G4NJDA"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "Chris Margroff (TrueVision / sora3087)"
+  ],
+  "page_url": "https://gitlab.com/sora3087/ninja",
+  "source_id": "gitlab:sora3087/ninja",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gitlab.com/sora3087/ninja",
+   "verify": {
+    "url": "https://gitlab.com/sora3087/ninja/-/archive/e4e72d66ec547bf00a8838ddae5e0052881fe9dc/ninja-e4e72d66ec547bf00a8838ddae5e0052881fe9dc.zip"
+   },
+   "file_name": "ninja-e4e72d66ec547bf00a8838ddae5e0052881fe9dc.zip"
+  },
+  "scope": "ui",
+  "family": "gc-naruto-gnt4-hd-chris-margroff",
+  "notes": "Early hand-drawn UI, translated menus and placeholder upscales. Japanese original G4NJDA only. The creator's GitLab tree is pinned; source PSD files are not installed. It is not the separate Super Gekitou Ninja Taisen 4 ROM hack and not a complete HD overhaul. The GitLab repository tree is publicly readable, but its ZIP download was refused on CI; native installation remains unverified."
+ }
+]

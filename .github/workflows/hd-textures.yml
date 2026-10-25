@@ -1,0 +1,448 @@
+name: HD texture catalogue (Build 486)
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - packages/neo_texture_catalog/**
+      - tools/textures/**
+      - native/textures/**
+      - lib/services/texture_catalog_service.dart
+      # The libretro bridge files the targeted runner lists (HD textures row, core host, Vulkan renderer).
+      - packages/libretro_internal_bridge/ios/Classes/LibretroSession.m
+      - packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.h
+      - packages/libretro_internal_bridge/ios/Classes/LibretroCoreHost.m
+      - packages/libretro_internal_bridge/ios/Classes/LibretroVulkanRenderer.h
+      - packages/libretro_internal_bridge/ios/Classes/LibretroVulkanRenderer.m
+      - test/libretro_host/**
+      - test/libretro_host_test.py
+      - lib/l10n/texture_catalog_locale.dart
+      - test/texture_*
+      - test/native/texture_*
+      - test/build486_targeted_test.py
+      # The Flutter declaration stub the iPhone syntax checks compile the plugins with.
+      - test/libretro_host/stubs/**
+      - test/validate_hd_textures_ipa_test.py
+      - build-utils/validate_hd_textures_ipa.py
+      - .github/workflows/hd-textures.yml
+  workflow_dispatch:
+    inputs:
+      parts:
+        description: Parts to run
+        type: choice
+        options: [all, host, native, uikit, repositories, releases, hosts, ps1-hosts, discover, links, cores, summarize, research, direct, direct-native, ps1, delivery498]
+        default: all
+      only:
+        description: 'repositories/releases/hosts: pack ids; direct-native: providers,store,sdk,network checks'
+        type: string
+        default: ''
+      run:
+        description: 'summarize: the run id of a discover run (its candidates artifact)'
+        type: string
+        default: ''
+      queries:
+        description: 'discover: searches replacing the built-in ones, separated by | (topics after a #, code searches after a second #, e.g. n64 texture pack|gliden64#gliden64#filename:hires.txt "<tile>")'
+        type: string
+        default: ''
+      research:
+        description: 'research: tools/textures/research.py arguments, e.g. refs --console gc,wii --pages 6, refs --ids S001 --sheets GC,Wii, refs --file <list>, probe --file <list>'
+        type: string
+        default: 'refs --console gc'
+permissions: {contents: read, actions: read}
+concurrency:
+  # Pushes of one commit share a group; each dispatch has its own, so review and
+  # verification runs dispatched together on one commit are never cancelled.
+  group: ${{ github.event_name == 'workflow_dispatch' && format('hd-textures-dispatch-{0}', github.run_id) || format('hd-textures-{0}', github.sha) }}
+  cancel-in-progress: false
+jobs:
+  host:
+    name: Readers, identities, installer, labels, catalogue, contracts and Flutter
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Check catalogue publication against real disc identity observations
+        run: python3 test/texture_catalogue_publication_test.py
+      - name: Check public Yandex file verification boundaries
+        run: python3 test/texture_yandex_host_test.py
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Restore exact locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: AES for the MEGA folder check (python3-cryptography)
+        run: python3 -c 'import cryptography' 2>/dev/null || (sudo apt-get update -q && sudo apt-get install -y -q python3-cryptography)
+      - name: New and affected host checks
+        # The token reads the repository-archive verification artifacts (tools/textures/ci-records.json).
+        env: {CXX: g++, GH_TOKEN: '${{ github.token }}'}
+        run: python3 test/build486_targeted_test.py --part host
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build486-host-${{ github.sha }}
+          path: build/build486/
+          if-no-files-found: ignore
+          retention-days: 14
+  native:
+    name: Store and adapters on Foundation, iPhone SDK build of every changed source
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native') }}
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Foundation store test, iPhone compilation and the affected UIKit suites
+        run: python3 test/build486_targeted_test.py --part native
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build486-native-${{ github.sha }}
+          path: |
+            build/build486/
+            build/armsx2-validation/
+          if-no-files-found: ignore
+          retention-days: 14
+  uikit:
+    name: The HD textures page on UIKit with the bundled catalogue
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'uikit') }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Unified page in the Simulator
+        run: python3 test/build486_targeted_test.py --part uikit
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build486-uikit-${{ github.sha }}
+          path: build/build486/
+          if-no-files-found: ignore
+          retention-days: 14
+  repositories:
+    name: Packs published as original GitHub archives (${{ matrix.console }})
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'repositories' || inputs.parts == 'releases')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        console: [ps2, dolphin, psp, 3ds, n64, ps1, nes]
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Free runner disk for multi-gigabyte packs
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h "$RUNNER_TEMP"
+      - name: Build the verification driver (the app's installers)
+        run: |
+          python3 tools/textures/build_verifier.py --out build/hdtex486/texture_verify
+      - name: Download each original GitHub archive and install it with the app's code
+        run: |
+          shopt -s nullglob
+          sources=(tools/textures/sources/${{ matrix.console }}*.json)
+          python3 tools/textures/verify_packs.py --sources "${sources[@]}" \
+            --driver build/hdtex486/texture_verify --kind "$VERIFY_KIND" --work "$RUNNER_TEMP" --max-gb 12 \
+            --skip-recorded tools/textures/verified.jsonl --only "$ONLY" \
+            --out build/hdtex486/verified-${{ matrix.console }}.jsonl
+        env:
+          ONLY: '${{ inputs.only }}'
+          VERIFY_KIND: '${{ inputs.parts == ''releases'' && ''release'' || ''repository'' }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex486-${{ inputs.parts == 'releases' && 'releases' || 'repositories' }}-${{ matrix.console }}-${{ github.sha }}
+          path: build/hdtex486/verified-${{ matrix.console }}.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+  hosts:
+    # Manual packs published on a file host (download.verify): the author's file is fetched
+    # once here (tools/textures/hosts.py) and installed with the app's code; the app only
+    # accepts that exact file when the user imports it. Quotas and sign-in pages end an attempt.
+    name: Manual packs on file hosts (${{ matrix.console }})
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && (inputs.parts == 'all' || inputs.parts == 'hosts' || inputs.parts == 'ps1-hosts')) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        console: ${{ inputs.parts == 'ps1-hosts' && fromJSON('["ps1"]') || fromJSON('["dolphin","3ds","psp","ps2","ps1"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Free runner disk for multi-gigabyte packs
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          df -h "$RUNNER_TEMP"
+      - name: megatools (public MEGA links) and 7-Zip
+        run: sudo apt-get update -q && sudo apt-get install -y -q megatools p7zip-full python3-cryptography
+      - name: Build the verification driver (the app's installers)
+        run: |
+          python3 tools/textures/build_verifier.py --out build/hdtex486/texture_verify
+      - name: Fetch each author's file from its host and install it with the app's code
+        run: |
+          shopt -s nullglob
+          sources=(tools/textures/sources/${{ matrix.console }}*.json)
+          python3 tools/textures/verify_packs.py --sources "${sources[@]}" \
+            --driver build/hdtex486/texture_verify --kind host --work "$RUNNER_TEMP" --max-gb 12 \
+            --skip-recorded tools/textures/verified.jsonl --only "$ONLY" \
+            --out build/hdtex486/verified-hosts-${{ matrix.console }}.jsonl
+        env: {ONLY: '${{ inputs.only }}'}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-hosts-${{ matrix.console }}-${{ github.run_id }}
+          path: build/hdtex486/verified-hosts-${{ matrix.console }}.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+  discover:
+    name: Candidate packs on GitHub (review list, nothing published)
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'discover') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Search GitHub and describe each repository
+        env: {GH_TOKEN: '${{ github.token }}', QUERIES: '${{ inputs.queries }}'}
+        run: |
+          set -euo pipefail
+          args=()
+          if [ -n "$QUERIES" ]; then
+            searches="${QUERIES%%#*}"; topics=""; code=""
+            case "$QUERIES" in *'#'*) topics="${QUERIES#*#}" ;; esac
+            case "$topics" in *'#'*) code="${topics#*#}"; topics="${topics%%#*}" ;; esac
+            IFS='|' read -ra items <<< "$searches"; for item in "${items[@]}"; do [ -n "$item" ] && args+=(--query "$item"); done
+            IFS='|' read -ra items <<< "$topics"; for item in "${items[@]}"; do [ -n "$item" ] && args+=(--topic "$item"); done
+            IFS='|' read -ra items <<< "$code"; for item in "${items[@]}"; do [ -n "$item" ] && args+=(--code-query "$item"); done
+            args+=(--skip-code)
+          fi
+          python3 tools/textures/discover.py github "${args[@]}" --out build/hdtex/candidates.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-candidates-${{ github.sha }}
+          path: build/hdtex/candidates.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+  links:
+    name: Links of the catalogued packs (reachability, size, newer release)
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'links') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Check every page and download part
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: python3 tools/textures/discover.py links --out build/hdtex/links.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-links-${{ github.sha }}
+          path: build/hdtex/links.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+  cores:
+    name: Texture replacement in the pinned libretro cores (N64, PS1, NES) and in Mesen on the buildbot
+    # On push: the binaries of the delivered package (Mesen included) against the catalogue's option,
+    # folder and BIOS contracts. The buildbot read runs on dispatch only.
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'cores') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/download-artifact@v4
+        with:
+          # The package the delivery pins (retroarch-delivery.yml LIBRETRO_CORES_HOST_SHA, RUN_ID).
+          name: LibretroCores-4c2186204ce06b50b989689a9c2322068f523a58
+          run-id: '39366986940'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: dist/libretro
+      - name: Option keys and folders compiled into the pinned binaries
+        run: |
+          find dist/libretro -maxdepth 3 | head -60
+          python3 tools/textures/probe_cores.py --cores dist/libretro --out build/hdtex/cores.json
+      - name: Catalogue option and BIOS contracts against the same binaries (Mesen included)
+        run: |
+          python3 test/libretro_core_options_test.py --cores dist/libretro
+          python3 test/libretro_bios_requirements_test.py --cores dist/libretro
+      - name: Cores RewindBox does not ship yet, read from the libretro buildbot (Mesen, NES HD packs)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: python3 tools/textures/probe_cores.py --buildbot mesen --out build/hdtex/buildbot.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-cores-${{ github.sha }}
+          path: |
+            build/hdtex/cores.json
+            build/hdtex/buildbot.json
+          if-no-files-found: warn
+          retention-days: 14
+  summarize:
+    name: Engine-relevant candidates of a discover run (review list)
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'summarize') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: hdtex-candidates-*
+          run-id: ${{ inputs.run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: build/hdtex/candidates
+          merge-multiple: true
+      - name: One short line per candidate an engine can read
+        run: python3 tools/textures/discover.py summarize --candidates build/hdtex/candidates/candidates.jsonl --out build/hdtex/summary.jsonl
+  research:
+    name: Reference pages of the maintainer's list (review list, nothing published)
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'research') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: megatools (public MEGA links) and 7-Zip for probes
+        run: sudo apt-get update -q && sudo apt-get install -y -q megatools p7zip-full python3-cryptography
+      - name: Read each reference page, its GameBanana or GitHub details and its links
+        env: {GH_TOKEN: '${{ github.token }}', RESEARCH: '${{ inputs.research }}'}
+        run: |
+          set -euo pipefail
+          read -ra args <<< "$RESEARCH"
+          case "${args[0]:-}" in
+            probe) python3 tools/textures/research.py "${args[@]}" --out build/hdtex/research.jsonl ;;
+            refs) python3 tools/textures/research.py "${args[@]}" --heads --out build/hdtex/research.jsonl ;;
+            *) python3 tools/textures/research.py refs "${args[@]}" --heads --out build/hdtex/research.jsonl ;;
+          esac
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-research-${{ github.run_id }}
+          path: build/hdtex/research.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+
+  direct_readers:
+    name: RAR reader and direct-source publication boundaries
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'direct') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: New RAR decoder and affected installation dispatch
+        run: |
+          python3 test/texture_rar_test.py
+          python3 test/texture_install_test.py
+      - name: Direct download publication and unchanged family grouping
+        run: python3 test/texture_direct_host_publication_test.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-direct-readers-${{ github.sha }}
+          path: build/hd-direct400/
+          if-no-files-found: warn
+          retention-days: 14
+  direct_native:
+    name: Public host resolvers, native installation and iPhone compilation
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && (inputs.parts == 'direct' || inputs.parts == 'direct-native')) }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Independent encrypted-fixture dependency
+        run: |
+          python3 -m venv build/hd-direct400/venv
+          build/hd-direct400/venv/bin/pip install --disable-pip-version-check cryptography
+      - name: New provider, cryptography and compatibility fixtures
+        if: ${{ inputs.only == '' || contains(inputs.only, 'providers') }}
+        run: |
+          build/hd-direct400/venv/bin/python test/texture_host_resolver_test.py
+          build/hd-direct400/venv/bin/python test/texture_mega_native_test.py
+          build/hd-direct400/venv/bin/python test/texture_catalog_capability_test.py
+      - name: Native provider download, resume and RAR installation fixtures
+        if: ${{ inputs.only == '' || contains(inputs.only, 'store') }}
+        run: |
+          build/hd-direct400/venv/bin/python test/texture_store_provider_test.py
+      - name: Affected Foundation store and iPhone SDK linkage
+        if: ${{ inputs.only == '' || contains(inputs.only, 'sdk') }}
+        run: |
+          build/hd-direct400/venv/bin/python test/texture_catalog_native_test.py
+          build/hd-direct400/venv/bin/python test/texture_catalog_ios_syntax_test.py
+      - name: Small real original files through the native download and install path
+        if: ${{ success() && (inputs.only == '' || contains(inputs.only, 'network')) }}
+        run: build/hd-direct400/venv/bin/python test/texture_direct_network_test.py --input tools/textures/research/direct400-network-probes.json --out build/hd-direct400/native-network-results.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-direct-native-${{ github.sha }}
+          path: |
+            build/hd-direct400/*.json
+            build/hd-direct400/*.log
+          if-no-files-found: warn
+          retention-days: 14
+  ps1_catalogue:
+    name: PS1 catalogue generation, provenance and preserved entries
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'ps1') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Exact catalogue, original CI observations and manual boundaries
+        env: {GH_TOKEN: '${{ github.token }}'}
+        run: |
+          python3 tools/textures/build_catalogue.py --check
+          python3 test/texture_direct_host_publication_test.py
+          python3 tools/textures/check_ci_records.py
+          python3 tools/textures/check_ps1_expansion.py --output build/hd-ps1/publication.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-ps1-publication-${{ github.sha }}
+          path: build/hd-ps1/
+          if-no-files-found: warn
+          retention-days: 14
+  ps1_native:
+    name: PS1 bundled catalogue and regional matching on Foundation
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'ps1') }}
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Production catalogue, store, adapters and PS1 disc matches
+        run: |
+          set -o pipefail
+          mkdir -p build/hd-ps1
+          python3 test/texture_catalog_native_test.py 2>&1 | tee build/hd-ps1/native.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hdtex-ps1-native-${{ github.sha }}
+          path: build/hd-ps1/
+          if-no-files-found: warn
+          retention-days: 14
+  delivery498:
+    name: Private HD native IPA delivery
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'workflow_dispatch' && inputs.parts == 'delivery498') }}
+    uses: ./.github/workflows/hd-native-delivery.yml
+    with:
+      build_number: '498'
+      recipient: build-utils/delivery-498-recipient.pem
+    secrets: inherit

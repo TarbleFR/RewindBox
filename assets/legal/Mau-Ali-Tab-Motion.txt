@@ -1,0 +1,26 @@
+Interactive iOS 26 Inspired Tab Menu — Mau Ali
+https://lottiefiles.com/free-animation/free-interactive-ios-26-inspired-tab-menu-uTAhrmTC08
+https://lottiefiles.com/mau
+
+Original dotLottie: assets/data/mau-ali-tab-menu.lottie
+Author-provided asset:
+https://assets-v2.lottiefiles.com/a/0b87c13f-61d1-4560-a99b-10c571634a1e/uTAhrmTC08.lottie
+
+The original dotLottie and the derived motion profile (assets/data/mau-ali-tab-motion.json
+and lib/widgets/mau_ali_tab_motion.dart) are distributed under the Lottie Simple
+License FL 9.13.21, reproduced in Lottie-Simple-License.txt, rather than the
+application's default GPL license. Upstream attribution and these terms apply
+to the original and adapted motion data, including in the public repository.
+
+RewindBox retargets all original selection segments to its real, variable,
+visible navigation tabs. The original frame timing (60 fps), unattenuated scale,
+Bezier contour, container pulse, transparency and moving rim are preserved.
+The generated mau_ali_tab_motion_data.dart is also derived licensed motion data.
+The reference's fixed five icons and labels are replaced by application icons.
+Existing Flutter animation and painting render the adapted selection; no
+additional dotLottie runtime is included. The original archive is retained for
+source access and exact provenance.
+
+The native download/battery/carousel artwork and renderers are original
+RewindBox work under GPL-3.0-or-later. This application is not an animation
+library or an animation collection service.

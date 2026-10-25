@@ -1,0 +1,395 @@
+{
+  "schema": 1,
+  "baselineBuild": 523,
+  "baselineAppSource": "c1f550f8be86c91d65dc564ebddff593f2e3fe46",
+  "baselineCoreSource": "e8437623a1ba37874adfacd8521c596e94d055c3",
+  "baselineCoreRun": 40103133192,
+  "patchSHA256": "6a06f3e84ef41a9b43b2873a769c09c993514931fda48009c4890b20159c7303",
+  "changedNativePaths": [
+    "rpcs3/Emu/savestate_utils.cpp"
+  ],
+  "localProof": {
+    "passed": true,
+    "actualHLEMethods": true,
+    "actualAtomicWaitEngine": true,
+    "beforeMethodSHA256": "05aeb95ee311c7f51d8607fdbe83282cc60c2da829b8a154c49e10cde1faf1f5",
+    "sourceInputs": {
+      "rpcs3/Emu/savestate_utils.cpp": "799466dedec54aadc57f24440905837e726936e20a1ae8032e46fb9e0359ce61",
+      "rpcs3/Emu/savestate_utils.hpp": "8f6c7ccf781e71ae6ac559c464063e3657eeeb44616373e1831e584310e729d0",
+      "rpcs3/util/atomic.cpp": "7fd0a17fa78d4ef6f078cb87a4735e8f20431d744b620b46801a314a89202d66",
+      "rpcs3/util/atomic.hpp": "5333cb88153e713e47eae1240b7a2684472a7cc0c44b832274f9ba53d698c677",
+      "Utilities/sync.h": "3fff9bafc7228c1ab718fedef27d3a27fb5d2896ef34ef49eaa3a6b4d1c61a7d",
+      "rpcs3/ios/tests/MinecraftAtomicSupport.cpp": "f394b8362ddfae74f8fa97a33040ca2c3d340c2cf53e9752b4ab21a8fff41902"
+    },
+    "cases": [
+      {
+        "variant": "before",
+        "exit": 7,
+        "stdout": "",
+        "stderr": "FAIL aborted HLE finalization left 8 registered native waits asleep; fixture notify_all rescued them"
+      },
+      {
+        "variant": "candidate",
+        "exit": 0,
+        "stdout": "PASS 20 HLE cases: parked waiters resume after abort, retry succeeds, finalized rejects, active locks and initial rejection preserved; actual RPCS3 wait engine",
+        "stderr": ""
+      }
+    ],
+    "sanitizers": true,
+    "platform": "Linux",
+    "machine": "x86_64",
+    "nativeWaitBackend": "Linux RPCS3 hashed futex fallback (-DANDROID fixture selection)",
+    "scope": "native synchronization fixture; no game, device, FPS or RAM measurement"
+  },
+  "nativeBuild": {
+    "status": "success",
+    "failedAttempts": [
+      {
+        "source": "9c761ab30149bcf83aca0ceadda0859b306a564f",
+        "run": 40110380865,
+        "job": 120920664402,
+        "phase": "Apple native fixture compile",
+        "reason": "Xcode16.4 rejects the unused unreachable HLE lock() definition under -Werror invalid-noreturn; the fixture now compiles only its three exercised production methods.",
+        "coreProduced": false,
+        "nativeFixChanged": false
+      }
+    ],
+    "source": "a7a109b955d2e60de005fd663eb4391f6c93e88d",
+    "run": 40110663507,
+    "job": 120921508605,
+    "artifacts": [
+      {
+        "id": 12566613108,
+        "kind": "diagnostics",
+        "archiveSHA256": "917a901c81bb07d627e6309f7eff25ca68463ad60626b56721ff750e1a0ef3f7"
+      },
+      {
+        "id": 12566473543,
+        "kind": "Core",
+        "archiveSHA256": "864b60fd7435ae14b2d83ebcee20c8f7cd866359aa63b5b9407efd1320f9eace"
+      }
+    ],
+    "independentValidation": {
+      "result": "passed",
+      "source": "a7a109b955d2e60de005fd663eb4391f6c93e88d",
+      "upstreamSource": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+      "sha256": "382bd3e2b27eb186c059fde7b5294de33f1334117ee2f593957b76658625fff0",
+      "bytes": 77001872,
+      "abi": 30,
+      "architecture": "arm64",
+      "minimumOS": "16.3.0",
+      "exportCount": 88,
+      "nativeInputsVerified": 132,
+      "compiledCorePayloadFingerprint": "0bc7fcfa88c6295bc84411c6a79642235472cebb9dedadbd19584942d81cfec6",
+      "syntaxGateUnits": [
+        "RPCS3IOS.cpp",
+        "RPCS3IOSPerformance.cpp",
+        "RPCS3IOSFreezeDump.cpp",
+        "RPCS3IOSSettings.cpp",
+        "savestate_utils.cpp",
+        "System.cpp",
+        "system_config_types.cpp",
+        "JITASM.cpp",
+        "JITLLVM.cpp",
+        "SourceClient.cpp",
+        "JITIOS.cpp",
+        "RPCS3IOSExperimentalPolicy.cpp",
+        "IOSTextureHash.cpp",
+        "TAR.cpp",
+        "ISO.cpp",
+        "PPUAnalyser.cpp",
+        "PPUFunction.cpp",
+        "PPUModule.cpp",
+        "PPUThread.cpp",
+        "PPUTranslator.cpp",
+        "SPUCommonRecompiler.cpp",
+        "SPULLVMRecompiler.cpp",
+        "SPUThread.cpp",
+        "sys_game.cpp",
+        "sys_mutex.cpp",
+        "cellVdec.cpp",
+        "vm.cpp",
+        "BufferUtils.cpp",
+        "nv406e.cpp",
+        "overlay_home_menu_main_menu.cpp",
+        "overlay_home_menu_savestate.cpp",
+        "RSXFIFO.cpp",
+        "RSXThread.cpp",
+        "fsr_pass.cpp",
+        "buffer_object.cpp",
+        "data_heap.cpp",
+        "memory.cpp",
+        "device.cpp",
+        "VKGSRender.cpp",
+        "VKProgramPipeline.cpp",
+        "VKResourceManager.cpp",
+        "VKTextureCache.cpp"
+      ],
+      "wakeProof": {
+        "passed": true,
+        "actualHLEMethods": true,
+        "actualAtomicWaitEngine": true,
+        "beforeMethodSHA256": "05aeb95ee311c7f51d8607fdbe83282cc60c2da829b8a154c49e10cde1faf1f5",
+        "sourceInputs": {
+          "rpcs3/Emu/savestate_utils.cpp": "799466dedec54aadc57f24440905837e726936e20a1ae8032e46fb9e0359ce61",
+          "rpcs3/Emu/savestate_utils.hpp": "8f6c7ccf781e71ae6ac559c464063e3657eeeb44616373e1831e584310e729d0",
+          "rpcs3/util/atomic.cpp": "7fd0a17fa78d4ef6f078cb87a4735e8f20431d744b620b46801a314a89202d66",
+          "rpcs3/util/atomic.hpp": "5333cb88153e713e47eae1240b7a2684472a7cc0c44b832274f9ba53d698c677",
+          "Utilities/sync.h": "3fff9bafc7228c1ab718fedef27d3a27fb5d2896ef34ef49eaa3a6b4d1c61a7d",
+          "rpcs3/ios/tests/MinecraftAtomicSupport.cpp": "f394b8362ddfae74f8fa97a33040ca2c3d340c2cf53e9752b4ab21a8fff41902"
+        },
+        "cases": [
+          {
+            "variant": "before",
+            "exit": 7,
+            "stdout": "",
+            "stderr": "FAIL aborted HLE finalization left 8 registered native waits asleep; fixture notify_all rescued them"
+          },
+          {
+            "variant": "candidate",
+            "exit": 0,
+            "stdout": "PASS 20 HLE cases: parked waiters resume after abort, retry succeeds, finalized rejects, active locks and initial rejection preserved; actual RPCS3 wait engine",
+            "stderr": ""
+          }
+        ],
+        "sanitizers": true,
+        "platform": "Darwin",
+        "machine": "arm64",
+        "nativeWaitBackend": "Apple os_sync_wait_on_address",
+        "scope": "native synchronization fixture; no game, device, FPS or RAM measurement"
+      },
+      "codegen": {
+        "actual": {
+          "PPU": [
+            "9013390836efe46e"
+          ],
+          "SPU": [
+            "a601a98f20f30c80"
+          ]
+        },
+        "prior": {
+          "PPU": [
+            "9013390836efe46e"
+          ],
+          "SPU": [
+            "a601a98f20f30c80"
+          ]
+        },
+        "coldCompileRequired": false,
+        "deviceTested": false
+      },
+      "passiveDlopen": {
+        "initializerCount": 2792,
+        "initializerSymbols": 911,
+        "marker": "NEOSTATION_BUILD301_PASSIVE_DLOPEN_V1",
+        "forbiddenReachability": false,
+        "scope": "named forbidden functions via direct ARM64 B/BL edges, maximum depth 16",
+        "deviceRuntimeTested": false
+      },
+      "deviceRuntimeTested": false
+    }
+  },
+  "ipa": {
+    "status": "success",
+    "baselineCacheKey": "neostation-device-v2-macOS-ARM64-xcode26.3-flutter3.47.2-c1f550f8be86c91d65dc564ebddff593f2e3fe46-523-09b8aa7d1bc439098e74eaba3735094714b3cd5740c469e7c84be8dd2fec6336-normal",
+    "baselinePayloadFixtureSHA256": "a4cbe634f3eb9cc06ae115b47553b9c3813ce4c7ef72a80111289def4774f13a",
+    "appCodeRecompiled": false,
+    "failedAttempts": [
+      {
+        "source": "71b17eda54a5953c0e5797019e3879d44e2a5c0c",
+        "run": 40111780603,
+        "job": 120924840607,
+        "phase": "preserving original legal source observations after legal directory regeneration",
+        "reason": "Generator recreates Legal directory; original plugin/SDK snapshots must be retained as bytes before regeneration.",
+        "baselineAppAndCoreAdmission": "passed",
+        "ipaProduced": false,
+        "coreRecompiled": false,
+        "diagnosticsArtifact": 12566763252,
+        "diagnosticsArchiveSHA256": "f4d21d35051532c9428cabec7042aaa84fc5c750ef576ecb4f8f919bdfd2ed82"
+      }
+    ],
+    "source": "2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787",
+    "run": 40112137356,
+    "job": 120925891764,
+    "build": 524,
+    "version": "0.0.8",
+    "bytes": 186623530,
+    "sha256": "3a3de8f038dfc59df65f40e0064c04b6414d80d51e3019b0ad9ae05cdde3634f",
+    "transportArtifacts": [
+      {
+        "index": 0,
+        "id": 12566873267,
+        "name": "RewindBox-Build-524-2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787-core-reuse-part00",
+        "digest": "sha256:404034f98c7c0fc89b7ea4e92a46483c5183341e77e3a4e2b54208665cf3c1bc"
+      },
+      {
+        "index": 1,
+        "id": 12567330920,
+        "name": "RewindBox-Build-524-2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787-core-reuse-part01",
+        "digest": "sha256:a73f1002478071b0527087bd7d2d38628fb298de10c96def03160d4996ae2983"
+      },
+      {
+        "index": 2,
+        "id": 12566664406,
+        "name": "RewindBox-Build-524-2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787-core-reuse-part02",
+        "digest": "sha256:8fe94315584ebe1a60b9c0dd4780626a922ee929cf0e89cd1a6d924f577de74d"
+      },
+      {
+        "index": 3,
+        "id": 12566838467,
+        "name": "RewindBox-Build-524-2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787-core-reuse-part03",
+        "digest": "sha256:736ca2740711574d9894a8ce9f61707ecbb485b7b830dda4a0b24a316e242174"
+      }
+    ],
+    "encryptedTransportSHA256": "d32e0e4d27e054900befde11c9da348d2b34884e3b8ccdb6652eabd6799d48d8",
+    "allTransportZipAndPartHashesVerified": true,
+    "safeTarExtraction": true,
+    "plaintextChecksumVerified": true,
+    "independentValidation": {
+      "result": "passed",
+      "build": 524,
+      "ipaSHA256": "3a3de8f038dfc59df65f40e0064c04b6414d80d51e3019b0ad9ae05cdde3634f",
+      "coreSource": "a7a109b955d2e60de005fd663eb4391f6c93e88d",
+      "coreRun": 40110663507,
+      "sourceArtifactSHA256": "382bd3e2b27eb186c059fde7b5294de33f1334117ee2f593957b76658625fff0",
+      "compiledCorePayloadFingerprint": "0bc7fcfa88c6295bc84411c6a79642235472cebb9dedadbd19584942d81cfec6",
+      "sharedCompilerBrokerLinked": true,
+      "optionalCoreBinderLinked": true,
+      "productionMinimalSPULinkerEnabled": false,
+      "physicalDeviceTested": false,
+      "physicalPerformanceMeasured": false,
+      "gow3BootAndVmaSourceVerified": true,
+      "compiledAppSource": "c1f550f8be86c91d65dc564ebddff593f2e3fe46",
+      "compiledAppRun": 40104064265,
+      "appCodeRecompiled": false,
+      "unchangedOtherARM64Images": 86,
+      "preservedAssetEntries": 4410,
+      "preservedAssetRootSHA256": "754e938ac9214f564d2e1cbe7202f45e37661337d94037b9de9a307cde3c5407",
+      "allRuntimeEntitlementsUnchanged": true,
+      "extensionVersionsChecked": 7,
+      "nativeSourceAndLicensesRetained": true,
+      "ipaBytes": 186623530,
+      "version": "0.0.8",
+      "minimumIOS": "18.0",
+      "nativeNonLinkeditSegmentsUnchanged": true,
+      "packagedCoreSHA256": "7b5270dfc603d8acbc6f530ee13147547e7f2874e96020074f202ba00f72c1db",
+      "allSealedThinImagesVerified": 84,
+      "distribution": {
+        "ipa": "RewindBox-Build524.ipa",
+        "installationUnits": 1,
+        "hostBundleIdentifier": "com.neogamelab.neostation",
+        "embeddedExtensions": [
+          {
+            "bundle": "ARMSX2JITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.armsx2jithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "DolphinJITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.dolphinjithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "MeloNXJITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.melonxjithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "MeloNXRamDonor.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.melonxramdonor",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "NeoSwapDonor.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.neoswapdonor",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "NeoSwapPageRelay.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.NeoSwapPageRelay",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "RPCS3JITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.rpcs3jithelper",
+            "extensionPoint": "com.apple.share-services"
+          }
+        ],
+        "embeddedPacketTunnelPresent": false,
+        "networkExtensionEntitlementPresent": false,
+        "externalJITTransport": "LocalDevVPN",
+        "userSignsOneIPA": true,
+        "neoSwapDonorRequestedEntitlements": {
+          "get-task-allow": true,
+          "com.apple.developer.kernel.increased-memory-limit": true,
+          "com.apple.developer.kernel.increased-debugging-memory-limit": true
+        },
+        "neoSwapDonorCount": 1,
+        "neoSwapRelayCount": 1,
+        "neoSwapRelayRequestedEntitlements": {
+          "get-task-allow": true,
+          "com.apple.developer.kernel.increased-memory-limit": true,
+          "com.apple.developer.kernel.increased-debugging-memory-limit": true
+        },
+        "neoSwapRelayEffectiveDeviceProfileValidated": false,
+        "neoSwapRelayResidentMemoryValidated": false,
+        "neoSwapDonorProcessInstancesValidated": false,
+        "neoSwapDonorEffectiveDeviceProfileValidated": false,
+        "deviceRuntimeTested": false,
+        "nestedSigningOrder": [
+          "NeoStation.app/PlugIns/ARMSX2JITHelper.appex",
+          "NeoStation.app/PlugIns/DolphinJITHelper.appex",
+          "NeoStation.app/PlugIns/MeloNXJITHelper.appex",
+          "NeoStation.app/PlugIns/MeloNXRamDonor.appex",
+          "NeoStation.app/PlugIns/NeoSwapDonor.appex",
+          "NeoStation.app/PlugIns/NeoSwapPageRelay.appex",
+          "NeoStation.app/PlugIns/RPCS3JITHelper.appex",
+          "NeoStation.app"
+        ],
+        "machOImagesCheckedForVPNEntitlements": 87
+      },
+      "signatureCount": 87,
+      "ciStrictSignaturesAllVerified": true,
+      "installationMethod": "SideStore re-signing",
+      "appleProvisioningVerified": false
+    },
+    "legalValidation": {
+      "status": "passed",
+      "actualFinalIPA": true,
+      "commit": "2d5ff0b83a8b9adf3f1ac8f97e70f861bae64787",
+      "build": 524
+    },
+    "privateDistribution": true,
+    "githubReleaseCreated": false,
+    "tagCreated": false,
+    "mainModified": false
+  },
+  "knownLogLimit": "No new Build523 device capture; recorded Build522 stop is in PPU restoration, not a demonstrated occurrence of aborted HLE save finalization.",
+  "physicalDeviceTested": false,
+  "gamePerformanceMeasured": false,
+  "physicalRAMReductionMeasured": false,
+  "appReuseInvariant": {
+    "passed": true,
+    "realIPA": 523,
+    "ipaSHA256": "7fa958570e802c489db4d4df07b7388cde4bb18f94c2555bcce060db9aedb8a1",
+    "cases": [
+      {
+        "case": "baseline",
+        "accepted": true
+      },
+      {
+        "case": "version",
+        "accepted": true
+      },
+      {
+        "case": "identifier",
+        "accepted": false
+      },
+      {
+        "case": "code",
+        "accepted": false
+      }
+    ],
+    "purpose": "actual app reuse invariant; no device/game performance measurement"
+  }
+}

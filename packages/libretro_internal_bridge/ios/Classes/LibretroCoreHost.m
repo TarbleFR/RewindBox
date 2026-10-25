@@ -147,6 +147,8 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
   char *_gameInfoStrings[5];
 
   NSMutableArray<NSString *> *_log;
+  NSInteger _hdTexturesRecognized;  // guarded by _log
+  NSInteger _hdTexturesApplied;
   BOOL _supportsAchievements;
   BOOL _shutdownRequested;
   uint64_t _serializationQuirks;
@@ -172,6 +174,7 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
     _jitCapable = jitCapable;
     _pixelFormat = RETRO_PIXEL_FORMAT_0RGB1555;
     _log = [NSMutableArray array];
+    _hdTexturesRecognized = -1;
     _libraryName = @"";
     _libraryVersion = @"";
     _validExtensions = [NSSet set];
@@ -197,7 +200,56 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
   @synchronized(_log) {
     [_log addObject:line];
     if (_log.count > kRecentLogLimit) [_log removeObjectsInRange:NSMakeRange(0, _log.count - kRecentLogLimit)];
+    [self noteTextureReplacementLine:line];
   }
+}
+
+// Beetle PSX HW's texture tracker (rhi_tt.c): "num hd textures: %d" when its
+// renderer starts, then every 300 frames "[hdcache] last 300f: %llu decodes,
+// %llu gpu-uploads (peak %llu/frame), %llu attaches". Called under _log.
+- (void)noteTextureReplacementLine:(NSString *)line {
+  static NSString *const recognized = @"[INFO] num hd textures: ";
+  static NSString *const window = @"[INFO] [hdcache] last 300f: ";
+  if ([line hasPrefix:recognized]) {
+    _hdTexturesRecognized = [line substringFromIndex:recognized.length].integerValue;
+  } else if ([line hasPrefix:window]) {
+    NSRange end = [line rangeOfString:@" attaches" options:NSBackwardsSearch];
+    NSRange comma = end.location == NSNotFound ? end : [line rangeOfString:@", " options:NSBackwardsSearch range:NSMakeRange(0, end.location)];
+    if (comma.location != NSNotFound) {
+      NSString *count = [line substringWithRange:NSMakeRange(NSMaxRange(comma), end.location - NSMaxRange(comma))];
+      _hdTexturesApplied += MAX(0, count.integerValue);
+    }
+  }
+}
+
+- (NSInteger)hdTexturesRecognized {
+  @synchronized(_log) { return _hdTexturesRecognized; }
+}
+
+- (NSInteger)hdTexturesApplied {
+  @synchronized(_log) { return _hdTexturesApplied; }
+}
+
+- (NSInteger)textureReplacementFilesInSaveFolder:(NSString *)folder {
+  if (folder.length == 0 || _saveDirectory.length == 0) return 0;
+  NSArray<NSString *> *names =
+      [NSFileManager.defaultManager contentsOfDirectoryAtPath:[_saveDirectory stringByAppendingPathComponent:folder] error:nil];
+  static NSSet<NSString *> *extensions;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    extensions = [NSSet setWithArray:@[ @"png", @"dds", @"webp", @"jpg", @"jpeg", @"bmp", @"tga" ]];
+  });
+  NSMutableSet<NSString *> *keys = [NSMutableSet set];
+  for (NSString *name in names) {
+    const char *text = name.UTF8String;
+    unsigned hash = 0, palette = 0;
+    int read = 0;
+    // The core's own test: sscanf(name, "%x-%x.%n", ...) == 2 and the rest a supported extension.
+    if (text == NULL || sscanf(text, "%x-%x.%n", &hash, &palette, &read) != 2 || read <= 0 || text[read - 1] != '.') continue;
+    if (![extensions containsObject:[@(text + read) lowercaseString]]) continue;
+    [keys addObject:[NSString stringWithFormat:@"%x-%x", hash, palette]];
+  }
+  return (NSInteger)keys.count;
 }
 
 - (NSArray<NSString *> *)recentLog {
@@ -788,11 +840,6 @@ static bool HostEnvironment(unsigned command, void *data) {
 
   gActiveHost = self;
   _symbols.retro_set_environment(HostEnvironment);
-  _symbols.retro_set_video_refresh(HostVideoRefresh);
-  _symbols.retro_set_audio_sample(HostAudioSample);
-  _symbols.retro_set_audio_sample_batch(HostAudioSampleBatch);
-  _symbols.retro_set_input_poll(HostInputPoll);
-  _symbols.retro_set_input_state(HostInputState);
   void (^optionsDeclared)(LibretroCoreOptions *) = self.optionsDeclared;
   if (optionsDeclared != nil) optionsDeclared(_options);
   if (managesPSPCheats) [_options applySessionOverrides:@{@"ppsspp_cheats":@"disabled"}];
@@ -802,6 +849,14 @@ static bool HostEnvironment(unsigned command, void *data) {
         [_options applySessionOverrides:@{option.key:option.values.firstObject}];
   }
   _symbols.retro_init();
+  // The video, audio and input callbacks after retro_init, as RetroArch sets them
+  // (runloop.c, core_init_libretro_cbs): Mesen dereferences its console, created in
+  // retro_init, in retro_set_video_refresh and the audio and input setters.
+  _symbols.retro_set_video_refresh(HostVideoRefresh);
+  _symbols.retro_set_audio_sample(HostAudioSample);
+  _symbols.retro_set_audio_sample_batch(HostAudioSampleBatch);
+  _symbols.retro_set_input_poll(HostInputPoll);
+  _symbols.retro_set_input_state(HostInputState);
   _coreInitialized = YES;
   [self appendLog:[NSString stringWithFormat:@"[HOST] loaded %@ %@", _libraryName, _libraryVersion]];
   return YES;

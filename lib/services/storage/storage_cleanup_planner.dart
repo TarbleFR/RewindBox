@@ -17,9 +17,8 @@
 ///   skin caches and catalogs, `Dolphin/ShaderCache`, `RPCS3/Cache`, orphan
 ///   media, orphan metadata rows, orphan covers, Dolphin session logs and
 ///   KartPad logs beyond the 10 newest, recovered Dolphin markers, the
-///   google_fonts copies, `Caches/<bundle-id>/` and the KartPad and
-///   Dusklight cache folders `Caches/{KartPad,Dusklight}/*` (decision of the
-///   lead).
+///   google_fonts copies, `Caches/<bundle-id>/` and the KartPad cache folder
+///   `Caches/KartPad/*` (decision of the lead).
 /// - Level 3 « Avec confirmation détaillée » (nothing preselected, not even
 ///   its level-1 and level-2 candidates nor the metadata rows: each item is
 ///   ticked one by one, review of 5d): level 2, `Documents/Diagnostics/*`,
@@ -775,7 +774,6 @@ class StorageCleanupPlanner {
     'INV-01',
     'INV-11',
     'INV-12',
-    'INV-13',
     'INV-20',
   };
 
@@ -889,13 +887,6 @@ class StorageCleanupPlanner {
       minimumAge: staleAge,
     ),
     _Line(
-      'INV-13.gamePart',
-      StorageCleanupLevel.safe,
-      _UnitMode.direct,
-      filesOnly: true,
-      minimumAge: staleAge,
-    ),
-    _Line(
       'INV-15.importPart',
       StorageCleanupLevel.safe,
       _UnitMode.direct,
@@ -1003,18 +994,11 @@ class StorageCleanupPlanner {
       StorageCleanupLevel.regenerable,
       _UnitMode.insideMatched,
     ),
-    // The cachePath of the KartPad and Dusklight engines
-    // (getTemporaryDirectory()/<engine>, Library/Caches on iOS): runtime and
-    // shader caches, decision of the lead, 12 October 2026. Their sessions
-    // are covered by the GameLaunchManager refusal.
+    // The cachePath of the KartPad engine (getTemporaryDirectory()/KartPad,
+    // Library/Caches on iOS): runtime and shader caches, decision of the
+    // lead, 12 October 2026.
     _Line(
       'INV-12.cache',
-      StorageCleanupLevel.regenerable,
-      _UnitMode.direct,
-      reasonKey: StorageLocale.catCaches,
-    ),
-    _Line(
-      'INV-13.cache',
       StorageCleanupLevel.regenerable,
       _UnitMode.direct,
       reasonKey: StorageLocale.catCaches,

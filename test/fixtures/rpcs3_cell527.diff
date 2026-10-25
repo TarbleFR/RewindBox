@@ -1,0 +1,958 @@
+diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
+index 7e35227..87b2daf 100644
+--- a/Utilities/JITLLVM.cpp
++++ b/Utilities/JITLLVM.cpp
+@@ -15,6 +15,7 @@
+ #include "JITIOS.h"
+ #include "JITProfile.h"
+ #include "JITPhaseProfile.h"
++#include "JITPublicationQueue.h"
+ #include "Crypto/sha1.h"
+ #endif
+ 
+@@ -416,7 +417,8 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
+ 	};
+ 
+ 	std::vector<code_mapping> m_pending_code;
+-	std::vector<code_mapping> m_code;
++	jit_publication::queue<true> m_code;
++	llvm::ExecutionEngine* m_engine = nullptr;
+ 	std::vector<arena_allocation> m_data;
+ #endif
+ 
+@@ -449,7 +451,7 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
+ 		// utils::memory_decommit(m_data_ro_mems, how_much(data_ro_ptr));
+ 		// utils::memory_decommit(m_data_rw_mems, how_much(data_rw_ptr));
+ #ifdef RPCS3_IOS
+-		for (const code_mapping& item : m_code)
++		for (const auto& item : m_code.allocations())
+ 		{
+ 			rpcs3::ios::jit::release_allocation(true, item.target, item.size);
+ 		}
+@@ -559,7 +561,7 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
+ 
+ 		u8* const local = ensure(static_cast<u8*>(rpcs3::ios::jit::writable(target, size)));
+ 		m_pending_code.push_back({local, target, size});
+-		m_code.push_back({local, target, size});
++		m_code.add(target, size);
+ 		maybe_log_ios_jit_arena_pressure(true);
+ 		return local;
+ #else
+@@ -571,6 +573,7 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
+ #ifdef RPCS3_IOS
+ 	void notifyObjectLoaded(llvm::ExecutionEngine* engine, const llvm::object::ObjectFile&) override
+ 	{
++		m_engine = engine;
+ 		for (const code_mapping& item : m_pending_code)
+ 		{
+ 			engine->mapSectionAddress(item.local, reinterpret_cast<u64>(item.target));
+@@ -607,10 +610,11 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
+ 	bool finalizeMemory(std::string* = nullptr) override
+ 	{
+ #ifdef RPCS3_IOS
+-		for (const code_mapping& item : m_code)
+-		{
+-			rpcs3::ios::jit::flush(item.target, item.size);
+-		}
++		// RuntimeDyld consumes outstanding relocations before this callback.
++		// A nonfatal resolver error can leave old relocations outstanding;
++		// flush them now but keep the dirty suffix until a clean finalize.
++		m_code.publish(rpcs3::ios::jit::flush, utils::get_tsc,
++			m_engine && !m_engine->hasError());
+ #endif
+ 		return false;
+ 	}
+@@ -640,7 +644,8 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
+ 	};
+ 
+ 	std::vector<code_mapping> m_pending_code;
+-	std::vector<code_mapping> m_code;
++	jit_publication::queue<false> m_code;
++	llvm::ExecutionEngine* m_engine = nullptr;
+ #endif
+ 
+ 	MemoryManager2(std::function<u64(const std::string&)> symbols_cement = {}) noexcept
+@@ -680,7 +685,7 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
+ #ifdef RPCS3_IOS
+ 		u8* const local = ensure(static_cast<u8*>(rpcs3::ios::jit::writable(target, size)));
+ 		m_pending_code.push_back({local, target, size});
+-		m_code.push_back({local, target, size});
++		m_code.add(target, size);
+ 		return local;
+ #else
+ 		return target;
+@@ -690,6 +695,7 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
+ #ifdef RPCS3_IOS
+ 	void notifyObjectLoaded(llvm::ExecutionEngine* engine, const llvm::object::ObjectFile&) override
+ 	{
++		m_engine = engine;
+ 		for (const code_mapping& item : m_pending_code)
+ 		{
+ 			engine->mapSectionAddress(item.local, reinterpret_cast<u64>(item.target));
+@@ -706,10 +712,11 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
+ 	bool finalizeMemory(std::string* = nullptr) override
+ 	{
+ #ifdef RPCS3_IOS
+-		for (const code_mapping& item : m_code)
+-		{
+-			rpcs3::ios::jit::flush(item.target, item.size);
+-		}
++		// RuntimeDyld consumes outstanding relocations before this callback.
++		// A nonfatal resolver error can leave old relocations outstanding;
++		// flush them now but keep the dirty suffix until a clean finalize.
++		m_code.publish(rpcs3::ios::jit::flush, utils::get_tsc,
++			m_engine && !m_engine->hasError());
+ #endif
+ 		return false;
+ 	}
+diff --git a/Utilities/JITPublicationQueue.h b/Utilities/JITPublicationQueue.h
+new file mode 100644
+index 0000000..1708e6f
+--- /dev/null
++++ b/Utilities/JITPublicationQueue.h
+@@ -0,0 +1,160 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <vector>
++
++// NEOSTATION_BUILD527_INCREMENTAL_JIT_PUBLICATION_V1
++// MCJIT serializes a memory manager's allocate/notify/finalize callbacks under
++// its engine lock. This queue shares that ownership; it is not a concurrent
++// allocator. Publish only after RuntimeDyld relocation resolution. A resolver
++// error may leave relocations to older sections outstanding: in that case the
++// caller flushes but MUST keep the ranges dirty. Explicit writes made after a
++// successful publication (patchpoints/trampolines) keep their existing direct
++// jit::flush calls and do not rely on this allocation queue.
++namespace jit_publication
++{
++struct snapshot
++{
++	std::uint64_t calls{}, empty_calls{}, deferred_calls{};
++	std::uint64_t history_ranges{}, dirty_ranges{}, flushed_bytes{};
++	std::uint64_t ticks{}, max_ticks{};
++	std::uint64_t retained_metadata_bytes{}, peak_metadata_bytes{};
++};
++
++struct registry
++{
++	std::atomic<std::uint64_t> calls{0}, empty_calls{0}, deferred_calls{0};
++	std::atomic<std::uint64_t> history_ranges{0}, dirty_ranges{0}, flushed_bytes{0};
++	std::atomic<std::uint64_t> ticks{0}, max_ticks{0};
++	std::atomic<std::uint64_t> retained_metadata_bytes{0}, peak_metadata_bytes{0};
++
++	static void maximum(std::atomic<std::uint64_t>& target, std::uint64_t value) noexcept
++	{
++		auto prior = target.load(std::memory_order_relaxed);
++		while (prior < value && !target.compare_exchange_weak(prior, value, std::memory_order_relaxed)) {}
++	}
++
++	snapshot exchange() noexcept
++	{
++		snapshot result;
++		result.calls = calls.exchange(0, std::memory_order_relaxed);
++		result.empty_calls = empty_calls.exchange(0, std::memory_order_relaxed);
++		result.deferred_calls = deferred_calls.exchange(0, std::memory_order_relaxed);
++		result.history_ranges = history_ranges.exchange(0, std::memory_order_relaxed);
++		result.dirty_ranges = dirty_ranges.exchange(0, std::memory_order_relaxed);
++		result.flushed_bytes = flushed_bytes.exchange(0, std::memory_order_relaxed);
++		result.ticks = ticks.exchange(0, std::memory_order_relaxed);
++		result.max_ticks = max_ticks.exchange(0, std::memory_order_relaxed);
++		result.retained_metadata_bytes = retained_metadata_bytes.load(std::memory_order_relaxed);
++		result.peak_metadata_bytes = peak_metadata_bytes.load(std::memory_order_relaxed);
++		return result;
++	}
++};
++
++inline registry& metrics() noexcept
++{
++	static registry instance;
++	return instance;
++}
++
++struct range
++{
++	void* target = nullptr;
++	std::size_t size = 0;
++};
++
++// MM1 owns allocations and keeps target/size records for destruction. MM2's
++// process-lifetime runtime owns them: once published its records can disappear.
++// Neither variant keeps the unused historical writable pointer.
++template <bool RetainAllocations>
++class queue
++{
++	std::vector<range> m_ranges;
++	std::size_t m_published = 0;
++	std::uint64_t m_history = 0;
++
++	void account_capacity(std::size_t old_capacity) noexcept
++	{
++		const auto growth = (m_ranges.capacity() - old_capacity) * sizeof(range);
++		if (growth)
++		{
++			auto& stats = metrics();
++			const auto total = stats.retained_metadata_bytes.fetch_add(growth, std::memory_order_relaxed) + growth;
++			registry::maximum(stats.peak_metadata_bytes, total);
++		}
++	}
++
++public:
++	queue() = default;
++	queue(const queue&) = delete;
++	queue& operator=(const queue&) = delete;
++	~queue()
++	{
++		metrics().retained_metadata_bytes.fetch_sub(m_ranges.capacity() * sizeof(range), std::memory_order_relaxed);
++	}
++
++	void add(void* target, std::size_t size)
++	{
++		const auto old_capacity = m_ranges.capacity();
++		m_ranges.push_back({target, size});
++		account_capacity(old_capacity);
++		++m_history;
++	}
++
++	const std::vector<range>& allocations() const noexcept { return m_ranges; }
++	std::size_t pending() const noexcept { return m_ranges.size() - m_published; }
++	std::size_t metadata_bytes() const noexcept { return m_ranges.capacity() * sizeof(range); }
++
++	template <typename Flush, typename Clock>
++	void publish(Flush&& flush, Clock&& clock, bool can_commit)
++	{
++		const auto begin = clock();
++		auto& stats = metrics();
++		const auto record_duration = [&]() {
++			const auto elapsed = clock() - begin;
++			stats.ticks.fetch_add(elapsed, std::memory_order_relaxed);
++			registry::maximum(stats.max_ticks, elapsed);
++		};
++		stats.calls.fetch_add(1, std::memory_order_relaxed);
++		stats.history_ranges.fetch_add(m_history, std::memory_order_relaxed);
++		const auto count = pending();
++		if (!count)
++		{
++			stats.empty_calls.fetch_add(1, std::memory_order_relaxed);
++			record_duration();
++			return;
++		}
++
++		std::uint64_t bytes = 0;
++		// Commit the cursor only after every flush. If a test/platform flush
++		// throws, the complete dirty suffix remains available for retry.
++		for (auto index = m_published; index < m_ranges.size(); ++index)
++		{
++			const auto& item = m_ranges[index];
++			flush(item.target, item.size);
++			bytes += item.size;
++		}
++		stats.dirty_ranges.fetch_add(count, std::memory_order_relaxed);
++		stats.flushed_bytes.fetch_add(bytes, std::memory_order_relaxed);
++		if (!can_commit)
++		{
++			stats.deferred_calls.fetch_add(1, std::memory_order_relaxed);
++			record_duration();
++			return;
++		}
++		if constexpr (RetainAllocations)
++		{
++			m_published = m_ranges.size();
++		}
++		else
++		{
++			m_ranges.clear();
++			m_published = 0;
++		}
++		record_duration();
++	}
++};
++}
+diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
+index cd08ae8..d68d4b4 100644
+--- a/rpcs3/Emu/CMakeLists.txt
++++ b/rpcs3/Emu/CMakeLists.txt
+@@ -52,6 +52,7 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
+         ../util/v128.hpp
+         ../../Utilities/JIT.h
+         ../../Utilities/JITLLVM.cpp
++        ../../Utilities/JITPublicationQueue.h
+         ../../Utilities/JITObjectBuffer.h
+         ../../Utilities/JITMemoryProfile.h
+         ../../Utilities/JITMinimalObject.h
+@@ -102,6 +103,7 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
+         ../util/v128.hpp
+         ../../Utilities/JIT.h
+         ../../Utilities/JITLLVM.cpp
++        ../../Utilities/JITPublicationQueue.h
+         ../../Utilities/JITObjectBuffer.h
+         ../../Utilities/JITMemoryProfile.h
+         ../../Utilities/JITMinimalObject.h
+diff --git a/rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h b/rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h
+index 7771e2d..341b7c8 100644
+--- a/rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h
++++ b/rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h
+@@ -52,4 +52,24 @@ inline llvm::Value* halfword_pair_dot(llvm::IRBuilder<>& ir, llvm::Value* accumu
+         llvm::Intrinsic::aarch64_neon_addp, {accumulator->getType()});
+     return ir.CreateAdd(accumulator, ir.CreateCall(pair, {low, high}));
+ }
++// Four adjacent CELL byte terms fit exactly in signed/unsigned 32-bit lanes.
++// DOT with ones replaces the widening, masking and pairwise-add preparation;
++// the caller retains the guest saturating addition and SAT update unchanged.
++inline llvm::Value* byte_sum(llvm::IRBuilder<>& ir, llvm::Value* bytes, bool is_signed)
++{
++    auto* words = llvm::FixedVectorType::get(ir.getInt32Ty(), 4);
++    auto* sum = llvm::Intrinsic::getOrInsertDeclaration(ir.GetInsertBlock()->getModule(),
++        is_signed ? llvm::Intrinsic::aarch64_neon_sdot : llvm::Intrinsic::aarch64_neon_udot,
++        {words, bytes->getType()});
++    return ir.CreateCall(sum, {llvm::Constant::getNullValue(words), bytes,
++        llvm::ConstantInt::get(bytes->getType(), 1)});
++}
++
++inline llvm::Value* signed_halfword_pair_sum(llvm::IRBuilder<>& ir, llvm::Value* halfwords)
++{
++    auto* words = llvm::FixedVectorType::get(ir.getInt32Ty(), 4);
++    auto* sum = llvm::Intrinsic::getOrInsertDeclaration(ir.GetInsertBlock()->getModule(),
++        llvm::Intrinsic::aarch64_neon_saddlp, {words, halfwords->getType()});
++    return ir.CreateCall(sum, {halfwords});
++}
+ } // namespace rpcs3::cell::arm64
+diff --git a/rpcs3/Emu/Cell/PPUTranslator.cpp b/rpcs3/Emu/Cell/PPUTranslator.cpp
+index 6d1f478..f5a7524 100644
+--- a/rpcs3/Emu/Cell/PPUTranslator.cpp
++++ b/rpcs3/Emu/Cell/PPUTranslator.cpp
+@@ -2182,6 +2182,20 @@ void PPUTranslator::VSUM2SWS(ppu_opcode_t op)
+ 
+ void PPUTranslator::VSUM4SBS(ppu_opcode_t op)
+ {
++#ifdef ARCH_ARM64
++	if (utils::has_dotprod())
++	{
++		const auto a = get_vr<u8[16]>(op.va);
++		const auto b = get_vr<s32[4]>(op.vb);
++		value_t<s32[4]> s;
++		s.value = rpcs3::cell::arm64::byte_sum(*m_ir, a.value, true);
++		const auto r = add_sat(s, b);
++		set_vr(op.vd, r);
++		set_sat(r ^ (s + b));
++		return;
++	}
++#endif
++
+ 	const auto a = get_vr<s16[8]>(op.va);
+ 	const auto b = get_vr<s32[4]>(op.vb);
+ 	const auto x = eval(bitcast<s32[4]>((a << 8 >> 8) + (a >> 8)));
+@@ -2193,9 +2207,16 @@ void PPUTranslator::VSUM4SBS(ppu_opcode_t op)
+ 
+ void PPUTranslator::VSUM4SHS(ppu_opcode_t op)
+ {
++#ifdef ARCH_ARM64
++	const auto a = get_vr<s16[8]>(op.va);
++	const auto b = get_vr<s32[4]>(op.vb);
++	value_t<s32[4]> s;
++	s.value = rpcs3::cell::arm64::signed_halfword_pair_sum(*m_ir, a.value);
++#else
+ 	const auto a = get_vr<s32[4]>(op.va);
+ 	const auto b = get_vr<s32[4]>(op.vb);
+ 	const auto s = eval((a << 16 >> 16) + (a >> 16));
++#endif
+ 	const auto r = add_sat(s, b);
+ 	set_vr(op.vd, r);
+ 	set_sat(r ^ (s + b));
+@@ -2203,6 +2224,20 @@ void PPUTranslator::VSUM4SHS(ppu_opcode_t op)
+ 
+ void PPUTranslator::VSUM4UBS(ppu_opcode_t op)
+ {
++#ifdef ARCH_ARM64
++	if (utils::has_dotprod())
++	{
++		const auto a = get_vr<u8[16]>(op.va);
++		const auto b = get_vr<u32[4]>(op.vb);
++		value_t<u32[4]> s;
++		s.value = rpcs3::cell::arm64::byte_sum(*m_ir, a.value, false);
++		const auto r = add_sat(s, b);
++		set_vr(op.vd, r);
++		set_sat(r ^ (s + b));
++		return;
++	}
++#endif
++
+ 	const auto a = get_vr<u16[8]>(op.va);
+ 	const auto b = get_vr<u32[4]>(op.vb);
+ 	const auto x = eval(bitcast<u32[4]>((a & 0xff) + (a >> 8)));
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+index 43f5c5a..775a419 100644
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -7,6 +7,7 @@
+ 
+ #ifdef RPCS3_IOS
+ #include "ios/IOSGPUMemoryProfile.h"
++#include "ios/IOSRecyclableImagePool.h"
+ #include "ios/IOSMemoryPressurePolicy.h"
+ #include "ios/RPCS3IOSPerformance.h"
+ #endif
+@@ -55,6 +56,23 @@ namespace vk
+ 
+ 		// Move this object to the cached image pool
+ 		const auto key = hash_image_properties(data->format(), data->width(), data->height(), data->depth(), data->mipmaps(), data->info.imageType, data->info.flags, data->info.sharingMode);
++#ifdef RPCS3_IOS
++		// This callback runs only after resource-manager GPU retirement. Keep
++		// the existing pool budget strict at admission, not just frame end.
++		// Evicted/rejected images are destroyed after releasing the pool lock.
++		rpcs3::ios::recyclable_image_pool::retirement_batch<vk::viewable_image> discarded_images;
++		{
++			std::lock_guard lock(parent->m_cached_pool_lock);
++			const u64 incoming_bytes = data->memory->size();
++			if (!parent->m_cache_is_exiting && incoming_bytes <= rpcs3::ios::recyclable_image_pool::byte_limit)
++			{
++				rpcs3::ios::recyclable_image_pool::trim_to_fit(parent->m_cached_images,
++					parent->m_cached_memory_size, discarded_images, incoming_bytes, true);
++				parent->m_cached_images.emplace_front(key, data);
++				parent->m_cached_memory_size += incoming_bytes;
++			}
++		}
++#else
+ 		std::lock_guard lock(parent->m_cached_pool_lock);
+ 
+ 		if (!parent->m_cache_is_exiting)
+@@ -67,6 +85,7 @@ namespace vk
+ 			// Destroy if the cache is closed. The GPU is done with this resource anyway.
+ 			data.reset();
+ 		}
++#endif
+ 	}
+ 
+ 	void cached_texture_section::dma_transfer(vk::command_buffer& cmd, vk::image* src, const areai& src_area, const utils::address_range32& valid_range, u32 pitch)
+@@ -1645,8 +1664,15 @@ namespace vk
+ 			purge_unreleased_sections();
+ 		}
+ 
++#ifdef RPCS3_IOS
++		rpcs3::ios::recyclable_image_pool::retirement_batch<vk::viewable_image> discarded_images;
++#endif
+ 		{
+ 			std::lock_guard lock(m_cached_pool_lock);
++#ifdef RPCS3_IOS
++			rpcs3::ios::recyclable_image_pool::trim_to_fit(m_cached_images,
++				m_cached_memory_size, discarded_images);
++#else
+ 			if (m_cached_images.size() > max_cached_image_pool_size ||
+ 				m_cached_memory_size > 256 * 0x100000)
+ 			{
+@@ -1658,6 +1684,7 @@ namespace vk
+ 
+ 				m_cached_images.resize(new_size);
+ 			}
++#endif
+ #ifdef RPCS3_IOS
+ 			// Already on RSX with the return-pool lock held. Only completed GPU
+ 			// images are in this pool. No renderer access from the reporter, no
+@@ -1669,6 +1696,10 @@ namespace vk
+ #endif
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// Release retired images before the next frame can allocate replacements.
++		discarded_images.clear();
++#endif
+ 		baseclass::on_frame_end();
+ 		reset_frame_statistics();
+ 	}
+diff --git a/rpcs3/ios/IOSRecyclableImagePool.h b/rpcs3/ios/IOSRecyclableImagePool.h
+new file mode 100644
+index 0000000..65d78d3
+--- /dev/null
++++ b/rpcs3/ios/IOSRecyclableImagePool.h
+@@ -0,0 +1,63 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++#include <array>
++#include <cstddef>
++#include <cstdlib>
++#include <cstdint>
++#include <utility>
++#include <memory>
++
++
++namespace rpcs3::ios::recyclable_image_pool
++{
++// Preserve the pre-existing iOS recycling thresholds; these are neither an
++// active-texture budget nor a change to NeoSwap/driver allocation admission.
++inline constexpr std::uint64_t byte_limit = 256ull * 1024 * 1024;
++inline constexpr std::size_t item_limit = 256;
++
++// At most item_limit entries can be in a newly constructed iOS pool. Only
++// their already-retired unique_ptrs are detached here. A raw-pointer RAII
++// batch avoids allocating during memory pressure; unwritten slots are never
++// initialized, read or deleted. Its count-only common path does no heap work.
++template <typename Image>
++class retirement_batch
++{
++    std::array<Image*, item_limit> images;
++    std::size_t count = 0;
++public:
++    retirement_batch() noexcept = default;
++    retirement_batch(const retirement_batch&) = delete;
++    retirement_batch& operator=(const retirement_batch&) = delete;
++    ~retirement_batch() { clear(); }
++    void emplace_back(std::unique_ptr<Image>&& image) noexcept
++    {
++        if (count == images.size()) std::abort(); // broken pool invariant
++        images[count++] = image.release();
++    }
++    void clear() noexcept
++    {
++        while (count) delete images[--count];
++    }
++};
++
++// Caller owns the existing pool mutex. Entries are newest-first and have
++// already retired from the GPU. A caller-owned retirement batch keeps image
++// destruction out of the pool critical section. The bounded batch never allocates; no per-frame historical walk is needed.
++// incoming_bytes <= byte_limit is the caller's admission precondition.
++template <typename Pool, typename ByteCount, typename Retired>
++void trim_to_fit(Pool& pool, ByteCount& bytes, Retired& retired,
++    std::uint64_t incoming_bytes = 0, bool incoming_item = false)
++{
++    const auto allowed_bytes = byte_limit - incoming_bytes;
++    const auto allowed_items = item_limit - static_cast<std::size_t>(incoming_item);
++    while (!pool.empty() && (pool.size() > allowed_items ||
++        static_cast<std::uint64_t>(bytes) > allowed_bytes))
++    {
++        auto& oldest = pool.back();
++        const auto released_bytes = oldest.data->memory->size();
++        retired.emplace_back(std::move(oldest.data));
++        pool.pop_back();
++        bytes -= released_bytes;
++    }
++}
++}
+diff --git a/rpcs3/ios/IOSRuntimeMetrics.h b/rpcs3/ios/IOSRuntimeMetrics.h
+new file mode 100644
+index 0000000..433344e
+--- /dev/null
++++ b/rpcs3/ios/IOSRuntimeMetrics.h
+@@ -0,0 +1,162 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// Build527: bounded, allocation-free observations. No emulation decision reads
++// these counters. Frame samples are guest flips only, not UIKit/overlay frames.
++#include <algorithm>
++#include <array>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <limits>
++
++namespace rpcs3::ios::diagnostics
++{
++class GuestFrameWindow final
++{
++public:
++    static constexpr std::size_t capacity = 2048;
++    static constexpr std::size_t histogram_bins = 256;
++    static constexpr std::uint32_t histogram_upper_us(std::size_t bin) noexcept
++    {
++        return bin < 128 ? static_cast<std::uint32_t>((bin + 1) * 1000 - 1)
++            : bin < 255 ? static_cast<std::uint32_t>(128000 + (bin - 127) * 8000 - 1) : UINT32_MAX;
++    }
++    struct Sample
++    {
++        std::array<std::uint64_t, histogram_bins> histogram{};
++        std::uint64_t intervals = 0, unavailable = 0, total_us = 0;
++        std::uint32_t median_us = 0, p95_us = 0, p99_us = 0, maximum_us = 0;
++        std::uint64_t over_50ms = 0, over_100ms = 0;
++    };
++
++    // One producer: rsx::thread::flip(). UI flips do not advance the guest
++    // baseline. Microsecond quantization bounds the packed interval to 71 min;
++    // saturation is explicit in the output. The sequence shares the same atomic
++    // word, so a wrap/overwrite cannot produce a torn frame/timestamp pair.
++    void record(bool guest_flip, std::uint64_t now_ticks, std::uint64_t frequency) noexcept
++    {
++        if (!guest_flip || !frequency) return;
++        const auto previous = last_ticks_.exchange(now_ticks, std::memory_order_relaxed);
++        if (!previous || now_ticks <= previous) return;
++        const auto ticks = now_ticks - previous;
++        const auto whole_seconds = ticks / frequency;
++        const auto remainder = ticks % frequency;
++        const auto micros = whole_seconds > UINT32_MAX / 1'000'000
++            ? UINT32_MAX : std::min<std::uint64_t>(UINT32_MAX,
++                whole_seconds * 1'000'000 + (remainder <= UINT64_MAX / 1'000'000
++                    ? remainder * 1'000'000 / frequency
++                    : static_cast<std::uint64_t>(static_cast<long double>(remainder) * 1'000'000 / frequency)));
++        const auto index = published_.load(std::memory_order_relaxed);
++        const auto packed = (static_cast<std::uint64_t>(static_cast<std::uint32_t>(index)) << 32) | micros;
++        ring_[index % capacity].store(packed, std::memory_order_release);
++        published_.store(index + 1, std::memory_order_release);
++    }
++
++    // Lifecycle owner calls only after the old renderer producer has stopped,
++    // as required by reset_performance_metrics(). Monotonic indices preserve
++    // overwrite detection without touching all 2048 slots at every new session.
++    void reset() noexcept
++    {
++        last_ticks_.store(0, std::memory_order_relaxed);
++        cursor_ = published_.load(std::memory_order_acquire);
++    }
++
++    // One consumer: the existing 5 s sampler. At most capacity samples are
++    // sorted on its stack. Concurrent overwrite is counted as unavailable;
++    // UI frames and unsupported/invalid clocks cannot create intervals.
++    Sample take() noexcept
++    {
++        const auto end = published_.load(std::memory_order_acquire);
++        const auto first = std::max(cursor_, end > capacity ? end - capacity : 0);
++        Sample result;
++        result.unavailable = first - cursor_;
++        std::array<std::uint32_t, capacity> intervals{};
++        std::size_t count = 0;
++        for (auto i = first; i < end; ++i)
++        {
++            const auto packed = ring_[i % capacity].load(std::memory_order_acquire);
++            if (static_cast<std::uint32_t>(packed >> 32) != static_cast<std::uint32_t>(i))
++            {
++                ++result.unavailable;
++                continue;
++            }
++            const auto interval = static_cast<std::uint32_t>(packed);
++            intervals[count++] = interval;
++            result.total_us += interval;
++            const auto bin = interval < 128000 ? interval / 1000
++                : std::min<std::uint32_t>(255, 128 + (interval - 128000) / 8000);
++            ++result.histogram[bin];
++            result.over_50ms += interval > 50'000;
++            result.over_100ms += interval > 100'000;
++        }
++        cursor_ = end;
++        result.intervals = count;
++        if (count)
++        {
++            std::sort(intervals.begin(), intervals.begin() + count);
++            const auto percentile = [&](std::size_t percent)
++            {
++                return intervals[(count * percent + 99) / 100 - 1];
++            };
++            result.median_us = percentile(50);
++            result.p95_us = percentile(95);
++            result.p99_us = percentile(99);
++            result.maximum_us = intervals[count - 1];
++        }
++        return result;
++    }
++private:
++    std::array<std::atomic<std::uint64_t>, capacity> ring_{};
++    std::atomic<std::uint64_t> last_ticks_{0}, published_{0};
++    std::uint64_t cursor_ = 0;
++};
++
++// Maxima are observational window maxima. Drain can split an event's count,
++// sum and maximum over adjacent windows; totals across completed drains are
++// conserved. No lock, allocation or clock call is added to the existing hooks.
++class EventCost final
++{
++public:
++    struct Sample { std::uint64_t count = 0, total = 0, maximum = 0; };
++    void record(std::uint64_t duration) noexcept
++    {
++        count_.fetch_add(1, std::memory_order_relaxed);
++        total_.fetch_add(duration, std::memory_order_relaxed);
++        auto old = maximum_.load(std::memory_order_relaxed);
++        while (old < duration && !maximum_.compare_exchange_weak(old, duration, std::memory_order_relaxed)) {}
++    }
++    Sample take() noexcept
++    {
++        return {count_.exchange(0, std::memory_order_relaxed),
++                total_.exchange(0, std::memory_order_relaxed),
++                maximum_.exchange(0, std::memory_order_relaxed)};
++    }
++private:
++    std::atomic<std::uint64_t> count_{0}, total_{0}, maximum_{0};
++};
++
++struct ProcessMemorySample
++{
++    bool valid = false;
++    std::uint64_t footprint = 0, resident = 0, compressed = 0, virtual_bytes = 0;
++};
++class ProcessMemoryWindow final
++{
++public:
++    void reset() noexcept { latest = {}; peak = {}; samples = 0; }
++    void record(ProcessMemorySample value) noexcept
++    {
++        latest = value;
++        if (!value.valid) return;
++        peak.valid = true;
++        peak.footprint = std::max(peak.footprint, value.footprint);
++        peak.resident = std::max(peak.resident, value.resident);
++        peak.compressed = std::max(peak.compressed, value.compressed);
++        peak.virtual_bytes = std::max(peak.virtual_bytes, value.virtual_bytes);
++        ++samples;
++    }
++    ProcessMemorySample latest{}, peak{};
++    std::uint64_t samples = 0;
++};
++}
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index d60709c..5d9ece8 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -11,6 +11,8 @@
+ #include "Utilities/JITPhaseProfile.h"
+ #include "Utilities/JITMemoryProfile.h"
+ #include "IOSCompileAdmission.h"
++#include "IOSRuntimeMetrics.h"
++#include "Utilities/JITPublicationQueue.h"
+ 
+ #include "util/cpu_stats.hpp"
+ #include "util/logs.hpp"
+@@ -184,6 +186,25 @@ u64 process_memory_footprint()
+ #endif
+ }
+ 
++rpcs3::ios::diagnostics::ProcessMemorySample sample_process_memory()
++{
++    rpcs3::ios::diagnostics::ProcessMemorySample sample;
++#ifdef __APPLE__
++    task_vm_info_data_t info{};
++    mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
++    if (task_info(mach_task_self(), TASK_VM_INFO,
++        reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS)
++    {
++        sample.valid = true;
++        sample.footprint = info.phys_footprint;
++        sample.resident = info.resident_size;
++        sample.compressed = info.compressed;
++        sample.virtual_bytes = info.virtual_size;
++    }
++#endif
++    return sample;
++}
++
+ class performance_registry final
+ {
+ public:
+@@ -219,6 +240,10 @@ public:
+ 		}
+ 
+ 		std::lock_guard profile_lock(m_profile_mutex);
++		m_guest_frame_window.reset();
++		m_process_memory.reset();
++		m_report_window = 0;
++		for (auto& cost : m_event_costs) static_cast<void>(cost.take());
+ 		m_profile_frame_baseline = 0;
+ 		m_usage_samples = 0;
+ 		m_usage_core_sum.fill(0.0);
+@@ -331,6 +356,8 @@ public:
+ 
+ 	void record_pipeline_job_completed(u64 queue_wait_ticks, u64 compile_ticks) noexcept
+ 	{
++		m_event_costs[0].record(queue_wait_ticks);
++		m_event_costs[1].record(compile_ticks);
+ 		m_pipeline_completed.fetch_add(1, std::memory_order_relaxed);
+ 		m_pipeline_queue_ticks.fetch_add(queue_wait_ticks, std::memory_order_relaxed);
+ 		m_pipeline_compile_ticks.fetch_add(compile_ticks, std::memory_order_relaxed);
+@@ -338,6 +365,7 @@ public:
+ 
+ 	void record_gpu_fence_wait(u64 wait_ticks, bool timed_out) noexcept
+ 	{
++		m_event_costs[2].record(wait_ticks);
+ 		m_gpu_fence_waits.fetch_add(1, std::memory_order_relaxed);
+ 		m_gpu_fence_wait_ticks.fetch_add(wait_ticks, std::memory_order_relaxed);
+ 		if (timed_out)
+@@ -357,6 +385,7 @@ public:
+ 
+ 	void record_range_lock_episode(u64 wait_ticks, u64 iterations) noexcept
+ 	{
++		m_event_costs[3].record(wait_ticks);
+ 		m_range_episodes.record(wait_ticks, true);
+ 		update_max(m_range_iterations_max, iterations);
+ 	}
+@@ -390,6 +419,15 @@ public:
+ 		m_spu_deferred_dispatch[index].fetch_add(1, std::memory_order_relaxed);
+ 	}
+ 
++    void record_compile_admission_wait(u64 ticks) noexcept
++    {
++        m_event_costs[5].record(ticks);
++    }
++    void record_compile_admission_mutex(u64 ticks) noexcept
++    {
++        m_event_costs[6].record(ticks);
++    }
++
+ 	void record_spu_deferred_compile(bool succeeded, u64 wait_ticks, u64 compile_ticks) noexcept
+ 	{
+ 		m_spu_deferred.record(wait_ticks, succeeded);
+@@ -431,6 +469,7 @@ public:
+ 
+ 	void record_rsx_semaphore_wait(u64 wait_microseconds, bool timed_out) noexcept
+ 	{
++		m_event_costs[4].record(wait_microseconds);
+ 		m_rsx_semaphore_waits.fetch_add(1, std::memory_order_relaxed);
+ 		m_rsx_semaphore_wait_us.fetch_add(wait_microseconds, std::memory_order_relaxed);
+ 		if (timed_out)
+@@ -497,6 +536,7 @@ public:
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1: every rsx::thread::flip(); lock-free.
+ 	void record_flip(bool emu_flip, bool native_ui_visible) noexcept
+ 	{
++		if (emu_flip) m_guest_frame_window.record(true, utils::get_tsc(), utils::get_tsc_freq());
+ 		if (emu_flip)
+ 		{
+ 			m_guest_frames.fetch_add(1, std::memory_order_relaxed);
+@@ -619,10 +659,12 @@ private:
+ 			if (sample_clock::now() - last_thread_sample < thread_sample_period) continue;
+ 			last_thread_sample = sample_clock::now();
+ 			thread_usage_sample usage = sample_core_threads();
++			const auto process_memory = sample_process_memory();
+ 			bool report = false;
+ 			{
+ 				std::lock_guard lock(m_profile_mutex);
+ 				const auto now = sample_clock::now();
++				m_process_memory.record(process_memory);
+ 				if (frames != m_last_seen_frames)
+ 				{
+ 					m_last_seen_frames = frames;
+@@ -661,7 +703,7 @@ private:
+ 		double elapsed_ms = 0.0;
+ 		u64 frame_baseline = 0;
+ 		rpcs3::spu::compile_sample loading, gameplay, range, deferred;
+-		u64 profile_session = 0, warm_reuses = 0, warm_recompile_attempts = 0;
++		u64 profile_session = 0, profile_window = 0, warm_reuses = 0, warm_recompile_attempts = 0;
+ 		std::array<u64, spu_deferred_decision_count> deferred_dispatch{};
+ 		u64 deferred_compile_ticks = 0, interp_entries = 0, interp_instructions = 0, interp_branches = 0, interp_handoffs = 0;
+ 		u64 range_iterations_max = 0, range_blocker_sum = 0, range_blocker_max = 0;
+@@ -671,13 +713,24 @@ private:
+ 		std::vector<rpcs3::ios::profiler::thread_cores> top_accumulated;
+ 		u64 usage_samples = 0;
+ 		double compile_threads = 0.0, compile_cores = 0.0, rsx_main_cores = 0.0;
+-		double seconds_without_frames = 0.0;
++
++        double seconds_without_frames = 0.0;
++        rpcs3::ios::diagnostics::GuestFrameWindow::Sample guest_frames;
++        rpcs3::ios::diagnostics::ProcessMemoryWindow memory_window;
++        std::array<rpcs3::ios::diagnostics::EventCost::Sample, 7> costs{};
++        jit_publication::snapshot publication;
+ 
+ 		{
+ 			std::lock_guard lock(m_profile_mutex);
+ 			// reset() shares this mutex: keep the epoch and all new samples
+ 			// together, then format diagnostics after releasing the lock.
+-			profile_session = m_profile_session.load(std::memory_order_relaxed);
++
++            profile_session = m_profile_session.load(std::memory_order_relaxed);
++            profile_window = ++m_report_window;
++            guest_frames = m_guest_frame_window.take();
++            memory_window = m_process_memory;
++            for (usz index = 0; index < costs.size(); ++index) costs[index] = m_event_costs[index].take();
++            publication = jit_publication::metrics().exchange();
+ 			loading = m_spu_loading.take();
+ 			gameplay = m_spu_gameplay.take();
+ 			range = m_range_episodes.take();
+@@ -734,6 +787,62 @@ private:
+ 		}
+ 
+ 		const auto milliseconds = [frequency](u64 ticks) { return frequency ? static_cast<double>(ticks) * 1000.0 / frequency : 0.0; };
++        const auto state = Emu.GetStatus(false);
++        // The game itself does not supply menu/cinematic/gameplay labels. The
++        // short device protocol supplies those by timestamp, never by FPS guess.
++        const char* phase = state == system_state::loading || state == system_state::starting || state == system_state::ready
++            ? "preparation" : state == system_state::paused || state == system_state::frozen ? "paused"
++            : state == system_state::stopped || state == system_state::stopping ? "stopped" : "guest_unclassified";
++        std::string frame_histogram;
++        for (usz bin = 0; bin < guest_frames.histogram.size(); ++bin)
++        {
++            if (guest_frames.histogram[bin])
++                fmt::append(frame_histogram, "%s%u:%llu", frame_histogram.empty() ? "" : ",",
++                    rpcs3::ios::diagnostics::GuestFrameWindow::histogram_upper_us(bin), guest_frames.histogram[bin]);
++        }
++        ios_core_profiler.notice(
++            "COREPROF FRAMEPROF527 session=%llu window=%llu phase=%s state=%u native_ui_visible=%u intervals=%llu unavailable=%llu "
++            "median_ms=%.3f p95_ms=%.3f p99_ms=%.3f max_ms=%.3f over50ms=%llu over100ms=%llu "
++            "guest_only=1 interval_quantization_us=1 total_interval_ms=%.3f window_ms=%.3f histogram_upper_us=%s "
++            "phase_scope=report_snapshot interval_saturation_us=4294967295",
++            profile_session, profile_window, phase, static_cast<u32>(state), m_native_ui_visible.load(std::memory_order_relaxed),
++            guest_frames.intervals, guest_frames.unavailable, guest_frames.median_us / 1000.0,
++            guest_frames.p95_us / 1000.0, guest_frames.p99_us / 1000.0, guest_frames.maximum_us / 1000.0,
++            guest_frames.over_50ms, guest_frames.over_100ms, guest_frames.total_us / 1000.0, elapsed_ms, frame_histogram.empty() ? "none" : frame_histogram);
++        // Queue time is asynchronous job residence, not a proved RSX stall.
++        // Fence scope excludes wait_flush(); range scope is one whole episode;
++        // semaphore measures guest semaphore polling; admission is host-budget wait.
++        ios_core_profiler.notice(
++            "COREPROF WAITPROF527 session=%llu window=%llu tuple=count:total_ms:max_ms "
++            "pipeline_queue=%llu:%.3f:%.3f pipeline_build_callback=%llu:%.3f:%.3f "
++            "cpu_gpu_fence=%llu:%.3f:%.3f vm_range_episode=%llu:%.3f:%.3f "
++            "guest_rsx_semaphore=%llu:%.3f:%.3f llvm_budget_cv=%llu:%.3f:%.3f "
++            "llvm_admission_mutex=%llu:%.3f:%.3f window_boundary_approximate=1",
++            profile_session, profile_window, costs[0].count, milliseconds(costs[0].total), milliseconds(costs[0].maximum),
++            costs[1].count, milliseconds(costs[1].total), milliseconds(costs[1].maximum),
++            costs[2].count, milliseconds(costs[2].total), milliseconds(costs[2].maximum),
++            costs[3].count, milliseconds(costs[3].total), milliseconds(costs[3].maximum),
++            costs[4].count, costs[4].total / 1000.0, costs[4].maximum / 1000.0,
++            costs[5].count, milliseconds(costs[5].total), milliseconds(costs[5].maximum),
++            costs[6].count, milliseconds(costs[6].total), milliseconds(costs[6].maximum));
++        const auto& mem = memory_window.latest;
++        const auto& peak = memory_window.peak;
++        ios_core_profiler.notice(
++            "COREPROF MEMPROF527 session=%llu window=%llu samples=%llu valid=%u sample_period_target_ms=500 "
++            "footprint=%llu resident=%llu compressed=%llu virtual=%llu "
++            "peak_footprint=%llu peak_resident=%llu peak_compressed=%llu peak_virtual=%llu "
++            "scope=session_sampled_process_bytes shared_physical=unmeasured peaks_not_additive=1",
++            profile_session, profile_window, memory_window.samples, mem.valid ? 1u : 0u,
++            mem.footprint, mem.resident, mem.compressed, mem.virtual_bytes,
++            peak.footprint, peak.resident, peak.compressed, peak.virtual_bytes);
++        ios_core_profiler.notice(
++            "COREPROF JITPUB527 session=%llu window=%llu calls=%llu empty_calls=%llu deferred_calls=%llu history_ranges=%llu dirty_ranges=%llu "
++            "flushed_bytes=%llu total_ms=%.3f max_ms=%.3f retained_metadata_bytes=%llu peak_metadata_bytes=%llu "
++            "scope=process_window_counters window_boundary_approximate=1",
++            profile_session, profile_window, publication.calls, publication.empty_calls, publication.deferred_calls, publication.history_ranges, publication.dirty_ranges,
++            publication.flushed_bytes, milliseconds(publication.ticks), milliseconds(publication.max_ticks),
++            publication.retained_metadata_bytes, publication.peak_metadata_bytes);
++
+ 		// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: obj_* fields of the persistent
+ 		// SPU object cache (counts per window; bytes of loaded/written objects).
+ 		u64 obj_events[static_cast<usz>(rpcs3::ios::spu_object_cache_event::count)]{};
+@@ -1002,7 +1111,12 @@ private:
+ 		}
+ 	}
+ 
+-	std::atomic<u64> m_presented_frames{0};
++
++    u64 m_report_window = 0; // guarded by m_profile_mutex
++    rpcs3::ios::diagnostics::GuestFrameWindow m_guest_frame_window;
++    rpcs3::ios::diagnostics::ProcessMemoryWindow m_process_memory;
++    std::array<rpcs3::ios::diagnostics::EventCost, 7> m_event_costs{};
++    std::atomic<u64> m_presented_frames{0};
+ 	std::atomic<u64> m_last_present_tsc{0};
+ 	std::array<std::atomic<u64>, frame_ring_size> m_frame_intervals{};
+ 	std::atomic<u32> m_rsx_load{0};
+@@ -1144,15 +1258,23 @@ compile_admission::compile_admission(std::size_t guest_bytes, const std::functio
+ 	// Subsequent batches use observed process deltas for the module-size bucket.
+ 	const u64 estimate = observed ? std::max<u64>(128ull << 20, observed + observed / 4) : 512ull << 20;
+ 	api = compiler_api.load(std::memory_order_acquire);
++	const u64 admission_begin = utils::get_tsc();
++	u64 admission_wait_ticks = 0;
++	bool admission_waited = false;
+ 	std::unique_lock lock(compiler_wait_mutex);
++	g_performance_registry.record_compile_admission_mutex(utils::get_tsc() - admission_begin);
+ 	while (!stopped())
+ 	{
+ 		if (api) ticket = api->try_acquire(estimate, available_process_memory_headroom());
+ 		else if (!fallback_compiler_active) { fallback_compiler_active = true; ticket = 1; }
+ 		if (ticket) break;
+ 		// Bounded cancellation even when another module has not finished.
++		admission_waited = true;
++		const u64 wait_begin = utils::get_tsc();
+ 		compiler_wait_cv.wait_for(lock, std::chrono::milliseconds(20));
++		admission_wait_ticks += utils::get_tsc() - wait_begin;
+ 	}
++	if (admission_waited) g_performance_registry.record_compile_admission_wait(admission_wait_ticks);
+ 	if (!ticket) return;
+ 	jit_memory::sample_hook.store(sample_compiler_memory, std::memory_order_relaxed);
+ 	sample_compiler_memory();

@@ -1,0 +1,157 @@
+[
+ {
+  "id": "ps1-wip3out-se-beta-texturepack-matsilagi",
+  "system": "ps1",
+  "engine": "beetle",
+  "title": "Wip3out Special Edition Beta Texturepack",
+  "version": "repository d074b4c",
+  "games": [
+   {
+    "title": "Wip3out Special Edition",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps1-disc-serial",
+      "value": "SCES-02845"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Matsilagi"
+  ],
+  "page_url": "https://github.com/Matsilagi/WO3-Beta-Texturepack/tree/d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69",
+  "source_id": "github:Matsilagi/WO3-Beta-Texturepack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "credits": "README: textures from the official Wipeout 3 US demo (Official U.S. PlayStation Magazine #25; Psygnosis Leeds, Sony, Studio Liverpool), found and ported by Matsilagi; Concept Assegai skin by Shara; Concept Icaras skin by Matsilagi; XentaX PBP/CMP scripts and TIMViewer used to read the textures.",
+  "requirements": "Made by the author for Beetle PSX HW with its Vulkan renderer, Track Textures and Replace Textures (what NeoStation's switch sets).",
+  "notes": "Beta ship liveries, menu team colours, low-poly ships and power-up icons from the US demo, for the PAL Special Edition (SCES-02845). The optional skins of the alternate_textures folder are not installed (Beetle reads its folder flat).",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "WO3-Beta-Texturepack-d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Matsilagi/WO3-Beta-Texturepack/zip/d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Matsilagi/WO3-Beta-Texturepack",
+    "commit": "d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "WO3-Beta-Texturepack-d074b4cb7e6d290b8d196af9cc3f20e0ecdffa69/imagename-texture-replacements/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "ps1-wip3out-se-beta-texturepack-matsilagi"
+ },
+ {
+  "id": "ps1-wip3out-hd-texture-pack-nr74w",
+  "system": "ps1",
+  "engine": "beetle",
+  "title": "Wip3out HD Texture Pack",
+  "version": "repository 039a069",
+  "games": [
+   {
+    "title": "Wip3out",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps1-disc-serial",
+      "value": "SLUS-00865"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Wip3out",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps1-disc-serial",
+      "value": "SCES-01909"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "WipEout 3",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps1-disc-serial",
+      "value": "SCPS-10098"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Wip3out Special Edition",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps1-disc-serial",
+      "value": "SCES-02845"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "NR74W"
+  ],
+  "page_url": "https://github.com/princepeter64/Wip3out-HD-Texture-Pack/tree/039a0690448047401cef251594327a25fcc73fad",
+  "source_id": "github:princepeter64/Wip3out-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author (README in images)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "credits": "Hashes.ini: NR74W's pack, homepage github.com/NR74W/Wip3out-HD-Texture-Pack (the account is now princepeter64).",
+  "requirements": "Beetle PSX HW with its Vulkan renderer, Track Textures and Replace Textures (what NeoStation's switch sets). Hashes.ini names the four editions it covers.",
+  "notes": "Fonts, menus, HUD, ships, billboards, tracks and effects (Hashes.ini table of contents), and the PlayStation boot screens. Hashes.ini (the hash-to-file list) is not installed: Beetle reads the texture files only.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Wip3out-HD-Texture-Pack-039a0690448047401cef251594327a25fcc73fad.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/princepeter64/Wip3out-HD-Texture-Pack/zip/039a0690448047401cef251594327a25fcc73fad"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/princepeter64/Wip3out-HD-Texture-Pack",
+    "commit": "039a0690448047401cef251594327a25fcc73fad"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Wip3out-HD-Texture-Pack-039a0690448047401cef251594327a25fcc73fad/(cue name)-texture-replacements/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "ps1-wip3out-hd-texture-pack-nr74w"
+ }
+]

@@ -1,5 +1,10 @@
 # KartPad native port — NeoStation integration
 
+> **Historical.** KartPad was removed from NeoStation on 19 October 2026 at the
+> maintainer's decision: its runtime carries code translated from Mario Kart Wii,
+> so each player builds KartPad as a separate app. This page describes the former
+> integration; see `docs/kartpad-removal-2026-10-19.md`.
+
 ## Stable baseline
 
 NeoStation iOS **Build 350** is the stable restoration point promoted by the
@@ -160,3 +165,19 @@ confirmed restarts, at least three manual launch/return cycles followed by
 repetition, continued NeoStation responsiveness, and resource counts after each
 shutdown. An IPA build, native state-machine loop or UIKit ABI probe is not
 acceptance evidence for those end-to-end scenarios.
+
+## Online play and the 0.8.3 target (audit of 19 October 2026)
+
+The embedded donor already contains KartPad's Retro Rewind profile (6.12.8)
+and Retro WFC stack, but NeoStation launches only the base profile, and Retro
+WFC accepts only the current Retro Rewind (6.13.3; older packs get error
+22010). Online play therefore cannot work with this Core. KartPad 0.8.3 ships
+no game code for Apple devices: the translated base and Retro Rewind code is a
+personal pack built by PadMint from the player's own disc, which NeoStation's
+CI does not have and must not hold. No KartPadCore was rebuilt and no online
+function is exposed. The exact blocker, the steps to lift it, the in-game
+Multiplayer design for a 0.8.3 Core and the validation matrix are in
+[kartpad-online-dusklight-audit-2026-10-19.md](kartpad-online-dusklight-audit-2026-10-19.md).
+`build-utils/kartpad/migration-target.json` pins the 0.8.3 target and
+`inspect_personal_pack.py` preflights a personal PadMint IPA against it
+(read-only; not an integration).

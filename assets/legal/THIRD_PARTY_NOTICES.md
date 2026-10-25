@@ -2,19 +2,23 @@
 
 These notices are used by NeoStation’s build packager. Updates to this directory
 apply to subsequent builds and do not rewrite previously published IPAs.
-The complete 34-core development reference collection is in `libretro/`; the post-0.0.7
+The complete 35-core development reference collection is in `libretro/`; the post-0.0.7
 packager verifies its hashes and embeds it under `Legal/Libretro/`.
 
 The full maintained attribution record is:
-https://github.com/TarbleFR/neostation-ios/blob/main/docs/LEGAL_AND_CREDITS.md
+https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/LEGAL_AND_CREDITS.md
 
 The exact 0.0.1 source/binary identity manifest is:
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/RELEASE_0.0.1_SOURCE_MANIFEST.md
 
 Primary credited projects include NeoStation, Dolphin/DolphiniOS, RPCS3,
-XITRIX, ARMSX2/PCSX2, Dusklight, Aurora, Borealis, KartPad/WiiCompiled,
-StikJIT, RetroArch/libretro, MeloNX, GameDB/GameDB-PS3, ScreenScraper and
-RetroAchievements.
+XITRIX, ARMSX3, ARMSX2/PCSX2, StikJIT, RetroArch/libretro, Mesen,
+PPSSPP, libarchive, the LZMA SDK, ps2ktxpak, GameDB/GameDB-PS3, ScreenScraper
+and RetroAchievements. MeloNX/Ryujinx, LibHac and Melo-Controller are credited
+for the unfinished embedded integration; no playable Switch runtime is
+claimed as delivered. KartPad/WiiCompiled
+and Dusklight (with Aurora and Borealis), embedded in earlier builds only, are
+no longer included.
 
 Each component remains under its own applicable license and copyright notices.
 Nothing in this file relicenses third-party software, game content, trademarks
@@ -25,11 +29,43 @@ source-correspondence and overlay-notice findings:
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/SOURCE_RIGHTS_REVIEW_2026-10-18.md
 Credits and included license texts do not establish complete redistribution
 clearance. Additional verified upstream cheat notices are archived in the
-source repository at `docs/licenses/cheats/`; their presence there does not
-attest that they were embedded in an already delivered IPA.
+source repository at `docs/licenses/cheats/`. The next-release packager copies
+them to `Legal/Cheats/` and includes the catalogue/creator registers in
+`Legal/Catalogs/`; it also checks the new reader/dependency notice hashes.
+These changes do not attest that the additions are present in an already
+delivered IPA. The preparation record is:
+https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/RELEASE_NEXT_LICENSE_REVIEW.md
+
+Exact package archive sources, local modifications and engine source records:
+https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/SOURCE_CODE_ACCESS.md
+The continued review adds native package notices under `Legal/Packages/`,
+identified engine dependency notices under `Legal/Engines/` and source/build
+resolution evidence under `Legal/Sources/`. The existing
+Flutter notice collection and CocoaPods acknowledgements are retained. A
+Dart wrapper's license does not replace the licenses or terms of its native
+dependencies; the package-specific inventory preserves that distinction.
 
 
 ## Remote System Art
+
+### NeoAssets public catalogue (current official source)
+
+System Art discovery now uses the official NeoAssets public API:
+https://neoassets.dev/app/sap
+https://api.neoassets.dev/api/v1/packs
+
+The official API publishes each approved pack's real author, source folder,
+individual system IDs and CDN file URLs. Only user-selected images are fetched
+from `https://cdn.neoassets.dev/` and cached on device; the IPA does not embed
+or mirror any of these community images. The public catalogue contained 20
+approved packs and 1,710 background files on 21 October 2026, including a
+mixed GIF/WebP pack. The full individual pack/author/source register is:
+`docs/system-art/NEOASSETS_SOURCES.md`
+
+No blanket image-redistribution license can be inferred from publication on
+NeoAssets. Original artists retain their rights and conditions; all console
+logos and trademarks remain protected independently. The app preserves the
+authors and AI flags published by the API.
 
 ### NeoStation Assets
 
@@ -55,10 +91,26 @@ No standalone RiiSU license file was visible when this integration was added.
 NeoStation therefore keeps the artwork hosted by the original project and does
 not treat it as NeoStation-owned or generally redistributable material.
 
+### Canvas (ES-DE)
+
+Canvas (ES-DE) is a curated external System Art pack fetched on demand:
+https://github.com/zenandiko/canvas-es-de
+
+It is zenandiko's Canvas-Capsule custom edition of the original Canvas theme
+for ES-DE by **Siddy212** (CC BY-NC-SA; artwork and layouts credited to
+**fagnerpc**): https://github.com/Siddy212/canvas-es-de
+
+zenandiko's repository carries an MIT license file; its README states personal,
+non-commercial use only and that game artwork, logos and trademarks belong to
+their respective owners. NeoStation keeps the artwork hosted by the original
+project and does not treat it as NeoStation-owned or generally redistributable
+material.
+
 ## Unified cheat catalogue — development source credits
 
-The publication used by private Builds 478–479 contains 51 contributing source
-entries. All collection credits, upstream URLs, pinned revisions, input hashes,
+The historical publication used by private Builds 478–479 contained 51 source
+profiles. The current publication has 50 active profiles; eight Pokémon France
+programs remain withheld pending permission. All collection credits, upstream URLs, pinned revisions, input hashes,
 recorded rights notices and import scopes are documented at:
 https://github.com/TarbleFR/neostation-ios/blob/main/docs/CHEAT_CATALOG_SOURCES.md
 
@@ -229,3 +281,89 @@ The release provides the complete source archive with dependencies:
 [azahar-unified-source-2127.0-alpha1.tar.xz](https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz).
 FastInterp is credited to warmenhoven and the Azahar contributors.
 The other embedded libretro cores retain their existing versions and licenses.
+
+
+## HD texture RAR reader
+
+The unified HD texture installer includes a read-only subset of
+[libarchive 3.8.10](https://github.com/libarchive/libarchive/releases/tag/v3.8.10),
+by Tim Kientzle and the libarchive contributors, for RAR4/RAR5 extraction.
+The vendored sources retain their copyright and permissive licence notices;
+BLAKE2's CC0 option is used where offered. The complete notices are bundled as
+`NeoTextureCatalog.bundle/libarchive-LICENSE.txt`. The exact source hashes,
+selected files and local integration changes are recorded in
+`packages/neo_texture_catalog/ios/ThirdParty/libarchive/`.
+NeoStation does not include WinRAR, the UnRAR SDK, a RAR writer or an external
+extraction executable. Textures continue to be downloaded from the original
+creator links, with their separate credits and distribution terms.
+
+## HD texture readers and catalogue metadata
+
+The [LZMA SDK](https://www.7-zip.org/sdk.html) 24.09, by Igor Pavlov, provides
+the 7z decoder. Its public-domain declaration and original source headers are
+preserved in `textures/LZMA-SDK-Public-Domain.txt`. This does not relicense all
+of 7-Zip under that declaration; only the identified SDK subset is covered.
+
+The ARMSX2 texture-reader headers come unmodified from `iOSv2.6.0`, revision
+`9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe`, under GPL-3.0-or-later. Their
+SPDX headers and the existing full ARMSX2 GPL text are retained. The ps2ktxpak
+catalogue metadata retains its original MIT notice, separate from rights in
+the listed texture packs. Original texts, copied-source hashes and provenance
+are in `textures/license-sources.json`; future packaging includes this complete
+collection under `Legal/Textures/`.
+
+Each pack's artists, authors, upstream links and stated terms remain distinct
+from the software licenses above. The creator supplement also preserves
+verified author names where frozen catalogue fields are incomplete:
+https://github.com/TarbleFR/neostation-ios/blob/Claude/docs/HD_TEXTURE_SOURCES_AND_CREDITS.md
+
+## Rebuilt PPSSPP core and dependency notices
+
+The rebuilt PSP core uses PPSSPP revision
+`1bd28b0d634d4ec31acb7092563f3e1e247d1e9c`, by Henrik Rydgård and
+contributors. Its original GPL-2.0-or-later and PSPSDK notices are preserved
+alongside notices for the pinned FFmpeg and other reviewed dependency sources
+in `ppsspp/license-sources.json`. Future packaging includes the collection in
+`Legal/PPSSPP/` with its exact source references and hashes.
+
+This software is based in part on the work of the Independent JPEG Group.
+The original IJG notices are retained in `ppsspp/FFmpeg-IJG-Notices.txt`.
+FFmpeg's disabled GPL/nonfree/version3 flags coexist with a GPL-v2-or-later
+license string in the reviewed build template. Both full license texts and
+the configuration evidence are preserved; no LGPL-only classification or
+complete binary clearance is inferred. See `ppsspp/BUILD-LICENSE-RECORD.md`.
+Conditional and source-build dependencies keep their own terms; inclusion
+in this notice inventory does not assert that each reaches the executable.
+
+## MeloNX integration references
+
+The former external MeloNX launcher is retired. The engine, LibHac and original
+controller integration are still under development and not packaged as a
+playable NeoStation Switch runtime. Upstream license snapshots in `melonx/`
+are staged for that work. MeloNX's pinned root MIT notice and README GPLv3
+statement are both recorded; the separately pinned Melo-Controller is GPLv3.
+An upstream list does not prove which source/configuration produced a bundled
+native dependency. See the next-release review before binary distribution.
+
+## Game boxes, cover scans and manuals
+
+The 3D viewer displays existing user-supplied or ScreenScraper artwork and
+downloaded manuals. The scan, artwork and text retain their original rights;
+rotating, sharpening, recognizing or translating them grants no new ownership.
+Apple Vision, NaturalLanguage and Translation are platform frameworks used by
+the reader. NeoStation does not bundle an Apple translation-model package.
+
+
+## Mau Ali — interactive tab motion
+
+The navigation adapts all original selection segments, full deformation, Bezier
+contour, capsule pulse and moving rim from **Interactive
+iOS 26 Inspired Tab Menu** by **Mau Ali**:
+https://lottiefiles.com/free-animation/free-interactive-ios-26-inspired-tab-menu-uTAhrmTC08
+
+The original dotLottie archive and the derived motion profile are distributed
+under the **Lottie Simple License FL 9.13.21**, separately from the host GPL code.
+Full terms and modification details are in `assets/legal/Lottie-Simple-License.txt`
+and `assets/legal/Mau-Ali-Tab-Motion.txt`, available in the app credits.
+The original five-tab scene is adapted to RewindBox's variable real tabs with
+the existing Flutter renderer; no dotLottie runtime dependency is introduced.

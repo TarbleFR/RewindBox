@@ -8,7 +8,7 @@ import 'package:flutter/widgets.dart';
 /// and dates already localized. Paths, refusal codes, errno and SQLite texts
 /// and other raw diagnostics are inserted through placeholders or shown apart
 /// through [technicalCode], never translated. Product names (RewindBox,
-/// RPCS3, Dolphin, KartPad, Dusklight, ARMSX2, NeoSwap, RetroArch, libretro)
+/// RPCS3, Dolphin, KartPad, ARMSX2, NeoSwap, RetroArch, libretro)
 /// are not catalog entries. No text names the Library sources folder: it is
 /// counted under [rootLibrary].
 abstract final class StorageLocale {
@@ -254,7 +254,7 @@ abstract final class StorageLocale {
       hdd1Warning:
           'PS3 cache disk: games recreate it, but some reinstall data at their next launch (longer start).',
       kartpadGameDataWarning:
-          'KartPad will extract the game data again at the next launch (longer start).',
+          'Extracted from your disc for the former built-in KartPad; RewindBox no longer uses it.',
       duplicateWarning:
           'Only the copy the library does not use can be deleted. Check both paths before confirming.',
       metadataBackupNote:
@@ -418,7 +418,7 @@ abstract final class StorageLocale {
       hdd1Warning:
           'Disco de caché de PS3: los juegos lo vuelven a crear, pero algunos reinstalan datos en su próximo inicio (arranque más lento).',
       kartpadGameDataWarning:
-          'KartPad volverá a extraer los datos del juego en el próximo inicio (arranque más lento).',
+          'Extraídos de tu disco para el antiguo KartPad integrado; RewindBox ya no los usa.',
       duplicateWarning:
           'Solo se puede eliminar la copia que la biblioteca no usa. Comprueba las dos rutas antes de confirmar.',
       metadataBackupNote:
@@ -585,7 +585,7 @@ abstract final class StorageLocale {
       hdd1Warning:
           'Кэш-диск PS3: игры создают его заново, но некоторые при следующем запуске переустанавливают данные (запуск займёт больше времени).',
       kartpadGameDataWarning:
-          'KartPad снова распакует данные игры при следующем запуске (запуск займёт больше времени).',
+          'Извлечены с вашего диска для прежнего встроенного KartPad; RewindBox их больше не использует.',
       duplicateWarning:
           'Удалить можно только копию, которую не использует библиотека. Перед подтверждением проверьте оба пути.',
       metadataBackupNote:
@@ -738,7 +738,7 @@ abstract final class StorageLocale {
       mediaQuotaWarning: '移除的媒体需要重新刮削（消耗 ScreenScraper 配额）。',
       diagnosticsWarning: '删除的诊断信息将无法再用于排查问题。',
       hdd1Warning: 'PS3 缓存磁盘：游戏会重新创建它，但部分游戏会在下次启动时重新安装数据（启动时间更长）。',
-      kartpadGameDataWarning: 'KartPad 将在下次启动时重新解压游戏数据（启动时间更长）。',
+      kartpadGameDataWarning: '这些数据是为以前内置的 KartPad 从你的光盘中提取的；RewindBox 已不再使用。',
       duplicateWarning: '只能删除游戏库未使用的副本。确认前请核对两个路径。',
       metadataBackupNote: '移除元数据前会先保存一份数据库副本。',
       sessionActive: '已拒绝清理：有游戏或导入正在进行。',
@@ -869,7 +869,7 @@ abstract final class StorageLocale {
       mediaQuotaWarning: '移除的媒體需要重新刮削（會用掉 ScreenScraper 配額）。',
       diagnosticsWarning: '刪除的診斷資訊將無法再用於排查問題。',
       hdd1Warning: 'PS3 快取磁碟：遊戲會重新建立它，但部分遊戲會在下次啟動時重新安裝資料（啟動時間較長）。',
-      kartpadGameDataWarning: 'KartPad 將在下次啟動時重新解壓縮遊戲資料（啟動時間較長）。',
+      kartpadGameDataWarning: '這些資料是為先前內建的 KartPad 從你的光碟擷取的；RewindBox 已不再使用。',
       duplicateWarning: '只能刪除遊戲庫未使用的副本。確認前請核對兩個路徑。',
       metadataBackupNote: '移除中繼資料前會先儲存一份資料庫副本。',
       sessionActive: '已拒絕清理：有遊戲或匯入正在進行。',
@@ -1012,7 +1012,7 @@ abstract final class StorageLocale {
       hdd1Warning:
           'Disco de cache do PS3: os jogos o recriam, mas alguns reinstalam dados na próxima inicialização (início mais demorado).',
       kartpadGameDataWarning:
-          'O KartPad vai extrair os dados do jogo novamente na próxima inicialização (início mais demorado).',
+          'Extraídos do seu disco para o antigo KartPad integrado; o RewindBox não os usa mais.',
       duplicateWarning:
           'Só a cópia que a biblioteca não usa pode ser excluída. Confira os dois caminhos antes de confirmar.',
       metadataBackupNote:
@@ -1179,7 +1179,7 @@ abstract final class StorageLocale {
       hdd1Warning:
           'Disque cache de la PS3 : les jeux le recréent, mais certains réinstallent des données à leur prochain lancement (démarrage plus long).',
       kartpadGameDataWarning:
-          'KartPad extraira à nouveau les données du jeu au prochain lancement (démarrage plus long).',
+          'Extraites de votre disque pour l’ancien KartPad intégré ; RewindBox ne les utilise plus.',
       duplicateWarning:
           'Seule la copie que la bibliothèque n’utilise pas peut être supprimée. Vérifiez les deux chemins avant de confirmer.',
       metadataBackupNote:
@@ -1345,7 +1345,7 @@ abstract final class StorageLocale {
       hdd1Warning:
           'PS3-Cache-Laufwerk: Spiele legen es neu an, manche installieren beim nächsten Start jedoch Daten erneut (längerer Start).',
       kartpadGameDataWarning:
-          'KartPad entpackt die Spieldaten beim nächsten Start erneut (längerer Start).',
+          'Für das frühere integrierte KartPad von deiner Disc entpackt; RewindBox verwendet sie nicht mehr.',
       duplicateWarning:
           'Nur die Kopie, die die Bibliothek nicht verwendet, kann gelöscht werden. Prüfe vor dem Bestätigen beide Pfade.',
       metadataBackupNote:
@@ -1514,7 +1514,7 @@ abstract final class StorageLocale {
       hdd1Warning:
           'Disco cache della PS3: i giochi lo ricreano, ma alcuni reinstallano dati al prossimo avvio (avvio più lento).',
       kartpadGameDataWarning:
-          'KartPad estrarrà di nuovo i dati del gioco al prossimo avvio (avvio più lento).',
+          'Estratti dal tuo disco per il precedente KartPad integrato; RewindBox non li usa più.',
       duplicateWarning:
           'Si può eliminare solo la copia che la libreria non usa. Controlla entrambi i percorsi prima di confermare.',
       metadataBackupNote:
@@ -1682,7 +1682,7 @@ abstract final class StorageLocale {
       hdd1Warning:
           'Disk cache PS3: game membuatnya ulang, tetapi beberapa game memasang ulang data saat diluncurkan berikutnya (mulai lebih lama).',
       kartpadGameDataWarning:
-          'KartPad akan mengekstrak ulang data game saat diluncurkan berikutnya (mulai lebih lama).',
+          'Diekstrak dari disk Anda untuk KartPad bawaan sebelumnya; RewindBox tidak lagi menggunakannya.',
       duplicateWarning:
           'Hanya salinan yang tidak dipakai perpustakaan yang dapat dihapus. Periksa kedua jalur sebelum mengonfirmasi.',
       metadataBackupNote:
@@ -1839,7 +1839,7 @@ abstract final class StorageLocale {
       diagnosticsWarning: '削除した診断は、問題の調査に使えなくなります。',
       hdd1Warning:
           'PS3 のキャッシュディスク：ゲームが再作成しますが、次回の起動時にデータを再インストールするゲームもあります（起動に時間がかかります）。',
-      kartpadGameDataWarning: 'KartPad は次回の起動時にゲームデータを再展開します（起動に時間がかかります）。',
+      kartpadGameDataWarning: '以前の内蔵 KartPad 用にディスクから展開されたデータです。RewindBox では使用されなくなりました。',
       duplicateWarning: '削除できるのは、ライブラリが使用していないコピーだけです。確定する前に両方のパスを確認してください。',
       metadataBackupNote: 'メタデータを削除する前に、データベースのコピーを保存します。',
       sessionActive: 'クリーンアップを拒否しました：ゲームまたはインポートが進行中です。',
@@ -1975,7 +1975,7 @@ abstract final class StorageLocale {
       diagnosticsWarning: '삭제한 진단 정보는 더 이상 문제 분석에 사용할 수 없습니다.',
       hdd1Warning:
           'PS3 캐시 디스크: 게임이 다시 만들지만, 일부 게임은 다음 실행 때 데이터를 다시 설치합니다(시작이 더 오래 걸림).',
-      kartpadGameDataWarning: 'KartPad가 다음 실행 때 게임 데이터를 다시 추출합니다(시작이 더 오래 걸림).',
+      kartpadGameDataWarning: '이전 내장 KartPad용으로 디스크에서 추출한 데이터입니다. RewindBox은 더 이상 사용하지 않습니다.',
       duplicateWarning:
           '라이브러리가 사용하지 않는 사본만 삭제할 수 있습니다. 확인하기 전에 두 경로를 모두 살펴보세요.',
       metadataBackupNote: '메타데이터를 제거하기 전에 데이터베이스 사본을 저장합니다.',

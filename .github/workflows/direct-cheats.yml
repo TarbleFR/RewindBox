@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   native:
-    if: ${{ contains(github.event.head_commit.message, '[direct-code]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (contains(github.event.head_commit.message, '[direct-code]')) }}
     runs-on: macos-15
     timeout-minutes: 25
     steps:
@@ -36,7 +36,7 @@ jobs:
           path: evidence/
           retention-days: 14
   data:
-    if: ${{ contains(github.event.head_commit.message, '[direct-data]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (contains(github.event.head_commit.message, '[direct-data]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -53,7 +53,7 @@ jobs:
           python3 test/unified_catalog_runtime_test.py
           python3 test/unified_catalog_browser_ui_test.py
   index:
-    if: ${{ contains(github.event.head_commit.message, '[direct-data]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (contains(github.event.head_commit.message, '[direct-data]')) }}
     runs-on: macos-15
     timeout-minutes: 15
     steps:
@@ -63,9 +63,8 @@ jobs:
         with: {xcode-version: '26.3'}
       - name: Actual Foundation full index and menu allocation
         run: python3 test/unified_catalog_published_index_test.py
-
   additional-proofs:
-    if: ${{ contains(github.event.head_commit.message, '[direct-proofs]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (contains(github.event.head_commit.message, '[direct-proofs]')) }}
     runs-on: macos-15
     timeout-minutes: 15
     steps:
@@ -90,9 +89,8 @@ jobs:
         run: python3 -m unittest discover -s test -p unified_catalog_runtime_test.py -k actual_foundation -v
       - name: Automatic arcade startup regression
         run: python3 test/unified_identity_test.py --only-fbneo
-
   final-ui:
-    if: ${{ contains(github.event.head_commit.message, '[direct-ui]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (contains(github.event.head_commit.message, '[direct-ui]')) }}
     runs-on: macos-15
     timeout-minutes: 20
     steps:
@@ -111,9 +109,8 @@ jobs:
           name: direct-cheats-final-ui-${{ github.sha }}
           path: evidence/
           retention-days: 14
-
   runtime-contract:
-    if: ${{ contains(github.event.head_commit.message, '[direct-runtime]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (contains(github.event.head_commit.message, '[direct-runtime]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -121,9 +118,8 @@ jobs:
         with: {persist-credentials: false}
       - name: Exact active plus retired member contract
         run: python3 test/unified_catalog_runtime_test.py
-
   manual-import:
-    if: ${{ contains(github.event.head_commit.message, '[direct-manual]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (contains(github.event.head_commit.message, '[direct-manual]')) }}
     runs-on: macos-15
     timeout-minutes: 20
     steps:

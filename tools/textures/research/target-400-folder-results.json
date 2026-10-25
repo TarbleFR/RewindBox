@@ -1,0 +1,278 @@
+{
+  "run": 39407069947,
+  "source": "136fa563ccb90108054c12ccdcae1fc3bc244feb",
+  "purpose": "Archive listing evidence only, not installation. Transient redirect URLs and raw download responses omitted. Shared-folder lists are capped at 80 items by research.py.",
+  "records": [
+    {
+      "url": "https://pixeldrain.com/api/file/873AKcBf",
+      "host": "direct",
+      "status": "ok",
+      "name": "E.X. Troopers HD Texture Pack.zip",
+      "size": 982030994,
+      "sha256": "b3279fa45c7f0433d13774de956b2ee998d15798e22f7b29d0f5a0739d17f9a5",
+      "format": "zip",
+      "tree": {
+        "entries": 3664,
+        "counts": {
+          "tex1": 3661,
+          "png": 2,
+          "pack.json": 1
+        },
+        "game_ids": {
+          "EP2": 318,
+          "EP1": 234,
+          "EP4": 227,
+          "EP3": 218,
+          "ENG": 61,
+          "EP0": 51,
+          "EP5": 44
+        },
+        "title_ids": {
+          "0004000000053700": 3664
+        },
+        "disc_ids": {},
+        "top": {
+          "0004000000053700": 3664
+        }
+      },
+      "methods": [
+        "Store"
+      ]
+    },
+    {
+      "url": "https://drive.google.com/uc?export=download&id=1xhYvVMScGS1uVN18_V6qh_PKPuvts9Vy",
+      "host": "gdrive",
+      "status": "ok",
+      "name": "actrilogy-hud-upgrade-v1.2.1.zip",
+      "size": 6391233,
+      "sha256": "1fb4d7510c62071cb6c3cf3774b3d252a7a8f53ddd784f820b273891e7d3000f",
+      "format": "zip",
+      "tree": {
+        "entries": 276,
+        "counts": {
+          "png": 268,
+          "pcsx2-replacements": 275
+        },
+        "game_ids": {},
+        "title_ids": {},
+        "disc_ids": {},
+        "top": {
+          "SLUS-21346": 178,
+          "SLUS-20851": 57,
+          "SLUS-20152": 40,
+          "changelog.txt": 1
+        }
+      },
+      "methods": [
+        "Store"
+      ]
+    },
+    {
+      "url": "https://mega.nz/folder/j7ZXATYI#C2XnbaqT7X2wBg1Xuf_vnw",
+      "host": "mega",
+      "status": "folder",
+      "listed_count": 1,
+      "possibly_truncated": false,
+      "archive_files": [
+        {
+          "name": "actrilogy-hud-upgrade-v1.2.1.zip",
+          "size": 6391233,
+          "url": "https://mega.nz/folder/j7ZXATYI#C2XnbaqT7X2wBg1Xuf_vnw/file/6uwnBJQQ"
+        }
+      ]
+    },
+    {
+      "url": "https://mega.nz/folder/ogdXmSLJ#Nu-NLuwlY5kjYzPV7Ita3Q",
+      "host": "mega",
+      "status": "folder",
+      "listed_count": 4,
+      "possibly_truncated": false,
+      "archive_files": [
+        {
+          "name": "Ape Escape 3 UPDATE 1.0.rar",
+          "size": 1808241594,
+          "url": "https://mega.nz/folder/ogdXmSLJ#Nu-NLuwlY5kjYzPV7Ita3Q/file/U9UBxLRR"
+        },
+        {
+          "name": "Ape Escape 3.part1.rar",
+          "size": 2147483648,
+          "url": "https://mega.nz/folder/ogdXmSLJ#Nu-NLuwlY5kjYzPV7Ita3Q/file/150j1QbS"
+        },
+        {
+          "name": "Ape Escape 3.part2.rar",
+          "size": 2147483648,
+          "url": "https://mega.nz/folder/ogdXmSLJ#Nu-NLuwlY5kjYzPV7Ita3Q/file/RhkgWKBJ"
+        },
+        {
+          "name": "Ape Escape 3.part3.rar",
+          "size": 234561835,
+          "url": "https://mega.nz/folder/ogdXmSLJ#Nu-NLuwlY5kjYzPV7Ita3Q/file/JsliQY6a"
+        }
+      ]
+    },
+    {
+      "url": "https://drive.google.com/drive/folders/1yoBKX1U2uEdTHIzGj8kUtAVoqDPGjf1U?usp=sharing",
+      "host": "gdrive",
+      "status": "folder",
+      "listed_count": 2,
+      "possibly_truncated": false,
+      "archive_files": [
+        {
+          "name": "SLUS-21338.7z",
+          "url": "https://drive.google.com/file/d/1iVULsZueogPEPXzy5-gl_U_tXPBjbKUo/view"
+        }
+      ]
+    },
+    {
+      "url": "https://drive.google.com/drive/folders/1jL_LB0yX67clygDIhAtJ7zv7q6-3ITPK?usp=sharing",
+      "host": "gdrive",
+      "status": "folder",
+      "listed_count": 1,
+      "possibly_truncated": false,
+      "archive_files": [
+        {
+          "name": "SLUS-20986.7z",
+          "url": "https://drive.google.com/file/d/1Dr82UsYP0nDbDowAQ3j_QpXqNl7IletE/view"
+        }
+      ]
+    },
+    {
+      "url": "https://mega.nz/folder/KLJy1Zia#DPIlpfIxvfItptcamfKr6Q",
+      "host": "mega",
+      "status": "folder",
+      "listed_count": 0,
+      "possibly_truncated": false,
+      "archive_files": []
+    },
+    {
+      "url": "https://drive.google.com/drive/folders/1oGUIAYDradZfSopMJZBi8DCutItJlDIl?usp=sharing",
+      "host": "gdrive",
+      "status": "folder",
+      "listed_count": 2,
+      "possibly_truncated": false,
+      "archive_files": [
+        {
+          "name": "Dragon Quest VIII (PAL) v0.9.6.1.7z",
+          "url": "https://drive.google.com/file/d/1th-kflBDLEbXffwEKethyujQOjekmxx5/view"
+        }
+      ]
+    },
+    {
+      "url": "https://drive.google.com/drive/folders/1QuSlz5K6zatVDzX9QIbEHN_nz1xqXruV?usp=sharing",
+      "host": "gdrive",
+      "status": "folder",
+      "listed_count": 1,
+      "possibly_truncated": false,
+      "archive_files": [
+        {
+          "name": "FlatOut 2 (PAL-D) v1.1.7z",
+          "url": "https://drive.google.com/file/d/1m9NyTEoeotFdzgMeaYb2SHUgAHAP2xMj/view"
+        }
+      ]
+    },
+    {
+      "url": "https://drive.google.com/drive/folders/1fuauuUbk2OhAibUrIg3Xr824G2wdSeId?usp=sharing",
+      "host": "gdrive",
+      "status": "gone",
+      "error": "HTTP 404"
+    },
+    {
+      "url": "https://mega.nz/folder/tUJkEZBQ#SN2NuhZhb0IXEQmyrFwiyg",
+      "host": "mega",
+      "status": "folder",
+      "listed_count": 1,
+      "possibly_truncated": false,
+      "archive_files": [
+        {
+          "name": "Mafia.rar",
+          "size": 175412994,
+          "url": "https://mega.nz/folder/tUJkEZBQ#SN2NuhZhb0IXEQmyrFwiyg/file/kIgxEB7Z"
+        }
+      ]
+    },
+    {
+      "url": "https://drive.google.com/drive/folders/1f9t4hlVZwhAnGazJEZzVZgcGH085CC90",
+      "host": "gdrive",
+      "status": "folder",
+      "listed_count": 80,
+      "possibly_truncated": true,
+      "archive_files": []
+    },
+    {
+      "url": "https://mega.nz/folder/VMZUBSrZ#BXz_rN1sybLEA_Nt4nsl5g",
+      "host": "mega",
+      "status": "folder",
+      "listed_count": 1,
+      "possibly_truncated": false,
+      "archive_files": [
+        {
+          "name": "Metal Slug 6.part1.rar",
+          "size": 2147483648,
+          "url": "https://mega.nz/folder/VMZUBSrZ#BXz_rN1sybLEA_Nt4nsl5g/file/5YgSFQaL"
+        }
+      ]
+    },
+    {
+      "url": "https://drive.google.com/drive/folders/1v6oMoulapjwOQrY9-oozmB5HKHzFNmsZ?usp=sharing",
+      "host": "gdrive",
+      "status": "folder",
+      "listed_count": 3,
+      "possibly_truncated": false,
+      "archive_files": []
+    },
+    {
+      "url": "https://drive.google.com/drive/folders/1ym7K7kK3oaNm1Nqr9K6Be75Ypqav27um?usp=share_link",
+      "host": "gdrive",
+      "status": "folder",
+      "listed_count": 1,
+      "possibly_truncated": false,
+      "archive_files": []
+    },
+    {
+      "url": "https://drive.google.com/drive/folders/1bvMjL5gDF4pTI_7weqpj6oqyRkbnwJ1-?usp=sharing",
+      "host": "gdrive",
+      "status": "folder",
+      "listed_count": 2,
+      "possibly_truncated": false,
+      "archive_files": []
+    },
+    {
+      "url": "https://drive.google.com/drive/folders/1TsRptoVYJR0IjehaMuiwYw5AhYPuzgiP?usp=drive_link",
+      "host": "gdrive",
+      "status": "folder",
+      "listed_count": 2,
+      "possibly_truncated": false,
+      "archive_files": []
+    },
+    {
+      "url": "https://www.mediafire.com/folder/k8yncbpnlckw3/ironhulk33#2ie0qajlodjxz",
+      "host": "mediafire",
+      "status": "folder",
+      "listed_count": 0,
+      "possibly_truncated": false,
+      "archive_files": []
+    },
+    {
+      "url": "https://mega.nz/folder/eWZyHCLZ#B9qDRBgPh2cH8HtBg2OJ1A",
+      "host": "mega",
+      "status": "folder",
+      "listed_count": 0,
+      "possibly_truncated": false,
+      "archive_files": []
+    },
+    {
+      "url": "https://mega.nz/folder/NZtCwK7T#cgSaYa9PUjv_QmFSIM8zwA",
+      "host": "mega",
+      "status": "folder",
+      "listed_count": 1,
+      "possibly_truncated": false,
+      "archive_files": [
+        {
+          "name": "SLUS-20636.zip",
+          "size": 2806236899,
+          "url": "https://mega.nz/folder/NZtCwK7T#cgSaYa9PUjv_QmFSIM8zwA/file/UccVXJ6K"
+        }
+      ]
+    }
+  ]
+}

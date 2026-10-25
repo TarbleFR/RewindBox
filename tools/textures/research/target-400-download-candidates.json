@@ -1,0 +1,2106 @@
+{
+ "checked_at": "2026-10-20",
+ "purpose": "Research provenance for CI-only candidate download URLs. No entry is installable merely because this metadata lists it. The original author page and catalogue credits are retained; no mirror or pack is redistributed.",
+ "entries": [
+  {
+   "id": "ps2-ktx-007-from-russia-with-love-thomasweissenfluh",
+   "url": "https://archive.org/details/007-from-russia-with-love-upscaled-enhanced-texture-pack",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/007-from-russia-with-love-thomasweissenfluh.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-24-the-game-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/6l0b8ca2axm8nt5/SLUS-21268.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/24-the-game-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-21268) for 24: The Game (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-america-s-10-most-wanted-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/1yitc2potpmxddz/SLES-52367.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/america-s-10-most-wanted-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLES-52367) for America's 10 Most Wanted (EU).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-ape-escape-2-armm1998",
+   "url": "https://drive.google.com/file/d/1Jfo-W745jKzbrhp-yKBizBSUkAoLz7Xk/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/ape-escape-2-armm1998.yaml",
+   "confidence": "high",
+   "note": "Creator's opening post links to Google Drive file for the manually redrawn texture pack.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-ape-escape-2-flooffluff",
+   "url": "https://www.mediafire.com/file/gzw8an2h11d519w/SLUS-20685.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/ape-escape-2-flooffluff.yaml",
+   "confidence": "high",
+   "note": "Creator's explicit 'Download textures' link in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-arc-the-lad-twilight-of-the-spirits-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1HiYJOYZmw-AWjgw1Swt5QMKCkv8NKn6c&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/arc-the-lad-twilight-of-the-spirits-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-asterix-at-the-olympic-games-santins",
+   "url": "https://drive.google.com/file/d/1CJH_CL9GBvkjh6Er2XJsEjcYBxv6zKr5/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/asterix-at-the-olympic-games-santins.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-backyard-wrestling-2-there-goes-the-neighborhood-mvp899",
+   "url": "https://mega.nz/file/NQg2kJ7C#fXgbpwuG5QGZYgkkzrLEjy4ikO57_-krA_qlMHJVeDc",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/backyard-wrestling-2-there-goes-the-neighborhood-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-barbie-in-the-12-dancing-princesses-mvp899",
+   "url": "https://mega.nz/file/HXAH0QgY#7gGtiAf58PF0pjCkUTjVVssy-Fnc00wEsQxghCMbdrs",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/barbie-in-the-12-dancing-princesses-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-batman-vengeance-callofcthuloo",
+   "url": "https://www.mediafire.com/file_premium/1xj9y2cit51p27v/Batman_-_Vengeance_%255BSLUS-20226%255D.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/batman-vengeance-callofcthuloo.yaml",
+   "confidence": "high",
+   "note": "Creator posted PCSX2 download link in opening post; confirmed in YouTube video.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-battlefield-2-modern-combat-robin9608-2",
+   "url": "https://www.mediafire.com/file/d3ufb9m8kis4ron/Battlefield_2_Modern_Combat_Remastered_Texture_Pack.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/battlefield-2-modern-combat-robin9608-2.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-battlefield-2-modern-combat-robin9608",
+   "url": "https://www.mediafire.com/file/sr8nbh3oy44npm1/Texture_Pack_v0.8_WIP_Battlefield_2_Modern_Combat%2528SLUS-21026%2529.rar/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/battlefield-2-modern-combat-robin9608.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-ben-10-protector-of-earth-mvp899",
+   "url": "https://mega.nz/file/zHZWiBAa#i7J1nOO4CQbL9us6iOUQfyML-d2nRggxSXjBsce1Fss",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/ben-10-protector-of-earth-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-black-huekage",
+   "url": "https://www.mediafire.com/file/y8zw7tg98m3t7zb/PS2_HD_Textures_-_Black_%2528SLUS-21376%2529_%2528NTSC%2529_%2526_%2528SLES-53886%2529_%2528PAL%2529.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/black-huekage.yaml",
+   "confidence": "high",
+   "note": "Creator provides direct MediaFire link in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-blood-will-tell-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1yaHJGmU2CUR0vv-aVswg4qLg-04an86D&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/blood-will-tell-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-bloody-roar-4-xxtherockoxx",
+   "url": "https://www.mediafire.com/file/h98esgu9klsmsxj/B.R.4.HD_Textures_xX.The.RockoXx.rar/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/bloody-roar-4-xxtherockoxx.yaml",
+   "confidence": "high",
+   "note": "Creator's pinned YouTube comment provides direct mediafire download link.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-bloody-roar-4-yamijpg",
+   "url": "https://drive.google.com/file/d/1h0G13wpWswZw8ASzHulm1b0YlwiqWV7h/view?usp=drive_link",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/bloody-roar-4-yamijpg.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-bmx-xxx-mvp899",
+   "url": "https://www.mediafire.com/file/lvo6ysmivj73nf8/BMX_XXX.rar/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/bmx-xxx-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-bujingai-the-forsaken-city-darthdarklord",
+   "url": "https://archive.org/details/replacements.7z_202310",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/bujingai-the-forsaken-city-darthdarklord.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-burnout-2-point-of-impact-ml87",
+   "url": "https://www.mediafire.com/file/exovkmj65di02pz/SLUS-20497.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/burnout-2-point-of-impact-ml87.yaml",
+   "confidence": "high",
+   "note": "The opening post labels this Mediafire file Burnout 2 - Point of Impact; the zip is named for the NTSC-U serial SLUS-20497.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-burnout-dominator-ml87",
+   "url": "https://www.mediafire.com/file/ek77s1ybth8ln1d/SLUS-21596.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/burnout-dominator-ml87.yaml",
+   "confidence": "high",
+   "note": "The opening post labels this Mediafire file Burnout Dominator; the zip is named for the NTSC-U serial SLUS-21596.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-burnout-ml87",
+   "url": "https://www.mediafire.com/file/qbyx07daxy3jq85/SLUS-20307.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/burnout-ml87.yaml",
+   "confidence": "high",
+   "note": "The opening post labels this Mediafire file Burnout 1; the zip is named for the NTSC-U serial SLUS-20307.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-capcom-classics-collection-vol-2-sombershroud",
+   "url": "https://www.mediafire.com/file/5n71mpci5q3lyf9/SLUS-21316.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/capcom-classics-collection-vol-2-sombershroud.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-chulip-sombertwilight",
+   "url": "https://mega.nz/file/kBciRAxD#TXEQPhtoe0RAH3-nWCDy1DCuV3k2wNVLmL6omcAL5hw",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/chulip-sombertwilight.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-cold-winter-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/0dr9yadp0vi72q7/SLUS-20845.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/cold-winter-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-20845) for Cold Winter (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-colosseum-road-to-freedom-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1h-V8D9V04QRfvEeMHGBLUCaXR1KSRN_D&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/colosseum-road-to-freedom-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-crash-tag-team-racing-crazyrabbitstyle",
+   "url": "https://drive.google.com/file/d/1z6ph_CllSbkOWQFj_qZpMup_15zCPsTk/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/crash-tag-team-racing-crazyrabbitstyle.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-crash-twinsanity-yamijpg",
+   "url": "https://drive.google.com/file/d/1mamMXY99dikFfWiRNpqxdsSrtDxkb0FF/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/crash-twinsanity-yamijpg.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dawn-of-mana-curse-arms",
+   "url": "https://drive.google.com/file/d/1nC6wwxRTAuV9QgCUaEibs1jHH0CzKaOJ/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dawn-of-mana-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dead-or-alive-2-hardcore-mvp899",
+   "url": "https://drive.google.com/file/d/1VVkH5lAzTzHP8Sa9r4I3usnyboFepmFy/view?usp=drive_link",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dead-or-alive-2-hardcore-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-devil-kings-i-emu-play",
+   "url": "https://mega.nz/file/weJRHCBB#SWlEMnp0cO-ko6Ob6KqUA9cX5FEku-7ONPM62ATlgwo",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/devil-kings-i-emu-play.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-devil-may-cry-xxtherockoxx",
+   "url": "https://www.mediafire.com/file/s7rytq7fm0yefvr/D.M.C_HD.Textures.v1.0xXThe.RockoXx.rar/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/devil-may-cry-xxtherockoxx.yaml",
+   "confidence": "high",
+   "note": "Creator's opening post directly provides mediafire download link with pack filename.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-disney-s-kim-possible-what-s-the-switch-sal9im",
+   "url": "https://drive.google.com/file/d/1CCv6zWw85ZdjMKw3h9hkHQjCls8Zf--r/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/disney-s-kim-possible-what-s-the-switch-sal9im.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-akirus",
+   "url": "https://drive.google.com/file/d/1MyUzpU7D_4HiP3szxK8YhkkF--YSGZnd/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dragon-ball-z-budokai-tenkaichi-3-akirus.yaml",
+   "confidence": "high",
+   "note": "Creator lists Google Drive link for 16:9 version in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-jamon",
+   "url": "https://www.mediafire.com/file/17j1yktzouzi17g/textures.rar/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dragon-ball-z-budokai-tenkaichi-3-jamon.yaml",
+   "confidence": "high",
+   "note": "Creator provides direct MediaFire link in opening post for texture pack.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-3-santins",
+   "url": "https://drive.google.com/file/d/1EdE-Epfh5s8BkcjIZ3IrHN8cf3Hlrkaq/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dragon-ball-z-budokai-tenkaichi-3-santins.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dragon-ball-z-budokai-tenkaichi-sal9im",
+   "url": "https://drive.google.com/file/d/1_fh9r6JRC3z8l98amFxXjZ21aGi4y0rP/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dragon-ball-z-budokai-tenkaichi-sal9im.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dragon-ball-z-infinite-world-mvp899",
+   "url": "https://mega.nz/file/LfZDBJTC#QdgF_DJbw-cuI0c-qhznH_dZ9xQyY7knG_lp6RBwzA8",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dragon-ball-z-infinite-world-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dragon-ball-z-sagas-huekage",
+   "url": "https://www.mediafire.com/file/yowt4jw5til51og/PS2_HD_Textures_-_Dragon_Ball_Z_-_Sagas_%2528SLUS-20874%2529_%2528NTSC%2529.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dragon-ball-z-sagas-huekage.yaml",
+   "confidence": "high",
+   "note": "Creator provided MediaFire link labeled 'Link to download' in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dragon-quest-viii-journey-of-the-cursed-king-panda-venom",
+   "url": "https://www.mediafire.com/file_premium/wpmwpgniphmwmki/DQVIII_HD_SLUS-21207.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dragon-quest-viii-journey-of-the-cursed-king-panda-venom.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-drakengard-irvinsmith",
+   "url": "https://drive.google.com/file/d/18VhVbNaTIjzhckLnpBNuecB4NXHIyAA3/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/drakengard-irvinsmith.yaml",
+   "confidence": "high",
+   "note": "Creator posted Google Drive link in opening post for NTSC version.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dynasty-warriors-3-xtreme-legends-gvngnir",
+   "url": "https://drive.google.com/file/d/1aixV-UMX7HpyGjrEZLTzQM2zGUWNNZsU/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dynasty-warriors-3-xtreme-legends-gvngnir.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dynasty-warriors-4-empires-sombertwilight",
+   "url": "https://mega.nz/file/hNlikTYb#oxNCmS481P3qOaQH--fYtDPXqN_CbAjCfb9gbnvhr38",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dynasty-warriors-4-empires-sombertwilight.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-dynasty-warriors-4-xtreme-legends-sombertwilight",
+   "url": "https://www.mediafire.com/file/bczawu96p2a3rlx/SLUS-20812.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/dynasty-warriors-4-xtreme-legends-sombertwilight.yaml",
+   "confidence": "high",
+   "note": "Creator's explicit main 'DOWNLOAD' link for the texture pack.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-eternal-poison-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=19sUjWK_JHGytpPZkEHdF06pd2OU-FwSA&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/eternal-poison-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-evil-dead-a-fistful-of-boomstick-c0meg3ts0me",
+   "url": "https://mega.nz/file/gqVUgZjJ#CtqtWdEtRjsrFtz091YvudJOGryjHKG1eFkf5YCxXcg",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/evil-dead-a-fistful-of-boomstick-c0meg3ts0me.yaml",
+   "confidence": "high",
+   "note": "Thread starter provided Mega link for PC texture pack version in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-evil-dead-regeneration-c0meg3ts0me",
+   "url": "https://mega.nz/file/piVwGKjT#01HM8zrhtv8IgsTmxec6Yx7C5TfOJuOfByEprVYBRVY",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/evil-dead-regeneration-c0meg3ts0me.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-fatal-frame-iii-the-tormented-curse-arms",
+   "url": "https://drive.google.com/file/d/1vvQ83c9DnE3rqELVgiWG1eu-pW1-7PZX/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/fatal-frame-iii-the-tormented-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-fatal-frame-iii-the-tormented-panda-venom",
+   "url": "https://www.mediafire.com/file/idn2zqvbu1f4ra0/Fatal_Frame_III.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/fatal-frame-iii-the-tormented-panda-venom.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-fatal-frame-iii-the-tormented-teodor-max",
+   "url": "https://drive.google.com/file/d/11P_XS0TH_XHgUVj9WKgElkqeCJERvX53/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/fatal-frame-iii-the-tormented-teodor-max.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-fate-unlimited-codes-mvp899",
+   "url": "https://www.mediafire.com/file/rnxr91a74w8uobh/Fate_Unlimited_Codes.rar/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/fate-unlimited-codes-mvp899.yaml",
+   "confidence": "high",
+   "note": "Creator provided MediaFire link in video pinned comment (latest update).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-final-fantasy-x-2-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1Mqy6UcoLNiLDTQ2cVzMJVuuZP1TPcKCh&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/final-fantasy-x-2-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-final-fantasy-x-international-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1VU5CDcEZG4UHBeNOKSmGK_segZ12I7LS&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/final-fantasy-x-international-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-final-fantasy-xii-international-zodiac-job-system-panda-venom",
+   "url": "https://www.mediafire.com/file/5hh0jfmqqd2ww8x/SLPM-66750_FF12_zodiac_v1.0.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/final-fantasy-xii-international-zodiac-job-system-panda-venom.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-final-fight-streetwise-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1zKv5uQ8WOeKL2AZ-PhNLyiEdh2uW4syC&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/final-fight-streetwise-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-forbidden-siren-2-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1q0v8miB7q8s4uOaKDc0nZxKC1LaaScFp&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/forbidden-siren-2-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-ford-vs-chevy-mvp899",
+   "url": "https://mega.nz/file/ZE4FCRJK#cP-PXCy-jlGFlz9ufTNa_dPtTtihk1Jwqo_vEO944kc",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/ford-vs-chevy-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-forgotten-realms-demon-stone-curse-arms",
+   "url": "https://drive.google.com/file/d/1GAPz4lVYCUzFKs1jNX7rNNovIM7gGAZu/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/forgotten-realms-demon-stone-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-frogger-s-adventures-the-rescue-tylermods",
+   "url": "https://drive.google.com/file/d/1WTbeVN-Io08Vugx-ggJCgbUwXubB2ymi/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/frogger-s-adventures-the-rescue-tylermods.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-futurama-dahu",
+   "url": "https://drive.google.com/file/d/1lu8yxWzOpmBGi2eRFzeQ_ysRS46ujTLT/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/futurama-dahu.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-futurama-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/37wfnjb6kxo8bwb/SLUS-20439.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/futurama-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-20439) for Futurama (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-gauntlet-seven-sorrows-mvp899-2",
+   "url": "https://drive.google.com/file/d/11kcLOjlreYmRybd_xfCG9tcRIlKiHmIh/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/gauntlet-seven-sorrows-mvp899-2.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-gauntlet-seven-sorrows-mvp899",
+   "url": "https://mega.nz/file/yWByGQKQ#YQhbUatQ3fI-1yZpi2DaV01IRH9sXeyNkwh93T2sJpA",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/gauntlet-seven-sorrows-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-ghost-rider-santins",
+   "url": "https://drive.google.com/file/d/1xPBKtOBM-sUKgXR8USZ6ktZPTN_TUE86/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/ghost-rider-santins.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-god-of-war-huekage",
+   "url": "https://www.mediafire.com/file/wv1njjz5dolcql1/PS2_HD_Textures_-_God_of_War_%2528SCUS-97399%2529_%2528NTSC%2529_%2526_%2528SCES-53133%2529_%2528PAL%2529.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/god-of-war-huekage.yaml",
+   "confidence": "high",
+   "note": "Creator's opening post explicitly provides MediaFire download link.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-god-of-war-ii-ewgeha",
+   "url": "https://drive.google.com/file/d/1dSszXoKElzZk7KgWj0eq-rCmDS0O_zVo/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/god-of-war-ii-ewgeha.yaml",
+   "confidence": "high",
+   "note": "Creator (ewgeha) provided Google Drive link in opening post and video description.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-god-of-war-ii-huekage",
+   "url": "https://www.mediafire.com/file/7wp50r66xlu7jnq/PS2_HD_Textures_-_God_of_War_II_%28SCUS-97481%29_%28NTSC%29_%26_%28SCES-54206%29_%28PAL%29.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/god-of-war-ii-huekage.yaml",
+   "confidence": "high",
+   "note": "Creator explicitly labels mediafire link as download in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-god-of-war-ii-mvp899",
+   "url": "https://mega.nz/file/yIVAGZKZ#o3tzyKaqa8N4mwCs3waK4DDR61vwK4WVYgZHYvYjqCQ",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/god-of-war-ii-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-grand-theft-auto-san-andreas-nunyaofc",
+   "url": "https://www.mediafire.com/file/fuxwb25ybvgvcbk/replacements.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/grand-theft-auto-san-andreas-nunyaofc.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-grandia-iii-panda-venom",
+   "url": "https://www.mediafire.com/file/8t2xggwujkvwz1q/GrndIII_HD_v2.0.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/grandia-iii-panda-venom.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-gregory-horror-show-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1eVkyauicmtj4zdTRJOnbFCx8gYn1c43a&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/gregory-horror-show-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-guitar-hero-encore-rocks-the-80s-ops",
+   "url": "https://www.mediafire.com/file/e3hx2dft9fd5ghz/SLUS-21586.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/guitar-hero-encore-rocks-the-80s-ops.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-guitar-hero-lisao10",
+   "url": "https://www.mediafire.com/file/kh5ijb85rn7k4r1/Guitar+Hero+1+HD+Remaster.rar/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/guitar-hero-lisao10.yaml",
+   "confidence": "high",
+   "note": "Creator provided MediaFire download link in followup post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-guitar-hero-sad-origami",
+   "url": "https://docs.google.com/spreadsheets/d/1sif8FeRGJRbytK8wFRXgF6Hke9V6GUFs/",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/guitar-hero-sad-origami.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-guitar-hero-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/4u6blz921h6slsn/SLUS-21224.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/guitar-hero-sombershroud.yaml",
+   "confidence": "high",
+   "note": "Creator listed specific Guitar Hero file (SLUS-21224) in opening post megamix.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-gun-yamijpg",
+   "url": "https://drive.google.com/file/d/1JZHynyiNc9kpNBMYoMdS1HRH2wCr0t6F/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/gun-yamijpg.yaml",
+   "confidence": "high",
+   "note": "Creator stated 'LINK: GOOGLE DRIVE' in opening post; link confirmed in video description.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-harry-potter-and-the-prisoner-of-azkaban-c0rexe",
+   "url": "https://mega.nz/file/chYkEZrJ#42zu1XR5njpKgMvJ3iyHzKPHwvNKOXlH0rOXzRGkEoI",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/harry-potter-and-the-prisoner-of-azkaban-c0rexe.yaml",
+   "confidence": "high",
+   "note": "Creator posted Mega link in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-haunting-ground-juanchotexhd",
+   "url": "https://drive.google.com/file/d/1W4lYofZT-kdAko7uQ_9UE1NA_wGa1U_0/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/haunting-ground-juanchotexhd.yaml",
+   "confidence": "high",
+   "note": "Creator provided Google Drive link in opening post and confirmed in video description.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-headhunter-redemption-teodor-max",
+   "url": "https://drive.google.com/file/d/1L5e1vwURjzwB5LWgmOXbSQU_6-7654gM/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/headhunter-redemption-teodor-max.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-headhunter-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/8g67wye8bxjqa1q/SCES-50500.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/headhunter-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SCES-50500) for Headhunter (EU).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-hulk-gvngnir",
+   "url": "https://drive.google.com/file/d/1w4HS_2lKjxnSFsIwJ1RQgXJbWrfP42yJ/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/hulk-gvngnir.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-hungry-ghosts-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1CvknVvXlwZky70Vy1yQfXnOol5AktZvG&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/hungry-ghosts-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-jade-cocoon-2-curse-arms",
+   "url": "https://drive.google.com/u/0/uc?id=1GC9eeH-tkgR-FBGF2cTzjiWMcFWp86zZ&export=download",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/jade-cocoon-2-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-jak-2-renegade-marcelus",
+   "url": "https://drive.google.com/file/d/1zbCZofBzgUX1hTzvpC4ikZrTLnDsKPcG/view?pli=1",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/jak-2-renegade-marcelus.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-jak-and-daxter-the-lost-frontier-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/4nuuebgqbqzstcb/SCUS-97558.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/jak-and-daxter-the-lost-frontier-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SCUS-97558) for Jak and Daxter: The Lost Frontier (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-kaan-barbarian-s-blade-bnz94",
+   "url": "https://mega.nz/file/OKwDXDKb#9WpVlrE5OZjbYSPVFQ0yCBjUdp5X9xGw3awPKacHbKM",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/kaan-barbarian-s-blade-bnz94.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-killzone-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1AG_TQ9W6AxVtWqBVkLaUVFcfpTijusMH&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/killzone-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-kuon-curse-arms",
+   "url": "https://drive.google.com/file/d/11DV2XuZ43ihJedkH8sbcQc4ybelbnkj5/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/kuon-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-legaia-2-duel-saga-curse-arms",
+   "url": "https://drive.google.com/u/0/uc?id=1gsA57qsnO7EHRayNk8yiWiD3ooruHnZE&export=download",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/legaia-2-duel-saga-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-lego-batman-the-videogame-mzzvxm",
+   "url": "https://drive.google.com/file/d/1Ez-JzJuSiFGI3SlI5uVNh6Fq9j3pTqsv/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/lego-batman-the-videogame-mzzvxm.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-mana-khemia-2-fall-of-alchemy-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1tN95wQ2oqR7F3O6Lax3ExDRHJ8vd5RKB&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/mana-khemia-2-fall-of-alchemy-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-mana-khemia-alchemists-of-al-revis-sombershroud",
+   "url": "https://mega.nz/file/ZrNwyRJT#2f8InukW7GiEDs8yVkAU0v-vaA6PISO9HyeUIerCerM",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/mana-khemia-alchemists-of-al-revis-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this Mega file link for Mana Khemia: Alchemists of Al-Revis (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-manhunt-ironhulk33",
+   "url": "https://www.mediafire.com/file_premium/c0c87ypx98u6eys/Manhunt_PCSX2_HD_Pack.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/manhunt-ironhulk33.yaml",
+   "confidence": "high",
+   "note": "Creator provided MediaFire download link in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-maximo-ghosts-to-glory-marcelus",
+   "url": "https://drive.google.com/file/d/1epEe0dN1ucgU560SAQLYKW05t4g2xX21/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/maximo-ghosts-to-glory-marcelus.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-maximo-ghosts-to-glory-maximocapcom",
+   "url": "https://archive.org/details/maximo-ghosts-to-glory-remastered",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/maximo-ghosts-to-glory-maximocapcom.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-maximo-vs-army-of-zin-santins",
+   "url": "https://drive.google.com/file/d/1YjcCbiGvZAuyMHxlNvAsPKYGfsB_C5TE/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/maximo-vs-army-of-zin-santins.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-metal-arms-glitch-in-the-system-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=15fj3tK9YfVtcB2brZ7k_rnuAC76hoi8O&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/metal-arms-glitch-in-the-system-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-metal-gear-solid-2-sons-of-liberty-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1lMimK9Pb5tu5n9KC-qOCj9PYQtfxhKys&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/metal-gear-solid-2-sons-of-liberty-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-metal-gear-solid-3-subsistence-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1aJZlKwGuofgaQm-IY3JPHTNZc_6NEtWt&export=download",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/metal-gear-solid-3-subsistence-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-metal-slug-5-mvp899",
+   "url": "https://drive.google.com/file/d/1uc3t4HCmnJTUyjBfpeq8jj1R082PsSB2/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/metal-slug-5-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-michigan-report-from-hell-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1R21woDExK_jIZP27ON1VQG-fFEdc-baE&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/michigan-report-from-hell-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-midnight-club-street-racing-mvp899",
+   "url": "https://drive.google.com/file/d/12263q2NKBPq54WgfM1h_le39dZDuflEq/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/midnight-club-street-racing-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-mobile-suit-gundam-gundam-vs-zeta-gundam-raed-555",
+   "url": "https://www.mediafire.com/file/h73qm4iuyw7jrbl/SLUS-20821.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/mobile-suit-gundam-gundam-vs-zeta-gundam-raed-555.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-mobile-suit-gundam-zeonic-front-callofcthuloo",
+   "url": "https://www.mediafire.com/file/6g3f6cer4ick9xk/Mobile_Suit_Gundam_-_Zeonic_Front_%255BSLUS-20233%255D.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/mobile-suit-gundam-zeonic-front-callofcthuloo.yaml",
+   "confidence": "high",
+   "note": "Creator lists PCSX2 download link (4.67 GB) on Mediafire in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-monster-hunter-toolatenate",
+   "url": "https://mega.nz/file/gr4EyQbD#mY_xLx-NpPcZfYkWq285GrGmRRhv4yzCpAUBDQhFvtY",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/monster-hunter-toolatenate.yaml",
+   "confidence": "high",
+   "note": "Creator provided MEGA download links for texture pack versions in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-mortal-kombat-shaolin-monks-mata7777777",
+   "url": "https://www.mediafire.com/file/joq592gm0ams275/MKSM_Matasiete.rar/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/mortal-kombat-shaolin-monks-mata7777777.yaml",
+   "confidence": "high",
+   "note": "Creator posted MediaFire link in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-mortal-kombat-shaolin-monks-thesampaio",
+   "url": "https://www.mediafire.com/file/oydiw7ziobx939q/Mortal_Kombat_Shaolin_Monks_%2528SLUS-21087%2529.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/mortal-kombat-shaolin-monks-thesampaio.yaml",
+   "confidence": "high",
+   "note": "Creator provided MediaFire link in opening post as the main download for the texture pack.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-ms-saga-a-new-dawn-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1la7LcGiPrwdEvF9xFzPkk9X2mSb32kWA&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/ms-saga-a-new-dawn-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-mx-unleashed-mvp899",
+   "url": "https://mega.nz/file/hpVS0YIK#0gZl3AervKCGdMpU951lNLPBZn0hs1bKwObdTG6623s",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/mx-unleashed-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-mx-vs-atv-unleashed-sombershroud",
+   "url": "https://drive.google.com/file/d/1DeIYWIwgynK0kZdwh5MGL49FZI6WW5yi/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/mx-vs-atv-unleashed-sombershroud.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-mx-vs-atv-untamed-mvp899",
+   "url": "https://drive.google.com/file/d/1VDdwsE-QgCDumhEfevnKVhgW2lqMMcNZ/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/mx-vs-atv-untamed-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-naruto-shippuden-ultimate-ninja-4-sal9im",
+   "url": "https://drive.google.com/file/d/1x4WRyr2jtcqnzKYIAuTub6MEES_DQf6w/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/naruto-shippuden-ultimate-ninja-4-sal9im.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-naruto-uzumaki-chronicles-2-sal9im",
+   "url": "https://drive.google.com/file/d/1k13gL1V1Nl0sez5tiwSTfetTg-bhrTWn/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/naruto-uzumaki-chronicles-2-sal9im.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-nascar-09-mvp899",
+   "url": "https://mega.nz/file/uehkyKCb#69gD59JxA3KNiXhiVGy6uhS6bT1QlbDgpXgMIJ46ptc",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/nascar-09-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-obscure-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1bPTqfBNBBdGmFQ_PZKAeuvLEnMsYkSYX&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/obscure-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-okami-panda-venom",
+   "url": "https://www.mediafire.com/file/1j2rcncza6ihiri/SLUS-21115_Okami_v0.5_Beta.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/okami-panda-venom.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-onimusha-3-demon-siege-teodor-max",
+   "url": "https://drive.google.com/file/d/14aS7WGa1acl9d_gutak-9BWLa7yS09_u/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/onimusha-3-demon-siege-teodor-max.yaml",
+   "confidence": "high",
+   "note": "Creator provided Google Drive link first in opening post's Download section.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-pac-man-world-3-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/16nxl332eye3f1h/SLES-53959.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/pac-man-world-3-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLES-53959) for Pac-Man World 3 (EU).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-pac-man-world-rally-mvp899",
+   "url": "https://mega.nz/file/HPRiwJIb#JcBh51Q_6uk5-mIHqucn77FC4L_jDGo7Ja4ggpDsZjg",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/pac-man-world-rally-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-phantasy-star-universe-ambition-of-the-illuminus-panda-venom",
+   "url": "https://www.mediafire.com/file/joknnsxiucvk4cy/SLUS-21631.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/phantasy-star-universe-ambition-of-the-illuminus-panda-venom.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-police-24-7-mvp899",
+   "url": "https://mega.nz/file/TLBGVbSB#L0cipsZ9woD2nxa8WDaj3fxiZVvBlWJh8zjUAendNgA",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/police-24-7-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-power-rangers-super-legends-yamijpg",
+   "url": "https://drive.google.com/file/d/1ZFdJm1u69us0mxntOsrfnq7dELK7ZRE-/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/power-rangers-super-legends-yamijpg.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-prisoner-of-war-pliskindev",
+   "url": "https://www.mediafire.com/file/0c9h7jx67ax4oa6/SLES-50397.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/prisoner-of-war-pliskindev.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-pro-evolution-soccer-2014-mvp899",
+   "url": "https://www.mediafire.com/file/3erh23oq001cw4x/Pro_Evolution_Soccer_2014.rar/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/pro-evolution-soccer-2014-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-project-zero-2-crimson-butterfly-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=19yAW9RWNr5AeJDgel_aCxsA8jEYSBwTe&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/project-zero-2-crimson-butterfly-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-raiden-iii-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=10eW4XwCeVegm4MI6J0G-D5hdGyHJtfGF&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/raiden-iii-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-ratchet-and-clank-up-your-arsenal-theblazingdiamond",
+   "url": "https://drive.google.com/file/d/1OJ2rD21wYS0lPcmeFck5DUgznQZBUhFn/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/ratchet-and-clank-up-your-arsenal-theblazingdiamond.yaml",
+   "confidence": "high",
+   "note": "Creator linked in opening post and confirmed in YouTube video description.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-ratchet-clank-trippypit",
+   "url": "https://drive.google.com/file/d/1ambWzexqMfe3f8BT9LiS0Z4ENC_3E2A1/view?usp=drive_link",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/ratchet-clank-trippypit.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-ratchet-clank-up-your-arsenal-reddyxd",
+   "url": "https://drive.google.com/file/d/1aDn5n3-NxsnzVvfSBwh-y0KTz21ksiI-/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/ratchet-clank-up-your-arsenal-reddyxd.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-red-faction-ii-mvp899",
+   "url": "https://mega.nz/file/U80GyILQ#Vag_AtrLgIUQOTT2979MPsPV5n5kPWoEXhxNT9IFp1g",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/red-faction-ii-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-red-faction-ii-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/12rgic4i7brhl3i/SLUS-20442.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/red-faction-ii-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-20442) for Red Faction II (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-resident-evil-code-veronica-x-juanchotexhd",
+   "url": "https://drive.google.com/file/d/17J87t5Yjg1nB1IDgGWfIvJlORUUfBGao/view?usp=share_link",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/resident-evil-code-veronica-x-juanchotexhd.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-resident-evil-code-veronica-x-s1nk0",
+   "url": "https://www.mediafire.com/file/b3pbge6fqjym3cy/RE_CVX_UPSCALED_DEC1822_PCSX2.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/resident-evil-code-veronica-x-s1nk0.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-resident-evil-dead-aim-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1Kk4PFkHsN8H9lGLF02sroAQZ1TsCp7vE&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/resident-evil-dead-aim-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-rogue-trooper-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=10TTCQEWPlNFM7yDcFZVz_lO5yuUt6E7p&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/rogue-trooper-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-room-zoom-race-for-impact-mehrdad-jamshidiha",
+   "url": "https://drive.google.com/file/d/1DJZw2qAtcfx1-MiOKhlcrCxec5BAXaoq/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/room-zoom-race-for-impact-mehrdad-jamshidiha.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-rule-of-rose-curse-arms",
+   "url": "https://drive.google.com/u/0/uc?id=1fjzrX59VRiZwAwkT-4tpxEOAoLWUWXcE&export=download",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/rule-of-rose-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-rule-of-rose-sombertwilight",
+   "url": "https://www.mediafire.com/file/d2wcw3y2maan5m1/SLUS-21448.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/rule-of-rose-sombertwilight.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-rumble-roses-asc53087",
+   "url": "https://www.mediafire.com/file/vmtz18ezvrlh35w/replacements.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/rumble-roses-asc53087.yaml",
+   "confidence": "high",
+   "note": "Creator provided MediaFire link as primary download in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-rygar-the-legendary-adventure-curse-arms",
+   "url": "https://drive.google.com/u/0/uc?id=1v87mK0VqoYb5tgI4Iz1Sk-ThpexpDOM-&export=download",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/rygar-the-legendary-adventure-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-sakura-wars-so-long-my-love-panda-venom",
+   "url": "https://www.mediafire.com/file_premium/xktx4qfqgl36q5f/SLUS-21930_so_long_my_love.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/sakura-wars-so-long-my-love-panda-venom.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-samurai-western-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1GaqgbdZEbPh6uDbnuQYC85cwCYvEqj1y&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/samurai-western-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-scaler-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/p2gfm7ga54j9j31/SLUS-20957.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/scaler-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-20957) for Scaler (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-scarface-the-world-is-yours-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1qqhBKRLskT-3ySJ4QCUeJWFE9e_0MHVe&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/scarface-the-world-is-yours-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-scooby-doo-mystery-mayhem-trippypit",
+   "url": "https://www.mediafire.com/file/elmpv2rq8f91esd/replacements.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/scooby-doo-mystery-mayhem-trippypit.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-scooby-doo-night-of-100-frights-nordbo",
+   "url": "https://drive.google.com/file/d/1mhmHa5YXvPRgur467S8x8XQA6Jjfh305/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/scooby-doo-night-of-100-frights-nordbo.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-second-sight-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1xXI5PAYxZM18lFsfGeNObXr8S3ASQa5S&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/second-sight-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-secret-weapons-over-normandy-mvp899",
+   "url": "https://mega.nz/file/vTQUyLbD#be78iQO7Q8YrBMA_qQ1hc2leCSUM2zBB-BNl6QCfkuU",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/secret-weapons-over-normandy-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-seek-and-destroy-tylermods",
+   "url": "https://www.mediafire.com/file/0yuor2itidk1cna/SLUS-20606.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/seek-and-destroy-tylermods.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-sengoku-basara-2-heroes-i-emu-play",
+   "url": "https://mega.nz/file/lPRmTQaA#XB6DlwyGZD0Ym9QEtLCFTODF-aNE79SNs2-IZ0Pnl2U",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/sengoku-basara-2-heroes-i-emu-play.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-serious-sam-next-encounter-sombershroud",
+   "url": "https://www.mediafire.com/file/obts7lo5lublmim/SLUS-20907.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/serious-sam-next-encounter-sombershroud.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-shadow-hearts-covenant-curse-arms",
+   "url": "https://drive.google.com/u/0/uc?id=11M6bDg1hopDkhpL9AsIb0R-8YV82ysiP&export=download",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/shadow-hearts-covenant-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-shadow-of-destiny-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/wj4ys283a2wyhdm/SLUS-20146.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/shadow-of-destiny-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-20146) for Shadow of Destiny (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-shadow-of-rome-trippypit",
+   "url": "https://www.mediafire.com/file/0m6n8z1uxmieu3a/replacements.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/shadow-of-rome-trippypit.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-shadow-of-the-colossus-c0meg3ts0me",
+   "url": "https://mega.nz/file/HUFT1Bqa#-vei3Ho3pX9gz6r9wSR7PQWeejdK8lEP4ln61Ps92zw",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/shadow-of-the-colossus-c0meg3ts0me.yaml",
+   "confidence": "high",
+   "note": "Creator posted Mega link for PC version in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-shadow-of-the-colossus-curse-arms",
+   "url": "https://drive.google.com/u/0/uc?id=1G_FlX3Wi721zDuEZq5kQtZMnmCTqiQh1&export=download",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/shadow-of-the-colossus-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-shadow-of-the-colossus-sad-origami",
+   "url": "https://docs.google.com/spreadsheets/d/1sif8FeRGJRbytK8wFRXgF6Hke9V6GUFs/",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/shadow-of-the-colossus-sad-origami.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-shrek-super-party-ironhulk33",
+   "url": "https://www.mediafire.com/file_premium/2ym3wu4fedipeho/Shrek_Super_Party.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/shrek-super-party-ironhulk33.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-silent-hill-3-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1l3QAcvaZRWdZ1dn43NRTxE4_txSA_Ip5&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/silent-hill-3-curse-arms.yaml",
+   "confidence": "high",
+   "note": "The uploader's video description for Silent Hill 3 labels this link 'Silent Hill 3 HD Textures by Me' (the other link there is a cover image).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-silent-line-armored-core-ninebreaker",
+   "url": "https://drive.google.com/file/d/1nXWP41njunYYw3dXaTgyJuHZmVJQrzdl/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/silent-line-armored-core-ninebreaker.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-silent-scope-embi",
+   "url": "https://drive.google.com/file/d/1VFXjwAUYmEl8d-zbkBogkFi863-BYPK7/view?usp=share_link",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/silent-scope-embi.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-sly-2-band-of-thieves-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=14kPdGpH2zA6PJ5yeMuUcU2aIFGE9wZ52&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/sly-2-band-of-thieves-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link in the uploader's video description; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-sly-3-honor-among-thieves-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/74afjmd4npvxs1t/SCUS-97464.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/sly-3-honor-among-thieves-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SCUS-97464) for Sly 3: Honor Among Thieves (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-sly-cooper-and-the-thievius-raccoonus-santins",
+   "url": "https://drive.google.com/file/d/1xeOCNvujREvFQQs7lydTKHWeC531iE3L/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/sly-cooper-and-the-thievius-raccoonus-santins.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-spartan-total-warrior-alufolie69",
+   "url": "https://dropbox.com/scl/fi/hbgjgd3t2uns15gw5e7i6/SLES-53393.rar?rlkey=w0sdqzcn94j17kofd72ynn36o&dl=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/spartan-total-warrior-alufolie69.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-spawn-armageddon-mvp899",
+   "url": "https://mega.nz/file/fKISiLCY#rGtbHQQz21bu5yij8llQ8BNWATZpWe8OfL-_HDVuuGA",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/spawn-armageddon-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-splashdown-rides-gone-wild-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/h08pjvmu1uvwqnp/SLUS-20686.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/splashdown-rides-gone-wild-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-20686) for Splashdown: Rides Gone Wild (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-spyro-enter-the-dragonfly-ahmed-d-77",
+   "url": "https://www.mediafire.com/file/0ph2lnjku2jqctm/SLUS-20315.rar/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/spyro-enter-the-dragonfly-ahmed-d-77.yaml",
+   "confidence": "high",
+   "note": "Creator's opening post labels this as direct download for 6.29 GB texture pack.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-ssx-3-whitelightning76",
+   "url": "https://drive.google.com/file/d/11SmRcMvqJK24rC0Dey4bSuNArAjcVoDk/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/ssx-3-whitelightning76.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-star-wars-battlefront-ii-mvp899",
+   "url": "https://mega.nz/file/PPwwhJIa#QoiFmuv7-sTxZa9hZykGNYCtcelJ_ZA2_kpsZG0JEmA",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/star-wars-battlefront-ii-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-star-wars-bounty-hunter-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1rJxhQIS1DduZBmbAu-nsDVxoIktQR_NC&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/star-wars-bounty-hunter-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-star-wars-jedi-starfighter-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/oha7r5jmydkac6e/SLUS-20293.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/star-wars-jedi-starfighter-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-20293) for Star Wars: Jedi Starfighter (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-stuart-little-3-big-photo-adventure-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/nk5g33jy4fd9omp/SLUS-21341.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/stuart-little-3-big-photo-adventure-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-21341) for Stuart Little 3: Big Photo Adventure (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-summoner-mvp899",
+   "url": "https://drive.google.com/file/d/1rp5vB6aHMwp8UpNprx3TSkhAv-Ws2RcH/view?usp=drive_link",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/summoner-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-taito-legends-2-sombershroud",
+   "url": "https://www.mediafire.com/file/srrad3zmzouzq1m/SLUS-21349.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/taito-legends-2-sombershroud.yaml",
+   "confidence": "high",
+   "note": "Creator provided mediafire download link for SLUS-21349 (Taito Legends 2) in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-tenchu-fatal-shadows-sombertwilight-2",
+   "url": "https://mega.nz/file/IC8SyJ6J#h5QE3kvIcLtRGJnPYvxSeoeVNEO5vFavbJy-Wydcf5o",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/tenchu-fatal-shadows-sombertwilight-2.yaml",
+   "confidence": "high",
+   "note": "The opening post's DOWNLOAD HERE block has a Mega link whose anchor text is FATAL SHADOWS.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-tenchu-fatal-shadows-sombertwilight",
+   "url": "https://mega.nz/file/VDtVHRLI#-rrnuOf3RiGlp_xDt2g1cEWQu3x0B1zJ-Gi3nZQVF6w",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/tenchu-fatal-shadows-sombertwilight.yaml",
+   "confidence": "high",
+   "note": "Creator's video description explicitly labels MEGA link as main download pack.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight-2",
+   "url": "https://www.mediafire.com/file/l3irashc4trv742/SLUS-20397.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/tenchu-wrath-of-heaven-sombertwilight-2.yaml",
+   "confidence": "high",
+   "note": "Creator's opening post explicitly labels V1.7 as primary download for texture pack.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-tenchu-wrath-of-heaven-sombertwilight",
+   "url": "https://mega.nz/file/UeE2lZ5Q#8cfwYSVugF-uKpDymen0ZWA4qE_F9tPmUxvugz1_ZmU",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/tenchu-wrath-of-heaven-sombertwilight.yaml",
+   "confidence": "high",
+   "note": "The opening post's DOWNLOAD HERE block has a Mega link whose anchor text is Wrath of Heaven.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-bouncer-teodor-max",
+   "url": "https://drive.google.com/file/d/1DXdJDZwRKXvitLPpbha-KGA22Bbgw3pF/view?usp=drive_link",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-bouncer-teodor-max.yaml",
+   "confidence": "high",
+   "note": "Creator marked as Download Link in opening post; Google Drive is primary.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-getaway-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/btgjg54zl6x3fv1/SCUS-97133.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-getaway-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SCUS-97133) for The Getaway (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-godfather-the-game-mvp899",
+   "url": "https://drive.google.com/file/d/15oN8o6vrqPYSfTWEkJpUz68V_9ZtLCGC/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-godfather-the-game-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-great-escape-pliskindev",
+   "url": "https://www.mediafire.com/file/lirgz0kr42mm6cr/The_Great_Escape.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-great-escape-pliskindev.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-lord-of-the-rings-the-return-of-the-king-maximocapcom",
+   "url": "https://archive.org/details/the-lords-of-the-rings-texture-pack",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-lord-of-the-rings-the-return-of-the-king-maximocapcom.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-lord-of-the-rings-the-two-towers-maximocapcom",
+   "url": "https://archive.org/details/lord-of-the-rings-the-two-towers-remastered-icons-and-characters",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-lord-of-the-rings-the-two-towers-maximocapcom.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-mark-of-kri-darthdarklord",
+   "url": "https://archive.org/details/replacements.7z",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-mark-of-kri-darthdarklord.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-red-star-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1gnwqqIi5sYTQ1Utyb4NJSu3SDiO9Njsr&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-red-star-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-simpsons-game-sombershroud",
+   "url": "https://www.mediafire.com/file_premium/l3j7zmt7412syo4/SLUS-21665.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-simpsons-game-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-21665) for The Simpsons Game (US).",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-sword-of-etheria-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=16x-lF6lEdf0-po6h3UxTPQmps8MCe7IQ&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-sword-of-etheria-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-thing-darthdarklord",
+   "url": "https://archive.org/details/replacements.7z_20231021",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-thing-darthdarklord.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-the-x-files-resist-or-serve-teodor-max",
+   "url": "https://drive.google.com/file/d/1p_DZzEoxKFW9zRvAB6jO3YalT8dJ9bVZ/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/the-x-files-resist-or-serve-teodor-max.yaml",
+   "confidence": "high",
+   "note": "Creator provided Google Drive link labeled Download Link in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-tom-clancy-s-splinter-cell-chaos-theory-curse-arms",
+   "url": "https://drive.google.com/file/d/1Udmi3x-C0Fiir_e5cDj0j-ynJfXNaX-X/view?usp=share_link",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/tom-clancy-s-splinter-cell-chaos-theory-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-tony-hawk-s-pro-skater-3-beto818",
+   "url": "https://www.mediafire.com/file/amo0wboyz1ag0pv/Tony_Hawks_Pro_Skater_3.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/tony-hawk-s-pro-skater-3-beto818.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-tony-hawk-s-pro-skater-3-headfonehead",
+   "url": "https://drive.google.com/file/d/1RmN7erLbTJtjKMTwCe-i1vZNHza5t8ik/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/tony-hawk-s-pro-skater-3-headfonehead.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-tony-hawk-s-pro-skater-4-beto818",
+   "url": "https://www.mediafire.com/file/gjo009x5lqlntac/Tony_Hawks_Pro_Skater_4.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/tony-hawk-s-pro-skater-4-beto818.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-transworld-surf-beto818",
+   "url": "https://www.mediafire.com/file/8mxi0d9pht4oub0/Transworld_Surf.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/transworld-surf-beto818.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-trapt-mvp899",
+   "url": "https://mega.nz/file/ARwH0agY#e_izJeSSAcOJz6IzOgvFzuojQM53BDyD3ztw_tAqKX0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/trapt-mvp899.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video pinned comment; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-tsugunai-atonement-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1TRufbnbKP4-jQRmIX03oDCFMtaN457DL&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/tsugunai-atonement-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-urban-reign-sombershroud",
+   "url": "https://www.mediafire.com/file/q045y4vfjj696tp/SLUS-21209.zip/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/urban-reign-sombershroud.yaml",
+   "confidence": "high",
+   "note": "The creator's opening-post list gives this MediaFire zip (SLUS-21209) for Urban Reign, marked (US?) by the creator.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-valkyrie-profile-2-silmeria-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1D9TOM4mEPld4FGlp2mUcY2igJ4iYip1v&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/valkyrie-profile-2-silmeria-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-virtua-fighter-4-evolution-fraudio",
+   "url": "https://mega.nz/file/n4xHXDxY#G6YMjSJlDa5gy9ip_SCHJSobgQkpobgqcJBWulc1etQ",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/virtua-fighter-4-evolution-fraudio.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-war-of-the-monsters-ironhulk33",
+   "url": "https://www.mediafire.com/file_premium/73xmec7sd51n4i3/War_of_the_Monsters_HD_Pack.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/war-of-the-monsters-ironhulk33.yaml",
+   "confidence": "high",
+   "note": "Creator's opening post provides MediaFire download link for texture pack.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-warhammer-40-000-fire-warrior-curse-arms",
+   "url": "https://drive.usercontent.google.com/download?id=1qXfIGsevhYDD1LJqPE_UXhbEDFdred2s&export=download&authuser=0",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/warhammer-40-000-fire-warrior-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-warriors-orochi-sombertwilight",
+   "url": "https://www.mediafire.com/file/blhrqmstsm7zznz/SLUS-21662.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/warriors-orochi-sombertwilight.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in video description; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-wild-arms-3-curse-arms",
+   "url": "https://drive.google.com/file/d/15GY9HMUE8eUbwG0Vol_ypjgECILEZAO-/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/wild-arms-3-curse-arms.yaml",
+   "confidence": "medium",
+   "note": "the only file link from the uploader of the video titled for this game; not yet confirmed to be the pack",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-wwe-smackdown-here-comes-the-pain-llp998",
+   "url": "https://drive.google.com/file/d/1_eHocyq_GwlfJeoUqXSoAoUlm5ClZ1ab/view?usp=sharing",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/wwe-smackdown-here-comes-the-pain-llp998.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-wwe-smackdown-here-comes-the-pain-moataz",
+   "url": "https://www.mediafire.com/file/ge2ody92sajn0d3/WWE_SmackDown%2521_Here_Comes_the_Pain_HD_2.1.7z/file",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/wwe-smackdown-here-comes-the-pain-moataz.yaml",
+   "confidence": "high",
+   "note": "Creator provides direct MediaFire download link in opening post.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-wwe-smackdown-vs-raw-emulationlovers",
+   "url": "https://drive.google.com/file/d/14dLlinaNIZHUHaO4zjqi19e3Za35XUQZ/view",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/wwe-smackdown-vs-raw-emulationlovers.yaml",
+   "confidence": "high",
+   "note": "Creator posted Google Drive link in follow-up post after re-uploading.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-x-men-the-official-game-gvngnir",
+   "url": "https://mega.nz/file/fUB1SQCS#3LfPtrhH_SQm6r9kiJgwBheCnAMw6AhYR7kNZRjX2n8",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/x-men-the-official-game-gvngnir.yaml",
+   "confidence": "medium",
+   "note": "the only file-host link in op; not yet confirmed to be the pack itself",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  },
+  {
+   "id": "ps2-ktx-xenosaga-episode-ii-jenseits-von-gut-und-bose-panda-venom",
+   "url": "https://mega.nz/file/fNQl1BTa#Mrm01hjb_yvdMzvoG4IhSK9BuiAj6NSi00tBHgPCUrg",
+   "origin": "ps2ktxpak/catalog",
+   "origin_commit": "807733e50aceb10ded2fa95620c2180efce8585a",
+   "origin_path": "data/packs/xenosaga-episode-ii-jenseits-von-gut-und-bose-panda-venom.yaml",
+   "confidence": "high",
+   "note": "Creator provided MEGA link labeled as updated Episode II download.",
+   "status": "candidate-only-awaiting-content-and-region-verification"
+  }
+ ]
+}

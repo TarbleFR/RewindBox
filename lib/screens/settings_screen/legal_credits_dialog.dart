@@ -9,6 +9,13 @@ class LegalCreditsDialog {
 
   static const List<_LegalEntry> _entries = [
     _LegalEntry(
+      'Interactive iOS 26 Inspired Tab Menu',
+      'Mau Ali; original dotLottie and adapted navigation motion',
+      'Lottie Simple License FL 9.13.21',
+      'https://lottiefiles.com/free-animation/free-interactive-ios-26-inspired-tab-menu-uTAhrmTC08',
+      'assets/legal/Lottie-Simple-License.txt',
+    ),
+    _LegalEntry(
       'NeoStation',
       'Miguel Soto / misobadev, androosio, ItsRetroPup and contributors',
       'GPL-3.0-or-later',
@@ -44,18 +51,18 @@ class LegalCreditsDialog {
       'assets/legal/ARMSX2-GPL-3.0.txt',
     ),
     _LegalEntry(
-      'Dusklight',
-      'TwilitRealm, TP decompilation, Aurora and Borealis contributors',
-      'CC0-1.0 root project; dependencies keep their own licenses',
-      'https://github.com/TwilitRealm/dusklight',
-      'assets/legal/Dusklight-CC0-1.0.txt',
+      'MeloNX / Ryujinx / LibHac',
+      'MeloNX, Ryujinx, LibHac and Melo-Controller contributors',
+      'Upstream MIT notice and GPLv3 README declaration preserved; component licenses apply',
+      'https://starforgejo.dev/projects/MeloNX',
+      'assets/legal/melonx/MeloNX-Ryujinx-LICENSE.txt',
     ),
     _LegalEntry(
-      'KartPad / WiiCompiled',
-      'chrissotraidis; WiiCompiled by patchzyy',
-      'GPL-3.0-only software where stated; game-derived rights are separate',
-      'https://github.com/chrissotraidis/kartpad',
-      'assets/legal/KartPad-RIGHTS_AND_LICENSES.md',
+      'Melo-Controller',
+      'stossy11 and contributors; original controls and editor',
+      'Original license retained',
+      'https://github.com/stossy11/Melo-Controller',
+      'assets/legal/melonx/Melo-Controller-LICENSE.txt',
     ),
     _LegalEntry(
       'StikJIT',
@@ -72,6 +79,13 @@ class LegalCreditsDialog {
       'assets/legal/GameDB-PS3-GPL-3.0.txt',
     ),
     _LegalEntry(
+      'NeoAssets System Art catalogue',
+      'NeoAssets and credited community pack creators (20 published packs inventoried)',
+      'On-demand third-party artwork; individual creator rights and restrictions apply',
+      'https://neoassets.dev/app/sap',
+      'assets/legal/THIRD_PARTY_NOTICES.md',
+    ),
+    _LegalEntry(
       'NeoStation Assets',
       'NeoStation asset contributors; runtime-downloaded System Art catalog',
       'CC BY-NC-SA 4.0 for original creative assets; trademarks remain separate',
@@ -84,6 +98,13 @@ class LegalCreditsDialog {
       'External on-demand artwork; no standalone RiiSU license was published when integrated',
       'https://github.com/mult1v4c/RiiSU',
       'assets/legal/RiiSU-ATTRIBUTION.md',
+    ),
+    _LegalEntry(
+      'Canvas (ES-DE) System Art',
+      'Canvas-Capsule custom edition by zenandiko; original Canvas theme by Siddy212',
+      'External on-demand artwork; upstream terms: personal, non-commercial use',
+      'https://github.com/zenandiko/canvas-es-de',
+      'assets/legal/Canvas-ES-DE-ATTRIBUTION.md',
     ),
     _LegalEntry(
       'Once Upon a Time (loop)',
@@ -120,12 +141,6 @@ class LegalCreditsDialog {
       'GPL-3.0-or-later',
       'https://github.com/azahar-emu/azahar',
       'assets/legal/libretro/azahar-LICENSE.txt',
-    ),
-    _LegalEntry(
-      'MeloNX',
-      'MeloNX contributors; based on Ryujinx/Ryubing as credited upstream',
-      'External integration; upstream notices apply',
-      'https://github.com/nurtrino/MeloNX',
     ),
   ];
 
@@ -247,10 +262,8 @@ class LegalCreditsDialog {
             child: SingleChildScrollView(
               child: SelectableText(
                 contents,
-                style: Theme.of(documentContext).textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                      height: 1.35,
-                    ),
+                style: Theme.of(documentContext).textTheme.bodySmall
+                    ?.copyWith(fontFamily: 'monospace', height: 1.35),
               ),
             ),
           ),

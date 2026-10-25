@@ -1,0 +1,40 @@
+name: RPCS3 CELL writer lock measurement
+'on':
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/rpcs3-writer521-probe.yml
+      - test/rpcs3_writer521_probe.py
+      - test/native/rpcs3_writer521_*
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  writer:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-writer521-probe]')
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Materialize exact existing Core; measure diagnostic placement without changing it
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$RUNNER_TEMP/rpcs3-writer521-probe-source"
+          git init -q "$SOURCE"
+          git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
+          git -C "$SOURCE" fetch --depth 1 origin 22f1152783cef1f7e04af7b1c895173e28fd5b03
+          git -C "$SOURCE" checkout -q --detach FETCH_HEAD
+          python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
+          python3 test/rpcs3_writer521_probe.py "$SOURCE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3-cell521-probe-${{ github.sha }}
+          path: build/rpcs3-writer521-probe/
+          if-no-files-found: error

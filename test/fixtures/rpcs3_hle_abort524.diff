@@ -1,0 +1,14 @@
+--- a/rpcs3/Emu/savestate_utils.cpp
++++ b/rpcs3/Emu/savestate_utils.cpp
+@@ -775,6 +775,11 @@
+ 	{
+ 		// Failed
+ 		ensure(lock_val.compare_and_swap_test(waiting_for_evaluation, 0));
++#ifdef RPCS3_IOS
++		// REWINDBOX_SAVESTATE_ABORT_WAKE_V1: cancelled evaluation reopens
++		// HLE admission; threads already parked on -1 need a notification.
++		lock_val.notify_all();
++#endif
+ 		return false;
+ 	}
+ 

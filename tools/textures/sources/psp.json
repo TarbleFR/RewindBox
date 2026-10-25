@@ -1,0 +1,5157 @@
+[
+ {
+  "id": "psp-manhunt2-santiago046",
+  "title": "PPSSPP - Manhunt 2 Texture Pack",
+  "version": "v3.0.1",
+  "games": [
+   {
+    "title": "Manhunt 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10280"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Manhunt 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00756"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "santiago046"
+  ],
+  "page_url": "https://github.com/santiago046/ppsspp-mh2-texture-pack/releases",
+  "source_id": "github:santiago046/ppsspp-mh2-texture-pack",
+  "licence": {
+   "summary": "Due to obvious reasons, this repository cannot be licensed. I am not the owner of the textures, which belong to Rockstar Games. Re-uploading is prohibited, as there is no quality control over it.\" Sharing modifications allowed only as changed/added files with instructions.",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: \"Your PPSSPP version is 1.15.0 or higher\"; \"You have run the game at least once\". KTX2 textures need PPSSPP 1.15 or later (the embedded core is newer). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "manhunt2-texture-pack-v3.0.1.zip",
+   "parts": [
+    {
+     "url": "https://github.com/santiago046/ppsspp-mh2-texture-pack/releases/download/v3.0.1/manhunt2-texture-pack-v3.0.1.zip"
+    }
+   ]
+  },
+  "notes": "Textures ported from the PS2/PC versions (README). Link to the official release; do not re-host.",
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-peggle-hd-ps",
+  "title": "Peggle HD (PlayStation buttons)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Peggle",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPUG30040"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "sinceohsix (commit author 'eli')"
+  ],
+  "page_url": "https://github.com/sinceohsix/PeggleHD/releases",
+  "source_id": "github:sinceohsix/PeggleHD",
+  "licence": {
+   "summary": "No licence stated by the author: README footer: \"Peggle is a trademark of Electronic Arts. All rights reserved. This project is not endorsed or affiliated with Electronic Arts in any way",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "None stated; README gives an iOS path ('On My iPhone/iPad > PPSSPP > PSP > TEXTURES'). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "NPUG30040-PS.zip",
+   "parts": [
+    {
+     "url": "https://github.com/sinceohsix/PeggleHD/releases/download/0.2/NPUG30040-PS.zip"
+    }
+   ]
+  },
+  "notes": "Textures dumped from the PS3 version of Peggle (README/info.md).",
+  "install": {
+   "folders": [
+    {
+     "from": "NPUG30040/",
+     "to": "NPUG30040"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-peggle-hd-xbox",
+  "title": "Peggle HD (Xbox buttons)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Peggle",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPUG30040"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "sinceohsix (commit author 'eli')"
+  ],
+  "page_url": "https://github.com/sinceohsix/PeggleHD/releases",
+  "source_id": "github:sinceohsix/PeggleHD",
+  "licence": {
+   "summary": "No licence stated by the author: README footer: \"Peggle is a trademark of Electronic Arts. All rights reserved. This project is not endorsed or affiliated with Electronic Arts in any way",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "None stated; README gives an iOS path ('On My iPhone/iPad > PPSSPP > PSP > TEXTURES'). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "NPUG30040-XBOX.zip",
+   "parts": [
+    {
+     "url": "https://github.com/sinceohsix/PeggleHD/releases/download/0.2/NPUG30040-XBOX.zip"
+    }
+   ]
+  },
+  "notes": "Textures dumped from the PS3 version of Peggle (README/info.md).",
+  "install": {
+   "folders": [
+    {
+     "from": "NPUG30040/",
+     "to": "NPUG30040"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-peggle-hd-ns",
+  "title": "Peggle HD (Nintendo Switch buttons)",
+  "version": "0.2",
+  "games": [
+   {
+    "title": "Peggle",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPUG30040"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "sinceohsix (commit author 'eli')"
+  ],
+  "page_url": "https://github.com/sinceohsix/PeggleHD/releases",
+  "source_id": "github:sinceohsix/PeggleHD",
+  "licence": {
+   "summary": "No licence stated by the author: README footer: \"Peggle is a trademark of Electronic Arts. All rights reserved. This project is not endorsed or affiliated with Electronic Arts in any way",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "None stated; README gives an iOS path ('On My iPhone/iPad > PPSSPP > PSP > TEXTURES'). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "NPUG30040-NS.zip",
+   "parts": [
+    {
+     "url": "https://github.com/sinceohsix/PeggleHD/releases/download/0.2/NPUG30040-NS.zip"
+    }
+   ]
+  },
+  "notes": "Textures dumped from the PS3 version of Peggle (README/info.md).",
+  "install": {
+   "folders": [
+    {
+     "from": "NPUG30040/",
+     "to": "NPUG30040"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-lego-star-wars-2-santiago046",
+  "title": "PPSSPP - LEGO Star Wars II Texture Pack",
+  "version": "v0.9.0",
+  "games": [
+   {
+    "title": "LEGO Star Wars II: The Original Trilogy",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10155"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "santiago046"
+  ],
+  "page_url": "https://github.com/santiago046/ppsspp-lsw2-texture-pack/releases",
+  "source_id": "github:santiago046/ppsspp-lsw2-texture-pack",
+  "licence": {
+   "summary": "This repository itself does not contain any game textures or original game files. However, the texture pack available in the Releases section includes textures originally created by LucasArts and TT Games Publishing... This is a non-commercial fan-made enhancement. All rights to the original assets ",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "\"the latest version of PPSSPP\"; KTX2 needs PPSSPP >= 1.15 KTX2 textures need PPSSPP 1.15 or later (the embedded core is newer). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ppsspp-lsw2-texpack-v0.9.0.zip",
+   "parts": [
+    {
+     "url": "https://github.com/santiago046/ppsspp-lsw2-texture-pack/releases/download/v0.9.0/ppsspp-lsw2-texpack-v0.9.0.zip"
+    }
+   ]
+  },
+  "notes": "Textures extracted from the PC version (README).",
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "ULUS10155"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-lcs-weapon-icons-original",
+  "title": "GTA Liberty City Stories HD weapon icons (original)",
+  "version": "v1.1.0",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00151"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00182"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULKS46157"
+     }
+    ],
+    "regions": [
+     "Korea"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05255"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05885"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10041"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "santiago046"
+  ],
+  "page_url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/tag/v1.1.0",
+  "source_id": "github:santiago046/ppsspp-gta-stories-weapon-icons-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "notes": "Weapon icons only (64x64 to 128x128). A game has one texture pack folder: this pack replaces any other pack of the game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "lcs-xxh64-original.zip",
+   "parts": [
+    {
+     "url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/download/v1.1.0/lcs-xxh64-original.zip",
+     "size": 270390,
+     "sha256": "9fa5a46005eebf00be95b225ebf5ed1fd5918bf8a319ed9cdebaa0a3ce156322"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-lcs-weapon-icons-blue",
+  "title": "GTA Liberty City Stories HD weapon icons (blue)",
+  "version": "v1.1.0",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00151"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00182"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULKS46157"
+     }
+    ],
+    "regions": [
+     "Korea"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05255"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05885"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10041"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "santiago046"
+  ],
+  "page_url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/tag/v1.1.0",
+  "source_id": "github:santiago046/ppsspp-gta-stories-weapon-icons-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "notes": "Weapon icons only (64x64 to 128x128). A game has one texture pack folder: this pack replaces any other pack of the game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "lcs-xxh64-blue.zip",
+   "parts": [
+    {
+     "url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/download/v1.1.0/lcs-xxh64-blue.zip",
+     "size": 269868,
+     "sha256": "6125a4db5230439d2fed9cc4a6427bbacce528820085ad72c10597b6e826684a"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-lcs-weapon-icons-orange",
+  "title": "GTA Liberty City Stories HD weapon icons (orange)",
+  "version": "v1.1.0",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00151"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00182"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULKS46157"
+     }
+    ],
+    "regions": [
+     "Korea"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05255"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05885"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10041"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "santiago046"
+  ],
+  "page_url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/tag/v1.1.0",
+  "source_id": "github:santiago046/ppsspp-gta-stories-weapon-icons-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "notes": "Weapon icons only (64x64 to 128x128). A game has one texture pack folder: this pack replaces any other pack of the game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "lcs-xxh64-orange.zip",
+   "parts": [
+    {
+     "url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/download/v1.1.0/lcs-xxh64-orange.zip",
+     "size": 256873,
+     "sha256": "7915ec233f623de4a56b597c9e607def6550da625d60966034461a326bb6e245"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-lcs-weapon-icons-white",
+  "title": "GTA Liberty City Stories HD weapon icons (white)",
+  "version": "v1.1.0",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00151"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00182"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULKS46157"
+     }
+    ],
+    "regions": [
+     "Korea"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05255"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05885"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10041"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "santiago046"
+  ],
+  "page_url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/tag/v1.1.0",
+  "source_id": "github:santiago046/ppsspp-gta-stories-weapon-icons-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "notes": "Weapon icons only (64x64 to 128x128). A game has one texture pack folder: this pack replaces any other pack of the game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "lcs-xxh64-white.zip",
+   "parts": [
+    {
+     "url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/download/v1.1.0/lcs-xxh64-white.zip",
+     "size": 167674,
+     "sha256": "d8f721f3afde41b6d84d01abed9bd1cb8cd0c1c9bf1810eb4695ecd805661473"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-vcs-weapon-icons-original",
+  "title": "GTA Vice City Stories HD weapon icons (original)",
+  "version": "v1.1.0",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00502"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00503"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05884"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05297"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10160"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "santiago046"
+  ],
+  "page_url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/tag/v1.1.0",
+  "source_id": "github:santiago046/ppsspp-gta-stories-weapon-icons-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "notes": "Weapon icons only (64x64 to 128x128). A game has one texture pack folder: this pack replaces any other pack of the game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "vcs-xxh64-original.zip",
+   "parts": [
+    {
+     "url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/download/v1.1.0/vcs-xxh64-original.zip",
+     "size": 238159,
+     "sha256": "3a9ac47a5590b8d91f713416999021a227b17a820f3a2bcb7f457c74e93589c2"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-vcs-weapon-icons-blue",
+  "title": "GTA Vice City Stories HD weapon icons (blue)",
+  "version": "v1.1.0",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00502"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00503"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05884"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05297"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10160"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "santiago046"
+  ],
+  "page_url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/tag/v1.1.0",
+  "source_id": "github:santiago046/ppsspp-gta-stories-weapon-icons-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "notes": "Weapon icons only (64x64 to 128x128). A game has one texture pack folder: this pack replaces any other pack of the game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "vcs-xxh64-blue.zip",
+   "parts": [
+    {
+     "url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/download/v1.1.0/vcs-xxh64-blue.zip",
+     "size": 237205,
+     "sha256": "d8be62e5654efb6a8da0b4aad34bd4270c2efc22eec8302792480ffd7e691b44"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-vcs-weapon-icons-orange",
+  "title": "GTA Vice City Stories HD weapon icons (orange)",
+  "version": "v1.1.0",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00502"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00503"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05884"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05297"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10160"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "santiago046"
+  ],
+  "page_url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/tag/v1.1.0",
+  "source_id": "github:santiago046/ppsspp-gta-stories-weapon-icons-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "notes": "Weapon icons only (64x64 to 128x128). A game has one texture pack folder: this pack replaces any other pack of the game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "vcs-xxh64-orange.zip",
+   "parts": [
+    {
+     "url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/download/v1.1.0/vcs-xxh64-orange.zip",
+     "size": 227380,
+     "sha256": "42234330d406bf2dffbc9ccc973d2b0ed27b25eacef7c3ce1e7b8bebf102e694"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-vcs-weapon-icons-white",
+  "title": "GTA Vice City Stories HD weapon icons (white)",
+  "version": "v1.1.0",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00502"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00503"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05884"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05297"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10160"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "santiago046"
+  ],
+  "page_url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/tag/v1.1.0",
+  "source_id": "github:santiago046/ppsspp-gta-stories-weapon-icons-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "notes": "Weapon icons only (64x64 to 128x128). A game has one texture pack folder: this pack replaces any other pack of the game.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "vcs-xxh64-white.zip",
+   "parts": [
+    {
+     "url": "https://github.com/santiago046/ppsspp-gta-stories-weapon-icons-pack/releases/download/v1.1.0/vcs-xxh64-white.zip",
+     "size": 138789,
+     "sha256": "0b38dbd2f597f60cc9b63126458875002b6403274f885d8006b08af00904699f"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-vcs-asi-factory",
+  "title": "GTA Vice City Stories Texture Pack (PSP)",
+  "version": "latest",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10160"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "ASI-Factory (release published by ThirteenAG; commit author 'Doge')"
+  ],
+  "page_url": "https://github.com/ASI-Factory/GTA-VCS-Texture-Pack-PSP/releases",
+  "source_id": "github:ASI-Factory/GTA-VCS-Texture-Pack-PSP",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "GTA-VCS-Texture-Pack-PSP.zip",
+   "parts": [
+    {
+     "url": "https://github.com/ASI-Factory/GTA-VCS-Texture-Pack-PSP/releases/download/latest/GTA-VCS-Texture-Pack-PSP.zip"
+    }
+   ]
+  },
+  "notes": "README screenshots compare 'Original' vs 'PC' textures. The repo keeps images in source/ and a CI job (VCSCopyTextures.exe) builds the zip, so use the release asset, not the repo. The \"latest\" release is rebuilt by the author's CI: the verified file is pinned by its SHA-256.",
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "ULUS10160"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-sims2-hd-grip-hearttin",
+  "title": "The Sims 2 PSP HD Texture Pack",
+  "version": "v0.6",
+  "games": [
+   {
+    "title": "The Sims 2 (PSP)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10031"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "The Sims 2 (PSP)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00211"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Grip-hearttin",
+   "contributors CatalonianPunIntended, DaniKH (README thanks)"
+  ],
+  "page_url": "https://github.com/Grip-hearttin/The-Sims-2-PSP-HD-Texture-Pack/releases",
+  "source_id": "github:Grip-hearttin/The-Sims-2-PSP-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author: README: \"Higher resolution textures have been imported from the PC version or remade by hand\"",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "None stated; contains KTX2 so PPSSPP >= 1.15. KTX2 textures need PPSSPP 1.15 or later (the embedded core is newer). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ULUS10031.zip",
+   "parts": [
+    {
+     "url": "https://github.com/Grip-hearttin/The-Sims-2-PSP-HD-Texture-Pack/releases/download/v0.6/ULUS10031.zip"
+    }
+   ]
+  },
+  "notes": "README links 'Project files' on Proton Drive (not fetched).",
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mhp2g-fuc-t-belg",
+  "title": "Monster Hunter Portable 2nd G texture pack (FUC)",
+  "version": "v1.0.0",
+  "games": [
+   {
+    "title": "Monster Hunter Portable 2nd G / Freedom Unite Complete (FUC patched)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05500"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "T-Belg"
+  ],
+  "page_url": "https://github.com/T-Belg/mhp2g-texture-pack/releases",
+  "source_id": "github:T-Belg/mhp2g-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Made for MHP2G patched with FUC (https://fucomplete.github.io/). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ULJM05500.zip",
+   "parts": [
+    {
+     "url": "https://github.com/T-Belg/mhp2g-texture-pack/releases/download/v1.0.0/ULJM05500.zip"
+    }
+   ]
+  },
+  "notes": "Options (intro screen, resource map) are switched by editing textures.ini (README). Options (intro screen, resource map) are chosen by editing textures.ini (README).",
+  "install": {
+   "folders": [
+    {
+     "from": "ULJM05500/",
+     "to": "ULJM05500"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mhp3rd-hd-enhanced-holographicwings",
+  "title": "Monster Hunter Portable 3rd HD Pack Enhanced",
+  "version": "v1.1.0",
+  "games": [
+   {
+    "title": "Monster Hunter Portable 3rd (incl. HD ver.)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05800"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Monster Hunter Portable 3rd (incl. HD ver.)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJB40001"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "HolographicWings",
+   "base packs: AFOOT, Darix, !-0 Kuña'i Ñakurutû (Tano), Effy, Stormie; David-vz"
+  ],
+  "page_url": "https://github.com/HolographicWings/Monster-Hunter-Portable-3rd-HD-Pack-Enhanced/releases",
+  "source_id": "github:HolographicWings/Monster-Hunter-Portable-3rd-HD-Pack-Enhanced",
+  "licence": {
+   "summary": "No licence stated by the author: credits Capcom and the base-pack authors",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Optional: Community English patch Ver.5 (Team Maverick ONE). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MHP3rd-HDPack-Enhanced-v1.1.0.zip",
+   "parts": [
+    {
+     "url": "https://github.com/HolographicWings/Monster-Hunter-Portable-3rd-HD-Pack-Enhanced/releases/download/v1.1.0/MHP3rd-HDPack-Enhanced-v1.1.0.zip"
+    }
+   ]
+  },
+  "notes": "Large textures capped at 2048x2048 for mobile VRAM (README). Fork that merges AFOOT and David-vz work.",
+  "install": {
+   "folders": [
+    {
+     "from": "ULJM05800/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mhp3rd-stormie-hd-pack",
+  "title": "Monster Hunter Portable 3rd HD Remake (HD Pack)",
+  "version": "v1.0.0",
+  "games": [
+   {
+    "title": "Monster Hunter Portable 3rd HD ver.",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJB40001"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "Stormie (StormieVN)",
+   "fork of David-vz's project"
+  ],
+  "page_url": "https://github.com/StormieVN/MonsterHunterPortable3rdHDRemake/releases",
+  "source_id": "github:StormieVN/MonsterHunterPortable3rdHDRemake",
+  "licence": {
+   "summary": "No licence stated by the author: credits section",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: \"PPSSPP 1.11.3 or later\"; \"Playable Monster Hunter Portable 3rd HD (NPJB40001)\". Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MHP3rd_Stormie_HDPack_v1.0.0.zip",
+   "parts": [
+    {
+     "url": "https://github.com/StormieVN/MonsterHunterPortable3rdHDRemake/releases/download/v1.0.0/MHP3rd_Stormie_HDPack_v1.0.0.zip"
+    }
+   ]
+  },
+  "notes": "Repo HEAD TEXTURES/NPJB40001 (1,616 files, 1,321,285,798 bytes, different textures.ini) is newer than the release.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mhp3rd-stormie-hd-light",
+  "title": "Monster Hunter Portable 3rd HD Remake (HD Light)",
+  "version": "v1.0.0",
+  "games": [
+   {
+    "title": "Monster Hunter Portable 3rd HD ver.",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJB40001"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "Stormie (StormieVN)",
+   "fork of David-vz's project"
+  ],
+  "page_url": "https://github.com/StormieVN/MonsterHunterPortable3rdHDRemake/releases",
+  "source_id": "github:StormieVN/MonsterHunterPortable3rdHDRemake",
+  "licence": {
+   "summary": "No licence stated by the author: credits section",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: \"PPSSPP 1.11.3 or later\"; \"Playable Monster Hunter Portable 3rd HD (NPJB40001)\". Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MHP3rd_Stormie_HDLight_v1.0.0.zip",
+   "parts": [
+    {
+     "url": "https://github.com/StormieVN/MonsterHunterPortable3rdHDRemake/releases/download/v1.0.0/MHP3rd_Stormie_HDLight_v1.0.0.zip"
+    }
+   ]
+  },
+  "notes": "Repo HEAD TEXTURES/NPJB40001 (1,616 files, 1,321,285,798 bytes, different textures.ini) is newer than the release.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gundam-age-sieben5106",
+  "title": "Gundam AGE PSP Texture Pack",
+  "version": "v0.1.1",
+  "games": [
+   {
+    "title": "Mobile Suit Gundam AGE: Universe Accel / Cosmic Drive",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50566"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Mobile Suit Gundam AGE: Universe Accel / Cosmic Drive",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50567"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "SIEBEN5106"
+  ],
+  "page_url": "https://github.com/SIEBEN5106/Gundam-AGE-PSP-Texture-Pack/releases",
+  "source_id": "github:SIEBEN5106/Gundam-AGE-PSP-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: rendering resolution Auto(1:1) or 4x, texture scaling off, Replace textures on. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "v0.1.1.zip",
+   "parts": [
+    {
+     "url": "https://github.com/SIEBEN5106/Gundam-AGE-PSP-Texture-Pack/releases/download/v0.1.1/v0.1.1.zip"
+    }
+   ]
+  },
+  "notes": "4x upscale with Chainer (README).",
+  "install": {
+   "folders": [
+    {
+     "from": "Gundam-AGE-PSP-Texture-Pack-main/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-iq-mania-ullr8",
+  "title": "I.Q Mania Revived",
+  "version": "v0.3",
+  "games": [
+   {
+    "title": "I.Q Mania",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCAS40065"
+     }
+    ],
+    "regions": [
+     "Asia"
+    ]
+   }
+  ],
+  "authors": [
+   "Ullr8 (commit author Ethan Thomson)"
+  ],
+  "page_url": "https://github.com/Ullr8/I.Q-Mania-Revived/releases",
+  "source_id": "github:Ullr8/I.Q-Mania-Revived",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "UCAS40065.7z",
+   "parts": [
+    {
+     "url": "https://github.com/Ullr8/I.Q-Mania-Revived/releases/download/v0.3/UCAS40065.7z"
+    }
+   ]
+  },
+  "notes": "Partial pack (English text redone, misc textures).",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-la-pucelle-ragnarok-althonos",
+  "title": "La Pucelle: Ragnarok textures (English)",
+  "version": "v0.1.0",
+  "games": [
+   {
+    "title": "La Pucelle: Ragnarok (English fan-translation)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJS00244"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "althonos (Martin Larralde)"
+  ],
+  "page_url": "https://github.com/althonos/lapucelle-textures/releases",
+  "source_id": "github:althonos/lapucelle-textures",
+  "licence": {
+   "summary": "README badge 'license CC-NC' -> https://creativecommons.org/licenses/nc/1.0/; COPYING.md is empty (0 bytes); README: assets 'provided \"as is\" without warranty'.",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "English translation patch by DragonRagnarok, ChepChep and Hatsubai (README). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ULJS00244-v0.1.0.zip",
+   "parts": [
+    {
+     "url": "https://github.com/althonos/lapucelle-textures/releases/download/v0.1.0/ULJS00244-v0.1.0.zip"
+    }
+   ]
+  },
+  "notes": "Repo sources are SVG/XCF built via Makefile; use the release zip. Font and interface pack for the English fan translation; unfinished entries are listed without files.",
+  "install": {
+   "folders": [
+    {
+     "from": "ULJS00244/",
+     "to": "ULJS00244"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-patapon2-remastered-1080p",
+  "title": "Patapon 2 HD Remastered (1080p)",
+  "version": "v0.1-compressed-beta",
+  "games": [
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES01177"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98732"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10089"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCAS40239"
+     }
+    ],
+    "regions": [
+     "Asia"
+    ]
+   }
+  ],
+  "authors": [
+   "Hozzzd",
+   "KnotSora (sorting), efonte & mrmemmo_ (unpack script), shockturtle, wondaoxigen (README credits)"
+  ],
+  "page_url": "https://github.com/Hozzzd/p2hd-remastered/releases",
+  "source_id": "github:Hozzzd/p2hd-remastered",
+  "licence": {
+   "summary": "No licence stated by the author: Repo description: 'Patapon 2 HD textures ripped from the remastered version for PS4'",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "compressed-1080p.zip",
+   "parts": [
+    {
+     "url": "https://github.com/Hozzzd/p2hd-remastered/releases/download/v0.1-compressed-beta/compressed-1080p.zip"
+    }
+   ]
+  },
+  "notes": "Release notes list known issues (missing tips, Asian tips not renamed, PS4 button graphics). The author recommends the 1080p set on phones.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-patapon2-remastered-fullres",
+  "title": "Patapon 2 HD Remastered (full resolution)",
+  "version": "v0.1-compressed-beta",
+  "games": [
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES01177"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98732"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10089"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCAS40239"
+     }
+    ],
+    "regions": [
+     "Asia"
+    ]
+   }
+  ],
+  "authors": [
+   "Hozzzd",
+   "KnotSora (sorting), efonte & mrmemmo_ (unpack script), shockturtle, wondaoxigen (README credits)"
+  ],
+  "page_url": "https://github.com/Hozzzd/p2hd-remastered/releases",
+  "source_id": "github:Hozzzd/p2hd-remastered",
+  "licence": {
+   "summary": "No licence stated by the author: Repo description: 'Patapon 2 HD textures ripped from the remastered version for PS4'",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "compressed-fullres.zip",
+   "parts": [
+    {
+     "url": "https://github.com/Hozzzd/p2hd-remastered/releases/download/v0.1-compressed-beta/compressed-fullres.zip"
+    }
+   ]
+  },
+  "notes": "Release notes list known issues (missing tips, Asian tips not renamed, PS4 button graphics). The author recommends the 1080p set on phones.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-fate-extra-jp-hd-font-sieben5106",
+  "title": "Fate/EXTRA Japanese HD Font",
+  "version": "repository 17266e5",
+  "games": [
+   {
+    "title": "Fate/EXTRA (Japanese)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50247"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "SIEBEN5106"
+  ],
+  "page_url": "https://github.com/SIEBEN5106/Fate-EXTRA-Japanese-HD-Font/tree/17266e57592f3bfb6d09ab0ef8a3efeb45fc6d4a",
+  "source_id": "github:SIEBEN5106/Fate-EXTRA-Japanese-HD-Font",
+  "licence": {
+   "summary": "Fonts used are SIL Open Font License 1.1 (LICENSE.txt: 源暎ラテミン V2, しっぽり明朝, Bizin Gothic); README notes AI upscaling for some icons.",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Rendering resolution Auto(1:1) or 4x; texture scaling off (README). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Fate-EXTRA-Japanese-HD-Font-17266e57592f3bfb6d09ab0ef8a3efeb45fc6d4a.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/SIEBEN5106/Fate-EXTRA-Japanese-HD-Font/zip/17266e57592f3bfb6d09ab0ef8a3efeb45fc6d4a"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/SIEBEN5106/Fate-EXTRA-Japanese-HD-Font",
+    "commit": "17266e57592f3bfb6d09ab0ef8a3efeb45fc6d4a"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Fate-EXTRA-Japanese-HD-Font-17266e57592f3bfb6d09ab0ef8a3efeb45fc6d4a/",
+     "to": "NPJH50247"
+    }
+   ]
+  },
+  "notes": "README gives the 16 hash lines for both quick and xxh64 to merge into other Fate/EXTRA packs. The release is a RAR archive: NeoStation uses the repository archive, which holds the same textures.ini and fonts.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mhp3rd-hd-remake-david-vz",
+  "title": "Monster Hunter Portable 3rd HD Remake (David-vz)",
+  "version": "repository 1848e58",
+  "games": [
+   {
+    "title": "Monster Hunter Portable 3rd HD ver.",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJB40001"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "David-vz (David van Zyl)",
+   "Zindea (texture extraction on Wii U, README thanks)"
+  ],
+  "page_url": "https://github.com/David-vz/MonsterHunterPortable3rdHDRemake/tree/1848e581208cea0c0c5854de89f356eeeefa5479",
+  "source_id": "github:David-vz/MonsterHunterPortable3rdHDRemake",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: \"PPSSPP 1.3 or later\", \"Playable Monster Hunter Portable 3rd HD (NPJB40001)\", textures made with the V5.0 translation patch applied. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MonsterHunterPortable3rdHDRemake-1848e581208cea0c0c5854de89f356eeeefa5479.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/David-vz/MonsterHunterPortable3rdHDRemake/zip/1848e581208cea0c0c5854de89f356eeeefa5479"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/David-vz/MonsterHunterPortable3rdHDRemake",
+    "commit": "1848e581208cea0c0c5854de89f356eeeefa5479"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "MonsterHunterPortable3rdHDRemake-1848e581208cea0c0c5854de89f356eeeefa5479/TEXTURES/NPJB40001/",
+     "to": "NPJB40001"
+    }
+   ]
+  },
+  "notes": "Pack path also contains 1 PSD, 1 .py and a .txt (not needed at runtime).",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mhfu-upscale-three5media",
+  "title": "Monster Hunter Freedom Unite Upscale Project",
+  "version": "repository 18b3ee4",
+  "games": [
+   {
+    "title": "Monster Hunter Freedom Unite (US)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10391"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "three5media (Chris Corbett)"
+  ],
+  "page_url": "https://github.com/three5media/mfhu-hd-retexture/tree/18b3ee4f4c0074acd9e36ef4330a146cf59cbe2b",
+  "source_id": "github:three5media/mfhu-hd-retexture",
+  "licence": {
+   "summary": "Please feel free to take anything from this project and use anywhere you like, no credit is due",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "mfhu-hd-retexture-18b3ee4f4c0074acd9e36ef4330a146cf59cbe2b.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/three5media/mfhu-hd-retexture/zip/18b3ee4f4c0074acd9e36ef4330a146cf59cbe2b"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/three5media/mfhu-hd-retexture",
+    "commit": "18b3ee4f4c0074acd9e36ef4330a146cf59cbe2b"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "mfhu-hd-retexture-18b3ee4f4c0074acd9e36ef4330a146cf59cbe2b/ULUS10391/",
+     "to": "ULUS10391"
+    }
+   ]
+  },
+  "notes": "Mostly Cupscale upscales plus textures from MHFURemaster-VakSan and MHFU-HD (README).",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-crisis-core-ff7ccup-eqprog",
+  "title": "Crisis Core: Final Fantasy VII Upscale Project",
+  "version": "repository cc3a61a",
+  "games": [
+   {
+    "title": "Crisis Core: Final Fantasy VII (US)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10336"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "eqprog and contributors"
+  ],
+  "page_url": "https://github.com/eqprog/FF7CCUP/tree/cc3a61a2a943f0e7e6348eccc0a55d4086c458f0",
+  "source_id": "github:eqprog/FF7CCUP",
+  "licence": {
+   "summary": "No licence; README: \"All are welcome to participate so long as any submitted artwork is your own. Do not source images from outside sources without license.",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "US version ULUS10336. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "FF7CCUP-cc3a61a2a943f0e7e6348eccc0a55d4086c458f0.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/eqprog/FF7CCUP/zip/cc3a61a2a943f0e7e6348eccc0a55d4086c458f0"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/eqprog/FF7CCUP",
+    "commit": "cc3a61a2a943f0e7e6348eccc0a55d4086c458f0"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "FF7CCUP-cc3a61a2a943f0e7e6348eccc0a55d4086c458f0/",
+     "to": "ULUS10336",
+     "exclude": [
+      "ui_upscale/",
+      "missed_textures/",
+      "mods/"
+     ]
+    }
+   ]
+  },
+  "notes": "[hashes] values start with '/textures/...': works as an extracted folder, would not resolve inside a textures.zip. ~3.25 GB. About 3.25 GB; only textures.ini and textures/ are installed.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-patapon3-hd-lin-zl522",
+  "title": "Patapon 3 HD Texture Pack",
+  "version": "repository 68ef73e",
+  "games": [
+   {
+    "title": "Patapon 3",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES01421"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Patapon 3",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98751"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Patapon 3",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCAS40318"
+     }
+    ],
+    "regions": [
+     "Asia"
+    ]
+   },
+   {
+    "title": "Patapon 3",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJG00122"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "Lin-zl522",
+   "WallSoGB",
+   "shockturtle",
+   "owocek",
+   "efonte",
+   "Kaemble (README spells 'Keamble')",
+   "Hozzzd",
+   "KnotSora",
+   "wondaoxigen and others (README credits)"
+  ],
+  "page_url": "https://github.com/Lin-zl522/Patapon-3-HD-Texture-Pack/tree/68ef73e7172f6d07917c954d3a8ce67a8d2f804b",
+  "source_id": "github:Lin-zl522/Patapon-3-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: rendering resolution Auto(1:1), texture scaling off, anisotropic filtering off. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Patapon-3-HD-Texture-Pack-68ef73e7172f6d07917c954d3a8ce67a8d2f804b.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Lin-zl522/Patapon-3-HD-Texture-Pack/zip/68ef73e7172f6d07917c954d3a8ce67a8d2f804b"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Lin-zl522/Patapon-3-HD-Texture-Pack",
+    "commit": "68ef73e7172f6d07917c954d3a8ce67a8d2f804b"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Patapon-3-HD-Texture-Pack-68ef73e7172f6d07917c954d3a8ce67a8d2f804b/",
+     "to": "{id}",
+     "exclude": [
+      ".idea/"
+     ]
+    }
+   ]
+  },
+  "notes": "Successor of WallSoGB/Patapon3Textures (that repo points here).",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-fft-wotl-zodi-ark",
+  "title": "Final Fantasy Tactics: The War of the Lions Texture Pack",
+  "version": "v1.6.4.1",
+  "games": [
+   {
+    "title": "Final Fantasy Tactics: The War of the Lions",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00850"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Final Fantasy Tactics: The War of the Lions",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10297"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Zodi-ark (Zodiark)"
+  ],
+  "page_url": "https://github.com/Zodi-ark/Final-Fantasy-Tactics-The-War-of-the-Lions-Texture-Pack/tree/165a969809172f11b202f50498099ef71f3ee1c2",
+  "source_id": "github:Zodi-ark/Final-Fantasy-Tactics-The-War-of-the-Lions-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author: README: \"Community contributions, edits, address hashes, and forks are strongly encouraged!",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: latest stable PPSSPP; render resolution 4x or above (6x recommended); KTX2 -> >= 1.15. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Final-Fantasy-Tactics-The-War-of-the-Lions-Texture-Pack-165a969809172f11b202f50498099ef71f3ee1c2.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Zodi-ark/Final-Fantasy-Tactics-The-War-of-the-Lions-Texture-Pack/zip/165a969809172f11b202f50498099ef71f3ee1c2"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Zodi-ark/Final-Fantasy-Tactics-The-War-of-the-Lions-Texture-Pack",
+    "commit": "165a969809172f11b202f50498099ef71f3ee1c2"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Final-Fantasy-Tactics-The-War-of-the-Lions-Texture-Pack-165a969809172f11b202f50498099ef71f3ee1c2/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "README's automatic install via PPSSPP defaults to EUROPE if FFT was never opened. Tag v1.6.4.1, about 2.6 GB.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-sao-infinity-moment-saramagrean",
+  "title": "Sword Art Online: Infinity Moment HD",
+  "version": "repository e2abbbc",
+  "games": [
+   {
+    "title": "Sword Art Online: Infinity Moment",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50701"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "Saramagrean (Benjamin Benda Gates)"
+  ],
+  "page_url": "https://github.com/Saramagrean/SAO-IM-HD-Remake-Project/tree/e2abbbc938f55bc48d733900250d4c642bf163f9",
+  "source_id": "github:Saramagrean/SAO-IM-HD-Remake-Project",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: SAO Infinity Moment (original Japan or English patched), PPSSPP latest. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "SAO-IM-HD-Remake-Project-e2abbbc938f55bc48d733900250d4c642bf163f9.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Saramagrean/SAO-IM-HD-Remake-Project/zip/e2abbbc938f55bc48d733900250d4c642bf163f9"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Saramagrean/SAO-IM-HD-Remake-Project",
+    "commit": "e2abbbc938f55bc48d733900250d4c642bf163f9"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SAO-IM-HD-Remake-Project-e2abbbc938f55bc48d733900250d4c642bf163f9/",
+     "to": "NPJH50701"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-shin-sangoku-musou-5-special-saramagrean",
+  "title": "Shin Sangoku Musou 5 Special HD",
+  "version": "repository 42bbd6f",
+  "games": [
+   {
+    "title": "Shin Sangoku Musou 5 Special",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05524"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "Saramagrean (Benjamin Benda Gates)"
+  ],
+  "page_url": "https://github.com/Saramagrean/SSM5-HD-Texture-Pack/tree/42bbd6fb23776befd4bf3dac71b71c3d1b425edd",
+  "source_id": "github:Saramagrean/SSM5-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: Japan version, latest PPSSPP; ZIM needs PPSSPP >= 1.12. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "SSM5-HD-Texture-Pack-42bbd6fb23776befd4bf3dac71b71c3d1b425edd.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Saramagrean/SSM5-HD-Texture-Pack/zip/42bbd6fb23776befd4bf3dac71b71c3d1b425edd"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Saramagrean/SSM5-HD-Texture-Pack",
+    "commit": "42bbd6fb23776befd4bf3dac71b71c3d1b425edd"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SSM5-HD-Texture-Pack-42bbd6fb23776befd4bf3dac71b71c3d1b425edd/",
+     "to": "ULJM05524"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-patapon2-hd-shockturtle",
+  "title": "Patapon 2 HD (hand-made)",
+  "version": "repository e94ac24",
+  "games": [
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES01177"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98732"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10089"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCAS40239"
+     }
+    ],
+    "regions": [
+     "Asia"
+    ]
+   }
+  ],
+  "authors": [
+   "shockturtle",
+   "Xandis/Gat235, Iracy, RinCasi, efonte (README acknowledgements)"
+  ],
+  "page_url": "https://github.com/shockturtle/Patapon2HD/tree/e94ac24eca3e91715588cc022a2b9a408b17b5ec",
+  "source_id": "github:shockturtle/Patapon2HD",
+  "licence": {
+   "summary": "No licence stated by the author: README: \"All textures are done entirely by me unless comments in textures.ini state otherwise",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Patapon2HD-e94ac24eca3e91715588cc022a2b9a408b17b5ec.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/shockturtle/Patapon2HD/zip/e94ac24eca3e91715588cc022a2b9a408b17b5ec"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/shockturtle/Patapon2HD",
+    "commit": "e94ac24eca3e91715588cc022a2b9a408b17b5ec"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Patapon2HD-e94ac24eca3e91715588cc022a2b9a408b17b5ec/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "Hand-made pack, distinct from Hozzzd's PS4-remaster rip.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-patapon-remastered-shockturtle",
+  "title": "Patapon Remastered textures",
+  "version": "repository 1fa2127",
+  "games": [
+   {
+    "title": "Patapon",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00995"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Patapon",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98711"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Patapon",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10077"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Patapon",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCAS40193"
+     }
+    ],
+    "regions": [
+     "Asia"
+    ]
+   }
+  ],
+  "authors": [
+   "shockturtle (commit author Leonardo2450)"
+  ],
+  "page_url": "https://github.com/shockturtle/Patapon-Remastered-PPSSPP/tree/1fa21273046d24af62538dd88172d605a4939b35",
+  "source_id": "github:shockturtle/Patapon-Remastered-PPSSPP",
+  "licence": {
+   "summary": "No licence stated by the author: README: \"These are graphics ripped from the remaster on PS4, patched into PPSSPP",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Patapon-Remastered-PPSSPP-1fa21273046d24af62538dd88172d605a4939b35.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/shockturtle/Patapon-Remastered-PPSSPP/zip/1fa21273046d24af62538dd88172d605a4939b35"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/shockturtle/Patapon-Remastered-PPSSPP",
+    "commit": "1fa21273046d24af62538dd88172d605a4939b35"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Patapon-Remastered-PPSSPP-1fa21273046d24af62538dd88172d605a4939b35/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mgs-peace-walker-akirajkr",
+  "title": "Metal Gear Solid: Peace Walker title and menus HD",
+  "version": "repository 8034599",
+  "games": [
+   {
+    "title": "Metal Gear Solid: Peace Walker",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10509"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Metal Gear Solid: Peace Walker",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01372"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "AkiraJkr"
+  ],
+  "page_url": "https://github.com/AkiraJkr/Metal-Gear-Solid-Peace-Walker-HD-Textures/tree/8034599f551ce0cd8781e7559467e78c926d8b4a",
+  "source_id": "github:AkiraJkr/Metal-Gear-Solid-Peace-Walker-HD-Textures",
+  "licence": {
+   "summary": "No licence stated by the author: README: \"All credits reserved to Konami & Kojima Productions",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "README: zip drag'n'drop install needs PPSSPP v1.8.0-442 or higher. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Metal-Gear-Solid-Peace-Walker-HD-Textures-8034599f551ce0cd8781e7559467e78c926d8b4a.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/AkiraJkr/Metal-Gear-Solid-Peace-Walker-HD-Textures/zip/8034599f551ce0cd8781e7559467e78c926d8b4a"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/AkiraJkr/Metal-Gear-Solid-Peace-Walker-HD-Textures",
+    "commit": "8034599f551ce0cd8781e7559467e78c926d8b4a"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Metal-Gear-Solid-Peace-Walker-HD-Textures-8034599f551ce0cd8781e7559467e78c926d8b4a/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "Small title-screen/menu pack.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-dissidia-012-hd-enhanced-niosa",
+  "title": "Dissidia 012 HD Enhanced",
+  "version": "repository cc3a1b1",
+  "games": [
+   {
+    "title": "Dissidia 012 Final Fantasy (US)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10566"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Niosai (Niosa)",
+   "artwork: ajb3art, eldi13; HUD icons partially from kenney.nl input prompts (Credits.txt)"
+  ],
+  "page_url": "https://github.com/Niosa/D012FFRT/tree/cc3a1b103c664affca1a0e25067601919cad5689",
+  "source_id": "github:Niosa/D012FFRT",
+  "licence": {
+   "summary": "No licence stated by the author: Credits.txt lists sources",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "USA version only (README). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "D012FFRT-cc3a1b103c664affca1a0e25067601919cad5689.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Niosa/D012FFRT/zip/cc3a1b103c664affca1a0e25067601919cad5689"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Niosa/D012FFRT",
+    "commit": "cc3a1b103c664affca1a0e25067601919cad5689"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "D012FFRT-cc3a1b103c664affca1a0e25067601919cad5689/",
+     "to": "ULUS10566"
+    }
+   ]
+  },
+  "notes": "Repo also holds 2 PSDs and a .lnk; skip non-texture files.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-lcs-sonofugly",
+  "title": "GTA Liberty City Stories Texture Pack (SonofUgly)",
+  "version": "repository 6a4eb06",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Liberty City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10041"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "SonofUgly"
+  ],
+  "page_url": "https://github.com/SonofUgly/LCS-Texture-Pack/tree/6a4eb062f72f2f6877be73e27fd745892de072cc",
+  "source_id": "github:SonofUgly/LCS-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "LCS-Texture-Pack-6a4eb062f72f2f6877be73e27fd745892de072cc.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/SonofUgly/LCS-Texture-Pack/zip/6a4eb062f72f2f6877be73e27fd745892de072cc"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/SonofUgly/LCS-Texture-Pack",
+    "commit": "6a4eb062f72f2f6877be73e27fd745892de072cc"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "LCS-Texture-Pack-6a4eb062f72f2f6877be73e27fd745892de072cc/",
+     "to": "ULUS10041"
+    }
+   ]
+  },
+  "notes": "Uses PS2/PC/Xbox-version textures in places (README).",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-vcs-sonofugly",
+  "title": "GTA Vice City Stories Texture Pack (SonofUgly)",
+  "version": "repository 93944f2",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Vice City Stories",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10160"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "SonofUgly"
+  ],
+  "page_url": "https://github.com/SonofUgly/VCS-Texture-Pack/tree/93944f237e1c348c2d61645b4b859a7f4b5cd73e",
+  "source_id": "github:SonofUgly/VCS-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "VCS-Texture-Pack-93944f237e1c348c2d61645b4b859a7f4b5cd73e.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/SonofUgly/VCS-Texture-Pack/zip/93944f237e1c348c2d61645b4b859a7f4b5cd73e"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/SonofUgly/VCS-Texture-Pack",
+    "commit": "93944f237e1c348c2d61645b4b859a7f4b5cd73e"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "VCS-Texture-Pack-93944f237e1c348c2d61645b4b859a7f4b5cd73e/",
+     "to": "ULUS10160"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gta-chinatown-wars-sonofugly",
+  "title": "GTA Chinatown Wars text and interface (SonofUgly)",
+  "version": "repository d9fb4a5",
+  "games": [
+   {
+    "title": "Grand Theft Auto: Chinatown Wars (PSP)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10490"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "SonofUgly"
+  ],
+  "page_url": "https://github.com/SonofUgly/CW-Texture-Pack/tree/d9fb4a5c36c14cd5494965205e93bf60ba5489ba",
+  "source_id": "github:SonofUgly/CW-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "CW-Texture-Pack-d9fb4a5c36c14cd5494965205e93bf60ba5489ba.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/SonofUgly/CW-Texture-Pack/zip/d9fb4a5c36c14cd5494965205e93bf60ba5489ba"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/SonofUgly/CW-Texture-Pack",
+    "commit": "d9fb4a5c36c14cd5494965205e93bf60ba5489ba"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "CW-Texture-Pack-d9fb4a5c36c14cd5494965205e93bf60ba5489ba/",
+     "to": "ULUS10490"
+    }
+   ]
+  },
+  "notes": "Text/UI pack using Android-version textures (README); most ini entries have no file.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-project-diva-2nd-hd-snakemi",
+  "title": "Project DIVA 2nd HD",
+  "version": "repository 337f77c",
+  "games": [
+   {
+    "title": "Hatsune Miku: Project DIVA 2nd / 2nd# (English patched)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05681"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Hatsune Miku: Project DIVA 2nd / 2nd# (English patched)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50475"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "snakemi (commit author Mark A)"
+  ],
+  "page_url": "https://github.com/snakemi/pd2ndhd/tree/337f77c180748decc8b39c2e3f19db99f36d1ddf",
+  "source_id": "github:snakemi/pd2ndhd",
+  "licence": {
+   "summary": "No licence stated by the author: README: noteskin and gameplay UI 'taken from Dreamy Theater 2nd'",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "English-patched 2nd / 2nd# (README); 'Some elements aren't made for 2nd# yet'. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pd2ndhd-337f77c180748decc8b39c2e3f19db99f36d1ddf.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/snakemi/pd2ndhd/zip/337f77c180748decc8b39c2e3f19db99f36d1ddf"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/snakemi/pd2ndhd",
+    "commit": "337f77c180748decc8b39c2e3f19db99f36d1ddf"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "pd2ndhd-337f77c180748decc8b39c2e3f19db99f36d1ddf/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-fate-extra-ezehokadrim",
+  "title": "Fate/EXTRA HD (Ezehokadrim)",
+  "version": "repository c38a91c",
+  "games": [
+   {
+    "title": "Fate/EXTRA (US)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10576"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Ezehokadrim"
+  ],
+  "page_url": "https://github.com/Ezehokadrim/fate-extra-texturepack/tree/c38a91c8644198031da4a02f877e2615b6c0bd96",
+  "source_id": "github:Ezehokadrim/fate-extra-texturepack",
+  "licence": {
+   "summary": "I do not own any of the original textures, credit goes to the trademark/copyright holders. As for my work, I would like credit (simply mentioning my username is enough) if you do use them.",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "US release (README). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "fate-extra-texturepack-c38a91c8644198031da4a02f877e2615b6c0bd96.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Ezehokadrim/fate-extra-texturepack/zip/c38a91c8644198031da4a02f877e2615b6c0bd96"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Ezehokadrim/fate-extra-texturepack",
+    "commit": "c38a91c8644198031da4a02f877e2615b6c0bd96"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "fate-extra-texturepack-c38a91c8644198031da4a02f877e2615b6c0bd96/",
+     "to": "ULUS10576"
+    }
+   ]
+  },
+  "notes": "Continued by Fate-AI-HD-Team/Fate-Extra-HD.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-fate-unlimited-codes-hd-fate-ai-hd-team",
+  "title": "Fate/unlimited codes HD",
+  "version": "repository e1e6846",
+  "games": [
+   {
+    "title": "Fate/unlimited codes (PSP)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPUH10009"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Fate/unlimited codes (PSP)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPEH00007"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Fate-AI-HD-Team (D3TR4KT1K)",
+   "Unlimited Codes Discord members"
+  ],
+  "page_url": "https://github.com/Fate-AI-HD-Team/UnlimitedCodes-HD/tree/e1e6846ffbb4aa97b1510ac69712980f3b68fce2",
+  "source_id": "github:Fate-AI-HD-Team/UnlimitedCodes-HD",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "UnlimitedCodes-HD-e1e6846ffbb4aa97b1510ac69712980f3b68fce2.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Fate-AI-HD-Team/UnlimitedCodes-HD/zip/e1e6846ffbb4aa97b1510ac69712980f3b68fce2"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Fate-AI-HD-Team/UnlimitedCodes-HD",
+    "commit": "e1e6846ffbb4aa97b1510ac69712980f3b68fce2"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "UnlimitedCodes-HD-e1e6846ffbb4aa97b1510ac69712980f3b68fce2/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-wipeout-pulse-retokyo",
+  "title": "WipEout Pulse ReTokyo",
+  "version": "repository 33fd6a3",
+  "games": [
+   {
+    "title": "WipEout Pulse",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00465"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "WipEout Pulse",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98712"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "reTokyo"
+  ],
+  "page_url": "https://github.com/reTokyo/WipEout-Pulse-Upscale-Version/tree/33fd6a3f1097284a9346310647d48f97ac132c49",
+  "source_id": "github:reTokyo/WipEout-Pulse-Upscale-Version",
+  "licence": {
+   "summary": "No licence stated by the author: README copyright notice: 'WipEout is a registered trademark of Sony Interactive Entertainment... This project is not endorsed, sponsored, nor authorized by Sony Interactive Entertainment.'",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "WipEout-Pulse-Upscale-Version-33fd6a3f1097284a9346310647d48f97ac132c49.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/reTokyo/WipEout-Pulse-Upscale-Version/zip/33fd6a3f1097284a9346310647d48f97ac132c49"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/reTokyo/WipEout-Pulse-Upscale-Version",
+    "commit": "33fd6a3f1097284a9346310647d48f97ac132c49"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "WipEout-Pulse-Upscale-Version-33fd6a3f1097284a9346310647d48f97ac132c49/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-wipeout-pure-retokyo",
+  "title": "WipEout Pure ReTokyo (interface)",
+  "version": "repository f91d55b",
+  "games": [
+   {
+    "title": "WipEout Pure",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00001"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "WipEout Pure",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCUS98612"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "WipEout Pure",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10007"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "WipEout Pure",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00229"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "WipEout Pure",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10058"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "reTokyo (commit author NR74W)"
+  ],
+  "page_url": "https://github.com/reTokyo/WipEout-Pure-HD-Texture-Pack/tree/f91d55bbde515944edc6458ec9f0e58b217d7ce0",
+  "source_id": "github:reTokyo/WipEout-Pure-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author: same Sony trademark notice as the Pulse pack",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "WipEout-Pure-HD-Texture-Pack-f91d55bbde515944edc6458ec9f0e58b217d7ce0.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/reTokyo/WipEout-Pure-HD-Texture-Pack/zip/f91d55bbde515944edc6458ec9f0e58b217d7ce0"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/reTokyo/WipEout-Pure-HD-Texture-Pack",
+    "commit": "f91d55bbde515944edc6458ec9f0e58b217d7ce0"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "WipEout-Pure-HD-Texture-Pack-f91d55bbde515944edc6458ec9f0e58b217d7ce0/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-7th-dragon-2020-ii-kotom511",
+  "title": "7th Dragon 2020-II HD (English patch)",
+  "version": "repository 2cda423",
+  "games": [
+   {
+    "title": "7th Dragon 2020-II (English patched)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50716"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "KotoM511 (KotoM)"
+  ],
+  "page_url": "https://github.com/KotoM511/7th_Dragon_2020-II_HD_Texture_Pack/tree/2cda42372bbd59be8f43ce65267a6304efb827ce",
+  "source_id": "github:KotoM511/7th_Dragon_2020-II_HD_Texture_Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "NPJH50716 with Cavespeak's English patch v1.00; README: 'Best use with PPSSPP ver. 1.15 and above'. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "7th_Dragon_2020-II_HD_Texture_Pack-2cda42372bbd59be8f43ce65267a6304efb827ce.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/KotoM511/7th_Dragon_2020-II_HD_Texture_Pack/zip/2cda42372bbd59be8f43ce65267a6304efb827ce"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/KotoM511/7th_Dragon_2020-II_HD_Texture_Pack",
+    "commit": "2cda42372bbd59be8f43ce65267a6304efb827ce"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "7th_Dragon_2020-II_HD_Texture_Pack-2cda42372bbd59be8f43ce65267a6304efb827ce/",
+     "to": "NPJH50716"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-yugioh-gx-tag-force-miyamurashiro",
+  "title": "Yu-Gi-Oh! GX Tag Force HD cards",
+  "version": "repository 0f55778",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! GX Tag Force",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10136"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MiyamuraShiro"
+  ],
+  "page_url": "https://github.com/MiyamuraShiro/Yu-Gi-Oh-GX-Tag-Force-Texture-remaster/tree/0f557784276f73427a502cd5c50e1ca1179c7377",
+  "source_id": "github:MiyamuraShiro/Yu-Gi-Oh-GX-Tag-Force-Texture-remaster",
+  "licence": {
+   "summary": "No licence stated by the author: Card images sourced from db.ygoprodeck.com (README)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "ULUS10136 (README). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Yu-Gi-Oh-GX-Tag-Force-Texture-remaster-0f557784276f73427a502cd5c50e1ca1179c7377.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/MiyamuraShiro/Yu-Gi-Oh-GX-Tag-Force-Texture-remaster/zip/0f557784276f73427a502cd5c50e1ca1179c7377"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/MiyamuraShiro/Yu-Gi-Oh-GX-Tag-Force-Texture-remaster",
+    "commit": "0f557784276f73427a502cd5c50e1ca1179c7377"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Yu-Gi-Oh-GX-Tag-Force-Texture-remaster-0f557784276f73427a502cd5c50e1ca1179c7377/",
+     "to": "ULUS10136"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-persona2-is-hd-kaemble",
+  "title": "Persona 2: Innocent Sin HD",
+  "version": "repository 0872662",
+  "games": [
+   {
+    "title": "Persona 2: Innocent Sin",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10584"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "kaemble (commit author BL4)"
+  ],
+  "page_url": "https://github.com/kaemble/Persona2HD/tree/087266277d23800e4c837c0ed25e29c231245525",
+  "source_id": "github:kaemble/Persona2HD",
+  "licence": {
+   "summary": "No licence stated by the author: ('feel free to contribute')",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Persona2HD-087266277d23800e4c837c0ed25e29c231245525.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/kaemble/Persona2HD/zip/087266277d23800e4c837c0ed25e29c231245525"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/kaemble/Persona2HD",
+    "commit": "087266277d23800e4c837c0ed25e29c231245525"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Persona2HD-087266277d23800e4c837c0ed25e29c231245525/",
+     "to": "ULUS10584"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-kh-bbs-hd-remix-akirajkr",
+  "title": "Birth by Sleep HD ReMix+",
+  "version": "1.5.1",
+  "games": [
+   {
+    "title": "Kingdom Hearts Birth by Sleep (Final Mix)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05775"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "Kingdom Hearts Birth by Sleep (Final Mix)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01441"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "Kingdom Hearts Birth by Sleep (Final Mix)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10505"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "AkiraJkr",
+   "hououin_kyouma (README FAQ)"
+  ],
+  "page_url": "https://github.com/AkiraJkr/Birth-by-Sleep-HD-ReMix/tree/b858f34debbd7bd5b17e989cc194ab05a836c2b5",
+  "source_id": "github:AkiraJkr/Birth-by-Sleep-HD-ReMix",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Best with the English-patched Final Mix (ULJM05775); EU/US need the Optional/Button Swaps files; optional 'Aqua model' needs an xdelta ISO patch (Patches/). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Birth-by-Sleep-HD-ReMix-b858f34debbd7bd5b17e989cc194ab05a836c2b5.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/AkiraJkr/Birth-by-Sleep-HD-ReMix/zip/b858f34debbd7bd5b17e989cc194ab05a836c2b5"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/AkiraJkr/Birth-by-Sleep-HD-ReMix",
+    "commit": "b858f34debbd7bd5b17e989cc194ab05a836c2b5"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Birth-by-Sleep-HD-ReMix-b858f34debbd7bd5b17e989cc194ab05a836c2b5/",
+     "to": "{id}",
+     "exclude": [
+      "Patches/",
+      "Optional/"
+     ]
+    }
+   ]
+  },
+  "notes": "Repo contains Windows executables (Patches/.../xdeltaUI.exe etc.) and a PARAM.SFO-based save in Optional/ - exclude them when installing. The optional files (button swaps, ISO patches) are not installed.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-fate-extra-hd-fate-ai-hd-team",
+  "title": "Fate/EXTRA HD (Perfect Patch)",
+  "version": "repository 05fd165",
+  "games": [
+   {
+    "title": "Fate/EXTRA (US, 'Perfect Patch ver')",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10576"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Fate-AI-HD-Team (D3TR4KT1K)",
+   "based on Ezehokadrim's pack"
+  ],
+  "page_url": "https://github.com/Fate-AI-HD-Team/Fate-Extra-HD/tree/05fd165cf58e47c32dc48c5a20ae92aaa9550641",
+  "source_id": "github:Fate-AI-HD-Team/Fate-Extra-HD",
+  "licence": {
+   "summary": "No licence stated by the author: inherited README credits text as above",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Repo description: 'Perfect Patch ver' of Fate/Extra. Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Fate-Extra-HD-05fd165cf58e47c32dc48c5a20ae92aaa9550641.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Fate-AI-HD-Team/Fate-Extra-HD/zip/05fd165cf58e47c32dc48c5a20ae92aaa9550641"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Fate-AI-HD-Team/Fate-Extra-HD",
+    "commit": "05fd165cf58e47c32dc48c5a20ae92aaa9550641"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Fate-Extra-HD-05fd165cf58e47c32dc48c5a20ae92aaa9550641/",
+     "to": "ULUS10576",
+     "exclude": [
+      "Preview Screenshots/",
+      "temp/"
+     ]
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-test-drive-unlimited-miyamurashiro",
+  "title": "Test Drive Unlimited HD",
+  "version": "repository 16cd4b6",
+  "games": [
+   {
+    "title": "Test Drive Unlimited (PSP)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10249"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MiyamuraShiro",
+   "trees by Speak Gembel (README)"
+  ],
+  "page_url": "https://github.com/MiyamuraShiro/Test-Drive-Unlimited-Texture-PSP/tree/16cd4b683180ee996cf893a469a9ac2f91503e3c",
+  "source_id": "github:MiyamuraShiro/Test-Drive-Unlimited-Texture-PSP",
+  "licence": {
+   "summary": "No licence stated by the author: README: \"if anyone wants to continue editing, feel free",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "ULUS10249 ('may work with other versions if edited texture.ini'). Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Test-Drive-Unlimited-Texture-PSP-16cd4b683180ee996cf893a469a9ac2f91503e3c.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/MiyamuraShiro/Test-Drive-Unlimited-Texture-PSP/zip/16cd4b683180ee996cf893a469a9ac2f91503e3c"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/MiyamuraShiro/Test-Drive-Unlimited-Texture-PSP",
+    "commit": "16cd4b683180ee996cf893a469a9ac2f91503e3c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Test-Drive-Unlimited-Texture-PSP-16cd4b683180ee996cf893a469a9ac2f91503e3c/",
+     "to": "ULUS10249",
+     "exclude": [
+      "psd files/"
+     ]
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mh-freedom-hd-afoot",
+  "title": "Monster Hunter Freedom HD",
+  "version": "repository feaf18e",
+  "games": [
+   {
+    "title": "Monster Hunter Freedom",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00318"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "AFOOT",
+   "Aether",
+   "!-0 Kuña´¡ Ñakurutu (Tano)"
+  ],
+  "page_url": "https://github.com/AFOOT03939/MHFreedom-HD-pack/tree/feaf18e3077024a864781d738abb2b002287369b",
+  "source_id": "github:AFOOT03939/MHFreedom-HD-pack",
+  "licence": {
+   "summary": "No licence stated by the author: README: 'owners: AFOOT, Aether and !-0 Kuña´¡ Ñakurutu (Tano)'",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MHFreedom-HD-pack-feaf18e3077024a864781d738abb2b002287369b.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/AFOOT03939/MHFreedom-HD-pack/zip/feaf18e3077024a864781d738abb2b002287369b"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/AFOOT03939/MHFreedom-HD-pack",
+    "commit": "feaf18e3077024a864781d738abb2b002287369b"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "MHFreedom-HD-pack-feaf18e3077024a864781d738abb2b002287369b/ULES00318/",
+     "to": "ULES00318"
+    }
+   ]
+  },
+  "notes": "2.6 GB. RetroHero/MHF-HDui is a UI overlay for this pack (manual, see rejected list). About 2.6 GB.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mhp3rd-hd-afoot",
+  "title": "Monster Hunter Portable 3rd HD (AFOOT)",
+  "version": "repository aea7c8e",
+  "games": [
+   {
+    "title": "Monster Hunter Portable 3rd HD ver.",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJB40001"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "AFOOT",
+   "Darix",
+   "!-0 Kuña'i Ñakurutû (Tano)",
+   "Effy",
+   "Stormie"
+  ],
+  "page_url": "https://github.com/AFOOT03939/Monster-Hunter-Portable-3rd-HD-pack/tree/aea7c8eb48f90d6a1b3d4321b120626227cfd348",
+  "source_id": "github:AFOOT03939/Monster-Hunter-Portable-3rd-HD-pack",
+  "licence": {
+   "summary": "No licence stated by the author: README credits",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Monster-Hunter-Portable-3rd-HD-pack-aea7c8eb48f90d6a1b3d4321b120626227cfd348.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/AFOOT03939/Monster-Hunter-Portable-3rd-HD-pack/zip/aea7c8eb48f90d6a1b3d4321b120626227cfd348"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/AFOOT03939/Monster-Hunter-Portable-3rd-HD-pack",
+    "commit": "aea7c8eb48f90d6a1b3d4321b120626227cfd348"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Monster-Hunter-Portable-3rd-HD-pack-aea7c8eb48f90d6a1b3d4321b120626227cfd348/NPJB40001/",
+     "to": "NPJB40001"
+    }
+   ]
+  },
+  "notes": "Textures upscaled or taken from MH3U / 3 Tri (README). HolographicWings' fork (above) fixes ULJM05800 addresses and case issues.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mhfu-texture-port-monkbreh",
+  "title": "Monster Hunter Freedom Unite texture port",
+  "version": "repository 517b569",
+  "games": [
+   {
+    "title": "Monster Hunter Freedom Unite / Portable 2nd G (FUC)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10391"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Monkbreh (Monkbruh)"
+  ],
+  "page_url": "https://github.com/Monkbreh/MHFU-Texture-Port/tree/517b5692f77fc51da1de74b0ea1126be807e484f",
+  "source_id": "github:Monkbreh/MHFU-Texture-Port",
+  "licence": {
+   "summary": "No licence stated by the author: README: 'This is not an upscale project' - textures from the PS2 titles Dos/G, Frontier and the iOS release of MHFU",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MHFU-Texture-Port-517b5692f77fc51da1de74b0ea1126be807e484f.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Monkbreh/MHFU-Texture-Port/zip/517b5692f77fc51da1de74b0ea1126be807e484f"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Monkbreh/MHFU-Texture-Port",
+    "commit": "517b5692f77fc51da1de74b0ea1126be807e484f"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "MHFU-Texture-Port-517b5692f77fc51da1de74b0ea1126be807e484f/ULUS10391/",
+     "to": "ULUS10391"
+    }
+   ]
+  },
+  "notes": "The ULJM05500 folder needs files merged in by hand (README): only the complete ULUS10391 set is installed.",
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-mhp2g-2ndg-ultimate-thealxm",
+  "title": "Monster Hunter Portable 2nd G Ultimate",
+  "version": "repository 55fd490",
+  "games": [
+   {
+    "title": "Monster Hunter Portable 2nd G",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05500"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "theALXm"
+  ],
+  "page_url": "https://github.com/theALXm/2ndG_ULTIMATE/tree/55fd490f37c29bf0d1e7a7244e37703eb0f7a01c",
+  "source_id": "github:theALXm/2ndG_ULTIMATE",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Texture replacement works with the hardware renderer, not the software renderer.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "2ndG_ULTIMATE-55fd490f37c29bf0d1e7a7244e37703eb0f7a01c.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/theALXm/2ndG_ULTIMATE/zip/55fd490f37c29bf0d1e7a7244e37703eb0f7a01c"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/theALXm/2ndG_ULTIMATE",
+    "commit": "55fd490f37c29bf0d1e7a7244e37703eb0f7a01c"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "2ndG_ULTIMATE-55fd490f37c29bf0d1e7a7244e37703eb0f7a01c/ULJM05500/",
+     "to": "ULJM05500"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-valkyria-chronicles-3-ee-retranslation-steccas",
+  "title": "Valkyria Chronicles 3 Extra Edition English ReTranslation HD",
+  "version": "v1",
+  "games": [
+   {
+    "title": "Valkyria Chronicles 3 Extra Edition (English ReTranslation)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05957"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "steccas (Luca Steccanella)",
+   "efonte (original AI upscaled pack)",
+   "Odioregistrarme (7 hand-made textures)",
+   "LunaMoo (fonts)"
+  ],
+  "page_url": "https://github.com/steccas/vc3-ee-retranslation-hd-texture-pack/releases/tag/v1",
+  "source_id": "github:steccas/vc3-ee-retranslation-hd-texture-pack",
+  "licence": {
+   "summary": "LICENSES.md: additions CC BY-NC-SA 4.0; efonte's pack \"© efonte. Redistributed as part of a combined pack with credit; efonte can ask for it to be removed or changed\"; game art © SEGA; tools GPL-3.0-or-later.",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "About 7.3 GB in four parts, and it includes efonte's pack redistributed with credit: download it from the project's page.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/steccas/vc3-ee-retranslation-hd-texture-pack/releases/tag/v1"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-yugioh-gx-tag-force-eu-hd-fren62",
+  "title": "Yu-Gi-Oh! GX Tag Force HD (Europe)",
+  "version": "v0.3.0",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! GX Tag Force (Europe v1.01)",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00600"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Fren62",
+   "HD textures based on MikeyMK ('Yu-Gi-Oh! GX Tag Force 1 HD Remastered') and chrisfand (HD cards)"
+  ],
+  "page_url": "https://github.com/Fren62/tagforce-eu-hd-patcher",
+  "source_id": "github:Fren62/tagforce-eu-hd-patcher",
+  "licence": {
+   "summary": "The code is released under the MIT License\"; \"the HD textures are based on the work of MikeyMK and chrisfand\"; \"Unofficial, non-profit fan project, not affiliated with Konami.",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The author's tool merges a base archive with one language module: use it, then import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/Fren62/tagforce-eu-hd-patcher"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-idolmaster-sp-cn-imassp-tl",
+  "title": "The Idolmaster SP texture patch (Chinese)",
+  "version": "commit",
+  "games": [
+   {
+    "title": "The Idolmaster SP (Perfect Sun / Wandering Star / Missing Moon), Chinese translation",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJS00167"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "The Idolmaster SP (Perfect Sun / Wandering Star / Missing Moon), Chinese translation",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJS00168"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   },
+   {
+    "title": "The Idolmaster SP (Perfect Sun / Wandering Star / Missing Moon), Chinese translation",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJS00169"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "IMASSP-TL (commit author Waldenth)"
+  ],
+  "page_url": "https://github.com/IMASSP-TL/Imas-SP-Texture-Patch-CN",
+  "source_id": "github:IMASSP-TL/Imas-SP-Texture-Patch-CN",
+  "licence": {
+   "summary": "LICENSE: GPL-3.0; README disclaimer: for learning/exchange only, does not include the game.",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The images are stored with Git LFS: the repository archive holds only pointer files.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/IMASSP-TL/Imas-SP-Texture-Patch-CN"
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-mhfu-hd-retexture-eu-replydev",
+  "system": "psp",
+  "title": "Monster Hunter Freedom Unite Upscale Project (EU)",
+  "version": "repository ed23e72",
+  "games": [
+   {
+    "title": "Monster Hunter Freedom Unite",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01213"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "replydev",
+   "three5media"
+  ],
+  "page_url": "https://github.com/replydev/mhfu-hd-retexture-eu/tree/ed23e724d603048fa54fdcefe7bd6550c26a7051",
+  "source_id": "github:replydev/mhfu-hd-retexture-eu",
+  "licence": {
+   "summary": "README: \"Please feel free to take anything from this project and use anywhere you like\" (fork of three5media/mfhu-hd-retexture)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "mhfu-hd-retexture-eu-ed23e724d603048fa54fdcefe7bd6550c26a7051.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/replydev/mhfu-hd-retexture-eu/zip/ed23e724d603048fa54fdcefe7bd6550c26a7051"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/replydev/mhfu-hd-retexture-eu",
+    "commit": "ed23e724d603048fa54fdcefe7bd6550c26a7051"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "mhfu-hd-retexture-eu-ed23e724d603048fa54fdcefe7bd6550c26a7051/ULES01213/",
+     "to": "ULES01213"
+    }
+   ]
+  },
+  "notes": "The European adaptation of three5media's pack (catalogued separately for ULUS10391). About 1.1 GB of PNG textures."
+ },
+ {
+  "id": "psp-ridge-racer-2-rrv-hud-amame-a",
+  "system": "psp",
+  "title": "Ridge Racer 2 RRV-esque HUD",
+  "version": "repository f41f263",
+  "games": [
+   {
+    "title": "Ridge Racer 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00422"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "amame-a (dataDrawing)"
+  ],
+  "page_url": "https://github.com/amame-a/RidgeRacer2-RRV-Esque-HUD/tree/f41f263eb23030fefac09f50b686e925f2704e36",
+  "source_id": "github:amame-a/RidgeRacer2-RRV-Esque-HUD",
+  "licence": {
+   "summary": "No licence stated by the author; README thanks Xenn for Ridge Racer V assets",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "RidgeRacer2-RRV-Esque-HUD-f41f263eb23030fefac09f50b686e925f2704e36.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/amame-a/RidgeRacer2-RRV-Esque-HUD/zip/f41f263eb23030fefac09f50b686e925f2704e36"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/amame-a/RidgeRacer2-RRV-Esque-HUD",
+    "commit": "f41f263eb23030fefac09f50b686e925f2704e36"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "notes": "HUD only (Ridge Racer V style). Tested by the author with the European disc UCES00422; the Asian and Japanese discs are not tested."
+ },
+ {
+  "id": "psp-project-diva-extend-hd-snakemi",
+  "system": "psp",
+  "title": "Project DIVA Extend HD Texture Pack",
+  "version": "repository 9ddfdd7",
+  "games": [
+   {
+    "title": "Hatsune Miku: Project DIVA Extend",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50465"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "snakemi"
+  ],
+  "page_url": "https://github.com/snakemi/pdexhd/tree/9ddfdd7e8f112c75c6c880f06d446ef178a31449",
+  "source_id": "github:snakemi/pdexhd",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pdexhd-9ddfdd7e8f112c75c6c880f06d446ef178a31449.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/snakemi/pdexhd/zip/9ddfdd7e8f112c75c6c880f06d446ef178a31449"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/snakemi/pdexhd",
+    "commit": "9ddfdd7e8f112c75c6c880f06d446ef178a31449"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "notes": "Work in progress (menus, loading screens, buttons, one stage)."
+ },
+ {
+  "id": "psp-project-diva-1st-hd-ayumi-chizuru189",
+  "system": "psp",
+  "title": "Project DIVA 1st HD Texture Pack",
+  "version": "repository b63f838",
+  "games": [
+   {
+    "title": "Hatsune Miku: Project DIVA",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM05472"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "ayumi-chizuru189"
+  ],
+  "page_url": "https://github.com/ayumi-chizuru189/pd1sthd/tree/b63f838cb1c80667b3092185a71fdd013c02cd08",
+  "source_id": "github:ayumi-chizuru189/pd1sthd",
+  "licence": {
+   "summary": "No licence stated by the author; README credits snakemi for pd2ndhd sprites used with permission",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "pd1sthd-b63f838cb1c80667b3092185a71fdd013c02cd08.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/ayumi-chizuru189/pd1sthd/zip/b63f838cb1c80667b3092185a71fdd013c02cd08"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/ayumi-chizuru189/pd1sthd",
+    "commit": "b63f838cb1c80667b3092185a71fdd013c02cd08"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "notes": "Startup logos, song title cards and gameplay UI; made for the English-patched game."
+ },
+ {
+  "id": "psp-burnout-legends-hd-ui-testietendie",
+  "system": "psp",
+  "title": "Burnout Legends HD Texture Pack (UI)",
+  "version": "repository af07adb",
+  "games": [
+   {
+    "title": "Burnout Legends",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10025"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "TestieTendie"
+  ],
+  "page_url": "https://github.com/TestieTendie/Burnout-Legends-HD-Texture-Pack/tree/af07adbdbdf25b2d88f365de77f334c1a723e2d1",
+  "source_id": "github:TestieTendie/Burnout-Legends-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author (the repository has no README)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Burnout-Legends-HD-Texture-Pack-af07adbdbdf25b2d88f365de77f334c1a723e2d1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/TestieTendie/Burnout-Legends-HD-Texture-Pack/zip/af07adbdbdf25b2d88f365de77f334c1a723e2d1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/TestieTendie/Burnout-Legends-HD-Texture-Pack",
+    "commit": "af07adbdbdf25b2d88f365de77f334c1a723e2d1"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-w40k-squad-command-hd-testietendie",
+  "system": "psp",
+  "title": "Warhammer 40,000: Squad Command HD Texture Pack",
+  "version": "repository bac74d9",
+  "games": [
+   {
+    "title": "Warhammer 40,000: Squad Command",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10313"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "TestieTendie"
+  ],
+  "page_url": "https://github.com/TestieTendie/W40k-Squad-Command-HD-Texture-Pack/tree/bac74d9b2ea3966df02ef671edc241c7e466b0da",
+  "source_id": "github:TestieTendie/W40k-Squad-Command-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "W40k-Squad-Command-HD-Texture-Pack-bac74d9b2ea3966df02ef671edc241c7e466b0da.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/TestieTendie/W40k-Squad-Command-HD-Texture-Pack/zip/bac74d9b2ea3966df02ef671edc241c7e466b0da"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/TestieTendie/W40k-Squad-Command-HD-Texture-Pack",
+    "commit": "bac74d9b2ea3966df02ef671edc241c7e466b0da"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available"
+ },
+ {
+  "id": "psp-gundam-vs-gundam-next-plus-hd-saramagrean",
+  "system": "psp",
+  "title": "Gundam Vs. Gundam: Next Plus HD Texture Pack",
+  "version": "repository df564c2",
+  "games": [
+   {
+    "title": "Kidou Senshi Gundam: Gundam Vs. Gundam Next Plus",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50107"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "Benjamin Benda Gates (Saramagrean)"
+  ],
+  "page_url": "https://github.com/Saramagrean/Gundam-Next-Plus---Texture-Pack/tree/df564c27205507fa2e6984240cb6a2da5587be19",
+  "source_id": "github:Saramagrean/Gundam-Next-Plus---Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author; textures.ini: \"By Benjamin Benda Gates\"",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Gundam-Next-Plus---Texture-Pack-df564c27205507fa2e6984240cb6a2da5587be19.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/Saramagrean/Gundam-Next-Plus---Texture-Pack/zip/df564c27205507fa2e6984240cb6a2da5587be19"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/Saramagrean/Gundam-Next-Plus---Texture-Pack",
+    "commit": "df564c27205507fa2e6984240cb6a2da5587be19"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "notes": "For the original or English-patched game (NPJH50107)."
+ },
+ {
+  "id": "psp-patapon2-remastered-textures-uces01177-almihalo",
+  "system": "psp",
+  "title": "Patapon 2 Remastered Texture Pack (Europe)",
+  "version": "repository 4c7321d",
+  "games": [
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES01177"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Almighty Halo (AlmiHalo)"
+  ],
+  "page_url": "https://github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-/tree/4c7321d2ca1ad063262a39cdb84ade78101f4594",
+  "source_id": "github:AlmiHalo/HDTexturePackv1.1-Unfinished-",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HDTexturePackv1.1-Unfinished--4c7321d2ca1ad063262a39cdb84ade78101f4594.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-/zip/4c7321d2ca1ad063262a39cdb84ade78101f4594"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-",
+    "commit": "4c7321d2ca1ad063262a39cdb84ade78101f4594"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HDTexturePackv1.1-Unfinished--4c7321d2ca1ad063262a39cdb84ade78101f4594/UCES01177/",
+     "to": "UCES01177"
+    }
+   ]
+  },
+  "notes": "Unfinished (version 1.1); the author's RAR release files hold the same folders."
+ },
+ {
+  "id": "psp-patapon2-remastered-textures-ucjs10089-almihalo",
+  "system": "psp",
+  "title": "Patapon 2 Remastered Texture Pack (Japan)",
+  "version": "repository 4c7321d",
+  "games": [
+   {
+    "title": "Patapon 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10089"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "Almighty Halo (AlmiHalo)"
+  ],
+  "page_url": "https://github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-/tree/4c7321d2ca1ad063262a39cdb84ade78101f4594",
+  "source_id": "github:AlmiHalo/HDTexturePackv1.1-Unfinished-",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HDTexturePackv1.1-Unfinished--4c7321d2ca1ad063262a39cdb84ade78101f4594.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-/zip/4c7321d2ca1ad063262a39cdb84ade78101f4594"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/AlmiHalo/HDTexturePackv1.1-Unfinished-",
+    "commit": "4c7321d2ca1ad063262a39cdb84ade78101f4594"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HDTexturePackv1.1-Unfinished--4c7321d2ca1ad063262a39cdb84ade78101f4594/UCJS10089/",
+     "to": "UCJS10089"
+    }
+   ]
+  },
+  "notes": "Unfinished (version 1.1); the author's RAR release files hold the same folders."
+ },
+ {
+  "id": "psp-ules00183-hd-crowbardoctor",
+  "system": "psp",
+  "title": "Star Wars: Battlefront II HD textures (HdPPSSPPtextures)",
+  "version": "repository 4299839",
+  "games": [
+   {
+    "title": "Star Wars: Battlefront II",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00183"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "crowbardoctor"
+  ],
+  "page_url": "https://github.com/crowbardoctor/HdPPSSPPtextures/tree/42998394099644c4871a6b71c6fe5be1292acde1",
+  "source_id": "github:crowbardoctor/HdPPSSPPtextures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/crowbardoctor/HdPPSSPPtextures/zip/42998394099644c4871a6b71c6fe5be1292acde1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/crowbardoctor/HdPPSSPPtextures",
+    "commit": "42998394099644c4871a6b71c6fe5be1292acde1"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1/ULES00183/",
+     "to": "ULES00183"
+    }
+   ]
+  },
+  "notes": "One folder of the author's multi-game repository."
+ },
+ {
+  "id": "psp-ulus10098-hd-crowbardoctor",
+  "system": "psp",
+  "title": "The Godfather: Mob Wars HD textures (HdPPSSPPtextures)",
+  "version": "repository 4299839",
+  "games": [
+   {
+    "title": "The Godfather: Mob Wars",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10098"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "crowbardoctor"
+  ],
+  "page_url": "https://github.com/crowbardoctor/HdPPSSPPtextures/tree/42998394099644c4871a6b71c6fe5be1292acde1",
+  "source_id": "github:crowbardoctor/HdPPSSPPtextures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/crowbardoctor/HdPPSSPPtextures/zip/42998394099644c4871a6b71c6fe5be1292acde1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/crowbardoctor/HdPPSSPPtextures",
+    "commit": "42998394099644c4871a6b71c6fe5be1292acde1"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1/ULUS10098/",
+     "to": "ULUS10098"
+    }
+   ]
+  },
+  "notes": "One folder of the author's multi-game repository."
+ },
+ {
+  "id": "psp-ulus10345-hd-crowbardoctor",
+  "system": "psp",
+  "title": "Star Wars: The Force Unleashed HD textures (HdPPSSPPtextures)",
+  "version": "repository 4299839",
+  "games": [
+   {
+    "title": "Star Wars: The Force Unleashed",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10345"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "crowbardoctor"
+  ],
+  "page_url": "https://github.com/crowbardoctor/HdPPSSPPtextures/tree/42998394099644c4871a6b71c6fe5be1292acde1",
+  "source_id": "github:crowbardoctor/HdPPSSPPtextures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/crowbardoctor/HdPPSSPPtextures/zip/42998394099644c4871a6b71c6fe5be1292acde1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/crowbardoctor/HdPPSSPPtextures",
+    "commit": "42998394099644c4871a6b71c6fe5be1292acde1"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1/ULUS10345/",
+     "to": "ULUS10345"
+    }
+   ]
+  },
+  "notes": "Textures taken from the Wii version of the game. One folder of the author's multi-game repository."
+ },
+ {
+  "id": "psp-ulus10455-hd-crowbardoctor",
+  "system": "psp",
+  "title": "Assassin's Creed: Bloodlines HD textures (HdPPSSPPtextures)",
+  "version": "repository 4299839",
+  "games": [
+   {
+    "title": "Assassin's Creed: Bloodlines",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10455"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "crowbardoctor"
+  ],
+  "page_url": "https://github.com/crowbardoctor/HdPPSSPPtextures/tree/42998394099644c4871a6b71c6fe5be1292acde1",
+  "source_id": "github:crowbardoctor/HdPPSSPPtextures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/crowbardoctor/HdPPSSPPtextures/zip/42998394099644c4871a6b71c6fe5be1292acde1"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/crowbardoctor/HdPPSSPPtextures",
+    "commit": "42998394099644c4871a6b71c6fe5be1292acde1"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "HdPPSSPPtextures-42998394099644c4871a6b71c6fe5be1292acde1/ULUS10455/",
+     "to": "ULUS10455"
+    }
+   ]
+  },
+  "notes": "One folder of the author's multi-game repository."
+ },
+ {
+  "id": "psp-toukiden-kiwami-hd-texture-pack",
+  "system": "psp",
+  "title": "Toukiden Kiwami HD Texture Pack",
+  "version": "See the creator's page",
+  "games": [
+   {
+    "title": "Toukiden Kiwami",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50878"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "セファロン 零",
+   "Ace-San",
+   "Amita Alisabezth",
+   "Saramagrean",
+   "HoaiTrung 097 Translation Team"
+  ],
+  "page_url": "https://github.com/Saramagrean/TKD_KWM-HD-Texture-Pack",
+  "source_id": "github:Saramagrean/TKD_KWM-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/Saramagrean/TKD_KWM-HD-Texture-Pack"
+  },
+  "engine": "ppsspp",
+  "availability": "manual",
+  "notes": "The repository holds the README and textures.ini; the 1.4 GB of textures are downloaded from the authors' links (PPSSPP forum thread). Compatible with the Japanese game v1.00-1.07 and its English patches."
+ },
+ {
+  "id": "psp-ridge-racers-2-jp-hd-codyv59",
+  "system": "psp",
+  "title": "Ridge Racers 2 Real HD Texture Pack (Japan)",
+  "version": "repository 5aeafb6",
+  "games": [
+   {
+    "title": "Ridge Racers 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJS00080"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "CodyV59"
+  ],
+  "page_url": "https://github.com/CodyV59/RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK/tree/5aeafb65d8a40fd0f23f5f8420acb5cb4bca93e7",
+  "source_id": "github:CodyV59/RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK-5aeafb65d8a40fd0f23f5f8420acb5cb4bca93e7.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/CodyV59/RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK/zip/5aeafb65d8a40fd0f23f5f8420acb5cb4bca93e7"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/CodyV59/RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK",
+    "commit": "5aeafb65d8a40fd0f23f5f8420acb5cb4bca93e7"
+   }
+  },
+  "engine": "ppsspp",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "RIDGE-RACERS-2-JAP-REAL-HD-TEXTURE-PACK-5aeafb65d8a40fd0f23f5f8420acb5cb4bca93e7/ULJS00080/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "notes": "Tracks and Ridge Racer V track textures for the Japanese disc ULJS00080 (the folder ULJS00080 of the repository; the older copy at its root is not installed)."
+ },
+ {
+  "id": "psp-samurai-shodown-anthology-hd-meskh4h4",
+  "title": "Samurai Shodown Anthology HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Samurai Shodown Anthology",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10401"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Samurai-Showdown-Anthology/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Samurai-Showdown-Anthology",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10401 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "The author's original ULUS10401.24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for USA ULUS10401. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "ULUS10401.24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Samurai-Showdown-Anthology/releases/download/1.0/ULUS10401.24bits.rar",
+     "sha256": "ea551b7eeec5ea690397dd087eea5b128b29bb2cb6881a20309125ea7148aa80"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-bleach-heat-the-soul-hd-meskh4h4",
+  "title": "Bleach: Heat the Soul HD texture pack (8-bit and 24-bit variants)",
+  "version": "v1.0",
+  "games": [
+   {
+    "title": "Bleach: Heat the Soul",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10008"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Bleach-heat-and-soul-texture-pack/releases/tag/v1.0",
+  "source_id": "github:MESKH4H4/Bleach-heat-and-soul-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCJS10008 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "The author's original UCJS10008-24bits.rar from release v1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Japan UCJS10008. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "UCJS10008-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Bleach-heat-and-soul-texture-pack/releases/download/v1.0/UCJS10008-24bits.rar"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-bleach-heat-the-soul-2-hd-meskh4h4",
+  "title": "Bleach: Heat the Soul 2 HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Bleach: Heat the Soul 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCJS10017"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Bleach-Heat-The-Soul-2/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Bleach-Heat-The-Soul-2",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCJS10017 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "The author's original UCJS10017-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Japan UCJS10017. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "UCJS10017-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Bleach-Heat-The-Soul-2/releases/download/1.0/UCJS10017-24bits.rar",
+     "sha256": "5618de6e44f0b74b55052130241b1b8f436ef661ad146a985b3cebbe956a9331"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-dragon-ball-z-shin-budokai-hd-meskh4h4",
+  "title": "Dragon Ball Z: Shin Budokai HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Dragon Ball Z: Shin Budokai",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10081"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Dragon-Ball-Z-Shin-Budokai-1/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Dragon-Ball-Z-Shin-Budokai-1",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10081 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "The author's original ULUS10081-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for USA ULUS10081. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "ULUS10081-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Dragon-Ball-Z-Shin-Budokai-1/releases/download/1.0/ULUS10081-24bits.rar",
+     "sha256": "16f7163a65c46aa15637275bd7c13ce37c26ac0722b58150fe46d78a55756114"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-dragon-ball-z-shin-budokai-2-hd-meskh4h4",
+  "title": "Dragon Ball Z: Shin Budokai 2 HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Dragon Ball Z: Shin Budokai 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00789"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Dragon-ball-Z-Shin-Budokai-2/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Dragon-ball-Z-Shin-Budokai-2",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULES00789 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "The author's original ULES00789-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Europe ULES00789. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "ULES00789-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Dragon-ball-Z-Shin-Budokai-2/releases/download/1.0/ULES00789-24bits.rar"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-saint-seiya-omega-ultimate-cosmo-hd-meskh4h4",
+  "title": "Saint Seiya Omega: Ultimate Cosmo HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Saint Seiya Omega: Ultimate Cosmo",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "NPJH50699"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Saint-Seiya-Omega-Ultimate-Cosmo/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Saint-Seiya-Omega-Ultimate-Cosmo",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a NPJH50699 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "The author's original NPJH50699-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Japan NPJH50699. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "NPJH50699-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Saint-Seiya-Omega-Ultimate-Cosmo/releases/download/1.0/NPJH50699-24bits.rar"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-naruto-shippuden-ultimate-ninja-heroes-3-hd-meskh4h4",
+  "title": "Naruto Shippuden: Ultimate Ninja Heroes 3 HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Naruto Shippuden: Ultimate Ninja Heroes 3",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10518"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/naruto-shippuden-ultimate-ninja-heroes-3/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/naruto-shippuden-ultimate-ninja-heroes-3",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULUS10518 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "The author's original ULUS10518-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for USA ULUS10518. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "ULUS10518-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/naruto-shippuden-ultimate-ninja-heroes-3/releases/download/1.0/ULUS10518-24bits.rar",
+     "sha256": "b4317f3540e9a3b84aa4dd6d2279bc66174523bb8385e11b757e20b4324fabe3"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-naruto-ultimate-ninja-heroes-2-hd-meskh4h4",
+  "title": "Naruto: Ultimate Ninja Heroes 2 HD texture pack (8-bit and 24-bit variants)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Naruto: Ultimate Ninja Heroes 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES01088"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/Naruto-Ultimate-Ninja-Heroes-2/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/Naruto-Ultimate-Ninja-Heroes-2",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a ULES01088 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "The author's original ULES01088-24bits.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Europe ULES01088. The selected 24-bit PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Other colour-depth variants are not covered by this verification and belong to the same project; original dumped textures (dump) are not an HD pack.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "ULES01088-24bits.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/Naruto-Ultimate-Ninja-Heroes-2/releases/download/1.0/ULES01088-24bits.rar"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-god-of-war-chains-of-olympus-hd-meskh4h4",
+  "title": "God of War: Chains of Olympus HD texture pack (PNG and PNG \"Vivid\" variants (the KTX2 variants are not listed: their compression is not checked))",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "God of War: Chains of Olympus",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "UCES00842"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "MESKH4H4"
+  ],
+  "page_url": "https://github.com/MESKH4H4/God-of-War-Chains-of-Olympus/releases/tag/1.0",
+  "source_id": "github:MESKH4H4/God-of-War-Chains-of-Olympus",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "AI-upscaled textures (the author's \"4xHDcube plus\" model); textures.ini and PNG files in a UCES00842 folder (read from the archive's file index). Archives of about 0.6 to 1.9 GB.",
+  "notes": "The author's original UCES00842-upscale_pure_psp.rar from release 1.0 was verified with NeoStation's native RAR extraction and PPSSPP installation for Europe UCES00842. The selected pure-PSP PNG variant includes textures.ini using xxh64, with no missing targets or case mismatches. Vivid and KTX2 alternatives are not covered by this verification; original dumps and PS3 remaster assets are not an HD pack.",
+  "download": {
+   "automatable": true,
+   "format": "rar",
+   "file_name": "UCES00842-upscale_pure_psp.rar",
+   "parts": [
+    {
+     "url": "https://github.com/MESKH4H4/God-of-War-Chains-of-Olympus/releases/download/1.0/UCES00842-upscale_pure_psp.rar",
+     "sha256": "4cef261a296135ef7a9a07a9258f4ca0b43f6dcb43b44f87609c77ef67dd13bf"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "availability": "manual"
+ },
+ {
+  "id": "psp-tekken6-hd-kharij",
+  "title": "Tekken 6 HD textures (Kharij, partial)",
+  "version": "2023-09-17 / 443b17fad860",
+  "games": [
+   {
+    "title": "Tekken 6",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10466"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Kharij"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=25479",
+  "source_id": "github:kharij/Tekken-6-HD-Texture-Pack",
+  "licence": {
+   "summary": "No licence stated. The creator explicitly distributes this pack only on their GitHub repository and the PPSSPP forums.",
+   "redistribution": "Downloaded directly from the creator's pinned repository archive; NeoStation does not host, modify or redistribute the files."
+  },
+  "requirements": "PPSSPP hardware renderer. Creator recommends Vulkan, texture scaling off and texture saving off. The embedded core includes the KTX2/UASTC transcoder; this does not imply support for raw .basis files.",
+  "notes": "Stages, effects, most UI and selected character textures. Work in progress; fonts, character coverage and mobile optimization are incomplete. The creator's official forum thread identifies ULUS10466; its installation paragraph contains the extra-letter typo ULUES10466, which is not used as a game ID. Other regions are not supported by the creator and are not inferred. Original GitHub commit pinned; KTX2 conversion occurred in August 2023. No in-game rendering or performance test on iPhone is claimed. Exact archive check: 933 of 9,395 distinct INI targets are absent; those parts retain the original game textures. Case mismatches are reported separately by the catalogue. No creator file is repaired or repackaged.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Tekken-6-HD-443b17fad860.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/kharij/Tekken-6-HD-Texture-Pack/zip/443b17fad860c6e72c902bea403dbc1e2076afec"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/kharij/Tekken-6-HD-Texture-Pack",
+    "commit": "443b17fad860c6e72c902bea403dbc1e2076afec"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Tekken-6-HD-Texture-Pack-443b17fad860c6e72c902bea403dbc1e2076afec/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "psp",
+  "engine": "ppsspp",
+  "scope": "partial",
+  "family": "psp-tekken6-hd-kharij"
+ }
+]

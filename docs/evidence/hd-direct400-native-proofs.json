@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-20",
+  "repository": "TarbleFR/neostation-ios",
+  "decoder_and_dispatch": {
+    "run": 39456486483,
+    "source": "2a7889e7bbc5c08c1dc781f2630a1f05fdc7037e",
+    "job": 118744621962,
+    "rar_checks": 38,
+    "affected_installer_checks": 103,
+    "result": "passed"
+  },
+  "final_native": {
+    "run": 39461533070,
+    "source": "d8a11a7dc2f6273dc2a845fb076049301cd4e9c2",
+    "job": 118761956389,
+    "public_resolver_checks": 223,
+    "mega_protocol_crypto_checks": 76,
+    "capability_checks": 20,
+    "provider_store_checks": 125,
+    "foundation_checks": 169,
+    "iphone_sources_compiled_and_linked": 36,
+    "target": "arm64-apple-ios17.4",
+    "xcode": "26.3 (17C529)",
+    "failures": 0,
+    "production_and_fixture_sha256": {
+      "packages/neo_texture_catalog/ios/Classes/NeoTexturePackStore.mm": "5cc43bd23db7cf671ce081a722812766bfaf8d9807d31b5ebb58cc19794e450f",
+      "packages/armsx2_internal_bridge/ios/Classes/ARMSX2TexturePackStore.mm": "90a96bfac47b7ec7dfd1d91c419ed3927f166413c6acb772da2cd32dd8195fe8",
+      "packages/neo_texture_catalog/ios/Classes/NeoTextureHostResolver.m": "3eeef7ac4d63adb09eb08555e4b91db48f50bfc59fbb24355c010532acad0bc6",
+      "packages/neo_texture_catalog/ios/Classes/NeoTextureMega.mm": "0f83891ea5171ce482629002a16fddaf6e314268695fc31858cd06bb49fa5599",
+      "packages/neo_texture_catalog/ios/Classes/NeoTextureCatalog.m": "c20e545e4c0478bd8402e0deaef175a3150da8e30f7a3a75edc4caf6dcc6e87f",
+      "packages/neo_texture_catalog/ios/Classes/NeoTextureRAR.h": "023e3c3db471013f3bebf946473530f747351e897e5c4289f36b5fd17083c2ec",
+      "test/texture_store_provider_test.mm": "9c11312dca82ffaa047f139b061b5e53347bf2d17ccd4e558afc88f459ebad4e"
+    }
+  },
+  "real_native_downloads": {
+    "run": 39456927008,
+    "source": "07923d59780499b3fbcd1595d0a464a688e37e9f",
+    "job": 118746131045,
+    "successful_download_and_installations": 6,
+    "receipt": "docs/evidence/hd-direct400-native-network-2026-10-20.json",
+    "receipt_sha256": "b3cb3b528b3ce35792ced606dd2e44dbd6d88964eba28de0e3e60385abd7a1cb",
+    "http_resume_crypto_prefix_unchanged_in_final_native_source": true,
+    "http_resume_crypto_prefix_sha256": "4f36e5ae26d6a40fb99ebd8a7fdab0a705455f3bd05a734fd0491ba26c42a95f",
+    "activation_proved_for": [
+      "gc-crash-nitro-kart-hd-fixes-john30011887"
+    ]
+  },
+  "intermediate_failures": [
+    {
+      "run": 39456486483,
+      "detail": "Provider/MEGA/capability programs passed; their grouped step failed on a Store fixture macro compilation error. Not counted as a successful provider step."
+    },
+    {
+      "run": 39459576086,
+      "detail": "117 Store checks, one failure: private ARMSX2 RAR expansion still visible after completion."
+    },
+    {
+      "run": 39460393849,
+      "detail": "Store120/0 passed; Foundation aborted in an escaped C++ progress callback. Fixed by creating strong ARC captures in an Objective-C method."
+    }
+  ],
+  "physical_device_rendering_validated": false,
+  "full_ipa_produced_by_native_proof": false
+}

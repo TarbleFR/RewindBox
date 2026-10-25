@@ -1,29 +1,32 @@
+import '../../l10n/melonx_transfer_locale.dart';
+import '../../l10n/melonx_launch_access_locale.dart';
+import '../../l10n/melonx_launch_failure_locale.dart';
+import '../melonx_launch_diagnostics.dart';
+import '../game_launch_manager.dart';
 import 'dart:io';
 
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/rpcs3_library_locale.dart';
-import 'package:neostation/l10n/dusklight_locale.dart';
 import 'package:neostation/l10n/dolphin_import_locale.dart';
-import 'package:neostation/l10n/ports_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/l10n/console_manager_locale.dart';
+import 'package:neostation/l10n/melonx_locale.dart';
+import 'package:neostation/services/melonx_internal_service.dart';
 import 'package:path/path.dart' as path;
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:neostation/services/retroarch_library_service.dart';
 import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_folder_service.dart';
-import 'package:neostation/services/melonx_library_service.dart';
 import 'package:neostation/services/rpcs3_library_service.dart';
 import 'package:neostation/services/rpcs3_launch_service.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 // DOLPHIN_ISOLATION_BEGIN: launcher_import
 import '../dolphin_internal_v2_service.dart';
-import '../dusklight_internal_service.dart';
-import '../kartpad_internal_service.dart';
 // DOLPHIN_ISOLATION_END: launcher_import
 import 'package:neostation/services/logger_service.dart';
+import 'package:neostation/services/retired_ports_backup.dart';
 
 import '../../models/game_model.dart';
 import '../../models/system_model.dart';
@@ -89,6 +92,10 @@ class GameLaunchService {
     SystemModel system,
     GameModel game,
   ) async {
+    if (Platform.isIOS && MelonxInternalService.nativeQuarantined) {
+      GameLaunchManager().markInitializationFailed(nativeStillActive: true);
+      return GameLaunchResult.failure(MelonxLaunchFailureLocale.text(Localizations.localeOf(context), 'quarantined'));
+    }
     final mediaOwner = Object();
     final stopMedia = FrontendMediaGate.instance.hold(mediaOwner);
     GameSessionManager.beginLaunchPending();
@@ -97,6 +104,13 @@ class GameLaunchService {
       await FrontendMediaGate.instance.quiet;
       if (!context.mounted) return GameLaunchResult.failure('', '');
       final result = await _launchGameImpl(context, system, game);
+      if (Platform.isIOS && system.folderName.toLowerCase() == 'switch' && !result.success) {
+        GameLaunchManager().markInitializationFailed(nativeStillActive: MelonxInternalService.nativeQuarantined);
+        MelonxLaunchDiagnostics.record('dispatch', 'failed', {
+          'gamePath': game.romPath,
+          'diagnostic': '${result.errorMessage ?? ""}\n${result.errorDetails ?? ""}',
+        });
+      }
       return result;
     } finally {
       GameSessionManager.clearLaunchPending();
@@ -154,16 +168,69 @@ class GameLaunchService {
         }
       }
 
+      // Switch never reaches an external emulator, generic URL or share sheet.
+      // Old virtual rows are kept for their artwork/playtime, but are not files
+      // that an embedded engine can open.
+      if (Platform.isIOS && system.folderName.toLowerCase() == 'switch') {
+        final locale = Localizations.localeOf(context);
+        final source = game.romPath;
+        if (source == null || MelonxInternalService.isRetiredLink(source)) {
+          return GameLaunchResult.failure(
+            MelonxLocale.forLocale(locale, 'reimport'),
+          );
+        }
+        final allowed = await EmbeddedEnginePolicy.instance.allowsSystem(
+          system,
+        );
+        if (!context.mounted) return GameLaunchResult.failure('', '');
+        if (!allowed) return _embeddedEngineOff(context, system);
+        final report = await MelonxInternalService.launch(
+          gamePath: source,
+          locale: locale.toLanguageTag(),
+          context: context,
+        );
+        if (report['success'] == true) {
+          GameSessionManager.registerGameLaunch(
+            system,
+            game,
+            'ios_melonx_internal',
+          );
+          await FavoritesService.recordGamePlayed(game);
+          return GameLaunchResult.success();
+        }
+        GameSessionManager.cancelGameLaunch();
+        GameLaunchManager().markInitializationFailed(
+          nativeStillActive: report['sessionActive'] == true,
+        );
+        final error = report['error']?.toString() ?? 'launchFailed';
+        final localized = report['requiresRestart'] == true
+            ? MelonxLaunchFailureLocale.text(locale, 'quarantined')
+            : error == 'profileUnavailable' ||
+                  report['diagnostic']?.toString().contains(
+                        'profileUnavailable',
+                      ) ==
+                      true
+            ? MelonxTransferLocale.forLocale(locale, 'profileUnavailable')
+            : const {
+                'memoryEntitlements',
+                'entitlementCheckFailed',
+                'libraryRestartRequired',
+              }.contains(error)
+            ? MelonxLaunchAccessLocale.text(locale, error)
+            : error == 'runtimeUnavailable'
+            ? MelonxLocale.forLocale(locale, 'unavailable')
+            : MelonxLaunchFailureLocale.text(locale, error);
+        return GameLaunchResult.failure(
+          localized,
+          MelonxLaunchDiagnostics.details(report),
+        );
+      }
+
       final isArmsx2VirtualRom =
           Platform.isIOS &&
           system.folderName.toLowerCase() == 'ps2' &&
           game.romPath != null &&
           Armsx2LibraryService.isVirtualLibraryPath(game.romPath!);
-      final isMeloNXVirtualRom =
-          Platform.isIOS &&
-          system.folderName.toLowerCase() == 'switch' &&
-          game.romPath != null &&
-          MelonxLibraryService.isVirtualLibraryPath(game.romPath!);
 
       final isRpcs3VirtualRom =
           Platform.isIOS &&
@@ -173,7 +240,7 @@ class GameLaunchService {
 
       bool romExists = false;
       if (game.romPath != null) {
-        if (isArmsx2VirtualRom || isMeloNXVirtualRom || isRpcs3VirtualRom) {
+        if (isArmsx2VirtualRom || isRpcs3VirtualRom) {
           // External iOS library imports are represented by direct-launch URLs
           // rather than filesystem paths. They remain launchable even when
           // NeoStation cannot see the underlying ROM file itself.
@@ -247,89 +314,17 @@ class GameLaunchService {
       }
       // DOLPHIN_ISOLATION_END: explicit_gc_wii_route
 
-      // Ports are explicitly dispatched by their private NeoStation owner.
-      // A staged KartPad import must never fall through into Dusklight,
-      // RetroArch or the iOS share sheet while its callable Core is unfinished.
-      if (Platform.isIOS && system.folderName.toLowerCase() == 'ports') {
-        // Build 448: KartPad and Dusklight switched off; no external app.
-        final portsAllowed =
-            await EmbeddedEnginePolicy.instance.allowsSystem(system);
-        if (!context.mounted) return GameLaunchResult.failure('', '');
-        if (!portsAllowed) return _embeddedEngineOff(context, system);
-        final locale = Localizations.localeOf(context);
-        final gamePath = game.romPath;
-        if (gamePath == null || gamePath.isEmpty) {
-          return GameLaunchResult.failure(
-            DusklightLocale.launchError(locale, 'DUSKLIGHT_GAME_UNREADABLE'),
-            system.folderName,
-          );
-        }
-        if (await KartPadInternalService.ownsGamePath(gamePath)) {
-          final KartPadLaunchResult report;
-          try {
-            report = await KartPadInternalService.launch(
-              gamePath,
-              uiText: PortsLocale.kartPadNativeUI(locale),
-            );
-          } catch (error) {
-            _log.e('[KartPad launch] $error');
-            return GameLaunchResult.failure(
-              PortsLocale.kartPadLaunchError(locale, null),
-              '$error',
-            );
-          }
-          if (!context.mounted) return GameLaunchResult.failure('', '');
-          if (!report.success) {
-            final runtimeMessage = report.message.trim();
-            final details =
-                'KartPad stage: ${report.stage ?? "unknown"}\n'
-                'Code: ${report.errorCode ?? "unknown"}\n'
-                '${report.technicalDetails}\n'
-                'Runtime message: ${runtimeMessage.isEmpty ? "none" : runtimeMessage}';
-            _log.e('[KartPad launch]\n$details');
-            // User-facing copy always follows NeoStation's selected locale.
-            // Keep the exact native runtime message in the technical details so
-            // diagnostics remain lossless without leaking English into the UI.
-            return GameLaunchResult.failure(
-              PortsLocale.kartPadLaunchError(locale, report.errorCode),
-              details,
-            );
-          }
-          GameSessionManager.registerGameLaunch(
-            system,
-            game,
-            'ios_kartpad_internal',
-          );
-          await FavoritesService.recordGamePlayed(game);
-          return GameLaunchResult.success();
-        }
-        final DusklightLaunchResult report;
-        try {
-          report = await DusklightInternalService.launch(gamePath,
-            uiText: DusklightLocale.nativeUI(locale));
-        } catch (error) {
-          _log.e('[Dusklight launch] $error');
-          return GameLaunchResult.failure(
-            DusklightLocale.launchError(locale, null),
-            '$error',
-          );
-        }
-        if (!context.mounted) return GameLaunchResult.failure('', '');
-        if (!report.success) {
-          return GameLaunchResult.failure(
-            DusklightLocale.launchError(locale, report.errorCode),
-            'Dusklight stage: ${report.stage ?? "unknown"}\n'
-            'Code: ${report.errorCode ?? "unknown"}\n'
-            '${report.technicalDetails}\n${report.message}',
-          );
-        }
-        GameSessionManager.registerGameLaunch(
-          system,
-          game,
-          'ios_dusklight_internal',
+      // The Ports playlist and its engines left NeoStation
+      // (docs/ports-removal-2026-10-20.md). A game row kept while its
+      // database copy waits never falls through to another emulator, a
+      // RetroArch link or the share sheet; its file stays where it is.
+      if (system.folderName.toLowerCase() ==
+          RetiredPortsBackup.retiredFolderName) {
+        return GameLaunchResult.failure(
+          AppLocale.noEmulator.getString(context),
+          'The Ports playlist is not part of this RewindBox build: '
+          '${game.romPath ?? game.name}',
         );
-        await FavoritesService.recordGamePlayed(game);
-        return GameLaunchResult.success();
       }
 
       // iOS: there's no equivalent of Android's "send an Intent with a file
@@ -443,36 +438,6 @@ class GameLaunchService {
         final retroArchStandsIn =
             !embeddedAllowed &&
             (ConsoleCatalog.entryForSystem(system)?.retroArchFallback ?? false);
-
-        // Nintendo Switch: MeloNX exposes an alternate-frontend library export
-        // and direct-launch URL scheme. Imported virtual rows launch immediately;
-        // physical Switch rows can also be matched by Title ID/title name from
-        // the last MeloNX sync.
-        if (system.folderName.toLowerCase() == 'switch') {
-          try {
-            final launched = await MelonxLibraryService.launchGameByRomPath(
-              game.romPath!,
-              titleId: game.titleId,
-              titleName: game.titleName,
-            );
-            if (launched) return GameLaunchResult.success();
-          } catch (e) {
-            // Physical Switch rows can still fall through to RetroArch/Open In.
-          }
-
-          // A virtual MeloNX row has no local file to hand to another emulator
-          // if its deeplink failed. Stop here instead of trying file fallbacks.
-          if (isMeloNXVirtualRom) {
-            if (!context.mounted) return failExternal(GameLaunchResult.failure('', ''));
-            return failExternal(GameLaunchResult.failure(
-              ConsoleManagerLocale.forLocale(
-                Localizations.localeOf(context),
-                ConsoleManagerLocale.launchMelonxFailed,
-              ),
-              game.romPath,
-            ));
-          }
-        }
 
         // PS2: ownership comes from the dedicated ARMSX2 root bookmark. A
         // physical ROM below that root belongs to ARMSX2 and is launched there

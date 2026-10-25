@@ -46,6 +46,13 @@ class ScreenscraperMediaResolver {
         return 'box2d';
       case 'manuel':
         return 'manuals';
+      // Faces of the 3D box (docs/game-box-3d.md § 6).
+      case 'box-2D-back':
+        return 'box2dback';
+      case 'box-2D-side':
+        return 'box2dside';
+      case 'support-2D':
+        return 'support2d';
       default:
         return mediaType;
     }

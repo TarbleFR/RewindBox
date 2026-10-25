@@ -1,0 +1,270 @@
+{
+  "schema": 1,
+  "date": "2026-10-23",
+  "base": "22df4502db21ee1bcd68e15c1791aeba1a826658",
+  "observedBuild": 513,
+  "inputs": [
+    {
+      "name": "app(6).log",
+      "sha256": "6b5819e71a1f8db52e714e5441eb5cc73addeb6c7e65089a2d21319e6d61546b",
+      "bytes": 4291254
+    },
+    {
+      "name": "RPCS3-diagnostic(2).log",
+      "sha256": "da1962d043cd1050e2f1bd9d476322f49cf2cc95c0bbd956f54feef8535f9f2c",
+      "bytes": 72576
+    },
+    {
+      "name": "RPCS3-milestones(2).log",
+      "sha256": "8e75017f175d0472361bc66b753181864bd86e753b7f13238e12f33f2fc7a792",
+      "bytes": 213611
+    },
+    {
+      "name": "NeoSwap-v1.jsonl.previous",
+      "sha256": "898e4c8e6e97cbeb750f650943925e9189d2f35e2bc92778a5ca8528f3939431",
+      "bytes": 16753427
+    }
+  ],
+  "diagnostic": {
+    "pid": 20250,
+    "begin": 1792768918.0132952,
+    "end": 1792768946.868034,
+    "rsxTimeoutLine": 84,
+    "expected": "0x976",
+    "observed": "0x975",
+    "address": "0x60300510",
+    "waitedUs": 2000012,
+    "zeroFrameLines": [
+      83,
+      88,
+      97
+    ],
+    "headroomBytesAtZeroFrames": 3930924512,
+    "spuCompileAttemptsInRetainedWindows": 0
+  },
+  "milestones": {
+    "build513Rows": 84,
+    "freezeBeginLines": [
+      817,
+      818,
+      819
+    ],
+    "gow3RestoreNoCompletedMilestoneLines": [
+      788,
+      843
+    ],
+    "differentTitleSuccessfulRestoreLines": [
+      831,
+      832,
+      833,
+      834
+    ],
+    "differentTitle": "BLES00113"
+  },
+  "neoSwapCoverage": {
+    "pid20216End": 1792768559.643879,
+    "pid20250End": 1792768578.353287,
+    "coversLateFreeze": false
+  },
+  "sourceDefect": {
+    "file": "rpcs3/Loader/TAR.cpp",
+    "introducedIn": "c5e54c5817f848e6f667b757931f91364e9faeda",
+    "reproduction": "2 MiB aligned member with following-member bytes already prefetched; an empty post-EOF probe calls breathe twice at the same position",
+    "provenOnExactUserSave": false
+  },
+  "zstdRegression": {
+    "passed": true,
+    "realZstd": true,
+    "boundaryCases": 20,
+    "sanitizers": true,
+    "cases": [
+      {
+        "variant": "513-negative-control",
+        "exit": -6,
+        "stdout": "",
+        "stderr": "terminate called after throwing an instance of 'std::runtime_error'\n  what():  ar.pos >= ar.data_offset"
+      },
+      {
+        "variant": "candidate",
+        "exit": 0,
+        "stdout": "PASS 20 compressed TAR boundaries; all payload/padding/next-member bytes preserved",
+        "stderr": ""
+      }
+    ],
+    "scope": "production methods with portable host I/O/thread adapters; no device run"
+  },
+  "boundedTarRegression": {
+    "passed": true,
+    "scope": "production excerpts; portable SDK/I-O doubles; no full emulator/device validation",
+    "sanitizers": true,
+    "testedRuntimeSourceHashes": {
+      "rpcs3/Loader/TAR.cpp": "47b9fca0855a3ac2d3a05699aa7857b94709540c6921968889deee98b70bf0cd"
+    },
+    "cases": [
+      {
+        "variant": "before",
+        "fixture": "tar",
+        "stdout": "retained_serial_capacity=83886080 ring_bytes=67108987 releases=0 streaming=1\nPASS production TAR ring/read loop: bytes, chunk boundaries, wraparound, scope and retained-buffer bound"
+      },
+      {
+        "variant": "candidate-ios",
+        "fixture": "tar",
+        "stdout": "retained_serial_capacity=3145728 ring_bytes=4194304 releases=65 streaming=1\nretained_serial_capacity=3145728 ring_bytes=4194304 releases=258 streaming=1\nPASS production TAR ring/read loop: bytes, chunk boundaries, wraparound, scope and retained-buffer bound"
+      },
+      {
+        "variant": "candidate-desktop",
+        "fixture": "tar",
+        "stdout": "retained_serial_capacity=83886080 ring_bytes=67108987 releases=0 streaming=1\nPASS production TAR ring/read loop: bytes, chunk boundaries, wraparound, scope and retained-buffer bound"
+      }
+    ]
+  },
+  "rsxRegression": {
+    "positiveScenarios": 8,
+    "oldCodeNegativeControl": "returns before late producer publishes label",
+    "rootProducerFailureIdentified": false
+  },
+  "localChecks": [
+    "source closure",
+    "canonical materialization and all postimage hashes",
+    "6 syntax-gate command-preservation unit tests (not actual iOS compilation)",
+    "Build 264 ARM64 contract",
+    "Build 258 resilience contract",
+    "host log admission/ABI and three complete freeze snapshot shapes"
+  ],
+  "corePatchSHA256": "388c5c37ed89c97d2b2aebd7642b611fd5a5ef2ed1d3c0cfa2be815357f66767",
+  "physicalDeviceTested": false,
+  "gameplayImprovementMeasured": false,
+  "nativeBuildStatus": "success",
+  "nativeBuild": {
+    "source": "a69860297d7b26dbb688df0daf16a31b42046462",
+    "run": 39982269326,
+    "job": 120512326423,
+    "conclusion": "success",
+    "xcode": "16.4",
+    "sdk": "iPhoneOS18.5",
+    "architectures": [
+      "arm64"
+    ],
+    "abi": 30,
+    "actualSDKSyntaxUnits": 34,
+    "verifiedSourceInputs": 92,
+    "dylibSHA256": "cb2877b7558a589554c9c923b71f20129433c40654232ee706545dd7622da7cb",
+    "coreArtifact": {
+      "id": 12514946147,
+      "bytes": 28967598,
+      "sha256": "b9cf6ade3859a49d87c95c830864d18f61c8efdd629c4a87ed5e0978e8341ec0",
+      "downloadIndependentlyVerified": true
+    },
+    "diagnosticArtifact": {
+      "id": 12515026082,
+      "bytes": 399635,
+      "sha256": "6fbbeed2437ffa7fa810dbb82782171a68b5d693fc68ffafd0298bb99554cd05",
+      "downloadIndependentlyVerified": true
+    },
+    "codegen": {
+      "actual": {
+        "PPU": [
+          "8f9b154eb34feabb"
+        ],
+        "SPU": [
+          "7c226c2359020e20"
+        ]
+      },
+      "referenceCore": "c5e54c5817f848e6f667b757931f91364e9faeda",
+      "cacheNamespacePreserved": true
+    },
+    "passiveDlopenScope": "Static named forbidden reachability via direct ARM64 B/BL edges, maximum depth 16; no iPhone runtime load",
+    "hostBridgeScope": "source admission/ABI contracts and extracted executable fixtures; no full application SDK build in this run",
+    "newIPAProduced": false,
+    "coreBytes": 76960480,
+    "downloadedBinaryVerification": {
+      "digest": true,
+      "iphoneMachO": true,
+      "followupMarkers": true,
+      "sourceInputHashes": 92
+    }
+  },
+  "ciZstdRegression": {
+    "passed": true,
+    "realZstd": true,
+    "boundaryCases": 20,
+    "sanitizers": true,
+    "cases": [
+      {
+        "variant": "513-negative-control",
+        "exit": -6,
+        "stdout": "",
+        "stderr": "libc++abi: terminating due to uncaught exception of type std::runtime_error: ar.pos >= ar.data_offset"
+      },
+      {
+        "variant": "candidate",
+        "exit": 0,
+        "stdout": "PASS 20 compressed TAR boundaries; all payload/padding/next-member bytes preserved",
+        "stderr": ""
+      }
+    ],
+    "scope": "production methods with portable host I/O/thread adapters; no device run"
+  },
+  "ciBoundedTarRegression": {
+    "passed": true,
+    "scope": "production excerpts; portable SDK/I-O doubles; no full emulator/device validation",
+    "sanitizers": true,
+    "testedRuntimeSourceHashes": {
+      "rpcs3/Loader/TAR.cpp": "47b9fca0855a3ac2d3a05699aa7857b94709540c6921968889deee98b70bf0cd"
+    },
+    "cases": [
+      {
+        "variant": "before",
+        "fixture": "tar",
+        "stdout": "retained_serial_capacity=100663296 ring_bytes=67108987 releases=0 streaming=1\nPASS production TAR ring/read loop: bytes, chunk boundaries, wraparound, scope and retained-buffer bound"
+      },
+      {
+        "variant": "candidate-ios",
+        "fixture": "tar",
+        "stdout": "retained_serial_capacity=3145728 ring_bytes=4194304 releases=65 streaming=1\nretained_serial_capacity=3145728 ring_bytes=4194304 releases=258 streaming=1\nPASS production TAR ring/read loop: bytes, chunk boundaries, wraparound, scope and retained-buffer bound"
+      },
+      {
+        "variant": "candidate-desktop",
+        "fixture": "tar",
+        "stdout": "retained_serial_capacity=100663296 ring_bytes=67108987 releases=0 streaming=1\nPASS production TAR ring/read loop: bytes, chunk boundaries, wraparound, scope and retained-buffer bound"
+      }
+    ]
+  },
+  "ciTargetedProofSHA256": "388da9a4398a80b7d2be99c4e70c642a7486f4b0418445874a2aa9787f5aa0c0",
+  "unrelatedAutomaticRuns": [
+    {
+      "run": 39982269228,
+      "conclusion": "failure",
+      "failures": [
+        {
+          "job": 120512326185,
+          "cause": "UIKit catalogue test target fails to link RBLiquidProgressView; no RPCS3 compilation failure"
+        },
+        {
+          "job": 120512325848,
+          "cause": "PSP/N64 teardown journal fixtures expect old NeoStation message"
+        }
+      ]
+    },
+    {
+      "run": 39982269230,
+      "remainingWorkCancelled": true,
+      "preexistingFailures": [
+        {
+          "job": 120512324959,
+          "cause": "fixture attempts to download missing release 0.0.1 NeoStation.ipa"
+        },
+        {
+          "job": 120512325406,
+          "cause": "storage allowlist omits MeloNX embedded library service callers"
+        }
+      ],
+      "conclusion": "cancelled"
+    },
+    {
+      "run": 39982269289,
+      "conclusion": "skipped",
+      "purpose": "MeloNX Build 514 assembly; no new IPA from this source"
+    }
+  ]
+}

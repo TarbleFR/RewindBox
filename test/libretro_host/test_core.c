@@ -47,10 +47,23 @@ static uint8_t restored_marker;
  * as RETRO_MEMORY_SYSTEM_RAM, which the host never saves or restores:
  *   [0..15] neotest_init, [16..31] neotest_locked, [32..47] neotest_default
  *   and [48..63] neotest_mode at retro_init; [64..79] neotest_init re-read
- *   in retro_run after an update; [80] number of updates seen.
+ *   in retro_run after an update; [80] number of updates seen; [81], [82]
+ *   callbacks set before and after retro_init (below).
  */
 #define INIT_REPORT_FIELD 16
 static uint8_t init_report[96];
+/*
+ * [81] video/audio/input callbacks the frontend set before retro_init, [82]
+ * after it. RetroArch sets them after retro_init (runloop.c,
+ * core_init_libretro_cbs); Mesen dereferences its console, created in
+ * retro_init, in retro_set_video_refresh.
+ */
+static bool core_initialized;
+static uint8_t callbacks_before_init, callbacks_after_init;
+static void callback_set(void) {
+  if (core_initialized) callbacks_after_init++;
+  else callbacks_before_init++;
+}
 
 /*
  * neotest_hw=on: the core registers a hardware context in retro_load_game
@@ -150,13 +163,14 @@ RETRO_API void retro_set_environment(retro_environment_t cb) {
   cb(RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2, &options);
 }
 
-RETRO_API void retro_set_video_refresh(retro_video_refresh_t cb) { video_cb = cb; }
-RETRO_API void retro_set_audio_sample(retro_audio_sample_t cb) {}
-RETRO_API void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { audio_batch_cb = cb; }
-RETRO_API void retro_set_input_poll(retro_input_poll_t cb) { input_poll_cb = cb; }
-RETRO_API void retro_set_input_state(retro_input_state_t cb) { input_state_cb = cb; }
+RETRO_API void retro_set_video_refresh(retro_video_refresh_t cb) { callback_set(); video_cb = cb; }
+RETRO_API void retro_set_audio_sample(retro_audio_sample_t cb) { callback_set(); }
+RETRO_API void retro_set_audio_sample_batch(retro_audio_sample_batch_t cb) { callback_set(); audio_batch_cb = cb; }
+RETRO_API void retro_set_input_poll(retro_input_poll_t cb) { callback_set(); input_poll_cb = cb; }
+RETRO_API void retro_set_input_state(retro_input_state_t cb) { callback_set(); input_state_cb = cb; }
 
 RETRO_API void retro_init(void) {
+  core_initialized = true;
   struct retro_log_callback logging;
   if (environ_cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &logging)) log_cb = logging.log;
   if (log_cb) log_cb(RETRO_LOG_INFO, "neotest init\n");
@@ -180,6 +194,8 @@ RETRO_API void retro_init(void) {
 RETRO_API void retro_deinit(void) {
   if (hardware_context && log_cb) log_cb(RETRO_LOG_INFO, "neotest deinit interface=%d\n", interface_available());
   hardware_context = false;
+  core_initialized = false;
+  callbacks_before_init = callbacks_after_init = 0;
 }
 RETRO_API unsigned retro_api_version(void) { return RETRO_API_VERSION; }
 
@@ -306,7 +322,11 @@ RETRO_API unsigned retro_get_region(void) { return RETRO_REGION_NTSC; }
 
 RETRO_API void *retro_get_memory_data(unsigned id) {
   if (id == RETRO_MEMORY_SAVE_RAM) return save_ram;
-  if (id == RETRO_MEMORY_SYSTEM_RAM) return init_report;
+  if (id == RETRO_MEMORY_SYSTEM_RAM) {
+    init_report[81] = callbacks_before_init;
+    init_report[82] = callbacks_after_init;
+    return init_report;
+  }
   return NULL;
 }
 

@@ -16,9 +16,20 @@ on:
       - 'lib/screens/settings_screen/new_settings_options/about_settings_content.dart'
       - 'lib/screens/settings_screen/new_settings_options/system_art_settings_content.dart'
       - 'lib/services/neo_assets_service.dart'
+      - 'lib/services/system_art/**'
+      - 'tools/system_art/**'
+      - 'test/services/neo_assets_service_external_pack_test.dart'
+      - 'test/services/neoassets_public_catalog_test.dart'
       - 'lib/widgets/setup_wizard.dart'
       - 'build-utils/embed_legal_bundle.py'
       - 'build-utils/validate_legal_bundle_ipa.py'
+      - 'build-utils/collect_build_source_evidence.py'
+      - 'build-utils/fetch_locked_package_sources.py'
+      - 'docs/SOURCE_CODE_ACCESS.md'
+      - 'docs/PACKAGE_SOURCES_AND_LICENSES.md'
+      - 'docs/ENGINE_CORRESPONDING_SOURCES.md'
+      - 'docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md'
+      - 'docs/evidence/*source*license*audit*.json'
       - 'build-utils/libretro/cores.json'
       - 'build-utils/*/source.json'
       - 'build-utils/rpcs3/canonical-source.json'
@@ -79,7 +90,9 @@ jobs:
             test/grid_preview_audio_contract_test.dart \
             test/external_display_games_list_test.dart \
             test/secondary_background_fallback_test.dart \
-            test/neo_swap_locale_test.dart
+            test/neo_swap_locale_test.dart \
+            test/services/neo_assets_service_external_pack_test.dart \
+            test/services/neoassets_public_catalog_test.dart
           python3 test/retroarch_baseline_scope_test.py
 
       - name: Validate legal scripts and source pins
@@ -88,6 +101,9 @@ jobs:
           set -euo pipefail
           python3 -m py_compile             build-utils/embed_legal_bundle.py             build-utils/validate_legal_bundle_ipa.py
           python3 test/legal_bundle_preflight_test.py
+          python3 test/build_source_evidence_test.py
+          python3 test/locked_package_sources_test.py
+          python3 tools/system_art/canvas_es_de.py --check
 
           python3 - <<'PY'
           from pathlib import Path
@@ -117,16 +133,19 @@ jobs:
           assert "recommended.author" in wizard
           assert "NeoStation Assets" in credits
           assert "RiiSU / iiSU System Art" in credits
+          assert "author: 'zenandiko, from Canvas by Siddy212'" in assets_service
+          assert "zenandiko/canvas-es-de" in assets_service
+          assert "Canvas (ES-DE) System Art" in credits
           assert "rootBundle.loadString" in credits
           for asset in (
               'NeoStation-GPL-3.0.txt',
               'RPCS3-GPL-2.0.txt',
               'ARMSX2-GPL-3.0.txt',
-              'Dusklight-CC0-1.0.txt',
               'StikJIT-MPL-2.0.txt',
               'GameDB-PS3-GPL-3.0.txt',
               'NeoStation-Assets-CC-BY-NC-SA-4.0.txt',
               'RiiSU-ATTRIBUTION.md',
+              'Canvas-ES-DE-ATTRIBUTION.md',
           ):
               assert (Path('assets/legal') / asset).is_file(), asset
           PY
@@ -138,7 +157,8 @@ jobs:
         run: |
           set -euo pipefail
           APP="$RUNNER_TEMP/legal-test/Payload/Runner.app"
-          mkdir -p "$APP"
+          mkdir -p "$APP/Frameworks/App.framework/flutter_assets"
+          printf '%s\n' 'Synthetic Flutter notice fixture; no application build.' > "$APP/Frameworks/App.framework/flutter_assets/NOTICES.txt"
 
           GITHUB_SHA="$TEST_SHA" python3 build-utils/embed_legal_bundle.py             --app "$APP"             --build-number 350             --dolphin-sha 7cac54161659421ed95c2cd1c0b0746539a4cd38
 

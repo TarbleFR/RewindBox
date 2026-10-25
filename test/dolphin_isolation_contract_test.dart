@@ -13,9 +13,9 @@ void main() {
       lessThan(launcher.indexOf('if (Platform.isIOS)')),
     );
     expect(launcher, contains('Rpcs3LaunchService.launchTitle'));
-    expect(launcher, contains('MelonxLibraryService.launchGameByRomPath'));
+    expect(launcher, contains('MelonxInternalService.launch'));
     expect(launcher, contains('Armsx2LibraryService.launchGameByRomPath'));
-    expect(launcher, contains('RetroArchLibraryService.launchGameByRomPath'));
+    expect(launcher, contains('RetroArchLibraryService.launchGameWithDiagnostics'));
   });
 
   test('Dolphin JIT policy is legacy-only and does not alter shared StikJIT', () {
@@ -25,16 +25,12 @@ void main() {
     expect(helper, contains('script: .legacy'));
     expect(helper, isNot(contains('.universal')));
 
-    for (final path in [
-      'packages/stikjit_bridge/ios/Classes/StikjitBridgePlugin.swift',
-      'packages/stikjit_bridge/ios/Classes/NeoStationStikjitBridgePlugin.swift',
-      'packages/stikjit_bridge/ios/Classes/StikjitRpcs3BridgePlugin.swift',
-    ]) {
-      final file = File(path);
-      if (file.existsSync()) {
-        expect(file.readAsStringSync(), contains('script: .universal'));
-      }
-    }
+    final shared = File('packages/stikjit_bridge/ios/Classes/NeoStationStikjitBridgePlugin.swift').readAsStringSync();
+    expect(shared, contains('LocalDevVpnRouteProbe.probe'));
+    expect(shared, isNot(contains('StikJIT.enableJIT')));
+    final pod = File('packages/stikjit_bridge/ios/stikjit_bridge.podspec').readAsStringSync();
+    expect(pod, contains("s.exclude_files = ['Classes/StikjitBridgePlugin.swift', 'Classes/StikjitBridgePluginV2.swift']"));
+
   });
 
   test('Dolphin does not own generic executable extensions', () {

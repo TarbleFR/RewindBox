@@ -1,0 +1,2091 @@
+{
+  "schema": 1,
+  "purpose": "observational device baseline for CELL525; no before/after performance claim",
+  "inputs": {
+    "app": {
+      "filename": "app(3).log",
+      "bytes": 4645119,
+      "sha256": "fffc6aed9af9de6bb55d845ad4a17fe96368e7cafa7f55495cceaa1130069611"
+    },
+    "diagnostic": {
+      "filename": "RPCS3-diagnostic(2).log",
+      "bytes": 1868286,
+      "sha256": "96bd57e2cd73a70b475bb498cde35418feffd2cba6ffda5196ea8e4067ba9caa"
+    },
+    "milestones": {
+      "filename": "RPCS3-milestones(2).log",
+      "bytes": 440799,
+      "sha256": "4708f89de8ca2819e960f99a23bed92f47015a1bd431422468c929aeebbb3b86"
+    },
+    "neoswap": {
+      "filename": "NeoSwap-v1.jsonl(1).previous",
+      "bytes": 16763206,
+      "sha256": "d72b963e0537f09ac2f8be6b418458451acf7aa161303b56d502f7c3b9608fe2"
+    }
+  },
+  "session_inventory": {
+    "diagnostic": [
+      {
+        "build": "520",
+        "pid": 22226,
+        "rows": 423,
+        "first_timestamp": 1792839912.670346,
+        "last_timestamp": 1792840038.739616
+      },
+      {
+        "build": "522",
+        "pid": 22952,
+        "rows": 1351,
+        "first_timestamp": 1792847971.6827068,
+        "last_timestamp": 1792848249.528702
+      },
+      {
+        "build": "524",
+        "pid": 23669,
+        "rows": 1652,
+        "first_timestamp": 1792863604.837916,
+        "last_timestamp": 1792863857.703216
+      }
+    ],
+    "milestones": [
+      {
+        "build": "486",
+        "pid": 439,
+        "rows": 24,
+        "first_timestamp": 1792416016.5005589,
+        "last_timestamp": 1792416032.516386
+      },
+      {
+        "build": "486",
+        "pid": 539,
+        "rows": 24,
+        "first_timestamp": 1792416113.884077,
+        "last_timestamp": 1792416124.71847
+      },
+      {
+        "build": "486",
+        "pid": 672,
+        "rows": 24,
+        "first_timestamp": 1792416466.578634,
+        "last_timestamp": 1792416476.593523
+      },
+      {
+        "build": "486",
+        "pid": 708,
+        "rows": 1,
+        "first_timestamp": 1792417322.452385,
+        "last_timestamp": 1792417322.452385
+      },
+      {
+        "build": "486",
+        "pid": 939,
+        "rows": 38,
+        "first_timestamp": 1792417560.894881,
+        "last_timestamp": 1792420705.982514
+      },
+      {
+        "build": "486",
+        "pid": 1214,
+        "rows": 1,
+        "first_timestamp": 1792420843.694402,
+        "last_timestamp": 1792420843.694402
+      },
+      {
+        "build": "486",
+        "pid": 1496,
+        "rows": 1,
+        "first_timestamp": 1792423428.367686,
+        "last_timestamp": 1792423428.367686
+      },
+      {
+        "build": "486",
+        "pid": 1585,
+        "rows": 1,
+        "first_timestamp": 1792424357.793802,
+        "last_timestamp": 1792424357.793802
+      },
+      {
+        "build": "486",
+        "pid": 2769,
+        "rows": 24,
+        "first_timestamp": 1792440600.832275,
+        "last_timestamp": 1792440614.021765
+      },
+      {
+        "build": "486",
+        "pid": 2869,
+        "rows": 28,
+        "first_timestamp": 1792441547.003347,
+        "last_timestamp": 1792445323.790647
+      },
+      {
+        "build": "486",
+        "pid": 3544,
+        "rows": 1,
+        "first_timestamp": 1792449405.740253,
+        "last_timestamp": 1792449405.740253
+      },
+      {
+        "build": "486",
+        "pid": 3625,
+        "rows": 26,
+        "first_timestamp": 1792450310.827015,
+        "last_timestamp": 1792456432.436411
+      },
+      {
+        "build": "486",
+        "pid": 58282,
+        "rows": 20,
+        "first_timestamp": 1792405779.7191482,
+        "last_timestamp": 1792405782.417681
+      },
+      {
+        "build": "486",
+        "pid": 58728,
+        "rows": 1,
+        "first_timestamp": 1792406809.203114,
+        "last_timestamp": 1792406809.203114
+      },
+      {
+        "build": "486",
+        "pid": 61286,
+        "rows": 1,
+        "first_timestamp": 1792410490.9449658,
+        "last_timestamp": 1792410490.9449658
+      },
+      {
+        "build": "486",
+        "pid": 62810,
+        "rows": 26,
+        "first_timestamp": 1792414279.972361,
+        "last_timestamp": 1792414303.921577
+      },
+      {
+        "build": "486",
+        "pid": 67358,
+        "rows": 1,
+        "first_timestamp": 1792415298.13552,
+        "last_timestamp": 1792415298.13552
+      },
+      {
+        "build": "486",
+        "pid": 67403,
+        "rows": 3,
+        "first_timestamp": 1792415314.585343,
+        "last_timestamp": 1792415320.412857
+      },
+      {
+        "build": "486",
+        "pid": 67415,
+        "rows": 3,
+        "first_timestamp": 1792415361.567652,
+        "last_timestamp": 1792415375.544642
+      },
+      {
+        "build": "486",
+        "pid": 67421,
+        "rows": 1,
+        "first_timestamp": 1792415434.878833,
+        "last_timestamp": 1792415434.878833
+      },
+      {
+        "build": "486",
+        "pid": 67423,
+        "rows": 1,
+        "first_timestamp": 1792415468.0049071,
+        "last_timestamp": 1792415468.0049071
+      },
+      {
+        "build": "486",
+        "pid": 67426,
+        "rows": 1,
+        "first_timestamp": 1792415486.1927562,
+        "last_timestamp": 1792415486.1927562
+      },
+      {
+        "build": "486",
+        "pid": 67427,
+        "rows": 1,
+        "first_timestamp": 1792415494.032404,
+        "last_timestamp": 1792415494.032404
+      },
+      {
+        "build": "486",
+        "pid": 67497,
+        "rows": 3,
+        "first_timestamp": 1792415859.240903,
+        "last_timestamp": 1792415892.70815
+      },
+      {
+        "build": "486",
+        "pid": 67528,
+        "rows": 1,
+        "first_timestamp": 1792415920.187696,
+        "last_timestamp": 1792415920.187696
+      },
+      {
+        "build": "490",
+        "pid": 4384,
+        "rows": 1,
+        "first_timestamp": 1792456551.3010411,
+        "last_timestamp": 1792456551.3010411
+      },
+      {
+        "build": "490",
+        "pid": 4403,
+        "rows": 1,
+        "first_timestamp": 1792456691.399417,
+        "last_timestamp": 1792456691.399417
+      },
+      {
+        "build": "490",
+        "pid": 4429,
+        "rows": 1,
+        "first_timestamp": 1792456833.520599,
+        "last_timestamp": 1792456833.520599
+      },
+      {
+        "build": "490",
+        "pid": 4445,
+        "rows": 1,
+        "first_timestamp": 1792457021.0174708,
+        "last_timestamp": 1792457021.0174708
+      },
+      {
+        "build": "490",
+        "pid": 4464,
+        "rows": 1,
+        "first_timestamp": 1792457677.955266,
+        "last_timestamp": 1792457677.955266
+      },
+      {
+        "build": "493",
+        "pid": 4814,
+        "rows": 1,
+        "first_timestamp": 1792465027.7095819,
+        "last_timestamp": 1792465027.7095819
+      },
+      {
+        "build": "493",
+        "pid": 4844,
+        "rows": 1,
+        "first_timestamp": 1792465441.533338,
+        "last_timestamp": 1792465441.533338
+      },
+      {
+        "build": "493",
+        "pid": 5746,
+        "rows": 17,
+        "first_timestamp": 1792491067.604374,
+        "last_timestamp": 1792491095.648027
+      },
+      {
+        "build": "493",
+        "pid": 5768,
+        "rows": 25,
+        "first_timestamp": 1792491102.566103,
+        "last_timestamp": 1792491117.949867
+      },
+      {
+        "build": "493",
+        "pid": 5813,
+        "rows": 1,
+        "first_timestamp": 1792491567.078796,
+        "last_timestamp": 1792491567.078796
+      },
+      {
+        "build": "493",
+        "pid": 5821,
+        "rows": 1,
+        "first_timestamp": 1792491682.770896,
+        "last_timestamp": 1792491682.770896
+      },
+      {
+        "build": "493",
+        "pid": 5986,
+        "rows": 1,
+        "first_timestamp": 1792494959.51753,
+        "last_timestamp": 1792494959.51753
+      },
+      {
+        "build": "493",
+        "pid": 5999,
+        "rows": 1,
+        "first_timestamp": 1792495010.773601,
+        "last_timestamp": 1792495010.773601
+      },
+      {
+        "build": "493",
+        "pid": 6074,
+        "rows": 1,
+        "first_timestamp": 1792497330.8079228,
+        "last_timestamp": 1792497330.8079228
+      },
+      {
+        "build": "493",
+        "pid": 6177,
+        "rows": 50,
+        "first_timestamp": 1792499104.8093371,
+        "last_timestamp": 1792500907.366741
+      },
+      {
+        "build": "493",
+        "pid": 6373,
+        "rows": 1,
+        "first_timestamp": 1792500927.7897859,
+        "last_timestamp": 1792500927.7897859
+      },
+      {
+        "build": "493",
+        "pid": 6385,
+        "rows": 1,
+        "first_timestamp": 1792501090.290803,
+        "last_timestamp": 1792501090.290803
+      },
+      {
+        "build": "493",
+        "pid": 6696,
+        "rows": 1,
+        "first_timestamp": 1792505805.1191669,
+        "last_timestamp": 1792505805.1191669
+      },
+      {
+        "build": "493",
+        "pid": 6755,
+        "rows": 1,
+        "first_timestamp": 1792506879.515249,
+        "last_timestamp": 1792506879.515249
+      },
+      {
+        "build": "493",
+        "pid": 6811,
+        "rows": 1,
+        "first_timestamp": 1792507091.6487842,
+        "last_timestamp": 1792507091.6487842
+      },
+      {
+        "build": "493",
+        "pid": 6902,
+        "rows": 1,
+        "first_timestamp": 1792509233.338412,
+        "last_timestamp": 1792509233.338412
+      },
+      {
+        "build": "496",
+        "pid": 7185,
+        "rows": 1,
+        "first_timestamp": 1792510190.015827,
+        "last_timestamp": 1792510190.015827
+      },
+      {
+        "build": "496",
+        "pid": 7226,
+        "rows": 1,
+        "first_timestamp": 1792514868.231945,
+        "last_timestamp": 1792514868.231945
+      },
+      {
+        "build": "498",
+        "pid": 7687,
+        "rows": 1,
+        "first_timestamp": 1792517871.125592,
+        "last_timestamp": 1792517871.125592
+      },
+      {
+        "build": "498",
+        "pid": 7728,
+        "rows": 1,
+        "first_timestamp": 1792518190.5961719,
+        "last_timestamp": 1792518190.5961719
+      },
+      {
+        "build": "498",
+        "pid": 7759,
+        "rows": 1,
+        "first_timestamp": 1792519139.552906,
+        "last_timestamp": 1792519139.552906
+      },
+      {
+        "build": "498",
+        "pid": 7775,
+        "rows": 1,
+        "first_timestamp": 1792520160.963818,
+        "last_timestamp": 1792520160.963818
+      },
+      {
+        "build": "498",
+        "pid": 7820,
+        "rows": 42,
+        "first_timestamp": 1792520463.8270478,
+        "last_timestamp": 1792522211.825475
+      },
+      {
+        "build": "498",
+        "pid": 8299,
+        "rows": 1,
+        "first_timestamp": 1792525837.419219,
+        "last_timestamp": 1792525837.419219
+      },
+      {
+        "build": "500",
+        "pid": 8521,
+        "rows": 1,
+        "first_timestamp": 1792527655.7118769,
+        "last_timestamp": 1792527655.7118769
+      },
+      {
+        "build": "500",
+        "pid": 8534,
+        "rows": 42,
+        "first_timestamp": 1792527732.329949,
+        "last_timestamp": 1792528620.626832
+      },
+      {
+        "build": "500",
+        "pid": 9700,
+        "rows": 42,
+        "first_timestamp": 1792530915.005711,
+        "last_timestamp": 1792536662.013716
+      },
+      {
+        "build": "500",
+        "pid": 11346,
+        "rows": 1,
+        "first_timestamp": 1792576678.136395,
+        "last_timestamp": 1792576678.136395
+      },
+      {
+        "build": "500",
+        "pid": 11351,
+        "rows": 1,
+        "first_timestamp": 1792576826.6931372,
+        "last_timestamp": 1792576826.6931372
+      },
+      {
+        "build": "500",
+        "pid": 11363,
+        "rows": 1,
+        "first_timestamp": 1792576960.202427,
+        "last_timestamp": 1792576960.202427
+      },
+      {
+        "build": "500",
+        "pid": 11530,
+        "rows": 1,
+        "first_timestamp": 1792581360.405566,
+        "last_timestamp": 1792581360.405566
+      },
+      {
+        "build": "500",
+        "pid": 11744,
+        "rows": 1,
+        "first_timestamp": 1792593009.712944,
+        "last_timestamp": 1792593009.712944
+      },
+      {
+        "build": "500",
+        "pid": 12263,
+        "rows": 42,
+        "first_timestamp": 1792595827.394678,
+        "last_timestamp": 1792597645.3706222
+      },
+      {
+        "build": "500",
+        "pid": 14065,
+        "rows": 1,
+        "first_timestamp": 1792654792.9236832,
+        "last_timestamp": 1792654792.9236832
+      },
+      {
+        "build": "500",
+        "pid": 14183,
+        "rows": 1,
+        "first_timestamp": 1792658317.538622,
+        "last_timestamp": 1792658317.538622
+      },
+      {
+        "build": "501",
+        "pid": 14821,
+        "rows": 1,
+        "first_timestamp": 1792664536.986558,
+        "last_timestamp": 1792664536.986558
+      },
+      {
+        "build": "501",
+        "pid": 14827,
+        "rows": 1,
+        "first_timestamp": 1792664561.270827,
+        "last_timestamp": 1792664561.270827
+      },
+      {
+        "build": "501",
+        "pid": 14828,
+        "rows": 1,
+        "first_timestamp": 1792664572.8703961,
+        "last_timestamp": 1792664572.8703961
+      },
+      {
+        "build": "501",
+        "pid": 14829,
+        "rows": 1,
+        "first_timestamp": 1792664578.040184,
+        "last_timestamp": 1792664578.040184
+      },
+      {
+        "build": "501",
+        "pid": 14830,
+        "rows": 1,
+        "first_timestamp": 1792664581.702688,
+        "last_timestamp": 1792664581.702688
+      },
+      {
+        "build": "501",
+        "pid": 14832,
+        "rows": 1,
+        "first_timestamp": 1792664624.691649,
+        "last_timestamp": 1792664624.691649
+      },
+      {
+        "build": "501",
+        "pid": 14844,
+        "rows": 1,
+        "first_timestamp": 1792664853.8607779,
+        "last_timestamp": 1792664853.8607779
+      },
+      {
+        "build": "501",
+        "pid": 14857,
+        "rows": 1,
+        "first_timestamp": 1792665101.9479032,
+        "last_timestamp": 1792665101.9479032
+      },
+      {
+        "build": "501",
+        "pid": 14872,
+        "rows": 1,
+        "first_timestamp": 1792666170.911063,
+        "last_timestamp": 1792666170.911063
+      },
+      {
+        "build": "501",
+        "pid": 15167,
+        "rows": 1,
+        "first_timestamp": 1792675591.239363,
+        "last_timestamp": 1792675591.239363
+      },
+      {
+        "build": "502",
+        "pid": 16100,
+        "rows": 1,
+        "first_timestamp": 1792692958.4228868,
+        "last_timestamp": 1792692958.4228868
+      },
+      {
+        "build": "502",
+        "pid": 16137,
+        "rows": 1,
+        "first_timestamp": 1792693944.4005752,
+        "last_timestamp": 1792693944.4005752
+      },
+      {
+        "build": "502",
+        "pid": 16141,
+        "rows": 1,
+        "first_timestamp": 1792694001.2536778,
+        "last_timestamp": 1792694001.2536778
+      },
+      {
+        "build": "502",
+        "pid": 16142,
+        "rows": 1,
+        "first_timestamp": 1792694010.25381,
+        "last_timestamp": 1792694010.25381
+      },
+      {
+        "build": "502",
+        "pid": 16182,
+        "rows": 1,
+        "first_timestamp": 1792694557.927968,
+        "last_timestamp": 1792694557.927968
+      },
+      {
+        "build": "502",
+        "pid": 16192,
+        "rows": 1,
+        "first_timestamp": 1792694603.8123,
+        "last_timestamp": 1792694603.8123
+      },
+      {
+        "build": "502",
+        "pid": 16199,
+        "rows": 1,
+        "first_timestamp": 1792694799.2213259,
+        "last_timestamp": 1792694799.2213259
+      },
+      {
+        "build": "502",
+        "pid": 16200,
+        "rows": 1,
+        "first_timestamp": 1792694809.053335,
+        "last_timestamp": 1792694809.053335
+      },
+      {
+        "build": "503",
+        "pid": 16295,
+        "rows": 1,
+        "first_timestamp": 1792697670.6807861,
+        "last_timestamp": 1792697670.6807861
+      },
+      {
+        "build": "503",
+        "pid": 16304,
+        "rows": 1,
+        "first_timestamp": 1792697753.511837,
+        "last_timestamp": 1792697753.511837
+      },
+      {
+        "build": "503",
+        "pid": 16307,
+        "rows": 1,
+        "first_timestamp": 1792697843.995497,
+        "last_timestamp": 1792697843.995497
+      },
+      {
+        "build": "503",
+        "pid": 16311,
+        "rows": 1,
+        "first_timestamp": 1792698001.260758,
+        "last_timestamp": 1792698001.260758
+      },
+      {
+        "build": "504",
+        "pid": 16459,
+        "rows": 1,
+        "first_timestamp": 1792700085.9652848,
+        "last_timestamp": 1792700085.9652848
+      },
+      {
+        "build": "504",
+        "pid": 16524,
+        "rows": 1,
+        "first_timestamp": 1792700543.940048,
+        "last_timestamp": 1792700543.940048
+      },
+      {
+        "build": "505",
+        "pid": 16552,
+        "rows": 1,
+        "first_timestamp": 1792701491.5312638,
+        "last_timestamp": 1792701491.5312638
+      },
+      {
+        "build": "505",
+        "pid": 16562,
+        "rows": 1,
+        "first_timestamp": 1792701875.8830771,
+        "last_timestamp": 1792701875.8830771
+      },
+      {
+        "build": "505",
+        "pid": 16563,
+        "rows": 1,
+        "first_timestamp": 1792702114.946641,
+        "last_timestamp": 1792702114.946641
+      },
+      {
+        "build": "505",
+        "pid": 16582,
+        "rows": 1,
+        "first_timestamp": 1792702143.0995831,
+        "last_timestamp": 1792702143.0995831
+      },
+      {
+        "build": "505",
+        "pid": 16721,
+        "rows": 1,
+        "first_timestamp": 1792703898.100811,
+        "last_timestamp": 1792703898.100811
+      },
+      {
+        "build": "505",
+        "pid": 16730,
+        "rows": 1,
+        "first_timestamp": 1792704106.270791,
+        "last_timestamp": 1792704106.270791
+      },
+      {
+        "build": "505",
+        "pid": 16755,
+        "rows": 1,
+        "first_timestamp": 1792704200.111308,
+        "last_timestamp": 1792704200.111308
+      },
+      {
+        "build": "505",
+        "pid": 16787,
+        "rows": 1,
+        "first_timestamp": 1792704756.417639,
+        "last_timestamp": 1792704756.417639
+      },
+      {
+        "build": "505",
+        "pid": 16789,
+        "rows": 1,
+        "first_timestamp": 1792704933.949636,
+        "last_timestamp": 1792704933.949636
+      },
+      {
+        "build": "505",
+        "pid": 16846,
+        "rows": 1,
+        "first_timestamp": 1792706782.8034801,
+        "last_timestamp": 1792706782.8034801
+      },
+      {
+        "build": "507",
+        "pid": 16981,
+        "rows": 1,
+        "first_timestamp": 1792710215.142777,
+        "last_timestamp": 1792710215.142777
+      },
+      {
+        "build": "507",
+        "pid": 17007,
+        "rows": 1,
+        "first_timestamp": 1792710321.988195,
+        "last_timestamp": 1792710321.988195
+      },
+      {
+        "build": "507",
+        "pid": 17016,
+        "rows": 1,
+        "first_timestamp": 1792710473.6603231,
+        "last_timestamp": 1792710473.6603231
+      },
+      {
+        "build": "507",
+        "pid": 17017,
+        "rows": 1,
+        "first_timestamp": 1792710527.130708,
+        "last_timestamp": 1792710527.130708
+      },
+      {
+        "build": "507",
+        "pid": 17020,
+        "rows": 1,
+        "first_timestamp": 1792710567.108159,
+        "last_timestamp": 1792710567.108159
+      },
+      {
+        "build": "507",
+        "pid": 17026,
+        "rows": 1,
+        "first_timestamp": 1792710615.776695,
+        "last_timestamp": 1792710615.776695
+      },
+      {
+        "build": "507",
+        "pid": 17036,
+        "rows": 1,
+        "first_timestamp": 1792710841.365324,
+        "last_timestamp": 1792710841.365324
+      },
+      {
+        "build": "507",
+        "pid": 17050,
+        "rows": 1,
+        "first_timestamp": 1792711065.969754,
+        "last_timestamp": 1792711065.969754
+      },
+      {
+        "build": "507",
+        "pid": 17097,
+        "rows": 1,
+        "first_timestamp": 1792711591.172605,
+        "last_timestamp": 1792711591.172605
+      },
+      {
+        "build": "507",
+        "pid": 17273,
+        "rows": 1,
+        "first_timestamp": 1792714899.632935,
+        "last_timestamp": 1792714899.632935
+      },
+      {
+        "build": "507",
+        "pid": 17319,
+        "rows": 1,
+        "first_timestamp": 1792715018.583257,
+        "last_timestamp": 1792715018.583257
+      },
+      {
+        "build": "508",
+        "pid": 17694,
+        "rows": 1,
+        "first_timestamp": 1792718104.7689939,
+        "last_timestamp": 1792718104.7689939
+      },
+      {
+        "build": "508",
+        "pid": 17709,
+        "rows": 37,
+        "first_timestamp": 1792718558.909034,
+        "last_timestamp": 1792719292.094557
+      },
+      {
+        "build": "508",
+        "pid": 18289,
+        "rows": 1,
+        "first_timestamp": 1792719942.722021,
+        "last_timestamp": 1792719942.722021
+      },
+      {
+        "build": "508",
+        "pid": 18291,
+        "rows": 1,
+        "first_timestamp": 1792719962.02428,
+        "last_timestamp": 1792719962.02428
+      },
+      {
+        "build": "509",
+        "pid": 18364,
+        "rows": 1,
+        "first_timestamp": 1792720396.958421,
+        "last_timestamp": 1792720396.958421
+      },
+      {
+        "build": "509",
+        "pid": 18391,
+        "rows": 1,
+        "first_timestamp": 1792720548.184613,
+        "last_timestamp": 1792720548.184613
+      },
+      {
+        "build": "511",
+        "pid": 18803,
+        "rows": 29,
+        "first_timestamp": 1792758437.673398,
+        "last_timestamp": 1792758509.474513
+      },
+      {
+        "build": "511",
+        "pid": 18839,
+        "rows": 29,
+        "first_timestamp": 1792758512.5830011,
+        "last_timestamp": 1792758560.440727
+      },
+      {
+        "build": "511",
+        "pid": 19032,
+        "rows": 1,
+        "first_timestamp": 1792758725.813816,
+        "last_timestamp": 1792758725.813816
+      },
+      {
+        "build": "511",
+        "pid": 19048,
+        "rows": 1,
+        "first_timestamp": 1792758839.0622811,
+        "last_timestamp": 1792758839.0622811
+      },
+      {
+        "build": "511",
+        "pid": 19060,
+        "rows": 31,
+        "first_timestamp": 1792758996.8511682,
+        "last_timestamp": 1792759102.508899
+      },
+      {
+        "build": "511",
+        "pid": 19344,
+        "rows": 1,
+        "first_timestamp": 1792760058.9650831,
+        "last_timestamp": 1792760058.9650831
+      },
+      {
+        "build": "512",
+        "pid": 19478,
+        "rows": 29,
+        "first_timestamp": 1792762487.931174,
+        "last_timestamp": 1792762564.845988
+      },
+      {
+        "build": "512",
+        "pid": 19595,
+        "rows": 1,
+        "first_timestamp": 1792762671.715184,
+        "last_timestamp": 1792762671.715184
+      },
+      {
+        "build": "512",
+        "pid": 19617,
+        "rows": 1,
+        "first_timestamp": 1792762926.0262651,
+        "last_timestamp": 1792762926.0262651
+      },
+      {
+        "build": "512",
+        "pid": 19662,
+        "rows": 1,
+        "first_timestamp": 1792763241.541712,
+        "last_timestamp": 1792763241.541712
+      },
+      {
+        "build": "513",
+        "pid": 20216,
+        "rows": 29,
+        "first_timestamp": 1792768531.857389,
+        "last_timestamp": 1792768559.9010792
+      },
+      {
+        "build": "513",
+        "pid": 20250,
+        "rows": 55,
+        "first_timestamp": 1792768563.183378,
+        "last_timestamp": 1792768946.397816
+      },
+      {
+        "build": "513",
+        "pid": 20353,
+        "rows": 1,
+        "first_timestamp": 1792769115.0005832,
+        "last_timestamp": 1792769115.0005832
+      },
+      {
+        "build": "513",
+        "pid": 20400,
+        "rows": 1,
+        "first_timestamp": 1792769277.253711,
+        "last_timestamp": 1792769277.253711
+      },
+      {
+        "build": "513",
+        "pid": 20411,
+        "rows": 1,
+        "first_timestamp": 1792769341.6671581,
+        "last_timestamp": 1792769341.6671581
+      },
+      {
+        "build": "513",
+        "pid": 20415,
+        "rows": 1,
+        "first_timestamp": 1792769422.721757,
+        "last_timestamp": 1792769422.721757
+      },
+      {
+        "build": "513",
+        "pid": 20621,
+        "rows": 1,
+        "first_timestamp": 1792773596.541109,
+        "last_timestamp": 1792773596.541109
+      },
+      {
+        "build": "515",
+        "pid": 21111,
+        "rows": 33,
+        "first_timestamp": 1792783917.218132,
+        "last_timestamp": 1792783978.480478
+      },
+      {
+        "build": "515",
+        "pid": 21150,
+        "rows": 1,
+        "first_timestamp": 1792784114.065285,
+        "last_timestamp": 1792784114.065285
+      },
+      {
+        "build": "515",
+        "pid": 21163,
+        "rows": 1,
+        "first_timestamp": 1792784440.157364,
+        "last_timestamp": 1792784440.157364
+      },
+      {
+        "build": "515",
+        "pid": 21215,
+        "rows": 1,
+        "first_timestamp": 1792785721.258137,
+        "last_timestamp": 1792785721.258137
+      },
+      {
+        "build": "516",
+        "pid": 21411,
+        "rows": 1,
+        "first_timestamp": 1792789014.150928,
+        "last_timestamp": 1792789014.150928
+      },
+      {
+        "build": "516",
+        "pid": 21422,
+        "rows": 1,
+        "first_timestamp": 1792789072.92014,
+        "last_timestamp": 1792789072.92014
+      },
+      {
+        "build": "516",
+        "pid": 21448,
+        "rows": 1,
+        "first_timestamp": 1792789801.820705,
+        "last_timestamp": 1792789801.820705
+      },
+      {
+        "build": "516",
+        "pid": 21463,
+        "rows": 1,
+        "first_timestamp": 1792789849.766248,
+        "last_timestamp": 1792789849.766248
+      },
+      {
+        "build": "516",
+        "pid": 21470,
+        "rows": 1,
+        "first_timestamp": 1792789981.435534,
+        "last_timestamp": 1792789981.435534
+      },
+      {
+        "build": "517",
+        "pid": 21496,
+        "rows": 1,
+        "first_timestamp": 1792792684.99816,
+        "last_timestamp": 1792792684.99816
+      },
+      {
+        "build": "518",
+        "pid": 21544,
+        "rows": 1,
+        "first_timestamp": 1792795826.673596,
+        "last_timestamp": 1792795826.673596
+      },
+      {
+        "build": "520",
+        "pid": 22138,
+        "rows": 34,
+        "first_timestamp": 1792839145.710164,
+        "last_timestamp": 1792839617.231384
+      },
+      {
+        "build": "520",
+        "pid": 22183,
+        "rows": 38,
+        "first_timestamp": 1792839619.5570111,
+        "last_timestamp": 1792839735.196893
+      },
+      {
+        "build": "520",
+        "pid": 22226,
+        "rows": 28,
+        "first_timestamp": 1792839752.864585,
+        "last_timestamp": 1792839973.219418
+      },
+      {
+        "build": "520",
+        "pid": 22512,
+        "rows": 1,
+        "first_timestamp": 1792843244.514838,
+        "last_timestamp": 1792843244.514838
+      },
+      {
+        "build": "520",
+        "pid": 22525,
+        "rows": 1,
+        "first_timestamp": 1792843306.552757,
+        "last_timestamp": 1792843306.552757
+      },
+      {
+        "build": "520",
+        "pid": 22578,
+        "rows": 1,
+        "first_timestamp": 1792844369.830229,
+        "last_timestamp": 1792844369.830229
+      },
+      {
+        "build": "520",
+        "pid": 22596,
+        "rows": 1,
+        "first_timestamp": 1792844481.046231,
+        "last_timestamp": 1792844481.046231
+      },
+      {
+        "build": "520",
+        "pid": 22602,
+        "rows": 1,
+        "first_timestamp": 1792844604.188873,
+        "last_timestamp": 1792844604.188873
+      },
+      {
+        "build": "522",
+        "pid": 22952,
+        "rows": 34,
+        "first_timestamp": 1792847950.640569,
+        "last_timestamp": 1792848249.528537
+      },
+      {
+        "build": "524",
+        "pid": 23669,
+        "rows": 420,
+        "first_timestamp": 1792863594.175396,
+        "last_timestamp": 1792863857.7030358
+      }
+    ],
+    "neoswap": [
+      {
+        "build": "524",
+        "pid": 23669,
+        "rows": 635,
+        "first_timestamp": 1792863611.111899,
+        "last_timestamp": 1792863854.940582
+      }
+    ]
+  },
+  "selected_session": {
+    "build": "524",
+    "pid": 23669,
+    "first_timestamp": 1792863604.837916,
+    "first_utc": "2026-10-24T17:40:04.837916+00:00",
+    "diagnostic_duration_s": 252.8653,
+    "stage_counts": {
+      "audio_session_active": 1,
+      "core_log": 841,
+      "early_loader_stderr": 1,
+      "jit_helper_complete": 1,
+      "jit_helper_helper_connected": 1,
+      "jit_helper_log": 310,
+      "jit_helper_pid_attached": 1,
+      "neoswap_client": 1,
+      "neoswap_cpu_buffers": 1,
+      "neoswap_direct_guest_client": 1,
+      "neoswap_glsl_archive": 1,
+      "neoswap_guest_sample": 241,
+      "neoswap_guest_sample_ext": 8,
+      "neoswap_prepared_guest_client": 1,
+      "neoswap_relay_client": 1,
+      "neoswap_session": 1,
+      "neoswap_shader_storage": 1,
+      "neoswap_warm_pool": 1,
+      "performance_sample": 238
+    },
+    "game_cpu_identity": [
+      {
+        "timestamp": 1792863607.765126,
+        "elapsed_s": 2.92721,
+        "context": "game_boot",
+        "title": "BCES00510",
+        "savestate": 0,
+        "configured": "auto",
+        "selected": "apple-m4",
+        "ppu_triple": "aarch64-unknown-linux-android",
+        "spu_triple": "aarch64-unknown-linux-android",
+        "features": "+sha3,+dotprod,+i8mm,-sve,-sve2"
+      },
+      {
+        "timestamp": 1792863856.9475431,
+        "elapsed_s": 252.109627,
+        "context": "game_boot",
+        "title": "BCES00510",
+        "savestate": 1,
+        "configured": "auto",
+        "selected": "apple-m4",
+        "ppu_triple": "aarch64-unknown-linux-android",
+        "spu_triple": "aarch64-unknown-linux-android",
+        "features": "+sha3,+dotprod,+i8mm,-sve,-sve2"
+      }
+    ]
+  },
+  "restore": {
+    "primary_source": "diagnostic",
+    "milestone_mirrors_ignored": 390,
+    "diagnostic_phase_rows": 390,
+    "milestones_phase_rows": 390,
+    "completed_phase_durations_s": {
+      "tar": 2.420097,
+      "vm": 0.405081
+    },
+    "phases": [
+      {
+        "timestamp": 1792863854.512398,
+        "elapsed_s": 249.674482,
+        "phase": "tar_begin",
+        "bytes": 1614785536,
+        "position": 301
+      },
+      {
+        "timestamp": 1792863856.932495,
+        "elapsed_s": 252.094579,
+        "phase": "tar_end",
+        "bytes": 1614785536,
+        "position": 1614785837
+      },
+      {
+        "timestamp": 1792863856.9749851,
+        "elapsed_s": 252.137069,
+        "phase": "vm_begin",
+        "position": 1614785870
+      },
+      {
+        "timestamp": 1792863857.380066,
+        "elapsed_s": 252.54215,
+        "phase": "vm_end",
+        "position": 1969125883
+      },
+      {
+        "timestamp": 1792863857.3807359,
+        "elapsed_s": 252.54282,
+        "phase": "ppu_functions_begin",
+        "position": 1969125883,
+        "buffer_bytes": 9150357,
+        "buffer_capacity": 20710936
+      },
+      {
+        "timestamp": 1792863857.388483,
+        "elapsed_s": 252.550567,
+        "phase": "ppu_segments_end",
+        "position": 1969125889,
+        "buffer_bytes": 9150357,
+        "buffer_capacity": 20710936
+      },
+      {
+        "timestamp": 1792863857.3899179,
+        "elapsed_s": 252.552002,
+        "phase": "ppu_modules_end",
+        "position": 1969127019,
+        "buffer_bytes": 9150357,
+        "buffer_capacity": 20710936
+      },
+      {
+        "timestamp": 1792863857.41313,
+        "elapsed_s": 252.575214,
+        "phase": "ppu_fxo_begin",
+        "position": 1969127019,
+        "buffer_bytes": 9150357,
+        "buffer_capacity": 20710936
+      }
+    ],
+    "final_event": {
+      "timestamp": 1792863857.703216,
+      "elapsed_s": 252.8653,
+      "phase": "fxo_type_begin",
+      "type": "id_manager::id_map<lv2_fs_object>",
+      "position": 1969206997,
+      "elapsed_us": 728261,
+      "buffer_bytes": 9150357,
+      "buffer_capacity": 20710936,
+      "handler_valid": 1
+    },
+    "capture_ends_at_final_event": true,
+    "interpretation": "FD-map restore entered; no per-descriptor trace. Capture does not prove crash, deadlock, or a specific file failure."
+  },
+  "warm_ppu_boot": {
+    "timestamp": 1792863609.666397,
+    "elapsed_s": 4.828481,
+    "session": 1,
+    "boot_kind": "fresh",
+    "modules_total": 40,
+    "modules_compiled": 0,
+    "modules_cached": 40,
+    "modules_existing": 0,
+    "ppu_cache_hits": 80,
+    "ppu_cache_misses": 0,
+    "wall_ms": 682.179,
+    "ppu_translate": "0:0.000:0.000:0",
+    "ppu_opt": "0:0.000:0.000:0",
+    "ppu_verify": "0:0.000:0.000:0",
+    "ppu_codegen": "0:0.000:0.000:0",
+    "ppu_cache_write": "0:0.000:0.000:0",
+    "ppu_cache_read": {
+      "calls": 80,
+      "aggregate_ms": 157.94,
+      "max_ms": 8.894,
+      "bytes": 89618112
+    },
+    "ppu_object_load": {
+      "calls": 40,
+      "aggregate_ms": 180.36,
+      "max_ms": 28.208,
+      "bytes": 44809056
+    },
+    "ppu_finalize": {
+      "calls": 3,
+      "aggregate_ms": 188.055,
+      "max_ms": 133.577,
+      "bytes": 0
+    },
+    "ppu_symbols": {
+      "calls": 3,
+      "aggregate_ms": 1.638,
+      "max_ms": 1.028,
+      "bytes": 0
+    },
+    "headroom_samples": 0,
+    "headroom_min_mib": 0.0,
+    "ppu_pipeline": 0,
+    "ppu_ir_passes": 0,
+    "spu_pipeline": 1
+  },
+  "cache_window_observations": [
+    {
+      "timestamp": 1792863613.402987,
+      "elapsed_s": 8.565071,
+      "cache_index_hits": 40,
+      "cache_buffer_hits": 4
+    }
+  ],
+  "performance": {
+    "scene_classification": "unknown; gameplay, menu, and cinematic are not separately labelled",
+    "plateau_window_s": [
+      54,
+      196
+    ],
+    "plateau_sample_count": 29,
+    "plateau_first": {
+      "timestamp": 1792863659.0710611,
+      "elapsed_s": 54.233145,
+      "frames": 301,
+      "avg_fps": 59.862,
+      "low1_fps": 50.614,
+      "frametime_ms": 16.705,
+      "p95_ms": 17.325,
+      "p99_ms": 17.929,
+      "ppu_ms": 4.51,
+      "spu_ms": 27.983,
+      "rsx_ms": 6.951,
+      "jit_ms": 0.0,
+      "gpu_time_ms": -1,
+      "gpu_fence_wait_ms": 0.0,
+      "range_wait_ms": 1.371,
+      "pipeline_jobs": 0,
+      "memory_mib": 2856,
+      "headroom_mib": 3799,
+      "window_ms": 5031.654,
+      "ppu_cores": 0.27,
+      "spu_cores": 1.674,
+      "rsx_cores": 0.416,
+      "jit_cores": 0.0
+    },
+    "plateau_last": {
+      "timestamp": 1792863799.93242,
+      "elapsed_s": 195.094504,
+      "frames": 300,
+      "avg_fps": 59.821,
+      "low1_fps": 45.996,
+      "frametime_ms": 16.716,
+      "p95_ms": 17.746,
+      "p99_ms": 17.83,
+      "ppu_ms": 5.612,
+      "spu_ms": 31.913,
+      "rsx_ms": 8.299,
+      "jit_ms": 0.0,
+      "gpu_time_ms": -1,
+      "gpu_fence_wait_ms": 0.0,
+      "range_wait_ms": 0.577,
+      "pipeline_jobs": 0,
+      "memory_mib": 2831,
+      "headroom_mib": 3824,
+      "window_ms": 5019.556,
+      "ppu_cores": 0.335,
+      "spu_cores": 1.907,
+      "rsx_cores": 0.496,
+      "jit_cores": 0.0
+    },
+    "late_window_s": [
+      205,
+      249
+    ],
+    "late_samples": [
+      {
+        "timestamp": 1792863810.042739,
+        "elapsed_s": 205.204823,
+        "frames": 59,
+        "avg_fps": 11.668,
+        "low1_fps": 5.405,
+        "frametime_ms": 85.705,
+        "p95_ms": 128.527,
+        "p99_ms": 185.029,
+        "ppu_ms": 35.426,
+        "spu_ms": 327.347,
+        "rsx_ms": 50.657,
+        "jit_ms": 0.043,
+        "gpu_time_ms": -1,
+        "gpu_fence_wait_ms": 0.0,
+        "range_wait_ms": 62.235,
+        "pipeline_jobs": 0,
+        "memory_mib": 3600,
+        "headroom_mib": 3055,
+        "window_ms": 5076.885,
+        "ppu_cores": 0.412,
+        "spu_cores": 3.804,
+        "rsx_cores": 0.589,
+        "jit_cores": 0.001
+      },
+      {
+        "timestamp": 1792863815.3060942,
+        "elapsed_s": 210.468178,
+        "frames": 61,
+        "avg_fps": 11.618,
+        "low1_fps": 0.747,
+        "frametime_ms": 86.075,
+        "p95_ms": 97.453,
+        "p99_ms": 1339.005,
+        "ppu_ms": 61.137,
+        "spu_ms": 280.72,
+        "rsx_ms": 50.014,
+        "jit_ms": 6.662,
+        "gpu_time_ms": -1,
+        "gpu_fence_wait_ms": 0.0,
+        "range_wait_ms": 53.965,
+        "pipeline_jobs": 0,
+        "memory_mib": 3609,
+        "headroom_mib": 3046,
+        "window_ms": 5263.723,
+        "ppu_cores": 0.709,
+        "spu_cores": 3.253,
+        "rsx_cores": 0.58,
+        "jit_cores": 0.077
+      },
+      {
+        "timestamp": 1792863820.350883,
+        "elapsed_s": 215.512967,
+        "frames": 57,
+        "avg_fps": 11.267,
+        "low1_fps": 4.314,
+        "frametime_ms": 88.752,
+        "p95_ms": 202.085,
+        "p99_ms": 231.788,
+        "ppu_ms": 37.146,
+        "spu_ms": 231.455,
+        "rsx_ms": 35.996,
+        "jit_ms": 0.097,
+        "gpu_time_ms": -1,
+        "gpu_fence_wait_ms": 0.0,
+        "range_wait_ms": 107.887,
+        "pipeline_jobs": 0,
+        "memory_mib": 3774,
+        "headroom_mib": 2881,
+        "window_ms": 5044.899,
+        "ppu_cores": 0.42,
+        "spu_cores": 2.615,
+        "rsx_cores": 0.407,
+        "jit_cores": 0.001
+      },
+      {
+        "timestamp": 1792863825.3921518,
+        "elapsed_s": 220.554236,
+        "frames": 57,
+        "avg_fps": 11.359,
+        "low1_fps": 6.586,
+        "frametime_ms": 88.034,
+        "p95_ms": 122.982,
+        "p99_ms": 151.843,
+        "ppu_ms": 51.263,
+        "spu_ms": 293.203,
+        "rsx_ms": 58.736,
+        "jit_ms": 0.0,
+        "gpu_time_ms": -1,
+        "gpu_fence_wait_ms": 0.0,
+        "range_wait_ms": 96.861,
+        "pipeline_jobs": 0,
+        "memory_mib": 3870,
+        "headroom_mib": 2785,
+        "window_ms": 5041.354,
+        "ppu_cores": 0.58,
+        "spu_cores": 3.315,
+        "rsx_cores": 0.664,
+        "jit_cores": 0.0
+      },
+      {
+        "timestamp": 1792863830.43719,
+        "elapsed_s": 225.599274,
+        "frames": 58,
+        "avg_fps": 11.502,
+        "low1_fps": 5.923,
+        "frametime_ms": 86.943,
+        "p95_ms": 108.063,
+        "p99_ms": 168.834,
+        "ppu_ms": 38.23,
+        "spu_ms": 308.34,
+        "rsx_ms": 67.875,
+        "jit_ms": 0.0,
+        "gpu_time_ms": -1,
+        "gpu_fence_wait_ms": 0.0,
+        "range_wait_ms": 79.369,
+        "pipeline_jobs": 0,
+        "memory_mib": 3972,
+        "headroom_mib": 2683,
+        "window_ms": 5045.192,
+        "ppu_cores": 0.44,
+        "spu_cores": 3.545,
+        "rsx_cores": 0.78,
+        "jit_cores": 0.0
+      },
+      {
+        "timestamp": 1792863835.492436,
+        "elapsed_s": 230.65452,
+        "frames": 56,
+        "avg_fps": 11.121,
+        "low1_fps": 7.479,
+        "frametime_ms": 89.924,
+        "p95_ms": 124.283,
+        "p99_ms": 133.703,
+        "ppu_ms": 43.359,
+        "spu_ms": 339.972,
+        "rsx_ms": 62.424,
+        "jit_ms": 0.099,
+        "gpu_time_ms": -1,
+        "gpu_fence_wait_ms": 0.0,
+        "range_wait_ms": 84.125,
+        "pipeline_jobs": 0,
+        "memory_mib": 4031,
+        "headroom_mib": 2624,
+        "window_ms": 5055.345,
+        "ppu_cores": 0.48,
+        "spu_cores": 3.766,
+        "rsx_cores": 0.691,
+        "jit_cores": 0.001
+      },
+      {
+        "timestamp": 1792863840.541212,
+        "elapsed_s": 235.703296,
+        "frames": 49,
+        "avg_fps": 9.639,
+        "low1_fps": 6.06,
+        "frametime_ms": 103.745,
+        "p95_ms": 133.077,
+        "p99_ms": 165.023,
+        "ppu_ms": 49.581,
+        "spu_ms": 373.917,
+        "rsx_ms": 67.54,
+        "jit_ms": 0.289,
+        "gpu_time_ms": -1,
+        "gpu_fence_wait_ms": 0.0,
+        "range_wait_ms": 88.429,
+        "pipeline_jobs": 0,
+        "memory_mib": 4013,
+        "headroom_mib": 2642,
+        "window_ms": 5048.755,
+        "ppu_cores": 0.481,
+        "spu_cores": 3.629,
+        "rsx_cores": 0.656,
+        "jit_cores": 0.003
+      },
+      {
+        "timestamp": 1792863845.741012,
+        "elapsed_s": 240.903096,
+        "frames": 32,
+        "avg_fps": 6.367,
+        "low1_fps": 2.06,
+        "frametime_ms": 157.062,
+        "p95_ms": 273.713,
+        "p99_ms": 485.378,
+        "ppu_ms": 82.443,
+        "spu_ms": 492.337,
+        "rsx_ms": 82.346,
+        "jit_ms": 3.802,
+        "gpu_time_ms": -1,
+        "gpu_fence_wait_ms": 0.0,
+        "range_wait_ms": 131.01,
+        "pipeline_jobs": 0,
+        "memory_mib": 4202,
+        "headroom_mib": 2453,
+        "window_ms": 5199.429,
+        "ppu_cores": 0.507,
+        "spu_cores": 3.03,
+        "rsx_cores": 0.507,
+        "jit_cores": 0.023
+      },
+      {
+        "timestamp": 1792863850.7732859,
+        "elapsed_s": 245.93537,
+        "frames": 8,
+        "avg_fps": 4.723,
+        "low1_fps": 3.763,
+        "frametime_ms": 211.712,
+        "p95_ms": 265.778,
+        "p99_ms": 265.778,
+        "ppu_ms": 468.426,
+        "spu_ms": 714.529,
+        "rsx_ms": 421.558,
+        "jit_ms": 9.814,
+        "gpu_time_ms": -1,
+        "gpu_fence_wait_ms": 0.0,
+        "range_wait_ms": 210.128,
+        "pipeline_jobs": 0,
+        "memory_mib": 4098,
+        "headroom_mib": 2557,
+        "window_ms": 5032.78,
+        "ppu_cores": 0.745,
+        "spu_cores": 1.136,
+        "rsx_cores": 0.67,
+        "jit_cores": 0.016
+      }
+    ],
+    "gpu_time_measured": false,
+    "cpu_and_range_wait_scope": "aggregated across threads per presented frame; not additive wall-clock stalls"
+  },
+  "gpu_allocations": {
+    "scope": "requested allocation bytes, not physical or resident GPU RAM",
+    "plateau_first": {
+      "timestamp": 1792863659.070963,
+      "elapsed_s": 54.233047,
+      "active": 0,
+      "active_peak": 0,
+      "samples": 0,
+      "footprint_peak_mib": 0.0,
+      "headroom_min_mib": 0.0,
+      "cache_index_hits": 0,
+      "cache_buffer_hits": 0,
+      "texture_hash_bytes": 0,
+      "texture_hash_ticks": 0,
+      "vma_block_bytes": 1151336448,
+      "vma_allocated": 923005952,
+      "vma_unused": 228330496,
+      "gpu_pools_valid": 1,
+      "gpu_system_requested": 354418688,
+      "gpu_surfaces_requested": 70556288,
+      "gpu_textures_requested": 268652416,
+      "gpu_swapchain_requested": 0,
+      "gpu_scratch_requested": 136315264,
+      "gpu_other_requested": 93063072,
+      "gpu_samplers": 294,
+      "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+    },
+    "late_samples": [
+      {
+        "timestamp": 1792863794.912798,
+        "elapsed_s": 190.074882,
+        "active": 0,
+        "active_peak": 0,
+        "samples": 0,
+        "footprint_peak_mib": 0.0,
+        "headroom_min_mib": 0.0,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 1151336448,
+        "vma_allocated": 923005952,
+        "vma_unused": 228330496,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 70556288,
+        "gpu_textures_requested": 268652416,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 93063072,
+        "gpu_samplers": 294,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863799.932335,
+        "elapsed_s": 195.094419,
+        "active": 0,
+        "active_peak": 0,
+        "samples": 0,
+        "footprint_peak_mib": 0.0,
+        "headroom_min_mib": 0.0,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 1151336448,
+        "vma_allocated": 923005952,
+        "vma_unused": 228330496,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 70556288,
+        "gpu_textures_requested": 268652416,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 93063072,
+        "gpu_samplers": 294,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863804.965104,
+        "elapsed_s": 200.127188,
+        "active": 0,
+        "active_peak": 3,
+        "samples": 8,
+        "footprint_peak_mib": 3328.099,
+        "headroom_min_mib": 3327.901,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 1486880768,
+        "vma_allocated": 1099419264,
+        "vma_unused": 387461504,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 70556288,
+        "gpu_textures_requested": 443529728,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 94570400,
+        "gpu_samplers": 304,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863810.042623,
+        "elapsed_s": 205.204707,
+        "active": 0,
+        "active_peak": 3,
+        "samples": 7,
+        "footprint_peak_mib": 3497.881,
+        "headroom_min_mib": 3158.119,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 1657012224,
+        "vma_allocated": 1308292608,
+        "vma_unused": 348719616,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 70556288,
+        "gpu_textures_requested": 472179072,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 109774752,
+        "gpu_samplers": 371,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863815.3059921,
+        "elapsed_s": 210.468076,
+        "active": 0,
+        "active_peak": 1,
+        "samples": 19,
+        "footprint_peak_mib": 3706.365,
+        "headroom_min_mib": 2949.635,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 1615265792,
+        "vma_allocated": 1348240640,
+        "vma_unused": 267025152,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 70556288,
+        "gpu_textures_requested": 672178688,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 115738528,
+        "gpu_samplers": 483,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863820.3507261,
+        "elapsed_s": 215.51281,
+        "active": 0,
+        "active_peak": 1,
+        "samples": 1,
+        "footprint_peak_mib": 3630.584,
+        "headroom_min_mib": 3025.416,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 1756233728,
+        "vma_allocated": 1460162176,
+        "vma_unused": 296071552,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 71817856,
+        "gpu_textures_requested": 766573056,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 131008416,
+        "gpu_samplers": 534,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863825.392085,
+        "elapsed_s": 220.554169,
+        "active": 0,
+        "active_peak": 0,
+        "samples": 0,
+        "footprint_peak_mib": 0.0,
+        "headroom_min_mib": 0.0,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 1823342592,
+        "vma_allocated": 1582596608,
+        "vma_unused": 240745984,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 71817856,
+        "gpu_textures_requested": 745123200,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 140707744,
+        "gpu_samplers": 552,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863830.4370809,
+        "elapsed_s": 225.599165,
+        "active": 0,
+        "active_peak": 1,
+        "samples": 3,
+        "footprint_peak_mib": 3909.115,
+        "headroom_min_mib": 2746.885,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 1957625856,
+        "vma_allocated": 1629313152,
+        "vma_unused": 328312704,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 71817856,
+        "gpu_textures_requested": 918117632,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 151586720,
+        "gpu_samplers": 572,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863835.492341,
+        "elapsed_s": 230.654425,
+        "active": 0,
+        "active_peak": 2,
+        "samples": 3,
+        "footprint_peak_mib": 3895.678,
+        "headroom_min_mib": 2760.322,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 2091843584,
+        "vma_allocated": 1727117696,
+        "vma_unused": 364725888,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 71817856,
+        "gpu_textures_requested": 983459072,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 181077920,
+        "gpu_samplers": 627,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863840.541018,
+        "elapsed_s": 235.703102,
+        "active": 0,
+        "active_peak": 1,
+        "samples": 9,
+        "footprint_peak_mib": 4106.631,
+        "headroom_min_mib": 2549.369,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 2158952448,
+        "vma_allocated": 1705973504,
+        "vma_unused": 452978944,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 71817856,
+        "gpu_textures_requested": 957422464,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 188942240,
+        "gpu_samplers": 634,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863845.740847,
+        "elapsed_s": 240.902931,
+        "active": 0,
+        "active_peak": 2,
+        "samples": 6,
+        "footprint_peak_mib": 4340.084,
+        "headroom_min_mib": 2315.916,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 2351169536,
+        "vma_allocated": 1785514624,
+        "vma_unused": 565654912,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 71817856,
+        "gpu_textures_requested": 1027307008,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 195626912,
+        "gpu_samplers": 634,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      },
+      {
+        "timestamp": 1792863850.773182,
+        "elapsed_s": 245.935266,
+        "active": 0,
+        "active_peak": 1,
+        "samples": 2,
+        "footprint_peak_mib": 4226.537,
+        "headroom_min_mib": 2429.463,
+        "cache_index_hits": 0,
+        "cache_buffer_hits": 0,
+        "texture_hash_bytes": 0,
+        "texture_hash_ticks": 0,
+        "vma_block_bytes": 2351169536,
+        "vma_allocated": 1837792896,
+        "vma_unused": 513376640,
+        "gpu_pools_valid": 1,
+        "gpu_system_requested": 354418688,
+        "gpu_surfaces_requested": 71817856,
+        "gpu_textures_requested": 1079519744,
+        "gpu_swapchain_requested": 0,
+        "gpu_scratch_requested": 136315264,
+        "gpu_other_requested": 195692448,
+        "gpu_samplers": 634,
+        "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+      }
+    ],
+    "post_stop_snapshot": {
+      "timestamp": 1792863855.813095,
+      "elapsed_s": 250.975179,
+      "active": 0,
+      "active_peak": 0,
+      "samples": 0,
+      "footprint_peak_mib": 0.0,
+      "headroom_min_mib": 0.0,
+      "cache_index_hits": 0,
+      "cache_buffer_hits": 0,
+      "texture_hash_bytes": 0,
+      "texture_hash_ticks": 0,
+      "vma_block_bytes": 2351169536,
+      "vma_allocated": 1837792896,
+      "vma_unused": 513376640,
+      "gpu_pools_valid": 1,
+      "gpu_system_requested": 0,
+      "gpu_surfaces_requested": 0,
+      "gpu_textures_requested": 0,
+      "gpu_swapchain_requested": 0,
+      "gpu_scratch_requested": 0,
+      "gpu_other_requested": 0,
+      "gpu_samplers": 0,
+      "gpu_pool_scope": "requested_allocation_bytes_not_physical_ram"
+    },
+    "interpretation": "Texture allocations grow while system and scratch pools stay stable. Active/stale/pending split missing; no reclaimable-byte proof. Post-stop VMA snapshot remains nonzero with zero pool counters."
+  },
+  "neoswap": {
+    "samples": 635,
+    "maxima": {
+      "processFootprintBytes": {
+        "value": 4437186552,
+        "timestamp": 1792863847.234789,
+        "elapsed_s": 242.396873
+      },
+      "processResidentBytes": {
+        "value": 2234351616,
+        "timestamp": 1792863812.694628,
+        "elapsed_s": 207.856712
+      },
+      "processCompressedLedgerBytes": {
+        "value": 1351680000,
+        "timestamp": 1792863844.096935,
+        "elapsed_s": 239.259019
+      },
+      "reservedVirtualBytes": {
+        "value": 0,
+        "timestamp": 1792863611.111899,
+        "elapsed_s": 6.273983
+      },
+      "donationPreparedBytes": {
+        "value": 70647808,
+        "timestamp": 1792863825.836724,
+        "elapsed_s": 220.998808
+      },
+      "donatedResidentBytes": {
+        "value": 65404928,
+        "timestamp": 1792863682.842905,
+        "elapsed_s": 78.004989
+      },
+      "donatedCompressedBytes": {
+        "value": 70107136,
+        "timestamp": 1792863847.234789,
+        "elapsed_s": 242.396873
+      },
+      "guestRelay.mappedAliasBytes": {
+        "value": 2290679808,
+        "timestamp": 1792863733.941951,
+        "elapsed_s": 129.104035
+      },
+      "guestRelay.guestPeakBackingBytes": {
+        "value": 1022885888,
+        "timestamp": 1792863611.111899,
+        "elapsed_s": 6.273983
+      },
+      "iosMemoryWarningCount": {
+        "value": 0,
+        "timestamp": 1792863611.111899,
+        "elapsed_s": 6.273983
+      },
+      "ioErrors": {
+        "value": 0,
+        "timestamp": 1792863611.111899,
+        "elapsed_s": 6.273983
+      },
+      "guestRelay.mapFailureCount": {
+        "value": 0,
+        "timestamp": 1792863611.111899,
+        "elapsed_s": 6.273983
+      }
+    },
+    "thermal_states": [
+      0,
+      1
+    ],
+    "system_pressure_states": [
+      0
+    ],
+    "last_fast_allocation": {
+      "broker_busy": 14,
+      "donor_busy": 0,
+      "fallback_count": 1606,
+      "max_time_us": 166,
+      "prepare_failures": 0,
+      "prepare_requests": 2638,
+      "prepared_loans": 336,
+      "ready_misses": 1019,
+      "requests": 6502,
+      "retire_failures": 0,
+      "retire_requests": 4896,
+      "retired_loans": 4703,
+      "scope": "process_lifetime",
+      "successes": 4896,
+      "total_time_us": 47205
+    },
+    "last_source_archive": {
+      "demandReadMaxUs": 31042,
+      "demandReadRequests": 104,
+      "demandReadUsCumulative": 765923,
+      "demandUtilityQueueWaitUsCumulative": 212623,
+      "diskReadBytes": 48834162,
+      "diskWriteBytes": 47120129,
+      "ioErrors": 0
+    },
+    "last_relay_live_bytes": {
+      "cpuCache": 42729472,
+      "cpuData": 0,
+      "gpuHostVisible": 0,
+      "videoFrame": 0
+    },
+    "configured_donation_goal_bytes": 7516192768,
+    "accounting": "Footprint, resident, and compressed ledger overlap; do not sum. Virtual reservations, mapped aliases, configured capacities, donor backing and cumulative traffic are not additional physical RAM."
+  },
+  "limitations": [
+    "Unmatched scenes and settings; no controlled before/after or cold-cache comparison.",
+    "No raw logs, personal file paths, UUIDs or save contents are copied into this report.",
+    "The untimestamped app log is hashed for provenance; its multiple launch histories are not assigned to this timed session.",
+    "No iPhone gameplay, JIT, controller, pause/resume, restore or second-launch result is inferred from source tests."
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "date": "2026-10-21",
-  "branch": "main",
-  "base": "e199077bf62a72d8f38b570f994264f325e347b9",
+  "branch": "Claude",
+  "base": "04ba8b5d2812bd5eddd4edfd663359c317cacf3d",
   "screenshot": {
     "file": "assets/readme/rewindbox-preview.png",
     "sha256": "1548185a5f36f6d98e9ea8061780e09ed0ec935c344ccf0259eec62fb332cc84",
@@ -38,7 +38,7 @@
         {
           "test": "test/rewindbox_branding_followup_test.py",
           "status": 0,
-          "prior_attempt_retained_in": "main-followup-tests-first.json"
+          "prior_attempt_retained_in": "Claude-followup-tests-first.json"
         },
         {
           "test": "test/dolphin_motion_localizations_test.py",
@@ -49,9 +49,14 @@
           "status": 0
         },
         {
+          "test": "test/build_source_evidence_test.py",
+          "status": 1,
+          "prior_attempt_retained_in": "Claude-followup-tests-first.json"
+        },
+        {
           "test": "test/legal_bundle_preflight_test.py",
           "status": 1,
-          "prior_attempt_retained_in": "main-followup-tests-first.json"
+          "prior_attempt_retained_in": "Claude-followup-tests-first.json"
         },
         {
           "test": "test/rpcs3_ipa_validation_test.py",
@@ -69,31 +74,24 @@
     "local_platform_limits": [
       "The POSIX archive/path and symlink test fixtures cannot pass under this Windows account. They are unchanged and will run on Linux CI. No Windows privilege or operating-system setting is changed."
     ],
-    "initial_ci": {
-      "run": 39620723659,
-      "lint": "passed",
-      "flutter_analysis": "failed: three existing informational lints, no runtime/compiler error",
-      "widget_tests": "not run in initial attempt",
-      "correction": "Equivalent null-aware collection syntax already used on Claude; redundant test import removed; test metric logging uses stdout.writeln. Full analyzer rules are retained, and affected skin catalogue tests are added."
-    },
     "fixture_repair": {
-      "failed_run": 39621977329,
+      "failed_run": 39622188343,
       "reason": "Eight wordmark cases retained the explicitly acquired SemanticsHandle past the widget test verification; four BIOS cases still expected the old display prefix.",
       "correction": "Dispose the test handle in finally before callback returns; update only BIOS display-path expectations. No product code or assertion is removed.",
       "successful_components": "Reused only after exact repository-input comparison and observed successful test records from the actual preceding job. The failed overall runs stay failed."
     },
     "additional_label_contracts": {
-      "workflow_step_labels_corrected": 12,
+      "workflow_step_labels_corrected": 14,
       "dart_test_files": 3,
       "native_source_contracts": 3,
       "production_code_changed": false,
-      "reused_successful_run": 39623264826,
+      "reused_successful_run": 39623253661,
       "scope": "The dash-prefixed workflow step names and remaining display-text expectations are now checked. Native ABI, execution logic and persistent identifiers are unchanged."
     }
   },
   "no_new_release_or_ipa": true,
   "package_declaration_review": {
-    "updated_declarations": 0,
+    "updated_declarations": 32,
     "original_license_and_dependency_bytes_unchanged": true
   }
 }

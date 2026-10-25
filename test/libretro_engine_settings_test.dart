@@ -207,7 +207,7 @@ void main() {
       expect(find.text('Embedded RetroArch'), findsOneWidget);
       expect(find.text('Embedded in RewindBox · Snes9x'), findsOneWidget);
       expect(find.byIcon(Icons.check_circle), findsOneWidget);
-      // Same controller icon as DolphiniOS, ARMSX2, RPCS3 and Dusklight.
+      // Same controller icon as DolphiniOS, ARMSX2 and RPCS3.
       final tile = tester.widget<ListTile>(find.byType(ListTile));
       expect((tile.leading! as Icon).icon, Symbols.sports_esports_rounded);
     });
@@ -641,7 +641,7 @@ void main() {
         tabs.indexOf('Widget _buildEmulatorsTab()'),
         tabs.indexOf('Widget _buildCoresList()'),
       );
-      // Dolphin, ARMSX2, RPCS3 and Dusklight first, then the libretro panel,
+      // Dolphin, ARMSX2 and RPCS3 first, then the libretro panel,
       // then the app rows of systems without an embedded core.
       expect(emulatorsTab.indexOf('embeddedEngine != null'),
           lessThan(emulatorsTab.indexOf('if (_isLibretroEngine)')));

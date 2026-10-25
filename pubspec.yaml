@@ -14,14 +14,16 @@ workspace:
   - packages/armsx2_internal_bridge
   - packages/dolphin_internal_bridge
   - packages/rpcs3_internal_bridge
-  - packages/dusklight_internal_bridge
-  - packages/kartpad_internal_bridge
   - packages/neoplay_bridge
   - packages/libretro_internal_bridge
+  - packages/melonx_internal_bridge
   - packages/ui_refresh_rate
   - packages/external_display
   - packages/neo_shader_kit
   - packages/neo_cheat_catalog
+  - packages/neo_touch_layout
+  - packages/neo_texture_catalog
+  - packages/neo_box_reader
 
 version: 0.0.8+480
 environment:
@@ -49,12 +51,10 @@ dependencies:
     path: packages/dolphin_internal_bridge
   rpcs3_internal_bridge:
     path: packages/rpcs3_internal_bridge
-  dusklight_internal_bridge:
-    path: packages/dusklight_internal_bridge
-  kartpad_internal_bridge:
-    path: packages/kartpad_internal_bridge
   neoplay_bridge:
     path: packages/neoplay_bridge
+  melonx_internal_bridge:
+    path: packages/melonx_internal_bridge
   libretro_internal_bridge:
     path: packages/libretro_internal_bridge
   ui_refresh_rate:
@@ -65,6 +65,12 @@ dependencies:
     path: packages/neo_shader_kit
   neo_cheat_catalog:
     path: packages/neo_cheat_catalog
+  neo_touch_layout:
+    path: packages/neo_touch_layout
+  neo_texture_catalog:
+    path: packages/neo_texture_catalog
+  neo_box_reader:
+    path: packages/neo_box_reader
 
   file_picker: 12.0.0-beta.3
   device_info_plus: ^13.2.0
@@ -111,7 +117,7 @@ dev_dependencies:
 flutter_launcher_icons:
   ios: true
   image_path: "assets/images/logo.png"
-  image_path_ios: "assets/images/fork-icon-valid.jpg"
+  image_path_ios: "assets/images/rewindbox-logo.png"
 
 flutter:
   config:

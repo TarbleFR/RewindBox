@@ -58,8 +58,9 @@ FOUNDATION_EXPORT NSString *const NeoExternalDisplayStateChangedNotification;
 /// Always NO since Build 449: outside a game the TV mirrors the iPhone (the
 /// stored preference of Build 447 is no longer read).
 @property(nonatomic, readonly) BOOL menuOnTV;
-/// Dusklight/KartPad run: the window is hidden, out of its scene, and iOS
-/// mirrors the iPhone.
+/// An engine that cannot draw there holds the external display (RPCS3 while
+/// its core stops): the window is hidden, out of its scene, and iOS mirrors
+/// the iPhone.
 @property(nonatomic, readonly) BOOL suspended;
 /// iOS shows the mirrored iPhone (connected, but NeoStation shows nothing of
 /// its own there).
@@ -99,8 +100,8 @@ FOUNDATION_EXPORT NSString *const NeoExternalDisplayStateChangedNotification;
 /// Returns the render view to index 0 of the placeholder. Bridges call it
 /// BEFORE stopping their core.
 - (void)detachRenderHost:(id<NeoExternalRenderHost>)host;
-/// Dusklight/KartPad: the window is hidden and leaves its scene so iOS
-/// resumes mirroring.
+/// An engine that cannot draw there: the window is hidden and leaves its
+/// scene so iOS resumes mirroring.
 - (void)suspendForUnsupportedEngine;
 - (void)resumeAfterUnsupportedEngine;
 /// The Flutter controller of the second engine (or any controller in tests).

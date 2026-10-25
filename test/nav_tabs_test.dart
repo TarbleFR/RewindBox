@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
+import 'package:neostation/l10n/neoplay_locale.dart';
 import 'package:neostation/models/config_model.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 
@@ -17,7 +18,7 @@ void main() {
   }
 
   test('canonical indices are unchanged; the consoles tab is appended', () {
-    expect(NavTab.values.map((tab) => tab.index), [0, 1, 2, 3, 4, 5, 6]);
+    expect(NavTab.values.map((tab) => tab.index), [0, 1, 2, 3, 4, 5, 6, 7]);
     expect(NavTab.systems.index, 0);
     expect(NavTab.search.index, 1);
     expect(NavTab.achievements.index, 2);
@@ -25,6 +26,7 @@ void main() {
     expect(NavTab.settings.index, 4);
     expect(NavTab.library.index, 5);
     expect(NavTab.consoles.index, 6);
+    expect(NavTab.airplay.index, 7);
   });
 
   test('the display order places every tab once, consoles after Systems', () {
@@ -48,6 +50,7 @@ void main() {
       NavTab.systems,
       NavTab.consoles,
       NavTab.search,
+      NavTab.airplay,
       NavTab.achievements,
       NavTab.scraper,
       NavTab.settings,
@@ -65,6 +68,7 @@ void main() {
     expect(visibleNavTabs(everythingHidden), [
       NavTab.systems,
       NavTab.consoles,
+      NavTab.airplay,
       NavTab.settings,
       NavTab.library,
     ]);
@@ -96,6 +100,7 @@ void main() {
         reason: 'the strip is unchanged there',
       );
       expect(hidableNavTabs(), isNot(contains(NavTab.consoles)));
+      expect(visibleNavTabs(config), isNot(contains(NavTab.airplay)));
     }
   });
 
@@ -125,12 +130,53 @@ void main() {
     () {
       onPlatform(TargetPlatform.iOS);
       final visible = visibleNavTabs(config.copyWith(hideTabSearch: true));
-      expect(cycleNavTab(visible, NavTab.consoles, 1), NavTab.achievements);
-      expect(cycleNavTab(visible, NavTab.achievements, -1), NavTab.consoles);
+      expect(cycleNavTab(visible, NavTab.consoles, 1), NavTab.airplay);
+      expect(cycleNavTab(visible, NavTab.airplay, 1), NavTab.achievements);
+      expect(cycleNavTab(visible, NavTab.achievements, -1), NavTab.airplay);
+      expect(cycleNavTab(visible, NavTab.airplay, -1), NavTab.consoles);
       // Search was hidden while selected: step from Systems.
       expect(cycleNavTab(visible, NavTab.search, 1), NavTab.consoles);
       expect(cycleNavTab(visible, NavTab.search, -1), NavTab.library);
       expect(cycleNavTab(const [], NavTab.systems, 1), isNull);
+    },
+  );
+
+  test('AirPlay is visited once between Search and Achievements in both directions', () {
+    onPlatform(TargetPlatform.iOS);
+    final tabs = visibleNavTabs(config);
+    expect(cycleNavTab(tabs, NavTab.search, 1), NavTab.airplay);
+    expect(cycleNavTab(tabs, NavTab.airplay, 1), NavTab.achievements);
+    expect(cycleNavTab(tabs, NavTab.achievements, -1), NavTab.airplay);
+    expect(cycleNavTab(tabs, NavTab.airplay, -1), NavTab.search);
+    expect(tabs.where((tab) => tab == NavTab.airplay).length, 1);
+  });
+
+  testWidgets(
+    'AirPlay labels reuse every supported catalogue including zh-Hant',
+    (tester) async {
+      for (final entry in NeoPlayLocale.values.entries) {
+        final locale = entry.key == 'zh_Hant'
+            ? const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant')
+            : Locale(entry.key);
+        late String label;
+        await tester.pumpWidget(
+          Localizations(
+            locale: locale,
+            delegates: const [DefaultWidgetsLocalizations.delegate],
+            child: Builder(
+              builder: (context) {
+                label = navTabLabel(context, NavTab.airplay);
+                return const SizedBox();
+              },
+            ),
+          ),
+        );
+        expect(
+          label,
+          'AirPlay · ${entry.value['subtitle']}',
+          reason: entry.key,
+        );
+      }
     },
   );
 

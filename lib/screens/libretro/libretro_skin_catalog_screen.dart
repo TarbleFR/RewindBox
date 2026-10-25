@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -447,7 +448,7 @@ class _LibretroSkinCatalogScreenState extends State<LibretroSkinCatalogScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_checking && total > 0) ...[
-            LinearProgressIndicator(value: done / total),
+            LiquidProgressIndicator(value: done / total),
             const SizedBox(height: 4),
             Text(_f('catalogChecking', {'done': done, 'total': total}), style: muted),
           ],

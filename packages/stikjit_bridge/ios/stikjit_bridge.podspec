@@ -3,13 +3,16 @@ Pod::Spec.new do |s|
   s.version          = '0.0.1'
   s.summary          = 'Experimental RewindBox bridge for StikJIT.'
   s.description      = <<-DESC
-Experimental iOS-only bridge allowing NeoStation to prepare StikJIT and enable JIT for MeloNX without routing through the StikDebug application.
+Shared StikJIT framework and read-only LocalDevVPN route probe. Embedded engines own isolated JIT transactions.
                        DESC
   s.homepage         = 'https://github.com/TarbleFR/RewindBox'
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'RewindBox' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
+  # Frozen source snapshots used by the unchanged StikJIT ABI validator.
+  # Neither external launcher is compiled or registered in NeoStation.
+  s.exclude_files = ['Classes/StikjitBridgePlugin.swift', 'Classes/StikjitBridgePluginV2.swift']
   s.vendored_frameworks = 'Frameworks/StikJIT.xcframework'
   s.dependency 'Flutter'
   s.platform = :ios, '17.4'

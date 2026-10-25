@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / "assets/images/fork-icon-valid.jpg"
+SOURCE = ROOT / "assets/images/rewindbox-logo.png"
 RUNNER = ROOT / "ios/Runner"
 INFO = RUNNER / "Info.plist"
 FALLBACK_DIR = RUNNER

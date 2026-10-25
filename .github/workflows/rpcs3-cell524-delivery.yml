@@ -1,0 +1,145 @@
+name: RPCS3 CELL524 private native-only IPA
+run-name: "Private Build524 \u2022 verified app523 + source-built HLE wake Core"
+'on':
+  push:
+    branches:
+    - Claude
+    paths:
+    - .github/workflows/rpcs3-cell524-delivery.yml
+    - .github/diagnostics/rpcs3cell524_delivery.py
+    - build-utils/rpcs3_cell524_package.py
+    - build-utils/validate_rpcs3_cell524_ipa.py
+    - build-utils/delivery-524-rpcs3-recipient.pem
+    - test/fixtures/rpcs3_app523_payload.json
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  actions: read
+jobs:
+  assemble:
+    name: 'Private Build524: verified native-only assembly'
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-cell524-delivery]') }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    concurrency:
+      group: rewindbox-private524-${{ github.sha }}
+      cancel-in-progress: false
+    env:
+      BUILD_NUMBER: '524'
+      IPA_NAME: NeoStation
+      DELIVERY_MODE: core-reuse
+      DELIVERY_RECIPIENT: build-utils/delivery-524-rpcs3-recipient.pem
+      GH_TOKEN: ${{ github.token }}
+      SCREENSCRAPER_DEV_PASSWORD: ${{ secrets.SCREENSCRAPER_DEV_PASSWORD }}
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+    - name: Checkout exact assembly
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.sha }}
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Require exact successful native Core and unchanged app523
+      run: python3 .github/diagnostics/rpcs3cell524_delivery.py --wait-for-components
+    - name: Select signing toolchain used for app523
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26.3'
+    - name: Restore only the authenticated app523 compiled cache
+      id: cache
+      uses: actions/cache/restore@v4
+      with:
+        path: .ci-cache
+        key: neostation-device-v2-macOS-ARM64-xcode26.3-flutter3.47.2-c1f550f8be86c91d65dc564ebddff593f2e3fe46-523-09b8aa7d1bc439098e74eaba3735094714b3cd5740c469e7c84be8dd2fec6336-normal
+    - name: Require the exact cache and decrypt its authenticated envelope
+      shell: bash
+      run: 'set -euo pipefail
+
+        test "${{ steps.cache.outputs.cache-hit }}" = true
+
+        command -v zstd >/dev/null || brew install zstd
+
+        env GITHUB_SHA=c1f550f8be86c91d65dc564ebddff593f2e3fe46 BUILD_NUMBER=523 python3 build-utils/delivery_cipher.py cache-unpack
+
+        '
+    - name: Download source-built Core524
+      uses: actions/download-artifact@v4
+      with:
+        run-id: 40110663507
+        name: RPCS3Core-a7a109b955d2e60de005fd663eb4391f6c93e88d
+        github-token: ${{ github.token }}
+        path: dist/rpcs3-native
+    - name: Authenticate app523 bytes, install Core524 and seal the private IPA
+      run: python3 build-utils/rpcs3_cell524_package.py
+    - name: Verify updated source notices against the actual IPA
+      run: python3 build-utils/validate_legal_bundle_ipa.py dist/NeoStation.ipa --build-number 524 --commit "$GITHUB_SHA"
+    - name: Encrypt private IPA and exact validation reports
+      shell: bash
+      run: 'set -euo pipefail
+
+        mkdir -p build/delivery-artifact
+
+        cp dist/NeoStation.ipa "build/delivery-artifact/RewindBox-Build524-${GITHUB_SHA}-core-reuse.ipa"
+
+        cp build/delivery/*.json build/delivery-artifact/
+
+        shasum -a 256 build/delivery-artifact/*.ipa > build/delivery-artifact/SHA256SUMS
+
+        python3 build-utils/delivery_cipher.py artifact build/delivery-artifact build/encrypted-delivery
+
+        python3 build-utils/split_encrypted_delivery.py build/encrypted-delivery build/encrypted-delivery-parts
+
+        '
+    - name: Upload encrypted private transport 1/4
+      uses: actions/upload-artifact@v4
+      with:
+        name: RewindBox-Build-524-${{ github.sha }}-core-reuse-part00
+        path: build/encrypted-delivery-parts/part00/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Upload encrypted private transport 2/4
+      uses: actions/upload-artifact@v4
+      with:
+        name: RewindBox-Build-524-${{ github.sha }}-core-reuse-part01
+        path: build/encrypted-delivery-parts/part01/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Upload encrypted private transport 3/4
+      uses: actions/upload-artifact@v4
+      with:
+        name: RewindBox-Build-524-${{ github.sha }}-core-reuse-part02
+        path: build/encrypted-delivery-parts/part02/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Upload encrypted private transport 4/4
+      uses: actions/upload-artifact@v4
+      with:
+        name: RewindBox-Build-524-${{ github.sha }}-core-reuse-part03
+        path: build/encrypted-delivery-parts/part03/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Encrypt available diagnostic evidence
+      if: always()
+      run: 'mkdir -p build/delivery
+
+        python3 build-utils/delivery_cipher.py artifact build/delivery build/encrypted-diagnostics
+
+        '
+    - name: Upload encrypted diagnostics
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: RewindBox-Build-524-${{ github.sha }}-diagnostics
+        path: build/encrypted-diagnostics/
+        if-no-files-found: warn
+        retention-days: 14
+        compression-level: 0
+    - name: Remove restored temporary credentials
+      if: always()
+      run: 'rm -f .dart-defines.json
+
+        '

@@ -98,9 +98,12 @@ bool {backend}_fallthrough(const Targets& m_targets, u32 m_pos, spu_opcode_t op)
 
     # Old persistent objects encode the omitted continuation; use a new cache
     # namespace even though the public main Core ABI remains version 30.
+    # Build 481 keeps the constant in rpcs3/Emu/Cell/SPUObjectCachePolicy.h
+    # (format_version) and folds it into the directory key.
     source = (root / 'rpcs3/Emu/Cell/SPUCommonRecompiler.cpp').read_text()
-    version = int(re.search(r'constexpr u32 cache_version = (\d+);', source)[1])
-    assert version >= 5 and 'fold(cache_version);' in source
+    policy = (root / 'rpcs3/Emu/Cell/SPUObjectCachePolicy.h').read_text()
+    version = int(re.search(r'inline constexpr std::uint32_t format_version = (\d+);', policy)[1])
+    assert version >= 5 and 'fold(object_cache::format_version);' in source
     assert '#define RPCS3_IOS_ABI_VERSION 30u' in (root / 'rpcs3/ios/RPCS3IOS.h').read_text()
 
     source = (root / 'rpcs3/ios/RPCS3IOS.cpp').read_text()

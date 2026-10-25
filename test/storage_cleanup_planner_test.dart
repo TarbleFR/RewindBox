@@ -383,7 +383,6 @@ void main() {
         doc('media/snes/box2d/Partial.png.part'),
         doc('RPCS3/Export/Game Saves/.saves.zip.part'),
         doc('Ports/KartPad/Games/RMCP01.wbfs.part'),
-        doc('Ports/Dusklight/Games/GZ2E01.rvz.part'),
         doc('Library/Books/.import-ab12.part'),
         doc('user-data/temp/snes'),
         doc('Libretro/Skins/.staging/import-1'),
@@ -422,7 +421,6 @@ void main() {
         // never proposed now (below).
         cac('com.neogamelab.neostation/fsCachedData'),
         cac('KartPad/shader.cache'),
-        cac('Dusklight/pipeline'),
       };
       final level3 = <String>{
         doc('user-data/app.log.old'),
@@ -449,6 +447,12 @@ void main() {
         sup('NeoStation/Maintenance/data-20261002-100000.sqlite'),
         doc('Libretro/Backups/Azahar/20261001-100000'),
         cac('com.neogamelab.neostation/Cache.db'),
+        // Contract replaced by the removal of Dusklight and the Ports
+        // playlist (docs/ports-removal-2026-10-20.md): its partial game copy
+        // (level 1) and its cache folder (level 2) used to be candidates.
+        // Without the engine they are unknown data, never proposed.
+        doc('Ports/Dusklight/Games/GZ2E01.rvz.part'),
+        cac('Dusklight'),
       };
       final duplicatePath = doc('MyGames/snes/Super Mario World.sfc');
 
@@ -508,7 +512,8 @@ void main() {
       await write(cac('temp_music_track.m4a'), age: minute * 5);
       await write(cac('Library/library_http/entry.part'), age: hour * 2);
       // The music player's copies (level 1 after 10 minutes, decision of the
-      // lead) and the KartPad and Dusklight cache folders (level 2).
+      // lead), the KartPad cache folder (level 2) and the one Dusklight left
+      // (never).
       await write(cac('scan_123.mp3'), age: hour);
       await write(cac('scan_-42.jpg'), age: minute * 20);
       await write(cac('KartPad/shader.cache'));
@@ -660,12 +665,10 @@ void main() {
       );
       expect(media.source, StorageCandidateSource.orphanMedia);
       expect(media.reasonKey, StorageLocale.orphanMedia);
-      for (final path in [
-        cac('KartPad/shader.cache'),
-        cac('Dusklight/pipeline'),
-      ]) {
-        expect(candidate(regenerable, path).reasonKey, StorageLocale.catCaches);
-      }
+      expect(
+        candidate(regenerable, cac('KartPad/shader.cache')).reasonKey,
+        StorageLocale.catCaches,
+      );
       expect(
         candidate(safe, cac('scan_123.mp3')).reasonKey,
         StorageLocale.catTemporary,
@@ -1455,15 +1458,16 @@ void main() {
   });
 
   test(
-    'the KartPad and Dusklight cache folders are level 2, never during a game',
+    'the KartPad cache folder is level 2, never during a game; Dusklight\'s '
+    'is never proposed',
     () async {
       await write(cac('KartPad/shaders/GALE01.cache'));
       await write(cac('KartPad/runtime.bin'));
+      // Left by Dusklight (removed, docs/ports-removal-2026-10-20.md).
       await write(cac('Dusklight/pipeline.bin'));
       final caches = {
         cac('KartPad/shaders'),
         cac('KartPad/runtime.bin'),
-        cac('Dusklight/pipeline.bin'),
       };
       final (safe, _) = await planFor(StorageCleanupLevel.safe);
       expect(paths(safe).intersection(caches), isEmpty);
@@ -1484,20 +1488,16 @@ void main() {
             reason: level.name,
           );
           expect(value.reasonKey, StorageLocale.catCaches);
-          expect(
-            value.engine,
-            path.contains('KartPad')
-                ? StorageEngine.kartpad
-                : StorageEngine.dusklight,
-          );
+          expect(value.engine, StorageEngine.kartpad);
         }
+        expect(paths(plan), isNot(contains(cac('Dusklight/pipeline.bin'))));
       }
       // Modified in the last minutes: the engine may still be writing.
       await write(cac('KartPad/fresh.bin'), age: const Duration(minutes: 5));
       final (fresh, _) = await planFor(StorageCleanupLevel.regenerable);
       expect(paths(fresh), isNot(contains(cac('KartPad/fresh.bin'))));
       expect(paths(fresh), containsAll(caches));
-      // A game running (KartPad and Dusklight only run in a session).
+      // A game running.
       final (running, _) = await planFor(
         StorageCleanupLevel.regenerable,
         sessions: guard(launch: true),

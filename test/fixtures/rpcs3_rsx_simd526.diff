@@ -1,0 +1,296 @@
+--- a/rpcs3/Emu/RSX/Common/BufferUtils.cpp
++++ b/rpcs3/Emu/RSX/Common/BufferUtils.cpp
+@@ -15,13 +15,6 @@
+ #pragma GCC diagnostic ignored "-Wold-style-cast"
+ #endif
+ 
+-#if defined(ARCH_ARM64)
+-#if !defined(_MSC_VER)
+-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+-#endif
+-#undef FORCE_INLINE
+-#include "Emu/CPU/sse2neon.h"
+-#endif
+ 
+ #if defined(_MSC_VER) || !defined(__SSE2__)
+ #define SSE4_1_FUNC
+@@ -666,15 +659,14 @@
+ 	{
+ 		unsigned i = 0;
+ #if defined(ARCH_X64) || defined(ARCH_ARM64)
+-		const unsigned step = 8;                          // We do 8 entries per step
+-		const __m128i vec_step = _mm_set1_epi16(8);     // Constant to increment the raw values
+-		__m128i values = _mm_set_epi16(7, 6, 5, 4, 3, 2, 1, 0);
+-		__m128i* vec_ptr = utils::bless<__m128i>(dst);
+-
+-		for (; (i + step) <= count; i += step, vec_ptr++)
+-		{
+-			_mm_stream_si128(vec_ptr, values);
+-			values = _mm_add_epi16(values,  vec_step);
++		const unsigned step = 8;
++		const v128 vec_step = gv_bcst16(8);
++		v128 values = v128::from32(0x00010000, 0x00030002, 0x00050004, 0x00070006);
++
++		for (; (i + step) <= count; i += step)
++		{
++			gv_stream(dst + i, values);
++			values = gv_add16(values, vec_step);
+ 		}
+ #endif
+ 		for (; i < count; ++i)
+--- a/rpcs3/Emu/RSX/Common/buffer_stream.hpp
++++ b/rpcs3/Emu/RSX/Common/buffer_stream.hpp
+@@ -1,23 +1,6 @@
+ #pragma once
+ 
+-#include "util/types.hpp"
+-
+-#if defined(ARCH_X64)
+-#include "emmintrin.h"
+-#include "immintrin.h"
+-#endif
+-
+-#ifdef ARCH_ARM64
+-#ifndef _MSC_VER
+-#pragma GCC diagnostic push
+-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+-#pragma GCC diagnostic ignored "-Wold-style-cast"
+-#endif
+-#include "Emu/CPU/sse2neon.h"
+-#ifndef _MSC_VER
+-#pragma GCC diagnostic pop
+-#endif
+-#endif
++#include "util/simd.hpp"
+ 
+ namespace utils
+ {
+@@ -27,8 +10,7 @@
+ 	static inline
+ 		void stream_vector(void* dst, u32 x, u32 y, u32 z, u32 w)
+ 	{
+-		const __m128i vector = _mm_set_epi32(w, z, y, x);
+-		_mm_stream_si128(reinterpret_cast<__m128i*>(dst), vector);
++		gv_stream(dst, v128::from32(x, y, z, w));
+ 	}
+ 
+ 	static inline
+@@ -43,12 +25,11 @@
+ 	template <int Count = 1>
+ 	void stream_vector_from_memory(void* dst, void* src)
+ 	{
+-		auto _src = reinterpret_cast<__m128i*>(src);
+-		auto _dst = reinterpret_cast<__m128i*>(dst);
+-		for (int i = 0; i < Count; ++i, ++_src, ++_dst)
++		auto* _src = static_cast<const u8*>(src);
++		auto* _dst = static_cast<u8*>(dst);
++		for (int i = 0; i < Count; ++i)
+ 		{
+-			const __m128i vector = _mm_loadu_si128(_src);
+-			_mm_stream_si128(_dst, vector);
++			gv_stream(_dst + i * sizeof(v128), v128::loadu(_src + i * sizeof(v128)));
+ 		}
+ 	}
+ }
+--- a/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp
++++ b/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp
+@@ -6,21 +6,9 @@
+ #include "Emu/RSX/Program/RSXFragmentProgram.h"
+ 
+ #include <util/asm.hpp>
+-#include <util/v128.hpp>
++#include <util/simd.hpp>
+ #include <span>
+ 
+-#if defined(ARCH_ARM64)
+-#if !defined(_MSC_VER)
+-#pragma GCC diagnostic push
+-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+-#pragma GCC diagnostic ignored "-Wold-style-cast"
+-#endif
+-#undef FORCE_INLINE
+-#include "Emu/CPU/sse2neon.h"
+-#if !defined(_MSC_VER)
+-#pragma GCC diagnostic pop
+-#endif
+-#endif
+ 
+ namespace rsx::assembler
+ {
+@@ -28,15 +16,7 @@
+ 	{
+ 		// Fixup of RSX's weird half-word shuffle for FP instructions
+ 		// Convert input stream into LE u16 array
+-		__m128i _mask0 = _mm_set1_epi32(0xff00ff00);
+-		__m128i _mask1 = _mm_set1_epi32(0x00ff00ff);
+-		__m128i a = _mm_slli_epi32(static_cast<__m128i>(raw_inst), 8);
+-		__m128i b = _mm_srli_epi32(static_cast<__m128i>(raw_inst), 8);
+-		__m128i ret = _mm_or_si128(
+-			_mm_and_si128(_mask0, a),
+-			_mm_and_si128(_mask1, b)
+-		);
+-		return v128::loadu(&ret);
++		return gv_byteswap16(raw_inst);
+ 	}
+ 
+ 	FlowGraph deconstruct_fragment_program(const RSXFragmentProgram& prog)
+--- a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
++++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
+@@ -7,22 +7,7 @@
+ 
+ #include <stack>
+ 
+-#if defined(ARCH_X64)
+-#include "emmintrin.h"
+-#include "immintrin.h"
+-#endif
+-
+-#ifdef ARCH_ARM64
+-#ifndef _MSC_VER
+-#pragma GCC diagnostic push
+-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+-#pragma GCC diagnostic ignored "-Wold-style-cast"
+-#endif
+-#include "Emu/CPU/sse2neon.h"
+-#ifndef _MSC_VER
+-#pragma GCC diagnostic pop
+-#endif
+-#endif
++#include "util/simd.hpp"
+ 
+ #ifdef _MSC_VER
+ #define AVX512_ICL_FUNC
+@@ -805,24 +790,26 @@
+ namespace rsx
+ {
+ #if defined(ARCH_X64) || defined(ARCH_ARM64)
+-	static inline void write_fragment_constants_to_buffer_sse2(const std::span<f32>& buffer, const RSXFragmentProgram& rsx_prog, const std::vector<u32>& offsets_cache, bool sanitize)
+-	{
+-#ifdef RPCS3_IOS
++	static inline void write_fragment_constants_to_buffer_simd(const std::span<f32>& buffer, const RSXFragmentProgram& rsx_prog, const std::vector<u32>& offsets_cache, bool sanitize)
++	{
+ 		f32* dst = buffer.data();
+ 		const auto* source = static_cast<const u8*>(rsx_prog.get_data());
+ 		const auto emit = [&](u32 offset)
+ 		{
+-			// Preserve all payload bits except the requested NaN/Inf sanitization.
+-			auto value = vreinterpretq_u32_u8(vrev16q_u8(vld1q_u8(source + offset)));
++			// Swap RSX half-word bytes without changing floating-point payloads.
++			auto value = gv_byteswap16(v128::loadu(source + offset));
+ 			if (sanitize)
+ 			{
+-				const auto valid = vcltq_u32(vandq_u32(value, vdupq_n_u32(0x7fffffff)), vdupq_n_u32(0x7f800000));
+-				value = vandq_u32(value, valid);
+-			}
+-			vst1q_u32(reinterpret_cast<u32*>(dst), value);
++				const auto magnitude = gv_and32(value, gv_bcst32(0x7fffffff));
++				const auto valid = gv_gts32(gv_bcst32(0x7f800000), magnitude);
++				value = gv_and32(value, valid);
++			}
++			gv_stream(dst, value);
+ 			dst += 4;
+ 		};
+ 		usz i = 0;
++#ifdef RPCS3_IOS
++		// Preserve the existing iOS four-constant batch.
+ 		for (; i + 4 <= offsets_cache.size(); i += 4)
+ 		{
+ 			emit(offsets_cache[i]);
+@@ -830,32 +817,8 @@
+ 			emit(offsets_cache[i + 2]);
+ 			emit(offsets_cache[i + 3]);
+ 		}
++#endif
+ 		for (; i < offsets_cache.size(); ++i) emit(offsets_cache[i]);
+-#else
+-		f32* dst = buffer.data();
+-		for (u32 offset_in_fragment_program : offsets_cache)
+-		{
+-			const char* data = static_cast<const char*>(rsx_prog.get_data()) + offset_in_fragment_program;
+-
+-			const __m128i vector = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data));
+-			const __m128i shuffled_vector = _mm_or_si128(_mm_slli_epi16(vector, 8), _mm_srli_epi16(vector, 8));
+-
+-			if (sanitize)
+-			{
+-				//Convert NaNs and Infs to 0
+-				const auto masked = _mm_and_si128(shuffled_vector, _mm_set1_epi32(0x7fffffff));
+-				const auto valid = _mm_cmplt_epi32(masked, _mm_set1_epi32(0x7f800000));
+-				const auto result = _mm_and_si128(shuffled_vector, valid);
+-				_mm_stream_si128(utils::bless<__m128i>(dst), result);
+-			}
+-			else
+-			{
+-				_mm_stream_si128(utils::bless<__m128i>(dst), shuffled_vector);
+-			}
+-
+-			dst += 4;
+-		}
+-#endif
+ 	}
+ #else
+ 	static inline void write_fragment_constants_to_buffer_fallback(const std::span<f32>& buffer, const RSXFragmentProgram& rsx_prog, const std::vector<u32>& offsets_cache, bool sanitize)
+@@ -889,7 +852,7 @@
+ 	void write_fragment_constants_to_buffer(const std::span<f32>& buffer, const RSXFragmentProgram& rsx_prog, const std::vector<u32>& offsets_cache, bool sanitize)
+ 	{
+ #if defined(ARCH_X64) || defined(ARCH_ARM64)
+-		write_fragment_constants_to_buffer_sse2(buffer, rsx_prog, offsets_cache, sanitize);
++		write_fragment_constants_to_buffer_simd(buffer, rsx_prog, offsets_cache, sanitize);
+ #else
+ 		write_fragment_constants_to_buffer_fallback(buffer, rsx_prog, offsets_cache, sanitize);
+ #endif
+--- a/rpcs3/Emu/RSX/RSXTexture.cpp
++++ b/rpcs3/Emu/RSX/RSXTexture.cpp
+@@ -14,13 +14,6 @@
+ #pragma GCC diagnostic ignored "-Wold-style-cast"
+ #endif
+ 
+-#if defined(ARCH_ARM64)
+-#if !defined(_MSC_VER)
+-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+-#endif
+-#undef FORCE_INLINE
+-#include "Emu/CPU/sse2neon.h"
+-#endif
+ 
+ namespace rsx
+ {
+@@ -406,34 +399,10 @@
+ 		// Bit pattern expand
+ 		const u32 mask = expand4_lut[sext];
+ 
+-		// Now we perform the compensation operation
+-		// BIAS operation = (V - 128 / 127)
+-
+-		// Load
+-		const __m128i _0 = _mm_setzero_si128();
+-		const __m128i _128 = _mm_set1_epi32(128);
+-
+-		// Explode the bytes.
+-		__m128i v = _mm_cvtsi32_si128(raw);
+-		v = _mm_unpacklo_epi8(v, _0);
+-		v = _mm_unpacklo_epi16(v, _0);
+-
+-		// Conversion: x = (y - 128)
+-		v = _mm_sub_epi32(v, _128);
+-
+-		// Convert to signed encoding (reverse sext)
+-		v = _mm_slli_epi32(v, 24);
+-		v = _mm_srli_epi32(v, 24);
+-
+-		// Pack down
+-		v = _mm_packs_epi32(v, _0);
+-		v = _mm_packus_epi16(v, _0);
+-
+-		// Read
+-		const u32 conv = _mm_cvtsi128_si32(v);
+-
+-		// Merge
+-		return (conv & mask) | (raw & ~mask);
++		// Subtracting 128 modulo 256 flips each byte's sign bit. The old
++		// unpack/subtract/mask/saturating-pack chain returned the same low
++		// bytes, so no vector expansion or narrowing is needed here.
++		return raw ^ (mask & 0x80808080u);
+ 	}
+ 
+ 	color4f fragment_texture::remapped_border_color(bool apply_colorspace_remapping) const

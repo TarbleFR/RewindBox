@@ -1,0 +1,144 @@
+{
+  "date": "2026-10-20",
+  "result": "passed",
+  "version": "0.0.8",
+  "build": 498,
+  "source": "2617d176e091d0bff63820a5c46917b17dd4a943",
+  "workflow": "69176e02b6e2133075b2745dd06d6a70316674a4",
+  "branch": "Claude",
+  "run": 39464441422,
+  "run_url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39464441422",
+  "jobs": [
+    {
+      "id": 118772033836,
+      "name": "checks",
+      "conclusion": "success"
+    },
+    {
+      "id": 118772033548,
+      "name": "native",
+      "conclusion": "success"
+    },
+    {
+      "id": 118772691376,
+      "name": "Release device build cold",
+      "conclusion": "success"
+    }
+  ],
+  "ipa": {
+    "filename": "NeoStation-0.0.8-build498.ipa",
+    "bytes": 168386155,
+    "sha256": "6b054cac8a78de265e6d1d1c151d2f8bfb05fed293f3b9715b20cccaa8f37c79",
+    "sideStoreAppleReSigningRequired": true
+  },
+  "catalogue": {
+    "revision": "2026-10-20.28541bbfe23e",
+    "gzipBytes": 189741,
+    "sha256": "c1fd3b7ccf3e36164bcaa39c50be5c9818f27b00f0347a96688929030761dd19",
+    "oneTapFamilies": 418,
+    "distinctFamilies": 418,
+    "installationProfiles": 503,
+    "manualVerifiedFamilies": 0,
+    "legacyOneTapFamilies": 237,
+    "nativeCapabilityFamilies": 181,
+    "complete": 271,
+    "partial": 73,
+    "ui": 74
+  },
+  "preservation": {
+    "allChecksPassed": true,
+    "checks": 25,
+    "baselineRuntimeIDsRetained": 1086,
+    "oldDirectProfilesUnchanged": 209,
+    "oldManualProfilesPreserved": 231,
+    "oldManualFamiliesConverted": 191,
+    "runtimeIDsAfter": 1088,
+    "canonicalRecords": 682
+  },
+  "nativeRARAndPublicHosts": true,
+  "compiledRARAndHostMarkersIndependentlyVerified": true,
+  "originalTextureArchivesBundled": false,
+  "encryptedDeliveryArtifact": {
+    "id": 12285351578,
+    "name": "NeoStation-Build-498-2617d176e091d0bff63820a5c46917b17dd4a943-cold",
+    "bytes": 168616989,
+    "sha256": "1b7a8bccaf4894454f5e1d6e4c8b8ea2f6de9be4d868270176154a5dc472e6ad",
+    "apiDigestMatchesDownloadedZIP": true
+  },
+  "proofs": {
+    "finalIPA": {
+      "path": "docs/evidence/hdnative498-final-ipa.json",
+      "sha256": "239d167a98e036a28708586c2133f7f5d9b6b7cb40d68fb8e673f76fb2a5b058"
+    },
+    "signingContinuity": {
+      "path": "docs/evidence/hdnative498-signing-continuity.json",
+      "sha256": "f76aa8af968d8e9c7c43bcdcfbdcd4643771186176588402dd5ec1d115671286"
+    },
+    "finalCatalogueFoundation": {
+      "run": 39464441422,
+      "job": 118772033548,
+      "checks": 169,
+      "failures": 0
+    },
+    "nativeReaderStoreSDK": {
+      "run": 39461533070,
+      "source": "d8a11a7dc2f6273dc2a845fb076049301cd4e9c2",
+      "hostResolverChecks": 223,
+      "megaChecks": 76,
+      "capabilityChecks": 20,
+      "storeChecks": 125,
+      "foundationChecks": 169,
+      "iphoneSourcesCompiledAndLinked": 36
+    },
+    "rarReaderAndInstaller": {
+      "run": 39456486483,
+      "rarChecks": 38,
+      "installerChecks": 103,
+      "legacyProfilesReplayed": 87
+    },
+    "realNetworkDownloads": {
+      "run": 39456927008,
+      "exactVerifiedFilesInstalled": 6,
+      "activationSuccesses": 1,
+      "receipt": "docs/evidence/hd-direct400-native-network-2026-10-20.json"
+    },
+    "preflightArtifacts": [
+      {
+        "id": 12284251720,
+        "label": "foundation",
+        "sha256": "6ba1c706fc7022d63f788f2dc9c7eb28fef58c2642971328009198c78c4477e9",
+        "bytes": 2379,
+        "api_digest_matches_zip": true
+      },
+      {
+        "id": 12283723376,
+        "label": "validation",
+        "sha256": "3e4ae393c5893ddab63bceb8851e94ed1834b310536788a30ad54146d99dd89c",
+        "bytes": 4108,
+        "api_digest_matches_zip": true
+      }
+    ]
+  },
+  "retainedCores": {
+    "ppssppSource": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+    "ppssppRun": 39455712245,
+    "ppssppSHA256BeforeSigning": "a7d058581b657714e055dc9713e9a1252ad4acf6315b30610fcb2b1c81130b6f",
+    "originalCorePackageIdentitySHA256": "74cd78ccf2ceedf0eeeec4595d27a51f66eca5865b7ab911a740a7044ffaf579",
+    "otherLibretroCoresUnchanged": 34,
+    "allCompiledCodeAndDataSectionsUnchangedBySigning": true,
+    "abiMetadataUnchangedBySigning": true
+  },
+  "rebuiltCores": [],
+  "physicalDeviceValidated": false,
+  "limitations": {
+    "rar4SolidEncryptedAndMultivolumeRejected": true,
+    "nativeReaderFailuresRemainExcluded": 10,
+    "unattestedEditionArchivesRemainPageOnly": 4,
+    "threeCRCRefusalsPassIndependent7ZipTestAndRemainUnsupported": true,
+    "independentCRCReceipt": "docs/evidence/hd-direct400-rar-crc-independent.json"
+  },
+  "publicReleaseCreated": false,
+  "tagCreated": false,
+  "mainOrBackupModified": false,
+  "build497DeliveryUnchanged": true
+}

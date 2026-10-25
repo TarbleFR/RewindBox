@@ -5,7 +5,9 @@ Fast experimental builds reuse native Core and UI resources from the stable
 baseline, never its JIT framework. RPCS3Core and DolphinCore are temporary bootstrap inputs here and are
 replaced by separately pinned, hash-verified artifacts before Xcode consumes
 them. StikJIT is built separately from the canonical source pin; neither its
-binary, scripts nor Swift interfaces are transplanted from a donor.
+binary, scripts nor Swift interfaces are transplanted from a donor. The donor's
+Dusklight Core, notices and identity (Dusklight removed on 20 October 2026,
+docs/ports-removal-2026-10-20.md) are refused, never installed.
 """
 from pathlib import Path
 import argparse
@@ -20,7 +22,6 @@ ROOT=Path(__file__).resolve().parents[1]
 DOLPHIN_SHA='7129d9c654fb6d28f2fa92ae1a4c14d1f25a1fc3e87788237676b48a0fb3aa2d'
 RPCS3_SHA='4866265eca27327c3fc9be14190fec082b58a5e1946f541ced34e46c13ceabd9'
 ARMSX2_SHA='cadb6cd56c4b5d01b623bf9696800d48ba504eef8129a8de468c11381de8d162'
-DUSKLIGHT_SHA='5a64e2fd48c47831fd07306c90e28036535a125bd887149d92ba4567ac9af8a7'
 DONOR_RUN_ID=36323843067
 DONOR_ARTIFACT_ID=10932894067
 
@@ -89,23 +90,21 @@ def main() -> None:
         dolphin=app/'Frameworks/DolphinCore.framework'
         rpcs3=app/'Frameworks/libRPCS3Core.dylib'
         armsx2=app/'Frameworks/ARMSX2Core.framework'
-        dusklight=app/'Frameworks/DusklightCore.framework'
-        dusklight_identity=app/'Dusklight-native-identity.json'
-        dusklight_licenses=app/'Dusklight-Licenses'
         dolphin_bridge=app/'Frameworks/dolphin_internal_bridge.framework'
 
         for required in (
             dolphin/'DolphinCore', rpcs3,
-            armsx2/'ARMSX2Core', dusklight/'DusklightCore',
-            dusklight_identity, app/'cacert.pem',
+            armsx2/'ARMSX2Core', app/'cacert.pem',
         ):
             demand(required.is_file(), f'Missing donor runtime: {required}')
-        demand(dusklight_licenses.is_dir(), 'Donor Dusklight notices are missing')
+        # The donor subset never carries the removed Dusklight Core.
+        for retired in (app/'Frameworks/DusklightCore.framework',
+                        app/'Dusklight-native-identity.json', app/'Dusklight-Licenses'):
+            demand(not retired.exists(), f'Removed Dusklight runtime in the donor: {retired}')
 
         demand(sha(dolphin/'DolphinCore')==DOLPHIN_SHA, 'DolphinCore donor hash mismatch')
         demand(sha(rpcs3)==RPCS3_SHA, 'RPCS3Core donor hash mismatch')
         demand(sha(armsx2/'ARMSX2Core')==ARMSX2_SHA, 'ARMSX2Core donor hash mismatch')
-        demand(sha(dusklight/'DusklightCore')==DUSKLIGHT_SHA, 'DusklightCore donor hash mismatch')
         dolphin_dst=ROOT/'packages/dolphin_internal_bridge/ios/Frameworks/DolphinCore.framework'
         copytree(dolphin, dolphin_dst)
         # zipfile extraction does not reliably restore POSIX executable bits.
@@ -140,23 +139,10 @@ def main() -> None:
             'donor_artifact':DONOR_ARTIFACT_ID,
         }, indent=2)+'\n')
 
-        dusklight_root=ROOT/'dist/dusklight'
-        if dusklight_root.exists():
-            shutil.rmtree(dusklight_root)
-        copytree(dusklight, dusklight_root/'DusklightCore.framework')
-        (dusklight_root/'DusklightCore.framework/DusklightCore').chmod(0o755)
-        copytree(dusklight_licenses, dusklight_root/'licenses')
-        shutil.copy2(dusklight_identity, dusklight_root/'identity.json')
-        donor_dusklight=json.loads(dusklight_identity.read_text())
-        demand(
-            donor_dusklight.get('host_commit') ==
-            '4de572747e794d69756fda5db761a7650e98e9f6',
-            'Dusklight donor host commit mismatch',
-        )
-        demand(donor_dusklight.get('abi_version') == 7,
-               'Dusklight donor ABI mismatch')
-        demand(donor_dusklight.get('sha256') == DUSKLIGHT_SHA,
-               'Dusklight donor identity hash mismatch')
+        # A Dusklight tree left by an older build step is never packaged.
+        retired_dusklight=ROOT/'dist/dusklight'
+        if retired_dusklight.exists():
+            shutil.rmtree(retired_dusklight)
 
         sys_src=app/'Sys'
         sys_dst=ROOT/'ios/Runner/Sys'
@@ -188,7 +174,6 @@ def main() -> None:
             'donorArtifact':DONOR_ARTIFACT_ID,
             'dolphinCoreSha256':sha(dolphin/'DolphinCore'),
             'armsx2CoreSha256':sha(armsx2/'ARMSX2Core'),
-            'dusklightCoreSha256':sha(dusklight/'DusklightCore'),
             'rpcs3CoreSha256':sha(rpcs3),
             'touchResourcesCopied':copied,
         }, indent=2)+'\n')

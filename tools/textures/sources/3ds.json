@@ -1,0 +1,1285 @@
+[
+ {
+  "id": "3ds-mm3dhd-deathwrench",
+  "title": "MM3DHD (HD Majora's Mask 3D textures)",
+  "version": "0.0.42b",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Majora's Mask 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000125500"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "The Legend of Zelda: Majora's Mask 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000125600"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "DeathWrench (maintainer)",
+   "Anutim",
+   "Bl4zerp",
+   "Linkz",
+   "MrWheyne",
+   "Nerrel",
+   "Orange",
+   "Pizza",
+   "Skilar'sArt",
+   "LuftWaffle",
+   "Pankeko",
+   "Nivehk"
+  ],
+  "page_url": "https://github.com/DeathWrench/MM3DHD/releases/tag/0.0.42b",
+  "source_id": "github:DeathWrench/MM3DHD",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Author: made for Citra (\"Use Custom Textures\").",
+  "notes": "Only the [Main] folder is installed; the font, Link and tunic alternatives and the AI/WIP folder stay out. The author names no Title ID: the North American and European IDs come from the MM3DHD_FR add-on and a third-party installer, so NeoStation asks you to confirm your game. No pack.json: Azahar reads it with the legacy texture hash, as Citra did.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MM3DHD.zip",
+   "parts": [
+    {
+     "url": "https://github.com/DeathWrench/MM3DHD/releases/download/0.0.42b/MM3DHD.zip"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "[Main]/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "available"
+ },
+ {
+  "id": "3ds-pokemon-usum-hd-volya",
+  "title": "Pokémon Ultra Sun & Ultra Moon HD textures",
+  "version": "usum (24/05/2023)",
+  "games": [
+   {
+    "title": "Pokémon Ultra Sun",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001B5000"
+     }
+    ]
+   },
+   {
+    "title": "Pokémon Ultra Moon",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001B5100"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Volya (creator)",
+   "Gray-Rice (archive)"
+  ],
+  "page_url": "https://github.com/Gray-Rice/PokeTex-3DS/releases/tag/usum",
+  "source_id": "github:Gray-Rice/PokeTex-3DS",
+  "licence": {
+   "summary": "No licence; README: no ownership claimed for some of these works, full credit to the original creators",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Title IDs from the release notes (English versions). No pack.json: Azahar reads it with the legacy texture hash, as Citra did. 174 of its 1,226 images end in \".PNG\": Azahar compares the extension exactly and ignores them, so they are not installed.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "USUM.7z",
+   "parts": [
+    {
+     "url": "https://github.com/Gray-Rice/PokeTex-3DS/releases/download/usum/USUM.7z"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "USUM/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "available"
+ },
+ {
+  "id": "3ds-pokemon-xy-hd-poketex",
+  "title": "Pokémon X & Y HD textures (work in progress)",
+  "version": "xy (2023)",
+  "games": [
+   {
+    "title": "Pokémon X",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000055D00"
+     }
+    ]
+   },
+   {
+    "title": "Pokémon Y",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000055E00"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Ullr8 (Pokémon Y Resurrection base)",
+   "Gray-Rice (additional textures)"
+  ],
+  "page_url": "https://github.com/Gray-Rice/PokeTex-3DS/releases/tag/xy",
+  "source_id": "github:Gray-Rice/PokeTex-3DS",
+  "licence": {
+   "summary": "No licence; README: no ownership claimed for some of these works, full credit to the original creators",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "About 1.8 GB. Interface, text and most other elements done (README). No pack.json: Azahar reads it with the legacy texture hash, as Citra did.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "XY.7z",
+   "parts": [
+    {
+     "url": "https://github.com/Gray-Rice/PokeTex-3DS/releases/download/xy/XY.7z"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "XY/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "available"
+ },
+ {
+  "id": "3ds-pokemon-y-resurrection-hd",
+  "title": "Pokémon Y Resurrection HD Texture Pack",
+  "version": "v0.2",
+  "games": [
+   {
+    "title": "Pokémon Y",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000055E00"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Ullr8"
+  ],
+  "page_url": "https://github.com/Ullr8/Pokemon-Y-Resurrection/releases/tag/v0.2",
+  "source_id": "github:Ullr8/Pokemon-Y-Resurrection",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "About 1.7 GB, 20-30% done by the author's estimate. The romhack itself is a separate ROM patch, not part of this pack. No pack.json: Azahar reads it with the legacy texture hash, as Citra did.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "0004000000055E00.7z",
+   "parts": [
+    {
+     "url": "https://github.com/Ullr8/Pokemon-Y-Resurrection/releases/download/v0.2/0004000000055E00.7z"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "0004000000055E00/",
+     "to": "0004000000055E00"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "available"
+ },
+ {
+  "id": "3ds-pokemon-y-hd-text-only",
+  "title": "Pokémon Y HD text only",
+  "version": "TextOnly",
+  "games": [
+   {
+    "title": "Pokémon Y",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000055E00"
+     }
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "Ullr8"
+  ],
+  "page_url": "https://github.com/Ullr8/Pokemon-Y-Resurrection/releases/tag/TextOnly",
+  "source_id": "github:Ullr8/Pokemon-Y-Resurrection",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "The archive has no Title ID folder; it is published with Pokémon Y Resurrection, so NeoStation offers it for Pokémon Y after you confirm. No pack.json: Azahar reads it with the legacy texture hash, as Citra did.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "Misc.7z",
+   "parts": [
+    {
+     "url": "https://github.com/Ullr8/Pokemon-Y-Resurrection/releases/download/TextOnly/Misc.7z"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "0004000000055E00"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "available"
+ },
+ {
+  "id": "3ds-yokai-watch-2-redefined-nls",
+  "title": "Yo-kai Watch 2 Redefined (textures for every language)",
+  "version": "V1.0",
+  "games": [
+   {
+    "title": "Yo-kai Watch 2: Psychic Specters",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001B2900"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Yo-kai Watch 2: Psychic Specters",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001B2700"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "ykwrefined"
+  ],
+  "page_url": "https://github.com/ykwrefined/Yo-kai-Watch-2-Redefined/releases/tag/V1.0",
+  "source_id": "github:ykwrefined/Yo-kai-Watch-2-Redefined",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "requirements": "Author: internal resolution above native (up to 8x); designed with the German version.",
+  "notes": "The \"Non Language Sensitive\" set (about 1 GB, very large images). The English and German text packs are separate downloads to add to the same folder by hand. Title IDs from a games database: NeoStation asks you to confirm your game. No pack.json: Azahar reads it with the legacy texture hash, as Citra did.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "YKW2Redefined.V1.0.Non.Language.Sensitive.zip",
+   "parts": [
+    {
+     "url": "https://github.com/ykwrefined/Yo-kai-Watch-2-Redefined/releases/download/V1.0/YKW2Redefined.V1.0.Non.Language.Sensitive.zip"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Non Language Sensitive/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "available"
+ },
+ {
+  "id": "3ds-gaki-no-tsukai-english-sonofugly",
+  "title": "Gaki no Tsukai 3DS English texture pack",
+  "version": "v1.0",
+  "games": [
+   {
+    "title": "Downtown no Gaki no Tsukai ya Arahende!! Zettai ni Tsukamatte wa Ikenai Gasu Kurobikari Land",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000017D800"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "SonofUgly"
+  ],
+  "page_url": "https://github.com/SonofUgly/Gaki3DS-eng/releases/tag/v1.0",
+  "source_id": "github:SonofUgly/Gaki3DS-eng",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Translated textures for the Japanese game, part of an English fan translation. No pack.json: Azahar reads it with the legacy texture hash, as Citra did.",
+  "download": {
+   "automatable": true,
+   "format": "7z",
+   "file_name": "Citra.texture.pack.7z",
+   "parts": [
+    {
+     "url": "https://github.com/SonofUgly/Gaki3DS-eng/releases/download/v1.0/Citra.texture.pack.7z"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "000400000017D800/",
+     "to": "000400000017D800"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "available"
+ },
+ {
+  "id": "3ds-mh4u-hd-ui-xl3lackout",
+  "title": "MH4HDUI (Monster Hunter 4 Ultimate 4x interface)",
+  "version": "repository 16e18e8",
+  "games": [
+   {
+    "title": "Monster Hunter 4 Ultimate",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000126300"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Monster Hunter 4 Ultimate",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000126100"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "xl3lackout"
+  ],
+  "page_url": "https://github.com/xl3lackout/MH4HDUI/tree/16e18e85bf07f54320ffb014712dd47d38c524e9",
+  "source_id": "github:xl3lackout/MH4HDUI",
+  "licence": {
+   "summary": "CC0 1.0 (LICENSE); README asks for attribution",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Hand-drawn, work in progress (hunt interface ~90%). Only MH4u/UI is installed. The author names no region: Title IDs from a games database, NeoStation asks you to confirm your game. No pack.json: Azahar reads it with the legacy texture hash, as Citra did.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "MH4HDUI-16e18e85bf07f54320ffb014712dd47d38c524e9.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/xl3lackout/MH4HDUI/zip/16e18e85bf07f54320ffb014712dd47d38c524e9"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/xl3lackout/MH4HDUI",
+    "commit": "16e18e85bf07f54320ffb014712dd47d38c524e9"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "MH4HDUI-16e18e85bf07f54320ffb014712dd47d38c524e9/MH4u/UI/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "available"
+ },
+ {
+  "id": "3ds-pokemon-oras-hd-donel",
+  "title": "Pokémon Omega Ruby & Alpha Sapphire HD textures",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Pokémon Omega Ruby",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000011C400"
+     }
+    ]
+   },
+   {
+    "title": "Pokémon Alpha Sapphire",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000011C500"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Donel",
+   "Gray-Rice (archive)"
+  ],
+  "page_url": "https://github.com/Gray-Rice/PokeTex-3DS/releases/tag/ORAS",
+  "source_id": "github:Gray-Rice/PokeTex-3DS",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Two 7z parts (about 2.7 GB) to extract into one folder, then import the folder.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/Gray-Rice/PokeTex-3DS/releases/tag/ORAS"
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "manual"
+ },
+ {
+  "id": "3ds-albw-hd-font-toruzz",
+  "title": "A Link Between Worlds HD font",
+  "version": "c7451d07235c",
+  "games": [
+   {
+    "title": "The Legend of Zelda: A Link Between Worlds",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000000EC300"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "The Legend of Zelda: A Link Between Worlds",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000000EC400"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "toruzz"
+  ],
+  "page_url": "https://github.com/toruzz/ALBW-HD-Font",
+  "source_id": "github:toruzz/ALBW-HD-Font",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "notes": "One HD font image for each of the USA and Europe title IDs, explicitly named in the original repository. Both regional font folders are present in the creator ZIP. Font only; no other game artwork or French-specific rendering has been validated.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "ALBW-HD-Font-c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/toruzz/ALBW-HD-Font/zip/c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/toruzz/ALBW-HD-Font",
+    "commit": "c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea"
+   }
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "manual",
+  "install": {
+   "folders": [
+    {
+     "from": "ALBW-HD-Font-c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea/00040000000EC300/",
+     "to": "00040000000EC300"
+    },
+    {
+     "from": "ALBW-HD-Font-c7451d07235cfd4bd1a38960d48ddaf6ab52e9ea/00040000000EC400/",
+     "to": "00040000000EC400"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "3ds-albw-hd-font-toruzz"
+ },
+ {
+  "id": "3ds-star-fox-64-3d-upscaled-linuxkafe",
+  "title": "Star Fox 64 3D upscaled textures",
+  "version": "5094b103ba9b",
+  "games": [
+   {
+    "title": "Star Fox 64 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000049000"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "linuxkafe"
+  ],
+  "page_url": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/SF64",
+  "source_id": "github:linuxkafe/3DS",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "notes": "AI-upscaled 3x with Upscayl, optimised with pngquant. The author warns coverage may be incomplete. The ZIP contains three games; NeoStation imports only the selected game subtree. USA title ID is explicit in the creator repository; no other region or language is inferred.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/linuxkafe/3DS",
+    "commit": "5094b103ba9b2f84a234d339fd6665e928efd795"
+   }
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "manual",
+  "install": {
+   "folders": [
+    {
+     "from": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795/Textures/SF64/0004000000049000/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "3ds-star-fox-64-3d-upscaled-linuxkafe"
+ },
+ {
+  "id": "3ds-luigis-mansion-dark-moon-upscaled-linuxkafe",
+  "title": "Luigi's Mansion: Dark Moon upscaled textures",
+  "version": "5094b103ba9b",
+  "games": [
+   {
+    "title": "Luigi's Mansion: Dark Moon",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000055F00"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "linuxkafe"
+  ],
+  "page_url": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/LM2",
+  "source_id": "github:linuxkafe/3DS",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "notes": "AI-upscaled 3x with Upscayl, optimised with pngquant. The author warns coverage may be incomplete. The ZIP contains three games; NeoStation imports only the selected game subtree. USA title ID is explicit in the creator repository; no other region or language is inferred.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/linuxkafe/3DS",
+    "commit": "5094b103ba9b2f84a234d339fd6665e928efd795"
+   }
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "manual",
+  "install": {
+   "folders": [
+    {
+     "from": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795/Textures/LM2/0004000000055F00/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "3ds-luigis-mansion-dark-moon-upscaled-linuxkafe"
+ },
+ {
+  "id": "3ds-animal-crossing-new-leaf-upscaled-linuxkafe",
+  "title": "Animal Crossing: New Leaf upscaled textures",
+  "version": "5094b103ba9b",
+  "games": [
+   {
+    "title": "Animal Crossing: New Leaf",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000086300"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "linuxkafe"
+  ],
+  "page_url": "https://github.com/linuxkafe/3DS/tree/5094b103ba9b2f84a234d339fd6665e928efd795/Textures/ACNL",
+  "source_id": "github:linuxkafe/3DS",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's pinned original repository only when this pack is chosen. NeoStation does not host, repackage or redistribute the texture files; no further permission is inferred."
+  },
+  "notes": "AI-upscaled 3x with Upscayl, optimised with pngquant. The author warns coverage may be incomplete. The ZIP contains three games; NeoStation imports only the selected game subtree. USA title ID is explicit in the creator repository; no other region or language is inferred.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/linuxkafe/3DS/zip/5094b103ba9b2f84a234d339fd6665e928efd795"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/linuxkafe/3DS",
+    "commit": "5094b103ba9b2f84a234d339fd6665e928efd795"
+   }
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "manual",
+  "install": {
+   "folders": [
+    {
+     "from": "3DS-5094b103ba9b2f84a234d339fd6665e928efd795/Textures/ACNL/0004000000086300/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "3ds-animal-crossing-new-leaf-upscaled-linuxkafe"
+ },
+ {
+  "id": "3ds-new-loveplus-english-textures",
+  "title": "NEW LovePlus+ English translated textures",
+  "version": "see page",
+  "games": [
+   {
+    "title": "NEW LovePlus+",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000000F4E00"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ]
+   }
+  ],
+  "authors": [
+   "LovePlusProject"
+  ],
+  "page_url": "https://github.com/LovePlusProject/NLPPCTR",
+  "source_id": "github:LovePlusProject/NLPPCTR",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Part of an unfinished English patch whose text also needs LayeredFS files; the repository is 1.1 GB. Download the textures folder and import it.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/LovePlusProject/NLPPCTR"
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "manual"
+ },
+ {
+  "id": "3ds-ace-combat-ahl-plus-hd-ostrich",
+  "title": "Ace Combat: Assault Horizon Legacy+ HD Texture Pack",
+  "version": "0.9.2",
+  "games": [
+   {
+    "title": "Ace Combat: Assault Horizon Legacy+",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000015C000"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Ostrich"
+  ],
+  "page_url": "https://ostrichmods.com/ac3d.html",
+  "source_id": "web:ostrichmods.com",
+  "licence": {
+   "summary": "No licence stated (credits only)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The author's Google Drive file (v0.9.2), linked from the author's page.",
+  "download": {
+   "automatable": false,
+   "page": "https://ostrichmods.com/ac3d.html",
+   "file_name": "ac3d-hd-texture-pack-v0.9.2.zip",
+   "verify": {
+    "url": "https://drive.google.com/uc?export=download&id=1zthUs7Cj4ShvEffe-QZMqPACUOlv4KVf",
+    "sha256": "d37d0770b459258bdc323bce97dd51ab3e2b93e9d7afa45c6df414941379acfa"
+   },
+   "in_app": true
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "manual",
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "000400000015C000"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "3ds-ace-combat-ahl-plus-hd-ostrich"
+ },
+ {
+  "id": "3ds-yokai-watch-2-redefined-text",
+  "title": "Yo-kai Watch 2 Redefined text packs (English, German)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Yo-kai Watch 2: Psychic Specters",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001B2900"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Yo-kai Watch 2: Psychic Specters",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001B2700"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "ykwrefined"
+  ],
+  "page_url": "https://github.com/ykwrefined/Yo-kai-Watch-2-Redefined/releases/tag/V1.0",
+  "source_id": "github:ykwrefined/Yo-kai-Watch-2-Redefined",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Language add-ons for the \"every language\" set, extracted into the same Title ID folder (README).",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/ykwrefined/Yo-kai-Watch-2-Redefined/releases/tag/V1.0"
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "manual"
+ },
+ {
+  "id": "3ds-mm3dhd-fr-ezelbys",
+  "title": "MM3DHD_FR (French text for MM3DHD)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Majora's Mask 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000125600"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   },
+   {
+    "title": "The Legend of Zelda: Majora's Mask 3D",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000125500"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Ezelbys"
+  ],
+  "page_url": "https://github.com/Ezelbys/MM3DHD_FR",
+  "source_id": "github:Ezelbys/MM3DHD_FR",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "French add-on to MM3DHD, copied into the same Title ID folder by hand (README).",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/Ezelbys/MM3DHD_FR"
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "availability": "manual"
+ },
+ {
+  "id": "3ds-oot3d-chinese-hd-font-map-remake-wee2002",
+  "system": "3ds",
+  "title": "Ocarina of Time 3D HD Font & Map Pack Remake (Chinese)",
+  "version": "v1.0.0",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Ocarina of Time 3D (Chinese)",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000008F900"
+     }
+    ],
+    "regions": [
+     "Asia"
+    ]
+   }
+  ],
+  "authors": [
+   "Wee2002"
+  ],
+  "page_url": "https://github.com/Wee2002/Ocarina-of-Time-3D-HD-Font-Map-Pack-Remake/releases/tag/v1.0.0",
+  "source_id": "github:Wee2002/Ocarina-of-Time-3D-HD-Font-Map-Pack-Remake",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "3D.+.+.zip",
+   "parts": [
+    {
+     "url": "https://github.com/Wee2002/Ocarina-of-Time-3D-HD-Font-Map-Pack-Remake/releases/download/v1.0.0/3D.%2B.%2B.zip"
+    }
+   ]
+  },
+  "engine": "azahar",
+  "availability": "available",
+  "notes": "For the Chinese version (simplified and traditional text).",
+  "credits": "README credits 林瓶鱼 and 壕梧熠熠 (the original pack)."
+ },
+ {
+  "id": "3ds-project-mirai-dx-hd-snakemi",
+  "system": "3ds",
+  "title": "Project Mirai DX HD Texture Pack",
+  "version": "repository f4200a6",
+  "games": [
+   {
+    "title": "Hatsune Miku: Project Mirai DX",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000148C00"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "snakemi"
+  ],
+  "page_url": "https://github.com/snakemi/miraihd/tree/f4200a665e1e9f6a66b5359f90c311a4ede5c64b",
+  "source_id": "github:snakemi/miraihd",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "miraihd-f4200a665e1e9f6a66b5359f90c311a4ede5c64b.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/snakemi/miraihd/zip/f4200a665e1e9f6a66b5359f90c311a4ede5c64b"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/snakemi/miraihd",
+    "commit": "f4200a665e1e9f6a66b5359f90c311a4ede5c64b"
+   }
+  },
+  "engine": "azahar",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "miraihd-f4200a665e1e9f6a66b5359f90c311a4ede5c64b/0004000000148C00/",
+     "to": "0004000000148C00"
+    }
+   ]
+  },
+  "notes": "Work in progress; archived by the author."
+ },
+ {
+  "id": "3ds-oot3d-chinese-hd-font-map-linkfish1",
+  "system": "3ds",
+  "title": "Ocarina of Time 3D HD Font & Map Pack (Chinese)",
+  "version": "repository e1bf22a",
+  "games": [
+   {
+    "title": "The Legend of Zelda: Ocarina of Time 3D (Chinese)",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000008F900"
+     }
+    ],
+    "regions": [
+     "Asia"
+    ]
+   }
+  ],
+  "authors": [
+   "LinkFish1"
+  ],
+  "page_url": "https://github.com/LinkFish1/Ocarina-of-Time-3D-HD-Font-Map-Pack/tree/e1bf22ababe7e9eac0bae1784088560b5fec3db7",
+  "source_id": "github:LinkFish1/Ocarina-of-Time-3D-HD-Font-Map-Pack",
+  "licence": {
+   "summary": "No licence stated by the author; README credits its collaborators",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Ocarina-of-Time-3D-HD-Font-Map-Pack-e1bf22ababe7e9eac0bae1784088560b5fec3db7.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/LinkFish1/Ocarina-of-Time-3D-HD-Font-Map-Pack/zip/e1bf22ababe7e9eac0bae1784088560b5fec3db7"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/LinkFish1/Ocarina-of-Time-3D-HD-Font-Map-Pack",
+    "commit": "e1bf22ababe7e9eac0bae1784088560b5fec3db7"
+   }
+  },
+  "engine": "azahar",
+  "availability": "available",
+  "install": {
+   "folders": [
+    {
+     "from": "Ocarina-of-Time-3D-HD-Font-Map-Pack-e1bf22ababe7e9eac0bae1784088560b5fec3db7/load/textures/000400000008F900/",
+     "to": "000400000008F900"
+    }
+   ]
+  },
+  "notes": "For the Simplified Chinese version only."
+ },
+ {
+  "id": "3ds-metroid-samus-returns-custom-textures-sabre230",
+  "system": "3ds",
+  "engine": "azahar",
+  "title": "Metroid: Samus Returns Custom Textures",
+  "version": "repository 436d46c",
+  "games": [
+   {
+    "title": "Metroid: Samus Returns",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001BB200"
+     }
+    ],
+    "regions": [
+     "USA"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Metroid: Samus Returns",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "00040000001BFB00"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "sabre230"
+  ],
+  "page_url": "https://github.com/sabre230/msr-custom-textures/tree/436d46c07baa153da82b68f16489417a0cb25d82",
+  "source_id": "github:sabre230/msr-custom-textures",
+  "licence": {
+   "summary": "GPL-3.0 (LICENSE)",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "Suit, effect and interface textures redrawn in Krita (a small, ongoing project). The author names no region: Title IDs from a games database, NeoStation asks you to confirm your game. No pack.json: Azahar reads it with the legacy texture hash, as Citra did.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "msr-custom-textures-436d46c07baa153da82b68f16489417a0cb25d82.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/sabre230/msr-custom-textures/zip/436d46c07baa153da82b68f16489417a0cb25d82"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/sabre230/msr-custom-textures",
+    "commit": "436d46c07baa153da82b68f16489417a0cb25d82"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "msr-custom-textures-436d46c07baa153da82b68f16489417a0cb25d82/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "3ds-metroid-samus-returns-custom-textures-sabre230"
+ },
+ {
+  "id": "3ds-mirai-dx-hd-ps-buttons-ayumi",
+  "title": "Project Mirai DX — HD PlayStation button icons (IA/VT style)",
+  "version": "2020-05-02 / fc8d371776a3",
+  "games": [
+   {
+    "title": "Hatsune Miku: Project Mirai DX",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "0004000000148C00"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "ayumi-chizuru189"
+  ],
+  "page_url": "https://github.com/ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style/tree/fc8d371776a3f70f1cb26857adacd1b458d7e8b7",
+  "source_id": "github:ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style",
+  "licence": {
+   "summary": "No licence stated by the creator.",
+   "redistribution": "Downloaded directly from the creator's pinned repository archive; NeoStation does not host, modify or redistribute the files."
+  },
+  "requirements": "Use the right button colours: A/circle red, B/cross blue, Y/square purple, X/triangle green (creator instructions).",
+  "notes": "Small unfinished HD interface pack: two button-icon sheets only. The 1024x128 source sheet is replaced by a 4096x512 PNG (4x), and the 256x256 sheet by a 512x512 PNG (2x). The creator explicitly names title ID 0004000000148C00; no additional region or French-language support is inferred. Only the Citra texture subtree is installed; the separate real3ds/Luma game-patching files are excluded. No pack.json: legacy Citra texture hashes. No iPhone rendering test is claimed.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Project-Mirai-DX-HD-PS-buttons-fc8d371776a3.zip",
+   "parts": [
+    {
+     "url": "https://codeload.github.com/ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style/zip/fc8d371776a3f70f1cb26857adacd1b458d7e8b7"
+    }
+   ],
+   "repository": {
+    "url": "https://github.com/ayumi-chizuru189/mirai-dx-ps-button-icons-ia-vt-style",
+    "commit": "fc8d371776a3f70f1cb26857adacd1b458d7e8b7"
+   }
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "mirai-dx-ps-button-icons-ia-vt-style-fc8d371776a3f70f1cb26857adacd1b458d7e8b7/citra/0004000000148C00/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "scope": "ui",
+  "family": "3ds-mirai-dx-hd-ps-buttons-ayumi"
+ },
+ {
+  "id": "3ds-pokemon-alpha-sapphire-ghibli-dinopandaa",
+  "title": "Pokémon Alpha Sapphire — Ghibli-style HD textures (partial)",
+  "version": "v0.0.3 (2026-10-03)",
+  "games": [
+   {
+    "title": "Pokémon Alpha Sapphire",
+    "identities": [
+     {
+      "type": "title_id",
+      "scheme": "3ds-title-id",
+      "value": "000400000011C500"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "DinoPandaa30"
+  ],
+  "page_url": "https://github.com/DinoPandaa30/Pokemon-Alpha-Sapphire-Ghibli-Style/releases/tag/v0.0.3",
+  "source_id": "github:DinoPandaa30/Pokemon-Alpha-Sapphire-Ghibli-Style",
+  "licence": {
+   "summary": "No licence or redistribution grant stated by the creator.",
+   "redistribution": "Original creator's release download only; no NeoStation rehosting or repackaging."
+  },
+  "notes": "Early partial artistic HD pack. Release v0.0.3 lists HD text for Spanish, English, French, German and Italian, selected HUD/battle elements, grass, trees, protagonist rooms, Pokémon Center exteriors and Torchic/Mudkip/Tropius. Language coverage is the creator's statement, not an iPhone playthrough. Only Alpha Sapphire title ID 000400000011C500, explicitly named by the README, is matched. The guide also mentions Omega Ruby but provides no separate ID or verified matching pack; Omega Ruby compatibility is not inferred. Preload remains governed by the existing memory guard.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "Poke.Texture.zip",
+   "parts": [
+    {
+     "url": "https://github.com/DinoPandaa30/Pokemon-Alpha-Sapphire-Ghibli-Style/releases/download/v0.0.3/Poke.Texture.zip"
+    }
+   ]
+  },
+  "system": "3ds",
+  "engine": "azahar",
+  "scope": "partial",
+  "family": "3ds-pokemon-alpha-sapphire-ghibli-dinopandaa"
+ }
+]

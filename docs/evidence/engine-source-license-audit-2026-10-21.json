@@ -1,0 +1,2922 @@
+{
+  "schema": 1,
+  "review_date": "2026-10-21",
+  "reviewed_host_commit": "fab5ecf3b119b4d84636ad4f4d03218a96279871",
+  "reviewed_branch": "Claude",
+  "public_release_baseline": {
+    "tag": "0.0.8",
+    "host_commit": "bcca4e4a4dc89a96b1dde05d66436af54efd327e",
+    "libretro_core_count": 34
+  },
+  "scope": "Source availability and binary/source boundaries for current engines and 35 Libretro cores; PPSSPP details delegated; MeloNX staged only.",
+  "actions": {
+    "engine_built": false,
+    "app_built": false,
+    "ipa_produced": false,
+    "tests_executed": false,
+    "public_release_created": false,
+    "git_commit_or_push": false
+  },
+  "method": [
+    "Read local source pins, patch recipes and preserved historical receipts.",
+    "Resolve exact public Git commits and first-level Git submodules through primary repository APIs.",
+    "Download and hash official source archives and selected public binary inputs, inspecting them statically only.",
+    "Inspect buildbot index/recipe semantics without treating CRC32, version candidates or license-reference commits as build attestations."
+  ],
+  "complete_corresponding_source_attested": false,
+  "current_libretro_summary": {
+    "total": 35,
+    "exact_upstream_revision_evidence": 3,
+    "source_build_attestation_missing": 32,
+    "binary_version_candidates": 23,
+    "unique_candidate_commits": 22,
+    "no_binary_revision_recovered": 9,
+    "package_host_commit": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+    "package_run": 39455712245,
+    "boundary": "The three exact root revisions do not establish full dependency, patch, configuration, relinking or license closure."
+  },
+  "engines": [
+    {
+      "id": "rpcs3",
+      "distribution_scope": "current_embedded_runtime",
+      "upstream": {
+        "repository": "https://github.com/XITRIX/rpcs3",
+        "revision": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+        "tree_url": "https://github.com/XITRIX/rpcs3/tree/22f1152783cef1f7e04af7b1c895173e28fd5b03",
+        "archive_url": "https://github.com/XITRIX/rpcs3/archive/22f1152783cef1f7e04af7b1c895173e28fd5b03.tar.gz",
+        "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+      },
+      "neostation": {
+        "revision": "0b18a23460b0a9840406fda2e3d6da4c5cdb7273",
+        "archive_url": "https://github.com/TarbleFR/neostation-ios/archive/0b18a23460b0a9840406fda2e3d6da4c5cdb7273.tar.gz",
+        "paths": [
+          {
+            "path": "build-utils/rpcs3/canonical-source.json",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/0b18a23460b0a9840406fda2e3d6da4c5cdb7273/build-utils/rpcs3/canonical-source.json"
+          },
+          {
+            "path": "build-utils/rpcs3/embedded-core.patch",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/0b18a23460b0a9840406fda2e3d6da4c5cdb7273/build-utils/rpcs3/embedded-core.patch"
+          },
+          {
+            "path": "build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/0b18a23460b0a9840406fda2e3d6da4c5cdb7273/build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch"
+          },
+          {
+            "path": "build-utils/build_rpcs3_embedded_core.sh",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/0b18a23460b0a9840406fda2e3d6da4c5cdb7273/build-utils/build_rpcs3_embedded_core.sh"
+          },
+          {
+            "path": "build-utils/materialize_rpcs3_core.py",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/0b18a23460b0a9840406fda2e3d6da4c5cdb7273/build-utils/materialize_rpcs3_core.py"
+          },
+          {
+            "path": "build-utils/apply_rpcs3_llvm_patch.py",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/0b18a23460b0a9840406fda2e3d6da4c5cdb7273/build-utils/apply_rpcs3_llvm_patch.py"
+          },
+          {
+            "path": ".github/workflows/rpcs3-core.yml",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/0b18a23460b0a9840406fda2e3d6da4c5cdb7273/.github/workflows/rpcs3-core.yml"
+          }
+        ]
+      },
+      "core_run": 39472233521,
+      "abi": 30,
+      "core_bytes": 76953968,
+      "pre_sign_binary_sha256": "87bd77794232fc44b61d421e55d71bae3b2829a58b87ee36b2a176730d78004f",
+      "signed_binary_sha256_499_and_500": "49033f06bcbe5bfb635a956783f87e35934f21d9be5fd3d84b4d902adb190a63",
+      "source_patch_sha256": "6a88c3f5046bbbbd52113ba691cc2f9074e4ebc260f195c1e73776a8c9f876e1",
+      "llvm_source": {
+        "repository": "https://github.com/llvm/llvm-project",
+        "revision": "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
+        "tree_url": "https://github.com/llvm/llvm-project/tree/ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
+        "archive_url": "https://github.com/llvm/llvm-project/archive/ca7933e47d3a3451d81e72ac174dcb5aa28b59d1.tar.gz",
+        "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+      },
+      "llvm_patch_sha256": "8db9dc0e3701069ca3d42c534b2bcd0bba5eea1f21fbd54c466fb454130a9a3f",
+      "ffmpeg": {
+        "version": "8.1.1",
+        "source_url": "https://ffmpeg.org/releases/ffmpeg-8.1.1.tar.xz",
+        "recipe_sha256": "b6863adde98898f42602017462871b5f6333e65aec803fdd7a6308639c52edf3",
+        "audit_download_status": "HTTP 503; tarball not retrieved in this audit",
+        "signed_tag_object": "150ba6ddfabb5c433bb2fb3ee546d2a96e59066d",
+        "tag": "n8.1.1",
+        "tag_commit": "239f2c733de417201d7ad3b3b8b0d9b63285b2b1",
+        "git_source_archive_url": "https://github.com/FFmpeg/FFmpeg/archive/239f2c733de417201d7ad3b3b8b0d9b63285b2b1.tar.gz",
+        "git_archive_is_tarball_byte_equivalent_attested": false,
+        "configuration_source": "build-utils/build_rpcs3_embedded_core.sh"
+      },
+      "moltenvk": {
+        "version": "1.4.2",
+        "source": {
+          "repository": "https://github.com/KhronosGroup/MoltenVK",
+          "revision": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+          "tree_url": "https://github.com/KhronosGroup/MoltenVK/tree/db66022459ffb663aa2b50f6b018bc2e124f5edf",
+          "archive_url": "https://github.com/KhronosGroup/MoltenVK/archive/db66022459ffb663aa2b50f6b018bc2e124f5edf.tar.gz",
+          "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+        },
+        "binary_asset_url": "https://github.com/KhronosGroup/MoltenVK/releases/download/v1.4.2/MoltenVK-ios.tar",
+        "binary_asset_sha256": "b5d947b1660e6e9fed40b9cd2387e160aaab9e80b775c0cef7e14059405178c1",
+        "binary_asset_bytes": 34535424,
+        "recipe_hash_matches_public_release_asset_digest": true,
+        "external_revision_pins": [
+          {
+            "component": "SPIRV-Cross",
+            "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+            "revision": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+            "tree_url": "https://github.com/KhronosGroup/SPIRV-Cross/tree/6c09849fe88c48eaed08413aa022aaa136a3a057",
+            "archive_url": "https://github.com/KhronosGroup/SPIRV-Cross/archive/6c09849fe88c48eaed08413aa022aaa136a3a057.tar.gz",
+            "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees.",
+            "pin_file_url": "https://github.com/KhronosGroup/MoltenVK/blob/db66022459ffb663aa2b50f6b018bc2e124f5edf/ExternalRevisions/SPIRV-Cross_repo_revision"
+          },
+          {
+            "component": "SPIRV-Headers",
+            "repository": "https://github.com/KhronosGroup/SPIRV-Headers",
+            "revision": "29981f65241605e08b0ede4cfeb999fe3b723c6a",
+            "tree_url": "https://github.com/KhronosGroup/SPIRV-Headers/tree/29981f65241605e08b0ede4cfeb999fe3b723c6a",
+            "archive_url": "https://github.com/KhronosGroup/SPIRV-Headers/archive/29981f65241605e08b0ede4cfeb999fe3b723c6a.tar.gz",
+            "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees.",
+            "pin_file_url": "https://github.com/KhronosGroup/MoltenVK/blob/db66022459ffb663aa2b50f6b018bc2e124f5edf/ExternalRevisions/SPIRV-Headers_repo_revision"
+          },
+          {
+            "component": "SPIRV-Tools",
+            "repository": "https://github.com/KhronosGroup/SPIRV-Tools",
+            "revision": "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+            "tree_url": "https://github.com/KhronosGroup/SPIRV-Tools/tree/0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+            "archive_url": "https://github.com/KhronosGroup/SPIRV-Tools/archive/0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55.tar.gz",
+            "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees.",
+            "pin_file_url": "https://github.com/KhronosGroup/MoltenVK/blob/db66022459ffb663aa2b50f6b018bc2e124f5edf/ExternalRevisions/SPIRV-Tools_repo_revision"
+          },
+          {
+            "component": "Volk",
+            "repository": "https://github.com/zeux/volk",
+            "revision": "776893306c5d3b22b6185b5d4a258b81d94572bf",
+            "tree_url": "https://github.com/zeux/volk/tree/776893306c5d3b22b6185b5d4a258b81d94572bf",
+            "archive_url": "https://github.com/zeux/volk/archive/776893306c5d3b22b6185b5d4a258b81d94572bf.tar.gz",
+            "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees.",
+            "pin_file_url": "https://github.com/KhronosGroup/MoltenVK/blob/db66022459ffb663aa2b50f6b018bc2e124f5edf/ExternalRevisions/Volk_repo_revision"
+          },
+          {
+            "component": "Vulkan-Headers",
+            "repository": "https://github.com/KhronosGroup/Vulkan-Headers",
+            "revision": "e3b1eec08173d6b825cd3ac88c885a63b621504a",
+            "tree_url": "https://github.com/KhronosGroup/Vulkan-Headers/tree/e3b1eec08173d6b825cd3ac88c885a63b621504a",
+            "archive_url": "https://github.com/KhronosGroup/Vulkan-Headers/archive/e3b1eec08173d6b825cd3ac88c885a63b621504a.tar.gz",
+            "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees.",
+            "pin_file_url": "https://github.com/KhronosGroup/MoltenVK/blob/db66022459ffb663aa2b50f6b018bc2e124f5edf/ExternalRevisions/Vulkan-Headers_repo_revision"
+          },
+          {
+            "component": "Vulkan-Tools",
+            "repository": "https://github.com/KhronosGroup/Vulkan-Tools",
+            "revision": "8c66b352925cb771f793a4d3220b1321ae0febf1",
+            "tree_url": "https://github.com/KhronosGroup/Vulkan-Tools/tree/8c66b352925cb771f793a4d3220b1321ae0febf1",
+            "archive_url": "https://github.com/KhronosGroup/Vulkan-Tools/archive/8c66b352925cb771f793a4d3220b1321ae0febf1.tar.gz",
+            "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees.",
+            "pin_file_url": "https://github.com/KhronosGroup/MoltenVK/blob/db66022459ffb663aa2b50f6b018bc2e124f5edf/ExternalRevisions/Vulkan-Tools_repo_revision"
+          },
+          {
+            "component": "cereal",
+            "repository": "https://github.com/USCiLab/cereal",
+            "revision": "a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+            "tree_url": "https://github.com/USCiLab/cereal/tree/a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+            "archive_url": "https://github.com/USCiLab/cereal/archive/a56bad8bbb770ee266e930c95d37fff2a5be7fea.tar.gz",
+            "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees.",
+            "pin_file_url": "https://github.com/KhronosGroup/MoltenVK/blob/db66022459ffb663aa2b50f6b018bc2e124f5edf/ExternalRevisions/cereal_repo_revision"
+          }
+        ]
+      },
+      "direct_gitlink_count": 28,
+      "artifacts_observed": [
+        {
+          "id": 12291876029,
+          "name": "RPCS3Core-0b18a23460b0a9840406fda2e3d6da4c5cdb7273",
+          "size_in_bytes": 28958228,
+          "url": "https://api.github.com/repos/TarbleFR/neostation-ios/actions/artifacts/12291876029",
+          "digest": "sha256:16c9930b26db81903acb26906835e1aa385135aed8422dec219d239723903bbf",
+          "expired": false,
+          "expires_at": "2026-11-19T19:11:07Z",
+          "workflow_run": {
+            "id": 39472233521,
+            "repository_id": 1329032710,
+            "head_repository_id": 1329032710,
+            "head_branch": "Claude",
+            "head_sha": "0b18a23460b0a9840406fda2e3d6da4c5cdb7273"
+          }
+        },
+        {
+          "id": 12291706432,
+          "name": "RPCS3Core-diagnostics-0b18a23460b0a9840406fda2e3d6da4c5cdb7273",
+          "size_in_bytes": 177376,
+          "url": "https://api.github.com/repos/TarbleFR/neostation-ios/actions/artifacts/12291706432",
+          "digest": "sha256:9340193d9defca1d5ed3fe9b189d688d9592501d4971bad529a5ed39003a435f",
+          "expired": false,
+          "expires_at": "2026-11-03T19:11:10Z",
+          "workflow_run": {
+            "id": 39472233521,
+            "repository_id": 1329032710,
+            "head_repository_id": 1329032710,
+            "head_branch": "Claude",
+            "head_sha": "0b18a23460b0a9840406fda2e3d6da4c5cdb7273"
+          }
+        }
+      ],
+      "evidence": [
+        "docs/evidence/rpcs3audit499-core.json",
+        "docs/evidence/rpcs3audit499-delivery.json",
+        "docs/evidence/ps1rpcs3500-delivery.json"
+      ],
+      "corresponding_source_status": "exact_root_patches_and_dependency_pins_identified_consolidated_source_export_missing",
+      "corrective_action": "Preserve the patched upstream tree with recursive submodule contents, LLVM patch, host ABI/NeoSwap sources, FFmpeg source/configuration and pinned MoltenVK dependencies in a durable source collection. The current core workflow exports binaries and diagnostics, not that collection."
+    },
+    {
+      "id": "armsx2",
+      "distribution_scope": "current_embedded_runtime",
+      "upstream": {
+        "repository": "https://github.com/ARMSX2/ARMSX2",
+        "revision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+        "tree_url": "https://github.com/ARMSX2/ARMSX2/tree/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+        "archive_url": "https://github.com/ARMSX2/ARMSX2/archive/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe.tar.gz",
+        "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+      },
+      "upstream_tag": "iOSv2.6.0",
+      "neostation": {
+        "revision": "1343906f05e33b40f10f7026a1a6e2327c338d0e",
+        "archive_url": "https://github.com/TarbleFR/neostation-ios/archive/1343906f05e33b40f10f7026a1a6e2327c338d0e.tar.gz",
+        "paths": [
+          {
+            "path": "build-utils/armsx2/source.json",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/1343906f05e33b40f10f7026a1a6e2327c338d0e/build-utils/armsx2/source.json"
+          },
+          {
+            "path": "build-utils/armsx2/upstream-files.json",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/1343906f05e33b40f10f7026a1a6e2327c338d0e/build-utils/armsx2/upstream-files.json"
+          },
+          {
+            "path": "build-utils/armsx2/neostation-core.patch",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/1343906f05e33b40f10f7026a1a6e2327c338d0e/build-utils/armsx2/neostation-core.patch"
+          },
+          {
+            "path": "build-utils/armsx2/prepare_source.py",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/1343906f05e33b40f10f7026a1a6e2327c338d0e/build-utils/armsx2/prepare_source.py"
+          },
+          {
+            "path": "build-utils/armsx2/build_core.sh",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/1343906f05e33b40f10f7026a1a6e2327c338d0e/build-utils/armsx2/build_core.sh"
+          },
+          {
+            "path": "packages/armsx2_internal_bridge/core/target.cmake",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/1343906f05e33b40f10f7026a1a6e2327c338d0e/packages/armsx2_internal_bridge/core/target.cmake"
+          },
+          {
+            "path": ".github/workflows/armsx2-core.yml",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/1343906f05e33b40f10f7026a1a6e2327c338d0e/.github/workflows/armsx2-core.yml"
+          }
+        ]
+      },
+      "core_run": 39178893158,
+      "abi": 8,
+      "recorded_binary_sha256": "65df97dd253eca2d08bcf638e5fd2de40000579483d4321f585ef7d266319779",
+      "direct_gitlink_count": 0,
+      "vendored_source_directories": [
+        "3rdparty",
+        "platforms/android/app/src/main/cpp/3rdparty"
+      ],
+      "ios_dependency_recipe_url": "https://github.com/ARMSX2/ARMSX2/blob/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe/platforms/ios/app/src/main/cpp/cmake/SearchForStuff.cmake",
+      "librashader": {
+        "source": {
+          "repository": "https://github.com/SnowflakePowered/librashader",
+          "revision": "87e8a97b50516d997defeaa168173dcd185d4022",
+          "tree_url": "https://github.com/SnowflakePowered/librashader/tree/87e8a97b50516d997defeaa168173dcd185d4022",
+          "archive_url": "https://github.com/SnowflakePowered/librashader/archive/87e8a97b50516d997defeaa168173dcd185d4022.tar.gz",
+          "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+        },
+        "patch_url": "https://github.com/ARMSX2/ARMSX2/blob/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe/platforms/ios/patches/librashader-ctypes-apple-vendor.patch",
+        "cargo_lock_url": "https://github.com/SnowflakePowered/librashader/blob/87e8a97b50516d997defeaa168173dcd185d4022/Cargo.lock",
+        "cargo_lock_sha256": "9abad84ffcf6761b3b69ba82cca398224fe43ca472652b5f8ef04421f0af2d50",
+        "cargo_lock_git_blob": "9947f76cad86a69a63a970f37e6e3548858b3a67",
+        "lock_workspace_packages": 479,
+        "lock_registry_packages": 460,
+        "lock_git_packages": 0,
+        "workspace_packages_all_linked_to_ios_claimed": false,
+        "rust_toolchain": "1.94.0",
+        "cargo_target": "aarch64-apple-ios",
+        "cargo_features": [
+          "runtime-metal"
+        ],
+        "cargo_default_features": false,
+        "historical_recipe_uses_locked_or_frozen": false,
+        "actual_resolved_build_lock_captured": false
+      },
+      "artifacts_observed": [
+        {
+          "id": 12156446585,
+          "name": "ARMSX2Core-diagnostics-1343906f05e33b40f10f7026a1a6e2327c338d0e",
+          "size_in_bytes": 152151,
+          "url": "https://api.github.com/repos/TarbleFR/neostation-ios/actions/artifacts/12156446585",
+          "digest": "sha256:bde6e1ab0ee705a16ec9d3e9228616d955e5e45e6466b2097bf2f859706d243c",
+          "expired": false,
+          "expires_at": "2026-10-26T00:33:40Z",
+          "workflow_run": {
+            "id": 39178893158,
+            "repository_id": 1329032710,
+            "head_repository_id": 1329032710,
+            "head_branch": "Claude",
+            "head_sha": "1343906f05e33b40f10f7026a1a6e2327c338d0e"
+          }
+        },
+        {
+          "id": 12155939578,
+          "name": "ARMSX2Core-1343906f05e33b40f10f7026a1a6e2327c338d0e",
+          "size_in_bytes": 14060684,
+          "url": "https://api.github.com/repos/TarbleFR/neostation-ios/actions/artifacts/12155939578",
+          "digest": "sha256:2388448c654819cda520aa9662faef8252193730fecfbe95c0d74695ea523216",
+          "expired": false,
+          "expires_at": "2026-11-02T00:33:37Z",
+          "workflow_run": {
+            "id": 39178893158,
+            "repository_id": 1329032710,
+            "head_repository_id": 1329032710,
+            "head_branch": "Claude",
+            "head_sha": "1343906f05e33b40f10f7026a1a6e2327c338d0e"
+          }
+        },
+        {
+          "id": 12154968691,
+          "name": "ARMSX2-host-source-1343906f05e33b40f10f7026a1a6e2327c338d0e",
+          "size_in_bytes": 323818931,
+          "url": "https://api.github.com/repos/TarbleFR/neostation-ios/actions/artifacts/12154968691",
+          "digest": "sha256:2408a68f81bfdf66d9e5f430687a8cd85bd8fad61f0d030f05e6b546aca0899a",
+          "expired": false,
+          "expires_at": "2026-10-22T00:11:39Z",
+          "workflow_run": {
+            "id": 39178893158,
+            "repository_id": 1329032710,
+            "head_repository_id": 1329032710,
+            "head_branch": "Claude",
+            "head_sha": "1343906f05e33b40f10f7026a1a6e2327c338d0e"
+          }
+        }
+      ],
+      "host_source_artifact_scope": "Workflow git archive HEAD contains the NeoStation host repository only, not the separately cloned engine or fetched librashader source.",
+      "evidence": [
+        "docs/evidence/hdtex485-delivery.json"
+      ],
+      "corresponding_source_status": "exact_root_patches_and_vendored_sources_identified_resolved_rust_closure_not_retained",
+      "corrective_action": "Preserve upstream vendored sources, NeoStation patch/adapters and exact librashader source/patch; retain the actual resolved Cargo.lock and needed registry crate sources/notices. Make future source capture durable; the existing host-source artifact expires 2026-10-22 and is not a complete engine-source archive."
+    },
+    {
+      "id": "dolphin",
+      "distribution_scope": "current_embedded_runtime",
+      "upstream": {
+        "repository": "https://github.com/OatmealDome/dolphin-ios",
+        "revision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+        "tree_url": "https://github.com/OatmealDome/dolphin-ios/tree/7cac54161659421ed95c2cd1c0b0746539a4cd38",
+        "archive_url": "https://github.com/OatmealDome/dolphin-ios/archive/7cac54161659421ed95c2cd1c0b0746539a4cd38.tar.gz",
+        "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+      },
+      "neostation": {
+        "revision": "ae7d46f90dff64ce698b8c18e0c12510dbae96fe",
+        "archive_url": "https://github.com/TarbleFR/neostation-ios/archive/ae7d46f90dff64ce698b8c18e0c12510dbae96fe.tar.gz",
+        "paths": [
+          {
+            "path": "build-utils/patch_dolphin_internal_core_v2.py",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/ae7d46f90dff64ce698b8c18e0c12510dbae96fe/build-utils/patch_dolphin_internal_core_v2.py"
+          },
+          {
+            "path": "packages/dolphin_internal_bridge/ci/build_support.py",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/ae7d46f90dff64ce698b8c18e0c12510dbae96fe/packages/dolphin_internal_bridge/ci/build_support.py"
+          },
+          {
+            "path": ".github/workflows/dolphin-core.yml",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/ae7d46f90dff64ce698b8c18e0c12510dbae96fe/.github/workflows/dolphin-core.yml"
+          }
+        ]
+      },
+      "recorded_binary_sha256": "7129d9c654fb6d28f2fa92ae1a4c14d1f25a1fc3e87788237676b48a0fb3aa2d",
+      "recorded_binary_bytes": 22342192,
+      "direct_gitlink_count": 27,
+      "recipe_uses_recursive_submodules": true,
+      "evidence": [
+        "docs/dolphin-retro-rewind-online-audit-2026-10-20.md",
+        "build-utils/prepare_fast_native_runtime.py"
+      ],
+      "corresponding_source_status": "exact_root_and_host_patch_identified_consolidated_recursive_source_export_missing",
+      "corrective_action": "Retain recursively checked-out pinned external sources with the NeoStation patch/adapter and build configuration. The inspected workflow uploads framework/Sys resources and identity/diagnostics, not a complete source collection. Not all upstream submodules are linked into the iOS target."
+    },
+    {
+      "id": "stikjit",
+      "distribution_scope": "current_jit_support_framework",
+      "upstream": {
+        "repository": "https://github.com/StikDebug/StikJIT",
+        "revision": "32287268fa5824f9edce4cb359f5833ce0cf7b00",
+        "tree_url": "https://github.com/StikDebug/StikJIT/tree/32287268fa5824f9edce4cb359f5833ce0cf7b00",
+        "archive_url": "https://github.com/StikDebug/StikJIT/archive/32287268fa5824f9edce4cb359f5833ce0cf7b00.tar.gz",
+        "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+      },
+      "neostation": {
+        "revision": "fab5ecf3b119b4d84636ad4f4d03218a96279871",
+        "archive_url": "https://github.com/TarbleFR/neostation-ios/archive/fab5ecf3b119b4d84636ad4f4d03218a96279871.tar.gz",
+        "paths": [
+          {
+            "path": "build-utils/stikjit/source.json",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/fab5ecf3b119b4d84636ad4f4d03218a96279871/build-utils/stikjit/source.json"
+          },
+          {
+            "path": "build-utils/build_patched_stikjit.py",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/fab5ecf3b119b4d84636ad4f4d03218a96279871/build-utils/build_patched_stikjit.py"
+          },
+          {
+            "path": "build-utils/patch_stikjit_compat.py",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/fab5ecf3b119b4d84636ad4f4d03218a96279871/build-utils/patch_stikjit_compat.py"
+          },
+          {
+            "path": "build-utils/patch_stikjit_rpcs3.py",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/fab5ecf3b119b4d84636ad4f4d03218a96279871/build-utils/patch_stikjit_rpcs3.py"
+          },
+          {
+            "path": "build-utils/install_patched_stikjit.py",
+            "url": "https://github.com/TarbleFR/neostation-ios/blob/fab5ecf3b119b4d84636ad4f4d03218a96279871/build-utils/install_patched_stikjit.py"
+          }
+        ]
+      },
+      "wrapper_version": "1.9.0",
+      "direct_gitlink_count": 0,
+      "final_framework_binary_reinspected_in_this_audit": false,
+      "build_recipe_identity_outputs": [
+        "neostation-source.json",
+        "source-identity.json",
+        "identity.json",
+        "archive.sha256",
+        "host-commit.txt"
+      ],
+      "vendored_idevice_ffi": {
+        "path": "idevice/libidevice_ffi.a",
+        "git_blob": "3fb7e2dbfdb9db3d47bd6364a435bbc10d5581f9",
+        "sha256": "4db23fe1d342927b9480bb9a8577f219994365621dc28aa0018e23ea1990ecc8",
+        "bytes": 57017464,
+        "last_wrapper_commit_touching_binary": "4e08cecab958ad76266b643195c3e09e5e22f0bb",
+        "upstream_project_reference": "https://github.com/jkcoxson/idevice",
+        "matching_source_revision": null,
+        "matching_source_revision_attested": false,
+        "matching_cargo_lock_present_in_wrapper": false,
+        "rust_compiler_commit_string": "48a229ceaefd4985c50990b14116b6d856af0985",
+        "compiler_commit_is_library_source_revision": false
+      },
+      "corresponding_source_status": "swift_wrapper_pin_known_precompiled_rust_dependency_source_unknown",
+      "corrective_action": "Obtain the exact idevice FFI source revision, resolved Cargo.lock, configuration and dependency notices for the existing static library, or plan a separate authorized replacement from recorded sources. Also export the patched Swift/JavaScript source; current identity JSON does not contain that source."
+    },
+    {
+      "id": "nestopia",
+      "distribution_scope": "one_of_current_35_libretro_cores",
+      "upstream": {
+        "repository": "https://github.com/libretro/nestopia",
+        "revision": "135dfa6dfda5e7603d61e751b9ddd0cc42546bc3",
+        "tree_url": "https://github.com/libretro/nestopia/tree/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3",
+        "archive_url": "https://github.com/libretro/nestopia/archive/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3.tar.gz",
+        "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+      },
+      "source_archive_sha256": "e1a8a853e919cb46a33b48702d703d2e8019d6bc8aff7c3fab88828f8e3c1619",
+      "source_archive_download_verified": true,
+      "source_archive_bytes": 1187970,
+      "required_patch": "native/nestopia/reset-background.patch",
+      "required_patch_sha256": "53847d26b0f914e6fe7ae00415a91f93a5d9573a78453b4947b752b0f9e10d59",
+      "recipe": ".github/diagnostics/nestopia_bgcolor/build.py",
+      "direct_gitlink_count": 0,
+      "evidence": [
+        "native/nestopia/source.json",
+        "docs/evidence/build479-libretro-source-identity.json"
+      ],
+      "corresponding_source_status": "verified_source_archive_plus_local_patch_and_recipe_available_modified_export_missing",
+      "corrective_action": "Retain the verified original archive, exact patch and recipe/host integration in one durable source collection; no new core build is needed to collect those sources."
+    },
+    {
+      "id": "azahar",
+      "distribution_scope": "one_of_current_35_libretro_cores",
+      "upstream": {
+        "repository": "https://github.com/azahar-emu/azahar",
+        "revision": "5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+        "tree_url": "https://github.com/azahar-emu/azahar/tree/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+        "archive_url": "https://github.com/azahar-emu/azahar/archive/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6.tar.gz",
+        "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+      },
+      "release": "2127.0-alpha1",
+      "direct_gitlink_count": 35,
+      "binary_release_url": "https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-libretro-ios-arm64-2127.0-alpha1.zip",
+      "binary_release_sha256": "61e96e167a3ddf28c2e0fbab51ae6c952ab272c58de0b4de62cbbe60c2fc65d7",
+      "source_archive_inspection": {
+        "regular_files": 20994,
+        "total_regular_bytes": 397610637,
+        "prefix": "azahar-unified-source-2127.0-alpha1/",
+        "metadata": {
+          "GIT-COMMIT": {
+            "bytes": 41,
+            "sha256": "2ff841aa73b0ea45e8fabd95f6eaa8f85dd28c5a596cfa7ee04790ad5c0757d9",
+            "text": "5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6"
+          },
+          "GIT-TAG": {
+            "bytes": 14,
+            "sha256": "0d7ca55da18c2f4957b1fd9a3824faa28f50bd07e687708e603992d37922dc9f",
+            "text": "2127.0-alpha1"
+          },
+          ".gitmodules": {
+            "bytes": 3497,
+            "sha256": "418e5212049d26d61adaa5e6197c0a1c0a6784ff524ddf2dada05e71d28fed63"
+          },
+          "CMakeLists.txt": {
+            "bytes": 25069,
+            "sha256": "8b18c8a877f82b7f8bfde683358b8e4c4c6fc8d47ec069e01dcf555ce2e8b2b8"
+          },
+          ".ci/source.sh": {
+            "bytes": 762,
+            "sha256": "6ce02c97609d4dc1a41b856948e243fcbdfc627bcea27cf230720b2873c36b0a"
+          }
+        },
+        "first_level_gitlinks": {
+          "dist/compatibility_list": {
+            "revision": "d282515cd6a66b694ac0657eef250c24b7410495",
+            "regular_files": 9
+          },
+          "externals/boost": {
+            "revision": "6a85c3100499e886e11c87a5c2109eedacea0a61",
+            "regular_files": 3686
+          },
+          "externals/catch2": {
+            "revision": "914aeecfe23b1e16af6ea675a4fb5dbd5a5b8d0a",
+            "regular_files": 558
+          },
+          "externals/cpp-jwt": {
+            "revision": "4a970bc302d671476122cbc6b43cc89fbf4a96ec",
+            "regular_files": 76
+          },
+          "externals/cryptopp": {
+            "revision": "8d92d788421483a43e09acf1cd4a2861cb2b8cab",
+            "regular_files": 737
+          },
+          "externals/cubeb": {
+            "revision": "832fcf38e600bf80b4b728a3e0227403088d992c",
+            "regular_files": 427
+          },
+          "externals/dds-ktx": {
+            "revision": "c3ca8febc2457ab5c581604f3236a8a511fc2e45",
+            "regular_files": 22
+          },
+          "externals/discord-rpc": {
+            "revision": "049826c3f42875c2f9599552f425e76435789cc7",
+            "regular_files": 83
+          },
+          "externals/dllwalker": {
+            "revision": "2f8b349c26832cae612aa7082154c0697a9cbc8e",
+            "regular_files": 2
+          },
+          "externals/dynarmic": {
+            "revision": "a46601580d5512d324104f985b5f0209dc980ddc",
+            "regular_files": 2183
+          },
+          "externals/enet": {
+            "revision": "2662c0de09e36f2a2030ccc2c528a3e4c9e8138a",
+            "regular_files": 38
+          },
+          "externals/faad2/faad2": {
+            "revision": "216f00e8ddba6f2c64caf481a04f1ddd78b93e78",
+            "regular_files": 130
+          },
+          "externals/fmt": {
+            "revision": "e424e3f2e607da02742f73db84873b8084fc714c",
+            "regular_files": 128
+          },
+          "externals/glslang": {
+            "revision": "fc9889c889561c5882e83819dcaffef5ed45529b",
+            "regular_files": 3061
+          },
+          "externals/inih/inih": {
+            "revision": "5cc5e2c24642513aaa5b19126aad42d0e4e0923e",
+            "regular_files": 55
+          },
+          "externals/libadrenotools": {
+            "revision": "8fae8ce254dfc1344527e05301e43f37dea2df80",
+            "regular_files": 50
+          },
+          "externals/libressl": {
+            "revision": "88b8e41b71099fabc57813bc06d8bc1aba050a19",
+            "regular_files": 1002
+          },
+          "externals/libretro-common/libretro-common": {
+            "revision": "7fc7feeddca391be65c94e6541381467684b814d",
+            "regular_files": 392
+          },
+          "externals/libusb/libusb": {
+            "revision": "d52e355daa09f17ce64819122cb067b8a2ee0d4b",
+            "regular_files": 146
+          },
+          "externals/libyuv": {
+            "revision": "6f729fbe658a40dfd993fa8b22bd612bb17cde5c",
+            "regular_files": 193
+          },
+          "externals/lodepng/lodepng": {
+            "revision": "0b1d9ccfc2093e5d6620cd9a11d03ee6ff6705f5",
+            "regular_files": 26
+          },
+          "externals/nihstro": {
+            "revision": "f4d8659decbfe5d234f04134b5002b82dc515a44",
+            "regular_files": 50
+          },
+          "externals/oaknut": {
+            "revision": "6b1d57ea7ed4882d32a91eeaa6557b0ecb4da152",
+            "regular_files": 48
+          },
+          "externals/openal-soft": {
+            "revision": "e399840fc6aba5f7bc3f0633e8ff10bba0640906",
+            "regular_files": 409
+          },
+          "externals/sdl2/SDL": {
+            "revision": "5d249570393f7a37e037abf22cd6012a4cc56a71",
+            "regular_files": 1757
+          },
+          "externals/sirit/sirit": {
+            "revision": "37d49d2aa4c0a62f872720d6e5f2eaf90b2c95fa",
+            "regular_files": 137
+          },
+          "externals/soundtouch": {
+            "revision": "9ef8458d8561d9471dd20e9619e3be4cfe564796",
+            "regular_files": 123
+          },
+          "externals/spirv-headers": {
+            "revision": "aa6cef192b8e693916eb713e7a9ccadf06062ceb",
+            "regular_files": 104
+          },
+          "externals/spirv-tools": {
+            "revision": "a62abcb402009b9ca5975e6167c09f237f630e0e",
+            "regular_files": 1706
+          },
+          "externals/teakra": {
+            "revision": "3d697a18df504f4677b65129d9ab14c7c597e3eb",
+            "regular_files": 130
+          },
+          "externals/vma": {
+            "revision": "c788c52156f3ef7bc7ab769cb03c110a53ac8fcb",
+            "regular_files": 260
+          },
+          "externals/vulkan-headers": {
+            "revision": "409c16be502e39fe70dd6fe2d9ad4842ef2c9a53",
+            "regular_files": 84
+          },
+          "externals/xbyak": {
+            "revision": "0d67fd1530016b7c56f3cd74b3fca920f4c3e2b4",
+            "regular_files": 146
+          },
+          "externals/xxHash": {
+            "revision": "e626a72bc2321cd320e953a0ccf1584cad60f363",
+            "regular_files": 87
+          },
+          "externals/zstd": {
+            "revision": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+            "regular_files": 637
+          }
+        },
+        "source_archive_url": "https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz",
+        "source_archive_sha256": "5a45c813fc371f6a1d2721ce614225650728a7d6be22dc52e6b55718534590f9",
+        "source_archive_bytes": 43056616,
+        "inspection_boundary": "Read archive members and metadata without running code. Every first-level gitlink directory contains files. Nested dependency revision/content equality and upstream build attestations were not independently verified."
+      },
+      "upstream_libretro_workflow_url": "https://github.com/azahar-emu/azahar/blob/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6/.github/workflows/libretro.yml",
+      "upstream_source_archive_recipe_url": "https://github.com/azahar-emu/azahar/blob/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6/.ci/source.sh",
+      "ios_action_artifact_observed": [
+        {
+          "id": 11746064899,
+          "name": "ios-arm64",
+          "size_in_bytes": 6509604,
+          "url": "https://api.github.com/repos/azahar-emu/azahar/actions/artifacts/11746064899",
+          "digest": "sha256:89cc0edf587e40ba44c4a1c20d9f8b4d36b3b6341cb701acf60dae6d70f1e295",
+          "expired": false,
+          "expires_at": "2027-01-10T11:59:57Z",
+          "workflow_run": {
+            "id": 38246237194,
+            "repository_id": 767183985,
+            "head_repository_id": 767183985,
+            "head_branch": "retroarch-live",
+            "head_sha": "5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6"
+          }
+        }
+      ],
+      "upstream_sbom_or_attestation_verified": false,
+      "corresponding_source_status": "official_unified_source_archive_retrieved_and_hash_checked",
+      "corrective_action": "Preserve the verified unified source archive and official binary-source release association; validate any upstream SBOM/attestation separately before treating it as reviewed proof."
+    },
+    {
+      "id": "ppsspp",
+      "distribution_scope": "one_of_current_35_libretro_cores",
+      "upstream": {
+        "repository": "https://github.com/hrydgard/ppsspp",
+        "revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+        "tree_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+        "archive_url": "https://github.com/hrydgard/ppsspp/archive/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c.tar.gz",
+        "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+      },
+      "audit_delegated_to": "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md",
+      "evidence": "docs/evidence/ppsspp-source-license-audit-2026-10-21.json",
+      "corresponding_source_status": "see_dedicated_audit_not_independently_reassessed_here"
+    },
+    {
+      "id": "melonx",
+      "distribution_scope": "staged_not_registered_or_packaged_as_playable_runtime",
+      "source_pin_file": "build-utils/melonx/source.json",
+      "upstream_repository": "https://starforgejo.dev/projects/MeloNX.git",
+      "upstream_revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "upstream_source_url": "https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "libhac_repository": "https://starforgejo.dev/archive/LibHac_Ryubing.git",
+      "libhac_revision": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+      "libhac_reconstructed_package": "Ryujinx.LibHac 0.21.0-alpha.129",
+      "libhac_original_nuget_byte_equivalence_attested": false,
+      "controller": {
+        "repository": "https://github.com/stossy11/Melo-Controller",
+        "revision": "c049ce88a5635bddcd88e1965c42aa8fc92fe961",
+        "tree_url": "https://github.com/stossy11/Melo-Controller/tree/c049ce88a5635bddcd88e1965c42aa8fc92fe961",
+        "archive_url": "https://github.com/stossy11/Melo-Controller/archive/c049ce88a5635bddcd88e1965c42aa8fc92fe961.tar.gz",
+        "archive_scope": "Tracked files only; Git submodule contents require their separate pinned source trees."
+      },
+      "historical_native_session_core": {
+        "host_commit": "65f957e7278da94dee601d51e5c2265e64c60fdc",
+        "run": 39510222541,
+        "artifact": 12304554717,
+        "sha256": "7a37793779d5014d8686d34a9f6c7f9cddfcb5817372d6dd15b9b9d1dab882c5"
+      },
+      "source_export_recipe": "build-utils/melonx/build_core.sh",
+      "modified_source_export_recipe": "build-utils/melonx/prepare_embedded.py",
+      "libhac_source_export_recipe": "build-utils/melonx/build_libhac.py",
+      "native_dependency_binary_paths": 11,
+      "native_dependency_unique_hashes": 9,
+      "native_dependencies_with_matching_build_source_identified": 0,
+      "source_availability_observation": "Exact-commit Starforgejo API requests returned HTTP 403 in this audit; existing source pins and prior receipts remain, but no new public retrieval claim is made.",
+      "source_export_boundary": "upstream-source.tar.gz uses git archive HEAD. embedded-adapted-source.zip lists adapted C# and host source inputs, but does not itself include every later global.json/nuget.config mutation. Preserve the build recipe and final complete source tree together.",
+      "evidence": [
+        "docs/evidence/melonx-native-session-2026-10-20.json",
+        "docs/evidence/melonx-native-dependencies-2026-10-20.json"
+      ],
+      "corresponding_source_status": "unfinished_source_closure_native_binary_sources_and_license_conflict_open",
+      "corrective_action": "Keep staged status; preserve all final adapted files, SDK/workload/package resolution and reconstructed LibHac inputs. Identify exact sources/configuration/notices for the 11 native binary paths and resolve the root MIT/README GPL statements before any future runtime distribution."
+    }
+  ],
+  "libretro_cores": [
+    {
+      "id": "nestopia",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/nestopia",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "1a04f99e5ae2c10aa5b3c75b002e212e894c2e7934cc46232deb50da62c0e16d",
+      "binary_bytes": 6005200,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://github.com/libretro/nestopia/archive/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3.tar.gz",
+        "archiveSha256": "e1a8a853e919cb46a33b48702d703d2e8019d6bc8aff7c3fab88828f8e3c1619",
+        "lastModified": "Sun, 11 Oct 2026 19:24:28 GMT"
+      },
+      "license_reference_revision": "b9fdc9c4e6d374abacd1a678ae46ec7f963ef59a",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/nestopia/tree/b9fdc9c4e6d374abacd1a678ae46ec7f963ef59a",
+      "license_reference_archive_url": "https://github.com/libretro/nestopia/archive/b9fdc9c4e6d374abacd1a678ae46ec7f963ef59a.tar.gz",
+      "source_status": "exact_upstream_revision_recorded",
+      "source_revision": "135dfa6dfda5e7603d61e751b9ddd0cc42546bc3",
+      "source_url": "https://github.com/libretro/nestopia/tree/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3",
+      "source_archive_url": "https://github.com/libretro/nestopia/archive/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3.tar.gz",
+      "source_revision_evidence": "Recorded source archive/official release pin, with separate NeoStation binary receipt.",
+      "required_source_patch": "native/nestopia/reset-background.patch",
+      "required_source_patch_sha256": "53847d26b0f914e6fe7ae00415a91f93a5d9573a78453b4947b752b0f9e10d59",
+      "remaining_boundary": "Preserve the verified original source archive, NeoStation patch and exact build recipe together; no modified-source archive is currently exported."
+    },
+    {
+      "id": "snes9x",
+      "recorded_license_label": "Non-commercial",
+      "repository": "https://github.com/libretro/snes9x",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "aeab4b70a4d572492409150928bbdfe0eb4d2ec1c851f30d33949175ce249dad",
+      "binary_bytes": 2908776,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/snes9x_libretro_ios.dylib.zip",
+        "archiveSha256": "964e6582c95a6a2ff7ab79d165fceb745e86c5d3a74643ab1c78d02039b7e8d9",
+        "lastModified": "Sun, 11 Oct 2026 06:00:54 GMT"
+      },
+      "license_reference_revision": "fae2fea08f74180759ef540ee94259213f503480",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/snes9x/tree/fae2fea08f74180759ef540ee94259213f503480",
+      "license_reference_archive_url": "https://github.com/libretro/snes9x/archive/fae2fea08f74180759ef540ee94259213f503480.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "fae2fea08f74180759ef540ee94259213f503480",
+      "candidate_repository": "https://github.com/libretro/snes9x",
+      "candidate_source_url": "https://github.com/libretro/snes9x/tree/fae2fea08f74180759ef540ee94259213f503480",
+      "candidate_archive_url": "https://github.com/libretro/snes9x/archive/fae2fea08f74180759ef540ee94259213f503480.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/snes9x/git/commits/fae2fea08f74180759ef540ee94259213f503480",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "gambatte",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/gambatte-libretro",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "d99a9b26e6d73b91249b1cc8abdb90d6782c82d12598cb033be12babdb1ca713",
+      "binary_bytes": 3902016,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/gambatte_libretro_ios.dylib.zip",
+        "archiveSha256": "942a7cbcffa89f0eec6f9fb738b248b9e4d5e7726c54e488cd6341ab24ad341b",
+        "lastModified": "Sun, 11 Oct 2026 07:05:04 GMT"
+      },
+      "license_reference_revision": "d9d6cd06382d1ced30de34d56d3609452323dab1",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/gambatte-libretro/tree/d9d6cd06382d1ced30de34d56d3609452323dab1",
+      "license_reference_archive_url": "https://github.com/libretro/gambatte-libretro/archive/d9d6cd06382d1ced30de34d56d3609452323dab1.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "d9d6cd06382d1ced30de34d56d3609452323dab1",
+      "candidate_repository": "https://github.com/libretro/gambatte-libretro",
+      "candidate_source_url": "https://github.com/libretro/gambatte-libretro/tree/d9d6cd06382d1ced30de34d56d3609452323dab1",
+      "candidate_archive_url": "https://github.com/libretro/gambatte-libretro/archive/d9d6cd06382d1ced30de34d56d3609452323dab1.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/gambatte-libretro/git/commits/d9d6cd06382d1ced30de34d56d3609452323dab1",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "mgba",
+      "recorded_license_label": "MPLv2.0",
+      "repository": "https://github.com/libretro/mgba",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "c7026dc4d8a799be2d991faa3d4e2286011d97f9b11fb1e2ef6ba77ebca66218",
+      "binary_bytes": 2824008,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mgba_libretro.dylib.zip",
+        "archiveSha256": "2b6fd510e59b62b45fdc80e3aaff98622430cb7c9f89f41481bb718b8ad30269",
+        "lastModified": "Sun, 11 Oct 2026 06:28:08 GMT"
+      },
+      "license_reference_revision": "7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/mgba/tree/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
+      "license_reference_archive_url": "https://github.com/libretro/mgba/archive/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
+      "candidate_repository": "https://github.com/libretro/mgba",
+      "candidate_source_url": "https://github.com/libretro/mgba/tree/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
+      "candidate_archive_url": "https://github.com/libretro/mgba/archive/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/mgba/git/commits/7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "genesis_plus_gx",
+      "recorded_license_label": "Non-commercial",
+      "repository": "https://github.com/libretro/Genesis-Plus-GX",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "290bf5499b896cdd82b47dd3f2c8e8dae808859ded30aa1c17502a7c9129f988",
+      "binary_bytes": 8953440,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/genesis_plus_gx_libretro_ios.dylib.zip",
+        "archiveSha256": "4b8531337b2c02fda41b3ce0798bcd078a560f5afcb37f73e65c5b12cd45561e",
+        "lastModified": "Sun, 11 Oct 2026 07:04:32 GMT"
+      },
+      "license_reference_revision": "58c341487e5bfcf979ea68413c7987633adb0c56",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/Genesis-Plus-GX/tree/58c341487e5bfcf979ea68413c7987633adb0c56",
+      "license_reference_archive_url": "https://github.com/libretro/Genesis-Plus-GX/archive/58c341487e5bfcf979ea68413c7987633adb0c56.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "393f70cd64c7334564c19a424c383f53986c13f4",
+      "candidate_repository": "https://github.com/libretro/Genesis-Plus-GX",
+      "candidate_source_url": "https://github.com/libretro/Genesis-Plus-GX/tree/393f70cd64c7334564c19a424c383f53986c13f4",
+      "candidate_archive_url": "https://github.com/libretro/Genesis-Plus-GX/archive/393f70cd64c7334564c19a424c383f53986c13f4.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/Genesis-Plus-GX/git/commits/393f70cd64c7334564c19a424c383f53986c13f4",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "genesis_plus_gx_wide",
+      "recorded_license_label": "Non-commercial",
+      "repository": "https://github.com/libretro/Genesis-Plus-GX-Wide",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "198a26556fdb8c1ef9897a3db359f27793cc3e695f23f38acc1f8a29d40a876e",
+      "binary_bytes": 8300112,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/genesis_plus_gx_wide_libretro_ios.dylib.zip",
+        "archiveSha256": "01d94496f93d1f58bfc1bd94399d23f3ca322958737fe94e81164439665b76f4",
+        "lastModified": "Sun, 11 Oct 2026 05:33:52 GMT"
+      },
+      "license_reference_revision": "b7ad005431f5f0b55e559f6d598d1ed2479bf13b",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/Genesis-Plus-GX-Wide/tree/b7ad005431f5f0b55e559f6d598d1ed2479bf13b",
+      "license_reference_archive_url": "https://github.com/libretro/Genesis-Plus-GX-Wide/archive/b7ad005431f5f0b55e559f6d598d1ed2479bf13b.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "b7ad005431f5f0b55e559f6d598d1ed2479bf13b",
+      "candidate_repository": "https://github.com/libretro/Genesis-Plus-GX-Wide",
+      "candidate_source_url": "https://github.com/libretro/Genesis-Plus-GX-Wide/tree/b7ad005431f5f0b55e559f6d598d1ed2479bf13b",
+      "candidate_archive_url": "https://github.com/libretro/Genesis-Plus-GX-Wide/archive/b7ad005431f5f0b55e559f6d598d1ed2479bf13b.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/Genesis-Plus-GX-Wide/git/commits/b7ad005431f5f0b55e559f6d598d1ed2479bf13b",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "picodrive",
+      "recorded_license_label": "MAME",
+      "repository": "https://github.com/libretro/picodrive",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "3c5d6181904d4d644cad530008a202931237ab038ab6a064e4b4f68ecbc4592b",
+      "binary_bytes": 1752416,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/picodrive_libretro_ios.dylib.zip",
+        "archiveSha256": "e9919604b3e4915604fe9c608fe59148fe5b5419d5a1c3bc948a94eecb00b45c",
+        "lastModified": "Sun, 11 Oct 2026 07:09:54 GMT"
+      },
+      "license_reference_revision": "1890c2932234c9d30f4cd3851d02228baae8f09e",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/picodrive/tree/1890c2932234c9d30f4cd3851d02228baae8f09e",
+      "license_reference_archive_url": "https://github.com/libretro/picodrive/archive/1890c2932234c9d30f4cd3851d02228baae8f09e.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "1890c2932234c9d30f4cd3851d02228baae8f09e",
+      "candidate_repository": "https://github.com/libretro/picodrive",
+      "candidate_source_url": "https://github.com/libretro/picodrive/tree/1890c2932234c9d30f4cd3851d02228baae8f09e",
+      "candidate_archive_url": "https://github.com/libretro/picodrive/archive/1890c2932234c9d30f4cd3851d02228baae8f09e.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/picodrive/git/commits/1890c2932234c9d30f4cd3851d02228baae8f09e",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "fbneo",
+      "recorded_license_label": "Non-commercial",
+      "repository": "https://github.com/libretro/FBNeo",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "737bd97038db59e17d2ede4e68249be238c49bb31e3e93eced03a6e10e486625",
+      "binary_bytes": 58085304,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/fbneo_libretro_ios.dylib.zip",
+        "archiveSha256": "ea844668e905a0bab00a9a3541016630f2c7af760906c95056ca59e0896a5172",
+        "lastModified": "Sun, 11 Oct 2026 05:16:22 GMT"
+      },
+      "license_reference_revision": "95153da1f113c56735bd9a818171f908df628421",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/FBNeo/tree/95153da1f113c56735bd9a818171f908df628421",
+      "license_reference_archive_url": "https://github.com/libretro/FBNeo/archive/95153da1f113c56735bd9a818171f908df628421.tar.gz",
+      "source_status": "no_binary_source_revision_recovered",
+      "source_revision": null,
+      "remaining_boundary": "No source revision for the binary recovered. A license-reference revision or current repository HEAD must not be substituted."
+    },
+    {
+      "id": "desmume",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/desmume",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "52c2c2bb92a8647a67afd6cfdb333420065f8bd77be6245f74c3fb8e7cf3005f",
+      "binary_bytes": 3479728,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/desmume_libretro_ios.dylib.zip",
+        "archiveSha256": "7f586902843dcdb6cf87c13585000b97b4016bc2a1702306e5e1fb02c7724c68",
+        "lastModified": "Sun, 11 Oct 2026 06:48:56 GMT"
+      },
+      "license_reference_revision": "95b4d798731caa809125b6c3c11d17cc332ff6ef",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/desmume/tree/95b4d798731caa809125b6c3c11d17cc332ff6ef",
+      "license_reference_archive_url": "https://github.com/libretro/desmume/archive/95b4d798731caa809125b6c3c11d17cc332ff6ef.tar.gz",
+      "source_status": "no_binary_source_revision_recovered",
+      "source_revision": null,
+      "remaining_boundary": "No source revision for the binary recovered. A license-reference revision or current repository HEAD must not be substituted."
+    },
+    {
+      "id": "mupen64plus_next",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/mupen64plus-libretro-nx",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "afdaff358796de530fa005eb037af68f3e05936442cf07f5f7dde86803f8f115",
+      "binary_bytes": 6958848,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mupen64plus_next_libretro_ios.dylib.zip",
+        "archiveSha256": "63cc069b64a5e2505f3159e51ccdabd814dc65c70f485a0670c066a53bb6b3ec",
+        "lastModified": "Sun, 11 Oct 2026 07:17:10 GMT"
+      },
+      "license_reference_revision": "12edd2c74a517ff86dfa8cfc71ad75e4c10486d5",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/mupen64plus-libretro-nx/tree/12edd2c74a517ff86dfa8cfc71ad75e4c10486d5",
+      "license_reference_archive_url": "https://github.com/libretro/mupen64plus-libretro-nx/archive/12edd2c74a517ff86dfa8cfc71ad75e4c10486d5.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "12edd2c74a517ff86dfa8cfc71ad75e4c10486d5",
+      "candidate_repository": "https://github.com/libretro/mupen64plus-libretro-nx",
+      "candidate_source_url": "https://github.com/libretro/mupen64plus-libretro-nx/tree/12edd2c74a517ff86dfa8cfc71ad75e4c10486d5",
+      "candidate_archive_url": "https://github.com/libretro/mupen64plus-libretro-nx/archive/12edd2c74a517ff86dfa8cfc71ad75e4c10486d5.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/mupen64plus-libretro-nx/git/commits/12edd2c74a517ff86dfa8cfc71ad75e4c10486d5",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "mednafen_psx_hw",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/beetle-psx-libretro",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "2bb7819a8f4fd790b8dd327599075152a460079e7cf72d5a86d19af07423c437",
+      "binary_bytes": 14060616,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mednafen_psx_hw_libretro_ios.dylib.zip",
+        "archiveSha256": "bcd33c86795abb8ccfeef8510161892ab719970643a16c5185b47aa25dfb2f5f",
+        "lastModified": "Sun, 11 Oct 2026 07:13:42 GMT"
+      },
+      "license_reference_revision": "10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/beetle-psx-libretro/tree/10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "license_reference_archive_url": "https://github.com/libretro/beetle-psx-libretro/archive/10e4b0c6ceae20daa65ddf436a4445dddd0982d2.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "candidate_repository": "https://github.com/libretro/beetle-psx-libretro",
+      "candidate_source_url": "https://github.com/libretro/beetle-psx-libretro/tree/10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "candidate_archive_url": "https://github.com/libretro/beetle-psx-libretro/archive/10e4b0c6ceae20daa65ddf436a4445dddd0982d2.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/beetle-psx-libretro/git/commits/10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "mednafen_psx",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/beetle-psx-libretro",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "19e263e0968b24b750b74d32ee8e88ded866e16f170012e1ecf2b42e4041bc87",
+      "binary_bytes": 9313208,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mednafen_psx_libretro_ios.dylib.zip",
+        "archiveSha256": "37c14e10461405e8e8139f16d8bd7c0edaeab8cd4ca5859559325411f5e47935",
+        "lastModified": "Sun, 11 Oct 2026 07:12:54 GMT"
+      },
+      "license_reference_revision": "10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/beetle-psx-libretro/tree/10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "license_reference_archive_url": "https://github.com/libretro/beetle-psx-libretro/archive/10e4b0c6ceae20daa65ddf436a4445dddd0982d2.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "candidate_repository": "https://github.com/libretro/beetle-psx-libretro",
+      "candidate_source_url": "https://github.com/libretro/beetle-psx-libretro/tree/10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "candidate_archive_url": "https://github.com/libretro/beetle-psx-libretro/archive/10e4b0c6ceae20daa65ddf436a4445dddd0982d2.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/beetle-psx-libretro/git/commits/10e4b0c6ceae20daa65ddf436a4445dddd0982d2",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "ppsspp",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/hrydgard/ppsspp",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "a7d058581b657714e055dc9713e9a1252ad4acf6315b30610fcb2b1c81130b6f",
+      "binary_bytes": 18024544,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/ppsspp_libretro.dylib.zip",
+        "archiveSha256": "1fdbb76ce802e7c010e8ede0dfcadf8d42ca12e7d4ea0d7f9f70065913223702",
+        "lastModified": "Sun, 11 Oct 2026 09:57:04 GMT"
+      },
+      "license_reference_revision": "761cf347e6177770e441eb3ab901033116de6a9b",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/hrydgard/ppsspp/tree/761cf347e6177770e441eb3ab901033116de6a9b",
+      "license_reference_archive_url": "https://github.com/hrydgard/ppsspp/archive/761cf347e6177770e441eb3ab901033116de6a9b.tar.gz",
+      "source_status": "exact_upstream_revision_recorded",
+      "source_revision": "1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "source_url": "https://github.com/hrydgard/ppsspp/tree/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c",
+      "source_archive_url": "https://github.com/hrydgard/ppsspp/archive/1bd28b0d634d4ec31acb7092563f3e1e247d1e9c.tar.gz",
+      "current_binary_receipt": "docs/evidence/psprelaunch497-delivery.json",
+      "supersedes_historical_buildbot_binary": true,
+      "separate_audit": "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md",
+      "remaining_boundary": "See the dedicated PPSSPP source/dependency audit; exact root revision does not settle FFmpeg provenance/configuration or all distribution obligations."
+    },
+    {
+      "id": "azahar",
+      "recorded_license_label": "GPLv3+",
+      "repository": "https://github.com/azahar-emu/azahar/tree/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "a646ee8f804327e2d33cbacf4d4f64b6725d25c7d7ece1ccc13698b16f3bf1d8",
+      "binary_bytes": 16791664,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-libretro-ios-arm64-2127.0-alpha1.zip",
+        "archiveSha256": "61e96e167a3ddf28c2e0fbab51ae6c952ab272c58de0b4de62cbbe60c2fc65d7",
+        "lastModified": "Sat, 10 Oct 2026 15:58:39 GMT"
+      },
+      "license_reference_revision": "5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/azahar-emu/azahar/tree/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+      "license_reference_archive_url": "https://github.com/azahar-emu/azahar/archive/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6.tar.gz",
+      "source_status": "exact_upstream_revision_recorded",
+      "source_revision": "5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+      "source_url": "https://github.com/azahar-emu/azahar/tree/5f3306d13cab40bbd5cf38f2cf3ae8b6e6eedca6",
+      "source_archive_url": "https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz",
+      "source_revision_evidence": "Recorded source archive/official release pin, with separate NeoStation binary receipt.",
+      "remaining_boundary": "Unified source archive is available and checked; this audit does not verify the upstream attestation or perform a reproducible build."
+    },
+    {
+      "id": "mednafen_pce_fast",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/beetle-pce-fast-libretro",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "97aed349a4b523b2c5ae3e55f75810f5c6de5403cea41fccae55368c6b89cb6d",
+      "binary_bytes": 3823432,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mednafen_pce_fast_libretro_ios.dylib.zip",
+        "archiveSha256": "e049e4bc97ad266f89e0f9cd8c09086b5229ff6132fb058d80a4b1556e745212",
+        "lastModified": "Wed, 14 Oct 2026 08:43:48 GMT"
+      },
+      "license_reference_revision": "3f946f277aef3aa99a95551618bbcd1dd2bda0d9",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/beetle-pce-fast-libretro/tree/3f946f277aef3aa99a95551618bbcd1dd2bda0d9",
+      "license_reference_archive_url": "https://github.com/libretro/beetle-pce-fast-libretro/archive/3f946f277aef3aa99a95551618bbcd1dd2bda0d9.tar.gz",
+      "source_status": "no_binary_source_revision_recovered",
+      "source_revision": null,
+      "remaining_boundary": "No source revision for the binary recovered. A license-reference revision or current repository HEAD must not be substituted."
+    },
+    {
+      "id": "mednafen_wswan",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/beetle-wswan-libretro",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "0f3a7249303cbe3be71ac9e99f425a4cc05034abb7615baedfa95d17e8155117",
+      "binary_bytes": 1040968,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mednafen_wswan_libretro_ios.dylib.zip",
+        "archiveSha256": "6f463b48ae6ef2586cc6f084d95cbcd9fa2e73f0aff907a64d60a0f2a0af53c6",
+        "lastModified": "Wed, 14 Oct 2026 07:15:16 GMT"
+      },
+      "license_reference_revision": "4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/beetle-wswan-libretro/tree/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "license_reference_archive_url": "https://github.com/libretro/beetle-wswan-libretro/archive/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "candidate_repository": "https://github.com/libretro/beetle-wswan-libretro",
+      "candidate_source_url": "https://github.com/libretro/beetle-wswan-libretro/tree/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "candidate_archive_url": "https://github.com/libretro/beetle-wswan-libretro/archive/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/beetle-wswan-libretro/git/commits/4b01295838ea89e3f1355bbe4cb5cf98aa6108cd",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "mednafen_ngp",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/beetle-ngp-libretro",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "0d9932e1ee9a198918a05386071dd6c58ff4aff78f6c85dcdc5098f8e976fa0b",
+      "binary_bytes": 286304,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mednafen_ngp_libretro_ios.dylib.zip",
+        "archiveSha256": "7813e58a38b32763b31f38a73ade56991ca42e56c5b2effc79f940880702ce5a",
+        "lastModified": "Wed, 14 Oct 2026 07:15:36 GMT"
+      },
+      "license_reference_revision": "a50d5ac288a81f2104ddf43195a4efdd15c72227",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/beetle-ngp-libretro/tree/a50d5ac288a81f2104ddf43195a4efdd15c72227",
+      "license_reference_archive_url": "https://github.com/libretro/beetle-ngp-libretro/archive/a50d5ac288a81f2104ddf43195a4efdd15c72227.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "a50d5ac288a81f2104ddf43195a4efdd15c72227",
+      "candidate_repository": "https://github.com/libretro/beetle-ngp-libretro",
+      "candidate_source_url": "https://github.com/libretro/beetle-ngp-libretro/tree/a50d5ac288a81f2104ddf43195a4efdd15c72227",
+      "candidate_archive_url": "https://github.com/libretro/beetle-ngp-libretro/archive/a50d5ac288a81f2104ddf43195a4efdd15c72227.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/beetle-ngp-libretro/git/commits/a50d5ac288a81f2104ddf43195a4efdd15c72227",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "handy",
+      "recorded_license_label": "Zlib",
+      "repository": "https://github.com/libretro/libretro-handy",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "b2d2c86e03fe3c6fd49ba9dac73a59dded85628077abd2e015659c7611604f06",
+      "binary_bytes": 760832,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/handy_libretro_ios.dylib.zip",
+        "archiveSha256": "dae43dc1da0407a53c5acc98d0c3567f555ad859ea5105997b09ca433781dce8",
+        "lastModified": "Wed, 14 Oct 2026 07:07:54 GMT"
+      },
+      "license_reference_revision": "bc55d462f0b2d6b073ea93dc552ebd73cec60fd1",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/libretro-handy/tree/bc55d462f0b2d6b073ea93dc552ebd73cec60fd1",
+      "license_reference_archive_url": "https://github.com/libretro/libretro-handy/archive/bc55d462f0b2d6b073ea93dc552ebd73cec60fd1.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "bc55d462f0b2d6b073ea93dc552ebd73cec60fd1",
+      "candidate_repository": "https://github.com/libretro/libretro-handy",
+      "candidate_source_url": "https://github.com/libretro/libretro-handy/tree/bc55d462f0b2d6b073ea93dc552ebd73cec60fd1",
+      "candidate_archive_url": "https://github.com/libretro/libretro-handy/archive/bc55d462f0b2d6b073ea93dc552ebd73cec60fd1.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/libretro-handy/git/commits/bc55d462f0b2d6b073ea93dc552ebd73cec60fd1",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "mednafen_vb",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/beetle-vb-libretro",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "2ee0c2c8e4c77073045ac8e135886f628c5ae93b962256e2ffa8db39f8147bad",
+      "binary_bytes": 184344,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mednafen_vb_libretro_ios.dylib.zip",
+        "archiveSha256": "613113b759dfe85a300008ecaca9f1e87f360715b10e694973fb34a88c29ba66",
+        "lastModified": "Wed, 14 Oct 2026 07:15:22 GMT"
+      },
+      "license_reference_revision": "d5ae54c8e23b573a3b34e888b2d48a588027e92c",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/beetle-vb-libretro/tree/d5ae54c8e23b573a3b34e888b2d48a588027e92c",
+      "license_reference_archive_url": "https://github.com/libretro/beetle-vb-libretro/archive/d5ae54c8e23b573a3b34e888b2d48a588027e92c.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "d5ae54c8e23b573a3b34e888b2d48a588027e92c",
+      "candidate_repository": "https://github.com/libretro/beetle-vb-libretro",
+      "candidate_source_url": "https://github.com/libretro/beetle-vb-libretro/tree/d5ae54c8e23b573a3b34e888b2d48a588027e92c",
+      "candidate_archive_url": "https://github.com/libretro/beetle-vb-libretro/archive/d5ae54c8e23b573a3b34e888b2d48a588027e92c.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/beetle-vb-libretro/git/commits/d5ae54c8e23b573a3b34e888b2d48a588027e92c",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "stella",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/stella-emu/stella",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "70efdf7e7c18f51396605a51a3f823d4c59392a60f875d83b01feff95a464934",
+      "binary_bytes": 3175872,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/stella_libretro_ios.dylib.zip",
+        "archiveSha256": "9325eb63621d4bb07e46ed9f311dd5d585ffe7e32a19fd8cb5ae536f9b699b43",
+        "lastModified": "Wed, 14 Oct 2026 05:11:26 GMT"
+      },
+      "license_reference_revision": "2c3d7023e9136f75c789803b44f119d8749dc104",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/stella-emu/stella/tree/2c3d7023e9136f75c789803b44f119d8749dc104",
+      "license_reference_archive_url": "https://github.com/stella-emu/stella/archive/2c3d7023e9136f75c789803b44f119d8749dc104.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "b52ccb02eea5e117c142421a2b5ba289f2c7c2c5",
+      "candidate_repository": "https://github.com/stella-emu/stella",
+      "candidate_source_url": "https://github.com/stella-emu/stella/tree/b52ccb02eea5e117c142421a2b5ba289f2c7c2c5",
+      "candidate_archive_url": "https://github.com/stella-emu/stella/archive/b52ccb02eea5e117c142421a2b5ba289f2c7c2c5.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/stella-emu/stella/git/commits/b52ccb02eea5e117c142421a2b5ba289f2c7c2c5",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "prosystem",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/prosystem-libretro",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "69ff2105f2f94e28ffda83ca60a93c83b169fedcb32158faf69f17e165624601",
+      "binary_bytes": 225976,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/prosystem_libretro_ios.dylib.zip",
+        "archiveSha256": "9813927bedf0818b179a72abf1eafc07867ef422d89c68a99f318282032f004a",
+        "lastModified": "Wed, 14 Oct 2026 07:14:00 GMT"
+      },
+      "license_reference_revision": "8a88014287c7a01cd568067e5a557d0a2b2a051f",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/prosystem-libretro/tree/8a88014287c7a01cd568067e5a557d0a2b2a051f",
+      "license_reference_archive_url": "https://github.com/libretro/prosystem-libretro/archive/8a88014287c7a01cd568067e5a557d0a2b2a051f.tar.gz",
+      "source_status": "no_binary_source_revision_recovered",
+      "source_revision": null,
+      "remaining_boundary": "No source revision for the binary recovered. A license-reference revision or current repository HEAD must not be substituted."
+    },
+    {
+      "id": "a5200",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/a5200",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "3c1661671225181d16ec39c4a663fd4bc4cfead9d0d48addccff921f8be51002",
+      "binary_bytes": 288248,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/a5200_libretro_ios.dylib.zip",
+        "archiveSha256": "bdc12a7d0e38198c4e24b79c00d7fb3b8005ab8b6950ee5d427a0cb96fedab7c",
+        "lastModified": "Wed, 14 Oct 2026 06:09:54 GMT"
+      },
+      "license_reference_revision": "40c6f2f1ad4a3145b328d5baaf010fae6c7e752b",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/a5200/tree/40c6f2f1ad4a3145b328d5baaf010fae6c7e752b",
+      "license_reference_archive_url": "https://github.com/libretro/a5200/archive/40c6f2f1ad4a3145b328d5baaf010fae6c7e752b.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "40c6f2f1ad4a3145b328d5baaf010fae6c7e752b",
+      "candidate_repository": "https://github.com/libretro/a5200",
+      "candidate_source_url": "https://github.com/libretro/a5200/tree/40c6f2f1ad4a3145b328d5baaf010fae6c7e752b",
+      "candidate_archive_url": "https://github.com/libretro/a5200/archive/40c6f2f1ad4a3145b328d5baaf010fae6c7e752b.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/a5200/git/commits/40c6f2f1ad4a3145b328d5baaf010fae6c7e752b",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "gearcoleco",
+      "recorded_license_label": "GPLv3",
+      "repository": "https://github.com/drhelius/Gearcoleco",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "dbeaa8c4e934ec7bdf1b4f875ab8d75b3e714ced4d7a92b2b787e70bfe05fb66",
+      "binary_bytes": 787696,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/gearcoleco_libretro_ios.dylib.zip",
+        "archiveSha256": "16e324e09070877c859c0d2ac0d8f0b6d430ffcf7d7bd00e61b54cb373413c89",
+        "lastModified": "Wed, 14 Oct 2026 14:15:34 GMT"
+      },
+      "license_reference_revision": "d74e9b82f6bba36610ea7823b11e95202c1d8e29",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/drhelius/Gearcoleco/tree/d74e9b82f6bba36610ea7823b11e95202c1d8e29",
+      "license_reference_archive_url": "https://github.com/drhelius/Gearcoleco/archive/d74e9b82f6bba36610ea7823b11e95202c1d8e29.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "d74e9b82f6bba36610ea7823b11e95202c1d8e29",
+      "candidate_repository": "https://github.com/drhelius/Gearcoleco",
+      "candidate_source_url": "https://github.com/drhelius/Gearcoleco/tree/d74e9b82f6bba36610ea7823b11e95202c1d8e29",
+      "candidate_archive_url": "https://github.com/drhelius/Gearcoleco/archive/d74e9b82f6bba36610ea7823b11e95202c1d8e29.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/drhelius/Gearcoleco/git/commits/d74e9b82f6bba36610ea7823b11e95202c1d8e29",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "pokemini",
+      "recorded_license_label": "GPLv3+",
+      "repository": "https://github.com/libretro/PokeMini",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "ea44fd3e06a0fb0fa74c7c10b632934d1a5ad708068598ec5ad2a71bfe641757",
+      "binary_bytes": 370472,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/pokemini_libretro_ios.dylib.zip",
+        "archiveSha256": "8e6172edf1f436982d767a77945189e431658e68fb197423b704835d378d13df",
+        "lastModified": "Wed, 14 Oct 2026 07:12:22 GMT"
+      },
+      "license_reference_revision": "132111b76343559860532a1ccc094f93f1ed5650",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/PokeMini/tree/132111b76343559860532a1ccc094f93f1ed5650",
+      "license_reference_archive_url": "https://github.com/libretro/PokeMini/archive/132111b76343559860532a1ccc094f93f1ed5650.tar.gz",
+      "source_status": "no_binary_source_revision_recovered",
+      "source_revision": null,
+      "remaining_boundary": "No source revision for the binary recovered. A license-reference revision or current repository HEAD must not be substituted."
+    },
+    {
+      "id": "gw",
+      "recorded_license_label": "Zlib",
+      "repository": "https://github.com/libretro/gw-libretro",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "cbf9a62ddb0b39057f30bf9e1b19589840c5c7f667dee5c679d1d967b2e068b8",
+      "binary_bytes": 539888,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/gw_libretro_ios.dylib.zip",
+        "archiveSha256": "524522d3a7d0ac8c1eabd5141bede284b881b9097a01d7ddc43e6a62a52cf9b0",
+        "lastModified": "Wed, 14 Oct 2026 08:09:44 GMT"
+      },
+      "license_reference_revision": "91d599b951e7bfe7e040347f58667cba20074adc",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/gw-libretro/tree/91d599b951e7bfe7e040347f58667cba20074adc",
+      "license_reference_archive_url": "https://github.com/libretro/gw-libretro/archive/91d599b951e7bfe7e040347f58667cba20074adc.tar.gz",
+      "source_status": "no_binary_source_revision_recovered",
+      "source_revision": null,
+      "remaining_boundary": "No source revision for the binary recovered. A license-reference revision or current repository HEAD must not be substituted."
+    },
+    {
+      "id": "sameduck",
+      "recorded_license_label": "MIT",
+      "repository": "https://github.com/LIJI32/SameBoy/tree/SameDuck",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "daa85d8d787bf32cf286901046ea0fd1bd495c6182d889de696ac192cb4f4b1c",
+      "binary_bytes": 132248,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/sameduck_libretro_ios.dylib.zip",
+        "archiveSha256": "24b2cb4da7acbcafce4c39593ea962126854360da6264f91e7442c639d9a6594",
+        "lastModified": "Wed, 14 Oct 2026 05:32:16 GMT"
+      },
+      "license_reference_revision": "5619abdb01cee6bedb47599cdb5532c318443b52",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/LIJI32/SameBoy/tree/5619abdb01cee6bedb47599cdb5532c318443b52",
+      "license_reference_archive_url": "https://github.com/LIJI32/SameBoy/archive/5619abdb01cee6bedb47599cdb5532c318443b52.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "040e19c379f00dae10afe0eb0c1b2b019b985bbe",
+      "candidate_repository": "https://github.com/libretro/sameduck",
+      "candidate_source_url": "https://github.com/libretro/sameduck/tree/040e19c379f00dae10afe0eb0c1b2b019b985bbe",
+      "candidate_archive_url": "https://github.com/libretro/sameduck/archive/040e19c379f00dae10afe0eb0c1b2b019b985bbe.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/sameduck/git/commits/040e19c379f00dae10afe0eb0c1b2b019b985bbe",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "potator",
+      "recorded_license_label": "Unlicense (public domain)",
+      "repository": "https://github.com/libretro/potator",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "9686d66a7bfec0fb4fc16e57ed87d0fd41e846862a3e0113eb5d3459bd616301",
+      "binary_bytes": 73496,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/potator_libretro_ios.dylib.zip",
+        "archiveSha256": "3060a86b788e4da783d9bedaa651e58119547bf9828d9fee3e84702c8ffcf124",
+        "lastModified": "Wed, 14 Oct 2026 06:12:34 GMT"
+      },
+      "license_reference_revision": "227c5f6f3ce74d32e9002ce24c1420288559a860",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/potator/tree/227c5f6f3ce74d32e9002ce24c1420288559a860",
+      "license_reference_archive_url": "https://github.com/libretro/potator/archive/227c5f6f3ce74d32e9002ce24c1420288559a860.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "227c5f6f3ce74d32e9002ce24c1420288559a860",
+      "candidate_repository": "https://github.com/libretro/potator",
+      "candidate_source_url": "https://github.com/libretro/potator/tree/227c5f6f3ce74d32e9002ce24c1420288559a860",
+      "candidate_archive_url": "https://github.com/libretro/potator/archive/227c5f6f3ce74d32e9002ce24c1420288559a860.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/potator/git/commits/227c5f6f3ce74d32e9002ce24c1420288559a860",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "ardens",
+      "recorded_license_label": "MIT",
+      "repository": "https://github.com/tiberiusbrown/Ardens",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "afa1c8b621fe4273d3cd8c7652d3230ae83e7e077afd1d44b753dc6c39a780a1",
+      "binary_bytes": 762168,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/ardens_libretro.dylib.zip",
+        "archiveSha256": "4626a7f105d2bda122bc29732f77fdcd2605c5c8bae795f465c8ce622aff5a66",
+        "lastModified": "Wed, 14 Oct 2026 05:20:14 GMT"
+      },
+      "license_reference_revision": "ba7ad0dcfc196459859d304a8c483b38621c7cfa",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/tiberiusbrown/Ardens/tree/ba7ad0dcfc196459859d304a8c483b38621c7cfa",
+      "license_reference_archive_url": "https://github.com/tiberiusbrown/Ardens/archive/ba7ad0dcfc196459859d304a8c483b38621c7cfa.tar.gz",
+      "source_status": "no_binary_source_revision_recovered",
+      "source_revision": null,
+      "remaining_boundary": "No source revision for the binary recovered. A license-reference revision or current repository HEAD must not be substituted."
+    },
+    {
+      "id": "wasm4",
+      "recorded_license_label": "ISC",
+      "repository": "https://github.com/aduros/wasm4",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "6bad181d5f14595e076a0a44fb8bbaf5d8c74b5381cc18262ef67735e7503aab",
+      "binary_bytes": 159952,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/wasm4_libretro.dylib.zip",
+        "archiveSha256": "0f87368eace6ff7c010357bc74b3ff965e35da934bf70958d7791893f7c1902e",
+        "lastModified": "Wed, 14 Oct 2026 06:10:22 GMT"
+      },
+      "license_reference_revision": "9d6c962785cfe3719d0245fd279ecbe98a4dbb63",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/aduros/wasm4/tree/9d6c962785cfe3719d0245fd279ecbe98a4dbb63",
+      "license_reference_archive_url": "https://github.com/aduros/wasm4/archive/9d6c962785cfe3719d0245fd279ecbe98a4dbb63.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "9d6c962785cfe3719d0245fd279ecbe98a4dbb63",
+      "candidate_repository": "https://github.com/aduros/wasm4",
+      "candidate_source_url": "https://github.com/aduros/wasm4/tree/9d6c962785cfe3719d0245fd279ecbe98a4dbb63",
+      "candidate_archive_url": "https://github.com/aduros/wasm4/archive/9d6c962785cfe3719d0245fd279ecbe98a4dbb63.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/aduros/wasm4/git/commits/9d6c962785cfe3719d0245fd279ecbe98a4dbb63",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "uzem",
+      "recorded_license_label": "MIT",
+      "repository": "https://github.com/libretro/libretro-uzem",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "a3721746f8f2556024a96b716258c6b851d2a47d7feff641b1325eb9ec6ee4ee",
+      "binary_bytes": 101872,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/uzem_libretro_ios.dylib.zip",
+        "archiveSha256": "a2825ec872ca78c3419fa3afb133d43bb1267c142fc68c02a61a92614763aa43",
+        "lastModified": "Wed, 14 Oct 2026 07:00:14 GMT"
+      },
+      "license_reference_revision": "d991ee94547c8294abc1c4cb73d63116aa58b5bc",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/libretro-uzem/tree/d991ee94547c8294abc1c4cb73d63116aa58b5bc",
+      "license_reference_archive_url": "https://github.com/libretro/libretro-uzem/archive/d991ee94547c8294abc1c4cb73d63116aa58b5bc.tar.gz",
+      "source_status": "no_binary_source_revision_recovered",
+      "source_revision": null,
+      "remaining_boundary": "No source revision for the binary recovered. A license-reference revision or current repository HEAD must not be substituted."
+    },
+    {
+      "id": "freechaf",
+      "recorded_license_label": "GPLv3",
+      "repository": "https://github.com/libretro/FreeChaF",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "6e76af01f852f74600c843b65e716ab760d0519a0d36964c79bb9ad94510fc84",
+      "binary_bytes": 122496,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/freechaf_libretro_ios.dylib.zip",
+        "archiveSha256": "48dfab85d73cde3ae39a3ea26323fdea2c98a8ce58e7250ba7668f0a2d938461",
+        "lastModified": "Wed, 14 Oct 2026 07:10:22 GMT"
+      },
+      "license_reference_revision": "76c7a84f1f7e80f3e6f2bba96fe100cb24e99124",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/FreeChaF/tree/76c7a84f1f7e80f3e6f2bba96fe100cb24e99124",
+      "license_reference_archive_url": "https://github.com/libretro/FreeChaF/archive/76c7a84f1f7e80f3e6f2bba96fe100cb24e99124.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "76c7a84f1f7e80f3e6f2bba96fe100cb24e99124",
+      "candidate_repository": "https://github.com/libretro/FreeChaF",
+      "candidate_source_url": "https://github.com/libretro/FreeChaF/tree/76c7a84f1f7e80f3e6f2bba96fe100cb24e99124",
+      "candidate_archive_url": "https://github.com/libretro/FreeChaF/archive/76c7a84f1f7e80f3e6f2bba96fe100cb24e99124.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/FreeChaF/git/commits/76c7a84f1f7e80f3e6f2bba96fe100cb24e99124",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "freeintv",
+      "recorded_license_label": "GPLv2+",
+      "repository": "https://github.com/libretro/FreeIntv",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "9efbe6c1f5329eeaf5085e6c0eefa28952fe6d0480d73b60c55674dbea6aefff",
+      "binary_bytes": 689344,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/freeintv_libretro_ios.dylib.zip",
+        "archiveSha256": "1a8b944a579dee2b4fd0126a8421979dc2dbd4e0f4011f91e07f8421d0dc2b34",
+        "lastModified": "Wed, 14 Oct 2026 09:22:56 GMT"
+      },
+      "license_reference_revision": "ef3e0fe322bec62a7f916c0bb0834c08c348d0b4",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/FreeIntv/tree/ef3e0fe322bec62a7f916c0bb0834c08c348d0b4",
+      "license_reference_archive_url": "https://github.com/libretro/FreeIntv/archive/ef3e0fe322bec62a7f916c0bb0834c08c348d0b4.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "ef3e0fe322bec62a7f916c0bb0834c08c348d0b4",
+      "candidate_repository": "https://github.com/libretro/FreeIntv",
+      "candidate_source_url": "https://github.com/libretro/FreeIntv/tree/ef3e0fe322bec62a7f916c0bb0834c08c348d0b4",
+      "candidate_archive_url": "https://github.com/libretro/FreeIntv/archive/ef3e0fe322bec62a7f916c0bb0834c08c348d0b4.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/FreeIntv/git/commits/ef3e0fe322bec62a7f916c0bb0834c08c348d0b4",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "o2em",
+      "recorded_license_label": "Artistic-2.0",
+      "repository": "https://github.com/libretro/libretro-o2em",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "6f18b3072bcca30c3d7251e20a8bd03d8f2819d3531d70d93064170991518afd",
+      "binary_bytes": 356880,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/o2em_libretro_ios.dylib.zip",
+        "archiveSha256": "7d11db40de4e23c12bf76c67db20a7db1290b6f4b22edfbb5c2a7e2b360a581c",
+        "lastModified": "Wed, 14 Oct 2026 08:58:14 GMT"
+      },
+      "license_reference_revision": "679d6fec04963f6e70a7ec217e3d0ebb1fe472fc",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/libretro-o2em/tree/679d6fec04963f6e70a7ec217e3d0ebb1fe472fc",
+      "license_reference_archive_url": "https://github.com/libretro/libretro-o2em/archive/679d6fec04963f6e70a7ec217e3d0ebb1fe472fc.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "679d6fec04963f6e70a7ec217e3d0ebb1fe472fc",
+      "candidate_repository": "https://github.com/libretro/libretro-o2em",
+      "candidate_source_url": "https://github.com/libretro/libretro-o2em/tree/679d6fec04963f6e70a7ec217e3d0ebb1fe472fc",
+      "candidate_archive_url": "https://github.com/libretro/libretro-o2em/archive/679d6fec04963f6e70a7ec217e3d0ebb1fe472fc.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/libretro-o2em/git/commits/679d6fec04963f6e70a7ec217e3d0ebb1fe472fc",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "mednafen_pcfx",
+      "recorded_license_label": "GPLv2",
+      "repository": "https://github.com/libretro/beetle-pcfx-libretro",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "8503b85fafd9f6b624501d5b1c1ff6da31f8630be5ead2e9000d9670c40b1a20",
+      "binary_bytes": 1794200,
+      "complete_corresponding_source_attested": false,
+      "historical_binary_receipt": "docs/evidence/build479-libretro-source-identity.json",
+      "historical_download": {
+        "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mednafen_pcfx_libretro_ios.dylib.zip",
+        "archiveSha256": "fd68f1764ef240640ab04df39ad11342359badc15a2037a2f7ca3dd6f7988a86",
+        "lastModified": "Wed, 14 Oct 2026 06:04:30 GMT"
+      },
+      "license_reference_revision": "c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/beetle-pcfx-libretro/tree/c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff",
+      "license_reference_archive_url": "https://github.com/libretro/beetle-pcfx-libretro/archive/c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff.tar.gz",
+      "source_status": "binary_version_candidate_only",
+      "source_revision": null,
+      "source_revision_candidate": "c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff",
+      "candidate_repository": "https://github.com/libretro/beetle-pcfx-libretro",
+      "candidate_source_url": "https://github.com/libretro/beetle-pcfx-libretro/tree/c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff",
+      "candidate_archive_url": "https://github.com/libretro/beetle-pcfx-libretro/archive/c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff.tar.gz",
+      "candidate_public_availability": "commit_resolved_exactly_on_2026-10-21",
+      "candidate_api_url": "https://api.github.com/repos/libretro/beetle-pcfx-libretro/git/commits/c1650bad5fbdcc3c3ccd45e29e3983e1ccf16cff",
+      "candidate_evidence": "docs/evidence/build479-core-version-candidates.json",
+      "remaining_boundary": "Binary version string plus a public commit does not identify local modifications, recursive dependencies or actual build configuration."
+    },
+    {
+      "id": "mesen",
+      "recorded_license_label": "GPLv3",
+      "repository": "https://github.com/libretro/Mesen",
+      "binary_identity_stage": "Framework executable before final IPA signing",
+      "binary_sha256": "547b840f3911dfe52bc1ce3b44f6bd4a137c869f21cb25e280434818ef06d2b6",
+      "binary_bytes": 3337040,
+      "complete_corresponding_source_attested": false,
+      "license_reference_revision": "0102910c39ad1a62bc3f784466f3f67ca9eae335",
+      "license_reference_is_binary_source_evidence": false,
+      "license_reference_source_url": "https://github.com/libretro/Mesen/tree/0102910c39ad1a62bc3f784466f3f67ca9eae335",
+      "license_reference_archive_url": "https://github.com/libretro/Mesen/archive/0102910c39ad1a62bc3f784466f3f67ca9eae335.tar.gz",
+      "source_status": "no_binary_source_revision_recovered",
+      "source_revision": null,
+      "remaining_boundary": "No source revision for the binary recovered. A license-reference revision or current repository HEAD must not be substituted.",
+      "current_binary_receipt": "docs/hd-textures-nes-mesen.md",
+      "public_binary_retrieved_and_matches": true,
+      "buildbot_crc32": "f739eea7",
+      "current_binary_url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mesen_libretro_ios.dylib.zip"
+    }
+  ],
+  "buildbot_research": {
+    "index_extended_url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/.index-extended",
+    "index_extended_sha256": "11a29d6d77194c038254a91f31ceec8acb277464339c1412c6c67d28e65b566c",
+    "index_format": "YYYY-MM-DD CRC32 filename; the eight hex digits are the uncompressed core CRC32, not a Git revision.",
+    "format_primary_source": "https://github.com/libretro/RetroArch/blob/df16ef193cbe385b87e8a1cf27b66da35bf3c0e0/core_updater_list.c",
+    "recipe_source": "https://github.com/libretro/libretro-super/tree/1d9f13453bc28eb629856c3ac7ca28f79b459df1",
+    "recipe_paths": [
+      "recipes/apple/cores-ios-arm64-generic",
+      "recipes/apple/cores-ios-arm64-generic.conf",
+      "libretro-buildbot-recipe.sh"
+    ],
+    "recipe_scope": "Current source snapshot identifies repositories/branches/options; it is not the resolved historical commit/configuration for each delivered binary.",
+    "candidate_commits_publicly_resolved": 23,
+    "new_binary_to_source_attestations_recovered": 0,
+    "mesen": {
+      "member": "mesen_libretro_ios.dylib",
+      "bytes": 3337040,
+      "sha256": "547b840f3911dfe52bc1ce3b44f6bd4a137c869f21cb25e280434818ef06d2b6",
+      "crc32": "f739eea7",
+      "matches_recorded495": true
+    },
+    "mesen_index_line": "2026-10-20 f739eea7 mesen_libretro_ios.dylib.zip",
+    "mesen_source_reference_is_not_binary_attestation": "https://github.com/libretro/Mesen/tree/0102910c39ad1a62bc3f784466f3f67ca9eae335",
+    "log_endpoints": [
+      {
+        "url": "https://buildbot.libretro.com/logs/",
+        "status": 404
+      },
+      {
+        "url": "https://buildserver.libretro.com/",
+        "status": 503
+      }
+    ],
+    "outcome": "No reviewed immutable per-core source/configuration receipt recovered. Endpoint failures describe this audit session only."
+  },
+  "first_level_gitlinks": {
+    "entries": 91,
+    "unique_repository_revision_pairs": 87,
+    "public_commit_lookups_succeeded": 87,
+    "counts_by_parent": {
+      "RPCS3": 28,
+      "Dolphin": 27,
+      "Azahar": 35,
+      "librashader": 1
+    },
+    "all_nested_submodules_independently_materialized": false,
+    "all_entries_linked_into_ios_claimed": false,
+    "items": [
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/7zip/7zip",
+        "repository": "https://github.com/ip7z/7zip",
+        "revision": "f9d78aff31a5f2521ae7ddbdc97c4a8855808959",
+        "upstream_declared_url": "../../ip7z/7zip.git",
+        "api_url": "https://api.github.com/repos/ip7z/7zip/git/commits/f9d78aff31a5f2521ae7ddbdc97c4a8855808959",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/ip7z/7zip/archive/f9d78aff31a5f2521ae7ddbdc97c4a8855808959.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/FAudio",
+        "repository": "https://github.com/FNA-XNA/FAudio",
+        "revision": "667942a9097991f5cb6d1532a7ac3142e0581102",
+        "upstream_declared_url": "../../FNA-XNA/FAudio.git",
+        "api_url": "https://api.github.com/repos/FNA-XNA/FAudio/git/commits/667942a9097991f5cb6d1532a7ac3142e0581102",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/FNA-XNA/FAudio/archive/667942a9097991f5cb6d1532a7ac3142e0581102.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/GPUOpen/VulkanMemoryAllocator",
+        "repository": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator",
+        "revision": "1d8f600fd424278486eade7ed3e877c99f0846b1",
+        "upstream_declared_url": "../../GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git",
+        "api_url": "https://api.github.com/repos/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/git/commits/1d8f600fd424278486eade7ed3e877c99f0846b1",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/1d8f600fd424278486eade7ed3e877c99f0846b1.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/OpenAL/openal-soft",
+        "repository": "https://github.com/kcat/openal-soft",
+        "revision": "b2c48f7718ef3fcf67921a8b6534c4914e328970",
+        "upstream_declared_url": "../../kcat/openal-soft.git",
+        "api_url": "https://api.github.com/repos/kcat/openal-soft/git/commits/b2c48f7718ef3fcf67921a8b6534c4914e328970",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/kcat/openal-soft/archive/b2c48f7718ef3fcf67921a8b6534c4914e328970.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/SoundTouch/soundtouch",
+        "repository": "https://github.com/RPCS3/soundtouch",
+        "revision": "a0fba77b6f9cfbdb71f8bbec58b6ac4e5e3b1097",
+        "upstream_declared_url": "../../RPCS3/soundtouch.git",
+        "api_url": "https://api.github.com/repos/RPCS3/soundtouch/git/commits/a0fba77b6f9cfbdb71f8bbec58b6ac4e5e3b1097",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/RPCS3/soundtouch/archive/a0fba77b6f9cfbdb71f8bbec58b6ac4e5e3b1097.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/asmjit/asmjit",
+        "repository": "https://github.com/asmjit/asmjit",
+        "revision": "416f7356967c1f66784dc1580fe157f9406d8bff",
+        "upstream_declared_url": "../../asmjit/asmjit.git",
+        "api_url": "https://api.github.com/repos/asmjit/asmjit/git/commits/416f7356967c1f66784dc1580fe157f9406d8bff",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/asmjit/asmjit/archive/416f7356967c1f66784dc1580fe157f9406d8bff.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/cubeb/cubeb",
+        "repository": "https://github.com/mozilla/cubeb",
+        "revision": "484857522c73318c06f18ba0a3e17525fa98c608",
+        "upstream_declared_url": "../../mozilla/cubeb.git",
+        "api_url": "https://api.github.com/repos/mozilla/cubeb/git/commits/484857522c73318c06f18ba0a3e17525fa98c608",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/mozilla/cubeb/archive/484857522c73318c06f18ba0a3e17525fa98c608.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/curl/curl",
+        "repository": "https://github.com/curl/curl",
+        "revision": "01346829096c61b372692f6dc43ffa778c6caccd",
+        "upstream_declared_url": "../../curl/curl.git",
+        "api_url": "https://api.github.com/repos/curl/curl/git/commits/01346829096c61b372692f6dc43ffa778c6caccd",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/curl/curl/archive/01346829096c61b372692f6dc43ffa778c6caccd.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/discord-rpc/discord-rpc",
+        "repository": "https://github.com/Vestrel/discord-rpc",
+        "revision": "fb04b1766bbbe7d2f47985b8b82fded0366efdf9",
+        "upstream_declared_url": "../../Vestrel/discord-rpc",
+        "api_url": "https://api.github.com/repos/Vestrel/discord-rpc/git/commits/fb04b1766bbbe7d2f47985b8b82fded0366efdf9",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/Vestrel/discord-rpc/archive/fb04b1766bbbe7d2f47985b8b82fded0366efdf9.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/feralinteractive/feralinteractive",
+        "repository": "https://github.com/FeralInteractive/gamemode",
+        "revision": "c54d6d4243b0dd0afcb49f2c9836d432da171a2b",
+        "upstream_declared_url": "../../FeralInteractive/gamemode.git",
+        "api_url": "https://api.github.com/repos/FeralInteractive/gamemode/git/commits/c54d6d4243b0dd0afcb49f2c9836d432da171a2b",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/FeralInteractive/gamemode/archive/c54d6d4243b0dd0afcb49f2c9836d432da171a2b.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/ffmpeg",
+        "repository": "https://github.com/RPCS3/ffmpeg-core",
+        "revision": "649d9d9353184a17ae78d9df4a6fbbe7456f0428",
+        "upstream_declared_url": "../../RPCS3/ffmpeg-core.git",
+        "api_url": "https://api.github.com/repos/RPCS3/ffmpeg-core/git/commits/649d9d9353184a17ae78d9df4a6fbbe7456f0428",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/RPCS3/ffmpeg-core/archive/649d9d9353184a17ae78d9df4a6fbbe7456f0428.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/fusion/fusion",
+        "repository": "https://github.com/xioTechnologies/Fusion",
+        "revision": "9325424011892abacc0ce42b8bb1a8ae20264b9b",
+        "upstream_declared_url": "../../xioTechnologies/Fusion.git",
+        "api_url": "https://api.github.com/repos/xioTechnologies/Fusion/git/commits/9325424011892abacc0ce42b8bb1a8ae20264b9b",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/xioTechnologies/Fusion/archive/9325424011892abacc0ce42b8bb1a8ae20264b9b.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/glslang/glslang",
+        "repository": "https://github.com/KhronosGroup/glslang",
+        "revision": "f0bd0257c308b9a26562c1a30c4748a0219cc951",
+        "upstream_declared_url": "../../KhronosGroup/glslang.git",
+        "api_url": "https://api.github.com/repos/KhronosGroup/glslang/git/commits/f0bd0257c308b9a26562c1a30c4748a0219cc951",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/KhronosGroup/glslang/archive/f0bd0257c308b9a26562c1a30c4748a0219cc951.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/hidapi/hidapi",
+        "repository": "https://github.com/libusb/hidapi",
+        "revision": "d6b2a974608dec3b76fb1e36c189f22b9cf3650c",
+        "upstream_declared_url": "../../libusb/hidapi.git",
+        "api_url": "https://api.github.com/repos/libusb/hidapi/git/commits/d6b2a974608dec3b76fb1e36c189f22b9cf3650c",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/libusb/hidapi/archive/d6b2a974608dec3b76fb1e36c189f22b9cf3650c.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/libpng/libpng",
+        "repository": "https://github.com/glennrp/libpng",
+        "revision": "3061454d980de7d53608f594194cfac722721d2a",
+        "upstream_declared_url": "../../glennrp/libpng.git",
+        "api_url": "https://api.github.com/repos/glennrp/libpng/git/commits/3061454d980de7d53608f594194cfac722721d2a",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/pnggroup/libpng/archive/3061454d980de7d53608f594194cfac722721d2a.tar.gz",
+        "archive_contains_nested_submodules": false,
+        "canonical_repository": "https://github.com/pnggroup/libpng",
+        "canonical_commit_url": "https://github.com/pnggroup/libpng/commit/3061454d980de7d53608f594194cfac722721d2a",
+        "availability_note": "Original glennrp URL redirects to pnggroup; exact commit was retrieved successfully."
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/libsdl-org/SDL",
+        "repository": "https://github.com/libsdl-org/SDL",
+        "revision": "fa2c02bb6e21974a89ea9824bc53c9932abe5f9c",
+        "upstream_declared_url": "../../libsdl-org/SDL.git",
+        "api_url": "https://api.github.com/repos/libsdl-org/SDL/git/commits/fa2c02bb6e21974a89ea9824bc53c9932abe5f9c",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/libsdl-org/SDL/archive/fa2c02bb6e21974a89ea9824bc53c9932abe5f9c.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/libusb/libusb",
+        "repository": "https://github.com/libusb/libusb",
+        "revision": "87a55632db62c9bdc58cd31d3ccfa673f1bb017f",
+        "upstream_declared_url": "../../libusb/libusb.git",
+        "api_url": "https://api.github.com/repos/libusb/libusb/git/commits/87a55632db62c9bdc58cd31d3ccfa673f1bb017f",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/libusb/libusb/archive/87a55632db62c9bdc58cd31d3ccfa673f1bb017f.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/llvm/llvm",
+        "repository": "https://github.com/llvm/llvm-project",
+        "revision": "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
+        "upstream_declared_url": "../../llvm/llvm-project.git",
+        "api_url": "https://api.github.com/repos/llvm/llvm-project/git/commits/ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/llvm/llvm-project/archive/ca7933e47d3a3451d81e72ac174dcb5aa28b59d1.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/miniupnp/miniupnp",
+        "repository": "https://github.com/miniupnp/miniupnp",
+        "revision": "d66872e34d9ff83a07f8b71371b13419b2089953",
+        "upstream_declared_url": "../../miniupnp/miniupnp.git",
+        "api_url": "https://api.github.com/repos/miniupnp/miniupnp/git/commits/d66872e34d9ff83a07f8b71371b13419b2089953",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/miniupnp/miniupnp/archive/d66872e34d9ff83a07f8b71371b13419b2089953.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/opencv/opencv",
+        "repository": "https://github.com/Megamouse/opencv_minimal",
+        "revision": "d4dde8afe3098f33f253278e25d45d6554afb10c",
+        "upstream_declared_url": "../../Megamouse/opencv_minimal.git",
+        "api_url": "https://api.github.com/repos/Megamouse/opencv_minimal/git/commits/d4dde8afe3098f33f253278e25d45d6554afb10c",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/Megamouse/opencv_minimal/archive/d4dde8afe3098f33f253278e25d45d6554afb10c.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/protobuf/protobuf",
+        "repository": "https://github.com/protocolbuffers/protobuf",
+        "revision": "edaa823d8b36a8656d7b2b9241b7d0bfe50af878",
+        "upstream_declared_url": "../../protocolbuffers/protobuf.git",
+        "api_url": "https://api.github.com/repos/protocolbuffers/protobuf/git/commits/edaa823d8b36a8656d7b2b9241b7d0bfe50af878",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/protocolbuffers/protobuf/archive/edaa823d8b36a8656d7b2b9241b7d0bfe50af878.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/pugixml",
+        "repository": "https://github.com/zeux/pugixml",
+        "revision": "c8033ce9d039e7f9d134877c363397b3cfe20816",
+        "upstream_declared_url": "../../zeux/pugixml.git",
+        "api_url": "https://api.github.com/repos/zeux/pugixml/git/commits/c8033ce9d039e7f9d134877c363397b3cfe20816",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/zeux/pugixml/archive/c8033ce9d039e7f9d134877c363397b3cfe20816.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/rtmidi/rtmidi",
+        "repository": "https://github.com/thestk/rtmidi",
+        "revision": "1e5b49925aa60065db52de44c366d446a902547b",
+        "upstream_declared_url": "../../thestk/rtmidi",
+        "api_url": "https://api.github.com/repos/thestk/rtmidi/git/commits/1e5b49925aa60065db52de44c366d446a902547b",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/thestk/rtmidi/archive/1e5b49925aa60065db52de44c366d446a902547b.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/stblib/stb",
+        "repository": "https://github.com/nothings/stb",
+        "revision": "013ac3beddff3dbffafd5177e7972067cd2b5083",
+        "upstream_declared_url": "../../nothings/stb.git",
+        "api_url": "https://api.github.com/repos/nothings/stb/git/commits/013ac3beddff3dbffafd5177e7972067cd2b5083",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/nothings/stb/archive/013ac3beddff3dbffafd5177e7972067cd2b5083.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/wolfssl/wolfssl",
+        "repository": "https://github.com/wolfSSL/wolfssl",
+        "revision": "ac01707f552c611fbd135cc723b2682b3e7f80f2",
+        "upstream_declared_url": "../../wolfSSL/wolfssl.git",
+        "api_url": "https://api.github.com/repos/wolfSSL/wolfssl/git/commits/ac01707f552c611fbd135cc723b2682b3e7f80f2",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/wolfSSL/wolfssl/archive/ac01707f552c611fbd135cc723b2682b3e7f80f2.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/yaml-cpp/yaml-cpp",
+        "repository": "https://github.com/RPCS3/yaml-cpp",
+        "revision": "51a5d623e3fde1f58829a56ba910f1cb33596222",
+        "upstream_declared_url": "../../RPCS3/yaml-cpp.git",
+        "api_url": "https://api.github.com/repos/RPCS3/yaml-cpp/git/commits/51a5d623e3fde1f58829a56ba910f1cb33596222",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/RPCS3/yaml-cpp/archive/51a5d623e3fde1f58829a56ba910f1cb33596222.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/zlib/zlib",
+        "repository": "https://github.com/madler/zlib",
+        "revision": "da607da739fa6047df13e66a2af6b8bec7c2a498",
+        "upstream_declared_url": "../../madler/zlib",
+        "api_url": "https://api.github.com/repos/madler/zlib/git/commits/da607da739fa6047df13e66a2af6b8bec7c2a498",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/madler/zlib/archive/da607da739fa6047df13e66a2af6b8bec7c2a498.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "RPCS3",
+        "path": "3rdparty/zstd/zstd",
+        "repository": "https://github.com/facebook/zstd",
+        "revision": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "upstream_declared_url": "../../facebook/zstd",
+        "api_url": "https://api.github.com/repos/facebook/zstd/git/commits/f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/facebook/zstd/archive/f8745da6ff1ad1e7bab384bd1f9d742439278e99.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/FFmpeg-bin",
+        "repository": "https://github.com/dolphin-emu/ext-win-ffmpeg",
+        "revision": "9bc087fbca36ce5a85eb4fd73f0c73813593e5a2",
+        "upstream_declared_url": "https://github.com/dolphin-emu/ext-win-ffmpeg.git",
+        "api_url": "https://api.github.com/repos/dolphin-emu/ext-win-ffmpeg/git/commits/9bc087fbca36ce5a85eb4fd73f0c73813593e5a2",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/dolphin-emu/ext-win-ffmpeg/archive/9bc087fbca36ce5a85eb4fd73f0c73813593e5a2.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/Qt",
+        "repository": "https://github.com/dolphin-emu/ext-win-qt",
+        "revision": "495517af2b922c10c24f543e0fd6ea3ddf774e50",
+        "upstream_declared_url": "https://github.com/dolphin-emu/ext-win-qt.git",
+        "api_url": "https://api.github.com/repos/dolphin-emu/ext-win-qt/git/commits/495517af2b922c10c24f543e0fd6ea3ddf774e50",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/dolphin-emu/ext-win-qt/archive/495517af2b922c10c24f543e0fd6ea3ddf774e50.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/SDL/SDL",
+        "repository": "https://github.com/libsdl-org/SDL",
+        "revision": "c9a6709bd21750f1ad9597be21abace78c6378c9",
+        "upstream_declared_url": "https://github.com/libsdl-org/SDL.git",
+        "api_url": "https://api.github.com/repos/libsdl-org/SDL/git/commits/c9a6709bd21750f1ad9597be21abace78c6378c9",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/libsdl-org/SDL/archive/c9a6709bd21750f1ad9597be21abace78c6378c9.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/SFML/SFML",
+        "repository": "https://github.com/SFML/SFML",
+        "revision": "016bea9491ccafc3529019fe1d403885a8b3a6ae",
+        "upstream_declared_url": "https://github.com/SFML/SFML.git",
+        "api_url": "https://api.github.com/repos/SFML/SFML/git/commits/016bea9491ccafc3529019fe1d403885a8b3a6ae",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/SFML/SFML/archive/016bea9491ccafc3529019fe1d403885a8b3a6ae.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/Vulkan-Headers",
+        "repository": "https://github.com/KhronosGroup/Vulkan-Headers",
+        "revision": "39f924b810e561fd86b2558b6711ca68d4363f68",
+        "upstream_declared_url": "https://github.com/KhronosGroup/Vulkan-Headers.git",
+        "api_url": "https://api.github.com/repos/KhronosGroup/Vulkan-Headers/git/commits/39f924b810e561fd86b2558b6711ca68d4363f68",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/KhronosGroup/Vulkan-Headers/archive/39f924b810e561fd86b2558b6711ca68d4363f68.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/VulkanMemoryAllocator",
+        "repository": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator",
+        "revision": "3bab6924988e5f19bf36586a496156cf72f70d9f",
+        "upstream_declared_url": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git",
+        "api_url": "https://api.github.com/repos/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/git/commits/3bab6924988e5f19bf36586a496156cf72f70d9f",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/3bab6924988e5f19bf36586a496156cf72f70d9f.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/cubeb/cubeb",
+        "repository": "https://github.com/mozilla/cubeb",
+        "revision": "54217bca3f3e0cd53c073690a23dd25d83557909",
+        "upstream_declared_url": "https://github.com/mozilla/cubeb.git",
+        "api_url": "https://api.github.com/repos/mozilla/cubeb/git/commits/54217bca3f3e0cd53c073690a23dd25d83557909",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/mozilla/cubeb/archive/54217bca3f3e0cd53c073690a23dd25d83557909.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/curl/curl",
+        "repository": "https://github.com/curl/curl",
+        "revision": "75a2079d5c28debb2eaa848ca9430f1fe0d7844c",
+        "upstream_declared_url": "https://github.com/curl/curl.git",
+        "api_url": "https://api.github.com/repos/curl/curl/git/commits/75a2079d5c28debb2eaa848ca9430f1fe0d7844c",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/curl/curl/archive/75a2079d5c28debb2eaa848ca9430f1fe0d7844c.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/enet/enet",
+        "repository": "https://github.com/lsalzman/enet",
+        "revision": "2a85cd64459f6ba038d233a634d9440490dbba12",
+        "upstream_declared_url": "https://github.com/lsalzman/enet.git",
+        "api_url": "https://api.github.com/repos/lsalzman/enet/git/commits/2a85cd64459f6ba038d233a634d9440490dbba12",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/lsalzman/enet/archive/2a85cd64459f6ba038d233a634d9440490dbba12.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/fmt/fmt",
+        "repository": "https://github.com/fmtlib/fmt",
+        "revision": "e69e5f977d458f2650bb346dadf2ad30c5320281",
+        "upstream_declared_url": "https://github.com/fmtlib/fmt.git",
+        "api_url": "https://api.github.com/repos/fmtlib/fmt/git/commits/e69e5f977d458f2650bb346dadf2ad30c5320281",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/fmtlib/fmt/archive/e69e5f977d458f2650bb346dadf2ad30c5320281.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/gtest",
+        "repository": "https://github.com/google/googletest",
+        "revision": "58d77fa8070e8cec2dc1ed015d66b454c8d78850",
+        "upstream_declared_url": "https://github.com/google/googletest.git",
+        "api_url": "https://api.github.com/repos/google/googletest/git/commits/58d77fa8070e8cec2dc1ed015d66b454c8d78850",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/google/googletest/archive/58d77fa8070e8cec2dc1ed015d66b454c8d78850.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/hidapi/hidapi-src",
+        "repository": "https://github.com/libusb/hidapi",
+        "revision": "7011fa98af2dde00c298105735e470de800288c7",
+        "upstream_declared_url": "https://github.com/libusb/hidapi.git",
+        "api_url": "https://api.github.com/repos/libusb/hidapi/git/commits/7011fa98af2dde00c298105735e470de800288c7",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/libusb/hidapi/archive/7011fa98af2dde00c298105735e470de800288c7.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/implot/implot",
+        "repository": "https://github.com/epezent/implot",
+        "revision": "3da8bd34299965d3b0ab124df743fe3e076fa222",
+        "upstream_declared_url": "https://github.com/epezent/implot.git",
+        "api_url": "https://api.github.com/repos/epezent/implot/git/commits/3da8bd34299965d3b0ab124df743fe3e076fa222",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/epezent/implot/archive/3da8bd34299965d3b0ab124df743fe3e076fa222.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/libadrenotools",
+        "repository": "https://github.com/bylaws/libadrenotools",
+        "revision": "8fae8ce254dfc1344527e05301e43f37dea2df80",
+        "upstream_declared_url": "https://github.com/bylaws/libadrenotools.git",
+        "api_url": "https://api.github.com/repos/bylaws/libadrenotools/git/commits/8fae8ce254dfc1344527e05301e43f37dea2df80",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/bylaws/libadrenotools/archive/8fae8ce254dfc1344527e05301e43f37dea2df80.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/libspng/libspng",
+        "repository": "https://github.com/randy408/libspng",
+        "revision": "dc5b1032c08efac68ad30170f7ccbf0aa8dd55c9",
+        "upstream_declared_url": "https://github.com/randy408/libspng.git",
+        "api_url": "https://api.github.com/repos/randy408/libspng/git/commits/dc5b1032c08efac68ad30170f7ccbf0aa8dd55c9",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/randy408/libspng/archive/dc5b1032c08efac68ad30170f7ccbf0aa8dd55c9.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/libusb/libusb",
+        "repository": "https://github.com/libusb/libusb",
+        "revision": "ba698478afc3d3a72644eef9fc4cd24ce8383a4c",
+        "upstream_declared_url": "https://github.com/libusb/libusb.git",
+        "api_url": "https://api.github.com/repos/libusb/libusb/git/commits/ba698478afc3d3a72644eef9fc4cd24ce8383a4c",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/libusb/libusb/archive/ba698478afc3d3a72644eef9fc4cd24ce8383a4c.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/lz4/lz4",
+        "repository": "https://github.com/lz4/lz4",
+        "revision": "5fc0630a0ed55e9755b0fe3990cd021ae1c3edc1",
+        "upstream_declared_url": "https://github.com/lz4/lz4.git",
+        "api_url": "https://api.github.com/repos/lz4/lz4/git/commits/5fc0630a0ed55e9755b0fe3990cd021ae1c3edc1",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/lz4/lz4/archive/5fc0630a0ed55e9755b0fe3990cd021ae1c3edc1.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/mGBA/mgba",
+        "repository": "https://github.com/mgba-emu/mgba",
+        "revision": "8739b22fbc90fdf0b4f6612ef9c0520f0ba44a51",
+        "upstream_declared_url": "https://github.com/mgba-emu/mgba.git",
+        "api_url": "https://api.github.com/repos/mgba-emu/mgba/git/commits/8739b22fbc90fdf0b4f6612ef9c0520f0ba44a51",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/mgba-emu/mgba/archive/8739b22fbc90fdf0b4f6612ef9c0520f0ba44a51.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/miniupnpc/miniupnp",
+        "repository": "https://github.com/miniupnp/miniupnp",
+        "revision": "bf4215a7574f88aa55859db9db00e3ae58cf42d6",
+        "upstream_declared_url": "https://github.com/miniupnp/miniupnp.git",
+        "api_url": "https://api.github.com/repos/miniupnp/miniupnp/git/commits/bf4215a7574f88aa55859db9db00e3ae58cf42d6",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/miniupnp/miniupnp/archive/bf4215a7574f88aa55859db9db00e3ae58cf42d6.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/minizip-ng/minizip-ng",
+        "repository": "https://github.com/zlib-ng/minizip-ng",
+        "revision": "55db144e03027b43263e5ebcb599bf0878ba58de",
+        "upstream_declared_url": "https://github.com/zlib-ng/minizip-ng.git",
+        "api_url": "https://api.github.com/repos/zlib-ng/minizip-ng/git/commits/55db144e03027b43263e5ebcb599bf0878ba58de",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/zlib-ng/minizip-ng/archive/55db144e03027b43263e5ebcb599bf0878ba58de.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/rcheevos/rcheevos",
+        "repository": "https://github.com/RetroAchievements/rcheevos",
+        "revision": "b443902b1cdfee5a66b09fec20a94d2d2afaf2ec",
+        "upstream_declared_url": "https://github.com/RetroAchievements/rcheevos.git",
+        "api_url": "https://api.github.com/repos/RetroAchievements/rcheevos/git/commits/b443902b1cdfee5a66b09fec20a94d2d2afaf2ec",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/RetroAchievements/rcheevos/archive/b443902b1cdfee5a66b09fec20a94d2d2afaf2ec.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/spirv_cross/SPIRV-Cross",
+        "repository": "https://github.com/KhronosGroup/SPIRV-Cross",
+        "revision": "ebe2aa0cd80f5eb5cd8a605da604cacf72205f3b",
+        "upstream_declared_url": "https://github.com/KhronosGroup/SPIRV-Cross.git",
+        "api_url": "https://api.github.com/repos/KhronosGroup/SPIRV-Cross/git/commits/ebe2aa0cd80f5eb5cd8a605da604cacf72205f3b",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/KhronosGroup/SPIRV-Cross/archive/ebe2aa0cd80f5eb5cd8a605da604cacf72205f3b.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/tinygltf/tinygltf",
+        "repository": "https://github.com/syoyo/tinygltf",
+        "revision": "c5641f2c22d117da7971504591a8f6a41ece488b",
+        "upstream_declared_url": "https://github.com/syoyo/tinygltf.git",
+        "api_url": "https://api.github.com/repos/syoyo/tinygltf/git/commits/c5641f2c22d117da7971504591a8f6a41ece488b",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/syoyo/tinygltf/archive/c5641f2c22d117da7971504591a8f6a41ece488b.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/watcher/watcher",
+        "repository": "https://github.com/e-dant/watcher",
+        "revision": "b03bdcfc11549df595b77239cefe2643943a3e2f",
+        "upstream_declared_url": "https://github.com/e-dant/watcher.git",
+        "api_url": "https://api.github.com/repos/e-dant/watcher/git/commits/b03bdcfc11549df595b77239cefe2643943a3e2f",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/e-dant/watcher/archive/b03bdcfc11549df595b77239cefe2643943a3e2f.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/xxhash/xxHash",
+        "repository": "https://github.com/Cyan4973/xxHash",
+        "revision": "e626a72bc2321cd320e953a0ccf1584cad60f363",
+        "upstream_declared_url": "https://github.com/Cyan4973/xxHash.git",
+        "api_url": "https://api.github.com/repos/Cyan4973/xxHash/git/commits/e626a72bc2321cd320e953a0ccf1584cad60f363",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/Cyan4973/xxHash/archive/e626a72bc2321cd320e953a0ccf1584cad60f363.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/zlib-ng/zlib-ng",
+        "repository": "https://github.com/zlib-ng/zlib-ng",
+        "revision": "ce01b1e41da298334f8214389cc9369540a7560f",
+        "upstream_declared_url": "https://github.com/zlib-ng/zlib-ng.git",
+        "api_url": "https://api.github.com/repos/zlib-ng/zlib-ng/git/commits/ce01b1e41da298334f8214389cc9369540a7560f",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/zlib-ng/zlib-ng/archive/ce01b1e41da298334f8214389cc9369540a7560f.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Dolphin",
+        "path": "Externals/zstd/zstd",
+        "repository": "https://github.com/facebook/zstd",
+        "revision": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "upstream_declared_url": "https://github.com/facebook/zstd.git",
+        "api_url": "https://api.github.com/repos/facebook/zstd/git/commits/f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/facebook/zstd/archive/f8745da6ff1ad1e7bab384bd1f9d742439278e99.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "dist/compatibility_list",
+        "repository": "https://github.com/azahar-emu/compatibility-list",
+        "revision": "d282515cd6a66b694ac0657eef250c24b7410495",
+        "upstream_declared_url": "https://github.com/azahar-emu/compatibility-list",
+        "api_url": "https://api.github.com/repos/azahar-emu/compatibility-list/git/commits/d282515cd6a66b694ac0657eef250c24b7410495",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/azahar-emu/compatibility-list/archive/d282515cd6a66b694ac0657eef250c24b7410495.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/boost",
+        "repository": "https://github.com/azahar-emu/ext-boost",
+        "revision": "6a85c3100499e886e11c87a5c2109eedacea0a61",
+        "upstream_declared_url": "https://github.com/azahar-emu/ext-boost.git",
+        "api_url": "https://api.github.com/repos/azahar-emu/ext-boost/git/commits/6a85c3100499e886e11c87a5c2109eedacea0a61",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/azahar-emu/ext-boost/archive/6a85c3100499e886e11c87a5c2109eedacea0a61.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/catch2",
+        "repository": "https://github.com/catchorg/Catch2",
+        "revision": "914aeecfe23b1e16af6ea675a4fb5dbd5a5b8d0a",
+        "upstream_declared_url": "https://github.com/catchorg/Catch2",
+        "api_url": "https://api.github.com/repos/catchorg/Catch2/git/commits/914aeecfe23b1e16af6ea675a4fb5dbd5a5b8d0a",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/catchorg/Catch2/archive/914aeecfe23b1e16af6ea675a4fb5dbd5a5b8d0a.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/cpp-jwt",
+        "repository": "https://github.com/arun11299/cpp-jwt",
+        "revision": "4a970bc302d671476122cbc6b43cc89fbf4a96ec",
+        "upstream_declared_url": "https://github.com/arun11299/cpp-jwt.git",
+        "api_url": "https://api.github.com/repos/arun11299/cpp-jwt/git/commits/4a970bc302d671476122cbc6b43cc89fbf4a96ec",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/arun11299/cpp-jwt/archive/4a970bc302d671476122cbc6b43cc89fbf4a96ec.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/cryptopp",
+        "repository": "https://github.com/cryptopp-modern/cryptopp-modern",
+        "revision": "8d92d788421483a43e09acf1cd4a2861cb2b8cab",
+        "upstream_declared_url": "https://github.com/cryptopp-modern/cryptopp-modern.git",
+        "api_url": "https://api.github.com/repos/cryptopp-modern/cryptopp-modern/git/commits/8d92d788421483a43e09acf1cd4a2861cb2b8cab",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/cryptopp-modern/cryptopp-modern/archive/8d92d788421483a43e09acf1cd4a2861cb2b8cab.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/cubeb",
+        "repository": "https://github.com/mozilla/cubeb",
+        "revision": "832fcf38e600bf80b4b728a3e0227403088d992c",
+        "upstream_declared_url": "https://github.com/mozilla/cubeb",
+        "api_url": "https://api.github.com/repos/mozilla/cubeb/git/commits/832fcf38e600bf80b4b728a3e0227403088d992c",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/mozilla/cubeb/archive/832fcf38e600bf80b4b728a3e0227403088d992c.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/dds-ktx",
+        "repository": "https://github.com/septag/dds-ktx",
+        "revision": "c3ca8febc2457ab5c581604f3236a8a511fc2e45",
+        "upstream_declared_url": "https://github.com/septag/dds-ktx",
+        "api_url": "https://api.github.com/repos/septag/dds-ktx/git/commits/c3ca8febc2457ab5c581604f3236a8a511fc2e45",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/septag/dds-ktx/archive/c3ca8febc2457ab5c581604f3236a8a511fc2e45.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/discord-rpc",
+        "repository": "https://github.com/azahar-emu/discord-rpc",
+        "revision": "049826c3f42875c2f9599552f425e76435789cc7",
+        "upstream_declared_url": "https://github.com/azahar-emu/discord-rpc.git",
+        "api_url": "https://api.github.com/repos/azahar-emu/discord-rpc/git/commits/049826c3f42875c2f9599552f425e76435789cc7",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/azahar-emu/discord-rpc/archive/049826c3f42875c2f9599552f425e76435789cc7.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/dllwalker",
+        "repository": "https://github.com/azahar-emu/dllwalker",
+        "revision": "2f8b349c26832cae612aa7082154c0697a9cbc8e",
+        "upstream_declared_url": "https://github.com/azahar-emu/dllwalker",
+        "api_url": "https://api.github.com/repos/azahar-emu/dllwalker/git/commits/2f8b349c26832cae612aa7082154c0697a9cbc8e",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/azahar-emu/dllwalker/archive/2f8b349c26832cae612aa7082154c0697a9cbc8e.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/dynarmic",
+        "repository": "https://github.com/azahar-emu/dynarmic",
+        "revision": "a46601580d5512d324104f985b5f0209dc980ddc",
+        "upstream_declared_url": "https://github.com/azahar-emu/dynarmic.git",
+        "api_url": "https://api.github.com/repos/azahar-emu/dynarmic/git/commits/a46601580d5512d324104f985b5f0209dc980ddc",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/azahar-emu/dynarmic/archive/a46601580d5512d324104f985b5f0209dc980ddc.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/enet",
+        "repository": "https://github.com/lsalzman/enet",
+        "revision": "2662c0de09e36f2a2030ccc2c528a3e4c9e8138a",
+        "upstream_declared_url": "https://github.com/lsalzman/enet.git",
+        "api_url": "https://api.github.com/repos/lsalzman/enet/git/commits/2662c0de09e36f2a2030ccc2c528a3e4c9e8138a",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/lsalzman/enet/archive/2662c0de09e36f2a2030ccc2c528a3e4c9e8138a.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/faad2/faad2",
+        "repository": "https://github.com/knik0/faad2",
+        "revision": "216f00e8ddba6f2c64caf481a04f1ddd78b93e78",
+        "upstream_declared_url": "https://github.com/knik0/faad2",
+        "api_url": "https://api.github.com/repos/knik0/faad2/git/commits/216f00e8ddba6f2c64caf481a04f1ddd78b93e78",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/knik0/faad2/archive/216f00e8ddba6f2c64caf481a04f1ddd78b93e78.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/fmt",
+        "repository": "https://github.com/fmtlib/fmt",
+        "revision": "e424e3f2e607da02742f73db84873b8084fc714c",
+        "upstream_declared_url": "https://github.com/fmtlib/fmt.git",
+        "api_url": "https://api.github.com/repos/fmtlib/fmt/git/commits/e424e3f2e607da02742f73db84873b8084fc714c",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/fmtlib/fmt/archive/e424e3f2e607da02742f73db84873b8084fc714c.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/glslang",
+        "repository": "https://github.com/KhronosGroup/glslang",
+        "revision": "fc9889c889561c5882e83819dcaffef5ed45529b",
+        "upstream_declared_url": "https://github.com/KhronosGroup/glslang",
+        "api_url": "https://api.github.com/repos/KhronosGroup/glslang/git/commits/fc9889c889561c5882e83819dcaffef5ed45529b",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/KhronosGroup/glslang/archive/fc9889c889561c5882e83819dcaffef5ed45529b.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/inih/inih",
+        "repository": "https://github.com/benhoyt/inih",
+        "revision": "5cc5e2c24642513aaa5b19126aad42d0e4e0923e",
+        "upstream_declared_url": "https://github.com/benhoyt/inih.git",
+        "api_url": "https://api.github.com/repos/benhoyt/inih/git/commits/5cc5e2c24642513aaa5b19126aad42d0e4e0923e",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/benhoyt/inih/archive/5cc5e2c24642513aaa5b19126aad42d0e4e0923e.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/libadrenotools",
+        "repository": "https://github.com/bylaws/libadrenotools",
+        "revision": "8fae8ce254dfc1344527e05301e43f37dea2df80",
+        "upstream_declared_url": "https://github.com/bylaws/libadrenotools",
+        "api_url": "https://api.github.com/repos/bylaws/libadrenotools/git/commits/8fae8ce254dfc1344527e05301e43f37dea2df80",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/bylaws/libadrenotools/archive/8fae8ce254dfc1344527e05301e43f37dea2df80.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/libressl",
+        "repository": "https://github.com/azahar-emu/ext-libressl-portable",
+        "revision": "88b8e41b71099fabc57813bc06d8bc1aba050a19",
+        "upstream_declared_url": "https://github.com/azahar-emu/ext-libressl-portable.git",
+        "api_url": "https://api.github.com/repos/azahar-emu/ext-libressl-portable/git/commits/88b8e41b71099fabc57813bc06d8bc1aba050a19",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/azahar-emu/ext-libressl-portable/archive/88b8e41b71099fabc57813bc06d8bc1aba050a19.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/libretro-common/libretro-common",
+        "repository": "https://github.com/libretro/libretro-common",
+        "revision": "7fc7feeddca391be65c94e6541381467684b814d",
+        "upstream_declared_url": "https://github.com/libretro/libretro-common.git",
+        "api_url": "https://api.github.com/repos/libretro/libretro-common/git/commits/7fc7feeddca391be65c94e6541381467684b814d",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/libretro/libretro-common/archive/7fc7feeddca391be65c94e6541381467684b814d.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/libusb/libusb",
+        "repository": "https://github.com/libusb/libusb",
+        "revision": "d52e355daa09f17ce64819122cb067b8a2ee0d4b",
+        "upstream_declared_url": "https://github.com/libusb/libusb.git",
+        "api_url": "https://api.github.com/repos/libusb/libusb/git/commits/d52e355daa09f17ce64819122cb067b8a2ee0d4b",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/libusb/libusb/archive/d52e355daa09f17ce64819122cb067b8a2ee0d4b.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/libyuv",
+        "repository": "https://github.com/lemenkov/libyuv",
+        "revision": "6f729fbe658a40dfd993fa8b22bd612bb17cde5c",
+        "upstream_declared_url": "https://github.com/lemenkov/libyuv.git",
+        "api_url": "https://api.github.com/repos/lemenkov/libyuv/git/commits/6f729fbe658a40dfd993fa8b22bd612bb17cde5c",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/lemenkov/libyuv/archive/6f729fbe658a40dfd993fa8b22bd612bb17cde5c.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/lodepng/lodepng",
+        "repository": "https://github.com/lvandeve/lodepng",
+        "revision": "0b1d9ccfc2093e5d6620cd9a11d03ee6ff6705f5",
+        "upstream_declared_url": "https://github.com/lvandeve/lodepng.git",
+        "api_url": "https://api.github.com/repos/lvandeve/lodepng/git/commits/0b1d9ccfc2093e5d6620cd9a11d03ee6ff6705f5",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/lvandeve/lodepng/archive/0b1d9ccfc2093e5d6620cd9a11d03ee6ff6705f5.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/nihstro",
+        "repository": "https://github.com/neobrain/nihstro",
+        "revision": "f4d8659decbfe5d234f04134b5002b82dc515a44",
+        "upstream_declared_url": "https://github.com/neobrain/nihstro.git",
+        "api_url": "https://api.github.com/repos/neobrain/nihstro/git/commits/f4d8659decbfe5d234f04134b5002b82dc515a44",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/neobrain/nihstro/archive/f4d8659decbfe5d234f04134b5002b82dc515a44.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/oaknut",
+        "repository": "https://github.com/merryhime/oaknut",
+        "revision": "6b1d57ea7ed4882d32a91eeaa6557b0ecb4da152",
+        "upstream_declared_url": "https://github.com/merryhime/oaknut.git",
+        "api_url": "https://api.github.com/repos/merryhime/oaknut/git/commits/6b1d57ea7ed4882d32a91eeaa6557b0ecb4da152",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/merryhime/oaknut/archive/6b1d57ea7ed4882d32a91eeaa6557b0ecb4da152.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/openal-soft",
+        "repository": "https://github.com/azahar-emu/openal-soft",
+        "revision": "e399840fc6aba5f7bc3f0633e8ff10bba0640906",
+        "upstream_declared_url": "https://github.com/azahar-emu/openal-soft",
+        "api_url": "https://api.github.com/repos/azahar-emu/openal-soft/git/commits/e399840fc6aba5f7bc3f0633e8ff10bba0640906",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/azahar-emu/openal-soft/archive/e399840fc6aba5f7bc3f0633e8ff10bba0640906.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/sdl2/SDL",
+        "repository": "https://github.com/libsdl-org/SDL",
+        "revision": "5d249570393f7a37e037abf22cd6012a4cc56a71",
+        "upstream_declared_url": "https://github.com/libsdl-org/SDL",
+        "api_url": "https://api.github.com/repos/libsdl-org/SDL/git/commits/5d249570393f7a37e037abf22cd6012a4cc56a71",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/libsdl-org/SDL/archive/5d249570393f7a37e037abf22cd6012a4cc56a71.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/sirit/sirit",
+        "repository": "https://github.com/azahar-emu/sirit",
+        "revision": "37d49d2aa4c0a62f872720d6e5f2eaf90b2c95fa",
+        "upstream_declared_url": "https://github.com/azahar-emu/sirit",
+        "api_url": "https://api.github.com/repos/azahar-emu/sirit/git/commits/37d49d2aa4c0a62f872720d6e5f2eaf90b2c95fa",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/azahar-emu/sirit/archive/37d49d2aa4c0a62f872720d6e5f2eaf90b2c95fa.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/soundtouch",
+        "repository": "https://github.com/azahar-emu/soundtouch",
+        "revision": "9ef8458d8561d9471dd20e9619e3be4cfe564796",
+        "upstream_declared_url": "https://github.com/azahar-emu/soundtouch.git",
+        "api_url": "https://api.github.com/repos/azahar-emu/soundtouch/git/commits/9ef8458d8561d9471dd20e9619e3be4cfe564796",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/azahar-emu/soundtouch/archive/9ef8458d8561d9471dd20e9619e3be4cfe564796.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/spirv-headers",
+        "repository": "https://github.com/KhronosGroup/SPIRV-Headers",
+        "revision": "aa6cef192b8e693916eb713e7a9ccadf06062ceb",
+        "upstream_declared_url": "https://github.com/KhronosGroup/SPIRV-Headers",
+        "api_url": "https://api.github.com/repos/KhronosGroup/SPIRV-Headers/git/commits/aa6cef192b8e693916eb713e7a9ccadf06062ceb",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/KhronosGroup/SPIRV-Headers/archive/aa6cef192b8e693916eb713e7a9ccadf06062ceb.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/spirv-tools",
+        "repository": "https://github.com/KhronosGroup/SPIRV-Tools",
+        "revision": "a62abcb402009b9ca5975e6167c09f237f630e0e",
+        "upstream_declared_url": "https://github.com/KhronosGroup/SPIRV-Tools",
+        "api_url": "https://api.github.com/repos/KhronosGroup/SPIRV-Tools/git/commits/a62abcb402009b9ca5975e6167c09f237f630e0e",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/KhronosGroup/SPIRV-Tools/archive/a62abcb402009b9ca5975e6167c09f237f630e0e.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/teakra",
+        "repository": "https://github.com/wwylele/teakra",
+        "revision": "3d697a18df504f4677b65129d9ab14c7c597e3eb",
+        "upstream_declared_url": "https://github.com/wwylele/teakra.git",
+        "api_url": "https://api.github.com/repos/wwylele/teakra/git/commits/3d697a18df504f4677b65129d9ab14c7c597e3eb",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/wwylele/teakra/archive/3d697a18df504f4677b65129d9ab14c7c597e3eb.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/vma",
+        "repository": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator",
+        "revision": "c788c52156f3ef7bc7ab769cb03c110a53ac8fcb",
+        "upstream_declared_url": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator",
+        "api_url": "https://api.github.com/repos/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/git/commits/c788c52156f3ef7bc7ab769cb03c110a53ac8fcb",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/c788c52156f3ef7bc7ab769cb03c110a53ac8fcb.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/vulkan-headers",
+        "repository": "https://github.com/KhronosGroup/Vulkan-Headers",
+        "revision": "409c16be502e39fe70dd6fe2d9ad4842ef2c9a53",
+        "upstream_declared_url": "https://github.com/KhronosGroup/Vulkan-Headers",
+        "api_url": "https://api.github.com/repos/KhronosGroup/Vulkan-Headers/git/commits/409c16be502e39fe70dd6fe2d9ad4842ef2c9a53",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/KhronosGroup/Vulkan-Headers/archive/409c16be502e39fe70dd6fe2d9ad4842ef2c9a53.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/xbyak",
+        "repository": "https://github.com/herumi/xbyak",
+        "revision": "0d67fd1530016b7c56f3cd74b3fca920f4c3e2b4",
+        "upstream_declared_url": "https://github.com/herumi/xbyak.git",
+        "api_url": "https://api.github.com/repos/herumi/xbyak/git/commits/0d67fd1530016b7c56f3cd74b3fca920f4c3e2b4",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/herumi/xbyak/archive/0d67fd1530016b7c56f3cd74b3fca920f4c3e2b4.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/xxHash",
+        "repository": "https://github.com/Cyan4973/xxHash",
+        "revision": "e626a72bc2321cd320e953a0ccf1584cad60f363",
+        "upstream_declared_url": "https://github.com/Cyan4973/xxHash.git",
+        "api_url": "https://api.github.com/repos/Cyan4973/xxHash/git/commits/e626a72bc2321cd320e953a0ccf1584cad60f363",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/Cyan4973/xxHash/archive/e626a72bc2321cd320e953a0ccf1584cad60f363.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "Azahar",
+        "path": "externals/zstd",
+        "repository": "https://github.com/facebook/zstd",
+        "revision": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "upstream_declared_url": "https://github.com/facebook/zstd.git",
+        "api_url": "https://api.github.com/repos/facebook/zstd/git/commits/f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/facebook/zstd/archive/f8745da6ff1ad1e7bab384bd1f9d742439278e99.tar.gz",
+        "archive_contains_nested_submodules": false
+      },
+      {
+        "engine": "librashader",
+        "path": "test/shaders_slang",
+        "repository": "https://github.com/libretro/slang-shaders",
+        "revision": "cef2de6123cccbf0393ed6071ffd6e4a8d092145",
+        "upstream_declared_url": "https://github.com/libretro/slang-shaders",
+        "api_url": "https://api.github.com/repos/libretro/slang-shaders/git/commits/cef2de6123cccbf0393ed6071ffd6e4a8d092145",
+        "public_commit_status": "available",
+        "archive_url": "https://github.com/libretro/slang-shaders/archive/cef2de6123cccbf0393ed6071ffd6e4a8d092145.tar.gz",
+        "archive_contains_nested_submodules": false
+      }
+    ]
+  },
+  "download_observations": [
+    {
+      "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/.index-extended",
+      "status": 200,
+      "bytes": 11554,
+      "sha256": "11a29d6d77194c038254a91f31ceec8acb277464339c1412c6c67d28e65b566c",
+      "headers": {
+        "last_modified": "Wed, 21 Oct 2026 10:21:01 GMT",
+        "etag": null,
+        "content_type": "application/octet-stream"
+      }
+    },
+    {
+      "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/",
+      "status": 200,
+      "bytes": 6392,
+      "sha256": "3e835d0c4aea5c7de465abc59ff6fce4d01caf949df2ffe16a2058d6fdc22542",
+      "headers": {
+        "last_modified": "Wed, 21 Oct 2026 10:21:03 GMT",
+        "etag": null,
+        "content_type": "text/html;charset=utf-8"
+      }
+    },
+    {
+      "url": "https://github.com/azahar-emu/azahar/releases/download/2127.0-alpha1/azahar-unified-source-2127.0-alpha1.tar.xz",
+      "status": 200,
+      "bytes": 43056616,
+      "sha256": "5a45c813fc371f6a1d2721ce614225650728a7d6be22dc52e6b55718534590f9",
+      "headers": {
+        "last_modified": "Sat, 10 Oct 2026 15:59:24 GMT",
+        "etag": "\"0x8DF26E7745B954D\"",
+        "content_type": "application/octet-stream"
+      }
+    },
+    {
+      "url": "https://raw.githubusercontent.com/StikDebug/StikJIT/32287268fa5824f9edce4cb359f5833ce0cf7b00/idevice/libidevice_ffi.a",
+      "status": 200,
+      "bytes": 57017464,
+      "sha256": "4db23fe1d342927b9480bb9a8577f219994365621dc28aa0018e23ea1990ecc8",
+      "headers": {
+        "last_modified": null,
+        "etag": "\"277676ffae7c9f52853c84d9324b20b46296736462e1e216df7eee015bbba7b7\"",
+        "content_type": "application/octet-stream"
+      }
+    },
+    {
+      "url": "https://buildbot.libretro.com/",
+      "status": 200,
+      "bytes": 2931,
+      "sha256": "50c8735d78ac4db5f2aa705549b2076265cd9fdeea8c100c10c056c237b9b51a"
+    },
+    {
+      "url": "https://buildbot.libretro.com/logs/",
+      "error": "HTTP Error 404: Not Found"
+    },
+    {
+      "url": "https://buildserver.libretro.com/",
+      "error": "HTTP Error 503: Service Unavailable"
+    },
+    {
+      "url": "https://buildbot.libretro.com/nightly/apple/ios-arm64/latest/mesen_libretro_ios.dylib.zip",
+      "status": 200,
+      "bytes": 1050687,
+      "sha256": "d1a80910df583c7c0eeca5ea007b5750c523ff462c334bffdac837aa1cebec9c"
+    },
+    {
+      "url": "https://starforgejo.dev/api/v1/repos/projects/MeloNX/git/commits/13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+      "error": "HTTPError: HTTP Error 403: Forbidden"
+    },
+    {
+      "url": "https://starforgejo.dev/api/v1/repos/archive/LibHac_Ryubing/git/commits/23e402ebb6dedc517e34a98a033078dc0f6fd478",
+      "error": "HTTPError: HTTP Error 403: Forbidden"
+    },
+    {
+      "url": "https://ffmpeg.org/releases/ffmpeg-8.1.1.tar.xz",
+      "error": "HTTPError: HTTP Error 503: Service Unavailable"
+    },
+    {
+      "id": "libpng_commit",
+      "url": "https://api.github.com/repos/glennrp/libpng/git/commits/3061454d980de7d53608f594194cfac722721d2a",
+      "status": 200,
+      "final_url": "https://api.github.com/repositories/3768025/git/commits/3061454d980de7d53608f594194cfac722721d2a",
+      "bytes": 1091,
+      "sha256": "e201bc4131de7037c906e110cc2e98517cbedeaee936b0ebb519d1ce7256a397"
+    },
+    {
+      "id": "nestopia_source",
+      "url": "https://codeload.github.com/libretro/nestopia/tar.gz/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3",
+      "status": 200,
+      "final_url": "https://codeload.github.com/libretro/nestopia/tar.gz/135dfa6dfda5e7603d61e751b9ddd0cc42546bc3",
+      "bytes": 1187970,
+      "sha256": "e1a8a853e919cb46a33b48702d703d2e8019d6bc8aff7c3fab88828f8e3c1619"
+    }
+  ],
+  "notice_additions": {
+    "manifest": "assets/legal/engines/license-sources.json",
+    "exact_copied_files": 19,
+    "components": 11,
+    "complete_dependency_notice_inventory_claimed": false
+  },
+  "source_packaging_findings": [
+    "A GitHub automatically generated top-level source archive omits Git submodule contents.",
+    "RPCS3 and Dolphin core workflows do not export consolidated patched engine source trees.",
+    "ARMSX2-host-source is a host repository archive with three-day retention, not the fetched engine/Rust dependency closure.",
+    "StikJIT source-built describes the Swift wrapper; its pinned checkout links a precompiled Rust static library with no recorded exact matching source/lock.",
+    "Nestopia sources and patch are retrievable and verified, but a modified-source collection is not currently emitted by its historical build recipe.",
+    "Azahar provides a genuine unified source archive with submodule contents; its hash and GIT-COMMIT were verified.",
+    "The Libretro shared MoltenVK container commit does not establish the framework upstream source revision.",
+    "NeoSwap source-archive evidence and tests refer to cached GLSL/pixels, not distribution of emulator source code.",
+    "MeloNX modified-source fragments do not alone cover all configuration changes performed by the complete build script."
+  ],
+  "limitations": [
+    "No new engine or app binary was built, executed, modified, signed or published.",
+    "Existing delivery receipts were read; current full IPA payloads were not independently re-downloaded.",
+    "First-level submodule commits were verified, but complete recursive dependency materialization and selected-object license attribution were not exhaustively repeated.",
+    "Source availability and copied license texts do not settle funding restrictions, combined-work compatibility, source-offer conditions or permission to distribute every component.",
+    "Temporary HTTP 403/503 responses are not claims that a project or source archive is permanently unavailable."
+  ],
+  "local_input_sha256": {
+    "build-utils/libretro/cores.json": "1ae616d596408610d6929a1656fc4a5d491fa9266b4578de2b98da95f98b6dd4",
+    "build-utils/libretro/build_cores.py": "cccad8d97e3426181b43cce8a7b56c2dd6645e5e07ac3a1c1d5bc0c203200b05",
+    "build-utils/libretro/add_cores.py": "63f34f05780151ac8b6f960c01ec1023bba44f677289f3bf2d413ffd1639651e",
+    "build-utils/rpcs3/canonical-source.json": "af719967b1fd0f3d0e03f85d52d9628bd6015d4cd0ea41b2fccb2c80721cb1cc",
+    "build-utils/rpcs3/embedded-core.patch": "6a88c3f5046bbbbd52113ba691cc2f9074e4ebc260f195c1e73776a8c9f876e1",
+    "build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch": "8db9dc0e3701069ca3d42c534b2bcd0bba5eea1f21fbd54c466fb454130a9a3f",
+    "build-utils/build_rpcs3_embedded_core.sh": "97446a863b3f99bdcf9c5981fb92a449fd7b4411a4b42f6246da3f05b2b83907",
+    "build-utils/materialize_rpcs3_core.py": "0f06b5befb249a398fa6e22d326f57794979bfa01eae971d7f28cbb2f3933889",
+    "build-utils/apply_rpcs3_llvm_patch.py": "a9a06a9c2d3639b980901585af6456f9fc9a561ec82760bebc78be56a1ebacfc",
+    "build-utils/armsx2/source.json": "430a1baca240181c1bd407bbb3edf1d7a5aa2a00397023f8d42935e8a756e073",
+    "build-utils/armsx2/upstream-files.json": "b6cc6328b6e203cc399a58575a6ab2ddfe4f934ee2aa87d6759e9f2dd9a0feb3",
+    "build-utils/armsx2/neostation-core.patch": "0a309763b7671cc437609ea11948e1a19e35c9e1fe26245fd7d408129ede4d26",
+    "build-utils/armsx2/prepare_source.py": "820e5228b89e089855b9aef0870b913f477dee81c87028390a9891c2c891765c",
+    "build-utils/armsx2/build_core.sh": "f9d85d0c1b443fd88a2fdfa6119c6b838b0aa0189c067fb92765ddb21eeec97f",
+    "packages/armsx2_internal_bridge/core/target.cmake": "8c102a6668e58681de645ad596a8064137d758b983fc5769529904d9c741ec67",
+    "build-utils/patch_dolphin_internal_core_v2.py": "0526b54464ab3827af75bb1f022fff2df96f5f69955aada4512f239be6f48a20",
+    "packages/dolphin_internal_bridge/ci/build_support.py": "87abcfc22a1f2b95fc0be8a89a71c2e670612c9f4346164713b465715fb8918b",
+    "build-utils/prepare_fast_native_runtime.py": "4f28955c76ec00bdb6a15622c666493ea11486ceb5076b6b9df24f7847971861",
+    "build-utils/stikjit/source.json": "45e2d364bcfd7aaf07916af0355d69c736134366b7adac8707e20146cb3e0397",
+    "build-utils/build_patched_stikjit.py": "0e3d1b19cd2ebc85c545817219032cc6f6e7d5474125889dec229a6f35764c18",
+    "build-utils/patch_stikjit_compat.py": "96efa9905839e8237f1423d34eabfd9b9d4abe0576cab6314115fc7dc1b6cb7a",
+    "build-utils/patch_stikjit_rpcs3.py": "ee6fb7e91a95aa158691d7933afc31d0de99012351dc81b00145af6c43eac7c3",
+    "build-utils/install_patched_stikjit.py": "672a15c26b70cb4353aa988778e04554b9f51ff365b340b368eb3e8b79d7ab84",
+    "native/nestopia/source.json": "ae52ab03ead7b1a3bd602583daa04b14e10714cfaeec8b1463dabc61cb0f8270",
+    "native/nestopia/reset-background.patch": "53847d26b0f914e6fe7ae00415a91f93a5d9573a78453b4947b752b0f9e10d59",
+    ".github/diagnostics/nestopia_bgcolor/build.py": "501b330d79e69fe28d891fc75d9b6a9006063bee777057c4053ed81379accb0d",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "build-utils/melonx/build_core.sh": "a75d653b593654188807e91b1ba0a5f06eafb85621c147b94819f6a8f3729413",
+    "build-utils/melonx/prepare_embedded.py": "98ba5437c58582b8391dd03bb07670b739dcd3def84bf87d9acab19e7fcce15e",
+    "build-utils/melonx/build_libhac.py": "8477b495ad4a88855d73e847c74ac976ef9621b8536dd3ac1d539381cd79d677",
+    ".github/workflows/rpcs3-core.yml": "1fb0c153ed6ad3f4531affa7687d287325c222b50d3d188393ad4e539cacd817",
+    ".github/workflows/armsx2-core.yml": "676bb5b552678f31c48ee7ea9f91b0823a6c48bcbe6b125dd4887fcf91dbe282",
+    ".github/workflows/dolphin-core.yml": "83048cc98e7837e31e11132400f02cf11fbf7f37674c4d2f20685ca793972168",
+    "docs/evidence/build479-libretro-source-identity.json": "0bdf81b605c550ef7f5c47c49abaecdc46dbeabeb1602a124b41d6a0537d93b5",
+    "docs/evidence/build479-core-version-candidates.json": "a2d283855b75f306f8d63e351d89e83af8dcb5233b6ee8b3536c211236f73a5f",
+    "docs/evidence/psprelaunch497-delivery.json": "96979a3636a1f291eab35452b4bd1f5543d57ad510a64ef98e5eecb6ecd99bbc",
+    "docs/evidence/rpcs3audit499-core.json": "2361dea819ffec6e01c02a03b11ef381625779bdb8e8075097c7982b59521cbf",
+    "docs/evidence/ps1rpcs3500-delivery.json": "9b4d174c35f69a3338421f23b68d007a49e6b7b72d3bbcfb04acd80b48397a9e",
+    "docs/evidence/hdtex485-delivery.json": "23547dab9c7c46398169066d812af588f219fff0a014b827d8b512bf9b2c2ade",
+    "docs/evidence/hdtex488-delivery.json": "897ba285dc900a02b0b2685c6164859ad382f5870f6af8c43c98aa7f91b3ab2a",
+    "docs/evidence/hdtex489-delivery.json": "0df2aa69d7ff7179d92a0fa56bda957b075756dfc2b7d0879be7987a5f8d415c",
+    "docs/evidence/melonx-native-dependencies-2026-10-20.json": "f708cd58b5fd7d5fec32f6fd4e43ce94693e1b1e6fce778d8ea2fd9ea51efd1a",
+    "docs/evidence/melonx-native-session-2026-10-20.json": "8933c6512cd6a1448c174b6601136fc46b21f483d8b1f8b0fe03d179cf00edab",
+    "assets/legal/engines/license-sources.json": "714d00d4ba429f1348328a385488382cb302d157c416e128753ae362b4c8f200",
+    "assets/legal/libretro/license-sources.json": "432b402687b9dd1cd1c7c3ea9037a670325a9aa6954e626e9668d6346b62760a"
+  }
+}

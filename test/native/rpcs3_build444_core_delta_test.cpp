@@ -21,10 +21,12 @@ std::uint64_t fake_now() noexcept { return g_clock; }
 int main()
 {
 	using namespace jit_phase;
-	static_assert(count == 12);
+	// Build 444 defined twelve phases; Build 481 appends three SPU object cache phases.
+	static_assert(count == 15);
 	static_assert(sizeof(names) / sizeof(names[0]) == count);
 	assert(std::strcmp(names[ppu_translate], "ppu_translate") == 0);
 	assert(std::strcmp(names[spu_codegen], "spu_codegen") == 0);
+	assert(std::strcmp(names[spu_cache_write], "spu_cache_write") == 0);
 
 	// Fresh registry: everything zero, no headroom sample, min reported as zero.
 	auto empty = g_counters.exchange();

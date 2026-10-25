@@ -113,6 +113,40 @@ class ScreenscraperMediaDownloader {
     }
   }
 
+  /// The "box faces" setting stands for the three ScreenScraper types of the
+  /// 3D box: back, spine and support (docs/game-box-3d.md § 5).
+  static const List<String> boxFaceTypes = ['box-2D-back', 'box-2D-side', 'support-2D'];
+
+  /// Media types to download for the enabled settings, in order, once each.
+  static List<String> expandMediaTypes(List<String> enabled) {
+    final out = <String>[];
+    for (final type in enabled) {
+      for (final t in type == 'boxFaces' ? boxFaceTypes : [type]) {
+        if (!out.contains(t)) out.add(t);
+      }
+    }
+    return out;
+  }
+
+  /// Downloads one media to [fullPath] with the scrape's own validation,
+  /// atomic write and removal of other-extension siblings (3D box faces,
+  /// docs/game-box-3d.md § 6).
+  static Future<bool> downloadValidatedMedia(
+    String url,
+    String fullPath, {
+    required String mediaType,
+    bool forceOverwrite = false,
+  }) async {
+    final outcome = await _downloadMediaFileSmart(
+      url,
+      path.basename(fullPath),
+      path.dirname(fullPath),
+      mediaType: mediaType,
+      forceOverwrite: forceOverwrite,
+    );
+    return outcome.success;
+  }
+
   /// Returns whether an on-disk media file matches the expected media type.
   static Future<bool> isValidMediaFile(File file, String mediaType) async {
     try {
@@ -240,8 +274,9 @@ class ScreenscraperMediaDownloader {
 
     final userDataDir = await ScreenscraperMediaResolver.getMediaDirectory();
     final regionPriority = await ScreenscraperRegionConfig.getRegionPriority();
-    final mediaTypes =
-        allowedMediaTypes ?? ['fanart', 'ss', 'video', 'wheel', 'box2D'];
+    final mediaTypes = expandMediaTypes(
+      allowedMediaTypes ?? ['fanart', 'ss', 'video', 'wheel', 'box2D'],
+    );
 
     final downloadTasks = <Map<String, dynamic>>[];
     for (final mediaType in mediaTypes) {

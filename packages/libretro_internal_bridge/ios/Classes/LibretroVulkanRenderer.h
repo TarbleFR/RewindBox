@@ -58,6 +58,12 @@ typedef void (^LibretroVulkanFrameHandler)(const void *pixels, unsigned width, u
                                        layer:(CAMetalLayer *)layer;
 
 + (unsigned)negotiationVersionForType:(enum retro_hw_render_context_negotiation_interface_type)type;
+
+/// Optimal-tiling features (VkFormatFeatureFlags) MoltenVK reports for
+/// `format` (a VkFormat) on the GPU `prepare:` takes, read from a throwaway
+/// instance (no core, no device) and kept for the process once known. NO
+/// when MoltenVK or the instance is unavailable (`prepare:` would fail too).
++ (BOOL)optimalTilingFeatures:(uint32_t *_Nullable)features ofFormat:(uint32_t)format;
 - (BOOL)setNegotiationInterface:(const struct retro_hw_render_context_negotiation_interface *)negotiation;
 
 /// Set before `prepare:`. While nil, handed-off frames are dropped.

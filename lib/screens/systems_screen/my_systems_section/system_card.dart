@@ -12,6 +12,8 @@ import 'package:flutter/foundation.dart';
 import '../../../themes/corner_radii.dart';
 import '../../../themes/chrome_surface.dart';
 import '../../../widgets/neo_glass.dart';
+import '../../../widgets/neo_glass_bubble.dart';
+import '../../../widgets/console_bubble_transition.dart';
 import '../../../widgets/shaders/shader_gif_widget.dart';
 import '../../../widgets/shaders/music_card_shader_background.dart';
 import '../../../utils/image_utils.dart';
@@ -29,6 +31,7 @@ class SystemCard extends StatefulWidget {
     this.onTap,
     this.isSelected = false,
     this.backgroundCacheWidth = 512,
+    this.carouselArtworkOnly = false,
   });
 
   /// The system or game metadata resolved for this card.
@@ -43,6 +46,9 @@ class SystemCard extends StatefulWidget {
   /// Decode width for the card's background image. Defaults to 512 (grid
   /// cards); the carousel passes 1024 since its cards are much larger.
   final int backgroundCacheWidth;
+
+  /// Carousel artwork is already branded; never append the grid logo/footer.
+  final bool carouselArtworkOnly;
 
   @override
   State<SystemCard> createState() => _SystemCardState();
@@ -208,24 +214,18 @@ class _SystemCardState extends State<SystemCard> {
           : neoAssets.getBackgroundForSystemSync(folderName);
     }
 
-    return Padding(
+    if (widget.carouselArtworkOnly) return _buildCarouselArtwork(context);
+
+    final card = Padding(
       padding: EdgeInsets.all(2.r),
       child: MouseRegion(
         cursor: SystemMouseCursors.basic,
-        child: NeoGlass(
-          role: GlassSurfaceRole.card,
-          // The systems screen can display many cards simultaneously. A
-          // BackdropFilter per card was the source of the navigation slowdown,
-          // so cards use the lightweight glass path: transparent tint + rim.
-          enableBackdropBlur: false,
-          showSheen: false,
-          borderRadius:
-              Theme.of(context).extension<CornerRadii>()?.radiusExternal ??
-              BorderRadius.circular(14.r),
+        child: _surface(
           child: ClipRRect(
-            borderRadius:
-                Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
-                BorderRadius.circular(9.r),
+            borderRadius: widget.info.isGame
+                ? Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
+                      BorderRadius.circular(9.r)
+                : BorderRadius.circular(27.r),
             child: InkWell(
               focusNode: _focusNode,
               onTap: () {
@@ -284,6 +284,114 @@ class _SystemCardState extends State<SystemCard> {
         ),
       ),
     );
+    if (widget.info.isGame) return card;
+    return ConsoleBubbleAnchor(
+      identity: widget.info.folderName ?? widget.info.title ?? 'all',
+      selected: widget.isSelected,
+      child: NeoBubbleMotion(
+        selected: widget.isSelected,
+        float: true,
+        child: card,
+      ),
+    );
+  }
+
+  Widget _buildCarouselArtwork(BuildContext context) {
+    final hasArtwork =
+        widget.info.customBackgroundPath?.isNotEmpty == true ||
+        _themeBackgroundPath?.isNotEmpty == true;
+    return Semantics(
+      key: ValueKey('console-artwork-${widget.info.folderName}'),
+      button: true,
+      selected: widget.isSelected,
+      label: widget.info.title,
+      child: ConsoleBubbleAnchor(
+        identity: widget.info.folderName ?? widget.info.title ?? 'all',
+        selected: widget.isSelected,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24.r),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: widget.isSelected ? .42 : .22,
+                ),
+                blurRadius: 18.r,
+                offset: Offset(0, 8.r),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24.r),
+            child: Material(
+              color: Theme.of(context).colorScheme.surface,
+              child: InkWell(
+                canRequestFocus: false,
+                onTap: () {
+                  if (widget.isSelected) {
+                    SfxService().playEnterSound();
+                  } else {
+                    SfxService().playNavSound();
+                  }
+                  widget.onTap?.call();
+                },
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildSystemBackground(),
+                    if (widget.info.isGame)
+                      _buildGameMainContent(context)
+                    else if (!hasArtwork)
+                      Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(18.r),
+                          child: _buildSystemLogo(
+                            widget.info.svgSrc ??
+                                'assets/images/logos/unknown.webp',
+                            height: 56.r,
+                          ),
+                        ),
+                      ),
+                    IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24.r),
+                          border: Border.all(
+                            color: Colors.white.withValues(
+                              alpha: widget.isSelected ? .7 : .18,
+                            ),
+                            width: widget.isSelected ? 1.5 : .7,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _surface({required Widget child}) {
+    if (widget.info.isGame) {
+      return NeoGlass(
+        role: GlassSurfaceRole.card,
+        enableBackdropBlur: false,
+        showSheen: false,
+        borderRadius:
+            Theme.of(context).extension<CornerRadii>()?.radiusExternal ??
+            BorderRadius.circular(14.r),
+        child: child,
+      );
+    }
+    return NeoGlassBubble(
+      selected: widget.isSelected,
+      radius: 30.r,
+      child: child,
+    );
   }
 
   /// Orchestrates background rendering, selecting between static images,
@@ -333,7 +441,7 @@ class _SystemCardState extends State<SystemCard> {
         child: ClipRRect(
           borderRadius:
               Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
-              BorderRadius.circular(9.r),
+              BorderRadius.circular(widget.info.isGame ? 9.r : 25.r),
           child: Container(
             color: Theme.of(context).colorScheme.surface,
             child: ShaderGifWidget(
@@ -351,7 +459,7 @@ class _SystemCardState extends State<SystemCard> {
         child: ClipRRect(
           borderRadius:
               Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
-              BorderRadius.circular(9.r),
+              BorderRadius.circular(widget.info.isGame ? 9.r : 25.r),
           child: Container(
             color: Theme.of(context).colorScheme.surface,
             child: ShaderGifWidget(
@@ -373,14 +481,15 @@ class _SystemCardState extends State<SystemCard> {
       child: ClipRRect(
         borderRadius:
             Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
-            BorderRadius.circular(9.r),
+            BorderRadius.circular(widget.info.isGame ? 9.r : 25.r),
         child: hasActiveBg
             ? Image.file(
                 File(activeBgPath),
                 key: ValueKey('${activeBgPath}_${widget.info.imageVersion}'),
                 fit: BoxFit.cover,
                 cacheWidth: widget.backgroundCacheWidth,
-                errorBuilder: (context, error, stackTrace) => _buildBundledBackground(),
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildBundledBackground(),
               )
             : _buildBundledBackground(),
       ),
@@ -388,10 +497,6 @@ class _SystemCardState extends State<SystemCard> {
   }
 
   Widget _buildBundledBackground() {
-    if (!widget.info.isGame && widget.info.folderName == 'ports') {
-      return Image.asset('assets/images/ports-gaming.webp',
-        fit: BoxFit.cover, cacheWidth: widget.backgroundCacheWidth);
-    }
     return Container(color: widget.info.color1AsColor?.withValues(alpha: 0.26));
   }
 
@@ -480,7 +585,7 @@ class _SystemCardState extends State<SystemCard> {
               color: Theme.of(context).colorScheme.secondary,
               borderRadius:
                   Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
-                  BorderRadius.circular(9.r),
+                  BorderRadius.circular(widget.info.isGame ? 9.r : 25.r),
             ),
             child: Text(
               AppLocale.recentBadge.getString(context),
@@ -559,13 +664,32 @@ class _SystemCardState extends State<SystemCard> {
       child: Container(
         alignment: Alignment.center,
         padding: EdgeInsets.only(top: 1.r, bottom: 1.r, left: 2.r, right: 2.r),
-        child: FittedBox(
-          fit: BoxFit.contain,
-          child: _buildSystemLogo(
-            assetLogoPath,
-            height: 128.r,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+        child: Column(
+          children: [
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: _buildSystemLogo(
+                  assetLogoPath,
+                  height: 128.r,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.only(bottom: 3.r, left: 5.r, right: 5.r),
+              child: Text(
+                widget.info.title ?? widget.info.shortName ?? '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 8.r,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

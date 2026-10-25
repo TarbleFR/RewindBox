@@ -1,0 +1,1362 @@
+[
+ {
+  "console": "psp",
+  "source": "LegoBatmanUpscale.zip (https://drive.google.com/file/d/15BzNRuXFd_yYJ61BLcA6dNnPa3vYnZw1/view?usp=sharing)",
+  "reason": "LEGO Batman AI upscale: the author's archive holds a damaged PNG (09b0dbb024c4c5595ca88f64.png, wrong signature), which NeoStation refuses to install (host run 39278264111)."
+ },
+ {
+  "console": "3ds",
+  "source": "hd_portaitsver2_max.7z (https://gamebanana.com/dl/507220)",
+  "reason": "Etrian Odyssey Nexus portraits v2: superseded by v3 of the same pack (an older version is not counted)."
+ },
+ {
+  "console": "3ds",
+  "source": "Latest-Rollup.7z (https://www.dropbox.com/scl/fi/abwjqas645nuvm80oc4r0/Latest-Rollup.7z?rlkey=1xk5k4gyys4knto17qwir5lzj&st=thnngf44&dl=0)",
+  "reason": "Monster Hunter 4 Ultimate HD 'Latest-Rollup': an update of the 11.6 GB base pack, made to be copied over it; installed alone it would replace the base pack."
+ },
+ {
+  "console": "3ds",
+  "source": "aaxd_optional_extras_11-25-24.zip (https://gamebanana.com/dl/1329882)",
+  "reason": "Fire Emblem Awakening \"Amateur Awakening XD\" optional extras: add-on files of a game modification that needs its own base installation."
+ },
+ {
+  "console": "3ds",
+  "source": "aahd_optional_files_2-24-25_.zip (https://gamebanana.com/dl/1388289)",
+  "reason": "Fire Emblem Awakening \"Amateur Awakening HD\" optional files: add-on files of a game modification that needs its own base installation."
+ },
+ {
+  "console": "3ds",
+  "source": "S120 (3ds.txt) Fire Emblem Awakening — Expanded XD :: aaxd_11-25-24.zip (https://gamebanana.com/dl/1329881)",
+  "reason": "Fire Emblem Awakening \"Expanded XD\": a RomFS game modification (.lz game files), not custom textures."
+ },
+ {
+  "console": "3ds",
+  "source": "mgs3dpart2.zip (https://gamebanana.com/dl/456757)",
+  "reason": "Metal Gear Solid 3D HD Edition part 2: one part of a split download; the pack is not usable from this part alone."
+ },
+ {
+  "console": "gc/wii",
+  "source": "TLS_UHD_TexturePack_Patch1.7z (https://mega.nz/file/puNXmKTB#CU9B_VtjeFQWefvrPi8xum9yJw_GPJ5QRPV0MDPdBQE)",
+  "reason": "The Last Story UHD patch 1: an update of a pack published as a multi-volume 7z (.7z.001, .7z.002), which the installers do not read."
+ },
+ {
+  "console": "gc/wii",
+  "source": "NAAE01.7z (https://www.dropbox.com/s/2dn7oto8n8syjbm/NAAE01.7z?dl=0)",
+  "reason": "GhostlyDark's SM64 Reloaded (Dropbox): the same pack is already in the catalogue from its GitHub releases (wii-sm64-reloaded-*)."
+ },
+ {
+  "console": "3ds",
+  "source": "dq8-4xhd_patch_110.zip (https://gamebanana.com/dl/1124052)",
+  "reason": "Dragon Quest VIII HD 4x patch 1.10: an update of the base pack, which was not verified."
+ },
+ {
+  "console": "3ds",
+  "source": "dq8-2xhd_patch_110_c9d7f.zip (https://gamebanana.com/dl/1124053)",
+  "reason": "Dragon Quest VIII HD 2x patch 1.10: an update of the base pack, which was not verified."
+ },
+ {
+  "console": "gc",
+  "source": "texture_editors_srdx_hd_texture_pack_v2_reference_pngs.7z (https://gamebanana.com/dl/858147)",
+  "reason": "Sonic Riders DX V2 reference PNGs for texture editors: the same pack as its DDS releases, kept for editing; not listed again."
+ },
+ {
+  "console": "psp",
+  "source": "VC3_ReTL_texture_addon.zip (https://github.com/steccas/vc3-ee-retranslation-hd-texture-pack/releases/download/v1/VC3_ReTL_texture_addon.zip)",
+  "reason": "Valkyria Chronicles 3 Extra Edition ReTranslation texture add-on: one of the four parts (7.3 GB) of steccas' release, which also redistributes efonte's pack; it stays a manual link (psp-valkyria-chronicles-3-ee-retranslation-steccas)."
+ },
+ {
+  "console": "gc",
+  "source": "GCEE41_UHD Texture.7z (https://mega.nz/file/TPJB0bQA#PZ1hXFwmlAD4qY2u9SDN5gm7PPrQMaRfkimHf9Mf2Os)",
+  "reason": "Tom Clancy's Splinter Cell UHD: a 7z with a 768 MiB LZMA2 dictionary; NeoStation's extractor allows 256 MiB so that it fits in an iPhone's memory, and refuses it (host run 39285447608). A repack with a smaller dictionary would be needed."
+ },
+ {
+  "console": "gc",
+  "source": "SSX.TRICKY-HD.TEXTURES-WiP1.7z (https://drive.google.com/file/d/1mMzvu6Hl2u8kECy1cFe_5ALyo59JOIxK/view)",
+  "reason": "SSX Tricky HD WiP1: a 7z with a 1,536 MiB LZMA2 dictionary; NeoStation's extractor allows 256 MiB (iPhone memory) and refuses it (host run 39285456991)."
+ },
+ {
+  "console": "wii",
+  "source": "PaperMario64HD_v1.3.zip (https://mega.nz/file/PnBSHTAA#GCwY6zfvBidqZSMFQat0XaX61wia7LlJHUCU9GmZ4FU)",
+  "reason": "Paper Mario 64 HD v1.3: a ZIP compressed with LZMA, a method NeoStation's ZIP reader does not support (deflate and store only); refused (host run 39285456991)."
+ },
+ {
+  "console": "wii",
+  "source": "Xbox One Controller.7z (https://www.dropbox.com/s/6hkkjl1pgnk40q9/Xbox%20One%20Controller.7z?dl=0)",
+  "reason": "Super Smash Bros. HD Retexture Project: Xbox One button add-on (16 files, no game folder); the base pack itself was not reachable."
+ },
+ {
+  "console": "gc",
+  "source": "GMS - FULL.7z (https://drive.google.com/file/d/1W8wEcak_SLKkPxUmVcyx5UuJ6YcxG8X8/view?usp=sharing)",
+  "reason": "razius' Super Mario Sunshine hires pack: the earlier release of the UHD pack already catalogued from its continuation (qashto's GitHub releases); an older version is not counted."
+ },
+ {
+  "console": "gc",
+  "source": "GMS MipMaps.7z (https://drive.google.com/file/d/1MLVO6DqN76EfsPQHjrYkmDFD-xpP0jZz/view?usp=sharing)",
+  "reason": "razius' Super Mario Sunshine mipmaps: an add-on of the same earlier release."
+ },
+ {
+  "console": "wii",
+  "source": "NSMBW_HD_v2.8_PNG.7z (https://mega.nz/#!LiBBAIYS!RPWMYygIfRN6rDnL4gqWRUy311AI8CxXG7Fwjq7ax_E)",
+  "reason": "Bighead's NSMBW HD v2.8 re-posted on Moukrea's thread: older than v2.81, already catalogued."
+ },
+ {
+  "console": "gc",
+  "source": "DC Texture Pack Bonus.zip (https://drive.google.com/file/d/1jMunp76lAoSlT2-Kc0BD-icGC0WyHXLl/view)",
+  "reason": "San Francisco Rush 2049 bonus files (music, alternate cars, editor files): no game folder."
+ },
+ {
+  "console": "wii",
+  "source": "xbox_controls.zip (https://gamebanana.com/dl/1143414)",
+  "reason": "Sonic and the Black Knight Xbox controls: a Dolphin controller profile, no texture."
+ },
+ {
+  "console": "gc",
+  "source": "Paper Mario TTYD Blue Boshi Alt  by Thym.zip (https://drive.google.com/file/d/11GJ1oecEPDSRa8ogG9mMdjs30SZfH26F/view)",
+  "reason": "Paper Mario TTYD \"Blue Boshi\" alternative: add-on replacing files of the TTYD community pack in the same game folder."
+ },
+ {
+  "console": "gc",
+  "source": "Paper Mario TTYD Christmas Alts by Thym.zip (https://drive.google.com/file/d/1KAzvM_e1r9U9K5IeoM9byb-zzGwakRah/view)",
+  "reason": "Paper Mario TTYD Christmas alternatives: add-on replacing files of the TTYD community pack in the same game folder."
+ },
+ {
+  "console": "gc",
+  "source": "Paper Mario TTYD Dark Bowser Alt by Thym.zip (https://drive.google.com/file/d/18NyQlLYGWeL15jHGn0ARaP6K_sudtrO-/view)",
+  "reason": "Paper Mario TTYD Dark Bowser alternative: add-on replacing files of the TTYD community pack in the same game folder."
+ },
+ {
+  "console": "gc",
+  "source": "Paper Mario TTYD Glitzville Alternate Posters by viola-kazooie.zip (https://drive.google.com/file/d/1V2wgHBwG7KOkQ7Oye4YTnYIaYHIBRwUl/view)",
+  "reason": "Paper Mario TTYD Glitzville posters: add-on replacing files of the TTYD community pack in the same game folder."
+ },
+ {
+  "console": "3ds",
+  "source": "3.01.7z (https://drive.google.com/file/d/1ViQcqgxB_z4Am0kHyvmTkh3AA6ALk6oh/view)",
+  "reason": "Monster Hunter 4 Ultimate HD 3.01: an incremental update of v3.0 without a title folder, made to be copied over it."
+ },
+ {
+  "console": "3ds",
+  "source": "3.02.7z (https://drive.google.com/file/d/1dJo2m1JG_QBtHcjDLf08-9uQQrjY5HYl/view)",
+  "reason": "Monster Hunter 4 Ultimate HD 3.02: an incremental update of v3.0 without a title folder, made to be copied over it."
+ },
+ {
+  "console": "3ds",
+  "source": "3.03.7z (https://drive.google.com/file/d/1tTnNJA2PIBscYoYL3Pndi8pTKtEmymue/view)",
+  "reason": "Monster Hunter 4 Ultimate HD 3.03: an incremental update of v3.0 without a title folder, made to be copied over it."
+ },
+ {
+  "console": "gc",
+  "source": "Ma Party Shared 4-7 HD.7z (https://mega.nz/folder/q1tkWSTZ#eTtBixQ40IaBYmP_s8kDEA/file/Ds83mCAT)",
+  "reason": "Mario Party Shared 4-7 HD: textures shared by four game packs, a dependency of each (one pack folder per game)."
+ },
+ {
+  "console": "psp",
+  "source": "new-20220907-comlete.zip (https://mega.nz/folder/mhhyWRgL#g2FzgUTfoKEQx5Eb0BVc5w/file/jsp2SYjB)",
+  "reason": "Unidentified MEGA folder file (bare hashed PNG names, no textures.ini, no page): the game cannot be established."
+ },
+ {
+  "console": "3ds",
+  "source": "devil_survivor_overclocked_hd_addon.zip (https://gamebanana.com/dl/1154178)",
+  "reason": "Devil Survivor Overclocked HD add-on: files meant to be added to another pack, without a title-ID folder."
+ },
+ {
+  "console": "3ds",
+  "source": "Misc.zip (https://drive.google.com/file/d/1ibzv8vwcxRrNKEzvHP9vVP_AzOF5KFXH/view)",
+  "reason": "Shin Megami Tensei IV (Kasaski) 'Misc': four loose textures, one part of a pack published in several files."
+ },
+ {
+  "console": "wii",
+  "source": "hgw6ge.zip (https://gamebanana.com/dl/1258539)",
+  "reason": "Dokapon Kingdom (berryface) \"hgw6ge\": a file of unstated content beside the TripleBaka textures; not catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "2500jq.zip (https://gamebanana.com/dl/1258540)",
+  "reason": "Dokapon Kingdom (berryface) \"2500jq\": a file of unstated content beside the TripleBaka textures; not catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "hawuia.zip (https://gamebanana.com/dl/1258542)",
+  "reason": "Dokapon Kingdom (berryface) \"hawuia\": a file of unstated content beside the TripleBaka textures; not catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "triplebakav4.zip (https://gamebanana.com/dl/1258544)",
+  "reason": "Dokapon Kingdom TripleBaka textures v4: an older version of v6, which is catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "v5_triplebakatextures.zip (https://gamebanana.com/dl/1262709)",
+  "reason": "Dokapon Kingdom TripleBaka textures v5: an older version of v6, which is catalogued."
+ },
+ {
+  "console": "3ds",
+  "source": "psychicspecters.7z (https://gamebanana.com/dl/915218)",
+  "reason": "Yo-kai Watch 2: Psychic Specters HD (earlier upload of the same pack, 432 MB): the later upload is catalogued."
+ },
+ {
+  "console": "gc",
+  "source": "ac_hd_texture_pack_-_jan_26_2022.zip (https://gamebanana.com/dl/875424)",
+  "reason": "Animal Crossing HD texture pack (Jan 26 2022, WhoDaDev, GameBanana): possibly the same project as brackenhawk's ACHD; not catalogued until its origin is clear."
+ },
+ {
+  "console": "wii",
+  "source": "nsmb_xbox_ui_e1010.zip (https://gamebanana.com/dl/1037424)",
+  "reason": "New Super Mario Bros. Wii button prompts for the PAL disc (SMNP01): the region-free editions of the same author are catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "nsmb_switch_ui.zip (https://gamebanana.com/dl/1037423)",
+  "reason": "New Super Mario Bros. Wii button prompts for the PAL disc (SMNP01): the region-free editions of the same author are catalogued."
+ },
+ {
+  "console": "wii",
+  "source": "nsmb_playstation_ui_5b4f2.zip (https://gamebanana.com/dl/1037428)",
+  "reason": "New Super Mario Bros. Wii button prompts for the PAL disc (SMNP01): the region-free editions of the same author are catalogued."
+ },
+ {
+  "console": "psp",
+  "source": "StarWarsFaceliftV1.zip (https://drive.google.com/file/d/16OeJUe-jkzro3tvFpcDQ4ctdYSHfBrJ2/view?usp=sharing)",
+  "reason": "Star Wars Battlefront II interface facelift (jcoolarts): 66 textures with no textures.ini, which the app requires for a PPSSPP pack (host run 39295194320, missingIni)."
+ },
+ {
+  "console": "psp",
+  "source": "textures HD valkyria Chronicles 3.7z (https://drive.google.com/file/d/1HopnQu12Di8A1Lp5cdss38a08Jqsm_9f/view?usp=sharing)",
+  "reason": "Valkyria Chronicles 3 Extra Edition AI upscaled (efonte): a file of seven textures from his thread, not the pack; his full pack is part of steccas' ReTranslation release, listed as a link."
+ },
+ {
+  "console": "psp",
+  "source": "ULUS10566 - 3112021.zip (https://drive.google.com/file/d/1nAVp-ypbzBumA9-1AjGUFcUzPfJ125vY/view?usp=sharing)",
+  "reason": "Dissidia 012 HD Retexture (PPSSPP forum, 3 November 2021 upload): an earlier release of Niosai's pack, whose GitHub repository (D012FFRT) is catalogued."
+ },
+ {
+  "console": "psp",
+  "source": "ULUS10566.zip (https://drive.google.com/file/d/1YjaH1YoUVmA3aNFRtka6MQp8tcUQ27gr/view?usp=sharing)",
+  "reason": "Dissidia 012 HD Retexture (PPSSPP forum, full upload): an earlier release of Niosai's pack, whose GitHub repository (D012FFRT) is catalogued."
+ },
+ {
+  "console": "psp",
+  "source": "Fix Textures ID COO.7z (https://drive.google.com/file/d/19OTCgPEy4pbOza71Q7uJGGe7VknLauH1/view?usp=sharing)",
+  "reason": "God of War: Chains of Olympus \"Fix Textures ID\": a textures.ini only, no texture."
+ },
+ {
+  "console": "psp",
+  "source": "TEXTURES.zip (https://drive.google.com/file/d/1KIWf3KLd5AgfSxkRi808_M0J1FZM6btP/view?usp=sharing)",
+  "reason": "Yu-Gi-Oh! GX Tag Force 3 HD Cards: 228 card images named by card number with no textures.ini to map them (the archive's optional cards and a game settings file)."
+ },
+ {
+  "console": "gc",
+  "source": "CUSTOM.ROBO-HD.TEXTURES-RELEASE.7z (https://drive.google.com/file/d/1vU5hHBUjiRVciBFykZ-7ZnnwG6n9Ohls/view)",
+  "reason": "Custom Robo HD, finished release: a 10.7 GB 7z beyond what the app installs (host run 39302744958: limits); the work-in-progress pack stays."
+ },
+ {
+  "console": "gc",
+  "source": "The_Dolphin_Communitys_PM_TTYD_HD_Texture_Pack_v2.5.zip (https://drive.google.com/file/d/1hu-MS2MkyynPyjEJbwlNYjKBHuJ86BVY/view?usp=drive_link)",
+  "reason": "Paper Mario TTYD HD v2.5, Google Drive ZIP: a Dolphin resource-pack copy (textures/G8M) of the DDS edition already catalogued."
+ },
+ {
+  "console": "gc",
+  "source": "optional_versions_.7z (https://gamebanana.com/dl/858148)",
+  "reason": "Sonic Riders DX texture pack V2, optional versions: alternatives for some textures of the catalogued pack, not a pack of their own."
+ },
+ {
+  "console": "gc",
+  "source": "Switch Button Layout Patch (Optional).zip (https://drive.google.com/file/d/1D746CjhSIRKqXkCPoCt_-XeCjyzcFFLi/view?usp=sharing)",
+  "reason": "Super Mario Sunshine 4K, Switch button layout patch: an optional add-on of Henriko Magnifico's pack (catalogued)."
+ },
+ {
+  "console": "3ds",
+  "source": "aahd_map_for_cfw_6-19-24.zip (https://gamebanana.com/dl/1219483)",
+  "reason": "Fire Emblem Awakening, Amateur Awakening HD map for custom firmware: a RomFS file, not a texture pack."
+ },
+ {
+  "console": "3ds",
+  "source": "cheats.zip (https://www.dropbox.com/scl/fo/mx5vg05s5toilhx82qwd8/AK7M_SEh7VRN2fRyD7NZjnw?rlkey=oj5aix8jpstjrzot4p2ezl7h3&st=0xkp4a3x&dl=0)",
+  "reason": "Monster Hunter 4 Ultimate HD v3.0 thread, cheats.zip: cheat codes, not textures."
+ },
+ {
+  "console": "wii",
+  "source": "bloom.zip (https://gamebanana.com/dl/920299)",
+  "reason": "Sonic and the Black Knight HD thread, bloom.zip: a game-ID marker only, no texture."
+ },
+ {
+  "console": "gc",
+  "source": "g9se8p_ef626.zip (https://gamebanana.com/dl/778319)",
+  "reason": "Sonic Heroes HD (Hime6564): the author's archive holds a damaged DDS file (tex1_64x64_m_ccf9aba081e5c4f4_14.dds, wrong signature), which NeoStation refuses to install (host run 39308850492); the earlier uploads of the page are older versions."
+ },
+ {
+  "console": "gc",
+  "source": "hd_overhaul_9240f.7z (https://gamebanana.com/dl/1143178)",
+  "reason": "Sonic Unleashed HD Overhaul (GabiShy): at verification GameBanana served another file (23 MB, a different SHA-256) under the probed link (host run 39308850492): not verifiable."
+ },
+ {
+  "console": "3ds",
+  "source": "hd_ui.zip (https://gamebanana.com/dl/1762757)",
+  "reason": "Monster Hunter 3 Ultimate HD UI: Cemu (Wii U) texture files, not a 3DS pack."
+ },
+ {
+  "console": "3ds",
+  "source": "ps-ultrawide-03-1.zip (https://gamebanana.com/dl/1771672)",
+  "reason": "Monster Hunter 3 Ultimate ultrawide UI: Cemu (Wii U) texture files, not a 3DS pack."
+ },
+ {
+  "console": "gc",
+  "source": "ttyd_lgbtq_partner_pack.zip (https://gamebanana.com/dl/808954)",
+  "reason": "Paper Mario TTYD partner sprites (63 textures, no game folder): a cosmetic edit, not an HD pack."
+ },
+ {
+  "console": "gc",
+  "source": "male_wii_fit_trainer_csproject.zip (https://gamebanana.com/dl/1346589)",
+  "reason": "Super Smash Bros. Brawl costume: game files (.pac/.pcs), not Dolphin texture replacement."
+ },
+ {
+  "console": "psp",
+  "source": "parappa_hd_xbox_buttons_7d895.zip (https://gamebanana.com/dl/1585852)",
+  "reason": "PaRappa HD Xbox buttons: four textures (a PSP mod on a GameCube/Wii search)."
+ },
+ {
+  "console": "3ds",
+  "source": "fates_hd_additions_7-15-24.zip (https://gamebanana.com/dl/1237255)",
+  "reason": "Fire Emblem Fates HD additions: an add-on of another pack, without a title-ID folder."
+ },
+ {
+  "console": "wii",
+  "source": "mod_links_385d0.zip (https://gamebanana.com/dl/1420507)",
+  "reason": "Sonic Unleashed mod links: a readme only."
+ },
+ {
+  "console": "gc",
+  "source": "spinning_ring_icon_ai_texture.zip (https://gamebanana.com/dl/702806)",
+  "reason": "Sonic Heroes spinning ring icon: an alternative for the catalogued Hime6564 pack."
+ },
+ {
+  "console": "gc",
+  "source": "item_icons_alt__fd044.zip (https://gamebanana.com/dl/702891)",
+  "reason": "Sonic Heroes item icons (alt): an alternative for the catalogued Hime6564 pack."
+ },
+ {
+  "console": "gc",
+  "source": "mission_clear_screen_alt__c9725.zip (https://gamebanana.com/dl/702892)",
+  "reason": "Sonic Heroes mission clear screen (alt): an alternative for the catalogued Hime6564 pack."
+ },
+ {
+  "console": "gc",
+  "source": "stage_hud_alt.zip (https://gamebanana.com/dl/703624)",
+  "reason": "Sonic Heroes stage HUD (alt): an alternative for the catalogued Hime6564 pack."
+ },
+ {
+  "console": "gc",
+  "source": "g9se8p_b0975.zip (https://gamebanana.com/dl/703625)",
+  "reason": "Sonic Heroes HD (Hime6564), an earlier upload of the pack catalogued from the author's latest."
+ },
+ {
+  "console": "gc",
+  "source": "g9se8p_88540.zip (https://gamebanana.com/dl/764084)",
+  "reason": "Sonic Heroes HD (Hime6564), an earlier upload of the pack catalogued from the author's latest."
+ },
+ {
+  "console": "wii",
+  "source": "nsmbw_custom_hd_title.zip (https://gamebanana.com/dl/908195)",
+  "reason": "New Super Mario Bros. Wii custom title: one texture."
+ },
+ {
+  "console": "gc",
+  "source": "pm_themed_p__b8dc3.zip (https://gamebanana.com/dl/591917)",
+  "reason": "Project+ themes: game files (a Brawl mod), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "smash_3c_hooded_diddy_kong.7z (https://gamebanana.com/dl/1239373)",
+  "reason": "Super Smash Bros. Brawl costume: game files (.pac), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "s3c_substitue_ivysaur.zip (https://gamebanana.com/dl/411004)",
+  "reason": "Super Smash Bros. Brawl costume: game files (.pcs), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "shadow_unwiished_skin.zip (https://gamebanana.com/dl/1397857)",
+  "reason": "Sonic Unleashed Shadow skin: a character skin, not an HD pack."
+ },
+ {
+  "console": "gc",
+  "source": "orochi_and_rengoku.zip (https://gamebanana.com/dl/700290)",
+  "reason": "Sonic Riders board skins: four textures."
+ },
+ {
+  "console": "gc",
+  "source": "acryte_-_hd_-_shield_bubble-10.zip (https://gamebanana.com/dl/1531229)",
+  "reason": "Melee shield bubble: two textures."
+ },
+ {
+  "console": "gc",
+  "source": "acryte_-_hd_-_shield_bubble-11.zip (https://gamebanana.com/dl/1531230)",
+  "reason": "Melee shield bubble: two textures."
+ },
+ {
+  "console": "gc",
+  "source": "dark_mode_cover_and_advantage_gears.zip (https://gamebanana.com/dl/700201)",
+  "reason": "Sonic Riders dark-mode gears: a cosmetic skin, not an HD pack."
+ },
+ {
+  "console": "gc",
+  "source": "gz2e01dolphin.zip (https://gamebanana.com/dl/1750733)",
+  "reason": "Twilight Princess: seven textures."
+ },
+ {
+  "console": "gc",
+  "source": "gz2e01dolphin_1080p.zip (https://gamebanana.com/dl/1750734)",
+  "reason": "Twilight Princess: seven textures (1080p)."
+ },
+ {
+  "console": "gc",
+  "source": "use_the_alt_download_71821.7z (https://gamebanana.com/dl/997552)",
+  "reason": "A placeholder file pointing to another download."
+ },
+ {
+  "console": "gc",
+  "source": "s3c_link_botw.zip (https://gamebanana.com/dl/505029)",
+  "reason": "Super Smash Bros. Brawl costume: game files (.pac), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "jermamikuphoto.zip (https://gamebanana.com/dl/915966)",
+  "reason": "Shadow the Hedgehog: one joke texture."
+ },
+ {
+  "console": "gc",
+  "source": "treffy.zip (https://gamebanana.com/dl/1637438)",
+  "reason": "Castlevania Judgment character skin: six textures."
+ },
+ {
+  "console": "gc",
+  "source": "game_portraits.zip (https://gamebanana.com/dl/1636027)",
+  "reason": "Castlevania Judgment portraits: a cosmetic edit."
+ },
+ {
+  "console": "gc",
+  "source": "netflixvania_portraits.zip (https://gamebanana.com/dl/1636496)",
+  "reason": "Castlevania Judgment portraits: a cosmetic edit."
+ },
+ {
+  "console": "gc",
+  "source": "whitney_19db7.zip (https://gamebanana.com/dl/1423577)",
+  "reason": "Animal Crossing villager skin: a cosmetic edit."
+ },
+ {
+  "console": "gc",
+  "source": "gmod_gamecube.zip (https://gamebanana.com/dl/222992)",
+  "reason": "Garry's Mod model, not a console texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "2s2h_-_gamecube_buttons_8bd_.zip (https://gamebanana.com/dl/1388930)",
+  "reason": "Majora's Mask PC port (2Ship2Harkinian) resource, not a console texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "2s2h_-_gamecube_buttons_vc_.zip (https://gamebanana.com/dl/1388929)",
+  "reason": "Majora's Mask PC port (2Ship2Harkinian) resource, not a console texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "soh_-_gamecube_buttons_8bd_.zip (https://gamebanana.com/dl/1388925)",
+  "reason": "Ocarina of Time PC port (Ship of Harkinian) resource, not a console texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "soh_-_gamecube_buttons_vc_.zip (https://gamebanana.com/dl/1388926)",
+  "reason": "Ocarina of Time PC port (Ship of Harkinian) resource, not a console texture pack."
+ },
+ {
+  "console": "gc",
+  "source": "sadx_sonicmuzzlecornerfix_pc_b1838.zip (https://gamebanana.com/dl/1160463)",
+  "reason": "Sonic Adventure DX fix: game files (PVM, PC), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "sadx_sonicmuzzlecornerfix_gc_1fec2.zip (https://gamebanana.com/dl/1160464)",
+  "reason": "Sonic Adventure DX fix: game files (GVM), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "super_mario_mash-up_pack_-_classicube_port.zip (https://gamebanana.com/dl/1704486)",
+  "reason": "ClassiCube texture pack, not a console pack."
+ },
+ {
+  "console": "wii",
+  "source": "mkwii_texture_hack.zip (https://gamebanana.com/dl/785984)",
+  "reason": "Mario Kart Wii texture hack: game files (.szs), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "lsp-v1.zip (https://gamebanana.com/dl/833656)",
+  "reason": "Luna Sports: a Riivolution mod (game files)."
+ },
+ {
+  "console": "wii",
+  "source": "v2026-02.zip (https://gamebanana.com/dl/1621037)",
+  "reason": "Mario Kart Wii mod: game files (.szs/.brstm), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "no_custom_items.zip (https://gamebanana.com/dl/1621039)",
+  "reason": "Mario Kart Wii mod: game files (.szs/.brsar), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "metaljaripower_kart_part_s.zip (https://gamebanana.com/dl/407876)",
+  "reason": "Mario Kart Wii kart parts: game files (.szs), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "insane_kart_wii_91cb8.zip (https://gamebanana.com/dl/1621650)",
+  "reason": "Insane Kart Wii look for the retail game: a restyle into another mod distribution, not an HD pack."
+ },
+ {
+  "console": "wii",
+  "source": "mario_kart_wii_deluxe_x_76d58.zip (https://gamebanana.com/dl/1621649)",
+  "reason": "Mario Kart Wii Deluxe X: textures for a custom distribution with its own disc ID (RMCEA2)."
+ },
+ {
+  "console": "gc",
+  "source": "kirby_weapons_pack_project_mod.zip (https://gamebanana.com/dl/679317)",
+  "reason": "Super Smash Bros. Brawl weapons: game files (.pac), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "suwii_alttexture_v15_e32b7.zip (https://gamebanana.com/dl/712155)",
+  "reason": "Sonic Unleashed alternative textures: cosmetic alternatives (18 textures)."
+ },
+ {
+  "console": "wii",
+  "source": "suwii_alttexture_v11.zip (https://gamebanana.com/dl/657968)",
+  "reason": "Sonic Unleashed alternative textures: an earlier version."
+ },
+ {
+  "console": "wii",
+  "source": "suwii_alttexture.zip (https://gamebanana.com/dl/657441)",
+  "reason": "Sonic Unleashed alternative textures: an earlier version."
+ },
+ {
+  "console": "gc",
+  "source": "vs_phil_texture_pack.zip (https://gamebanana.com/dl/669829)",
+  "reason": "A macOS application bundle, not a texture pack."
+ },
+ {
+  "console": "wii",
+  "source": "dark_theme_texture_pack.zip (https://gamebanana.com/dl/1789738)",
+  "reason": "Mario Kart Wii dark theme: game files (.szs), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "wsrdestinyislev1_0_2.zip (https://gamebanana.com/dl/1794917)",
+  "reason": "Wii Sports Resort Destiny Isle: a Riivolution mod (game files)."
+ },
+ {
+  "console": "gc",
+  "source": "dcf_wiiwheel_v10.zip (https://gamebanana.com/dl/1480051)",
+  "reason": "A GZDoom wheel layout, not a console texture pack."
+ },
+ {
+  "console": "wii",
+  "source": "bikeoutfits.zip (https://gamebanana.com/dl/685555)",
+  "reason": "Mario Kart Wii outfits: game files (.szs), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "nsmbw_mario_pack_playerspurity_v10_.zip (https://gamebanana.com/dl/1744848)",
+  "reason": "Mario Kart Wii character pack: game files (.brres), not Dolphin texture replacement."
+ },
+ {
+  "console": "wii",
+  "source": "sonic_riders_wii__6ef14.zip (https://gamebanana.com/dl/1810295)",
+  "reason": "Sonic Riders Wii: a game mod (nested archive and settings)."
+ },
+ {
+  "console": "gc",
+  "source": "rosalinarecolorpack.7z (https://gamebanana.com/dl/552109)",
+  "reason": "Super Smash Bros. Ultimate (Switch) recolour, not a GameCube/Wii/3DS pack."
+ },
+ {
+  "console": "wii",
+  "source": "wiisp.zip (https://gamebanana.com/dl/898605)",
+  "reason": "WiiSP: a Riivolution mod (game files)."
+ },
+ {
+  "console": "gc",
+  "source": "archive_texture_speed_garden_4.zip (https://gamebanana.com/dl/673496)",
+  "reason": "Super Mario 64 PC texture set, not a console pack."
+ },
+ {
+  "console": "gc",
+  "source": "archive_texture_speed_garden_3.zip (https://gamebanana.com/dl/642341)",
+  "reason": "Super Mario 64 PC texture set, not a console pack."
+ },
+ {
+  "console": "gc",
+  "source": "texture_pack_speed_garden_2.zip (https://gamebanana.com/dl/537611)",
+  "reason": "Super Mario 64 PC texture set, not a console pack."
+ },
+ {
+  "console": "gc",
+  "source": "sn-132.zip (https://gamebanana.com/dl/891190)",
+  "reason": "A PC game resource pack, not a console pack."
+ },
+ {
+  "console": "wii",
+  "source": "xbox_one_textures_and_controls_for_satsr_autorunner__82cb9.zip (https://gamebanana.com/dl/1403110)",
+  "reason": "Sonic and the Secret Rings Xbox One GUI, autorunner edition: the same textures with six more for an input mod."
+ },
+ {
+  "console": "gc",
+  "source": "CUSTOM.ROBO-HD.TEXTURES-WiP1.7z (https://drive.google.com/file/d/1_Y6me02VeS9HLVxVfgc02BizwTyvBYeb/view)",
+  "reason": "Custom Robo HD Textures (work in progress 1): the author's archive is 10,428,363,545 bytes, beyond what NeoStation installs on an iPhone (host run 39278264111); the finished release is excluded for the same reason."
+ },
+ {
+  "console": "wii",
+  "source": "SNCE8P_UHD Texture.7z (https://mega.nz/file/fPggjR4K#jVz3XbnYqbzYDEzjCEfvTvALe6d9lomXtPWjy6XY1BE)",
+  "reason": "Sonic Colors UHD Texture (Dolphin forum): NeoStation's installer refuses the author's 7z archive at staging (limits: beyond what it unpacks on an iPhone; host run 39334091920)."
+ },
+ {
+  "console": "wii",
+  "source": "rspe01_bc241.zip (https://gamebanana.com/dl/1049470)",
+  "reason": "Wii Sports Pro (Laggamer20xx): the author's archive holds a damaged PNG (tex1_1024x512_m_8a1542f59cadec72_14.png, wrong signature), which NeoStation refuses to install (host run 39325465870)."
+ },
+ {
+  "console": "gc",
+  "source": "Medal of Honor European Assault Remastered 4K Alpha.7z (https://drive.google.com/file/d/17u-csNyOAieyyatvyDEjA2CNk_Nc9Eyp/view?usp=drive_link)",
+  "reason": "Medal of Honor: European Assault Remastered 4K (alpha): the author's archive holds a damaged PNG (tex1_64x64_3c281b13e67b245c_14.png, wrong signature), which NeoStation refuses to install (host run 39278264111)."
+ },
+ {
+  "console": "gc",
+  "source": "wind-waker-wwhd_dpad.zip (https://gamebanana.com/dl/1820278)",
+  "reason": "Wind Waker WWHD Gameplay and Nintendo HUD (D-pad edition): an xdelta patch of the game disc; its eight optional Dolphin textures are a HUD add-on of the patched game."
+ },
+ {
+  "console": "gc",
+  "source": "wwhhdhud.zip (https://gamebanana.com/dl/1811241)",
+  "reason": "Wind Waker WWHD Gameplay and Nintendo HUD: an xdelta patch of the game disc; its eight optional Dolphin textures are a HUD add-on of the patched game."
+ },
+ {
+  "console": "gc",
+  "source": "download_link_7d92c.zip (https://gamebanana.com/dl/561653)",
+  "reason": "Star Fox Adventures HD Upscaled Texture Pack (CYB3RTR0N): the GameBanana file only holds a link to another host, not the pack."
+ },
+ {
+  "console": "gc",
+  "source": "shadow_nubytech_prompts_dynamic.zip (https://gamebanana.com/dl/891428)",
+  "reason": "Shadow the Hedgehog NubyTech prompts, dynamic edition: Dolphin dynamic input textures for one controller, not texture replacement."
+ },
+ {
+  "console": "gc",
+  "source": "shadow_nubytech_prompts_custom_032a8.zip (https://gamebanana.com/dl/966849)",
+  "reason": "Shadow the Hedgehog NubyTech prompts, custom edition: the same prompts with Dolphin controller profiles and game settings for a custom controller."
+ },
+ {
+  "console": "gc",
+  "source": "shadow_nubytech_prompts_source_62d47.zip (https://gamebanana.com/dl/891442)",
+  "reason": "Shadow the Hedgehog NubyTech prompts: the source drawings (SVG, template), not a pack."
+ },
+ {
+  "console": "psp",
+  "source": "SaveHD Icons.zip (https://drive.google.com/file/d/1WPw6M-OScJYwHlsoGM4slWjUSx9zLp-E)",
+  "reason": "Metal Gear Solid: Peace Walker save icons (three images): an add-on of the catalogued Custom HD Texture Pack of the same thread."
+ },
+ {
+  "console": "psp",
+  "source": "nphh00293 original.7z (https://drive.google.com/file/d/15YCP7Y29Qrq8aadNXtGyE9PHhS1eWwdX/view)",
+  "reason": "Dissidia 012 (NPHH00293) original textures: the extracted original images without textures.ini, a source set rather than a pack."
+ },
+ {
+  "console": "gc",
+  "source": "GMS HUD 4x.7z (https://drive.google.com/file/d/1w-yi_gfM5HNpDayaJS6g9w3o3XQN48yr/view?usp=sharing)",
+  "reason": "Super Mario Sunshine HUD 4x (razius): the HUD of razius's hires pack, carried on by the catalogued Sunshine UHD (qashto/razius)."
+ },
+ {
+  "console": "gc",
+  "source": "GMS HUD 8x.7z (https://drive.google.com/file/d/1pzeNBqxlpaXZvXbA_bmE1iuGudo78IQk/view?usp=sharing)",
+  "reason": "Super Mario Sunshine HUD 8x (razius): the HUD of razius's hires pack, carried on by the catalogued Sunshine UHD (qashto/razius)."
+ },
+ {
+  "console": "wii",
+  "source": "DDS (x8).7z (https://drive.google.com/open?id=10kKMFUbNzWUnr5PtDxaSLwxDKgTzTlNq)",
+  "reason": "NSMBW Shield-style UI, DDS x8: another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "wii",
+  "source": "DDS (x4).7z (https://drive.google.com/open?id=1qAmOA4xByc6-1M2fI4XFPQGZvrktjZIu)",
+  "reason": "NSMBW Shield-style UI, DDS x4: another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "wii",
+  "source": "PNG - Bighead's Pack (Original).7z (https://drive.google.com/open?id=1rv97n-KREYHdvTMXwVy3v7GjcJz8v_k1)",
+  "reason": "NSMBW HD (Bighead's original PNG pack): another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "wii",
+  "source": "NSMBW_HD_v2.81.zip (https://drive.google.com/file/d/189JGDR4d_UbpNqC8wFQasM_AX42rO7xN/view)",
+  "reason": "NSMBW HD v2.81, resource-pack edition: another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "wii",
+  "source": "NSMBW_HD_v2.81_PSX.zip (https://drive.google.com/file/d/1l7KDzem-6tHwybU4HqnT7mrfzMiAYAQG/view)",
+  "reason": "NSMBW HD v2.81 PlayStation buttons (resource pack): an add-on of the catalogued NSMBW HD."
+ },
+ {
+  "console": "wii",
+  "source": "Metroid_Prime_Trilogy_HD_Interface_PNG_V1.7.zip (https://drive.google.com/file/d/1luyhWa0HGxFR3qq7tR5TNTOb0dtU6qvx)",
+  "reason": "Metroid Prime Trilogy HD Interface v1.7 (PNG): another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "gc",
+  "source": "SoA_HD_v0.06_DDS.7z (https://drive.google.com/file/d/1dbUWkPCMK3-nmL-V9Y2MR09v7PbmH05J/view?usp=sharing)",
+  "reason": "Skies of Arcadia HD v0.06 (DDS): another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "gc",
+  "source": "SoA_HD_Core_v0.06.zip (https://drive.google.com/file/d/1HzP3ZQojGxm6Q5_3_2pVFgkVvunwGAXk/view)",
+  "reason": "Skies of Arcadia HD v0.06 core (resource pack): another format, resolution or edition of a catalogued pack of the same family; not added a second time."
+ },
+ {
+  "console": "gc",
+  "source": "SoA_HD_FMW_v0.06.zip (https://drive.google.com/file/d/1-jGBKBROUpXlbs04KYKtutwMtR0yB2wY/view)",
+  "reason": "Skies of Arcadia HD v0.06 FMW add-on: an add-on (one texture) of the catalogued pack."
+ },
+ {
+  "console": "gc",
+  "source": "SoA_HD_French_v0.06.zip (https://drive.google.com/file/d/1MIyFyKp-eUFIFZ4FqCuVo5JzM99QmOfQ/view)",
+  "reason": "Skies of Arcadia HD v0.06 French add-on: an add-on (four textures) of the catalogued pack."
+ },
+ {
+  "console": "gc",
+  "source": "4x DDS BC7_Zelda Four Swords Adventure HD 1.0.zip (https://mega.nz/file/uXZigCKD#AC3K6BMEsJ82_JDX7ZKD6OKzKIA-rolsk5zDb_I9qoM)",
+  "reason": "Zelda Four Swords Adventure HD 1.0 (Dolphin forum): same name and version as the catalogued GitHub release fsa-hd v1.0; not added a second time."
+ },
+ {
+  "console": "gc",
+  "source": "SFA_Beta_Textures_DDS.zip (https://drive.google.com/file/d/1_QFB9vka2mdgAqpqqSSdEul3AjiHLh3t/view?usp=sharing)",
+  "reason": "Star Fox Adventures HD beta and original textures: alternative textures for the catalogued CYB3RTR0N pack."
+ },
+ {
+  "console": "wii",
+  "source": "originalcontrols_65ec3.zip (https://gamebanana.com/dl/920697)",
+  "reason": "Sonic and the Black Knight original controls: an add-on (controller prompts) of the AI-upscaled pack, whose main archive is not among the files read."
+ },
+ {
+  "console": "wii",
+  "source": "PS3 Controller.7z (https://www.dropbox.com/s/fm3mopoall1nbke/PS3%20Controller.7z?dl=0)",
+  "reason": "Super Smash Bros. HD Retexture Project PS3 controller: an add-on of the project, without the game folder."
+ },
+ {
+  "console": "wii",
+  "source": "Mii Channel 4K Parade Patch v1.3.1.zip (https://drive.google.com/file/d/1H2WHeHyM1lg_Ts63ugtUJw2qqCCUhKX8/view)",
+  "reason": "Mii Channel 4K parade patch: textures of a Wii system channel, not a game of the library."
+ },
+ {
+  "console": "wii",
+  "source": "Mii Channel 4K Resource Pack v1.3.1.zip (https://drive.google.com/file/d/1SJ65JFoqcQH6vxXXkz7hIivQvTIVCAPQ/view)",
+  "reason": "Mii Channel 4K resource pack: textures of a Wii system channel, not a game of the library."
+ },
+ {
+  "console": "wii",
+  "source": "Mii Channel HD Parade Patch v1.3.1.zip (https://drive.google.com/file/d/1ZStBuZ5WSW25A5OxhoRJhiCZYi0dYeBz/view)",
+  "reason": "Mii Channel HD parade patch: textures of a Wii system channel, not a game of the library."
+ },
+ {
+  "console": "wii",
+  "source": "Mii Channel HD Resource Pack v1.3.1.zip (https://drive.google.com/file/d/1NfgkWFbZ-cbjoZtgoOBzxxjJpJMMu1HM/view)",
+  "reason": "Mii Channel HD resource pack: textures of a Wii system channel, not a game of the library."
+ },
+ {
+  "console": "3ds",
+  "source": "ac3d-hd-texture-pack-v0.9.2.zip (https://drive.google.com/uc?export=download&id=1zthUs7Cj4ShvEffe-QZMqPACUOlv4KVf)",
+  "reason": "The same file as the catalogued Ace Combat: Assault Horizon Legacy+ HD pack (3ds.json, the author's Drive file)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "TLS_UHD_TexturePack.7z.001 (https://mega.nz/file/xy81RBZD#uzkP_Aql9-MLfTCpyvzZcnWppwJVcIxPJq9wJd8mPh8)",
+  "reason": "The Last Story UHD Texture Pack: a multi-volume 7z archive (.7z.001, 4 GB per part); NeoStation installs single archives only."
+ },
+ {
+  "console": "3ds",
+  "source": "all_in_one_female_replacer.zip (https://gamebanana.com/dl/670345)",
+  "reason": "Fire Emblem Fates: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "female_dark_mage_enemy.7z (https://gamebanana.com/dl/674061)",
+  "reason": "Fire Emblem Fates: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "female_sorcerer_enemy.zip (https://gamebanana.com/dl/674062)",
+  "reason": "Fire Emblem Fates: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "change_stripped_male_underwear_to_f_c52d4.zip (https://gamebanana.com/dl/670100)",
+  "reason": "Fire Emblem Fates: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "emerald_birch_sprite.zip (https://gamebanana.com/dl/1297109)",
+  "reason": "Pokemon Omega Ruby and Alpha Sapphire: a cosmetic edit of 1 texture (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "gc/wii",
+  "source": "nah_id_win.zip (https://gamebanana.com/dl/1390089)",
+  "reason": "nah_id_win.zip: a cosmetic edit of 2 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "true_c58cb.zip (https://gamebanana.com/dl/1689220)",
+  "reason": "Shin Megami Tensei IV: a cosmetic edit of 1 texture (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "citra_mk7.zip (https://gamebanana.com/dl/1224839)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "definitive_3ds_link_74fa0.zip (https://gamebanana.com/dl/1102374)",
+  "reason": "The Legend of Zelda: Ocarina of Time 3D: a cosmetic edit of 86 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "red_and_blue_5_and_10_coin.zip (https://gamebanana.com/dl/1227887)",
+  "reason": "Paper Mario: Sticker Star: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "acnl_clean_texture_pack_11.zip (https://gamebanana.com/dl/493872)",
+  "reason": "Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "necrozma_inverted_83f67.zip (https://gamebanana.com/dl/1131490)",
+  "reason": "Pokemon Ultra Sun and Ultra Moon: a cosmetic edit of 11 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "texpack.zip (https://gamebanana.com/dl/1395418)",
+  "reason": "Tomodachi Life: a cosmetic edit of 5 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "iconsandportraits.zip (https://gamebanana.com/dl/1297155)",
+  "reason": "Pokemon Omega Ruby and Alpha Sapphire: a cosmetic edit of 8 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "dark_goth_nanashi.zip (https://gamebanana.com/dl/1728781)",
+  "reason": "Shin Megami Tensei IV: Apocalypse: a cosmetic edit of 2 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "dark_goth_nanashi_hd.zip (https://gamebanana.com/dl/1728909)",
+  "reason": "Shin Megami Tensei IV: Apocalypse: a cosmetic edit of 2 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "gc/wii",
+  "source": "fe-garonquest_v140.7z (https://gamebanana.com/dl/828549)",
+  "reason": "fe-garonquest_v140.7z: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "fe-garonquest_v1321.7z (https://gamebanana.com/dl/788663)",
+  "reason": "fe-garonquest_v1321.7z: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "gc/wii",
+  "source": "ssbm_colors_majora_s_mask.zip (https://gamebanana.com/dl/1093900)",
+  "reason": "ssbm_colors_majora_s_mask.zip: a cosmetic edit of 94 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "xerneas_lesb.zip (https://gamebanana.com/dl/1559644)",
+  "reason": "Pokemon X and Y: a cosmetic edit of 4 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "homestuck_villagers_acnl.zip (https://gamebanana.com/dl/1416691)",
+  "reason": "Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "assets_3bb60.zip (https://gamebanana.com/dl/1626779)",
+  "reason": "Tomodachi Life: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "xy_swap_08a76.7z (https://gamebanana.com/dl/1820734)",
+  "reason": "Shin Megami Tensei IV: Apocalypse: a cosmetic edit of 13 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "defaul_bc747.7z (https://gamebanana.com/dl/1820735)",
+  "reason": "Shin Megami Tensei IV: Apocalypse: a cosmetic edit of 13 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "rosalina_pro_racer__36343.zip (https://gamebanana.com/dl/1504178)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "bowser_supercharged_.zip (https://gamebanana.com/dl/1522173)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "yoshi_aristocrat_.zip (https://gamebanana.com/dl/1560554)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "yoshi_aristocrat__4b902.zip (https://gamebanana.com/dl/1572279)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "azahar.zip (https://gamebanana.com/dl/1847551)",
+  "reason": "Mario Kart 7 \"azahar\" file: a marker file only, no texture."
+ },
+ {
+  "console": "3ds",
+  "source": "daisy_pro_racer_.zip (https://gamebanana.com/dl/1497272)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "daisy_pro_racer_v2.zip (https://gamebanana.com/dl/1825556)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "wario_wicked_wasp_.zip (https://gamebanana.com/dl/1494374)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "mario_pro_racer__1a2bf.zip (https://gamebanana.com/dl/1497914)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "shy_guy_pit_crew_.zip (https://gamebanana.com/dl/1530291)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "luigi_hatless_.zip (https://gamebanana.com/dl/1537555)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "wario_pro_racer_.zip (https://gamebanana.com/dl/1546907)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "dark_link_fierce_deity_link_texture_448f7.zip (https://gamebanana.com/dl/634156)",
+  "reason": "The Legend of Zelda: Ocarina of Time 3D: a cosmetic edit of 239 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "koopa_sailor.zip (https://gamebanana.com/dl/1558639)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "klonoa_v1_0.zip (https://gamebanana.com/dl/1420511)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "luigi_pro_racer_.zip (https://gamebanana.com/dl/1494981)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "luigi_pro_racer_v2_d7cf2.zip (https://gamebanana.com/dl/1660512)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "bowser_biker_.zip (https://gamebanana.com/dl/1523863)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "bubsy_3d__190c9.zip (https://gamebanana.com/dl/1518161)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "caseoh_c7dbd.zip (https://gamebanana.com/dl/1536366)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "luigi_gondolier_.zip (https://gamebanana.com/dl/1492031)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "luigi_gondolier__v2_28d83.zip (https://gamebanana.com/dl/1823060)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "toadette_soft_server_.zip (https://gamebanana.com/dl/1509013)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "invisible_share_button.zip (https://gamebanana.com/dl/1508607)",
+  "reason": "Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "wario_pirate_v2.zip (https://gamebanana.com/dl/1687411)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "mh-hp-overlay-for-3ds-emulator_v110_34a14.zip (https://gamebanana.com/dl/1314902)",
+  "reason": "Monster Hunter 4 Ultimate HP overlay: an archive inside the archive, made for another emulator's overlay, not a texture pack."
+ },
+ {
+  "console": "3ds",
+  "source": "mh-hp-overlay-for-3ds-emulator_v111_6d6fd.zip (https://gamebanana.com/dl/1318442)",
+  "reason": "Monster Hunter 4 Ultimate HP overlay (v1.11): an archive inside the archive, made for another emulator's overlay."
+ },
+ {
+  "console": "3ds",
+  "source": "mh-hp-overlay-for-3ds-emulator_v113_c8ac4.zip (https://gamebanana.com/dl/1381861)",
+  "reason": "Monster Hunter 4 Ultimate HP overlay (v1.13): an archive inside the archive, made for another emulator's overlay."
+ },
+ {
+  "console": "3ds",
+  "source": "cover_your_eyes_.zip (https://gamebanana.com/dl/1522013)",
+  "reason": "Super Smash Bros. (3DS): no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "girlsrule.zip (https://gamebanana.com/dl/1522016)",
+  "reason": "Super Smash Bros. (3DS): no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "boys_drool.zip (https://gamebanana.com/dl/1522017)",
+  "reason": "Super Smash Bros. (3DS): no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "sango_plugin-release.7z (https://gamebanana.com/dl/1835936)",
+  "reason": "Pokémon ORAS Sango plugin: a CTRPF plugin, not textures."
+ },
+ {
+  "console": "3ds",
+  "source": "gamblecore_guy_-_ctgp7_chpack_-v1.zip (https://gamebanana.com/dl/1457863)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "molten_monster_tire.zip (https://gamebanana.com/dl/1761308)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "mauve_molten_monster_tires.zip (https://gamebanana.com/dl/1761694)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "outfitrestorations.zip (https://gamebanana.com/dl/1622293)",
+  "reason": "Hatsune Miku: Project Mirai DX: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "king_boo_pirate_.zip (https://gamebanana.com/dl/1605251)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "unmirror_master_quest.zip (https://gamebanana.com/dl/1723737)",
+  "reason": "The Legend of Zelda: Ocarina of Time 3D: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "2d_kafei_mask.7z (https://gamebanana.com/dl/1139535)",
+  "reason": "2d_kafei_mask.7z: a cosmetic edit of 2 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "cc3d_minecraft_conversion_mod_v1.zip (https://gamebanana.com/dl/1645614)",
+  "reason": "Cube Creator 3D: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "ocarina-reframed-202-dual-screen-mods.zip (https://gamebanana.com/dl/1826623)",
+  "reason": "The Legend of Zelda: Ocarina of Time 3D: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "ocarina-reframed-202-single-screen-mods.zip (https://gamebanana.com/dl/1826624)",
+  "reason": "The Legend of Zelda: Ocarina of Time 3D: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "ocarina-reframed-202-single-screen-rom-patches.zip (https://gamebanana.com/dl/1826625)",
+  "reason": "Ocarina of Time 3D Reframed: ROM patches (marker files only), not textures."
+ },
+ {
+  "console": "3ds",
+  "source": "ocarina-reframed-202-dual-screen-rom-patches.zip (https://gamebanana.com/dl/1826626)",
+  "reason": "Ocarina of Time 3D Reframed: ROM patches (marker files only), not textures."
+ },
+ {
+  "console": "3ds",
+  "source": "3dshd_clock.zip (https://gamebanana.com/dl/1319254)",
+  "reason": "3dshd_clock.zip: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "3ds_link_-_standard_8f779.zip (https://gamebanana.com/dl/1788174)",
+  "reason": "3ds_link_-_standard_8f779.zip: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "3ds_link_-_custom_colors_5604f.zip (https://gamebanana.com/dl/1788173)",
+  "reason": "3ds_link_-_custom_colors_5604f.zip: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "3ds_equipment_cd0b5.zip (https://gamebanana.com/dl/1630255)",
+  "reason": "3ds_equipment_cd0b5.zip: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "weebcustomvillagers3ds.zip (https://gamebanana.com/dl/900686)",
+  "reason": "Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "weebcustomvillagerscitra.zip (https://gamebanana.com/dl/900687)",
+  "reason": "Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "emerald3ds.zip (https://gamebanana.com/dl/902769)",
+  "reason": "Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "emeraldcitra.zip (https://gamebanana.com/dl/902770)",
+  "reason": "Animal Crossing: New Leaf: RomFS/ExeFS game files (a game-file mod for a console or emulator's mod folder), not texture replacement."
+ },
+ {
+  "console": "3ds",
+  "source": "default_cube_88ed8.zip (https://gamebanana.com/dl/1018690)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "flynn_kazuma_kaneko.zip (https://gamebanana.com/dl/1624905)",
+  "reason": "Shin Megami Tensei IV: a cosmetic edit of 3 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "3ds",
+  "source": "flynn_tomomi_kobayashi.zip (https://gamebanana.com/dl/1624907)",
+  "reason": "Shin Megami Tensei IV: a cosmetic edit of 3 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "gc/wii",
+  "source": "hdsonictexv12_4ca93.zip (https://gamebanana.com/dl/1371791)",
+  "reason": "Sonic Adventure 2: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "hdsonictexv11.zip (https://gamebanana.com/dl/1371552)",
+  "reason": "Sonic Adventure 2: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "hdsonictextures.zip (https://gamebanana.com/dl/1371139)",
+  "reason": "Sonic Adventure 2: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "00040000001d1900.zip (https://gamebanana.com/dl/1080402)",
+  "reason": "00040000001d1900.zip: a cosmetic edit of 4 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "gc/wii",
+  "source": "soul_reaver_1-2.7z (https://gamebanana.com/dl/1221366)",
+  "reason": "soul_reaver_1-2.7z: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "original_dead_hand_-_oot3d.zip (https://gamebanana.com/dl/597020)",
+  "reason": "The Legend of Zelda: Ocarina of Time 3D: a cosmetic edit of 4 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "gc/wii",
+  "source": "gv2_d99a5.zip (https://gamebanana.com/dl/1199456)",
+  "reason": "Mario Kart Wii: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "menu.7z (https://gamebanana.com/dl/446694)",
+  "reason": "Mario Kart Wii: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "my_2c6e9.7z (https://gamebanana.com/dl/487121)",
+  "reason": "Mario Kart Wii: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "sc_dynamic_input_5d73a.zip (https://gamebanana.com/dl/918609)",
+  "reason": "Sonic Colors dynamic input textures: Dolphin dynamic input textures for a controller, not texture replacement."
+ },
+ {
+  "console": "gc/wii",
+  "source": "sc_dynamic_input_ps3_6efdb.zip (https://gamebanana.com/dl/918608)",
+  "reason": "Sonic Colors dynamic input textures (PS3): Dolphin dynamic input textures for a controller, not texture replacement."
+ },
+ {
+  "console": "gc/wii",
+  "source": "intructions_87fd0.zip (https://gamebanana.com/dl/1644313)",
+  "reason": "Super Smash Bros. Brawl: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "ganondorf_cervantes.zip (https://gamebanana.com/dl/436666)",
+  "reason": "SoulCalibur II (GameCube): a cosmetic edit of 11 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "gc/wii",
+  "source": "zelda_sophitia_e5f3f.zip (https://gamebanana.com/dl/436704)",
+  "reason": "SoulCalibur II (GameCube): a cosmetic edit of 17 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "gc/wii",
+  "source": "twilight_link.zip (https://gamebanana.com/dl/436965)",
+  "reason": "SoulCalibur II (GameCube): a cosmetic edit of 15 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "gc/wii",
+  "source": "sunshine-reimagined-clickable-download.zip (https://gamebanana.com/dl/1846901)",
+  "reason": "Super Mario Sunshine Reimagined: the GameBanana file only holds a link to another host."
+ },
+ {
+  "console": "gc/wii",
+  "source": "twilight_princess_vibrance_4e585.zip (https://gamebanana.com/dl/1609372)",
+  "reason": "Twilight Princess Vibrance: a Dolphin marker file only (a graphics setting), no texture."
+ },
+ {
+  "console": "gc/wii",
+  "source": "arcade_sprites.zip (https://gamebanana.com/dl/1821516)",
+  "reason": "Pac-Man World 2: a cosmetic edit of 1 texture (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "gc/wii",
+  "source": "super_mario_sunshine_repainted_hardware_edition_v31.7z (https://gamebanana.com/dl/1523530)",
+  "reason": "Super Mario Sunshine Repainted Hardware Edition: modified game files of the disc (files/data/*.szs, .thp), not Dolphin texture replacement."
+ },
+ {
+  "console": "gc/wii",
+  "source": "1_restored_unused_texture_edits_and_some_fixes_.7z (https://gamebanana.com/dl/1498601)",
+  "reason": "Super Mario Sunshine Repainted add-on: modified game files of the disc."
+ },
+ {
+  "console": "gc/wii",
+  "source": "2_hq_fmvs.7z (https://gamebanana.com/dl/1498603)",
+  "reason": "Super Mario Sunshine Repainted add-on: re-encoded game videos."
+ },
+ {
+  "console": "gc/wii",
+  "source": "3_alternate_openingbb_and_epilogue_thps_for_console.7z (https://gamebanana.com/dl/1498623)",
+  "reason": "Super Mario Sunshine Repainted add-on: game videos."
+ },
+ {
+  "console": "gc/wii",
+  "source": "4_120_shine_sprites_fmv.7z (https://gamebanana.com/dl/1498600)",
+  "reason": "Super Mario Sunshine Repainted add-on: a game video."
+ },
+ {
+  "console": "gc/wii",
+  "source": "chao_garden_-_frog_forest_garden_6190a.zip (https://gamebanana.com/dl/453287)",
+  "reason": "Sonic Adventure 2: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "adv-s_shoe_pack.zip (https://gamebanana.com/dl/603485)",
+  "reason": "Sonic Riders (GameCube): a cosmetic edit of 8 textures (a character, costume or icon), not an HD pack."
+ },
+ {
+  "console": "switch",
+  "source": "moon_replacement_paper_crumples.zip (https://gamebanana.com/dl/1204722)",
+  "reason": "Paper Mario TTYD (Switch) moon replacement: Nintendo Switch RomFS files."
+ },
+ {
+  "console": "switch",
+  "source": "moon_replacement_ttyd_hd_switch_colors_.zip (https://gamebanana.com/dl/1204721)",
+  "reason": "Paper Mario TTYD (Switch) moon replacement: Nintendo Switch RomFS files."
+ },
+ {
+  "console": "switch",
+  "source": "moon_replacement_ttyd_hd_gamecube_colors_.zip (https://gamebanana.com/dl/1204723)",
+  "reason": "Paper Mario TTYD (Switch) moon replacement: Nintendo Switch RomFS files."
+ },
+ {
+  "console": "gc/wii",
+  "source": "chao_garden_-_seaside_hill_garden_v.zip (https://gamebanana.com/dl/372795)",
+  "reason": "Sonic Adventure 2: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "super_amy_98f16.zip (https://gamebanana.com/dl/1146422)",
+  "reason": "Sonic Adventure DX: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "super_amy_ed775.zip (https://gamebanana.com/dl/986412)",
+  "reason": "Sonic Adventure DX: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "espios_shuriken_effect_texture_restored1_0_0.7z (https://gamebanana.com/dl/876133)",
+  "reason": "espios_shuriken_effect_texture_restored1_0_0.7z: PNG images without the engines' texture names (resources of a game-file mod)."
+ },
+ {
+  "console": "3ds",
+  "source": "body_jet_a7b49.zip (https://gamebanana.com/dl/1455154)",
+  "reason": "Mario Kart 7: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "jari_kart_wii_v2.zip (https://gamebanana.com/dl/383279)",
+  "reason": "Jari Kart Wii: a full game-file mod (Riivolution/ISO), not texture replacement."
+ },
+ {
+  "console": "gc/wii",
+  "source": "wii_costumes__5ec0c.zip (https://gamebanana.com/dl/882400)",
+  "reason": "Spider-Man: Web of Shadows: no texture replacement file in the archive (game files, models, sounds or a PC mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "kirby_fighters_shadow_kirby_project.zip (https://gamebanana.com/dl/675287)",
+  "reason": "Super Smash Bros. Brawl: PNG images without the engines' texture names (resources of a game-file mod)."
+ },
+ {
+  "console": "gc/wii",
+  "source": "classic_pack_project_mod.zip (https://gamebanana.com/dl/675162)",
+  "reason": "Super Smash Bros. Brawl: PNG images without the engines' texture names (resources of a game-file mod)."
+ }
+]

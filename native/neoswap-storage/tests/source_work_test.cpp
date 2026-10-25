@@ -49,7 +49,7 @@ static void coalescing(){
     CHECK(q.finish(false));(void)q.begin();CHECK(!q.finish(false));
 }
 static void archive_demand_order(const std::string& directory){
-    constexpr size_t bytes=256*1024;const auto input=fixture(bytes);
+    const size_t bytes=2*config().managed.chunk_bytes;const auto input=fixture(bytes);
     Archive legacy(directory,81,config());uint64_t legacy_ids[4]{};
     for(auto& id:legacy_ids){auto a=legacy.admit(3,input.data(),input.size());CHECK(a.code==NS_SOURCE_OK);id=a.object;}
     // Build399's four admission callbacks each executed a WHOLE record before
@@ -69,7 +69,7 @@ static void archive_demand_order(const std::string& directory){
     for(auto& id:ids){auto result=a.admit(3,input.data(),input.size());CHECK(result.code==NS_SOURCE_OK);id=result.object;
         if(q.request()){++scheduled;fifo.push_back(maintenance);}}
     CHECK(fifo.size()==1&&scheduled==1);auto work=std::move(fifo.front());fifo.pop_front();work();
-    const auto partial=a.snapshot();CHECK(partial.managed.checkpointed_bytes==65536);
+    const auto partial=a.snapshot();CHECK(partial.managed.checkpointed_bytes==config().managed.chunk_bytes);
     CHECK(partial.pending==4&&partial.staging_bytes==4*bytes&&partial.archived_bytes==0);
     // Partial progress never frees the accepted complete snapshot. The Core
     // RAM fast path needs no disk read, even if another chunk is scheduled.
@@ -77,11 +77,11 @@ static void archive_demand_order(const std::string& directory){
     CHECK(a.snapshot().managed.store.bytes_read==partial.managed.store.bytes_read);
     q.demand_begin();fifo.push_back([&]{
         int error=0;CHECK(a.read(ids[0],output.data(),output.size(),error)==NS_SOURCE_OK&&output==input&&error==0);
-        ++demand_seen;CHECK(a.snapshot().managed.checkpointed_bytes==65536);
+        ++demand_seen;CHECK(a.snapshot().managed.checkpointed_bytes==config().managed.chunk_bytes);
         CHECK(q.demand_end());if(q.resume()){++scheduled;fifo.push_back(maintenance);}
     });
     work=std::move(fifo.front());fifo.pop_front();work(); // preceding continuation yields to demand
-    CHECK(a.snapshot().managed.checkpointed_bytes==65536);
+    CHECK(a.snapshot().managed.checkpointed_bytes==config().managed.chunk_bytes);
     work=std::move(fifo.front());fifo.pop_front();work();CHECK(demand_seen==1);
     CHECK(fifo.size()==1); // one rearmed continuation, no admission/discard avalanche
     while(!fifo.empty()){work=std::move(fifo.front());fifo.pop_front();work();}
@@ -94,12 +94,12 @@ static void archive_demand_order(const std::string& directory){
     CHECK(a.try_read_staging(ids[0],output.data(),output.size())==NS_SOURCE_MISSING);
 }
 static void interrupted_quantum(const std::string& directory){
-    Archive a(directory,83,config());const auto input=fixture(3*65536);
+    Archive a(directory,83,config());const auto input=fixture(3*config().managed.chunk_bytes);
     const auto admitted=a.admit(3,input.data(),input.size());CHECK(admitted.code==NS_SOURCE_OK);
-    CHECK(a.maintain(1,4));const auto before=a.snapshot();CHECK(before.managed.checkpointed_bytes==65536&&before.pending==1);
+    CHECK(a.maintain(1,4));const auto before=a.snapshot();CHECK(before.managed.checkpointed_bytes==config().managed.chunk_bytes&&before.pending==1);
     a.pressure(neostation::storage::Pressure::warning);CHECK(!a.maintain(1,4));
     std::string output(input.size(),'\0');CHECK(a.try_read_staging(admitted.object,output.data(),output.size())==NS_SOURCE_OK&&output==input);
-    CHECK(a.snapshot().managed.checkpointed_bytes==65536&&a.snapshot().archive_failures==0);
+    CHECK(a.snapshot().managed.checkpointed_bytes==config().managed.chunk_bytes&&a.snapshot().archive_failures==0);
     a.pressure(neostation::storage::Pressure::normal);CHECK(a.maintain(1,4));CHECK(!a.maintain(1,4));
     CHECK(a.snapshot().managed.checkpointed_bytes==input.size()&&a.snapshot().pending==0);
     int error=0;CHECK(a.read(admitted.object,output.data(),output.size(),error)==NS_SOURCE_OK&&output==input);

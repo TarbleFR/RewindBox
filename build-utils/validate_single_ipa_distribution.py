@@ -152,10 +152,25 @@ def validate(ipa: Path) -> dict:
             'Every app extension must remain nested in NeoStation',
         )
         actual_extension_names = {path.name for path in extensions}
+        expected_extensions = dict(EXPECTED_EXTENSIONS)
+        if (app / 'MeloNX-native-identity.json').is_file():
+            expected_extensions['MeloNXJITHelper.appex'] = {
+                'bundleSuffix': '.melonxjithelper',
+                'principalClass': 'MeloNXJITRequestHandler',
+                'marker': 'NeoStationMeloNXJITHelper',
+            }
+            if 'ramDonorSource' in json.loads((app / 'MeloNX-native-identity.json').read_text()):
+                expected_extensions['MeloNXRamDonor.appex'] = {
+                    'bundleSuffix': '.melonxramdonor', 'principalClass': 'MLXRamDonorHandler',
+                    'marker': 'RewindBoxMeloNXRamDonor',
+                }
+            for component in ('MeloNXCore', 'MeloNXMoltenVK', 'MeloNXSDL3', 'MeloNXAvCodec', 'MeloNXAvUtil', 'MeloNXJitSupport'):
+                demand((app / f'Frameworks/{component}.framework/{component}').is_file(),
+                       'MeloNX identity requires the complete private runtime: ' + component)
         demand(
-            actual_extension_names == set(EXPECTED_EXTENSIONS),
+            actual_extension_names == set(expected_extensions),
             'Unexpected app-extension set: expected '
-            f'{sorted(EXPECTED_EXTENSIONS)}, got {sorted(actual_extension_names)}',
+            f'{sorted(expected_extensions)}, got {sorted(actual_extension_names)}',
         )
 
         app_info = load_plist(app / 'Info.plist')
@@ -172,10 +187,11 @@ def validate(ipa: Path) -> dict:
 
         extension_reports = []
         for extension in extensions:
-            contract = EXPECTED_EXTENSIONS[extension.name]
+            contract = expected_extensions[extension.name]
             info = load_plist(extension / 'Info.plist')
             is_donor = extension.name in DONOR_CONTRACTS
             is_relay = extension.name in RELAY_CONTRACTS
+            is_melonx_donor = extension.name == 'MeloNXRamDonor.appex'
             extension_identifier = str(info.get('CFBundleIdentifier', ''))
             metadata = info.get('NSExtension', {})
             demand(isinstance(metadata, dict), f'{extension.name} extension metadata is invalid')
@@ -196,7 +212,7 @@ def validate(ipa: Path) -> dict:
                 f'{extension.name} and NeoStation have different marketing versions',
             )
             demand(
-                extension_point == (DONOR_EXTENSION_POINT if (is_donor or is_relay) else SHARE_EXTENSION_POINT),
+                extension_point == (DONOR_EXTENSION_POINT if (is_donor or is_relay or is_melonx_donor) else SHARE_EXTENSION_POINT),
                 f'{extension.name} has an unexpected extension point: '
                 f'{extension_point!r}',
             )
@@ -210,6 +226,12 @@ def validate(ipa: Path) -> dict:
             )
             demand(info.get(contract['marker']) == '1',
                    f'{extension.name} identity marker is missing')
+            if is_melonx_donor:
+                demand(info.get('CFBundleExecutable') == 'MeloNXRamDonor' and info.get('MinimumOSVersion') == '18.0', 'Invalid MeloNX donor executable/deployment')
+                demand(info.get('XPCService') == DONOR_XPC_SERVICE, 'Invalid MeloNX donor multiple-instance metadata')
+                for key in ['NSExtensionContextClass','NSExtensionContextHostClass']:
+                    demand(metadata.get(key) == 'NSExtensionContext', 'Invalid MeloNX donor context')
+                demand(metadata.get('NSExtensionAttributes') == {'NSExtensionActivationRule':'FALSEPREDICATE'}, 'Invalid MeloNX donor activation rule')
             if is_donor:
                 donor_index = info.get('NeoStationNeoSwapDonorIndex')
                 demand(isinstance(donor_index, str) and donor_index == contract['index'],
@@ -235,6 +257,9 @@ def validate(ipa: Path) -> dict:
             extension_executable = extension / str(info.get('CFBundleExecutable', ''))
             extension_entitlements = executable_entitlements(extension_executable)
             reject_vpn_entitlements(extension_entitlements, extension.name)
+            if is_melonx_donor:
+                require_arm64_executable(extension_executable.read_bytes(),extension.name)
+                demand(not extension_entitlements,'MeloNX donor entitlements differ from audited upstream')
             if is_donor or is_relay:
                 required_capabilities = REQUIRED_RELAY_ENTITLEMENTS if is_relay else REQUIRED_DONOR_ENTITLEMENTS
                 require_arm64_executable(extension_executable.read_bytes(), extension.name)
@@ -291,7 +316,7 @@ def validate(ipa: Path) -> dict:
             'nestedSigningOrder': [
                 *[
                     f'NeoStation.app/PlugIns/{name}'
-                    for name in sorted(EXPECTED_EXTENSIONS)
+                    for name in sorted(expected_extensions)
                 ],
                 'NeoStation.app',
             ],

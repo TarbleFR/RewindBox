@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:armsx2_internal_bridge/armsx2_internal_bridge.dart';
-import 'package:dusklight_internal_bridge/dusklight_internal_bridge.dart';
-import 'package:kartpad_internal_bridge/kartpad_internal_bridge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'audio_policy_service.dart';
-import 'home_music_service.dart';
 import 'game_service.dart';
 import 'music_player_service.dart';
 import 'sfx_service.dart';
@@ -51,6 +48,8 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Stores the user's SFX preference before starting the session.
   bool _sfxWasEnabled = true;
+  bool _initializationFailed = false;
+  bool _preserveNativeAudio = false;
 
   // A rapid new launch must wait until the previous audio handoff finishes;
   // otherwise its delayed activation can interrupt the new native core.
@@ -65,8 +64,7 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
   StreamSubscription<Map<String, dynamic>>? _embeddedSessionSubscription;
 
   static const Set<String> _embeddedIOSSessionExecutables = <String>{
-    'ios_dusklight_internal',
-    'ios_kartpad_internal',
+    'ios_melonx_internal',
     'ios_armsx2_internal',
     'ios_dolphin_internal',
     'ios_rpcs3_internal',
@@ -110,6 +108,8 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     _phase = GameLaunchPhase.launching;
     _canDismiss = false;
     _isClosing = false;
+    _initializationFailed = false;
+    _preserveNativeAudio = false;
     _activeEmulatorExe = null;
     unawaited(_embeddedSessionSubscription?.cancel());
     _embeddedSessionSubscription = null;
@@ -162,22 +162,33 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     _monitoringTimer = null;
     _phase = GameLaunchPhase.closing;
     notifyListeners();
-    _log.i('[GameLaunchManager] Close triggered — entering closing phase at '
-        '${DateTime.now().toUtc().toIso8601String()}.');
+    _log.i(
+      '[GameLaunchManager] Close triggered — entering closing phase at '
+      '${DateTime.now().toUtc().toIso8601String()}.',
+    );
   }
 
   /// Marks the post-game cleanup as finished.
   void completeClose() {
     _phase = GameLaunchPhase.closed;
     notifyListeners();
-    _log.i('[GameLaunchManager] Close complete at '
-        '${DateTime.now().toUtc().toIso8601String()}.');
+    _log.i(
+      '[GameLaunchManager] Close complete at '
+      '${DateTime.now().toUtc().toIso8601String()}.',
+    );
   }
 
   /// Cleanup hook for when the session dialog is disposed.
+  /// A rejected Switch initialization is not a started game or a forced stop.
+  void markInitializationFailed({required bool nativeStillActive}) {
+    if (_phase != GameLaunchPhase.launching) return;
+    _initializationFailed = true;
+    _preserveNativeAudio = nativeStillActive;
+  }
+
   void onDialogDisposed() {
     if (!isActive || _finalization != null) return;
-    if (_phase != GameLaunchPhase.closed) {
+    if (_phase != GameLaunchPhase.closed && !_initializationFailed) {
       _log.w(
         '[GameLaunchManager] Dialog disposed before session ended — forcing cleanup.',
       );
@@ -198,15 +209,8 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     try {
       // The native session has ended before this route is disposed. Restore
       // audio ownership before resuming any menu voices, including on failure.
-      await AudioPolicyService().restoreAfterGameSession();
-      if (Platform.isIOS && _activeEmulatorExe == 'ios_kartpad_internal') {
-        await HomeMusicService().beforeSharedEngineRestart();
-        try {
-          await MusicPlayerService().restoreAfterKartPad();
-        } finally {
-          await HomeMusicService().afterSharedEngineRestart();
-        }
-      } else {
+      if (!_preserveNativeAudio) {
+        await AudioPolicyService().restoreAfterGameSession();
         await MusicPlayerService().resumeAfterGame();
       }
     } catch (error, stack) {
@@ -216,7 +220,7 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
         stackTrace: stack,
       );
     }
-    SfxService().setEnabled(_sfxWasEnabled);
+    SfxService().setEnabled(!_preserveNativeAudio && _sfxWasEnabled);
     _phase = null;
     _canDismiss = false;
     _isClosing = false;
@@ -225,8 +229,10 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     _resumedBeforeMonitoring = false;
     notifyListeners();
     _log.i(
-      '[GameLaunchManager] Session finalized — music resumed, SFX re-enabled '
-      'at ${DateTime.now().toUtc().toIso8601String()}.',
+      _preserveNativeAudio
+          ? '[GameLaunchManager] Failed native initialization quarantined; frontend audio remains paused.'
+          : '[GameLaunchManager] Session finalized — music resumed, SFX re-enabled '
+                'at ${DateTime.now().toUtc().toIso8601String()}.',
     );
   }
 
@@ -262,54 +268,6 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
 
-    if (Platform.isIOS && emulatorExe == 'ios_dusklight_internal') {
-      _embeddedSessionSubscription = DusklightInternalBridge.sessionEvents.listen(
-        (event) {
-          if (_phase == GameLaunchPhase.playing && !_isClosing) {
-            _log.i(
-              '[GameLaunchManager] Dusklight returned to RewindBox: '
-              '${event['reason']} (runtimeReleased=${event['runtimeReleased']})',
-            );
-            // A normal return now retains the suspended Dusklight runtime so
-            // the same disc can reopen instantly. Build 321's early RPCS3 JIT
-            // escrow remains reserved before Dusklight can allocate memory.
-            _triggerClose();
-          }
-        },
-      );
-      if (DusklightInternalBridge.didEndSession && !_isClosing) {
-        _triggerClose();
-      }
-      return;
-    }
-
-    if (Platform.isIOS && emulatorExe == 'ios_kartpad_internal') {
-      _embeddedSessionSubscription = KartPadInternalBridge.sessionEvents.listen(
-        (event) {
-          final exitReason = event['exitReason']?.toString() ?? 'unknown';
-          _log.i(
-            '[GameLaunchManager] KartPad host result=$exitReason '
-            'message=${event['reason'] ?? 'unknown'} '
-            '(success=${event['success']}, runtimeReleased=${event['runtimeReleased']})',
-          );
-          if (_phase != GameLaunchPhase.playing || _isClosing) return;
-
-          if (exitReason == 'userReturn' ||
-              exitReason == 'languageRestart' ||
-              exitReason == 'normalTermination' ||
-              exitReason == 'runtimeFailure' ||
-              exitReason == 'crash' ||
-              exitReason == 'launchFailure') {
-            _triggerClose();
-          }
-        },
-      );
-      if (KartPadInternalBridge.didEndSession && !_isClosing) {
-        _triggerClose();
-      }
-      return;
-    }
-
     if (Platform.isIOS && emulatorExe == 'ios_armsx2_internal') {
       _embeddedSessionSubscription = Armsx2InternalBridge.sessionEvents.listen((
         event,
@@ -322,9 +280,7 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
           _triggerClose();
         }
       });
-      _log.i(
-        '[GameLaunchManager] ARMSX2 uses native session-end monitoring.',
-      );
+      _log.i('[GameLaunchManager] ARMSX2 uses native session-end monitoring.');
       return;
     }
 

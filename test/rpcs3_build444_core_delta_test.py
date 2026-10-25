@@ -67,14 +67,19 @@ require('inline constinit registry g_counters{};' in profile, 'phase registry mu
 require('inline thread_local std::uint64_t t_nested_ticks = 0;' in profile, 'nested-scope accounting missing')
 require(all(name in profile for name in ('ppu_translate', 'ppu_opt', 'ppu_verify', 'ppu_codegen', 'ppu_cache_write',
                                          'ppu_cache_read', 'ppu_object_load', 'ppu_finalize', 'ppu_symbols',
-                                         'spu_build', 'spu_passes', 'spu_codegen')), 'phase list changed')
+                                         'spu_build', 'spu_passes', 'spu_codegen',
+                                         # Build 481 appends the SPU object cache phases after the Build 444 list.
+                                         'spu_cache_read', 'spu_object_load', 'spu_cache_write')), 'phase list changed')
 
 # --- JITLLVM.cpp: cache read/write, codegen (miss) and object load are measured in place.
 require('#include "JITPhaseProfile.h"' in jit, 'JITLLVM.cpp does not include the phase profile')
-require('jit_phase::scope phase_timer(jit_phase::ppu_cache_write, utils::get_tsc, obj.getBufferSize());' in jit,
+# Build 481: the same ObjectCache serves PPU and SPU objects; the phase is selected by kind.
+require('jit_phase::scope phase_timer(m_spu ? jit_phase::spu_cache_write : jit_phase::ppu_cache_write, utils::get_tsc, obj.getBufferSize());' in jit,
         'object cache write is not measured')
-require('jit_phase::scope phase_timer(jit_phase::ppu_cache_read, utils::get_tsc);' in jit and
-        'phase_timer.bytes = out.size();' in jit, 'object cache read is not measured with its decompressed size')
+require('jit_phase::scope phase_timer(read_phase, utils::get_tsc);' in jit and
+        'jit_phase::phase read_phase = jit_phase::ppu_cache_read' in jit and
+        'phase_timer.bytes = output_size;' in jit and
+        'jit_object_buffer::inflate(compressed_size, read_at, buf->getBufferStart(), output_size)' in jit, 'object cache read is not measured with its decompressed size')
 require(jit.count('const jit_phase::scope phase_timer(jit_phase::ppu_codegen, utils::get_tsc);\n\t\tm_engine->generateCodeForModule(ptr);') == 2,
         'both cached add() paths must time code generation')
 require('jit_phase::scope phase_timer(jit_phase::ppu_object_load, utils::get_tsc);' in jit and
@@ -115,10 +120,13 @@ require('cfg::_bool ppu_llvm_ir_passes{ this, "PPU LLVM IR Passes", false };' in
 require('SETTING("emulator.ppu_llvm_ir_passes", "Emulator", "Compilation", "PPU LLVM IR passes (ARM64)"' in settings,
         'the option must be exposed next to the compile-thread limit')
 require('kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.core.ppu_llvm_ir_passes, 0, 1, 1)' in settings, 'option kind/range')
-require('\t\t\t\tarm64_ir_passes,\n\n\t\t\t\t__bitset_enum_max' in ppu, 'settings bit must be appended last')
-require('if (g_cfg.core.ppu_llvm_ir_passes)\n\t\t\t\tsettings += ppu_settings::arm64_ir_passes;' in ppu,
+# Build 483: the pipeline selector keeps the Build 444 bit and appends the Extended bit after it.
+require('\t\t\t\tarm64_ir_passes,\n\t\t\t\tarm64_ir_passes_extended,\n\n\t\t\t\t__bitset_enum_max' in ppu,
+        'settings bits must be appended last')
+require('case ppu_llvm_pipeline_type::early_cse:\n\t\t\t\tsettings += ppu_settings::arm64_ir_passes;' in ppu,
         'objects built with/without the passes must not share a name')
-require('const bool run_ir_passes = g_cfg.core.ppu_llvm_ir_passes.get();' in ppu, 'pass gate must read the option once')
+require('const bool run_ir_passes = ppu_pipeline != ppu_llvm_pipeline_type::upstream;' in ppu and
+        'const ppu_llvm_pipeline_type ppu_pipeline = ppu_effective_pipeline();' in ppu, 'pass gate must read the effective pipeline once')
 require(ppu.count('#elif defined(RPCS3_IOS)\n\t\t\t\t\tif (run_ir_passes)\n') == 1 and
         ppu.count('#elif defined(RPCS3_IOS)\n\t\t\t\tif (run_ir_passes)\n') == 1,
         'both x86-64 pass sites must gate the ARM64 passes on the option')

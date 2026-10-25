@@ -1,9 +1,11 @@
 #include "RPCS3PPUIdentity.h"
+#import "RPCS3CPUCompatibility.h"
 #import <string.h>
 #import "Rpcs3InternalBridgePlugin.h"
 #import "Rpcs3JitBridgePlugin.h"
 #import "Rpcs3CoreABI.h"
 #import <neo_swap/NeoSwap.h>
+#import <neo_swap/NeoSwapCompilerAPI.h>
 #import <neo_swap/NeoSwapExperiment.h>
 #import <neo_swap/NeoSwapRelay.h>
 #import <neo_swap/NeoSwapRelayService.h>
@@ -12,6 +14,8 @@
 #import "Rpcs3EarlyLoaderDiagnostics.h"
 #import "Rpcs3EarlyAddressSpaceEscrow.h"
 #import "RPCS3GameInputController.h"
+#import "RPCS3TouchControls.h"
+#import <neo_touch_layout/NeoTouchLayout.h>
 #import "RPCS3PerformanceOverlay.h"
 #include "RPCS3PerformanceSnapshot.h"
 #include "RPCS3FrameRateHold.h"
@@ -99,6 +103,46 @@ static uint64_t RPCS3ProcessFootprintBytes(void) {
   return info.phys_footprint;
 }
 
+// NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1 (D9): change-only admission of the
+// 1 Hz neoswap_guest_sample_ext line. The comparison ignores sample_epoch and
+// phase only through the title/epoch key: a new title or epoch always writes.
+static BOOL RPCS3Build487AdmitGuestSampleExt(NSString* line, NSString* title, uint64_t epoch) {
+  static os_unfair_lock lock = OS_UNFAIR_LOCK_INIT;
+  static NSString* previousCounters = nil;
+  static NSString* previousTitle = nil;
+  static uint64_t previousEpoch = 0;
+  static CFTimeInterval lastWrite = 0;
+  NSRange counters = [line rangeOfString:@"gameplay_direct_requests="];
+  NSString* payload = counters.location == NSNotFound ? line : [line substringFromIndex:counters.location];
+  const CFTimeInterval now = CACurrentMediaTime();
+  os_unfair_lock_lock(&lock);
+  const BOOL changed = previousCounters == nil || ![previousCounters isEqualToString:payload] ||
+      ![previousTitle isEqualToString:title ?: @""] || previousEpoch != epoch;
+  const BOOL admit = changed || now - lastWrite >= 60.0;
+  if (admit) {
+    previousCounters = payload;
+    previousTitle = [title copy] ?: @"";
+    previousEpoch = epoch;
+    lastWrite = now;
+  }
+  os_unfair_lock_unlock(&lock);
+  return admit;
+}
+
+// NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: rpcs3_ios_emulation_state values.
+static const char* RPCS3EmulationStateName(uint32_t state) {
+  switch (state) {
+    case 1: return "stopped";
+    case 2: return "loading";
+    case 3: return "ready";
+    case 4: return "starting";
+    case 5: return "running";
+    case 6: return "paused";
+    case 7: return "stopping";
+    default: return "unknown";
+  }
+}
+
 static void RPCS3SampleNeoSwapGuestStatsExt(rpcs3_ios_neoswap_relay_stats_ext_getter getter,
                                            NSString* title, uint64_t epoch, const char* phase) {
   NeoSwapRelayClientStatsExt stats = {};
@@ -115,7 +159,7 @@ static void RPCS3SampleNeoSwapGuestStatsExt(rpcs3_ios_neoswap_relay_stats_ext_ge
   }
   // Cumulative independent atomics except fallback_live_*, which are current
   // live counts of candidate objects on ordinary backing.
-  RPCS3Diagnostic(@"neoswap_guest_sample_ext", [NSString stringWithFormat:
+  NSString* line = [NSString stringWithFormat:
       @"title=%@ schema=1 valid=1 result=%d sample_epoch=%llu phase=%s scope=process_lifetime "
        "gameplay_direct_requests=%llu gameplay_direct_creates=%llu gameplay_direct_create_bytes=%llu "
        "gameplay_direct_busy=%llu gameplay_direct_pressure=%llu gameplay_direct_budget=%llu gameplay_direct_other=%llu "
@@ -131,7 +175,14 @@ static void RPCS3SampleNeoSwapGuestStatsExt(rpcs3_ios_neoswap_relay_stats_ext_ge
       (unsigned long long)stats.fallback_live_bytes, (unsigned long long)stats.oversize_requests,
       (unsigned long long)stats.oversize_requested_bytes, (unsigned long long)stats.boot_creates,
       (unsigned long long)stats.boot_create_bytes, (unsigned long long)stats.direct_published_objects,
-      (unsigned long long)stats.direct_published_bytes]);
+      (unsigned long long)stats.direct_published_bytes];
+  // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1 (D9): the 1 Hz "sample" phase was
+  // 441 of 1677 lines of a session with constant counters. Emit it only when
+  // the counters change, plus one line every 60 s; the boundary phases
+  // (before_boot, boot_return, session_end) are always written. Cumulative
+  // counters and maxima of fallback_live_* are preserved by this rule.
+  if (strcmp(phase, "sample") == 0 && !RPCS3Build487AdmitGuestSampleExt(line, title, epoch)) return;
+  RPCS3Diagnostic(@"neoswap_guest_sample_ext", line);
 }
 
 static void RPCS3SampleNeoSwapGuestStats(rpcs3_ios_neoswap_relay_stats_getter getter,
@@ -297,6 +348,9 @@ static UIViewController* RPCS3RootViewController(void) {
   [self.view bringSubviewToFront:self.performanceOverlay];
   [self.view bringSubviewToFront:self.menuButton];
   [self.view bringSubviewToFront:self.performanceButton];
+  // Build 484: the touch-layout editor covers the action rail while it is open.
+  UIView* editor = self.inputController.activeEditor;
+  if (editor.superview == self.view) [self.view bringSubviewToFront:editor];
 }
 - (void)viewDidDisappear:(BOOL)animated {
   [self.inputController stop];
@@ -397,6 +451,8 @@ static UIViewController* RPCS3RootViewController(void) {
   uint64_t _diagnosticMinimumAvailableMemory;
   NSInteger _diagnosticWorstThermalState;
   RPCS3FrameRateHold _diagnosticFrameRateHold;
+  uint64_t _diagnosticPreviousGuestFrames;  // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1
+  BOOL _diagnosticGuestFramesKnown;
   rpcs3_ios_api _api;
   int32_t (*_neoSwapClientStats)(NeoSwapClientStats*);
   rpcs3_ios_neoswap_relay_stats_getter _neoSwapRelayClientStats;
@@ -405,6 +461,8 @@ static UIViewController* RPCS3RootViewController(void) {
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
+  // Build 484: the PS3 controls for the editor opened from the settings.
+  RPCS3TouchControlsRegisterPreview();
   RPCS3RecoverEarlyLoaderLog();
   FlutterMethodChannel* channel = [FlutterMethodChannel methodChannelWithName:kRpcs3Channel
                                                               binaryMessenger:registrar.messenger];
@@ -418,10 +476,14 @@ static UIViewController* RPCS3RootViewController(void) {
   if (self) {
     _runtimeQueue = dispatch_queue_create("com.neogamelab.neostation.rpcs3.runtime", DISPATCH_QUEUE_SERIAL);
     memset(&_api, 0, sizeof(_api));
-    const BOOL held = _jitEscrow.acquire();
-    NSString* detail = [NSString stringWithUTF8String:_jitEscrow.detail().c_str()] ?: @"";
-    RPCS3Milestone(@"early_jit_escrow", detail);
-    if (!held) RPCS3Diagnostic(@"early_jit_escrow_failed", detail);
+    if (NSString* cpuError = RPCS3CPUCompatibilityError()) {
+      RPCS3Milestone(@"early_jit_escrow_skipped", cpuError);
+    } else {
+      const BOOL held = _jitEscrow.acquire();
+      NSString* detail = [NSString stringWithUTF8String:_jitEscrow.detail().c_str()] ?: @"";
+      RPCS3Milestone(@"early_jit_escrow", detail);
+      if (!held) RPCS3Diagnostic(@"early_jit_escrow_failed", detail);
+    }
   }
   return self;
 }
@@ -461,6 +523,43 @@ static NSString* RPCS3HostCPUTopology(void) {
       integer("hw.memsize")];
 }
 
+// NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: milestone stage of a Build 487 Core
+// line, or nullptr. Complete bounded freeze snapshots are persisted as one milestone.
+static const char* RPCS3Build487MilestoneStage(const char* message) {
+  if (strstr(message, "FREEZE_DUMP snapshot\n") != nullptr) return "freeze_snapshot";
+  if (strstr(message, "SAVESTATE_RESTORE ") != nullptr) return "savestate_restore";
+  if (strstr(message, "RSX_ACQUIRE ") != nullptr) return "rsx_acquire";
+  if (strstr(message, "JITPROF_BOOT ") != nullptr) return "jitprof_boot";
+  if (strstr(message, "CONFIG_LAYERS ") != nullptr) return "config_layers";
+  if (strstr(message, "NEOSTATION_RESTART ") != nullptr) return "internal_restart";
+  if (strstr(message, "SAVESTATE_BOOT ") != nullptr) return "savestate_boot";
+  if (strstr(message, "FREEZE_DUMP begin ") != nullptr) return "freeze_dump";
+  if (strstr(message, "MUTEX_DESTROY_BUSY ") != nullptr) return "mutex_destroy_busy";
+  return nullptr;
+}
+
+// MUTEX_DESTROY_BUSY is emitted by the Core once per failing guest call; a
+// title that retries in a loop must not fill the diagnostic and milestone
+// files. Keep the first 64 per process (the first one names the culprit).
+static BOOL RPCS3Build487AdmitBoundedLine(const char* message) {
+  if (strstr(message, "MUTEX_DESTROY_BUSY ") == nullptr) return YES;
+  static std::atomic<uint32_t> mutexLines{0};
+  return mutexLines.fetch_add(1, std::memory_order_relaxed) < 64;
+}
+
+// Milestones are bounded files: complete freeze snapshots fit within 66 KiB;
+// legacy begin summaries use 512 bytes and ordinary records use 1 KiB.
+static NSString* RPCS3Build487MilestoneText(const char* message) {
+  // 64 bounded Core lines plus separators/thread prefix; one durable write.
+  const size_t limit = strstr(message, "FREEZE_DUMP snapshot\n") != nullptr ? 66 * 1024 :
+      strstr(message, "FREEZE_DUMP begin ") != nullptr ? 512 : 1024;
+  const size_t length = strnlen(message, limit);
+  NSString* text = [[NSString alloc] initWithBytes:message length:length encoding:NSUTF8StringEncoding];
+  // A cut inside a multibyte sequence is not valid UTF-8: fall back to ASCII-safe text.
+  if (!text) text = [[NSString alloc] initWithBytes:message length:length encoding:NSISOLatin1StringEncoding];
+  return text ?: @"";
+}
+
 static void RPCS3Log(void* context, int32_t level, const char* message) {
   Rpcs3InternalBridgePlugin* bridge = (__bridge Rpcs3InternalBridgePlugin*)context;
   if (!bridge || !message) return;
@@ -486,15 +585,36 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
     RPCS3Milestone(@"boot_policy", [NSString stringWithUTF8String:message] ?: @"");
   } else if (strstr(message, "Applied iOS God of War III") != nullptr) {
     RPCS3Milestone(@"gow3_mlaa_bypass", [NSString stringWithUTF8String:message] ?: @"");
+  } else if (const char* stage = RPCS3Build487MilestoneStage(message)) {
+    // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: boot facts of the audit (D3, D4,
+    // D5, D6, D8, D10) survive the 2 MiB diagnostic rotation as milestones.
+    if (!RPCS3Build487AdmitBoundedLine(message)) return;
+    RPCS3Milestone(@(stage), RPCS3Build487MilestoneText(message));
   }
   // SPUPROF and RANGELOCKPROF are computed by the Core every report period
   // but were never exported: the 7 October 2026 God of War III analysis needs
   // them to attribute SPU compile time and range-lock blockers.
+  // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: JITPROF (LLVM phases, every 5 s)
+  // and the bounded Build 487 boot/freeze lines are emitted at notice/warning
+  // level; like the profiler lines they bypass the level filter and the
+  // ordinary budget. The Core bounds FREEZE_DUMP (64 lines / 30 s); the host
+  // bounds MUTEX_DESTROY_BUSY before this point (RPCS3Build487AdmitBoundedLine).
   const BOOL profiler =
       strstr(message, "COREPROF ") != nullptr ||
       strstr(message, "COREPROF_RESILIENCE ") != nullptr ||
       strstr(message, "SPUPROF ") != nullptr ||
-      strstr(message, "RANGELOCKPROF ") != nullptr;
+      strstr(message, "RANGELOCKPROF ") != nullptr ||
+      strstr(message, "JITPROF ") != nullptr ||
+      strstr(message, "JITMEM ") != nullptr || strstr(message, "JITPAGES ") != nullptr ||
+      strstr(message, "JITCPU ") != nullptr || strstr(message, "VMAHEAP ") != nullptr ||
+      strstr(message, "JITPROF_BOOT ") != nullptr ||
+      strstr(message, "CONFIG_LAYERS ") != nullptr ||
+      strstr(message, "NEOSTATION_RESTART ") != nullptr ||
+      strstr(message, "SAVESTATE_BOOT ") != nullptr ||
+      strstr(message, "SAVESTATE_RESTORE ") != nullptr ||
+      strstr(message, "RSX_ACQUIRE ") != nullptr ||
+      strstr(message, "FREEZE_DUMP ") != nullptr ||
+      strstr(message, "MUTEX_DESTROY_BUSY ") != nullptr;
   // Core already emits bounded video archive/unmap/restore notices. Keep them
   // under the ordinary log budget so device logs can measure real RAM release.
   const BOOL videoArchive = strstr(message, "NEOSWAP_VDEC ") != nullptr;
@@ -552,6 +672,10 @@ static void RPCS3Progress(void* context,
 }
 
 - (BOOL)loadCoreWithExpandedJit:(BOOL)expanded error:(NSString**)error {
+  if (NSString* cpuError = RPCS3CPUCompatibilityError()) {
+    if (error) *error = cpuError;
+    return NO;
+  }
   if (_api.handle) {
     if (self.coreLoadedWithExpandedJit != expanded) {
       if (error) {
@@ -668,6 +792,9 @@ static void RPCS3Progress(void* context,
   // allocator instance linked into this Core. Bind before initialize/boot.
   using NeoSwapBinder = int32_t (*)(const NeoSwapAPI*);
   auto bindSwap = reinterpret_cast<NeoSwapBinder>(dlsym(handle, "rpcs3_ios_set_neoswap_api"));
+  using CompilerBinder = int32_t (*)(const NeoSwapCompilerAPI*);
+  const auto bindCompiler = reinterpret_cast<CompilerBinder>(dlsym(handle, "rpcs3_ios_set_compiler_budget_api"));
+  if (bindCompiler) bindCompiler(NeoSwap_GetCompilerAPI(NEOSWAP_COMPILER_ABI));
   const int swapResult = bindSwap ? bindSwap(NeoSwap_GetAPI(NEOSWAP_ABI)) : NEOSWAP_INVALID;
   // Guest shared-memory objects choose their backing on their first map and
   // cannot be switched later without breaking g_base/g_sudo alias coherence.
@@ -939,6 +1066,8 @@ static void RPCS3Progress(void* context,
   _diagnosticMinimumAvailableMemory = UINT64_MAX;
   _diagnosticWorstThermalState = NSProcessInfoThermalStateNominal;
   _diagnosticFrameRateHold = {};
+  _diagnosticPreviousGuestFrames = 0;
+  _diagnosticGuestFramesKnown = NO;
 
   dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, _runtimeQueue);
   _diagnosticPerformanceTimer = timer;
@@ -988,8 +1117,27 @@ static void RPCS3Progress(void* context,
 
     NSString* fpsDiagnostic = fpsValid
         ? [NSString stringWithFormat:@"%.2f", metrics.frames_per_second] : @"unavailable";
+    // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1 (D1): emulator state, boot progress
+    // (permille), guest flips since the previous sample (never native-UI
+    // presents) and the overlay flag, "-" when an older Core leaves them invalid.
+    NSString* emuStateDiagnostic = (metrics.valid_fields & rpcs3_ios_performance_state)
+        ? @(RPCS3EmulationStateName(metrics.emulation_state)) : @"-";
+    NSString* bootProgressDiagnostic = (metrics.valid_fields & rpcs3_ios_performance_boot_progress)
+        ? [NSString stringWithFormat:@"%u/%u", metrics.boot_progress_completed, metrics.boot_progress_total] : @"-";
+    NSString* guestFramesDiagnostic = @"-";
+    if (metrics.valid_fields & rpcs3_ios_performance_guest_frames) {
+      const uint64_t total = metrics.guest_frames_presented;
+      const uint64_t previous = strongSelf->_diagnosticGuestFramesKnown ? strongSelf->_diagnosticPreviousGuestFrames : 0;
+      // A recreated renderer restarts the cumulative counter: count from zero.
+      const uint64_t delta = total >= previous ? total - previous : total;
+      guestFramesDiagnostic = [NSString stringWithFormat:@"%llu", (unsigned long long)delta];
+      strongSelf->_diagnosticPreviousGuestFrames = total;
+      strongSelf->_diagnosticGuestFramesKnown = YES;
+    }
+    NSString* nativeUIDiagnostic = (metrics.valid_fields & rpcs3_ios_performance_native_ui)
+        ? (metrics.native_ui_visible ? @"1" : @"0") : @"-";
     RPCS3Diagnostic(@"performance_sample", [NSString stringWithFormat:
-        @"title=%@ valid=0x%x fps=%@ cpu=%.1f rsx=%.1f memory=%llu/%llu available=%llu thermal=%ld sample_epoch=%llu sample_status=%d sample_age_ms=%.1f swap_rpc_total_live=%llu swap_rpc_shared_live=%llu swap_file_ready=%d swap_host=%d swap_stats=%d swap_small=%llu swap_attempts=%llu swap_failures=%llu swap_successes=%llu swap_last=%d donor_state=%d donor_count=%u donor_lost=%u donor_first_pid=%d donor_generation=%llu donor_target=%llu donor_prepared=%llu donor_shared_live=%llu donor_retained=%llu donor_retained_live=%llu donor_resident=%llu donor_accounted_compressed=%llu donor_footprint=%llu donor_nonvolatile=%llu donor_nonvolatile_compressed=%llu donor_stage=%d donor_kernel=%d relay_ready=%d relay_live=%llu relay_peak=%llu relay_objects=%llu relay_aliases=%llu relay_mapped=%llu process_resident=%llu",
+        @"title=%@ valid=0x%x fps=%@ cpu=%.1f rsx=%.1f memory=%llu/%llu available=%llu thermal=%ld sample_epoch=%llu sample_status=%d sample_age_ms=%.1f swap_rpc_total_live=%llu swap_rpc_shared_live=%llu swap_file_ready=%d swap_host=%d swap_stats=%d swap_small=%llu swap_attempts=%llu swap_failures=%llu swap_successes=%llu swap_last=%d donor_state=%d donor_count=%u donor_lost=%u donor_first_pid=%d donor_generation=%llu donor_target=%llu donor_prepared=%llu donor_shared_live=%llu donor_retained=%llu donor_retained_live=%llu donor_resident=%llu donor_accounted_compressed=%llu donor_footprint=%llu donor_nonvolatile=%llu donor_nonvolatile_compressed=%llu donor_stage=%d donor_kernel=%d relay_ready=%d relay_live=%llu relay_peak=%llu relay_objects=%llu relay_aliases=%llu relay_mapped=%llu process_resident=%llu emu_state=%@ boot_progress=%@ guest_frames=%@ native_ui=%@",
         strongSelf.activeTitleId, metrics.valid_fields, fpsDiagnostic,
         metrics.cpu_usage_percent, metrics.gpu_usage_percent,
         (unsigned long long)metrics.memory_used_bytes,
@@ -1022,7 +1170,8 @@ static void RPCS3Progress(void* context,
         (unsigned long long)[relay[@"objectCount"] unsignedLongLongValue],
         (unsigned long long)[relay[@"aliasCount"] unsignedLongLongValue],
         (unsigned long long)[relay[@"mappedAliasBytes"] unsignedLongLongValue],
-        (unsigned long long)RPCS3ProcessResidentBytes()]);
+        (unsigned long long)RPCS3ProcessResidentBytes(),
+        emuStateDiagnostic, bootProgressDiagnostic, guestFramesDiagnostic, nativeUIDiagnostic]);
   });
   dispatch_resume(timer);
 }
@@ -1169,6 +1318,35 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   if ([command isEqual:@"touchControls"]) {
     controller.inputController.touchControlsEnabled = [value boolValue];
     if (completion) completion(YES, @"");
+    return;
+  }
+
+  // Build 484: "Hide touch controls when a controller is connected" (PS3).
+  if ([command isEqual:@"touchHideWithController"]) {
+    NeoTouchSetHidesControlsWithController(@"ps3", [value boolValue]);
+    [controller.inputController updateTouchVisibility];
+    if (completion) completion(YES, @"");
+    return;
+  }
+
+  // Build 484: the menu closes and the touch-layout editor opens. RPCS3 has
+  // no pause entry point in its Core ABI: while the editor is open the game
+  // receives a connected pad with nothing pressed (no touch, no controller).
+  if ([command isEqual:@"editTouchLayout"]) {
+    if (completion) completion(YES, @"");
+    __weak RPCS3GameViewController* weakController = controller;
+    NSString* title = self.activeTitleId;
+    void (^open)(void) = ^{
+      RPCS3GameViewController* owner = weakController;
+      if (!owner || owner != self.gameController) return;
+      RPCS3Diagnostic(@"touch_layout", @"editor=opened input=released");
+      [owner.inputController beginTouchLayoutEditingWithTitle:title completion:^{
+        RPCS3Diagnostic(@"touch_layout", @"editor=closed");
+      }];
+      [owner.view setNeedsLayout];
+    };
+    if (controller.presentedViewController) [controller dismissViewControllerAnimated:YES completion:open];
+    else open();
     return;
   }
 
@@ -1371,12 +1549,14 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
 - (void)showGameMenu {
   RPCS3GameViewController* controller = self.gameController;
   if (!controller || controller.presentedViewController) return;
+  if (controller.inputController.isEditingTouchLayout) return;
 
   Rpcs3SessionMenu* menu = [Rpcs3SessionMenu new];
   menu.localeIdentifier = self.activeUiLocale ?: controller.uiLocale ?: @"en";
   menu.gameTitle = self.activeTitleId.length ? self.activeTitleId : @"RPCS3";
   menu.performanceVisible = controller.showingPerformance;
   menu.touchControlsVisible = controller.inputController.isTouchControlsEnabled;
+  menu.touchHideWithController = NeoTouchHidesControlsWithController(@"ps3");
   menu.languageChoices = [self languageChoices];
 
   __weak Rpcs3InternalBridgePlugin* weakSelf = self;
@@ -1641,7 +1821,10 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       controller.menuHandler = ^{ [weakSelf showGameMenu]; };
       controller.performanceToggleHandler = ^(BOOL visible) { [weakSelf setPerformanceSamplingEnabled:visible]; };
       [controller loadViewIfNeeded];
-      controller.inputController = [[RPCS3GameInputController alloc] initWithHostView:controller.view api:&self->_api];
+      controller.inputController = [[RPCS3GameInputController alloc] initWithHostView:controller.view api:&self->_api
+                                                                                locale:controller.uiLocale];
+      // Build 484: the per-game touch layout key is the PS3 title ID.
+      controller.inputController.gameKey = titleId;
       controller.inputController.menuRequested = controller.menuHandler;
       [controller.inputController start];
       [controller.inputController layoutControlsInBounds:controller.view.bounds safeAreaInsets:controller.view.safeAreaInsets];

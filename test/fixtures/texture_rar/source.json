@@ -1,0 +1,20 @@
+{
+  "upstream": "https://github.com/libarchive/libarchive/tree/v3.8.10/libarchive/test",
+  "tag": "v3.8.10",
+  "purpose": "Original upstream RAR4/RAR5 test fixtures, not game data. UUencoded reference bytes retained unchanged.",
+  "files": {
+    "test_read_format_rar_compress_normal.rar.uu": "1c36a76e84bf08d1fdf7597b43737fa174a0813bf2715bf181fd3afb6f6f1f11",
+    "test_read_format_rar.rar.uu": "d1e75b4120995bce82fc4e72ebf8b80d18ea69fa34ac62de383b8393f92afa09",
+    "test_read_format_rar4_encrypted.rar.uu": "42dbdbebe72842c255ef9d600a37ca38cde2133e07abfcf49512dcb81280c746",
+    "test_read_format_rar5_stored.rar.uu": "ec73ba623a8e8eee4909dcdf45f0526ff9adc1d856d054ce742e6c1ba1fb5fa8",
+    "test_read_format_rar5_compressed.rar.uu": "7a87af5035430d2307f9a183b2da8a71c95b3c0a5b8e8d1f172ef3343d4b8620",
+    "test_read_format_rar5_multiple_files_solid.rar.uu": "0184822d0b061ae1a705a46cf1ca4adb4981b9e37bdb6500a48530a19c56fd88",
+    "test_read_format_rar5_solid.rar.uu": "1ced0e33ea4dc6847c05e63878f020d7c6c5cc82812b441865f16797fc7c8eaa",
+    "test_read_format_rar5_blake2.rar.uu": "6be4d60c833ffc549e74ad02032229291f879b1b1ce86ccd5ef04caa551c746b",
+    "test_read_format_rar5_encrypted.rar.uu": "5cc262d34226c3c9298df7bda065eee1523f8ff6ebaced486f48117095661a0b",
+    "test_read_format_rar5_solid_encrypted_filenames.rar.uu": "f05919eebdf3b41a82046dc5b9d6c0e2426e8ec7c25f47e7e0501f5900d33913",
+    "test_read_format_rar5_multiarchive_solid.part01.rar.uu": "198ab406491ef87855e5b48c62c5e86746c73627e5bcecc7a9b4850088aa670c",
+    "test_read_format_rar5_bad_tables.rar.uu": "eb3e5a2ae136bbde38745fc224066d82942c66d3544bb9f28243e3534fed29b5",
+    "test_read_format_rar5_different_solid_window_size.rar.uu": "6d65b3c315f9ecedca77a21957b31b8660e339c271da138fffc64038e5413354"
+  }
+}

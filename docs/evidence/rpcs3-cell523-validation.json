@@ -1,0 +1,737 @@
+{
+  "schema": 1,
+  "baselineAppBuild": 522,
+  "baselineBranch": "139f3d791323f84c4245dcb9030ac637baa214bb",
+  "baselineCoreSource": "1ae41b6400688d20a8d72173d3d80d0a1fe19710",
+  "baselineCoreRun": 40095061758,
+  "patch": "c1a56ef3c0248c8369e01ec98340bc6617677b92a35cb369402df2c5dcd6852e",
+  "memoryProbe": [
+    {
+      "pattern": 0,
+      "writing": true,
+      "beforeMedianMs": 1.8215949999999999,
+      "afterMedianMs": 1.31913,
+      "timeReductionPercent": 27.583793323982555,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 0,
+      "writing": false,
+      "beforeMedianMs": 0.3376355,
+      "afterMedianMs": 0.021217,
+      "timeReductionPercent": 93.71600438934887,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 1,
+      "writing": true,
+      "beforeMedianMs": 3.560825,
+      "afterMedianMs": 3.28425,
+      "timeReductionPercent": 7.767160700118647,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 1,
+      "writing": false,
+      "beforeMedianMs": 2.30592,
+      "afterMedianMs": 1.977695,
+      "timeReductionPercent": 14.234015056897032,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 3,
+      "writing": true,
+      "beforeMedianMs": 1.759305,
+      "afterMedianMs": 1.6804100000000002,
+      "timeReductionPercent": 4.484441299263042,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 3,
+      "writing": false,
+      "beforeMedianMs": 0.52803,
+      "afterMedianMs": 0.2125105,
+      "timeReductionPercent": 59.75408594208662,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 4,
+      "writing": true,
+      "beforeMedianMs": 3.2122200000000003,
+      "afterMedianMs": 2.96234,
+      "timeReductionPercent": 7.779043776578199,
+      "retainedRounds": 10
+    },
+    {
+      "pattern": 4,
+      "writing": false,
+      "beforeMedianMs": 2.3028899999999997,
+      "afterMedianMs": 1.9843600000000001,
+      "timeReductionPercent": 13.831750539539433,
+      "retainedRounds": 10
+    }
+  ],
+  "localProofs": {
+    "memory": {
+      "passed": true,
+      "cases": 160,
+      "sameUncompressedBytes": true,
+      "sameBreatheBoundaries": true,
+      "maxPayloadTransfer": 65536,
+      "densePayloadTransfersBefore": 2048,
+      "densePayloadTransfersAfter": 129,
+      "measurements": [],
+      "sanitizers": true,
+      "scope": "production VM methods; portable serial copy adapter; no game/device/storage timing"
+    },
+    "stream": {
+      "passed": true,
+      "realZstd": true,
+      "realSerialMethods": true,
+      "cases": [
+        {
+          "bytes": 1052672,
+          "pattern": 0,
+          "beforeBufferCapacity": 1048576,
+          "afterBufferCapacity": 1048576
+        },
+        {
+          "bytes": 1052672,
+          "pattern": 1,
+          "beforeBufferCapacity": 2097152,
+          "afterBufferCapacity": 2097152
+        },
+        {
+          "bytes": 1052672,
+          "pattern": 2,
+          "beforeBufferCapacity": 2097152,
+          "afterBufferCapacity": 2097152
+        },
+        {
+          "bytes": 1052672,
+          "pattern": 3,
+          "beforeBufferCapacity": 1048576,
+          "afterBufferCapacity": 1048576
+        },
+        {
+          "bytes": 33554432,
+          "pattern": 0,
+          "beforeBufferCapacity": 1048576,
+          "afterBufferCapacity": 1048576
+        },
+        {
+          "bytes": 33554432,
+          "pattern": 1,
+          "beforeBufferCapacity": 16777216,
+          "afterBufferCapacity": 16777216
+        },
+        {
+          "bytes": 33554432,
+          "pattern": 2,
+          "beforeBufferCapacity": 16777216,
+          "afterBufferCapacity": 16777216
+        },
+        {
+          "bytes": 33554432,
+          "pattern": 3,
+          "beforeBufferCapacity": 2097152,
+          "afterBufferCapacity": 2097152
+        }
+      ],
+      "sanitizers": true,
+      "scope": "real VM+serial+ZSTD; portable files/threads; capacities are not physical RAM"
+    },
+    "restore": {
+      "passed": true,
+      "stdout": "PASS actual FXO: reference/pointer/null/bulk/already-initialized, stream positions, no write/normal-boot tracing, per-restore cap/reset/thread isolation; HLE cases=39, missing-page negative control",
+      "actualFXOHeader": true,
+      "actualBoundedTrace": true,
+      "actualRangePolicy": true,
+      "sanitizers": true,
+      "scope": "production template/trace/range; portable archive/page-map/log adapters; no game restore"
+    },
+    "executor": {
+      "passed": true,
+      "cases": [
+        {
+          "variant": "candidate",
+          "exit": 0,
+          "stdout": "PASS 17 owned restore cases: actual old UIKit negative control; UI handoff, API serialization, bounded admission, stale-after-dequeue and late-cleanup cancellation, lifecycle reject, exception, closed queue, concurrent joins, self-join refusal, same-worker second restore, actual shutdown/lifecycle completion after join",
+          "stderr": ""
+        },
+        {
+          "variant": "before-join-negative-control",
+          "exit": -6,
+          "stdout": "",
+          "stderr": "175 assertion rpcs3_ios_shutdown()==RPCS3_IOS_INVALID_STATE"
+        }
+      ],
+      "actualExecutor": true,
+      "actualContinuation": true,
+      "actualReloadPath": true,
+      "actualShutdownAPI": true,
+      "actualLifecycle": true,
+      "originalAutoSaveBodyPreserved": true,
+      "negativeControlSHA256": "74156d35cbfa4c1a31f84403b6002bfd20e9ca43eb6bd9d18122c643f4ffd704",
+      "sanitizers": true,
+      "scope": "real owned native worker and production methods; Core/UI/filesystem doubles; no guest/device restore"
+    },
+    "gpuSnapshot": {
+      "passed": true,
+      "stdout": "PASS empty/64-bit/category units/sampler count, held-writer nonblocking refusal, 30000 reset/rebuild epochs, coherent observations=3972, skipped=3606487, empty reset; no GPU operation",
+      "actualSnapshot": true,
+      "actualPoolLookup": true,
+      "sanitizers": true,
+      "scope": "production snapshot/getter; portable registry/shared mutex; no GPU residency/device measurement"
+    },
+    "breathePositions": {
+      "passed": true,
+      "cases": 160,
+      "sameUncompressedBytes": true,
+      "sameBreatheBoundaries": true,
+      "maxPayloadTransfer": 65536,
+      "densePayloadTransfersBefore": 2048,
+      "densePayloadTransfersAfter": 129,
+      "measurements": [],
+      "actualBreathePositionsCompared": true,
+      "baseHarnessSHA256": "135619e46ff8c7bcf0166693d2b0eb5c4f276f62325044009827e45b9a5d1efd",
+      "harnessTransforms": [
+        {
+          "before": "bool first_span=true;",
+          "after": "bool first_span=true;std::vector<usz> breathe_positions{};"
+        },
+        {
+          "before": "void breathe(){++breaths;}",
+          "after": "void breathe(){++breaths;breathe_positions.push_back(pos);}"
+        },
+        {
+          "before": "ensure(a.data==b.data&&a.breaths==b.breaths&&b.max_payload<=65536);",
+          "after": "ensure(a.data==b.data&&a.breaths==b.breaths&&b.max_payload<=65536);ensure(a.breathe_positions==b.breathe_positions);"
+        }
+      ],
+      "transformedHarnessSHA256": "d1b52bffdec8aff0240c901809cc6f2b0e2abf87843cece7089d6feb68c41697",
+      "scope": "additional portable serializer assertion; no benchmark/game/device timing"
+    }
+  },
+  "nativeBuild": {
+    "status": "success",
+    "source": "e8437623a1ba37874adfacd8521c596e94d055c3",
+    "run": 40103133192,
+    "job": 120899201693,
+    "artifacts": [
+      {
+        "id": 12564485596,
+        "kind": "Core",
+        "archiveSHA256": "5203c92710a0cbb7b914c158e3c6864a2a5bd0c3df20f09ed8cabc5a4076d8e7"
+      },
+      {
+        "id": 12563609498,
+        "kind": "diagnostics",
+        "archiveSHA256": "4a6efff5e6e39ffcd20a9897742763cefa8de5ba266c0be16274244d6655c1d3"
+      }
+    ],
+    "independentValidation": {
+      "result": "passed",
+      "source": "e8437623a1ba37874adfacd8521c596e94d055c3",
+      "upstreamSource": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+      "abi": 30,
+      "exportCount": 88,
+      "architecture": "arm64",
+      "platform": "iPhoneOS",
+      "minimumOS": "16.3.0",
+      "cpuBaseline": "armv8.4-a",
+      "sha256": "d678bce3c8bb56a137393bb72bc6eea5d96a3053106c3cef78da8d63b438e9b4",
+      "compiledCorePayloadFingerprint": "dff3a649e328b41caa3e74add55130d388175f9e5e8e87dee1f7681304691f23",
+      "nativeInputsVerified": 127,
+      "syntaxGateUnits": [
+        "RPCS3IOS.cpp",
+        "RPCS3IOSPerformance.cpp",
+        "RPCS3IOSFreezeDump.cpp",
+        "RPCS3IOSSettings.cpp",
+        "savestate_utils.cpp",
+        "System.cpp",
+        "system_config_types.cpp",
+        "JITASM.cpp",
+        "JITLLVM.cpp",
+        "SourceClient.cpp",
+        "JITIOS.cpp",
+        "RPCS3IOSExperimentalPolicy.cpp",
+        "IOSTextureHash.cpp",
+        "TAR.cpp",
+        "ISO.cpp",
+        "PPUAnalyser.cpp",
+        "PPUFunction.cpp",
+        "PPUModule.cpp",
+        "PPUThread.cpp",
+        "PPUTranslator.cpp",
+        "SPUCommonRecompiler.cpp",
+        "SPULLVMRecompiler.cpp",
+        "SPUThread.cpp",
+        "sys_game.cpp",
+        "sys_mutex.cpp",
+        "cellVdec.cpp",
+        "vm.cpp",
+        "BufferUtils.cpp",
+        "nv406e.cpp",
+        "overlay_home_menu_main_menu.cpp",
+        "overlay_home_menu_savestate.cpp",
+        "RSXFIFO.cpp",
+        "RSXThread.cpp",
+        "fsr_pass.cpp",
+        "buffer_object.cpp",
+        "data_heap.cpp",
+        "memory.cpp",
+        "device.cpp",
+        "VKGSRender.cpp",
+        "VKProgramPipeline.cpp",
+        "VKResourceManager.cpp",
+        "VKTextureCache.cpp"
+      ],
+      "linkedFullCore": true,
+      "passiveDlopen": {
+        "initializerCount": 2792,
+        "initializerSymbols": 911,
+        "marker": "NEOSTATION_BUILD301_PASSIVE_DLOPEN_V1",
+        "forbiddenReachability": false,
+        "scope": "named forbidden functions via direct ARM64 B/BL edges, maximum depth 16",
+        "deviceRuntimeTested": false
+      },
+      "codegen": {
+        "actual": {
+          "PPU": [
+            "9013390836efe46e"
+          ],
+          "SPU": [
+            "a601a98f20f30c80"
+          ]
+        },
+        "prior": {
+          "PPU": [
+            "9013390836efe46e"
+          ],
+          "SPU": [
+            "a601a98f20f30c80"
+          ]
+        },
+        "coldCompileRequired": false,
+        "deviceTested": false
+      },
+      "nativeProofs": {
+        "executor": {
+          "passed": true,
+          "cases": [
+            {
+              "variant": "candidate",
+              "exit": 0,
+              "stdout": "PASS 17 owned restore cases: actual old UIKit negative control; UI handoff, API serialization, bounded admission, stale-after-dequeue and late-cleanup cancellation, lifecycle reject, exception, closed queue, concurrent joins, self-join refusal, same-worker second restore, actual shutdown/lifecycle completion after join",
+              "stderr": ""
+            },
+            {
+              "variant": "before-join-negative-control",
+              "exit": -6,
+              "stdout": "",
+              "stderr": "175 assertion rpcs3_ios_shutdown()==RPCS3_IOS_INVALID_STATE"
+            }
+          ],
+          "actualExecutor": true,
+          "actualContinuation": true,
+          "actualReloadPath": true,
+          "actualShutdownAPI": true,
+          "actualLifecycle": true,
+          "originalAutoSaveBodyPreserved": true,
+          "negativeControlSHA256": "74156d35cbfa4c1a31f84403b6002bfd20e9ca43eb6bd9d18122c643f4ffd704",
+          "sanitizers": true,
+          "scope": "real owned native worker and production methods; Core/UI/filesystem doubles; no guest/device restore"
+        },
+        "restore": {
+          "passed": true,
+          "stdout": "PASS actual FXO: reference/pointer/null/bulk/already-initialized, stream positions, no write/normal-boot tracing, per-restore cap/reset/thread isolation; HLE cases=39, missing-page negative control",
+          "actualFXOHeader": true,
+          "actualBoundedTrace": true,
+          "actualRangePolicy": true,
+          "sanitizers": true,
+          "scope": "production template/trace/range; portable archive/page-map/log adapters; no game restore"
+        },
+        "gpu-memory": {
+          "passed": true,
+          "stdout": "PASS empty/64-bit/category units/sampler count, held-writer nonblocking refusal, 30000 reset/rebuild epochs, coherent observations=12004, skipped=2326110, empty reset; no GPU operation",
+          "actualSnapshot": true,
+          "actualPoolLookup": true,
+          "sanitizers": true,
+          "scope": "production snapshot/getter; portable registry/shared mutex; no GPU residency/device measurement"
+        }
+      },
+      "dependencies": [
+        {
+          "path": "/System/Library/Frameworks/Security.framework/Security",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/AudioToolbox.framework/AudioToolbox",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libSystem.B.dylib",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Metal.framework/Metal",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/QuartzCore.framework/QuartzCore",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/IOSurface.framework/IOSurface",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/UIKit.framework/UIKit",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreServices.framework/CoreServices",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreAudio.framework/CoreAudio",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/CoreMIDI.framework/CoreMIDI",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/Foundation.framework/Foundation",
+          "weak": false
+        },
+        {
+          "path": "/System/Library/Frameworks/MetalFX.framework/MetalFX",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libiconv.2.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libc++.1.dylib",
+          "weak": false
+        },
+        {
+          "path": "/usr/lib/libobjc.A.dylib",
+          "weak": false
+        }
+      ],
+      "deviceRuntimeTested": false
+    },
+    "failedAttempts": [
+      {
+        "source": "40f0337122e8bd83a22b10acfb515ee56638600d",
+        "run": 40101861338,
+        "job": 120895491355,
+        "phase": "iPhoneOS syntax gate",
+        "errors": [
+          "qualify profiler snapshot namespace",
+          "include shared_mutex for SDK build"
+        ],
+        "targetedNativePreflight": "passed",
+        "coreProduced": false,
+        "delivered": false,
+        "diagnosticsArtifact": 12563790098,
+        "diagnosticsArchiveSHA256": "14f53f532ce2c9d2c9f924ffc97ca7d7257d5304d2f17ec125a7677f0749958f"
+      }
+    ],
+    "coreBytes": 77001872
+  },
+  "ipa": {
+    "status": "success",
+    "build": 523,
+    "version": "0.0.8",
+    "source": "c1f550f8be86c91d65dc564ebddff593f2e3fe46",
+    "run": 40104064265,
+    "jobs": [
+      {
+        "id": 120901974344,
+        "name": "native",
+        "conclusion": "success"
+      },
+      {
+        "id": 120901974504,
+        "name": "checks",
+        "conclusion": "success"
+      },
+      {
+        "id": 120903037258,
+        "name": "Release device build cold",
+        "conclusion": "success"
+      }
+    ],
+    "bytes": 186268879,
+    "sha256": "7fa958570e802c489db4d4df07b7388cde4bb18f94c2555bcce060db9aedb8a1",
+    "transportArtifacts": [
+      {
+        "index": 0,
+        "id": 12564701144,
+        "name": "RewindBox-Build-523-c1f550f8be86c91d65dc564ebddff593f2e3fe46-cold-part00",
+        "digest": "sha256:2c63e227c8e900755272b19aff4107a5b5be149b8e2cbab03a8dc5321fcd7f29"
+      },
+      {
+        "index": 1,
+        "id": 12564805636,
+        "name": "RewindBox-Build-523-c1f550f8be86c91d65dc564ebddff593f2e3fe46-cold-part01",
+        "digest": "sha256:be7da2da01425fc3dc7b9698ddd71f54ee37c7b77dce5b5b98e59fc7b52bf5d8"
+      },
+      {
+        "index": 2,
+        "id": 12563959443,
+        "name": "RewindBox-Build-523-c1f550f8be86c91d65dc564ebddff593f2e3fe46-cold-part02",
+        "digest": "sha256:5511defd0150a847ec888499a8bb14fe9944fa08fad3af8cd7facda9f9311e63"
+      },
+      {
+        "index": 3,
+        "id": 12564626536,
+        "name": "RewindBox-Build-523-c1f550f8be86c91d65dc564ebddff593f2e3fe46-cold-part03",
+        "digest": "sha256:a87ca095c6d7db1f58f43761e7c30639a91830158231cc67c7a9b4a010c6bd37"
+      }
+    ],
+    "transportEncryptedSHA256": "e71bd6fcdb543bad5c7bf3ce9c3ed5019e025c8cbd3f6b618c0a6e3292a87329",
+    "allTransportZipAndPartDigestsVerified": true,
+    "safeTarExtraction": true,
+    "plaintextChecksumVerified": true,
+    "independentValidation": {
+      "result": "passed",
+      "build": 523,
+      "ipaSHA256": "7fa958570e802c489db4d4df07b7388cde4bb18f94c2555bcce060db9aedb8a1",
+      "coreSource": "e8437623a1ba37874adfacd8521c596e94d055c3",
+      "coreRun": 40103133192,
+      "sourceArtifactSHA256": "d678bce3c8bb56a137393bb72bc6eea5d96a3053106c3cef78da8d63b438e9b4",
+      "compiledCorePayloadFingerprint": "dff3a649e328b41caa3e74add55130d388175f9e5e8e87dee1f7681304691f23",
+      "sharedCompilerBrokerLinked": true,
+      "optionalCoreBinderLinked": true,
+      "productionMinimalSPULinkerEnabled": false,
+      "physicalDeviceTested": false,
+      "physicalPerformanceMeasured": false,
+      "gow3BootAndVmaSourceVerified": true,
+      "version": "0.0.8",
+      "bundleIdentifier": "com.neogamelab.neostation",
+      "minimumIOS": "18.0",
+      "exportCount": 88,
+      "nativeNonLinkeditSegmentsUnchanged": true,
+      "allZipEntriesVerified": true,
+      "allSealedMachOImagesIndependentlyVerified": 84,
+      "hostEntitlements": {
+        "com.apple.developer.kernel.extended-virtual-addressing": true,
+        "com.apple.developer.kernel.increased-debugging-memory-limit": true,
+        "com.apple.developer.kernel.increased-memory-limit": true,
+        "get-task-allow": true
+      },
+      "packagedCoreSHA256": "f64a8c09332e658e42a3d38530448fc1cc03f81c110f2441b22816e28cd7df87",
+      "distribution": {
+        "ipa": "RewindBox-Build523.ipa",
+        "installationUnits": 1,
+        "hostBundleIdentifier": "com.neogamelab.neostation",
+        "embeddedExtensions": [
+          {
+            "bundle": "ARMSX2JITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.armsx2jithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "DolphinJITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.dolphinjithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "MeloNXJITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.melonxjithelper",
+            "extensionPoint": "com.apple.share-services"
+          },
+          {
+            "bundle": "MeloNXRamDonor.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.melonxramdonor",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "NeoSwapDonor.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.neoswapdonor",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "NeoSwapPageRelay.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.NeoSwapPageRelay",
+            "extensionPoint": "com.apple.ar.viewer"
+          },
+          {
+            "bundle": "RPCS3JITHelper.appex",
+            "bundleIdentifier": "com.neogamelab.neostation.rpcs3jithelper",
+            "extensionPoint": "com.apple.share-services"
+          }
+        ],
+        "embeddedPacketTunnelPresent": false,
+        "networkExtensionEntitlementPresent": false,
+        "externalJITTransport": "LocalDevVPN",
+        "userSignsOneIPA": true,
+        "neoSwapDonorRequestedEntitlements": {
+          "get-task-allow": true,
+          "com.apple.developer.kernel.increased-memory-limit": true,
+          "com.apple.developer.kernel.increased-debugging-memory-limit": true
+        },
+        "neoSwapDonorCount": 1,
+        "neoSwapRelayCount": 1,
+        "neoSwapRelayRequestedEntitlements": {
+          "get-task-allow": true,
+          "com.apple.developer.kernel.increased-memory-limit": true,
+          "com.apple.developer.kernel.increased-debugging-memory-limit": true
+        },
+        "neoSwapRelayEffectiveDeviceProfileValidated": false,
+        "neoSwapRelayResidentMemoryValidated": false,
+        "neoSwapDonorProcessInstancesValidated": false,
+        "neoSwapDonorEffectiveDeviceProfileValidated": false,
+        "deviceRuntimeTested": false,
+        "nestedSigningOrder": [
+          "NeoStation.app/PlugIns/ARMSX2JITHelper.appex",
+          "NeoStation.app/PlugIns/DolphinJITHelper.appex",
+          "NeoStation.app/PlugIns/MeloNXJITHelper.appex",
+          "NeoStation.app/PlugIns/MeloNXRamDonor.appex",
+          "NeoStation.app/PlugIns/NeoSwapDonor.appex",
+          "NeoStation.app/PlugIns/NeoSwapPageRelay.appex",
+          "NeoStation.app/PlugIns/RPCS3JITHelper.appex",
+          "NeoStation.app"
+        ],
+        "machOImagesCheckedForVPNEntitlements": 87
+      },
+      "signatureCount": 87,
+      "ciStrictSignaturesAllVerified": true,
+      "installationMethod": "SideStore re-signing",
+      "appleProvisioningVerified": false,
+      "reusedOtherCoreFingerprints": [
+        "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro",
+        "Frameworks/picodrive_libretro.framework/picodrive_libretro",
+        "Frameworks/freechaf_libretro.framework/freechaf_libretro",
+        "Frameworks/pokemini_libretro.framework/pokemini_libretro",
+        "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
+        "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro",
+        "Frameworks/sameduck_libretro.framework/sameduck_libretro",
+        "Frameworks/mesen_libretro.framework/mesen_libretro",
+        "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
+        "Frameworks/snes9x_libretro.framework/snes9x_libretro",
+        "Frameworks/MeloNXCore.framework/MeloNXCore",
+        "Frameworks/prosystem_libretro.framework/prosystem_libretro",
+        "Frameworks/ardens_libretro.framework/ardens_libretro",
+        "Frameworks/potator_libretro.framework/potator_libretro",
+        "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
+        "Frameworks/freeintv_libretro.framework/freeintv_libretro",
+        "Frameworks/nestopia_libretro.framework/nestopia_libretro",
+        "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro",
+        "Frameworks/mgba_libretro.framework/mgba_libretro",
+        "Frameworks/DolphinCore.framework/DolphinCore",
+        "Frameworks/stella_libretro.framework/stella_libretro",
+        "Frameworks/fbneo_libretro.framework/fbneo_libretro",
+        "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro",
+        "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro",
+        "Frameworks/gambatte_libretro.framework/gambatte_libretro",
+        "Frameworks/o2em_libretro.framework/o2em_libretro",
+        "Frameworks/wasm4_libretro.framework/wasm4_libretro",
+        "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro",
+        "Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+        "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro",
+        "Frameworks/a5200_libretro.framework/a5200_libretro",
+        "Frameworks/azahar_libretro.framework/azahar_libretro",
+        "Frameworks/gw_libretro.framework/gw_libretro",
+        "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+        "Frameworks/desmume_libretro.framework/desmume_libretro",
+        "Frameworks/handy_libretro.framework/handy_libretro",
+        "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro",
+        "Frameworks/uzem_libretro.framework/uzem_libretro"
+      ],
+      "compiledImagesChangedFrom522": [
+        "Frameworks/libRPCS3Core.dylib",
+        "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+        "Runner"
+      ]
+    },
+    "recompiledUnchangedSourceBridge": {
+      "scope": "source-identical Swift host bridge rebuilt in the cold app build; native engine payload preserved",
+      "bridge": "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "abiDependenciesPlatformsAndAllSymbolsUnchanged": true,
+      "sectionsWithChangedBytes": [
+        "__stubs",
+        "__objc_stubs"
+      ],
+      "binaryIdentityClaimed": false
+    },
+    "buildPhasesNotGameplayTimes": [
+      {
+        "phase": "dart_dependencies",
+        "seconds": 0.8233778330000234,
+        "exitCode": 0
+      },
+      {
+        "phase": "ruby_dependencies",
+        "seconds": 1.7864215000000172,
+        "exitCode": 0
+      },
+      {
+        "phase": "host_scaffold_and_registrant",
+        "seconds": 1.4340265839999802,
+        "exitCode": 0
+      },
+      {
+        "phase": "flutter_configuration_and_first_pods",
+        "seconds": 21.92186645800001,
+        "exitCode": 0
+      },
+      {
+        "phase": "cocoa_pods",
+        "seconds": 3.2793621249999774,
+        "exitCode": 0
+      },
+      {
+        "phase": "xcode_build",
+        "seconds": 306.785436458,
+        "exitCode": 0
+      },
+      {
+        "phase": "signature_and_ipa_export",
+        "seconds": 50.99651162500004,
+        "exitCode": 0
+      }
+    ],
+    "delivery": "private encrypted GitHub Actions artifact; private test IPA; no GitHub release or tag",
+    "libraryDownloadLinkPublishedInRepository": false
+  },
+  "physicalDeviceAfterChangeTested": false,
+  "legacyGenericWorkflow": {
+    "run": 40103133217,
+    "job": 120899201970,
+    "conclusion": "failure",
+    "step": "Validate startup contracts before compiling",
+    "reportedFailure": "rpcs3/ios/RPCS3IOSFreezeDump.cpp: missing lexical marker FREEZE_DUMP end",
+    "guardUnchangedFromCore522": true,
+    "guardSHA256": "1fe3661903dde902d131c37e37155b3a73e0de651b56e1b461d9a59224b052dd",
+    "nativeFileUnchangedFromCore522": true,
+    "nativeFileSHA256": "68b30b9ebe8b869051d8d18f88ebc1aac36de25b940fc7b12c072625e3a815fc",
+    "gateNotWeakened": true,
+    "deliveredUsingDedicatedCell523NativeAndPrivateIpaGates": true
+  },
+  "scope": {
+    "appBuildSource": "c1f550f8be86c91d65dc564ebddff593f2e3fe46",
+    "preservedApp522Source": "ace28d4231b96aad749cc948a05d03206a6f6662",
+    "changedAppOrOtherEmulatorProductFiles": [],
+    "noMainTagOrReleaseWritten": true,
+    "newGeneratedCodeChange": false,
+    "ppuSpuAtomicsAndGuestMemoryOrderingChanged": false,
+    "rsxSynchronizationWeakened": false,
+    "minimalSPULinkerEnabled": false,
+    "automaticTelemetryAdded": false
+  }
+}

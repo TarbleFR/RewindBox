@@ -1,3 +1,5 @@
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../widgets/header_layout.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -18,6 +20,8 @@ import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/ui_refresh_rate_service.dart';
 
 import '../widgets/fixed_header.dart';
+import '../widgets/horizontal_swipe.dart';
+import 'airplay_screen.dart';
 import 'systems_screen/system_content.dart';
 import 'systems_screen/custom_main_menu_background.dart';
 import 'search_screen/search_screen.dart';
@@ -51,7 +55,7 @@ class AppScreen extends StatefulWidget {
 ///
 /// [AppScreenState] delegates input per tab against these names rather than
 /// literals. They are identities, not positions: the header draws the tabs
-/// (and LB/RB cycle them) in [navTabDisplayOrder], where the consoles tab
+/// (and LB/RB or a touch swipe cycle them) in [navTabDisplayOrder], where the consoles tab
 /// sits right after Systems although it was appended last.
 abstract final class AppTabs {
   static const int systems = 0;
@@ -64,8 +68,11 @@ abstract final class AppTabs {
   /// Embedded consoles to add to the main menu (iOS).
   static const int consoles = 6;
 
+  /// Screen sharing, appended to preserve existing canonical identities.
+  static const int airplay = 7;
+
   /// Total number of tabs.
-  static const int count = 7;
+  static const int count = 8;
 }
 
 /// Tab and theme producer of the secondary display.
@@ -99,6 +106,8 @@ class AppScreenSecondaryDisplay {
         return 'Settings';
       case AppTabs.library:
         return 'Library';
+      case AppTabs.airplay:
+        return 'AirPlay';
     }
     return '';
   }
@@ -570,6 +579,10 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
   // to allow for context-aware navigation patterns (Grid vs List vs Paged).
 
   void _navigateContentRight() {
+    if (_selectedTabIndex == AppTabs.airplay) {
+      if (AirPlayScreen.canSwitchTabs) _navigateToNextTab();
+      return;
+    }
     if (_selectedTabIndex == AppTabs.systems) {
       return; // Grid navigation delegated to my_systems.dart via provider.
     }
@@ -588,6 +601,10 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
   }
 
   void _navigateContentLeft() {
+    if (_selectedTabIndex == AppTabs.airplay) {
+      if (AirPlayScreen.canSwitchTabs) _navigateToPreviousTab();
+      return;
+    }
     if (_selectedTabIndex == AppTabs.systems) return;
     if (_selectedTabIndex == AppTabs.scraper) {
       NewScraperOptionsScreen.navigateLeft();
@@ -611,6 +628,9 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
   /// mounted. Keeping a second route to the same screen is what caused the
   /// double-dispatch bug fixed in #255.
   bool _navigateContentDown() {
+    if (_selectedTabIndex == AppTabs.airplay) {
+      return AirPlayScreen.navigateDown();
+    }
     if (_selectedTabIndex == AppTabs.systems) return true;
     if (_selectedTabIndex == AppTabs.scraper) {
       NewScraperOptionsScreen.navigateDown();
@@ -626,6 +646,7 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
   }
 
   bool _navigateContentUp() {
+    if (_selectedTabIndex == AppTabs.airplay) return AirPlayScreen.navigateUp();
     if (_selectedTabIndex == AppTabs.systems) return true;
     if (_selectedTabIndex == AppTabs.scraper) {
       NewScraperOptionsScreen.navigateUp();
@@ -647,6 +668,10 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
   }
 
   void _handleBackNavigation() {
+    if (_selectedTabIndex == AppTabs.airplay) {
+      AirPlayScreen.backCurrent();
+      return;
+    }
     if (_selectedTabIndex == AppTabs.scraper) {
       NewScraperOptionsScreen.backCurrent();
     } else if (_selectedTabIndex == AppTabs.library) {
@@ -655,6 +680,10 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
   }
 
   void _selectCurrentItem() async {
+    if (_selectedTabIndex == AppTabs.airplay) {
+      AirPlayScreen.selectCurrent();
+      return;
+    }
     if (_selectedTabIndex == AppTabs.systems) return;
 
     if (_selectedTabIndex == AppTabs.scraper) {
@@ -737,6 +766,9 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
   /// at both ends, so a hidden tab is skipped rather than selected and
   /// immediately bounced (see [cycleNavTab]).
   void _cycleTab(int step) {
+    if (_selectedTabIndex == AppTabs.airplay && !AirPlayScreen.canSwitchTabs) {
+      return;
+    }
     final next = cycleNavTab(
       _visibleTabs,
       NavTab.values[_selectedTabIndex],
@@ -799,21 +831,32 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
                     ),
                   ),
 
-                // Main Content Layer.
-                Positioned.fill(child: _buildCurrentTabContent()),
-
-                // Global Header: Managed based on app initialization state.
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child:
-                      (configProvider.initialized || !configProvider.isLoading)
-                      ? FixedHeader(
-                          selectedTabIndex: _selectedTabIndex,
-                          onTabSelected: _onTabSelected,
-                        )
-                      : const SizedBox.shrink(),
+                // Main Content Layer. The ancestor horizontal recognizer
+                // only wins when no nested horizontal control (carousel,
+                // PageView, slider...) claims the gesture, so touch tab
+                // switching does not steal those interactions. LB/RB continues
+                // to call the same cycle methods below.
+                Positioned.fill(
+                  child: MainMenuChromeLayout(
+                    baseClearance: 46.r,
+                    body: HorizontalSwipe(
+                      key: ValueKey('main-tab-swipe-$_selectedTabIndex'),
+                      onSwipeLeft: _navigateToNextTab,
+                      onSwipeRight: _navigateToPreviousTab,
+                      distanceThreshold: 64,
+                      velocityThreshold: 450,
+                      dragFeedback: true,
+                      child: _buildCurrentTabContent(),
+                    ),
+                    header:
+                        (configProvider.initialized ||
+                            !configProvider.isLoading)
+                        ? FixedHeader(
+                            selectedTabIndex: _selectedTabIndex,
+                            onTabSelected: _onTabSelected,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
                 ),
 
                 // Global Footer Placeholder.
@@ -863,6 +906,11 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
         return NewSettingsScreen();
       case AppTabs.library:
         return const LibraryScreen();
+      case AppTabs.airplay:
+        return AirPlayScreen(
+          onPreviousTab: _navigateToPreviousTab,
+          onNextTab: _navigateToNextTab,
+        );
       case AppTabs.consoles:
         // The page pushes its own gamepad layer (like RAContent), which
         // deactivates this screen's handler; LB/RB come back here.

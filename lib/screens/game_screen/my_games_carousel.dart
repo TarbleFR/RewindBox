@@ -29,6 +29,10 @@ import 'package:neostation/models/retro_achievements_game_info.dart';
 import 'package:neostation/providers/retro_achievements_provider.dart';
 import 'package:neostation/services/retro_achievements_helper.dart';
 import 'package:neostation/screens/game_screen/game_details_card/dialogs/game_achievements_dialog.dart';
+import 'package:neostation/screens/game_box/game_box_inspector.dart';
+import 'package:neostation/services/game_box/game_box_preferences.dart';
+import 'package:neostation/widgets/game_box/game_box_card.dart';
+import 'package:neostation/l10n/game_box_locale.dart';
 
 class GamesCarousel extends StatefulWidget {
   final SystemModel system;
@@ -110,6 +114,11 @@ class _GamesCarouselState extends State<GamesCarousel> {
   final Map<String, double> _letterWidthCache = {};
   final Map<String, bool> _fileExistsCache = {};
   int _lastBgIndex = -1;
+
+  // 3D box of the Jaquette view (Box card style, docs/game-box-3d.md § 3).
+  final Map<String, String> _spineCache = {};
+  final Set<String> _boxProfilesLoading = {};
+  bool _boxOpeningAnimation = true;
 
   static final Map<String, Size?> _imgSizeCache = {};
 
@@ -243,6 +252,7 @@ class _GamesCarouselState extends State<GamesCarousel> {
     _settledIndex = _currentIndex;
     _initializeGamepad();
     GameLegendVisibility.hidden.addListener(_onLegendVisibilityChanged);
+    _loadBoxPreferences();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToCurrentLetter();
       _updateBackground();
@@ -313,9 +323,12 @@ class _GamesCarouselState extends State<GamesCarousel> {
       },
       onSelectItem: () {
         if (_currentIndex >= 0 && _currentIndex < widget.games.length) {
-          widget.onPlay();
+          _play();
         }
       },
+      // Box style: Up (or the right stick) examines the centred box.
+      onNavigateUp: _inspectCurrent,
+      onRightStickClick: _inspectCurrent,
       onBack: widget.onBack,
       onFavorite: widget.onFavorite,
       onXButton: () {
@@ -434,7 +447,7 @@ class _GamesCarouselState extends State<GamesCarousel> {
     _chromeSig = sig;
     _chromeFooter = GameViewFooter(
       game: settledGame,
-      onPlay: widget.onPlay,
+      onPlay: _play,
       hasRetroAchievements: hasRa,
       isLoadingAchievements: _isLoadingAchievements,
       currentGameInfo: _currentGameInfo,
@@ -925,12 +938,11 @@ class _GamesCarouselState extends State<GamesCarousel> {
     final hasBox = boxPath.isNotEmpty;
     final ratio = _boxAspectRatio(game) ?? 1.0;
 
+    // No glowing halo in the Box style: the centred box is set apart by its
+    // size and depth in the carousel (docs/game-box-3d.md § 3).
     if (!hasBox) {
       return Center(
-        child: _withRainbowSelection(
-          isSelected: isSelected,
-          borderRadius: BorderRadius.circular(8.r),
-          child: Stack(
+        child: Stack(
           children: [
             _buildBoxFallback(game, theme),
             if (game.isFavorite == true)
@@ -955,7 +967,6 @@ class _GamesCarouselState extends State<GamesCarousel> {
               _buildScrapeProgress(game),
           ],
         ),
-      ),
       );
     }
 
@@ -974,37 +985,20 @@ class _GamesCarouselState extends State<GamesCarousel> {
         }
 
         return Center(
-          child: _withRainbowSelection(
-            isSelected: isSelected,
-            borderRadius: BorderRadius.circular(8.r),
-            padding: EdgeInsets.all(5.r),
-            child: Container(
-            width: cardW,
-            height: cardH,
-            clipBehavior: Clip.antiAlias,
-            margin: EdgeInsets.all(5.r),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8.r),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isSelected ? 0.6 : 0.3),
-                  blurRadius: isSelected ? 12.r : 6.r,
-                  offset: Offset(2.r, 2.r),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8.r),
+          child: SizedBox(
+              width: cardW + 10.r,
+              height: cardH + 10.r,
               child: Stack(
-                fit: StackFit.expand,
+                clipBehavior: Clip.none,
                 children: [
-                  Image.file(
-                    File(boxPath),
-                    key: ValueKey(boxPath),
-                    fit: BoxFit.cover,
-                    cacheWidth: 1024,
-                    errorBuilder: (ctx, e, s) => _buildBoxFallback(game, theme),
+                  Positioned.fill(
+                    child: GameBoxCard(
+                      key: ValueKey('box3d:$boxPath'),
+                      frontPath: boxPath,
+                      title: game.name,
+                      systemId: _boxSystemId(game),
+                      spinePath: _spinePath(game),
+                    ),
                   ),
                   if (game.isFavorite == true)
                     Positioned(
@@ -1024,6 +1018,29 @@ class _GamesCarouselState extends State<GamesCarousel> {
                         ),
                       ),
                     ),
+                  if (isSelected)
+                    Positioned(
+                      left: 8.r,
+                      bottom: 8.r,
+                      child: Tooltip(
+                        message: GameBoxLocale.text(context, GameBoxLocale.inspectHint),
+                        child: Semantics(
+                          button: true,
+                          label: GameBoxLocale.text(context, GameBoxLocale.inspect),
+                          child: GestureDetector(
+                            onTap: () => _inspect(game),
+                            child: Container(
+                              padding: EdgeInsets.all(6.r),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Symbols.threed_rotation_rounded, size: 18.r, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   if (widget.scrapingGameRomnames.contains(game.romname))
                     Positioned(
                       left: 0,
@@ -1034,8 +1051,6 @@ class _GamesCarouselState extends State<GamesCarousel> {
                 ],
               ),
             ),
-          ),
-          ),
         );
       },
     );
@@ -1043,6 +1058,89 @@ class _GamesCarouselState extends State<GamesCarousel> {
 
   Widget _buildBoxFallback(GameModel game, ThemeData theme) {
     return _buildFallbackCard(game, theme);
+  }
+
+  // 3D box ------------------------------------------------------------------
+
+  Future<void> _loadBoxPreferences() async {
+    final enabled = await GameBoxPreferences.openingAnimation();
+    if (mounted && enabled != _boxOpeningAnimation) {
+      setState(() => _boxOpeningAnimation = enabled);
+    }
+  }
+
+  bool get _isBoxStyle =>
+      context.read<SqliteConfigProvider>().config.gameCarouselCardStyle == 'box';
+
+  String? _boxSystemId(GameModel game) {
+    final id = (_isAllMode ? game.systemId : null) ?? widget.system.id ?? game.systemId;
+    if (id != null && _boxProfilesLoading.add(id)) {
+      GameBoxProfiles.load(id).then((_) {
+        if (mounted) setState(() {});
+      });
+    }
+    return id;
+  }
+
+  String? _spinePath(GameModel game) {
+    final cached = _spineCache.putIfAbsent(
+      game.romname,
+      () => _resolveImagePath(game, 'box2dside'),
+    );
+    return cached.isEmpty ? null : cached;
+  }
+
+  bool _hasBoxFront(GameModel game) => _resolveImagePath(game, 'box2d').isNotEmpty;
+
+  void _inspectCurrent() {
+    if (!_isBoxStyle) return;
+    if (_currentIndex < 0 || _currentIndex >= widget.games.length) return;
+    final game = widget.games[_currentIndex];
+    if (!_hasBoxFront(game)) return;
+    SfxService().playEnterSound();
+    _inspect(game);
+  }
+
+  /// Play from the box view: the box opens first (unless the opening is
+  /// turned off), then the library's normal launch runs. Other styles play
+  /// directly, as before.
+  void _play() {
+    if (_currentIndex < 0 || _currentIndex >= widget.games.length) return;
+    final game = widget.games[_currentIndex];
+    if (GameBoxLaunchGate.busy) return;
+    if (_isBoxStyle && _boxOpeningAnimation && _hasBoxFront(game)) {
+      _inspect(game, autoPlay: true);
+      return;
+    }
+    widget.onPlay();
+  }
+
+  Future<void> _inspect(GameModel game, {bool autoPlay = false}) async {
+    if (GameBoxLaunchGate.busy) return;
+    // The library already selected this centred game on its page change; the
+    // viewer launches that same selection.
+    final folder = _folderForGame(game);
+    final theme = Theme.of(context);
+    await GameBoxInspector.open(
+      context,
+      autoPlay: autoPlay,
+      onPlay: widget.onPlay,
+      subject: GameBoxSubject(
+        game: game,
+        systemFolder: folder,
+        fileProvider: widget.fileProvider,
+        systemId: _boxSystemId(game),
+        appSystemId: (_isAllMode ? game.systemId : null) ?? widget.system.id,
+        frontFallback: () => _buildFallbackCard(game, theme),
+        system: widget.system,
+        isAllMode: _isAllMode,
+      ),
+    );
+    if (!mounted) return;
+    // Faces may have been fetched while the box was open.
+    _spineCache.remove(game.romname);
+    _loadBoxPreferences();
+    setState(() {});
   }
 
   @override
@@ -1101,7 +1199,11 @@ class _GamesCarouselState extends State<GamesCarousel> {
               // tapping the centred one plays it, so touch users
               // never need the footer's A button.
               onTap: () {
-                if (isCentred) {
+                if (isCentred && !isFanart && _hasBoxFront(game)) {
+                  // The box view examines the box; "Play" opens it.
+                  SfxService().playEnterSound();
+                  _inspect(game);
+                } else if (isCentred) {
                   SfxService().playEnterSound();
                   widget.onPlay();
                 } else {

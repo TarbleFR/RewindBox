@@ -1,0 +1,61 @@
+name: RewindBox direct Switch playlist and compact main header
+run-name: RewindBox Navigation 512 • ${{ github.sha }}
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/navigation512-checks.yml
+      - test/navigation512_scope_test.py
+      - test/navigation512_switch_test.dart
+      - test/menu_carousel_correction_test.dart
+      - lib/widgets/header.dart
+      - lib/widgets/header_sort_dropdown.dart
+      - lib/widgets/header_layout.dart
+      - lib/widgets/switch_playlist_empty_state.dart
+      - lib/widgets/melonx_internal_playlist_actions.dart
+      - lib/screens/game_screen/my_games_list.dart
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: rewindbox-navigation512-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  flutter:
+    if: ${{ !contains(github.event.head_commit.message, '[navigation512-validated]') && !contains(github.event.head_commit.message, '[melonx-keys-only]') && !contains(github.event.head_commit.message, '[retroarch-delivery]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Require only the requested interface changes
+        run: python3 test/navigation512_scope_test.py
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze changed interfaces and targeted fixtures
+        run: >-
+          flutter analyze --no-pub --no-fatal-infos lib/widgets/header.dart lib/widgets/header_sort_dropdown.dart
+          lib/widgets/header_layout.dart lib/widgets/switch_playlist_empty_state.dart
+          lib/widgets/melonx_internal_playlist_actions.dart lib/screens/game_screen/my_games_list.dart
+          test/menu_carousel_correction_test.dart test/navigation512_switch_test.dart
+      - name: Verify direct Switch access, embedded discovery, manual refresh and twelve languages
+        run: flutter test --no-pub --concurrency=1 --reporter expanded test/navigation512_switch_test.dart
+      - name: Verify compact main header with both real battery readings
+        run: >-
+          flutter test --no-pub --concurrency=1 --reporter expanded
+          test/menu_carousel_correction_test.dart --name 'compact production header'
+      - name: Render changed full portrait and landscape compositions
+        run: flutter test --no-pub --concurrency=1 --reporter expanded test/ui_correction_visual_test.dart
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RewindBox-Navigation512-interface-proof
+          path: build/ui-correction-qa/
+          if-no-files-found: warn
+          retention-days: 14

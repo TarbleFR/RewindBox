@@ -6,12 +6,14 @@ import 'package:provider/provider.dart';
 
 import '../l10n/console_manager_locale.dart';
 import '../l10n/dolphin_import_locale.dart';
+import '../l10n/texture_catalog_locale.dart';
 import '../providers/sqlite_config_provider.dart';
 import '../services/dolphin_internal_v2_service.dart';
 import '../services/dolphin_smart_import_service.dart';
 import '../services/dolphin_system_files.dart';
 import '../services/embedded_engine_policy.dart';
 import '../services/home_music_service.dart';
+import '../services/texture_catalog_service.dart';
 import '../services/logger_service.dart';
 
 /// An action inside the existing media tab pill, never a positioned overlay.
@@ -128,8 +130,23 @@ class _DolphinInternalPlaylistActionsState
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  // Build 486: the console's HD textures page (GameCube, Wii).
+  Future<void> _openTextures() async {
+    _interaction(true);
+    try {
+      final opened = await TextureCatalogService.openConsole(widget.systemFolder);
+      if (!opened && mounted) _notice(TextureCatalogLocale.text(Localizations.localeOf(context), 'openFailed'));
+    } finally {
+      if (mounted) _interaction(false);
+    }
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
+    if (action == 'textures') {
+      await _openTextures();
+      return;
+    }
     setState(() => _busy = true);
     try {
       int? count;
@@ -288,6 +305,11 @@ class _DolphinInternalPlaylistActionsState
           ],
           const PopupMenuDivider(),
           PopupMenuItem(value: 'shared', child: Text(_text('shared'))),
+          if (TextureCatalogService.supports(widget.systemFolder))
+            PopupMenuItem(
+              value: 'textures',
+              child: Text(TextureCatalogLocale.text(Localizations.localeOf(context), 'menuTitle')),
+            ),
         ],
       ),
     );

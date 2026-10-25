@@ -31,6 +31,22 @@
     },
     {
       "keys": [
+        "beetle_psx_hw_internal_resolution"
+      ],
+      "apply": "relaunch",
+      "maxFactor": 8.0,
+      "requires": {
+        "beetle_psx_hw_renderer": [
+          "hardware",
+          "hardware_vk"
+        ]
+      },
+      "renderers": [
+        "vulkan"
+      ]
+    },
+    {
+      "keys": [
         "beetle_psx_hw_internal_resolution",
         "beetle_psx_internal_resolution"
       ],
@@ -46,22 +62,6 @@
       "renderers": [
         "gles",
         "software"
-      ]
-    },
-    {
-      "keys": [
-        "beetle_psx_hw_internal_resolution"
-      ],
-      "apply": "relaunch",
-      "maxFactor": 8.0,
-      "requires": {
-        "beetle_psx_hw_renderer": [
-          "hardware",
-          "hardware_vk"
-        ]
-      },
-      "renderers": [
-        "vulkan"
       ]
     },
     {

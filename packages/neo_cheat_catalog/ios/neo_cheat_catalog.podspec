@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.dependency 'Flutter'
   s.platform = :ios, '17.4'
   s.ios.deployment_target = '17.4'
-  s.frameworks = 'Foundation', 'UIKit', 'UniformTypeIdentifiers'
+  s.frameworks = 'Foundation', 'UIKit', 'UniformTypeIdentifiers', 'QuartzCore'
   s.libraries = 'z'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

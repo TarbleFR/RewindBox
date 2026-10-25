@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -218,14 +219,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(10.r),
-                              child: LinearProgressIndicator(
+                              child: LiquidProgressIndicator(
                                 value: _downloadProgress,
                                 minHeight: 8.r,
-                                backgroundColor: theme.colorScheme.primary
-                                    .withValues(alpha: 0.1),
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  theme.colorScheme.primary,
-                                ),
                               ),
                             ),
                             SizedBox(height: 8.r),

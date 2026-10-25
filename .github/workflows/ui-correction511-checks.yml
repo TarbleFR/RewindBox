@@ -1,0 +1,105 @@
+name: RewindBox complete menu and Cover Flow correction
+run-name: RewindBox UI correction 511 • ${{ github.sha }}
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/ui-correction511-checks.yml
+      - test/menu_carousel_correction_test.dart
+      - test/ui_correction_visual_test.dart
+      - test/ui_correction_scope_test.py
+      - lib/widgets/header_layout.dart
+      - lib/widgets/mau_ali_tab_motion_data.dart
+      - lib/widgets/main_menu_tab_strip.dart
+      - lib/widgets/native_carousel.dart
+      - lib/widgets/header.dart
+      - lib/screens/systems_screen/my_systems_section/system_card.dart
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: rewindbox-ui-correction-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  flutter:
+    if: ${{ !contains(github.event.head_commit.message, '[ui511-validated]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - name: Require exact UI-only scope and the complete original motion source
+        run: |
+          python3 test/ui_correction_scope_test.py
+          python3 build-utils/extract_mau_ali_motion.py --check
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - run: flutter pub get --enforce-lockfile
+      - name: Authenticate prior UI proof and exact rapid-selection delta
+        run: |
+          python3 - <<'PROOF'
+          import json, subprocess
+          from pathlib import Path
+          old = 'fa5c249dbca0f988128021e465b3aa936c7ebea3'
+          prefix = 'repos/TarbleFR/RewindBox/'
+          def api(path): return json.loads(subprocess.check_output(['gh', 'api', prefix + path], text=True))
+          run = api('actions/runs/39889391790')
+          assert run['head_sha'] == old and run['status'] == 'completed' and run['conclusion'] == 'success'
+          job = api('actions/jobs/120205228418')
+          assert job['conclusion'] == 'success'
+          passed = {step['name'] for step in job['steps'] if step.get('conclusion') == 'success'}
+          assert {'Authenticate unchanged passing analysis and 26 UI cases',
+              'Verify complete visual composition with isolated fixture database ownership',
+              'Verify affected carousel input, interruption, rotation and accessibility',
+              'Verify changed author notice packaging'} <= passed
+          inputs = ['lib', 'assets', 'packages', 'native', 'ios', 'pubspec.yaml', 'pubspec.lock',
+              'test/menu_carousel_correction_test.dart', 'test/ui_correction_visual_test.dart',
+              'test/main_menu_tab_strip_test.dart', 'test/airplay_navigation_test.dart', 'test/liquid_motion_test.dart']
+          delta = set(subprocess.check_output(['git', 'diff', '--name-only', old, 'HEAD', '--', *inputs], text=True).splitlines())
+          assert delta == {'lib/widgets/main_menu_tab_strip.dart', 'test/menu_carousel_correction_test.dart'}, delta
+          def original(path): return subprocess.check_output(['git', 'show', old + ':' + path], text=True)
+          path = 'lib/widgets/main_menu_tab_strip.dart'
+          before = '    final f = _frame, rest = 1 - _motion.value;'
+          after = """    final f = _frame;
+              // Blend interrupted deformation back into the author's track in four frames.
+              // Carrying it through another peak would accumulate scale on repeated taps.
+              final frames = (MauAliTabMotion.segment(_segment)['dr'] as num).toDouble();
+              final rest = (1 - _motion.value * frames / 4).clamp(0.0, 1.0);"""
+          assert original(path).count(before) == 1
+          assert Path(path).read_text() == original(path).replace(before, after)
+          path = 'test/menu_carousel_correction_test.dart'
+          old_test = original(path).rsplit('\n}', 1)[0]
+          current = Path(path).read_text()
+          assert current.startswith(old_test)
+          added = current[len(old_test):]
+          assert added.count('testWidgets(') == 1
+          assert 'rapid repeated selection keeps the original bounded lens and capsule scale' in added
+          record = {'source': old, 'run': 39889391790, 'job': 120205228418,
+              'overallConclusion': 'success', 'reusedPassingFlutterCases': 32,
+              'reusedPassingLegalCases': 8, 'rerunAffectedSelectionCases': 1,
+              'newRepeatedSelectionRegressionCases': 1,
+              'unchangedCompleteScreenProofArtifact': 12474486070,
+              'delta': sorted(delta), 'physicalDeviceTested': False}
+          output = Path('build/ui-correction-qa'); output.mkdir(parents=True, exist_ok=True)
+          (output / 'rapid-selection-proof-reuse.json').write_text(json.dumps(record, indent=2) + '\n')
+          print('PASS exact four-frame interrupted-residue correction; 32 unaffected Flutter and 8 legal cases reused.')
+          PROOF
+      - name: Analyze changed selection code and regression fixture
+        run: flutter analyze --no-pub lib/widgets/main_menu_tab_strip.dart test/menu_carousel_correction_test.dart
+      - name: Verify complete selection and repeated interruption regression
+        run: >-
+          flutter test --no-pub --reporter expanded test/menu_carousel_correction_test.dart
+          --name 'full selection deforms|rapid repeated selection'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RewindBox-UI511-complete-screen-proof
+          path: build/ui-correction-qa/
+          if-no-files-found: warn
+          retention-days: 14

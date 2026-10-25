@@ -17,7 +17,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = '22f1152783cef1f7e04af7b1c895173e28fd5b03'
-PATCH_SHA256 = 'f19ec0f82bf830e1d371f0cc2de581f3df26c7beaac1a133d79b9dc04cc7cfb7'
+PATCH_SHA256 = '55aa964da5414cc735a1f0eebda197e3f08d7da57c7480252ce5f88dc7aa7b96'
 BACKPORTS = (
     '8bd938e9de9ff6455f312cdf8bd64bd37a064c4e',
     '1d13d1e6bbabfbb7a873f2c608c52525ff470e25',
@@ -34,6 +34,21 @@ V011_BACKPORTS = (
 # Core source, recipe, ABI and native acceptance evidence. NeoSwap.cpp,
 # NeoSwapHost.h, donation helpers and broker-only tests belong to the host.
 CORE_INPUTS = (
+    'test/rpcs3_restore_eof_test.py',
+    'test/native/rpcs3_savestate_harness.cpp',
+    'test/rpcs3_build265_core_test.py',
+    'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm',
+    'test/rpcs3_gow3_restore_regression_test.py',
+    'test/fixtures/rpcs3_gow3_restore.diff',
+    '.github/diagnostics/rpcs3gow3_core.py',
+    'test/rpcs3_gow3_boot_regression_test.py',
+    'test/fixtures/rpcs3_memory_audit/JITLLVM.diff',
+    '.github/workflows/rpcs3-memory-audit.yml',
+    'test/rpcs3_core_syntax_gate_test.py',
+    'test/rpcs3_memory_audit_test.py',
+    'test/native/rpcs3_memory_audit_test.cpp',
+    'packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h',
+    'packages/neo_swap/ios/Classes/NeoSwapCompilerBudget.h',
     'native/neoswap-storage/StorageABI.h',
     'native/neoswap-storage/Client.h',
     'native/neoswap-storage/ShaderKey.h',
@@ -86,6 +101,21 @@ CORE_INPUTS = (
     'test/native/rpcs3_build435_core_delta_test.cpp',
     'test/rpcs3_build444_core_delta_test.py',
     'test/native/rpcs3_build444_core_delta_test.cpp',
+    'test/rpcs3_build481_spu_object_cache_test.py',
+    'test/native/rpcs3_build481_spu_object_cache_test.cpp',
+    'test/native/rpcs3_spu_object_relocation_test.cpp',
+    'test/rpcs3_build483_llvm_pipeline_test.py',
+    'test/native/rpcs3_llvm_pipeline_harness.cpp',
+    # NEOSTATION_BUILD487_DIAGNOSTICS_V1: executed by the Core preflight.
+    'test/rpcs3_build499_spu_audit_test.py',
+    'test/native/rpcs3_build499_spu_audit_test.cpp',
+    'test/rpcs3_build487_core_diagnostics_test.py',
+    'test/native/rpcs3_build487_profiler_helpers_test.cpp',
+    'test/native/rpcs3_build487_boot_diagnostics_test.cpp',
+    'test/native/rpcs3_build487_lever_helpers_test.cpp',
+    'test/native/rpcs3_build487_retention_sequence_test.cpp',
+    'test/rpcs3_build487_host_diagnostics_test.py',
+    'test/rpcs3_build258_core_architecture_test.py',
     'test/rpcs3_ios_ppu_compile_budget_test.cpp',
     'test/rpcs3_ppu_no_size_split_policy_test.cpp',
     'test/rpcs3_xitrix_v0101_native_test.py',
@@ -106,6 +136,17 @@ def require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
+def workflow_source_text(text: str) -> str:
+    """Unfold YAML escaped line wraps without changing the guarded input list.
+
+    A quoted run scalar can wrap an assertion in the middle of its spaces.
+    Both this representation and literal shell blocks must retain identical
+    path/count and ABI assertions; no YAML dependency is needed for folding.
+    """
+    text = re.sub(r'\\\r?\n[ \t]*', '', text)
+    return re.sub(r'\\([ \t])', r'\1', text)
+
+
 def core_input_hashes(root: Path = ROOT) -> dict[str, str]:
     result = {}
     for relative in CORE_INPUTS:
@@ -120,7 +161,7 @@ def validate_core_scheduling(workflow: str) -> None:
             'Workflow-level concurrency can cancel a pinned Core even when the build job is skipped')
     require('    concurrency:\n      group: neostation-rpcs3-core-${{ github.sha }}\n      cancel-in-progress: false\n' in workflow,
             'Core job must preserve running builds and isolate immutable source SHAs')
-    require("    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-host-integration]') }}" in workflow,
+    require("    if: ${{ inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') && !contains(github.event.head_commit.message, '[rpcs3-cell527-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell528-core]') }}" in workflow,
             'Host-only integration must not rebuild the referenced Core')
 
 
@@ -149,6 +190,7 @@ def validate_source_contract(root: Path = ROOT, source_root: Path | None = None)
             'Core must borrow relay ABI 1 from the host without claiming device proof')
     for host, core in (
         ('packages/neo_swap/ios/Classes/NeoSwap.h', 'rpcs3/ios/NeoSwap.h'),
+        ('packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h', 'rpcs3/ios/NeoSwapCompilerAPI.h'),
         ('packages/neo_swap/ios/Classes/NeoSwapClientStats.h', 'rpcs3/ios/NeoSwapClientStats.h'),
         ('packages/neo_swap/ios/Classes/NeoSwapRelay.h', 'rpcs3/ios/NeoSwapRelay.h'),
         ('native/neoswap/NeoSwapClient.h', 'rpcs3/ios/NeoSwapClient.h'),
@@ -197,8 +239,8 @@ def validate_source_contract(root: Path = ROOT, source_root: Path | None = None)
     require("'neoswap_source_archive_abi':1" in core_workflow and
             '_rpcs3_ios_set_source_archive_api' in core_workflow, 'Missing cold-source ABI/export identity')
     require("'core_input_sha256':core_input_hashes()" in core_workflow, 'Missing recipe/input identity')
-    ipa_workflow = (root / '.github/workflows/neoswap-ipa.yml').read_text()
-    block = ipa_workflow.split('# RPCS3_CORE_INPUTS_BEGIN\n', 1)[1].split('# RPCS3_CORE_INPUTS_END', 1)[0]
+    ipa_workflow = workflow_source_text((root / '.github/workflows/neoswap-ipa.yml').read_text())
+    block = ipa_workflow.split('# RPCS3_CORE_INPUTS_BEGIN', 1)[1].split('# RPCS3_CORE_INPUTS_END', 1)[0]
     inputs = re.findall(r'(?:build-utils|test|packages|native|\.github)/[^\s\\]+', block)
     require(len(inputs) == len(CORE_INPUTS) and set(inputs) == set(CORE_INPUTS),
             'IPA exact-diff inputs differ from the published Core input identity')
@@ -214,8 +256,8 @@ def validate_source_contract(root: Path = ROOT, source_root: Path | None = None)
             'IPA must reject a Core without prepared-relay ABI 1')
     require("assert identity['neoswap_relay_client_stats_abi'] == 1" in ipa_workflow,
             'IPA must reject a Core without relay-client diagnostics ABI 1')
-    delivery_workflow = (root / '.github/workflows/retroarch-delivery.yml').read_text()
-    delivery_block = delivery_workflow.split('# RPCS3_CORE_INPUTS_BEGIN\n', 1)[1].split('# RPCS3_CORE_INPUTS_END', 1)[0]
+    delivery_workflow = workflow_source_text((root / '.github/workflows/retroarch-delivery.yml').read_text())
+    delivery_block = delivery_workflow.split('# RPCS3_CORE_INPUTS_BEGIN', 1)[1].split('# RPCS3_CORE_INPUTS_END', 1)[0]
     delivery_inputs = re.findall(r'(?:build-utils|test|packages|native|\.github)/[^\s\\]+', delivery_block)
     require(len(delivery_inputs) == len(CORE_INPUTS) and set(delivery_inputs) == set(CORE_INPUTS),
             'Delivery exact-diff inputs differ from the published Core input identity')

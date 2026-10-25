@@ -22,6 +22,7 @@ import 'package:neostation/services/libretro_core_catalog.dart';
 import 'package:neostation/services/libretro_engine_choices.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 import 'package:neostation/widgets/libretro_engine_panel.dart';
+import 'package:neostation/widgets/armsx2_texture_panel.dart';
 
 /// Per-game emulator override tab for [GameSettingsDialog].
 ///
@@ -66,7 +67,7 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
     return switch (_systemFolder) {
       'ps2' => 'ARMSX2',
       'ps3' => 'RPCS3',
-      'ports' => 'Dusklight',
+      'switch' => 'MeloNX',
       _ => null,
     };
   }
@@ -213,7 +214,18 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
       ? widget.game.emulatorName
       : _activeEmulatorId as String?;
 
+  // ARMSX2_HD_TEXTURES_BEGIN: Build 485, HD texture packs of a PS2 game.
+  /// A physical PS2 image (the retired armsx2:// rows have no file).
+  bool get _hasTexturePanel =>
+      _iosEmbeddedEngineName == 'ARMSX2' &&
+      (widget.game.romPath?.startsWith('/') ?? false);
+  final GlobalKey<Armsx2TexturePanelState> _texturePanelKey =
+      GlobalKey<Armsx2TexturePanelState>();
+  int get _textureRows => _texturePanelKey.currentState?.rows.length ?? 0;
+  // ARMSX2_HD_TEXTURES_END
+
   int get _totalItems {
+    if (_hasTexturePanel) return _textureRows;
     if (_isLibretroSystem) return _libretroChoices.length;
     if (_availableEmulators.isEmpty) return 0;
     // iOS exposes exactly one supported external emulator app per system
@@ -266,6 +278,11 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
 
   void trigger() {
     if (_totalItems == 0) return;
+
+    if (_hasTexturePanel) {
+      _texturePanelKey.currentState?.activateRow(_selectedIndex);
+      return;
+    }
 
     if (_isLibretroSystem) {
       _setLibretroChoice(_selectedIndex);
@@ -333,16 +350,38 @@ class GameSettingsEmulatorTabState extends State<GameSettingsEmulatorTab> {
     // one in-process product, with no external-app or RetroArch selector.
     final embeddedEngine = _iosEmbeddedEngineName;
     if (embeddedEngine != null) {
-      return Padding(
+      final identity = ListTile(
+        leading: const Icon(Symbols.sports_esports_rounded),
+        title: Text(embeddedEngine),
+        subtitle: Text(EmbeddedEmulatorLocale.integrated(context)),
+        trailing: Icon(
+          Icons.check_circle,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      );
+      if (!_hasTexturePanel) {
+        return Padding(padding: EdgeInsets.all(12.r), child: identity);
+      }
+      return SingleChildScrollView(
+        controller: _scrollController,
         padding: EdgeInsets.all(12.r),
-        child: ListTile(
-          leading: const Icon(Symbols.sports_esports_rounded),
-          title: Text(embeddedEngine),
-          subtitle: Text(EmbeddedEmulatorLocale.integrated(context)),
-          trailing: Icon(
-            Icons.check_circle,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            identity,
+            Armsx2TexturePanel(
+              key: _texturePanelKey,
+              gamePath: widget.game.romPath!,
+              selectedRow: _selectedIndex,
+              onRowsChanged: () {
+                if (!mounted) return;
+                setState(() {
+                  final rows = _textureRows;
+                  _selectedIndex = rows == 0 ? 0 : _selectedIndex.clamp(0, rows - 1);
+                });
+              },
+            ),
+          ],
         ),
       );
     }

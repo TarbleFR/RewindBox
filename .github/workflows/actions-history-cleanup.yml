@@ -1,0 +1,61 @@
+name: Actions history cleanup (300 recent plus required dependencies)
+run-name: One-time Actions history cleanup — 21 October 2026
+
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - build-utils/maintenance/actions-cleanup-2026-10-21.json
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: neostation-actions-history-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: >-
+      github.repository == 'TarbleFR/RewindBox' &&
+      github.ref == 'refs/heads/Claude' &&
+      github.event_name == 'push' &&
+      github.event.before == '1375d57eee0af2de47740843808761456a4dc3a2' &&
+      contains(github.event.head_commit.message, '[actions-cleanup-2026-10-21]')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Read the exact maintenance commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /build-utils/maintenance/
+            /test/actions_cleanup_test.py
+      - name: Check deletion safeguards
+        run: python -m unittest discover -s test -p actions_cleanup_test.py -v
+      - name: Apply the bounded cleanup plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python -u build-utils/maintenance/cleanup_actions.py
+          --plan build-utils/maintenance/actions-cleanup-2026-10-21.json
+          --expected-plan-sha256 802f1ebd352ca6322334bac409c1cc0d54d681b4b15595c7fc34baeeaa137ea5
+          --execute
+      - name: Preserve the cleanup receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Actions-history-cleanup-${{ github.run_id }}
+          path: cleanup-output/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish the execution summary
+        if: always()
+        run: |
+          if [ -f cleanup-output/summary.md ]; then
+            cat cleanup-output/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi

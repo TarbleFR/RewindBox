@@ -1,5 +1,12 @@
 # Analyse et nettoyage du stockage — conception et contrat (12 octobre 2026)
 
+> **20 octobre 2026.** Dusklight et la playlist Ports ont quitté NeoStation
+> (`docs/ports-removal-2026-10-20.md`) : la racine INV-13 (`Documents/Ports/Dusklight`,
+> `Caches/Dusklight`) et `StorageEngine.dusklight` sont retirés. Ce qu'un joueur y a laissé est
+> désormais classé « inconnu », donc jamais proposé à la suppression ; la copie de la base faite avant
+> le retrait (`Support/NeoStation/Maintenance/data-before-ports-removal-*.sqlite`) est en classe « jamais ».
+> KartPad (INV-12) garde la protection décidée le 19 octobre.
+
 Chantier 5 de la grande mise à jour (`docs/grande-mise-a-jour-audit-2026-10-12.md`, § 7, verdict § 10,
 décisions 26–32 du § 11). Candidate : l'IPA unique construite par-dessus la Build 446, numéro attribué à la
 livraison. Tout en Dart (`dart:ffi` compris) : aucun fichier natif, aucun cœur, aucun plugin. Ce document fixe
@@ -358,7 +365,7 @@ agrégé en `library`). Mode détaillé (préférence opt-in) : chemins relatifs
 ### 3.11 `lib/l10n/storage_locale.dart` (douze cartes, modèle `UiRefreshRateLocale`)
 
 Clés (~70) avec le français du mainteneur : `toolTitle` « Analyse et nettoyage du stockage », `toolSubtitle` « Mesure
-l'espace utilisé par NeoStation et ses moteurs, puis propose un nettoyage prévisualisé. », `title`, `scanning`
+l'espace utilisé par RewindBox et ses moteurs, puis propose un nettoyage prévisualisé. », `title`, `scanning`
 « Analyse en cours… », `scanAgain` « Analyser à nouveau », `scanFailed` (`{error}`), `cancel`, `summary`, `totalLogical`
 (`{size}`), `totalAllocated` (`{size}`), `freeSpace` (`{free}`, `{total}`), `freeSpaceUnavailable`, `gapExplanation`
 « L'écart avec les Réglages iOS vient des blocs APFS, du dossier temporaire purgé par iOS, de la mémoire NeoSwap

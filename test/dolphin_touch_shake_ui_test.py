@@ -30,8 +30,13 @@ HOST = 'DolphinTouchShakeHost'
 EXTERNAL_CLASSES = ROOT / 'packages/external_display/ios/Classes'
 EXTERNAL_SOURCES = [EXTERNAL_CLASSES / 'NeoExternalDisplayCoordinator.m',
                     EXTERNAL_CLASSES / 'NeoExternalDisplayPreferences.m']
+# Build 474: DolphinSessionMenu.mm imports the unified cheat catalogue pod as
+# <neo_cheat_catalog/...>; the host compiles its Flutter-free sources (zlib)
+# and searches the public headers of every pod the bridge depends on.
+CATALOGUE_CLASSES = ROOT / 'packages/neo_cheat_catalog/ios/Classes'
+CATALOGUE_SOURCES = sorted(path for path in CATALOGUE_CLASSES.glob('*.m') if path.name != 'NeoCheatCatalogPlugin.m')
 sys.path.insert(0, str(ROOT / 'test'))
-from libretro_ios_syntax_test import stage_external_display  # noqa: E402
+from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
 
 APP = r'''
 #import <UIKit/UIKit.h>
@@ -627,11 +632,13 @@ def native():
         sdk_dependencies = [{'sdk': name + '.framework'} for name in
                             ('UIKit', 'QuartzCore', 'CoreGraphics', 'Foundation', 'Security',
                              'UniformTypeIdentifiers', 'CoreMotion', 'GameController', 'MetalKit', 'Metal')]
-        include = stage_external_display(directory)
+        sdk_dependencies.append({'sdk': 'libz.tbd'})
+        include = stage_dependency_headers(directory)
         host_sources = [str(directory / 'main.m'), str(CLASSES / 'DolphinSessionMenu.mm'),
                         str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm'),
                         str(CLASSES / 'DolphinExternalDisplay.mm')]
         host_sources += [str(source) for source in EXTERNAL_SOURCES]
+        host_sources += [str(source) for source in CATALOGUE_SOURCES]
         host_sources += [str(path) for path in sorted(TOUCH.glob('*.swift'))]
         project = {
             'name': 'DolphinTouchShake',

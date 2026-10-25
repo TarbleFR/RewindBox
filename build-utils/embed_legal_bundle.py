@@ -11,22 +11,26 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 from pathlib import Path
+
+sys.dont_write_bytecode = True
+from collect_build_source_evidence import collect as collect_source_evidence
 
 ROOT = Path(__file__).resolve().parents[1]
 LEGAL_ASSETS = ROOT / "assets" / "legal"
 
 REQUIRED_LEGAL_FILES = (
     "THIRD_PARTY_NOTICES.md",
+    "Lottie-Simple-License.txt",
+    "Mau-Ali-Tab-Motion.txt",
     "Dolphin-COPYING.txt",
     "RPCS3-GPL-2.0.txt",
     "ARMSX2-GPL-3.0.txt",
-    "Dusklight-CC0-1.0.txt",
-    "KartPad-RIGHTS_AND_LICENSES.md",
-    "KartPad-THIRD_PARTY_NOTICES.md",
     "StikJIT-MPL-2.0.txt",
     "NeoStation-Assets-CC-BY-NC-SA-4.0.txt",
     "RiiSU-ATTRIBUTION.md",
+    "Canvas-ES-DE-ATTRIBUTION.md",
     "NeoStation-GPL-3.0.txt",
     "GameDB-PS3-GPL-3.0.txt",
     "Guest-Page-Relay-MIT.txt",
@@ -38,6 +42,22 @@ REQUIRED_LEGAL_FILES = (
 # The Khronos SDK tag both shader compilers are vendored at
 # (packages/neo_shader_kit/ios/ThirdParty/*/SOURCE.txt).
 SHADER_COMPILERS_TAG = "vulkan-sdk-1.4.350.1"
+
+# Notices for components actually used by the delivered integration.
+# MeloNX now ships with its source-built native dependencies.
+ADDITIONAL_NOTICE_COLLECTIONS = (
+    ("melonx", "MeloNX"),
+    ("textures", "Textures"),
+    ("ppsspp", "PPSSPP"),
+    ("packages", "Packages"),
+    ("engines", "Engines"),
+)
+CATALOG_CREDIT_DOCUMENTS = (
+    "CHEAT_CATALOG_SOURCES.md",
+    "OVERLAY_SOURCES_AND_CREDITS.md",
+    "HD_TEXTURE_CATALOG_SOURCES.md",
+    "HD_TEXTURE_SOURCES_AND_CREDITS.md",
+)
 
 
 def load_json(path: Path) -> dict:
@@ -97,6 +117,71 @@ def validate_libretro_notices() -> dict[str, str]:
     return hashes
 
 
+def validate_additional_notices() -> dict[str, tuple[Path, str]]:
+    """Collect exact notice bytes, not an assertion of binary/source identity."""
+    result: dict[str, tuple[Path, str]] = {}
+
+    def add(source: Path, target: str, expected: str | None = None) -> None:
+        if target in result:
+            raise SystemExit(f"Duplicate additional notice: {target}")
+        if not source.is_file() or not source.stat().st_size:
+            raise SystemExit(f"Missing or empty additional notice: {target}")
+        digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        if expected is not None and digest != expected:
+            raise SystemExit(f"Changed additional notice: {target}")
+        result[target] = (source, digest)
+
+    def filename(name: str) -> str:
+        if not name or Path(name).name != name or "\\" in name or name in (".", ".."):
+            raise SystemExit(f"Invalid additional notice path: {name}")
+        return name
+
+    for folder, target in ADDITIONAL_NOTICE_COLLECTIONS:
+        directory = LEGAL_ASSETS / folder
+        manifest_path = directory / "license-sources.json"
+        if not manifest_path.is_file():
+            raise SystemExit(f"Missing additional notice manifest: {folder}")
+        manifest = load_json(manifest_path)
+        if manifest.get("schema") != 1 or not manifest.get("components"):
+            raise SystemExit(f"Invalid additional notice manifest: {folder}")
+        for component in manifest["components"]:
+            if not component.get("files"):
+                raise SystemExit(f"Missing additional notice entries: {folder}")
+            for entry in component["files"]:
+                name = filename(entry["path"])
+                digest = entry.get("sha256")
+                if (not isinstance(digest, str) or len(digest) != 64
+                        or any(c not in "0123456789abcdef" for c in digest)):
+                    raise SystemExit(f"Invalid additional notice digest: {folder}/{name}")
+                add(directory / name, f"{target}/{name}", digest)
+                # Check duplicate notices against the existing native bundle
+                # when the manifest explicitly identifies that local original.
+                if entry.get("copied_from"):
+                    original = (ROOT / entry["copied_from"]).resolve()
+                    if not original.is_relative_to(ROOT) or not original.is_file():
+                        raise SystemExit(f"Missing original notice: {folder}/{name}")
+                    if hashlib.sha256(original.read_bytes()).hexdigest() != digest:
+                        raise SystemExit(f"Stale copied notice: {folder}/{name}")
+        add(manifest_path, f"{target}/license-sources.json")
+
+    cheat_directory = ROOT / "docs/licenses/cheats"
+    cheat_manifest = cheat_directory / "provenance.json"
+    if not cheat_manifest.is_file():
+        raise SystemExit("Missing additional notice manifest: cheats")
+    cheat_entries = load_json(cheat_manifest).get("files", [])
+    if not cheat_entries:
+        raise SystemExit("Missing additional notice entries: cheats")
+    for entry in cheat_entries:
+        name = filename(entry["local_file"])
+        add(cheat_directory / name, f"Cheats/{name}", entry["preserved_sha256"])
+    add(cheat_manifest, "Cheats/provenance.json")
+    add(cheat_directory / "README.md", "Cheats/README.md")
+
+    for name in CATALOG_CREDIT_DOCUMENTS:
+        add(ROOT / "docs" / name, f"Catalogs/{name}")
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--app", type=Path)
@@ -119,11 +204,10 @@ def main() -> None:
             raise SystemExit(f"Missing or empty legal bundle file: assets/legal/{name}")
 
     libretro_notices = validate_libretro_notices()
+    additional_notices = validate_additional_notices()
 
     rpcs3 = load_json(ROOT / "build-utils/rpcs3/canonical-source.json")
     armsx2 = load_json(ROOT / "build-utils/armsx2/source.json")
-    dusklight = load_json(ROOT / "build-utils/dusklight/source.json")
-    kartpad = load_json(ROOT / "build-utils/kartpad/source.json")
 
     require_pinned_header(
         LEGAL_ASSETS / "Dolphin-COPYING.txt", args.dolphin_sha
@@ -135,17 +219,6 @@ def main() -> None:
         LEGAL_ASSETS / "ARMSX2-GPL-3.0.txt", armsx2["revision"]
     )
     require_pinned_header(
-        LEGAL_ASSETS / "Dusklight-CC0-1.0.txt", dusklight["commit"]
-    )
-    require_pinned_header(
-        LEGAL_ASSETS / "KartPad-RIGHTS_AND_LICENSES.md",
-        kartpad["releaseTagCommit"],
-    )
-    require_pinned_header(
-        LEGAL_ASSETS / "KartPad-THIRD_PARTY_NOTICES.md",
-        kartpad["releaseTagCommit"],
-    )
-    require_pinned_header(
         LEGAL_ASSETS / "StikJIT-MPL-2.0.txt", "1.9.0"
     )
     for name, folder in (("glslang-LICENSE.txt", "glslang"), ("SPIRV-Cross-Apache-2.0.txt", "SPIRV-Cross")):
@@ -155,9 +228,13 @@ def main() -> None:
             raise SystemExit(f"Legal notice {name} does not match the vendored {folder}")
 
     if args.validate_only:
+        collect_source_evidence(ROOT, os.environ.get("GITHUB_SHA", ""))
         print("Validated all required notices and pinned revisions before compilation")
         return
 
+    source_files, source_evidence = collect_source_evidence(
+        ROOT, os.environ.get("GITHUB_SHA", ""), app
+    )
     destination = app / "Legal"
     if destination.exists():
         shutil.rmtree(destination)
@@ -177,18 +254,27 @@ def main() -> None:
         copy_file(LEGAL_ASSETS / "libretro" / name,
                   destination / "Libretro" / name)
 
-    dusklight_licenses = ROOT / "dist/dusklight/licenses"
-    if dusklight_licenses.is_dir():
-        shutil.copytree(
-            dusklight_licenses,
-            destination / "Dusklight-Dependency-Licenses",
-        )
+    for name, (source, _) in additional_notices.items():
+        copy_file(source, destination / name)
+
+    for name, data in source_files.items():
+        target = destination / "Sources" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
 
     identity = {
         "schema": 1,
         "build_number": str(args.build_number),
         "host_commit": os.environ.get("GITHUB_SHA", ""),
         "source_repository": "https://github.com/TarbleFR/RewindBox",
+        "build_source_evidence_sha256": hashlib.sha256(
+            source_files["BUILD_SOURCE_EVIDENCE.json"]
+        ).hexdigest(),
+        "corresponding_source_status": "reviewed references; unresolved components remain",
+        "cocoapods_resolution_status": source_evidence["cocoapods"]["status"],
+        "additional_notice_sha256": {
+            name: digest for name, (_, digest) in additional_notices.items()
+        },
         "dolphin": {
             "repository": "https://github.com/OatmealDome/dolphin-ios",
             "revision": args.dolphin_sha,
@@ -203,20 +289,6 @@ def main() -> None:
                 "repository", "https://github.com/ARMSX2/ARMSX2.git"
             ),
             "revision": armsx2["revision"],
-        },
-        "dusklight": {
-            "repository": dusklight["repository"],
-            "revision": dusklight["commit"],
-            "sdl_revision": dusklight["sdl"]["commit"],
-            "submodules": dusklight["submodules"],
-        },
-        "kartpad": {
-            "repository": "https://github.com/chrissotraidis/kartpad",
-            "release": kartpad["release"],
-            "release_tag_commit": kartpad["releaseTagCommit"],
-            "compiled_source": kartpad["compiledSource"],
-            "ios_runtime_commit": kartpad["iosRuntimeCommit"],
-            "public_source_limitation": kartpad["publicSourceLimitation"],
         },
         "stikjit": {
             "repository": "https://github.com/StikDebug/StikJIT",

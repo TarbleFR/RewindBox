@@ -90,13 +90,14 @@ void queue_cycle(){
     vdec_context c;std::vector<std::string> expected,expected_rgb;
     for(unsigned i=0;i<60;++i){auto f=make_frame(641,361,i%2);expected.push_back(packed(f.avf.get()));
         expected_rgb.push_back(convert(f->data,f->linesize,641,361,AV_PIX_FMT_YUV420P,AV_PIX_FMT_RGBA));c.out_queue.push_back(std::move(f));}
-    std::unique_ptr<AVFrame,frame_dtor> shared(av_frame_clone(c.out_queue.front().avf.get()));CHECK(shared);
+    std::unique_ptr<AVFrame,frame_dtor> shared(av_frame_clone(c.out_queue[8].avf.get()));CHECK(shared);
     const auto before=freed_buffers;
     for(unsigned i=0;i<60;++i){c.archive_cold_pixels_locked();clock_us+=1'000'000;}
-    CHECK(!c.out_queue[0].cold_pixels.archived()&&c.out_queue[0]->buf[0]); // decoder reference retained
-    CHECK(c.pixel_frames_archived==51&&freed_buffers==before+51);
+    CHECK(!c.out_queue[8].cold_pixels.archived()&&c.out_queue[8]->buf[0]); // decoder reference retained in an otherwise eligible position
+    CHECK(c.pixel_frames_archived==43&&freed_buffers==before+43);
+    for(unsigned i=0;i<8;++i)CHECK(c.out_queue[i]->buf[0]&&!c.out_queue[i].cold_pixels.archived());
     for(unsigned i=52;i<60;++i)CHECK(c.out_queue[i]->buf[0]&&!c.out_queue[i].cold_pixels.archived());
-    for(unsigned i=1;i<52;++i){auto& f=c.out_queue[i];CHECK(!f->buf[0]&&!f->data[0]);
+    for(unsigned i=9;i<52;++i){auto& f=c.out_queue[i];CHECK(!f->buf[0]&&!f->data[0]);
         CHECK(f->width==641&&f->height==361&&f->pts==12345&&f->pict_type==AV_PICTURE_TYPE_B&&f->crop_left==2);
         CHECK(f->colorspace==AVCOL_SPC_BT709&&f->color_range==AVCOL_RANGE_MPEG);
         std::string restored;int error=0;CHECK(f.cold_pixels.restore(restored,error)==NS_SOURCE_OK&&restored==expected[i]);
@@ -105,11 +106,12 @@ void queue_cycle(){
         const u8* input[4]={planes[0],planes[1],planes[2],nullptr};
         CHECK(convert(input,strides,641,361,AV_PIX_FMT_YUV420P,AV_PIX_FMT_RGBA)==expected_rgb[i]);
     }
-    shared.reset();c.archive_cold_pixels_locked();CHECK(c.out_queue[0].cold_pixels.archived());
+    shared.reset();c.archive_cold_pixels_locked();CHECK(c.out_queue[8].cold_pixels.archived());
+    CHECK(!c.out_queue[0].cold_pixels.archived());
 }
 void refusal(){
     vdec_context c;for(unsigned i=0;i<24;++i)c.out_queue.push_back(make_frame(1920,1080));
-    auto& f=c.out_queue.front();auto* buffer=f->buf[0];const auto original=packed(f.avf.get());const auto before=freed_buffers;
+    auto& f=c.out_queue[frame_warm_head_count];auto* buffer=f->buf[0];const auto original=packed(f.avf.get());const auto before=freed_buffers;
     refusal_at=admissions+2;c.archive_cold_pixels_locked();
     CHECK(f->buf[0]==buffer&&!f.cold_pixels.archived()&&packed(f.avf.get())==original&&freed_buffers==before);
     refusal_at=0;clock_us+=1'000'000;c.archive_cold_pixels_locked();CHECK(f.cold_pixels.archived()&&freed_buffers==before+1);

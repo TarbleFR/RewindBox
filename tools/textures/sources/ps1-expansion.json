@@ -1,0 +1,466 @@
+[
+  {
+    "id": "ps1-linnaealyn-xenogears-perfect-art-works",
+    "family": "ps1-linnaealyn-xenogears-perfect-art-works",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Xenogears Perfect ART Works — linnaealyn",
+    "version": "1.8 AIO",
+    "games": [
+      {
+        "title": "Xenogears",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00664"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00669"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLPS-01160"
+          },
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLPS-01161"
+          }
+        ],
+        "regions": [
+          "USA",
+          "Japan"
+        ]
+      }
+    ],
+    "authors": [
+      "linnaealyn"
+    ],
+    "page_url": "https://scientia.godsibb.net/t/xenogears-perfect-art-works-paw-retroarch-texture-pack/1158",
+    "source_id": "author:linnaealyn",
+    "licence": {
+      "summary": "No redistribution licence found; original download only.",
+      "redistribution": "Original author download only; no rehosting."
+    },
+    "credits": "linnaealyn",
+    "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
+    "notes": "Portrait and interface pack for the USA and Japanese editions. Installs the 399 default textures; optional alternatives are not mixed into them. The author warns against combining it with PWB face-resize, face-fix or PW Roni patches. Some new 1.8 UI replacements may require a newer Beetle core; full visual coverage on the embedded core has not been established.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://lifehold.godsibb.net/seafhttp/f/89ffdb1c690e48ac991f/?op=view",
+        "sha256": "f0ee62801b50c0f372be4b1f6e793b25dd26482917b6254aa89fc04a458aee15"
+      },
+      "in_app": true,
+      "file_name": "Xenogears-PAW-1.8-AIO.zip"
+    },
+    "install": {
+      "folders": [
+        {
+          "from": "[your .cue or .m3u file name here]-texture-replacements/",
+          "to": "{id}"
+        }
+      ]
+    },
+    "scope": "ui"
+  },
+  {
+    "id": "ps1-faospark-suikoden-ii-project-kyaro",
+    "family": "ps1-faospark-suikoden-ii-project-kyaro",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Suikoden II — Project Kyaro — Faospark",
+    "version": "2.6",
+    "games": [
+      {
+        "title": "Suikoden II",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00958"
+          }
+        ],
+        "regions": [
+          "USA"
+        ]
+      }
+    ],
+    "authors": [
+      "Faospark"
+    ],
+    "page_url": "https://sites.google.com/view/hub-of-faospark/project-kyaro",
+    "source_id": "author:faospark",
+    "licence": {
+      "summary": "No redistribution licence found; original download only.",
+      "redistribution": "Original author download only; no rehosting."
+    },
+    "credits": "Faospark",
+    "requirements": "Beetle PSX HW with Vulkan rendering, Track Textures and Replace Textures.",
+    "notes": "The original PS1 Project Kyaro 2.6 portrait and interface pack for the USA edition. This is separate from the Project Kyaro Suite for the PC HD Remaster. Accented glyphs do not establish PAL compatibility.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://www.dropbox.com/s/uvnteyqqavkxwq2/Suikoden%20II%20%28USA%29-texture-replacements.zip?dl=1",
+        "sha256": "c39266d573fee304ef30fdb82f8358ec6a8d127b77401a127e984b7953168070"
+      },
+      "in_app": true,
+      "file_name": "Suikoden II (USA)-texture-replacements.zip"
+    },
+    "install": {
+      "folders": [
+        {
+          "from": "Suikoden II (USA)-texture-replacements/",
+          "to": "{id}"
+        }
+      ]
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-nr74w-wipeout-2097-xl",
+    "family": "ps1-nr74w-wipeout-2097-xl",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "WipEout 2097 / XL HD Texture Pack — NR74W",
+    "version": "Original Beetle archive; version unstated",
+    "games": [
+      {
+        "title": "WipEout 2097 / XL",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLES-00327"
+          }
+        ],
+        "regions": [],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "NR74W"
+    ],
+    "page_url": "https://github.com/NR74W/WipEout-Mods/blob/0344572664052b122adbbca2629d22de57f403d3/README.md",
+    "source_id": "author:nr74w",
+    "licence": {
+      "summary": "No redistribution licence established; original author download only.",
+      "redistribution": "Original author public download only; no rehosting."
+    },
+    "credits": "NR74W",
+    "requirements": "Beetle PSX HW with Vulkan, Track Textures and Replace Textures. Regional edition compatibility has not been established.",
+    "notes": "Original public MEGA archive recovered from the author repository. The public folder explicitly labels these old archives as RetroArch - Beetle PSX HW. Contains 89 PNG replacements in a flat folder. The serial is a game identity candidate from DuckStation gamedb, not proof of this pack supporting that edition. Regions remain unspecified and confirmation is mandatory. No physical iPhone rendering or gameplay test. No README or author edition claim was found inside the archive.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://mega.nz/folder/gBwx2ZLT#01a4KaUDbCycjlrDgq5UdQ/file/wJIEiBwK",
+        "sha256": "674a82955516979a92c6f999d392c799df179b4a26ef18cfc3779f04991e5e2f"
+      },
+      "in_app": true,
+      "file_name": "WipEout-2097-HD-Texture-Pack.zip"
+    },
+    "install": {
+      "folders": [
+        {
+          "from": "(cue name)-texture-replacements/",
+          "to": "{id}"
+        }
+      ]
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-nr74w-wipeout",
+    "family": "ps1-nr74w-wipeout",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "WipEout HD Texture Pack — NR74W",
+    "version": "Original Beetle archive; version unstated",
+    "games": [
+      {
+        "title": "WipEout",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SCES-00010"
+          }
+        ],
+        "regions": [],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "NR74W"
+    ],
+    "page_url": "https://github.com/NR74W/WipEout-Mods/blob/0344572664052b122adbbca2629d22de57f403d3/README.md",
+    "source_id": "author:nr74w",
+    "licence": {
+      "summary": "No redistribution licence established; original author download only.",
+      "redistribution": "Original author public download only; no rehosting."
+    },
+    "credits": "NR74W",
+    "requirements": "Beetle PSX HW with Vulkan, Track Textures and Replace Textures. Regional edition compatibility has not been established.",
+    "notes": "Original public MEGA archive recovered from the author repository. The public folder explicitly labels these old archives as RetroArch - Beetle PSX HW. Contains 100 PNG replacements in a flat folder. The serial is a game identity candidate from DuckStation gamedb, not proof of this pack supporting that edition. Regions remain unspecified and confirmation is mandatory. No physical iPhone rendering or gameplay test. No README or author edition claim was found inside the archive.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://mega.nz/folder/gBwx2ZLT#01a4KaUDbCycjlrDgq5UdQ/file/lJQQxLiT",
+        "sha256": "c5652389971b16c5fc57957939591126df1f5a78009f898b8d669870f672ad58"
+      },
+      "in_app": true,
+      "file_name": "WipEout-HD-Texture-Pack.zip"
+    },
+    "install": {
+      "folders": [
+        {
+          "from": "(cue name)-texture-replacements/",
+          "to": "{id}"
+        }
+      ]
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-somber-twilight-thrill-kill",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Thrill Kill HD — SomberTwilight",
+    "version": "version not stated",
+    "games": [
+      {
+        "title": "Thrill Kill",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00752"
+          }
+        ],
+        "regions": [],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "SomberTwilight"
+    ],
+    "page_url": "https://www.youtube.com/watch?v=e3ZTIk0B0us",
+    "source_id": "author:sombertwilight",
+    "licence": {
+      "summary": "No redistribution licence established; original author download only.",
+      "redistribution": "Original author public download only; no rehosting."
+    },
+    "credits": "SomberTwilight",
+    "requirements": "Beetle PSX HW with Vulkan, Track Textures and Replace Textures. Exact game edition remains to confirm.",
+    "notes": "Author requires game image base name THRILL_KILL; expected THRILL_KILL-texture-replacements, not inspected yet. The original archive returned an anti-bot challenge in canonical CI. Manual author reference only, without a verified installation or download. Disc identity is a game candidate, not established regional coverage. No physical iPhone rendering test.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://www.mediafire.com/file/6xmtqm34v0piatl/Thrill+Kill+HD.7z/file"
+      },
+      "in_app": true
+    },
+    "scope": "partial",
+    "family": "ps1-somber-twilight-thrill-kill"
+  },
+  {
+    "id": "ps1-somber-twilight-tenchu-stealth-assassins",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Tenchu: Stealth Assassins HD — SomberTwilight",
+    "version": "Update 2",
+    "games": [
+      {
+        "title": "Tenchu: Stealth Assassins",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00706"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "authors": [
+      "SomberTwilight"
+    ],
+    "page_url": "https://www.youtube.com/watch?v=726NkY9LHrE",
+    "source_id": "author:sombertwilight",
+    "licence": {
+      "summary": "No redistribution licence established; original author download only.",
+      "redistribution": "Original author public download only; no rehosting."
+    },
+    "credits": "SomberTwilight; item artwork credited by the author to Jhonat Alfred Schnaid",
+    "requirements": "Beetle PSX HW with Vulkan, Track Textures and Replace Textures. Exact game edition remains to confirm.",
+    "notes": "Author describes 256 to 512 texture upscale and additional high-resolution item art credited to Jhonat Alfred Schnaid artstation.com/artwork/lV0w1O. Original author archive installed and all PNGs decoded by the production installer in canonical CI. Disc identity is a game candidate, not established regional coverage. No physical iPhone rendering test. The recovered archive explicitly names USA v1.1. Other revisions and regions are not established.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://drive.google.com/file/d/1RQKNW6h_OgYBlNXMlGdGHxk6jASWr4t-/view?usp=drive_link",
+        "sha256": "18fc995c4856ce8203384d88548a2b952086eeabeeb4f4d1dc611b7cfa95d26e"
+      },
+      "in_app": true,
+      "file_name": "Tenchu - Stealth Assassins (USA) (v1.1)-texture-replacements.7z"
+    },
+    "scope": "partial",
+    "family": "ps1-somber-twilight-tenchu-stealth-assassins",
+    "install": {
+      "folders": [
+        {
+          "from": "Tenchu - Stealth Assassins (USA) (v1.1)-texture-replacements/",
+          "to": "{id}"
+        }
+      ]
+    }
+  },
+  {
+    "id": "ps1-sombertwilight-dead-or-alive",
+    "family": "ps1-sombertwilight-dead-or-alive",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Dead or Alive HD — SomberTwilight",
+    "version": "Author original; version unstated",
+    "authors": [
+      "SomberTwilight"
+    ],
+    "page_url": "https://www.youtube.com/watch?v=VsndQym8ExI",
+    "source_id": "author:sombertwilight",
+    "credits": "SomberTwilight",
+    "games": [
+      {
+        "title": "Dead or Alive",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLUS-00606"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "licence": {
+      "summary": "No redistribution licence established; original author download only.",
+      "redistribution": "Original author host only; no rehosting."
+    },
+    "requirements": "Beetle PSX HW Vulkan, Track Textures and Replace Textures. Edition confirmation required.",
+    "notes": "Original archive linked by the author video. Canonical CI returned an anti-bot challenge; manual author reference only, without verified archive contents, installation or download. The archive filename labels USA; edition confirmation remains required.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://www.mediafire.com/file/oha6gh2v6q7rl5p/Dead+or+Alive+(USA)-texture-replacements.7z/file"
+      },
+      "in_app": true,
+      "file_name": "Dead or Alive (USA)-texture-replacements.7z"
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-sombertwilight-clock-tower-the-first-fear",
+    "family": "ps1-sombertwilight-clock-tower-the-first-fear",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Clock Tower: The First Fear HD — SomberTwilight",
+    "version": "Author original; version unstated",
+    "authors": [
+      "SomberTwilight"
+    ],
+    "page_url": "https://www.youtube.com/watch?v=MyYbDC5ZlE4",
+    "source_id": "author:sombertwilight",
+    "credits": "SomberTwilight",
+    "games": [
+      {
+        "title": "Clock Tower: The First Fear",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SLPS-00917"
+          }
+        ],
+        "regions": [],
+        "confirm": true
+      }
+    ],
+    "licence": {
+      "summary": "No redistribution licence established; original author download only.",
+      "redistribution": "Original author host only; no rehosting."
+    },
+    "requirements": "Beetle PSX HW Vulkan, Track Textures and Replace Textures. Edition confirmation required.",
+    "notes": "Original archive linked by the author video. Canonical CI returned an anti-bot challenge; manual author reference only, without verified archive contents, installation or download. The listed serial is a game identity candidate only; no author region or translation claim.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://www.mediafire.com/file/98p697n36biw2a3/Clock_Tower_-_The_First_Fear-texture-replacements.7z/file"
+      },
+      "in_app": true,
+      "file_name": "Clock_Tower_-_The_First_Fear-texture-replacements.7z"
+    },
+    "scope": "partial"
+  },
+  {
+    "id": "ps1-cac-gamer-gran-turismo-2-tahiti-x8",
+    "family": "ps1-cac-gamer-gran-turismo-2-tahiti-x8",
+    "system": "ps1",
+    "engine": "beetle",
+    "title": "Gran Turismo 2 Tahiti x8 — CAC GAMER",
+    "version": "2020-12-20 partial update (archive 1.02)",
+    "authors": [
+      "CAC GAMER"
+    ],
+    "page_url": "https://www.youtube.com/watch?v=exmoqt7e26U",
+    "source_id": "author:cac-gamer",
+    "credits": "CAC GAMER",
+    "games": [
+      {
+        "title": "Gran Turismo 2",
+        "identities": [
+          {
+            "type": "serial",
+            "scheme": "ps1-disc-serial",
+            "value": "SCUS-94455"
+          }
+        ],
+        "regions": [
+          "USA"
+        ],
+        "confirm": true
+      }
+    ],
+    "licence": {
+      "summary": "Author invites extension of the work; no general redistribution licence established.",
+      "redistribution": "Original author download only; no rehosting."
+    },
+    "requirements": "Beetle PSX HW Vulkan, Track Textures and Replace Textures. USA v1.1 Arcade disc according to author; edition confirmation required.",
+    "notes": "Original creator describes x8 textures for Tahiti Dirt Route 3, Opel Tigra Ice Race Car and Lancia Delta HF Integrale Rally Car. The original 1.02 7z archive installed 233 valid PNGs in canonical production CI. One partial project; no whole-game coverage or physical iPhone rendering established. USA v1.1 Arcade disc according to author; edition confirmation remains required.",
+    "download": {
+      "automatable": false,
+      "verify": {
+        "url": "https://drive.google.com/file/d/1DzJoV91neJquz79UviCJ1NXaTqCj9zA6/view?usp=sharing",
+        "sha256": "98dd054cb3b9cb58374a5f09c5b75176013c1dd437cdaa2af18ab069a45aa336"
+      },
+      "in_app": true,
+      "file_name": "1.02_Gran Turismo 2 (USA) (Arcade Mode) (v1.1)-texture-replacements.7z"
+    },
+    "scope": "partial",
+    "install": {
+      "folders": [
+        {
+          "from": "",
+          "to": "{id}"
+        }
+      ]
+    }
+  }
+]

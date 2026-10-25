@@ -10,6 +10,7 @@ import '../services/logger_service.dart';
 import '../services/rpcs3_content_import_service.dart';
 import '../services/rpcs3_internal_service.dart';
 import '../services/rpcs3_rap_licence_service.dart';
+import 'rpcs3_firmware_preflight_dialog.dart';
 import 'rpcs3_rap_import_report_dialog.dart';
 
 /// Owns the PS3 firmware gate and, once installed, the library import menu.
@@ -152,6 +153,13 @@ class _Rpcs3InternalPlaylistActionsState
 
   Future<void> _installFirmware() async {
     if (_busy || _checking) return;
+    // Build 482: the Get More RAM information precedes every firmware picker,
+    // first installation and reinstallation alike. Back keeps this gate.
+    final proceed = await showRpcs3FirmwarePreflight(
+      context,
+      reinstall: _firmwareInstalled,
+    );
+    if (!proceed || !mounted || _busy || _checking) return;
     setState(() {
       _busy = true;
       _error = null;

@@ -29,11 +29,14 @@ origin = ROOT / 'test/dolphin_account_267_test.py'
 source = origin.read_text()
 # The coordinator and the preferences the adapter and the Display row call,
 # and the <external_display/…> search path of the pod's public headers, are
-# the harness's own since Build 447 (EXTERNAL_SOURCES, stage_external_display
-# of test/libretro_ios_syntax_test.py): nothing is added here.
+# the harness's own since Build 447 (EXTERNAL_SOURCES; since Build 484 every
+# pod header, stage_dependency_headers of test/libretro_ios_syntax_test.py,
+# and the cheat catalogue the menu shows, CATALOGUE_SOURCES): nothing is
+# added here.
 assert "EXTERNAL_CLASSES / 'NeoExternalDisplayCoordinator.m'" in source, 'the harness no longer compiles the pod sources; adapt'
 assert "EXTERNAL_CLASSES / 'NeoExternalDisplayPreferences.m'" in source, 'the harness no longer compiles the pod sources; adapt'
-assert 'include = stage_external_display(directory)' in source, 'the harness no longer stages the pod headers; adapt'
+assert 'include = stage_dependency_headers(directory)' in source, 'the harness no longer stages the pod headers; adapt'
+assert 'CATALOGUE_SOURCES' in source, 'the harness no longer compiles the cheat catalogue; adapt'
 source = source.replace("'CLANG_ENABLE_OBJC_ARC': 'YES',", "'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',")
 source = source.replace("{'sdk': 'UIKit.framework'}", "{'sdk': 'CoreGraphics.framework'}, {'sdk': 'UniformTypeIdentifiers.framework'}, {'sdk': 'UIKit.framework'}")
 source = source.replace('DolphinAccount267', 'DolphinExternalDisplay447').replace('DolphinAccountHost', 'DolphinExternalDisplayHost').replace('DolphinAccountTests', 'DolphinExternalDisplayTests')

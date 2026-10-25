@@ -27,7 +27,7 @@ void main() {
     expect(storage, contains('importGames()'));
     expect(storage, contains('importBios()'));
 
-    expect(systems, contains("const <String>['ps2', 'ps3', 'ports']"));
+    expect(systems, contains("const <String>['ps2', 'ps3']"));
     expect(list, contains('_isArmsx2Library'));
     expect(list, contains('_buildEmbeddedArmsx2ImportAction'));
 
@@ -55,7 +55,7 @@ void main() {
     ).readAsStringSync();
 
     expect(dialog, contains('_showsRecursiveScan'));
-    expect(dialog, contains("{'gc', 'wii', 'ps2', 'ps3', 'ports'}"));
+    expect(dialog, contains("{'gc', 'wii', 'ps2', 'ps3'}"));
     expect(tabs, contains('if (_showsRecursiveScan)'));
     expect(list, contains('Armsx2MultiDeleteDialog.show'));
     expect(deletion, contains('linkedArmsx2GameFolderPath'));
@@ -79,7 +79,24 @@ void main() {
       'packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm',
     ).readAsStringSync();
 
-    expect(abi, contains('NEO_ARMSX2_ABI_VERSION 6u'));
+    expect(abi, contains('NEO_ARMSX2_ABI_VERSION 8u'));
+    // ABI 8 (Build 485): HD replacement textures of the running game.
+    expect(abi, contains('get_texture_replacements_json'));
+    expect(abi, contains('set_texture_replacements'));
+    expect(abi, contains('reload_texture_replacements'));
+    expect(abi, contains('set_texture_boot_preferences'));
+    expect(abi, contains('expand_texture_archive'));
+    expect(core, contains('ARMSX2TextureReplacements.inc'));
+    expect(plugin, contains('set_texture_boot_preferences'));
+    expect(sessionMenu, contains('armsx2.menu.hdTextures'));
+    expect(abi, contains('get_blending_accuracy_json'));
+    expect(abi, contains('set_blending_accuracy'));
+    expect(abi, contains('NEO_ARMSX2_BLENDING_SCOPE_DEFAULT'));
+    expect(core, contains('ARMSX2BlendingAccuracy.inc'));
+    expect(plugin, contains('get_blending_accuracy_json'));
+    expect(plugin, contains('"blendingDefault"'));
+    expect(sessionMenu, contains('Précision du blending'));
+    expect(sessionMenu, contains('ARMSX2MenuBlending'));
     expect(abi, contains('NEO_ARMSX2_BOOT_BIOS'));
     expect(abi, contains('set_upscale_multiplier'));
     expect(abi, contains('set_aspect_ratio'));

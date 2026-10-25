@@ -1,0 +1,135 @@
+{
+  "build": "0.0.8 (496)",
+  "decision": "docs/build496-psp-hd-catalogue.md",
+  "baseline": {
+    "source": "fee67e4d0aeede934bfed722f8dd9b43fb6d2ff5",
+    "run": 39384517903,
+    "result": "success"
+  },
+  "testedSource": "4b12e244d9093564a6d57a30b72900030f0733e5",
+  "deliverySource": "b332bc2e59e4f44d4e820aa4879520a058bfd76b",
+  "targetedChecks": {
+    "run": 39444272536,
+    "nativeJob": 118701911489,
+    "catalogueJob": 118701911967,
+    "result": "success",
+    "artifact": {
+      "id": 12275601546,
+      "zipSHA256": "90e36e37ccfa06ff1a76b400bee9e8cbac7635e62169ef90c766a89df76dcfe0"
+    },
+    "regression": "Old source fails PSP_RELAUNCH_UNUSED_RAM_PROTECTED; candidate passes three true 32 MiB cycles, foreign mapping preservation and live arena/RAM sentinel checks. iPhone ARM64 SDK compilation passes.",
+    "simulator": {
+      "sessions": 7,
+      "pspSessions": 6,
+      "otherCoreSessions": 1,
+      "result": "all start, present frames, stop and end successfully",
+      "renderer": "software fallback after simulator OpenGLES texture creation failed",
+      "commercialGames": false
+    }
+  },
+  "delivery": {
+    "workflow": ".github/workflows/retroarch-delivery.yml",
+    "run": 39445610738,
+    "result": "success",
+    "gate": ".github/diagnostics/psprelaunch496_delivery.py",
+    "jobs": [
+      {
+        "name": "native",
+        "job": 118706584696,
+        "result": "success",
+        "started": "2026-10-20T15:08:13Z",
+        "completed": "2026-10-20T15:08:46Z"
+      },
+      {
+        "name": "checks",
+        "job": 118706585169,
+        "result": "success",
+        "started": "2026-10-20T15:08:08Z",
+        "completed": "2026-10-20T15:08:37Z"
+      },
+      {
+        "name": "Release device build \u2022 cold",
+        "job": 118706940421,
+        "result": "success",
+        "started": "2026-10-20T15:09:00Z",
+        "completed": "2026-10-20T15:20:40Z"
+      },
+      {
+        "name": "Release device build \u2022 warm",
+        "job": 118713269641,
+        "result": "skipped",
+        "started": "2026-10-20T15:20:42Z",
+        "completed": "2026-10-20T15:20:41Z"
+      }
+    ],
+    "toolchain": {
+      "xcode": "Xcode 26.3\nBuild version 17C529",
+      "sdk": "26.2",
+      "flutter": "3.47.2",
+      "macOS": "15.7.9"
+    },
+    "recipient": "build-utils/delivery-496-recipient.pem",
+    "artifact": {
+      "id": 12276148181,
+      "name": "NeoStation-Build-496-b332bc2e59e4f44d4e820aa4879520a058bfd76b-cold",
+      "zipBytes": 167307677,
+      "zipSHA256": "2475c537aa42e867e6dfee5f4bb595ad9ff8b8a160d7ddf42c0e2f639958d2e7",
+      "format": "AES-256-CBC PBKDF2 200000; RSA OAEP SHA256"
+    }
+  },
+  "ipa": {
+    "file": "NeoStation-Build496-PSP-HD.ipa",
+    "bytes": 167100199,
+    "sha256": "466be74c72346f0a246f171dff0dd1b686a5bb0b229c254fdb93ed26ea9848ee",
+    "equalTo": [
+      "SHA256SUMS",
+      "signed-payload-identity.json",
+      "final-structure.json"
+    ],
+    "machOImages": 75,
+    "verifiedAdHocSignatures": 78,
+    "allCompiledCodeAndDataSectionsUnchangedBySigning": true,
+    "abiMetadataUnchangedBySigning": true,
+    "architecture": "arm64",
+    "platform": "iPhoneOS",
+    "appAndFiveExtensionsVersion": "0.0.8 (496)",
+    "sideStoreAppleReSigningRequired": true
+  },
+  "finalFileInspection": {
+    "zipIntegrity": "passed",
+    "catalogueByteIdenticalToBothTestedManifests": true,
+    "libretroBridgeNew_gViewPiecesSymbolPresent": true,
+    "libretroBridgeOld_gViewsHeldSymbolAbsent": true,
+    "coreCount": 35,
+    "coreHostSource": "4c2186204ce06b50b989689a9c2322068f523a58"
+  },
+  "catalogue": {
+    "revision": "2026-10-20.d64e1ff29d79",
+    "manifestSHA256": "5c39b799fbe4053d4eff74ac664315c37fa593e0ca81a83372549422533764dd",
+    "references": 1083,
+    "installableFamilies": 352,
+    "profiles": 437,
+    "oneTapFamilies": 161,
+    "verifiedManualFamilies": 191,
+    "lastPassAddedFamilies": 57,
+    "familiesBySystem": {
+      "psp": 90,
+      "3ds": 47,
+      "wii": 43,
+      "gc": 77,
+      "ps2": 76,
+      "n64": 14,
+      "ps1": 2,
+      "nes": 5
+    },
+    "sharedGCWiiFamiliesCountedOnce": 2
+  },
+  "coreRebuilt": false,
+  "physicalDeviceGameplayValidated": false,
+  "publicReleaseCreated": false,
+  "limits": [
+    "The supplied log shows memory initialization failure but does not expose the failed reservation journal. The separately reproduced reservation defect is fixed; confirmation with the two commercial games on the iPhone remains necessary.",
+    "Simulator tests do not validate the physical-device OpenGLES renderer.",
+    "The HD catalogue is bundled; creator texture archives are not bundled."
+  ]
+}

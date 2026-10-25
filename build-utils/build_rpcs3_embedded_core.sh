@@ -123,6 +123,27 @@ python3 "$PWD/test/rpcs3_build351_gow3_engine_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build352_gow3_memory_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build353_xitrix_v010_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_armsx3_performance_patch_test.py" "$SRC"
+if [[ -n "${RPCS3_CELL528_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell528_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL528_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL527_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell527_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL527_NATIVE_PROOF"
+elif [[ -n "${RPCS3_ARM526_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3arm526_core.py" --verify-reuse "$RPCS3_ARM526_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL525_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell525_core.py" --verify-reuse "$RPCS3_CELL525_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL524_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell524_core.py" --verify-reuse "$RPCS3_CELL524_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL523_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell523_core.py" --verify-reuse "$RPCS3_CELL523_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL522_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell522_core.py" --verify-reuse "$RPCS3_CELL522_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL521_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell521_core.py" --verify-reuse "$RPCS3_CELL521_NATIVE_PROOF"
+elif [[ -n "${RPCS3_V012_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3v012_core.py" --verify-reuse "$RPCS3_V012_NATIVE_PROOF"
+elif [[ -n "${RPCS3_REUSED_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3gow3_core.py" --verify-reuse "$RPCS3_REUSED_NATIVE_PROOF"
+else
 HOST_CXX="$(xcrun --sdk macosx --find clang++)"
 HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)"
 env -u SDKROOT CXX="$HOST_CXX" HOST_MACOS_SDK="$HOST_MACOS_SDK" \
@@ -165,6 +186,8 @@ env -u SDKROOT "$HOST_CXX" -isysroot "$HOST_MACOS_SDK" -std=c++20 -O2 -Wall -Wex
 env -u SDKROOT "$HOST_CXX" -isysroot "$HOST_MACOS_SDK" -std=c++20 -O2 -Wall -Wextra -Werror -I "$SRC" -I "$SRC/rpcs3" \
   "$SRC/rpcs3/ios/tests/JITArenaAllocatorTests.cpp" -o "$WORK_ROOT/jit-arena-allocator-test"
 "$WORK_ROOT/jit-arena-allocator-test"
+
+fi
 
 log "Configure RPCS3Core for iPhoneOS arm64 with macOS TableGen"
 cmake -S "$SRC" -B "$BUILD" -G Ninja \

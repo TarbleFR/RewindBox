@@ -1,0 +1,104 @@
+name: Touch controls editor (Build 484)
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - packages/neo_touch_layout/**
+      - packages/dolphin_internal_bridge/ios/Classes/**
+      - packages/armsx2_internal_bridge/ios/Classes/**
+      - packages/rpcs3_internal_bridge/ios/Classes/**
+      - lib/widgets/embedded_touch_controls_panel.dart
+      - lib/widgets/system_emulator_settings_dialog/tabs.dart
+      - lib/l10n/touch_layout_locale.dart
+      - lib/l10n/dolphin_import_locale.dart
+      - tools/touch_layout/**
+      - test/touch_layout*
+      - test/touch_layout_ui/**
+      - test/build484_targeted_test.py
+      - test/embedded_touch_controls_panel_test.dart
+      - test/native/touch_layout_geometry_test.c
+      - test/native/rpcs3_pad_merge_test.cpp
+      - test/rpcs3_input_bridge_test.py
+      - .github/workflows/touch-layout-checks.yml
+  workflow_dispatch:
+    inputs:
+      parts:
+        description: Parts to run
+        type: choice
+        options: [all, host, native, uikit]
+        default: all
+permissions: {contents: read, actions: read}
+concurrency:
+  group: touch-layout-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  host:
+    name: Texts, geometry, pad merge, engine contracts and Flutter
+    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-memory508]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - name: Restore exact locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: New and affected host checks
+        run: python3 test/build484_targeted_test.py --part host
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build484-host-${{ github.sha }}
+          path: build/build484/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  native:
+    name: iPhone SDK build and the affected UIKit suites
+    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-memory508]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native') }}
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Compile every changed source for iPhone and run the affected UIKit suites
+        run: python3 test/build484_targeted_test.py --part native
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build484-native-${{ github.sha }}
+          path: |
+            build/build484/
+            build/armsx2-validation/
+            build/dolphin-motion/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  uikit:
+    name: Editor, five layouts, orientations, multitouch, controller policy and persistence on UIKit
+    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-memory508]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'uikit') }}
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Touch-layout UIKit suite (Build 350 donor nibs, three processes)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 test/build484_targeted_test.py --part uikit
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: build484-uikit-${{ github.sha }}
+          path: |
+            build/build484/
+            build/touch-layout/
+          if-no-files-found: ignore
+          retention-days: 14

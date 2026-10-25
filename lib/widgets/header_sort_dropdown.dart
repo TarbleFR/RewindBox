@@ -1,3 +1,4 @@
+import 'neo_glass_bubble.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -17,7 +18,9 @@ class HeaderSortDropdown extends StatefulWidget {
   static final GlobalKey<HeaderSortDropdownState> globalKey =
       GlobalKey<HeaderSortDropdownState>();
 
-  HeaderSortDropdown() : super(key: globalKey);
+  HeaderSortDropdown({this.compact = false}) : super(key: globalKey);
+
+  final bool compact;
 
   @override
   State<HeaderSortDropdown> createState() => HeaderSortDropdownState();
@@ -82,7 +85,7 @@ class HeaderSortDropdownState extends State<HeaderSortDropdown> {
   Widget build(BuildContext context) {
     return Container(
       key: _buttonKey,
-      margin: EdgeInsets.symmetric(horizontal: 10.r),
+      margin: EdgeInsets.symmetric(horizontal: widget.compact ? 0 : 10.r),
       child: GamepadControl(
         label: AppLocale.viewMode.getString(context),
         iconPath: 'assets/images/gamepad/Xbox_X_button.png',
@@ -388,26 +391,9 @@ class _SortDropdownOverlayState extends State<SortDropdownOverlay> {
               height: 28.r,
               margin: EdgeInsets.symmetric(horizontal: 4.r, vertical: 2.r),
               padding: EdgeInsets.symmetric(horizontal: 12.r),
-              decoration: BoxDecoration(
-                color: isFocused
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.15)
-                    : Colors.transparent,
-                borderRadius:
-                    Theme.of(
-                      context,
-                    ).extension<CornerRadii>()?.radiusExternal ??
-                    BorderRadius.circular(8.r),
-                border: isFocused
-                    ? Border.all(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withValues(alpha: 0.3),
-                        width: 1,
-                      )
-                    : null,
-              ),
+              decoration: isFocused
+                  ? NeoBubbleStyle.decoration(context, radius: 22.r)
+                  : const BoxDecoration(),
               child: Row(
                 children: [
                   Icon(
@@ -508,20 +494,9 @@ class _SortDropdownOverlayState extends State<SortDropdownOverlay> {
         Container(
           height: 24.r,
           margin: EdgeInsets.symmetric(horizontal: 4.r, vertical: 2.r),
-          decoration: BoxDecoration(
-            color: itemIsFocused
-                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.15)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8.r),
-            border: itemIsFocused
-                ? Border.all(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.3),
-                    width: 1,
-                  )
-                : null,
-          ),
+          decoration: itemIsFocused
+              ? NeoBubbleStyle.decoration(context, radius: 22.r)
+              : const BoxDecoration(),
           child: InkWell(
             onTap: () {
               setState(() => _selectedIndex = i);

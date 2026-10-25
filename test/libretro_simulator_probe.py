@@ -109,7 +109,12 @@ LOT1_CORES = ('sameduck', 'potator', 'ardens', 'stella', 'prosystem', 'a5200', '
 # Lot 2 (docs/libretro-consoles-lot2.md): the same test for the four cores
 # of lot 2 (build_lot2_content).
 LOT2_CORES = ('freechaf', 'freeintv', 'o2em', 'mednafen_pcfx')
-REAL_CORES = ('ppsspp', 'azahar', 'desmume') + LOT1_CORES + LOT2_CORES
+# Build 489: Beetle PSX HW in Vulkan, run only with --beetle (build_beetle_content).
+BEETLE_CORE = 'mednafen_psx_hw'
+REAL_CORES = ('ppsspp', 'azahar', 'desmume') + LOT1_CORES + LOT2_CORES + (BEETLE_CORE,)
+# Mesen (NES HD packs, docs/hd-textures-nes-mesen.md), run only with --mesen
+# (build_mesen_content), from a core package that has it.
+MESEN_CORE = 'mesen'
 # Built here from test/libretro_host for the simulator.
 TEST_CORES = {'neotest': 'test_core.c', 'neovk': 'vulkan_test_core.c'}
 # Shader fixtures exercise the actual session and presenter; network bytes
@@ -362,6 +367,65 @@ for core, content, console, size in LOT2_RUNS:
             'requiredLog': ['load: content accepted', 'run: startup confirmed after',
                             f'run: frame {size}' if size else 'run: frame '],
         })
+
+# Build 489 (run by their own CI job with --beetle): Beetle PSX HW with the
+# options and the Vulkan context NeoStation gives it (libretro_core_catalog.dart),
+# on a stand-in BIOS the probe writes (_mips_program: the screen cleared and a
+# red rectangle filled by the GPU). In the Simulator, Beetle's Vulkan renderer
+# cannot take a CPU-to-VRAM copy (texture uploads, state loads): MoltenVK makes
+# a linear texture on a host-visible buffer, which the Simulator's Metal
+# refuses (runs 39291452900, 39299245695); an iPhone's allows it. So no
+# texture is uploaded, dumped or replaced on screen here (left to the iPhone):
+# - frame: the GPU's picture reaches the presented drawable through Vulkan;
+# - pack: with Track + Replace Textures, a pack the probe writes into the
+#   folder the core reads (<save>/<content>-texture-replacements) is reported
+#   as exactly its valid replacement names, through pause, background, a
+#   saved state, a rotation and audio (beetle_lifecycle_probe.h);
+# - off: with replacement off, the session says so.
+# The frontend reads the device's A1R5G5B5 support before the core loads
+# (LibretroSession beetleVulkanFormatLocks): a Simulator without Apple5 has
+# none, so the session locks dithering off instead of letting the core use a
+# null image (Format 8, then SIGSEGV, run 39278458161).
+BEETLE_LOG = ['vulkan: A1R5G5B5 features 0x', 'hd-textures: core=beetle renderer=vulkan']
+BEETLE_PACK = 5
+SCENARIOS += [
+    {'name': 'beetle-vulkan-frame', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
+     'expect': 'run', 'runSeconds': 5.0, 'default': False, 'beetle': True,
+     'beetleTextures': {'replace': False, 'recognized': 0}, 'requiredLog': BEETLE_LOG},
+    {'name': 'beetle-vulkan-pack', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
+     'expect': 'run', 'runSeconds': 6.0, 'default': False, 'beetle': True,
+     'probeOptions': {'beetle_psx_hw_track_textures': 'enabled', 'beetle_psx_hw_replace_textures': 'enabled'},
+     'beetleTextures': {'pack': BEETLE_PACK, 'replace': True, 'recognized': BEETLE_PACK, 'lifecycle': 13},
+     'requiredLog': BEETLE_LOG},
+    {'name': 'beetle-vulkan-off', 'core': BEETLE_CORE, 'content': 'content/probe-psx.exe', 'console': 'psx',
+     'expect': 'run', 'runSeconds': 5.0, 'default': False, 'beetle': True,
+     'probeOptions': {'beetle_psx_hw_track_textures': 'disabled', 'beetle_psx_hw_replace_textures': 'disabled'},
+     'beetleTextures': {'replace': False, 'recognized': BEETLE_PACK}, 'requiredLog': BEETLE_LOG},
+]
+
+# Mesen (run by their own CI job with --mesen): the real core on an NES test
+# program the probe writes (build_mesen_content: one background tile drawn
+# all over the screen) and an HD pack the probe writes too, for that program,
+# in the folder Mesen reads: <system>/HdPacks/<content name>/hires.txt with a
+# 2x image of the tile. Mesen draws 256x240 frames without a pack and 512x480
+# with it (retro_get_system_av_info: the pack's <scale>); the same content
+# under another name, and the pack switched off by mesen_hdpacks, stay 256x240.
+MESEN_LOG = ['load: content accepted', 'run: startup confirmed after']
+for run_index in (1, 2):
+    SCENARIOS += [
+        {'name': f'mesen-plain-{run_index}', 'core': MESEN_CORE, 'content': 'content/probe-nes-plain.nes',
+         'console': 'nes', 'expect': 'run', 'runSeconds': 3.0, 'default': False, 'mesen': True,
+         'requiredLog': MESEN_LOG + ['run: frame 256x240'], 'forbiddenLog': ['run: frame 512x480']},
+        {'name': f'mesen-hd-pack-{run_index}', 'core': MESEN_CORE, 'content': 'content/probe-nes-hd.nes',
+         'console': 'nes', 'expect': 'run', 'runSeconds': 3.0, 'default': False, 'mesen': True,
+         'probeOptions': {'mesen_hdpacks': 'enabled'}, 'requiredLog': MESEN_LOG + ['run: frame 512x480'],
+         'forbiddenLog': ['run: frame 256x240']},
+    ]
+SCENARIOS.append(
+    {'name': 'mesen-hd-pack-off', 'core': MESEN_CORE, 'content': 'content/probe-nes-hd.nes', 'console': 'nes',
+     'expect': 'run', 'runSeconds': 3.0, 'default': False, 'mesen': True,
+     'probeOptions': {'mesen_hdpacks': 'disabled'}, 'requiredLog': MESEN_LOG + ['run: frame 256x240'],
+     'forbiddenLog': ['run: frame 512x480']})
 
 # Real official catalog/downloads; the rendering is the actual embedded
 # bridge, with a software test core, a Vulkan test core and real DeSmuME.
@@ -678,6 +742,42 @@ def build_lot1_content(content):
     (content / 'probe-not-mgw.mgw').write_bytes(b'not a game and watch package' + bytes(256))
 
 
+def build_mesen_content(content, system):
+    """An NROM test program and the HD pack made here for it (no third-party
+    content): the program fills the screen with background tile 0 (colour 1
+    of palette 0F 16 16 16) and loops; the pack gives that tile a 16x16 green
+    image at scale 2 (hires.txt format 106, the newest libretro Mesen reads)."""
+    from neo_shader_kit_test import png as rgba_png
+    prg = bytearray([0xEA]) * 0x4000
+    code = [0x78, 0xD8, 0xA2, 0xFF, 0x9A,             # SEI CLD LDX #$FF TXS
+            0x2C, 0x02, 0x20,                         # BIT $2002
+            0x2C, 0x02, 0x20, 0x10, 0xFB,             # vblank 1: BIT $2002 / BPL
+            0x2C, 0x02, 0x20, 0x10, 0xFB,             # vblank 2
+            0xA9, 0x3F, 0x8D, 0x06, 0x20, 0xA9, 0x00, 0x8D, 0x06, 0x20,   # PPUADDR $3F00
+            0xA9, 0x0F, 0x8D, 0x07, 0x20, 0xA9, 0x16, 0x8D, 0x07, 0x20,   # 0F 16
+            0x8D, 0x07, 0x20, 0x8D, 0x07, 0x20,                           # 16 16
+            0xA9, 0x20, 0x8D, 0x06, 0x20, 0xA9, 0x00, 0x8D, 0x06, 0x20,   # PPUADDR $2000
+            0xA2, 0x00, 0xA0, 0x04, 0xA9, 0x00,                           # 1 KiB of tile 0
+            0x8D, 0x07, 0x20, 0xE8, 0xD0, 0xFA, 0x88, 0xD0, 0xF7,
+            0xA9, 0x00, 0x8D, 0x05, 0x20, 0x8D, 0x05, 0x20,               # scroll 0, 0
+            0x8D, 0x00, 0x20, 0xA9, 0x0A, 0x8D, 0x01, 0x20,               # PPUCTRL 0, PPUMASK background
+            0x4C]                                                         # JMP to itself
+    loop = 0xC000 + len(code) - 1
+    code += [loop & 0xFF, loop >> 8, 0x40]                                # ...and an RTI for NMI/IRQ
+    prg[0:len(code)] = bytes(code)
+    rti = 0xC000 + len(code) - 1
+    struct.pack_into('<HHH', prg, 0x3FFA, rti, 0xC000, rti)
+    chr_rom = bytearray(0x2000)
+    chr_rom[0:8] = b'\xff' * 8                          # tile 0: plane 0 set, plane 1 clear = colour 1
+    rom = b'NES\x1a' + bytes([1, 1, 0, 0]) + bytes(8) + bytes(prg) + bytes(chr_rom)
+    (content / 'probe-nes-plain.nes').write_bytes(rom)
+    (content / 'probe-nes-hd.nes').write_bytes(rom)
+    pack = system / 'HdPacks' / 'probe-nes-hd'
+    pack.mkdir(parents=True, exist_ok=True)
+    (pack / 'probe-tile.png').write_bytes(rgba_png(16, 16, [[(0, 255, 0, 255)] * 16 for _ in range(16)]))
+    (pack / 'hires.txt').write_text('<ver>106\n<scale>2\n<img>probe-tile.png\n<tile>0,0,0F161616,0,0,1,N\n')
+
+
 def build_lot2_content(content, system):
     """Test programs for the lot 2 cores, and the two stand-in BIOS images
     O2EM and Beetle PC-FX need to start at all, written here: each image is
@@ -710,6 +810,132 @@ def build_lot2_content(content, system):
     (content / 'probe-pcfx.bin').write_bytes(bytes(2352 * 32))
     (content / 'probe-pcfx.cue').write_text(
         'FILE "probe-pcfx.bin" BINARY\n  TRACK 01 MODE1/2352\n    INDEX 01 00:00:00\n')
+
+
+def _mips_program():
+    """A stand-in PlayStation BIOS written here (never a console's BIOS): from
+    the reset address it sets up the GPU, clears the screen to dark grey and
+    fills a red rectangle at (64,56)-(192,184), again and again. Only GPU-side
+    commands: in the Simulator, Beetle's Vulkan renderer cannot take a
+    CPU-to-VRAM copy (see BEETLE_LOG above). Each GP0 command waits for an idle
+    GPU, then all its words follow. Each pass leaves its progress at 0x1000 of
+    system RAM (loop count, last step, GPUSTAT after the rectangle), which the
+    probe reads back."""
+    T0, T1, T3, T2, T5, T6, T7 = 8, 9, 11, 10, 13, 14, 15
+    words = []
+
+    def emit(word):
+        words.append(word & 0xFFFFFFFF)
+
+    def lui(rt, imm):
+        emit((0x0F << 26) | (rt << 16) | (imm & 0xFFFF))
+
+    def ori(rt, rs, imm):
+        emit((0x0D << 26) | (rs << 21) | (rt << 16) | (imm & 0xFFFF))
+
+    def sw(rt, offset, base):
+        emit((0x2B << 26) | (base << 21) | (rt << 16) | (offset & 0xFFFF))
+
+    def lw(rt, offset, base):
+        emit((0x23 << 26) | (base << 21) | (rt << 16) | (offset & 0xFFFF))
+
+    def and_(rd, rs, rt):
+        emit((rs << 21) | (rt << 16) | (rd << 11) | 0x24)
+
+    def beq(rs, rt, offset):
+        emit((0x04 << 26) | (rs << 21) | (rt << 16) | (offset & 0xFFFF))
+
+    def bne(rs, rt, offset):
+        emit((0x05 << 26) | (rs << 21) | (rt << 16) | (offset & 0xFFFF))
+
+    def addiu(rt, rs, imm):
+        emit((0x09 << 26) | (rs << 21) | (rt << 16) | (imm & 0xFFFF))
+
+    def nop():
+        emit(0)
+
+    def load(value):
+        lui(T1, value >> 16)
+        if value & 0xFFFF:
+            ori(T1, T1, value & 0xFFFF)
+
+    def gp1(value):
+        load(value)
+        sw(T1, 0x1814, T0)
+
+    def gp0(*values):
+        # Wait for the idle bit 26, then write the command's words. Bit 28 is
+        # the DMA-block flag, not per-word flow control: waiting on it before
+        # each word left Beetle (gpu.c ProcessFIFO) waiting for the rest of a
+        # command (run 39296323461).
+        lw(T3, 0x1814, T0)
+        nop()
+        and_(T3, T3, T5)
+        beq(T3, 0, -4)
+        nop()
+        for value in values:
+            load(value)
+            sw(T1, 0x1810, T0)
+
+    def mark(stage):
+        # Progress the probe reads back from system RAM (BEETLE_PROGRAM_MARKERS).
+        ori(T1, 0, stage)
+        sw(T1, 0x1004, T6)
+
+    lui(T0, 0x1F80)               # I/O base
+    lui(T5, 0x0400)               # GPUSTAT bit 26 (idle)
+    lui(T6, 0xA000)               # system RAM (KSEG1): markers at 0x1000
+    gp1(0x00000000)               # reset
+    gp1(0x08000000)               # 256x240, NTSC, 15-bit
+    gp1(0x05000000)               # display start (0,0)
+    gp1(0x06C60260)               # horizontal range
+    gp1(0x07040010)               # vertical range
+    gp1(0x03000000)               # display on
+    loop = len(words)
+    lw(T7, 0x1000, T6)            # loop count
+    nop()
+    addiu(T7, T7, 1)
+    sw(T7, 0x1000, T6)
+    mark(1)
+    gp0(0xE1000408)               # texpage x=512, 4-bit, drawing to the displayed area
+    gp0(0xE3000000)               # drawing area top-left
+    gp0(0xE403BCFF)               # drawing area bottom-right (255, 239)
+    gp0(0xE5000000)               # drawing offset
+    gp0(0x02202020, 0x00000000, 0x00F00100)  # clear to dark grey
+    mark(2)
+    gp0(0x020000FF, 0x00380040, 0x00800080)  # red rectangle (64,56), 128x128
+    mark(3)
+    lw(T3, 0x1814, T0)            # GPUSTAT after the rectangle
+    nop()
+    sw(T3, 0x1008, T6)
+    lui(T2, 0x0004)               # delay, then draw again
+    delay = len(words)
+    addiu(T2, T2, -1)
+    bne(T2, 0, delay - (len(words) + 1))
+    nop()
+    # j loop (BIOS ROM, KSEG1 0xBFC00000)
+    emit((0x02 << 26) | (((0xBFC00000 + loop * 4) >> 2) & 0x3FFFFFF))
+    nop()
+    return b''.join(word.to_bytes(4, 'little') for word in words)
+
+
+def build_beetle_content(content, system):
+    """Beetle PSX HW (Build 489): a PS-X EXE the core accepts as content (never
+    run: the stand-in BIOS keeps the CPU) and the stand-in BIOS under the names
+    Beetle looks for, written only into this probe's System folder."""
+    exe = bytearray(0x1000)
+    exe[0:8] = b'PS-X EXE'
+    exe[0x10:0x14] = (0x80010000).to_bytes(4, 'little')   # PC
+    exe[0x18:0x1C] = (0x80010000).to_bytes(4, 'little')   # text start
+    exe[0x1C:0x20] = (0x800).to_bytes(4, 'little')        # text size
+    exe[0x30:0x34] = (0x801FFF00).to_bytes(4, 'little')   # SP
+    exe[0x800:0x804] = ((0x02 << 26) | ((0x80010000 >> 2) & 0x3FFFFFF)).to_bytes(4, 'little')  # j self
+    (content / 'probe-psx.exe').write_bytes(bytes(exe))
+    program = _mips_program()
+    bios = bytearray(0x80000)
+    bios[:len(program)] = program
+    for name in ('scph5500.bin', 'scph5501.bin', 'scph5502.bin'):
+        (system / name).write_bytes(bytes(bios))
 
 
 def build_iso(program, output_path, work):
@@ -932,7 +1158,8 @@ def assemble(args, sources, work):
         (bundle / 'Info.plist').write_bytes(plistlib.dumps({'CFBundleIdentifier':'ai.neostation.cheats','CFBundlePackageType':'BNDL'}))
     build_test_cores(sdk, frameworks)
     cores = Path(args.cores)
-    for core in REAL_CORES:
+    # Derived probes replace REAL_CORES with a list or a tuple of their own cores.
+    for core in (*REAL_CORES, *((MESEN_CORE,) if getattr(args, 'mesen', False) else ())):
         source = cores / 'Frameworks' / f'{core}_libretro.framework'
         target = frameworks / source.name
         shutil.copytree(source, target)
@@ -955,6 +1182,10 @@ def assemble(args, sources, work):
     if getattr(args, 'lot2', False):
         # Only the lot 2 run carries the stand-in BIOS images.
         build_lot2_content(content, app / 'LibretroSystem')
+    if getattr(args, 'beetle', False):
+        build_beetle_content(content, app / 'LibretroSystem')
+    if getattr(args, 'mesen', False):
+        build_mesen_content(content, app / 'LibretroSystem')
     if imports_shader_kit(sources):
         build_shader_fixtures(app, args.official_shaders)
     if imports_cheat_catalog(sources):
@@ -972,6 +1203,12 @@ def assemble(args, sources, work):
         elif getattr(args, 'lot2', False):
             if not scenario.get('lot2'):
                 continue
+        elif getattr(args, 'beetle', False):
+            if not scenario.get('beetle'):
+                continue
+        elif getattr(args, 'mesen', False):
+            if not scenario.get('mesen'):
+                continue
         elif args.only and scenario['name'] not in args.only:
             continue
         elif not args.only and not scenario.get('default', True):
@@ -979,8 +1216,10 @@ def assemble(args, sources, work):
         if bool(scenario.get('shaders', {}).get('official')) != args.official_shaders:
             continue
         entry = dict(scenario)
-        if scenario['core'] in REAL_CORES:
+        if scenario['core'] in (*REAL_CORES, MESEN_CORE):
             entry.update(core_settings(catalog, scenario['core']))
+            # The product's locked options, then the probe's own (Beetle's dumping run).
+            entry['lockedOptions'] = {**entry.get('lockedOptions', {}), **scenario.get('probeOptions', {})}
         entry['consoleName'] = names[scenario['console']]
         scenarios.append(entry)
     config = {'source': args.label, 'consoleGeometry': geometry, 'scenarios': scenarios}
@@ -1116,6 +1355,62 @@ def run_in_simulator(app, evidence, timeout, *, reset=True):
 
 # --- evaluation ----------------------------------------------------------
 
+def print_failure_tails(evidence, lines=60):
+    """An unfinished probe: the ends of what the app wrote (its console, the newest
+    session journals and the system log), in the job log as well as the evidence."""
+    def tail(path, count):
+        try:
+            text = Path(path).read_text(errors='replace').splitlines()
+        except OSError:
+            return
+        print(f'--- last {min(count, len(text))} lines of {Path(path).relative_to(evidence)}', flush=True)
+        for line in text[-count:]:
+            print('    ' + line[:400], flush=True)
+    tail(evidence / 'probe-console.log', lines)
+    logs = sorted((evidence / 'Logs').rglob('*'), key=lambda path: path.stat().st_mtime) if (evidence / 'Logs').is_dir() else []
+    for path in [path for path in logs if path.is_file()][-3:]:
+        tail(path, lines)
+    system = evidence / 'simulator-system.log'
+    if system.is_file():
+        keep = [line for line in system.read_text(errors='replace').splitlines()
+                if any(word in line for word in ('Terminating', 'exception', 'Exception', 'abort', 'crash', 'Crash', 'signal', 'jetsam',
+                                                 'EXC_', 'Vulkan', 'MoltenVK', 'vk', 'beetle', 'Beetle'))]
+        print(f'--- {min(lines, len(keep))} matching lines of simulator-system.log', flush=True)
+        for line in keep[-lines:]:
+            print('    ' + line[:400], flush=True)
+
+
+def print_beetle_diagnostics(report):
+    """Beetle PSX HW scenarios: what the session and the core reported, in the job log."""
+    keep = ('vulkan', 'Vulkan', 'hd-textures', 'beetle', 'Beetle', 'video', 'frame', 'present', 'hand', 'run:', 'load:',
+            'A1R5G5B5', 'renderer', 'texture', 'dither')
+    for result in report.get('results', []):
+        if not str(result.get('core', '')).startswith('mednafen_psx'):
+            continue
+        launch = result.get('launch') or {}
+        print(f"--- {result.get('name')}: launch success={launch.get('success')} code={launch.get('code')} "
+              f"renderer={launch.get('hardwareRendering')} core={launch.get('libraryName')} {launch.get('libraryVersion')}", flush=True)
+        print(f"    status={result.get('beetleStatus')} frames={result.get('beetleFrames')} size={result.get('beetleFrameSize')} "
+              f"dumped={len(result.get('beetleDumped') or [])} replacements={len(result.get('beetleReplacements') or [])} "
+              f"capture={(result.get('frame') or {}).get('captureError')}", flush=True)
+        # Where the stand-in BIOS got to, and what the presented frame holds: the
+        # quad's cells (5..10 of the 16x16 grid) and the cleared area around it.
+        frame = result.get('frame') or {}
+        grid = (frame.get('screenGridsRGB') or [[]])[0]
+        print(f"    program={result.get('beetleProgram')} drawable={frame.get('width')}x{frame.get('height')} "
+              f"png={frame.get('png')} centres={frame.get('screenCentresRGBA')}", flush=True)
+        if len(grid) == 256:
+            for gy in (1, 5, 7, 10, 14):
+                print(f"    row {gy:2d}: " + ' '.join('%02x%02x%02x' % tuple(grid[gy * 16 + gx]) for gx in range(16)), flush=True)
+        for check in result.get('beetleLifecycle') or []:
+            print(f"    lifecycle {'ok' if check.get('passed') else 'FAILED'}: {check.get('name')}", flush=True)
+        lines = [line for line in str(result.get('journal', '')).splitlines() if any(word in line for word in keep)]
+        for line in lines[-40:]:
+            print('    journal: ' + line[:300], flush=True)
+        for line in (result.get('recentLog') or [])[-40:]:
+            print('    core: ' + str(line)[:300], flush=True)
+
+
 def journal_order_problems(journal):
     lines = journal.splitlines()
     position = 0
@@ -1157,6 +1452,9 @@ def evaluate(report, scenarios):
             for line in scenario.get('requiredLog', []):
                 if line not in result.get('journal', ''):
                     problems.append(f'{name}: the core log lacks "{line}"')
+            for line in scenario.get('forbiddenLog', []):
+                if line in result.get('journal', ''):
+                    problems.append(f'{name}: the core log has "{line}"')
             resolution = scenario.get('resolution')
             if resolution:
                 problems += resolution_problems(name, resolution, result, launch)
@@ -1180,6 +1478,8 @@ def evaluate(report, scenarios):
                 problems += [f'{name}: {check["name"]}' for check in checks if not check.get('passed')]
             if scenario.get('shaders'):
                 problems += shader_problems(name, scenario['shaders'], result, launch)
+            if scenario.get('beetleTextures'):
+                problems += beetle_problems(name, scenario['beetleTextures'], result, launch)
         elif scenario['expect'] == 'rejected':
             # The core is loaded and initialised, refuses the content, and
             # the session tears down to nothing.
@@ -1200,6 +1500,53 @@ def evaluate(report, scenarios):
                 problems.append(f'{name}: the game view or session stayed after the failure')
             if 'END launch failed LIBRETRO_CORE_STOPPED' not in result.get('journal', ''):
                 problems.append(f'{name}: the journal does not end with the launch failure')
+    return problems
+
+
+def beetle_problems(name, expected, result, launch):
+    """Beetle PSX HW in Vulkan: the renderer the core started, the stand-in
+    BIOS's progress, the replacement files the session reports (the probe's
+    pack: valid names only) and the GPU's picture in the presented frame."""
+    problems = []
+    core_log = result.get('journal', '') + '\n'.join(str(line) for line in result.get('recentLog') or [])
+    if 'is not supported for usage flags' in core_log:
+        problems.append(f'{name}: the core asked the device for an image format it does not support')
+    status = result.get('beetleStatus') or {}
+    if launch.get('hardwareRendering') != 'vulkan' or status.get('renderer') != 'vulkan':
+        problems.append(f"{name}: Beetle did not run in Vulkan (launch {launch.get('hardwareRendering')!r}, "
+                        f"session {status.get('renderer')!r})")
+    program = result.get('beetleProgram') or {}
+    if int(program.get('loops') or 0) < 2 or int(program.get('stage') or 0) < 2:
+        problems.append(f'{name}: the stand-in BIOS did not run its drawing loop ({program})')
+    if expected.get('pack') and result.get('beetleReplacementsPrepared') != expected['pack']:
+        problems.append(f"{name}: {result.get('beetleReplacementsPrepared')} of {expected['pack']} replacement files written")
+    if 'replace' in expected and bool(status.get('replace')) != expected['replace']:
+        problems.append(f"{name}: the session reports replacement {'on' if status.get('replace') else 'off'} ({status})")
+    if 'recognized' in expected and status.get('recognized') != expected['recognized']:
+        problems.append(f"{name}: the session reports {status.get('recognized')!r} replacement files, "
+                        f"expected {expected['recognized']} ({status})")
+    if result.get('beetleDumped'):
+        problems.append(f"{name}: the core dumped textures with dumping off ({len(result['beetleDumped'])})")
+    if expected.get('lifecycle'):
+        # Pause, background, state save, rotation and audio (beetle_lifecycle_probe.h); the
+        # frame below is captured after them.
+        checks = result.get('beetleLifecycle') or []
+        if len(checks) != expected['lifecycle']:
+            problems.append(f"{name}: {len(checks)} of {expected['lifecycle']} lifecycle checks ran")
+        problems += [f"{name}: {check['name']}" for check in checks if not check.get('passed')]
+    grids = (result.get('frame') or {}).get('screenGridsRGB') or []
+    if not grids:
+        problems.append(f"{name}: no frame captured ({(result.get('frame') or {}).get('captureError')})")
+        return problems
+    # The red rectangle covers (64,56)-(192,184) of 256x240: grid cells 5..10 x 5..10 are
+    # inside it, row 1 and column 1 are the cleared grey around it.
+    inside = [grids[0][gy * 16 + gx] for gy in range(5, 11) for gx in range(5, 11)]
+    around = [grids[0][1 * 16 + gx] for gx in range(16)] + [grids[0][gy * 16 + 1] for gy in range(16)]
+    red = sum(1 for r, g, b in inside if r > 150 and g < 90 and b < 90)
+    grey = sum(1 for r, g, b in around if all(16 <= c <= 48 for c in (r, g, b)))
+    if red < len(inside) * 0.8 or grey < len(around) * 0.8:
+        problems.append(f'{name}: the presented frame is not the GPU picture ({red}/{len(inside)} red cells inside '
+                        f'the rectangle, {grey}/{len(around)} grey cells around it)')
     return problems
 
 
@@ -1600,9 +1947,15 @@ def command_run(args):
     if visual:
         (evidence / 'visual-verdicts.json').write_text(json.dumps({'source': args.label, 'problems': problems,
                                                                'scenarios': visual}, indent=2) + '\n')
+    if getattr(args, 'beetle', False):
+        # Its evidence artifact cannot be read where the results are reviewed: the log carries it.
+        print_beetle_diagnostics(report)
     if not outcome['finished']:
         problems.insert(0, 'the probe did not finish (process ended or timed out); last progress lines:\n'
                         + '\n'.join(progress.splitlines()[-8:]))
+        print_failure_tails(evidence)
+    elif getattr(args, 'beetle', False) and problems:
+        print_failure_tails(evidence)
     if problems:
         print('\nSimulator probe problems:', flush=True)
         for problem in problems:
@@ -1627,6 +1980,10 @@ def main():
                             help='Run only the lot 1 cores (docs/libretro-consoles-lot1.md)')
     run_parser.add_argument('--lot2', action='store_true',
                             help='Run only the lot 2 cores (docs/libretro-consoles-lot2.md)')
+    run_parser.add_argument('--beetle', action='store_true',
+                            help='Run only the Beetle PSX HW Vulkan texture replacement scenarios (Build 489)')
+    run_parser.add_argument('--mesen', action='store_true',
+                            help='Run only the Mesen NES HD pack scenarios (needs a core package with Mesen)')
     run_parser.add_argument('--expect', choices=('fixed', 'unfixed'), default='fixed')
     run_parser.add_argument('--timeout', type=int, default=900)
     run_parser.add_argument('--official-shaders', action='store_true',

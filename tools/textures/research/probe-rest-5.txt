@@ -1,0 +1,39 @@
+# url<TAB>ref title — files of probe-gcwii3ds-1..6 never probed (those runs stopped early) and not in probe-rest-1..3 (part 2/2)
+https://www.mediafire.com/file/xs9kw4cowpmimx9/4K_Backgrounds_Add_on.7z/file	X069 (dolphin-threads.txt) Tales of Symphonia HD Textures
+http://www.mediafire.com/file/1ph6ngfs1gnc2ln/SA2B+HDGUIP+v1.5+DDS.7z	X073 (dolphin-threads.txt) Sonic Adventure 2 Battle HD Project v2.3 (June 21, 2019)
+https://mega.nz/file/aiRHVaJY#cbKaGJPhBFkFjYONftSTW8yA8bHaDYu-j5Q01QCAgC4	X076 (dolphin-threads.txt) Resident Evil Code: Veronica X HD
+https://www.dropbox.com/s/s4nulcxzc0amnvp/PS4%20Controller.7z?dl=0	X079 (dolphin-threads.txt) Super Smash Bros. HD Retexture Project [v4.0.3] August 2015
+http://www.mediafire.com/folder/lmk275gl5ibwd	X079 (dolphin-threads.txt) Super Smash Bros. HD Retexture Project [v4.0.3] August 2015
+https://mega.nz/file/iXZzCTrZ#wM_pNehFpNQoOzw_Gof3j_ztnox2_4GyRwFnJB5vj0E	X084 (dolphin-threads.txt) Zelda Four Swords Adventure HD 1.0 (2023-08-19)
+https://drive.google.com/open?id=1jm1mCyJTbL7ejgDcg0PTz6Hh3f52qr-5	X095 (dolphin-threads.txt) Mii Channel + Miis 4K Resource Pack (v1.3.1 - 4/19/2020)
+https://mega.co.nz/#!gtUQHLyJ!KH1dlNzopGMRLUadhScUymyA-fm9j-xp6Mbuh9T3xOs	X100 (dolphin-threads.txt) Super Mario Sunshine [hires texture pack]
+https://drive.google.com/file/d/12IfCLOCOmFEgSqrFFsUIkr3MYMuwAr-M/view?usp=sharing	X104 (dolphin-threads.txt) Star Fox Adventures HD Texture Pack
+https://drive.google.com/file/d/1Ro3Iddq2fx9t88sY5On8kdWJX_FxKcpT/view	X113 (dolphin-threads.txt) Mario Party 9 HD
+http://www.mediafire.com/download/3791t2a8v7oa4b3/YGO-DT+HD+V-0-2-4.7z	X118 (dolphin-threads.txt) Yu-Gi-Oh! 5Ds Duel Traser HD texture project V0.2.4 - 693 cards (update 07/18/2016)
+http://www.mediafire.com/file/978l7ls0ae6ngrc/Link.zip	X124 (dolphin-threads.txt) Twilight Princess Character Texture Project
+https://mega.nz/file/i4BkBA6Z#NWfanFXr3BcoetewlI_prxau-3EuDOc20rL_dkHSWz0	X136 (dolphin-threads.txt) Spyro - Enter the Dragonfly Texture pack
+https://drive.google.com/open?id=1wNchyKew9eZAfmNq4zQ5gvRHvIZvwrta	X140 (dolphin-threads.txt) New Super Mario Bros. Wii - Exclusive NVIDIA Shield’s (China) release ported UI
+https://drive.google.com/open?id=1bg8hdYj1BjzAUnkOw0Rsvlzgrny4qR1n	X140 (dolphin-threads.txt) New Super Mario Bros. Wii - Exclusive NVIDIA Shield’s (China) release ported UI
+https://www.mediafire.com/?h7o0h677dmns6bt	X144 (dolphin-threads.txt) Pac-Man 05 ((Pac-Man World 3 "HD" Texture Pack themed after Sonic 2006))
+https://mega.nz/file/L5pWXSqb#9COjYr9LqTB_tyBha_qN6LsXz-KboDGEhL04bqCB2uc	X147 (dolphin-threads.txt) WiiSports4K - Remastered Wii Sports Interface Textures [PSDs included]
+https://drive.google.com/drive/folders/1T8yvvmCATg3NpssB8Ejugm8ChzsfiI8e?usp=drive_link	S034 (gc.txt) The Urbz: Sims in the City — AI HD
+https://drive.google.com/drive/folders/1CbWvaX5SahvpE--CD7JNqqa-BddHHrJM	S164 (3ds.txt) WarioWare Gold — piste DniweTamp
+https://mega.nz/file/LiwHFLwR#0xQlKAhoTdR9fX_GR5Pi_hnXptmkJZQoeTyLgvc4cpQ	X064 (dolphin-threads.txt) Skies of Arcadia HD v0.06 (June 27, 2020)
+https://www.mediafire.com/file/nhidim7nz0tqs04/BBUpscale+v0.3.7z/file	X066 (dolphin-threads.txt) Bakugan Battle Brawlers HD Texture Project
+http://www.mediafire.com/file/yxv51obcxgt20o5/SA2B_HDP_v2.3_Resource_Pack.zip/file	X073 (dolphin-threads.txt) Sonic Adventure 2 Battle HD Project v2.3 (June 21, 2019)
+https://mega.nz/file/NUtEQSLZ#W5QNT1BcsXfemV1ZKfw20AMamAQNZOFFYLG8gsD0bYQ	X074 (dolphin-threads.txt) Muramasa: The Demon Blade UHD -v1.1b for Mobile/1080p Aug 2021-
+http://www.mediafire.com/download/8518hf1er69s1vb/SSBHD+Retexture+4.0.3+%5BB-PNG%5D.7z	X079 (dolphin-threads.txt) Super Smash Bros. HD Retexture Project [v4.0.3] August 2015
+https://www.dropbox.com/s/5audgl2pe0cmeak/Xbox%20360%20Controller.7z?dl=0	X079 (dolphin-threads.txt) Super Smash Bros. HD Retexture Project [v4.0.3] August 2015
+http://www.mediafire.com/folder/zo833qn2xrf3g	X079 (dolphin-threads.txt) Super Smash Bros. HD Retexture Project [v4.0.3] August 2015
+https://mega.nz/file/2T5VSBqZ#oF3FCGUDFQUhFKdEIVWgchWeHGlFqOwYzdTRAYqtS-M	X084 (dolphin-threads.txt) Zelda Four Swords Adventure HD 1.0 (2023-08-19)
+https://www.mediafire.com/folder/wc09m4tark57b/Texture_Packs	X099 (dolphin-threads.txt) Donkey Kong Jungle Beat (GCN) by vierockhd
+https://drive.google.com/open?id=0B8xO3DpVIUEGT2VKcW9Ua0sxbU0	X100 (dolphin-threads.txt) Super Mario Sunshine [hires texture pack]
+https://drive.google.com/drive/folders/1k9Cn3hKrfK2nhWvlQD_ekOGSZlEdwHLO?usp=sharing	X105 (dolphin-threads.txt) Epic Mickey 2: The Power of Two HD Texture Pack
+https://mega.nz/file/a4AVySaZ#hEGUpMD-0-3o8AM-dPByzXsylwv3o8oLpFTFT-0VFYA	X113 (dolphin-threads.txt) Mario Party 9 HD
+https://drive.google.com/open?id=1fHFnA6U0gxfiFhSruf82g2K5mlW0EUHO	X120 (dolphin-threads.txt) The Last Story - HD Texture Pack
+https://mega.co.nz/#!1sYBybRQ!XvAcdtQkAaY3-YXmXqhApTLNvzDyqeTcN3QkbQIOoBs	X130 (dolphin-threads.txt) Worms 3D Remastered [HD Textures]
+https://drive.google.com/file/d/1vnA8HrjaLNrsetnvRMfC4kJkUsWVHSPs/view	X137 (dolphin-threads.txt) Soul Calibur 2 HD texture pack
+https://drive.google.com/open?id=1BD6f5mcfz3qfQjk8mF-AWGH0W-_ZlaAu	X140 (dolphin-threads.txt) New Super Mario Bros. Wii - Exclusive NVIDIA Shield’s (China) release ported UI
+https://drive.google.com/open?id=1cC5dTSCpo3s1sq13hWqRlm8akxwphhZO	X140 (dolphin-threads.txt) New Super Mario Bros. Wii - Exclusive NVIDIA Shield’s (China) release ported UI
+https://drive.google.com/file/d/1rP-p3wke--jWZwDppbu7423bomJDMO5C/view?usp=sharing	X145 (dolphin-threads.txt) Tony Hawk's Underground HD Texture Pack
+https://drive.google.com/file/d/1hyQbGMhhF43cD6h58InP2uRWLTKqD5GU/view?usp=sharing	X148 (dolphin-threads.txt) Need for Speed: Undercover (UI only) v1.1

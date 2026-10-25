@@ -67,7 +67,6 @@ void main() {
       '$linked/roms/Game.zip': StorageCategory.games,
       doc('ARMSX2/Games/Game.iso'): StorageCategory.games,
       doc('Ports/KartPad/Games/RMCP01.wbfs'): StorageCategory.games,
-      doc('Ports/Dusklight/Games/GZ2E01.rvz'): StorageCategory.games,
       data('dev_hdd0/game/BLES00113/PS3_GAME/USRDIR/EBOOT.BIN'):
           StorageCategory.games,
       data('games/ExtractedGames/BLES00113/PS3_GAME/PARAM.SFO'):
@@ -92,7 +91,6 @@ void main() {
       doc('ARMSX2/Saves/Savestates/SLUS-20946 (0F0C4A9C).01.p2s'):
           StorageCategory.saves,
       doc('Ports/KartPad/Saves/NAND/title/00010004/x'): StorageCategory.saves,
-      doc('Ports/Dusklight/Saves/save.bin'): StorageCategory.saves,
       data('dev_hdd0/home/00000001/savedata/BLES00113-SAVE01/PARAM.SFO'):
           StorageCategory.saves,
       data('dev_hdd0/home/00000001/trophy/NPWR00001/TROPUSR.DAT'):
@@ -147,7 +145,6 @@ void main() {
       doc('Ports/KartPad/Mods/texture_replacements/x.png'):
           StorageCategory.userContent,
       doc('Ports/KartPad/Metadata/x.json'): StorageCategory.userContent,
-      doc('Ports/Dusklight/Mods/x'): StorageCategory.userContent,
       doc('ARMSX2/cheats/SLUS-20946.pnach'): StorageCategory.userContent,
       doc('RPCS3/Import/Game Saves/saves.zip'): StorageCategory.userContent,
       doc('RPCS3/Export/Savestates/x'): StorageCategory.userContent,
@@ -313,6 +310,13 @@ void main() {
       for (final path in [
         doc('whatever.bin'),
         doc('Ports/readme.txt'),
+        // What Dusklight left (docs/ports-removal-2026-10-20.md): games,
+        // saves, mods and caches stay in place, outside every rule.
+        doc('Ports/Dusklight/Games/GZ2E01.rvz'),
+        doc('Ports/Dusklight/Games/GZ2E01.rvz.part'),
+        doc('Ports/Dusklight/Saves/save.bin'),
+        doc('Ports/Dusklight/Mods/x'),
+        cac('Dusklight/pipeline.bin'),
         doc('Libretro/Unknown/x'),
         doc('user-data/unknown.bin'),
         sup('NeoStation/Unknown/x'),

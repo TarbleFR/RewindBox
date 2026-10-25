@@ -22,12 +22,12 @@ for locale in locales:
     assert keys==translation_keys,locale
     for key,value in entries.items():
         assert re.findall(r'%[\d.$]*[@dufs]',key)==re.findall(r'%[\d.$]*[@dufs]',value),(locale,key)
-assert len(translation_keys)==13
+assert len(translation_keys)==32  # 13 graphics keys + 19 blending accuracy keys (Build 482)
 source=json.loads((ROOT/'build-utils/armsx2/source.json').read_text())
 assert source['release']=='iOSv2.6.0' and source['revision']=='9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe'
-assert source['abi_version']==6
-assert '#define NEO_ARMSX2_ABI_VERSION 6u' in (CLASSES/'ARMSX2CoreABI.h').read_text()
-print('PASS: exact official 2.6 pin; ABI 6; 13 graphics keys in all 12 locales')
+assert source['abi_version']==8
+assert '#define NEO_ARMSX2_ABI_VERSION 8u' in (CLASSES/'ARMSX2CoreABI.h').read_text()
+print('PASS: exact official 2.6 pin; ABI 8; 32 graphics keys in all 12 locales')
 if platform.system()!='Darwin':
     print('Foundation behavior checks require macOS and are mandatory in native CI.')
     raise SystemExit(0)
@@ -82,4 +82,11 @@ with tempfile.TemporaryDirectory(prefix='armsx2-graphics-') as directory:
 with tempfile.TemporaryDirectory(prefix='armsx2-graphics-settings-') as directory:
     binary=Path(directory)/'test'
     subprocess.run(['xcrun','clang++','-std=c++20','-fblocks','-fobjc-arc','-I',str(CORE),str(ROOT/'test/armsx2_graphics_settings_test.mm'),'-framework','Foundation','-o',str(binary)],check=True)
+    subprocess.run([str(binary)],check=True,timeout=20)
+
+# Build 482: the blending adapter is MRC like ARMSX2Core.mm (it retains the JSON
+# bytes across the CPU thread's autorelease pool), so no -fobjc-arc here.
+with tempfile.TemporaryDirectory(prefix='armsx2-blending-accuracy-') as directory:
+    binary=Path(directory)/'test'
+    subprocess.run(['xcrun','clang++','-std=c++20','-fblocks','-fno-objc-arc','-Wall','-Wno-unused-function','-I',str(CORE),'-I',str(CLASSES),str(ROOT/'test/armsx2_blending_accuracy_test.mm'),'-framework','Foundation','-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True,timeout=20)

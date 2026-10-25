@@ -3,12 +3,9 @@ ROOT=Path(__file__).resolve().parents[1]
 origin=ROOT/'test/dolphin_account_267_test.py'
 source=origin.read_text().replace("'CLANG_ENABLE_OBJC_ARC': 'YES',", "'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',")
 source=source.replace("{'sdk': 'UIKit.framework'}", "{'sdk': 'UniformTypeIdentifiers.framework'}, {'sdk': 'UIKit.framework'}")
-source=source.replace("include = stage_external_display(directory)", "include = stage_dependency_headers(directory)")
 source=source.replace("str(CLASSES / 'DolphinSessionMenu.mm'),", "str(CLASSES / 'DolphinSessionMenu.mm'), str(CLASSES / 'DOLShaderSettings.mm'),")
 ns={'__file__':str(origin),'__name__':'pacing_tests'}
 exec(compile(source,str(origin),'exec'),ns)
-from libretro_ios_syntax_test import stage_dependency_headers
-ns['stage_dependency_headers']=stage_dependency_headers
 # This fixture exercises the actual settings controller's busy state. It
 # links no shader compiler or emulator; real shader compilation/rendering is
 # covered separately by shader-kit-checks and is not asserted by this UI test.

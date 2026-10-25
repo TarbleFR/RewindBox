@@ -1,0 +1,186 @@
+{
+ "build": 488,
+ "version": "0.0.8 (488)",
+ "result": "delivered",
+ "deliverySource": "2bdca0d4b7a353af17016c528d2cf38ecacc9e9b",
+ "deliverySourceNote": "dispatched on the Claude branch head (no tag can be pushed from these sessions); the run head_sha is the fixed source",
+ "deliveryRun": 39267021460,
+ "jobs": {
+  "checks": "success (job 118109155199)",
+  "native": "success (job 118109154695)",
+  "Release device build • cold": "success (job 118109598546)",
+  "Release device build • warm": "skipped"
+ },
+ "closure": ".github/diagnostics/hdtex488_delivery.py",
+ "testedSource": "f4834ce5fb143d8c4ec5a48cade2befe84811830",
+ "proofs": {
+  "hdTextures": {
+   "run": 39265084257,
+   "source": "f4834ce5fb143d8c4ec5a48cade2befe84811830",
+   "host": {
+    "job": 118102460207,
+    "checks": 46,
+    "inputs": 157
+   },
+   "native": {
+    "job": 118102461270,
+    "checks": 7,
+    "inputs": 111
+   },
+   "uikit": {
+    "job": 118102459992,
+    "checks": 1,
+    "uikitTests": 7,
+    "inputs": 106
+   },
+   "repositories": "five consoles, nothing left to verify"
+  },
+  "repositoryArchives": {
+   "runs": [
+    39188364133,
+    39254972220,
+    39257349302,
+    39258904471,
+    39264550682
+   ],
+   "records": 88,
+   "check": "tools/textures/check_ci_records.py compares every record with the artifacts of its run"
+  }
+ },
+ "deliveredBaseline": {
+  "build": 487,
+  "source": "fad5eac6f793672240d2cb5f3559da73a40226f8",
+  "run": 39262042654,
+  "sealedIpaSHA256": "bd59a616d8f6f02a969ea9de71e9803b9f7156df250eb36d56559462b1551759"
+ },
+ "changedProductPaths": [
+  "lib/services/texture_catalog_service.dart",
+  "lib/widgets/libretro_internal_playlist_actions.dart",
+  "native/textures/catalogue/manifest.json.gz",
+  "packages/libretro_internal_bridge/ios/Classes/LibretroSession.m",
+  "packages/neo_texture_catalog/ios/Classes/NeoTextureCatalogPlugin.m",
+  "packages/neo_texture_catalog/ios/Classes/NeoTextureEngines.mm",
+  "packages/neo_texture_catalog/ios/Classes/NeoTextureHDPage.m",
+  "packages/neo_texture_catalog/ios/Classes/NeoTextureIdentity.h",
+  "packages/neo_texture_catalog/ios/Classes/NeoTextureIdentityReader.mm",
+  "packages/neo_texture_catalog/ios/Classes/NeoTextureInstall.h",
+  "packages/neo_texture_catalog/ios/Classes/NeoTexturePackStore.mm",
+  "packages/neo_texture_catalog/ios/Classes/NeoTextureSupport.h",
+  "packages/neo_texture_catalog/ios/Classes/NeoTextureSupport.m",
+  "packages/neo_texture_catalog/ios/Classes/Public/NeoTextureEngine.h",
+  "packages/neo_texture_catalog/ios/Classes/Public/NeoTextureHDPage.h",
+  "packages/neo_texture_catalog/ios/Resources/labels.json",
+  "packages/neo_texture_catalog/ios/Resources/manifest.json.gz",
+  "packages/neo_texture_catalog/ios/Resources/ps2ktxpak-LICENSE.txt",
+  "packages/neo_texture_catalog/ios/neo_texture_catalog.podspec"
+ ],
+ "coreRebuilt": false,
+ "catalogue": {
+  "revision": "2026-10-19.72e26f767470",
+  "indexSHA256": "bdb22e03f24ce93372188a7093220da9fadfe37e2c957e23d172d0a0c9e25301",
+  "packs": 857,
+  "oneTap": 189,
+  "manual": 668,
+  "identities": 910,
+  "sources": 275,
+  "perSystem": {
+   "ps2": 696,
+   "gc": 24,
+   "wii": 25,
+   "psp": 72,
+   "3ds": 19,
+   "n64": 21
+  }
+ },
+ "xcodeBuildSeconds": 326.69,
+ "toolchain": {
+  "xcode": "26.3 (17C529)",
+  "iphoneSDK": "26.2",
+  "flutter": "3.47.2"
+ },
+ "ciValidations": {
+  "preSealIpaSHA256": "0a417c0f950f8c0751fd490ad0234258d584fa58d91841df10ab0a1b46a65fd0",
+  "hdTextures": "PASS HD texture catalogue in the actual IPA: index 2026-10-19.72e26f767470 (857 packs), labels, framework, Dart channel and the ARMSX2, Dolphin and libretro entry points",
+  "rpcs3Diag487": "PASS Build 487 diagnostics in the actual IPA: 9 Core and 14 bridge markers",
+  "rpcs3CoreSHA256": "6b64fe7aeca17325592f478a8eb97d08187721127a586bd6f007f71cbdd11c73",
+  "hdTexturesReport": {
+   "indexSHA256": "bdb22e03f24ce93372188a7093220da9fadfe37e2c957e23d172d0a0c9e25301",
+   "indexBytes": 104648,
+   "packs": 857,
+   "packsPerSystem": {
+    "3ds": 19,
+    "gc": 29,
+    "n64": 21,
+    "ps2": 696,
+    "psp": 72,
+    "wii": 25
+   },
+   "frameworksSHA256": {
+    "neo_texture_catalog": "6b44329cd61a8044fa929a2aeb29f7ae1d6bd5ff1b501ff5ef614019932d00af",
+    "armsx2_internal_bridge": "83b158668b277e7ca7f86dc57e3398da0c53abac22407b751453e7f6ca63fec9",
+    "dolphin_internal_bridge": "b1b7f6de392f383a679f1a921573b254ae66e8b0d3404ecff5b15eb8ecd75034",
+    "libretro_internal_bridge": "26f6fab0a40075d3bf43476f010e106559bf92ecb61dc185719008a117c0fb44"
+   },
+   "packsBundled": false,
+   "note": "gc 29 counts the five packs that also serve Wii Virtual Console titles"
+  }
+ },
+ "encryptedArtifact": {
+  "id": 12193569615,
+  "name": "NeoStation-Build-488-2bdca0d4b7a353af17016c528d2cf38ecacc9e9b-cold",
+  "bytes": 228349853,
+  "zipSHA256": "e274853149b0fd041f92b676f5e42676cb76244b0ffb08a4c86bdde5a222ffd6",
+  "expires": "2026-11-02T14:28:04Z",
+  "recipient": "build-utils/delivery-424-recipient.pem"
+ },
+ "sealedIpa": {
+  "name": "NeoStation-Build488-2bdca0d4b7a353af17016c528d2cf38ecacc9e9b-cold.ipa",
+  "bytes": 228109916,
+  "sha256": "8405f8c42b121ea891fdbd98e4bc866e1e071239b98acd4d5fc9aa0d7040e2c5",
+  "matches": [
+   "SHA256SUMS",
+   "signed-payload-identity.json"
+  ],
+  "windowsCopy": "C:\\Users\\Coren\\Downloads\\NeoStation-Build488-2bdca0d4.ipa",
+  "windowsCopySHA256Verified": true,
+  "decryptedOn": "maintainer PC with the 424 private key (C:\\Users\\Coren\\nsw\\b488\\decrypt-488.ps1); session password and plaintext archive removed"
+ },
+ "independentInspection": {
+  "tool": "stdlib Mach-O section fingerprints (signature excluded), compared with the delivered Build 487 IPA (bd59a616…1759, re-decrypted from artifact 12192460455 for the comparison, then removed)",
+  "bundleVersions": "host and five extensions 0.0.8 (488)",
+  "imagesComparedWithBuild487": {
+   "total": 82,
+   "identical": 78,
+   "changed": {
+    "App.framework/App": "Dart AOT (TextureCatalogService: n64, libretro system directory)",
+    "libretro_internal_bridge": "HD textures row for Mupen64Plus-Next",
+    "neo_texture_catalog": "N64 adapter, -didChangePackFolder:, first-launch notice",
+    "Runner": "__TEXT,__const only (build number)"
+   },
+   "new": [],
+   "removed": []
+  },
+  "catalogueBundle": {
+   "files": [
+    "Info.plist",
+    "labels.json",
+    "manifest.json.gz",
+    "ps2ktxpak-LICENSE.txt"
+   ],
+   "manifest.json.gz": "bdb22e03f24ce93372188a7093220da9fadfe37e2c957e23d172d0a0c9e25301 (= native/textures/catalogue at 2bdca0d4)",
+   "labels.json": "1b7a8d6461fe565d663a58ee9647887d81fb1d52c1255b6f30dcced09ddba528",
+   "ps2ktxpak-LICENSE.txt": "675226630f793d766fc9e2344f28138c049b4b428b02ba1aab5fb0993d931b0c"
+  },
+  "markers": {
+   "neo_texture_catalog": "9/9 (Build 487: 0)",
+   "libretro_internal_bridge": "2/2 (Build 487: 1, mupen64plus_next already used elsewhere)"
+  },
+  "unchanged": "34 libretro cores, libRPCS3Core (Core 487), ARMSX2Core, DolphinCore, DusklightCore, MoltenVK, helpers and extensions: identical code/data to Build 487"
+ },
+ "deviceGameplayValidated": false,
+ "texturesDisplayedInGame": false,
+ "notes": [
+  "No HD texture pack was loaded in a game in this cycle: archive and installation verified, rendering not tested.",
+  "SideStore Apple re-signing is required."
+ ]
+}

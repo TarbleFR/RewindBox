@@ -3,9 +3,12 @@ from pathlib import Path
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'test'))
+from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
 XCODE = Path('/Applications/Xcode_16.4.app/Contents/Developer')
 
 
@@ -18,13 +21,17 @@ class RecordingSDKTests(unittest.TestCase):
                                        '--show-sdk-path'], env=environment,
                                       text=True, timeout=30).strip()
         classes = ROOT / 'packages/dolphin_internal_bridge/ios/Classes'
-        result = subprocess.run([
-            'xcrun', '--sdk', 'iphonesimulator', 'clang++', '-std=c++20',
-            '-target', 'arm64-apple-ios17.4-simulator', '-isysroot', sdk,
-            '-fobjc-arc', '-fblocks', '-fsyntax-only', '-I', str(classes),
-            str(classes / 'DolphinRecordingController.mm'),
-            str(classes / 'DolphinSessionMenu.mm')], env=environment,
-            capture_output=True, text=True, timeout=90)
+        # The menu imports the pods the bridge depends on (<neo_cheat_catalog/...>
+        # since Build 474), staged exactly as the pods publish their headers.
+        with tempfile.TemporaryDirectory(prefix='dolphin-recording-sdk-') as folder:
+            include = stage_dependency_headers(Path(folder))
+            result = subprocess.run([
+                'xcrun', '--sdk', 'iphonesimulator', 'clang++', '-std=c++20',
+                '-target', 'arm64-apple-ios17.4-simulator', '-isysroot', sdk,
+                '-fobjc-arc', '-fblocks', '-fsyntax-only', '-I', str(classes), '-I', str(include),
+                str(classes / 'DolphinRecordingController.mm'),
+                str(classes / 'DolphinSessionMenu.mm')], env=environment,
+                capture_output=True, text=True, timeout=90)
         self.assertEqual(result.returncode, 0, result.stderr)
 
 

@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-22",
+  "startingClaude": "28371bd12169af9bf506d9d2cff98e0c13d44f24",
+  "mainUnchanged": "415beae8f4f88c7f2bd13c61bd1bc109fb14bbea",
+  "policy": "Retain every retiring branch head as a parent of the delivery correction commit. Preserve current validated product tree. Transfer useful packaging fixes from Build 501; do not enable the unvalidated Dependabot versions or superseded test scaffolding. No release or tag.",
+  "retiringBranches": [
+    {
+      "branch": "Cloud",
+      "head": "d4df885122cbd39adc05c506128b4225e9fd20b1",
+      "uniqueCommits": [
+        "d4df885122cbd39adc05c506128b4225e9fd20b1 Remove the abandoned BlueWake integration audit",
+        "bdc5cad49f1894d390f376b3a37db3e2289a1ddd docs: audit BlueWake native integration and pin candidate sources"
+      ],
+      "behindClaude": 662,
+      "aheadOfClaude": 2,
+      "historyPreservedAsMergeParent": true
+    },
+    {
+      "branch": "backup",
+      "head": "52acfe7d5e1bee8716da8f36eecc5efcc386f667",
+      "uniqueCommits": [],
+      "behindClaude": 2199,
+      "aheadOfClaude": 0,
+      "historyPreservedAsMergeParent": true
+    },
+    {
+      "branch": "build-501-system-art",
+      "head": "d83145a71709342e7d3b662ba00789b726bc3fb5",
+      "uniqueCommits": [
+        "d83145a71709342e7d3b662ba00789b726bc3fb5 build501: rotate local delivery recipient for maintainer decryption",
+        "b354281cf3104b152489c92e16832a00c117d7d6 build501: allow targeted no-Dusklight validator repair",
+        "153ecd84590380aecf3c77122b24f9d9f45027e5 fix(build501): allow exact historical Dusklight legal audit record",
+        "30278416fbda24e507fdf12cf9d90a3f5a543f00 build501: allow historical core recipes in closed delivery gate",
+        "e06848001d05372466759eb507e5685194565d71 build501: restore exact validated libretro 497 recipe",
+        "8cf2a86985944b129f0a83b4a0cb4863f7cf5916 build501: restore exact validated Dolphin core recipe",
+        "910d915b7e4d255bd2e03ac2ec5fae1c7fa11fd9 build501: rotate ephemeral ChatGPT delivery recipient",
+        "74476847725a12e28666d2f60274351003bcfcdd build501: allow validator compatibility repair in closed gate",
+        "dee1cafe5876a289839f12be949f32c1e418949f fix(build501): accept legacy repository identity for pinned RPCS3 core",
+        "0beb26b57598dbd1298c7cfe37a068ed84ee6026 fix(build501): preserve exact delivery500 workflow separator in Core pin view",
+        "5c776f9c6ee16cf5ff3ad552dc98c8b0880d39e1 fix(build501): validate pinned RPCS3 Core in exact immutable Build499 input view",
+        "b2da204f839cb4a0a817213836964b3ea7f89610 build501: include only the public test-IPA delivery key in the closed gate",
+        "aa46835487c5b5220b0e7eaddd58cf5081f52ad8 build501: add ephemeral RSA public delivery recipient (no private key)",
+        "a17dc3bdb83c3da1566e2b61e99d58934fdcfbb0 ci(build501): permit narrow JIT branding-test correction in immutable delivery gate",
+        "0b62a02636ac702e316b3a059dde33608b35aed2 test(build501): preserve strict JIT baseline after reviewed RewindBox labels",
+        "dead86652adf3eb69636b562ffc20d91ac236382 ci(private 501): include reviewed test-only JIT naming compatibility proof in source closure",
+        "007a2c132e1e8e3990e493fad50717756beb8c37 test(private 501): accept exact reviewed RewindBox-only JIT labels and retired external route while preserving full host equivalence",
+        "3551538d8fb105dde9bf4bd01b80084c35b724bb ci(private 501): correct newline decoding in source evidence",
+        "dfc4105094fba4d5068ecbd6c5b8acdf9b76bc8e ci(private 501): verify immutable NeoAssets source and prior successful checks without stale 496 closure",
+        "6081d8b83be55e83e55e714177589dbe01f64001 ci(private): add ephemeral 501 test artifact encryption recipient; no app code changes"
+      ],
+      "behindClaude": 34,
+      "aheadOfClaude": 20,
+      "historyPreservedAsMergeParent": true
+    },
+    {
+      "branch": "build-502-test",
+      "head": "09c850e9aa19fdb3d84f6cf1c2065ae6d04f273e",
+      "uniqueCommits": [
+        "09c850e9aa19fdb3d84f6cf1c2065ae6d04f273e build502: allow current-base StikJIT guard",
+        "4747d28ae483810ddee83cbfa4fc4593caaf534e build502: pin StikJIT host guard to validated current base",
+        "e4ae51b6afe2265c4f03f005c7ce23fc4ae06472 build502: reuse passed diagnostics and retest only corrected branding cases",
+        "2eb8856e9843b11aad50bf625ad4171ce7d4e7fd build502: allow test-only branding follow-ups",
+        "de563230781c2d1d3a90dc590e9084f9cb601fa0 build502: allow targeted Libretro frontend retest",
+        "d761891e11628d0f2a077fdb161e84dfaf02e937 build502: align Libretro journal branding expectation",
+        "3fec25d487e0989d7accaee3e67efafd5378c96f build502: align Library hub branding expectation",
+        "3c4dd8fbe418aed48ef69000040f8784eb5cd8e5 build502: align Library detail branding expectation",
+        "e726de898b76b653d961e1aca972404832588167 build502: align public touch headers and retire obsolete 422 replay",
+        "5823af16e8814f6dc12e2c264b68ec370daaa38d build502: restore Flutter setup and stage touch-layout headers",
+        "5f9cb2e0e3d0d69911307f67d9574eeff4d7e530 build502: revalidate current candidate before test IPA",
+        "f705ddcb6a47683e8d5c6a1faddb752a44f53355 build502: add exact current-candidate delivery guard"
+      ],
+      "behindClaude": 18,
+      "aheadOfClaude": 12,
+      "historyPreservedAsMergeParent": true
+    },
+    {
+      "branch": "dependabot/pub/pub-dependencies-ec0a07c31b",
+      "head": "ddde186689bf8fd29e6865d6c5ece65ec8878de4",
+      "uniqueCommits": [
+        "ddde186689bf8fd29e6865d6c5ece65ec8878de4 build(deps): bump the pub-dependencies group with 14 updates"
+      ],
+      "behindClaude": 980,
+      "aheadOfClaude": 1,
+      "historyPreservedAsMergeParent": true
+    },
+    {
+      "branch": "feat/neoassets-system-art-catalog",
+      "head": "06b1dea13aba3f4fc9c68183a0f53390a8436e96",
+      "uniqueCommits": [
+        "06b1dea13aba3f4fc9c68183a0f53390a8436e96 test(legal): keep libretro credit tappable as additional artists are credited",
+        "d17be14be0441dd94d6425dbde1cdfe44590aed0 test(system-art): include new NeoAssets API contract tests in legal/source CI",
+        "7c165be899545a6c2d9d64a6ba6407de7e4d350e fix(system-art): resolve Flutter analyzer errors in catalogue tests and use Dart interpolation",
+        "a6c791dd11b7861373eee72ce9b7e9e33c25f24c fix(system-art): resolve Flutter analyzer errors in catalogue tests and use Dart interpolation",
+        "f87a5c248cb349ed48ddaf6d32fdd57d67aad1d1 docs(system-art): document NeoAssets discovery in RewindBox theme guide",
+        "238f0a37886539681c48242506caec61adedc359 legal(system-art): expose NeoAssets creator credits in RewindBox legal screen",
+        "63393b1b5b242072b6c66ef94784ee04052ce562 legal(system-art): credit NeoAssets catalogue and preserve artists' rights",
+        "59f7a8026358dac7b1f96c9e9c52ad4af71b60ea docs(system-art): inventory all 20 official NeoAssets published packs and original creators",
+        "f44e77b4fae0294bb0394ee8f96406ed2cb46ebe fix(system-art): refresh legacy RiiSU and NeoStation caches when switching to official CDN",
+        "65300c7b62b26478f612124beb5974f1c06c7675 test(system-art): cover official NeoAssets pages, mixed media, authors and install counting",
+        "5ab655475975adc4071a2fb53eb4c4798b7658e0 fix(system-art): verify installed artwork and count only real NeoAssets installs",
+        "71e14c9d750707e15cc3219daa4a6da36e47b36f feat(system-art): load all published NeoAssets packs and download official CDN assets",
+        "e3cbef6598cfcf8374fd8469f8c5be02679cdda5 feat(system-art): add official NeoAssets public catalogue client"
+      ],
+      "behindClaude": 35,
+      "aheadOfClaude": 13,
+      "historyPreservedAsMergeParent": true
+    }
+  ],
+  "rpcs3": {
+    "hostCommit": "28371bd12169af9bf506d9d2cff98e0c13d44f24",
+    "successfulRun": 39788462742,
+    "artifact": 12432227571,
+    "artifactSHA256": "302ec12984409b9656ede569ea41a97810ce0e821a4254aca9115e8ac172efb7",
+    "binarySHA256": "521e16a057f52cde0878b1ab45f1c1c6b67ae220fc0ad26260432ebae89b18ee"
+  }
+}

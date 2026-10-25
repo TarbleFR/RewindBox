@@ -2,8 +2,8 @@
   "date": "2026-10-21",
   "application": "RewindBox",
   "repository": "TarbleFR/RewindBox",
-  "base": "bcca4e4a4dc89a96b1dde05d66436af54efd327e",
-  "branch": "main",
+  "base": "08103f719d72f97f16f184ba1e367711ab6c19fe",
+  "branch": "Claude",
   "locked_replacements": {
     "lib/main.dart": [
       {

@@ -1,0 +1,137 @@
+{
+  "run": 39403843636,
+  "source": "52edb48d2390fd51a0010729f89357ca7ff4f291",
+  "note": "Exact metadata from the research CI log except transient signed final URLs; archive listing only, no native RAR installation.",
+  "probes": [
+    {
+      "format": "rar",
+      "host": "gdrive",
+      "methods": [
+        "m0",
+        "m0:22",
+        "m3:22"
+      ],
+      "name": "GFEE01.rar",
+      "sample": [
+        "GFEE01/BG/tex1_1024x616_406fe0048a8fb27b_14.DDS",
+        "GFEE01/BG/tex1_1024x616_b5d885206e67bbeb_14.DDS",
+        "GFEE01/BG/tex1_1024x616_ee987e6941c8ac43_14.DDS",
+        "GFEE01/BG/tex1_608x296_005cb95f370302d9_14.DDS",
+        "GFEE01/BG/tex1_608x296_00f133d7451bfdc4_14.DDS",
+        "GFEE01/BG/tex1_608x296_055885798d3cf598_14.DDS",
+        "GFEE01/BG/tex1_608x296_0cb22a87a1b32612_14.DDS",
+        "GFEE01/BG/tex1_608x296_101b37d7abff5510_14.DDS",
+        "GFEE01/BG/tex1_608x296_10313fd083b717a3_14.DDS",
+        "GFEE01/BG/tex1_608x296_16df970b3c47877d_14.DDS",
+        "GFEE01/BG/tex1_608x296_18bbb9d47dc5efcc_14.DDS",
+        "GFEE01/BG/tex1_608x296_199c8ad0b69a4e0e_14.DDS"
+      ],
+      "sha256": "9cc4a1c154cdca82fe7d9faccf6961cabf7058e3b2c4de43b5ba7c18ac4d81bc",
+      "size": 1878929765,
+      "status": "unsupportedArchive",
+      "tree": {
+        "counts": {
+          "tex1": 4470
+        },
+        "disc_ids": {},
+        "entries": 4470,
+        "game_ids": {
+          "GFEE01": 4470
+        },
+        "title_ids": {},
+        "top": {
+          "GFEE01": 4470
+        }
+      },
+      "url": "https://drive.google.com/file/d/1uclRYNWV4-bvI-4i5wOr3bSBJ3zFxohU/view?usp=sharing"
+    },
+    {
+      "format": "rar",
+      "host": "gamebanana",
+      "methods": [
+        "m0",
+        "m0:22",
+        "m3:22"
+      ],
+      "name": "radiant_historia_hd_texture_pack_v10.rar",
+      "sample": [
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_128x128_567E13770182D895_0.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_1BCAA2D2F52A816E_12.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_1C91A1C22A67D34A_12.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_24149BA07B0612EE_12.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_350A3144F8638C3D_12.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_3E09DC77D0AC88DC_12.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_6B2F462F696F846F_12.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_7BEA9A89F7069923_12.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_7ED302E181657766_12.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_8DBF0C17D019077A_12.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_9242E4D2E7E18D74_12.png",
+        "Radiant Historia HD Texture Pack v1.0/00040000001C8F00/CGs/tex1_256x128_95B233FFDF47C93F_12.png"
+      ],
+      "sha256": "3a14c8d0b556ed0b2b2a01581ca7564829d93495ca6ea146b01e48f1e9926c38",
+      "size": 726954508,
+      "status": "unsupportedArchive",
+      "tree": {
+        "counts": {
+          "nested-archive": 4,
+          "tex1": 2442
+        },
+        "disc_ids": {},
+        "entries": 2447,
+        "game_ids": {
+          "DLC": 33
+        },
+        "title_ids": {
+          "00040000001C8F00": 2442
+        },
+        "top": {
+          "Radiant Historia HD Texture Pack v1.0": 2447
+        }
+      },
+      "url": "https://gamebanana.com/dl/789815"
+    },
+    {
+      "format": "rar",
+      "host": "gdrive",
+      "methods": [
+        "m0",
+        "m0:24",
+        "m3:24"
+      ],
+      "name": "ULES00925.rar",
+      "sample": [
+        "ULES00925/1. PICK TCG, OCG & ANIME VERSION/ANIME/textures.ini",
+        "ULES00925/1. PICK TCG, OCG & ANIME VERSION/OCG/textures.ini",
+        "ULES00925/1. PICK TCG, OCG & ANIME VERSION/TCG/textures.ini",
+        "ULES00925/cards/anime/card_frames_and_back/cardlarge.png",
+        "ULES00925/cards/anime/card_frames_and_back/cardsmall.png",
+        "ULES00925/cards/anime/decklist/1.png",
+        "ULES00925/cards/anime/decklist/2.png",
+        "ULES00925/cards/anime/decklist/3.png",
+        "ULES00925/cards/anime/decklist/4.png",
+        "ULES00925/cards/anime/decklist/5.png",
+        "ULES00925/cards/anime/decklist/6.png",
+        "ULES00925/cards/anime/decklist/7.png"
+      ],
+      "sha256": "c60e6d442cf26a560a1ddd3e86f78be60adcc072885ade39a7d8c24ceeb6b36a",
+      "size": 3891402177,
+      "status": "unsupportedArchive",
+      "tree": {
+        "counts": {
+          "png": 11209,
+          "textures.ini": 4
+        },
+        "disc_ids": {
+          "ULES00925": 4
+        },
+        "entries": 11218,
+        "game_ids": {},
+        "title_ids": {},
+        "top": {
+          "ULES00925": 11218
+        }
+      },
+      "url": "https://drive.google.com/file/d/1CBNtQxCM3yjDyOie7vE0gAyVwwgrITne/view?usp=drive_web"
+    }
+  ]
+}

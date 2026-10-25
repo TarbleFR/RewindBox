@@ -1,3 +1,5 @@
+import '../../widgets/melonx_multi_delete_dialog.dart';
+
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/services.dart';
@@ -13,20 +15,21 @@ import 'package:neostation/widgets/custom_notification.dart';
 import 'package:neostation/widgets/shimmering_logo.dart';
 import 'package:neostation/providers/retro_achievements_provider.dart';
 import 'package:video_player/video_player.dart';
+
 import '../../services/frontend_media_gate.dart';
+
 import 'package:provider/provider.dart';
 
 import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
-import '../../l10n/ports_locale.dart';
 
 // DOLPHIN_ISOLATION_BEGIN: playlist_import
 import 'package:neostation/widgets/dolphin_internal_playlist_actions.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
 import 'package:neostation/widgets/rpcs3_internal_playlist_actions.dart';
+import 'package:neostation/widgets/melonx_internal_playlist_actions.dart';
 import 'package:neostation/widgets/armsx2_internal_playlist_actions.dart';
-import 'package:neostation/widgets/ports_internal_playlist_actions.dart';
 import 'package:neostation/widgets/libretro_internal_playlist_actions.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 
@@ -66,9 +69,11 @@ import '../../widgets/game_view_mode_dropdown.dart';
 import '../../widgets/game_action_buttons.dart';
 import '../../widgets/legend_edge_reshow_zone.dart';
 import '../../widgets/letter_indicator.dart';
+import '../../widgets/switch_playlist_empty_state.dart';
 import '../../constants/system_folder_names.dart';
 import '../../utils/artwork_cache.dart';
 import '../../utils/game_list_update.dart';
+import '../../widgets/game_box/game_box_library.dart';
 
 import 'package:neostation/themes/chrome_surface.dart';
 
@@ -121,8 +126,6 @@ class _SystemGamesListState extends State<SystemGamesList> {
       Platform.isIOS && widget.system.folderName.toLowerCase() == 'ps3';
   bool get _isArmsx2Library =>
       Platform.isIOS && widget.system.folderName.toLowerCase() == 'ps2';
-  bool get _isPortsLibrary =>
-      Platform.isIOS && widget.system.folderName.toLowerCase() == 'ports';
   bool get _isLibretroLibrary =>
       LibretroInternalService.handlesSystemModel(widget.system);
   int _selectedGameIndex = 0;
@@ -607,9 +610,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
     // iOS TV menu (Build 447): the same system branding, while a TV shows
     // the menu.
     if (mounted && SecondaryDisplayBridge.instance.forwardsSelections) {
-      final backgroundColor = Theme.of(
-        context,
-      ).scaffoldBackgroundColor.toARGB32();
+      final backgroundColor = Theme.of(context).scaffoldBackgroundColor
+          .toARGB32();
       unawaited(
         SecondaryDisplayBridge.instance.forward(
           (current) => current.copyWith(
@@ -664,6 +666,70 @@ class _SystemGamesListState extends State<SystemGamesList> {
   }
 
   /// Selects a game via interaction (touch or click) and triggers resource resolution.
+  // 3D box of the list view (docs/game-box-3d.md § 3) ----------------------
+
+  bool get _isAllModeList =>
+      widget.system.folderName == 'all' ||
+      widget.system.folderName == SystemFolderNames.favorites;
+
+  /// Opens the box viewer of [game] (a tap on its thumbnail or on the box of
+  /// the details panel), selecting it first so that "Play" in the viewer
+  /// starts that game. The list keeps its selection and scroll position.
+  Future<void> _inspectBoxOf(GameModel game) async {
+    if (_isGameLaunching) return;
+    if (_selectedGame != game) await _selectGame(game);
+    if (!mounted) return;
+    SfxService().playEnterSound();
+    await GameBoxLibrary.inspect(
+      context,
+      game: game,
+      system: widget.system,
+      fileProvider: _fileProvider,
+      isAllMode: _isAllModeList,
+      onPlay: _selectCurrentGame,
+    );
+    if (mounted) setState(() {});
+  }
+
+  /// Right stick: examines the selected game's box.
+  void _inspectSelectedBox() {
+    final game = _selectedGame;
+    if (game == null || widget.system.folderName == 'music') return;
+    final folder = GameBoxLibrary.folderFor(
+      game,
+      widget.system,
+      isAllMode: _isAllModeList,
+    );
+    if (GameBoxLibrary.mediaPath(game, folder, 'box2d', _fileProvider) == null)
+      return;
+    _inspectBoxOf(game);
+  }
+
+  /// "Play" in the list view: the box opens first (unless its opening is
+  /// turned off or the game has no front scan), then the usual launch runs
+  /// with all its checks. Every other case goes straight to that launch.
+  Future<void> _playListGame() async {
+    final game = _selectedGame;
+    final blocked = _isPlayingGameBlocked != null && _isPlayingGameBlocked!();
+    if (game == null ||
+        _isGameLaunching ||
+        blocked ||
+        widget.system.folderName == 'music' ||
+        (_isRpcs3Library && !_rpcs3FirmwareReady)) {
+      await _selectCurrentGame();
+      return;
+    }
+    final handled = await GameBoxLibrary.playWithOpening(
+      context,
+      game: game,
+      system: widget.system,
+      fileProvider: _fileProvider,
+      isAllMode: _isAllModeList,
+      onPlay: _selectCurrentGame,
+    );
+    if (!handled && mounted) await _selectCurrentGame();
+  }
+
   Future<void> _selectGame(GameModel game) async {
     final index = _gameIndexMap[game] ?? _games.indexOf(game);
     if (index != -1) {
@@ -713,7 +779,7 @@ class _SystemGamesListState extends State<SystemGamesList> {
                 child: _isLoading
                     ? _buildLoadingState()
                     : _games.isEmpty
-                    ? (_isPortsLibrary ? _buildGamesList() : _buildEmptyState())
+                    ? _buildEmptyState()
                     : Consumer<SqliteConfigProvider>(
                         builder: (context, configProvider, child) {
                           if (widget.system.folderName == 'music') {
@@ -789,30 +855,6 @@ class _SystemGamesListState extends State<SystemGamesList> {
                   );
                 },
               ),
-            if (!_isGameLaunching && _isPortsLibrary)
-              Consumer<SqliteConfigProvider>(
-                builder: (context, config, child) {
-                  final mode = config.config.gameViewMode;
-                  if (!_isLoading &&
-                      _games.isNotEmpty &&
-                      _selectedGame != null &&
-                      mode != 'grid' &&
-                      mode != 'carousel') {
-                    return const SizedBox.shrink();
-                  }
-                  return Positioned(
-                    top: 8.r,
-                    right: 10.r,
-                    child: SafeArea(
-                      child: Material(
-                        color: Theme.of(context).colorScheme.tertiaryFixed,
-                        borderRadius: BorderRadius.circular(10.r),
-                        child: _buildPortsImportAction(),
-                      ),
-                    ),
-                  );
-                },
-              ),
             // LIBRETRO_INTERNAL_BEGIN: playlist_actions
             if (!_isGameLaunching && _isLibretroLibrary)
               Consumer<SqliteConfigProvider>(
@@ -839,6 +881,20 @@ class _SystemGamesListState extends State<SystemGamesList> {
                 },
               ),
             // LIBRETRO_INTERNAL_END: playlist_actions
+            if (!_isGameLaunching &&
+                defaultTargetPlatform == TargetPlatform.iOS &&
+                widget.system.folderName == 'switch' &&
+                (_isLoading ||
+                    _games.isEmpty ||
+                    _selectedGame == null ||
+                    const {'grid', 'carousel'}.contains(
+                      context.watch<SqliteConfigProvider>().config.gameViewMode,
+                    )))
+              Positioned(
+                top: 8.r,
+                right: 10.r,
+                child: SafeArea(child: _buildMelonxImportAction()),
+              ),
             // RPCS3_INTERNAL_BEGIN: playlist_actions
             if (!_isGameLaunching && _isRpcs3Library)
               Consumer<SqliteConfigProvider>(
@@ -883,6 +939,35 @@ class _SystemGamesListState extends State<SystemGamesList> {
       ),
     );
   }
+
+  Widget _buildMelonxImportAction({bool embedded = false}) =>
+      MelonxInternalPlaylistActions(
+        embedded: embedded,
+        onDelete: _selectedGame == null
+            ? null
+            : () async {
+                await MelonxMultiDeleteDialog.show(
+                  context: context,
+                  system: widget.system,
+                  games: _games,
+                  initialGame: _selectedGame!,
+                );
+                if (mounted) await _loadGames();
+              },
+        gamePath: _selectedGame?.romPath,
+        titleId: _selectedGame?.titleId,
+        onInteractionChanged: (active) {
+          if (!mounted) return;
+          if (active) {
+            _gamepadNav.deactivate();
+          } else {
+            _gamepadNav.activate();
+          }
+        },
+        onLibraryChanged: () async {
+          if (mounted) await _loadGames();
+        },
+      );
 
   // DOLPHIN_ISOLATION_BEGIN: import_action_builder
   Widget _buildDolphinImportAction() => DolphinInternalPlaylistActions(
@@ -938,46 +1023,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
     },
   );
 
-  Widget _buildEmbeddedArmsx2ImportAction() =>
-      Armsx2InternalPlaylistActions(
-        embedded: true,
-        onInteractionChanged: (active) {
-          if (!mounted) return;
-          if (active) {
-            _gamepadNav.deactivate();
-          } else {
-            _gamepadNav.activate();
-          }
-        },
-        onLibraryChanged: () async {
-          if (!mounted) return;
-          await context
-              .read<SqliteConfigProvider>()
-              .refreshArmsx2InternalLibrary();
-          if (mounted) await _loadGames();
-        },
-      );
-
-  Widget _buildPortsImportAction() => PortsInternalPlaylistActions(
-    onGamesImported: _scrapeImportedPortGames,
-    onInteractionChanged: (active) {
-      if (!mounted) return;
-      if (active) {
-        _gamepadNav.deactivate();
-      } else {
-        _gamepadNav.activate();
-      }
-    },
-    onLibraryChanged: () async {
-      if (!mounted) return;
-      await context.read<SqliteConfigProvider>().refreshPortsInternalLibrary();
-      if (mounted) await _loadGames();
-    },
-  );
-
-  Widget _buildEmbeddedPortsImportAction() => PortsInternalPlaylistActions(
+  Widget _buildEmbeddedArmsx2ImportAction() => Armsx2InternalPlaylistActions(
     embedded: true,
-    onGamesImported: _scrapeImportedPortGames,
     onInteractionChanged: (active) {
       if (!mounted) return;
       if (active) {
@@ -988,7 +1035,7 @@ class _SystemGamesListState extends State<SystemGamesList> {
     },
     onLibraryChanged: () async {
       if (!mounted) return;
-      await context.read<SqliteConfigProvider>().refreshPortsInternalLibrary();
+      await context.read<SqliteConfigProvider>().refreshArmsx2InternalLibrary();
       if (mounted) await _loadGames();
     },
   );
@@ -1008,7 +1055,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
     if (mounted) await _loadGames();
   }
 
-  List<String> _libretroLibraryFolders() => context.read<SqliteConfigProvider>().config.romFolders;
+  List<String> _libretroLibraryFolders() =>
+      context.read<SqliteConfigProvider>().config.romFolders;
 
   void _libretroInteraction(bool active) {
     if (!mounted) return;
@@ -1026,37 +1074,15 @@ class _SystemGamesListState extends State<SystemGamesList> {
     libraryFolders: _libretroLibraryFolders,
   );
 
-  Widget _buildEmbeddedLibretroImportAction() => LibretroInternalPlaylistActions(
-    embedded: true,
-    system: widget.system,
-    onInteractionChanged: _libretroInteraction,
-    onLibraryChanged: _refreshLibretroLibrary,
-    libraryFolders: _libretroLibraryFolders,
-  );
+  Widget _buildEmbeddedLibretroImportAction() =>
+      LibretroInternalPlaylistActions(
+        embedded: true,
+        system: widget.system,
+        onInteractionChanged: _libretroInteraction,
+        onLibraryChanged: _refreshLibretroLibrary,
+        libraryFolders: _libretroLibraryFolders,
+      );
   // LIBRETRO_INTERNAL_END: import_action_builder
-
-  Future<void> _scrapeImportedPortGames(List<String> paths) async {
-    try {
-      if (!await ScreenScraperService.hasSavedCredentials()) return;
-      for (final gamePath in paths) {
-        if (!await File(gamePath).exists()) continue;
-        await ScreenScraperService.scrapeSingleGame(
-          appSystemId: widget.system.id!,
-          systemFolder: 'ports',
-          romName: gamePath.split('/').last,
-          romPath: gamePath,
-        );
-        _scrapingProvider.markArtworkUpdated();
-        if (mounted) {
-          await _loadGames();
-        }
-      }
-    } catch (error) {
-      // Import is already committed and visible. Network failures can be
-      // retried with the ordinary per-game scrape action.
-      _log.w('Ports media enrichment failed: $error');
-    }
-  }
 
   Widget _buildEmbeddedRpcs3ImportAction() => Rpcs3InternalPlaylistActions(
     embedded: true,
@@ -1122,6 +1148,12 @@ class _SystemGamesListState extends State<SystemGamesList> {
   /// specialized view for systems with zero detected media files.
   /// includes controls for recursive scanning and directory management.
   Widget _buildEmptyState() {
+    if (widget.system.folderName == 'switch') {
+      return SwitchPlaylistEmptyState(
+        systemName: widget.system.shortName ?? widget.system.realName,
+        onBack: _goBack,
+      );
+    }
     final isRpcs3Library =
         Platform.isIOS && widget.system.folderName.toLowerCase() == 'ps3';
     bool currentScanValue = widget.system.recursiveScan;
@@ -1758,12 +1790,15 @@ class _SystemGamesListState extends State<SystemGamesList> {
                   selectedIndex: _selectedGameIndex,
                   systemColor: widget.system.colorAsColor,
                   onGameSelected: _selectGame,
-                  onGameConfirmed: _selectCurrentGame,
+                  onGameConfirmed: _playListGame,
                   isAllMode:
                       widget.system.folderName == 'all' ||
                       widget.system.folderName == SystemFolderNames.favorites,
                   isNavigatingFast: _isNavigatingFast,
                   onGamepadReactivated: _reactivateGamepadNavigation,
+                  fileProvider: _fileProvider,
+                  onInspectBox: _inspectBoxOf,
+                  artworkVersion: _artworkVersion,
                 ),
         ),
       ],
@@ -1772,24 +1807,6 @@ class _SystemGamesListState extends State<SystemGamesList> {
 
   Widget _buildGameDetailsPanel() {
     if (_selectedGame == null) {
-      if (_isPortsLibrary) {
-        return Center(child: Padding(
-          padding: EdgeInsets.all(24.r),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(Icons.sports_esports_outlined, size: 48.r),
-            SizedBox(height: 12.r),
-            Text('Ports', textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 18.r, fontWeight: FontWeight.w600)),
-            SizedBox(height: 8.r),
-            Text(
-              '${PortsLocale.text(context, 'import')}: '
-              '${PortsLocale.text(context, 'dusklight')} • '
-              '${PortsLocale.text(context, 'kartpad')}',
-              textAlign: TextAlign.center,
-            ),
-          ]),
-        ));
-      }
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1871,10 +1888,10 @@ class _SystemGamesListState extends State<SystemGamesList> {
           ? _buildEmbeddedDolphinImportAction()
           : _isArmsx2Library
           ? _buildEmbeddedArmsx2ImportAction()
-          : _isPortsLibrary
-          ? _buildEmbeddedPortsImportAction()
           : _isRpcs3Library && _rpcs3FirmwareReady
           ? _buildEmbeddedRpcs3ImportAction()
+          : Platform.isIOS && widget.system.folderName == 'switch'
+          ? _buildMelonxImportAction(embedded: true)
           : _isLibretroLibrary
           ? _buildEmbeddedLibretroImportAction()
           : null,
@@ -1935,7 +1952,11 @@ class _SystemGamesListState extends State<SystemGamesList> {
       onRegisterIsPlayingGameBlocked: (isBlocked) {
         _isPlayingGameBlocked = isBlocked;
       },
-      onPlayGame: _selectCurrentGame,
+      onPlayGame: _playListGame,
+      onInspectBox: () {
+        final game = _selectedGame;
+        if (game != null) _inspectBoxOf(game);
+      },
       onShowRandomGame: _showRandomGameDialog,
       onBack: _goBack,
       onGameUpdated: _handleGameUpdated, // Refresh UI after metadata edits.

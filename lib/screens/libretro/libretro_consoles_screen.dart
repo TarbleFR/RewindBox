@@ -15,7 +15,9 @@ import '../../services/libretro_core_catalog.dart';
 import '../../services/libretro_internal_service.dart';
 import '../../services/libretro_main_menu.dart';
 import '../../services/logger_service.dart';
+import '../../services/melonx_internal_service.dart';
 import '../../widgets/confirm_action_dialog.dart';
+import '../../widgets/horizontal_swipe.dart';
 import '../../widgets/libretro_engine_panel.dart';
 import 'libretro_library_actions.dart';
 import 'libretro_skin_manager_screen.dart';
@@ -26,7 +28,7 @@ enum ConsoleListFilter { all, shown, hidden }
 /// The consoles tab of the main bar (iOS), extended to every console in
 /// Build 448: NeoStation's library (its console folders, or a library moved
 /// into it), then every console the app runs — the embedded engines
-/// (libretro cores, Dolphin, ARMSX2, RPCS3, the Ports) and the external
+/// (libretro cores, Dolphin, ARMSX2, RPCS3) and the external
 /// apps (MeloNX, RetroArch) — each with:
 ///
 /// - its main-menu visibility switch (shown, or hidden like Settings ›
@@ -90,6 +92,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   /// when the build could not be asked), which shows every console as
   /// available.
   Set<String>? _bundled;
+  bool _melonxAvailable = false;
 
   /// Captured while the page is shown, so the outcome of an operation is
   /// still announced, in the user's language, after a tab switch disposed
@@ -121,6 +124,9 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     unawaited(_policy.load());
     _mainMenu.bundledConsoles().then((consoles) {
       if (mounted && consoles != null) setState(() => _bundled = consoles);
+    });
+    MelonxInternalService.runtimeAvailable().then((available) {
+      if (mounted) setState(() => _melonxAvailable = available);
     });
   }
 
@@ -166,6 +172,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
 
   /// A libretro console whose core is missing from this build.
   bool _unavailable(ConsoleEntry entry) {
+    if (entry.engine == ConsoleEngine.melonx) return !_melonxAvailable;
     final bundled = _bundled;
     if (bundled == null || entry.engine != ConsoleEngine.libretro) return false;
     final console = entry.libretro;
@@ -597,13 +604,28 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     if (widget.inMainBar) {
       // Under the global header, clear of the notch like the other tabs.
       final safe = MediaQuery.viewPaddingOf(context);
-      return libretroPage(Material(
-        type: MaterialType.transparency,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(safe.left, 46.r, safe.right, 0),
-          child: list,
+      // Own the swipe recognizer inside the app-level one so this page can
+      // preserve its existing busy guard: imports/library mutations keep both
+      // LB/RB and touch swipes from disposing the page mid-operation.
+      return libretroPage(
+        HorizontalSwipe(
+          key: const ValueKey('consoles-main-tab-swipe'),
+          onSwipeLeft: () => _switchTab(widget.onNextTab),
+          onSwipeRight: () => _switchTab(widget.onPreviousTab),
+          canSwipeLeft: () => !_busy,
+          canSwipeRight: () => !_busy,
+          distanceThreshold: 64,
+          velocityThreshold: 450,
+          dragFeedback: true,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(safe.left, 46.r, safe.right, 0),
+              child: list,
+            ),
+          ),
         ),
-      ));
+      );
     }
     return libretroPage(Scaffold(
       appBar: libretroPageAppBar(context, _c(ConsoleManagerLocale.tabTitle)),
@@ -722,10 +744,8 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'ARMSX2'});
       case ConsoleEngine.rpcs3:
         return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'RPCS3'});
-      case ConsoleEngine.ports:
-        return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'KartPad, Dusklight'});
       case ConsoleEngine.melonx:
-        return _cf(ConsoleManagerLocale.engineExternal, {'app': 'MeloNX'});
+        return _cf(ConsoleManagerLocale.engineBuiltIn, {'engine': 'MeloNX'});
       case ConsoleEngine.retroarch:
         return _cf(ConsoleManagerLocale.engineExternal, {'app': 'RetroArch'});
     }

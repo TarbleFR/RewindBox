@@ -81,7 +81,6 @@ enum StorageEngine {
   rpcs3,
   dolphin,
   kartpad,
-  dusklight,
   armsx2,
   library,
   neoSwap,
@@ -286,8 +285,6 @@ abstract final class StorageLayout {
   static const String kartpadGames = 'Ports/KartPad/Games';
   static const String kartpadLogs = 'Ports/KartPad/Logs';
   static const String kartpadGameData = 'Ports/KartPad/Runtime/GameData';
-  static const String dusklight = 'Ports/Dusklight';
-  static const String dusklightGames = 'Ports/Dusklight/Games';
   static const String rpcs3Workspace = 'RPCS3';
   static const String rpcs3ExportSaves = 'RPCS3/Export/Game Saves';
   static const String dolphinRecordings = 'Recordings/Dolphin';
@@ -1563,25 +1560,9 @@ class StorageRootRegistry {
           ),
         ],
       ),
-      StorageRoot(
-        id: 'INV-13',
-        container: documents,
-        relative: StorageLayout.dusklight,
-        labelKey: 'rootDocuments',
-        engine: StorageEngine.dusklight,
-        additionalLocations: const [StorageLocation(caches, 'Dusklight')],
-        rules: [
-          ..._portRules('Ports/Dusklight', 'INV-13', StorageEngine.dusklight),
-          const StorageRule(
-            relative: 'Dusklight',
-            container: caches,
-            category: temp,
-            deletionClass: idle,
-            engine: StorageEngine.dusklight,
-            id: 'INV-13.cache',
-          ),
-        ],
-      ),
+      // INV-13 (Documents/Ports/Dusklight and Caches/Dusklight) left with
+      // Dusklight on 20 October 2026 (docs/ports-removal-2026-10-20.md):
+      // what it left is outside every rule, unknown, never proposed.
       StorageRoot(
         id: 'INV-14',
         container: documents,
@@ -2128,9 +2109,9 @@ class StorageRootRegistry {
             engine: StorageEngine.armsx2,
             id: 'INV-28.armsx2Shaders',
           ),
-          // The inventory's tmp/KartPad, tmp/Dusklight and
-          // tmp/SoLoudLoader-Temp-Files come from getTemporaryDirectory():
-          // Library/Caches on iOS (INV-12, INV-13 and the rule below).
+          // The inventory's tmp/KartPad and tmp/SoLoudLoader-Temp-Files come
+          // from getTemporaryDirectory(): Library/Caches on iOS (INV-12 and
+          // the rule below).
           const StorageRule(
             relative: 'SoLoudLoader-Temp-Files',
             container: caches,

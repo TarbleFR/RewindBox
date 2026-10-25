@@ -15,7 +15,6 @@ import 'screenscraper/screenscraper_client.dart';
 import 'screenscraper/media_downloader.dart';
 import 'screenscraper/game_id_media_fallback.dart';
 import 'screenscraper/screenscraper_exceptions.dart';
-import 'ports_game_identity.dart';
 import '../providers/scraping_provider.dart';
 import '../l10n/app_locale.dart';
 import '../widgets/scraping_summary_dialog.dart';
@@ -317,6 +316,34 @@ class ScreenScraperService {
   ) {
     final serial = serialNumber?.trim() ?? '';
     if (serial.isNotEmpty) queryParameters['serialnum'] = serial;
+  }
+
+  /// `mediaJeu.php` address of one media of a game already identified
+  /// ([gameId] from `jeuInfos.php`), e.g. `box-2D-back(fr)` for the 3D box
+  /// (docs/game-box-3d.md § 6). Credentials are added here at request time;
+  /// callers keep only the credential-free ids and media token.
+  static Future<Uri?> mediaJeuUri({
+    required String systemId,
+    required String gameId,
+    required String media,
+  }) async {
+    final credentials = _cachedCredentials ?? await getSavedCredentials();
+    if (credentials == null) return null;
+    _cachedCredentials ??= credentials;
+    final softname = await ScreenscraperClient.getSoftname();
+    return Uri.parse('$_baseUrl/mediaJeu.php').replace(queryParameters: {
+      'devid': _devId,
+      'devpassword': _devPassword,
+      'softname': softname,
+      'ssid': credentials['username'] ?? '',
+      'sspassword': credentials['password'] ?? '',
+      'crc': '',
+      'md5': '',
+      'sha1': '',
+      'systemeid': systemId,
+      'jeuid': gameId,
+      'media': media,
+    });
   }
 
   /// Pure lookup parameters used by tests and by [fetchGameInfo].
@@ -687,12 +714,7 @@ class ScreenScraperService {
         return {'success': false, 'message': AppLocale.scrapeNoCredentials};
       }
 
-      final port = systemFolder == 'ports'
-          ? await PortGameIdentity.read(romPath) : null;
-      if (systemFolder == 'ports' && port == null) {
-        return {'success': false, 'message': AppLocale.scrapeGameNotFound};
-      }
-      int? screenScraperSystemId = port?.screenScraperSystemId ??
+      int? screenScraperSystemId =
           await ScraperRepository.getScreenScraperIdByAppSystemId(appSystemId);
 
       if (screenScraperSystemId == null) {
@@ -712,7 +734,7 @@ class ScreenScraperService {
       final lowerRomPath = romPath.toLowerCase();
       final isMeloNxVirtual = lowerRomPath.startsWith('melonx://');
       final isRpcs3Virtual = lowerRomPath.startsWith('rpcs3-library://');
-      var effectiveGameName = port == null ? gameName : port.title;
+      var effectiveGameName = gameName;
       if (isRpcs3Virtual &&
           !shouldRetryRpcs3ByNameForTesting(effectiveGameName, serialNumber) &&
           (serialNumber?.trim().isNotEmpty ?? false)) {
@@ -731,10 +753,10 @@ class ScreenScraperService {
           appSystemId: appSystemId,
           maxDailyRequests: 0,
           gameName:
-              (systemFolder == 'android' || port != null || isMeloNxVirtual || isRpcs3Virtual)
+              (systemFolder == 'android' || isMeloNxVirtual || isRpcs3Virtual)
               ? effectiveGameName
               : null,
-          serialNumber: port?.discId ?? (isRpcs3Virtual ? serialNumber : null),
+          serialNumber: isRpcs3Virtual ? serialNumber : null,
         );
         if (gameInfoResult != null && gameInfoResult['gameInfo'] != null) break;
         attempts++;
@@ -769,7 +791,6 @@ class ScreenScraperService {
           gameInfo,
           preferredLanguage: preferredLanguage,
         );
-        if (port != null) metadata['real_name'] = port.displayTitle;
         await _saveGameMetadata(metadata, appSystemId, isFullyScraped: true);
       }
 
@@ -853,12 +874,7 @@ class ScreenScraperService {
         return {'success': false, 'message': AppLocale.scrapeNoCredentials};
       }
 
-      final port = systemFolder == 'ports'
-          ? await PortGameIdentity.read(romPath) : null;
-      if (systemFolder == 'ports' && port == null) {
-        return {'success': false, 'message': AppLocale.scrapeGameNotFound};
-      }
-      int? screenScraperSystemId = port?.screenScraperSystemId ??
+      int? screenScraperSystemId =
           await ScraperRepository.getScreenScraperIdByAppSystemId(appSystemId);
       if (screenScraperSystemId == null) {
         await syncSystemIds();
@@ -884,10 +900,10 @@ class ScreenScraperService {
           romName,
           appSystemId: appSystemId,
           maxDailyRequests: 0,
-          gameName: port != null ? port.title :
+          gameName:
               (systemFolder == 'android' || isMeloNxVirtual || isRpcs3Virtual)
               ? gameName : null,
-          serialNumber: port?.discId ?? (isRpcs3Virtual ? serialNumber : null),
+          serialNumber: isRpcs3Virtual ? serialNumber : null,
         );
         if (gameInfoResult != null && gameInfoResult['gameInfo'] != null) break;
       }
@@ -1166,16 +1182,10 @@ class ScreenScraperService {
       final romPath = rom['rom_path'].toString();
       final titleName = rom['title_name']?.toString();
       final titleId = rom['title_id']?.toString().trim();
-      final port = systemFolder == 'ports'
-          ? await PortGameIdentity.read(romPath) : null;
-      if (systemFolder == 'ports' && port == null) {
-        return {'success': false, 'requests': 0};
-      }
-      final lookupSystemId = port?.screenScraperSystemId ?? screenscraperSystemId;
       final lowerRomPath = romPath.toLowerCase();
       final isMeloNxVirtual = lowerRomPath.startsWith('melonx://');
       final isRpcs3Virtual = lowerRomPath.startsWith('rpcs3-library://');
-      var effectiveTitleName = port == null ? titleName : port.title;
+      var effectiveTitleName = titleName;
       if (isRpcs3Virtual &&
           !shouldRetryRpcs3ByNameForTesting(effectiveTitleName, titleId) &&
           (titleId?.isNotEmpty ?? false)) {
@@ -1204,15 +1214,15 @@ class ScreenScraperService {
       }
 
       final gameResult = await fetchGameInfo(
-        lookupSystemId.toString(),
+        screenscraperSystemId.toString(),
         filename,
         appSystemId: appSystemId,
         maxDailyRequests: maxDailyRequests,
         gameName:
-            (systemFolder == 'android' || port != null || isMeloNxVirtual || isRpcs3Virtual)
+            (systemFolder == 'android' || isMeloNxVirtual || isRpcs3Virtual)
             ? effectiveTitleName
             : null,
-        serialNumber: port?.discId ?? (isRpcs3Virtual ? titleId : null),
+        serialNumber: isRpcs3Virtual ? titleId : null,
       );
       var gameInfo = gameResult?['gameInfo'];
       int requestsMade = 1;
@@ -1253,7 +1263,6 @@ class ScreenScraperService {
       );
 
       if (gameInfo == null &&
-          port == null &&
           systemFolder != 'android' &&
           File(romPath).existsSync()) {
         final hash = await ScreenscraperRomHasher.calculateMd5InIsolate(
@@ -1278,7 +1287,6 @@ class ScreenScraperService {
             gameInfo,
             preferredLanguage: preferredLanguage,
           );
-          if (port != null) metadata['real_name'] = port.displayTitle;
           await _saveGameMetadata(metadata, appSystemId, isFullyScraped: false);
         }
 

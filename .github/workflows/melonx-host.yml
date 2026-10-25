@@ -1,0 +1,84 @@
+name: MeloNX native session host
+run-name: MeloNX host • ${{ github.sha }}
+'on':
+  push:
+    branches:
+    - Claude
+    - work/melonx-embedded-20261022
+    paths:
+    - .github/workflows/melonx-host.yml
+    - packages/melonx_internal_bridge/**
+    - test/melonx_session_host_test.py
+    - test/melonx_memory_graph_test.py
+    - test/melonx_memory_lease_test.py
+    - test/melonx_memory_extension_test.py
+    - build-utils/configure_melonx_memory_ios.py
+    - test/melonx_presentation_test.py
+    - test/melonx_presentation/**
+    - build-utils/melonx/vendor_memory.py
+    - build-utils/melonx/vendor_controller.py
+    - build-utils/melonx/generate_ui_strings.py
+    - build-utils/melonx/ui-strings.json
+  workflow_dispatch: null
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 3.47.2
+        channel: stable
+        cache: true
+    - name: Materialize the pinned original controls and the iPhone Flutter SDK
+      run: 'set -euo pipefail
+
+        flutter precache --ios
+
+        git init .native-sources/MeloNX
+
+        git -C .native-sources/MeloNX remote add origin https://starforgejo.dev/projects/MeloNX.git
+
+        git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
+
+        git -C .native-sources/MeloNX checkout --detach FETCH_HEAD
+
+        git init .native-sources/Melo-Controller
+
+        git -C .native-sources/Melo-Controller remote add origin https://github.com/stossy11/Melo-Controller.git
+
+        git -C .native-sources/Melo-Controller fetch --depth 1 origin c049ce88a5635bddcd88e1965c42aa8fc92fe961
+
+        git -C .native-sources/Melo-Controller checkout --detach FETCH_HEAD
+
+        python3 build-utils/melonx/vendor_controller.py .native-sources/Melo-Controller .native-sources/MeloNX
+
+        '
+    - name: Compile the iPhone host and execute its native ABI scenarios
+      run: python3 test/melonx_session_host_test.py ${{ contains(github.event.head_commit.message, '[melonx-display]') && '--sdk-only' || '' }}
+    - name: Exercise registered plugin presentation and retry in actual UIKit
+      run: python3 test/melonx_presentation_test.py
+    - name: Compile the original donor extension and validate target packaging
+      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
+      run: python3 test/melonx_memory_extension_test.py
+    - name: Exercise donor ownership, cancellation, fallback and quarantine
+      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
+      run: python3 test/melonx_memory_lease_test.py
+    - name: Exercise RAM measurement, graph bounds and timer lifetime in UIKit
+      if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
+      run: python3 test/melonx_memory_graph_test.py
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: MeloNX-host-${{ github.sha }}
+        path: dist/melonx-host/
+        if-no-files-found: ignore
+        retention-days: 14
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[retroarch-delivery]')
+      && !contains(github.event.head_commit.message, '[melonx-validated-integration]')) }}

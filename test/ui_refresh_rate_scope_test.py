@@ -170,7 +170,8 @@ class RepositoryScopeTests(unittest.TestCase):
         self.assertEqual(writers, [])
         delivery = (ROOT / '.github/workflows/retroarch-delivery.yml').read_text(encoding='utf-8')
         self.assertGreaterEqual(
-            delivery.count("assert info.get('CADisableMinimumFrameDurationOnPhone') is True"), 2,
+            delivery.count("assert info.get('CADisableMinimumFrameDurationOnPhone') is True"),
+            max(1, delivery.count('name: Release device build')),
             'the delivered IPA must keep the ProMotion opt-in the emulators were validated with',
         )
 

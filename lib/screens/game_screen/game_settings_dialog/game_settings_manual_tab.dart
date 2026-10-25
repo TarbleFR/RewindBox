@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -9,9 +10,8 @@ import '../../../l10n/app_locale.dart';
 import '../../../models/game_model.dart';
 import '../../../models/system_model.dart';
 import '../../../providers/file_provider.dart';
-import '../../../repositories/system_repository.dart';
+import '../../../services/game_manual_service.dart';
 import '../../../services/logger_service.dart';
-import '../../../services/screenscraper_service.dart';
 import '../../../services/sfx_service.dart';
 import '../../../widgets/confirm_action_dialog.dart';
 import '../../../widgets/custom_notification.dart';
@@ -49,9 +49,7 @@ class GameSettingsManualTabState extends State<GameSettingsManualTab> {
   int _selectedIndex = 0;
   double _downloadProgress = 0;
 
-  String get _folder => widget.isAllMode && widget.game.systemFolderName != null
-      ? widget.game.systemFolderName!
-      : widget.system.primaryFolderName;
+  String get _folder => GameManualService.folderFor(widget.game, widget.system, isAllMode: widget.isAllMode);
 
   int get _actionCount => _manualExists ? 3 : 1;
 
@@ -62,7 +60,7 @@ class GameSettingsManualTabState extends State<GameSettingsManualTab> {
   }
 
   Future<void> _refreshManualState() async {
-    final candidate = widget.game.getManualPath(_folder, widget.fileProvider);
+    final candidate = GameManualService.pathFor(widget.game, _folder, widget.fileProvider);
     final exists = await File(candidate).exists();
     if (!mounted) return;
     setState(() {
@@ -73,24 +71,15 @@ class GameSettingsManualTabState extends State<GameSettingsManualTab> {
     });
   }
 
-  Future<SystemModel> _resolveTargetSystem() async {
-    if (widget.isAllMode && widget.game.systemFolderName != null) {
-      final original = await SystemRepository.getSystemByFolderName(
-        widget.game.systemFolderName!,
-      );
-      if (original != null) return original;
-    }
-    return widget.system;
-  }
+  Future<SystemModel> _resolveTargetSystem() =>
+      GameManualService.targetSystem(widget.game, widget.system, isAllMode: widget.isAllMode);
 
   Future<void> _downloadManual({bool forceOverwrite = false}) async {
     if (_isDownloading) return;
-    final romPath = widget.game.romPath;
-    if (romPath == null) return;
+    if (widget.game.romPath == null) return;
 
     final targetSystem = await _resolveTargetSystem();
-    final systemId = targetSystem.id;
-    if (systemId == null) return;
+    if (targetSystem.id == null) return;
 
     setState(() {
       _isDownloading = true;
@@ -98,30 +87,20 @@ class GameSettingsManualTabState extends State<GameSettingsManualTab> {
     });
 
     try {
-      final result = await ScreenScraperService.downloadGameManual(
-        appSystemId: systemId,
-        romName: widget.game.romname,
-        systemFolder: targetSystem.primaryFolderName,
-        romPath: romPath,
-        gameName: widget.game.name,
-        serialNumber: widget.game.titleId,
+      final result = await GameManualService.download(
+        game: widget.game,
+        targetSystem: targetSystem,
         forceOverwrite: forceOverwrite,
-        onProgress: (status, progress) {
+        onProgress: (progress) {
           if (mounted) setState(() => _downloadProgress = progress);
         },
       );
 
       if (!mounted) return;
-      final success = result['success'] == true;
-      final messageKey =
-          result['message']?.toString() ??
-          (success
-              ? AppLocale.manualDownloaded
-              : AppLocale.manualDownloadFailed);
       AppNotification.showNotification(
         context,
-        messageKey.getString(context),
-        type: success ? NotificationType.success : NotificationType.error,
+        result.messageKey.getString(context),
+        type: result.success ? NotificationType.success : NotificationType.error,
       );
       await _refreshManualState();
     } catch (e) {
@@ -297,7 +276,7 @@ class GameSettingsManualTabState extends State<GameSettingsManualTab> {
                   ),
                   if (_isDownloading) ...[
                     SizedBox(height: 14.r),
-                    LinearProgressIndicator(value: _downloadProgress),
+                    LiquidProgressIndicator(value: _downloadProgress),
                     SizedBox(height: 5.r),
                     Text(
                       AppLocale.downloadingManual.getString(context),

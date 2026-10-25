@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "minimumIOS": "18.0",
+  "sources": {
+    "MoltenVK": {
+      "repository": "https://github.com/KhronosGroup/MoltenVK.git",
+      "revision": "49b97f26ae013b9e5bfb3098ee5dea5e4f58e9e8",
+      "upstreamVersion": "v1.3.0",
+      "license": "Apache-2.0"
+    },
+    "FFmpeg": {
+      "repository": "https://github.com/FFmpeg/FFmpeg.git",
+      "revision": "c41ff724ede7da657762d61097e26fac296c53bf",
+      "upstreamVersion": "n6.0.1",
+      "license": "LGPL-3.0-or-later (version3 enabled; GPL and nonfree disabled)"
+    },
+    "SDL": {
+      "repository": "https://github.com/libsdl-org/SDL.git",
+      "revision": "683181b47cfabd293e3ea409f838915b8297a4fd",
+      "upstreamVersion": "release-3.4.2",
+      "license": "Zlib"
+    },
+    "Melo-Controller": {
+      "repository": "https://github.com/stossy11/Melo-Controller.git",
+      "revision": "c049ce88a5635bddcd88e1965c42aa8fc92fe961",
+      "license": "GPL-3.0"
+    }
+  }
+}

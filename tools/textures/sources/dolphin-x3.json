@@ -1,0 +1,5373 @@
+[
+ {
+  "id": "gc-sms-ps4-buttons-qashto",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Mario Sunshine UHD — PS4 button textures",
+  "version": "2.1.1",
+  "games": [
+   {
+    "title": "Super Mario Sunshine",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GMS"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "qashto"
+  ],
+  "page_url": "https://github.com/qashto/Super_Mario_Sunshine_UHD_Texture_Pack/releases/tag/2.1.1",
+  "source_id": "github:qashto/Super_Mario_Sunshine_UHD_Texture_Pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the author's own link only when you choose this pack; NeoStation does not host or redistribute the files."
+  },
+  "notes": "PlayStation button prompts made for the UHD pack. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": true,
+   "format": "zip",
+   "file_name": "SMS_PS4_Button_Textures.zip",
+   "parts": [
+    {
+     "url": "https://github.com/qashto/Super_Mario_Sunshine_UHD_Texture_Pack/releases/download/2.1.1/SMS_PS4_Button_Textures.zip"
+    }
+   ]
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SMS PS4 Button Textures/GMS/",
+     "to": "GMS"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-sms-ps4-buttons-qashto"
+ },
+ {
+  "id": "gc-sonic-riders-dx-v2-720p-crimsongaia",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Sonic Riders DX Texture Pack V2 (720p, DDS)",
+  "version": "V2",
+  "games": [
+   {
+    "title": "Sonic Riders",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GXEE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Crimson Gaia",
+   "original texture authors listed in CREDITS.txt"
+  ],
+  "page_url": "https://gamebanana.com/mods/399589",
+  "source_id": "gamebanana:399589",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Made for Sonic Riders DX (the patched USA game). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/399589",
+   "file_name": "low_end__srdx_hd_texture_pack_v2_720p_dds.7z",
+   "verify": {
+    "url": "https://gamebanana.com/dl/858144",
+    "sha256": "6c0b0fe7dec5cac81f076100d4f1f14e4f2ef71ceec8c8f2c6fbc32a539cf582"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GXEE8P/",
+     "to": "GXEE8P"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-sonic-riders-dx-v2-crimsongaia"
+ },
+ {
+  "id": "gc-sonic-riders-dx-v2-1440p-crimsongaia",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Sonic Riders DX Texture Pack V2 (1440p, DDS)",
+  "version": "V2",
+  "games": [
+   {
+    "title": "Sonic Riders",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GXEE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Crimson Gaia",
+   "original texture authors listed in CREDITS.txt"
+  ],
+  "page_url": "https://gamebanana.com/mods/399589",
+  "source_id": "gamebanana:399589",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The author's recommended size. Made for Sonic Riders DX (the patched USA game). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/399589",
+   "file_name": "recommended_srdx_hd_texture_pack_v2_1440p_dds.7z",
+   "verify": {
+    "url": "https://gamebanana.com/dl/858145",
+    "sha256": "e7464d3800258e5c86ad53c53d6b34a4f4a6047a9ad718c2f567c0f4ba604c27"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GXEE8P/",
+     "to": "GXEE8P"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-sonic-riders-dx-v2-crimsongaia"
+ },
+ {
+  "id": "gc-sonic-riders-dx-v2-4k-crimsongaia",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Sonic Riders DX Texture Pack V2 (4K, DDS)",
+  "version": "V2",
+  "games": [
+   {
+    "title": "Sonic Riders",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GXEE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Crimson Gaia",
+   "original texture authors listed in CREDITS.txt"
+  ],
+  "page_url": "https://gamebanana.com/mods/399589",
+  "source_id": "gamebanana:399589",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Made for Sonic Riders DX (the patched USA game). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/399589",
+   "file_name": "super_srdx_hd_texture_pack_v2_4k_dds.7z",
+   "verify": {
+    "url": "https://gamebanana.com/dl/858146",
+    "sha256": "730f658cef2ae3ffcf290cdd887c3e076090938ce0edfa63aa7d4eb9fea24478"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GXEE8P/",
+     "to": "GXEE8P"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-sonic-riders-dx-v2-crimsongaia"
+ },
+ {
+  "id": "gc-urbz-ai-hd",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "The Urbz: Sims in the City AI HD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "The Urbz: Sims in the City",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GUBE69"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "ghyujkilop"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/archive/index.php?thread-65252.html",
+  "source_id": "dolphin-forum:65252",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/archive/index.php?thread-65252.html",
+   "file_name": "GUBE69.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1aV1msO7eAg3EcOOYVu1cBzQ82ad1EMjB/view?usp=drive_link",
+    "sha256": "821f8519cdfbb859672595f0d70eaf7648b0b0a31eed6f720702eae583a5bb76"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GUBE69/",
+     "to": "GUBE69"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-urbz-ai-hd"
+ },
+ {
+  "id": "gc-smb-ai-hd-dds-chaotixsoda",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Monkey Ball AI HD Textures (DDS)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Monkey Ball",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GMB"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "ChaotixSoda"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-ai-hd-textures",
+  "source_id": "dolphin-forum:super-monkey-ball-ai-hd-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-ai-hd-textures",
+   "file_name": "Super Monkey Ball AI HD Textures (DDS).7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1dutViancEkJ2VKKBq73Q8wI5iYtK9d-_/view?usp=sharing",
+    "sha256": "5f79318f2c226e8cf40258d4d759515ed1ea3df8bbaba52482752f82caeeaf4c"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Super Monkey Ball AI HD Textures (DDS)/",
+     "to": "GMB"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-smb-ai-hd-chaotixsoda"
+ },
+ {
+  "id": "gc-smb-ai-hd-png-chaotixsoda",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Monkey Ball AI HD Textures (PNG)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Monkey Ball",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GMB"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "ChaotixSoda"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-ai-hd-textures",
+  "source_id": "dolphin-forum:super-monkey-ball-ai-hd-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale, PNG version (larger, works on every GPU).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-ai-hd-textures",
+   "file_name": "Super Monkey Ball AI HD Textures (PNG).7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/11i4CeDhL80l6uoOvTRGvwzfLLQQjzcKP/view?usp=sharing",
+    "sha256": "ecb4f0aba78389b4f1a383cea865370966cae123cd1979f9adb1ae8a4cead6b1"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Super Monkey Ball AI HD Textures (PNG)/",
+     "to": "GMB"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-smb-ai-hd-chaotixsoda"
+ },
+ {
+  "id": "gc-smb-hd-4x-dds",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Monkey Ball HD Texture Pack (4x, DDS BC7)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Monkey Ball",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GMB"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-hd-texture-pack",
+  "source_id": "dolphin-forum:super-monkey-ball-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "BC7 textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-hd-texture-pack",
+   "file_name": "Super Monkey Ball HD Textures (DDS).7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1yOmKsGRP1wJ-UjTyHIFek7OlWBLpDhZD/view?usp=sharing",
+    "sha256": "a333b6d54dac2a18b20e6bc5165e000e98dae273155345efac8f595640d014fb"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Super Monkey Ball HD Textures (DDS)/",
+     "to": "GMB"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-smb-hd-4x"
+ },
+ {
+  "id": "gc-rayman3-hd-icup321",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Rayman 3 HD Texture Pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Rayman 3: Hoodlum Havoc",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GRH"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "icup321"
+  ],
+  "page_url": "https://gamebanana.com/mods/648584",
+  "source_id": "gamebanana:648584",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Published as a Dolphin resource pack: only its textures/GRH folder is installed.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/648584",
+   "file_name": "rayman_3_dolphin_hd_textures.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1610256",
+    "sha256": "c30dcc521c2d9a882c10fa85a7bbdef10b583459f4097dff4ceee618f2be0248"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/GRH/",
+     "to": "GRH"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-rayman3-hd-icup321"
+ },
+ {
+  "id": "gc-rayman3-hud-gcn-icup321",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Rayman 3 HD HUD (GameCube buttons)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Rayman 3: Hoodlum Havoc",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GRH"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "icup321"
+  ],
+  "page_url": "https://gamebanana.com/mods/648584",
+  "source_id": "gamebanana:648584",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "HUD add-on of the HD pack, one button style per pack. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/648584",
+   "file_name": "rayman_3_dolphin_gcn_hud.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1610252",
+    "sha256": "6fa243a6c4b05008813a6d3392d9b2b7d2ada011c16d507dcb182bec106a0b5e"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/GRH/",
+     "to": "GRH"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-rayman3-hud-icup321"
+ },
+ {
+  "id": "gc-rayman3-hud-x360-icup321",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Rayman 3 HD HUD (Xbox 360 buttons)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Rayman 3: Hoodlum Havoc",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GRH"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "icup321"
+  ],
+  "page_url": "https://gamebanana.com/mods/648584",
+  "source_id": "gamebanana:648584",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "HUD add-on of the HD pack, one button style per pack. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/648584",
+   "file_name": "rayman_3_dolphin_x360_hud.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1610254",
+    "sha256": "5ee969c5b05d9ce0e877d1f0fec242068b3aaafb1ff90c688fb40dd5cbeb7de7"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/GRH/",
+     "to": "GRH"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-rayman3-hud-icup321"
+ },
+ {
+  "id": "gc-rayman3-hud-ps3-icup321",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Rayman 3 HD HUD (PlayStation buttons)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Rayman 3: Hoodlum Havoc",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GRH"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "icup321"
+  ],
+  "page_url": "https://gamebanana.com/mods/648584",
+  "source_id": "gamebanana:648584",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "HUD add-on of the HD pack, one button style per pack. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/648584",
+   "file_name": null,
+   "verify": {
+    "url": "https://gamebanana.com/dl/1610253",
+    "sha256": "516884fa08dcf45cba33665011bc5d3f7f3db6b1259041f54aec59a6d28ca60b"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/GRH/",
+     "to": "GRH"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-rayman3-hud-icup321"
+ },
+ {
+  "id": "gc-rayman-arena-hd-icup321",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Rayman Arena HD Texture Pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Rayman Arena",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GRY"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "icup321"
+  ],
+  "page_url": "https://gamebanana.com/mods/648585",
+  "source_id": "gamebanana:648585",
+  "licence": {
+   "summary": "CC BY-NC-ND 4.0 (stated on GameBanana)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Published as a Dolphin resource pack: only its textures/GRY folder is installed.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/648585",
+   "file_name": null,
+   "verify": {
+    "url": "https://gamebanana.com/dl/1610258",
+    "sha256": "4ca28d2390dbb4e5536be1f51944ad28f65c95f55e671d4ffaa2b54f5945c40a"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/GRY/",
+     "to": "GRY"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-rayman-arena-hd-icup321"
+ },
+ {
+  "id": "gc-wario-world-hd-calebthegeek",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Wario World HD Texture Pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Wario World",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GWW"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "calebthegeek"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-wario-world-hd-texture-pack",
+  "source_id": "dolphin-forum:wario-world-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-wario-world-hd-texture-pack",
+   "file_name": "GWW.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1uJPZfdQeUVUJwk_j5nBrc6VB_47iKOJT/view?usp=sharing",
+    "sha256": "b69dede46c516ab01b2df9bec86e853b9833b0449aaa345830de89e29a072543"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GWW/",
+     "to": "GWW"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-wario-world-hd-calebthegeek"
+ },
+ {
+  "id": "gc-ttyd-hd-dolphin-community",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "The Dolphin Community's Paper Mario TTYD HD Texture Pack (PNG)",
+  "version": "2.5",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Invader",
+   "Dolphin community contributors"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "The_Dolphin_Community's_PM_TTYD_HD_Texture_Pack_v2.5_PNG.7z",
+   "verify": {
+    "url": "https://mega.nz/file/u8UgQRrQ#oVeQcpbKA_rFxG1cMV6AVdb0cbVXgGhCeAZU2Vumzk0",
+    "sha256": "1938e2019bb583d167993734febe6937ec67c0f0c04471770d72e09d19dd9005"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-ttyd-hd-dolphin-community"
+ },
+ {
+  "id": "gc-eternal-darkness-hd-dds",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Eternal Darkness HD (DDS)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "Eternal Darkness: Sanity's Requiem",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GED"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Zombie"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-eternal-darkness-hd",
+  "source_id": "dolphin-forum:eternal-darkness-hd",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-eternal-darkness-hd",
+   "file_name": "GED DDS 1.0.7z",
+   "verify": {
+    "url": "https://mega.nz/file/6m5TQToI#v09Y_gYdtZ24WTT6BlfCeM5uvw1nRs3QozcYZkUVVqg",
+    "sha256": "5b9e1f01b912b82f697b73c9cf9e84e5365283046eb0a2ab8ca61fb52412cc19"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GED DDS 1.0/GED/",
+     "to": "GED"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-eternal-darkness-hd"
+ },
+ {
+  "id": "gc-animal-crossing-hd-brackenhawk",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Animal Crossing HD (ACHD)",
+  "version": "25",
+  "games": [
+   {
+    "title": "Animal Crossing",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GAF"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "brackenhawk"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-animal-crossing-hd-texture-pack-version-17-october-13th-2022",
+  "source_id": "dolphin-forum:animal-crossing-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-animal-crossing-hd-texture-pack-version-17-october-13th-2022",
+   "file_name": "ACHD V25.zip",
+   "verify": {
+    "url": "https://drive.google.com/open?id=1Z8-pMx20xO8q3caiqy4NOrSNVT1veDSk",
+    "sha256": "d72d160d6c29ea34a764e991e219f6158425f6dbf26535d4fca19da6e8975132"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GAF/",
+     "to": "GAF"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-animal-crossing-hd-brackenhawk"
+ },
+ {
+  "id": "gc-animal-crossing-deluxe-hd-brackenhawk",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Animal Crossing HD for Animal Crossing Deluxe",
+  "version": "25",
+  "games": [
+   {
+    "title": "Animal Crossing Deluxe (fan modification of Animal Crossing)",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GAD"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "brackenhawk"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-animal-crossing-hd-texture-pack-version-17-october-13th-2022",
+  "source_id": "dolphin-forum:animal-crossing-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "For the Animal Crossing Deluxe fan modification (Game ID GAD), not the original disc. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-animal-crossing-hd-texture-pack-version-17-october-13th-2022",
+   "file_name": "ACHD V25 + Deluxe.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1tv-sXC3pO1QRmGbj3acgmXji6YJVskBc/view?usp=drive_link",
+    "sha256": "3db3cf9de8bae07c1052c902b12b9c2800d3de0338394272bd6cb7152f0c0bac"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GAD/",
+     "to": "GAD"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-animal-crossing-deluxe-hd-brackenhawk"
+ },
+ {
+  "id": "gc-metroid-prime-esrgan-rapka",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Metroid Prime HD Textures (ESRGAN)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Metroid Prime",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GM8E01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "rapka"
+  ],
+  "page_url": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+  "source_id": "github:rapka/dolphin-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+   "file_name": "Metroid Prime HD Textures (v1.1).zip",
+   "verify": {
+    "url": "https://mega.nz/#!2JEDHIQT!9UVh6ML_DH8zSjZbukqiNuReDkdKFwsDz8V2xQiQST4",
+    "sha256": "5bc499fd4127f5a0db40109e5038132510260090103b2b61837e0bb487d55f58"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GM8E01/",
+     "to": "GM8E01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-metroid-prime-esrgan-rapka"
+ },
+ {
+  "id": "gc-thps3-esrgan-rapka",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Tony Hawk's Pro Skater 3 HD Textures (ESRGAN)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Tony Hawk's Pro Skater 3",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GT3E52"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "rapka"
+  ],
+  "page_url": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+  "source_id": "github:rapka/dolphin-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+   "file_name": "THPS3 Complete HD Textures.zip",
+   "verify": {
+    "url": "https://mega.nz/#!Wd8CUSYC!4kXspst7w3DJbcNqvns1XdJQKqZL0Z7u39NfcMoEDmg",
+    "sha256": "194e68c37efdc33e41e6da8d2d44a90b21dcae26e28f942f6b69a13b99861210"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GT3E52/",
+     "to": "GT3E52"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-thps3-esrgan-rapka"
+ },
+ {
+  "id": "gc-viewtiful-joe-esrgan-rapka",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Viewtiful Joe HD Textures (ESRGAN)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Viewtiful Joe",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GVJE08"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "rapka"
+  ],
+  "page_url": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+  "source_id": "github:rapka/dolphin-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+   "file_name": "Viewtiful Joe Complete HD Textures.zip",
+   "verify": {
+    "url": "https://mega.nz/#!LAs0nSYY!sfFojNtdYaSgXC5T73kgiTDBB6UPxWZEqdSA0FlQ-Ks",
+    "sha256": "97e68deadac58b4b36dadd71b64c36d385cc961e76d7a10cf5b30ebcb14981f9"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GVJE08/",
+     "to": "GVJE08"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-viewtiful-joe-esrgan-rapka"
+ },
+ {
+  "id": "gc-soulcalibur-2-esrgan-rapka",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Soulcalibur II HD Textures (ESRGAN)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Soulcalibur II",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GRSEAF"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "rapka"
+  ],
+  "page_url": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+  "source_id": "github:rapka/dolphin-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+   "file_name": "Soulcalibur 2 Complete HD Textures.zip",
+   "verify": {
+    "url": "https://mega.nz/#!PNs3FAoA!sa2_hbDf46EvowN6zHKs1XQRAPzX0NF3MKOAm_WA3Do",
+    "sha256": "2ad8934bf52186b28911989a31aff4f44adc9d4774bce0d2009bb40a9c42ab7e"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GRSEAF/",
+     "to": "GRSEAF"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-soulcalibur-2-esrgan-rapka"
+ },
+ {
+  "id": "gc-melee-esrgan-rapka",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Smash Bros. Melee HD Textures (ESRGAN)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Smash Bros. Melee",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GALE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "rapka"
+  ],
+  "page_url": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+  "source_id": "github:rapka/dolphin-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+   "file_name": "Super Smash Bros Melee HD Textures.zip",
+   "verify": {
+    "url": "https://mega.nz/#!DE9EFaSa!sZ3UwrdmyLKKh2IM3J6AR4J5OmUfy90rv21hPeWlNOc",
+    "sha256": "684da8bc899e98bf3c56b15293a462108a36d40a2e508bd94ba74a9b61444669"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GALE01/",
+     "to": "GALE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-melee-esrgan-rapka"
+ },
+ {
+  "id": "wii-pokemon-snap-vc-esrgan-rapka",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Pokémon Snap (Virtual Console) HD Textures (ESRGAN)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Pokémon Snap (Virtual Console)",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "NAKE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "rapka"
+  ],
+  "page_url": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+  "source_id": "github:rapka/dolphin-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+   "file_name": "Pokemon Snap Complete HD Textures (ESRGAN).zip",
+   "verify": {
+    "url": "https://mega.nz/#!OZ1RUKAQ!l225vo2KmIg6yCRUNQQqeeVgyK6RT4zxKxIHpwgSipY",
+    "sha256": "2b0a4d27a3b242be9055642b636f931d75c902e37eedda0b2a3f7c268e4c95bd"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "NAKE01/",
+     "to": "NAKE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-pokemon-snap-vc-esrgan-rapka"
+ },
+ {
+  "id": "wii-wave-race-64-vc-esrgan-rapka",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Wave Race 64 (Virtual Console) HD Textures (ESRGAN)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Wave Race 64 (Virtual Console)",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "NAIE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "rapka"
+  ],
+  "page_url": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+  "source_id": "github:rapka/dolphin-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+   "file_name": "Wave Race 64 Complete HD Textures (ESRGAN).zip",
+   "verify": {
+    "url": "https://mega.nz/#!TJ0jjIZA!UQh8r_luF9RekfPbOfNa-Cj9Qgjxj83uOjCPfhXNsgQ",
+    "sha256": "d73167cfeeac9e8ae27c61668a4a993acdef9fa2c3bca5508cfdc5edfe6fc0c6"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "NAIE01/",
+     "to": "NAIE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-wave-race-64-vc-esrgan-rapka"
+ },
+ {
+  "id": "wii-mario-kart-64-vc-esrgan-rapka",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart 64 (Virtual Console) HD Textures (ESRGAN)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Kart 64 (Virtual Console)",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "NABE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "rapka"
+  ],
+  "page_url": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+  "source_id": "github:rapka/dolphin-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale (ESRGAN, the author's own script). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/rapka/dolphin-textures/blob/master/PACKS.md",
+   "file_name": "Mario Kart 64 HD Textures (ESRGAN).zip.zip",
+   "verify": {
+    "url": "https://mega.nz/#!uBFV0KRZ!9M6SROjZJ5Z3RlGMJu9UHSp1RYIZk4KfmGnssGwDkWg",
+    "sha256": "9670b6548291a9e0079710f58a4aa60ee96f912937673911beaafa8a1067433f"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "NABE01/",
+     "to": "NABE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-mario-kart-64-vc-esrgan-rapka"
+ },
+ {
+  "id": "gc-virtua-striker-2002-2x-thelostgrimm",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Virtua Striker 2002 HD (2x, HDCube4)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Virtua Striker 2002",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GVSE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Virtua Striker 3 Ver. 2002",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GVSJ8P"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Virtua Striker 3 Ver. 2002",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GVSP8P"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "thelostgrimm"
+  ],
+  "page_url": "https://github.com/thelostgrimm/Dolphin-HD-Texture-Packs",
+  "source_id": "github:thelostgrimm/Dolphin-HD-Texture-Packs",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Upscaled with HDCube4; the author's archive.org upload. Its GVS folder also applies to other games whose ID starts with GVS.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/thelostgrimm/Dolphin-HD-Texture-Packs",
+   "file_name": "Virtua Striker 2002 (GVS) 2x.zip",
+   "verify": {
+    "url": "https://archive.org/download/gchdtexturepacks/Virtua%20Striker%202002%20%28GVS%29%202x.zip",
+    "sha256": "b0268857b665bac02f9022d77b9c4d7494d588533ea623c3173cb1e18deea7fb"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GVS/",
+     "to": "GVS"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-virtua-striker-2002-thelostgrimm"
+ },
+ {
+  "id": "gc-virtua-striker-2002-3x-thelostgrimm",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Virtua Striker 2002 HD (3x, HDCube4)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Virtua Striker 2002",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GVSE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "Virtua Striker 3 Ver. 2002",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GVSJ8P"
+     }
+    ],
+    "regions": [
+     "Japan"
+    ],
+    "confirm": true
+   },
+   {
+    "title": "Virtua Striker 3 Ver. 2002",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GVSP8P"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ],
+    "confirm": true
+   }
+  ],
+  "authors": [
+   "thelostgrimm"
+  ],
+  "page_url": "https://github.com/thelostgrimm/Dolphin-HD-Texture-Packs",
+  "source_id": "github:thelostgrimm/Dolphin-HD-Texture-Packs",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Upscaled with HDCube4; the author's archive.org upload. Its GVS folder also applies to other games whose ID starts with GVS.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/thelostgrimm/Dolphin-HD-Texture-Packs",
+   "file_name": "Virtua Striker 2002 (GVS) 3x.zip",
+   "verify": {
+    "url": "https://archive.org/download/gchdtexturepacks/Virtua%20Striker%202002%20%28GVS%29%203x.zip",
+    "sha256": "cf2ccd047c7a18b30c9dceb2193c4a1c88e2fac0df9c780fbdd0c47866a361d7"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Virtua Striker 2002 (GVS) 3x/GVS/",
+     "to": "GVS"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-virtua-striker-2002-thelostgrimm"
+ },
+ {
+  "id": "wii-last-story-hd-gui-plus-matrix2525",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "The Last Story HD GUI+ (PNG)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "The Last Story",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SLSEXJ"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Matrix2525"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-the-last-story-hd-gui-texture-pack",
+  "source_id": "dolphin-forum:the-last-story-hd-gui-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-the-last-story-hd-gui-texture-pack",
+   "file_name": "TLS HD GUI Plus 1.0 PNG.zip",
+   "verify": {
+    "url": "https://mega.nz/file/0UFQCRTB#OleUc9nRP7Qp21nGB3A1sZo_7WNCG6YW-GLNSsH_sAg",
+    "sha256": "6d3e59d6c84d5d8bd9746492c593372aa473f6dcd106de2f2e23f9eb2154edaa"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SLSEXJ/",
+     "to": "SLSEXJ"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-last-story-hd-gui-plus-matrix2525"
+ },
+ {
+  "id": "wii-mario-kart-wii-hd-remaster",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii HD Remaster (2019-02-07)",
+  "version": "2019-02-07",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Moukrea"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-mario-kart-wii-hd-remaster",
+  "source_id": "dolphin-forum:mario-kart-wii-hd-remaster",
+  "licence": {
+   "summary": "No licence stated by the authors",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Only its RMC folder is installed (the separate folder of Moukrea's replaced textures stays out).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-mario-kart-wii-hd-remaster",
+   "file_name": "Mario Kart Wii HD Texture Pack (2019-02-07).7z",
+   "verify": {
+    "url": "https://drive.google.com/open?id=1lVWj49rZHE3Uz9wf1DxMAYVOUivK1Mkv",
+    "sha256": "e1329f6e0fb204daa351687e268df9a67e7354754de196bb2286552437054d62"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "RMC/",
+     "to": "RMC"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-mario-kart-wii-hd-remaster"
+ },
+ {
+  "id": "wii-nsmbw-hd-bighead",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "New Super Mario Bros. Wii HD Texture Pack (PNG)",
+  "version": "2.81",
+  "games": [
+   {
+    "title": "New Super Mario Bros. Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SMN"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Bighead"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
+  "source_id": "dolphin-forum:new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
+   "file_name": "NSMBW_HD_v2.81_PNG.7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1gcPQ2u_GXl3IpziEVvIsVzS90-mar2ZM/view?usp=drive_link",
+    "sha256": "acd46f6490d02acbcb871f3e0a20b4b9f8534367e32a4535b364a51ef874b1d2"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "NSMBW_HD_v2.81_PNG/SMN/",
+     "to": "SMN"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-nsmbw-hd-bighead"
+ },
+ {
+  "id": "wii-punch-out-hd-ready-plusnine",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Punch-Out!! Wii HD-Ready Project",
+  "version": "2016-09-08",
+  "games": [
+   {
+    "title": "Punch-Out!!",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "R7PE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "plusnine"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-plusnine-s-punch-out-wii-hd-ready-project-updated-september-8-2016",
+  "source_id": "dolphin-forum:plusnine-s-punch-out-wii-hd-ready-project-updated-september-8-2016",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-plusnine-s-punch-out-wii-hd-ready-project-updated-september-8-2016",
+   "file_name": "R7PE01.zip",
+   "verify": {
+    "url": "https://drive.google.com/open?id=0B8FvW480wj7CWE1NbllRNGxxN28",
+    "sha256": "f3afa9fb3aa9b0eacc647f4e701ade72d318712412b933b50c228b63448a3644"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "",
+     "to": "R7PE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-punch-out-hd-ready-plusnine"
+ },
+ {
+  "id": "gc-skies-of-arcadia-hd-bighead",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Skies of Arcadia Legends HD (PNG)",
+  "version": "0.06",
+  "games": [
+   {
+    "title": "Skies of Arcadia Legends",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GEA"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Bighead"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-skies-of-arcadia-hd-v0-06-june-27-2020",
+  "source_id": "dolphin-forum:skies-of-arcadia-hd-v0-06-june-27-2020",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Work in progress (v0.06): characters, skies and part of the environments.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-skies-of-arcadia-hd-v0-06-june-27-2020",
+   "file_name": "SoA_HD_v0.06_PNG.7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1b8yUtU5DNYz1C5mimY28fUdP30rOZiQW/view?usp=sharing",
+    "sha256": "025e4a286b95963570a75142ff74b123df0416c9dd0cbcb3c30d42b4bd7b53fe"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SoA_HD_v0.06_PNG/GEA/",
+     "to": "GEA"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "gc-skies-of-arcadia-hd-bighead"
+ },
+ {
+  "id": "gc-sf-rush-2049-mat3-texture-pack",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "San Francisco Rush 2049 Texture Pack (Midway Arcade Treasures 3)",
+  "version": "9-7-2020",
+  "games": [
+   {
+    "title": "Midway Arcade Treasures 3",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GE3E5D"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-san-francisco-rush-2049-texture-pack",
+  "source_id": "dolphin-forum:san-francisco-rush-2049-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "San Francisco Rush 2049 is played from Midway Arcade Treasures 3 (USA disc GE3E5D). The text files and nested archives of the folder are not installed.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-san-francisco-rush-2049-texture-pack",
+   "file_name": "Rush 2049 Texture Pack 9-7-2020.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1i_NZTt_S2dZT4zGQ7AffVvM2_P1-1fZX/view",
+    "sha256": "2291ba65378108a7b134f9c3b185edf39dbfd5943f0b737dc2e188eadcd61a73"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GE3E5D/",
+     "to": "GE3E5D"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-sf-rush-2049-mat3-texture-pack"
+ },
+ {
+  "id": "gc-crash-nitro-kart-hd-fixes-john30011887",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Crash Nitro Kart HD Texture Fixes",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Crash Nitro Kart",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GCNE7D"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "JOHN30011887"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-crash-nitro-kart-hd-texture-fixes",
+  "source_id": "dolphin-forum:crash-nitro-kart-hd-texture-fixes",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Corrected and sharper versions of a selection of textures (245 files).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-crash-nitro-kart-hd-texture-fixes",
+   "file_name": "CNK Texture Fixes.zip",
+   "verify": {
+    "url": "https://mega.nz/#!D8gChAYY!mvymsLDE-J-HCDIrVEIsXARE8VqyFpELFX3IF8cKMsQ",
+    "sha256": "8521f45dd50b59c695f20bb7d035a7b21f11f2ad995f94025641da0e92caadb3"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GCNE7D/",
+     "to": "GCNE7D"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "gc-crash-nitro-kart-hd-fixes-john30011887"
+ },
+ {
+  "id": "gc-star-fox-adventures-hd-cyb3rtr0n",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Star Fox Adventures HD Texture Pack (DDS)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Star Fox Adventures",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GSA"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "CYB3RTR0N"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-star-fox-adventures-hd-texture-pack",
+  "source_id": "dolphin-forum:star-fox-adventures-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The optional health-bar colours (Alternate Health folder) are not installed. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-star-fox-adventures-hd-texture-pack",
+   "file_name": "Star_Fox_Adventures_HD_DDS.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1ZACU71Riaphm9Ki6YroHBcbiO0uquSci/view?usp=sharing",
+    "sha256": "541a4b1c23a62989f7a1dad3edaf688db4c506e495478c8dd3fa73560ffb0eb4"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GSA/",
+     "to": "GSA"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-star-fox-adventures-hd-cyb3rtr0n"
+ },
+ {
+  "id": "gc-luigis-mansion-hd-yourpalfox",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Luigi's Mansion HD Texture Pack",
+  "version": "11-8-20",
+  "games": [
+   {
+    "title": "Luigi's Mansion",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GLME01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Your Pal Fox"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-luigi-s-mansion-hd-texture-pack",
+  "source_id": "dolphin-forum:luigi-s-mansion-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-luigi-s-mansion-hd-texture-pack",
+   "file_name": "Luigi's_Mansion_Texture_Pack_11-8-20.7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1sKatVd969lI1749kxWpUs8r-ApmzXwaz/view?usp=sharing",
+    "sha256": "acefb8e8a75db750ef5613935ce4422f2cb54ad72017c069bf9c65dca88f60af"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GLME01/",
+     "to": "GLME01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-luigis-mansion-hd-yourpalfox"
+ },
+ {
+  "id": "gc-spyro-a-heros-tail-john30011887",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Spyro: A Hero's Tail Texture Pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Spyro: A Hero's Tail",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G5SE7D"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "JOHN30011887"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-spyro-a-hero-s-tail-texture-pack",
+  "source_id": "dolphin-forum:spyro-a-hero-s-tail-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-spyro-a-hero-s-tail-texture-pack",
+   "file_name": "Spyro A Hero's Tail Texture Pack.zip",
+   "verify": {
+    "url": "https://mega.nz/file/vkASHQja#B9nyivElRghhjgLK66HADcqKFI9EQmOxGZi0tDZPHpE",
+    "sha256": "249888cf08c6de30a644b7d2d60fc6903eb6ed0434c6d9f74d39bb20a036d17a"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "G5SE7D/",
+     "to": "G5SE7D"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-spyro-a-heros-tail-john30011887"
+ },
+ {
+  "id": "gc-gauntlet-dark-legacy-hd-2",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Gauntlet: Dark Legacy HD 2.0",
+  "version": "2.0",
+  "games": [
+   {
+    "title": "Gauntlet: Dark Legacy",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GUNE5D"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-gauntlet-dark-legacy-hd-texture-pack",
+  "source_id": "dolphin-forum:gauntlet-dark-legacy-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The textures' folder is named for the USA disc (GUNE5D). The author's instructions also apply a patch of theirs to the game; NeoStation installs the textures only.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-gauntlet-dark-legacy-hd-texture-pack",
+   "file_name": "(GC) Gauntlet Dark Legacy HD 2.0.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1zhLTYNhxg3XrXG_fDkZHvMYrzT4uBwzm/view",
+    "sha256": "2667195680ef70e09c3e6761d1458a9302fd069defb19cb770c1e650be8c7572"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "(GC) Gauntlet Dark Legacy HD 2.0/GUNE5D/",
+     "to": "GUNE5D"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-gauntlet-dark-legacy-hd"
+ },
+ {
+  "id": "gc-pikmin-4k-henriko-1080p",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Pikmin 4K (1080p)",
+  "version": "2.0a_1",
+  "games": [
+   {
+    "title": "Pikmin",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GPI"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/pikmin-4k",
+  "source_id": "henrikomagnifico:pikmin-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop Dolphin settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/pikmin-4k",
+   "file_name": "Pikmin 4K 2.0a_1 (1080p).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1eZQmHBen1EuZcIUzfAEZUJl7TeL93ClX/view",
+    "sha256": "1bf6c06cb89d575e2e61834dc806929c310d768ce32b65c611fb049edbd3aa80"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "gc-pikmin-4k-henriko"
+ },
+ {
+  "id": "gc-pikmin-4k-henriko-4k",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Pikmin 4K (4K)",
+  "version": "2.0a_1",
+  "games": [
+   {
+    "title": "Pikmin",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GPI"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/pikmin-4k",
+  "source_id": "henrikomagnifico:pikmin-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Manual: NeoStation opens the author's page; you download the file there and import it. NeoStation checks that it is exactly the file verified on CI (size and SHA-256) and does not host or redistribute it."
+  },
+  "notes": "Only the textures are installed; the archive also holds ReShade presets and desktop Dolphin settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/pikmin-4k",
+   "file_name": "Pikmin 4K 2.0a_1 (4K).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1leAGZmK1Ay_W3KwtAyyyBWZzyw5Wy3Db/view",
+    "sha256": "5c960a6138cd50d000fd26a0a220c04ea171e197cab80bdec3904bfb922d7a0b"
+   }
+  },
+  "scope": "complete",
+  "family": "gc-pikmin-4k-henriko"
+ },
+ {
+  "id": "gc-pikmin-4k-henriko-mobile",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Pikmin 4K (Android & iOS)",
+  "version": "2.0a_1",
+  "games": [
+   {
+    "title": "Pikmin",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GPI"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/pikmin-4k",
+  "source_id": "henrikomagnifico:pikmin-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The author's edition for Android and iOS. Only the textures are installed, not its Dolphin settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/pikmin-4k",
+   "file_name": "Pikmin 4K 2.0a_1 (Android & iOS).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1870dA11T9FpuLQDnI3axoCJ_Eh5ptgWP/view",
+    "sha256": "5d9254b4f1ca46fee93b57ce17e888521884634bc1fae4bc7a4cf22af7e2551b"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "gc-pikmin-4k-henriko"
+ },
+ {
+  "id": "gc-sms-4k-henriko-1080p",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Mario Sunshine 4K (1080p)",
+  "version": "2.0c",
+  "games": [
+   {
+    "title": "Super Mario Sunshine",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GMS"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/super-mario-sunshine-4k",
+  "source_id": "henrikomagnifico:super-mario-sunshine-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Only the textures are installed; the widescreen patch tools of the archive are not.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/super-mario-sunshine-4k",
+   "file_name": "SMS 4K 2.0c (1080p).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1t-pqwzmPvIUIpkqCX1qmqjuC87fusQ-Z/view",
+    "sha256": "7d8ada037bd16dc1cd76a8dbf980d128c463f89d92e343f864a0f0c06538b90a"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "gc-sms-4k-henriko"
+ },
+ {
+  "id": "gc-sms-4k-henriko-4k",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Mario Sunshine 4K (4K)",
+  "version": "2.0c",
+  "games": [
+   {
+    "title": "Super Mario Sunshine",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GMS"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/super-mario-sunshine-4k",
+  "source_id": "henrikomagnifico:super-mario-sunshine-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Only the textures are installed; the widescreen patch tools of the archive are not.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/super-mario-sunshine-4k",
+   "file_name": "SMS 4K 2.0c (4K).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1GYu4wq_qOFsFQSoQ-MBjGsN940uDDsuI/view",
+    "sha256": "cd25a44cb47a1d72af16ca42bf07fe0c89fa57aac4da4a3ddb6e63f74c12c61e"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "gc-sms-4k-henriko"
+ },
+ {
+  "id": "gc-sms-4k-henriko-mobile",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Mario Sunshine 4K (1080p, mobile version)",
+  "version": "2.0c",
+  "games": [
+   {
+    "title": "Super Mario Sunshine",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GMS"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/super-mario-sunshine-4k",
+  "source_id": "henrikomagnifico:super-mario-sunshine-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The author's mobile edition. Only the textures are installed; the widescreen patch tools of the archive are not.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/super-mario-sunshine-4k",
+   "file_name": "SMS 4K 2.0c (1080p) Mobile Version.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1B2AsshhhjB4mAMSv-6jGseXvjjsDgtCP/view",
+    "sha256": "56ec57e4fd80852a25c2e465af000be23c7cd7cb8997a21a60e03c1426bfdb9e"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "gc-sms-4k-henriko"
+ },
+ {
+  "id": "gc-mario-party-4-hd-ai-venomalia",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Mario Party 4 HD [AI]",
+  "version": "24.11.2022",
+  "games": [
+   {
+    "title": "Mario Party 4",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GMP"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Venomalia"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-mario-party-4-7-hd-ai-24-11-2022",
+  "source_id": "dolphin-forum:mario-party-4-7-hd-ai-24-11-2022",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale. The textures shared by Mario Party 4 to 7 are a separate file of the author (Mario Party Shared 4-7 HD); A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-mario-party-4-7-hd-ai-24-11-2022",
+   "file_name": "Ma Party 4 HD.7z",
+   "verify": {
+    "url": "https://mega.nz/folder/q1tkWSTZ#eTtBixQ40IaBYmP_s8kDEA/file/CxlFgQzI",
+    "sha256": "4a9ddf10af4c0360ab6d1cee69bd8ce2f524cb204ef67e13b3d4e4285409976a"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Mario Party 4 HD/",
+     "to": "GMP"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "gc-mario-party-4-hd-ai-venomalia"
+ },
+ {
+  "id": "gc-mario-party-5-hd-ai-venomalia",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Mario Party 5 HD [AI]",
+  "version": "24.11.2022",
+  "games": [
+   {
+    "title": "Mario Party 5",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GP5"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Venomalia"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-mario-party-4-7-hd-ai-24-11-2022",
+  "source_id": "dolphin-forum:mario-party-4-7-hd-ai-24-11-2022",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale. The textures shared by Mario Party 4 to 7 are a separate file of the author (Mario Party Shared 4-7 HD); A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-mario-party-4-7-hd-ai-24-11-2022",
+   "file_name": "Ma Party 5 HD.7z",
+   "verify": {
+    "url": "https://mega.nz/folder/q1tkWSTZ#eTtBixQ40IaBYmP_s8kDEA/file/b5tFlCwS",
+    "sha256": "f8f595c65836475c00c48caa420e6e218ab49eca125cca698bedd340d670910a"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Mario Party 5 HD/",
+     "to": "GP5"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "gc-mario-party-5-hd-ai-venomalia"
+ },
+ {
+  "id": "gc-mario-party-6-hd-ai-venomalia",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Mario Party 6 HD [AI]",
+  "version": "24.11.2022",
+  "games": [
+   {
+    "title": "Mario Party 6",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GP6"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Venomalia"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-mario-party-4-7-hd-ai-24-11-2022",
+  "source_id": "dolphin-forum:mario-party-4-7-hd-ai-24-11-2022",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale. The textures shared by Mario Party 4 to 7 are a separate file of the author (Mario Party Shared 4-7 HD); A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-mario-party-4-7-hd-ai-24-11-2022",
+   "file_name": "Ma Party 6 HD.7z",
+   "verify": {
+    "url": "https://mega.nz/folder/q1tkWSTZ#eTtBixQ40IaBYmP_s8kDEA/file/r5ljEQKS",
+    "sha256": "4cae8cd4ba2b165ad368f28ebfe53a75385fe154f2408c90c49a68bfcf84ef16"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Mario Party 6 HD/",
+     "to": "GP6"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "gc-mario-party-6-hd-ai-venomalia"
+ },
+ {
+  "id": "gc-mario-party-7-hd-ai-venomalia",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Mario Party 7 HD [AI]",
+  "version": "24.11.2022",
+  "games": [
+   {
+    "title": "Mario Party 7",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GP7"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Venomalia"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-mario-party-4-7-hd-ai-24-11-2022",
+  "source_id": "dolphin-forum:mario-party-4-7-hd-ai-24-11-2022",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale. The textures shared by Mario Party 4 to 7 are a separate file of the author (Mario Party Shared 4-7 HD); A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-mario-party-4-7-hd-ai-24-11-2022",
+   "file_name": "Ma Party 7 HD.7z",
+   "verify": {
+    "url": "https://mega.nz/folder/q1tkWSTZ#eTtBixQ40IaBYmP_s8kDEA/file/r1lzXaxR",
+    "sha256": "2e3542d3d6e81d8a359a437a0a0d724df08201ca51a3795e99c1117c3a01c370"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Mario Party 7 HD/",
+     "to": "GP7"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "gc-mario-party-7-hd-ai-venomalia"
+ },
+ {
+  "id": "gc-sonic-heroes-ai-hd-png-chaotixsoda",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Sonic Heroes AI HD Textures (PNG)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic Heroes",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G9S"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "ChaotixSoda"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-sonic-heroes-ai-hd-textures",
+  "source_id": "dolphin-forum:sonic-heroes-ai-hd-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-sonic-heroes-ai-hd-textures",
+   "file_name": "Sonic Heroes AI HD Textures (PNG).7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1tLuPJW-UAxxExOR0LFyjuhNjZ6MUm5Dn/view?usp=drive_link",
+    "sha256": "7a382ea40d21423cb1ad5c61f44dd3848951cf367b7e433139875ba9e4c68d67"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Sonic Heroes AI HD Textures (PNG)/",
+     "to": "G9S"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-sonic-heroes-ai-hd-chaotixsoda"
+ },
+ {
+  "id": "gc-wario-world-hd-dds-calebthegeek",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Wario World HD Texture Pack (DDS BC7)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Wario World",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GWW"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "calebthegeek"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-wario-world-hd-texture-pack",
+  "source_id": "dolphin-forum:wario-world-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "DDS edition of the same pack. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-wario-world-hd-texture-pack",
+   "file_name": "GWW (DDS BC7).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1irZDLaBWWoe_XOIPU5_z_RoAdu6nJkbD/view?usp=sharing",
+    "sha256": "3f206eb8d06ce7598fe73a8f20f84d9eaff47a54de61a7fe0a2c40e23b7a0d5b"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "gc-wario-world-hd-calebthegeek"
+ },
+ {
+  "id": "gc-smb-hd-4x-png",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Monkey Ball HD Texture Pack (4x, PNG)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Monkey Ball",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GMB"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-hd-texture-pack",
+  "source_id": "dolphin-forum:super-monkey-ball-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "PNG edition of the same pack.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-hd-texture-pack",
+   "file_name": "Super Monkey Ball HD Textures (PNG).7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1ZmCffIxIz8JYhrfzCIPxK-iOIdPBSJAW/view?usp=sharing",
+    "sha256": "e6c18e00b89e965d9590f77c946db7ba602a7c5db74207a921a281743a66b98c"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Super Monkey Ball HD Textures (PNG)/",
+     "to": "GMB"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-smb-hd-4x"
+ },
+ {
+  "id": "gc-ttyd-hd-dolphin-community-dds",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario: TTYD HD Texture Pack v2.5 (DDS)",
+  "version": "2.5",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Invader",
+   "Dolphin community contributors"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "DDS edition of the same pack (a Dolphin resource pack: its manifest and logo are not installed). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "The_Dolphin_Communitys_PM_TTYD_HD_Texture_Pack_v2.5.zip",
+   "verify": {
+    "url": "https://mega.nz/file/L9kRna4Y#ICoijr8GS4t1PKsaFtiS66FDcIhEcsfyMz6lNFEtgjo",
+    "sha256": "c0d34a724122d8bfe6776cda640b8b5c7e6626a4978225bfbbfbeacf4b1bf5b1"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-ttyd-hd-dolphin-community"
+ },
+ {
+  "id": "gc-harvest-moon-awl-kupo-png",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Harvest Moon: A (nother) Wonderful Life texture pack (PNG)",
+  "version": "1.1",
+  "games": [
+   {
+    "title": "Harvest Moon: A Wonderful Life",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GYW"
+     }
+    ]
+   },
+   {
+    "title": "Harvest Moon: Another Wonderful Life",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G4G"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Kupo"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-texture-pack-for-harvest-moon-a-nother-wonderful-life-v1-1",
+  "source_id": "dolphin-forum:texture-pack-for-harvest-moon-a-nother-wonderful-life-v1-1",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "One folder for both games, recognised by their game-ID marker files.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-texture-pack-for-harvest-moon-a-nother-wonderful-life-v1-1",
+   "file_name": "HM - AWL v1.1 PNG.7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1W-OuwaDEll8sHeUcn4exmPgXwibCnzdA/view",
+    "sha256": "9fe47581641745c7d701bd496de1a350e3e7bd3b94680a0e0db5d8f591254e45"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/GameID/",
+     "to": "GYW"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-harvest-moon-awl-kupo"
+ },
+ {
+  "id": "gc-harvest-moon-awl-kupo-dds",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Harvest Moon: A (nother) Wonderful Life texture pack (DDS)",
+  "version": "1.1",
+  "games": [
+   {
+    "title": "Harvest Moon: A Wonderful Life",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GYW"
+     }
+    ]
+   },
+   {
+    "title": "Harvest Moon: Another Wonderful Life",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G4G"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Kupo"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-texture-pack-for-harvest-moon-a-nother-wonderful-life-v1-1",
+  "source_id": "dolphin-forum:texture-pack-for-harvest-moon-a-nother-wonderful-life-v1-1",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "One folder for both games, recognised by their game-ID marker files. Its button images (Dynamic Input Textures) are not installed. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-texture-pack-for-harvest-moon-a-nother-wonderful-life-v1-1",
+   "file_name": "HM - AWL v1.1 DDS.7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1RsKnizQr9B7g-6Nuek5-hbScs6IWK0L1/view",
+    "sha256": "238acc64584f4bf76a4b97bb635c3f4e6187f780d071c60008a62d5743f9acd2"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/GameID/",
+     "to": "GYW"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-harvest-moon-awl-kupo"
+ },
+ {
+  "id": "wii-star-fox-64-hd-admentus-png",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Star Fox 64 HD (Virtual Console, PNG)",
+  "version": "0.1",
+  "games": [
+   {
+    "title": "Star Fox 64 (Virtual Console)",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "NAD"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Admentus64"
+  ],
+  "page_url": "https://github.com/Admentus64/Enhancement-Codes/blob/master/Textures.txt",
+  "source_id": "admentus64:textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Early release (v0.1). For the Wii Virtual Console release; the files named for N64 emulators in the archive are not installed.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/Admentus64/Enhancement-Codes/blob/master/Textures.txt",
+   "file_name": "Star Fox 64 HD V0.1 (Dolphin - PNG).7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1gWzXCCtphiNBjt-a862P8_EZFprMsnqX/view",
+    "sha256": "7f2bd5b2274a8bc3627a0a578afd5f17b0290c24f1d24a066961a301910be223"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Star Fox 64 HD V0.1 (PNG)/NAD/",
+     "to": "NAD"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "wii-star-fox-64-hd-admentus"
+ },
+ {
+  "id": "wii-star-fox-64-hd-admentus-dds",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Star Fox 64 HD (Virtual Console, DDS BC7)",
+  "version": "0.1.0",
+  "games": [
+   {
+    "title": "Star Fox 64 (Virtual Console)",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "NAD"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Admentus64"
+  ],
+  "page_url": "https://github.com/Admentus64/Enhancement-Codes/blob/master/Textures.txt",
+  "source_id": "admentus64:textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Early release (v0.1). For the Wii Virtual Console release. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/Admentus64/Enhancement-Codes/blob/master/Textures.txt",
+   "file_name": "Star Fox 64 HD v0.1.0 (Dolphin - DDS BC7).7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1QlZ_uY-jL-GcclNIPQ_fhOlo_xnQyAfM/view",
+    "sha256": "55a6df70227cce50663f27fa801cb933d6a833061c2a6a631c26b59e7dfe9bb2"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Star Fox 64 HD V0.1 (DDS BC7)/NAD/",
+     "to": "NAD"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "wii-star-fox-64-hd-admentus"
+ },
+ {
+  "id": "wii-wii-sports-4k-henriko-4k",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Wii Sports 4K (4K)",
+  "version": "1.0.1b",
+  "games": [
+   {
+    "title": "Wii Sports",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RSP"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/wii-sports-4k",
+  "source_id": "henrikomagnifico:wii-sports-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Only the textures are installed; the archive also holds a desktop Dolphin build and its settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/wii-sports-4k",
+   "file_name": "Wii Sports 4K 1.0.1b (4K).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1R3HxqixJAUGsYAIWBlxe0Jg6ag1O5X0q/view",
+    "sha256": "33de5e8d8c8c0481ebe8bd2a979fbf5c002bad4a378857e588cdf18c97c7da78"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "wii-wii-sports-4k-henriko"
+ },
+ {
+  "id": "wii-wii-sports-4k-henriko-mobile",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Wii Sports 4K (Android & iOS)",
+  "version": "1.0.1b",
+  "games": [
+   {
+    "title": "Wii Sports",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RSP"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/wii-sports-4k",
+  "source_id": "henrikomagnifico:wii-sports-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The author's edition for Android and iOS. Only the textures are installed, not its Dolphin settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/wii-sports-4k",
+   "file_name": "Wii Sports 4K 1.0.1b (Android & iOS).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/14D1E83H3SR9JGuElKvII_qdJ_GJRM7y0/view",
+    "sha256": "703e0d890e1e840a4dd0cc7528b3bf3283897927de69a6026459b95a1dc7e287"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "wii-wii-sports-4k-henriko"
+ },
+ {
+  "id": "wii-sengoku-basara-samurai-heroes-apothicx",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sengoku Basara: Samurai Heroes UHD (4K optimized)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sengoku Basara: Samurai Heroes",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SB3E08"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Apothicx"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-high-resolution-texture-pack-for-samurai-heroes-wii-ntsc-%E2%80%93-uhd-4k-optimized",
+  "source_id": "dolphin-forum:high-resolution-texture-pack-for-samurai-heroes-wii-ntsc-uhd-4k-optimized",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "4.3 GB.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-high-resolution-texture-pack-for-samurai-heroes-wii-ntsc-%E2%80%93-uhd-4k-optimized",
+   "file_name": "SB3E08.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1EfQbTQ6eDe4Qp8sH8UNnQoVIWvk21a8n/view?usp=drive_link",
+    "sha256": "2079d4fa63e959085a5b9168abc12a6858bdfc673b1b9b9077bede413ff8cc02"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SB3E08/",
+     "to": "SB3E08"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-sengoku-basara-samurai-heroes-apothicx"
+ },
+ {
+  "id": "wii-nsmbw-shield-ui-moukrea-x4",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "New Super Mario Bros. Wii — NVIDIA Shield (China) UI port (x4)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "New Super Mario Bros. Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SMN"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Moukrea"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-exclusive-nvidia-shield%E2%80%99s-china-release-ported-ui",
+  "source_id": "dolphin-forum:new-super-mario-bros-wii-exclusive-nvidia-shields-china-release-ported-ui",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of the NVIDIA Shield release, made to go with Bighead's NSMBW HD pack; the archive's patch for that pack is not installed. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-exclusive-nvidia-shield%E2%80%99s-china-release-ported-ui",
+   "file_name": "PNG (x4).7z",
+   "verify": {
+    "url": "https://drive.google.com/open?id=1Befhor-y9u9iFDZbhdClbxzxfufvyfv6",
+    "sha256": "b9bc915da6b19c65baf69b384a8ee0d282c408b6b568072bf343e7b319ac6fec"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SMN/",
+     "to": "SMN"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-nsmbw-shield-ui-moukrea"
+ },
+ {
+  "id": "wii-nsmbw-shield-ui-moukrea-x2",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "New Super Mario Bros. Wii — NVIDIA Shield (China) UI port (x2)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "New Super Mario Bros. Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SMN"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Moukrea"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-exclusive-nvidia-shield%E2%80%99s-china-release-ported-ui",
+  "source_id": "dolphin-forum:new-super-mario-bros-wii-exclusive-nvidia-shields-china-release-ported-ui",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of the NVIDIA Shield release, made to go with Bighead's NSMBW HD pack; the archive's patch for that pack is not installed. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-exclusive-nvidia-shield%E2%80%99s-china-release-ported-ui",
+   "file_name": "PNG (x2).7z",
+   "verify": {
+    "url": "https://drive.google.com/open?id=1N4LczMwVa9whV7xvudCdwBmjGnll2NeH",
+    "sha256": "3e3cdcff05be5a46f5ce25612f20a97abd3cf021aa1b1e4b354bb0bf12be35a7"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SMN/",
+     "to": "SMN"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-nsmbw-shield-ui-moukrea"
+ },
+ {
+  "id": "wii-last-story-hd-gui-plus-dds-matrix2525",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "The Last Story HD GUI+ (DDS)",
+  "version": "1.0",
+  "games": [
+   {
+    "title": "The Last Story",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "SLSEXJ"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Matrix2525"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-the-last-story-hd-gui-texture-pack",
+  "source_id": "dolphin-forum:the-last-story-hd-gui-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "DDS edition of the same pack. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-the-last-story-hd-gui-texture-pack",
+   "file_name": "TLS HD GUI Plus 1.0 DDS.zip",
+   "verify": {
+    "url": "https://mega.nz/file/sZUGRbrI#eQMQcGR9U2GBZbLscAXauSxnwgD9b4xmGgfOUsZ3pgI",
+    "sha256": "1a1a448503f78d2a4e8aa09e7d257fcce9e183531fb114705d8266321d507a74"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "SLSEXJ/",
+     "to": "SLSEXJ"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-last-story-hd-gui-plus-matrix2525"
+ },
+ {
+  "id": "wii-nsmbw-hd-bighead-dds",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "New Super Mario Bros. Wii HD Texture Pack (DDS)",
+  "version": "2.81",
+  "games": [
+   {
+    "title": "New Super Mario Bros. Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SMN"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Bighead"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
+  "source_id": "dolphin-forum:new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "DDS edition of the same pack. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-new-super-mario-bros-wii-hd-texture-pack-v2-81-september-18-2023",
+   "file_name": "NSMBW_HD_v2.81_DDS.7z",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1JVihF4NSPWi7fsZOVWJ4K6TZMaA47eGI/view?usp=drive_link",
+    "sha256": "f4c78b15a81f46948a485475c9ef0294f876c02d61807e9f3f992d9268c3c713"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "NSMBW_HD_v2.81_DDS/SMN/",
+     "to": "SMN"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-nsmbw-hd-bighead"
+ },
+ {
+  "id": "gc-shadow-the-hedgehog-hd-cyb3rtr0n",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Shadow the Hedgehog HD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Shadow the Hedgehog",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GUP"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "CYB3RTR0N"
+  ],
+  "page_url": "https://gamebanana.com/mods/166202",
+  "source_id": "gamebanana:166202",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The optional Shadow colours of the archive are not installed.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/166202",
+   "file_name": "shadow_the_hedgehog_hd.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/561990",
+    "sha256": "f6bbd4633ca767eee2805f5d25b0d81c104d9bed60bcacf2147cd00a74cc37f9"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GUP/",
+     "to": "GUP"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-shadow-the-hedgehog-hd-cyb3rtr0n"
+ },
+ {
+  "id": "gc-spongebob-bfbb-xbox-textures-icup321",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "SpongeBob SquarePants: Battle for Bikini Bottom — Xbox texture pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "SpongeBob SquarePants: Battle for Bikini Bottom",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GQPE78"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "icup321"
+  ],
+  "page_url": "https://gamebanana.com/mods/648591",
+  "source_id": "gamebanana:648591",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Textures of the Xbox release brought to the GameCube game (a Dolphin resource pack: its manifest and logo are not installed).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/648591",
+   "file_name": "spongebob_squarepants_-_battle_for_bikini_bottom_xbox_texture_pack.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1610272",
+    "sha256": "9bbc3b7f0ae6a79a9d5f6db41e9aa81f322d9018e4bb94d20128a32cd353bb8b"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/GQPE78/",
+     "to": "GQPE78"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-spongebob-bfbb-xbox-textures-icup321"
+ },
+ {
+  "id": "gc-spongebob-movie-xbox-textures-icup321",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "The SpongeBob SquarePants Movie — Xbox texture pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "The SpongeBob SquarePants Movie",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GGVE78"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "icup321"
+  ],
+  "page_url": "https://gamebanana.com/mods/648590",
+  "source_id": "gamebanana:648590",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Textures of the Xbox release brought to the GameCube game (a Dolphin resource pack: its manifest and logo are not installed).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/648590",
+   "file_name": "spongebob_squarepants_-_the_movie_xbox_texture_pack.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1610263",
+    "sha256": "03e0f7992e8a0cbc45b65808748bcbf52aa5e19f23f0f6b494c610fbb757a0bc"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/GGVE78/",
+     "to": "GGVE78"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-spongebob-movie-xbox-textures-icup321"
+ },
+ {
+  "id": "gc-faster-melee-hd-combatman12",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Smash Bros. Melee HD (Faster Melee HD)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Smash Bros. Melee",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GALE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "combatman12"
+  ],
+  "page_url": "https://gamebanana.com/mods/40698",
+  "source_id": "gamebanana:40698",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/40698",
+   "file_name": "faster_melee_hd.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1210",
+    "sha256": "9d98d615406800aebef0f12736a5ca812bb3230daf977ebd8b79588d99929bba"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GALE01/",
+     "to": "GALE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-faster-melee-hd-combatman12"
+ },
+ {
+  "id": "gc-sonic-heroes-ai-hd-dds-chaotixsoda",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Sonic Heroes AI HD Textures (DDS)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic Heroes",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G9S"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "ChaotixSoda"
+  ],
+  "page_url": "https://gamebanana.com/mods/615525",
+  "source_id": "gamebanana:615525",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "AI upscale, DDS edition. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/615525",
+   "file_name": "sonic_heroes_ai_hd_textures_dds_.7z",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1502748",
+    "sha256": "44430c7cb71ebffb99dd68d301f14eb04d7788ea4fd51b85b68356ef78e3081d"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Sonic Heroes AI HD Textures (DDS)/",
+     "to": "G9S"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-sonic-heroes-ai-hd-chaotixsoda"
+ },
+ {
+  "id": "gc-sms-modern-hd-coin-icons-rileychan6",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Mario Sunshine — Modern HD coin icons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Mario Sunshine",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GMS"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "rileychan6"
+  ],
+  "page_url": "https://gamebanana.com/mods/355396",
+  "source_id": "gamebanana:355396",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Three coin icons. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/355396",
+   "file_name": "modern_hd_coin_icons.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/741765",
+    "sha256": "7e4a153199a6d28f479b8a6f6e07cf40303fa2de4c6c4be0bd234c6c2fcf2a5a"
+   },
+   "in_app": true
+  },
+  "scope": "ui",
+  "family": "gc-sms-modern-hd-coin-icons-rileychan6"
+ },
+ {
+  "id": "wii-nsmbw-hd-xbox-buttons-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "New Super Mario Bros. Wii — Xbox button prompts",
+  "version": "see page",
+  "games": [
+   {
+    "title": "New Super Mario Bros. Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SMN"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/461217",
+  "source_id": "gamebanana:461217",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/461217",
+   "file_name": "nsmbw_hd_xbox_pack.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1113605",
+    "sha256": "78557ab88a5206ac8bc7e74e5e0d6d6620a64b5d7a0a5e6fbced80f5cd72e27c"
+   },
+   "in_app": true
+  },
+  "scope": "ui",
+  "family": "wii-nsmbw-buttons-floweygaming"
+ },
+ {
+  "id": "wii-nsmbw-hd-switch-buttons-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "New Super Mario Bros. Wii — Switch button prompts",
+  "version": "see page",
+  "games": [
+   {
+    "title": "New Super Mario Bros. Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SMN"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/461217",
+  "source_id": "gamebanana:461217",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/461217",
+   "file_name": "nsmbw_hd_switch_pack.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1113607",
+    "sha256": "cf3f151a79192efe506476ddf4a7ee7200b6e62f93bfa3e7110c08b5c5a92482"
+   },
+   "in_app": true
+  },
+  "scope": "ui",
+  "family": "wii-nsmbw-buttons-floweygaming"
+ },
+ {
+  "id": "wii-nsmbw-hd-playstation-buttons-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "New Super Mario Bros. Wii — PlayStation button prompts",
+  "version": "see page",
+  "games": [
+   {
+    "title": "New Super Mario Bros. Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SMN"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/461217",
+  "source_id": "gamebanana:461217",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/461217",
+   "file_name": "nsmbw_hd_playstation_pack.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1113606",
+    "sha256": "fff2fbeede2e5d46c540a71468c128035710f4b8739976a6075548bfd818306e"
+   },
+   "in_app": true
+  },
+  "scope": "ui",
+  "family": "wii-nsmbw-buttons-floweygaming"
+ },
+ {
+  "id": "wii-mkwii-hd-xbox-buttons-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii — Xbox button prompts (HD)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/489929",
+  "source_id": "gamebanana:489929",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/489929",
+   "file_name": "hd_xbox.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1206351",
+    "sha256": "9825d96f62193c329170e24518deebd8b1cd1be8e8c63845847b135f48fe12e0"
+   },
+   "in_app": true
+  },
+  "scope": "ui",
+  "family": "wii-mkwii-buttons-floweygaming"
+ },
+ {
+  "id": "wii-mkwii-hd-playstation-buttons-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii — PlayStation button prompts (HD)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/489929",
+  "source_id": "gamebanana:489929",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/489929",
+   "file_name": "hd_playstation.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1206350",
+    "sha256": "af5a5bf694a884a9adb13849e7a52b608f4c2a4ffdb3fd388bb853c0be54db54"
+   },
+   "in_app": true
+  },
+  "scope": "ui",
+  "family": "wii-mkwii-buttons-floweygaming"
+ },
+ {
+  "id": "wii-mkwii-hd-switch-buttons-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii — Switch button prompts (HD)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/489929",
+  "source_id": "gamebanana:489929",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/489929",
+   "file_name": "hd_switch.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1206349",
+    "sha256": "e176a8163e3d306cc5e29980f0d3dc5228fc247b2f4bb294ec9710d968016512"
+   },
+   "in_app": true
+  },
+  "scope": "ui",
+  "family": "wii-mkwii-buttons-floweygaming"
+ },
+ {
+  "id": "wii-dokapon-kingdom-triplebaka-v6-berryface",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Dokapon Kingdom — TripleBaka textures",
+  "version": "v6",
+  "games": [
+   {
+    "title": "Dokapon Kingdom",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "R2DEEB"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "berryface"
+  ],
+  "page_url": "https://gamebanana.com/mods/532419",
+  "source_id": "gamebanana:532419",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Custom textures for a set of characters (v6, the latest of the author's three versions).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/532419",
+   "file_name": "v6_triplebakatextures.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1265360",
+    "sha256": "12908d690b8dc8c5b3babe48d4fa5066b3ae347e01a82cf9483499c705e76abf"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "R2DEEB/",
+     "to": "R2DEEB"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "wii-dokapon-kingdom-triplebaka-berryface"
+ },
+ {
+  "id": "gc-luigis-mansion-4k-henriko-1080p",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Luigi's Mansion 4K (1080p)",
+  "version": "1.1.0b",
+  "games": [
+   {
+    "title": "Luigi's Mansion",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GLM"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+  "source_id": "henrikomagnifico:luigis-mansion-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Only the textures are installed; the archive also holds a widescreen patch, ReShade presets and desktop settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+   "file_name": "Luigi's Mansion 4K Texture Pack 1.1.0b (1080p).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1wPvjgurh3Xsj8a-NCtNnVUX46Sk-7zCY/view",
+    "sha256": "a93c4c2aa2caecb6e0935312658374586a57d68623c5c42b5dece0593dff53f8"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "gc-luigis-mansion-4k-henriko"
+ },
+ {
+  "id": "gc-luigis-mansion-4k-henriko-4k",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Luigi's Mansion 4K (4K)",
+  "version": "1.1.0b",
+  "games": [
+   {
+    "title": "Luigi's Mansion",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GLM"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+  "source_id": "henrikomagnifico:luigis-mansion-4k",
+  "licence": {
+   "summary": "Free download linked from the author's own site; no redistribution licence",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Only the textures are installed; the archive also holds a widescreen patch, ReShade presets and desktop settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+   "file_name": "Luigi's Mansion 4K Texture Pack 1.1.0b (4K).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1BgOcWF1SEsThx0Ers8m8hWgrIqE4TsJ5/view",
+    "sha256": "1975fecdef0bd6623ee1463564ec323887cc467a8b2d569964a5581bd81c558c"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "gc-luigis-mansion-4k-henriko"
+ },
+ {
+  "id": "gc-luigis-mansion-4k-henriko-mobile",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Luigi's Mansion 4K (Android & iOS edition)",
+  "version": "1.1.0b",
+  "games": [
+   {
+    "title": "Luigi's Mansion",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GLM"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Henriko Magnifico"
+  ],
+  "page_url": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+  "source_id": "henrikomagnifico:luigis-mansion-4k",
+  "licence": {
+   "summary": "CC BY 4.0 (licence file in the archive)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The author's edition for phones (fewer, lighter textures). Only the textures are installed, not its Dolphin settings.",
+  "download": {
+   "automatable": false,
+   "page": "https://www.henrikomagnifico.com/luigis-mansion-4k",
+   "file_name": "Luigi's Mansion 4K Texture Pack 1.1.0b (Android & iOS Version).zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1FtTyPXvC7zqvMfFjdQpNh7poLjPBkO71/view",
+    "sha256": "f1b93386bc0638f429ceab546cbf41ae9a66ab1950d7f40ea1c076925a904358"
+   },
+   "in_app": true
+  },
+  "scope": "complete",
+  "family": "gc-luigis-mansion-4k-henriko"
+ },
+ {
+  "id": "gc-star-fox-assault-hd-cyb3rtr0n",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Star Fox Assault HD Texture Pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Star Fox Assault",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GF7"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "CYB3RTR0N"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-star-fox-assault-hd-texture-pack",
+  "source_id": "dolphin-forum:star-fox-assault-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Made on the USA disc (GF7E01); players report wrong fonts with the PAL disc (GF7P01) in the thread. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-star-fox-assault-hd-texture-pack",
+   "file_name": "Star_Fox_Assault_HD.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1RL0ABqryRXaIk4A1Qdn2LJff4bkOrC_L/view?usp=sharing",
+    "sha256": "38ada98044590ef288b19f88c2381e67bac812a01079d94f8aab133ba8d86a2d"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "GF7/",
+     "to": "GF7"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-star-fox-assault-hd-cyb3rtr0n"
+ },
+ {
+  "id": "wii-metroid-prime-trilogy-hd-interface",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Metroid Prime Trilogy HD Interface Textures (DDS)",
+  "version": "1.7",
+  "games": [
+   {
+    "title": "Metroid Prime: Trilogy",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "R3M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "see the page"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-metroid-prime-trilogy-hd-interface-textures-v-1-7-may-01-2021",
+  "source_id": "dolphin-forum:metroid-prime-trilogy-hd-interface-textures",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Hand-made HUD, visor and menu textures for the USA and PAL discs. The PrimeHack keyboard and mouse icons of the archive are not installed. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-metroid-prime-trilogy-hd-interface-textures-v-1-7-may-01-2021",
+   "file_name": "Metroid_Prime_Trilogy_HD_Interface_DDS_V1.7.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/17ayP-PEx3n8YlPty56y14kKxWJjL2uKp",
+    "sha256": "e2e31e39b6fe8e1c532e99d550701926893a34f34bc40c39c5cecb54d0c18ec7"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "R3M/",
+     "to": "R3M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-metroid-prime-trilogy-hd-interface"
+ },
+ {
+  "id": "gc-pac-man-world-2-hd-ui-ottomsx",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Pac-Man World 2 HD UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Pac-Man World 2",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GP2EAF"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "OttoMSX"
+  ],
+  "page_url": "https://gamebanana.com/mods/701356",
+  "source_id": "gamebanana:701356",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/701356",
+   "file_name": "pmw2_hd_ui.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1776640",
+    "sha256": "8eb752b790bee0d6413a333951cd204d647be57a7fd391e86af72a9aacd7063d"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "PMW2 HD UI/GP2EAF/",
+     "to": "GP2EAF"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-pac-man-world-2-hd-ui-ottomsx"
+ },
+ {
+  "id": "gc-mario-party-6-ps4-hud-seven",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Mario Party 6 — PlayStation HUD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Party 6",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GP6E01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "seven_"
+  ],
+  "page_url": "https://gamebanana.com/mods/334855",
+  "source_id": "gamebanana:334855",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/334855",
+   "file_name": "xbox_and_playstation_huds_mario_party_6_.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/690486",
+    "sha256": "0de3c95d991fe00469e9690ae91d0b42e2fe1e52e3e608235f5f918a5929f1c6"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Xbox and Playstation Huds (Mario Party 6)/PlayStation 4/GP6E01/",
+     "to": "GP6E01"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-mario-party-6-console-huds-seven"
+ },
+ {
+  "id": "wii-sonic-unleashed-hd-hud-raisyu",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic Unleashed (Wii) HD HUD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic Unleashed",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RSV"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "raisyu"
+  ],
+  "page_url": "https://gamebanana.com/mods/588015",
+  "source_id": "gamebanana:588015",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/588015",
+   "file_name": "hd_hud.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1420518",
+    "sha256": "4db696f4d37b7a4255e4a3345caa4c2109ec8a6af2b23480490c8a1ae57291c3"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Sonic Unleashed HD/Load/Textures/Sonic Unleashed/",
+     "to": "RSV"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-sonic-unleashed-hd-hud-raisyu"
+ },
+ {
+  "id": "wii-smg-ps4-ui-stark1llerxx",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Super Mario Galaxy — PS4 UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Mario Galaxy",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMG"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "StarK1llerXx"
+  ],
+  "page_url": "https://gamebanana.com/mods/689283",
+  "source_id": "gamebanana:689283",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/689283",
+   "file_name": "ps4_ui.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1738399",
+    "sha256": "54a6a082eeca5faadb485858451e7ed3a4fc717daa57611b664e6799a70e07e4"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "PS4 UI/Load/Textures/RMG/",
+     "to": "RMG"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-smg-ps4-ui-stark1llerxx"
+ },
+ {
+  "id": "wii-elebits-hd-01-awesomemega8921",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Elebits HD Texture Pack (part 1)",
+  "version": "01",
+  "games": [
+   {
+    "title": "Elebits",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RELEA4"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "AwesomeMega8921"
+  ],
+  "page_url": "https://gamebanana.com/mods/399249",
+  "source_id": "gamebanana:399249",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "First part of a pack in progress.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/399249",
+   "file_name": "elebits_hd_texture_pack_01_f4016.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/857297",
+    "sha256": "23badeae65fd6576080da1dcbd91e00e32ed6bf941292053a0315ca65d54d4ec"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "RELEA4/",
+     "to": "RELEA4"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "wii-elebits-hd-awesomemega8921"
+ },
+ {
+  "id": "wii-satsr-xbox-one-gui-accelerate",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic and the Secret Rings — HD Xbox One GUI and controls",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic and the Secret Rings",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RSRE8P"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Accelerate"
+  ],
+  "page_url": "https://gamebanana.com/mods/390496",
+  "source_id": "gamebanana:390496",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Only the textures are installed; the archive also holds Dolphin controller and game settings. Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/390496",
+   "file_name": "xbox_one_textures_and_controls_for_satsr.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1756030",
+    "sha256": "d38d7b2b78c834c54df3edc56ea6a0883f6b7d4c7e0d1fd9ff7278358fc52af5"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "RSRE8P/",
+     "to": "RSRE8P"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-satsr-xbox-one-gui-accelerate"
+ },
+ {
+  "id": "wii-sonic-colors-dualsense-ui-pancho0411",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic Colors — DualSense UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Sonic Colors",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SNC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Pancho0411"
+  ],
+  "page_url": "https://gamebanana.com/mods/34057",
+  "source_id": "gamebanana:34057",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another console. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/34057",
+   "file_name": "dualsense_ui.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/549303",
+    "sha256": "6ddfd6ef7fa51edd6ea34e3371706e2bd5ceab1d9d11d2f0b6406accf6090c8e"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "DualSense UI/",
+     "to": "{id}"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-sonic-colors-dualsense-ui-pancho0411"
+ },
+ {
+  "id": "gc-kirby-air-ride-hd-cyeme",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Kirby Air Ride — HD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Kirby Air Ride",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GKYP01"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Cyeme"
+  ],
+  "page_url": "https://gamebanana.com/mods/633937",
+  "source_id": "gamebanana:633937",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Made on the European disc (GKYP01). DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/633937",
+   "file_name": "air_ride_-_hd.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1563167",
+    "sha256": "919ed298771c2db042d64cefed82092a429c4a56bd876fd251b0165ee806aa3b"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Air Ride - HD/GKYP01/",
+     "to": "GKYP01"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "gc-kirby-air-ride-hd-cyeme"
+ },
+ {
+  "id": "gc-star-fox-adventures-repainted-frassefreak",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Star Fox Adventures Repainted",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Star Fox Adventures",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "GSAE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "FrasseFreak"
+  ],
+  "page_url": "https://gamebanana.com/mods/592742",
+  "source_id": "gamebanana:592742",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "A repaint of the game's textures (1,894 files), made on the USA disc.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/592742",
+   "file_name": "starfox_adventures_repainted.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1434052",
+    "sha256": "c0ae3dd5944ac375ab805f37d9e48eb2a275d6a50e0df80dc9e155a86aedd040"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "StarFox Adventures Repainted/Repainted Textures/GSAE01/",
+     "to": "GSAE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-star-fox-adventures-repainted-frassefreak"
+ },
+ {
+  "id": "gc-mario-party-7-switch-ui-yoshigreen24",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Mario Party 7 — Nintendo Switch UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Party 7",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GP7"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "yoshigreen24"
+  ],
+  "page_url": "https://gamebanana.com/mods/558945",
+  "source_id": "gamebanana:558945",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Character icons in the style of the Nintendo Switch Mario Party games.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/558945",
+   "file_name": "mario_party_7_characters_textures_packs.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1332056",
+    "sha256": "ba0e18c28f56b75126084dc0a9fcc902c2e9d84456eb6d3d477c28c5188be669"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Mario Party 7 Characters Textures Packs/",
+     "to": "GP7"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-mario-party-7-switch-ui-yoshigreen24"
+ },
+ {
+  "id": "gc-shadow-the-hedgehog-ps-hud-colossussteppes",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Shadow the Hedgehog — PlayStation HUD",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Shadow the Hedgehog",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GUP"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "ColossusSteppes"
+  ],
+  "page_url": "https://gamebanana.com/mods/49298",
+  "source_id": "gamebanana:49298",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/49298",
+   "file_name": "shadowthehedgehogpshud.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/441690",
+    "sha256": "769166a1b06785557de8c6bb74302cbef4ee68dea0b72c6ae73ebb9160635a24"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Playstation HUD/",
+     "to": "GUP"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-shadow-the-hedgehog-ps-hud-colossussteppes"
+ },
+ {
+  "id": "gc-shadow-the-hedgehog-nubytech-prompts-owletvii",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Shadow the Hedgehog — NubyTech controller prompts",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Shadow the Hedgehog",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GUP"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Owlet VII"
+  ],
+  "page_url": "https://gamebanana.com/mods/412130",
+  "source_id": "gamebanana:412130",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/412130",
+   "file_name": "shadow_nubytech_prompts.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/891427",
+    "sha256": "35dff865183d40318267c93930612da18fee1f9d29bb949f0ab0448ff0e9cd03"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/GUP/",
+     "to": "GUP"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-shadow-the-hedgehog-nubytech-prompts-owletvii"
+ },
+ {
+  "id": "wii-monster-hunter-tri-hd-font-abbanon",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Monster Hunter Tri — High Resolution Font",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Monster Hunter Tri",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMH"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Abbanon"
+  ],
+  "page_url": "https://gamebanana.com/mods/659216",
+  "source_id": "gamebanana:659216",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The game font redrawn at high resolution (English, French, German, Spanish and Italian; USA and European discs).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/659216",
+   "file_name": "mhtri_-_high_resolution_font_en-fr-de-es-it__82fe0.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1645551",
+    "sha256": "8d272cb2c4eb0f4d3d54a5a6560cf36182f81c3bc5e1a929cc566f6700e13568"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Textures/",
+     "to": "RMH"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-monster-hunter-tri-hd-font-abbanon"
+ },
+ {
+  "id": "wii-sonic-colors-hd-ui-triforce141",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Sonic Colors — High Res UI",
+  "version": "2021",
+  "games": [
+   {
+    "title": "Sonic Colors",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "SNC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "triforce141"
+  ],
+  "page_url": "https://gamebanana.com/mods/34058",
+  "source_id": "gamebanana:34058",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "The optional alternate character icons of the archive are not installed; the controller profile it carries is not used.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/34058",
+   "file_name": "sonic_colors_ui_2021.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/660360",
+    "sha256": "7c8a901faf33894183a522ba61cd666104fbcb4024ddbd05bb272f1c3bc3cecf"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/SNC/",
+     "to": "SNC",
+     "exclude": [
+      "0EXTRA - Alternate Character Icons/"
+     ]
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-sonic-colors-hd-ui-triforce141"
+ },
+ {
+  "id": "gc-shadow-the-hedgehog-steam-buttons-joecontext",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Shadow the Hedgehog — Steam controller buttons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Shadow the Hedgehog",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "GUP"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Joe Context"
+  ],
+  "page_url": "https://gamebanana.com/mods/676960",
+  "source_id": "gamebanana:676960",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result. DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/676960",
+   "file_name": "steam_buttons_4d9a3.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1700759",
+    "sha256": "7e794987a5a1f4d6434230892af2cab9c548586369e147a5d80da30a7939c824"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Steam Buttons/",
+     "to": "GUP"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-shadow-the-hedgehog-steam-buttons-joecontext"
+ },
+ {
+  "id": "wii-animal-crossing-city-folk-hd-yttrium",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Animal Crossing: City Folk HD Project",
+  "version": "0.1",
+  "games": [
+   {
+    "title": "Animal Crossing: City Folk",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "RUUE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "yttrium"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-hd-project-animal-crossing-city-folk-ruue01",
+  "source_id": "dolphin-forum:hd-project-animal-crossing-city-folk-ruue01",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "First release (49 textures). Its few files in the old pre-2015 naming are not read by Dolphin and not installed.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-hd-project-animal-crossing-city-folk-ruue01",
+   "file_name": "RUUE01HDv0.1.7z",
+   "verify": {
+    "url": "https://www.dropbox.com/s/d9kxmyrns5qsyku/RUUE01HDv0.1.7z?dl=0",
+    "sha256": "ff7db23f1de332143418066ff8f3eca26fa2ab639cbc1eccc77c65d40bbc4730"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/RUUE01/",
+     "to": "RUUE01"
+    }
+   ]
+  },
+  "scope": "partial",
+  "family": "wii-animal-crossing-city-folk-hd-yttrium"
+ },
+ {
+  "id": "wii-endless-ocean-blue-world-hd-matrix2525",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Endless Ocean: Blue World HD Project",
+  "version": "2.0",
+  "games": [
+   {
+    "title": "Endless Ocean: Blue World",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "R4E"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Matrix2525"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-endless-ocean-blue-world-hd-project-v2-0-may-28-2019",
+  "source_id": "dolphin-forum:endless-ocean-blue-world-hd-project-v2-0-may-28-2019",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "DDS textures need a GPU that samples BC formats.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-endless-ocean-blue-world-hd-project-v2-0-may-28-2019",
+   "file_name": "EOBW HDP v2.0 RP.zip",
+   "verify": {
+    "url": "https://mega.nz/file/9BVSzbrK#0KTFsA2wmSbv2YMlFnav2XXtM2hRosp0Z06Y8QzMInc",
+    "sha256": "a319d31753c3ac0c6f797c3effae546e5c49ce9622392619bd79146fa391c0ad"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/R4E/",
+     "to": "R4E"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "wii-endless-ocean-blue-world-hd-matrix2525"
+ },
+ {
+  "id": "gc-super-mario-strikers-hd-venomalia",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Super Mario Strikers HD Texture Pack",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Super Mario Strikers",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-disc-game-id",
+      "value": "G4QE01"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "Venomalia"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-super-mario-strikers-hd-texture-pack",
+  "source_id": "dolphin-forum:super-mario-strikers-hd-texture-pack",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Made on the USA disc (G4QE01).",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-super-mario-strikers-hd-texture-pack",
+   "file_name": "G4QE01.zip",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1GNQ4x15g6YnlNBDTDKmpjdC2cj5BpCvI/view?usp=sharing",
+    "sha256": "39cf39eeca685600b149b3c4146fbbe9391e3c66c29c9ca673e6783b7bd6fb65"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "G4QE01/",
+     "to": "G4QE01"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "gc-super-mario-strikers-hd-venomalia"
+ },
+ {
+  "id": "gc-ttyd-classic-controller-buttons-jvook",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — Classic Controller buttons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "jvook"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario TTYD Classic Controller by jvook.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/m8l1EAwZ",
+    "sha256": "168b06c5d5b5789e2feb0def8fb261b3f159b5f30a52ef81d52a76b75c3257ef"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-buttons-jvook"
+ },
+ {
+  "id": "gc-ttyd-xbox360-ms-buttons-jvook",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — Xbox 360 buttons (Microsoft layout)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "jvook"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario TTYD Xbox 360 (Microsoft Layout) by jvook.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/uw8hECAb",
+    "sha256": "383cbb1a0add55eb8626c3b576e34e96266fe66a0d31338c8b7d1d92091033c9"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-buttons-jvook"
+ },
+ {
+  "id": "gc-ttyd-xbox360-nintendo-buttons-jvook",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — Xbox 360 buttons (Nintendo layout)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "jvook"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario TTYD Xbox 360 (Nintendo Layout) by jvook.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/q1thAAoC",
+    "sha256": "105192062bb7789b2922eb4f8d280f977a03abd8cdaaaba74fee4ab1333cfc1c"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-buttons-jvook"
+ },
+ {
+  "id": "gc-ttyd-dualshock4-buttons-azcrate98",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — DualShock 4 buttons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "azcrate98",
+   "Invader"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario The Thousand-Year Door DualShock 4 Controller by azcrate98 & Invader.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/D90TnAKC",
+    "sha256": "ac3025a3b2a3207582298a84d0e14a96dfb3327c11a8cdd48df6a27f649f5661"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-dualshock4-buttons-azcrate98"
+ },
+ {
+  "id": "gc-ttyd-wiiu-pro-buttons-hydraxonn",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — Wii U Pro Controller buttons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Hydraxonn",
+   "viola-kazooie"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario The Thousand-Year Door Wii U Pro Controller by Hydraxonn & viola-kazooie.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/ep8FAbrA",
+    "sha256": "99370b31fd710dee5db3b10622faf6acf8fb87a01c0519d99ae224baeef0004f"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-wiiu-pro-buttons-hydraxonn"
+ },
+ {
+  "id": "gc-ttyd-xbox-one-buttons-jakey455",
+  "system": "gc",
+  "engine": "dolphin",
+  "title": "Paper Mario TTYD — Xbox One buttons",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Paper Mario: The Thousand-Year Door",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "G8M"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "Jakey455"
+  ],
+  "page_url": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "source_id": "dolphin-forum:paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Controller buttons published with the Dolphin community TTYD HD pack. Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://forums.dolphin-emu.org/Thread-paper-mario-ttyd-hd-texture-pack-v2-5-may-9th-2024",
+   "file_name": "Paper Mario The Thousand-Year Door Xbox One by Jakey455.zip",
+   "verify": {
+    "url": "https://mega.nz/folder/yscCTQCJ#2dsINF4WmNA4HL56Ud8khA/file/2h1BEY5B",
+    "sha256": "bda079571cc43b820be657d8660c5e612fd7e4d720a1357c2959bd06a355b7e9"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/G8M/",
+     "to": "G8M"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "gc-ttyd-xbox-one-buttons-jakey455"
+ },
+ {
+  "id": "wii-mkwii-xbox-ui-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii — Xbox UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/489929",
+  "source_id": "gamebanana:489929",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/489929",
+   "file_name": "xbox_ui_d457b.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1121035",
+    "sha256": "cee86ef4d6839847d6d45761b7576a7cd7b9df4c8edaf7766c6cde9e15581e9c"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/RMC/",
+     "to": "RMC"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-mkwii-console-ui-floweygaming"
+ },
+ {
+  "id": "wii-mkwii-playstation-ui-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii — PlayStation UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/489929",
+  "source_id": "gamebanana:489929",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/489929",
+   "file_name": "playstation_ui.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1121036",
+    "sha256": "81f32956e3a2bf8d379e92d1c6ec09d1df0824b8abfd28bef2036b57b7ab0671"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/RMC/",
+     "to": "RMC"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-mkwii-console-ui-floweygaming"
+ },
+ {
+  "id": "wii-mkwii-switch-ui-floweygaming",
+  "system": "wii",
+  "engine": "dolphin",
+  "title": "Mario Kart Wii — Nintendo Switch UI",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Mario Kart Wii",
+    "identities": [
+     {
+      "type": "game_id",
+      "scheme": "dolphin-region-free-id",
+      "value": "RMC"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "FloweyGaming"
+  ],
+  "page_url": "https://gamebanana.com/mods/489929",
+  "source_id": "gamebanana:489929",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Button prompts of another controller. A game has one pack folder: installed alone it replaces another pack of this game (NeoStation asks first); to combine them, merge them on a computer and import the result.",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/489929",
+   "file_name": "switch_ui.zip",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1206353",
+    "sha256": "acb7f6e2e06be563c59d854c246312b42359ea5d6f305772c53133a542254c96"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "Load/Textures/RMC/",
+     "to": "RMC"
+    }
+   ]
+  },
+  "scope": "ui",
+  "family": "wii-mkwii-console-ui-floweygaming"
+ }
+]

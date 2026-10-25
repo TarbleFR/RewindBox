@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "status": "delivered-build-520-verified",
+  "nativeCore": {
+    "source": "407ea8f7462db0645590e799adcdff9ed56b1b21",
+    "run": 40039707148,
+    "job": 120707635138,
+    "artifact": 12540805396,
+    "artifactZipSHA256": "f667e24eb1b0e6ead930654f6f5229ed104d7f234003047664557cc4343460ea",
+    "diagnosticsArtifact": 12540236973,
+    "diagnosticsZipSHA256": "38c69c74b756b9c45a3a31fb05b8ead1be4841f9e70ea0097fb84b59ab0b96e1",
+    "binarySHA256": "f3662c28c835173389e41cd78b331cf350b8c2f03ae8a8041ca0112c24612e8b",
+    "binaryBytes": 76976960,
+    "architectures": [
+      "arm64"
+    ],
+    "platform": "iPhoneOS",
+    "abi": 30,
+    "sourceBase": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "canonicalPatchSHA256": "3f8dbbee3e228ed965aae750fcd95bddc13910c71fe279695aede05b60320a9a",
+    "cpuBaseline": "armv8.4-a",
+    "legacyCoreBundled": false,
+    "ppuCodegen": "9013390836efe46e",
+    "spuCodegen": "a601a98f20f30c80",
+    "proofLogSHA256": "a4c131833ac32fb61f40b72c92b6c2b96282cbee4d041d19697e43659e996242",
+    "passiveLoadValidation": "static named ARM64 direct B/BL reachability; maximum depth 16; deviceRuntimeTested=false",
+    "unchangedExportedSymbolCount": 88
+  },
+  "hostCPUProof": {
+    "source": "faf2b951f1f55b8fb89ad8728e632a6e81fd30ef",
+    "run": 40040875173,
+    "job": 120711477329,
+    "artifact": 12539432027,
+    "archiveSHA256": "20eaa5e5aff7615e4ae08a7143818783051f983483d4a940745f9e2ea1fcb54e",
+    "scenarios": 8,
+    "realFoundationAndDispatch": true,
+    "iphoneSDKTypechecked": true,
+    "sysctlAndEscrowDoubles": true,
+    "preFixControlFailedAsExpected": true
+  },
+  "componentTests": {
+    "ppuNativeEntries": 10000,
+    "spuConstantMaskPairs": 68,
+    "spuVectorsPerPairAndMode": 8192,
+    "isoCases": 14,
+    "shaderPolicyCases": 100,
+    "mipCoverageCases": 374
+  },
+  "benchmark": {
+    "scope": "Emitted LLVM TBL1 kernels on one macOS ARM64 runner; not gameplay",
+    "llvm": "22.1.8",
+    "method": "12 alternating rounds, discard first 2; median of remaining 10; 500 repetitions of 8192 vectors per sample",
+    "measurements": [
+      {
+        "maskKind": 0,
+        "dependencyChain": false,
+        "baselineNsPerVector": 0.355891,
+        "candidateNsPerVector": 0.3405,
+        "observedReductionPercent": 4.32
+      },
+      {
+        "maskKind": 0,
+        "dependencyChain": true,
+        "baselineNsPerVector": 2.029251,
+        "candidateNsPerVector": 0.675237,
+        "observedReductionPercent": 66.72
+      },
+      {
+        "maskKind": 1,
+        "dependencyChain": false,
+        "baselineNsPerVector": 0.350586,
+        "candidateNsPerVector": 0.353109,
+        "observedReductionPercent": -0.72
+      },
+      {
+        "maskKind": 1,
+        "dependencyChain": true,
+        "baselineNsPerVector": 1.344162,
+        "candidateNsPerVector": 0.675507,
+        "observedReductionPercent": 49.75
+      },
+      {
+        "maskKind": 2,
+        "dependencyChain": false,
+        "baselineNsPerVector": 0.336604,
+        "candidateNsPerVector": 0.333827,
+        "observedReductionPercent": 0.83
+      },
+      {
+        "maskKind": 2,
+        "dependencyChain": true,
+        "baselineNsPerVector": 2.00032,
+        "candidateNsPerVector": 0.66423,
+        "observedReductionPercent": 66.79
+      },
+      {
+        "maskKind": 3,
+        "dependencyChain": false,
+        "baselineNsPerVector": 0.375717,
+        "candidateNsPerVector": 0.37912,
+        "observedReductionPercent": -0.91
+      },
+      {
+        "maskKind": 3,
+        "dependencyChain": true,
+        "baselineNsPerVector": 2.067093,
+        "candidateNsPerVector": 1.334244,
+        "observedReductionPercent": 35.45
+      }
+    ],
+    "physicalDeviceTested": false,
+    "gameCacheColdWarmCompared": false,
+    "confidenceIntervalsCalculated": false
+  },
+  "validationLimits": [
+    "No iPhone or legal game image was available",
+    "No real boot/JIT/controller/pause/resume/close/relaunch or cold/warm gameplay validation",
+    "No device CPU/GPU/frame-time/stutter/maximum-memory comparison",
+    "Exact XITRIX v0.12 binary/source correspondence is unproven"
+  ],
+  "mainModified": false,
+  "tagsCreated": false,
+  "releasesPublished": false,
+  "preservedConcurrentApp": {
+    "build": 519,
+    "driver": "df96b0d85f12d1442060e8d426175f3928fcb7bc",
+    "source": "f93323768831428186c3aeb21b7e7a6130897836",
+    "run": 40043376467,
+    "job": 120719443020,
+    "result": "success",
+    "ourMeloNXSourceChanges": false
+  },
+  "delivery": {
+    "result": "success",
+    "build": 520,
+    "source": "91040ba37e3ab0f5aef01ce3dff18f079568f3ed",
+    "run": 40044710281,
+    "ipaSHA256": "5625290ad436b8b06c5ab0fccec04163b8df27163c92e4dc0135aa0521f8a9e3",
+    "bytes": 186250708,
+    "zipCRC": true,
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "minimumIOS": "18.0",
+    "cpuGateBeforeEscrowMarkerLinked": true,
+    "runtimeEntitlementsVerified": true,
+    "noInternalVPN": true,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false,
+    "job": 120723734180,
+    "version": "0.0.8",
+    "transportArtifacts": [
+      {
+        "id": 12541471437,
+        "name": "RewindBox-Build-520-91040ba37e3ab0f5aef01ce3dff18f079568f3ed-cold-part00",
+        "zipSHA256": "b8f30ffbe5baadb8c498c93e376adf9ce2a9b4d2d5579fc3242352022ea8e4e4",
+        "bytes": 46627694
+      },
+      {
+        "id": 12541501365,
+        "name": "RewindBox-Build-520-91040ba37e3ab0f5aef01ce3dff18f079568f3ed-cold-part01",
+        "zipSHA256": "41d822f04288ee22f12a2fdce1cda2d67f3a19b73c7814c0b32571f0c7daefef",
+        "bytes": 46627694
+      },
+      {
+        "id": 12541282295,
+        "name": "RewindBox-Build-520-91040ba37e3ab0f5aef01ce3dff18f079568f3ed-cold-part02",
+        "zipSHA256": "63e046c5ef46af804f8683e6ca504cc38271fc4a41e1e7f22a9b91bb7577a3d5",
+        "bytes": 46627694
+      },
+      {
+        "id": 12540719934,
+        "name": "RewindBox-Build-520-91040ba37e3ab0f5aef01ce3dff18f079568f3ed-cold-part03",
+        "zipSHA256": "158307b2372196d89c3d2d9fac574c6a05650271f4cc401306619d44b911270e",
+        "bytes": 46627694
+      }
+    ],
+    "CIAdHocSignaturesVerified": 87,
+    "appleProvisioningVerified": false,
+    "directAppleInstallationReady": false,
+    "installationMethod": "SideStore re-signing",
+    "signedCompiledSectionsAndABIMetadataUnchanged": true,
+    "compiledNativeBridgeUnits": [
+      "Rpcs3InternalBridgePlugin.mm",
+      "Rpcs3JitBridgePlugin.mm"
+    ],
+    "compiledCorePayloadFingerprint": "ea68f83ca7845a73eb984bc6c566a4bcd8aa8cccfa7268fa09314558b96e32c3",
+    "independentChecks": [
+      "Core source identity, payload fingerprint and ABI",
+      "CPU escrow guard marker in compiled bridge",
+      "IPA structure/dependencies",
+      "single IPA / 7 extensions / no internal VPN across 87 Mach-O images",
+      "embedded runtime entitlements",
+      "ZIP CRC / SHA-256 / four source-bound transport pieces"
+    ]
+  }
+}

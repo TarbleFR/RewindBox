@@ -1,0 +1,68 @@
+name: Build 497 PSP managed memory and relaunch
+on:
+  push:
+    branches: [Claude]
+    paths: [.github/workflows/build497-checks.yml]
+  workflow_dispatch:
+permissions: {contents: read, actions: read}
+concurrency:
+  group: psp497-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  psp:
+    runs-on: macos-15
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - name: Reuse the successful native check with identical memory sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git diff --exit-code 4d0a5b9ac250a44bbb4f935d99d1a47f066043e1 HEAD -- \
+            packages/libretro_internal_bridge/ios/Classes/LibretroAddressSpace.h \
+            packages/libretro_internal_bridge/ios/Classes/LibretroAddressSpace.m \
+            packages/libretro_internal_bridge/ios/Classes/NeoStationPSPMemory.h \
+            test/libretro_host/frontend/psp_managed_memory_test.m test/psp_relaunch497.py
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          job = json.loads(subprocess.check_output(['gh', 'api', 'repos/TarbleFR/RewindBox/actions/jobs/118730959458']))
+          step = next(s for s in job['steps'] if s['name'] == 'Reproduce arena self-collision and verify continuously owned mappings')
+          assert job['head_sha'] == '4d0a5b9ac250a44bbb4f935d99d1a47f066043e1'
+          assert step['conclusion'] == 'success', step
+          assert subprocess.check_output(['xcodebuild', '-version'], text=True).strip() == 'Xcode 26.3\nBuild version 17C529'
+          assert subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], text=True).strip() == '26.2'
+          out = Path('build/psp497'); out.mkdir(parents=True, exist_ok=True)
+          (out / 'native-reused.json').write_text(json.dumps({'source': job['head_sha'], 'run': job['run_id'], 'job': job['id'], 'successfulStep': step, 'inputsUnchanged': True, 'reexecuted': False}, indent=2))
+          print('Reused successful 18-cycle, collision, concurrent-allocation and iPhone SDK checks; later core-build failure is not reclassified.')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: LibretroCores-4c2186204ce06b50b989689a9c2322068f523a58
+          run-id: '39366986940'
+          github-token: ${{ github.token }}
+          path: dist/libretro-base
+      - name: Build only the pinned PSP core with the owned-memory ABI
+        run: python3 .github/diagnostics/ppsspp497/build.py --base dist/libretro-base --output dist/libretro --work "$RUNNER_TEMP/ppsspp497"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LibretroCores-${{ github.sha }}
+          path: dist/libretro/
+          retention-days: 14
+          if-no-files-found: error
+      - name: Fetch pinned Simulator inputs
+        run: python3 test/libretro_simulator_probe.py fetch --into "$RUNNER_TEMP/psp497-inputs"
+      - name: Seven consecutive production sessions with the PSP address window crowded
+        run: python3 test/psp_relaunch497.py simulator run --cores dist/libretro --inputs "$RUNNER_TEMP/psp497-inputs" --evidence build/psp497/simulator --label "$GITHUB_SHA"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: psp497-${{ github.sha }}
+          path: |
+            build/psp497/
+            ${{ runner.temp }}/ppsspp497/compile.log
+          retention-days: 14
+          if-no-files-found: warn

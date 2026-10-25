@@ -1,0 +1,54 @@
+[
+ {
+  "id": "ps2-rayman-2-revolution-hd-icup321",
+  "system": "ps2",
+  "engine": "armsx2",
+  "title": "Rayman 2: Revolution — HD Texture Pack (PCSX2)",
+  "version": "see page",
+  "games": [
+   {
+    "title": "Rayman 2: Revolution",
+    "identities": [
+     {
+      "type": "serial",
+      "scheme": "ps2-disc-serial",
+      "value": "SLES-50044"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "icup321"
+  ],
+  "page_url": "https://gamebanana.com/mods/643796",
+  "source_id": "gamebanana:643796",
+  "licence": {
+   "summary": "Published on GameBanana; no licence checked here (see its page)",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "notes": "Made on the European disc (SLES-50044).",
+  "download": {
+   "automatable": false,
+   "page": "https://gamebanana.com/mods/643796",
+   "file_name": "rayman_2_-_revolution_pcsx2_hd_textures.7z",
+   "verify": {
+    "url": "https://gamebanana.com/dl/1594236",
+    "sha256": "812ccdbc44a0e8766b33bb3718b2b8d7463d5d91136b381c61f7974ddadb6bd1"
+   },
+   "in_app": true
+  },
+  "install": {
+   "folders": [
+    {
+     "from": "textures/SLES-50044/replacements/",
+     "to": "SLES-50044/replacements"
+    }
+   ]
+  },
+  "scope": "complete",
+  "family": "ps2-rayman-2-revolution-hd-icup321"
+ }
+]

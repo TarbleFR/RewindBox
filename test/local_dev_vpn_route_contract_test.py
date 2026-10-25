@@ -35,7 +35,7 @@ class LocalDevVpnRouteContractTest(unittest.TestCase):
 
     def test_flutter_channel_has_no_vpn_profile_controls(self) -> None:
         native = source(
-            "packages/stikjit_bridge/ios/Classes/StikjitBridgePlugin.swift"
+            "packages/stikjit_bridge/ios/Classes/NeoStationStikjitBridgePlugin.swift"
         )
         dart = source("packages/stikjit_bridge/lib/stikjit_bridge.dart")
 
@@ -45,8 +45,8 @@ class LocalDevVpnRouteContractTest(unittest.TestCase):
             dart,
         )
         # ARMSX2 moved to its own in-IPA helper. stikjit_bridge now owns only
-        # the unchanged MeloNX preflight, while ARMSX2 probes from its launch service.
-        self.assertEqual(dart.count("await probeLocalDevVpnRoute();"), 1)
+        # the route probe; external MeloNX launch has been retired.
+        self.assertNotIn("enableMeloNxJit", dart)
         armsx2 = source("lib/services/stikjit_armsx2_service.dart")
         self.assertIn("await StikjitBridge.probeLocalDevVpnRoute()", armsx2)
         for obsolete in (
@@ -80,8 +80,6 @@ class LocalDevVpnRouteContractTest(unittest.TestCase):
 
     def test_every_stikjit_entry_point_uses_the_fixed_endpoint(self) -> None:
         entry_points = (
-            "packages/stikjit_bridge/ios/Classes/StikjitBridgePlugin.swift",
-            "packages/stikjit_bridge/ios/Classes/StikjitBridgePluginV2.swift",
             "packages/rpcs3_jit_helper/ios/Classes/Rpcs3JITRequestHandlerBase.swift",
             "packages/armsx2_jit_helper/ios/Classes/Armsx2JITRequestHandlerBase.swift",
             "packages/dolphin_jit_helper/ios/Classes/DolphinJITRequestHandlerBase.swift",

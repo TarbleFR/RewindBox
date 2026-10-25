@@ -7,7 +7,7 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'package:provider/provider.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/services/home_music_service.dart';
-import 'package:neostation/widgets/shimmering_logo.dart';
+import 'package:neostation/widgets/rewind_startup.dart';
 import 'my_systems_section/my_systems_grid.dart';
 import 'my_systems_section/initial_setup_widget.dart';
 
@@ -27,38 +27,12 @@ class SystemContent extends StatefulWidget {
 }
 
 class _SystemContentState extends State<SystemContent> {
-  static const _minSplashDuration = Duration(milliseconds: 2500);
-
-  DateTime? _splashShownAt;
-  Timer? _releaseTimer;
   bool? _lastHomeMusicActive;
 
   @override
   void dispose() {
-    _releaseTimer?.cancel();
     unawaited(HomeMusicService().setMainMenuActive(false));
     super.dispose();
-  }
-
-  bool _holdSplash(bool isLoading) {
-    if (isLoading) {
-      _splashShownAt ??= DateTime.now();
-      _releaseTimer?.cancel();
-      _releaseTimer = null;
-      return false;
-    }
-    final shownAt = _splashShownAt;
-    if (shownAt == null) return false;
-
-    final remaining = _minSplashDuration - DateTime.now().difference(shownAt);
-    if (remaining <= Duration.zero) {
-      _splashShownAt = null;
-      return false;
-    }
-    _releaseTimer ??= Timer(remaining, () {
-      if (mounted) setState(() => _splashShownAt = null);
-    });
-    return true;
   }
 
   /// Keeps audio side effects outside build while still following route
@@ -80,7 +54,7 @@ class _SystemContentState extends State<SystemContent> {
     return Consumer<SqliteConfigProvider>(
       builder: (context, configProvider, child) {
         final isLoading = configProvider.isLoading || configProvider.isScanning;
-        final showSplash = isLoading || _holdSplash(isLoading);
+        final showSplash = isLoading;
 
         final showInitialSetup =
             !showSplash &&
@@ -116,13 +90,28 @@ class _SystemContentState extends State<SystemContent> {
               onCardTapped: widget.onCardTapped,
             ),
           );
+        } else if (configProvider.error != null) {
+          phase = Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(configProvider.error!, textAlign: TextAlign.center),
+            ),
+          );
         } else {
           phase = const SizedBox.shrink(key: ValueKey('empty'));
         }
 
         final content = AnimatedSwitcher(
-          duration: const Duration(milliseconds: 400),
-          child: phase,
+          duration: RewindStartupReady.pending(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 400),
+          child:
+              !showSplash &&
+                  (showInitialSetup ||
+                      showContent ||
+                      configProvider.error != null)
+              ? RewindStartupReady(key: phase.key, child: phase)
+              : phase,
         );
 
         // AppScreen owns the custom background so it stays mounted across
@@ -149,14 +138,13 @@ class _SystemContentState extends State<SystemContent> {
   ) {
     return Stack(
       children: [
-        Center(
-          child: ShimmeringLogo(
-            progress:
-                configProvider.isScanning && configProvider.scanProgress > 0
-                ? configProvider.scanProgress
-                : null,
+        if (!configProvider.isScanning)
+          const Center(
+            child: SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           ),
-        ),
         if (configProvider.isScanning)
           Align(
             alignment: const Alignment(0, 0.55),

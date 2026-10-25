@@ -1,0 +1,730 @@
+{
+  "schema": 1,
+  "review_date": "2026-10-21",
+  "purpose": "Continued package, native dependency and modified-source license preparation; unpublished",
+  "working_branch": "Claude",
+  "reviewed_base_commit": "fab5ecf3b119b4d84636ad4f4d03218a96279871",
+  "public_0_0_8_commit": "bcca4e4a4dc89a96b1dde05d66436af54efd327e",
+  "scope": {
+    "product_runtime_files_changed": false,
+    "dependency_versions_changed": false,
+    "generated_catalogs_changed": false,
+    "engine_builds_run": false,
+    "flutter_tests_run": false,
+    "new_product_ipa_created": false,
+    "release_created": false,
+    "tag_created": false,
+    "version_assigned": false,
+    "historical_receipts_rewritten": false,
+    "whole_application_source_complete": false
+  },
+  "source_inventories": {
+    "host_changes_since_public_release": {
+      "added": 680,
+      "modified": 212,
+      "removed": 144,
+      "total": 1036,
+      "through_commit": "fab5ecf3b119b4d84636ad4f4d03218a96279871",
+      "evidence": "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json"
+    },
+    "locked_dependencies": 162,
+    "hosted_source_archives": 157,
+    "sdk_dependencies": 5,
+    "local_workspace_packages": 19,
+    "source_license_declarations_bound": 51,
+    "hosted_archive_bytes": 153358112,
+    "public_0_0_8_hosted_root_licenses_already_present": 157,
+    "libretro_cores": {
+      "total": 35,
+      "exact_revision_evidence": 3,
+      "candidate_revision_only": 23,
+      "no_binary_source_revision_recovered": 9,
+      "without_reviewed_source_build_attestation": 32
+    },
+    "direct_engine_gitlinks": 91,
+    "distinct_public_repository_revisions_resolved": 87
+  },
+  "notice_collections": {
+    "textures": {
+      "components": 4,
+      "files": 4,
+      "bytes": 53314
+    },
+    "ppsspp": {
+      "components": 34,
+      "files": 37,
+      "bytes": 501105
+    },
+    "packages": {
+      "components": 11,
+      "files": 38,
+      "bytes": 408476
+    },
+    "engines": {
+      "components": 11,
+      "files": 19,
+      "bytes": 245324
+    }
+  },
+  "exact_non_utf8_upstream_files_preserved": [
+    "assets/legal/packages/GoogleCast-4.8.6-OpenSourceLicenses-index.plist",
+    "assets/legal/packages/PDFium-7811-freetype.txt"
+  ],
+  "targeted_validation": [
+    {
+      "command": "python3 test/legal_bundle_preflight_test.py",
+      "tests": 8,
+      "result": "passed",
+      "scope": "Real notice packager and archive validator against synthetic fixtures; missing/altered notices and source records are rejected"
+    },
+    {
+      "command": "python3 test/build_source_evidence_test.py",
+      "tests": 9,
+      "result": "passed",
+      "scope": "Dependency capture, mismatching locks, notice retention, path containment, altered source references, missing Flutter notices and rejected completeness claims"
+    },
+    {
+      "command": "python3 test/locked_package_sources_test.py",
+      "tests": 4,
+      "result": "passed",
+      "scope": "Archive SHA-256 validation, preservation of differing existing output, source URL/identity checks and underscore-prefixed analyzer package in a nested cache"
+    },
+    {
+      "command": "python3 build-utils/embed_legal_bundle.py --validate-only --dolphin-sha 7cac54161659421ed95c2cd1c0b0746539a4cd38",
+      "result": "passed",
+      "scope": "Current real checkout; no app required or dependency code executed"
+    },
+    {
+      "command": "python3 build-utils/fetch_locked_package_sources.py --output <verification-directory> --source-cache <verified-package-cache>",
+      "result": "passed",
+      "verified_archives": 157,
+      "archive_bytes": 153358112,
+      "source_inventory_sha256": "db242d156396ea435ce3dcc1be2c173045b95b00a94d82f2789e59b530fce49a",
+      "receipt_sha256": "9b528aeea0805185793f71239238d497138f9a96673fbaefd9c655720d01b8c9",
+      "archives_extracted": false,
+      "package_hooks_executed": false
+    },
+    {
+      "check": "Notice manifests and bound declarations",
+      "result": "passed",
+      "scope": "All declared files matched SHA-256, paths were unique, 51 declaration hashes matched, and retained non-UTF-8 upstream bytes were not transcoded"
+    },
+    {
+      "check": "git diff --check",
+      "result": "passed",
+      "scope": "Existing tracked worktree changes before adding the new files; this command did not check then-untracked notice copies."
+    },
+    {
+      "check": "git diff --check fab5ecf3b119b4d84636ad4f4d03218a96279871 49c483ff8a159e9ddd86d14371a6a71acbb491a7",
+      "result": "reported_preserved_upstream_whitespace",
+      "exit_code": 2,
+      "files": [
+        "assets/legal/engines/RPCS3-LLVM-LICENSE.txt",
+        "assets/legal/engines/RPCS3-MoltenVK-SPIRV-Headers-LICENSE.txt",
+        "assets/legal/engines/librashader-LICENSE-GPL.md",
+        "assets/legal/engines/librashader-LICENSE.md",
+        "assets/legal/packages/Anta-OFL-1.1.txt",
+        "assets/legal/packages/GoogleCast-4.8.6-OpenSourceLicenses.txt",
+        "assets/legal/packages/PDFium-7811-abseil.txt",
+        "assets/legal/packages/PDFium-7811-lcms.txt",
+        "assets/legal/packages/SoLoud-Embedded-Source-Notices.txt",
+        "assets/legal/packages/libretro-API-Header-Notices.txt",
+        "assets/legal/packages/rcheevos-MD5-Notices.txt",
+        "assets/legal/ppsspp/FFmpeg-Additional-Notices.txt",
+        "assets/legal/ppsspp/SOURCE-MODIFICATION-NOTICES.patch",
+        "assets/legal/ppsspp/Selected-Dependency-Notices.txt"
+      ],
+      "explanation": "The reported trailing spaces and terminal blank lines are retained in exact upstream license files/source-comment extracts. Blank context lines in SOURCE-MODIFICATION-NOTICES.patch are also preserved. These bytes are bound by their source/hash manifests and were deliberately not normalized; no product implementation file is affected."
+    }
+  ],
+  "independent_review_correction": "A built app must have a recognized nonempty Flutter runtime notice file. A source-only preflight record or an empty runtime notice record cannot validate as a packaged app.",
+  "prepared_ppsspp_source_capsule": {
+    "file": "ppsspp497-source-capsule.tar.gz",
+    "bytes": 37917399,
+    "sha256": "b5a457f177951c9ed621d09358f64c2f4a82f4df42e6544a01cb4243163e003c",
+    "logical_members": 13501,
+    "regular_file_payload_bytes": 171635970,
+    "source_files_exported": 13446,
+    "capsule_manifest_sha256": "d636544e4675dd840862ea6233c07c8d998871087e4c19cc9e8b637635297524",
+    "excluded_compiled_files": [
+      {
+        "path": "upstream/ppsspp/Tools/SaveTool/kernelcall.prx",
+        "bytes": 2642,
+        "sha256": "82ccb19aa67b845e98abb33baa3f520ba2e6eee2fe43379d070d15581f20d4d4",
+        "git_blob_sha": "350ee401704d44b8116a5fbff33e9dec504b5f18",
+        "reason": "prebuilt library/object/executable omitted; not a logged Build 497 source translation unit"
+      },
+      {
+        "path": "upstream/ppsspp/ext/armips/Tests/MIPS/Relocation/HI16+LO16/object_code.o",
+        "bytes": 672,
+        "sha256": "a267fb5cf5ef542a66e5886bc5eaf0a8fe398b446a81659be291bf01a41086de",
+        "git_blob_sha": "8b9137d9444521a4e589b662ed02072bc4bdee17",
+        "reason": "prebuilt library/object/executable omitted; not a logged Build 497 source translation unit"
+      },
+      {
+        "path": "upstream/ppsspp/ext/vulkan/iOS/Frameworks/libMoltenVK.dylib",
+        "bytes": 27106912,
+        "sha256": "85324b944fdabde783db598338090f29d5eab466a7f80c775d82c0463e55c2a8",
+        "git_blob_sha": "a502e31c66e167af6ccc690d3327aec336c240ae",
+        "reason": "prebuilt library/object/executable omitted; not a logged Build 497 source translation unit"
+      },
+      {
+        "path": "upstream/ppsspp/ext/vulkan/libvulkan.so.1.3.236",
+        "bytes": 3382288,
+        "sha256": "947940a9d5578745c8a68562173a299380fbc5c65ec1c613d116022953a28e70",
+        "git_blob_sha": "742539752a7970c9570f2d516ed32f7285fcd584",
+        "reason": "prebuilt library/object/executable omitted; not a logged Build 497 source translation unit"
+      },
+      {
+        "path": "upstream/ppsspp/ext/vulkan/macOS/Frameworks/libMoltenVK.dylib",
+        "bytes": 11960768,
+        "sha256": "a1bbbbbf683f61094adbfe1b5da7d1da63de032702337d47b093248869b63222",
+        "git_blob_sha": "838de0e6acfa83be6fc99f8323ffb6ac1d85bdfd",
+        "reason": "prebuilt library/object/executable omitted; not a logged Build 497 source translation unit"
+      }
+    ],
+    "not_initialized_submodules": [
+      "assets/debugger",
+      "ext/libadrenotools",
+      "frametests",
+      "pspautotests"
+    ],
+    "compression": "gzip level 6, mtime 0, empty filename; GNU tar, uid/gid/mtime 0, sorted source/metadata paths",
+    "no_build_performed": true
+  },
+  "remaining_boundaries": [
+    "32 Libretro cores lack a reviewed source-build attestation; public candidates and notice snapshots are not substituted for proof.",
+    "StikJIT precompiled idevice FFI source/lock/notices and the shared Libretro MoltenVK build provenance remain unidentified.",
+    "RPCS3, Dolphin and ARMSX2 source links/patches are identified, but consolidated recursive source exports and some actual historical dependency resolutions remain outstanding.",
+    "PDFium and SoLoud native correspondence evidence has documented limits; Google Cast retains separate commercial/API terms and unresolved future CocoaPods resolution.",
+    "PPSSPP fixed FFmpeg license labels disagree with the fixed license switches; historical generated configuration and exact CMake version were not retained.",
+    "The external_folder_access MIT declaration lacks a standalone package license, requiring owner clarification rather than an invented grant.",
+    "Host GPLv3/RPCS3 GPL-2.0-only compatibility, FBNeo fundraising restrictions, imported-data and texture-pack permissions remain separate questions.",
+    "MeloNX is unfinished and is not included as an approved delivered runtime; its conflicting declarations and native dependency provenance remain open."
+  ],
+  "changed_files_excluding_this_receipt": [
+    {
+      "path": ".github/workflows/legal-compliance-check.yml",
+      "bytes": 6835,
+      "sha256": "ef6d079ace1e9d56283af31c9737f040149f6b7d546069ef615e6d5683ef7589",
+      "git_blob_sha": "4d0cab19032f7419fa2d170d33a81f04f2ab2110"
+    },
+    {
+      "path": "NOTICE.md",
+      "bytes": 25913,
+      "sha256": "bec591006311f30f60609ca47b93b42a58cd3e03a00eff6811ce1a1b1ded780a",
+      "git_blob_sha": "946e6928b007fd883bb0b72cce1f7c9fa084c940"
+    },
+    {
+      "path": "README.md",
+      "bytes": 24420,
+      "sha256": "20cca9cbe1b217d48f436bd6396fedf606c98e3192104bf32e24712990e5cd26",
+      "git_blob_sha": "871b065619a46eb36c52f6e235c36ed9d9e52ef8"
+    },
+    {
+      "path": "assets/legal/THIRD_PARTY_NOTICES.md",
+      "bytes": 18479,
+      "sha256": "3b3cf32736f79d5f0a6ba2b13a6b6752dd834d2df71e9b9c83fb84a4f561e2b2",
+      "git_blob_sha": "d77fae1541752287d1602f829be6975802cdcba2"
+    },
+    {
+      "path": "assets/legal/engines/Dolphin-BSD-3-Clause.txt",
+      "bytes": 1480,
+      "sha256": "42639b2e5507163d35069be166e37a784f48a5f17e3577c16eb48fab215247cd",
+      "git_blob_sha": "6c9eef8d8c8e513a0d828f33d9a7a8859e469312"
+    },
+    {
+      "path": "assets/legal/engines/Dolphin-CC0-1.0.txt",
+      "bytes": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "git_blob_sha": "0e259d42c996742e9e3cba14c677129b2c1b6311"
+    },
+    {
+      "path": "assets/legal/engines/Dolphin-GPL-2.0-or-later.txt",
+      "bytes": 17337,
+      "sha256": "aaf135472f81c5b4a0dca9367e5bb5e9750032b5bebe5442b36e4c0a47430df3",
+      "git_blob_sha": "17cb286430a4d8094e473d06bd7f50f40438ddba"
+    },
+    {
+      "path": "assets/legal/engines/Dolphin-MIT.txt",
+      "bytes": 1078,
+      "sha256": "b85dcd3e453d05982552c52b5fc9e0bdd6d23c6f8e844b984a88af32570b0cc0",
+      "git_blob_sha": "2071b23b0e08594ea6bc99ac71129ef992abf498"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-FFmpeg-COPYING-GPLv2.txt",
+      "bytes": 18092,
+      "sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+      "git_blob_sha": "d159169d1050894d3ea3b98e1c965c4058208fe1"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-FFmpeg-COPYING-GPLv3.txt",
+      "bytes": 35147,
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "git_blob_sha": "94a9ed024d3859793618152ea559a168bbcbb5e2"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-FFmpeg-COPYING-LGPLv2-1.txt",
+      "bytes": 26517,
+      "sha256": "246041b6ecf9bc32d718a62c57877c78b5eb397b6467e74ed7ae2626ab189c30",
+      "git_blob_sha": "40924c2a6da76a2b0c639f6fe7ef0b2d095a6adb"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-FFmpeg-COPYING-LGPLv3.txt",
+      "bytes": 7651,
+      "sha256": "da7eabb7bafdf7d3ae5e9f223aa5bdc1eece45ac569dc21b3b037520b4464768",
+      "git_blob_sha": "65c5ca88a67c30becee01c5a8816d964b03862f9"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-FFmpeg-LICENSE-md.txt",
+      "bytes": 4346,
+      "sha256": "2e1d16c72fd74e12063776371da757322f8b77589386532f4fd8634bde7de1af",
+      "git_blob_sha": "371b0913ce7c199c4092d9344680c80f78ebeb2a"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-LLVM-LICENSE.txt",
+      "bytes": 15141,
+      "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee",
+      "git_blob_sha": "fa6ac540007032cbd0ec772a1c72e6cb5527a4fe"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-MoltenVK-LICENSE.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "git_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-MoltenVK-SPIRV-Cross-LICENSE.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "git_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-MoltenVK-SPIRV-Headers-LICENSE.txt",
+      "bytes": 23503,
+      "sha256": "ea43b1de38a6f90c488800d66dec1ed671e68cda530266bc96951fb5b6307613",
+      "git_blob_sha": "a63e9c620ee123267192113ab0be3814782ba909"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-MoltenVK-SPIRV-Tools-LICENSE.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "git_blob_sha": "d645695673349e3947e8e5ae42332d0ac3164cd7"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-MoltenVK-Volk-LICENSE.md",
+      "bytes": 1066,
+      "sha256": "04a0693a84f19e53d281ca98bbb0c86ca77251ab13769c6168e6684feb9a1436",
+      "git_blob_sha": "b310a6e5604bdcb41ff72f47aceb0c9cbbf43768"
+    },
+    {
+      "path": "assets/legal/engines/RPCS3-MoltenVK-cereal-LICENSE.txt",
+      "bytes": 1542,
+      "sha256": "58604a126af6a671ea390ee3d5b3e42228aa59b2858fb7af1d5b20b31739ccbb",
+      "git_blob_sha": "e3efbec440095e2a566493b3afc1f87a1236fa5e"
+    },
+    {
+      "path": "assets/legal/engines/StikJIT-Upstream-README.md",
+      "bytes": 1016,
+      "sha256": "38e607d8fd08141944b10c1b4da7bdd70ad558b0f0313072cebeffe25d267917",
+      "git_blob_sha": "5c72d1a7fe6004e0749ed848dfc38d66cc7516f0"
+    },
+    {
+      "path": "assets/legal/engines/librashader-LICENSE-GPL.md",
+      "bytes": 34903,
+      "sha256": "831e92808eb553250066261a1387a9323cbf300d4559a41f2c71fd3712bdb44a",
+      "git_blob_sha": "d2b23397c559f3bc9b86f916a365706a85f85a9b"
+    },
+    {
+      "path": "assets/legal/engines/librashader-LICENSE.md",
+      "bytes": 15383,
+      "sha256": "69c15395f33bc9ce8e1d8b6cef42b7e49cdec4c6f5233d4b9cfc4bfa335f97f9",
+      "git_blob_sha": "1f55bf36504661f53d201b9973cbcc7ff1cbd908"
+    },
+    {
+      "path": "assets/legal/engines/license-sources.json",
+      "bytes": 13608,
+      "sha256": "714d00d4ba429f1348328a385488382cb302d157c416e128753ae362b4c8f200",
+      "git_blob_sha": "4084ed5364454e42b898735d21debeda6beee71b"
+    },
+    {
+      "path": "assets/legal/packages/Anta-OFL-1.1.txt",
+      "bytes": 4392,
+      "sha256": "b9ced72fbc4812b7dd2a67fe4df3ecbc0a75a7f43c0ffc4f0873a198d8b8431d",
+      "git_blob_sha": "07dd18435e6a60f0d72327745fb2289729a7e967"
+    },
+    {
+      "path": "assets/legal/packages/GoogleCast-4.8.6-OpenSourceLicenses-index.plist",
+      "bytes": 771,
+      "sha256": "3603c2239f8548fe3786aa610469375ce81f5783c3e6252721761cb93978a074",
+      "git_blob_sha": "31d96428c1cec7521424fe84d0962ebd0d111048"
+    },
+    {
+      "path": "assets/legal/packages/GoogleCast-4.8.6-OpenSourceLicenses.txt",
+      "bytes": 185916,
+      "sha256": "57b706490af55efa29e2a99380a45e9c3e4b854850928b1aa56adb94d403a5c2",
+      "git_blob_sha": "240785fbd7cdf231f49a444f626421a3ecc6563c"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-abseil.txt",
+      "bytes": 11361,
+      "sha256": "c79a7fea0e3cac04cd43f20e7b648e5a0ff8fa5344e644b0ee09ca1162b62747",
+      "git_blob_sha": "ccd61dcfe3dbcdf77a72794d7794b1e112a39e0b"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-agg23.txt",
+      "bytes": 725,
+      "sha256": "c110d3ea2ad77467ce0dcff7d3337e6c8be8049a5103f4b9bd5fd911a77972e5",
+      "git_blob_sha": "3040a2b5347e2a37545ed281bed18d5a289dec42"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-builder-LICENSE.txt",
+      "bytes": 1177,
+      "sha256": "ba26c1263131696b86c10496b5066b918a20b7161822a80c274d0080105f6c93",
+      "git_blob_sha": "6ae1fc2d904ddd766b73c7b132372d23aea1db9c"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-fast_float.txt",
+      "bytes": 1079,
+      "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6",
+      "git_blob_sha": "2fb2a37ad7fda521092c8b7b16911176c3f8a81b"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-freetype.txt",
+      "bytes": 6741,
+      "sha256": "f4b133e25df1f86ad3ffea453aa0e613f0474f34778dbbb3e437e7b2724937d8",
+      "git_blob_sha": "bbaba33f47d92ee4ed527582d96aeebf54cdcbb0"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-icu.txt",
+      "bytes": 27718,
+      "sha256": "e55522d81edc687a341a4411e0776e54ca654e90147f354a90458aaced4116af",
+      "git_blob_sha": "5a2eda629500c36c75377c1d693d8b584fcf40e6"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-lcms.txt",
+      "bytes": 1354,
+      "sha256": "5132b7530ae5acab7058634da86470d3d38bb01d70c2b67ba10c96bc62ced1af",
+      "git_blob_sha": "25276b28f686cc0b3332a4ae04cdb9409baa25b1"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-libjpeg_turbo.ijg",
+      "bytes": 12799,
+      "sha256": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6",
+      "git_blob_sha": "dbf8070cac812bcfd7eb4d407062919f69c777c8"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-libjpeg_turbo.md",
+      "bytes": 5620,
+      "sha256": "96f5b328adbb78eeaaec6980d73fd558cb1e4d62560ed615646bc3cf5e532430",
+      "git_blob_sha": "a785258bcdaeb20de639c6a060a7e3d5df17ae8f"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-libopenjpeg.txt",
+      "bytes": 1794,
+      "sha256": "c5ab0890a737c2dfa7ba675036554f6d17741d98629b0c2a145354d00617e6b2",
+      "git_blob_sha": "89df544ff5597e1a5e560f33ca0653d54884b2dc"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-libpng.txt",
+      "bytes": 5345,
+      "sha256": "bdb0a645ea18c60507d0368379b1ac5474b92255fcc2d115e07486a7672ba526",
+      "git_blob_sha": "1b765ae9f96abea77d3d9a88c543e3b5f4725813"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-libtiff.txt",
+      "bytes": 1139,
+      "sha256": "92b72ba97e6c2749c2a94bc0ef646b47080217f1e772a482b33cf5a5f98a6506",
+      "git_blob_sha": "dc255dec69163021fec18c9d44a9946aa257d8b4"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-llvm-libc.txt",
+      "bytes": 15140,
+      "sha256": "ebcd9bbf783a73d05c53ba4d586b8d5813dcdf3bbec50265860ccc885e606f47",
+      "git_blob_sha": "24806ab4c9eb291db4d28e159901f7a0901b9fd1"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-pdfium.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9",
+      "git_blob_sha": "161ca160d6fa51df6e3e594aeb2b1097b55e3866"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-simdutf.txt",
+      "bytes": 1059,
+      "sha256": "fc8dbc04e03ad4efc08a647ffe7f995b811a95bc04c0e85a56d5277c6593fa5f",
+      "git_blob_sha": "74c8302ba92830e170dfae35957468edd2e25271"
+    },
+    {
+      "path": "assets/legal/packages/PDFium-7811-zlib.txt",
+      "bytes": 1332,
+      "sha256": "33fd641c9f3b0e0be64bc78fea9e94807674cdd70c48477599226cb8956565fe",
+      "git_blob_sha": "f664e828acc9a8bd94bdfb88c7203be2bd66b47d"
+    },
+    {
+      "path": "assets/legal/packages/PFFFT-FFTPACK-Notices.txt",
+      "bytes": 2242,
+      "sha256": "c52a1263204dc55b9c9e5b52834313811618aa9bda9afd918a9d56abac6c031f",
+      "git_blob_sha": "93358f28cb95353ae29a14ce12a9054d89c7c87e"
+    },
+    {
+      "path": "assets/legal/packages/SQLite-Public-Domain.txt",
+      "bytes": 1485,
+      "sha256": "85806d613cfda5901f848b3b5b4b04396c8c64e89c97c0af3706c42b0c44bb47",
+      "git_blob_sha": "056aee559a55e2cf0713910b112b22c1abf54f99"
+    },
+    {
+      "path": "assets/legal/packages/Signalsmith-Linear-MIT-LICENSE.txt",
+      "bytes": 1074,
+      "sha256": "072b5e9eb5b22880bdf6256324654cf3ce53dba828edb911921121e1be09d9c3",
+      "git_blob_sha": "c2569820cd018245f891b974048dc4ab128f43b1"
+    },
+    {
+      "path": "assets/legal/packages/Signalsmith-Stretch-MIT-LICENSE.txt",
+      "bytes": 1093,
+      "sha256": "ee2ef82481ffb445ecdd4b3a4c1f82c0cddb2da8fe39d8e8dc384fffb3e7f06f",
+      "git_blob_sha": "889031e63236bb72aa28ff2ec2362db1691723d1"
+    },
+    {
+      "path": "assets/legal/packages/SoLoud-Embedded-Source-Notices.txt",
+      "bytes": 59890,
+      "sha256": "888693e16776ca22e4bb948b238026bff459c56d31ce711bbe7e545d01d64ee1",
+      "git_blob_sha": "eb7370e0b23889bb91ac12077a7846156687af05"
+    },
+    {
+      "path": "assets/legal/packages/SoLoud-Zlib-LICENSE.txt",
+      "bytes": 1170,
+      "sha256": "27e5dfcca945edeff8ed2ac9808baf53ab6c34cfae5d87b48410181b5af57968",
+      "git_blob_sha": "45e5942f89e980c320468c61e6aa49e91c8dec45"
+    },
+    {
+      "path": "assets/legal/packages/Vulkan-Headers-Copyright-Notices.txt",
+      "bytes": 216,
+      "sha256": "0695fba5d62d885625759ffb0666445cd39b665a5f623de3e2c02c14c9e65f33",
+      "git_blob_sha": "4f1d6210c3f02b6b1256b78ceb77d7fbf705065e"
+    },
+    {
+      "path": "assets/legal/packages/Vulkan-Headers-MIT.txt",
+      "bytes": 1084,
+      "sha256": "1ca3502222d967f3be5751c55f6b7ee735b5383909c3b501495f54b216dbf227",
+      "git_blob_sha": "8495fe9e901b430947d54980af7c77c0bb8a6221"
+    },
+    {
+      "path": "assets/legal/packages/Xiph-flac-COPYING.Xiph.txt",
+      "bytes": 1509,
+      "sha256": "7866ee98760fc1f0156b4fe6bf530257e02be487ab3fd94e2b63799dd32d6b2c",
+      "git_blob_sha": "f42f48b3fa0be2435c65491f7dbf4680aa68d1a0"
+    },
+    {
+      "path": "assets/legal/packages/Xiph-ogg-COPYING.txt",
+      "bytes": 1466,
+      "sha256": "d2ab5758336489da61c12cc5bb757da5339c4ae9001f9bb0562b4370249af814",
+      "git_blob_sha": "6111c6c5a6b95057e43d36b7c217b073bf5f9b22"
+    },
+    {
+      "path": "assets/legal/packages/Xiph-opus-COPYING.txt",
+      "bytes": 1945,
+      "sha256": "01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551",
+      "git_blob_sha": "75711467a3eb220f35f72afdb55a4734ee5cdb47"
+    },
+    {
+      "path": "assets/legal/packages/Xiph-vorbis-COPYING.txt",
+      "bytes": 1470,
+      "sha256": "ec1815db59fcd302846df949d7424876cb2e2dc5ed1606c5fb0b36787b1cf43a",
+      "git_blob_sha": "fb456a87bdfafe2cab7de982e8ce11204933ec5c"
+    },
+    {
+      "path": "assets/legal/packages/flutter_7zip-LGPL-2.1.txt",
+      "bytes": 26525,
+      "sha256": "814cf1a7e79dc6a3eda3d197fa7ded36c3b733917ed5da1e8cc135eb24f3ac09",
+      "git_blob_sha": "ee9ed415ee14252a64a1bba6d73c85deb6551dc7"
+    },
+    {
+      "path": "assets/legal/packages/gamepads-MIT-and-Modification-Notice.txt",
+      "bytes": 1253,
+      "sha256": "f73820c095b63eb1f10ba2d6a2a6945308f19f58df06b84f7a13871fa5c59261",
+      "git_blob_sha": "2bc55314e6c51938215aa08a5016d75a3d346b9a"
+    },
+    {
+      "path": "assets/legal/packages/gamepads_platform_interface-MIT-LICENSE.txt",
+      "bytes": 1065,
+      "sha256": "1f8ac34f4b40ad238c8461ccc72fc80fef6dfacf5530e70473750b904b687af0",
+      "git_blob_sha": "777c7aec37e403e3ab81df73ba8cc7f3e7d7719a"
+    },
+    {
+      "path": "assets/legal/packages/libretro-API-Header-Notices.txt",
+      "bytes": 2877,
+      "sha256": "38d4c12cec96581bf7204b59664e2f8b3c6981d640868f72653dc79193aace3e",
+      "git_blob_sha": "1890e5af061d7c6f41971e67940c2417bfb8c4e2"
+    },
+    {
+      "path": "assets/legal/packages/license-sources.json",
+      "bytes": 33202,
+      "sha256": "d6aa980601080824acce3dbcb415faf4029e208b6bb4c52ad58672f6be3fd7fe",
+      "git_blob_sha": "2b8b1de73a3163cfa64b8fda151267b0d63256e8"
+    },
+    {
+      "path": "assets/legal/packages/quiver-NOTICE.txt",
+      "bytes": 573,
+      "sha256": "62fc4482b330e1b29a2f095d75202962f1b03e96e88eb766427c638b0f884b5b",
+      "git_blob_sha": "ccdaa69547a1f8eb293c59e91af416b55250c24a"
+    },
+    {
+      "path": "assets/legal/packages/rcheevos-MD5-Notices.txt",
+      "bytes": 1970,
+      "sha256": "67250a958d063dace26ba34107a8bd7dc788b1ddd584d982bc48044b2f790da6",
+      "git_blob_sha": "b837692d23d59d24edc87c6868b346245763eb2f"
+    },
+    {
+      "path": "assets/legal/packages/tiny-AES-c-Unlicense.txt",
+      "bytes": 1211,
+      "sha256": "7e12e5df4bae12cb21581ba157ced20e1986a0508dd10d0e8a4ab9a4cf94e85c",
+      "git_blob_sha": "68a49daad8ff7e35068f2b7a97d643aab440eaec"
+    },
+    {
+      "path": "assets/legal/ppsspp/BUILD-LICENSE-RECORD.md",
+      "bytes": 4956,
+      "sha256": "4058f37b89fd30fc32126d21120dd7a11786d551cd13a26e5d92cd8b2695a875",
+      "git_blob_sha": "0542bef27e179af7979ef07e9614181f1efa8b51"
+    },
+    {
+      "path": "assets/legal/ppsspp/FFmpeg-Additional-Notices.txt",
+      "bytes": 2614,
+      "sha256": "7c16e08960c6c949543e9c321a1a5fdfd51a47f04b9d495d26e60a7216929a38",
+      "git_blob_sha": "f9f5e2f4bb0d88323a53ed8500c154b863382462"
+    },
+    {
+      "path": "assets/legal/ppsspp/NEOSTATION-MODIFICATIONS.txt",
+      "bytes": 2075,
+      "sha256": "22c851945109ab27a228752c5f75c38a68c24d1371d187db3e0cec70c50c5d1c",
+      "git_blob_sha": "cd69d3b3ee66ac4f82a0715439e2144977c8d853"
+    },
+    {
+      "path": "assets/legal/ppsspp/SOURCE-MODIFICATION-NOTICES.patch",
+      "bytes": 1678,
+      "sha256": "b178b69c1b7c4379492589e41437b9aea34d8377af368aad9b05299277905380",
+      "git_blob_sha": "97ec3706e10304c800da1a8557ce9298a97f0568"
+    },
+    {
+      "path": "assets/legal/ppsspp/SOURCE-RETRIEVAL.json",
+      "bytes": 19785,
+      "sha256": "7e60aa69c8d4290b0b4b2769e120ef1da6af8c3f12ea9c3a2992db5f3819b1ce",
+      "git_blob_sha": "79dcd0f68af7c0c26cf11c858b2a538408668b92"
+    },
+    {
+      "path": "assets/legal/ppsspp/Selected-Dependency-Notices.txt",
+      "bytes": 101091,
+      "sha256": "bb6e55c6a03ea0570bf8961f44538137eb2a48b4cfb6d4c11e49814678ee359a",
+      "git_blob_sha": "b1210e8180575f4e1df1c6b093fdca175991558b"
+    },
+    {
+      "path": "assets/legal/ppsspp/license-sources.json",
+      "bytes": 97271,
+      "sha256": "debf262f474af5edb5ca3bd1eee920cc24d1f552f616fd759b79c436ca0637a9",
+      "git_blob_sha": "e55e34fbdee0c0bcabedd208b9139978ca9e08e8"
+    },
+    {
+      "path": "build-utils/collect_build_source_evidence.py",
+      "bytes": 14843,
+      "sha256": "6e08e5bc49c008344b745896397b7539f1e59e56fbfe0cb3aa20365643000136",
+      "git_blob_sha": "9439550851af1ec320d5c9efaa26ac94c9a2c536"
+    },
+    {
+      "path": "build-utils/embed_legal_bundle.py",
+      "bytes": 13509,
+      "sha256": "8f489f3f6588fe2be44845def7ba68298eee9e2f1583aff2049fc0e4fa124116",
+      "git_blob_sha": "76604520aebe4fe74b821c382e307ad4845b54bd"
+    },
+    {
+      "path": "build-utils/fetch_locked_package_sources.py",
+      "bytes": 6951,
+      "sha256": "90337b59da6fce4ea50b8e4806fa74ddd57f3a49791f299d070121cbb170ba23",
+      "git_blob_sha": "15dec0791be3eac53a07b0ecb6777327b6c1029c"
+    },
+    {
+      "path": "build-utils/validate_legal_bundle_ipa.py",
+      "bytes": 4530,
+      "sha256": "24636d0a3287cfe9727dcba462ffb4b130db813338d574d73369a8b769b46786",
+      "git_blob_sha": "dfb2d06566d299a52fbef01bfe606f5e59559615"
+    },
+    {
+      "path": "docs/ENGINE_CORRESPONDING_SOURCES.md",
+      "bytes": 29098,
+      "sha256": "61add16c2d8a8b5f98b28b3eaa112ddd574bc0f1d792ba82e32a430b81cf757a",
+      "git_blob_sha": "8301029630e803582ff0f098ba3cc772a4ecbfb0"
+    },
+    {
+      "path": "docs/LEGAL_AND_CREDITS.md",
+      "bytes": 34959,
+      "sha256": "4ab4de26e898057050d13fa8bfc02d5b85dca08fff2a7854e3c6fc922a58d011",
+      "git_blob_sha": "f7beda95d71cbfd58baffbe30cf9e036e381c95f"
+    },
+    {
+      "path": "docs/PACKAGE_SOURCES_AND_LICENSES.md",
+      "bytes": 51524,
+      "sha256": "0aceeec1d8ad43adde34dacdbfd21ab858e409d4fd1e79c2383dd7cefb84676d",
+      "git_blob_sha": "7aa8a2552465b865067fd6cea46038a01ec9af1f"
+    },
+    {
+      "path": "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md",
+      "bytes": 12789,
+      "sha256": "fbeced8b72541b2ba8aac27334f749c6f870aff7506b1efde8de6958ff600e2e",
+      "git_blob_sha": "3719610f67373c3272fb0e7524e042fa18121ef3"
+    },
+    {
+      "path": "docs/RELEASE_NEXT_LICENSE_REVIEW.md",
+      "bytes": 12045,
+      "sha256": "9dce479938f44d8607f870b7211fbd9682487b08e80b84c9ae19fe42524b403f",
+      "git_blob_sha": "3e024153b3f8ef24bac18d4a0bbf028b2f9a4bcf"
+    },
+    {
+      "path": "docs/SOURCE_CODE_ACCESS.md",
+      "bytes": 9725,
+      "sha256": "5b891bb604dd77032a5ca9ef0455914e15424a51af19f639f4c9d4c2e0982c8d",
+      "git_blob_sha": "f677ebcb9d5071d907dc32fa2e5e64ce65a8a6a3"
+    },
+    {
+      "path": "docs/evidence/engine-source-license-audit-2026-10-21.json",
+      "bytes": 180465,
+      "sha256": "866e0a743ddaa4881fd8428dbce235c252e0773fb58ddefaaf1cef364d7607fd",
+      "git_blob_sha": "214fc921bbbbc07ea91efa9bd5f1b06b503e8b16"
+    },
+    {
+      "path": "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json",
+      "bytes": 479928,
+      "sha256": "18a2c562d9271554e54644aeea3c66e7b498c8e5761f3532f04e8f5be2d4e9e7",
+      "git_blob_sha": "817107ad2c03f3f25b2d64dbf68e674e235a2aaa"
+    },
+    {
+      "path": "docs/evidence/package-sources-license-audit-2026-10-21.json",
+      "bytes": 468454,
+      "sha256": "db242d156396ea435ce3dcc1be2c173045b95b00a94d82f2789e59b530fce49a",
+      "git_blob_sha": "c4c4c5b7784cd8640d72a68278fa8e12c0754fe2"
+    },
+    {
+      "path": "docs/evidence/ppsspp-source-license-audit-2026-10-21.json",
+      "bytes": 544839,
+      "sha256": "34d4df4576cac7a5c2a6b1e89bed95e98870165146e11b058fd624cf009946ce",
+      "git_blob_sha": "ad2d3fc2932873d9308fb2131a4cf5ac34ef6cad"
+    },
+    {
+      "path": "test/build_source_evidence_test.py",
+      "bytes": 9465,
+      "sha256": "70e452cd14c6d67be7e1abcbb0ea0a58a23f18d38b63366a9b348e76a791714e",
+      "git_blob_sha": "aad98fb6f1f139982c18da9ea67588b60d269b99"
+    },
+    {
+      "path": "test/legal_bundle_preflight_test.py",
+      "bytes": 12081,
+      "sha256": "9806ce3b9d8ea40c2f20929df69b7820a9f1980f986aea27ad4433fb390326c5",
+      "git_blob_sha": "1dc92e2933ce386b6f38d44eaec181dfcd8af638"
+    },
+    {
+      "path": "test/locked_package_sources_test.py",
+      "bytes": 3800,
+      "sha256": "9e044e163844b504da059599a68c57b30a6e6fb8cf3a73c02f939239cb517331",
+      "git_blob_sha": "8d7276182c43bececbd64c806b8cdb82eaad5d3e"
+    }
+  ],
+  "receipt_identity_note": "This receipt excludes its own hash. The containing Git commit identifies its exact bytes; no future or historical binary is assigned to this source-only continuation."
+}

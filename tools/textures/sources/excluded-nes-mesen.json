@@ -1,0 +1,97 @@
+[
+ {
+  "console": "nes",
+  "source": "ModernRetroDesign/ZII-mesen (Zelda II)",
+  "reason": "hires.txt format 108: made for Mesen 2, which the libretro Mesen core (format 106 at most) refuses."
+ },
+ {
+  "console": "nes",
+  "source": "BleedyLAB/z2revamp (Zelda II Revamped)",
+  "reason": "Requires mkwong98's Mesen 0.9.9-220721 fork (README), with features beyond the libretro Mesen core; work in progress."
+ },
+ {
+  "console": "nes",
+  "source": "johnnyoak85/castlevania-mesen",
+  "reason": "Templates to recolour sprites (README), not a finished pack; HUD not done."
+ },
+ {
+  "console": "nes",
+  "source": "KCN2/dq3nes-mesen-hdpack-mod (Dragon Quest III)",
+  "reason": "Needs a romhacked ROM and a Lua script; the libretro Mesen core runs no Lua script."
+ },
+ {
+  "console": "nes",
+  "source": "Froser/Kiwi-Machine-Workspace extras/mesen_hd_textures",
+  "reason": "A collection re-hosting other authors' packs (Megaman Super, Pac-Man, Super Mario Bros., Ninja Gaiden II, Donkey Kong): not the authors' own pages."
+ },
+ {
+  "console": "nes",
+  "source": "KMFDManic/RetroAami-Xtreme (HdPacks)",
+  "reason": "HD packs bundled in a mini-console system image: a re-host of other authors' packs."
+ },
+ {
+  "console": "nes",
+  "source": "cupidthecat/cupid-nes (hd_pack_v109 fixture)",
+  "reason": "A test fixture of an emulator (format 109), not a pack."
+ },
+ {
+  "console": "nes",
+  "source": "Froser/Kiwi-Machine-Workspace BattleCity (Japan)",
+  "reason": "hires.txt format 109 (Mesen 2) in a re-hosting collection."
+ },
+ {
+  "console": "nes",
+  "source": "forums.nesdev.org \"HD Pack's Mesen\" thread and its attachments",
+  "reason": "The forum refuses automated reads (HTTP 403): its attachments (mkwong98's Super Mario Bros. and Kung Fu, evgeny's Nuts and Milk) are not checked."
+ },
+ {
+  "console": "nes",
+  "source": "romhacking.net and metroidconstruction.com pack pages (Zelda Remastered, Metroid HD, Ninja Gaiden, Castlevania)",
+  "reason": "Both sites refuse automated reads (HTTP 403); Zelda Remastered needs Mesen 2 (author)."
+ },
+ {
+  "console": "psp",
+  "source": "MESKH4H4/naruto-shippuden-ultimate-ninja-impact (ULES01537)",
+  "reason": "Split RAR volumes and KTX2 variants; textures.ini not checked in the archive index."
+ },
+ {
+  "console": "gc",
+  "source": "Lucaspec72/Phantasy-Star-Online-HD",
+  "reason": "No Game ID stated and the files are on a MediaFire folder (bot challenge)."
+ },
+ {
+  "console": "gc",
+  "source": "sinceohsix/dolphin-hd",
+  "reason": "Re-uploads of other authors' packs (NSMBW HD, DKCR HD, Punch-Out!!)."
+ },
+ {
+  "console": "ps2",
+  "source": "Jasonafex/urban-reign-redux",
+  "reason": "Its download bundles a full game image."
+ },
+ {
+  "console": "nes",
+  "source": "RichterSnipes Ninja Gaiden 1 & 2 HD packs (Google Drive link of the NESdev thread)",
+  "reason": "The Drive link answers HTTP 404 (probe run 39367094174)."
+ },
+ {
+  "console": "nes",
+  "source": "Aclectico Metroid HD v1.5 (Google Drive, UnZipMeFirstMetroidHD_V1_5.zip)",
+  "reason": "A 306 MB archive of nested ZIP archives (probe run 39367094174): the installers do not open an archive inside an archive, the hires.txt format is not readable without it, and the author's pages (romhacking.net, metroidconstruction.com) refuse automated reads."
+ },
+ {
+  "console": "nes",
+  "source": "GBAGuy007 and Aclectico Duck Hunt Remastered v1.1 (Google Drive)",
+  "reason": "The file is reachable (241,110 bytes, 62 PNG) but no announcement page of its authors could be read (NESdev forum: HTTP 403); a third-party article is not the authors' page."
+ },
+ {
+  "console": "nes",
+  "source": "mkwong98 Donkey Kong (JU) HD pack (MediaFire)",
+  "reason": "MediaFire answers with a bot challenge (probe run 39367094174), never worked around."
+ },
+ {
+  "console": "nes",
+  "source": "kya Castlevania HD pack (yadi.sk)",
+  "reason": "Yandex Disk answers with a web page, not the file (probe run 39367094174)."
+ }
+]

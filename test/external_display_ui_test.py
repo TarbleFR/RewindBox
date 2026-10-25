@@ -54,6 +54,8 @@ exec(compile(source, str(origin), 'exec'), ns)
 # The host lists the pod sources itself (above): the harness's own pod
 # sources (Build 447, for the Dolphin adapter) would define them twice.
 ns['EXTERNAL_SOURCES'] = []
+# No Dolphin menu here, hence no cheat catalogue (Build 484 harness).
+ns['CATALOGUE_SOURCES'] = []
 
 ns['APP'] = r'''
 #import <UIKit/UIKit.h>
@@ -428,7 +430,7 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertFalse(_coordinator.mirroringActive);
 
   [_coordinator suspendForUnsupportedEngine];
-  XCTAssertNil(inScene.windowScene, @"Dusklight/KartPad: out of the scene, iOS mirrors the iPhone");
+  XCTAssertNil(inScene.windowScene, @"unsupported engine: out of the scene, iOS mirrors the iPhone");
   XCTAssertEqual(host.renderView.superview, host.placeholderView, @"the game is drawn on the iPhone");
   [_coordinator resumeAfterUnsupportedEngine];
   XCTAssertEqual(inScene.windowScene, scene);
@@ -572,7 +574,7 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   [_coordinator suspendForUnsupportedEngine];
   XCTAssertTrue(_coordinator.suspended);
   XCTAssertEqualObjects([_coordinator stateDictionary][@"suspended"], @YES, @"reported to Dart");
-  XCTAssertTrue(_external.hidden, @"Dusklight/KartPad: window hidden, iOS resumes mirroring");
+  XCTAssertTrue(_external.hidden, @"unsupported engine: window hidden, iOS resumes mirroring");
   XCTAssertEqual(host.renderView.superview, host.placeholderView);
   XCTAssertEqual(_coordinator.content, NeoExternalContentNone);
   [_coordinator resumeAfterUnsupportedEngine];
@@ -1056,7 +1058,7 @@ static BOOL FakeAccessoryEnabled(UIViewController* controller) {
   XCTAssertTrue([NeoExternalDisplayPreferences storeEnabled:YES]);
   XCTAssertTrue(FakeAccessoryEnabled(root) && FakeAccessoryEnabled(game));
   [_coordinator suspendForUnsupportedEngine];
-  XCTAssertFalse(FakeAccessoryEnabled(root), @"suspended (Dusklight, KartPad): off");
+  XCTAssertFalse(FakeAccessoryEnabled(root), @"suspended (unsupported engine): off");
   [_coordinator resumeAfterUnsupportedEngine];
   XCTAssertTrue(FakeAccessoryEnabled(root));
   XCTAssertTrue([NeoExternalDisplayPreferences storeMenuOnTV:NO]);

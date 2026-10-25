@@ -7,12 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/pairing_file_service.dart';
 import 'package:neostation/services/retroarch_library_service.dart';
-import 'package:neostation/services/stikjit_melonx_service.dart';
 import '../providers/sqlite_config_provider.dart';
 import '../screens/systems_screen/fork_first_run_onboarding.dart';
 import 'pairing_file_onboarding.dart';
 import 'setup_wizard.dart';
-import 'shimmering_logo.dart';
+import 'rewind_startup.dart';
 
 /// Checks the initial configuration and displays the first-run flow when needed.
 class PermissionCheckWrapper extends StatefulWidget {
@@ -38,8 +37,7 @@ class _PermissionCheckWrapperState extends State<PermissionCheckWrapper> {
 
   static final _log = LoggerService.instance;
 
-  bool get _supportsPairingGate =>
-      Platform.isIOS && StikJitMeloNxService.isExperimentalEnabled;
+  bool get _supportsPairingGate => Platform.isIOS;
 
   @override
   void initState() {
@@ -273,27 +271,34 @@ class _PermissionCheckWrapperState extends State<PermissionCheckWrapper> {
   @override
   Widget build(BuildContext context) {
     if (_isChecking || _isStartingRetroArchSync) {
-      return const Scaffold(body: Center(child: ShimmeringLogo()));
+      return const Scaffold(
+        body: Center(
+          child: SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
     }
 
     if (_needsSetup) {
       if (_showForkWelcomeGate) {
-        return Scaffold(
-          body: ForkFirstRunOnboarding(
-            onFinished: _completeForkWelcomeGate,
+        return RewindStartupReady(
+          child: Scaffold(
+            body: ForkFirstRunOnboarding(onFinished: _completeForkWelcomeGate),
           ),
         );
       }
 
       if (_showPairingFileGate) {
-        return Scaffold(
-          body: PairingFileOnboarding(
-            onFinished: _completePairingFileGate,
+        return RewindStartupReady(
+          child: Scaffold(
+            body: PairingFileOnboarding(onFinished: _completePairingFileGate),
           ),
         );
       }
 
-      return SetupWizard(onComplete: _completeSetup);
+      return RewindStartupReady(child: SetupWizard(onComplete: _completeSetup));
     }
 
     return widget.child;

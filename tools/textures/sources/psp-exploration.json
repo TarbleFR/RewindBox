@@ -1,0 +1,180 @@
+[
+ {
+  "id": "psp-300-hd-huekage",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "300: March to Glory HD (Huekage)",
+  "version": "2.0",
+  "games": [
+   {
+    "title": "300: March to Glory",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10241"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   },
+   {
+    "title": "300: March to Glory",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00766"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Huekage"
+  ],
+  "page_url": "https://gbatemp.net/threads/psp-hd-textures-pack-300-march-to-glory-ulus10241-ntsc-ules00766-pal.684196/",
+  "source_id": "gbatemp:684196",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://gbatemp.net/threads/psp-hd-textures-pack-300-march-to-glory-ulus10241-ntsc-ules00766-pal.684196/",
+   "verify": {
+    "url": "https://www.mediafire.com/file/e8sk752atbc3udq/PSP_HD_Textures_-_300_-_March_to_Glory_%28ULUS10241%29_%28NTSC%29_%26_%28ULES00766%29_%28PAL%29.zip/file"
+   }
+  },
+  "scope": "complete",
+  "family": "psp-300-hd-huekage",
+  "notes": "1,171 textures upscaled 4x with colour and sharpness corrections. Both USA and Europe are identified by the author; languages are not individually verified."
+ },
+ {
+  "id": "psp-swbf2-pc-ps2-textures-biotes",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Star Wars: Battlefront II — PC/PS2 texture port",
+  "version": "6.2",
+  "games": [
+   {
+    "title": "Star Wars: Battlefront II",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULUS10053"
+     }
+    ],
+    "regions": [
+     "USA"
+    ]
+   }
+  ],
+  "authors": [
+   "BioTes (PyroMann)",
+   "jcoolarts (font)"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=42436",
+  "source_id": "github:BioTes/Star-Wars-Battlefront-2-Ultimate-Collection-PC-and-PS2-texture-port-for-PSP",
+  "licence": {
+   "summary": "No licence stated; includes assets ported from PC/PS2 releases and a credited font",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://github.com/BioTes/Star-Wars-Battlefront-2-Ultimate-Collection-PC-and-PS2-texture-port-for-PSP/releases/tag/Another-Small-Update",
+   "file_name": "ULUS10053_FINAL.7z",
+   "verify": {
+    "url": "https://github.com/BioTes/Star-Wars-Battlefront-2-Ultimate-Collection-PC-and-PS2-texture-port-for-PSP/releases/download/Another-Small-Update/ULUS10053_FINAL.7z"
+   },
+   "in_app": true
+  },
+  "scope": "partial",
+  "family": "psp-swbf2-pc-ps2-textures-biotes",
+  "notes": "Most maps and selected characters/menu elements, intended for Ultimate Collection but the author also reports use with the original game. USA only. Separate from jcoolarts' basic UI pack. No game or Ultimate Collection modification is included. The verified textures.ini references 15 absent files; those replacements remain unavailable."
+ },
+ {
+  "id": "psp-megpoid-hd-english-gui-natspectrum",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Megpoid the Music♯ — HD English GUI",
+  "version": "1",
+  "games": [
+   {
+    "title": "Megpoid the Music♯",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULJM06226"
+     }
+    ]
+   }
+  ],
+  "authors": [
+   "NatSpectrum"
+  ],
+  "page_url": "https://natspectrum.itch.io/megpoid-the-music-hd-english-gui-texture-pack",
+  "source_id": "itch:natspectrum-megpoid",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://natspectrum.itch.io/megpoid-the-music-hd-english-gui-texture-pack",
+   "file_name": "Megpoid the Music - HD English GUI v1.7z"
+  },
+  "scope": "ui",
+  "family": "psp-megpoid-hd-english-gui-natspectrum",
+  "notes": "Original vector/HD interface elements and English main-menu replacements, incomplete. Author identifies ULJM06226 and PPSSPP. Author-hosted 3.3 MB 7z exists on the page; automated access is refused, so the archive has not passed NeoStation's installer. Credits: GhostMirage (translation guide), Estoye (font identification), Fontfabric (VAL Stencil)."
+ },
+ {
+  "id": "psp-yugioh-tag-force2-spanish-brahian",
+  "system": "psp",
+  "engine": "ppsspp",
+  "title": "Yu-Gi-Oh! GX Tag Force 2 — HD Spanish",
+  "version": "2.0",
+  "games": [
+   {
+    "title": "Yu-Gi-Oh! GX Tag Force 2",
+    "identities": [
+     {
+      "type": "disc_id",
+      "scheme": "psp-param-sfo-disc-id",
+      "value": "ULES00925"
+     }
+    ],
+    "regions": [
+     "Europe"
+    ]
+   }
+  ],
+  "authors": [
+   "Brahian Cruz"
+  ],
+  "page_url": "https://forums.ppsspp.org/showthread.php?tid=42180",
+  "source_id": "ppsspp-forum:42180",
+  "licence": {
+   "summary": "No licence stated by the author",
+   "redistribution": "Downloaded from the creator's original public file only when this pack is chosen. NeoStation checks the exact verified size and SHA-256, and does not host, modify, repackage or redistribute the texture files; no further rights are inferred."
+  },
+  "download": {
+   "automatable": false,
+   "page": "https://forums.ppsspp.org/showthread.php?tid=42180",
+   "verify": {
+    "url": "https://drive.google.com/file/d/1CBNtQxCM3yjDyOie7vE0gAyVwwgrITne/view?usp=drive_web",
+    "sha256": "c60e6d442cf26a560a1ddd3e86f78be60adcc072885ade39a7d8c24ceeb6b36a"
+   },
+   "file_name": "ULES00925.rar",
+   "in_app": true
+  },
+  "scope": "partial",
+  "family": "psp-yugioh-tag-force2-spanish-brahian",
+  "notes": "Spanish texture replacements for EUR ULES00925 only. Author credits chrisfand, Angel105 and Yugipedia. The unchanged original RAR passes native installation: 11,209 PNGs and its default root textures.ini (xxh64); three listed replacement targets are absent and retain the game's original textures. Optional nested TCG/OCG/anime configuration INIs are not installed, merged or selected automatically. No onward redistribution permission or iPhone rendering validation is established."
+ }
+]

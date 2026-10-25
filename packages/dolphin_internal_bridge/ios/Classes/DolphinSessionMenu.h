@@ -24,6 +24,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy, nullable) dispatch_block_t openDisplaySettings;
 @property(nonatomic, copy, nullable) dispatch_block_t openShaderSettings;
 @property(nonatomic, copy, nullable) dispatch_block_t openTextureSettings;
+// Build 484: Touch controls page (editor and "hide with a controller").
+// Without openTouchEditor the root page has no Touch controls row.
+@property(nonatomic, copy, nullable) dispatch_block_t openTouchEditor;
+@property(nonatomic, copy, nullable) BOOL (^readTouchHideWithController)(void);
+@property(nonatomic, copy, nullable) void (^setTouchHideWithController)(BOOL hide);
 - (void)refreshRecordingStatus;
 @end
 NS_ASSUME_NONNULL_END

@@ -145,8 +145,9 @@ class ExternalDisplayState {
   /// `NeoStation.ExternalDisplay.MenuOnTV`.
   final bool menuOnTV;
 
-  /// An engine that cannot draw on the external screen runs (Dusklight,
-  /// KartPad): NeoStation's window is hidden and iOS mirrors the iPhone.
+  /// An engine that cannot draw on the external screen holds it (RPCS3
+  /// while its core stops): NeoStation's window is hidden and iOS mirrors
+  /// the iPhone.
   final bool suspended;
 
   /// iOS mirrors the iPhone on the connected screen (NeoStation shows

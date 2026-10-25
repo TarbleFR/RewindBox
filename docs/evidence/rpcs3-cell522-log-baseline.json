@@ -1,0 +1,2353 @@
+{
+  "schema": 1,
+  "inputSHA256": {
+    "RPCS3-milestones.log": "5934154cca3182a0e61723e8049f296aa4d038976576470a39e21eaeeb5fe810",
+    "RPCS3-diagnostic.log": "18b7b9a7c1d778231f3dbac5450e59099df6bcdf7970f59774f098d6267b7d03",
+    "NeoSwap-v1.jsonl.previous": "39d8226e3a92c0e7aa049ec3a6b0f6b5cf301193547f2043c0c208746371088a",
+    "app(1).log": "5dc58f3c432824d598df349abd7b35b8051997c7ee85ed1bf12aa24e03df2d17"
+  },
+  "sessions": [
+    {
+      "build": "486",
+      "pid": "439",
+      "observedSeconds": 16.015827178955078,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 24
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "539",
+      "observedSeconds": 10.83439302444458,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 24
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "672",
+      "observedSeconds": 10.014889001846313,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 24
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "708",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "939",
+      "observedSeconds": 3145.087632894516,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 38
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "1214",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "1496",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "1585",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "2769",
+      "observedSeconds": 13.18949007987976,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 24
+      },
+      "gameIDsObserved": [
+        "BLES01774"
+      ],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "2869",
+      "observedSeconds": 3776.7873001098633,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 28
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "3544",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "3625",
+      "observedSeconds": 6121.609395980835,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 26
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "58282",
+      "observedSeconds": 2.698532819747925,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 20
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "58728",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "61286",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "62810",
+      "observedSeconds": 23.94921588897705,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 26
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "67358",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "67403",
+      "observedSeconds": 5.827514171600342,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 3
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "67415",
+      "observedSeconds": 13.976989984512329,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 3
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "67421",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "67423",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "67426",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "67427",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "67497",
+      "observedSeconds": 33.467247009277344,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 3
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "486",
+      "pid": "67528",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "490",
+      "pid": "4384",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "490",
+      "pid": "4403",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "490",
+      "pid": "4429",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "490",
+      "pid": "4445",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "490",
+      "pid": "4464",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "4814",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "4844",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "5746",
+      "observedSeconds": 28.04365301132202,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 17
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "5768",
+      "observedSeconds": 15.383764028549194,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 25
+      },
+      "gameIDsObserved": [
+        "BLES01774"
+      ],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "5813",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "5821",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "5986",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "5999",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "6074",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "6177",
+      "observedSeconds": 1802.5574038028717,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 50
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 162,
+          "modules_compiled": 162,
+          "modules_cached": 0,
+          "wall_ms": 236003.479,
+          "ppu_codegen": "162:616967.069:15164.715:0",
+          "ppu_cache_write": "162:41813.079:2800.962:129879984",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 2,
+          "boot_kind": "savestate",
+          "modules_total": 75,
+          "modules_compiled": 1,
+          "modules_cached": 74,
+          "wall_ms": 3810.965,
+          "ppu_codegen": "1:2239.351:2239.351:0",
+          "ppu_cache_write": "1:164.679:164.679:427040",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 3,
+          "boot_kind": "savestate",
+          "modules_total": 75,
+          "modules_compiled": 0,
+          "modules_cached": 75,
+          "wall_ms": 1774.653,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 4,
+          "boot_kind": "savestate",
+          "modules_total": 75,
+          "modules_compiled": 0,
+          "modules_cached": 75,
+          "wall_ms": 1454.11,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "6373",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "6385",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "6696",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "6755",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "6811",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "493",
+      "pid": "6902",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "496",
+      "pid": "7185",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "496",
+      "pid": "7226",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "498",
+      "pid": "7687",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "498",
+      "pid": "7728",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "498",
+      "pid": "7759",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "498",
+      "pid": "7775",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "498",
+      "pid": "7820",
+      "observedSeconds": 1747.9984271526337,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 42
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 66,
+          "modules_compiled": 0,
+          "modules_cached": 66,
+          "wall_ms": 1254.004,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 2,
+          "boot_kind": "savestate",
+          "modules_total": 75,
+          "modules_compiled": 0,
+          "modules_cached": 75,
+          "wall_ms": 1377.758,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 3,
+          "boot_kind": "savestate",
+          "modules_total": 75,
+          "modules_compiled": 0,
+          "modules_cached": 75,
+          "wall_ms": 1564.775,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "498",
+      "pid": "8299",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "8521",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "8534",
+      "observedSeconds": 888.2968831062317,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 42
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 39,
+          "modules_cached": 1,
+          "wall_ms": 90927.522,
+          "ppu_codegen": "39:243236.406:7831.838:0",
+          "ppu_cache_write": "39:15127.538:2836.808:43924520",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 2,
+          "boot_kind": "savestate",
+          "modules_total": 45,
+          "modules_compiled": 39,
+          "modules_cached": 6,
+          "wall_ms": 126944.021,
+          "ppu_codegen": "39:342206.672:12351.256:0",
+          "ppu_cache_write": "39:17614.478:2505.335:43924520",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "9700",
+      "observedSeconds": 5747.008004903793,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 42
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 66,
+          "modules_compiled": 0,
+          "modules_cached": 66,
+          "wall_ms": 1256.413,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 2,
+          "boot_kind": "savestate",
+          "modules_total": 75,
+          "modules_compiled": 0,
+          "modules_cached": 75,
+          "wall_ms": 1299.48,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 3,
+          "boot_kind": "savestate",
+          "modules_total": 75,
+          "modules_compiled": 0,
+          "modules_cached": 75,
+          "wall_ms": 1835.62,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "11346",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "11351",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "11363",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "11530",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "11744",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "12263",
+      "observedSeconds": 1817.9759440422058,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 42
+      },
+      "gameIDsObserved": [
+        "BLES00113"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 66,
+          "modules_compiled": 0,
+          "modules_cached": 66,
+          "wall_ms": 1171.743,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 2,
+          "boot_kind": "savestate",
+          "modules_total": 75,
+          "modules_compiled": 0,
+          "modules_cached": 75,
+          "wall_ms": 1322.645,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 3,
+          "boot_kind": "savestate",
+          "modules_total": 75,
+          "modules_compiled": 0,
+          "modules_cached": 75,
+          "wall_ms": 1991.155,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "14065",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "500",
+      "pid": "14183",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "501",
+      "pid": "14821",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "501",
+      "pid": "14827",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "501",
+      "pid": "14828",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "501",
+      "pid": "14829",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "501",
+      "pid": "14830",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "501",
+      "pid": "14832",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "501",
+      "pid": "14844",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "501",
+      "pid": "14857",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "501",
+      "pid": "14872",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "501",
+      "pid": "15167",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "502",
+      "pid": "16100",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "502",
+      "pid": "16137",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "502",
+      "pid": "16141",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "502",
+      "pid": "16142",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "502",
+      "pid": "16182",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "502",
+      "pid": "16192",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "502",
+      "pid": "16199",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "502",
+      "pid": "16200",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "503",
+      "pid": "16295",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "503",
+      "pid": "16304",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "503",
+      "pid": "16307",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "503",
+      "pid": "16311",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "504",
+      "pid": "16459",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "504",
+      "pid": "16524",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "505",
+      "pid": "16552",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "505",
+      "pid": "16562",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "505",
+      "pid": "16563",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "505",
+      "pid": "16582",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "505",
+      "pid": "16721",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "505",
+      "pid": "16730",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "505",
+      "pid": "16755",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "505",
+      "pid": "16787",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "505",
+      "pid": "16789",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "505",
+      "pid": "16846",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "16981",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "17007",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "17016",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "17017",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "17020",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "17026",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "17036",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "17050",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "17097",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "17273",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "507",
+      "pid": "17319",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "508",
+      "pid": "17694",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "508",
+      "pid": "17709",
+      "observedSeconds": 733.1855230331421,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 37
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 136,
+          "modules_compiled": 136,
+          "modules_cached": 0,
+          "wall_ms": 330735.922,
+          "ppu_codegen": "136:510294.893:9023.255:0",
+          "ppu_cache_write": "136:34054.020:2438.780:99651120",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 2,
+          "boot_kind": "savestate",
+          "modules_total": 45,
+          "modules_compiled": 40,
+          "modules_cached": 5,
+          "wall_ms": 263669.652,
+          "ppu_codegen": "40:240045.233:11317.352:0",
+          "ppu_cache_write": "40:13290.079:2331.140:44351560",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "508",
+      "pid": "18289",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "508",
+      "pid": "18291",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "509",
+      "pid": "18364",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "509",
+      "pid": "18391",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "511",
+      "pid": "18803",
+      "observedSeconds": 71.80111503601074,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 29
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 737.112,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "511",
+      "pid": "18839",
+      "observedSeconds": 47.857725858688354,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 29
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 706.893,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "511",
+      "pid": "19032",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "511",
+      "pid": "19048",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "511",
+      "pid": "19060",
+      "observedSeconds": 105.6577308177948,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 31
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 749.586,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "511",
+      "pid": "19344",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "512",
+      "pid": "19478",
+      "observedSeconds": 76.91481399536133,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 29
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 766.773,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "512",
+      "pid": "19595",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "512",
+      "pid": "19617",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "512",
+      "pid": "19662",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "513",
+      "pid": "20216",
+      "observedSeconds": 28.04369020462036,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 29
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 829.213,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "513",
+      "pid": "20250",
+      "observedSeconds": 383.21443796157837,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 55
+      },
+      "gameIDsObserved": [
+        "BCES00510",
+        "BLES00113"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 664.574,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 2,
+          "boot_kind": "fresh",
+          "modules_total": 66,
+          "modules_compiled": 65,
+          "modules_cached": 1,
+          "wall_ms": 146713.245,
+          "ppu_codegen": "65:387216.254:12491.637:0",
+          "ppu_cache_write": "65:22349.417:2833.137:74153384",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 3,
+          "boot_kind": "savestate",
+          "modules_total": 75,
+          "modules_compiled": 0,
+          "modules_cached": 75,
+          "wall_ms": 1226.195,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 4,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 716.542,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": []
+    },
+    {
+      "build": "513",
+      "pid": "20353",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "513",
+      "pid": "20400",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "513",
+      "pid": "20411",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "513",
+      "pid": "20415",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "513",
+      "pid": "20621",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "515",
+      "pid": "21111",
+      "observedSeconds": 61.262346029281616,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 33
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 785.395,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": [
+        {
+          "relativeSeconds": 58.13287115097046,
+          "phase": "tar_begin",
+          "bytes": 1614785536,
+          "position": 301
+        },
+        {
+          "relativeSeconds": 60.642102003097534,
+          "phase": "tar_end",
+          "bytes": 1614785536,
+          "position": 1614785837
+        },
+        {
+          "relativeSeconds": 60.68624305725098,
+          "phase": "vm_begin",
+          "position": 1614785870
+        },
+        {
+          "relativeSeconds": 61.262346029281616,
+          "phase": "vm_end",
+          "position": 1969125883
+        }
+      ]
+    },
+    {
+      "build": "515",
+      "pid": "21150",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "515",
+      "pid": "21163",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "515",
+      "pid": "21215",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "516",
+      "pid": "21411",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "516",
+      "pid": "21422",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "516",
+      "pid": "21448",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "516",
+      "pid": "21463",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "516",
+      "pid": "21470",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "517",
+      "pid": "21496",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "518",
+      "pid": "21544",
+      "observedSeconds": 0.0,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 1
+      },
+      "gameIDsObserved": [],
+      "bootSessions": [],
+      "restorePhases": []
+    },
+    {
+      "build": "520",
+      "pid": "22138",
+      "observedSeconds": 471.5212199687958,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 34
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 136,
+          "modules_compiled": 136,
+          "modules_cached": 0,
+          "wall_ms": 400797.363,
+          "ppu_codegen": "136:698706.982:18145.263:0",
+          "ppu_cache_write": "136:51522.983:6933.536:99651120",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": [
+        {
+          "relativeSeconds": 468.50849294662476,
+          "phase": "tar_begin",
+          "bytes": 1614785536,
+          "position": 301
+        },
+        {
+          "relativeSeconds": 470.9997777938843,
+          "phase": "tar_end",
+          "bytes": 1614785536,
+          "position": 1614785837
+        },
+        {
+          "relativeSeconds": 471.05142307281494,
+          "phase": "vm_begin",
+          "position": 1614785870
+        },
+        {
+          "relativeSeconds": 471.5212199687958,
+          "phase": "vm_end",
+          "position": 1969125883
+        }
+      ]
+    },
+    {
+      "build": "520",
+      "pid": "22183",
+      "observedSeconds": 122.34345889091492,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 38,
+        "NeoSwap-v1.jsonl.previous": 305
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 709.33,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        },
+        {
+          "session": 2,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 665.494,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": [],
+      "neoSwap": {
+        "samples": 305,
+        "sampledSeconds": 55.773608922958374,
+        "byteMetrics": {
+          "capacityBytes": {
+            "min": 8589934592,
+            "median": 8589934592,
+            "max": 8589934592
+          },
+          "processFootprintBytes": {
+            "min": 1769706360,
+            "median": 1895470088,
+            "max": 2009519160
+          },
+          "processResidentBytes": {
+            "min": 2066448384,
+            "median": 2092711936,
+            "max": 2165751808
+          },
+          "processCompressedLedgerBytes": {
+            "min": 159301632,
+            "median": 174030848,
+            "max": 219758592
+          },
+          "processAvailableBytes": {
+            "min": 4969802696,
+            "median": 5083835384,
+            "max": 5209615496
+          },
+          "donorFootprintBytes": {
+            "min": 4982360,
+            "median": 4998744,
+            "max": 88245896
+          }
+        },
+        "iosMemoryWarningsMax": 0,
+        "jetsamConfirmed": false
+      }
+    },
+    {
+      "build": "520",
+      "pid": "22226",
+      "observedSeconds": 285.882239818573,
+      "rowsByFile": {
+        "RPCS3-milestones.log": 28,
+        "RPCS3-diagnostic.log": 423,
+        "NeoSwap-v1.jsonl.previous": 362
+      },
+      "gameIDsObserved": [
+        "BCES00510"
+      ],
+      "bootSessions": [
+        {
+          "session": 1,
+          "boot_kind": "fresh",
+          "modules_total": 40,
+          "modules_compiled": 0,
+          "modules_cached": 40,
+          "wall_ms": 664.654,
+          "ppu_codegen": "0:0.000:0.000:0",
+          "ppu_cache_write": "0:0.000:0.000:0",
+          "ppu_pipeline": 0,
+          "ppu_ir_passes": 0,
+          "spu_pipeline": 1
+        }
+      ],
+      "restorePhases": [],
+      "coreprof": {
+        "windows": 25,
+        "sumWindowMs": 127663.111,
+        "windowMetrics": {
+          "avg_fps": {
+            "min": 4.579,
+            "median": 14.069,
+            "max": 57.47
+          },
+          "low1_fps": {
+            "min": 0.143,
+            "median": 6.27,
+            "max": 49.084
+          },
+          "p95_ms": {
+            "min": 19.4,
+            "median": 92.612,
+            "max": 227.56
+          },
+          "p99_ms": {
+            "min": 20.138,
+            "median": 159.477,
+            "max": 6983.918
+          },
+          "memory_mib": {
+            "min": 3029,
+            "median": 3603,
+            "max": 4750
+          },
+          "headroom_mib": {
+            "min": 1905,
+            "median": 3052,
+            "max": 3626
+          },
+          "ppu_cores": {
+            "min": 0.373,
+            "median": 0.469,
+            "max": 0.938
+          },
+          "spu_cores": {
+            "min": 1.527,
+            "median": 2.586,
+            "max": 3.903
+          },
+          "rsx_cores": {
+            "min": 0.49,
+            "median": 0.626,
+            "max": 0.861
+          },
+          "jit_cores": {
+            "min": 0.0,
+            "median": 0.0,
+            "max": 0.756
+          },
+          "range_wait_ms": {
+            "min": 0.521,
+            "median": 43.163,
+            "max": 126.392
+          },
+          "gpu_time_ms": {
+            "min": -1,
+            "median": -1,
+            "max": -1
+          },
+          "gpu_fence_wait_ms": {
+            "min": 0.0,
+            "median": 0.0,
+            "max": 0.0
+          }
+        }
+      },
+      "vma": {
+        "samples": 24,
+        "last": {
+          "vma_block_bytes": 2745040896,
+          "vma_allocated": 2256106496,
+          "vma_unused": 488934400
+        },
+        "byteMetrics": {
+          "vma_block_bytes": {
+            "min": 1285554176,
+            "median": 1662353408.0,
+            "max": 2745040896
+          },
+          "vma_allocated": {
+            "min": 962048000,
+            "median": 1213940160.0,
+            "max": 2256106496
+          },
+          "vma_unused": {
+            "min": 322002304,
+            "median": 381828416.0,
+            "max": 519125632
+          }
+        }
+      },
+      "resilience": {
+        "windows": 25,
+        "sumsOfWindowCounters": {
+          "memory_reclaims": 3,
+          "memory_reclaim_effective": 3,
+          "memory_reclaim_deferred": 3,
+          "shader_cache_hits": 263348,
+          "shader_cache_misses": 3,
+          "rsx_semaphore_wait_ms": 44056.857
+        },
+        "maximumSeverity": 2
+      },
+      "videoDemandReads": {
+        "loggedSamples": 6,
+        "readUs": {
+          "min": 17222,
+          "median": 40356.5,
+          "max": 195563
+        },
+        "maximumUs": 195563
+      },
+      "neoSwap": {
+        "samples": 362,
+        "sampledSeconds": 153.5034008026123,
+        "byteMetrics": {
+          "capacityBytes": {
+            "min": 8589934592,
+            "median": 8589934592.0,
+            "max": 8589934592
+          },
+          "processFootprintBytes": {
+            "min": 77973320,
+            "median": 2378913136.0,
+            "max": 3219609208
+          },
+          "processResidentBytes": {
+            "min": 79036416,
+            "median": 2205925376.0,
+            "max": 2647654400
+          },
+          "processCompressedLedgerBytes": {
+            "min": 0,
+            "median": 0.0,
+            "max": 1088258048
+          },
+          "processAvailableBytes": {
+            "min": 3759712648,
+            "median": 4600408720.0,
+            "max": 6901348536
+          },
+          "donorFootprintBytes": {
+            "min": 5195352,
+            "median": 114117856,
+            "max": 165825808
+          }
+        },
+        "iosMemoryWarningsMax": 0,
+        "jetsamConfirmed": false
+      }
+    }
+  ],
+  "interpretation": {
+    "appLogUsedForNumericAggregation": false,
+    "duplicateMilestonesAndDiagnosticsNotSummed": true,
+    "fpsAreWindowStatisticsNotSceneLabels": true,
+    "rangeWaitMsAreAggregatePerPresentedFrameNotWindowMs": true,
+    "vmaUnusedIncludesFragmentationNotNecessarilyReleasableBlocks": true,
+    "gpuMinusOneMeansUnavailable": true,
+    "capacitiesAndMappedAliasesAreNotAdditionalPhysicalRam": true,
+    "residentFootprintCompressedAreNotAdditive": true,
+    "afterDeviceMeasurementsAvailable": false
+  }
+}

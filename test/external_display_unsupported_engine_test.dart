@@ -1,14 +1,14 @@
 // Build 447 (docs/external-display-universal.md § 5, § 8 bis): an engine
-// that cannot draw on the external screen (KartPad, whose SDL window belongs
-// to its locked donor core) hides NeoStation's window there for its session,
-// so iOS mirrors the iPhone, and shows it again exactly once on every end
-// path. The KartPad bridge stays byte-identical to its pinned Core, so the
-// pairing runs in Dart: ExternalDisplayService.runUnsupportedEngineSession,
-// called by KartPadInternalService.launchNativeSession.
+// that cannot draw on the external screen hides NeoStation's window there for
+// its session, so iOS mirrors the iPhone, and shows it again exactly once on
+// every end path. The pairing runs in Dart:
+// ExternalDisplayService.runUnsupportedEngineSession.
 //
-// The first group drives the service with a fake native coordinator; the
-// second drives the real KartPadInternalBridge over its method channel.
-// Source and channel behaviour only: no iPhone or Apple TV claim.
+// KartPad, the engine this was written for, left NeoStation on 19 October
+// 2026 (Dusklight, which paired natively, on 20 October); its channel group
+// went with it. The service keeps its contract for
+// any future engine in the same situation, driven here by a fake native
+// coordinator. Source and channel behaviour only: no iPhone or Apple TV claim.
 import 'dart:async';
 
 import 'package:external_display/external_display.dart';
@@ -16,7 +16,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/services/external_display_service.dart';
-import 'package:neostation/services/kartpad_internal_service.dart';
 
 const suspend = 'suspendForUnsupportedEngine';
 const resume = 'resumeAfterUnsupportedEngine';
@@ -102,7 +101,7 @@ void main() {
     Future<Map<String, Object?>> run(
       Future<Map<String, Object?>> Function() start,
     ) => service.runUnsupportedEngineSession<Map<String, Object?>>(
-      engine: 'KartPad',
+      engine: 'Engine',
       sessionEnded: ended.stream,
       start: start,
       sessionContinues: (answer) => answer['running'] == true,
@@ -185,7 +184,7 @@ void main() {
       addTearDown(other.close);
       await run(() async => {'running': true});
       await service.runUnsupportedEngineSession<Map<String, Object?>>(
-        engine: 'KartPad',
+        engine: 'Engine',
         sessionEnded: other.stream,
         start: () async => {'running': true},
         sessionContinues: (answer) => answer['running'] == true,
@@ -246,122 +245,6 @@ void main() {
       ended.add({});
       await settle();
       expect(journal, [suspend, 'start', resume]);
-      expect(service.unsupportedEngineHolds, 0);
-    });
-  });
-
-  group('KartPad native session', () {
-    const kartPad = MethodChannel('neostation/kartpad_internal');
-    const codec = StandardMethodCodec();
-    late int transaction;
-    late Future<Object?> Function(MethodCall call) launchAnswer;
-
-    setUp(() {
-      transaction = 0;
-      launchAnswer = (_) async => {'success': true};
-      binding.defaultBinaryMessenger.setMockMethodCallHandler(kartPad, (
-        call,
-      ) async {
-        if (call.method != 'launch') return true;
-        transaction = (call.arguments as Map)['transaction'] as int;
-        journal.add('kartpad.launch');
-        return launchAnswer(call);
-      });
-    });
-
-    Future<void> nativeSessionEnded({int? ofTransaction}) async {
-      final delivered = Completer<void>();
-      await binding.defaultBinaryMessenger.handlePlatformMessage(
-        kartPad.name,
-        codec.encodeMethodCall(
-          MethodCall('sessionEnded', {
-            'transaction': ofTransaction ?? transaction,
-            'exitReason': 'userReturn',
-            'success': true,
-            'runtimeReleased': true,
-          }),
-        ),
-        (_) => delivered.complete(),
-      );
-      await delivered.future;
-      await settle();
-    }
-
-    tearDown(() async {
-      // The bridge keeps its session state in statics: end the last
-      // transaction so a failed test never leaves the next one refused.
-      if (transaction > 0) await nativeSessionEnded();
-      binding.defaultBinaryMessenger.setMockMethodCallHandler(kartPad, null);
-    });
-
-    Future<Map<String, dynamic>> launch() =>
-        KartPadInternalService.launchNativeSession(
-          gamePath: '/Ports/KartPad/Games/RMCP01.wbfs',
-          supportPath: '/Ports/KartPad',
-          cachePath: '/tmp/KartPad',
-          externalDisplay: service,
-        );
-
-    test('hidden before the native launch, shown again when KartPad ends',
-        () async {
-      final answer = await launch();
-      expect(answer['success'], isTrue);
-      expect(journal, [suspend, 'kartpad.launch']);
-      expect(native.hidden, isTrue);
-
-      await nativeSessionEnded(ofTransaction: transaction - 1);
-      expect(native.hidden, isTrue, reason: 'an earlier session is filtered');
-
-      await nativeSessionEnded();
-      expect(journal, [suspend, 'kartpad.launch', resume]);
-      expect(service.unsupportedEngineHolds, 0);
-    });
-
-    test('a refused start shows the window before the answer', () async {
-      launchAnswer = (_) async => {
-        'success': false,
-        'errorCode': 'KARTPAD_START_FAILED',
-        'stage': 'start',
-      };
-      final answer = await launch();
-      expect(answer['errorCode'], 'KARTPAD_START_FAILED');
-      expect(journal, [suspend, 'kartpad.launch', resume]);
-      expect(service.unsupportedEngineHolds, 0);
-    });
-
-    test('a first-frame timeout keeps it hidden until KartPad ends', () async {
-      launchAnswer = (_) async => {
-        'success': false,
-        'errorCode': 'KARTPAD_FIRST_FRAME_TIMEOUT',
-        'stage': 'firstFrame',
-      };
-      final answer = await launch();
-      expect(answer['errorCode'], 'KARTPAD_FIRST_FRAME_TIMEOUT');
-      expect(journal, [suspend, 'kartpad.launch']);
-      expect(native.hidden, isTrue, reason: 'the core still runs');
-
-      await nativeSessionEnded();
-      expect(journal, [suspend, 'kartpad.launch', resume]);
-      expect(service.unsupportedEngineHolds, 0);
-    });
-
-    test('a second launch refused by the running session keeps it hidden',
-        () async {
-      await launch();
-      final duplicate = await launch();
-      expect(duplicate['errorCode'], 'KARTPAD_SESSION_ACTIVE');
-      expect(journal, [suspend, 'kartpad.launch'],
-          reason: 'one native launch, one suspension, no release yet');
-      expect(service.unsupportedEngineHolds, 1);
-
-      await nativeSessionEnded();
-      expect(journal, [suspend, 'kartpad.launch', resume]);
-    });
-
-    test('a channel failure shows the window again and propagates', () async {
-      launchAnswer = (_) async => throw PlatformException(code: 'BROKEN');
-      await expectLater(launch(), throwsA(isA<PlatformException>()));
-      expect(journal, [suspend, 'kartpad.launch', resume]);
       expect(service.unsupportedEngineHolds, 0);
     });
   });

@@ -12,14 +12,23 @@ class Armsx2InternalBridge {
 
   static final StreamController<Map<String, dynamic>> _sessionEvents =
       StreamController<Map<String, dynamic>>.broadcast();
+  static final StreamController<Map<String, dynamic>> _textureProgress =
+      StreamController<Map<String, dynamic>>.broadcast();
   static bool _eventHandlerInstalled = false;
 
   static void _ensureEventHandler() {
     if (_eventHandlerInstalled) return;
     _eventHandlerInstalled = true;
     _channel.setMethodCallHandler((call) async {
-      if (call.method != 'sessionEnded') return;
       final arguments = call.arguments;
+      // Build 485: progress of an HD texture pack import.
+      if (call.method == 'textureProgress') {
+        if (arguments is Map) {
+          _textureProgress.add(Map<String, dynamic>.from(arguments));
+        }
+        return;
+      }
+      if (call.method != 'sessionEnded') return;
       _sessionEvents.add(
         arguments is Map
             ? Map<String, dynamic>.from(arguments)
@@ -69,6 +78,24 @@ class Armsx2InternalBridge {
             'biosFilename': ?biosFilename,
           }) ??
           const <String, dynamic>{},
+    );
+  }
+
+  /// Build 485: HD texture packs of a PS2 game, outside any session. Every
+  /// call answers a map with "success" and, on failure, an "error" key.
+  static Stream<Map<String, dynamic>> get textureProgress {
+    _ensureEventHandler();
+    return _textureProgress.stream;
+  }
+
+  static Future<Map<String, dynamic>> texture(
+    String method,
+    Map<String, Object?> arguments,
+  ) async {
+    _ensureEventHandler();
+    return Map<String, dynamic>.from(
+      await _channel.invokeMapMethod<String, dynamic>(method, arguments) ??
+          const <String, dynamic>{'success': false, 'error': 'failed'},
     );
   }
 

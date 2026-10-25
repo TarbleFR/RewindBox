@@ -1,0 +1,162 @@
+LZMA SDK 24.09 — HD texture catalogue reader
+
+By Igor Pavlov. Public-domain dedication as retained in the vendored C
+source headers. These files were copied unmodified from NeoStation
+packages/flutter_7zip/src/7zip/C; this record applies to the LZMA SDK C
+subset, not to every component of the separate 7-Zip plugin.
+
+Upstream: https://www.7-zip.org/sdk.html
+Version: 24.09 (2024-11-29).
+
+The original file notices follow verbatim.
+
+=== 7z.h ===
+
+/* 7z.h -- 7z interface
+2023-04-02 : Igor Pavlov : Public domain */
+
+=== 7zArcIn.c ===
+
+/* 7zArcIn.c -- 7z Input functions
+2023-09-07 : Igor Pavlov : Public domain */
+
+=== 7zBuf.c ===
+
+/* 7zBuf.c -- Byte Buffer
+2017-04-03 : Igor Pavlov : Public domain */
+
+=== 7zBuf.h ===
+
+/* 7zBuf.h -- Byte Buffer
+2023-03-04 : Igor Pavlov : Public domain */
+
+=== 7zCrc.c ===
+
+/* 7zCrc.c -- CRC32 calculation and init
+2024-03-01 : Igor Pavlov : Public domain */
+
+=== 7zCrc.h ===
+
+/* 7zCrc.h -- CRC32 calculation
+2024-01-22 : Igor Pavlov : Public domain */
+
+=== 7zCrcOpt.c ===
+
+/* 7zCrcOpt.c -- CRC32 calculation (optimized functions)
+2023-12-07 : Igor Pavlov : Public domain */
+
+=== 7zDec.c ===
+
+/* 7zDec.c -- Decoding from 7z folder
+: Igor Pavlov : Public domain */
+
+=== 7zStream.c ===
+
+/* 7zStream.c -- 7z Stream functions
+2023-04-02 : Igor Pavlov : Public domain */
+
+=== 7zTypes.h ===
+
+/* 7zTypes.h -- Basic types
+2024-01-24 : Igor Pavlov : Public domain */
+
+=== 7zVersion.h ===
+
+#define MY_VER_MAJOR 24
+#define MY_VER_MINOR 9
+#define MY_VER_BUILD 0
+#define MY_VERSION_NUMBERS "24.09"
+#define MY_VERSION MY_VERSION_NUMBERS
+
+#ifdef MY_CPU_NAME
+  #define MY_VERSION_CPU MY_VERSION " (" MY_CPU_NAME ")"
+#else
+  #define MY_VERSION_CPU MY_VERSION
+#endif
+
+#define MY_DATE "2024-11-29"
+#undef MY_COPYRIGHT
+#undef MY_VERSION_COPYRIGHT_DATE
+#define MY_AUTHOR_NAME "Igor Pavlov"
+#define MY_COPYRIGHT_PD "Igor Pavlov : Public domain"
+#define MY_COPYRIGHT_CR "Copyright (c) 1999-2024 Igor Pavlov"
+
+#ifdef USE_COPYRIGHT_CR
+  #define MY_COPYRIGHT MY_COPYRIGHT_CR
+#else
+  #define MY_COPYRIGHT MY_COPYRIGHT_PD
+#endif
+
+#define MY_COPYRIGHT_DATE MY_COPYRIGHT " : " MY_DATE
+#define MY_VERSION_COPYRIGHT_DATE MY_VERSION_CPU " : " MY_COPYRIGHT " : " MY_DATE
+
+
+=== 7zWindows.h ===
+
+/* 7zWindows.h -- StdAfx
+2023-04-02 : Igor Pavlov : Public domain */
+
+=== Bcj2.c ===
+
+/* Bcj2.c -- BCJ2 Decoder (Converter for x86 code)
+2023-03-01 : Igor Pavlov : Public domain */
+
+=== Bcj2.h ===
+
+/* Bcj2.h -- BCJ2 converter for x86 code (Branch CALL/JUMP variant2)
+2023-03-02 : Igor Pavlov : Public domain */
+
+=== Bra.h ===
+
+/* Bra.h -- Branch converters for executables
+2024-01-20 : Igor Pavlov : Public domain */
+
+=== Compiler.h ===
+
+/* Compiler.h : Compiler specific defines and pragmas
+2024-01-22 : Igor Pavlov : Public domain */
+
+=== CpuArch.c ===
+
+/* CpuArch.c -- CPU specific code
+Igor Pavlov : Public domain */
+
+=== CpuArch.h ===
+
+/* CpuArch.h -- CPU specific code
+Igor Pavlov : Public domain */
+
+=== Delta.h ===
+
+/* Delta.h -- Delta converter
+2023-03-03 : Igor Pavlov : Public domain */
+
+=== Lzma2Dec.c ===
+
+/* Lzma2Dec.c -- LZMA2 Decoder
+2024-03-01 : Igor Pavlov : Public domain */
+
+=== Lzma2Dec.h ===
+
+/* Lzma2Dec.h -- LZMA2 Decoder
+2023-03-03 : Igor Pavlov : Public domain */
+
+=== LzmaDec.c ===
+
+/* LzmaDec.c -- LZMA Decoder
+2023-04-07 : Igor Pavlov : Public domain */
+
+=== LzmaDec.h ===
+
+/* LzmaDec.h -- LZMA Decoder
+2023-04-02 : Igor Pavlov : Public domain */
+
+=== Precomp.h ===
+
+/* Precomp.h -- precompilation file
+2024-01-25 : Igor Pavlov : Public domain */
+
+=== RotateDefs.h ===
+
+/* RotateDefs.h -- Rotate functions
+2023-06-18 : Igor Pavlov : Public domain */

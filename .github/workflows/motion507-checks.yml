@@ -1,0 +1,96 @@
+name: RewindBox real liquid motion
+run-name: RewindBox Motion 507 • ${{ github.sha }}
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/motion507-checks.yml
+      - test/liquid_*
+      - test/fixtures/motion507-scope.json
+      - lib/widgets/liquid_*.dart
+      - lib/widgets/mau_ali_tab_motion.dart
+      - lib/widgets/main_menu_tab_strip.dart
+      - lib/widgets/native_carousel.dart
+      - lib/widgets/header.dart
+      - packages/neo_cheat_catalog/ios/Classes/RBLiquidProgressView.m
+      - packages/neo_texture_catalog/ios/Classes/NeoTextureHDPage.m
+      - packages/ui_refresh_rate/ios/Classes/UiRefreshRatePlugin.m
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rewindbox-motion-${{ github.ref }}-${{ contains(github.event.head_commit.message, '[motion-flutter-only]') && 'carousel' || 'full' }}
+  cancel-in-progress: true
+jobs:
+  flutter:
+    if: ${{ !contains(github.event.head_commit.message, '[motion507-validated]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      BOT: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - run: python3 test/liquid_motion_scope_test.py
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze the complete combined app
+        run: flutter analyze --no-pub --no-fatal-infos
+      - name: Exercise real tabs, console perspective, lifecycle, power and progress states
+        if: ${{ !contains(github.event.head_commit.message, '[motion-flutter-only]') }}
+        run: >-
+          flutter test --no-pub --reporter expanded
+          test/liquid_motion_test.dart test/airplay_navigation_test.dart
+          test/main_menu_tab_strip_test.dart test/neo_glass_bubble_test.dart
+          test/console_bubble_transition_test.dart test/system_bubble_render_test.dart
+          test/header_battery_test.dart test/legal_credits_dialog_test.dart
+          test/ui_refresh_rate_service_test.dart test/notification_bell_idle_test.dart
+      - name: Check unchanged library, display hook boundary and legal packaging
+        if: ${{ !contains(github.event.head_commit.message, '[motion-flutter-only]') }}
+        run: |
+          python3 test/retroarch_baseline_scope_test.py
+          python3 test/ui_refresh_rate_scope_test.py
+          python3 test/legal_bundle_preflight_test.py
+      - name: Reuse the exact successful full Flutter phase and exercise the changed fling-to-controller path
+        if: ${{ contains(github.event.head_commit.message, '[motion-flutter-only]') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 test/liquid_motion_reuse.py
+          flutter test --no-pub --reporter expanded test/liquid_motion_test.dart --name 'console perspective'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RewindBox-Motion507-Flutter-${{ github.sha }}
+          path: build/bubble-review
+          if-no-files-found: warn
+          retention-days: 14
+  native:
+    if: ${{ !contains(github.event.head_commit.message, '[motion507-validated]') && !contains(github.event.head_commit.message, '[motion-flutter-only]') }}
+    runs-on: macos-15
+    timeout-minutes: 25
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '26.3'}
+      - uses: subosito/flutter-action@v2
+        with: {flutter-version: '3.47.2', channel: stable, cache: true}
+      - run: flutter precache --ios
+      - run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+      - name: Type-check both real catalogue pages and execute UIKit material and power notifications
+        run: python3 test/liquid_native_probe.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RewindBox-Motion507-UIKit-${{ github.sha }}
+          path: |
+            build/motion-native
+            build/ui-refresh-rate/UiRefreshRate440.xcresult
+          if-no-files-found: warn
+          retention-days: 14

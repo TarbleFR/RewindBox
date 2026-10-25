@@ -43,6 +43,7 @@ import '../widgets/tv_directory_picker.dart';
 import '../services/libretro_internal_service.dart';
 import '../services/storage/storage_import_activity.dart';
 import 'dolphin_wii_motion_panel.dart';
+import 'embedded_touch_controls_panel.dart';
 import 'libretro_engine_panel.dart';
 
 part 'system_emulator_settings_dialog/gamepad_nav.dart';
@@ -96,7 +97,7 @@ class _SystemEmulatorSettingsDialogState
     // switch is misleading here and previously caused the same UI issue for
     // Dolphin/RPCS3.
     if (Platform.isIOS &&
-        const <String>{'gc', 'wii', 'ps2', 'ps3', 'ports'}.contains(folder)) {
+        const <String>{'gc', 'wii', 'ps2', 'ps3'}.contains(folder)) {
       return false;
     }
     return true;
@@ -110,7 +111,7 @@ class _SystemEmulatorSettingsDialogState
       'gc' || 'wii' => 'DolphiniOS',
       'ps2' => 'ARMSX2',
       'ps3' => 'RPCS3',
-      'ports' => 'Dusklight',
+      'switch' => 'MeloNX',
       _ => null,
     };
   }

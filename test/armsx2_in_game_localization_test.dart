@@ -50,6 +50,9 @@ void main() {
       'GPU palette conversion',
       'CPU framebuffer conversion',
       'Disable depth emulation',
+      'Blending Accuracy',
+      'Default for all PS2 games',
+      'Blending accuracy updated for this game.',
     ]) {
       expect(locale, contains('@"$label"'));
     }

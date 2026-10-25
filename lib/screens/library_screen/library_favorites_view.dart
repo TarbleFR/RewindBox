@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -965,7 +966,7 @@ class _LibraryFavoritesViewState extends State<LibraryFavoritesView> {
                     const Spacer(),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(3),
-                      child: LinearProgressIndicator(
+                      child: LiquidProgressIndicator(
                         value: progress.fraction,
                         minHeight: 4,
                       ),

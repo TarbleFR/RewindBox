@@ -59,6 +59,8 @@ PREFIXES = {
     'freeintv': ('freeintv_', 'default_p1_'),
     'o2em': ('o2em_',),
     'mednafen_pcfx': ('pcfx_',),
+    # Lot 3: Mesen, the NES engine that reads HD packs (docs/hd-textures-nes-mesen.md).
+    'mesen': ('mesen_',),
 }
 CODE_GENERATION = re.compile(r'dynarec|jit|recompil|cpucore|cpu_core|cpu_mode|(?:^|[_-])drc(?:$|[_-])', re.I)
 
@@ -112,6 +114,16 @@ LOCKED = {
     # RETRO_ENVIRONMENT_SET_AUDIO_CALLBACK, which the host does not offer.
     'wasm4': {
         'wasm4_audio_type': 'normal',
+    },
+    # Build 489 (HD textures): <content>-texture-replacements read from the core's
+    # save directory, where the catalogue installs it; never dumped; textures
+    # decoded on demand within bounded VRAM/RAM caches.
+    'mednafen_psx_hw': {
+        'beetle_psx_hw_texture_directory': 'save',
+        'beetle_psx_hw_dump_textures': 'disabled',
+        'beetle_psx_hw_hd_caching_method': 'lazy',
+        'beetle_psx_hw_hd_cache_vram_budget': '512',
+        'beetle_psx_hw_hd_cache_ram_budget': '512',
     },
 }
 # The choices of every curated setting, exactly: the raw values the core

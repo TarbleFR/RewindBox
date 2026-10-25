@@ -5,9 +5,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../l10n/armsx2_ui_locale.dart';
 import '../l10n/console_manager_locale.dart';
+import '../l10n/texture_catalog_locale.dart';
 import '../services/armsx2_internal_service.dart';
 import '../services/embedded_engine_policy.dart';
 import '../services/home_music_service.dart';
+import '../services/texture_catalog_service.dart';
 import 'armsx2_bios_picker.dart';
 import '../services/stikjit_armsx2_service.dart';
 
@@ -43,8 +45,23 @@ class _Armsx2InternalPlaylistActionsState
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  // Build 486: the console's HD textures page (PS2).
+  Future<void> _openTextures() async {
+    _interaction(true);
+    try {
+      final opened = await TextureCatalogService.openConsole('ps2');
+      if (!opened && mounted) _notice(TextureCatalogLocale.text(Localizations.localeOf(context), 'openFailed'));
+    } finally {
+      if (mounted) _interaction(false);
+    }
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
+    if (action == 'textures') {
+      await _openTextures();
+      return;
+    }
     setState(() => _busy = true);
     _interaction(true);
     try {
@@ -157,6 +174,11 @@ class _Armsx2InternalPlaylistActionsState
             value: 'boot_bios',
             child: Text(_t('bootBios')),
           ),
+          if (TextureCatalogService.supports('ps2'))
+            PopupMenuItem(
+              value: 'textures',
+              child: Text(TextureCatalogLocale.text(Localizations.localeOf(context), 'menuTitle')),
+            ),
         ],
       ),
     );

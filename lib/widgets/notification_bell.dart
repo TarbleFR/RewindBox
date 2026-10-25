@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -333,11 +334,13 @@ class _NotificationDropdownItem extends StatelessWidget {
                 ),
                 if (data.progress != null) ...[
                   SizedBox(height: 6.r),
-                  LinearProgressIndicator(
+                  LiquidProgressIndicator(
                     value: data.progress,
                     minHeight: 3.r,
-                    color: iconColor,
-                    backgroundColor: iconColor.withValues(alpha: 0.2),
+                    state: data.type == GlobalNotificationType.error
+                        ? LiquidProgressState.error
+                        : data.type == GlobalNotificationType.success
+                        ? LiquidProgressState.success : LiquidProgressState.running,
                     borderRadius: BorderRadius.circular(2.r),
                   ),
                 ],

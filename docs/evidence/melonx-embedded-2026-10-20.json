@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-20",
+  "branch": "Claude",
+  "engineSource": {
+    "repository": "https://starforgejo.dev/projects/MeloNX.git",
+    "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67"
+  },
+  "coreAttempts": [
+    {
+      "run": 39498866032,
+      "source": "623a9cf4d693b6840eddd8e543da7a46e90dd905",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39498866032",
+      "blockingError": "NETSDK1147: mobile-librarybuilder missing",
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39499119399,
+      "source": "f1c79b645e4e0683afeae83c431d47e0f9b10074",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39499119399",
+      "blockingError": "NU1101: exact Ryujinx.LibHac package absent from declared Ryulynx feed",
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39499844255,
+      "source": "8eac60589b46539e781004663b7b5cb66757a9a7",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39499844255",
+      "blockingError": "NU1301: old projects feed host unreachable",
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39502094518,
+      "source": "307ab84bc4903601656f05d3a02157e11e55e32e",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39502094518",
+      "blockingError": "NU1101: exact Ryujinx.LibHac package absent from migrated projects feed",
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39504259828,
+      "source": "56aeec6722a93f07bbdc05a4576e71cebc93702b",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/TarbleFR/neostation-ios/actions/runs/39504259828",
+      "blockingError": "NETSDK1112: NativeAOT iOS runtime pack missing after restore omitted SelfContained=true",
+      "libHacReconstructed": true,
+      "libHacLayoutTestsPassed": 5,
+      "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+      "artifact": 12302912762,
+      "engineDependenciesRestored": true,
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39505037649,
+      "source": "240a7be3fcace824e0d7c690e34fdbae1c3c3c73",
+      "status": "completed",
+      "conclusion": "failure",
+      "blockingError": "GitHub CLI log reader refused NUKE terminal escape sequences; adapted engine compile was not reached.",
+      "engineBinaryProduced": false,
+      "bootstrapChecksPassed": 15
+    },
+    {
+      "run": 39505386038,
+      "source": "97c1ac71d962e7dc54410f307b5393b269d3368a",
+      "status": "completed",
+      "conclusion": "failure",
+      "blockingError": "Reuse harness expected the engine SDK 10.0.100; host checks resolve SDK 10.0.401 outside global.json. No engine build was reached.",
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39505697548,
+      "source": "7bef4403694f1081096b50c569c68813889146f1",
+      "status": "completed",
+      "conclusion": "failure",
+      "blockingError": "NETSDK1112 remains with explicit Release/SelfContained restore followed by publish --no-restore.",
+      "bootstrapChecksReused": true,
+      "libHacLayoutChecksReused": true,
+      "artifact": 12303221310,
+      "engineBinaryProduced": false
+    },
+    {
+      "run": 39506066398,
+      "source": "30575e29a91d709668ef7278ed4c139183cf355c",
+      "status": "completed",
+      "conclusion": "failure",
+      "compilerPublishSucceeded": true,
+      "blockingError": "Post-publish lipo arguments were reversed; the compiled binary was not retained.",
+      "engineBinaryProduced": true,
+      "engineArtifactRetained": false
+    },
+    {
+      "run": 39506631512,
+      "source": "3ec09b234b758814976d955cf52cf695b2de0226",
+      "status": "completed",
+      "conclusion": "success",
+      "engineBinaryProduced": true,
+      "artifact": 12304021888,
+      "enginePackagedInNeoStation": false
+    }
+  ],
+  "retirement": {
+    "productSource": "faa281043ffdb82166c6af4ea069d442fb859cdc",
+    "run": 39501621994,
+    "job": 118900258241,
+    "passedPhases": [
+      "Analyze the final app and retired locale-key removal",
+      "Exercise the adjusted console and retirement scenarios",
+      "Protect unchanged libraries, the remaining JIT helpers and routing"
+    ],
+    "focusedFlutterTestsPassed": 35,
+    "initialSdkFailure": "Incorrect Flutter framework search path; corrected by the following native validation."
+  },
+  "nativeValidation": {
+    "source": "e214cf5975a1b3c2031baac5ff06961a1f979859",
+    "run": 39502499716,
+    "job": 118903228338,
+    "status": "completed",
+    "conclusion": "success",
+    "passedStep": "Compile only the registered Swift plugin against the actual Flutter and iPhone SDK",
+    "flutterAndContractPhasesReused": true,
+    "appAndTestInputsCompared": true,
+    "hostJobSkipped": true,
+    "artifact": "MeloNX-retirement-proof-e214cf5975a1b3c2031baac5ff06961a1f979859"
+  },
+  "limits": {
+    "switchEngineCompiled": true,
+    "embeddedSessionImplemented": false,
+    "switchImportsImplemented": false,
+    "originalTouchAndLayoutAdapted": false,
+    "neoSwapAdapted": false,
+    "homebrewRun": false,
+    "deviceGameplayTested": false,
+    "ipaProduced": false,
+    "releasePublished": false,
+    "personalFilesDeleted": false,
+    "embeddedBootstrapImplemented": true
+  },
+  "nextRequiredInput": null,
+  "libHacSourceReconstruction": {
+    "source": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+    "consumerChange": "cc6d2dc162ca00a3db9af09f176798a8297926ab",
+    "identification": "Inference from matching NACP correction and upstream consumer version change ten minutes later.",
+    "originalNugetPackageRecovered": false,
+    "originalBinaryEquivalenceClaimed": false
+  },
+  "bootstrapValidation": {
+    "source": "240a7be3fcace824e0d7c690e34fdbae1c3c3c73",
+    "run": 39505037649,
+    "job": 118911723958,
+    "passedStep": "Execute the embedded storage boundary",
+    "passedCases": 15,
+    "scope": "Managed storage-root and initialization-state implementation; not a native game session or device test."
+  },
+  "libHacArchiveInspection": {
+    "artifact": 12302912762,
+    "zipSha256": "f31b5a53aa3ee5726a8fe593bca7940befa5f1b447d4e60dd1123f3f45ebf197",
+    "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+    "upstreamSourceSha256": "36e4cf34575a36e3844b55fd8cc3834bfb1cddc68ccebbb21fc0f7bb28e8373b",
+    "generatedSourceFiles": 3,
+    "bytesDownloadedAndChecked": true,
+    "originalPublishedPackageEquivalenceClaimed": false
+  },
+  "nextRequiredWork": "Implement the owned native game session, dependency packaging and JIT on NeoStation PID; then imports, original controls/editor, NeoSwap validation and the test IPA.",
+  "compiledEngineEvidence": "docs/evidence/melonx-native-bootstrap-2026-10-20.json"
+}

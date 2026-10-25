@@ -5,8 +5,9 @@ import UIKit
 @objc(DOLDolphinViewController) final class NPDolphinMenuFixture: NSObject { @objc func menuPressed(_ sender: Any) {} }
 @objc(Armsx2GameViewController) final class NPArmsMenuFixture: NSObject { @objc func menuPressed() {} }
 @objc(RPCS3GameViewController) final class NPRpcsMenuFixture: NSObject { @objc func menuPressed() {} }
+// The menu class of the removed Dusklight engine (docs/ports-removal-2026-10-20.md):
+// same class name and action, no longer an anchor.
 @objc(NeoDusklightControls) final class NPDuskMenuFixture: NSObject { @objc func openMenu() {} }
-@objc(KartPadGameOverlay) final class NPKartMenuFixture: UIView {}
 
 final class NeoPlayCompanionTests: XCTestCase {
     func testBatteryUnknownAndInvalidNeverBecomeFakePercentages() {
@@ -46,18 +47,24 @@ final class NeoPlayCompanionTests: XCTestCase {
         XCTAssertNil(NPCompanionPlacement.frame(anchor:menu,safe:safe,size:CGSize(width:999,height:30),obstacles:[]))
         XCTAssertNil(NPCompanionPlacement.frame(anchor:menu,safe:safe,size:CGSize(width:90,height:30),obstacles:[safe]))
     }
-    func testAllFiveExistingNativeMenuAdaptersWithoutMutatingTargets() {
-        let fixtures: [(NSObject,Selector,String)] = [(NPDolphinMenuFixture(),#selector(NPDolphinMenuFixture.menuPressed(_:)),"dolphin"),(NPArmsMenuFixture(),#selector(NPArmsMenuFixture.menuPressed),"armsx2"),(NPRpcsMenuFixture(),#selector(NPRpcsMenuFixture.menuPressed),"rpcs3"),(NPDuskMenuFixture(),#selector(NPDuskMenuFixture.openMenu),"dusklight")]
+    func testAllThreeExistingNativeMenuAdaptersWithoutMutatingTargets() {
+        let fixtures: [(NSObject,Selector,String)] = [(NPDolphinMenuFixture(),#selector(NPDolphinMenuFixture.menuPressed(_:)),"dolphin"),(NPArmsMenuFixture(),#selector(NPArmsMenuFixture.menuPressed),"armsx2"),(NPRpcsMenuFixture(),#selector(NPRpcsMenuFixture.menuPressed),"rpcs3")]
         for (target,selector,kind) in fixtures {
             let button = UIButton(); button.addTarget(target,action:selector,for:.touchUpInside)
             let actions = button.actions(forTarget:target,forControlEvent:.touchUpInside)
             XCTAssertEqual(NPGameHUDAnchor.kind(of:button),kind)
             XCTAssertEqual(button.actions(forTarget:target,forControlEvent:.touchUpInside),actions)
         }
-        let parent = NPKartMenuFixture(), menu = UIButton(); menu.accessibilityLabel = "Menu"; menu.menu = UIMenu(children:[])
-        parent.addSubview(menu); XCTAssertEqual(NPGameHUDAnchor.kind(of:menu),"kartpad")
-        XCTAssertTrue(NPGameHUDAnchor.find(in:parent) === menu)
-        menu.removeFromSuperview(); XCTAssertNil(NPGameHUDAnchor.kind(of:menu))
+        // Dusklight left NeoStation: its menu button is no longer an anchor.
+        let dusk = NPDuskMenuFixture(), duskButton = UIButton()
+        duskButton.addTarget(dusk,action:#selector(NPDuskMenuFixture.openMenu),for:.touchUpInside)
+        XCTAssertNil(NPGameHUDAnchor.kind(of:duskButton))
+        let duskParent = UIView(); duskParent.addSubview(duskButton)
+        XCTAssertNil(NPGameHUDAnchor.find(in:duskParent))
+        // KartPad left NeoStation: a plain "Menu" button is no longer an anchor.
+        let parent = UIView(), menu = UIButton(); menu.accessibilityLabel = "Menu"; menu.menu = UIMenu(children:[])
+        parent.addSubview(menu); XCTAssertNil(NPGameHUDAnchor.kind(of:menu))
+        XCTAssertNil(NPGameHUDAnchor.find(in:parent))
         XCTAssertNil(NPGameHUDAnchor.kind(of:UIButton()))
     }
     func testHUDPassesTouchesAndIdentifiesUnknownChargingAndMultipleControllers() {

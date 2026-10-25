@@ -602,7 +602,8 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
   Widget _buildEmulatorsTab() {
     final embeddedEngine = _iosEmbeddedEngineName;
     if (embeddedEngine != null) {
-      final wii = _system.folderName.trim().toLowerCase() == 'wii';
+      final console = _system.folderName.trim().toLowerCase();
+      final wii = console == 'wii';
       return ListView(
         padding: EdgeInsets.all(12.r),
         children: [
@@ -618,6 +619,10 @@ extension _Tabs on _SystemEmulatorSettingsDialogState {
           // Build 442: phone shake on/off and sensitivity of the Wii Remote,
           // the same native preferences as the in-game Controls menu.
           if (wii) const DolphinWiiMotionPanel(),
+          // Build 484: touch-controls editor and "hide with a controller"
+          // for the GameCube, Wii, PS2 and PS3 embedded engines.
+          if (EmbeddedTouchControlsPanel.supports(console))
+            EmbeddedTouchControlsPanel(console: console),
         ],
       );
     }

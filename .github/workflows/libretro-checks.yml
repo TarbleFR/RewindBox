@@ -64,9 +64,11 @@ concurrency:
   cancel-in-progress: true
 jobs:
   native:
+    # Switch library changes run melonx-integration and melonx-host; unchanged
+    # libretro native/skin inputs retain their prior validation.
     # The unified-cheats workflow checks the changed cheat inputs; reuse the
     # recorded successful evidence for the unchanged skins/shaders/gameplay.
-    if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[switch-library]') && !contains(github.event.head_commit.message, '[frontend-motion]') && (!contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     # Room for the channel codec test (Build 454): the bridge built twice for
     # the iOS Simulator and one simulator boot.
@@ -123,9 +125,11 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
   dart:
+    # Switch library changes run melonx-integration and melonx-host; unchanged
+    # libretro native/skin inputs retain their prior validation.
     # The unified-cheats workflow checks the changed cheat inputs; reuse the
     # recorded successful evidence for the unchanged skins/shaders/gameplay.
-    if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[switch-library]') && !contains(github.event.head_commit.message, '[frontend-motion]') && (!contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -154,8 +158,9 @@ jobs:
     - name: Download the libretro cores pinned by the delivery
       uses: actions/download-artifact@v4
       with:
-        name: LibretroCores-fdeaef56f1acdeb3afa4fd0ef42e94114bc4a258
-        run-id: '38638115521'
+        # The 35-core package of lot 3 (Mesen), retroarch-delivery.yml LIBRETRO_CORES_HOST_SHA and RUN_ID.
+        name: LibretroCores-4c2186204ce06b50b989689a9c2322068f523a58
+        run-id: '39366986940'
         github-token: ${{ secrets.GITHUB_TOKEN }}
         path: dist/libretro
     - name: Source contracts
@@ -173,11 +178,12 @@ jobs:
         python3 test/retroarch_baseline_scope_test.py
         python3 test/game_audio_handoff_test.py
         python3 test/embedded_engine_route_contract_test.py
-
   skin-press:
+    # Switch library changes run melonx-integration and melonx-host; unchanged
+    # libretro native/skin inputs retain their prior validation.
     # The unified-cheats workflow checks the changed cheat inputs; reuse the
     # recorded successful evidence for the unchanged skins/shaders/gameplay.
-    if: ${{ !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[switch-library]') && !contains(github.event.head_commit.message, '[frontend-motion]') && (!contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 35
     steps:

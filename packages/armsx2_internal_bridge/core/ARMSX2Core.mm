@@ -15,11 +15,23 @@
 #include "pcsx2/Config.h"
 #include "pcsx2/Memory.h"
 #include "pcsx2/Patch.h"
+#include "pcsx2/GameDatabase.h"
 #include "pcsx2/Achievements.h"
 #include "pcsx2/VMManager.h"
 #include "pcsx2/CDVD/CDVDcommon.h"
 #include "pcsx2/ps2/BiosTools.h"
 #include "pcsx2/vtlb.h"
+// Build 485 (ABI 8): HD replacement textures (ARMSX2TextureReplacements.inc).
+#include "pcsx2/MTGS.h"
+#include "pcsx2/GS/GS.h"
+#include "pcsx2/GS/Renderers/Common/GSDevice.h"
+#include "pcsx2/GS/Renderers/Common/GSRenderer.h"
+#include "pcsx2/GS/Renderers/HW/GSTextureReplacements.h"
+#include "IOS/TexturePackPaths.h"
+#include "IOS/TexturePackTar.h"
+#include "IOS/TexturePackZstd.h"
+#include <map>
+#include <os/proc.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <algorithm>
@@ -95,6 +107,7 @@ void folder(std::string& slot, const std::string& root, const char* name) {
     throw std::runtime_error("Cannot create ARMSX2 data directory: " + slot);
 }
 void repair_shader_paths();
+void apply_texture_boot_preference();
 void initialize_settings() {
   auto& r=runtime();
   EmuFolders::DataRoot = r.data;
@@ -227,6 +240,9 @@ void vm_worker() {
       if (VMManager::Initialize(parameters,&boot_error)!=VMBootResult::StartupSuccess)
         throw std::runtime_error("ARMSX2 boot failed: "+boot_error.GetDescription());
       if (stopped()) throw std::runtime_error("ARMSX2 launch cancelled during boot.");
+      // Serial and CRC are known from here: a per-game HD texture choice made in
+      // the library reaches this game's INI before its first frame (ABI 8).
+      apply_texture_boot_preference();
       VMManager::SetState(VMState::Running);
       if (VMManager::GetState()!=VMState::Running) throw std::runtime_error("ARMSX2 did not enter Running.");
       { std::lock_guard lock(r.mutex); r.phase=Phase::Running; }
@@ -684,6 +700,8 @@ int set_graphics_hack(const char* name,int value,char* error,size_t capacity) {
 }
 
 #include "ARMSX2GraphicsAssets.inc"
+#include "ARMSX2BlendingAccuracy.inc"
+#include "ARMSX2TextureReplacements.inc"
 
 const NeoARMSX2API api={sizeof(NeoARMSX2API),NEO_ARMSX2_ABI_VERSION,NEO_ARMSX2_SOURCE_REVISION,
   create_view,release_view,prepare,request_jit_detach,validate_jit,boot,request_stop,shutdown,paused,button,sticks,
@@ -693,7 +711,10 @@ const NeoARMSX2API api={sizeof(NeoARMSX2API),NEO_ARMSX2_ABI_VERSION,NEO_ARMSX2_S
   get_retroachievements_state_json,set_retroachievements_option,
   login_retroachievements,logout_retroachievements,
   get_graphics_hacks_json,set_graphics_hack,
-  get_graphics_assets_json,set_shader_preset,set_performance_overlay,install_shader_pack};
+  get_graphics_assets_json,set_shader_preset,set_performance_overlay,install_shader_pack,
+  get_blending_accuracy_json,set_blending_accuracy,
+  get_texture_replacements_json,set_texture_replacements,reload_texture_replacements,
+  set_texture_boot_preferences,expand_texture_archive};
 }
 extern "C" bool ARMSX2_IsIdleVMPrewarmResolved() { return false; } // No autonomous prewarm in NeoStation.
 extern "C" const NeoARMSX2API* NeoARMSX2_GetAPI(uint32_t version) {

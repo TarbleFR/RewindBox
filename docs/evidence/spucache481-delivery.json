@@ -1,0 +1,46 @@
+{
+  "result": "passed",
+  "testedSHA": "5919be61269f67542c4f8c905c30555cbe09bdf0",
+  "candidateSHA": "839d114763e80a9945d162369e8d8f258bb82485",
+  "validationWasReused": true,
+  "sourceClosure": {
+    "deliveredBaseline": "7493d9babe20be1b2939e21a1051a72da8fb5d01",
+    "releasePackaging": "bcca4e4a4dc89a96b1dde05d66436af54efd327e",
+    "coreSource": "5919be61269f67542c4f8c905c30555cbe09bdf0",
+    "coreRun": 39144244183,
+    "canonicalPatchSHA256": "bc63c5da2dc97dca0f205b132dfb078d53da3d87c6fcf546810468512dd37a33",
+    "changedProductPaths": [],
+    "coreChanged": true,
+    "precompiledEnginesHelpersCatalogueSkinsUnchanged": true
+  },
+  "reusedEvidence": [
+    {
+      "run": 39132356516,
+      "source": "7493d9babe20be1b2939e21a1051a72da8fb5d01",
+      "jobs": [
+        "checks",
+        "native",
+        "Release device build \u2022 cold"
+      ],
+      "conclusion": "success"
+    },
+    {
+      "run": 39144244183,
+      "source": "5919be61269f67542c4f8c905c30555cbe09bdf0",
+      "jobs": [
+        "RPCS3 Core arm64 with NeoSwap client"
+      ],
+      "conclusion": "success",
+      "proofSHA256": "3c9aadf81028eeddd518d0bbbf1fdb4739f257f9ed79ef1b25db15c763147a7e",
+      "relocationProofProcesses": 4,
+      "coreSHA256": "b249523453b3c3188b2f849b1bd87187d259511612170c9167b9420678aef01d",
+      "coreInputs": 67
+    }
+  ],
+  "receiptSHA256": {
+    "docs/evidence/scraping480-delivery.json": "ed02702e2f6a6b0585db632a7d457084ce7d3f4ca9bb50ccf5c569f598de472b"
+  },
+  "deviceGameplayValidated": false,
+  "coreRebuilt": true,
+  "coreRun": 39144244183
+}

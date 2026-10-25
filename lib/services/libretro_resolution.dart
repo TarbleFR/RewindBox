@@ -206,21 +206,12 @@ abstract final class LibretroResolution {
       apply: LibretroResolutionApply.live,
       nativeSize: <int>[256, 192],
     ),
-    // Beetle PSX HW (OpenGL renderer here) and Beetle PSX (software):
+    // Beetle PSX HW: Vulkan by default since the Build 489 (its renderer
+    // rebuilds itself only on a context reset NeoStation does not make: next
+    // launch); OpenGL ES or its software renderer and Beetle PSX (software):
     // "1x(native)" to "16x", applied in retro_run with SET_SYSTEM_AV_INFO.
     // 16x needs about 600 MiB in software and a 16384-pixel VRAM texture:
-    // NeoStation keeps the 8x limit of the earlier builds. The Vulkan
-    // renderer rebuilds itself only on a context reset NeoStation does not
-    // make: next launch there.
-    LibretroResolutionProfile(
-      keys: <String>['beetle_psx_hw_internal_resolution', 'beetle_psx_internal_resolution'],
-      apply: LibretroResolutionApply.live,
-      maxFactor: 8,
-      requires: <String, List<String>>{
-        'beetle_psx_hw_renderer': <String>['hardware', 'hardware_gl', 'software'],
-      },
-      renderers: <String>[LibretroResolutionRenderer.gles, LibretroResolutionRenderer.software],
-    ),
+    // NeoStation keeps the 8x limit of the earlier builds.
     LibretroResolutionProfile(
       keys: <String>['beetle_psx_hw_internal_resolution'],
       apply: LibretroResolutionApply.relaunch,
@@ -229,6 +220,15 @@ abstract final class LibretroResolution {
         'beetle_psx_hw_renderer': <String>['hardware', 'hardware_vk'],
       },
       renderers: <String>[LibretroResolutionRenderer.vulkan],
+    ),
+    LibretroResolutionProfile(
+      keys: <String>['beetle_psx_hw_internal_resolution', 'beetle_psx_internal_resolution'],
+      apply: LibretroResolutionApply.live,
+      maxFactor: 8,
+      requires: <String, List<String>>{
+        'beetle_psx_hw_renderer': <String>['hardware', 'hardware_gl', 'software'],
+      },
+      renderers: <String>[LibretroResolutionRenderer.gles, LibretroResolutionRenderer.software],
     ),
     // PPSSPP, "480x272" to "4800x2720": with OpenGL ("auto" takes the
     // frontend's OpenGL ES context here) check_variables in retro_run

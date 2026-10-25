@@ -1,0 +1,82 @@
+{
+  "build": "0.0.8 (492)",
+  "decision": "docs/ports-removal-2026-10-20.md",
+  "base": {
+    "delivered491Source": "9faa3f9b07f93b4fdca19a0a325a9180fe75b20f",
+    "delivered491Run": 39353891715,
+    "delivered491ProductSource": "59bec98c31741c010d827dd2b58949244eb93431"
+  },
+  "productCommit": "b1ca2a97bd212594d9602929b725742c42891787",
+  "deliverySource": "3349513abfee315ef5dc40400f2b8d222cf15776",
+  "deliverySourceNote": "3349513a = b1ca2a97 + the Build 491 receipt commit of the other session (docs/ and AGENTS.md only); the gate accepts the targeted run of b1ca2a97 because every file changed since is a record.",
+  "targetedChecks": {
+    "workflow": ".github/workflows/build492-checks.yml",
+    "run": 39355430653,
+    "source": "b1ca2a97bd212594d9602929b725742c42891787",
+    "host": {
+      "job": 118408989719,
+      "result": "success",
+      "content": "coverage of every file changed since Build 491, removed paths absent, comment-only and message-only source proofs, Canvas (ES-DE) generator check, flutter analyze, the delivery Dart suite read from retroarch-delivery.yml, retired_ports_backup_test and retired_ports_launch_test, 13 Python contracts, two tests already failing on Build 491 with no new failing case"
+    },
+    "native": {
+      "job": 118408990326,
+      "result": "success",
+      "inputsRecorded": 42,
+      "content": "iPhone arm64 syntax of every external_display Objective-C source against the pinned Flutter.xcframework; NPCheck harness in the iOS Simulator (iPhone 16 Pro, iOS 18.5): 32 tests, 0 failures",
+      "toolchain": "Xcode 26.3 (17C529), iPhone SDK 26.2"
+    }
+  },
+  "delivery": {
+    "workflow": ".github/workflows/retroarch-delivery.yml",
+    "run": 39356466695,
+    "gate": ".github/diagnostics/portsremoval492_delivery.py",
+    "jobs": {
+      "checks": {"job": 118412301820, "result": "success", "note": "targeted evidence reused, no suite rerun"},
+      "native": {"job": 118412301858, "result": "success", "note": "unchanged native evidence reused"},
+      "cold": {"job": 118412526952, "result": "success", "releaseCompileSeconds": 403},
+      "warm": "skipped"
+    },
+    "recipient": "build-utils/delivery-492-recipient.pem",
+    "recipientDerSHA256": "a3b62805eee5c0588f5f7ce6e4fbf0996a6094fbe49b85fe068c92375f155e7c",
+    "privateKey": "generated on the maintainer's PC, deleted after the handover",
+    "artifact": {
+      "id": 12236001799,
+      "name": "NeoStation-Build-492-3349513abfee315ef5dc40400f2b8d222cf15776-cold",
+      "zipBytes": 166115869,
+      "zipSHA256": "54a7acdb8d66d62cc2288e0551f4671a11cda3c5008e38f125ce1bf71c46df2c",
+      "expires": "2026-11-03"
+    }
+  },
+  "ipa": {
+    "file": "NeoStation-Build492-3349513abfee315ef5dc40400f2b8d222cf15776-cold.ipa",
+    "bytes": 165863534,
+    "sha256": "56eb53f31f3ee131ea7048ccac5f4f1f5ebd3ef23b41c282249932f7de3fbb79",
+    "equalTo": ["SHA256SUMS", "signed-payload-identity.json (ipaSha256, ipaBytes)", "C:\\Users\\Coren\\Downloads\\NeoStation-Build492-3349513a.ipa"],
+    "sideStoreAppleReSigningRequired": true
+  },
+  "independentInspection": {
+    "where": "maintainer's PC, PowerShell (verify492.ps1, same rules as build-utils/validate_no_dusklight_ipa.py; calibrated on the public 0.0.8 IPA 2e9f1868...: 60 members refused)",
+    "membersInspected": 4082,
+    "dusklightOrPortsFindings": 0,
+    "allowedHistoricalOrAbi": [
+      "Frameworks/App.framework/flutter_assets/assets/legal/THIRD_PARTY_NOTICES.md",
+      "Frameworks/neo_swap.framework/neo_swap",
+      "Legal/LEGAL_AND_CREDITS.md",
+      "Legal/THIRD_PARTY_NOTICES.md",
+      "Legal/NeoStation-NOTICE.md"
+    ],
+    "bundles": "application and five extensions: CFBundleVersion 492, CFBundleShortVersionString 0.0.8",
+    "dartAot": "RetiredPorts guard present; no DusklightInternal and no ios_dusklight_internal route",
+    "frameworks": 70,
+    "libretroCores": 34,
+    "engineCores": ["DolphinCore.framework", "ARMSX2Core.framework", "libRPCS3Core.dylib"],
+    "signedImages": "no Dusklight or KartPad image in signed-payload-identity.json; allCompiledCodeAndDataSectionsUnchangedBySigning true"
+  },
+  "comparedTo491": {
+    "ipaBytes491": 186428464,
+    "ipaBytes492": 165863534,
+    "note": "The Build 491 receipt records no per-image fingerprints: the engines are covered by the pinned-identity steps of the delivery run and by the gate's source closure (no RPCS3, ARMSX2 or libretro Core input changed since Build 491)."
+  },
+  "coreRebuilt": false,
+  "deviceGameplayValidated": false
+}

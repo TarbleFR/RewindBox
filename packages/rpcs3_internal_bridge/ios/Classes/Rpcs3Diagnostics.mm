@@ -3,9 +3,26 @@
 #import <Foundation/Foundation.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <chrono>
 
 static const unsigned long long kRPCS3DiagnosticLimit = 2 * 1024 * 1024;
 static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
+static const unsigned long long kRPCS3RuntimeHistoryLimit = 2 * 1024 * 1024;
+static uint64_t RPCS3MonotonicUs() {
+  return std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+// A separate bounded history excludes verbose restore-constructor traces.
+// It shares the existing asynchronous diagnostics worker, not a guest thread.
+static BOOL RPCS3KeepRuntimeHistory(NSString* message) {
+  for (NSString* token in @[@"COREPROF ", @"SPUPROF ", @"JITPROF ",
+      @"JITPROF_BOOT ", @"CONFIG_LAYERS ", @"JITMEM ", @"NEOSWAP_VDEC ",
+      @"FREEZE_DUMP snapshot\n", @"SAVESTATE_RESTORE phase=missing_resource ",
+      @"SAVESTATE_RESTORE phase=fxo_resource_abort ",
+      @"SAVESTATE_RESTORE phase=worker_exception"])
+    if ([message rangeOfString:token].location != NSNotFound) return YES;
+  return NO;
+}
 
 @interface RPCS3DiagnosticsWriter : NSObject
 - (void)writeDiagnosticStage:(nullable NSString*)stage
@@ -118,13 +135,32 @@ static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
   return YES;
 }
 
+// NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1 (D9): one previous generation.
+// Returns NO when the rename fails; the caller then truncates in place as
+// before, so the 2 MiB bound of the current file always holds.
+- (BOOL)rotateDiagnosticFileAtPath:(NSString*)path {
+  NSString* previous = [[path stringByDeletingPathExtension]
+      stringByAppendingString:@".1.log"];
+  [self closeDiagnosticFile];
+  NSFileManager* files = NSFileManager.defaultManager;
+  [files removeItemAtPath:previous error:nil];
+  const BOOL moved = [files moveItemAtPath:path toPath:previous error:nil];
+  if (![self openDiagnosticFileAtPath:path]) return NO;
+  return moved && self->_diagnosticLength == 0;
+}
+
 - (NSData*)lineForStage:(nullable NSString*)stage
                 message:(nullable NSString*)message
-              timestamp:(NSTimeInterval)timestamp {
+              timestamp:(NSTimeInterval)timestamp
+         monotonicBegin:(uint64_t)monotonicBegin
+           monotonicEnd:(uint64_t)monotonicEnd {
   NSDictionary* entry = @{
     @"pid": @(getpid()),
     @"build": [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"] ?: @"unknown",
     @"timestamp": @(timestamp),
+    @"clockMonotonicBeginUs": @(monotonicBegin),
+    @"clockMonotonicEndUs": @(monotonicEnd),
+    @"clockAnchorScope": @"native_log_capture_not_file_write",
     @"stage": stage ?: @"",
     @"message": message ?: @"",
   };
@@ -137,11 +173,36 @@ static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
   return line;
 }
 
+- (void)writeRuntimeHistory:(NSData*)line {
+  // No extra RAM cache, allocation reserve or synchronous flush. The current
+  // plus one previous generation occupy at most 4 MiB on disk.
+  if (!line.length || line.length > kRPCS3RuntimeHistoryLimit) return;
+  NSString* directory = [self documentsDirectory];
+  if (!directory.length) return;
+  NSString* path = [directory stringByAppendingPathComponent:@"RPCS3-performance.log"];
+  NSFileManager* files = NSFileManager.defaultManager;
+  unsigned long long size = [[files attributesOfItemAtPath:path error:nil] fileSize];
+  if (size + line.length > kRPCS3RuntimeHistoryLimit) {
+    NSString* previous = [directory stringByAppendingPathComponent:@"RPCS3-performance.1.log"];
+    [files removeItemAtPath:previous error:nil];
+    if (![files moveItemAtPath:path toPath:previous error:nil]) {
+      // Rotation failure retains a bounded current file, as the main writer.
+      NSFileHandle* old = [NSFileHandle fileHandleForWritingAtPath:path];
+      [old truncateFileAtOffset:0]; [old closeFile];
+    }
+  }
+  if (![files fileExistsAtPath:path]) [files createFileAtPath:path contents:nil attributes:nil];
+  NSFileHandle* file = [NSFileHandle fileHandleForWritingAtPath:path];
+  [file seekToEndOfFile]; [file writeData:line]; [file closeFile];
+}
+
 - (void)writeDiagnosticStage:(nullable NSString*)stage
                       message:(nullable NSString*)message {
   NSString* stageCopy = [stage copy] ?: @"";
   NSString* messageCopy = [message copy] ?: @"";
+  const uint64_t monotonicBegin = RPCS3MonotonicUs();
   NSTimeInterval timestamp = [NSDate.date timeIntervalSince1970];
+  const uint64_t monotonicEnd = RPCS3MonotonicUs();
 
   dispatch_async(_diagnosticQueue, ^{
     @autoreleasepool {
@@ -150,12 +211,21 @@ static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
         if (![self openDiagnosticFileAtPath:path]) return;
         NSData* line = [self lineForStage:stageCopy
                                  message:messageCopy
-                               timestamp:timestamp];
+                               timestamp:timestamp
+                          monotonicBegin:monotonicBegin
+                            monotonicEnd:monotonicEnd];
         if (!line) return;
+        if (RPCS3KeepRuntimeHistory(messageCopy)) [self writeRuntimeHistory:line];
         if (self->_diagnosticLength + line.length > kRPCS3DiagnosticLimit) {
-          [self->_diagnosticFile truncateFileAtOffset:0];
-          [self->_diagnosticFile seekToFileOffset:0];
-          self->_diagnosticLength = 0;
+          // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1 (D9): a session writes about
+          // 2.7 KiB/s, so truncating in place lost the boot of every session
+          // longer than ~13 min. Keep the previous file as RPCS3-diagnostic.1.log
+          // (one generation: at most 2 x 2 MiB on disk) and start a new one.
+          if (![self rotateDiagnosticFileAtPath:path]) {
+            [self->_diagnosticFile truncateFileAtOffset:0];
+            [self->_diagnosticFile seekToFileOffset:0];
+            self->_diagnosticLength = 0;
+          }
         }
         [self->_diagnosticFile writeData:line];
         self->_diagnosticLength += line.length;
@@ -170,7 +240,9 @@ static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
                      message:(nullable NSString*)message {
   NSString* stageCopy = [stage copy] ?: @"";
   NSString* messageCopy = [message copy] ?: @"";
+  const uint64_t monotonicBegin = RPCS3MonotonicUs();
   NSTimeInterval timestamp = [NSDate.date timeIntervalSince1970];
+  const uint64_t monotonicEnd = RPCS3MonotonicUs();
 
   @synchronized(_milestoneLock) {
     @try {
@@ -186,7 +258,9 @@ static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
       unsigned long long length = [file seekToEndOfFile];
       NSData* line = [self lineForStage:stageCopy
                                message:messageCopy
-                             timestamp:timestamp];
+                             timestamp:timestamp
+                        monotonicBegin:monotonicBegin
+                          monotonicEnd:monotonicEnd];
       if (line) {
         if (length + line.length > kRPCS3MilestoneLimit) {
           [file truncateFileAtOffset:0];

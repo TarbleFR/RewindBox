@@ -1,0 +1,48 @@
+{
+  "build": 513,
+  "version": "0.0.8",
+  "source": "f3f953c15a86463427e75a921adba814fe6e759d",
+  "run": 39969103515,
+  "coreSource": "c5e54c5817f848e6f667b757931f91364e9faeda",
+  "coreRun": 39968584447,
+  "canonicalPatchSHA256": "db839d645eee6dc8dabba55a1580cb41a8314cbac0cb6c5e26f6c8a1be0f4f61",
+  "artifact": 12508788492,
+  "artifactZipSHA256": "4eaa99c54523ae4d8b7cfdbf35916a9fa4d06dfbc682afe6b15cfb60c2f34ff4",
+  "coreArtifact": 12508487066,
+  "coreArtifactZipSHA256": "5528126c711f342f313f048ffb48ffcd7501d9c9e31b2e764556adc4f2bfef27",
+  "coreDiagnosticsArtifact": 12508761363,
+  "coreDiagnosticsArtifactZipSHA256": "927221b7aa0b025a263df3ad8eba59f10dd00c54128e8101fad24b439b1ad143",
+  "ipaFilename": "RewindBox-Build513.ipa",
+  "ipaBytes": 186123825,
+  "ipaSHA256": "ba645e5a043738a4b3fff4518a39b76a306b890b513f015d4741b53145464b33",
+  "compiledCorePayloadFingerprint": "717909248184643b7a6ee9851bc304a314a904994dde9ef302f9d83fc853a175",
+  "coreArtifactBinarySHA256": "4116159e7c27fe11f16584a5ffa324635b795b2d56f94046f19665c8cb5ea8ec",
+  "targetedMacOSASanUBSanCases": 5,
+  "iPhoneSDKSyntaxUnitsPassed": 33,
+  "codegenIdentities": {
+    "PPU": [
+      "8f9b154eb34feabb"
+    ],
+    "SPU": [
+      "7c226c2359020e20"
+    ]
+  },
+  "validPPUSPUCacheNamespacesPreserved": true,
+  "alignedVersionedBundles": 7,
+  "machOImages": 86,
+  "codeDirectories": 116,
+  "verifiedCodePageHashes": 132645,
+  "encryptedImages": 0,
+  "ciSignatureChecksPassed": 86,
+  "allCIJobsPassed": true,
+  "appleReSigningRequired": true,
+  "physicalDeviceTested": false,
+  "physicalPerformanceMeasured": false,
+  "releasePublished": false,
+  "mainUpdated": false,
+  "workflowURL": "https://github.com/TarbleFR/RewindBox/actions/runs/39969103515",
+  "schemaVersion": 1,
+  "result": "verified-and-delivered",
+  "branch": "Claude",
+  "offlineCodePageVerifierNegativeControlsPassed": true
+}

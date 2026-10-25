@@ -136,7 +136,7 @@ class AboutSettingsContentState extends State<AboutSettingsContent> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(14.r),
                         child: Image.asset(
-                          'assets/images/fork-icon-valid.jpg',
+                          'assets/images/rewindbox-logo.png',
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) => Icon(
                             Symbols.games_rounded,

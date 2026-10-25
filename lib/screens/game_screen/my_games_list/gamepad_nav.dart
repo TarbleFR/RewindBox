@@ -56,7 +56,7 @@ extension _GamepadNav on _SystemGamesListState {
       onNavigateRight: _navigateRight, // Page Down (10 items).
       onLetterJump: _letterJump, // Held D-pad up/down → alphabet skipping.
       accelerateRepeats: true, // Text-only rows keep up with a ramping repeat.
-      onSelectItem: _selectCurrentGame,
+      onSelectItem: _playListGame, // Box opening, then the usual launch.
       onBack: _goBack,
       onFavorite: _toggleFavorite, // Button Y.
       onXButton:
@@ -66,7 +66,7 @@ extension _GamepadNav on _SystemGamesListState {
       onSelectModifierA: () => _scrapeAction?.call(), // Select + A - Scrape.
       onSelectModifierB: _toggleLegend, // Select + B - Hide/show legend.
       onSelectModifierY: _showRandomGameDialog, // Select + Y - Random.
-      onRightStickClick: null,
+      onRightStickClick: _inspectSelectedBox, // Examine the 3D box.
       onLeftBumper: _handleLeftBumper,
       onRightBumper: _handleRightBumper,
       onPreviousTab: _handleLeftBumper, // Key Q.

@@ -141,8 +141,17 @@ typedef enum rpcs3_ios_performance_metric_bits {
   rpcs3_ios_performance_cpu = 1u << 1,
   rpcs3_ios_performance_gpu = 1u << 2,
   rpcs3_ios_performance_memory = 1u << 3,
+  // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: bits of the fields appended after
+  // memory_total_bytes (Core RPCS3_IOS_PERFORMANCE_*_VALID 4..7). A Core older
+  // than Build 487 never sets them, so every new field reads as unavailable.
+  rpcs3_ios_performance_guest_frames = 1u << 4,
+  rpcs3_ios_performance_native_ui = 1u << 5,
+  rpcs3_ios_performance_state = 1u << 6,
+  rpcs3_ios_performance_boot_progress = 1u << 7,
 } rpcs3_ios_performance_metric_bits;
 
+// NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: additive growth mirrored exactly
+// from rpcs3/ios/RPCS3IOS.h; the Core writes the tail only when size covers it.
 typedef struct rpcs3_ios_performance_metrics {
   uint32_t size;  // upstream: struct_size
   uint32_t valid_fields;
@@ -151,6 +160,11 @@ typedef struct rpcs3_ios_performance_metrics {
   double gpu_usage_percent;
   uint64_t memory_used_bytes;
   uint64_t memory_total_bytes;
+  uint64_t guest_frames_presented;
+  uint32_t native_ui_visible;
+  uint32_t emulation_state;
+  uint32_t boot_progress_completed;
+  uint32_t boot_progress_total;
 } rpcs3_ios_performance_metrics;
 
 typedef struct rpcs3_ios_api {

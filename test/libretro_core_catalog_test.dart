@@ -272,7 +272,16 @@ void main() {
     // "normal" audio; its default "callback" needs an audio callback the
     // host does not offer (the game would be silent).
     expect(cores['wasm4']!.lockedOptions, <String, String>{'wasm4_audio_type': 'normal'});
-    for (final core in cores.values.where((core) => !{'desmume', 'azahar', 'wasm4'}.contains(core.id))) {
+    // HD texture packs of Beetle PSX HW: read from its save directory, no
+    // dump, bounded on-demand caches (docs/build489-hd-catalogue-ps1-vulkan.md).
+    expect(cores['mednafen_psx_hw']!.lockedOptions, <String, String>{
+      'beetle_psx_hw_texture_directory': 'save',
+      'beetle_psx_hw_dump_textures': 'disabled',
+      'beetle_psx_hw_hd_caching_method': 'lazy',
+      'beetle_psx_hw_hd_cache_vram_budget': '512',
+      'beetle_psx_hw_hd_cache_ram_budget': '512',
+    });
+    for (final core in cores.values.where((core) => !{'desmume', 'azahar', 'wasm4', 'mednafen_psx_hw'}.contains(core.id))) {
       expect(core.lockedOptions, isEmpty, reason: core.id);
     }
     for (final core in cores.values) {
@@ -374,6 +383,9 @@ void main() {
         <String>['genesis_plus_gx', 'genesis_plus_gx_wide', 'picodrive']);
     expect(LibretroCoreCatalog.coresFor('ps1').first.biosAnyOf, isNotEmpty);
     expect(LibretroCoreCatalog.coresFor('3ds').single.preferredHardwareContext,
+        LibretroHardwareContext.vulkan);
+    // Beetle PSX HW opens no OpenGL renderer for an OpenGL ES preference.
+    expect(LibretroCoreCatalog.coresFor('ps1').first.preferredHardwareContext,
         LibretroHardwareContext.vulkan);
   });
 

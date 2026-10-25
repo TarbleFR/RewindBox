@@ -1,0 +1,691 @@
+{
+  "checked_at": "2026-10-20",
+  "purpose": "Research evidence only. This file is not consumed by build_catalogue.py and is not a second runtime catalogue.",
+  "entries": [
+    {
+      "id": "gc-fe-por-ui-link-to-the-past",
+      "system": "gc",
+      "engine": "dolphin",
+      "title": "Fire Emblem: Path of Radiance — upscaled 2D/UI (legacy)",
+      "version": "2015-02-26",
+      "games": [
+        {
+          "title": "Fire Emblem: Path of Radiance",
+          "identities": [
+            {
+              "type": "game_id",
+              "scheme": "dolphin-disc-game-id",
+              "value": "GFEE01"
+            }
+          ],
+          "regions": [
+            "USA"
+          ]
+        }
+      ],
+      "authors": [
+        "Link_to_the_past"
+      ],
+      "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+      "source_id": "dolphin-forum:fire-emblem-upscaled-ui",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+        "verify": {
+          "url": "https://www.mediafire.com/file/kwy3wb7acpc8g84/GFEE01.7z/file"
+        },
+        "file_name": "GFEE01.7z"
+      },
+      "scope": "ui",
+      "family": "gc-fe-por-ui-link-to-the-past",
+      "notes": "Legacy texture naming must pass the current Dolphin installer before this reference can become installable. The author identifies NTSC USA; PAL and French are not confirmed. UI and 2D elements only, with remaining omissions.",
+      "disposition": "adaptation-or-validation-required",
+      "reason": "Legacy Dolphin filename/hash scheme; the author advises PAL redumping/renaming. The CI host blocked the archive, so current tex1 compatibility cannot be attested. Not in the runtime catalogue."
+    },
+    {
+      "id": "wii-fe-rd-ui-link-to-the-past",
+      "system": "wii",
+      "engine": "dolphin",
+      "title": "Fire Emblem: Radiant Dawn — upscaled 2D/UI (legacy)",
+      "version": "2015-02-26",
+      "games": [
+        {
+          "title": "Fire Emblem: Radiant Dawn",
+          "identities": [
+            {
+              "type": "game_id",
+              "scheme": "dolphin-disc-game-id",
+              "value": "RFEE01"
+            }
+          ],
+          "regions": [
+            "USA"
+          ]
+        }
+      ],
+      "authors": [
+        "Link_to_the_past"
+      ],
+      "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+      "source_id": "dolphin-forum:fire-emblem-upscaled-ui",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-and-radiant-dawn-upscaled-ui-textures-updated",
+        "verify": {
+          "url": "https://www.mediafire.com/file/4g0b1h8bkpozo0h/RFEE01.7z/file"
+        },
+        "file_name": "RFEE01.7z"
+      },
+      "scope": "ui",
+      "family": "wii-fe-rd-ui-link-to-the-past",
+      "notes": "Legacy texture naming must pass the current Dolphin installer before this reference can become installable. The author identifies NTSC USA; PAL and French are not confirmed. UI and 2D elements only, with remaining omissions.",
+      "disposition": "adaptation-or-validation-required",
+      "reason": "Legacy Dolphin filename/hash scheme; the author advises PAL redumping/renaming. The CI host blocked the archive, so current tex1 compatibility cannot be attested. Not in the runtime catalogue."
+    },
+    {
+      "id": "3ds-toa-font-rikimtasu",
+      "system": "3ds",
+      "engine": "azahar",
+      "title": "Tales of the Abyss — upscaled font",
+      "version": "d0e6db357331",
+      "authors": [
+        "rikimtasu"
+      ],
+      "page_url": "https://github.com/rikimtasu/toa-3ds-fontcustomtex",
+      "source_id": "github:rikimtasu/toa-3ds-fontcustomtex",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://github.com/rikimtasu/toa-3ds-fontcustomtex",
+        "verify": {
+          "url": "https://raw.githubusercontent.com/rikimtasu/toa-3ds-fontcustomtex/d0e6db35733105cbd16f128fd9d2d586eba3cff2/toa_font_texture_upscale.zip"
+        },
+        "file_name": "toa_font_texture_upscale.zip"
+      },
+      "scope": "ui",
+      "family": "3ds-toa-font-rikimtasu",
+      "notes": "Font component only. The repository publishes a ZIP but no licence or regional instructions. Game identity and layout require confirmation from the actual archive before runtime inclusion; no French coverage is inferred.",
+      "disposition": "awaiting-download-or-region-evidence",
+      "reason": "The candidate archive installs two PNGs, but neither the archive nor creator instructions attest the proposed USA identity. Region must be established before automatic game matching.",
+      "candidate_games": [
+        {
+          "title": "Tales of the Abyss",
+          "identities": [
+            {
+              "type": "title_id",
+              "scheme": "3ds-title-id",
+              "value": "0004000000061300"
+            }
+          ],
+          "confirm": true
+        }
+      ]
+    },
+    {
+      "id": "3ds-project-x-zone-png-pdragon128",
+      "system": "3ds",
+      "engine": "azahar",
+      "title": "Project X Zone HD (4x PNG)",
+      "version": "2025-08-31",
+      "authors": [
+        "pdragon128"
+      ],
+      "page_url": "https://gbatemp.net/threads/3ds-project-x-zone-us-eur-jpn.674816/",
+      "source_id": "gbatemp:674816",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://gbatemp.net/threads/3ds-project-x-zone-us-eur-jpn.674816/",
+        "verify": {
+          "url": "https://www.mediafire.com/file/vlfyl587yeiomih/PXZ_png_x4_256.zip/file"
+        },
+        "file_name": "PXZ_png_x4_256.zip"
+      },
+      "scope": "complete",
+      "family": "3ds-project-x-zone-png-pdragon128",
+      "notes": "Author states US/EUR/Japan compatibility. PNG 4x edition only; the 9 GB DDS edition is not selected. Animation cut-ins can miss their first occurrence; the final stage can have replacement loading issues, and the author reports possible Vulkan crashes. No iPhone rendering or French-specific coverage is validated.",
+      "disposition": "awaiting-download-or-region-evidence",
+      "reason": "The primary creator download returns 404. Retain the author page for a future updated file, not a working runtime download.",
+      "candidate_games": [
+        {
+          "title": "Project X Zone",
+          "identities": [
+            {
+              "type": "title_id",
+              "scheme": "3ds-title-id",
+              "value": "00040000000C6400"
+            }
+          ],
+          "confirm": true,
+          "regions": [
+            "USA"
+          ]
+        },
+        {
+          "title": "Project X Zone",
+          "identities": [
+            {
+              "type": "title_id",
+              "scheme": "3ds-title-id",
+              "value": "00040000000DD700"
+            }
+          ],
+          "regions": [
+            "Europe"
+          ],
+          "confirm": true
+        },
+        {
+          "title": "Project X Zone",
+          "identities": [
+            {
+              "type": "title_id",
+              "scheme": "3ds-title-id",
+              "value": "0004000000073900"
+            }
+          ],
+          "regions": [
+            "Japan"
+          ],
+          "confirm": true
+        }
+      ]
+    },
+    {
+      "id": "3ds-ml-superstar-saga-jxnnik0",
+      "system": "3ds",
+      "engine": "azahar",
+      "title": "Mario & Luigi: Superstar Saga + Bowser's Minions HD (WIP)",
+      "version": "2022-08",
+      "authors": [
+        "Jxnnik0"
+      ],
+      "page_url": "https://www.reddit.com/r/Citra/comments/wnwdse/mario_luigi_superstar_saga_hd_texture_pack/",
+      "source_id": "reddit:jxnnik0-superstar-saga",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://www.reddit.com/r/Citra/comments/wnwdse/mario_luigi_superstar_saga_hd_texture_pack/",
+        "verify": {
+          "url": "https://www.mediafire.com/file/cwargrrlydie4np/Mario_%2526_Luigi_Superstar_Saga_HD_Texture_Pack.zip/file"
+        },
+        "file_name": "Mario & Luigi Superstar Saga HD Texture Pack.zip"
+      },
+      "scope": "partial",
+      "family": "3ds-ml-superstar-saga-jxnnik0",
+      "notes": "Main characters and early areas only, upscaled with chaiNNer and 4x-UltraSharp. The author does not specify a region. The listed USA identity is a verification candidate only and must be checked against the archive; no other region or language is inferred.",
+      "disposition": "awaiting-download-or-region-evidence",
+      "reason": "The author does not specify a region, and a host challenge prevents checking the archive identity. The tentative USA identity is not published to the runtime catalogue.",
+      "candidate_games": [
+        {
+          "title": "Mario & Luigi: Superstar Saga + Bowser's Minions",
+          "identities": [
+            {
+              "type": "title_id",
+              "scheme": "3ds-title-id",
+              "value": "00040000001B8F00"
+            }
+          ],
+          "confirm": true
+        }
+      ]
+    },
+    {
+      "id": "3ds-ml-bowsers-inside-story-jxnnik0",
+      "system": "3ds",
+      "engine": "azahar",
+      "title": "Mario & Luigi: Bowser's Inside Story + Bowser Jr.'s Journey HD (WIP)",
+      "version": "2022-08",
+      "authors": [
+        "Jxnnik0"
+      ],
+      "page_url": "https://www.reddit.com/r/GameUpscale/comments/wmv2nw/mario_luigi_bowsers_inside_story_hd_texture_pack/",
+      "source_id": "reddit:jxnnik0-bowsers-inside-story",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://www.reddit.com/r/GameUpscale/comments/wmv2nw/mario_luigi_bowsers_inside_story_hd_texture_pack/",
+        "verify": {
+          "url": "https://www.mediafire.com/file/8up17c90n0qahc2/Mario_%2526_Luigi_Bowsers_Inside_Story_HD_Texture_Pack.zip/file"
+        },
+        "file_name": "Mario & Luigi Bowsers Inside Story HD Texture Pack.zip"
+      },
+      "scope": "partial",
+      "family": "3ds-ml-bowsers-inside-story-jxnnik0",
+      "notes": "Main character models and early areas only (3DS remake, not Nintendo DS). chaiNNer/4x PixelPerfect upscale. Author advises disabling texture filtering for menu glitches. Region is not stated: USA is a verification candidate only, pending the archive identity.",
+      "disposition": "awaiting-download-or-region-evidence",
+      "reason": "The author does not specify a region, and a host challenge prevents checking the archive identity. The tentative USA identity is not published to the runtime catalogue.",
+      "candidate_games": [
+        {
+          "title": "Mario & Luigi: Bowser's Inside Story + Bowser Jr.'s Journey",
+          "identities": [
+            {
+              "type": "title_id",
+              "scheme": "3ds-title-id",
+              "value": "00040000001D1400"
+            }
+          ],
+          "confirm": true
+        }
+      ]
+    },
+    {
+      "id": "psp-gow-gos-hd-huekage",
+      "system": "psp",
+      "engine": "ppsspp",
+      "title": "God of War: Ghost of Sparta HD (Huekage)",
+      "version": "1.1",
+      "authors": [
+        "Huekage"
+      ],
+      "page_url": "https://gbatemp.net/threads/psp-hd-textures-pack-god-of-war-ghost-of-sparta-ucus98737-ntsc-uces01401-pal.684787/",
+      "source_id": "gbatemp:684787",
+      "licence": {
+        "summary": "No licence stated by the author",
+        "redistribution": "Manual author-page download only. NeoStation does not host, repackage or redistribute these files; no redistribution permission is inferred."
+      },
+      "download": {
+        "automatable": false,
+        "page": "https://gbatemp.net/threads/psp-hd-textures-pack-god-of-war-ghost-of-sparta-ucus98737-ntsc-uces01401-pal.684787/",
+        "verify": {
+          "url": "https://www.mediafire.com/file/tuqgkh9pxeiggb8/PSP_HD_Textures_-_God_of_War_-_Ghost_of_Sparta_%28UCUS98737%29_%28NTSC%29_%26_%28UCES01401%29_%28PAL%29.zip/file"
+        }
+      },
+      "scope": "complete",
+      "family": "psp-gow-gos-hd-huekage",
+      "notes": "Over 9,000 textures upscaled 4x. Both USA and Europe are identified by the author; this is separate from ThePunisher009's HD Lite pack.",
+      "disposition": "awaiting-download-or-region-evidence",
+      "reason": "The primary creator download returns 404. Retain the author page for a future updated file, not a working runtime download.",
+      "candidate_games": [
+        {
+          "title": "God of War: Ghost of Sparta",
+          "identities": [
+            {
+              "type": "disc_id",
+              "scheme": "psp-param-sfo-disc-id",
+              "value": "UCUS98737"
+            }
+          ],
+          "regions": [
+            "USA"
+          ]
+        },
+        {
+          "title": "God of War: Ghost of Sparta",
+          "identities": [
+            {
+              "type": "disc_id",
+              "scheme": "psp-param-sfo-disc-id",
+              "value": "UCES01401"
+            }
+          ],
+          "regions": [
+            "Europe"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gc-fe-por-pal-sebastrion",
+      "title": "Fire Emblem: Path of Radiance — PAL project",
+      "system": "gc",
+      "page_url": "https://emulationking.com/nintendo/gamecube/games/fireemblempathofradiance/texturepacks/sebastrion/",
+      "authors": [
+        "Sebastrion"
+      ],
+      "kind": "texture-replacement",
+      "disposition": "awaiting-primary-source-and-permission",
+      "reason": "Secondary listing reports 1,500+ upscales, 200+ manual corrections and PAL fonts (partial German); character images stay native. Original author download/permissions and French coverage are unverified. Do not use the third-party rehost as an authorised source.",
+      "author_preview": "https://www.youtube.com/watch?v=o7wyyo6vNRo",
+      "french_validated": false
+    },
+    {
+      "id": "gc-fe-por-thorn-alias-review",
+      "title": "Fire Emblem: Path of Radiance HD 1.0.1 — Thorn listing",
+      "system": "gc",
+      "page_url": "https://forums.dolphin-emu.org/Thread-fire-emblem-path-of-radiance-hd-texture-pack-v1-0-1-january-21-2021",
+      "authors": [
+        "Thorn"
+      ],
+      "kind": "possible-alias",
+      "disposition": "deduplication-required",
+      "reason": "Original forum is protected. A distinct archive/author relationship versus AppleBoi is not established. Do not count an additional family from a mirror name."
+    },
+    {
+      "id": "wii-fe-rd-font-eagleeyevalor",
+      "title": "Radiant Dawn — higher quality English text",
+      "system": "wii",
+      "page_url": "https://feuniverse.us/t/fe10-want-higher-quality-text-that-isnt-ai-upscaled-en/37941",
+      "authors": [
+        "EagleEyeValor"
+      ],
+      "kind": "graphics-mod-and-riivolution",
+      "disposition": "adaptation-required",
+      "reason": "Author requires Riivolution patches plus Enable Graphics Mods. This is not a drop-in Load/Textures pack. Embedded bridge has no validated workflow for these dependencies; English only, early proof of concept.",
+      "download_url": "https://drive.google.com/file/d/11tAGsikG8DvKUwJeb1tbUKPfNiFguvCf/view?usp=sharing",
+      "announced_at": "2026-10-14",
+      "french_validated": false
+    },
+    {
+      "id": "gc-fe-por-eagleeyevalor-mentioned",
+      "title": "Path of Radiance — EagleEyeValor project mentioned",
+      "system": "gc",
+      "page_url": "https://feuniverse.us/t/fe10-want-higher-quality-text-that-isnt-ai-upscaled-en/37941",
+      "authors": [
+        "EagleEyeValor"
+      ],
+      "kind": "announcement",
+      "disposition": "awaiting-release",
+      "reason": "Author says the Radiant Dawn text changes came from their Path of Radiance work. No independently downloadable Path of Radiance release was established here; not counted."
+    },
+    {
+      "id": "3ds-fe-awakening-eur-reawakening",
+      "title": "Project reAwakening",
+      "system": "3ds",
+      "page_url": "https://gamebanana.com/mods/9944",
+      "authors": [
+        "rdnc",
+        "Steamsweet",
+        "OmegaAvenger_HD",
+        "EvergreenSymphony",
+        "SporkSB"
+      ],
+      "kind": "texture-replacement",
+      "disposition": "manual-format-review-required",
+      "reason": "Creator specifies EUR/AUS English; v0.3 is on hold. RAR distribution requires external extraction and archive inspection. It is a useful European lead, not evidence for French texture compatibility.",
+      "download_url": "https://gamebanana.com/dl/462379",
+      "french_validated": false
+    },
+    {
+      "id": "3ds-fe-fates-steamsweet-legacy",
+      "title": "Fire Emblem Fates HD — EUR/AUS",
+      "system": "3ds",
+      "page_url": "https://gamebanana.com/mods/9770",
+      "authors": [
+        "Steamsweet",
+        "rdnc",
+        "Moonling"
+      ],
+      "kind": "texture-replacement",
+      "disposition": "no-usable-current-archive",
+      "reason": "GameBanana download is a tiny instruction file. The GitHub repository contains README and LICENSE only; CC0 there does not license absent texture assets. EUR/AUS author claims do not validate USA/Japan or French.",
+      "repository": "https://github.com/Steamsweet/HD-Fates"
+    },
+    {
+      "id": "3ds-fe-fates-shadow-dragon-serbagz",
+      "title": "Shadow Dragon HD (Fates remake mod)",
+      "system": "3ds",
+      "page_url": "https://gamebanana.com/mods/515749",
+      "authors": [
+        "Serbagz"
+      ],
+      "kind": "romhack-dependent-textures",
+      "disposition": "adaptation-required",
+      "reason": "Requires the separate Fates Shadow Dragon romhack (GameBanana 452507). Not for vanilla Fates and not a Nintendo DS HD pack; no automatic match to the unmodified game.",
+      "dependency_url": "https://gamebanana.com/mods/452507"
+    },
+    {
+      "id": "3ds-fe-awakening-textures-plus",
+      "title": "Awakening Textures+",
+      "system": "3ds",
+      "page_url": "https://gamebanana.com/mods/252179",
+      "authors": [],
+      "kind": "romfs-model-mod",
+      "disposition": "excluded-from-texture-installer",
+      "reason": "RomFS/model replacements, not Citra custom texture files; requires a separate game-mod workflow."
+    },
+    {
+      "id": "3ds-persona-q-arandomguy231",
+      "title": "Persona Q HD Texture Pack (cancelled)",
+      "system": "3ds",
+      "page_url": "https://gamebanana.com/wips/61691",
+      "authors": [
+        "ARandomGuy231",
+        "rabbitgirlkris",
+        "Mutin Choler",
+        "twittman",
+        "ChrisNonyminus",
+        "NMKD",
+        "DniweTamp"
+      ],
+      "kind": "legacy-texture-replacement",
+      "disposition": "adaptation-required",
+      "reason": "Author explicitly requires pre-Canary-2461/Nightly-1891 Citra and cancelled support on 2024-03-07. A newer Azahar installation must not be promised to load it.",
+      "download_url": "https://drive.google.com/file/d/1qpfECX0lYL_T0A6UiODgvdJswjEoEl6M/view?usp=sharing"
+    },
+    {
+      "id": "3ds-persona-q2-dniwetamp",
+      "title": "Persona Q2 HD — release 2",
+      "system": "3ds",
+      "page_url": "https://web.archive.org/web/20240228025051/https://community.citra-emu.org/t/persona-q2-hd-texture-pack/206846",
+      "authors": [
+        "DniweTamp"
+      ],
+      "kind": "texture-replacement",
+      "disposition": "awaiting-download",
+      "reason": "Original Citra text recovered. Historic Discord CDN link is not a verified current download. Separate FMV replacement is not a texture pack."
+    },
+    {
+      "id": "3ds-stella-glow-kamijoan",
+      "title": "Stella Glow 4x textures",
+      "system": "3ds",
+      "page_url": "https://web.archive.org/web/20240228025936/https://community.citra-emu.org/t/stella-glow-hd-texture-pack-by-kamijoan/480219",
+      "authors": [
+        "kamijoan"
+      ],
+      "kind": "texture-replacement",
+      "disposition": "manual-multicomponent-review",
+      "reason": "Current creator-linked Drive folder lists nine independent RARs (characters, sprites, textures, CGs, effects, fonts, HUD and extras). Title ID/region and the merged layout need validation; no automatic sequential imports that replace one another.",
+      "download_folder": "https://drive.google.com/drive/folders/1JDaY34EcW4KcBeOFH--bJG2fHRaeGLeu"
+    },
+    {
+      "id": "3ds-smt-iv-apocalypse-aflunn",
+      "title": "Shin Megami Tensei IV Apocalypse HD",
+      "system": "3ds",
+      "page_url": "https://web.archive.org/web/20240228025258/https://community.citra-emu.org/t/shin-megami-tensei-iv-apocalypse-hd-texture-pack/354836",
+      "authors": [
+        "Aflunn (Alois-36)"
+      ],
+      "kind": "legacy-texture-replacement",
+      "disposition": "awaiting-download-and-hash-validation",
+      "reason": "Old Citra release text recovered, with portraits but not full 3D environments. Public creator-linked folder currently exposes no downloadable files. Older hash compatibility needs validation.",
+      "download_folder": "https://drive.google.com/drive/folders/18SGyfSARxcsUPgbSl3MQX8p2mHfhcDHj"
+    },
+    {
+      "id": "3ds-warioware-gold-dniwetamp",
+      "title": "WarioWare Gold HD",
+      "system": "3ds",
+      "page_url": "https://drive.google.com/drive/folders/1CbWvaX5SahvpE--CD7JNqqa-BddHHrJM",
+      "authors": [
+        "DniweTamp (community attribution)"
+      ],
+      "kind": "loose-textures",
+      "disposition": "awaiting-primary-source-and-layout",
+      "reason": "Public folder contains individual tex1 PNGs, not a downloadable archive attested by a current author page. Regional title identity and permission are unresolved; not repackaged by NeoStation."
+    },
+    {
+      "id": "3ds-bravely-vierock-preservation",
+      "title": "Bravely Default / Bravely Second — preservation uploads",
+      "system": "3ds",
+      "page_url": "https://gamebanana.com/mods/530500",
+      "authors": [
+        "1vierock"
+      ],
+      "kind": "preservation-mirrors",
+      "disposition": "awaiting-creator-permission-and-format-review",
+      "reason": "Uploader microturing recovered another author's files via archive.org. Default is RAR and Second is five RAR volumes, with known incomplete coverage/crashes. Reupload permission requested by the preservation uploader is not original creator permission. Keep original Zominion font credits, already catalogued.",
+      "related_page": "https://gamebanana.com/mods/530531"
+    },
+    {
+      "id": "gc-xmen-legends-dreadfield",
+      "title": "X-Men Legends HD characters and environments",
+      "system": "gc",
+      "page_url": "https://marvelmods.com/forum/index.php?topic=10896.0",
+      "authors": [
+        "dreadfield"
+      ],
+      "kind": "texture-replacement",
+      "disposition": "awaiting-download",
+      "reason": "Original Marvel Mods author thread identifies GXLE52 and custom textures, including retouched X-Men Legends II skins. The current thread contains no released file link; later posts offer a future upload. No pack is installed from screenshots."
+    },
+    {
+      "id": "gc-zoids-shadowxwolf7",
+      "title": "Zoids VS II / Battle Legends HD",
+      "system": "gc",
+      "page_url": "https://www.pcgamingwiki.com/wiki/User:Akven/List_of_games_with_AI_upscaled_textures",
+      "authors": [
+        "SHADOWxWOLF7 (secondary attribution)"
+      ],
+      "kind": "texture-replacement-lead",
+      "disposition": "awaiting-primary-source",
+      "reason": "Found in a texture project index; no author download or regional archive could be validated. Widescreen codes found elsewhere are not an HD pack."
+    },
+    {
+      "id": "gc-hp-chamber-the128rebits",
+      "title": "Harry Potter and the Chamber of Secrets HD WIP",
+      "system": "gc",
+      "page_url": "https://gbatemp.net/threads/gc-harry-potter-and-the-chamber-of-secrets-ghsx69-region-unconfirmed-hd-textures-wip.684885/",
+      "authors": [
+        "The128ReBits"
+      ],
+      "kind": "texture-replacement",
+      "disposition": "paid-beta-not-public-download",
+      "reason": "Current playable beta is Patreon early access; completed pack is planned free without a release date. Author explicitly leaves GHSX69 region unconfirmed. Not advertised as an available free pack."
+    },
+    {
+      "id": "psp-cod-roads-victory-search",
+      "title": "Call of Duty: Roads to Victory — beta texture experiments",
+      "system": "psp",
+      "page_url": "https://www.moddb.com/members/amfanpokefanrefan/blogs/180-downloads-celebration",
+      "authors": [
+        "AverageMann"
+      ],
+      "kind": "experimental-reskin",
+      "disposition": "no-validated-hd-release",
+      "reason": "Author shows beta-restoration/recolouring experiments (All British, 6th American Airborne, River Crossing) but no downloadable HD replacement pack was established. Videos labelled Remastered/4K can be resolution upscales. Do not create an empty HD catalogue entry."
+    },
+    {
+      "id": "psp-cod-music-false-positive",
+      "title": "Roads to Victory theme for Call of Duty 2",
+      "system": "psp",
+      "page_url": "https://www.moddb.com/addons/call-of-duty-roads-to-victory-theme",
+      "authors": [
+        "OGPoetoe"
+      ],
+      "kind": "pc-audio-mod",
+      "disposition": "excluded",
+      "reason": "This is music for the PC game Call of Duty 2, not a PSP texture replacement."
+    },
+    {
+      "id": "psp-nfsmw510-definitive",
+      "title": "Need for Speed Most Wanted 5-1-0 — Definitive HD",
+      "system": "psp",
+      "page_url": "https://www.reddit.com/r/PPSSPPemulator/comments/1x7h0gz/need_for_speed_most_wanted_510_definitive_hd/",
+      "authors": [],
+      "kind": "texture-replacement-lead",
+      "disposition": "awaiting-author-download",
+      "reason": "Recent announcement specifies ULES00196, not USA ULUS10036. The post/download could not be opened, so no archive or author credit is invented."
+    },
+    {
+      "id": "psp-daxter-quicksliver1",
+      "title": "Daxter HD",
+      "system": "psp",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=28435",
+      "authors": [
+        "quick.sliver1"
+      ],
+      "kind": "texture-replacement",
+      "disposition": "awaiting-download",
+      "reason": "Author describes 3,174 PNGs and UCES00044/UCUS98618 support. A current texture-only download was not established. Separate PMF movie replacement is a game-file patch, not part of this installer."
+    },
+    {
+      "id": "psp-type0-exvesel",
+      "title": "Final Fantasy Type-0 HD (EX-VES-EL)",
+      "system": "psp",
+      "page_url": "https://gbatemp.net/threads/psp-final-fantasy-type-0-ntsc-j-hd-textures-v1-0.679101/",
+      "authors": [
+        "EX-VES-EL"
+      ],
+      "kind": "basis-uastc-ktx2-textures",
+      "disposition": "version-and-payload-verification-required",
+      "reason": "Final review correction: the delivered PPSSPP binary contains the KTX2/UASTC and Zstandard transcoder; only raw .basis containers are rejected. The earlier decoder-exclusion reason was incorrect. This creator specifies the Skybladecloud v2 English patch and NPJH50443, recommends Vulkan and publishes an 11.2 GB ZIP. Its exact payload, patched-game hashes, installation and phone rendering remain unverified; no compatibility with unmodified Japanese games or French text is inferred. No raw original-resolution texture dump is downloaded."
+    },
+    {
+      "id": "psp-mhfu-shorter-grass",
+      "title": "Monster Hunter Freedom Unite — shorter grass",
+      "system": "psp",
+      "page_url": "https://forums.ppsspp.org/showthread.php?tid=26187",
+      "authors": [
+        "Abbanon"
+      ],
+      "kind": "graphics-mod",
+      "disposition": "not-hd-pack",
+      "reason": "Visibility/gameplay texture modification rather than an HD upscale; kept separate from high-resolution pack counts."
+    },
+    {
+      "id": "gcwii-universal-dynamic-input",
+      "title": "Universal Dynamic Input",
+      "system": "gc,wii",
+      "page_url": "https://github.com/Venomalia/UniversalDynamicInput",
+      "authors": [
+        "Venomalia",
+        "iwubcode"
+      ],
+      "kind": "dynamic-input-textures",
+      "disposition": "existing-exclusion-confirmed",
+      "reason": "Requires Dolphin Load/DynamicInputTextures, not the embedded adapter's plain Load/Textures path. Supports many games including Fire Emblem, but is not treated as 180 additional packs."
+    },
+    {
+      "id": "psp-modernize-compilations",
+      "title": "Modernize PSP Games compilations",
+      "system": "psp",
+      "page_url": "https://github.com/ItzAntonis2012/modernizepspgames",
+      "authors": [
+        "ItzAntonis2012",
+        "SonofUgly",
+        "Mentraze",
+        "Tervel1337",
+        "ThirteenAG"
+      ],
+      "kind": "compilation-and-button-variants",
+      "disposition": "deduplicated-and-rights-unresolved",
+      "reason": "GTA LCS/VCS UI compilations build on already catalogued authors, plus plugin fixes. Button variants and Steam artwork do not become extra game-wide HD families; original component permissions are not established."
+    },
+    {
+      "id": "international-rehost-leads",
+      "title": "International texture community leads",
+      "system": "gc,wii,3ds,psp",
+      "page_url": "https://www.elotrolado.net/hilo_eolianos-vamos-a-crear-un-pack-de-texturas-hd-de-un-juego-de-wii-mediante-esrgan-unete_2413842",
+      "authors": [],
+      "kind": "research-coverage",
+      "disposition": "no-unverified-rehosts",
+      "reason": "Spanish ElOtroLado/GameFront/ModDB, Chinese Bilibili/WeiluGo, Japanese notes/blogs and Indonesian listings were explored. Tutorials, mirrors of known packs, ROM/emulator bundles and unclear rights are not counted as new compatible packs."
+    }
+  ],
+  "baseline_commit": "6b0a905c9d506d45ea8a02393055e56f0caa2e6a",
+  "runtime_source_files": [
+    "../sources/dolphin-exploration.json",
+    "../sources/3ds-exploration.json",
+    "../sources/psp-exploration.json"
+  ]
+}

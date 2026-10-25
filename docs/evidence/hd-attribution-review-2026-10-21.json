@@ -1,0 +1,590 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-10-21",
+  "status": "documentation_only_source_and_manifests_unchanged",
+  "purpose": "Primary-source attribution corrections and open attribution questions for next-release preparation; no release or runtime change.",
+  "checkout_commit": "dc46d73c6a42c5662ad3a863071edac0aa4081ad",
+  "baseline": {
+    "catalogue_id": "neostation-hd-textures",
+    "revision": "2026-10-20.cb9ec63ce729",
+    "manifest_sha256": "80b1284294d7ac29d4a64f5512af1b3ffd61f26753df898ee28e2eab7f633453",
+    "hosted_path": "native/textures/catalogue/manifest.json.gz",
+    "bundled_path": "packages/neo_texture_catalog/ios/Resources/manifest.json.gz",
+    "hosted_equals_bundled": true,
+    "non_attribution_catalogue_sha256": "2e28b2d9350fdebf827c48f5a2c8a647035aa0e036e90fe32cb3ce36409a9ebd",
+    "projection_definition": "Remove top-level revision, and only authors and credits from each pack; retain every other field and array order. Serialize with Python json.dumps(ensure_ascii=False, sort_keys=True, separators=(comma, colon)), UTF-8, then SHA-256.",
+    "counts": {
+      "references": 1124,
+      "source_ids": 457,
+      "install_profiles": 509,
+      "one_tap_families": 424,
+      "manual_only_references": 615,
+      "placeholder_author_rows": 16,
+      "ps1_references": 38,
+      "ps1_install_profiles": 8,
+      "ps1_manual_references": 30
+    },
+    "input_sha256": {
+      "docs/evidence/ps1-hd-catalogue-checks.json": "1628e942dab6c320577b9239d6dc997fc4a1ca139a6b1783a393d6355d46cbb6",
+      "tools/textures/build_catalogue.py": "c1ad857b1e8465141d09dc96a5708eba0ab62baf8904d12d3fcd4ac4c23ae257",
+      "tools/textures/check_ps1_expansion.py": "842d67a2ca6faebca224cca6b10e343903b5c4fa3fee352783a556c8a0de3708",
+      "tools/textures/ci-records.json": "9ec2d3cd3c453951af3086c2be8809945dc445e2f3202cfb4d83be42ca8fbb17",
+      "tools/textures/sources/3ds-x3.json": "443d150e5d81b3673111668ba0a5d541b026c41d42df02379d45c126a75a1e54",
+      "tools/textures/sources/dolphin-x3.json": "b33882b78d7a2f3ec50294a3236a7fe57a75b0f20655fd54e7c36a8efc693cab",
+      "tools/textures/sources/ps2.json": "23fc4ed179a726358d3fb98987e653890731375870479842fbbf4c13ac940be0",
+      "tools/textures/sources/psp-x3.json": "10939fbb6419094b8dd21f9542907023aa01ee984de0f871dbe32b94da0085e7",
+      "tools/textures/verified.jsonl": "e3320db62f3a504c2dfccd05a4e6e88d79df6fe3d90cffc2b72c7acc0f8871c0"
+    }
+  },
+  "verified_attribution_records": [
+    {
+      "pack_id": "gc-gauntlet-dark-legacy-hd-2",
+      "title": "Gauntlet: Dark Legacy HD 2.0",
+      "source_input": "tools/textures/sources/dolphin-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "DannyKhan419"
+      ],
+      "proposed_additional_credits": [],
+      "evidence": {
+        "url": "https://forums.dolphin-emu.org/Thread-gauntlet-dark-legacy-hd-texture-pack",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original opening post is by DannyKhan419 and describes creating the pack with GigapixelAI."
+      },
+      "current_pack_sha256": "b0bdbd5622c79317003536e051b51ad1dde061ef916692fa1411799ade508ac9",
+      "current_pack_sha256_excluding_authors_and_credits": "efe5bea150086e5fd56d1a51b11a7e0d41e8adde599d5a3b6eab632d02b3489e",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "ps2-lmast-realism-nexxusdrako",
+      "title": "LMAST Realism Mod",
+      "source_input": "tools/textures/sources/ps2.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "NexxusDrakoMultimedia"
+      ],
+      "current_credits": null,
+      "proposed_author_credit": "KitsuNet",
+      "retain_publisher_credit": "NexxusDrakoMultimedia",
+      "proposed_additional_credits": [
+        {
+          "credit": "Pyra",
+          "role": "Contributor named in the V1.5 README."
+        },
+        {
+          "credit": "Maestro",
+          "role": "Contributor named in the V1.5 README."
+        },
+        {
+          "credit": "Gingernut",
+          "role": "Contributor named in the V1.5 README."
+        },
+        {
+          "credit": "Dang Nguyen",
+          "role": "Contributor named in the V1.5 README."
+        }
+      ],
+      "evidence": {
+        "url": "https://github.com/NexxusDrakoMultimedia/LMAST-Realism/blob/V1.5/README.txt",
+        "kind": "original_readme_at_release_tag",
+        "git_blob_sha": "7dfd66970f48617f9f6ca0dca4af2e0d48456168",
+        "reviewed_at": "2026-10-21",
+        "observation": "The README byline names KitsuNet. The catalogue currently credits only the GitHub repository publisher."
+      },
+      "notice_request": {
+        "filename": "README.txt",
+        "unmodified_release_request": "Keep the README attached.",
+        "modified_release_request": "Retain the original as README.OLD.txt.",
+        "qualification": "The immediately following README text calls this a non-legally-binding polite request. Do not label a proven mandatory condition or infringement.",
+        "source_input_summary_omits_qualification": true
+      },
+      "archive_url": "https://github.com/NexxusDrakoMultimedia/LMAST-Realism/releases/download/V1.5/LMAST.Realism.V1.5.zip",
+      "current_pack_sha256": "f5399b1b1f6c5982a8d73628ed2f57795d64b7e9687f2612833ebb70f047912e",
+      "current_pack_sha256_excluding_authors_and_credits": "6872a4f139b8b1a0d4a0d9edd7772683e60c47b429ca27c0fc4f8b03a9489693",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "psp-crisis-core-2x-ui",
+      "title": "Crisis Core: Final Fantasy VII — 2X UI texture pack",
+      "source_input": "tools/textures/sources/psp-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "MetalTxus"
+      ],
+      "proposed_additional_credits": [
+        {
+          "credit": "Crisis Core Reunion",
+          "role": "Source identified by the author for Zack and materia artwork; underlying rights not cleared by this review."
+        },
+        {
+          "credit": "Brave Exvius",
+          "role": "Source identified by the author for item icons; underlying rights not cleared by this review."
+        }
+      ],
+      "evidence": {
+        "url": "https://forums.ppsspp.org/showthread.php?tid=28786",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original pack announcement is by MetalTxus."
+      },
+      "current_pack_sha256": "3dc5dd9bd07b3c1fe2066ec8699dfc7a7f38d6c57925c57de07e15279dd2bcc8",
+      "current_pack_sha256_excluding_authors_and_credits": "ca163c72fdc9f47f41a0ddfa4ed6898a57bb743b39847b5c962f1bb8195f0756",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "psp-digimon-world-redigitize-hd-ui",
+      "title": "Digimon World Re:Digitize HD UI Pack",
+      "source_input": "tools/textures/sources/psp-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "MetalTxus"
+      ],
+      "proposed_additional_credits": [],
+      "evidence": {
+        "url": "https://forums.ppsspp.org/showthread.php?tid=29321",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original pack announcement is by MetalTxus."
+      },
+      "current_pack_sha256": "56ab435d2b38b3341890b6ae63f0fbd81953e5fbc74599f817e12cb147ae838d",
+      "current_pack_sha256_excluding_authors_and_credits": "505c4c295aefaa03d567ef1007209e12c596360783171d0688f6df0b8161af07",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "psp-gta-vcs-ai-upscaled",
+      "title": "Grand Theft Auto: Vice City Stories AI upscaled",
+      "source_input": "tools/textures/sources/psp-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "efonte"
+      ],
+      "proposed_additional_credits": [],
+      "evidence": {
+        "url": "https://forums.ppsspp.org/showthread.php?tid=26729",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original post is by efonte and links the same MEGA file recorded by the catalogue."
+      },
+      "current_pack_sha256": "3d5c221738bf4c44b2ef655deede911e95bd658a0d34a165a4ffa704ab582318",
+      "current_pack_sha256_excluding_authors_and_credits": "2e2636c23a779b5247ce170fccc2189a6829f7e6a533d16f4843713e8c983f6b",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "psp-gundam-next-plus-upscale-forum",
+      "title": "Gundam vs. Gundam Next Plus — Upscale Texture Pack",
+      "source_input": "tools/textures/sources/psp-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "Verymelon Benda (Saramagrean)"
+      ],
+      "proposed_additional_credits": [],
+      "evidence": {
+        "url": "https://forums.ppsspp.org/showthread.php?tid=26350",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original post is by Verymelon Benda; the author signature links github.com/Saramagrean."
+      },
+      "current_pack_sha256": "f50d09fbfe98a8d7f1dd13770669ee72299911cd710526105884c2fee58ab99e",
+      "current_pack_sha256_excluding_authors_and_credits": "68e373a717eb86b9876f47a608981e9c9069491523b36724614b1ca3cc44f19b",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "psp-lord-of-apocalypse-upscale",
+      "title": "Lord of Apocalypse — Upscaling Texture Pack",
+      "source_input": "tools/textures/sources/psp-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "Verymelon Benda (Saramagrean)"
+      ],
+      "proposed_additional_credits": [],
+      "evidence": {
+        "url": "https://forums.ppsspp.org/showthread.php?tid=29886",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original post is by Verymelon Benda, with the Saramagrean GitHub signature and the same MEGA file."
+      },
+      "current_pack_sha256": "342e2d8a2a0b0bb50f41d43a7eca71fc6252f00ce47ba8e747b6484e90b8c060",
+      "current_pack_sha256_excluding_authors_and_credits": "b6447f03fb4fc6595b53e12912c7008216e1f6073e95853e10554ef34e0d2c8f",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "psp-mgs-peace-walker-custom-hd",
+      "title": "Metal Gear Solid: Peace Walker — Custom HD Texture Pack",
+      "source_input": "tools/textures/sources/psp-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "Rhyzak"
+      ],
+      "proposed_additional_credits": [
+        {
+          "credit": "Akuryō",
+          "role": "Testing and deciphering text."
+        },
+        {
+          "credit": "Aydin",
+          "role": "Testing."
+        },
+        {
+          "credit": "MiKE",
+          "role": "Testing."
+        },
+        {
+          "credit": "Quizarro",
+          "role": "Testing, text and proofreading; spelling retained from the main credits list."
+        },
+        {
+          "credit": "Yuki138",
+          "role": "Testing."
+        },
+        {
+          "credit": "Kim2091",
+          "role": "Upscale model contribution named in the original credits."
+        },
+        {
+          "credit": "Jacob_",
+          "role": "Upscale model contribution named in the original credits."
+        },
+        {
+          "credit": "BlackScout",
+          "role": "Upscale model contribution named in the original credits."
+        },
+        {
+          "credit": "Xintao",
+          "role": "Upscale model contribution named in the original credits."
+        },
+        {
+          "credit": "Kai Zhang",
+          "role": "Upscale model contribution named in the original credits."
+        },
+        {
+          "credit": "Konami and Kojima Productions",
+          "role": "Original game material, as credited by the pack author."
+        }
+      ],
+      "evidence": {
+        "url": "https://forums.ppsspp.org/showthread.php?tid=29020",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original post is by Rhyzak. Its published SHA-256 dee96cded3663a564af45af628a67e2a6f7dd67f8c922670eb876ddec3115bf7 and 85307270-byte size match the catalogued archive."
+      },
+      "current_pack_sha256": "4ecec2dbfd6d96480e4807117b27118c900ad01fb4b4c7ab2130a5b0284a7ec8",
+      "current_pack_sha256_excluding_authors_and_credits": "85928126239f7a7984e224332d5e819265e6bd9573082c8da22d1c7fb24da573",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "psp-naruto-impact-upscale",
+      "title": "Naruto Shippuden: Ultimate Ninja Impact — Upscaling Texture Pack",
+      "source_input": "tools/textures/sources/psp-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "Verymelon Benda (Saramagrean)"
+      ],
+      "proposed_additional_credits": [],
+      "evidence": {
+        "url": "https://forums.ppsspp.org/showthread.php?tid=26648",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original post is by Verymelon Benda, with the Saramagrean GitHub signature and the same MEGA file."
+      },
+      "current_pack_sha256": "0bd235015f18961e03519f8cb09ea7b853cbe9811da806a0569997ac1c9fcfa4",
+      "current_pack_sha256_excluding_authors_and_credits": "d173b2dbe7ec14fd5039fdd7a91a8d6c219c680cea644ae9a56ac523064296aa",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "psp-persona-3-portable-hd-community-expansion",
+      "title": "Persona 3 Portable HD Texture Pack Community Expansion (3x)",
+      "source_input": "tools/textures/sources/psp-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "TridentOfTheAbyss"
+      ],
+      "proposed_additional_credits": [
+        {
+          "credit": "DinJerr",
+          "role": "Parent texture pack."
+        },
+        {
+          "credit": "hououin_kyouma",
+          "role": "Parent texture pack."
+        },
+        {
+          "credit": "Fiend",
+          "role": "Saves."
+        },
+        {
+          "credit": "flamecrest920",
+          "role": "Textures, saves and edits."
+        },
+        {
+          "credit": "BahnCahn",
+          "role": "Texture dump and upscale methods."
+        },
+        {
+          "credit": "ArcEnCiel",
+          "role": "Model textures, credits font and animation crops."
+        },
+        {
+          "credit": "ryuubu",
+          "role": "Portrait and blinking fixes."
+        },
+        {
+          "credit": "Cooper941",
+          "role": "Maps and HUD."
+        },
+        {
+          "credit": "efonte",
+          "role": "ESRGAN assistance."
+        },
+        {
+          "credit": "Persona Modding Discord",
+          "role": "Community help."
+        },
+        {
+          "credit": "An unnamed friend",
+          "role": "Help acknowledged without a public name in the original post."
+        }
+      ],
+      "evidence": {
+        "url": "https://forums.ppsspp.org/showthread.php?tid=26547",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original community expansion post is by TridentOfTheAbyss and links the same 3x Google Drive file."
+      },
+      "current_pack_sha256": "7654d7ab3af7c38856cb9423eeb376747fc7b9ecd4001ce12f5aa2c107838279",
+      "current_pack_sha256_excluding_authors_and_credits": "54d612d4b8187fb322552546e89267494bdd890373ac792cb0b0a16be1aac2c8",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "psp-untold-legends-botb-hd-ui",
+      "title": "Untold Legends: Brotherhood of the Blade — Amateur HD UI Pack",
+      "source_input": "tools/textures/sources/psp-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "Amateur L498"
+      ],
+      "proposed_additional_credits": [],
+      "evidence": {
+        "url": "https://forums.ppsspp.org/showthread.php?tid=34071",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original post is by Amateur L498. It invites reuse of this UI work in future HD packs; no unrelated standard license or permission over all original game assets is inferred."
+      },
+      "current_pack_sha256": "1dcb641075feabb5eb8b4d9574f745a8679dc0f6f14bcbdab086ec9b438d8dcc",
+      "current_pack_sha256_excluding_authors_and_credits": "240e67bbe2dc2eb32c467b5941a869e281f7cbfc0a19cbc8729462e47b55a1cd",
+      "license_clearance_established_by_this_review": false
+    },
+    {
+      "pack_id": "psp-yugioh-gx-tag-force-hd-remastered",
+      "title": "Yu-Gi-Oh! GX Tag Force — HD Remastered",
+      "source_input": "tools/textures/sources/psp-x3.json",
+      "status": "verified_primary_attribution_documented_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "current_credits": null,
+      "proposed_authors": [
+        "MikeyMK"
+      ],
+      "proposed_additional_credits": [
+        {
+          "credit": "xan1242",
+          "role": "CIPTool and TFCardEditGUI."
+        },
+        {
+          "credit": "chrisfand",
+          "role": "Original HD card pack."
+        }
+      ],
+      "evidence": {
+        "url": "https://forums.ppsspp.org/showthread.php?tid=29487",
+        "kind": "full_original_creator_post",
+        "reviewed_at": "2026-10-21",
+        "observation": "The original post is by MikeyMK."
+      },
+      "current_pack_sha256": "1300e54b251d9b8b5952f06b81b15763537fb7ca19cb8199d3a872905ee23505",
+      "current_pack_sha256_excluding_authors_and_credits": "cd8950285ec70b5d76989d70d2025988920d6324cd40f2f7be152c71c41c307d",
+      "license_clearance_established_by_this_review": false
+    }
+  ],
+  "unresolved_records": [
+    {
+      "pack_id": "3ds-pw-spirit-of-justice-hd-incomplete",
+      "title": "Phoenix Wright: Spirit of Justice HD Texture Pack (incomplete)",
+      "source_input": "tools/textures/sources/3ds-x3.json",
+      "status": "unresolved_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "candidate_names_not_verified": [
+        "Volya / TheVolya"
+      ],
+      "catalogue_page_url": "https://drive.google.com/file/d/183ZskbSqv2d8DquyOgOhtCPCwtstS4Iy/view",
+      "reviewed_at": "2026-10-21",
+      "observation": "An indexed author announcement and secondary roundup suggest Volya, but the full announcement and primary linkage to this exact Google Drive file were not established.",
+      "additional_evidence": [
+        {
+          "url": "https://x.com/VolyaVolyaVolya/status/1564943783912939525",
+          "kind": "primary_announcement_indexed_only",
+          "access_result": "Direct open returned HTTP 403."
+        },
+        {
+          "url": "https://www.reddit.com/r/3DS/comments/1r0tuu3/3ds_hd_texture_packs_list/",
+          "kind": "secondary_roundup",
+          "limitation": "Not sufficient on its own for an exact archive attribution correction."
+        }
+      ]
+    },
+    {
+      "pack_id": "gc-sf-rush-2049-mat3-texture-pack",
+      "title": "San Francisco Rush 2049 Texture Pack (Midway Arcade Treasures 3)",
+      "source_input": "tools/textures/sources/dolphin-x3.json",
+      "status": "unresolved_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "candidate_names_not_verified": [
+        "Stevie / Steven"
+      ],
+      "catalogue_page_url": "https://forums.dolphin-emu.org/Thread-san-francisco-rush-2049-texture-pack",
+      "reviewed_at": "2026-10-21",
+      "observation": "Primary indexed excerpts suggest this name; the full original creator post was unavailable behind a site challenge.",
+      "additional_evidence": []
+    },
+    {
+      "pack_id": "gc-smb-hd-4x-dds",
+      "title": "Super Monkey Ball HD Texture Pack (4x, DDS BC7)",
+      "source_input": "tools/textures/sources/dolphin-x3.json",
+      "status": "unresolved_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "candidate_names_not_verified": [],
+      "catalogue_page_url": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-hd-texture-pack",
+      "reviewed_at": "2026-10-21",
+      "observation": "The original post was unavailable behind a site challenge. No primary creator attribution established; other Monkey Ball projects must not be substituted.",
+      "additional_evidence": []
+    },
+    {
+      "pack_id": "gc-smb-hd-4x-png",
+      "title": "Super Monkey Ball HD Texture Pack (4x, PNG)",
+      "source_input": "tools/textures/sources/dolphin-x3.json",
+      "status": "unresolved_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "candidate_names_not_verified": [],
+      "catalogue_page_url": "https://forums.dolphin-emu.org/Thread-super-monkey-ball-hd-texture-pack",
+      "reviewed_at": "2026-10-21",
+      "observation": "The original post was unavailable behind a site challenge. No primary creator attribution established; other Monkey Ball projects must not be substituted.",
+      "additional_evidence": []
+    },
+    {
+      "pack_id": "wii-metroid-prime-trilogy-hd-interface",
+      "title": "Metroid Prime Trilogy HD Interface Textures (DDS)",
+      "source_input": "tools/textures/sources/dolphin-x3.json",
+      "status": "unresolved_not_applied",
+      "current_authors": [
+        "see the page"
+      ],
+      "candidate_names_not_verified": [
+        "Terg500"
+      ],
+      "catalogue_page_url": "https://forums.dolphin-emu.org/Thread-metroid-prime-trilogy-hd-interface-textures-v-1-7-may-01-2021",
+      "reviewed_at": "2026-10-21",
+      "observation": "Indexed posts in the original thread suggest Terg500. The full original creator post was unavailable behind a site challenge.",
+      "additional_evidence": []
+    }
+  ],
+  "notice_retention_findings": [
+    {
+      "path": "packages/neo_texture_catalog/ios/Classes/NeoTextureInstall.h",
+      "symbol": "Accepts",
+      "finding": "The shared installer permits engine assets/configuration, not generic README, LICENSE, COPYING or NOTICE text files."
+    },
+    {
+      "path": "packages/neo_texture_catalog/ios/Classes/NeoTexturePackStore.mm",
+      "symbol": "installArchive:pack:engine:identity:confirmed:completion:",
+      "finding": "The installed receipt retains authors, source ID and digest but omits page_url, licence and credits; the cached archive is removed after a successful installation."
+    },
+    {
+      "path": "packages/armsx2_internal_bridge/ios/Classes/ARMSX2TexturePackCore.h",
+      "symbol": "BuildPlan",
+      "finding": "The delegated PS2 installer skips entries not classified as textures, including README files."
+    },
+    {
+      "path": "packages/neo_texture_catalog/ios/Classes/NeoTextureHDPage.m",
+      "finding": "The catalogue detail screen displays authors, license summary, redistribution text, additional credits and the original source URL."
+    }
+  ],
+  "future_source_update": {
+    "allowed_attribution_fields": [
+      "authors",
+      "credits"
+    ],
+    "not_authorized_or_applied_by_this_artifact": [
+      "source JSON edits",
+      "manifest regeneration",
+      "runtime changes",
+      "archive downloads",
+      "builds",
+      "publication"
+    ],
+    "generation_command": "python3 tools/textures/build_catalogue.py --inventory docs/HD_TEXTURE_CATALOG_SOURCES.md",
+    "read_only_generation_check": "python3 tools/textures/build_catalogue.py --check",
+    "count_check": "python3 tools/textures/count_packs.py",
+    "required_comparisons": [
+      "Same pack ID set; same sources and all metadata outside explicitly approved authors/credits and revision.",
+      "Unchanged verification ledgers, downloads, archive sizes/hashes, identities, install plans, file/byte counts, formats and verification dates.",
+      "Unchanged 424 families / 509 profiles / 1124 references and PS1 38/8/30 counts.",
+      "Hosted and bundled manifests byte-identical to each other; record new revision and digests."
+    ],
+    "historical_gate_constraint": "check_ps1_expansion.py asserts pre-existing catalogue objects remain identical. Do not weaken or overwrite this historical proof. Add a narrowly scoped continuation check/receipt for the reviewed attribution delta and preserve frozen publication receipts."
+  },
+  "limitations": [
+    "Attribution evidence is not blanket artwork redistribution clearance.",
+    "Research-only PS1 and Switch projects do not increase installable counts.",
+    "No archive was mass redownloaded for this review.",
+    "No on-device or engine rendering validation is claimed."
+  ]
+}

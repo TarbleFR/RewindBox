@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "repository": "TarbleFR/RewindBox",
+  "requested_reference_build": 526,
+  "reference_source": "d1354170efa22d18ab6cca898998a340239a90c2",
+  "available_device_capture_build": 525,
+  "available_device_pid": 24255,
+  "title": "BCES00510",
+  "device_total_memory_bytes": 7989460992,
+  "device526_capture_available": false,
+  "device527_capture_available": false,
+  "inputs_verified": [
+    {
+      "role": "app",
+      "name": "app(4).log",
+      "bytes": 4652452,
+      "sha256": "8ecca2b39796195b71c3788ff1d2a4c7f93005912f5d8f9546715c22ba9487ef"
+    },
+    {
+      "role": "diagnostic",
+      "name": "RPCS3-diagnostic(3).log",
+      "bytes": 782867,
+      "sha256": "7bbfe527fe123a191a8b6f13dd0e7f3314c5b7325c91474d06bea818c88adabc"
+    },
+    {
+      "role": "milestones",
+      "name": "RPCS3-milestones(3).log",
+      "bytes": 55397,
+      "sha256": "80ac4cfe3dddaf92f33bc34079f2c093496c784cafc6f35aa7823279d4f53614"
+    },
+    {
+      "role": "operations",
+      "name": "NeoSwap-operations(1).jsonl",
+      "bytes": 7012677,
+      "sha256": "01f7ba8ed11cca7483413d7388644f50f7685f5c0b503d825b77f7289e819034"
+    }
+  ],
+  "capture_duration_s": 274.270851,
+  "phase_observations": {
+    "native_loading_ui": {
+      "samples": 244,
+      "guest_frames": 0,
+      "first_elapsed_s": 0,
+      "last_elapsed_s": 243.04007,
+      "ppu_cold_build_wall_ms": 308189.704,
+      "ppu_modules_compiled": 136,
+      "ppu_cache_hits": 0,
+      "ppu_cache_misses": 138,
+      "ppu_finalize_count": 3,
+      "ppu_finalize_total_ms": 297.12,
+      "ppu_finalize_max_ms": 245.084,
+      "cost_scope": "Loading-only aggregate across workers; CPU durations are not additive wall time; capture starts65.193s after cold build starts.",
+      "ppu_codegen_count": 136,
+      "ppu_codegen_cumulative_ms": 479609.916,
+      "ppu_codegen_max_ms": 7482.134,
+      "ppu_cache_write_cumulative_ms": 33615.785,
+      "ppu_cache_write_max_ms": 2453.413,
+      "interpretation": "Observed cold startup CPU work is predominantly code generation. Recorded finalize297.120ms is not evidence that historic flushes dominate; repeated symbol-lookup finalization is not counted by that outer phase timer."
+    },
+    "guest_presentation": {
+      "samples": 23,
+      "first_elapsed_s": 243.998827,
+      "last_elapsed_s": 265.994151,
+      "scene_labels_available": false,
+      "postboot_coreprof_windows": 6,
+      "range_wait_episode_count": 6478,
+      "range_wait_cumulative_ms": 2125.27,
+      "range_wait_max_ms": 38.403,
+      "spu_object_load_attempts": 4386,
+      "spu_object_load_total_ms": 3882.472,
+      "spu_object_load_max_ms": 24.11,
+      "interpretation": "SPUPROF gameplay means emulation is running; it does not prove demanding gameplay vs a menu/cinematic. These are six mixed postboot windows, including shutdown; total thread waits are not main-thread stalls."
+    },
+    "menu": {
+      "measured": false
+    },
+    "cinematic": {
+      "measured": false
+    },
+    "demanding_gameplay": {
+      "measured": false
+    },
+    "long_session": {
+      "measured": false
+    }
+  },
+  "memory_observations": {
+    "process_footprint_bytes": {
+      "min": 1685770432,
+      "max": 2411157496
+    },
+    "process_resident_bytes": {
+      "min": 1079001088,
+      "max": 2480635904
+    },
+    "compressed_process_bytes_available": false,
+    "donor_prepared_bytes": {
+      "min": 0,
+      "max": 85983232
+    },
+    "donor_resident_bytes": {
+      "min": 0,
+      "max": 85983232
+    },
+    "donor_accounted_compressed_bytes": {
+      "min": 0,
+      "max": 0
+    },
+    "donor_target_bytes": {
+      "min": 7516192768,
+      "max": 7516192768
+    },
+    "donor_lost_counter": {
+      "min": 0,
+      "max": 2
+    },
+    "relay_live_backing_bytes": {
+      "min": 805240832,
+      "max": 1083047936
+    },
+    "relay_mapped_alias_bytes": {
+      "min": 1610481664,
+      "max": 2240348160
+    },
+    "thermal_states": [
+      0
+    ],
+    "requested_texture_bytes": {
+      "min": 0,
+      "max": 61606016
+    },
+    "last_guest_graphics_sample": {
+      "elapsed_s": 265.498082,
+      "vma_block_bytes": 679477248,
+      "vma_allocated": 544804096,
+      "vma_unused": 134673152,
+      "vma_snapshot_valid": 1,
+      "vma_owner_live": 1,
+      "vma_sample_valid": 1,
+      "vma_generation": 1,
+      "gpu_textures_requested": 61606016,
+      "texture_recyclable_images": 11,
+      "texture_recyclable_bytes": 12880512,
+      "texture_snapshot_valid": 1,
+      "texture_owner_live": 1,
+      "texture_sample_valid": 1
+    },
+    "last_graphics_sample": {
+      "elapsed_s": 270.53652,
+      "vma_block_bytes": 0,
+      "vma_allocated": 0,
+      "vma_unused": 0,
+      "vma_snapshot_valid": 1,
+      "vma_owner_live": 0,
+      "vma_sample_valid": 0,
+      "vma_generation": 1,
+      "gpu_textures_requested": 0,
+      "texture_recyclable_images": 0,
+      "texture_recyclable_bytes": 0,
+      "texture_snapshot_valid": 1,
+      "texture_owner_live": 0,
+      "texture_sample_valid": 0
+    },
+    "interpretation": "525 VMA zero/lifecycle reset observed after stop. Recyclable11 images/12,880,512B of61,606,016B texture requests before stop. No process compressed ledger in these new four files. Footprint/resident/shared/donor backing overlap; aliases and7GiB configured target are not additional physical RAM."
+  },
+  "neoswap_observations": {
+    "matching_pid": 24255,
+    "build_not_stored_in_source": true,
+    "rows": 9,
+    "events": 761,
+    "duplicate_events": 0,
+    "session_ids": [
+      2
+    ],
+    "sequences": [
+      1,
+      761
+    ],
+    "operation_counts": {
+      "admitted": 100,
+      "checkpoint_verified_and_chunk_evicted": 100,
+      "full_snapshot_unmapped": 100,
+      "quota_refused": 361,
+      "discarded": 100
+    },
+    "result_counts": {
+      "ok": 400,
+      "quota_refused": 361
+    },
+    "os_error_counts": {
+      "0": 761
+    },
+    "max_operation_duration_us": 97254,
+    "aggregate_operation_duration_us": 677077,
+    "batches_complete_history": true,
+    "dropped_events_cumulative_max": 0,
+    "interpretation": "Quota refusals are admission decisions, not OS I/O errors.761 unique source-storage events in session2:100 CPU snapshots admitted/checkpointed/unmapped/discarded,361 quota refusals. Individual operation max97.254ms; sum677.077ms across process timeline is not a per-frame stall."
+  },
+  "gpu_duration_available": false,
+  "jit_full_scan_frequency_available": false,
+  "jit_flush_range_count_available": false,
+  "per_frame_causality_available": false,
+  "baseline526_component_tests": {
+    "source": "RewindBox/docs/evidence/rpcs3-arm526-validation.json",
+    "physical_device_tested": false,
+    "microbenchmarks_not_fps": true
+  },
+  "interpretation_constraints": [
+    "These525 device observations identify what to instrument; they cannot quantify526/527 speedup.",
+    "COREPROF fps/P95/P99 are presentation windows; lack of scene labels prevents cross-scene gameplay comparison.",
+    "Virtual aliases, shared backing, donor resident and process footprint overlap; do not sum them as physical RAM.",
+    "NeoSwap quota_refused is admission policy, not an OS error; max operation97.254ms is not proof of a frame stall.",
+    "No supplied capture establishes that repeated JIT finalize scans dominate gameplay; the candidate needs JITPUB527 plus matching frames."
+  ]
+}

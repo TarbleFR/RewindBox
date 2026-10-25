@@ -70,11 +70,20 @@ assert 'SPUWARMUP begin' in common and 'SPUWARMUP end' in common
 block = llvm[llvm.index('#ifdef ARCH_ARM64\n\t\t\tconst bool recoverable'):]
 block = block[:block.index('\n\t\t// Register function pointer')]
 interp = llvm[llvm.index('spu_function_t compile_interpreter()'):]
-interp = interp[interp.index('#ifdef ARCH_ARM64\n\t\t// The generated interpreter'):]
+interp = interp[interp.index('#ifdef ARCH_ARM64\n\t\t// Built once per process; the interpreter module is not persisted'):]
 interp = interp[:interp.index('\n\n\t\tm_jit.fin();')]
 expanded = subprocess.check_output([*compiler, '-E', '-P', '-x', 'c++', '-DARCH_ARM64', '-'],
                                    input=block + '\n' + interp, text=True, env=env)
 assert 'get_cache_path()' not in expanded and 'get_obj_cache_path()' not in expanded
 assert 'm_jit.try_add(std::move(_module), llvm_error)' in expanded
 assert expanded.count('m_jit.add(std::move(_module));') == 2
+# Build 481 (iOS): the interpreter module is still never cached; compiled blocks
+# reach the object cache only through the guarded, validated cached add.
+expanded_ios = subprocess.check_output([*compiler, '-E', '-P', '-x', 'c++', '-DARCH_ARM64', '-DRPCS3_IOS', '-'],
+                                       input=block + '\n' + interp, text=True, env=env)
+interp_ios = expanded_ios[expanded_ios.index('m_jit.add(std::move(_module));', expanded_ios.index('Register function pointer') if 'Register function pointer' in expanded_ios else 0):]
+assert 'get_obj_cache_path()' not in interp_ios and 'try_add_cached' not in interp_ios
+assert 'spu_llvm_module_is_relocatable(*_module, offending)' in expanded_ios
+assert 'm_jit.try_add_cached(std::move(_module), spu_obj_cache, std::move(spu_cached_object), spu_cache_outcome, llvm_error)' in expanded_ios
+assert expanded_ios.count('m_jit.try_add(std::move(_module), llvm_error)') == 2
 print('PASS: production SPU reuse, startup policy, scratch LS isolation, phase counters and ARM64 cache safety')

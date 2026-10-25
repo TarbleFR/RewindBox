@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "purpose": "Independent CRC review of three unchanged original RARs rejected by the new native reader. Read-only 7-Zip test after exact size/SHA gate; no extraction, installation, repackaging, mirror, retry or publication. Missing decoder, method or incomplete execution is inconclusive.",
+  "archives": [
+    {
+      "id": "ps2-ktx-ms-saga-a-new-dawn-curse-arms",
+      "url": "https://drive.usercontent.google.com/download?id=1la7LcGiPrwdEvF9xFzPkk9X2mSb32kWA&export=download&authuser=0",
+      "size": 3966706904,
+      "sha256": "cf1100c0a2ab292672c12473d9b6cac9b9b8842360eab1de1a94646f8b20cdfb",
+      "file_name": "MS_Saga_HD.rar",
+      "native_observation": {
+        "run": 39456534062,
+        "artifact": 12281359688,
+        "status": "install",
+        "output": "result=stage status=crc problem=\n"
+      }
+    },
+    {
+      "id": "ps2-ktx-crash-twinsanity-yamijpg",
+      "url": "https://drive.google.com/file/d/1mamMXY99dikFfWiRNpqxdsSrtDxkb0FF/view",
+      "size": 1881925191,
+      "sha256": "639965eb9e8e30e42355cca815c88d197a9d40285fcf30de9071cb3e2f150954",
+      "file_name": "Crash Twinsanity [SLES-52568] by YAMI.rar",
+      "native_observation": {
+        "run": 39456551008,
+        "artifact": 12282650977,
+        "status": "install",
+        "output": "result=stage status=crc problem=\n"
+      }
+    },
+    {
+      "id": "ps2-ktx-valkyrie-profile-2-silmeria-curse-arms",
+      "url": "https://drive.usercontent.google.com/download?id=1D9TOM4mEPld4FGlp2mUcY2igJ4iYip1v&export=download&authuser=0",
+      "size": 1093401381,
+      "sha256": "db97c9ee2c2752210da0b57538381ba0f4cd091897ad68a2de0340238d3e74bd",
+      "file_name": "Valkyrie_Profile_2_HD_Textures.rar",
+      "native_observation": {
+        "run": 39456551008,
+        "artifact": 12282650977,
+        "status": "install",
+        "output": "result=stage status=crc problem=\n"
+      }
+    }
+  ]
+}

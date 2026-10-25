@@ -1,0 +1,102 @@
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -1,4 +1,5 @@
+ #include "stdafx.h"
++#include "RPCS3IOSWriterCounters.h"
+ #include "RPCS3IOSPerformance.h"
+ #include "RPCS3IOSFreezeDump.h"
+ #include "RPCS3IOSProfilerHelpers.h"
+@@ -236,11 +237,9 @@
+ 		m_range_blocker_max = 0;
+ 		m_range_iterations_max = 0;
+ 		static_cast<void>(m_range_episodes.take());
++		static_cast<void>(m_writer_counters.drain());
+ 		for (usz source = 0; source < writer_lock_source_count; ++source)
+ 		{
+-			m_writer_lock_count[source] = 0;
+-			m_writer_lock_acquire_ticks[source] = 0;
+-			m_writer_lock_hold_ticks[source] = 0;
+ 			m_writer_lock_avoided[source] = 0;
+ 		}
+ 		static_cast<void>(m_spu_loading.take());
+@@ -291,10 +290,6 @@
+ 		m_has_flip_info.store(false, std::memory_order_release);
+ 		m_rsx_window_elapsed_us = 0;
+ 		m_rsx_window_idle_us = 0;
+-		for (usz source = 0; source < writer_lock_source_count; ++source)
+-		{
+-			m_writer_lock_hold_max[source] = 0;
+-		}
+ 		m_usage_thread_cores.clear();
+ 		m_usage_compile_cores_sum = 0.0;
+ 		m_usage_compile_thread_sum = 0;
+@@ -366,12 +361,7 @@
+ 
+ 	void record_writer_lock(u32 source, u64 acquire_ticks, u64 hold_ticks) noexcept
+ 	{
+-		const usz index = source < writer_lock_source_count ? source : 0;
+-		m_writer_lock_count[index].fetch_add(1, std::memory_order_relaxed);
+-		m_writer_lock_acquire_ticks[index].fetch_add(acquire_ticks, std::memory_order_relaxed);
+-		m_writer_lock_hold_ticks[index].fetch_add(hold_ticks, std::memory_order_relaxed);
+-		// NEOSTATION_BUILD487_DIAGNOSTICS_V1: longest single hold per source (D7).
+-		update_max(m_writer_lock_hold_max[index], hold_ticks);
++		m_writer_counters.record(source, acquire_ticks, hold_ticks);
+ 	}
+ 
+ 	void record_writer_lock_avoided(u32 source) noexcept
+@@ -704,13 +694,14 @@
+ 			range_iterations_max = m_range_iterations_max.exchange(0, std::memory_order_relaxed);
+ 			range_blocker_sum = m_range_blocker_sum.exchange(0, std::memory_order_relaxed);
+ 			range_blocker_max = m_range_blocker_max.exchange(0, std::memory_order_relaxed);
++			const auto writer_totals = m_writer_counters.drain();
+ 			for (usz source = 0; source < writer_lock_source_count; ++source)
+ 			{
+-				writer_count[source] = m_writer_lock_count[source].exchange(0, std::memory_order_relaxed);
++				writer_count[source] = writer_totals[source].count;
+ 				writer_avoided[source] = m_writer_lock_avoided[source].exchange(0, std::memory_order_relaxed);
+-				writer_acquire[source] = m_writer_lock_acquire_ticks[source].exchange(0, std::memory_order_relaxed);
+-				writer_hold[source] = m_writer_lock_hold_ticks[source].exchange(0, std::memory_order_relaxed);
+-				writer_hold_max[source] = m_writer_lock_hold_max[source].exchange(0, std::memory_order_relaxed);
++				writer_acquire[source] = writer_totals[source].acquire;
++				writer_hold[source] = writer_totals[source].hold;
++				writer_hold_max[source] = writer_totals[source].maximum;
+ 			}
+ 			frame_baseline = m_profile_frame_baseline;
+ 			elapsed_ms = std::chrono::duration<double, std::milli>(now - m_profile_window_start).count();
+@@ -774,7 +765,7 @@
+ 			"RANGELOCKPROF session=%llu episodes=%llu total_ms=%.3f max_ms=%.3f iterations_max=%llu blocker_samples=%llu blocker_max=%llu "
+ 			"wl_other=%llu:%.3f:%.3f wl_putllc=%llu:%.3f:%.3f wl_store128=%llu:%.3f:%.3f wl_ppu_stcx=%llu:%.3f:%.3f wl_resop=%llu:%.3f:%.3f "
+ 			"wl_putllc_avoided=%llu wl_ppu_stcx_avoided=%llu "
+-			"wl_other_max_hold_us=%.3f wl_putllc_max_hold_us=%.3f wl_store128_max_hold_us=%.3f wl_ppu_stcx_max_hold_us=%.3f wl_resop_max_hold_us=%.3f",
++			"wl_other_max_hold_us=%.3f wl_putllc_max_hold_us=%.3f wl_store128_max_hold_us=%.3f wl_ppu_stcx_max_hold_us=%.3f wl_resop_max_hold_us=%.3f writer_shards=%u",
+ 			profile_session, range.count, milliseconds(range.ticks), milliseconds(range.maximum_ticks),
+ 			range_iterations_max, range_blocker_sum, range_blocker_max,
+ 			writer_count[0], milliseconds(writer_acquire[0]), milliseconds(writer_hold[0]),
+@@ -784,7 +775,7 @@
+ 			writer_count[4], milliseconds(writer_acquire[4]), milliseconds(writer_hold[4]),
+ 			writer_avoided[1], writer_avoided[3],
+ 			microseconds(writer_hold_max[0]), microseconds(writer_hold_max[1]), microseconds(writer_hold_max[2]),
+-			microseconds(writer_hold_max[3]), microseconds(writer_hold_max[4]));
++			microseconds(writer_hold_max[3]), microseconds(writer_hold_max[4]), rpcs3::ios::diagnostics::WriterCounters::shard_count);
+ 
+ 		// NEOSTATION_BUILD444_JIT_PHASE_PROFILE_V1: name=events:total_ms:max_ms:bytes
+ 		// per LLVM phase, exclusive of nested phases; headroom_min_mib is the
+@@ -1037,16 +1028,14 @@
+ 	rpcs3::spu::compile_counters m_range_episodes;
+ 	// NEOSTATION_WRITER_LOCK_ATTRIBUTION_V1: indexed by vm::writer_lock_source.
+ 	static constexpr usz writer_lock_source_count = 5;
+-	std::array<std::atomic<u64>, writer_lock_source_count> m_writer_lock_count{};
+-	std::array<std::atomic<u64>, writer_lock_source_count> m_writer_lock_acquire_ticks{};
+-	std::array<std::atomic<u64>, writer_lock_source_count> m_writer_lock_hold_ticks{};
++	rpcs3::ios::diagnostics::WriterCounters m_writer_counters;
++	static_assert(writer_lock_source_count == rpcs3::ios::diagnostics::WriterCounters::sources);
+ 	std::array<std::atomic<u64>, writer_lock_source_count> m_writer_lock_avoided{};
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1: longest single hold per source (D7),
+ 	// guest flips and native-UI state from rsx::thread::flip() (D1), closed RSX
+ 	// load windows (rsx_fifo_busy), and the window accumulators guarded by
+ 	// m_profile_mutex (per-thread cores for top=, compile workers, the RSX puller
+ 	// and the frame-change clock of the freeze trigger).
+-	std::array<std::atomic<u64>, writer_lock_source_count> m_writer_lock_hold_max{};
+ 	std::atomic<u64> m_guest_frames{0};
+ 	std::atomic<u32> m_native_ui_visible{0};
+ 	std::atomic_bool m_has_flip_info{false};

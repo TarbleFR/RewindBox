@@ -1,0 +1,344 @@
+{
+  "host_cpu": "generic",
+  "device_cpu": "apple-m4",
+  "kernels": [
+    {
+      "name": "spu_selb_mask",
+      "family": "spu",
+      "what": "SELB as (a & ~m) | (b & m) with redundant mask and xor, as the translator emits before folding",
+      "variants": [
+        {
+          "pipeline": "none",
+          "ir_instructions": 20,
+          "aarch64_instructions": 9,
+          "pass_ms": 0.497042,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_early_cse",
+          "ir_instructions": 17,
+          "aarch64_instructions": 9,
+          "pass_ms": 0.066459,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_extended",
+          "ir_instructions": 17,
+          "aarch64_instructions": 9,
+          "pass_ms": 0.168166,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_reference",
+          "ir_instructions": 17,
+          "aarch64_instructions": 9,
+          "pass_ms": 0.079792,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_upstream",
+          "ir_instructions": 17,
+          "aarch64_instructions": 9,
+          "pass_ms": 0.173875,
+          "equal_to_unoptimized": true
+        }
+      ]
+    },
+    {
+      "name": "spu_cmp_sext_chain",
+      "family": "spu",
+      "what": "CGT/CEQ masks combined, inverted and re-tested: compare, sign-extend, or, xor, compare again",
+      "variants": [
+        {
+          "pipeline": "none",
+          "ir_instructions": 23,
+          "aarch64_instructions": 11,
+          "pass_ms": 0.028916,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_early_cse",
+          "ir_instructions": 22,
+          "aarch64_instructions": 11,
+          "pass_ms": 0.086875,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_extended",
+          "ir_instructions": 21,
+          "aarch64_instructions": 12,
+          "pass_ms": 0.492542,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_reference",
+          "ir_instructions": 22,
+          "aarch64_instructions": 11,
+          "pass_ms": 0.233167,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_upstream",
+          "ir_instructions": 21,
+          "aarch64_instructions": 12,
+          "pass_ms": 0.207917,
+          "equal_to_unoptimized": true
+        }
+      ]
+    },
+    {
+      "name": "bswap_idiom",
+      "family": "spu",
+      "what": "big-endian loads: manual byte-swap by shifts and masks, and bswap(bswap(x)) round trips",
+      "variants": [
+        {
+          "pipeline": "none",
+          "ir_instructions": 23,
+          "aarch64_instructions": 13,
+          "pass_ms": 0.037375,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_early_cse",
+          "ir_instructions": 22,
+          "aarch64_instructions": 13,
+          "pass_ms": 0.101,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_extended",
+          "ir_instructions": 14,
+          "aarch64_instructions": 7,
+          "pass_ms": 0.226333,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_reference",
+          "ir_instructions": 22,
+          "aarch64_instructions": 13,
+          "pass_ms": 0.078083,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_upstream",
+          "ir_instructions": 14,
+          "aarch64_instructions": 7,
+          "pass_ms": 0.225833,
+          "equal_to_unoptimized": true
+        }
+      ]
+    },
+    {
+      "name": "ppu_cr_bits",
+      "family": "ppu",
+      "what": "cmpd then bc: lt/gt/eq bits stored to the thread, reloaded and combined for the branch",
+      "variants": [
+        {
+          "pipeline": "none",
+          "ir_instructions": 33,
+          "aarch64_instructions": 14,
+          "pass_ms": 0.016208,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_early_cse",
+          "ir_instructions": 30,
+          "aarch64_instructions": 14,
+          "pass_ms": 0.08075,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_extended",
+          "ir_instructions": 29,
+          "aarch64_instructions": 14,
+          "pass_ms": 0.484334,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_reference",
+          "ir_instructions": 29,
+          "aarch64_instructions": 14,
+          "pass_ms": 0.266291,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_upstream",
+          "ir_instructions": 29,
+          "aarch64_instructions": 14,
+          "pass_ms": 0.218708,
+          "equal_to_unoptimized": true
+        }
+      ]
+    },
+    {
+      "name": "ppu_register_flush",
+      "family": "ppu",
+      "what": "successive flushes of the same guest registers to the thread between instructions (dead stores)",
+      "variants": [
+        {
+          "pipeline": "none",
+          "ir_instructions": 19,
+          "aarch64_instructions": 8,
+          "pass_ms": 0.02,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_early_cse",
+          "ir_instructions": 17,
+          "aarch64_instructions": 8,
+          "pass_ms": 0.048958,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_extended",
+          "ir_instructions": 13,
+          "aarch64_instructions": 8,
+          "pass_ms": 0.216875,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_reference",
+          "ir_instructions": 13,
+          "aarch64_instructions": 8,
+          "pass_ms": 0.085875,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_upstream",
+          "ir_instructions": 13,
+          "aarch64_instructions": 8,
+          "pass_ms": 0.295708,
+          "equal_to_unoptimized": true
+        }
+      ]
+    },
+    {
+      "name": "ppu_rlwinm_rotate",
+      "family": "ppu",
+      "what": "rlwinm/rlwimi sequences: rotate by shifts and or, then mask and merge",
+      "variants": [
+        {
+          "pipeline": "none",
+          "ir_instructions": 19,
+          "aarch64_instructions": 7,
+          "pass_ms": 0.018125,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_early_cse",
+          "ir_instructions": 18,
+          "aarch64_instructions": 7,
+          "pass_ms": 0.056833,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_extended",
+          "ir_instructions": 14,
+          "aarch64_instructions": 7,
+          "pass_ms": 0.195417,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_reference",
+          "ir_instructions": 18,
+          "aarch64_instructions": 7,
+          "pass_ms": 0.201125,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_upstream",
+          "ir_instructions": 14,
+          "aarch64_instructions": 7,
+          "pass_ms": 0.170458,
+          "equal_to_unoptimized": true
+        }
+      ]
+    },
+    {
+      "name": "float_sign_masks",
+      "family": "spu",
+      "what": "fabs/fneg by integer masks on <4 x float>, then fma, as XFloat Approximate lowers them",
+      "variants": [
+        {
+          "pipeline": "none",
+          "ir_instructions": 22,
+          "aarch64_instructions": 11,
+          "pass_ms": 0.017834,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_early_cse",
+          "ir_instructions": 21,
+          "aarch64_instructions": 11,
+          "pass_ms": 0.049291,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "ppu_extended",
+          "ir_instructions": 19,
+          "aarch64_instructions": 10,
+          "pass_ms": 0.179792,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_reference",
+          "ir_instructions": 21,
+          "aarch64_instructions": 11,
+          "pass_ms": 0.171,
+          "equal_to_unoptimized": true
+        },
+        {
+          "pipeline": "spu_upstream",
+          "ir_instructions": 19,
+          "aarch64_instructions": 10,
+          "pass_ms": 0.152667,
+          "equal_to_unoptimized": true
+        }
+      ]
+    }
+  ],
+  "all_variants_bit_exact": true,
+  "measured_on": "macOS arm64 host, not an iPhone; synthetic kernels, not translator output",
+  "summary": {
+    "measured_on": "host; synthetic kernels; counts, not device frame times",
+    "spu_aarch64_reference_to_upstream": {
+      "spu_selb_mask": [
+        9,
+        9
+      ],
+      "spu_cmp_sext_chain": [
+        11,
+        12
+      ],
+      "bswap_idiom": [
+        13,
+        7
+      ],
+      "float_sign_masks": [
+        11,
+        10
+      ]
+    },
+    "ppu_ir_by_level": {
+      "ppu_cr_bits": [
+        33,
+        30,
+        29
+      ],
+      "ppu_register_flush": [
+        19,
+        17,
+        13
+      ],
+      "ppu_rlwinm_rotate": [
+        19,
+        18,
+        14
+      ]
+    },
+    "spu_kernels_with_more_aarch64_under_upstream": [
+      "spu_cmp_sext_chain"
+    ],
+    "ppu_kernels_not_monotonic_in_ir": []
+  }
+}

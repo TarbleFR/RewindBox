@@ -16,12 +16,14 @@ Binary-source, funding and combined-license findings remain open.
 ## Current release and license review
 
 The current published GitHub release is
-[RewindBox 0.0.7 / Build 455](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.7).
-See the [Build 455 distribution and license review](RELEASE_0.0.7_LICENSE_REVIEW.md)
-for the checked IPA contents, exact release identity, known packaging gaps and
-license-compatibility questions. Credits and license-text presence do not alone
-certify full compliance or provide exact Corresponding Source for every bundled
-binary.
+[RewindBox 0.0.8 / Build 480](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.8).
+Its [source and packaging record](RELEASE_0.0.8_SOURCE_MANIFEST.md) identifies the
+compiled build and the later release packaging. The
+[next-release license preparation](RELEASE_NEXT_LICENSE_REVIEW.md) covers the
+subsequent additions on `Claude`; no new release is published by that work.
+The [Build 455 review](RELEASE_0.0.7_LICENSE_REVIEW.md) remains historical.
+Credits and license-text presence do not alone provide exact Corresponding
+Source for every bundled binary or resolve combined-license questions.
 
 The [second source-rights review, 18 October 2026](SOURCE_RIGHTS_REVIEW_2026-10-18.md)
 also examines the development catalogue and the actual private Build 479 IPA.
@@ -52,15 +54,20 @@ physical memory or circumvent Apple's resource enforcement.
 
 | Component | Authors / upstream | License / redistribution note |
 | --- | --- | --- |
-| **Embedded Libretro cores** | Libretro/RetroArch and the individual emulator authors in [the core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) | Each of the 34 current development cores keeps its own license; published Build 455 contained 14. |
+| **Embedded Libretro cores** | Libretro/RetroArch and the individual emulator authors in [the core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) | Each of the 35 current development cores keeps its own license; public 0.0.8 / Build 480 contained 34. Mesen is the optional additional NES engine, licensed under GPLv3. |
 | **Dolphin / DolphiniOS** | Dolphin Emulator contributors; OatmealDome and DolphiniOS contributors | Most original Dolphin code is GPL-2.0-or-later. The exact fork states the aggregate repository is GPLv3-compatible; per-file SPDX and `LICENSES/` remain authoritative. |
 | **RPCS3 / XITRIX iOS fork** | RPCS3 contributors; XITRIX; upstream work credited by XITRIX including ARMSX3 and the iOS JIT community | The pinned XITRIX/rpcs3 source contains the RPCS3 GPL-2.0-only `LICENSE`. No relicensing by RewindBox is claimed. Preserve file-specific notices and third-party licenses. |
 | **ARMSX2 / PCSX2** | ARMSX2 team and contributors; PCSX2 contributors | ARMSX2 distributes GPLv3 material and derives from PCSX2. Preserve the exact upstream notices and per-component licenses. |
+| **ARMSX2 texture pack readers** | ARMSX2 team and contributors | Since Build 485, `IOS/TexturePackPaths.h` and `IOS/TexturePackTar.h` of the ARMSX2 tag `iOSv2.6.0` (`9d989ca9`) are copied unmodified into `packages/armsx2_internal_bridge/ios/Classes/upstream/` (GPL-3.0-or-later, SPDX headers kept; SHA-256 pinned in `build-utils/armsx2/upstream-files.json`) so HD texture packs install to the same paths as in ARMSX2. |
+| **LZMA SDK (7-Zip)** | Igor Pavlov | Since Build 486, the 7z reader of the HD texture catalogue (`packages/neo_texture_catalog/ios/ThirdParty/lzma`, LZMA SDK 24.09) is compiled into that pod with hidden symbols. The LZMA SDK is placed in the public domain by its author; files are kept unmodified with their headers. |
+| **libarchive 3.8.10 / BLAKE2** | Tim Kientzle, libarchive contributors and the original authors named in its file headers | The native RAR reader includes selected libarchive files under their individual permissive terms; the offered CC0 option is used for BLAKE2. The aggregate notice is preserved in `NeoTextureCatalog.bundle/libarchive-LICENSE.txt` and the new `Legal/Textures/` collection. |
+| **ps2ktxpak catalogue metadata** | ps2ktxpak contributors | The MIT notice applies to the reused catalogue metadata. It does not license the separately authored texture archives. [Preserved notice](../assets/legal/textures/ps2ktxpak-MIT.txt). |
+| **Rebuilt PPSSPP dependencies** | Henrik Rydgård and PPSSPP contributors; FFmpeg, Independent JPEG Group and the authors named in each dependency notice | The pinned source notice collection includes the original copyright statements, full license texts, IJG acknowledgment and exact source references. The FFmpeg build-template license discrepancy remains open. [Notice manifest](../assets/legal/ppsspp/license-sources.json) and [configuration record](../assets/legal/ppsspp/BUILD-LICENSE-RECORD.md). |
 | **librashader** | Ronny Chan / SnowflakePowered and contributors | Native Metal shader chains used by ARMSX2 2.6. The pinned 0.12.0 C API declares MPL-2.0 OR GPL-3.0-only; preserve upstream notices. |
-| **Dusklight** | TwilitRealm/Dusklight contributors; Twilight Princess decompilation community; Aurora and Borealis contributors | Dusklight's root work is CC0-1.0; embedded dependencies retain their own licenses. |
-| **KartPad / WiiCompiled** | KartPad by @chrissotraidis; WiiCompiled by @patchzyy | KartPad-owned software and its WiiCompiled modifications are GPL-3.0-only where stated by KartPad. WiiCompiled and dependency notices remain applicable. Game-derived translated logic has separate rights considerations and is not relicensed by the software licenses. |
+| **Dusklight** (earlier builds only) | TwilitRealm/Dusklight contributors; Twilight Princess decompilation community; Aurora and Borealis contributors | Removed from RewindBox on 20 October 2026, with the Ports playlist; no other Twilight Princess port replaces it (Dolphin runs the GameCube and Wii versions). Credit kept for the earlier builds that embedded it. Dusklight's root work is CC0-1.0; its dependencies retain their own licenses. |
+| **KartPad / WiiCompiled** (earlier builds only) | KartPad by @chrissotraidis; WiiCompiled by @patchzyy | Removed from RewindBox on 19 October 2026: players build KartPad themselves as a separate app. Credit kept for the earlier builds that embedded it. KartPad-owned software and its WiiCompiled modifications are GPL-3.0-only where stated by KartPad; rights in game content are separate. |
 | **StikJIT** | StikDebug / StikJIT contributors | MPL-2.0. Recipients of executable form must be informed how to obtain the covered source. |
-| **Dawn, SDL, Aurora, Borealis and other runtime dependencies** | Their respective projects and contributors | Their individual license files and notices apply. |
+| **Dawn, SDL, Aurora, Borealis** (earlier builds only) | Their respective projects and contributors | Runtime dependencies of the removed Dusklight and KartPad ports; their individual license files and notices apply to the earlier builds that embedded them. |
 
 ### Historical source identities used by the 0.0.1 binary
 
@@ -68,12 +75,29 @@ See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md). That
 file records the exact RewindBox packaging commit, workflow artifact identity
 and pinned upstream revisions used for the published Build 350 IPA.
 
+## MeloNX / Ryujinx — development sources, not a released engine
+
+The external MeloNX integration has been retired on `Claude`. Embedded work
+uses [MeloNX at 13700519f3](https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67),
+with the exact LibHac and Melo-Controller revisions in
+[source.json](../build-utils/melonx/source.json). Credit MeloNX contributors,
+stossy11, Ryujinx/Ryubing contributors, LibHac contributors and the separate
+Melo-Controller authors.
+
+The pinned root MIT notice, upstream third-party notices and controller GPLv3
+text are preserved under [assets/legal/melonx](../assets/legal/melonx/).
+The engine README also states GPLv3, which conflicts with assigning a blanket
+MIT label to the complete project. Its committed native dependencies still
+need matching source and build/license evidence. These files are staged
+reference notices; they are not evidence that a Switch runtime is packaged,
+redistributable as a whole or playable in RewindBox. See the
+[integration audit](melonx-embedded-integration-2026-10-20.md).
+
 ## External integrations
 
 The following applications/services are **not claimed as RewindBox-owned
 software** merely because RewindBox interoperates with them:
 
-- **MeloNX** — https://github.com/nurtrino/MeloNX
 - **ScreenScraper** — https://www.screenscraper.fr/
 - **RetroAchievements** — https://retroachievements.org/
 - **LocalDevVPN** — user-installed external application when that route is used.
@@ -117,6 +141,21 @@ the original project and downloads/cache it only when the user chooses that
 pack. Attribution does not invent redistribution rights that upstream has not
 published.
 
+### Canvas (ES-DE)
+
+RewindBox also exposes **Canvas (ES-DE)** as a curated external on-demand
+System Art source:
+
+- Canvas-Capsule Theme — Custom Edition, by zenandiko — https://github.com/zenandiko/canvas-es-de
+- Original Canvas theme for ES-DE, by Siddy212 — https://github.com/Siddy212/canvas-es-de
+- Original Canvas artwork and layouts credited to fagnerpc — https://github.com/fagnerpc
+
+zenandiko's repository carries an MIT license file; its README states personal,
+non-commercial use only and that game artwork, logos and trademarks belong to
+their owners. Siddy212's original theme is CC BY-NC-SA. RewindBox keeps the
+artwork hosted by zenandiko's repository and downloads only the selected
+systems' capsules. Details: `docs/system-art/Canvas-ES-DE.md`.
+
 ## Metadata and datasets
 
 ### GameDB / GameDB-PS3
@@ -131,22 +170,18 @@ RewindBox does not claim authorship of those datasets.
 
 ## KartPad / translated game-logic boundary
 
-KartPad's own rights document explicitly separates the GPL-covered software
-from rights in Nintendo-owned game content and from questions concerning
-ahead-of-time translated game logic.
+RewindBox no longer includes KartPad (maintainer decision of 19 October 2026).
+Earlier builds embedded the official KartPad v0.5.1-experimental.1 runtime,
+which carries Mario Kart Wii logic translated ahead of time. Because that
+runtime contains code derived from the game, it is now left entirely to each
+player: whoever wants KartPad builds it with its own tools from their own disc
+and installs it as a separate app. RewindBox's sources, workflows and IPA no
+longer contain KartPad, and the delivery checks refuse any file of game origin.
 
-RewindBox therefore does not state or imply that:
-
-- the GPL grants rights in Mario Kart Wii;
-- Nintendo-owned code, data, characters, names, audio, textures or other
-  commercial assets have been relicensed;
-- possession of a RewindBox binary replaces the user's obligation to supply
-  legally obtained supported game data where required.
-
-The public RewindBox source manifest also records KartPad's upstream source
-limitation concerning generated translation/profile inputs. A release must not
-be described as providing complete KartPad Corresponding Source unless the
-complete source required for that exact binary is actually available.
+KartPad's own rights document separates the GPL-covered software from rights
+in Nintendo-owned game content and from translated game logic. RewindBox never
+stated that the GPL grants rights in Mario Kart Wii or relicenses Nintendo-owned
+code, data or assets.
 
 ## RPCS3 licensing boundary
 
@@ -175,7 +210,11 @@ RewindBox release documentation therefore identifies:
 4. the license and notice documents associated with those components.
 
 See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md) for the
-first public GitHub release.
+first public GitHub release, [the 0.0.8 manifest](RELEASE_0.0.8_SOURCE_MANIFEST.md)
+for the current public IPA, and [the current/historical runtime inventory](EMBEDDED_RUNTIME_PROVENANCE.md)
+for the later rebuilt components. The RPCS3 source record retains both original
+RPCS3 and ARMSX3 commit lineage for the two Build 499 backports; it does not
+claim the private revision of the inspected ARMSX3 IPA is public source.
 
 ## Trademarks and commercial game content
 
@@ -197,24 +236,49 @@ application bundle containing:
 
 - the RewindBox GPL text and project notice;
 - this attribution record;
-- the exact release source manifest;
+- the build/source identity, with a separate release manifest when one exists;
 - Dolphin's COPYING notice;
 - the exact RPCS3 GPL-2.0 license text;
-- KartPad's rights and third-party notices;
 - StikJIT's MPL-2.0 text;
-- Dusklight's CC0-1.0 text;
 - additional dependency notices collected by embedded projects.
 
-The published 0.0.7 IPA contains the main notice bundle and a subset of Libretro
+The next-release preparation also packages the verified texture-reader notices
+under `Legal/Textures/`, the rebuilt PSP dependency notices under
+`Legal/PPSSPP/`, the preserved supplementary cheat notices under
+`Legal/Cheats/`, and the current texture, overlay and cheat attribution registers
+under `Legal/Catalogs/`. Notice hashes are checked before packaging and against
+the resulting archive. Staged MeloNX references are not included as a delivered
+runtime's notice set. No existing IPA is rewritten by these changes.
+
+The continued source review adds `Legal/Packages/` for native package notices,
+`Legal/Engines/` for identified engine dependency notices and `Legal/Sources/`
+for exact source references and build-resolution evidence.
+The [source access guide](SOURCE_CODE_ACCESS.md) links all 157 locked hosted
+package archives, the local plugins and the engine-specific records. Future
+packaging retains matching CocoaPods locks, resolved podspecs and original
+acknowledgements when the build sandbox is present. The archive validator
+checks their retained hashes; it does not infer source correspondence for
+unidentified prebuilt dependencies. The independently inspected public 0.0.8
+IPA already contains Flutter and CocoaPods acknowledgements, including the
+root license texts of all 157 hosted packages; the native dependency
+supplements address separate gaps documented in
+[PACKAGE_SOURCES_AND_LICENSES.md](PACKAGE_SOURCES_AND_LICENSES.md).
+
+Builds up to the removal of Dusklight (20 October 2026) also carried
+Dusklight's CC0-1.0 text and its dependency notices.
+
+The historical 0.0.7 IPA contains the main notice bundle and a subset of Libretro
 notices. The post-release correction embeds and checks every file in
 `assets/legal/libretro/` under `Legal/Libretro/` in future builds. It preserves the
 shader and music notices added after the earlier main-branch implementation.
 The published IPA is unchanged; the release review records that distinction.
 
-## Unified cheat catalogue — 51 contributing source entries
+## Unified cheat catalogue — 50 active profiles, 51 historical
 
-The development catalogue delivered in private Builds 478–479 credits **51 source
-entries**. [The complete attribution register](CHEAT_CATALOG_SOURCES.md) names every
+The catalogue delivered in private Builds 478–479 credited **51 source entries**.
+Public 0.0.8 and the current catalogue retain **50 active profiles** after
+withholding the eight Pokémon France programs pending permission.
+[The complete attribution register](CHEAT_CATALOG_SOURCES.md) names every
 collection, known excerpt author, upstream URL, exact input revision, SHA-256,
 recorded license notice and import scope. Profiles of the same collection are
 listed separately so source lineage is preserved, without calling them independent
@@ -235,14 +299,45 @@ Daniel Gerendasy/Artemis, chidreams and Ciro Bogea Fernandes/Tyler.
 [Full notices and provenance](licenses/cheats/README.md) are archived in this
 repository. Their inclusion here neither supplies missing third-party
 permissions nor repairs notice delivery in the existing IPA. In particular,
-Pokémon France's published reuse restriction and the mirror-authority questions
-remain open in the [review](SOURCE_RIGHTS_REVIEW_2026-10-18.md).
+Pokémon France remains excluded; attribution is retained for the historical
+use. The other permission and mirror-authority questions remain documented in
+the [review](SOURCE_RIGHTS_REVIEW_2026-10-18.md).
 
-The publication has 2,395,549 programs/edition variants in 50,284 typed identity
+The current publication has 2,395,541 programs/edition variants in 50,282 typed identity
 groups. [The research inventory](../native/cheats/catalogue/SOURCES.md) also lists
-excluded references, which are not counted among the 51 contributing entries.
+excluded references, which are not counted among the 50 active profiles.
 This source-tree update does not publish a release or change a previously
-distributed IPA. The official release remains 0.0.7 / Build 455.
+distributed IPA. The official release remains 0.0.8 / Build 480.
+
+## HD texture catalogue — expanded since Build 486
+
+The "HD textures" page lists packs for ARMSX2, Dolphin, PPSSPP, Azahar,
+Mupen64Plus-Next, Beetle PSX HW and Mesen. Texture archives are not included in
+the RewindBox IPA or rehosted by this repository. Selected verified files are
+downloaded from their original hosts or imported by the player, with recorded
+size and SHA-256 checks. New clients support eligible public Google Drive,
+MEGA and Yandex files and a native RAR reader; host challenges, paywalls,
+unverified archives and unsupported formats retain the manual/unavailable path.
+
+The reviewed catalogue has 424 installable families / 509 profiles among 1,124
+references. Its 38 PS1 references comprise eight verified downloads and 30
+author pages. Switch entries are research-only. Counts and verification do not
+establish a pack's completeness, on-device rendering or rights clearance.
+
+Every pack keeps its authors, version, credits and stated terms in the
+catalogue and on its page in the app. [The source inventory](HD_TEXTURE_CATALOG_SOURCES.md)
+lists every pack, its author, page, licence statement and verification result,
+and the sources reviewed but left out with the reason. Most packs state no
+licence: that is recorded as such and is not a grant of any right. Textures
+derived from commercial games remain subject to their owners' rights; packs
+are for use with the user's own copy of the game.
+
+The [creator and source supplement](HD_TEXTURE_SOURCES_AND_CREDITS.md) records
+verified author corrections where frozen catalogue fields still contain
+placeholders. It also documents the limitation that generic README/license
+files are not systematically retained by the texture-only installation filter.
+The catalogue's terms and credits are not a replacement for such original
+notices. This preparation preserves the existing tested catalogue bytes.
 
 ## Optional cheat catalogue source
 
@@ -381,9 +476,9 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **Dolphin / DolphiniOS** | Dolphin Emulator contributors and [DolphiniOS](https://github.com/OatmealDome/dolphin-ios) / OatmealDome contributors. |
 | **RPCS3 iOS / RPCS3** | iOS release/core work by [XITRIX](https://github.com/XITRIX/RPCS3-iOS-Releases), based on the [RPCS3](https://github.com/RPCS3/rpcs3) project. XITRIX also credits ARMSX3 and the wider iOS emulation/JIT community. |
 | **ARMSX2 / PCSX2** | [ARMSX2](https://github.com/ARMSX2/ARMSX2) team and contributors; ARMSX2 is based on the long-running [PCSX2](https://github.com/PCSX2/pcsx2) project. |
-| **Dusklight** | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. |
-| **KartPad / WiiCompiled** | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). |
-| **MeloNX / Ryujinx** | [MeloNX](https://github.com/nurtrino/MeloNX) contributors; MeloNX describes itself as based on Ryujinx/Ryubing. |
+| **Dusklight** (earlier builds only) | [TwilitRealm/Dusklight](https://github.com/TwilitRealm/dusklight) contributors; upstream also credits the Twilight Princess decompilation community and Aurora developers. No longer included in RewindBox since 20 October 2026. |
+| **KartPad / WiiCompiled** (earlier builds only) | [KartPad](https://github.com/chrissotraidis/kartpad) by [@chrissotraidis](https://github.com/chrissotraidis), built on [WiiCompiled](https://github.com/patchzyy/Wiicompiled) created by [@patchzyy](https://github.com/patchzyy). No longer included in RewindBox since 19 October 2026. |
+| **MeloNX / Ryujinx** (development only) | [MeloNX](https://starforgejo.dev/projects/MeloNX) contributors, stossy11 and Ryujinx/Ryubing contributors; LibHac and Melo-Controller retain separate notices. The old external integration is retired; the embedded runtime is unfinished. |
 | **RetroArch / Libretro** | [RetroArch](https://github.com/libretro/RetroArch) and Libretro contributors, for the API, core ecosystem and buildbot distributions used by **Embedded RetroArch** inside RewindBox. Individual emulator authors are credited below. |
 | **Provenance Skin Catalog** | [Provenance-Emu/skins](https://github.com/Provenance-Emu/skins), maintained by the Provenance team and community contributors; one of the sources used to discover controller skins. |
 | **DeltaStyles / Delta Skins** | [DeltaStyles](https://deltastyles.com/), [Delta Skins](https://delta-skins.github.io/) and their individual skin creators, for compatible catalog entries and community layouts. |
@@ -397,11 +492,30 @@ package (MIT), and EPUB/XHTML parsing uses the Dart
 | **GameDB / GameDB-PS3** | **Niema / [@niemasd](https://github.com/niemasd)**, creator of [GameDB](https://github.com/niemasd/GameDB) and [GameDB-PS3](https://github.com/niemasd/GameDB-PS3). RewindBox uses `PS3.titles.json` as a fallback title catalog. GameDB asks downstream projects to credit GameDB and its source datasets; GameDB-PS3 lists **MiSTer Addons** and **Redump** as sources. |
 | **NeoStation Assets** | Optional runtime-downloaded System Art from [misobadev/neostation-assets](https://github.com/misobadev/neostation-assets). Original creative assets are CC BY-NC-SA 4.0; trademarks remain with their owners. |
 | **RiiSU / iiSU** | [RiiSU](https://github.com/mult1v4c/RiiSU) credits [iiSU Interpreted for ES-DE](https://github.com/VictorUnlocked/iisu-interpreted-es-de) for system art icons and [iiSU Network](https://iisu.network/) for the original inspiration. RiiSU remains remotely hosted and is downloaded only when selected. |
+| **Canvas (ES-DE)** | [Canvas-Capsule custom edition](https://github.com/zenandiko/canvas-es-de) by zenandiko, from the [original Canvas theme](https://github.com/Siddy212/canvas-es-de) by Siddy212 (artwork and layouts credited to [fagnerpc](https://github.com/fagnerpc)). Remotely hosted and downloaded only when selected; upstream states personal, non-commercial use. |
+| **HD texture creators** | Individual authors, original pages and additional upstream credits are preserved in the [pack register](HD_TEXTURE_CATALOG_SOURCES.md) and [creator supplement](HD_TEXTURE_SOURCES_AND_CREDITS.md). A verified download is not a permission grant. |
+| **libarchive, LZMA SDK and ps2ktxpak** | Tim Kientzle and libarchive/BLAKE2 contributors, Igor Pavlov, and ps2ktxpak contributors; [exact notice collection](../assets/legal/textures/license-sources.json). |
+| **3D game boxes and manuals** | Existing game scans, media and metadata from the player's files or ScreenScraper; original artwork remains with its creators and rights holders. Apple Vision, NaturalLanguage and Translation are system frameworks used for local text reading, not redistributed Apple model packages. |
 
 
 ## Individual embedded-core notices
 
-See [the 34-core development inventory](../assets/legal/libretro/LIBRETRO_CORES.md) and
+See [the 35-core development inventory](../assets/legal/libretro/LIBRETRO_CORES.md) and
 [the hashed source references](../assets/legal/libretro/license-sources.json).
 License snapshots are not proof of the matching source for every buildbot binary.
 Azahar 2127.0-alpha1 is pinned separately to its official release.
+
+
+## Mau Ali — interactive tab motion
+
+The navigation adapts all original selection segments, full deformation, Bezier
+contour, capsule pulse and moving rim from **Interactive
+iOS 26 Inspired Tab Menu** by **Mau Ali**:
+https://lottiefiles.com/free-animation/free-interactive-ios-26-inspired-tab-menu-uTAhrmTC08
+
+The original dotLottie archive and the derived motion profile are distributed
+under the **Lottie Simple License FL 9.13.21**, separately from the host GPL code.
+Full terms and modification details are in `assets/legal/Lottie-Simple-License.txt`
+and `assets/legal/Mau-Ali-Tab-Motion.txt`, available in the app credits.
+The original five-tab scene is adapted to RewindBox's variable real tabs with
+the existing Flutter renderer; no dotLottie runtime dependency is introduced.

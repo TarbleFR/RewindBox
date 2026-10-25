@@ -1,0 +1,173 @@
+{
+ "build": 490,
+ "version": "0.0.8 (490)",
+ "result": "delivered",
+ "feature": "3D game boxes in the Jaquette view (Box card style), full-screen box viewer, back reader in twelve languages (neo_box_reader: Vision, NaturalLanguage, Apple Translation), box opening before the usual launch, box faces and editions from ScreenScraper",
+ "deliverySource": "d152e5a270037484a435d641e04acd3a2ccaf3a6",
+ "deliverySourceTree": "f1028924e110704d3623c5ecd3c0400f0415753f",
+ "deliverySourceNote": "tag build-490 = the Build 489 delivery source a8065a99 + the six Build 490 commits of Claude (0e8f2be, 8264ef5, 94d21ad, cc0e532, 7079076, 303c2c0) applied unchanged; pushed from the maintainer's PC because the session's proxy refuses tag pushes, after checking the tree equals the one prepared in the session; the later commits of other sessions on Claude (Canvas ES-DE system art, KartPad tooling, Build 489 records) are not part of Build 490",
+ "deliveryRun": 39346406673,
+ "jobs": {
+  "checks": "success (job 118379962425)",
+  "native": "success (job 118379962273)",
+  "Release device build • cold": "success (job 118380252896)",
+  "Release device build • warm": "skipped (job 118385071925)"
+ },
+ "closure": ".github/diagnostics/gamebox490_delivery.py",
+ "testedSource": "d152e5a270037484a435d641e04acd3a2ccaf3a6",
+ "proofs": {
+  "gameBoxChecks": {
+   "run": 39345297065,
+   "event": "workflow_dispatch on the build-490 tag",
+   "host": {
+    "job": 118376324434,
+    "runner": "ubuntu-24.04, Flutter 3.47.2",
+    "checks": [
+     "tools/game_box/generate_strings.py --check",
+     "test/game_box_strings_test.py",
+     "test/localization_12_locale_coverage_test.py",
+     "test/retroarch_baseline_scope_test.py",
+     "flutter analyze of every changed Dart file",
+     "flutter test of 5 new and 11 affected existing suites"
+    ],
+    "flutterTests": {
+     "passed": 136,
+     "skipped": 1,
+     "skippedTest": "game_deletion_regression_test.dart: permission-denied deletion preserves rows on macOS (macOS only, pre-existing)"
+    },
+    "inputs": 55,
+    "verdictSHA256": "a936ef87baaca52335b3fbe4788e13ef0b7800191828a9e51ef7577777c71c2c"
+   },
+   "native": {
+    "job": 118376324082,
+    "toolchain": "Xcode 26.3 (17C529), iPhone SDK 26.2, macOS 15.7.9",
+    "recognition": {
+     "macos": "12/12 languages recognized by Vision with similarity 1.0, language detected by NaturalLanguage for 12/12",
+     "iosSimulator": "iPhone 17 Pro simulator, iOS 26.2 (com.apple.CoreSimulator.SimRuntime.iOS-26-2): 12/12 recognized with similarity 1.0, 12/12 detected"
+    },
+    "translationAvailability": {
+     "macos": "supported for en->de, es, fr, id, it, ja, ko, pt-BR, ru, zh-Hans, zh-Hant and ja->en",
+     "iosSimulator": "unsupported for the same 12 pairs (the Simulator provides no translation models)"
+    },
+    "iphoneSdkTypeCheck": "BoxTextRecognizer.swift, BoxTranslator.swift, NeoBoxReaderPlugin.swift against Flutter.framework (2 warnings: await without async operation in BoxTranslator.swift)",
+    "inputs": 36,
+    "verdictSHA256": "fb25a34e056688b61f983d5d0a22a42c8a6a2270f380ab5f358b7041afc280ea"
+   },
+   "preliminaryRunOnClaude": {
+    "run": 39344191408,
+    "source": "70790764e15058271bbdc436ce94e3e802f75e9a",
+    "jobs": {
+     "host": 118372722250,
+     "native": 118372722541
+    },
+    "result": "success with the same tested files; not used as evidence because Claude also carried other sessions' product changes"
+   }
+  }
+ },
+ "deliveredBaseline": {
+  "build": 489,
+  "source": "a8065a993c0a9f791c40bad75c44726fa63e161d",
+  "run": 39340720047,
+  "sealedIpaSHA256": "4aba0ca44a6a95052bd4082c710bf3dfb343a23b045e11c321517ddcdca76fe0",
+  "sealedIpaBytes": 228181989
+ },
+ "changedProductPaths": [
+  "lib/l10n/game_box_locale.dart",
+  "lib/repositories/game_repository.dart",
+  "lib/screens/game_box/box_back_reader_screen.dart",
+  "lib/screens/game_box/game_box_inspector.dart",
+  "lib/screens/game_screen/my_games_carousel.dart",
+  "lib/screens/scraper_screen/new_scraper_options_screen.dart",
+  "lib/screens/scraper_screen/scraper_contents/media_content.dart",
+  "lib/services/game_box/box_text_layout.dart",
+  "lib/services/game_box/box_text_service.dart",
+  "lib/services/game_box/game_box_fetcher.dart",
+  "lib/services/game_box/game_box_media.dart",
+  "lib/services/game_box/game_box_preferences.dart",
+  "lib/services/game_box/game_box_profile.dart",
+  "lib/services/game_box/game_box_regions.dart",
+  "lib/services/screenscraper/media_downloader.dart",
+  "lib/services/screenscraper/media_resolver.dart",
+  "lib/services/screenscraper_service.dart",
+  "lib/utils/artwork_cache.dart",
+  "lib/widgets/game_box/game_box_art_loader.dart",
+  "lib/widgets/game_box/game_box_card.dart",
+  "lib/widgets/game_box/game_box_geometry.dart",
+  "lib/widgets/game_box/game_box_language_picker.dart",
+  "lib/widgets/game_box/game_box_scene.dart",
+  "lib/widgets/game_box/game_box_surfaces.dart",
+  "packages/neo_box_reader/ci/main.swift",
+  "packages/neo_box_reader/ios/Classes/BoxTextRecognizer.swift",
+  "packages/neo_box_reader/ios/Classes/BoxTranslator.swift",
+  "packages/neo_box_reader/ios/Classes/NeoBoxReaderPlugin.swift",
+  "packages/neo_box_reader/ios/neo_box_reader.podspec",
+  "packages/neo_box_reader/lib/neo_box_reader.dart",
+  "packages/neo_box_reader/pubspec.yaml",
+  "pubspec.yaml"
+ ],
+ "coreRebuilt": false,
+ "xcodeBuildSeconds": 273.38,
+ "toolchain": {
+  "xcode": "26.3 (17C529)",
+  "iphoneSDK": "26.2",
+  "flutter": "3.47.2",
+  "cocoaPods": "1.17.0"
+ },
+ "ciValidations": {
+  "preSealIpaSHA256": "5baab87f73ed5d5b87bcc3d347fc22d5231687eb90e69f71ae658a793ffcf863",
+  "hdTextures": "passed: index 3d46adc5…, 1034 packs (revision 2026-10-19.85092338c53c), no pack bundled",
+  "unifiedCheats": "passed: manifest 095cf728…, 2,395,541 programs, 874 packs",
+  "rpcs3Diag487": "passed: Core 6b64fe7a…, 9 Core and 14 bridge markers",
+  "signatures": "82 ad hoc signatures, 79 sealed images (same counts as Build 489), minimum iOS 18.0, arm64"
+ },
+ "encryptedArtifact": {
+  "id": 12232290380,
+  "name": "NeoStation-Build-490-d152e5a270037484a435d641e04acd3a2ccaf3a6-cold",
+  "bytes": 228643741,
+  "zipSHA256": "85e9d9ba1e810f88dbf8b6921647180af4bda40b2c13a56fdd3b1f68132ac405",
+  "expires": "2026-11-03T00:28:28Z",
+  "recipient": "build-utils/delivery-424-recipient.pem"
+ },
+ "sealedIpa": {
+  "name": "NeoStation-Build490-d152e5a270037484a435d641e04acd3a2ccaf3a6-cold.ipa",
+  "bytes": 228399609,
+  "sha256": "7ceb97311b4de5db570d520a4dc67b3af8c7e0eceb499f445615ce6da4b3897b",
+  "matches": [
+   "SHA256SUMS",
+   "signed-payload-identity.json"
+  ],
+  "windowsCopy": "C:\\Users\\Coren\\Downloads\\NeoStation-Build490-d152e5a2.ipa",
+  "windowsCopySHA256Verified": true,
+  "decryptedOn": "maintainer PC with the 424 private key (C:\\Users\\Coren\\nsw\\b490\\decrypt-490.ps1, artifact found by its exact name in the run and checked against GitHub's digest); session password, plaintext tar, encrypted archive and source worktree removed"
+ },
+ "independentInspection": {
+  "tool": "stdlib Mach-O section fingerprints (signature excluded, fingerprint_base.py of Build 487/488), compared with the delivered Build 489 IPA (4aba0ca4…, Downloads copy re-hashed)",
+  "bundleVersions": "host and five extensions 0.0.8 (490)",
+  "imagesComparedWithBuild489": {
+   "total": 82,
+   "identical": 79,
+   "changed": {
+    "Frameworks/App.framework/App": "Dart AOT: 3D game box, viewer, reader, scraping of the box faces",
+    "Runner": "neo_box_reader linked statically (data, Objective-C metadata, strings, GOT); Vision, NaturalLanguage and Translation linked",
+    "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge": "__TEXT,__stubs and __TEXT,__objc_stubs only, same sources: the linker swapped two neighbouring GOT slots (_objc_msgSend 0x118688 -> 0x118690); every one of the 313 stubs and 2036 Objective-C stubs reaches the same symbol / selector in the same order as Build 489, segments and other sections identical"
+   },
+   "new": [],
+   "removed": [],
+   "unchangedEngines": "34 libretro cores, libRPCS3Core, ARMSX2Core, DolphinCore, DusklightCore, KartPadCore/Runtime, MoltenVK, StikJIT, the five extensions and every other bridge identical to Build 489"
+  },
+  "markers": {
+   "Runner": "7/11 present, 0 in Build 489: channel neostation/neo_box_reader, supportedTranslationLanguages, translationStatus, detectLanguage, Vision/Translation/NaturalLanguage load paths; the four error codes of 15 bytes or less are Swift small strings encoded in instructions, not searchable as bytes",
+   "App.framework/App": "10/10 present, 0 in Build 489: preference keys NeoStation.GameBox.*, media folders box2dback, box2dside, support2d, boxmeta, box2dback-editions, reader layer game_box_reader, BoxText cache"
+  },
+  "embeddedFrameworks": "no framework added or removed (static plugin)",
+  "hdTextureIndex": "3d46adc5d94ccd9694ae7d94d902f6ad0c001139605920ef8cf3ce56840eb6c4, identical to Build 489"
+ },
+ "deviceGameplayValidated": false,
+ "translationExecuted": false,
+ "notes": [
+  "No installation on an iPhone or iPad in this cycle: no 3D rendering, gesture, reading, translation or opening was observed on a device.",
+  "Build 490 is the delivered Build 489 product plus the 3D game box: it still carries KartPadCore and KartPadRuntime, byte-identical to Build 489. The maintainer's decision to remove KartPad entirely (19 October 2026, docs/kartpad-removal-2026-10-19.md) was recorded on Claude while Build 490 was being built and plans the removal IPA after Build 490, under a new number.",
+  "Apple Translation was not executed in CI (no downloadable model on the runners; the Simulator reports the pairs unsupported).",
+  "SideStore Apple re-signing is required."
+ ]
+}

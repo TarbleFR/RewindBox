@@ -616,6 +616,29 @@
       "cores": [
         "mednafen_pcfx"
       ]
+    },
+    {
+      "component": "mesen",
+      "repository": "https://github.com/libretro/Mesen",
+      "license_reference_revision": "0102910c39ad1a62bc3f784466f3f67ca9eae335",
+      "binary_source_revision_attested": false,
+      "files": [
+        {
+          "path": "mesen-LICENSE",
+          "upstream_path": "LICENSE",
+          "source_url": "https://raw.githubusercontent.com/libretro/Mesen/0102910c39ad1a62bc3f784466f3f67ca9eae335/LICENSE",
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903"
+        },
+        {
+          "path": "mesen-README.md",
+          "upstream_path": "README.md",
+          "source_url": "https://raw.githubusercontent.com/libretro/Mesen/0102910c39ad1a62bc3f784466f3f67ca9eae335/README.md",
+          "sha256": "75abb5c3d9ecaa6a249fa23538a0c358ae8a445de8c721ea88598daeaeaaa7d1"
+        }
+      ],
+      "cores": [
+        "mesen"
+      ]
     }
   ],
   "support_files": [

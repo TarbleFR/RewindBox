@@ -37,20 +37,9 @@ class GameService {
   static void setOnProcessExitCallback(void Function() cb) {}
   static Future<bool> isEmulatorRunning(String? exe) async => true;
 }
-class DusklightInternalBridge {
-  static final controller = StreamController<Map<String, dynamic>>.broadcast();
-  static Stream<Map<String, dynamic>> get sessionEvents => controller.stream;
-  static bool get didEndSession => false;
-  static bool get didReleaseRuntime => false;
-}
 class Armsx2InternalBridge {
-  static Stream<Map<String, dynamic>> get sessionEvents => const Stream.empty();
-}
-class KartPadInternalBridge {
   static final controller = StreamController<Map<String, dynamic>>.broadcast();
   static Stream<Map<String, dynamic>> get sessionEvents => controller.stream;
-  static bool get didEndSession => false;
-  static bool get didReleaseRuntime => false;
 }
 class SfxService {
   static final instance = SfxService._();
@@ -67,24 +56,12 @@ class MusicPlayerService {
   Future<void> pauseForGame() async {
     events.add('pause'); wasPlaying = playing; playing = false;
   }
-  Future<void> restoreAfterKartPad() async {
-    expect(AudioPolicyService().active, isTrue);
-    events.add('reopen-device');
-    playing = wasPlaying; wasPlaying = false;
-  }
   Future<void> resumeAfterGame() async {
     expect(AudioPolicyService().active, isTrue);
     events.add('resume');
     if (failResume) throw StateError('injected audio backend error');
     playing = wasPlaying; wasPlaying = false;
   }
-}
-class HomeMusicService {
-  static final instance = HomeMusicService._();
-  factory HomeMusicService() => instance;
-  HomeMusicService._();
-  Future<void> beforeSharedEngineRestart() async { events.add('home-stop'); }
-  Future<void> afterSharedEngineRestart() async { events.add('home-ready'); }
 }
 class AudioPolicyService {
   static final instance = AudioPolicyService._();
@@ -119,10 +96,10 @@ void main() {
       final effects = i.isEven, playing = i % 3 == 0;
       sfx.isEnabled = effects; music.playing = playing;
       await manager.beginSession();
-      manager.onGameStarted(emulatorExe: 'ios_dusklight_internal');
-      DusklightInternalBridge.controller.add({
-        'reason': 'native-return', 'runtimeReleased': false,
-      });
+      // An embedded engine that reports its own end (ARMSX2; Dusklight was
+      // the vehicle until its removal, docs/ports-removal-2026-10-20.md).
+      manager.onGameStarted(emulatorExe: 'ios_armsx2_internal');
+      Armsx2InternalBridge.controller.add({'reason': 'native-return'});
       await flush(); expect(manager.phase, GameLaunchPhase.closing);
       manager.completeClose(); manager.onDialogDisposed(); manager.onDialogDisposed();
       await flush();
@@ -135,27 +112,6 @@ void main() {
       expect(events.where((e) => e == 'inactive').length, 1);
       expect(manager.isActive, isFalse);
       expect(music.playing, playing); expect(sfx.isEnabled, effects);
-    }
-  });
-  test('KartPad recreates frontend output and restores muted preferences for both exit reasons', () async {
-    for (final reason in ['userReturn', 'languageRestart']) {
-      for (final enabled in [true, false]) {
-        events.clear(); audio.active = false;
-        sfx.isEnabled = enabled; music.playing = enabled;
-        await manager.beginSession();
-        manager.onGameStarted(emulatorExe: 'ios_kartpad_internal');
-        KartPadInternalBridge.controller.add({'exitReason': reason, 'success': true, 'runtimeReleased': true});
-        await flush(); expect(manager.phase, GameLaunchPhase.closing);
-        manager.completeClose(); manager.onDialogDisposed(); await flush();
-        expect(events.indexOf('activated'), lessThan(events.indexOf('reopen-device')));
-        expect(events.indexOf('home-stop'), lessThan(events.indexOf('reopen-device')));
-        expect(events.indexOf('reopen-device'), lessThan(events.indexOf('home-ready')));
-        expect(events.indexOf('home-ready'), lessThan(events.indexOf('sfx:$enabled', events.indexOf('home-ready'))));
-        expect(events.where((e) => e == 'reopen-device').length, 1);
-        expect(events.indexOf('home-ready'), lessThan(events.indexOf('inactive')));
-        expect(sfx.isEnabled, enabled); expect(music.playing, enabled);
-        expect(manager.isActive, false);
-      }
     }
   });
   test('rapid new launch waits for the old activation instead of being interrupted', () async {
@@ -181,6 +137,23 @@ void main() {
     await manager.beginSession();
     manager.onDialogDisposed(); await flush();
     expect(manager.isActive, isFalse);
+  });
+  test('rejected initialization restores frontend audio exactly once', () async {
+    sfx.isEnabled = true; music.playing = true;
+    await manager.beginSession();
+    manager.markInitializationFailed(nativeStillActive: false);
+    manager.onDialogDisposed(); manager.onDialogDisposed(); await flush();
+    expect(manager.isActive, isFalse); expect(music.playing, isTrue);
+    expect(events.where((s) => s == 'activate').length, 1);
+    expect(events.where((s) => s == 'resume').length, 1);
+  });
+  test('quarantined native initialization retains audio ownership', () async {
+    sfx.isEnabled = true; music.playing = true;
+    await manager.beginSession();
+    manager.markInitializationFailed(nativeStillActive: true);
+    manager.onDialogDisposed(); await flush();
+    expect(events, isNot(contains('activate'))); expect(events, isNot(contains('resume')));
+    expect(music.playing, isFalse); expect(sfx.isEnabled, isFalse);
   });
 }
 '''

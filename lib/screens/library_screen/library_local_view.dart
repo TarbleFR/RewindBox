@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -1162,7 +1163,7 @@ class _BookTileState extends State<_BookTile> {
               if (progress != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: LinearProgressIndicator(
+                  child: LiquidProgressIndicator(
                     value: fraction,
                     minHeight: 3,
                     borderRadius: BorderRadius.circular(2),
@@ -1271,7 +1272,7 @@ class _ImportProgressDialog extends StatelessWidget {
         child: ValueListenableBuilder<LibraryImportProgress?>(
           valueListenable: progress,
           builder: (context, value, _) {
-            if (value == null) return const LinearProgressIndicator();
+            if (value == null) return const LiquidProgressIndicator();
             final stage = LibraryLocalLocale.text(
               context,
               switch (value.stage) {
@@ -1284,7 +1285,7 @@ class _ImportProgressDialog extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                LinearProgressIndicator(value: value.fraction),
+                LiquidProgressIndicator(value: value.fraction),
                 const SizedBox(height: 10),
                 Text(
                   LibraryLocalLocale.format(context, 'importProgress', {

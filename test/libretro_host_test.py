@@ -13,6 +13,13 @@ PORTABLE = ('LibretroCoreHost.m', 'LibretroCheats.m', 'LibretroCoreOptions.m', '
             'LibretroZipReader.m')
 # Value cases and rules shared with Dart's LibretroResolution (Build 455).
 RESOLUTION_FIXTURES = ROOT / 'test/fixtures/libretro_resolution'
+# Since Build 474 LibretroCoreHost.m imports the unified cheat catalogue pod as
+# <neo_cheat_catalog/...> (installed programs of the loaded game). The harness
+# searches the pods' public headers, staged as the pods publish them, and
+# compiles the catalogue's Flutter-free store (zlib, CommonCrypto).
+CATALOGUE = ROOT / 'packages/neo_cheat_catalog/ios/Classes/NeoUnifiedCheatCatalog.m'
+sys.path.insert(0, str(ROOT / 'test'))
+from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
 
 
 def run(*arguments):
@@ -29,8 +36,9 @@ def main():
         run('clang', '-shared', '-fPIC', '-O1', '-Wall', '-I', LIBRETRO,
             ROOT / 'test/libretro_host/test_core.c', '-o', core)
         harness = temporary / 'libretro_host_test'
-        run('clang', '-fobjc-arc', '-O1', '-Wall', '-I', CLASSES, '-I', LIBRETRO,
-            *(CLASSES / name for name in PORTABLE), ROOT / 'test/libretro_host/host_test.m',
+        include = stage_dependency_headers(temporary)
+        run('clang', '-fobjc-arc', '-O1', '-Wall', '-I', CLASSES, '-I', LIBRETRO, '-I', include,
+            *(CLASSES / name for name in PORTABLE), CATALOGUE, ROOT / 'test/libretro_host/host_test.m',
             '-framework', 'Foundation', '-lz', '-o', harness)
         work = temporary / 'work'
         work.mkdir()

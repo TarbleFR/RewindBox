@@ -108,10 +108,28 @@
   "releaseBodyBrokenLinks": [],
   "correctedDocumentationLinks": [
     {
+      "file": "docs/PACKAGE_SOURCES_AND_LICENSES.md",
+      "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.8/NeoStation-0.0.8.ipa",
+      "replacement": "RewindBox-0.0.8.ipa",
+      "corrected_url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.8/RewindBox-0.0.8.ipa"
+    },
+    {
+      "file": "docs/PACKAGE_SOURCES_AND_LICENSES.md",
+      "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.8/NeoStation-0.0.8-SHA256SUMS.txt",
+      "replacement": "RewindBox-0.0.8-Original-SHA256SUMS.txt",
+      "corrected_url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.8/RewindBox-0.0.8-Original-SHA256SUMS.txt"
+    },
+    {
       "file": "docs/RELEASE_0.0.8.md",
       "url": "https://github.com/TarbleFR/neostation-ios/releases/download/0.0.8/NeoStation-0.0.8-Licenses-and-Notices.zip",
       "replacement": "RewindBox-0.0.8-Licenses-and-Notices.zip",
       "corrected_url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.8/RewindBox-0.0.8-Licenses-and-Notices.zip"
+    },
+    {
+      "file": "docs/dolphin-retro-rewind-online-audit-2026-10-20.md",
+      "url": "https://github.com/TarbleFR/neostation-ios/releases/download/0.0.1/NeoStation.ipa",
+      "replacement": "RewindBox.ipa",
+      "corrected_url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.1/RewindBox.ipa"
     }
   ],
   "noNewReleaseOrIpa": true

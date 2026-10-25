@@ -17,15 +17,16 @@
 **RewindBox is the independent iOS/iPadOS fork maintained by TarbleFR.**
 For help with this app, use [RewindBox Issues](https://github.com/TarbleFR/RewindBox/issues) or the [RewindBox community](https://discord.gg/G48u46ppX).
 
-RewindBox brings a game library, embedded emulators and game ports into
-one sideloaded app. It is an independently maintained iOS/iPadOS fork of
+RewindBox brings a game library and embedded emulators into one
+sideloaded app. It is an independently maintained iOS/iPadOS fork of
 [NeoStation](https://github.com/misobadev/neostation-frontend), maintained by
 [@TarbleFR](https://github.com/TarbleFR).
 
 **RetroArch's Libretro cores are embedded directly in RewindBox.** Supported
 local games run inside the app, with RewindBox's own menu and controls.
-A separate RetroArch installation is not required. **MeloNX** remains a separate
-app for the Nintendo Switch integration.
+A separate RetroArch installation is not required. The old external **MeloNX**
+launcher has been removed on the development branch. Embedded Nintendo Switch
+support is being integrated and is not yet available in a new test IPA.
 
 ## What's new in 0.0.8
 
@@ -40,6 +41,17 @@ app for the Nintendo Switch integration.
 - **First launch:** skip folder selection and add games later.
 
 [Read the release notes](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.8).
+
+## Next release — in preparation
+
+The [English announcement draft](docs/RELEASE_NEXT.md) covers the changes since
+0.0.8: the expanded HD texture catalogue, RAR support, editable touch controls,
+3D game boxes and manuals, PS2 blending settings, and PSP/RPCS3 improvements.
+The [license preparation record](docs/RELEASE_NEXT_LICENSE_REVIEW.md) identifies
+the added notices, preserved source references and remaining questions.
+The [source access guide](docs/SOURCE_CODE_ACCESS.md) links the exact package
+archives, local modifications, engine sources and build dependency records.
+No new version, release asset or playable Switch integration is announced here.
 
 ## Unified cheats and patches
 
@@ -116,19 +128,27 @@ RewindBox’s frontend license does not relicense third-party codes.
 
 </details>
 
-## Embedded systems and ports
+## Embedded systems
 
 | Integration | Systems / purpose |
 | --- | --- |
-| **Libretro — 34 cores in the development tree** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
+| **Libretro — 35 cores in the development tree** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
 | **Dolphin / DolphiniOS** | GameCube and Wii |
 | **ARMSX2 / PCSX2** | PlayStation 2 |
 | **RPCS3 / XITRIX iOS fork** | PlayStation 3 |
-| **Dusklight** | Twilight Princess port; requires compatible game data |
-| **KartPad / WiiCompiled** | Mario Kart Wii port; requires supported PAL RMCP01 game data |
 
-The public Build 455 release contains 14 Libretro cores; the current source tree
-contains 34. [All current core credits and license references](assets/legal/libretro/LIBRETRO_CORES.md)
+RewindBox no longer includes native game ports, nor the Ports playlist.
+KartPad (Mario Kart Wii) and Dusklight (Twilight Princess) were embedded in
+earlier builds and removed in October 2026. KartPad's runtime carries code
+translated from the game, so each player who wants it builds
+[KartPad](https://github.com/chrissotraidis/kartpad) with its own tools and
+installs it as a separate app. Twilight Princess remains playable from its
+GameCube or Wii version with Dolphin. Files already in RewindBox's
+`Ports/KartPad` and `Ports/Dusklight` folders are left untouched.
+
+Public 0.0.8 / Build 480 contains 34 Libretro cores; the current source tree
+contains 35, with Mesen added as an optional NES engine for compatible HD packs.
+[All current core credits and license references](assets/legal/libretro/LIBRETRO_CORES.md)
 are preserved. The number of cores differs from the number of console profiles. Compatibility,
 features and performance depend on the game, core and device.
 
@@ -201,7 +221,6 @@ Results depend on the game, device and allocation paths actually used.
   suitable signing/provisioning and the supported StikJIT route. The current
   bridge checks a separately installed and activated **LocalDevVPN** route;
   RewindBox does not bundle or activate that VPN.
-- **MeloNX** only if you use the external Nintendo Switch integration.
 
 **LiveContainer is not supported for the embedded runtimes.**
 Download the IPA from the release assets and sign/install it with your chosen
@@ -243,17 +262,20 @@ ItsRetroPup** and upstream contributors. The iOS fork is independently
 maintained by **TarbleFR**. Upstream authorship is credited; known notice and
 source-availability gaps are recorded below. Attribution does not imply endorsement.
 
-Thanks to the emulator, port, Libretro, StikJIT, RetroAchievements, ScreenScraper,
-GameDB, skin, shader, reading-library and memory-research contributors.
+Thanks to the emulator, Libretro, StikJIT, RetroAchievements, ScreenScraper,
+GameDB, texture, skin, shader, reading-library and memory-research contributors.
+Historical port credits remain in the legal record for the builds that used them.
 **[Full credits and source records](docs/LEGAL_AND_CREDITS.md)** include the
-individual authors, **[all 34 current core license references](assets/legal/libretro/LIBRETRO_CORES.md)**
+individual authors, **[all 35 current core license references](assets/legal/libretro/LIBRETRO_CORES.md)**,
+**[HD texture creators and source credits](docs/HD_TEXTURE_SOURCES_AND_CREDITS.md)**
 and **[all 51 historical cheat source entries, 50 active](docs/CHEAT_CATALOG_SOURCES.md)**.
 
 The frontend's GPL license does **not** replace third-party terms.
 Some cores have non-commercial restrictions; exact source correspondence and
 combined-license questions remain documented in the
-**[0.0.7 license and packaging review](docs/RELEASE_0.0.7_LICENSE_REVIEW.md)**.
-The review distinguishes the published IPA from subsequent packaging fixes.
+**[next-release license review](docs/RELEASE_NEXT_LICENSE_REVIEW.md)** and the
+**[historical 0.0.7 review](docs/RELEASE_0.0.7_LICENSE_REVIEW.md)**.
+The reviews distinguish existing IPAs from subsequent packaging changes.
 
 **[Second source-rights review — 18 October 2026](docs/SOURCE_RIGHTS_REVIEW_2026-10-18.md):**
 full redistribution clearance has not been established. Open findings include

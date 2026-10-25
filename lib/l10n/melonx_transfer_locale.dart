@@ -1,0 +1,811 @@
+import 'package:flutter/widgets.dart';
+
+abstract final class MelonxTransferLocale {
+  static const values = <String, Map<String, String>>{
+    "en": {
+      "keySyntax": "Malformed key text or unsupported encoding.",
+      "keySize": "A recognized key has an incorrect length.",
+      "keyConflict": "The file contains conflicting values for the same key.",
+      "keyNoSupported": "No key supported by this engine was found.",
+      "keyReadFailed": "The selected file could not be read. Download it locally and try again.",
+      "keyImportFailed": "The engine could not complete key import. See the internal log.",
+      "keyExtras": "Additional entries preserved; this engine does not use them",
+      "keyInvalidSizes": "Entries with an incorrect length were ignored; valid entries were imported",
+
+      "deleteRetiredConfirm":
+          "Remove these old MeloNX references and their scraped data from RewindBox? The original game files, saves, firmware and keys are kept.",
+      "deleteMixedConfirm":
+          "Local game files will be deleted, and old MeloNX references will be removed from RewindBox, along with their scraped data. Saves, firmware and keys are kept.",
+      "launchProfile": "Profile on launch",
+      "profileUnavailable":
+          "The imported save profile is unavailable. Import or choose a compatible profile before launching this game.",
+      "deleteFailed":
+          "The game file could not be deleted. Its library entry is kept. Check file access and folder permissions.",
+      "importSaves": "Import Nintendo Switch saves",
+      "migrate": "Transfer my MeloNX data",
+      "folder": "Folder",
+      "archive": "ZIP archive",
+      "analyzing": "Analyzing",
+      "extracting": "Extracting",
+      "validating": "Validating",
+      "installing": "Installing",
+      "transfer": "Transfer",
+      "replace": "Replace",
+      "conflicts":
+          "Existing files will be replaced. Recovery copies are kept. Source data is preserved.",
+      "unsupported": "Not transferred",
+      "cancelled": "Cancelled",
+      "libraryBusy":
+          "Close the Switch game and wait for its launch to finish before changing these files.",
+      "failed": "The operation failed.",
+      "invalidArchive": "Invalid or unsupported ZIP archive.",
+      "unsafePath": "Unsafe file or archive path.",
+      "incompleteTransfer": "The transfer is incomplete or a source changed.",
+      "requiredProd":
+          "prod.keys is required for encrypted games; title.keys is optional.",
+      "unknownKey": "Unrecognized key filename.",
+      "duplicateKey": "Multiple files have the same key type.",
+      "invalidKey": "Invalid key file.",
+      "imported": "Imported",
+      "rejected": "Rejected",
+      "chooseGame": "Choose the game",
+      "chooseProfile": "Choose the user profile",
+      "restart":
+          "Data transferred. Close and reopen RewindBox before launching a Switch game.",
+      "noSaves": "No recognizable save data was found.",
+      "insufficientSpace":
+          "There is not enough free storage for staging and recovery.",
+      "sourceUnknown": "No compatible MeloNX data folder was found.",
+      "space": "Storage required",
+      "selectSave": "Choose a save folder",
+      "compatibility":
+          "Only compatible settings are applied. Other personal files are retained without activating unsupported options.",
+      "rescan": "Scan for moved games",
+      "firmwareUnrecognized": "No firmware recognized in this package.",
+      "firmwareIncomplete": "The firmware content is incomplete or damaged.",
+      "firmwareIncompatible":
+          "The firmware cannot be read with the current keys or engine.",
+      "firmwareInstallFailed":
+          "Firmware installation failed. The previous installation was restored.",
+      "newConflict":
+          "A new file conflict appeared. Analyze the source again before replacing it.",
+      "linkGames": "Link games in the selected folder",
+    },
+    "fr": {
+      "keySyntax": "Texte de clés mal formé ou encodage non reconnu.",
+      "keySize": "Une clé reconnue a une longueur incorrecte.",
+      "keyConflict": "Le fichier contient des valeurs différentes pour une même clé.",
+      "keyNoSupported": "Aucune clé prise en charge par ce moteur n’a été trouvée.",
+      "keyReadFailed": "Impossible de lire le fichier sélectionné. Téléchargez-le localement puis réessayez.",
+      "keyImportFailed": "Le moteur n’a pas pu terminer l’importation des clés. Consultez le journal interne.",
+      "keyExtras": "Entrées supplémentaires conservées ; ce moteur ne les utilise pas",
+      "keyInvalidSizes": "Entrées de longueur incorrecte ignorées ; les entrées valides ont été importées",
+
+      "deleteRetiredConfirm":
+          "Retirer ces anciennes références MeloNX et leurs données scrapées de RewindBox ? Les fichiers de jeux originaux, les sauvegardes, le firmware et les clés sont conservés.",
+      "deleteMixedConfirm":
+          "Les fichiers de jeux locaux seront supprimés et les anciennes références MeloNX seront retirées de RewindBox, avec leurs données scrapées. Les sauvegardes, le firmware et les clés sont conservés.",
+      "launchProfile": "Profil au lancement",
+      "profileUnavailable":
+          "Le profil de la sauvegarde importée est indisponible. Importez ou choisissez un profil compatible avant de lancer ce jeu.",
+      "deleteFailed":
+          "Impossible de supprimer le fichier du jeu. Son entrée est conservée. Vérifiez l’accès au fichier et les autorisations du dossier.",
+      "importSaves": "Importer des sauvegardes Nintendo Switch",
+      "migrate": "Transférer mes données MeloNX",
+      "folder": "Dossier",
+      "archive": "Archive ZIP",
+      "analyzing": "Analyse",
+      "extracting": "Extraction",
+      "validating": "Validation",
+      "installing": "Installation",
+      "transfer": "Transférer",
+      "replace": "Remplacer",
+      "conflicts":
+          "Les fichiers existants seront remplacés avec une copie de récupération. Les données source sont conservées.",
+      "unsupported": "Non transféré",
+      "cancelled": "Annulé",
+      "libraryBusy":
+          "Fermez le jeu Switch et attendez la fin de son lancement avant de modifier ces fichiers.",
+      "failed": "L’opération a échoué.",
+      "invalidArchive": "Archive ZIP invalide ou non prise en charge.",
+      "unsafePath": "Chemin de fichier ou d’archive non sûr.",
+      "incompleteTransfer":
+          "Le transfert est incomplet ou une source a changé.",
+      "requiredProd":
+          "prod.keys est requis pour les jeux chiffrés ; title.keys est facultatif.",
+      "unknownKey": "Nom de fichier de clés non reconnu.",
+      "duplicateKey": "Plusieurs fichiers correspondent au même type de clé.",
+      "invalidKey": "Fichier de clés invalide.",
+      "imported": "Importé",
+      "rejected": "Refusé",
+      "chooseGame": "Choisir le jeu",
+      "chooseProfile": "Choisir le profil utilisateur",
+      "restart":
+          "Données transférées. Fermez puis rouvrez RewindBox avant de lancer un jeu Switch.",
+      "noSaves": "Aucune sauvegarde reconnaissable n’a été trouvée.",
+      "insufficientSpace":
+          "L’espace libre est insuffisant pour la préparation et la récupération.",
+      "sourceUnknown":
+          "Aucun dossier de données MeloNX compatible n’a été trouvé.",
+      "space": "Espace nécessaire",
+      "selectSave": "Choisir un dossier de sauvegarde",
+      "compatibility":
+          "Seuls les réglages compatibles sont appliqués. Les autres fichiers personnels sont conservés sans activer les options incompatibles.",
+      "rescan": "Rechercher les jeux déplacés",
+      "firmwareUnrecognized": "Aucun firmware reconnu dans ce paquet.",
+      "firmwareIncomplete":
+          "Le contenu du firmware est incomplet ou endommagé.",
+      "firmwareIncompatible":
+          "Ce firmware ne peut pas être lu avec les clés ou le moteur actuels.",
+      "firmwareInstallFailed":
+          "L’installation du firmware a échoué. L’installation précédente a été restaurée.",
+      "newConflict":
+          "Un nouveau conflit de fichiers est apparu. Analysez de nouveau la source avant remplacement.",
+      "linkGames": "Lier les jeux du dossier sélectionné",
+    },
+    "de": {
+      "keySyntax": "Ungültiger Schlüsseltext oder nicht unterstützte Kodierung.",
+      "keySize": "Ein erkannter Schlüssel hat eine falsche Länge.",
+      "keyConflict": "Die Datei enthält widersprüchliche Werte für denselben Schlüssel.",
+      "keyNoSupported": "Kein von dieser Engine unterstützter Schlüssel gefunden.",
+      "keyReadFailed": "Die Datei konnte nicht gelesen werden. Lokal herunterladen und erneut versuchen.",
+      "keyImportFailed": "Die Engine konnte den Schlüsselimport nicht abschließen. Internes Protokoll prüfen.",
+      "keyExtras": "Zusätzliche Einträge bleiben erhalten; diese Engine nutzt sie nicht",
+      "keyInvalidSizes": "Einträge mit falscher Länge wurden ignoriert; gültige Einträge wurden importiert",
+
+      "deleteRetiredConfirm":
+          "Diese alten MeloNX-Verweise und ihre erfassten Metadaten aus RewindBox entfernen? Die ursprünglichen Spieldateien, Spielstände, Firmware und Schlüssel bleiben erhalten.",
+      "deleteMixedConfirm":
+          "Lokale Spieldateien werden gelöscht und alte MeloNX-Verweise samt erfassten Metadaten aus RewindBox entfernt. Spielstände, Firmware und Schlüssel bleiben erhalten.",
+      "launchProfile": "Profil beim Start",
+      "profileUnavailable":
+          "Das Profil des importierten Spielstands ist nicht verfügbar. Importiere oder wähle vor dem Start ein kompatibles Profil.",
+      "deleteFailed":
+          "Die Spieldatei konnte nicht gelöscht werden. Der Bibliothekseintrag bleibt erhalten. Prüfe den Dateizugriff und die Ordnerberechtigungen.",
+      "importSaves": "Nintendo-Switch-Spielstände importieren",
+      "migrate": "Meine MeloNX-Daten übertragen",
+      "folder": "Ordner",
+      "archive": "ZIP-Archiv",
+      "analyzing": "Analysieren",
+      "extracting": "Entpacken",
+      "validating": "Prüfen",
+      "installing": "Installieren",
+      "transfer": "Übertragen",
+      "replace": "Ersetzen",
+      "conflicts":
+          "Vorhandene Dateien werden ersetzt. Wiederherstellungskopien und Quelldaten bleiben erhalten.",
+      "unsupported": "Nicht übertragen",
+      "cancelled": "Abgebrochen",
+      "libraryBusy":
+          "Schließe das Switch-Spiel und warte auf das Ende des Starts, bevor du diese Dateien änderst.",
+      "failed": "Der Vorgang ist fehlgeschlagen.",
+      "invalidArchive": "Ungültiges oder nicht unterstütztes ZIP-Archiv.",
+      "unsafePath": "Unsicherer Datei- oder Archivpfad.",
+      "incompleteTransfer":
+          "Die Übertragung ist unvollständig oder eine Quelle wurde geändert.",
+      "requiredProd":
+          "prod.keys ist für verschlüsselte Spiele erforderlich; title.keys ist optional.",
+      "unknownKey": "Unbekannter Schlüsseldateiname.",
+      "duplicateKey": "Mehrere Dateien für denselben Schlüsseltyp.",
+      "invalidKey": "Ungültige Schlüsseldatei.",
+      "imported": "Importiert",
+      "rejected": "Abgelehnt",
+      "chooseGame": "Spiel auswählen",
+      "chooseProfile": "Benutzerprofil auswählen",
+      "restart":
+          "Daten übertragen. Schließe und öffne RewindBox vor dem Start eines Switch-Spiels.",
+      "noSaves": "Keine erkennbaren Spielstände gefunden.",
+      "insufficientSpace":
+          "Nicht genug Speicher für Vorbereitung und Wiederherstellung.",
+      "sourceUnknown": "Kein kompatibler MeloNX-Datenordner gefunden.",
+      "space": "Benötigter Speicher",
+      "selectSave": "Spielstandordner auswählen",
+      "compatibility":
+          "Nur kompatible Einstellungen werden angewendet. Andere persönliche Dateien bleiben ohne Aktivierung inkompatibler Optionen erhalten.",
+      "rescan": "Verschobene Spiele suchen",
+      "firmwareUnrecognized": "Keine Firmware in diesem Paket erkannt.",
+      "firmwareIncomplete": "Die Firmware ist unvollständig oder beschädigt.",
+      "firmwareIncompatible":
+          "Die Firmware ist mit den aktuellen Schlüsseln oder der Engine nicht lesbar.",
+      "firmwareInstallFailed":
+          "Firmware-Installation fehlgeschlagen. Die vorherige Installation wurde wiederhergestellt.",
+      "newConflict":
+          "Ein neuer Dateikonflikt ist aufgetreten. Quelle vor dem Ersetzen erneut prüfen.",
+      "linkGames": "Spiele im ausgewählten Ordner verknüpfen",
+    },
+    "es": {
+      "keySyntax": "Texto de claves incorrecto o codificación no admitida.",
+      "keySize": "Una clave reconocida tiene una longitud incorrecta.",
+      "keyConflict": "El archivo contiene valores contradictorios para la misma clave.",
+      "keyNoSupported": "No se encontró ninguna clave compatible con este motor.",
+      "keyReadFailed": "No se pudo leer el archivo. Descárgalo localmente e inténtalo de nuevo.",
+      "keyImportFailed": "El motor no pudo completar la importación de claves. Consulta el registro interno.",
+      "keyExtras": "Entradas adicionales conservadas; este motor no las utiliza",
+      "keyInvalidSizes": "Se ignoraron las entradas de longitud incorrecta; se importaron las entradas válidas",
+
+      "deleteRetiredConfirm":
+          "¿Quitar estas referencias antiguas de MeloNX y sus datos obtenidos de RewindBox? Se conservan los archivos originales de los juegos, las partidas, el firmware y las claves.",
+      "deleteMixedConfirm":
+          "Se eliminarán los archivos locales de los juegos y se quitarán las referencias antiguas de MeloNX de RewindBox, junto con sus datos obtenidos. Se conservan las partidas, el firmware y las claves.",
+      "launchProfile": "Perfil al iniciar",
+      "profileUnavailable":
+          "El perfil de la partida importada no está disponible. Importa o elige un perfil compatible antes de iniciar el juego.",
+      "deleteFailed":
+          "No se pudo eliminar el archivo del juego. Se conserva su entrada. Comprueba el acceso al archivo y los permisos de la carpeta.",
+      "importSaves": "Importar partidas de Nintendo Switch",
+      "migrate": "Transferir mis datos de MeloNX",
+      "folder": "Carpeta",
+      "archive": "Archivo ZIP",
+      "analyzing": "Analizando",
+      "extracting": "Extrayendo",
+      "validating": "Validando",
+      "installing": "Instalando",
+      "transfer": "Transferir",
+      "replace": "Reemplazar",
+      "conflicts":
+          "Se reemplazarán los archivos existentes con copias de recuperación. Se conservan los datos originales.",
+      "unsupported": "No transferido",
+      "cancelled": "Cancelado",
+      "libraryBusy":
+          "Cierra el juego de Switch y espera a que termine su inicio antes de cambiar estos archivos.",
+      "failed": "La operación ha fallado.",
+      "invalidArchive": "Archivo ZIP no válido o no compatible.",
+      "unsafePath": "Ruta de archivo no segura.",
+      "incompleteTransfer":
+          "La transferencia está incompleta o cambió un archivo original.",
+      "requiredProd":
+          "prod.keys es necesario para juegos cifrados; title.keys es opcional.",
+      "unknownKey": "Nombre de archivo de claves desconocido.",
+      "duplicateKey": "Varios archivos tienen el mismo tipo de clave.",
+      "invalidKey": "Archivo de claves no válido.",
+      "imported": "Importado",
+      "rejected": "Rechazado",
+      "chooseGame": "Elegir juego",
+      "chooseProfile": "Elegir perfil de usuario",
+      "restart":
+          "Datos transferidos. Cierra y vuelve a abrir RewindBox antes de iniciar un juego de Switch.",
+      "noSaves": "No se encontraron partidas reconocibles.",
+      "insufficientSpace":
+          "No hay espacio suficiente para preparar y recuperar los datos.",
+      "sourceUnknown": "No se encontró una carpeta de MeloNX compatible.",
+      "space": "Espacio necesario",
+      "selectSave": "Elegir carpeta de partidas",
+      "compatibility":
+          "Solo se aplican ajustes compatibles. Los demás archivos personales se conservan sin activar opciones incompatibles.",
+      "rescan": "Buscar juegos movidos",
+      "firmwareUnrecognized": "No se reconoció firmware en este paquete.",
+      "firmwareIncomplete": "El firmware está incompleto o dañado.",
+      "firmwareIncompatible":
+          "El firmware no se puede leer con las claves o el motor actuales.",
+      "firmwareInstallFailed":
+          "Falló la instalación del firmware. Se restauró la instalación anterior.",
+      "newConflict":
+          "Apareció un nuevo conflicto. Analiza de nuevo el origen antes de reemplazarlo.",
+      "linkGames": "Vincular los juegos de la carpeta seleccionada",
+    },
+    "it": {
+      "keySyntax": "Testo delle chiavi non valido o codifica non supportata.",
+      "keySize": "Una chiave riconosciuta ha una lunghezza errata.",
+      "keyConflict": "Il file contiene valori diversi per la stessa chiave.",
+      "keyNoSupported": "Nessuna chiave supportata da questo motore trovata.",
+      "keyReadFailed": "Impossibile leggere il file. Scaricalo localmente e riprova.",
+      "keyImportFailed": "Il motore non ha completato l’importazione delle chiavi. Consulta il registro interno.",
+      "keyExtras": "Voci aggiuntive conservate; questo motore non le utilizza",
+      "keyInvalidSizes": "Le voci con lunghezza errata sono state ignorate; le voci valide sono state importate",
+
+      "deleteRetiredConfirm":
+          "Rimuovere da RewindBox questi vecchi riferimenti MeloNX e i relativi dati scaricati? I file originali dei giochi, i salvataggi, il firmware e le chiavi vengono conservati.",
+      "deleteMixedConfirm":
+          "I file locali dei giochi verranno eliminati e i vecchi riferimenti MeloNX verranno rimossi da RewindBox, insieme ai dati scaricati. I salvataggi, il firmware e le chiavi vengono conservati.",
+      "launchProfile": "Profilo all’avvio",
+      "profileUnavailable":
+          "Il profilo del salvataggio importato non è disponibile. Importa o scegli un profilo compatibile prima di avviare il gioco.",
+      "deleteFailed":
+          "Impossibile eliminare il file del gioco. La voce rimane nella libreria. Verifica l’accesso al file e i permessi della cartella.",
+      "importSaves": "Importa salvataggi Nintendo Switch",
+      "migrate": "Trasferisci i miei dati MeloNX",
+      "folder": "Cartella",
+      "archive": "Archivio ZIP",
+      "analyzing": "Analisi",
+      "extracting": "Estrazione",
+      "validating": "Verifica",
+      "installing": "Installazione",
+      "transfer": "Trasferisci",
+      "replace": "Sostituisci",
+      "conflicts":
+          "I file esistenti saranno sostituiti con copie di recupero. I dati originali vengono conservati.",
+      "unsupported": "Non trasferito",
+      "cancelled": "Annullato",
+      "libraryBusy":
+          "Chiudi il gioco Switch e attendi la fine del suo avvio prima di modificare questi file.",
+      "failed": "Operazione non riuscita.",
+      "invalidArchive": "Archivio ZIP non valido o non supportato.",
+      "unsafePath": "Percorso del file non sicuro.",
+      "incompleteTransfer":
+          "Trasferimento incompleto o dati originali modificati.",
+      "requiredProd":
+          "prod.keys è necessario per i giochi cifrati; title.keys è facoltativo.",
+      "unknownKey": "Nome del file di chiavi non riconosciuto.",
+      "duplicateKey": "Più file hanno lo stesso tipo di chiave.",
+      "invalidKey": "File di chiavi non valido.",
+      "imported": "Importato",
+      "rejected": "Rifiutato",
+      "chooseGame": "Scegli il gioco",
+      "chooseProfile": "Scegli il profilo utente",
+      "restart":
+          "Dati trasferiti. Chiudi e riapri RewindBox prima di avviare un gioco Switch.",
+      "noSaves": "Nessun salvataggio riconoscibile trovato.",
+      "insufficientSpace": "Spazio insufficiente per preparazione e recupero.",
+      "sourceUnknown": "Nessuna cartella dati MeloNX compatibile trovata.",
+      "space": "Spazio necessario",
+      "selectSave": "Scegli una cartella di salvataggi",
+      "compatibility":
+          "Vengono applicate solo le impostazioni compatibili. Gli altri file personali sono conservati senza attivare opzioni incompatibili.",
+      "rescan": "Cerca giochi spostati",
+      "firmwareUnrecognized": "Nessun firmware riconosciuto nel pacchetto.",
+      "firmwareIncomplete": "Il firmware è incompleto o danneggiato.",
+      "firmwareIncompatible":
+          "Il firmware non è leggibile con le chiavi o il motore attuali.",
+      "firmwareInstallFailed":
+          "Installazione firmware non riuscita. La precedente installazione è stata ripristinata.",
+      "newConflict":
+          "È apparso un nuovo conflitto. Analizza di nuovo la sorgente prima di sostituire.",
+      "linkGames": "Collega i giochi della cartella scelta",
+    },
+    "pt": {
+      "keySyntax": "Texto de chaves inválido ou codificação não suportada.",
+      "keySize": "Uma chave reconhecida tem um comprimento incorreto.",
+      "keyConflict": "O ficheiro contém valores diferentes para a mesma chave.",
+      "keyNoSupported": "Nenhuma chave suportada por este motor foi encontrada.",
+      "keyReadFailed": "Não foi possível ler o ficheiro. Descarregue-o localmente e tente novamente.",
+      "keyImportFailed": "O motor não concluiu a importação de chaves. Consulte o registo interno.",
+      "keyExtras": "Entradas adicionais preservadas; este motor não as utiliza",
+      "keyInvalidSizes": "Entradas com comprimento incorreto ignoradas; as entradas válidas foram importadas",
+
+      "deleteRetiredConfirm":
+          "Remover estas referências antigas do MeloNX e os seus dados obtidos do RewindBox? Os ficheiros originais dos jogos, as gravações, o firmware e as chaves são preservados.",
+      "deleteMixedConfirm":
+          "Os ficheiros locais dos jogos serão eliminados e as referências antigas do MeloNX serão removidas do RewindBox, juntamente com os dados obtidos. As gravações, o firmware e as chaves são preservados.",
+      "launchProfile": "Perfil ao iniciar",
+      "profileUnavailable":
+          "O perfil da gravação importada não está disponível. Importe ou escolha um perfil compatível antes de iniciar o jogo.",
+      "deleteFailed":
+          "Não foi possível eliminar o ficheiro do jogo. A entrada é mantida. Verifique o acesso ao ficheiro e as permissões da pasta.",
+      "importSaves": "Importar gravações Nintendo Switch",
+      "migrate": "Transferir os meus dados MeloNX",
+      "folder": "Pasta",
+      "archive": "Arquivo ZIP",
+      "analyzing": "A analisar",
+      "extracting": "A extrair",
+      "validating": "A validar",
+      "installing": "A instalar",
+      "transfer": "Transferir",
+      "replace": "Substituir",
+      "conflicts":
+          "Os ficheiros existentes serão substituídos com cópias de recuperação. Os dados de origem são preservados.",
+      "unsupported": "Não transferido",
+      "cancelled": "Cancelado",
+      "libraryBusy":
+          "Feche o jogo Switch e aguarde o fim do arranque antes de alterar estes ficheiros.",
+      "failed": "A operação falhou.",
+      "invalidArchive": "Arquivo ZIP inválido ou não suportado.",
+      "unsafePath": "Caminho de ficheiro inseguro.",
+      "incompleteTransfer":
+          "A transferência está incompleta ou a origem mudou.",
+      "requiredProd":
+          "prod.keys é necessário para jogos cifrados; title.keys é opcional.",
+      "unknownKey": "Nome de ficheiro de chaves desconhecido.",
+      "duplicateKey": "Vários ficheiros têm o mesmo tipo de chave.",
+      "invalidKey": "Ficheiro de chaves inválido.",
+      "imported": "Importado",
+      "rejected": "Recusado",
+      "chooseGame": "Escolher jogo",
+      "chooseProfile": "Escolher perfil de utilizador",
+      "restart":
+          "Dados transferidos. Feche e reabra o RewindBox antes de iniciar um jogo Switch.",
+      "noSaves": "Não foram encontradas gravações reconhecíveis.",
+      "insufficientSpace": "Espaço insuficiente para preparação e recuperação.",
+      "sourceUnknown":
+          "Não foi encontrada uma pasta de dados MeloNX compatível.",
+      "space": "Espaço necessário",
+      "selectSave": "Escolher pasta de gravações",
+      "compatibility":
+          "Só são aplicadas definições compatíveis. Os outros ficheiros pessoais são mantidos sem ativar opções incompatíveis.",
+      "rescan": "Procurar jogos movidos",
+      "firmwareUnrecognized": "Nenhum firmware reconhecido neste pacote.",
+      "firmwareIncomplete": "O firmware está incompleto ou danificado.",
+      "firmwareIncompatible":
+          "O firmware não pode ser lido com as chaves ou o motor atuais.",
+      "firmwareInstallFailed":
+          "A instalação do firmware falhou. A instalação anterior foi restaurada.",
+      "newConflict":
+          "Surgiu um novo conflito. Analise a origem novamente antes de substituir.",
+      "linkGames": "Ligar os jogos da pasta selecionada",
+    },
+    "ru": {
+      "keySyntax": "Неверный формат ключей или неподдерживаемая кодировка.",
+      "keySize": "У распознанного ключа неверная длина.",
+      "keyConflict": "Файл содержит разные значения для одного ключа.",
+      "keyNoSupported": "Ключи, поддерживаемые этим движком, не найдены.",
+      "keyReadFailed": "Не удалось прочитать файл. Скачайте его на устройство и повторите попытку.",
+      "keyImportFailed": "Движок не завершил импорт ключей. Проверьте внутренний журнал.",
+      "keyExtras": "Дополнительные записи сохранены; этот движок их не использует",
+      "keyInvalidSizes": "Записи с неверной длиной пропущены; корректные записи импортированы",
+
+      "deleteRetiredConfirm":
+          "Удалить эти старые ссылки MeloNX и загруженные для них данные из RewindBox? Исходные файлы игр, сохранения, прошивка и ключи останутся.",
+      "deleteMixedConfirm":
+          "Локальные файлы игр будут удалены, а старые ссылки MeloNX будут убраны из RewindBox вместе с загруженными для них данными. Сохранения, прошивка и ключи останутся.",
+      "launchProfile": "Профиль при запуске",
+      "profileUnavailable":
+          "Профиль импортированного сохранения недоступен. Импортируйте или выберите совместимый профиль перед запуском игры.",
+      "deleteFailed":
+          "Не удалось удалить файл игры. Запись в библиотеке сохранена. Проверьте доступ к файлу и права на папку.",
+      "importSaves": "Импорт сохранений Nintendo Switch",
+      "migrate": "Перенести мои данные MeloNX",
+      "folder": "Папка",
+      "archive": "ZIP-архив",
+      "analyzing": "Анализ",
+      "extracting": "Распаковка",
+      "validating": "Проверка",
+      "installing": "Установка",
+      "transfer": "Перенести",
+      "replace": "Заменить",
+      "conflicts":
+          "Существующие файлы будут заменены с резервными копиями. Исходные данные сохраняются.",
+      "unsupported": "Не перенесено",
+      "cancelled": "Отменено",
+      "libraryBusy":
+          "Закройте игру Switch и дождитесь завершения её запуска перед изменением файлов.",
+      "failed": "Операция не выполнена.",
+      "invalidArchive": "Недопустимый или неподдерживаемый ZIP-архив.",
+      "unsafePath": "Небезопасный путь файла.",
+      "incompleteTransfer":
+          "Перенос не завершён или исходные данные изменились.",
+      "requiredProd":
+          "Для зашифрованных игр нужен prod.keys; title.keys необязателен.",
+      "unknownKey": "Неизвестное имя файла ключей.",
+      "duplicateKey": "Несколько файлов одного типа ключей.",
+      "invalidKey": "Недопустимый файл ключей.",
+      "imported": "Импортировано",
+      "rejected": "Отклонено",
+      "chooseGame": "Выберите игру",
+      "chooseProfile": "Выберите профиль",
+      "restart":
+          "Данные перенесены. Закройте и откройте RewindBox перед запуском игры Switch.",
+      "noSaves": "Распознаваемые сохранения не найдены.",
+      "insufficientSpace":
+          "Недостаточно места для подготовки и восстановления.",
+      "sourceUnknown": "Совместимая папка данных MeloNX не найдена.",
+      "space": "Требуемое место",
+      "selectSave": "Выберите папку сохранений",
+      "compatibility":
+          "Применяются только совместимые настройки. Другие личные файлы сохраняются без включения несовместимых параметров.",
+      "rescan": "Найти перемещённые игры",
+      "firmwareUnrecognized": "В пакете не найдена прошивка.",
+      "firmwareIncomplete": "Прошивка неполная или повреждена.",
+      "firmwareIncompatible":
+          "Прошивка не читается с текущими ключами или движком.",
+      "firmwareInstallFailed":
+          "Установка прошивки не удалась. Предыдущая установка восстановлена.",
+      "newConflict":
+          "Возник новый конфликт файлов. Повторно проанализируйте источник перед заменой.",
+      "linkGames": "Подключить игры из выбранной папки",
+    },
+    "id": {
+      "keySyntax": "Teks kunci tidak valid atau pengodean tidak didukung.",
+      "keySize": "Panjang kunci yang dikenali tidak sesuai.",
+      "keyConflict": "Berkas berisi nilai berbeda untuk kunci yang sama.",
+      "keyNoSupported": "Tidak ada kunci yang didukung mesin ini.",
+      "keyReadFailed": "Berkas tidak dapat dibaca. Unduh ke perangkat lalu coba lagi.",
+      "keyImportFailed": "Mesin tidak dapat menyelesaikan impor kunci. Periksa log internal.",
+      "keyExtras": "Entri tambahan disimpan; mesin ini tidak menggunakannya",
+      "keyInvalidSizes": "Entri dengan panjang yang salah diabaikan; entri yang valid telah diimpor",
+
+      "deleteRetiredConfirm":
+          "Hapus referensi MeloNX lama ini beserta data hasil pencariannya dari RewindBox? File game asli, data simpanan, firmware, dan kunci tetap disimpan.",
+      "deleteMixedConfirm":
+          "File game lokal akan dihapus dan referensi MeloNX lama akan dihapus dari RewindBox beserta data hasil pencariannya. Data simpanan, firmware, dan kunci tetap disimpan.",
+      "launchProfile": "Profil saat memulai",
+      "profileUnavailable":
+          "Profil simpanan yang diimpor tidak tersedia. Impor atau pilih profil yang kompatibel sebelum memulai game.",
+      "deleteFailed":
+          "File game tidak dapat dihapus. Entri pustaka dipertahankan. Periksa akses file dan izin folder.",
+      "importSaves": "Impor simpanan Nintendo Switch",
+      "migrate": "Transfer data MeloNX saya",
+      "folder": "Folder",
+      "archive": "Arsip ZIP",
+      "analyzing": "Menganalisis",
+      "extracting": "Mengekstrak",
+      "validating": "Memvalidasi",
+      "installing": "Memasang",
+      "transfer": "Transfer",
+      "replace": "Ganti",
+      "conflicts":
+          "File yang ada akan diganti dengan salinan pemulihan. Data sumber tetap disimpan.",
+      "unsupported": "Tidak ditransfer",
+      "cancelled": "Dibatalkan",
+      "libraryBusy":
+          "Tutup game Switch dan tunggu hingga peluncurannya selesai sebelum mengubah file ini.",
+      "failed": "Operasi gagal.",
+      "invalidArchive": "Arsip ZIP tidak valid atau tidak didukung.",
+      "unsafePath": "Jalur file tidak aman.",
+      "incompleteTransfer": "Transfer belum lengkap atau sumber berubah.",
+      "requiredProd":
+          "prod.keys diperlukan untuk game terenkripsi; title.keys bersifat opsional.",
+      "unknownKey": "Nama file kunci tidak dikenali.",
+      "duplicateKey": "Beberapa file memiliki jenis kunci yang sama.",
+      "invalidKey": "File kunci tidak valid.",
+      "imported": "Diimpor",
+      "rejected": "Ditolak",
+      "chooseGame": "Pilih game",
+      "chooseProfile": "Pilih profil pengguna",
+      "restart":
+          "Data ditransfer. Tutup dan buka kembali RewindBox sebelum menjalankan game Switch.",
+      "noSaves": "Tidak ditemukan simpanan yang dikenali.",
+      "insufficientSpace": "Ruang tidak cukup untuk persiapan dan pemulihan.",
+      "sourceUnknown": "Folder data MeloNX yang kompatibel tidak ditemukan.",
+      "space": "Ruang yang diperlukan",
+      "selectSave": "Pilih folder simpanan",
+      "compatibility":
+          "Hanya pengaturan yang kompatibel yang diterapkan. File pribadi lainnya disimpan tanpa mengaktifkan opsi yang tidak kompatibel.",
+      "rescan": "Cari game yang dipindahkan",
+      "firmwareUnrecognized": "Firmware tidak dikenali dalam paket ini.",
+      "firmwareIncomplete": "Isi firmware tidak lengkap atau rusak.",
+      "firmwareIncompatible":
+          "Firmware tidak dapat dibaca dengan kunci atau mesin saat ini.",
+      "firmwareInstallFailed":
+          "Pemasangan firmware gagal. Instalasi sebelumnya dipulihkan.",
+      "newConflict":
+          "Konflik file baru muncul. Analisis kembali sumber sebelum mengganti.",
+      "linkGames": "Tautkan game di folder yang dipilih",
+    },
+    "ja": {
+      "keySyntax": "キーの形式が不正か、文字コードが未対応です。",
+      "keySize": "認識されたキーの長さが正しくありません。",
+      "keyConflict": "同じキーに異なる値が含まれています。",
+      "keyNoSupported": "このエンジンに対応するキーが見つかりません。",
+      "keyReadFailed": "ファイルを読み込めません。端末にダウンロードして再試行してください。",
+      "keyImportFailed": "キーのインポートを完了できません。内部ログを確認してください。",
+      "keyExtras": "追加の項目は保存されますが、このエンジンでは使用されません",
+      "keyInvalidSizes": "長さが正しくない項目は無視され、有効な項目がインポートされました",
+
+      "deleteRetiredConfirm":
+          "古いMeloNXの参照と取得済みデータをRewindBoxから削除しますか？元のゲームファイル、セーブデータ、ファームウェア、キーは保持されます。",
+      "deleteMixedConfirm":
+          "ローカルのゲームファイルを削除し、古いMeloNXの参照と取得済みデータをRewindBoxから削除します。セーブデータ、ファームウェア、キーは保持されます。",
+      "launchProfile": "起動時のプロフィール",
+      "profileUnavailable":
+          "インポートしたセーブデータのプロフィールが見つかりません。ゲームを起動する前に対応するプロフィールをインポートするか選択してください。",
+      "deleteFailed":
+          "ゲームファイルを削除できませんでした。ライブラリーの項目は保持されます。ファイルへのアクセスとフォルダーの権限を確認してください。",
+      "importSaves": "Nintendo Switchのセーブをインポート",
+      "migrate": "MeloNXのデータを転送",
+      "folder": "フォルダー",
+      "archive": "ZIPアーカイブ",
+      "analyzing": "解析中",
+      "extracting": "展開中",
+      "validating": "検証中",
+      "installing": "インストール中",
+      "transfer": "転送",
+      "replace": "置き換える",
+      "conflicts": "既存ファイルは復元用コピーを作成して置き換えます。元のデータは保持されます。",
+      "unsupported": "転送されません",
+      "cancelled": "キャンセルしました",
+      "libraryBusy": "ファイルを変更する前にSwitchのゲームを閉じ、起動処理の完了を待ってください。",
+      "failed": "操作に失敗しました。",
+      "invalidArchive": "無効または未対応のZIPアーカイブです。",
+      "unsafePath": "安全でないファイルパスです。",
+      "incompleteTransfer": "転送が不完全か、元のファイルが変更されました。",
+      "requiredProd": "暗号化されたゲームにはprod.keysが必要です。title.keysは任意です。",
+      "unknownKey": "認識できないキーファイル名です。",
+      "duplicateKey": "同じ種類のキーファイルが複数あります。",
+      "invalidKey": "無効なキーファイルです。",
+      "imported": "インポート済み",
+      "rejected": "拒否",
+      "chooseGame": "ゲームを選択",
+      "chooseProfile": "ユーザープロフィールを選択",
+      "restart": "転送しました。Switchのゲームを起動する前にRewindBoxを閉じて開き直してください。",
+      "noSaves": "認識できるセーブデータが見つかりません。",
+      "insufficientSpace": "準備と復元のための空き容量が不足しています。",
+      "sourceUnknown": "互換性のあるMeloNXデータフォルダーが見つかりません。",
+      "space": "必要な容量",
+      "selectSave": "セーブフォルダーを選択",
+      "compatibility": "互換性のある設定のみ適用します。他の個人ファイルは未対応のオプションを有効にせず保持します。",
+      "rescan": "移動したゲームを検索",
+      "firmwareUnrecognized": "このパッケージからファームウェアを認識できません。",
+      "firmwareIncomplete": "ファームウェアが不完全または破損しています。",
+      "firmwareIncompatible": "現在のキーまたはエンジンではファームウェアを読み取れません。",
+      "firmwareInstallFailed": "インストールに失敗しました。以前のファームウェアを復元しました。",
+      "newConflict": "新しいファイルの競合が発生しました。置き換える前に再解析してください。",
+      "linkGames": "選択したフォルダーのゲームをリンク",
+    },
+    "ko": {
+      "keySyntax": "키 형식이 잘못되었거나 지원하지 않는 인코딩입니다.",
+      "keySize": "인식된 키의 길이가 잘못되었습니다.",
+      "keyConflict": "파일에 같은 키의 서로 다른 값이 있습니다.",
+      "keyNoSupported": "이 엔진이 지원하는 키를 찾을 수 없습니다.",
+      "keyReadFailed": "파일을 읽을 수 없습니다. 기기에 다운로드한 후 다시 시도하세요.",
+      "keyImportFailed": "키 가져오기를 완료하지 못했습니다. 내부 로그를 확인하세요.",
+      "keyExtras": "추가 항목은 보존되지만 이 엔진에서는 사용하지 않습니다",
+      "keyInvalidSizes": "길이가 잘못된 항목은 무시되고 유효한 항목은 가져왔습니다",
+
+      "deleteRetiredConfirm":
+          "이전 MeloNX 참조와 수집된 데이터를 RewindBox에서 제거할까요? 원본 게임 파일, 저장 데이터, 펌웨어 및 키는 유지됩니다.",
+      "deleteMixedConfirm":
+          "로컬 게임 파일이 삭제되고 이전 MeloNX 참조와 수집된 데이터가 RewindBox에서 제거됩니다. 저장 데이터, 펌웨어 및 키는 유지됩니다.",
+      "launchProfile": "실행 시 프로필",
+      "profileUnavailable":
+          "가져온 저장 데이터의 프로필을 사용할 수 없습니다. 게임을 실행하기 전에 호환되는 프로필을 가져오거나 선택하세요.",
+      "deleteFailed":
+          "게임 파일을 삭제할 수 없습니다. 라이브러리 항목은 유지됩니다. 파일 접근 및 폴더 권한을 확인하세요.",
+      "importSaves": "Nintendo Switch 저장 데이터 가져오기",
+      "migrate": "내 MeloNX 데이터 전송",
+      "folder": "폴더",
+      "archive": "ZIP 압축 파일",
+      "analyzing": "분석 중",
+      "extracting": "압축 해제 중",
+      "validating": "검증 중",
+      "installing": "설치 중",
+      "transfer": "전송",
+      "replace": "교체",
+      "conflicts": "복구 사본을 만든 후 기존 파일을 교체합니다. 원본 데이터는 보존됩니다.",
+      "unsupported": "전송하지 않음",
+      "cancelled": "취소됨",
+      "libraryBusy": "파일을 변경하기 전에 Switch 게임을 닫고 실행 준비가 끝날 때까지 기다리세요.",
+      "failed": "작업에 실패했습니다.",
+      "invalidArchive": "잘못되었거나 지원하지 않는 ZIP 파일입니다.",
+      "unsafePath": "안전하지 않은 파일 경로입니다.",
+      "incompleteTransfer": "전송이 완료되지 않았거나 원본이 변경되었습니다.",
+      "requiredProd": "암호화된 게임에는 prod.keys가 필요하며 title.keys는 선택 사항입니다.",
+      "unknownKey": "알 수 없는 키 파일 이름입니다.",
+      "duplicateKey": "같은 종류의 키 파일이 여러 개 있습니다.",
+      "invalidKey": "잘못된 키 파일입니다.",
+      "imported": "가져옴",
+      "rejected": "거부됨",
+      "chooseGame": "게임 선택",
+      "chooseProfile": "사용자 프로필 선택",
+      "restart": "데이터를 전송했습니다. Switch 게임을 시작하기 전에 RewindBox를 닫고 다시 여세요.",
+      "noSaves": "인식 가능한 저장 데이터가 없습니다.",
+      "insufficientSpace": "준비 및 복구를 위한 저장 공간이 부족합니다.",
+      "sourceUnknown": "호환되는 MeloNX 데이터 폴더를 찾지 못했습니다.",
+      "space": "필요한 저장 공간",
+      "selectSave": "저장 폴더 선택",
+      "compatibility": "호환되는 설정만 적용됩니다. 다른 개인 파일은 호환되지 않는 옵션을 활성화하지 않고 보존됩니다.",
+      "rescan": "이동된 게임 검색",
+      "firmwareUnrecognized": "이 패키지에서 펌웨어를 인식하지 못했습니다.",
+      "firmwareIncomplete": "펌웨어가 불완전하거나 손상되었습니다.",
+      "firmwareIncompatible": "현재 키 또는 엔진으로 펌웨어를 읽을 수 없습니다.",
+      "firmwareInstallFailed": "펌웨어 설치에 실패했습니다. 이전 설치를 복원했습니다.",
+      "newConflict": "새 파일 충돌이 발생했습니다. 교체 전에 원본을 다시 분석하세요.",
+      "linkGames": "선택한 폴더의 게임 연결",
+    },
+    "zh": {
+      "keySyntax": "密钥文本格式错误或编码不受支持。",
+      "keySize": "已识别密钥的长度不正确。",
+      "keyConflict": "文件中同一密钥存在不同的值。",
+      "keyNoSupported": "未找到此引擎支持的密钥。",
+      "keyReadFailed": "无法读取文件。请下载到本机后重试。",
+      "keyImportFailed": "引擎未能完成密钥导入。请查看内部日志。",
+      "keyExtras": "额外条目已保留，但此引擎不会使用",
+      "keyInvalidSizes": "已忽略长度不正确的条目，并导入有效条目",
+
+      "deleteRetiredConfirm":
+          "要从 RewindBox 移除这些旧的 MeloNX 引用及其抓取的数据吗？原始游戏文件、存档、固件和密钥将保留。",
+      "deleteMixedConfirm":
+          "本地游戏文件将被删除，旧的 MeloNX 引用及其抓取的数据将从 RewindBox 移除。存档、固件和密钥将保留。",
+      "launchProfile": "启动时的用户",
+      "profileUnavailable": "导入存档的用户不可用。启动此游戏前，请导入或选择兼容的用户。",
+      "deleteFailed": "无法删除游戏文件。资料库条目已保留。请检查文件访问权限和文件夹权限。",
+      "importSaves": "导入 Nintendo Switch 存档",
+      "migrate": "迁移我的 MeloNX 数据",
+      "folder": "文件夹",
+      "archive": "ZIP 压缩包",
+      "analyzing": "分析中",
+      "extracting": "解压中",
+      "validating": "验证中",
+      "installing": "安装中",
+      "transfer": "迁移",
+      "replace": "替换",
+      "conflicts": "现有文件将被替换并保留恢复副本。源数据保持不变。",
+      "unsupported": "未迁移",
+      "cancelled": "已取消",
+      "libraryBusy": "请关闭 Switch 游戏并等待启动流程结束后再修改这些文件。",
+      "failed": "操作失败。",
+      "invalidArchive": "无效或不支持的 ZIP 压缩包。",
+      "unsafePath": "不安全的文件路径。",
+      "incompleteTransfer": "迁移不完整或源文件已更改。",
+      "requiredProd": "加密游戏需要 prod.keys；title.keys 为可选。",
+      "unknownKey": "无法识别的密钥文件名。",
+      "duplicateKey": "选择了多个相同类型的密钥文件。",
+      "invalidKey": "无效的密钥文件。",
+      "imported": "已导入",
+      "rejected": "已拒绝",
+      "chooseGame": "选择游戏",
+      "chooseProfile": "选择用户配置文件",
+      "restart": "数据已迁移。启动 Switch 游戏前请关闭并重新打开 RewindBox。",
+      "noSaves": "未找到可识别的存档。",
+      "insufficientSpace": "没有足够空间进行暂存和恢复。",
+      "sourceUnknown": "未找到兼容的 MeloNX 数据文件夹。",
+      "space": "所需空间",
+      "selectSave": "选择存档文件夹",
+      "compatibility": "只应用兼容的设置。其他个人文件会保留，但不启用不兼容的选项。",
+      "rescan": "查找已移动的游戏",
+      "firmwareUnrecognized": "未在此包中识别到固件。",
+      "firmwareIncomplete": "固件内容不完整或已损坏。",
+      "firmwareIncompatible": "当前密钥或引擎无法读取此固件。",
+      "firmwareInstallFailed": "固件安装失败，已恢复先前的安装。",
+      "newConflict": "出现了新的文件冲突。替换前请重新分析源数据。",
+      "linkGames": "关联所选文件夹中的游戏",
+    },
+    "zh_Hant": {
+      "keySyntax": "金鑰文字格式錯誤或編碼不受支援。",
+      "keySize": "已識別金鑰的長度不正確。",
+      "keyConflict": "檔案中同一金鑰存在不同的值。",
+      "keyNoSupported": "未找到此引擎支援的金鑰。",
+      "keyReadFailed": "無法讀取檔案。請下載至本機後重試。",
+      "keyImportFailed": "引擎未能完成金鑰匯入。請查看內部日誌。",
+      "keyExtras": "額外項目已保留，但此引擎不會使用",
+      "keyInvalidSizes": "已忽略長度不正確的項目，並匯入有效項目",
+
+      "deleteRetiredConfirm":
+          "要從 RewindBox 移除這些舊的 MeloNX 參照及其擷取的資料嗎？原始遊戲檔案、存檔、韌體和金鑰將保留。",
+      "deleteMixedConfirm":
+          "本機遊戲檔案將被刪除，舊的 MeloNX 參照及其擷取的資料將從 RewindBox 移除。存檔、韌體和金鑰將保留。",
+      "launchProfile": "啟動時的使用者",
+      "profileUnavailable": "匯入存檔的使用者無法使用。啟動此遊戲前，請匯入或選擇相容的使用者。",
+      "deleteFailed": "無法刪除遊戲檔案。資料庫項目已保留。請檢查檔案存取與資料夾權限。",
+      "importSaves": "匯入 Nintendo Switch 存檔",
+      "migrate": "移轉我的 MeloNX 資料",
+      "folder": "資料夾",
+      "archive": "ZIP 壓縮檔",
+      "analyzing": "分析中",
+      "extracting": "解壓縮中",
+      "validating": "驗證中",
+      "installing": "安裝中",
+      "transfer": "移轉",
+      "replace": "取代",
+      "conflicts": "現有檔案將被取代並保留復原副本。來源資料保持不變。",
+      "unsupported": "未移轉",
+      "cancelled": "已取消",
+      "libraryBusy": "請關閉 Switch 遊戲並等待啟動流程結束後再修改這些檔案。",
+      "failed": "操作失敗。",
+      "invalidArchive": "無效或不支援的 ZIP 壓縮檔。",
+      "unsafePath": "不安全的檔案路徑。",
+      "incompleteTransfer": "移轉不完整或來源檔案已變更。",
+      "requiredProd": "加密遊戲需要 prod.keys；title.keys 為選用。",
+      "unknownKey": "無法辨識的金鑰檔案名稱。",
+      "duplicateKey": "選取了多個相同類型的金鑰檔案。",
+      "invalidKey": "無效的金鑰檔案。",
+      "imported": "已匯入",
+      "rejected": "已拒絕",
+      "chooseGame": "選擇遊戲",
+      "chooseProfile": "選擇使用者設定檔",
+      "restart": "資料已移轉。啟動 Switch 遊戲前請關閉並重新開啟 RewindBox。",
+      "noSaves": "找不到可辨識的存檔。",
+      "insufficientSpace": "沒有足夠空間可暫存及復原。",
+      "sourceUnknown": "找不到相容的 MeloNX 資料夾。",
+      "space": "所需空間",
+      "selectSave": "選擇存檔資料夾",
+      "compatibility": "僅套用相容的設定。其他個人檔案會保留，但不啟用不相容的選項。",
+      "rescan": "尋找已移動的遊戲",
+      "firmwareUnrecognized": "未在此套件中辨識到韌體。",
+      "firmwareIncomplete": "韌體內容不完整或已損毀。",
+      "firmwareIncompatible": "目前的金鑰或引擎無法讀取此韌體。",
+      "firmwareInstallFailed": "韌體安裝失敗，已還原先前的安裝。",
+      "newConflict": "出現新的檔案衝突。取代前請重新分析來源資料。",
+      "linkGames": "連結所選資料夾中的遊戲",
+    },
+  };
+  static String text(BuildContext context, String key) =>
+      forLocale(Localizations.localeOf(context), key);
+  static String forLocale(Locale locale, String key) {
+    final traditional =
+        locale.languageCode == 'zh' &&
+        (locale.scriptCode == 'Hant' ||
+            const {'TW', 'HK', 'MO'}.contains(locale.countryCode));
+    return (values[traditional ? 'zh_Hant' : locale.languageCode] ??
+            values['en']!)[key] ??
+        values['en']!['failed']!;
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "repository": "TarbleFR/RewindBox",
+  "branch": "Claude",
+  "build": 507,
+  "sourceCommit": "49c33b29287c0b659abba4f09d04a6efd062b1b6",
+  "sourceTree": "090c3d02fbcee1a7d3c7f45427304c8c67b56f6b",
+  "workflow": {
+    "runId": 39866664616,
+    "jobId": 120130571398,
+    "conclusion": "success",
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/39866664616"
+  },
+  "artifact": {
+    "id": 12465561412,
+    "encrypted": true,
+    "zipBytes": 186135965,
+    "zipSHA256": "6f2185972eed576a80fe2ceb3c968f88651aad19c7259a03c23ad605260b3141",
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/39866664616/artifacts/12465561412"
+  },
+  "validation": {
+    "fullMotionRun": 39864139925,
+    "fullFlutterJob": 120121960951,
+    "flutterTests": 74,
+    "nativeJob": 120121961194,
+    "nativeXCTests": 11,
+    "nativeFailures": 0,
+    "nativeSimulator": "iPhone 16 Pro / iOS 26.2 / arm64",
+    "nativeArtifact": 12463981247,
+    "finalCarouselRun": 39866371150,
+    "finalCarouselCases": 3,
+    "testedUISource": "37606051d6a0226a3861309a06a8069c70eb1f34",
+    "reusedEngineBaseline": {
+      "commit": "4fb8ffe6672c7802ea39d7144dfc762a7b9f1a18",
+      "runId": 39863280830
+    },
+    "physicalDeviceTested": false,
+    "measuredIPhoneFrameRate": false,
+    "sideStoreAppleReSigningRequired": true
+  },
+  "scope": {
+    "mainModified": false,
+    "tagCreated": false,
+    "releaseCreated": false
+  },
+  "ipa": {
+    "fileName": "RewindBox-Build507.ipa",
+    "bytes": 185904172,
+    "sha256": "8ef2088ea929df5b5455c91288e80e903d61bbdba94a3a601251a4ed4ac5276f",
+    "version": "0.0.8",
+    "build": 507,
+    "bundles": [
+      {
+        "bundle": "com.neogamelab.neostation.dolphinjithelper",
+        "version": "0.0.8",
+        "build": "507"
+      },
+      {
+        "bundle": "com.neogamelab.neostation.NeoSwapPageRelay",
+        "version": "0.0.8",
+        "build": "507"
+      },
+      {
+        "bundle": "com.neogamelab.neostation.neoswapdonor",
+        "version": "0.0.8",
+        "build": "507"
+      },
+      {
+        "bundle": "com.neogamelab.neostation.melonxjithelper",
+        "version": "0.0.8",
+        "build": "507"
+      },
+      {
+        "bundle": "com.neogamelab.neostation.armsx2jithelper",
+        "version": "0.0.8",
+        "build": "507"
+      },
+      {
+        "bundle": "com.neogamelab.neostation.rpcs3jithelper",
+        "version": "0.0.8",
+        "build": "507"
+      },
+      {
+        "bundle": "com.neogamelab.neostation",
+        "version": "0.0.8",
+        "build": "507"
+      }
+    ]
+  },
+  "finalPackage": {
+    "zipIntegrity": "passed",
+    "structure": "passed",
+    "motionAssetsAndLinkedViews": {
+      "result": "passed",
+      "build": 507,
+      "ipaSHA256": "8ef2088ea929df5b5455c91288e80e903d61bbdba94a3a601251a4ed4ac5276f",
+      "assets": {
+        "assets/data/mau-ali-tab-menu.lottie": "30ea694527e40c01a947b9e05a4a0eaa8b7ea100730f6d1fd0bad40e9713f6e0",
+        "assets/data/mau-ali-tab-motion.json": "689a9ce8adeaef936f0f8aa5c5b81c350b14a2a11beb0584e126bab1adfb1596",
+        "assets/legal/Lottie-Simple-License.txt": "5f6407a7ca08787b6c4ba7ff176c49a9cf7bb92cf6103e598868b1007da995c0",
+        "assets/legal/Mau-Ali-Tab-Motion.txt": "5bd8d92d799f79d60afe10f9d3ed40dcc37ad0cec780726a6375549d5de975b8"
+      },
+      "nativeLiquidViewLinked": true,
+      "nativePowerChannelLinked": true,
+      "compiledDartMotionPresent": true,
+      "appAndSixExtensionVersionsMatched": true,
+      "deviceTested": false
+    },
+    "compiledMachOImagesUnchangedBySigning": 83,
+    "downloadedArtifactDigestVerified": true,
+    "ipaDigestMatchesSignedPayloadAndMotionReports": true,
+    "appleReSigningRequired": true
+  },
+  "deliveredAt": "2026-10-22T23:00:11.212Z"
+}

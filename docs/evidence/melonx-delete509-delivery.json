@@ -1,0 +1,132 @@
+{
+  "bytes": 186082461,
+  "sha256": "b934daa250ab29d50f5a5dfe6ae25d54fa5dbd5e92a3700ece18f155db59b7ef",
+  "build": "509",
+  "version": "0.0.8",
+  "minimumIOS": "18.0",
+  "signedBinaryPayloadsVerified": 83,
+  "adHocSignaturesVerifiedByCI": 86,
+  "oldCorePayloadsUnchangedFrom508": 38,
+  "meloNX": {
+    "result": "passed",
+    "build": "509",
+    "engineExportsVerified": 36,
+    "privateFrameworks": [
+      "MeloNXAvCodec",
+      "MeloNXAvUtil",
+      "MeloNXCore",
+      "MeloNXJitSupport",
+      "MeloNXMoltenVK",
+      "MeloNXSDL3"
+    ],
+    "nativeSourceNoticesVerified": 26,
+    "registeredFlutterBridge": true,
+    "gameplayTested": false,
+    "deviceInstallationTested": false
+  },
+  "rpcs3Audit": {
+    "result": "passed",
+    "build": 509,
+    "ipaSHA256": "b934daa250ab29d50f5a5dfe6ae25d54fa5dbd5e92a3700ece18f155db59b7ef",
+    "coreSource": "cfe92344e1b3dd26d2cb17bb8b8ad68260c5cc7f",
+    "coreRun": 39877981229,
+    "sourceArtifactSHA256": "97918a2e471901dbed18dafb56640c15902a63ae79e580ee9de25515fdf5601b",
+    "compiledCorePayloadFingerprint": "9a045125bd98797907bcdcbb4b354e7fdf693587b5919a0c6218d928e3675361",
+    "sharedCompilerBrokerLinked": true,
+    "optionalCoreBinderLinked": true,
+    "productionMinimalSPULinkerEnabled": false,
+    "physicalDeviceTested": false,
+    "physicalPerformanceMeasured": false
+  },
+  "unchangedMeloNXEngineFrom508": true,
+  "physicalDeviceTested": false,
+  "unchangedMeloNXPrivateDependencies": 5,
+  "sources": {
+    "host": "d4e61fa1388b9b52e4ea51ea0a0a65cee58bab90",
+    "baseline": "RewindBox-Build508-e44b0d34.ipa"
+  },
+  "validate_motion507_ipa.py": {
+    "result": "passed",
+    "build": 509,
+    "ipaSHA256": "b934daa250ab29d50f5a5dfe6ae25d54fa5dbd5e92a3700ece18f155db59b7ef",
+    "assets": {
+      "assets/data/mau-ali-tab-menu.lottie": "30ea694527e40c01a947b9e05a4a0eaa8b7ea100730f6d1fd0bad40e9713f6e0",
+      "assets/data/mau-ali-tab-motion.json": "689a9ce8adeaef936f0f8aa5c5b81c350b14a2a11beb0584e126bab1adfb1596",
+      "assets/legal/Lottie-Simple-License.txt": "5f6407a7ca08787b6c4ba7ff176c49a9cf7bb92cf6103e598868b1007da995c0",
+      "assets/legal/Mau-Ali-Tab-Motion.txt": "5bd8d92d799f79d60afe10f9d3ed40dcc37ad0cec780726a6375549d5de975b8"
+    },
+    "nativeLiquidViewLinked": true,
+    "nativePowerChannelLinked": true,
+    "compiledDartMotionPresent": true,
+    "appAndSixExtensionVersionsMatched": true,
+    "deviceTested": false
+  },
+  "validate_melonx_delete509_ipa.py": {
+    "result": "passed",
+    "build": "509",
+    "baseline": "e44b0d34bcca18a193793704ca01db1eccf819a4",
+    "baselineRun": 39880551632,
+    "productInputSHA256": {
+      "lib/l10n/melonx_transfer_locale.dart": "e2fcf528b81497a0d1ac815f756cc0d85eab76f4f738c449ea3b4c0be0fd1e6a",
+      "lib/repositories/game_repository.dart": "fca21dcbd60423f36f116d4ca51057d15673099e30aa9dbb506d3bc61669d8f6",
+      "lib/screens/game_screen/game_settings_dialog/game_settings_manage_tab.dart": "ce9e911d50ab6864f7d01bd52471d3dac8cfa512804ad622100c2d64305e6803",
+      "lib/services/melonx_retired_library_cleanup.dart": "a65eeb8c570e2ab76f4db280dedee93ec2b8c08bde7256b154810aefcfcf59e7",
+      "lib/widgets/delete_game_dialog.dart": "b9b992588092833bb03d17ac4cc6e535dcd735c26bcf7d28e9d4ffe05cb999cc",
+      "lib/widgets/melonx_multi_delete_dialog.dart": "f5d64dfd18f4d2f48b8fe5f689d64d8829b2731dcabbe4fc964ab6d1e18fc6c0"
+    },
+    "retiredReferencesPurged": true,
+    "localGameDeletionRetained": true,
+    "physicalDeviceTested": false,
+    "ipaSHA256": "b934daa250ab29d50f5a5dfe6ae25d54fa5dbd5e92a3700ece18f155db59b7ef"
+  },
+  "schemaVersion": 1,
+  "result": "passed",
+  "date": "2026-10-23",
+  "fileName": "RewindBox-Build509-d4e61fa1.ipa",
+  "source": "d4e61fa1388b9b52e4ea51ea0a0a65cee58bab90",
+  "sourceTree": "bec248cc5597c89e8ac19e67de36a8d9d4611566",
+  "workflow": {
+    "run": 39884045828,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/39884045828",
+    "checksJob": 120187941276,
+    "nativeJob": 120187941045,
+    "releaseJob": 120188504950,
+    "conclusion": "success"
+  },
+  "encryptedDeliveryArtifact": {
+    "id": 12472502233,
+    "size": 186320285,
+    "digest": "sha256:5abf47974cfc5a13f57e3ea7074c595c2d113b3c7a785e4e04b5f9176408d2af"
+  },
+  "diagnosticsArtifact": {
+    "id": 12471899720,
+    "size": 5990583,
+    "digest": "sha256:f53e64b9214f34bcfa182efc5d797156fc00dc885243d511752f092b1a2e7adf"
+  },
+  "targetedValidation": {
+    "source": "d4e61fa1388b9b52e4ea51ea0a0a65cee58bab90",
+    "tree": "bec248cc5597c89e8ac19e67de36a8d9d4611566",
+    "run": 39884045828,
+    "checksJob": 120187941276,
+    "nativeJob": 120187941045,
+    "changedAppSurfaceAnalysis": "passed; three existing nonfatal braces style infos",
+    "targetedTests": {
+      "passed": 34,
+      "skipped": 1,
+      "skipReason": "Existing macOS-only file-permission test; CI runs Linux"
+    },
+    "existingSwitchDeletionScenarios": {
+      "passed": 5
+    },
+    "checksConclusion": "success",
+    "nativeSourceGateConclusion": "success",
+    "reusedDelivery508Run": 39880551632,
+    "reusedDelivery508Source": "e44b0d34bcca18a193793704ca01db1eccf819a4",
+    "rebuiltCores": [],
+    "physicalDeviceTested": false
+  },
+  "appleResigningRequired": true,
+  "mainChanged": false,
+  "publicReleaseCreated": false,
+  "tagCreated": false
+}

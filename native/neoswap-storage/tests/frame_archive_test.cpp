@@ -46,14 +46,15 @@ void policy(){
     CHECK(!frame_queue_has_room(60,0,60));
     CHECK(!frame_queue_has_room(0,60,60));
     CHECK(!frame_queue_has_room(UINT64_MAX,1,60));
-    CHECK(frame_can_cool(60,0,250000,1280*720*3/2,true));
-    CHECK(!frame_can_cool(23,0,250000,4096,true));
+    CHECK(!frame_can_cool(60,0,250000,1280*720*3/2,true));
+    CHECK(frame_can_cool(60,8,250000,1280*720*3/2,true));
+    CHECK(!frame_can_cool(23,8,250000,4096,true));
     CHECK(!frame_can_cool(60,52,250000,4096,true));
     CHECK(!frame_can_cool(60,60,250000,4096,true));
-    CHECK(!frame_can_cool(60,0,249999,4096,true));
-    CHECK(!frame_can_cool(60,0,250000,4095,true));
-    CHECK(!frame_can_cool(60,0,250000,frame_max_bytes+1,true));
-    CHECK(!frame_can_cool(60,0,250000,4096,false));
+    CHECK(!frame_can_cool(60,8,249999,4096,true));
+    CHECK(!frame_can_cool(60,8,250000,4095,true));
+    CHECK(!frame_can_cool(60,8,250000,frame_max_bytes+1,true));
+    CHECK(!frame_can_cool(60,8,250000,4096,false));
 }
 Stats cycle;
 void large_cycle(const std::string& dir){
@@ -124,7 +125,7 @@ void errors(const std::string& dir){
 void throttled_progress(const std::string& dir){
     auto c=config();c.managed.store.max_write_bytes_per_second=128*1024;
     Archive a(dir,14,c);reset(a,14);ColdFrame f;
-    const auto pixels=fixture(3*65536,991);
+    const auto pixels=fixture(3*config().managed.chunk_bytes,991);
     CHECK(f.offload(pixels.data(),pixels.size()));
     // A real write-rate limit plus an injected transient deferral after one
     // verified chunk. Store's rate limiter delays writes, not admission.

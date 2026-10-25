@@ -91,8 +91,16 @@ def main() -> None:
         public_abi.index("typedef struct rpcs3_ios_performance_metrics"):
         public_abi.index("} rpcs3_ios_performance_metrics;")
     ]
-    require(abi_struct.count("double ") == 3 and abi_struct.count("uint64_t ") == 2,
-            "public performance ABI changed; Build 258 must stay core-only")
+    # Build 487 (NEOSTATION_BUILD487_DIAGNOSTICS_V1) replaced the former
+    # "exactly 2 uint64_t" count: the struct grew additively after
+    # memory_total_bytes, guarded by struct_size. The contract kept here is the
+    # one Build 258 relied on: the 48-byte Build 258 prefix is byte-identical.
+    prefix = abi_struct[:abi_struct.index("uint64_t memory_total_bytes;") + len("uint64_t memory_total_bytes;")]
+    require(prefix.count("double ") == 3 and prefix.count("uint64_t ") == 2 and prefix.count("uint32_t ") == 2,
+            "public performance ABI prefix changed; Build 258 must stay core-only")
+    tail = abi_struct[len(prefix):]
+    require(abi_struct.count("double ") == 3 and ("NEOSTATION_BUILD487_DIAGNOSTICS_V1" in public_abi or not tail.strip()),
+            "public performance ABI grew without the Build 487 struct_size-guarded contract")
     require(MARKER not in public_abi, "Build 258 must not modify the public frontend ABI")
 
     print("RPCS3 Build 258 core architecture contract: OK")
