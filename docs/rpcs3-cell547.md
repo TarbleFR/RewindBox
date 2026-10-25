@@ -118,3 +118,30 @@ Exporter `RPCS3-timeline*.log`. Comparer par fenêtre :
 3. Gameplay chaud et cinématiques : `frame_ms.p95_ms`, `p99_ms`, `max_ms`,
    `summary.avg_fps`.
 4. Session de plus de 30 minutes : `host.thermal_max` et évolution des FPS.
+
+## 6. Livraison privée 547
+
+IPA de test : arbre hôte de la livraison 546 (`6c6c6241`) et Core RPCS3 547.
+Les 93 chemins validés ailleurs depuis (interface Liquid Glass, notes MeloNX)
+sont restaurés dans le runner seulement ; l'historique Git est intact.
+L'interface Liquid Glass prend le numéro 548. Aucune release, aucun tag, aucune
+fusion vers `main`.
+
+- Core : source `1b5c278c`, run 40232640441 (journaliseur Foundation, tests
+  natifs 547 sur arm64, compilation, exports, chargement passif, identités
+  inchangées). Premier essai `b77fb8e0`, run 40232300288, en échec sur un seul
+  contrôle du harnais (sommeil simulé de 387 ms au lieu de 250 ms) : corrigé
+  dans le test, pas dans le Core.
+- IPA : source `08f2f7fa`, run 40233140957, tous les validateurs réussis, dont
+  `validate_rpcs3_547_ipa.py` (marqueurs `PRESSURE547` du Core et du pont,
+  preuves du journaliseur réexécutées par la livraison).
+- Fichier remis : `RewindBox-Build547.ipa`, version 0.0.8 (547), iOS 18
+  minimum, **186 395 394 octets**, SHA-256
+  `09030d12519e6815850a546fcaddc6cbaacd18da943e4e4bcdcf8704d1d9e4e6`, égal à
+  `SHA256SUMS` et à `signed-payload-identity.json` ; 87 signatures. Artefact
+  chiffré `12614695376` pour `build-utils/delivery-547-recipient.pem` (clé
+  privée hors Git), conservé jusqu'au 8 novembre 2026. Déchiffré et revérifié ;
+  `validate_rpcs3_diag487_ipa.py` rejoué localement.
+- S'installe par-dessus la 546 après re-signature SideStore. Aucune validation
+  sur iPhone. Ne pas réutiliser le numéro 547. Preuve :
+  `docs/evidence/rpcs3-cell547-delivery.json`.

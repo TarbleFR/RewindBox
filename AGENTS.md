@@ -3,6 +3,24 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 547: GPU fence wait and SPU compile pressure — 25 October 2026
+
+- First step of the deep optimisation phase (`docs/rpcs3-cell547.md`: the five
+  measured costs, what is not done and why).
+- Core `1b5c278c` (run 40232640441), record `cell547`: iOS `vk::wait_for_fence`
+  without timeout spins 100 us then blocks in `vkWaitForFences` (an 8 ms GPU
+  wait costs 116 us of waiter CPU instead of 30.6 ms on macOS arm64); while a
+  draw waits for a pipeline build, confirmed SPU GETLLAR polls of unchanged data
+  take the existing passive wait; `COREPROF PRESSURE547` and the timeline
+  `pressure` family. SPUThread.cpp aliased: PPU/SPU identities unchanged.
+- Private IPA **0.0.8 (547)** from `08f2f7fa`, run 40233140957, on the 546
+  delivery tree (Liquid Glass excluded, `rpcs3cell547_tree.py`): 186,395,394
+  bytes, SHA-256 `09030d12…d9e4e6`, encrypted artifact 12614695376 for
+  `build-utils/delivery-547-recipient.pem`; decrypted, re-validated, delivered.
+  Evidence: `docs/evidence/rpcs3-cell547-delivery.json`. No iPhone validation
+  yet. **Do not reuse 547.** 548 is the Liquid Glass interface; the next RPCS3
+  IPA is **549** or later.
+
 ## RPCS3 546: build 541 logs, JIT object writes, bounded diagnostics — 25 October 2026
 
 - The maintainer sent build 541 logs (Bladestorm BLES00113, Dragon Ball Z HD

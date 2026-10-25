@@ -1,0 +1,193 @@
+{
+ "downloadedIPA": {
+  "result": "passed",
+  "file": "RewindBox-Build547.ipa",
+  "bytes": 186395394,
+  "sha256": "09030d12519e6815850a546fcaddc6cbaacd18da943e4e4bcdcf8704d1d9e4e6",
+  "build": "547",
+  "version": "0.0.8",
+  "minimumIOS": "18.0",
+  "bundleIdentifier": "com.neogamelab.neostation",
+  "source": "08f2f7fa8c9081ff8f049eb96d31f054d549f278",
+  "verifiedSignatureCount": 87,
+  "signing": "SideStore re-signing",
+  "physicalDeviceTested": false
+ },
+ "deliveryRun": 40233140957,
+ "encryptedArtifact": {
+  "id": 12614695376,
+  "zipSHA256": "d3a7429e83021b5fe395344cbb36392ca7e74abe608639aec46fcb3fecccf25d",
+  "recipient": "build-utils/delivery-547-recipient.pem",
+  "expires": "2026-11-08"
+ },
+ "sha256SumsAndSignedPayloadAgree": true,
+ "hostTree": {
+  "pinned": "6c6c624179540b860de16eab9c08323efaf12683",
+  "restoredPaths": 93,
+  "liquidGlassInterfaceIncluded": false
+ },
+ "components": {
+  "rpcs3Core": {
+   "source": "1b5c278c2f86c55bc626911124975a2bbb09dc2c",
+   "run": 40232640441,
+   "failedFirstRun": 40232300288,
+   "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+   },
+   "identitySHA256": "e6b29d816f18d757182c0d642d6503262a97ae8578d97d81c0d2c51fc859ea9c"
+  },
+  "melonxEngine": {
+   "source": "d9f35c2783f7368d31b61f644d970f41bb7bc47b",
+   "run": 40210266656
+  },
+  "melonxHost": {
+   "source": "eabc057f4058520192f79f361cbd92eba5795f98",
+   "run": 40209413009
+  }
+ },
+ "compiledMarkersVerified": {
+  "rpcs3Core": [
+   "COREPROF PRESSURE547",
+   "SPUWARMUP duplicates removed=",
+   "COREPROF FRAMEPROF527"
+  ],
+  "rpcs3Bridge": [
+   "COREPROF PRESSURE547 ",
+   "spu_passive_waits",
+   "RPCS3-timeline.log",
+   "RPCS3-restore-trace.log",
+   "LOG_BUDGET dropped=%u limit_per_s=128"
+  ]
+ },
+ "loggerProofsExecutedByDelivery": {
+  "retention536": {
+   "before": -6,
+   "after": 0
+  },
+  "diagnostics546": {
+   "before": -6,
+   "after": 0
+  },
+  "run": 40233140957
+ },
+ "localRevalidation": {
+  "validator": "build-utils/validate_rpcs3_diag487_ipa.py",
+  "result": "passed"
+ },
+ "packageReports": {
+  "diagnostics546-tests.json": {
+   "sha256": "96804593570971eb580481c651502ccd23f250ed7ab0d49248aa967e827e701c",
+   "bytes": 1533
+  },
+  "environment.json": {
+   "sha256": "57ec994bc96a13afa423edc39edd59a244373a75518308d508b37b8591078001",
+   "bytes": 1010
+  },
+  "final-structure.json": {
+   "sha256": "3908370a6e25a66c6ff1486fe6329d07b96fb81671af844e813521e064c33972",
+   "bytes": 174284
+  },
+  "hd-textures-ipa-validation.json": {
+   "sha256": "5a247a9652f9f17a13b85c024fbb5a729705531b04c10e47197c7079af0da24e",
+   "bytes": 919
+  },
+  "host-tree547.json": {
+   "sha256": "fd5b62b6064a9bb50d903c8c002ba3bef1496f2fc9da1116e76306ef61dc2804",
+   "bytes": 6533
+  },
+  "melonx-close544-tests.json": {
+   "sha256": "9ec453f41d926dbc0dc69f7110461107ee4f6defc2be8c80fee274648e172182",
+   "bytes": 35504
+  },
+  "melonx-delete509-embedded.json": {
+   "sha256": "8530546944e4bbe4d8f4e6d5f43ad9e1208a26d992a32e4cfdf043e7ff7f7c9e",
+   "bytes": 995
+  },
+  "melonx-delete509-ipa.json": {
+   "sha256": "665da3e8a35eb117d4ad18670f5b9eb0647ff82da89f08af8a09704d96f4c857",
+   "bytes": 1078
+  },
+  "melonx-header-sdk.json": {
+   "sha256": "72b88b3ad164982dde93bea17e7583d34c7630582437386ed00662a685f9e518",
+   "bytes": 5207
+  },
+  "melonx-import537-tests.json": {
+   "sha256": "e36ba513e6688d1b0089eb2731ac2fa8792c2f41599b48da4543e6a58bb50937",
+   "bytes": 12930
+  },
+  "melonx-ipa.json": {
+   "sha256": "ceb65ce36c98700085437b7fd618c6303b377af9f939b18dbcf493b75cab520d",
+   "bytes": 362
+  },
+  "melonx-keys517-ipa-validation.json": {
+   "sha256": "4159db7c3aaba431eadcc00b95db716892c7741653cb9930c0304eeb11ee468a",
+   "bytes": 575
+  },
+  "melonx-launch514-ipa-validation.json": {
+   "sha256": "aaa62bf1e3d533d3c8e6c6acfcbcad50795d58560918aa2ad4fdbdadcad58ed7",
+   "bytes": 815
+  },
+  "melonx-memory519-ipa-validation.json": {
+   "sha256": "2c508a60828c2d30d4271e2989114ff3cfa883205f6193380552b31900f341a8",
+   "bytes": 35053
+  },
+  "motion507-ipa-validation.json": {
+   "sha256": "08d0a6f459333f169d8b49e0f997d4e09115521b955222eedd8ed533d10eb8ea",
+   "bytes": 793
+  },
+  "navigation512-ipa-validation.json": {
+   "sha256": "4f073f024f8de223b7fe02fb345972a4df508edd5db53bba625d387c7dd637cd",
+   "bytes": 387
+  },
+  "observed-timings.json": {
+   "sha256": "e99105933739637636eb71d4e987c2b428983df2e378180982fe6e652dfa70ca",
+   "bytes": 4819
+  },
+  "retention536-tests.json": {
+   "sha256": "a84ee403f996bd5cd03bba18884c8704dc355799a4a228042658a45d012c8280",
+   "bytes": 1675
+  },
+  "reused-validation547.json": {
+   "sha256": "38f96b01b1ba281ab4c7fef0f07824c750fd8c0912d8df16110ad34c88fa755b",
+   "bytes": 2202
+  },
+  "rpcs3-diag487-ipa-validation.json": {
+   "sha256": "7153f5c04809047096b567bf2190e5c9fe96460a8346a0adacbf4e2753292632",
+   "bytes": 373
+  },
+  "rpcs3-memory-audit-ipa.json": {
+   "sha256": "69f78d841756caa875dd314d4757e4085ff2f8e5aeaa8212c70c1bd2543d82af",
+   "bytes": 641
+  },
+  "rpcs3-memory-embedded.json": {
+   "sha256": "6498aedc0cbe26b18c62672a4c05d47d6deb4599bc75e76e3fa94279e3914bc8",
+   "bytes": 223
+  },
+  "signature.json": {
+   "sha256": "c15e92ae33ca96635f77816c8c4021a1fd14d07152c8f322c3053cae6ea2293d",
+   "bytes": 15175
+  },
+  "signed-payload-identity.json": {
+   "sha256": "a4befa75d2842f62c383aeac20b8e47c71e2f4f2d1051da7a7acbbf7f4a776c6",
+   "bytes": 11125
+  },
+  "skin-session-evidence.json": {
+   "sha256": "d4b6fdc67dc95a68cc10d8d6a86aa4edc476a99fb4daab7532e5c23fdda697e0",
+   "bytes": 3081
+  },
+  "ui-correction511-ipa-validation.json": {
+   "sha256": "e43e367d6fb3203b9aa1ccb01d4058965b44302d0dac2b6cec81ecb7c6d7518f",
+   "bytes": 399
+  },
+  "unified-cheats-ipa-validation.json": {
+   "sha256": "6cf5864b68e628b77741403ef5c829be9523afb2f5d7d6cb099786f5daa9e7a0",
+   "bytes": 906
+  }
+ },
+ "installsOver": [
+  "546"
+ ],
+ "physicalDeviceTested": false,
+ "fpsClaimed": false
+}
