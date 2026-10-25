@@ -1,0 +1,299 @@
+{
+  "build": 537,
+  "source": "961c37f158fc387b2fec418b794cb6e456fadf04",
+  "run": 40189073057,
+  "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40189073057",
+  "jobs": [
+    {
+      "id": 121156104295,
+      "name": "checks",
+      "conclusion": "success"
+    },
+    {
+      "id": 121156168272,
+      "name": "Release device build \u2022 cold",
+      "conclusion": "success"
+    }
+  ],
+  "downloadedIPA": {
+    "result": "passed",
+    "file": "RewindBox-Build537.ipa",
+    "bytes": 186335595,
+    "sha256": "5ce75c454214c99ff24d4b4241944b84124dc56260a9d818eb191642755cf724",
+    "build": "537",
+    "version": "0.0.8",
+    "minimumIOS": "18.0",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "source": "961c37f158fc387b2fec418b794cb6e456fadf04",
+    "coreSource": "23d92f17d0df716151ef136e64453fe774e8b6c7",
+    "coreSHA256": "88ecbcd88d3a902e831d90203329f8b6a2adb67afaceee98d9872fd5faaa7b0f",
+    "verifiedSignatureCount": 87,
+    "signing": "SideStore re-signing",
+    "physicalDeviceTested": false
+  },
+  "engine": {
+    "source": "23d92f17d0df716151ef136e64453fe774e8b6c7",
+    "run": 40188516292,
+    "artifact": {
+      "id": 12596912782,
+      "name": "MeloNX-engine-23d92f17d0df716151ef136e64453fe774e8b6c7",
+      "size_in_bytes": 102286208,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12596912782",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12596912782/zip",
+      "expired": false,
+      "created_at": "2026-10-25T11:33:28Z",
+      "expires_at": "2026-11-08T11:33:21Z",
+      "updated_at": "2026-10-25T11:33:28Z",
+      "digest": "sha256:105deaf3e9c6df578190e5671e5a54c613dcea7e7c927b3e5674bad7cda91a8a",
+      "workflow_run": {
+        "id": 40188516292,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "23d92f17d0df716151ef136e64453fe774e8b6c7"
+      }
+    }
+  },
+  "host": {
+    "source": "94ae1314f653a4eb76f8020660273a9faf1b0680",
+    "run": 40187994797,
+    "artifact": {
+      "id": 12597071628,
+      "name": "MeloNX-host-94ae1314f653a4eb76f8020660273a9faf1b0680",
+      "size_in_bytes": 3516,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12597071628",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12597071628/zip",
+      "expired": false,
+      "created_at": "2026-10-25T11:22:02Z",
+      "expires_at": "2026-11-08T11:22:02Z",
+      "updated_at": "2026-10-25T11:22:02Z",
+      "digest": "sha256:169235e5e7b6eb0e41fc5c400bd9a21f2888630c0870721e378a34e1ba0f6a8e",
+      "workflow_run": {
+        "id": 40187994797,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "94ae1314f653a4eb76f8020660273a9faf1b0680"
+      }
+    }
+  },
+  "transport": [
+    {
+      "id": 12597910294,
+      "name": "RewindBox-Build537-961c37f158fc387b2fec418b794cb6e456fadf04-cold-part00",
+      "size_in_bytes": 46658542,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12597910294",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12597910294/zip",
+      "expired": false,
+      "created_at": "2026-10-25T11:45:01Z",
+      "expires_at": "2026-11-08T11:44:59Z",
+      "updated_at": "2026-10-25T11:45:01Z",
+      "digest": "sha256:94f6008d6fbac0540064a79d43b1e0516af4d0812913477372d8949826b75699",
+      "workflow_run": {
+        "id": 40189073057,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "961c37f158fc387b2fec418b794cb6e456fadf04"
+      }
+    },
+    {
+      "id": 12597644127,
+      "name": "RewindBox-Build537-961c37f158fc387b2fec418b794cb6e456fadf04-cold-part01",
+      "size_in_bytes": 46658542,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12597644127",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12597644127/zip",
+      "expired": false,
+      "created_at": "2026-10-25T11:45:02Z",
+      "expires_at": "2026-11-08T11:45:01Z",
+      "updated_at": "2026-10-25T11:45:02Z",
+      "digest": "sha256:c5342910298cff6da157d02ef5653f9198f10923b2db65042d7d191f2104b37d",
+      "workflow_run": {
+        "id": 40189073057,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "961c37f158fc387b2fec418b794cb6e456fadf04"
+      }
+    },
+    {
+      "id": 12597940287,
+      "name": "RewindBox-Build537-961c37f158fc387b2fec418b794cb6e456fadf04-cold-part02",
+      "size_in_bytes": 46658542,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12597940287",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12597940287/zip",
+      "expired": false,
+      "created_at": "2026-10-25T11:45:04Z",
+      "expires_at": "2026-11-08T11:45:02Z",
+      "updated_at": "2026-10-25T11:45:04Z",
+      "digest": "sha256:8361b7738f6b15e74fad258550934c079cc3e44940e8efb99ddfb2a4bdbe0920",
+      "workflow_run": {
+        "id": 40189073057,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "961c37f158fc387b2fec418b794cb6e456fadf04"
+      }
+    },
+    {
+      "id": 12597619394,
+      "name": "RewindBox-Build537-961c37f158fc387b2fec418b794cb6e456fadf04-cold-part03",
+      "size_in_bytes": 46658542,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12597619394",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12597619394/zip",
+      "expired": false,
+      "created_at": "2026-10-25T11:45:05Z",
+      "expires_at": "2026-11-08T11:45:04Z",
+      "updated_at": "2026-10-25T11:45:05Z",
+      "digest": "sha256:6ee2c1abfa85504332bf804660e1f25ee96ebe5a4a61e2eb76a0ee8741d272a4",
+      "workflow_run": {
+        "id": 40189073057,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "961c37f158fc387b2fec418b794cb6e456fadf04"
+      }
+    }
+  ],
+  "verification": {
+    "structure": {
+      "ipa": "RewindBox-Build537.ipa",
+      "bytes": 186335595,
+      "sha256": "5ce75c454214c99ff24d4b4241944b84124dc56260a9d818eb191642755cf724",
+      "zipIntegrity": "passed",
+      "mainApplicationCount": 1,
+      "networkExtensionDependencyPresent": false,
+      "systemDependenciesOnDevice": "OS-provided; runtime dyld validation still requires an iOS device",
+      "signatureState": "main contains a code signature; certificate trust not tested",
+      "deviceLaunchValidated": false,
+      "structuralValidation": "passed"
+    },
+    "rpcs3": {
+      "result": "passed",
+      "build": 537,
+      "ipaSHA256": "5ce75c454214c99ff24d4b4241944b84124dc56260a9d818eb191642755cf724",
+      "coreSource": "d712d5e9cbac256c6677adf7c161ea36b69ba835",
+      "coreRun": 40185694306,
+      "sourceArtifactSHA256": "eeca76e114e8c8a6c848ce758f0f02f73237bb52885766292894bb11b010b169",
+      "compiledCorePayloadFingerprint": "5396abd679194bd173e09c484ba95ef242df050f9e33e96d62e86da96ad2161e",
+      "sharedCompilerBrokerLinked": true,
+      "optionalCoreBinderLinked": true,
+      "productionMinimalSPULinkerEnabled": false,
+      "physicalDeviceTested": false,
+      "physicalPerformanceMeasured": false,
+      "gow3BootAndVmaSourceVerified": true
+    },
+    "melonx": {
+      "result": "passed",
+      "build": "537",
+      "engineExportsVerified": 43,
+      "privateFrameworks": [
+        "MeloNXAvCodec",
+        "MeloNXAvUtil",
+        "MeloNXCore",
+        "MeloNXJitSupport",
+        "MeloNXMoltenVK",
+        "MeloNXSDL3"
+      ],
+      "nativeSourceNoticesVerified": 26,
+      "registeredFlutterBridge": true,
+      "gameplayTested": false,
+      "deviceInstallationTested": false
+    },
+    "importedUpdateTargetIndependentOfHighlight": true,
+    "localFlutterCases": 12,
+    "localFlutterSource": "753bbdb1d11c22746bd3bb32eff51d5b58957616",
+    "negativeControl": "The prior widget sends the highlighted title instead of recognizing the package; the same test fails before the final widget change.",
+    "appleSchedulingReports": [
+      {
+        "result": "passed",
+        "control": true,
+        "assertions": 1,
+        "underflowFrames": 720,
+        "physicalDeviceTested": false,
+        "avFoundationDouble": true
+      },
+      {
+        "result": "passed",
+        "control": false,
+        "assertions": 21,
+        "underflowFrames": 0,
+        "physicalDeviceTested": false,
+        "avFoundationDouble": true
+      }
+    ],
+    "audioOwnership": "PASS 11 production audio ownership assertions; AVAudioSession double, no iPhone audio claim",
+    "actualRuntime": {
+      "actualCoreDonatedBackingSessions": 2,
+      "actualDarwinThreeArgumentHandlersVerified": true,
+      "actualKeyImportABIValidated": true,
+      "actualNativeAOT": true,
+      "actualNativeLaunchJournalWritten": true,
+      "actualSimulatorCodeArenaVerified": true,
+      "displayAndMemoryConfigurationAccepted": true,
+      "donorProcessUsedInSmoke": false,
+      "gameplayTested": false,
+      "graphicsAccepted": true,
+      "homebrewProducesVideo": false,
+      "homebrewSimulatorSessions": 2,
+      "initializationAndIdempotency": true,
+      "invalidContentRejected": true,
+      "invalidGraphicsCodePreserved": true,
+      "invalidGuestRejected": true,
+      "invalidSaveAssociationRejected": true,
+      "iphoneGuestExecutionTested": false,
+      "jitTested": false,
+      "keyRefusalCodePreserved": true,
+      "keyUnknownEntryAccepted": true,
+      "missingKeysRejectedBeforeGuest": true,
+      "mixedInvalidKeySizeAccepted": true,
+      "originalHomebrewGuestSvcConfirmed": true,
+      "personalKeysUsed": false,
+      "result": "passed",
+      "storageProfilesRecognized": true,
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+      "coreSha256": "d48052bc3a213ad8c5d85330da4ad7c329afb4f76bf11f89bff6808d87e0af8b",
+      "inputs": {
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "1c633f4c9767f566e350353fd98296dce92d6f14c1f3cd4fdb4276e83489a615",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "81ae89813c459db4b3a7f2010bf8ec0986cfb9bcbbbd36e925cd0b473dae3020",
+        "test/melonx_runtime_smoke.py": "36f497df0adf8655e4988135876fc0a649068b8900e6fc064f7b47ae9a1d46d2"
+      }
+    }
+  },
+  "historicalGuardFailures": {
+    "source": "94ae1314f653a4eb76f8020660273a9faf1b0680",
+    "navigation": {
+      "run": 40187994795,
+      "job": 121152780553,
+      "phase": "Require only the requested interface changes",
+      "reason": "Historical Build512 scope guard rejects all changes since its old baseline, including already-delivered builds."
+    },
+    "retirement": {
+      "run": 40187994810,
+      "job": 121152780292,
+      "phase": "Protect unchanged libraries, the remaining JIT helpers and routing",
+      "paths": [
+        "lib/main.dart",
+        "lib/screens/systems_screen/system_content.dart",
+        "native/neoswap-storage/FrameClient.h",
+        "native/neoswap-storage/SourceArchive.cpp",
+        "native/neoswap-storage/SourceClient.cpp",
+        "native/neoswap-storage/Store.cpp",
+        "native/neoswap-storage/Store.h",
+        "native/neoswap-storage/tests/frame_archive_test.cpp",
+        "native/neoswap-storage/tests/source_archive_test.cpp",
+        "native/neoswap-storage/tests/source_work_test.cpp"
+      ],
+      "reason": "Build419/earlier core identity expectations differ from the retained Build536 baseline.",
+      "allFailedInputsIdenticalTo536": true
+    }
+  },
+  "supersededDeliveryRuns": [
+    40188196095,
+    40188555431,
+    40188754706
+  ],
+  "publication": "Private test IPA; no release or main update.",
+  "physicalDeviceTested": false,
+  "audioQualityMeasuredOnIPhone": false
+}
