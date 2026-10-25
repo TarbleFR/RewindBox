@@ -15,15 +15,23 @@ Binary-source, funding and combined-license findings remain open.
 
 ## Current release and license review
 
-The current published GitHub release is
-[RewindBox 0.0.8 / Build 480](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.8).
-Its [source and packaging record](RELEASE_0.0.8_SOURCE_MANIFEST.md) identifies the
-compiled build and the later release packaging. The
-[next-release license preparation](RELEASE_NEXT_LICENSE_REVIEW.md) covers the
-subsequent additions on `Claude`; no new release is published by that work.
-The [Build 455 review](RELEASE_0.0.7_LICENSE_REVIEW.md) remains historical.
-Credits and license-text presence do not alone provide exact Corresponding
-Source for every bundled binary or resolve combined-license questions.
+The latest published GitHub release is
+[**fix 0.0.9 / Build 530**](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1),
+with the [published IPA](https://github.com/TarbleFR/RewindBox/releases/download/0.0.9-fix.1/RewindBox-Build530.ipa).
+Its [release-specific source and package manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)
+identifies the compiled host revision, pinned native engines, successful
+delivery run and known rights/provenance limits. The former
+[`0.0.9` / Build 527](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9)
+is a separate, preserved release.
+
+Build 530 has a GitHub release title `fix 0.0.9` and an internal iOS
+version field of **0.0.8**. The older [Build 480 source
+record](RELEASE_0.0.8_SOURCE_MANIFEST.md) and
+[21 October preparation review](RELEASE_NEXT_LICENSE_REVIEW.md) remain historical,
+not claims about the current published binary. The
+[Build 455 review](RELEASE_0.0.7_LICENSE_REVIEW.md) also remains historical.
+Credit and license-text presence do **not** alone establish exact Corresponding
+Source or rights clearance for every bundled binary.
 
 The [second source-rights review, 18 October 2026](SOURCE_RIGHTS_REVIEW_2026-10-18.md)
 also examines the development catalogue and the actual private Build 479 IPA.
@@ -54,7 +62,7 @@ physical memory or circumvent Apple's resource enforcement.
 
 | Component | Authors / upstream | License / redistribution note |
 | --- | --- | --- |
-| **Embedded Libretro cores** | Libretro/RetroArch and the individual emulator authors in [the core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) | Each of the 35 current development cores keeps its own license; public 0.0.8 / Build 480 contained 34. Mesen is the optional additional NES engine, licensed under GPLv3. |
+| **Embedded Libretro cores** | Libretro/RetroArch and the individual emulator authors in [the core inventory](../assets/legal/libretro/LIBRETRO_CORES.md) | All 35 Libretro cores in Build 530 keep their own license; public 0.0.8 / Build 480 contained 34. Mesen is the optional additional NES engine, licensed under GPLv3. |
 | **Dolphin / DolphiniOS** | Dolphin Emulator contributors; OatmealDome and DolphiniOS contributors | Most original Dolphin code is GPL-2.0-or-later. The exact fork states the aggregate repository is GPLv3-compatible; per-file SPDX and `LICENSES/` remain authoritative. |
 | **RPCS3 / XITRIX iOS fork** | RPCS3 contributors; XITRIX; upstream work credited by XITRIX including ARMSX3 and the iOS JIT community | The pinned XITRIX/rpcs3 source contains the RPCS3 GPL-2.0-only `LICENSE`. No relicensing by RewindBox is claimed. Preserve file-specific notices and third-party licenses. |
 | **ARMSX2 / PCSX2** | ARMSX2 team and contributors; PCSX2 contributors | ARMSX2 distributes GPLv3 material and derives from PCSX2. Preserve the exact upstream notices and per-component licenses. |
@@ -75,23 +83,37 @@ See [RELEASE_0.0.1_SOURCE_MANIFEST.md](RELEASE_0.0.1_SOURCE_MANIFEST.md). That
 file records the exact RewindBox packaging commit, workflow artifact identity
 and pinned upstream revisions used for the published Build 350 IPA.
 
-## MeloNX / Ryujinx — development sources, not a released engine
+## MeloNX / Ryujinx — embedded engine in Build 530
 
-The external MeloNX integration has been retired on `Claude`. Embedded work
-uses [MeloNX at 13700519f3](https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67),
-with the exact LibHac and Melo-Controller revisions in
-[source.json](../build-utils/melonx/source.json). Credit MeloNX contributors,
-stossy11, Ryujinx/Ryubing contributors, LibHac contributors and the separate
-Melo-Controller authors.
+**MeloNX is now embedded** in the
+[fix 0.0.9 / Build 530](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1)
+IPA. The old external MeloNX handoff is not part of this distribution.
+The pinned upstream source is
+[MeloNX at `13700519f3`](https://starforgejo.dev/projects/MeloNX/src/commit/13700519f3abc4e6d7ed8a065b118b2cc59bcd67);
+the reconstructed LibHac revision and Melo-Controller reference are recorded
+in [source.json](../build-utils/melonx/source.json).
+The corrected embedded NativeAOT Core is identified by RewindBox source
+[`ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12`](https://github.com/TarbleFR/RewindBox/tree/ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12)
+and its [successful engine run](https://github.com/TarbleFR/RewindBox/actions/runs/40152134234).
+The iOS-only Vulkan adaptation disables direct host-memory import after the
+reported `ErrorFeatureNotPresent` failure and retains the fallback GPU
+readback path. Automated simulator tests passed; physical iPhone gameplay
+stability remains unverified.
 
-The pinned root MIT notice, upstream third-party notices and controller GPLv3
-text are preserved under [assets/legal/melonx](../assets/legal/melonx/).
-The engine README also states GPLv3, which conflicts with assigning a blanket
-MIT label to the complete project. Its committed native dependencies still
-need matching source and build/license evidence. These files are staged
-reference notices; they are not evidence that a Switch runtime is packaged,
-redistributable as a whole or playable in RewindBox. See the
-[integration audit](melonx-embedded-integration-2026-10-20.md).
+Credit MeloNX authors, stossy11, Ryujinx/Ryubing contributors, LibHac
+contributors and the separate Melo-Controller authors. Original licenses,
+controller notice and dependency references are preserved under
+[assets/legal/melonx](../assets/legal/melonx/) and inside the distributed
+IPA's `Legal/MeloNX/` folder.
+
+**Open source/rights boundary:** the upstream project contains a mixture of
+MIT/GPL declarations, and the reconstructed LibHac package is not asserted to
+be byte-equivalent to the historical unavailable NuGet package. The complete
+native dependency/source and combined-work license evidence remains subject
+to the [corresponding-source audit](ENGINE_CORRESPONDING_SOURCES.md) and
+[current Build 530 release manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md).
+An embedded runtime and copied notices are **not** a blanket grant of
+redistribution rights.
 
 ## External integrations
 
