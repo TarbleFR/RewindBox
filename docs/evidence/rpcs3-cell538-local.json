@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "sanitized": true,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "results": {
+    "beforeBodySHA256": "65233e380dc223aa1d3cf35d5812023d2d1f2b55acbf1d362075b774c93c716a",
+    "afterBodySHA256": "703e1684c4bb38f631badee0da77d4a24b89463058d7ead3f3edea407b320224",
+    "probe": {
+      "beforeExtraOpenAttempts": 10306,
+      "afterExtraOpenAttempts": 0,
+      "misses": 5153,
+      "beforeHostMs": 40.6912,
+      "afterHostMs": 0.433311
+    },
+    "rpcs3_shader_stall538": "PASS bounded slow-operation records: threshold, overflow, concurrent accounting, real Scope; bytes=824",
+    "rpcs3_shader_configuration536": "",
+    "rpcs3_shader_timing534": "PASS actual bounded shader counters: 40000 concurrent events, failure unwinding, all stages, drain"
+  },
+  "scope": "Actual getObject body with LLVM adapters and real filesystem misses; actual shader headers under concurrent producers. Host adapter timings with sanitizers do not measure iPhone gains or compilation cost."
+}

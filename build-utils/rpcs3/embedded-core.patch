@@ -1226,7 +1226,7 @@ index 0d19acc..4717823 100644
  static_assert(arena_prepare_chunk_length(17 * mib, 0) == 16 * mib);
  static_assert(arena_prepare_chunk_length(17 * mib, 1) == 1 * mib);
 diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
-index 863624e..87b2daf 100644
+index 863624e..f254747 100644
 --- a/Utilities/JITLLVM.cpp
 +++ b/Utilities/JITLLVM.cpp
 @@ -9,10 +9,14 @@
@@ -1641,7 +1641,7 @@ index 863624e..87b2daf 100644
  			return buf;
  		}
  
-@@ -738,11 +907,33 @@ public:
+@@ -738,11 +907,42 @@ public:
  
  	std::unique_ptr<llvm::MemoryBuffer> getObject(const llvm::Module* _module) override
  	{
@@ -1655,6 +1655,15 @@ index 863624e..87b2daf 100644
 +
 +			jit_log.notice("LLVM: Loaded module: %s", _module->getName().data());
 +			return std::move(m_preloaded);
++		}
++
++		// CELL538_SPU_CACHE_PROBE: try_add_cached receives the result of the
++		// validated probe made before IR construction, including a cache miss.
++		// Do not repeat disk I/O or accept an unbound file appearing mid-build.
++		// The ordinary PPU cache path below still performs its own lookup.
++		if (m_spu)
++		{
++			return nullptr;
 +		}
 +
  		std::string path = m_path;
@@ -1675,7 +1684,7 @@ index 863624e..87b2daf 100644
  			jit_log.notice("LLVM: Loaded module: %s", _module->getName().data());
  			return buf;
  		}
-@@ -751,6 +942,123 @@ public:
+@@ -751,6 +951,123 @@ public:
  	}
  };
  
@@ -1799,7 +1808,7 @@ index 863624e..87b2daf 100644
  std::string jit_compiler::cpu(std::string_view _cpu)
  {
  	std::string m_cpu = std::string(_cpu);
-@@ -885,6 +1193,17 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -885,6 +1202,17 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  	: m_context(new llvm::LLVMContext)
  	, m_cpu(cpu(_cpu))
  {
@@ -1817,7 +1826,7 @@ index 863624e..87b2daf 100644
  	[[maybe_unused]] static const bool s_install_llvm_error_handler = []()
  	{
  		llvm::remove_fatal_error_handler();
-@@ -904,6 +1223,26 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -904,6 +1232,26 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  		return true;
  	}();
  
@@ -1844,7 +1853,7 @@ index 863624e..87b2daf 100644
  	std::string result;
  
  	auto null_mod = std::make_unique<llvm::Module> ("null_", *m_context);
-@@ -929,38 +1268,7 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -929,38 +1277,7 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  		mem = std::make_unique<MemoryManager1>(std::move(symbols_cement));
  	}
  
@@ -1884,7 +1893,7 @@ index 863624e..87b2daf 100644
  
  	{
  		m_engine.reset(llvm::EngineBuilder(std::move(null_mod))
-@@ -1030,7 +1338,10 @@ void jit_compiler::add(std::unique_ptr<llvm::Module> _module, const std::string&
+@@ -1030,7 +1347,10 @@ void jit_compiler::add(std::unique_ptr<llvm::Module> _module, const std::string&
  
  	const auto ptr = _module.get();
  	m_engine->addModule(std::move(_module));
@@ -1896,7 +1905,7 @@ index 863624e..87b2daf 100644
  	m_engine->setObjectCache(nullptr);
  
  	for (auto& func : ptr->functions())
-@@ -1050,6 +1361,7 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
+@@ -1050,6 +1370,7 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
  
  	if (!run_recoverable_llvm([&]()
  	{
@@ -1904,7 +1913,7 @@ index 863624e..87b2daf 100644
  		m_engine->generateCodeForModule(ptr);
  	}, error))
  	{
-@@ -1068,6 +1380,73 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
+@@ -1068,6 +1389,73 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
  	return true;
  }
  
@@ -1978,7 +1987,7 @@ index 863624e..87b2daf 100644
  void jit_compiler::add(std::unique_ptr<llvm::Module> _module)
  {
  	const auto ptr = _module.get();
-@@ -1106,7 +1485,14 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, std::string& e
+@@ -1106,7 +1494,14 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, std::string& e
  
  bool jit_compiler::add(const std::string& path)
  {
@@ -1993,7 +2002,7 @@ index 863624e..87b2daf 100644
  
  	if (!cache)
  	{
-@@ -1114,6 +1500,8 @@ bool jit_compiler::add(const std::string& path)
+@@ -1114,6 +1509,8 @@ bool jit_compiler::add(const std::string& path)
  		return false;
  	}
  
@@ -2002,7 +2011,7 @@ index 863624e..87b2daf 100644
  	if (auto object_file = llvm::object::ObjectFile::createObjectFile(*cache))
  	{
  		m_engine->addObjectFile(llvm::object::OwningBinary<llvm::object::ObjectFile>(std::move(*object_file), std::move(cache)));
-@@ -1122,26 +1510,43 @@ bool jit_compiler::add(const std::string& path)
+@@ -1122,26 +1519,43 @@ bool jit_compiler::add(const std::string& path)
  	}
  	else
  	{
@@ -2966,10 +2975,10 @@ index 9b6c752..e53815e 100644
  	std::atomic_bool m_operational = false;
  };
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index 9bb3ea1..d68d4b4 100644
+index 9bb3ea1..f48435a 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
-@@ -25,6 +25,100 @@ if(USE_LTO)
+@@ -25,6 +25,103 @@ if(USE_LTO)
      set_target_properties(rpcs3_emu PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
  endif()
  
@@ -2985,6 +2994,7 @@ index 9bb3ea1..d68d4b4 100644
 +# the LLVM release and the JIT target features in the PPU object cache name, so
 +# a changed Core never reuses objects built by another one; it recompiles once.
 +if(RPCS3_FRONTEND STREQUAL "IOS")
++    include("${CMAKE_CURRENT_SOURCE_DIR}/CPU/JITCacheCompatibility.cmake")
 +    set(NEOSTATION_PPU_CODEGEN_DIGEST "")
 +    foreach(NEOSTATION_PPU_CODEGEN_SOURCE IN ITEMS
 +        Cell/PPUTranslator.cpp
@@ -3009,6 +3019,7 @@ index 9bb3ea1..d68d4b4 100644
 +        ../../Utilities/JITPhaseProfile.h
 +        ../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp)
 +        file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/${NEOSTATION_PPU_CODEGEN_SOURCE}" NEOSTATION_PPU_CODEGEN_FILE_SHA256)
++        neostation_codegen_compatible_hash("${NEOSTATION_PPU_CODEGEN_SOURCE}" "${NEOSTATION_PPU_CODEGEN_FILE_SHA256}" NEOSTATION_PPU_CODEGEN_FILE_SHA256)
 +        string(APPEND NEOSTATION_PPU_CODEGEN_DIGEST "${NEOSTATION_PPU_CODEGEN_SOURCE}:${NEOSTATION_PPU_CODEGEN_FILE_SHA256};")
 +    endforeach()
 +    string(SHA256 NEOSTATION_PPU_CODEGEN_ID "${NEOSTATION_PPU_CODEGEN_DIGEST}")
@@ -3059,6 +3070,7 @@ index 9bb3ea1..d68d4b4 100644
 +        ../ios/NeoSwapCompilerAPI.h
 +        ../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp)
 +        file(SHA256 "${CMAKE_CURRENT_SOURCE_DIR}/${NEOSTATION_SPU_CODEGEN_SOURCE}" NEOSTATION_SPU_CODEGEN_FILE_SHA256)
++        neostation_codegen_compatible_hash("${NEOSTATION_SPU_CODEGEN_SOURCE}" "${NEOSTATION_SPU_CODEGEN_FILE_SHA256}" NEOSTATION_SPU_CODEGEN_FILE_SHA256)
 +        string(APPEND NEOSTATION_SPU_CODEGEN_DIGEST "${NEOSTATION_SPU_CODEGEN_SOURCE}:${NEOSTATION_SPU_CODEGEN_FILE_SHA256};")
 +    endforeach()
 +    string(SHA256 NEOSTATION_SPU_CODEGEN_ID "${NEOSTATION_SPU_CODEGEN_DIGEST}")
@@ -3070,7 +3082,7 @@ index 9bb3ea1..d68d4b4 100644
  if(USE_ASAN)
      set_source_files_properties(../../Utilities/Thread.cpp PROPERTIES COMPILE_DEFINITIONS USE_ASAN)
  endif()
-@@ -100,7 +194,12 @@ if(APPLE)
+@@ -100,7 +197,12 @@ if(APPLE)
  endif()
  
  if(RPCS3_FRONTEND STREQUAL "IOS")
@@ -3083,7 +3095,7 @@ index 9bb3ea1..d68d4b4 100644
          Io/IOS/IOSPadHandler.cpp
          Io/IOS/IOSPadHandler.h
          ../../Utilities/JITArenaAllocator.h
-@@ -721,9 +820,14 @@ if(TARGET 3rdparty_vulkan)
+@@ -721,9 +823,14 @@ if(TARGET 3rdparty_vulkan)
  
      if(RPCS3_FRONTEND STREQUAL "IOS")
          target_sources(rpcs3_emu PRIVATE
@@ -3292,6 +3304,25 @@ index e11a275..353f459 100644
  	template <typename T1, typename T2>
  	value_t<u8[16]> tbl(T1 a, T2 b)
  	{
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+new file mode 100644
+index 0000000..1724808
+--- /dev/null
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -0,0 +1,13 @@
++# CELL538: the exact reviewed JITLLVM change only suppresses a second SPU
++# cache probe after a validated miss. It changes neither generated objects nor
++# their ABI. Preserve the 536 identity for this exact source snapshot only.
++# Unknown paths or future file changes retain their actual hash and invalidate
++# the cache normally. Never alias older reservation implementations to 536.
++function(neostation_codegen_compatible_hash source actual output)
++    if(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
++       actual STREQUAL "d7094a664f5b59510e518e09e115a01ec0c1cd899d2550dab324b5e925a02fc9")
++        set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
++    else()
++        set(${output} "${actual}" PARENT_SCOPE)
++    endif()
++endfunction()
 diff --git a/rpcs3/Emu/Cell/Modules/cellAudio.cpp b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
 index 557c7ef..4ff7c51 100644
 --- a/rpcs3/Emu/Cell/Modules/cellAudio.cpp
@@ -21266,15 +21297,18 @@ index 0000000..433344e
 +}
 diff --git a/rpcs3/ios/IOSShaderTiming.h b/rpcs3/ios/IOSShaderTiming.h
 new file mode 100644
-index 0000000..1e57b1f
+index 0000000..14e25b0
 --- /dev/null
 +++ b/rpcs3/ios/IOSShaderTiming.h
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,123 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
 +#include "IOSRuntimeMetrics.h"
++#include <array>
++#include <atomic>
 +#include <chrono>
++#include <cstdint>
 +#include <mutex>
 +
 +namespace rpcs3::ios::shader_timing
@@ -21284,6 +21318,46 @@ index 0000000..1e57b1f
 +// Fixed process-wide storage, no allocation, no logs and no emulation choices.
 +enum class Stage : std::size_t { source, module, graphics, compute, debug_source, count };
 +inline std::array<diagnostics::EventCost, static_cast<std::size_t>(Stage::count)> costs{};
++
++// CELL538: operation boundaries permit alignment with guest-flip intervals.
++// Fixed 32-entry storage; producers never wait for the reporter or each other.
++// Slow startup bursts may overflow: every rejected record is counted.
++struct SlowOperation { Stage stage{}; std::uint64_t begin_us = 0, end_us = 0; };
++class SlowOperations final
++{
++    std::mutex mutex_;
++    std::array<SlowOperation, 32> events_{};
++    std::size_t size_ = 0;
++    std::atomic<std::uint64_t> dropped_{0};
++public:
++    struct Snapshot
++    {
++        std::array<SlowOperation, 32> events{};
++        std::size_t size = 0;
++        std::uint64_t dropped = 0;
++        bool captured = false;
++    };
++    void record(Stage stage, std::uint64_t begin_us, std::uint64_t end_us) noexcept
++    {
++        if (end_us < begin_us || end_us - begin_us < 50'000) return;
++        std::unique_lock lock(mutex_, std::try_to_lock);
++        if (!lock || size_ == events_.size())
++        {
++            dropped_.fetch_add(1, std::memory_order_relaxed);
++            return;
++        }
++        events_[size_++] = {stage, begin_us, end_us};
++    }
++    Snapshot take() noexcept
++    {
++        std::unique_lock lock(mutex_, std::try_to_lock);
++        if (!lock) return {};
++        Snapshot result{events_, size_, dropped_.exchange(0, std::memory_order_relaxed), true};
++        size_ = 0;
++        return result;
++    }
++};
++inline constinit SlowOperations slow_operations;
 +
 +// CELL536: retain the renderer's actual configuration in periodic evidence.
 +// Fixed storage, no renderer dereference, no lock on a frame/compile path.
@@ -21331,8 +21405,15 @@ index 0000000..1e57b1f
 +    Scope& operator=(const Scope&) = delete;
 +    ~Scope() noexcept
 +    {
-+        const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - begin_).count();
++        const auto end = Clock::now();
++        const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - begin_).count();
 +        costs[static_cast<std::size_t>(stage_)].record(static_cast<std::uint64_t>(std::max<std::int64_t>(elapsed, 0)));
++        if (elapsed >= 50'000)
++        {
++            slow_operations.record(stage_,
++                std::chrono::duration_cast<std::chrono::microseconds>(begin_.time_since_epoch()).count(),
++                std::chrono::duration_cast<std::chrono::microseconds>(end.time_since_epoch()).count());
++        }
 +    }
 +};
 +
@@ -25513,7 +25594,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..8b8d6b8 100644
+index d800542..5af51e8 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,176 @@
@@ -26104,7 +26185,7 @@ index d800542..8b8d6b8 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +614,548 @@ public:
+@@ -108,12 +614,566 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -26342,6 +26423,24 @@ index d800542..8b8d6b8 100644
 +                shader[2].count, shader[2].total, shader[2].maximum,
 +                shader[3].count, shader[3].total, shader[3].maximum,
 +                shader[4].count, shader[4].total, shader[4].maximum);
++        }
++        {
++            const auto slow = rpcs3::ios::shader_timing::slow_operations.take();
++            ios_core_profiler.notice(
++                "COREPROF SHADERSTALL538 session=%llu window=%llu captured=%u retained=%llu dropped=%llu "
++                "capacity=32 threshold_us=50000 clock=steady_clock report_steady_us=%llu scope=process_completed_operations",
++                profile_session, profile_window, slow.captured ? 1u : 0u,
++                static_cast<u64>(slow.size), slow.dropped,
++                static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(sample_clock::now().time_since_epoch()).count()));
++            for (std::size_t i = 0; i < slow.size; ++i)
++            {
++                const auto& event = slow.events[i];
++                ios_core_profiler.notice(
++                    "COREPROF SHADERSTALL538_EVENT stage=%u begin_us=%llu end_us=%llu duration_us=%llu "
++                    "scope=process_operation report_session=%llu report_window=%llu",
++                    static_cast<u32>(event.stage), event.begin_us, event.end_us,
++                    event.end_us - event.begin_us, profile_session, profile_window);
++            }
 +        }
 +        // Fence scope excludes wait_flush(); range scope is one whole episode;
 +        // semaphore measures guest semaphore polling; admission is host-budget wait.
@@ -26655,7 +26754,7 @@ index d800542..8b8d6b8 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1163,91 @@ private:
+@@ -121,6 +1181,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -26747,7 +26846,7 @@ index d800542..8b8d6b8 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1255,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1273,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -26835,7 +26934,7 @@ index d800542..8b8d6b8 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1346,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1364,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -26964,7 +27063,7 @@ index d800542..8b8d6b8 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1477,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1495,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
