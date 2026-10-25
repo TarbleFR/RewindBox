@@ -1,0 +1,42 @@
+name: Audit Claude-main merge for fix 0.0.9
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/audit-claude-main-merge.yml
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Examine exact main vs Claude merge and conflicting paths
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          echo "=== CLAIMED HEADS ==="
+          git rev-parse HEAD
+          git rev-parse origin/main
+          echo "=== THREE-WAY MERGE DRY RUN ==="
+          set +e
+          git -c user.name='RewindBox CI' -c user.email='build@users.noreply.github.com' merge --no-commit --no-ff origin/main > merge-attempt.log 2>&1
+          status=$?
+          set -e
+          cat merge-attempt.log
+          echo "=== RESULT CODE $status ==="
+          echo "=== UNMERGED PATHS ==="
+          git diff --name-only --diff-filter=U
+          echo "=== UNMERGED COUNT ==="
+          git diff --name-only --diff-filter=U | wc -l
+          echo "=== CONFLICT MARKERS IN IMPORTANT FILES ==="
+          for f in README.md NOTICE.md SECURITY.md docs/REBRANDING.md .github/workflows/retroarch-delivery.yml; do
+            if [ -f "$f" ] && grep -q '^<<<<<<< ' "$f"; then
+              echo "$f CONFLICT"; sed -n '1,65p' "$f"
+            fi
+          done
+          if [ -f .git/MERGE_HEAD ]; then git merge --abort; fi
