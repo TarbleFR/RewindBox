@@ -2,6 +2,38 @@
 from adapt_session import once, section
 
 
+def disable_ios_host_import(source):
+    """Use the existing texture readback buffer on iOS instead of MoltenVK host imports.
+
+    On the Build 529 iPhone session, VK_EXT_external_memory_host is advertised,
+    but vkCreateBuffer with HOST_ALLOCATION_BIT_EXT returns ErrorFeatureNotPresent
+    during TextureGroup.FlushIntoBuffer. The guest then loses its render worker.
+    Do not change the behavior of macOS/Linux/Windows renderers.
+    """
+    initialization = source / 'src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs'
+    renderer = source / 'src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs'
+    texture_group = source / 'src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs'
+
+    # Ensure the pinned guest already contains the correct copy/readback path.
+    fallback = texture_group.read_text(encoding='utf-8-sig')
+    assert fallback.count('CreateBuffer((int)Storage.Size, BufferAccess.HostMemory)') == 1
+    assert fallback.count('_flushBufferImported = false;') >= 1
+
+    # Do not enable an extension on MoltenVK that is never safe to use here.
+    # MoltenVK may expose it even when host-import buffer creation later fails.
+    once(initialization,
+         '            string[] enabledExtensions = _requiredExtensions.Union(_desirableExtensions.Intersect(physicalDevice.DeviceExtensions)).ToArray();',
+         '''            string[] enabledExtensions = _requiredExtensions.Union(
+                _desirableExtensions.Intersect(physicalDevice.DeviceExtensions)
+                    .Where(extension => !OperatingSystem.IsIOS() || extension != ExtExternalMemoryHost.ExtensionName)).ToArray();''')
+    # A physical device can advertise an extension that was deliberately not
+    # enabled. Mask the capability too, so TextureGroup takes its proven
+    # ordinary BufferAccess.HostMemory fallback rather than CreateHostImported.
+    once(renderer,
+         '                _physicalDevice.IsDeviceExtensionPresent(ExtExternalMemoryHost.ExtensionName),',
+         '                !OperatingSystem.IsIOS() && _physicalDevice.IsDeviceExtensionPresent(ExtExternalMemoryHost.ExtensionName),')
+    return [initialization, renderer]
+
 def apply(source):
     project = source / 'src/Ryujinx.Library/Ryujinx.Library.csproj'
     once(project, '<RuntimeIdentifiers>ios-arm64</RuntimeIdentifiers>',
@@ -135,4 +167,5 @@ def apply(source):
                 context.Return();
                 context.MarkLabel(callPrevious);
             }''')
-    return [project, library, ffmpeg, vk, memory, translator, cache, registration, signal, generator]
+    gpu_fallback = disable_ios_host_import(source)
+    return [project, library, ffmpeg, vk, memory, translator, cache, registration, signal, generator, *gpu_fallback]

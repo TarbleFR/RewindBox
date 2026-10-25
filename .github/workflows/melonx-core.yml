@@ -33,6 +33,7 @@ run-name: MeloNX engine • ${{ github.sha }}
     - test/melonx_keys_native_test.py
     - test/fixtures/melonx_key_shape_517.json
     - test/melonx_runtime_smoke.py
+    - test/melonx_ios_vulkan_host_import_test.py
     - build-utils/melonx/reuse_keys_validation.py
   workflow_dispatch: null
 permissions:
@@ -83,6 +84,8 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: python3 build-utils/melonx/reuse_launch_library.py --firmware-only
+    - name: Verify iOS Vulkan host-import fallback contract
+      run: python3 test/melonx_ios_vulkan_host_import_test.py
     - name: Fetch exact MeloNX source
       run: |
         python3 - <<'PY_FETCH'
