@@ -202,6 +202,10 @@ Keep the expected filenames and subfolders; **System** uses a capital S.
 - **Settings → Tools → BIOS checker** identifies required and optional files.
 - Use the **Nintendo 3DS system-file importer** for supported BIOS and NAND data.
 - PS2 BIOS and PS3 firmware use their respective emulator settings.
+- **Nintendo Switch / MeloNX:** import your own legally obtained keys and
+  compatible firmware in the embedded Switch settings. The Switch playlist
+  opens directly; an external MeloNX installation and its old game paths are
+  not required.
 - The PS3 library supports game-save import/export and user-supplied RAP licenses.
   Game saves and emulator save states are different formats.
 - **Settings → Tools** also provides storage analysis and cleanup. Review the
@@ -234,7 +238,7 @@ Results depend on the game, device and allocation paths actually used.
 - **iOS 18 or later**, and a compatible IPA signing/sideloading method such as
   [SideStore](https://sidestore.io/).
 - Your own compatible games and any required system files.
-- For embedded Dolphin, ARMSX2 and RPCS3: a valid pairing file, Developer Mode,
+- For embedded Dolphin, ARMSX2, RPCS3 and MeloNX: a valid pairing file, Developer Mode,
   suitable signing/provisioning and the supported StikJIT route. The current
   bridge checks a separately installed and activated **LocalDevVPN** route;
   RewindBox does not bundle or activate that VPN.
@@ -246,31 +250,33 @@ restricted capabilities on a device.
 
 ## Build from source
 
-For the published app, use the **0.0.7 tag**, whose build source is
-`a12f075906ef452885decbef78fefd6517ce0fe0`.
-The `main` branch contains the Build 479 development sources and subsequent
-attribution/documentation updates. `Claude` remains the working branch. Neither
-branch replaces the exact source snapshot of an already published release.
-The private Build 479 was compiled from `ff28cf2a63695400ad09d1c61538059d96992cc1`.
+The published `fix 0.0.9` IPA is **Build 530**. To inspect exactly the
+application sources recorded inside this binary, use the pinned host commit
+[`3f0c706afe1d0faa635465517871a500c3289582`](https://github.com/TarbleFR/RewindBox/tree/3f0c706afe1d0faa635465517871a500c3289582),
+not a moving branch or the older `0.0.7`/`0.0.8` tags.
+The current `main` branch carries the changes merged from `Claude`, with
+subsequent release-documentation updates.
 
 The release workflow uses **Flutter 3.47.2** and **Xcode 26.3**:
 
 ```bash
-git clone --branch 0.0.7 --single-branch https://github.com/TarbleFR/RewindBox.git
+git clone https://github.com/TarbleFR/RewindBox.git
 cd RewindBox
+git checkout 3f0c706afe1d0faa635465517871a500c3289582
 flutter pub get --enforce-lockfile
 flutter config --no-enable-swift-package-manager
 python3 packages/dolphin_internal_bridge/ci/build_support.py scaffold
 ```
 
-These steps prepare the checkout and iOS host. Native runtimes, extensions,
-packaging and signing also require the pinned inputs and steps in the
-[release workflow](https://github.com/TarbleFR/RewindBox/blob/0.0.7/.github/workflows/retroarch-delivery.yml).
-Use the same source revision throughout. Keep `.env`, service credentials and
-signing material out of Git.
-
-[Build 455 checks and limits](https://github.com/TarbleFR/RewindBox/blob/0.0.7/docs/build455-plan.md)
-· [Build run](https://github.com/TarbleFR/RewindBox/actions/runs/38393178533)
+These steps prepare the host, **not a distributable IPA on their own**. A
+complete iOS build also needs the pinned native sources and library artifacts,
+licenses, Xcode signing and entitlement checks, and the
+[Build 530 delivery](.github/workflows/melonx-launch530-delivery.yml)
+and [release-publishing workflow](.github/workflows/publish-fix-009.yml).
+Use the [Build 530 source manifest](docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)
+for the exact application, MeloNX and RPCS3 revisions, legal records and
+outstanding source-provenance boundaries. Do not commit signing secrets,
+production keys or private user content.
 
 ## Credits and licenses
 
@@ -290,7 +296,8 @@ and **[all 51 historical cheat source entries, 50 active](docs/CHEAT_CATALOG_SOU
 The frontend's GPL license does **not** replace third-party terms.
 Some cores have non-commercial restrictions; exact source correspondence and
 combined-license questions remain documented in the
-**[next-release license review](docs/RELEASE_NEXT_LICENSE_REVIEW.md)** and the
+**[Build 530 release/source manifest](docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)**,
+**[source access and attribution review](docs/SOURCE_CODE_ACCESS.md)** and the
 **[historical 0.0.7 review](docs/RELEASE_0.0.7_LICENSE_REVIEW.md)**.
 The reviews distinguish existing IPAs from subsequent packaging changes.
 
