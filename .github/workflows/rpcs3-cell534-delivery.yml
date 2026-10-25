@@ -1,5 +1,5 @@
 name: RewindBox private IPA 534 — RPCS3 temporary I/O and ISO restore
-run-name: RewindBox Build 534 — ${{ github.sha }}
+run-name: RewindBox Build 534 — current host sources — ${{ github.sha }}
 'on':
   push:
     branches:

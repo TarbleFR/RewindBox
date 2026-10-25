@@ -7,7 +7,6 @@ import rpcs3cell534_core as native
 ROOT = Path(__file__).resolve().parents[2]
 CORE_SOURCE = '2fa4ad668446b9166017b434e302836287d015b0'
 CORE_RUN = 40181634906
-HOST_RUN = 40181634909
 BASE = native.BASE
 HOST = previous.HOST | native.HOST_CHANGED
 validate_psp_core_identity = previous.validate_psp_core_identity
@@ -44,7 +43,9 @@ def source_contract():
     identity = ROOT/'dist/rpcs3-native/identity.json'
     if identity.exists(): validate_rpc_core_identity(json.loads(identity.read_bytes()))
     return dict(source=command('git','rev-parse','HEAD'),baseline=BASE,build=534,
-                coreSource=CORE_SOURCE,coreRun=CORE_RUN,hostRun=HOST_RUN,
+                coreSource=CORE_SOURCE,coreRun=CORE_RUN,
+                hostCompilation='Current native source rebuilt by the cold Xcode delivery; compiled policy markers required in signed IPA',
+                unavailableHistoricalCacheRun=40181634909,
                 preservedMeloNXSource=previous.MELONX_SOURCE,preservedMeloNXRun=previous.MELONX_RUN,
                 physicalDeviceTested=False,physicalPerformanceMeasured=False)
 
@@ -68,7 +69,7 @@ def main():
     if a.rpc_core_inputs: validate_rpc_core_pin(a.rpc_core_inputs,a.core_paths); return
     result=source_contract()
     if a.wait_for_components or a.skin_session_evidence:
-        result['components']=[completed(CORE_RUN,CORE_SOURCE),completed(HOST_RUN,CORE_SOURCE),
+        result['components']=[completed(CORE_RUN,CORE_SOURCE),
             completed(40179366932,BASE),completed(previous.MELONX_RUN,previous.MELONX_SOURCE)]
     if not a.source_only:
         path=ROOT/a.output;path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(result,indent=2)+'\n')
