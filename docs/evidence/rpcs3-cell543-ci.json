@@ -1,0 +1,305 @@
+{
+  "cell": 543,
+  "negativeResult": {
+    "run": 40210639364,
+    "commit": "aa7ac546f181ca198de2fd33ae06754c0fe9a367",
+    "conclusion": "failure",
+    "reason": "iOS syntax gate: VKGSRender.cpp, cannot use 'try' with exceptions disabled (RPCS3 builds with -fno-exceptions)"
+  },
+  "core": {
+    "run": 40212465374,
+    "commit": "d3689eb2ce3ced1a6086c82f50a3c67e6f398874",
+    "conclusion": "success",
+    "runner": "macos (Xcode 16.4)",
+    "artifacts": {
+      "RPCS3Core-d3689eb2ce3ced1a6086c82f50a3c67e6f398874": {
+        "id": 12606512258,
+        "bytes": 29026868,
+        "zipSHA256": "fe1373a3b9a9ccdd14516b88f3a01d44f2dcc8124fa4566830700df5ebe4bb40"
+      },
+      "RPCS3Core-diagnostics-d3689eb2ce3ced1a6086c82f50a3c67e6f398874": {
+        "id": 12606831663,
+        "bytes": 198499,
+        "zipSHA256": "ed89c335adbea701ead8f7d368e099e59faae904fba7032901c388960c4e9a4e"
+      }
+    },
+    "libRPCS3CoreSHA256": "489815d0659454d831380cb3e23b66f56d48b2195d573c6be25e7b40b7bf1a6d",
+    "architectures": [
+      "arm64"
+    ],
+    "abi": 30,
+    "sourcePatchSHA256": "9ed7d2c286d232cb9b39c90353f0e5ae65affa2207d5c9e524e67951974ea344",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607",
+      "unchangedFrom542": true,
+      "coldCompileRequiredByThisChange": false
+    },
+    "passiveDlopen": "validated (no forbidden reachability)",
+    "exports": 88,
+    "reference542": {
+      "source": "3b3186122da733afed9e32d871d16badefc23822",
+      "run": 40201679650,
+      "artifact": 12602436929,
+      "coreSHA256": "9d8d6ac4860f54715519760917ccabfeafd03c092acde2f1d9c1d6aa453ffe83"
+    },
+    "harnessOnRunner": {
+      "compiler": "Apple clang (runner)",
+      "sanitizers": [
+        "address",
+        "undefined",
+        "thread"
+      ],
+      "passed": true,
+      "exceptionFreeProductionBodies": 14,
+      "asan": {
+        "lookupBefore": {
+          "concurrentRequests": 16,
+          "concurrentBuilds": 1,
+          "concurrentNullReturns": 15,
+          "concurrentDistinct": 1,
+          "preloadBuilds": 1,
+          "preloadNullReturns": 7,
+          "failureBuilds": 1,
+          "failureNullReturns": 4,
+          "failureStickyNull": 1,
+          "nullResultRetryNull": 1,
+          "asyncRequests": 8,
+          "asyncJobs": 1,
+          "missFlagMismatches": 0,
+          "dsRequests": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "dsBuilds": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "hashPairs": 4096,
+          "hashDistinct": 64
+        },
+        "lookupAfter": {
+          "concurrentRequests": 16,
+          "concurrentBuilds": 1,
+          "concurrentNullReturns": 0,
+          "concurrentDistinct": 1,
+          "preloadBuilds": 1,
+          "preloadNullReturns": 7,
+          "failureBuilds": 2,
+          "failureNullReturns": 1,
+          "failureStickyNull": 0,
+          "nullResultRetryNull": 0,
+          "asyncRequests": 8,
+          "asyncJobs": 1,
+          "missFlagMismatches": 0,
+          "dsRequests": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "dsBuilds": [
+            1,
+            1,
+            17,
+            7,
+            17
+          ],
+          "hashPairs": 4096,
+          "hashDistinct": 4096
+        },
+        "storeHostFsyncBefore": {
+          "records": 48,
+          "producers": 1,
+          "filesVerified": 48,
+          "tempFilesLeft": 0,
+          "callerP50Us": 751.4,
+          "callerMaxUs": 5144.9
+        },
+        "storeHostFsyncAfter": {
+          "records": 48,
+          "producers": 1,
+          "filesVerified": 48,
+          "tempFilesLeft": 0,
+          "callerP50Us": 1.5,
+          "callerMaxUs": 171.5
+        },
+        "storeInjected10msBefore": {
+          "records": 24,
+          "producers": 1,
+          "filesVerified": 24,
+          "tempFilesLeft": 0,
+          "callerP50Us": 110504.8,
+          "callerMaxUs": 223596.7
+        },
+        "storeInjected10msAfter": {
+          "records": 24,
+          "producers": 1,
+          "filesVerified": 24,
+          "tempFilesLeft": 0,
+          "callerP50Us": 1.5,
+          "callerMaxUs": 480.7
+        },
+        "storeConcurrentAfter": {
+          "records": 400,
+          "producers": 8,
+          "filesVerified": 400,
+          "tempFilesLeft": 0,
+          "callerP50Us": 1.9,
+          "callerMaxUs": 4273.0
+        },
+        "storeBoundedAfter": {
+          "records": 300,
+          "producers": 1,
+          "filesVerified": 300,
+          "tempFilesLeft": 0,
+          "callerP50Us": 1.5,
+          "callerMaxUs": 60424.7
+        },
+        "boundedDeferred": 280,
+        "boundedInline": 20,
+        "depthStencilReferenceCases": 13824,
+        "regression542Builds": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "regression542BlendCases": 115520
+      },
+      "tsan": {
+        "lookupBefore": {
+          "concurrentRequests": 16,
+          "concurrentBuilds": 1,
+          "concurrentNullReturns": 15,
+          "concurrentDistinct": 1,
+          "preloadBuilds": 1,
+          "preloadNullReturns": 7,
+          "failureBuilds": 1,
+          "failureNullReturns": 4,
+          "failureStickyNull": 1,
+          "nullResultRetryNull": 1,
+          "asyncRequests": 8,
+          "asyncJobs": 1,
+          "missFlagMismatches": 0,
+          "dsRequests": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "dsBuilds": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "hashPairs": 4096,
+          "hashDistinct": 64
+        },
+        "lookupAfter": {
+          "concurrentRequests": 16,
+          "concurrentBuilds": 1,
+          "concurrentNullReturns": 0,
+          "concurrentDistinct": 1,
+          "preloadBuilds": 1,
+          "preloadNullReturns": 7,
+          "failureBuilds": 2,
+          "failureNullReturns": 1,
+          "failureStickyNull": 0,
+          "nullResultRetryNull": 0,
+          "asyncRequests": 8,
+          "asyncJobs": 1,
+          "missFlagMismatches": 0,
+          "dsRequests": [
+            119,
+            7,
+            119,
+            7,
+            17
+          ],
+          "dsBuilds": [
+            1,
+            1,
+            17,
+            7,
+            17
+          ],
+          "hashPairs": 4096,
+          "hashDistinct": 4096
+        },
+        "storeHostFsyncBefore": {
+          "records": 48,
+          "producers": 1,
+          "filesVerified": 48,
+          "tempFilesLeft": 0,
+          "callerP50Us": 1168.3,
+          "callerMaxUs": 6431.3
+        },
+        "storeHostFsyncAfter": {
+          "records": 48,
+          "producers": 1,
+          "filesVerified": 48,
+          "tempFilesLeft": 0,
+          "callerP50Us": 20.0,
+          "callerMaxUs": 475.2
+        },
+        "storeInjected10msBefore": {
+          "records": 24,
+          "producers": 1,
+          "filesVerified": 24,
+          "tempFilesLeft": 0,
+          "callerP50Us": 121876.8,
+          "callerMaxUs": 238161.9
+        },
+        "storeInjected10msAfter": {
+          "records": 24,
+          "producers": 1,
+          "filesVerified": 24,
+          "tempFilesLeft": 0,
+          "callerP50Us": 8.5,
+          "callerMaxUs": 294.3
+        },
+        "storeConcurrentAfter": {
+          "records": 400,
+          "producers": 8,
+          "filesVerified": 400,
+          "tempFilesLeft": 0,
+          "callerP50Us": 26.8,
+          "callerMaxUs": 8164.1
+        },
+        "storeBoundedAfter": {
+          "records": 300,
+          "producers": 1,
+          "filesVerified": 300,
+          "tempFilesLeft": 0,
+          "callerP50Us": 16.8,
+          "callerMaxUs": 57452.5
+        },
+        "boundedDeferred": 279,
+        "boundedInline": 21,
+        "depthStencilReferenceCases": 13824,
+        "regression542Builds": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "regression542BlendCases": 115520
+      },
+      "note": "macOS CI runner disk; synthetic requests and injected latency; not iPhone measurements"
+    }
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

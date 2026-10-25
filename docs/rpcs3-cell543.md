@@ -94,4 +94,12 @@ Lecture des nouvelles mesures :
 
 ## Livraison
 
-Construction du Core iPhone et IPA privée : voir la section ajoutée après exécution des workflows. Aucune IPA n'est déclarée avant vérification du fichier téléchargé.
+### Core iPhone (CI)
+
+* Échec conservé : run `40210639364` (commit `aa7ac54`), contrôle syntaxique iOS, voir §3.
+* Succès : run `40212465374`, commit `d3689eb`. Toutes les étapes sont vertes : cas natifs 543 sur le runner macOS, compilation du Core iPhone, exports (88), chargement passif et identité 543. `libRPCS3Core.dylib` arm64, ABI 30, SHA-256 `489815d0659454d831380cb3e23b66f56d48b2195d573c6be25e7b40b7bf1a6d`, delta canonique `9ed7d2c2…`. Identités de codegen inchangées depuis 542 (PPU `a987639e9f838d1c`, SPU `d070cb361bdef607`) : aucune recompilation JIT imposée par ce changement.
+* Harnais 543 sur le runner (Apple clang, ASan+UBSan puis TSan) : mêmes résultats fonctionnels qu'en local. `store()` côté appelant, p50 ASan : 751 → 1,5 µs avec le fsync réel du runner, et 110 505 → 1,5 µs avec un commit +10 ms injecté. Limite : file saturée (300 enregistrements), le pire appel reste une écriture inline payée par l'appelant (max 57–60 ms sur le runner). C'est le comportement de débordement voulu. Disque de runner, pas d'iPhone (`docs/evidence/rpcs3-cell543-ci.json`).
+
+### IPA privée
+
+Voir la section ajoutée après exécution du workflow de livraison. Aucune IPA n'est déclarée avant vérification du fichier téléchargé.
