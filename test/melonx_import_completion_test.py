@@ -29,7 +29,10 @@ for path in IMPORT_INPUTS | set(tests[1:]):
     assert subprocess.check_output(['git','show',prior_source+':'+path],cwd=ROOT) == (ROOT/path).read_bytes(), path
 state=json.loads(subprocess.check_output(['gh','api',f'repos/TarbleFR/RewindBox/actions/runs/{prior_run}']))
 assert state['head_sha']==prior_source and state['status']=='completed' and state['conclusion']=='failure'
-logs=subprocess.check_output(['gh','api',f'repos/TarbleFR/RewindBox/actions/jobs/{prior_job}/logs'],text=True)
+logs=subprocess.check_output(['gh','api','--allow-escape-sequences',
+    f'repos/TarbleFR/RewindBox/actions/jobs/{prior_job}/logs'],text=True)
+# The log is parsed as data, never rendered or executed as terminal controls.
+logs=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',logs)
 assert re.search(r'\+45 -2: Some tests failed',logs)
 failures=logs.split('Failing tests:',1)[1].split('Traceback',1)[0]
 failed_tests=re.findall(r'test/([^\n\r]+\.dart): ([^\n\r]+)',failures)
