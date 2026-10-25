@@ -446,6 +446,11 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   } else if (strstr(line, "COREPROF WAITPROF527 ") != nullptr) {
     family = @"wait_ms"; keys = @[@"cpu_gpu_fence", @"vm_range_episode", @"pipeline_queue",
         @"pipeline_build_callback", @"guest_rsx_semaphore", @"llvm_budget_cv", @"llvm_admission_mutex"];
+  } else if (strstr(line, "COREPROF PRESSURE547 ") != nullptr) {
+    // CELL547: draw-blocking pipeline builds, SPU polls that waited passively
+    // meanwhile, and GPU fence waits that blocked instead of spinning.
+    family = @"pressure"; keys = @[@"blocking_builds", @"spu_passive_waits", @"fence_spin_completed",
+        @"fence_blocked"];
   } else if (strstr(line, "COREPROF MEMPROF527 ") != nullptr) {
     family = @"memory_bytes"; keys = @[@"footprint", @"peak_footprint", @"resident", @"compressed"];
   } else if (strstr(line, "COREPROF VDECIO528 ") != nullptr) {

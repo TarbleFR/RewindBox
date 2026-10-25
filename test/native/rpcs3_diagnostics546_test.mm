@@ -94,6 +94,7 @@ int main(int argc, const char* argv[]) {
       @"TID: 7: COREPROF SHADERSTALL538_EVENT stage=2 begin_us=540575 end_us=945844 duration_us=405269 report_session=4 report_window=21",
       @"TID: 7: COREPROF WAITPROF527 session=4 window=21 cpu_gpu_fence=148:507.763:11.869 vm_range_episode=125:6.736:0.885",
       @"TID: 7: COREPROF MEMPROF527 session=4 window=21 footprint=2171016800 peak_footprint=2171180640 compressed=978026496",
+      @"TID: 7: COREPROF PRESSURE547 session=4 window=21 tuple=count:total_ms:max_ms blocking_builds=15:2474.657:540.573 spu_passive_waits=812 fence_spin_completed=3 fence_blocked=145:503.112:11.802 fence_spin_limit_us=100 scope=process_window",
       @"TID: 7: JITPROF session=4 ppu_codegen=1:6927.308:6927.308:0 ppu_cache_write=1:3578.573:3578.573:6665088",
       @"TID: 7: RANGELOCKPROF session=4 episodes=125 total_ms=6.736 max_ms=0.885 wl_putllc=40603:8.242:0.259",
       @"TID: 7: COREPROF_RESILIENCE memory_pressure_peak=0 memory_reclaims=0 shader_cache_misses=15",
@@ -121,6 +122,9 @@ int main(int argc, const char* argv[]) {
     assert([row[@"wait_ms"][@"cpu_gpu_fence"] isEqualToString:@"148:507.763:11.869"]);
     assert([row[@"jit"][@"ppu_cache_write"] isEqualToString:@"1:3578.573:3578.573:6665088"]);
     assert([row[@"memory_bytes"][@"footprint"] longLongValue] == 2171016800LL);
+    assert([row[@"pressure"][@"blocking_builds"] isEqualToString:@"15:2474.657:540.573"]);
+    assert([row[@"pressure"][@"spu_passive_waits"] intValue] == 812 && [row[@"pressure"][@"fence_spin_completed"] intValue] == 3);
+    assert([row[@"pressure"][@"fence_blocked"] isEqualToString:@"145:503.112:11.802"]);
     assert(near([row[@"summary"][@"avg_fps"] doubleValue], 17.227) && near([row[@"summary"][@"spu_ms"] doubleValue], 51.564));
     assert([row[@"host"][@"samples"] intValue] == 2 && near([row[@"host"][@"fps_min"] doubleValue], 0.39));
     assert([row[@"host"][@"available_min_bytes"] longLongValue] == 4900000000LL && [row[@"host"][@"thermal_max"] intValue] == 2);

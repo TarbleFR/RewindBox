@@ -3293,10 +3293,10 @@ index beae025..42b77a1 100644
  };
  
 diff --git a/rpcs3/Crypto/unzip.cpp b/rpcs3/Crypto/unzip.cpp
-index 6485e4d..0057235 100644
+index 6485e4d..bc6f871 100644
 --- a/rpcs3/Crypto/unzip.cpp
 +++ b/rpcs3/Crypto/unzip.cpp
-@@ -141,7 +141,16 @@ bool zip(const void* src, usz size, fs::file& out, bool multi_thread_it)
+@@ -141,7 +141,17 @@ bool zip(const void* src, usz size, fs::file& out, bool multi_thread_it)
  
  	utils::serial compressor;
  	compressor.set_expect_little_data(!multi_thread_it || size < 0x40'0000);
@@ -3305,9 +3305,10 @@ index 6485e4d..0057235 100644
 +#ifdef RPCS3_IOS
 +	// REWINDBOX_JIT_OBJECT_DEFLATE_LEVEL_V1: zip() stores the PPU/SPU LLVM
 +	// objects on the compiling thread. Level 9 cost 3.58 s for one 6.66 MB PPU
-+	// object on an iPhone (build 541), inside a 6.93 s code generation; level 1
-+	// is 3.3x-9.5x faster on ARM64 code for 8-9% more bytes. The gzip stream
-+	// stays readable by every Core, so no cache is invalidated.
++	// object on an iPhone (build 541), on top of 6.93 s of code generation
++	// (JITPROF phases are exclusive); level 1 is 4.4x faster on ARM64 code for
++	// 7% more bytes. The gzip stream stays readable by every Core, so no cache
++	// is invalidated.
 +	handler->set_deflate_level(Z_BEST_SPEED);
 +#endif
 +	compressor.m_file_handler = std::move(handler);
@@ -3835,10 +3836,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..537dc2c
+index 0000000..d71dd67
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,28 @@
 +# CELL538: the exact reviewed JITLLVM change only suppresses a second SPU
 +# cache probe after a validated miss. It changes neither generated objects nor
 +# their ABI. Preserve the 536 identity for this exact source snapshot only.
@@ -3855,6 +3856,14 @@ index 0000000..537dc2c
 +    elseif(source STREQUAL "Cell/SPUCommonRecompiler.cpp" AND
 +           actual STREQUAL "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb")
 +        set(${output} "4699b7d26b6db826dc0c98c49a711d4b00fd3dc70512df3a162801a76f263db0" PARENT_SCOPE)
++    # CELL547: process_mfc_cmd takes RPCS3's existing passive GETLLAR wait for a
++    # confirmed poll of unchanged data while a draw waits for a pipeline
++    # (ios/IOSCompilePressure.h). This is host code that SPU objects call, not
++    # code they contain: generated objects are unchanged. Keep the 546 identity
++    # for this exact source snapshot only.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "b1c3ff504e20c90ae69f9072fdb2409be69db7206a8783d10f6b79321c7d6ebe")
++        set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
 +    else()
 +        set(${output} "${actual}" PARENT_SCOPE)
 +    endif()
@@ -12431,10 +12440,10 @@ index faf4082..d08c480 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e..9749bd9 100644
+index bc9ec5e..9a7aea3 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
-@@ -25,11 +25,17 @@
+@@ -25,11 +25,18 @@
  
  #include <unordered_set>
  
@@ -12446,13 +12455,14 @@ index bc9ec5e..9749bd9 100644
  #include "ios/RPCS3IOSExperimentalPolicy.h"
 +#include "ios/RPCS3IOSPerformance.h"
  #include "ios/IOSDMACopy.h"
++#include "ios/IOSCompilePressure.h"
  #ifdef ARCH_ARM64
  #include "Emu/CPU/Backends/AArch64/SPUReservationScan.h"
 +#include "Emu/CPU/Backends/AArch64/SPUReservationHash.h"
  #endif
  #endif
  
-@@ -309,6 +315,14 @@ extern bool cmp_rdata(const spu_rdata_t& _lhs, const spu_rdata_t& _rhs)
+@@ -309,6 +316,14 @@ extern bool cmp_rdata(const spu_rdata_t& _lhs, const spu_rdata_t& _rhs)
  #endif
  }
  
@@ -12467,7 +12477,7 @@ index bc9ec5e..9749bd9 100644
  #if defined(ARCH_X64)
  static FORCE_INLINE void mov_rdata_avx(__m256i* dst, const __m256i* src)
  {
-@@ -407,6 +421,26 @@ extern void mov_rdata(spu_rdata_t& _dst, const spu_rdata_t& _src)
+@@ -407,6 +422,26 @@ extern void mov_rdata(spu_rdata_t& _dst, const spu_rdata_t& _src)
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 80), v1);
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 96), v2);
  	_mm_storeu_si128(reinterpret_cast<__m128i*>(_dst + 112), v3);
@@ -12494,7 +12504,7 @@ index bc9ec5e..9749bd9 100644
  #else
  	std::memcpy(_dst, _src, 128);
  #endif
-@@ -417,6 +451,9 @@ __forceinline
+@@ -417,6 +452,9 @@ __forceinline
  #endif
  extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
  {
@@ -12504,7 +12514,7 @@ index bc9ec5e..9749bd9 100644
  	const auto rhs = reinterpret_cast<const v128*>(_src);
  	const v128 a = gv_add32(rhs[0], rhs[1]);
  	const v128 c = gv_add32(rhs[4], rhs[5]);
-@@ -425,6 +462,7 @@ extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
+@@ -425,6 +463,7 @@ extern u32 compute_rdata_hash32(const spu_rdata_t& _src)
  	const v128 r = gv_add32(gv_add32(a, b), gv_add32(c, d));
  	const v128 r1 = gv_add32(r, gv_shuffle32<1, 0, 3, 2>(r));
  	return r1._u32[0] + r1._u32[2];
@@ -12512,7 +12522,7 @@ index bc9ec5e..9749bd9 100644
  }
  
  #if defined(ARCH_X64)
-@@ -491,6 +529,26 @@ extern void mov_rdata_nt(spu_rdata_t& _dst, const spu_rdata_t& _src)
+@@ -491,6 +530,26 @@ extern void mov_rdata_nt(spu_rdata_t& _dst, const spu_rdata_t& _src)
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 80), v1);
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 96), v2);
  	_mm_stream_si128(reinterpret_cast<__m128i*>(_dst + 112), v3);
@@ -12539,7 +12549,7 @@ index bc9ec5e..9749bd9 100644
  #else
  	std::memcpy(_dst, _src, 128);
  #endif
-@@ -549,14 +607,29 @@ namespace vm
+@@ -549,14 +608,29 @@ namespace vm
  	// Defined here for performance reasons
  	writer_lock::~writer_lock() noexcept
  	{
@@ -12573,7 +12583,7 @@ index bc9ec5e..9749bd9 100644
  	}
  }
  
-@@ -661,6 +734,11 @@ std::array<u32, 2> op_branch_targets(u32 pc, spu_opcode_t op)
+@@ -661,6 +735,11 @@ std::array<u32, 2> op_branch_targets(u32 pc, spu_opcode_t op)
  		{
  			res[1] = umax;
  		}
@@ -12585,7 +12595,7 @@ index bc9ec5e..9749bd9 100644
  
  		break;
  	}
-@@ -1352,6 +1430,7 @@ void spu_thread::cpu_init()
+@@ -1352,6 +1431,7 @@ void spu_thread::cpu_init()
  
  	ch_events.raw() = {};
  	interrupts_enabled = false;
@@ -12593,7 +12603,7 @@ index bc9ec5e..9749bd9 100644
  	raddr = 0;
  
  	ch_dec_start_timestamp = get_timebased_time();
-@@ -1485,6 +1564,8 @@ extern thread_local std::string(*g_tls_log_prefix)();
+@@ -1485,6 +1565,8 @@ extern thread_local std::string(*g_tls_log_prefix)();
  
  void spu_thread::cpu_task()
  {
@@ -12602,7 +12612,7 @@ index bc9ec5e..9749bd9 100644
  #ifdef __APPLE__
  	jit_write_protect(true);
  #endif
-@@ -1566,7 +1647,7 @@ void spu_thread::cpu_task()
+@@ -1566,7 +1648,7 @@ void spu_thread::cpu_task()
  		{
  			if (state) [[unlikely]]
  			{
@@ -12611,7 +12621,7 @@ index bc9ec5e..9749bd9 100644
  					break;
  			}
  
-@@ -1586,6 +1667,7 @@ void spu_thread::cpu_task()
+@@ -1586,6 +1668,7 @@ void spu_thread::cpu_task()
  			}
  
  			spu_runtime::g_gateway(*this, _ptr<u8>(0), nullptr);
@@ -12619,7 +12629,7 @@ index bc9ec5e..9749bd9 100644
  		}
  
  		if (unsavable && is_stopped(state - cpu_flag::stop))
-@@ -1632,7 +1714,10 @@ void spu_thread::cpu_work()
+@@ -1632,7 +1715,10 @@ void spu_thread::cpu_work()
  		return;
  	}
  
@@ -12631,7 +12641,7 @@ index bc9ec5e..9749bd9 100644
  
  	bool work_left = false;
  
-@@ -1676,13 +1761,19 @@ void spu_thread::cpu_work()
+@@ -1676,13 +1762,19 @@ void spu_thread::cpu_work()
  
  	bool gen_interrupt = false;
  
@@ -12654,7 +12664,7 @@ index bc9ec5e..9749bd9 100644
  			{
  				mask &= ~SPU_EVENT_LR;
  			}
-@@ -1691,7 +1782,16 @@ void spu_thread::cpu_work()
+@@ -1691,7 +1783,16 @@ void spu_thread::cpu_work()
  		}
  
  		gen_interrupt = check_mfc_interrupts(pc);
@@ -12672,7 +12682,7 @@ index bc9ec5e..9749bd9 100644
  	}
  
  	in_cpu_work = false;
-@@ -1713,7 +1813,7 @@ void spu_thread::cpu_work()
+@@ -1713,7 +1814,7 @@ void spu_thread::cpu_work()
  		});
  	}
  
@@ -12681,7 +12691,7 @@ index bc9ec5e..9749bd9 100644
  	{
  		// Interrupt! escape everything and restart execution
  		spu_runtime::g_escape(this);
-@@ -1738,6 +1838,7 @@ struct raw_spu_cleanup
+@@ -1738,6 +1839,7 @@ struct raw_spu_cleanup
  
  void spu_thread::cleanup()
  {
@@ -12689,7 +12699,7 @@ index bc9ec5e..9749bd9 100644
  	// Deallocate local storage
  	ensure(vm::dealloc(vm_offset(), vm::spu, &shm));
  
-@@ -2304,6 +2405,8 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -2304,6 +2406,8 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  				}
  				}
  
@@ -12698,7 +12708,7 @@ index bc9ec5e..9749bd9 100644
  				if (time0 != vm::reservation_acquire(eal) || (size0 == 128 && !cmp_rdata(*reinterpret_cast<spu_rdata_t*>(dst0), *reinterpret_cast<const spu_rdata_t*>(src))))
  				{
  					continue;
-@@ -3450,6 +3553,18 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3450,6 +3554,18 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		}
  
  		const auto& to_write = _ref<spu_rdata_t>(args.lsa & 0x3ff80);
@@ -12717,7 +12727,7 @@ index bc9ec5e..9749bd9 100644
  		auto& res = vm::reservation_acquire(addr);
  
  		// TODO: Limit scope!!
-@@ -3457,26 +3572,14 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3457,26 +3573,14 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (rtime != res)
  		{
@@ -12746,7 +12756,7 @@ index bc9ec5e..9749bd9 100644
  			{
  				raddr = 0; // Disable notification
  				return true;
-@@ -3488,7 +3591,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3488,7 +3592,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		static const auto cast_as = [](void* ptr, usz pos){ return reinterpret_cast<u128*>(ptr) + pos; };
  		static const auto cast_as_const = [](const void* ptr, usz pos){ return reinterpret_cast<const u128*>(ptr) + pos; };
  
@@ -12761,7 +12771,7 @@ index bc9ec5e..9749bd9 100644
  
  		auto [_oldd, _ok] = res.fetch_op([&](u64& r)
  		{
-@@ -3507,25 +3616,51 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3507,25 +3617,51 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  			return false;
  		}
  
@@ -12815,7 +12825,7 @@ index bc9ec5e..9749bd9 100644
  			vm::writer_lock lock(addr, range_lock);
  
  			if (cmp_rdata(rdata, super_data))
-@@ -3631,7 +3766,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3631,7 +3767,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  
  			if (!(at_read_time & 127))
  			{
@@ -12824,7 +12834,7 @@ index bc9ec5e..9749bd9 100644
  				{
  					// Write of the same data (verified atomically)
  					vm::try_reservation_update(addr);
-@@ -3640,6 +3775,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3640,6 +3776,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  			}
  		}
  
@@ -12844,7 +12854,7 @@ index bc9ec5e..9749bd9 100644
  		for (u64 j = 0;; j++)
  		{
  			auto [_oldd, _ok] = res.fetch_op([&](u128& r)
-@@ -3714,8 +3862,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3714,8 +3863,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  		}
  		else
  		{
@@ -12858,7 +12868,7 @@ index bc9ec5e..9749bd9 100644
  
  			// Hard lock
  			auto spu = cpu ? cpu->try_get<spu_thread>() : nullptr;
-@@ -3726,6 +3877,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3726,6 +3878,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  				cpu->state += cpu_flag::wait;
  			}
  
@@ -12868,7 +12878,7 @@ index bc9ec5e..9749bd9 100644
  			vm::writer_lock lock(addr, spu ? spu->range_lock : nullptr);
  			mov_rdata(sdata, *static_cast<const spu_rdata_t*>(to_write));
  			vm::reservation_acquire(addr) += 32;
-@@ -3941,8 +4095,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3941,8 +4096,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  
  bool spu_thread::check_mfc_interrupts(u32 next_pc)
  {
@@ -12879,7 +12889,7 @@ index bc9ec5e..9749bd9 100644
  		srr0 = next_pc;
  
  		// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -4306,6 +4461,25 @@ bool spu_thread::process_mfc_cmd()
+@@ -4306,6 +4462,25 @@ bool spu_thread::process_mfc_cmd()
  	{
  		perf_meter<"GETLLAR"_u64> perf0;
  
@@ -12905,7 +12915,7 @@ index bc9ec5e..9749bd9 100644
  		const u32 addr = ch_mfc_cmd.eal & -128;
  		const auto& data = vm::_ref<spu_rdata_t>(addr);
  
-@@ -4315,7 +4489,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4315,7 +4490,7 @@ bool spu_thread::process_mfc_cmd()
  			spu_log.trace(u8"GETLLAR after fail: addr=0x%x, time=%u c", last_faddr, (perf0.get() - last_ftsc));
  		}
  
@@ -12914,16 +12924,23 @@ index bc9ec5e..9749bd9 100644
  		{
  			rtime = last_ftime;
  			raddr = last_faddr;
-@@ -4355,7 +4529,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4355,8 +4530,14 @@ bool spu_thread::process_mfc_cmd()
  					// Need to check twice for it to be accurate, the code is before and not after this check for:
  					// 1. Reduce time between reservation accesses so TSX panelty would be lowered
  					// 2. Increase the chance of change detection: if GETLLAR has been called again new data is probably wanted
 -					if (this_time == res && cmp_rdata(rdata, data))
 +					if (rdata_fence() && this_time == res && cmp_rdata(rdata, data))
  					{
++#ifdef RPCS3_IOS
++						// REWINDBOX_COMPILE_PRESSURE_V1: a passive wait chosen only
++						// because a draw waits for a pipeline must not bias the
++						// recorded wait history that selects busy waiting later.
++						bool ios_pressure_wait = false;
++#endif
  						if (this_time != rtime)
  						{
-@@ -4367,7 +4541,7 @@ bool spu_thread::process_mfc_cmd()
+ 							// Reservation was lost but the data itself remains unchanged so try to ignore it
+@@ -4367,7 +4548,7 @@ bool spu_thread::process_mfc_cmd()
  						if ([&]() -> bool
  						{
  							// Validation that it is indeed GETLLAR spinning (large time window is intentional)
@@ -12932,7 +12949,7 @@ index bc9ec5e..9749bd9 100644
  							{
  								// Seemingly not
  								getllar_busy_waiting_switch = umax;
-@@ -4441,7 +4615,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4441,7 +4622,7 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  							// Don't be stubborn, force operating sleep if too much time has passed
@@ -12941,7 +12958,26 @@ index bc9ec5e..9749bd9 100644
  							{
  								// Hidden value to force busy waiting
  								if (!g_cfg.core.spu_getllar_spin_optimization_disabled)
-@@ -4533,7 +4707,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4452,6 +4633,18 @@ bool spu_thread::process_mfc_cmd()
+ 								}
+ 							}
+ 
++#ifdef RPCS3_IOS
++							// REWINDBOX_COMPILE_PRESSURE_V1 (ios/IOSCompilePressure.h):
++							// a confirmed poll of unchanged data takes the passive
++							// path below while the RSX thread waits for a pipeline.
++							if (getllar_busy_waiting_switch != 0 && getllar_spin_count >= 2 &&
++								rpcs3::ios::compile_pressure::active())
++							{
++								rpcs3::ios::compile_pressure::spu_passive_waits.fetch_add(1, std::memory_order_relaxed);
++								ios_pressure_wait = true;
++								return false;
++							}
++#endif
+ 							// Either 1 or umax
+ 							return getllar_busy_waiting_switch != 0;
+ 						}())
+@@ -4533,7 +4726,7 @@ bool spu_thread::process_mfc_cmd()
  						// Quick check if there were reservation changes
  						const u64 new_time = res;
  
@@ -12950,7 +12986,23 @@ index bc9ec5e..9749bd9 100644
  						{
  							if (g_cfg.core.mfc_debug)
  							{
-@@ -4659,6 +4833,8 @@ bool spu_thread::process_mfc_cmd()
+@@ -4551,8 +4744,13 @@ bool spu_thread::process_mfc_cmd()
+ 								rtime = new_time;
+ 							}
+ 
+-							u8& val = getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front();
+-							val = static_cast<u8>(std::min<u32>(val + 1, u8{umax}));
++#ifdef RPCS3_IOS
++							if (!ios_pressure_wait)
++#endif
++							{
++								u8& val = getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front();
++								val = static_cast<u8>(std::min<u32>(val + 1, u8{umax}));
++							}
+ 
+ 							// Reset perf
+ 							perf0.restart();
+@@ -4659,6 +4857,8 @@ bool spu_thread::process_mfc_cmd()
  
  			mov_rdata(rdata, data);
  
@@ -12959,7 +13011,7 @@ index bc9ec5e..9749bd9 100644
  			if (u64 time0 = vm::reservation_acquire(addr); ntime != time0)
  			{
  				// Reservation data has been modified recently
-@@ -5075,7 +5251,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5075,7 +5275,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -12968,7 +13020,7 @@ index bc9ec5e..9749bd9 100644
  	}
  
  	if ((addr >> 20) == (current_eal >> 20))
-@@ -5083,13 +5259,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5083,13 +5283,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  		if (vm::check_addr(addr, vm::page_1m_size))
  		{
  			// Same random-access-memory page as the current MFC command, assume allocated
@@ -12984,7 +13036,7 @@ index bc9ec5e..9749bd9 100644
  		}
  	}
  
-@@ -5163,7 +5339,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5163,7 +5363,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	const bool res = cmp_rdata(data, vm::_ref<decltype(rdata)>(addr));
  
  	range_lock->release(0);
@@ -12993,7 +13045,7 @@ index bc9ec5e..9749bd9 100644
  }
  
  bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range_lock)
-@@ -5171,7 +5347,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5171,7 +5371,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13002,7 +13054,7 @@ index bc9ec5e..9749bd9 100644
  	}
  
  	// Ensure data is allocated (HACK: would raise LR event if not)
-@@ -5244,7 +5420,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5244,7 +5444,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	const bool res = compute_rdata_hash32(*vm::get_super_ptr<decltype(rdata)>(addr)) == hash;
  
  	range_lock->release(0);
@@ -13011,7 +13063,7 @@ index bc9ec5e..9749bd9 100644
  }
  
  usz spu_thread::register_cache_line_waiter(u32 addr)
-@@ -5352,6 +5528,7 @@ retry:
+@@ -5352,6 +5552,7 @@ retry:
  			// Set next event to the next time the decrementer underflows
  			ch_dec_start_timestamp -= res << 32;
  			collect |= SPU_EVENT_TM;
@@ -13019,7 +13071,7 @@ index bc9ec5e..9749bd9 100644
  		}
  	}
  
-@@ -5400,29 +5577,134 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +5601,134 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -13074,8 +13126,7 @@ index bc9ec5e..9749bd9 100644
 +			const u64 now = get_timebased_time();
 +			std::vector<entry> due_entries;
 +			sleep_us = umax;
- 			{
--				state += cpu_flag::pending;
++			{
 +				std::lock_guard lock(mutex);
 +				for (auto it = armed.begin(); it != armed.end();)
 +				{
@@ -13092,7 +13143,8 @@ index bc9ec5e..9749bd9 100644
 +				}
 +			}
 +			for (const auto& e : due_entries)
-+			{
+ 			{
+-				state += cpu_flag::pending;
 +				// Retain the thread while publishing work, outside the timer lock.
 +				if (const auto spu = idm::get<named_thread<spu_thread>>(e.id, [](auto&) {}))
 +				{
@@ -13166,7 +13218,7 @@ index bc9ec5e..9749bd9 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5792,7 +6074,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6098,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -13175,7 +13227,7 @@ index bc9ec5e..9749bd9 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6211,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6235,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -13184,7 +13236,7 @@ index bc9ec5e..9749bd9 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6231,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6255,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13193,7 +13245,7 @@ index bc9ec5e..9749bd9 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6311,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6335,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13202,7 +13254,7 @@ index bc9ec5e..9749bd9 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6452,6 +6734,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +6758,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -13212,7 +13264,7 @@ index bc9ec5e..9749bd9 100644
  		return true;
  	}
  
-@@ -6479,6 +6764,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +6788,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -13221,7 +13273,7 @@ index bc9ec5e..9749bd9 100644
  		return true;
  	}
  
-@@ -6509,6 +6796,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +6820,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -15938,10 +15990,10 @@ index 221e24e..8431488 100644
  		write_fragment_constants_to_buffer_fallback(buffer, rsx_prog, offsets_cache, sanitize);
  #endif
 diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.h b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
-index e1bdc88..65c5068 100644
+index e1bdc88..6b918d3 100644
 --- a/rpcs3/Emu/RSX/Program/ProgramStateCache.h
 +++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
-@@ -9,8 +9,15 @@
+@@ -9,8 +9,16 @@
  #include "util/v128.hpp"
  #include <util/bless.hpp>
  
@@ -15953,11 +16005,12 @@ index e1bdc88..65c5068 100644
 +
 +#ifdef RPCS3_IOS
 +#include "ios/IOSShaderTiming.h"
++#include "ios/IOSCompilePressure.h"
 +#endif
  
  enum class SHADER_TYPE
  {
-@@ -56,6 +63,7 @@ namespace program_hash_util
+@@ -56,6 +64,7 @@ namespace program_hash_util
  			u32 program_ucode_length;
  			u32 program_constants_buffer_length;
  			u16 referenced_textures_mask;
@@ -15965,7 +16018,7 @@ index e1bdc88..65c5068 100644
  			u16 bx2_texture_reads_mask;
  
  			bool has_pack_instructions;
-@@ -176,17 +184,24 @@ class program_state_cache
+@@ -176,17 +185,24 @@ class program_state_cache
  		u32 vertex_program_id;
  		u32 fragment_program_id;
  		pipeline_properties properties;
@@ -15995,7 +16048,7 @@ index e1bdc88..65c5068 100644
  		}
  	};
  
-@@ -194,7 +209,8 @@ class program_state_cache
+@@ -194,7 +210,8 @@ class program_state_cache
  	{
  		bool operator()(const pipeline_key &key1, const pipeline_key &key2) const
  		{
@@ -16005,7 +16058,7 @@ index e1bdc88..65c5068 100644
  		}
  	};
  
-@@ -207,7 +223,9 @@ protected:
+@@ -207,7 +224,9 @@ protected:
  	shared_mutex m_decompiler_mutex;
  
  	atomic_t<usz> m_next_id = 0;
@@ -16016,7 +16069,7 @@ index e1bdc88..65c5068 100644
  
  	binary_to_vertex_program m_vertex_shader_cache;
  	binary_to_fragment_program m_fragment_shader_cache;
-@@ -215,6 +233,14 @@ protected:
+@@ -215,6 +234,14 @@ protected:
  
  	decompiler_callback_t notify_pipeline_compiled;
  
@@ -16031,7 +16084,7 @@ index e1bdc88..65c5068 100644
  	vertex_program_type __null_vertex_program;
  	fragment_program_type __null_fragment_program;
  	pipeline_storage_type __null_pipeline_handle;
-@@ -365,39 +391,46 @@ public:
+@@ -365,39 +392,46 @@ public:
  		const bool already_existing_vertex_program = std::get<1>(vp_search);
  		const vertex_program_type& vertex_program = std::get<0>(vp_search);
  		const fragment_program_type& fragment_program = std::get<0>(fp_search);
@@ -16094,7 +16147,7 @@ index e1bdc88..65c5068 100644
  		std::function<pipeline_type* (pipeline_storage_type&)> callback;
  
  		if (allow_notification)
-@@ -411,12 +444,10 @@ public:
+@@ -411,12 +445,10 @@ public:
  				}
  
  				rsx_log.success("Program compiled successfully");
@@ -16110,7 +16163,7 @@ index e1bdc88..65c5068 100644
  			};
  		}
  		else
-@@ -428,24 +459,121 @@ public:
+@@ -428,24 +460,126 @@ public:
  					return nullptr;
  				}
  
@@ -16125,6 +16178,11 @@ index e1bdc88..65c5068 100644
 -		auto result = backend_traits::build_pipeline(
 +		// RPCS3 builds without C++ exceptions: a failed driver call reports a
 +		// fatal error and never unwinds through here.
++#ifdef RPCS3_IOS
++		// REWINDBOX_COMPILE_PRESSURE_V1: a draw waits for this build; idle SPU
++		// reservation polls yield the CPU to the Metal compiler meanwhile.
++		rpcs3::ios::compile_pressure::BlockingBuildScope pressure_scope(wait_for_inline_build);
++#endif
 +		pipeline_type* result = backend_traits::build_pipeline(
  			vertex_program,                 // VS, must already be decompiled and recompiled above
  			fragment_program,               // FS, must already be decompiled and recompiled above
@@ -16238,7 +16296,7 @@ index e1bdc88..65c5068 100644
  	void fill_fragment_constants_buffer(std::span<f32> dst_buffer, const fragment_program_type& fragment_program, const RSXFragmentProgram& rsx_prog, bool sanitize = false) const
  	{
  		if (dst_buffer.size_bytes() < (fragment_program.constant_offsets.size() * 16))
-@@ -466,5 +594,6 @@ public:
+@@ -466,5 +600,6 @@ public:
  		m_fragment_shader_cache.clear();
  		m_vertex_shader_cache.clear();
  		m_storage.clear();
@@ -20059,15 +20117,17 @@ index 0000000..00b0ad0
 +};
 +}
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/sync.cpp b/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
-index 6d36283..79990fd 100644
+index 6d36283..994377d 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
-@@ -8,9 +8,19 @@
+@@ -8,9 +8,21 @@
  
  #include "Emu/Cell/timers.hpp"
  
 +#ifdef RPCS3_IOS
 +#include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSCompilePressure.h"
++#include <chrono>
 +#endif
 +
 +// NEOSTATION_BUILD258_CORE_ARCHITECTURE_V1
@@ -20082,7 +20142,7 @@ index 6d36283..79990fd 100644
  namespace vk
  {
  	namespace globals
-@@ -173,14 +183,29 @@ namespace vk
+@@ -173,14 +185,29 @@ namespace vk
  	void fence::signal_flushed()
  	{
  		flushed.release(true);
@@ -20112,7 +20172,7 @@ index 6d36283..79990fd 100644
  	}
  
  	fence::operator bool() const
-@@ -231,14 +256,39 @@ namespace vk
+@@ -231,13 +258,38 @@ namespace vk
  			.flags = 0
  		};
  
@@ -20140,19 +20200,18 @@ index 6d36283..79990fd 100644
 +			m_metal_event = export_metal_event(dev, m_vk_event);
 +		}
 +#endif
- 	}
- 
++	}
++
 +#ifdef RPCS3_IOS
 +	VkResult event::wait_metal(u64 timeout) const
 +	{
 +		return wait_for_metal_event(m_metal_event, *m_device, m_vk_event, timeout);
-+	}
+ 	}
 +#endif
-+
+ 
  	event::~event()
  	{
- 		if (m_vk_event) [[likely]]
-@@ -562,32 +612,57 @@ namespace vk
+@@ -562,32 +614,103 @@ namespace vk
  	VkResult wait_for_fence(fence* pFence, u64 timeout)
  	{
  		pFence->wait_flush();
@@ -20168,9 +20227,54 @@ index 6d36283..79990fd 100644
  		}
  		else
  		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_FENCE_WAIT_V1 (ios/IOSCompilePressure.h): bounded spin,
++			// then block in MoltenVK instead of spinning for the GPU's duration.
++			using namespace rpcs3::ios::fence_wait;
++			const auto spin_until = std::chrono::steady_clock::now() + std::chrono::microseconds(spin_microseconds);
++			std::chrono::steady_clock::time_point blocked_at{};
++			bool blocked = false;
  			while (auto status = vkGetFenceStatus(*g_render_device, pFence->handle))
  			{
 -				switch (status)
++				if (status == VK_NOT_READY)
++				{
++					if (!blocked && std::chrono::steady_clock::now() < spin_until)
++					{
++						utils::pause();
++						continue;
++					}
++
++					if (!blocked)
++					{
++						blocked = true;
++						blocked_at = std::chrono::steady_clock::now();
++					}
++
++					status = vkWaitForFences(*g_render_device, 1, &pFence->handle, VK_FALSE, slice_nanoseconds);
++					if (status == VK_SUCCESS || status == VK_TIMEOUT)
++					{
++						continue;
++					}
++				}
++
++				die_with_error(status);
++				result = status;
++				break;
++			}
++
++			if (blocked)
++			{
++				blocked_us.record(static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
++					std::chrono::steady_clock::now() - blocked_at).count()));
++			}
++			else
++			{
++				spin_completed.fetch_add(1, std::memory_order_relaxed);
++			}
++#else
++			while (auto status = vkGetFenceStatus(*g_render_device, pFence->handle))
++			{
 +				if (status == VK_NOT_READY)
  				{
 -				case VK_NOT_READY:
@@ -20187,6 +20291,7 @@ index 6d36283..79990fd 100644
 +				result = status;
 +				break;
 +			}
++#endif
  		}
 +
 +#ifdef RPCS3_IOS
@@ -22323,6 +22428,85 @@ index 0000000..4eac154
 +    explicit operator bool() const { return ticket != 0; }
 +};
 +void wake_compile_waiters() noexcept;
++}
+diff --git a/rpcs3/ios/IOSCompilePressure.h b/rpcs3/ios/IOSCompilePressure.h
+new file mode 100644
+index 0000000..98abac4
+--- /dev/null
++++ b/rpcs3/ios/IOSCompilePressure.h
+@@ -0,0 +1,73 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "IOSRuntimeMetrics.h"
++#include <atomic>
++#include <chrono>
++#include <cstdint>
++
++// REWINDBOX_COMPILE_PRESSURE_V1: cooperative CPU release while the RSX thread
++// waits for a graphics pipeline that a draw needs.
++//
++// MoltenVK 1.4.2 builds the Metal pipeline on a global GCD queue and Metal
++// compiles out of process, both below the emulator threads' USER_INTERACTIVE
++// QoS (MVKMetalCompiler::compile), while the RSX thread waits. On the A18 Pro
++// (2 performance + 4 efficiency cores) God of War III builds took 0.3-0.8 s
++// per pipeline with 2.3-3.9 busy SPU cores (build 538) and 2-4 s with 3.3-3.7
++// SPU cores spinning in reservation loops (build 541, docs/rpcs3-cell543.md).
++// During such a build a SPU thread that only polls an unchanged reservation
++// takes RPCS3's own passive path (it sleeps on the reservation notifier, woken
++// by any store to the line or after 100 us) instead of spinning. Guest instructions, their order and the SPU work that
++// actually executes are unchanged: only how an idle poll waits.
++namespace rpcs3::ios::compile_pressure
++{
++inline std::atomic<std::uint32_t> blocking_builds{0};
++// Profiler window counters (exchanged once per report, never per draw).
++inline diagnostics::EventCost blocking_build_us{};
++inline std::atomic<std::uint64_t> spu_passive_waits{0};
++
++inline bool active() noexcept
++{
++    return blocking_builds.load(std::memory_order_relaxed) != 0;
++}
++
++// Held around one pipeline build that a draw waits for. Preload workers and
++// asynchronous builds do not hold it: the frame does not wait for them.
++class BlockingBuildScope final
++{
++    bool active_;
++    std::chrono::steady_clock::time_point begin_{};
++public:
++    explicit BlockingBuildScope(bool draw_waits) noexcept : active_(draw_waits)
++    {
++        if (!active_) return;
++        begin_ = std::chrono::steady_clock::now();
++        blocking_builds.fetch_add(1, std::memory_order_relaxed);
++    }
++    ~BlockingBuildScope() noexcept
++    {
++        if (!active_) return;
++        blocking_builds.fetch_sub(1, std::memory_order_relaxed);
++        blocking_build_us.record(static_cast<std::uint64_t>(
++            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - begin_).count()));
++    }
++    BlockingBuildScope(const BlockingBuildScope&) = delete;
++    BlockingBuildScope& operator=(const BlockingBuildScope&) = delete;
++};
++}
++
++// REWINDBOX_FENCE_WAIT_V1: a command buffer reuse wait (vk::wait_for_fence
++// without timeout) spun on vkGetFenceStatus for the whole GPU time: build 541
++// logged 0.4-1.7 s of such waits per 5 s window on the RSX thread, the busiest
++// thread of the process. It now spins for a bounded time, then blocks in
++// vkWaitForFences (MoltenVK's fence sitter, signalled by the Metal completion
++// handler). Same result, same order.
++namespace rpcs3::ios::fence_wait
++{
++// Bounded spin before blocking: covers GPU work that is about to complete.
++inline constexpr std::uint64_t spin_microseconds = 100;
++// Blocking slices; the wait itself has no timeout, as before.
++inline constexpr std::uint64_t slice_nanoseconds = 100'000'000;
++inline std::atomic<std::uint64_t> spin_completed{0};
++inline diagnostics::EventCost blocked_us{};
 +}
 diff --git a/rpcs3/ios/IOSDMACopy.h b/rpcs3/ios/IOSDMACopy.h
 index b6c26eb..a409cfc 100644
@@ -27520,10 +27704,10 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..264af0d 100644
+index d800542..7c1bef8 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,176 @@
+@@ -1,26 +1,177 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -27540,6 +27724,7 @@ index d800542..264af0d 100644
 +#include "IOSCompileAdmission.h"
 +#include "IOSRuntimeMetrics.h"
 +#include "IOSShaderTiming.h"
++#include "IOSCompilePressure.h"
 +#include "Utilities/JITPublicationQueue.h"
  
  #include "util/cpu_stats.hpp"
@@ -27700,7 +27885,7 @@ index d800542..264af0d 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +188,387 @@ u64 process_memory_footprint()
+@@ -38,31 +189,387 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -28098,7 +28283,7 @@ index d800542..264af0d 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +578,10 @@ public:
+@@ -72,10 +579,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -28111,7 +28296,7 @@ index d800542..264af0d 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +614,615 @@ public:
+@@ -108,12 +615,631 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -28432,6 +28617,22 @@ index d800542..264af0d 100644
 +            costs[4].count, costs[4].total / 1000.0, costs[4].maximum / 1000.0,
 +            costs[5].count, milliseconds(costs[5].total), milliseconds(costs[5].maximum),
 +            costs[6].count, milliseconds(costs[6].total), milliseconds(costs[6].maximum));
++        // REWINDBOX_COMPILE_PRESSURE_V1 / REWINDBOX_FENCE_WAIT_V1: draw-blocking
++        // pipeline builds, SPU polls that waited passively meanwhile, and GPU
++        // fence waits finished within the bounded spin or blocked in MoltenVK.
++        {
++            const auto blocking = rpcs3::ios::compile_pressure::blocking_build_us.take();
++            const auto fence_blocked = rpcs3::ios::fence_wait::blocked_us.take();
++            ios_core_profiler.notice(
++                "COREPROF PRESSURE547 session=%llu window=%llu tuple=count:total_ms:max_ms blocking_builds=%llu:%.3f:%.3f "
++                "spu_passive_waits=%llu fence_spin_completed=%llu fence_blocked=%llu:%.3f:%.3f fence_spin_limit_us=%llu "
++                "scope=process_window",
++                profile_session, profile_window, blocking.count, blocking.total / 1000.0, blocking.maximum / 1000.0,
++                rpcs3::ios::compile_pressure::spu_passive_waits.exchange(0, std::memory_order_relaxed),
++                rpcs3::ios::fence_wait::spin_completed.exchange(0, std::memory_order_relaxed),
++                fence_blocked.count, fence_blocked.total / 1000.0, fence_blocked.maximum / 1000.0,
++                static_cast<u64>(rpcs3::ios::fence_wait::spin_microseconds));
++        }
 +        const auto& mem = memory_window.latest;
 +        const auto& peak = memory_window.peak;
 +        ios_core_profiler.notice(
@@ -28729,7 +28930,7 @@ index d800542..264af0d 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1230,91 @@ private:
+@@ -121,6 +1247,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -28821,7 +29022,7 @@ index d800542..264af0d 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1322,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1339,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -28909,7 +29110,7 @@ index d800542..264af0d 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1413,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1430,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -29038,7 +29239,7 @@ index d800542..264af0d 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1544,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1561,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
