@@ -34,6 +34,8 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
+    - name: Put every path the interface does not own back to the validated 546 delivery tree (working tree only)
+      run: python3 .github/diagnostics/liquidglass_ui_delivery.py --restore-fixed-state
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: 3.47.2
@@ -45,7 +47,8 @@ jobs:
         flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
         # neo_glass_bubble_test's "rapid focus changes" case fails on the base
         # commit too (it expects a transform absent since ab7997a); left out.
-        flutter test --no-pub --reporter expanded --name '^(?!rapid focus changes retarget)' \
+        # Serial: suites sharing the SQLite file lock each other out when run in parallel.
+        flutter test --no-pub --reporter expanded --concurrency=1 --name '^(?!rapid focus changes retarget)' \
           test/interface_style_settings_test.dart test/liquid_glass_theme_test.dart \
           test/glass_performance_governor_test.dart test/interface_style_locale_test.dart \
           test/main_menu_tab_strip_styles_test.dart test/liquid_glass_settings_spacing_test.dart \
@@ -108,6 +111,8 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
+    - name: Put every path the interface does not own back to the validated 546 delivery tree (working tree only)
+      run: python3 .github/diagnostics/liquidglass_ui_delivery.py --restore-fixed-state
     - name: Load exact local import and historical Foundation receipts
       uses: actions/download-artifact@v4
       with:

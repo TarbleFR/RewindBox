@@ -48,9 +48,10 @@ jobs:
         # The "rapid focus changes" case of neo_glass_bubble_test expects a
         # `main-menu-liquid-stretch` transform that no widget on this branch
         # has provided since ab7997a: it fails on the base commit as well and
-        # is left out here rather than hidden behind a changed widget.
+        # is left out here rather than hidden behind a changed widget. Serial:
+        # suites sharing the SQLite file lock each other out when run in parallel.
         run: >-
-          flutter test --no-pub --reporter expanded
+          flutter test --no-pub --reporter expanded --concurrency=1
           --name '^(?!rapid focus changes retarget)'
           test/interface_style_settings_test.dart
           test/liquid_glass_theme_test.dart
