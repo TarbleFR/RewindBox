@@ -133,10 +133,22 @@ int main(int argc, char** argv)
 	json += "]";
 
 	// A fence slower than one blocking slice (100 ms) keeps waiting, as before.
+	// The simulated GPU signals only once the waiter has entered a second
+	// vkWaitForFences, i.e. after a slice expired: independent of timer slack.
 	{
-		const measured slow = measure(after, 250'000, 1);
-		CHECK(slow.successes == 1 && slow.wait_calls >= 3);
-		json += ", \"slowerThanSlice\": {\"wall_us\": " + std::to_string(slow.wall_us_mean) + ", \"waitCalls\": " + std::to_string(slow.wait_calls) + "}";
+		sim_fence sf;
+		fence f{&sf};
+		const u64 start = now_ns();
+		std::thread gpu([&]
+		{
+			while (sf.wait_calls.load() < 2) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			sf.signal();
+		});
+		const VkResult r = after(&f, 0);
+		gpu.join();
+		CHECK(r == VK_SUCCESS && sf.wait_calls.load() >= 2);
+		json += ", \"slowerThanSlice\": {\"wall_us\": " + std::to_string((now_ns() - start) / 1000) + ", \"waitCalls\": " + std::to_string(sf.wait_calls.load()) + "}";
 	}
 
 	// Device loss is reported once, by both bodies, with the same result.
