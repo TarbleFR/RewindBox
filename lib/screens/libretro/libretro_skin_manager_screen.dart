@@ -14,6 +14,7 @@ import '../../services/logger_service.dart';
 import '../../utils/gamepad_nav.dart';
 import '../../widgets/confirm_action_dialog.dart';
 import 'libretro_skin_catalog_screen.dart';
+import '../../widgets/glass/glass_backdrop.dart';
 
 /// Controller, D-pad and keyboard navigation of the embedded-console pages.
 ///
@@ -95,7 +96,11 @@ mixin LibretroPageNavigation<T extends StatefulWidget> on State<T> {
       actions: <Type, Action<Intent>>{
         DirectionalFocusIntent: DoNothingAction(),
       },
-      child: Focus(focusNode: _pageFocus, autofocus: true, child: child),
+      child: Focus(
+        focusNode: _pageFocus,
+        autofocus: true,
+        child: GlassPageScope(child: child),
+      ),
     ),
   );
 

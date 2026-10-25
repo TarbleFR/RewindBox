@@ -24,6 +24,7 @@ import '../widgets/horizontal_swipe.dart';
 import 'airplay_screen.dart';
 import 'systems_screen/system_content.dart';
 import 'systems_screen/custom_main_menu_background.dart';
+import '../widgets/glass/glass_backdrop.dart';
 import 'search_screen/search_screen.dart';
 import 'retro_achievements_screen/ra_content.dart';
 import 'settings_screen/new_settings_screen.dart';
@@ -807,12 +808,10 @@ class AppScreenState extends State<AppScreen> with WidgetsBindingObserver {
           child: Scaffold(
             body: Stack(
               children: [
-                // Background Layer.
-                Positioned.fill(
-                  child: Container(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                  ),
-                ),
+                // Background Layer: the glass backdrop (scaffold colour with
+                // a soft tone and, in the glass style, two faint accent
+                // glows). Static, never blurred; custom backgrounds sit above.
+                const Positioned.fill(child: GlassBackdrop()),
 
                 // Keep the Systems custom background mounted while switching
                 // top-level tabs. Offstage stops it painting on other tabs, while

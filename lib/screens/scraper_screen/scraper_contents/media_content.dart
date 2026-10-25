@@ -8,6 +8,7 @@ import '../../settings_screen/new_settings_options/settings_title.dart';
 
 import 'package:neostation/widgets/custom_toggle_switch.dart';
 import 'package:neostation/utils/adaptive_scroll.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 class MediaContent extends StatefulWidget {
   final bool isContentFocused;
@@ -151,7 +152,9 @@ class MediaContentState extends State<MediaContent> {
                 bottom: 6.r,
               ),
               decoration: BoxDecoration(
-                color: theme.cardColor.withValues(alpha: 0.25),
+                color: LiquidGlassTheme.of(
+                  context,
+                ).fill(context, GlassRole.bubble),
                 borderRadius: BorderRadius.circular(8.r),
                 border: Border.all(
                   color: isFocused

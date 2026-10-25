@@ -22,7 +22,10 @@ import 'package:neostation/responsive.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../l10n/interface_style_locale.dart';
 import '../../../services/storage/storage_import_activity.dart';
+import '../../../widgets/glass/glass_surface.dart';
+import '../interface_style/interface_style_screen.dart';
 import 'settings_title.dart';
 
 /// A specialized content panel for selecting application color themes and a
@@ -67,11 +70,12 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
     if (mounted) setState(() {});
   }
 
-  /// System theme + built-in variants + custom background + menu music.
+  /// System theme + built-in variants + custom background + menu music +
+  /// the user-interface style card.
   void _initializeKeys() {
     _itemKeys.clear();
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final count = themeProvider.getThemeList().length + 3;
+    final count = themeProvider.getThemeList().length + 4;
     for (int i = 0; i < count; i++) {
       _itemKeys.add(GlobalKey());
     }
@@ -86,7 +90,7 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
 
   int getItemCount(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    return themeProvider.getThemeList().length + 3;
+    return themeProvider.getThemeList().length + 4;
   }
 
   int get _gridColumns => Responsive.getThemesCrossAxisCount(context);
@@ -155,6 +159,7 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
     final themes = themeProvider.getThemeList();
     final customBackgroundIndex = themes.length + 1;
     final menuMusicIndex = themes.length + 2;
+    final interfaceStyleIndex = themes.length + 3;
 
     if (index == 0) {
       await themeProvider.setTheme('system');
@@ -165,6 +170,9 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
       return;
     } else if (index == menuMusicIndex) {
       await _pickHomeMusic();
+      return;
+    } else if (index == interfaceStyleIndex) {
+      await InterfaceStyleScreen.open(context);
       return;
     } else {
       return;
@@ -270,7 +278,8 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
 
     final customBackgroundIndex = allThemes.length;
     final menuMusicIndex = allThemes.length + 1;
-    final itemCount = allThemes.length + 2;
+    final interfaceStyleIndex = allThemes.length + 2;
+    final itemCount = allThemes.length + 3;
 
     if (_itemKeys.length != itemCount) {
       _initializeKeys();
@@ -287,15 +296,15 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
             title: AppLocale.themes.getString(context),
             subtitle: AppLocale.themesSubtitle.getString(context),
           ),
-          SizedBox(height: 12.r),
+          const GlassGap(),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: itemCount,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: _gridColumns,
-              crossAxisSpacing: 8.r,
-              mainAxisSpacing: 8.r,
+              crossAxisSpacing: LiquidGlassTheme.of(context).gap,
+              mainAxisSpacing: LiquidGlassTheme.of(context).gap * 0.6,
               childAspectRatio: 1.05,
             ),
             itemBuilder: (context, index) {
@@ -321,6 +330,28 @@ class ThemesSettingsContentState extends State<ThemesSettingsContent> {
                     onDelete: themeProvider.hasCustomBackground
                         ? _clearCustomBackground
                         : null,
+                  ),
+                );
+              }
+
+              if (index == interfaceStyleIndex) {
+                return Container(
+                  key: _itemKeys[index],
+                  child: _InterfaceStyleCard(
+                    label: InterfaceStyleLocale.text(
+                      context,
+                      InterfaceStyleLocale.title,
+                    ),
+                    subtitle: InterfaceStyleLocale.text(
+                      context,
+                      InterfaceStyleLocale.cardSubtitle,
+                    ),
+                    isFocused: isFocused,
+                    onTap: () {
+                      SfxService().playEnterSound();
+                      widget.onSelectionChanged?.call(index);
+                      InterfaceStyleScreen.open(context);
+                    },
                   ),
                 );
               }
@@ -713,6 +744,132 @@ class _HomeMusicCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: 4.r),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: isFocused
+                ? theme.colorScheme.onSurface
+                : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            fontWeight: isFocused ? FontWeight.bold : FontWeight.normal,
+            fontSize: 12.r,
+          ),
+        ),
+        Text(
+          subtitle,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+            fontSize: 8.r,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Themes grid entry opening Settings › Themes › User interface. The tile
+/// itself is a small live composition of the current glass tokens.
+class _InterfaceStyleCard extends StatelessWidget {
+  const _InterfaceStyleCard({
+    required this.label,
+    required this.subtitle,
+    required this.isFocused,
+    required this.onTap,
+  });
+
+  final String label;
+  final String subtitle;
+  final bool isFocused;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    final glass = LiquidGlassTheme.of(context);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AspectRatio(
+          aspectRatio: 4 / 3,
+          child: Container(
+            key: const ValueKey('interface-style-card'),
+            margin: EdgeInsets.symmetric(vertical: 4.h),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8.r),
+              boxShadow: isFocused
+                  ? [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.3),
+                        blurRadius: 8.r,
+                        spreadRadius: 1.r,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: GlassSurface(
+              role: GlassRole.card,
+              radius: BorderRadius.circular(8.r),
+              focused: isFocused,
+              rimColor: theme.colorScheme.onSurface.withValues(alpha: 0.25),
+              borderWidth: 2.r,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(8.r),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Symbols.auto_awesome_rounded,
+                          color: isFocused
+                              ? accent
+                              : theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.7,
+                                ),
+                          size: 22.r,
+                        ),
+                        SizedBox(height: 6.r),
+                        // Three tiny bubbles: the glass tokens, live.
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (var i = 0; i < 3; i++) ...[
+                              GlassSurface(
+                                role: GlassRole.bubble,
+                                radiusSize: GlassRadius.s,
+                                blur: false,
+                                selected: i == 1,
+                                width: 18.r,
+                                height: 10.r,
+                                child: const SizedBox.shrink(),
+                              ),
+                              if (i < 2) SizedBox(width: glass.gap * 0.3),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(canRequestFocus: false, onTap: onTap),
+                    ),
+                  ),
                 ],
               ),
             ),

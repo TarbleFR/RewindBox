@@ -11,6 +11,7 @@ import '../app_screen.dart' show AppNavigation;
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import '../../utils/login_form_selection.dart';
+import '../../widgets/glass/glass_surface.dart';
 
 class ScraperLoginScreen extends StatefulWidget {
   final VoidCallback? onLoginSuccess;
@@ -226,7 +227,7 @@ class _ScraperLoginScreenState extends State<ScraperLoginScreen>
     return Container(
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: theme.cardColor.withValues(alpha: 0.25),
+        color: LiquidGlassTheme.of(context).fill(context, GlassRole.bubble),
         borderRadius: BorderRadius.circular(12.r),
         border: Border.all(
           color: theme.colorScheme.primary.withValues(alpha: 0.2),
@@ -350,7 +351,7 @@ class _ScraperLoginScreenState extends State<ScraperLoginScreen>
     return Container(
       padding: EdgeInsets.all(16.r),
       decoration: BoxDecoration(
-        color: theme.cardColor.withValues(alpha: 0.25),
+        color: LiquidGlassTheme.of(context).fill(context, GlassRole.bubble),
         borderRadius: BorderRadius.circular(12.r),
         border: Border.all(
           color: theme.colorScheme.primary.withValues(alpha: 0.2),

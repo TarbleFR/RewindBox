@@ -9,6 +9,7 @@ import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:neostation/services/game_service.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:flutter_localization/flutter_localization.dart';
+import 'glass/glass_surface.dart';
 
 class GameViewModeDropdown extends StatefulWidget {
   static final GlobalKey<GameViewModeDropdownState> globalKey =
@@ -340,25 +341,11 @@ class _GameViewModeOverlayState extends State<GameViewModeOverlay> {
           width: widget.width,
           child: Material(
             color: Colors.transparent,
-            child: Container(
+            child: GlassSurface(
+              role: GlassRole.menu,
+              shadow: GlassShadow.high,
               padding: EdgeInsets.symmetric(vertical: 8.r),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
+              radius: BorderRadius.circular(12.r),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12.r),
                 child: SingleChildScrollView(

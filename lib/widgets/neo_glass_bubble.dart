@@ -4,25 +4,29 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../services/frontend_media_gate.dart';
+import '../themes/liquid_glass_theme.dart';
 
 /// Shared neutral glass. Theme accents never enter the selection material.
+/// Strength follows the Liquid Glass intensity and contrast settings; the
+/// user's motion level and iOS Reduce Motion both stop the decorative drift.
 abstract final class NeoBubbleStyle {
-  static bool reduceMotion(BuildContext context) {
-    final media = MediaQuery.maybeOf(context);
-    final features =
-        WidgetsBinding.instance.platformDispatcher.accessibilityFeatures;
-    return features.reduceMotion ||
-        features.disableAnimations ||
-        features.accessibleNavigation ||
-        (media?.disableAnimations ?? false) ||
-        (media?.accessibleNavigation ?? false);
+  static bool reduceMotion(BuildContext context) =>
+      !LiquidGlassTheme.of(context).decorativeMotion(context);
+
+  /// Rim/fill strength multiplier of the active interface style.
+  static double strength(BuildContext context) {
+    final glass = LiquidGlassTheme.of(context);
+    return (glass.intensityScale * glass.contrastScale).clamp(0.3, 2.0);
   }
 
   static Color fill(BuildContext context, {bool selected = true}) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final contrast = MediaQuery.maybeOf(context)?.highContrast ?? false;
+    final base = contrast
+        ? (selected ? 0.27 : 0.12)
+        : (selected ? 0.14 : 0.045);
     return (dark ? Colors.white : Colors.black).withValues(
-      alpha: contrast ? (selected ? 0.27 : 0.12) : (selected ? 0.14 : 0.045),
+      alpha: (base * strength(context)).clamp(0.0, 0.5),
     );
   }
 
@@ -49,7 +53,12 @@ abstract final class NeoBubbleStyle {
       (Theme.of(context).brightness == Brightness.dark
               ? Colors.white
               : Colors.black)
-          .withValues(alpha: selected ? 0.56 : 0.18);
+          .withValues(
+            alpha: ((selected ? 0.56 : 0.18) * strength(context)).clamp(
+              0.0,
+              0.9,
+            ),
+          );
 }
 
 /// A convex, translucent lens with a reflective rim and a soft lower lip.

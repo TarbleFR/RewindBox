@@ -27,6 +27,7 @@ import 'widgets/external_display_setting_rows.dart';
 import 'widgets/language_picker_overlay.dart';
 import 'widgets/ui_refresh_rate_setting_row.dart';
 import '../../../services/permission_service.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 /// A specialized content panel for system-wide configuration, including platform-specific orchestration (Windows/Android/Linux).
 ///
@@ -388,7 +389,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
       children: [
         // Pinned header — stays put while the settings list scrolls beneath it.
         SettingsTitle(title: AppLocale.generalSettings.getString(context)),
-        SizedBox(height: 12.r),
+        const GlassGap(),
         Expanded(
           child: SingleChildScrollView(
             controller: _scrollController,
@@ -422,7 +423,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                 }(),
 
                 // Setting: Ignore hidden files in scan.
-                SizedBox(height: 12.r),
+                const GlassGap(),
                 () {
                   final index = currentItemIdx++;
                   return SettingRow(
@@ -447,7 +448,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                 }(),
 
                 // Setting: SFX Feedback.
-                SizedBox(height: 12.r),
+                const GlassGap(),
                 () {
                   final index = currentItemIdx++;
                   return SettingRow(
@@ -470,7 +471,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                 }(),
 
                 // Setting: Ambient music (Build 448) — switch and volume.
-                SizedBox(height: 12.r),
+                const GlassGap(),
                 () {
                   final index = currentItemIdx++;
                   return AmbientMusicEnabledRow(
@@ -480,7 +481,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                         widget.selectedContentIndex == index,
                   );
                 }(),
-                SizedBox(height: 12.r),
+                const GlassGap(),
                 () {
                   final index = currentItemIdx++;
                   return AmbientMusicVolumeRow(
@@ -492,7 +493,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                 }(),
 
                 // Setting: 12-Hour Clock Format.
-                SizedBox(height: 12.r),
+                const GlassGap(),
                 () {
                   final index = currentItemIdx++;
                   return SettingRow(
@@ -518,7 +519,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
 
                 // Setting: 120 Hz interface (iOS; applied at the next launch).
                 if (UiRefreshRateService.isSupportedPlatform) ...[
-                  SizedBox(height: 12.r),
+                  const GlassGap(),
                   () {
                     final index = currentItemIdx++;
                     return UiRefreshRateSettingRow(
@@ -534,7 +535,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                 // own window switch, picture format (Build 449: no menu row,
                 // outside a game the TV mirrors the iPhone).
                 if (ExternalDisplayService.isSupportedPlatform) ...[
-                  SizedBox(height: 12.r),
+                  const GlassGap(),
                   () {
                     final index = currentItemIdx++;
                     return ExternalDisplayEnabledRow(
@@ -544,7 +545,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                           widget.selectedContentIndex == index,
                     );
                   }(),
-                  SizedBox(height: 12.r),
+                  const GlassGap(),
                   () {
                     final index = currentItemIdx++;
                     return ExternalDisplayModeRow(
@@ -559,7 +560,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                 // Setting: Use built-in emulators (iOS, Build 448) — off,
                 // NeoStation is a frontend for external apps.
                 if (EmbeddedEnginePolicy.isSupportedPlatform) ...[
-                  SizedBox(height: 12.r),
+                  const GlassGap(),
                   () {
                     final index = currentItemIdx++;
                     return EmbeddedEnginesSettingRow(
@@ -574,7 +575,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                 // Setting: Navigation Tab Visibility — one row per hidable tab,
                 // so a future tab gets its toggle from its NavTabSpec alone.
                 for (final tab in hidableNavTabs()) ...[
-                  SizedBox(height: 12.r),
+                  const GlassGap(),
                   () {
                     final index = currentItemIdx++;
                     final spec = navTabSpec(tab);
@@ -603,7 +604,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                 ],
 
                 // Setting: Localization & Language.
-                SizedBox(height: 12.r),
+                const GlassGap(),
                 () {
                   final index = currentItemIdx++;
                   return SettingRow(
@@ -631,7 +632,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                     (Platform.isWindows ||
                         Platform.isLinux ||
                         Platform.isMacOS)) ...[
-                  SizedBox(height: 12.r),
+                  const GlassGap(),
                   () {
                     final index = currentItemIdx++;
                     return SettingRow(
@@ -655,7 +656,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
 
                 // Setting: Filesystem Access & Launcher (Android).
                 if (Platform.isAndroid) ...[
-                  SizedBox(height: 12.r),
+                  const GlassGap(),
                   () {
                     final index = currentItemIdx++;
                     return SettingRow(
@@ -701,7 +702,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                       ),
                     );
                   }(),
-                  SizedBox(height: 12.r),
+                  const GlassGap(),
 
                   () {
                     final index = currentItemIdx++;
@@ -721,7 +722,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
                       ),
                     );
                   }(),
-                  SizedBox(height: 12.r),
+                  const GlassGap(),
                 ],
 
                 // Setting: Secondary Display Suppression (Android Multi-Display).
@@ -756,7 +757,7 @@ class GeneralSettingsContentState extends State<GeneralSettingsContent>
 
                 // Setting: BarTOP Shutdown (Windows/Linux Power Management).
                 if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) ...[
-                  SizedBox(height: 12.r),
+                  const GlassGap(),
                   () {
                     final index = currentItemIdx++;
                     return SettingRow(

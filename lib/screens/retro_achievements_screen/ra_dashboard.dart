@@ -16,6 +16,7 @@ import '../../providers/sqlite_config_provider.dart';
 import '../../screens/game_screen/my_games_list.dart';
 import '../../widgets/custom_notification.dart';
 import '../../models/system_model.dart';
+import '../../widgets/glass/glass_surface.dart';
 
 class RADashboardHub extends StatefulWidget {
   final ScrollController? scrollController;
@@ -1002,7 +1003,9 @@ class _RADashboardHubState extends State<RADashboardHub> {
     Color? borderColor,
   }) {
     return BoxDecoration(
-      color: background ?? theme.cardColor.withValues(alpha: 0.25),
+      color:
+          background ??
+          LiquidGlassTheme.of(context).fill(context, GlassRole.bubble),
       borderRadius: BorderRadius.circular(12.r),
       border: Border.all(
         color: borderColor ?? theme.colorScheme.primary.withValues(alpha: 0.15),

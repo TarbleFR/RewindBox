@@ -3,6 +3,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../utils/gamepad_nav.dart';
 import '../services/game_service.dart';
+import 'glass/glass_surface.dart';
 
 /// Specialized dialog content providing gamepad-friendly navigation for
 /// scraping session summaries.
@@ -63,25 +64,12 @@ class _ScrapingSummaryDialogState extends State<ScrapingSummaryDialog> {
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
-      child: Container(
+      child: GlassSurface(
+        role: GlassRole.modal,
+        radiusSize: GlassRadius.m,
         constraints: BoxConstraints(maxWidth: 240.w),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-            width: 1.r,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.6),
-              blurRadius: 10.r,
-              spreadRadius: 1.r,
-            ),
-          ],
-        ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: LiquidGlassTheme.of(context).radius(GlassRadius.m),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

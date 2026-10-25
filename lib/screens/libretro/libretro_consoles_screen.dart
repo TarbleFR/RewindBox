@@ -21,6 +21,7 @@ import '../../widgets/horizontal_swipe.dart';
 import '../../widgets/libretro_engine_panel.dart';
 import 'libretro_library_actions.dart';
 import 'libretro_skin_manager_screen.dart';
+import '../../widgets/glass/glass_banner.dart';
 
 /// Which consoles the Consoles tab lists.
 enum ConsoleListFilter { all, shown, hidden }
@@ -733,31 +734,11 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
   }
 
   Widget _buildGlobalOff(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
+    return GlassBanner(
       key: const ValueKey('consoles-global-off'),
-      color: theme.colorScheme.secondaryContainer,
+      kind: GlassBannerKind.info,
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Icon(
-              Icons.info_outline,
-              color: theme.colorScheme.onSecondaryContainer,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _c(ConsoleManagerLocale.globalOff),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSecondaryContainer,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      message: _c(ConsoleManagerLocale.globalOff),
     );
   }
 

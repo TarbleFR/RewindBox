@@ -20,6 +20,8 @@ import 'package:neostation/widgets/neo_glass.dart';
 
 import 'library_gamepad_view_controller.dart';
 import 'library_reader_launcher.dart';
+import '../../widgets/glass/glass_banner.dart';
+import '../../widgets/glass/glass_button.dart';
 import 'library_sources_view.dart'
     show
         LibraryDateFormatPreload,
@@ -870,22 +872,15 @@ class _LibraryLocalViewState extends State<LibraryLocalView>
   Widget _buildRecoveredNotice(ThemeData theme) {
     return Padding(
       padding: EdgeInsets.only(top: 8.r),
-      child: Material(
-        color: theme.colorScheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(10.r),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 4.r),
-          child: Row(
-            children: <Widget>[
-              Expanded(child: Text(_t('indexRecovered'))),
-              IconButton(
-                tooltip: _t('close'),
-                onPressed: () =>
-                    setState(() => _recoveredNoticeDismissed = true),
-                icon: const Icon(Icons.close),
-              ),
-            ],
-          ),
+      child: GlassBanner(
+        kind: GlassBannerKind.success,
+        compact: true,
+        message: _t('indexRecovered'),
+        action: GlassIconButton(
+          icon: Icons.close,
+          tooltip: _t('close'),
+          size: 24.r,
+          onPressed: () => setState(() => _recoveredNoticeDismissed = true),
         ),
       ),
     );

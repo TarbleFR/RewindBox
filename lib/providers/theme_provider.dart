@@ -3,23 +3,36 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:neostation/repositories/config_repository.dart';
 import 'package:neostation/services/config_service.dart';
+import 'package:neostation/services/glass_performance_governor.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/startup_theme_cache.dart';
 import 'package:neostation/themes/app_themes.dart';
+import 'package:neostation/themes/liquid_glass_theme.dart';
 import 'package:neostation/utils/image_utils.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider responsible for managing the application's visual theme.
 ///
-/// The color theme and the optional main-menu custom background are persisted
+/// The color theme, the optional main-menu custom background and the Liquid
+/// Glass interface style (Settings › Themes › User interface) are persisted
 /// independently. The background is rendered only by the Systems main menu;
 /// playlists and other top-level screens keep their normal theme background.
+///
+/// [currentTheme] always carries the [LiquidGlassTheme] tokens and the
+/// Material component themes derived from the interface style, so every
+/// dialog, menu, sheet, card and control follows the user's choice without
+/// per-screen wiring.
 class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
   static final _log = LoggerService.instance;
   static const String _customBackgroundPreferenceKey =
       'neostation_custom_background_path';
   static const String _customBackgroundDirectoryName = 'custom_background';
+
+  /// SharedPreferences key of the encoded [InterfaceStyleSettings]. Kept on
+  /// internal storage so the style is known before the database mounts.
+  static const String interfaceStylePreferenceKey =
+      'rewindbox_interface_style_v1';
 
   ThemeData _currentTheme =
       (WidgetsBinding.instance.platformDispatcher.platformBrightness ==
@@ -29,8 +42,19 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   String _currentThemeName = 'system';
   String? _customBackgroundPath;
+  InterfaceStyleSettings _interfaceStyle = InterfaceStyleSettings.defaults;
+  final GlassPerformanceGovernor _governor = GlassPerformanceGovernor.instance;
 
-  ThemeData get currentTheme {
+  // The composed theme is rebuilt only when its inputs change: the getter
+  // runs on every Consumer rebuild.
+  ThemeData? _composedBase;
+  ThemeData? _composed;
+  InterfaceStyleSettings? _composedStyle;
+  double _composedBlurBudget = -1;
+  double _composedDepthBudget = -1;
+
+  /// The selected palette without the Liquid Glass composition.
+  ThemeData get baseTheme {
     if (_currentThemeName == 'system') {
       final brightness =
           WidgetsBinding.instance.platformDispatcher.platformBrightness;
@@ -40,6 +64,44 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
     return _currentTheme;
   }
+
+  ThemeData get currentTheme {
+    final base = baseTheme;
+    final blur = _governor.blurBudget;
+    final depth = _governor.depthBudget;
+    final cached = _composed;
+    if (cached != null &&
+        identical(_composedBase, base) &&
+        _composedStyle == _interfaceStyle &&
+        _composedBlurBudget == blur &&
+        _composedDepthBudget == depth) {
+      return cached;
+    }
+    final composed = applyLiquidGlass(
+      base,
+      _interfaceStyle,
+      blurBudget: blur,
+      depthBudget: depth,
+    );
+    _composedBase = base;
+    _composed = composed;
+    _composedStyle = _interfaceStyle;
+    _composedBlurBudget = blur;
+    _composedDepthBudget = depth;
+    return composed;
+  }
+
+  /// The persisted interface style.
+  InterfaceStyleSettings get interfaceStyle => _interfaceStyle;
+
+  /// The current palette composed with [draft], for the live preview in
+  /// Settings. Nothing is persisted.
+  ThemeData previewTheme(InterfaceStyleSettings draft) => applyLiquidGlass(
+    baseTheme,
+    draft,
+    blurBudget: _governor.blurBudget,
+    depthBudget: _governor.depthBudget,
+  );
 
   String get currentThemeName => _currentThemeName;
 
@@ -90,19 +152,71 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   ThemeProvider._() {
     WidgetsBinding.instance.addObserver(this);
+    _governor.start();
+    _governor.addListener(_onPerformanceBudgetChanged);
   }
 
   static Future<ThemeProvider> create() async {
     final provider = ThemeProvider._();
+    await provider._loadInterfaceStyle();
     await provider._loadSavedTheme();
+    return provider;
+  }
+
+  /// A provider on the dark palette that touches neither the database nor
+  /// the saved theme; [interfaceStyle] still persists to SharedPreferences.
+  @visibleForTesting
+  factory ThemeProvider.testing({
+    String themeName = 'dark',
+    InterfaceStyleSettings? interfaceStyle,
+  }) {
+    final provider = ThemeProvider._();
+    provider._currentThemeName = themeName;
+    provider._currentTheme = availableThemes[themeName] ?? AppThemes.darkTheme;
+    provider._interfaceStyle =
+        interfaceStyle ?? InterfaceStyleSettings.defaults;
     return provider;
   }
 
   @override
   void dispose() {
+    _governor.removeListener(_onPerformanceBudgetChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
+
+  /// A blur or shadow budget change (embedded game, Low Power Mode, memory
+  /// warning) recomposes the theme; the palette itself is unchanged.
+  void _onPerformanceBudgetChanged() => notifyListeners();
+
+  Future<void> _loadInterfaceStyle() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _interfaceStyle = InterfaceStyleSettings.decode(
+        prefs.getString(interfaceStylePreferenceKey),
+      );
+    } catch (e) {
+      _log.e('Error loading interface style: $e');
+      _interfaceStyle = InterfaceStyleSettings.defaults;
+    }
+  }
+
+  /// Persists and applies [settings] to the whole interface.
+  Future<void> setInterfaceStyle(InterfaceStyleSettings settings) async {
+    final normalized = settings.normalized();
+    if (normalized == _interfaceStyle) return;
+    _interfaceStyle = normalized;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(interfaceStylePreferenceKey, normalized.encode());
+    } catch (e) {
+      _log.e('Error saving interface style: $e');
+    }
+  }
+
+  Future<void> resetInterfaceStyle() =>
+      setInterfaceStyle(InterfaceStyleSettings.defaults);
 
   @override
   void didChangePlatformBrightness() {

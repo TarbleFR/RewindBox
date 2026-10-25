@@ -1,14 +1,13 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../themes/chrome_surface.dart';
+import 'glass/glass_surface.dart';
 
 /// Lightweight theme-adaptive glass container.
 ///
-/// One BackdropFilter is used per surface; no fragment shader or extra blur
-/// pass is involved. Opacity, blur and rim are resolved from the active theme
-/// at runtime, including imported/custom themes.
+/// Kept for the existing call sites; it is a thin facade over [GlassSurface],
+/// so every NeoGlass panel follows the Liquid Glass tokens (interface style,
+/// transparency, blur, rim, sheen and performance budget) at once.
 class NeoGlass extends StatelessWidget {
   final Widget child;
   final BorderRadius borderRadius;
@@ -40,56 +39,44 @@ class NeoGlass extends StatelessWidget {
     this.showSheen = true,
   });
 
+  static GlassRole roleOf(GlassSurfaceRole role) => switch (role) {
+    GlassSurfaceRole.panel => GlassRole.panel,
+    GlassSurfaceRole.rail => GlassRole.rail,
+    GlassSurfaceRole.modal => GlassRole.modal,
+    GlassSurfaceRole.chrome => GlassRole.chrome,
+    GlassSurfaceRole.pill => GlassRole.pill,
+    GlassSurfaceRole.card => GlassRole.card,
+  };
+
   @override
   Widget build(BuildContext context) {
-    final blur = ChromeSurface.glassBlur(context, role);
-    final fill = ChromeSurface.glassFill(context, role);
-    final rim = ChromeSurface.glassRim(context, role);
-    final sheen = ChromeSurface.glassSheen(context, role);
-
-    final decorated = DecoratedBox(
-      decoration: BoxDecoration(
-        color: gradient == null ? fill : null,
-        gradient: gradient,
-        borderRadius: borderRadius,
-        border: Border.all(color: rim, width: borderWidth),
-      ),
-      child: Stack(
-        fit: StackFit.passthrough,
-        children: [
-          if (showSheen)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: sheen,
-                    borderRadius: borderRadius,
-                  ),
-                ),
-              ),
-            ),
-          if (padding != null) Padding(padding: padding!, child: child),
-          if (padding == null) child,
-        ],
-      ),
+    final glass = GlassSurface(
+      role: roleOf(role),
+      radius: borderRadius,
+      gradient: gradient,
+      padding: padding,
+      borderWidth: borderWidth,
+      blur: enableBackdropBlur,
+      showSheen: showSheen,
+      // Callers that pass their own shadow keep it; the others get none, as
+      // before.
+      shadow: GlassShadow.none,
+      child: child,
     );
-
-    final glass = ClipRRect(
-      borderRadius: borderRadius,
-      child: enableBackdropBlur && blur > 0.01
-          ? BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-              child: decorated,
-            )
-          : decorated,
-    );
-
     if (boxShadow == null || boxShadow!.isEmpty) return glass;
-
+    final depth = LiquidGlassTheme.of(context).depthScale;
+    if (depth <= 0) return glass;
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
-        boxShadow: boxShadow,
+        boxShadow: [
+          for (final shadow in boxShadow!)
+            shadow.copyWith(
+              color: shadow.color.withValues(
+                alpha: (shadow.color.a * depth).clamp(0.0, 1.0),
+              ),
+            ),
+        ],
       ),
       child: glass,
     );

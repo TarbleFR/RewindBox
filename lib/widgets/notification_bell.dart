@@ -7,6 +7,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/services/global_notification_service.dart';
 import 'package:neostation/themes/app_themes.dart';
 import 'package:neostation/themes/corner_radii.dart';
+import 'glass/glass_surface.dart';
 
 /// Notification bell icon that opens a dropdown with all active global
 /// notifications, including their progress.
@@ -178,96 +179,88 @@ class _NotificationsDropdownMenu extends StatelessWidget {
       valueListenable: GlobalNotificationService().notifier,
       builder: (context, notifications, _) {
         return Material(
-          color: Theme.of(context).colorScheme.surface,
-          elevation: 6,
-          shadowColor: Theme.of(
-            context,
-          ).colorScheme.shadow.withValues(alpha: 0.3),
-          shape: RoundedRectangleBorder(
-            borderRadius: CornerRadii.of(context).radiusExternal,
-            side: BorderSide(
-              color: Theme.of(
-                context,
-              ).colorScheme.outline.withValues(alpha: 0.3),
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 300.r,
-              minWidth: 200.r,
-              maxHeight: 360.r,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 12.r,
-                    vertical: 10.r,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        AppLocale.notifications.getString(context),
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: 12.r,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (notifications.isNotEmpty)
-                        GestureDetector(
-                          onTap: () => GlobalNotificationService().dismiss(),
-                          child: Text(
-                            AppLocale.clearAll.getString(context),
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontSize: 10.r,
-                              fontWeight: FontWeight.w600,
-                            ),
+          color: Colors.transparent,
+          child: GlassSurface(
+            role: GlassRole.menu,
+            shadow: GlassShadow.high,
+            radius: CornerRadii.of(context).radiusExternal,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 300.r,
+                minWidth: 200.r,
+                maxHeight: 360.r,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 12.r,
+                      vertical: 10.r,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          AppLocale.notifications.getString(context),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: 12.r,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                    ],
+                        if (notifications.isNotEmpty)
+                          GestureDetector(
+                            onTap: () => GlobalNotificationService().dismiss(),
+                            child: Text(
+                              AppLocale.clearAll.getString(context),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontSize: 10.r,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                if (notifications.isEmpty)
-                  Padding(
-                    padding: EdgeInsets.all(16.r),
-                    child: Center(
-                      child: Text(
-                        AppLocale.noActiveNotifications.getString(context),
-                        style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.6),
-                          fontSize: 11.r,
+                  if (notifications.isEmpty)
+                    Padding(
+                      padding: EdgeInsets.all(16.r),
+                      child: Center(
+                        child: Text(
+                          AppLocale.noActiveNotifications.getString(context),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.6),
+                            fontSize: 11.r,
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                else
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      padding: EdgeInsets.zero,
-                      itemCount: notifications.length,
-                      separatorBuilder: (_, _) => Divider(
-                        height: 1.r,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.outline.withValues(alpha: 0.2),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: notifications.length,
+                        separatorBuilder: (_, _) => Divider(
+                          height: 1.r,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outline.withValues(alpha: 0.2),
+                        ),
+                        itemBuilder: (context, index) {
+                          return _NotificationDropdownItem(
+                            data: notifications[index],
+                          );
+                        },
                       ),
-                      itemBuilder: (context, index) {
-                        return _NotificationDropdownItem(
-                          data: notifications[index],
-                        );
-                      },
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         );

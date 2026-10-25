@@ -2,6 +2,48 @@
 #import "NeoUnifiedCheatBrowser.h"
 #import "Public/NeoUnifiedCheatCatalog.h"
 #import "Public/RBLiquidProgressView.h"
+
+// Liquid Glass parity with the Flutter interface (Settings › Themes › User
+// interface). The style is read from the preference Flutter writes through
+// SharedPreferences; iOS Reduce Transparency and the minimal style keep the
+// system opaque look. One system material per page, no custom blur layers.
+static NSString *RBGlassInterfaceStyle(void) {
+  NSString *stored = [NSUserDefaults.standardUserDefaults stringForKey:@"flutter.rewindbox_interface_style_v1"];
+  if (![stored isKindOfClass:NSString.class] || !stored.length) return @"liquidGlass";
+  NSData *data = [stored dataUsingEncoding:NSUTF8StringEncoding];
+  id json = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+  NSString *style = [json isKindOfClass:NSDictionary.class] ? json[@"style"] : nil;
+  return [style isKindOfClass:NSString.class] && style.length ? style : @"liquidGlass";
+}
+
+static BOOL RBGlassTranslucent(NSString *style) {
+  return ![style isEqualToString:@"minimal"] && !UIAccessibilityIsReduceTransparencyEnabled();
+}
+
+static void RBGlassApplyToPage(UITableViewController *page) {
+  NSString *style = RBGlassInterfaceStyle();
+  if (!RBGlassTranslucent(style)) return;
+  UIBlurEffectStyle material = [style isEqualToString:@"classic"] ? UIBlurEffectStyleSystemThickMaterial
+                                                                   : UIBlurEffectStyleSystemChromeMaterial;
+  page.view.backgroundColor = UIColor.clearColor;
+  page.tableView.backgroundColor = UIColor.clearColor;
+  page.tableView.backgroundView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:material]];
+  UINavigationBar *bar = page.navigationController.navigationBar;
+  if (bar) {
+    UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
+    [appearance configureWithTransparentBackground];
+    appearance.backgroundEffect = [UIBlurEffect effectWithStyle:material];
+    bar.standardAppearance = appearance;
+    bar.scrollEdgeAppearance = appearance;
+    bar.compactAppearance = appearance;
+  }
+}
+
+static void RBGlassApplyToCell(UITableViewCell *cell) {
+  if (!RBGlassTranslucent(RBGlassInterfaceStyle())) return;
+  cell.backgroundColor = [UIColor.secondarySystemGroupedBackgroundColor colorWithAlphaComponent:0.62];
+}
+
 #include <limits.h>
 
 static unsigned long long NUCBSize(id value) {
@@ -324,6 +366,7 @@ typedef NS_ENUM(NSInteger, NUCBPage) { NUCBGames, NUCBPrograms, NUCBProgram };
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
+    RBGlassApplyToPage(self);
     self.tableView.rowHeight = UITableViewAutomaticDimension;
     self.tableView.estimatedRowHeight = 76;
     [self.tableView registerClass:NUCBCodeCell.class forCellReuseIdentifier:@"code"];
@@ -653,6 +696,7 @@ typedef NS_ENUM(NSInteger, NUCBPage) { NUCBGames, NUCBPrograms, NUCBProgram };
 - (UITableViewCell *)cellWithTitle:(NSString *)title detail:(NSString *)detail identifier:(NSString *)identifier {
     NUCBTextCell *cell = [self.tableView dequeueReusableCellWithIdentifier:identifier];
     if (!cell) cell = [[NUCBTextCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:identifier];
+    RBGlassApplyToCell(cell);
     cell.headline.text = title;
     cell.headline.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
     cell.headline.textColor = UIColor.labelColor;
@@ -686,6 +730,7 @@ typedef NS_ENUM(NSInteger, NUCBPage) { NUCBGames, NUCBPrograms, NUCBProgram };
         }
         if (row == 1) {
             NUCBProgressCell *cell = [tableView dequeueReusableCellWithIdentifier:@"progress" forIndexPath:indexPath];
+            RBGlassApplyToCell(cell);
             NSDictionary *info = self.installing ? self.progress : self.summary;
             unsigned long long total = [info[@"total_bytes"] unsignedLongLongValue];
             unsigned long long done = [info[self.installing ? @"completed_bytes" : @"installed_bytes"] unsignedLongLongValue];

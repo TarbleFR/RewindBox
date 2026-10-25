@@ -13,6 +13,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 
 import '../themes/corner_radii.dart';
+import 'glass/glass_surface.dart';
 
 class HeaderSortDropdown extends StatefulWidget {
   static final GlobalKey<HeaderSortDropdownState> globalKey =
@@ -93,8 +94,6 @@ class HeaderSortDropdownState extends State<HeaderSortDropdown> {
           SfxService().playNavSound();
           _showDropdown(context);
         },
-        backgroundColor: Theme.of(context).colorScheme.tertiaryFixed,
-        textColor: Theme.of(context).colorScheme.onTertiaryFixed,
       ),
     );
   }
@@ -571,32 +570,20 @@ class _SortDropdownOverlayState extends State<SortDropdownOverlay> {
           width: widget.width,
           child: Material(
             color: Colors.transparent,
-            child: Container(
+            child: GlassSurface(
+              role: GlassRole.menu,
+              shadow: GlassShadow.high,
               constraints: BoxConstraints(maxHeight: maxDropdownHeight),
               padding: EdgeInsets.symmetric(vertical: 8.r),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+              radius:
+                  Theme.of(context).extension<CornerRadii>()?.radiusExternal ??
+                  BorderRadius.circular(12.r),
+              child: ClipRRect(
                 borderRadius:
                     Theme.of(
                       context,
                     ).extension<CornerRadii>()?.radiusExternal ??
                     BorderRadius.circular(12.r),
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outline,
-                  width: 1.r,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.shadow.withValues(alpha: 0.5),
-                    blurRadius: 4.r,
-                    offset: Offset(2.r, 2.r),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12.r),
                 child: SingleChildScrollView(
                   controller: _scrollController,
                   physics: const BouncingScrollPhysics(),

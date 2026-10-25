@@ -2,6 +2,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import '../services/frontend_media_gate.dart';
+import '../services/glass_performance_governor.dart';
 
 /// One paint-only clock for all visible liquid indicators. No idle timer,
 /// image decoding or widget rebuilds; native catalogue pages use their own
@@ -22,6 +23,7 @@ class LiquidMotionClock extends ChangeNotifier with WidgetsBindingObserver {
   set lowPower(bool value) {
     if (_lowPower == value) return;
     _lowPower = value;
+    GlassPerformanceGovernor.instance.lowPower = value;
     _sync();
     notifyListeners();
   }

@@ -106,10 +106,13 @@ class _ConfirmActionDialogState extends State<ConfirmActionDialog> {
         ? theme.colorScheme.onError
         : theme.colorScheme.onPrimary;
 
+    // Surface, radius and barrier come from the Liquid Glass dialog theme;
+    // only the accent rim is specific to this dialog.
     return AlertDialog(
-      backgroundColor: theme.cardColor,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: theme.dialogTheme.shape is RoundedRectangleBorder
+            ? (theme.dialogTheme.shape as RoundedRectangleBorder).borderRadius
+            : BorderRadius.circular(12.r),
         side: BorderSide(color: accentColor.withValues(alpha: 0.3)),
       ),
       title: Row(

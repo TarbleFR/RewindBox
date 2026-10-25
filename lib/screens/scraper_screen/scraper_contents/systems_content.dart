@@ -8,6 +8,7 @@ import 'package:neostation/repositories/scraper_repository.dart';
 import 'package:neostation/widgets/custom_notification.dart';
 import 'package:neostation/services/logger_service.dart';
 import '../../settings_screen/new_settings_options/settings_title.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 class SystemsContent extends StatefulWidget {
   final bool isContentFocused;
@@ -428,7 +429,9 @@ class SystemsContentState extends State<SystemsContent> {
                 shape: BoxShape.circle,
                 color: isEnabled
                     ? Colors.greenAccent.withValues(alpha: 0.25)
-                    : theme.cardColor.withValues(alpha: 0.25),
+                    : LiquidGlassTheme.of(
+                        context,
+                      ).fill(context, GlassRole.bubble),
                 border: Border.all(
                   color: isEnabled
                       ? Colors.greenAccent

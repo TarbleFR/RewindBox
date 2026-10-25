@@ -12,6 +12,7 @@ import 'package:neostation/data/datasources/sqlite_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'settings_title.dart';
 import '../legal_credits_dialog.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 class AboutSettingsContent extends StatefulWidget {
   final bool isContentFocused;
@@ -122,7 +123,7 @@ class AboutSettingsContentState extends State<AboutSettingsContent> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SettingsTitle(title: AppLocale.thankYou.getString(context)),
-          SizedBox(height: 12.r),
+          const GlassGap(),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 6.r),
             child: Row(
@@ -277,16 +278,10 @@ class AboutSettingsContentState extends State<AboutSettingsContent> {
       hoverColor: Colors.transparent,
       highlightColor: Colors.transparent,
       splashColor: Colors.transparent,
-      child: Container(
+      child: GlassSurface(
+        role: GlassRole.bubble,
+        focused: isFocused,
         padding: EdgeInsets.all(6.r),
-        decoration: BoxDecoration(
-          color: theme.cardColor.withValues(alpha: 0.25),
-          borderRadius: BorderRadius.circular(12.r),
-          border: Border.all(
-            color: isFocused ? theme.colorScheme.primary : Colors.transparent,
-            width: 2,
-          ),
-        ),
         child: Row(
           children: [
             SizedBox(width: 8.r),

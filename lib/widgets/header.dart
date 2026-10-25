@@ -12,6 +12,7 @@ import 'package:neostation/l10n/rpcs3_ui_locale.dart';
 import 'package:neostation/providers/theme_provider.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/themes/app_themes.dart';
+import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/services/controller_battery_service.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/services/permission_service.dart';
@@ -32,10 +33,10 @@ import 'package:neostation/screens/app_screen.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import 'package:neostation/utils/time_format.dart';
 
-import 'package:neostation/themes/chrome_surface.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
 import '../themes/corner_radii.dart';
+import '../themes/liquid_glass_theme.dart';
 
 class Header extends StatefulWidget {
   final int selectedTabIndex;
@@ -391,6 +392,17 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
                 spec: navTabSpec(tab),
                 tint: Theme.of(context).colorScheme.onSurface,
               ),
+              labelBuilder: (tab, selected) => Text(
+                navTabLabel(context, tab),
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 6.5.r,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: Theme.of(context).colorScheme.onSurface.withValues(
+                    alpha: selected ? 1 : 0.72,
+                  ),
+                ),
+              ),
             ),
           ),
           status: FittedBox(
@@ -404,8 +416,9 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
               padding: EdgeInsets.symmetric(horizontal: 6.r, vertical: 4.r),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.shadow
-                      .withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.shadow.withValues(alpha: 0.1),
                   blurRadius: 4.r,
                   offset: Offset(2.0.r, 2.0.r),
                 ),
@@ -494,9 +507,16 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
             SfxService().playNavSound();
             widget.onTabSelected(tabIndex);
           },
-          child: Container(
-            padding: EdgeInsets.all(8.r),
-            child: NavTabIcon(spec: navTabSpec(tab), tint: tint),
+          child: Center(
+            child: SizedBox.square(
+              dimension: 16.r * LiquidGlassTheme.of(context).tabIconScale,
+              child: FittedBox(
+                child: SizedBox.square(
+                  dimension: 16.r,
+                  child: NavTabIcon(spec: navTabSpec(tab), tint: tint),
+                ),
+              ),
+            ),
           ),
         ),
       ),

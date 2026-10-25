@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:neostation/l10n/app_locale.dart';
 
 import '../themes/corner_radii.dart';
+import 'glass/glass_surface.dart';
 
 /// Base footer class that eliminates duplicated code between games_footer and systems_footer.
 abstract class CoreFooter extends StatefulWidget {
@@ -137,9 +138,14 @@ class GamepadControl extends StatelessWidget {
     final theme = Theme.of(context);
 
     // Default to a subtle semi-transparent style when no background color is provided.
+    final glass = LiquidGlassTheme.of(context);
     final Color buttonBg =
-        backgroundColor ?? theme.colorScheme.onSurface.withValues(alpha: 0.1);
-    final Color contentColor = textColor ?? theme.colorScheme.onPrimary;
+        backgroundColor ?? glass.fill(context, GlassRole.control);
+    final Color contentColor =
+        textColor ??
+        (backgroundColor == null
+            ? theme.colorScheme.onSurface
+            : theme.colorScheme.onPrimary);
 
     return Material(
       color: Colors.transparent,
@@ -160,14 +166,13 @@ class GamepadControl extends StatelessWidget {
             borderRadius:
                 Theme.of(context).extension<CornerRadii>()?.radiusInternal ??
                 BorderRadius.circular(6.r),
-            border: Border.all(color: lightenColor(buttonBg, 0.05), width: 1.r),
-            boxShadow: [
-              BoxShadow(
-                color: theme.colorScheme.shadow.withValues(alpha: 0.1),
-                blurRadius: 4.r,
-                offset: Offset(2.0.r, 2.0.r),
-              ),
-            ],
+            border: Border.all(
+              color: backgroundColor == null && gradient == null
+                  ? glass.rim(context, GlassRole.control)
+                  : lightenColor(buttonBg, 0.05),
+              width: 1.r,
+            ),
+            boxShadow: glass.shadows(context, GlassShadow.low),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

@@ -13,6 +13,7 @@ import 'settings_title.dart';
 import 'widgets/setting_row.dart';
 import 'widgets/setting_value_chip.dart';
 import 'widgets/settings_section_header.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 /// Settings detail panel for secondary-display options. Only reachable while a
 /// secondary display is active (the menu entry is hidden otherwise), so it
@@ -280,7 +281,7 @@ class SecondarySettingsContentState extends State<SecondarySettingsContent>
       children: [
         // Pinned header — stays put while the settings list scrolls beneath it.
         SettingsTitle(title: AppLocale.secondaryDisplay.getString(context)),
-        SizedBox(height: 12.r),
+        const GlassGap(),
         Expanded(
           child: SingleChildScrollView(
             controller: _scrollController,
@@ -300,9 +301,9 @@ class SecondarySettingsContentState extends State<SecondarySettingsContent>
                   valueText: _fanartDimLabel(config.fanartDimLevel),
                   onTap: () => _cycleFanartDim(provider),
                 ),
-                SizedBox(height: 12.r),
+                const GlassGap(),
                 _buildScreenshotAccessRow(),
-                SizedBox(height: 24.r),
+                const GlassGap.section(),
                 SettingsSectionHeader(
                   label: AppLocale.secondarySectionNowPlaying.getString(
                     context,
@@ -317,7 +318,7 @@ class SecondarySettingsContentState extends State<SecondarySettingsContent>
                   valueText: _dimDelayLabel(config.nowPlayingDimDelay),
                   onTap: () => _cycleDimDelay(provider),
                 ),
-                SizedBox(height: 12.r),
+                const GlassGap(),
                 _buildValueRow(
                   index: 3,
                   title: AppLocale.nowPlayingDimDarkness.getString(context),
@@ -328,7 +329,7 @@ class SecondarySettingsContentState extends State<SecondarySettingsContent>
                   enabled: config.nowPlayingDimDelay > 0,
                   onTap: () => _cycleDimLevel(provider),
                 ),
-                SizedBox(height: 24.r),
+                const GlassGap.section(),
                 SettingsSectionHeader(
                   label: AppLocale.secondarySectionDock.getString(context),
                 ),
@@ -341,7 +342,7 @@ class SecondarySettingsContentState extends State<SecondarySettingsContent>
                   value: config.dockEnabled,
                   onChanged: (v) => provider.updateDockEnabled(v),
                 ),
-                SizedBox(height: 12.r),
+                const GlassGap(),
                 _buildValueRow(
                   index: 5,
                   title: AppLocale.nowPlayingDockSlots.getString(context),

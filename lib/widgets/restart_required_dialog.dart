@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +8,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/services/game_service.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'core_footer.dart';
+import 'glass/glass_surface.dart';
 
 class RestartRequiredDialog extends StatefulWidget {
   const RestartRequiredDialog({super.key});
@@ -52,30 +52,17 @@ class _RestartRequiredDialogState extends State<RestartRequiredDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 5.r, sigmaY: 5.r),
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Container(
-          width: 420.r,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(16.r),
-            border: Border.all(
-              color: theme.colorScheme.primary.withValues(alpha: 0.3),
-              width: 1.r,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 30.r,
-                spreadRadius: 5.r,
-              ),
-            ],
-          ),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: SizedBox(
+        width: 420.r,
+        child: GlassSurface(
+          role: GlassRole.modal,
+          radiusSize: GlassRadius.l,
+          rimColor: theme.colorScheme.primary.withValues(alpha: 0.35),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16.r),
+            borderRadius: LiquidGlassTheme.of(context).radius(GlassRadius.l),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

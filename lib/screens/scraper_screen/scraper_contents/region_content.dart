@@ -6,6 +6,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/repositories/scraper_repository.dart';
 import 'package:neostation/services/sfx_service.dart';
 import '../../settings_screen/new_settings_options/settings_title.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 class RegionContent extends StatefulWidget {
   final bool isContentFocused;
@@ -308,7 +309,7 @@ class RegionContentState extends State<RegionContent> {
           decoration: BoxDecoration(
             color: isMovingItem
                 ? theme.colorScheme.primary.withValues(alpha: 0.2)
-                : theme.cardColor.withValues(alpha: 0.25),
+                : LiquidGlassTheme.of(context).fill(context, GlassRole.bubble),
             borderRadius: BorderRadius.circular(8.r),
             border: Border.all(
               color: isMovingItem

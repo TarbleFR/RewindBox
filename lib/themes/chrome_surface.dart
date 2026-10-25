@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import 'liquid_glass_theme.dart';
+
 /// Visual roles used by NeoStation's adaptive glass surfaces.
 ///
 /// They intentionally describe *usage* rather than a particular theme. The
@@ -55,6 +57,15 @@ class ChromeSurface extends ThemeExtension<ChromeSurface> {
 
   static ChromeSurface of(BuildContext context) => _of(Theme.of(context));
 
+  /// Whether [theme] paints light surfaces (brightness or measured luminance).
+  static bool isLightTheme(ThemeData theme) => _isLight(theme);
+
+  /// Saturation of the theme surface, 0..1.
+  static double saturationOf(ThemeData theme) => _saturation(theme);
+
+  /// Opacity reinforcement for highly saturated surfaces (see [_vividBoost]).
+  static double vividBoost(ThemeData theme) => _vividBoost(theme);
+
   static bool _isLight(ThemeData theme) {
     // Brightness is authoritative for built-in/imported themes, while the
     // luminance fallback protects custom ColorSchemes that were constructed
@@ -103,9 +114,24 @@ class ChromeSurface extends ThemeExtension<ChromeSurface> {
     return theme.colorScheme.surface.withValues(alpha: alpha);
   }
 
+  static GlassRole _glassRole(GlassSurfaceRole role) => switch (role) {
+    GlassSurfaceRole.panel => GlassRole.panel,
+    GlassSurfaceRole.rail => GlassRole.rail,
+    GlassSurfaceRole.modal => GlassRole.modal,
+    GlassSurfaceRole.chrome => GlassRole.chrome,
+    GlassSurfaceRole.pill => GlassRole.pill,
+    GlassSurfaceRole.card => GlassRole.card,
+  };
+
   /// Tint for an actual glass surface according to its role.
+  ///
+  /// With the Liquid Glass tokens in the theme (the normal case), the user's
+  /// transparency, contrast and style decide the value; the table below is
+  /// the standalone fallback for a bare [ThemeData].
   static Color glassFill(BuildContext context, GlassSurfaceRole role) {
     final theme = Theme.of(context);
+    final glass = theme.extension<LiquidGlassTheme>();
+    if (glass != null) return glass.fill(context, _glassRole(role));
     final chrome = _of(theme);
 
     final (darkBase, lightBoost, min, max) = switch (role) {
@@ -137,6 +163,8 @@ class ChromeSurface extends ThemeExtension<ChromeSurface> {
   /// dark text is more sensitive to busy/high-contrast fanart showing through.
   static double glassBlur(BuildContext context, GlassSurfaceRole role) {
     final theme = Theme.of(context);
+    final glass = theme.extension<LiquidGlassTheme>();
+    if (glass != null) return glass.blur(context, _glassRole(role));
     final isLight = _isLight(theme);
     final vivid = _saturation(theme) >= 0.60;
 
@@ -160,6 +188,8 @@ class ChromeSurface extends ThemeExtension<ChromeSurface> {
   /// very bright themes without forcing a fixed white border.
   static Color glassRim(BuildContext context, GlassSurfaceRole role) {
     final theme = Theme.of(context);
+    final glass = theme.extension<LiquidGlassTheme>();
+    if (glass != null) return glass.rim(context, _glassRole(role));
     final isLight = _isLight(theme);
     final mix =
         Color.lerp(
@@ -188,6 +218,13 @@ class ChromeSurface extends ThemeExtension<ChromeSurface> {
     GlassSurfaceRole role,
   ) {
     final theme = Theme.of(context);
+    final glass = theme.extension<LiquidGlassTheme>();
+    if (glass != null) {
+      return glass.sheen(context, _glassRole(role)) ??
+          const LinearGradient(
+            colors: [Colors.transparent, Colors.transparent],
+          );
+    }
     final sheenAlpha = role == GlassSurfaceRole.card
         ? (_isLight(theme) ? 0.018 : 0.024)
         : (_isLight(theme) ? 0.035 : 0.055);
@@ -256,7 +293,12 @@ class ChromeSurface extends ThemeExtension<ChromeSurface> {
     double leading,
     double trailing,
   ) {
-    final surface = theme.colorScheme.surface;
+    final glass = theme.extension<LiquidGlassTheme>();
+    final surface = glass?.surfaceColor(theme) ?? theme.colorScheme.surface;
+    if (glass != null) {
+      leading = (leading * glass.fillScale).clamp(0.3, 0.96).toDouble();
+      trailing = (trailing * glass.fillScale).clamp(0.12, 0.9).toDouble();
+    }
     return LinearGradient(
       begin: Alignment.centerLeft,
       end: Alignment.centerRight,

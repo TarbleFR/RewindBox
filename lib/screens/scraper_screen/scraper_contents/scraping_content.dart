@@ -11,6 +11,7 @@ import 'package:neostation/services/screenscraper/screenscraper_exceptions.dart'
 import 'package:neostation/widgets/custom_notification.dart';
 import 'package:neostation/services/logger_service.dart';
 import '../../settings_screen/new_settings_options/settings_title.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 class ScrapingContent extends StatefulWidget {
   final bool isContentFocused;
@@ -385,7 +386,7 @@ class ScrapingContentState extends State<ScrapingContent> {
     return Container(
       padding: EdgeInsets.all(8.r),
       decoration: BoxDecoration(
-        color: theme.cardColor.withValues(alpha: 0.25),
+        color: LiquidGlassTheme.of(context).fill(context, GlassRole.bubble),
         borderRadius: BorderRadius.circular(8.r),
       ),
       child: Column(
@@ -466,7 +467,7 @@ class ScrapingContentState extends State<ScrapingContent> {
             ? Colors.green.withValues(alpha: 0.1)
             : isActive
             ? theme.cardColor.withValues(alpha: 0.5)
-            : theme.cardColor.withValues(alpha: 0.25),
+            : LiquidGlassTheme.of(context).fill(context, GlassRole.bubble),
         borderRadius: BorderRadius.circular(6.r),
         border: Border.all(
           color: threadColor.withValues(

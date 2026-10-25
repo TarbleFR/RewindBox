@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'glass/glass_surface.dart';
 
 /// The import segment used inside the media pill and in standalone toolbars.
 class PlaylistImportButton extends StatelessWidget {
@@ -24,8 +25,14 @@ class PlaylistImportButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final background = embedded ? scheme.surface : scheme.tertiaryFixed;
-    var foreground = embedded ? scheme.onSurface : scheme.onTertiaryFixed;
+    final glass = LiquidGlassTheme.of(context);
+    final background = embedded
+        ? scheme.surface
+        : Color.alphaBlend(
+            glass.fill(context, GlassRole.chrome),
+            scheme.surface,
+          );
+    var foreground = scheme.onSurface;
     final light = foreground.computeLuminance();
     final dark = background.computeLuminance();
     final contrast =
@@ -59,10 +66,10 @@ class PlaylistImportButton extends StatelessWidget {
       ),
     );
     if (embedded) return button;
-    return Material(
-      color: scheme.tertiaryFixed,
-      borderRadius: BorderRadius.circular(10.r),
-      elevation: 2,
+    return GlassSurface(
+      role: GlassRole.chrome,
+      radius: BorderRadius.circular(10.r),
+      blur: false,
       child: button,
     );
   }

@@ -5,6 +5,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/services/game_service.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
+import '../../../../widgets/glass/glass_surface.dart';
 
 /// An autonomous gamepad-navigable overlay for language selection.
 class LanguagePickerOverlay extends StatefulWidget {
@@ -124,23 +125,11 @@ class LanguagePickerOverlayState extends State<LanguagePickerOverlay> {
           width: overlayWidth,
           child: Material(
             color: Colors.transparent,
-            child: Container(
+            child: GlassSurface(
+              role: GlassRole.menu,
+              shadow: GlassShadow.high,
               padding: EdgeInsets.symmetric(vertical: 8.r),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-              ),
+              radius: BorderRadius.circular(12.r),
               child: Stack(
                 key: _colKey,
                 children: [

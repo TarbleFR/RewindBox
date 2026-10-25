@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:neostation/responsive.dart';
 import 'package:neostation/services/config_service.dart';
 import '../../../providers/sqlite_config_provider.dart';
+import '../../../widgets/glass/glass_banner.dart';
 
 /// A premium introductory widget presented when no ROM library is configured.
 ///
@@ -323,34 +324,7 @@ class InitialSetupWidget extends StatelessWidget {
 
   /// Renders a localized error feedback message.
   Widget _buildErrorMessage(BuildContext context, String error) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 20,
-            height: 20,
-            child: Image.asset(
-              'assets/images/icons/warning-bulk.png',
-              color: Theme.of(context).colorScheme.onErrorContainer,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              error,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onErrorContainer,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return GlassBanner(kind: GlassBannerKind.error, message: error);
   }
 
   /// Success message indicating a valid library handshake.

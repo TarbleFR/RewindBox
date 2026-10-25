@@ -7,6 +7,48 @@
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <Metal/Metal.h>
 #import <neo_cheat_catalog/RBLiquidProgressView.h>
+
+// Liquid Glass parity with the Flutter interface (Settings › Themes › User
+// interface). The style is read from the preference Flutter writes through
+// SharedPreferences; iOS Reduce Transparency and the minimal style keep the
+// system opaque look. One system material per page, no custom blur layers.
+static NSString *RBGlassInterfaceStyle(void) {
+  NSString *stored = [NSUserDefaults.standardUserDefaults stringForKey:@"flutter.rewindbox_interface_style_v1"];
+  if (![stored isKindOfClass:NSString.class] || !stored.length) return @"liquidGlass";
+  NSData *data = [stored dataUsingEncoding:NSUTF8StringEncoding];
+  id json = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+  NSString *style = [json isKindOfClass:NSDictionary.class] ? json[@"style"] : nil;
+  return [style isKindOfClass:NSString.class] && style.length ? style : @"liquidGlass";
+}
+
+static BOOL RBGlassTranslucent(NSString *style) {
+  return ![style isEqualToString:@"minimal"] && !UIAccessibilityIsReduceTransparencyEnabled();
+}
+
+static void RBGlassApplyToPage(UITableViewController *page) {
+  NSString *style = RBGlassInterfaceStyle();
+  if (!RBGlassTranslucent(style)) return;
+  UIBlurEffectStyle material = [style isEqualToString:@"classic"] ? UIBlurEffectStyleSystemThickMaterial
+                                                                   : UIBlurEffectStyleSystemChromeMaterial;
+  page.view.backgroundColor = UIColor.clearColor;
+  page.tableView.backgroundColor = UIColor.clearColor;
+  page.tableView.backgroundView = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:material]];
+  UINavigationBar *bar = page.navigationController.navigationBar;
+  if (bar) {
+    UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
+    [appearance configureWithTransparentBackground];
+    appearance.backgroundEffect = [UIBlurEffect effectWithStyle:material];
+    bar.standardAppearance = appearance;
+    bar.scrollEdgeAppearance = appearance;
+    bar.compactAppearance = appearance;
+  }
+}
+
+static void RBGlassApplyToCell(UITableViewCell *cell) {
+  if (!RBGlassTranslucent(RBGlassInterfaceStyle())) return;
+  cell.backgroundColor = [UIColor.secondarySystemGroupedBackgroundColor colorWithAlphaComponent:0.62];
+}
+
 #include <math.h>
 
 #pragma mark - Labels
@@ -102,6 +144,7 @@ static NSString *Fill(NSString *text, NSDictionary *values) {
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)path {
   NTRow *row = self.sections[(NSUInteger)path.section].rows[(NSUInteger)path.row];
   UITableViewCell *cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:nil];
+  RBGlassApplyToCell(cell);
   cell.textLabel.text = row.title;
   cell.textLabel.numberOfLines = 0;
   cell.detailTextLabel.text = row.detail;
@@ -280,6 +323,7 @@ static NSString *HostName(NSString *host) {
 
 - (void)viewDidLoad {
   [super viewDidLoad];
+  RBGlassApplyToPage(self);
   self.title = self.pack[@"title"];
   self.tableView.accessibilityIdentifier = @"neoTexturePack";
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(changed:) name:NeoTextureCatalogDidChangeNotification object:nil];
@@ -715,6 +759,7 @@ static NSString *AbsolutePath(id value) {
 
 - (void)viewDidLoad {
   [super viewDidLoad];
+  RBGlassApplyToPage(self);
   self.title = [self t:@"title"];
   self.tableView.accessibilityIdentifier = @"neoTextureHD";
   if (![self gameMode]) {

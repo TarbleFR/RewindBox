@@ -15,6 +15,7 @@ import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:provider/provider.dart';
 import 'settings_title.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 final _log = LoggerService.instance;
 
@@ -226,8 +227,8 @@ class SystemArtSettingsContentState extends State<SystemArtSettingsContent> {
               itemCount: items.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: _gridColumns,
-                crossAxisSpacing: 8.r,
-                mainAxisSpacing: 8.r,
+                crossAxisSpacing: LiquidGlassTheme.of(context).gap,
+                mainAxisSpacing: LiquidGlassTheme.of(context).gap * 0.6,
                 childAspectRatio: 1.05,
               ),
               itemBuilder: (context, index) {

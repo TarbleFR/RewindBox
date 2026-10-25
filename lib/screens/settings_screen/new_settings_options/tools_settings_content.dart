@@ -22,6 +22,7 @@ import 'package:neostation/widgets/custom_toggle_switch.dart';
 import 'settings_title.dart';
 import 'widgets/settings_card_row.dart';
 import 'widgets/settings_action_button.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 class ToolsSettingsContent extends StatefulWidget {
   final bool isContentFocused;
@@ -325,7 +326,7 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
           title: AppLocale.tools.getString(context),
           subtitle: AppLocale.toolsSubtitle.getString(context),
         ),
-        SizedBox(height: 12.r),
+        const GlassGap(),
         Expanded(
           child: ListView(
             physics: const ClampingScrollPhysics(),

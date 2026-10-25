@@ -59,6 +59,11 @@ class CornerRadii extends ThemeExtension<CornerRadii> {
 
   double get radiusInternalRadius => _radiusInternal.r;
 
+  /// Unscaled tokens, for a theme that derives a scaled copy (the Liquid
+  /// Glass corner-radius setting) before ScreenUtil is available.
+  double get rawExternal => _radiusExternal;
+  double get rawInternal => _radiusInternal;
+
   static CornerRadii of(BuildContext context) {
     final radii = Theme.of(context).extension<CornerRadii>();
     assert(radii != null, 'CornerRadii extension is missing from the theme');

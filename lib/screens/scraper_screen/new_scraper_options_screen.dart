@@ -22,6 +22,8 @@ import 'scraper_contents/scrape_mode_content.dart';
 import 'scraper_contents/scraping_content.dart';
 import 'scraper_contents/systems_content.dart';
 import 'scraper_contents/media_content.dart';
+import '../../widgets/glass/glass_surface.dart';
+import '../../widgets/neo_glass_bubble.dart';
 
 /// New scraper options screen with left menu and right content panel
 class NewScraperOptionsScreen extends StatefulWidget {
@@ -521,21 +523,23 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
   }
 
   Widget _buildLeftMenu(ThemeData theme) {
-    return Container(
+    final glass = LiquidGlassTheme.of(context);
+    final bubbleGap = glass.gap * 0.75;
+    return GlassSurface(
+      role: GlassRole.rail,
+      radius: BorderRadius.zero,
+      borderWidth: 0,
+      rimColor: Colors.transparent,
+      showSheen: false,
       width: MediaQuery.of(context).size.width * 0.25,
-      decoration: BoxDecoration(
-        color: theme.cardColor.withValues(alpha: 0.25),
-        border: Border(
-          right: BorderSide(
-            color: theme.colorScheme.primary.withValues(alpha: 0.1),
-            width: 1.r,
-          ),
-        ),
-      ),
       child: ListView.builder(
         // Only seven categories exist; caching the whole side menu guarantees
         // the newly selected item has a context before ensureVisible runs.
         scrollCacheExtent: ScrollCacheExtent.pixels(1000.r),
+        padding: EdgeInsets.symmetric(
+          horizontal: glass.margin * 0.45,
+          vertical: bubbleGap,
+        ),
         itemCount: _menuItems.length,
         itemBuilder: (context, index) {
           final item = _menuItems[index];
@@ -543,59 +547,56 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
 
           final isSelected = _selectedMenuIndex == index;
 
-          return Material(
-            key: isSelected ? _selectedMenuItemKey : null,
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                SfxService().playNavSound();
-                _onMenuItemSelected(index);
-              },
-              canRequestFocus: false,
-              focusColor: Colors.transparent,
-              hoverColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              splashColor: Colors.transparent,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.r, vertical: 12.r),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? theme.colorScheme.primary.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  border: Border(
-                    left: BorderSide(
-                      color: isSelected && _focusOnMenu
-                          ? theme.colorScheme.primary
-                          : Colors.transparent,
-                      width: 3.r,
-                    ),
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: index == _menuItems.length - 1 ? 0 : bubbleGap,
+            ),
+            child: Material(
+              key: isSelected ? _selectedMenuItemKey : null,
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  SfxService().playNavSound();
+                  _onMenuItemSelected(index);
+                },
+                canRequestFocus: false,
+                focusColor: Colors.transparent,
+                hoverColor: Colors.transparent,
+                highlightColor: Colors.transparent,
+                splashColor: Colors.transparent,
+                child: NeoGlassBubble(
+                  selected: isSelected,
+                  radius: 22.r,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.r,
+                    vertical: 12.r,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      item.icon,
-                      color: isSelected && _focusOnMenu
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface,
-                      size: 20.r,
-                    ),
-                    SizedBox(width: 12.r),
-                    Expanded(
-                      child: Text(
-                        item.title,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: isSelected && _focusOnMenu
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                          fontSize: 14.r,
+                  child: Row(
+                    children: [
+                      Icon(
+                        item.icon,
+                        color: isSelected && _focusOnMenu
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface,
+                        size: 20.r,
+                      ),
+                      SizedBox(width: 12.r),
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: isSelected && _focusOnMenu
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurface,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                            fontSize: 14.r,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

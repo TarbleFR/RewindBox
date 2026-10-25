@@ -11,6 +11,7 @@ import '../../../utils/game_utils.dart';
 import '../../../widgets/marquee_text.dart';
 import '../../../widgets/music_visualizer.dart';
 import 'package:neostation/l10n/app_locale.dart';
+import '../../../widgets/glass/glass_surface.dart';
 
 /// A specialized media player component designed for high-fidelity audio playback and visualization.
 ///
@@ -43,13 +44,11 @@ class _MusicPlayerState extends State<MusicPlayer> {
       borderRadius: BorderRadius.circular(12.r),
       child: Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
+          color: LiquidGlassTheme.of(context).fill(context, GlassRole.panel),
           borderRadius: BorderRadius.circular(12.r),
           border: Border.all(
-            color: Theme.of(
-              context,
-            ).colorScheme.primary.withValues(alpha: 0.25),
-            width: 1.2.r,
+            color: LiquidGlassTheme.of(context).rim(context, GlassRole.panel),
+            width: 1.r,
           ),
         ),
         padding: EdgeInsets.all(6.r),

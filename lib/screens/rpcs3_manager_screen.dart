@@ -11,6 +11,8 @@ import '../services/rpcs3_internal_service.dart';
 import '../services/rpcs3_save_exchange_service.dart';
 import '../widgets/rpcs3_firmware_preflight_dialog.dart';
 import '../widgets/rpcs3_save_exchange_dialogs.dart';
+import '../widgets/glass/glass_banner.dart';
+import '../widgets/glass/glass_button.dart';
 
 /// User-facing management surface for the embedded RPCS3 engine.
 ///
@@ -534,25 +536,15 @@ class _Rpcs3ManagerScreenState extends State<Rpcs3ManagerScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
-                  Card(
-                    color: scheme.errorContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _error!,
-                            style: TextStyle(color: scheme.onErrorContainer),
-                          ),
-                          const SizedBox(height: 10),
-                          TextButton.icon(
-                            onPressed: _busy ? null : _bootstrap,
-                            icon: const Icon(Icons.refresh),
-                            label: Text(_t('retry')),
-                          ),
-                        ],
-                      ),
+                  GlassBanner(
+                    kind: GlassBannerKind.error,
+                    message: _error!,
+                    action: GlassButton(
+                      label: _t('retry'),
+                      icon: Icons.refresh,
+                      size: GlassButtonSize.small,
+                      variant: GlassButtonVariant.destructive,
+                      onPressed: _busy ? null : _bootstrap,
                     ),
                   ),
                 ],

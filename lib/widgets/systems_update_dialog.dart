@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -11,6 +10,7 @@ import '../services/systems_update_service.dart';
 import '../data/datasources/sqlite_service.dart';
 import 'custom_notification.dart';
 import 'core_footer.dart';
+import 'glass/glass_surface.dart';
 
 /// Signature of [SystemsUpdateService.checkAndUpdate], so tests can drive the
 /// dialog's download states without touching the network.
@@ -104,26 +104,17 @@ class _SystemsUpdateDialogState extends State<SystemsUpdateDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return BackdropFilter(
-      filter: ImageFilter.blur(sigmaX: 5.r, sigmaY: 5.r),
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Container(
-          width: 420.r,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(16.r),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 30.r,
-                spreadRadius: 5.r,
-              ),
-            ],
-          ),
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: SizedBox(
+        width: 420.r,
+        child: GlassSurface(
+          role: GlassRole.modal,
+          radiusSize: GlassRadius.l,
+          rimColor: theme.colorScheme.primary.withValues(alpha: 0.35),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16.r),
+            borderRadius: LiquidGlassTheme.of(context).radius(GlassRadius.l),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -133,7 +124,7 @@ class _SystemsUpdateDialogState extends State<SystemsUpdateDialog> {
                     horizontal: 16.r,
                   ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surface.withValues(alpha: 0.95),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
                   ),
                   child: Row(
                     children: [

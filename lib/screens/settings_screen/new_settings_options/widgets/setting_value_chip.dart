@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+import '../../../../widgets/glass/glass_controls.dart';
 
 /// Compact pill showing the current value of a settings row (language, a
 /// cyclable option, etc.). Pair it as the [SettingRow.trailing] control; wrap
@@ -17,36 +18,6 @@ class SettingValueChip extends StatelessWidget {
   const SettingValueChip({super.key, required this.text, this.trailingIcon});
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 6.r),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6.r),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.4),
-          width: 0.5.r,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            text,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: 9.r,
-              fontWeight: FontWeight.w400,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          if (trailingIcon != null) ...[
-            SizedBox(width: 2.r),
-            Icon(trailingIcon, size: 14.r, color: theme.colorScheme.primary),
-          ],
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      GlassChip(label: text, trailingIcon: trailingIcon);
 }

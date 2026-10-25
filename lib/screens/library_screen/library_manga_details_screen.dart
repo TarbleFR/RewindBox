@@ -13,6 +13,7 @@ import 'package:neostation/widgets/library_focus_gamepad_layer.dart';
 
 import 'library_reader_launcher.dart';
 import 'library_sources_view.dart';
+import '../../widgets/glass/glass_banner.dart';
 
 /// Opens one online chapter (default: [LibraryReaderLauncher.openOnlineChapter]).
 typedef LibraryOnlineChapterOpener =
@@ -940,28 +941,11 @@ class _LibraryMangaDetailsScreenState extends State<LibraryMangaDetailsScreen>
   Widget _banner(ThemeData theme, String text, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: DecoratedBox(
+      child: GlassBanner(
         key: const ValueKey<String>('source-banner'),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.errorContainer,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Icon(icon, color: theme.colorScheme.onErrorContainer),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  text,
-                  style: TextStyle(color: theme.colorScheme.onErrorContainer),
-                ),
-              ),
-            ],
-          ),
-        ),
+        kind: GlassBannerKind.warning,
+        icon: icon,
+        message: text,
       ),
     );
   }

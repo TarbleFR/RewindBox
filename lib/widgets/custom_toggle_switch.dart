@@ -4,6 +4,8 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/services/sfx_service.dart';
 
+import '../themes/liquid_glass_theme.dart';
+
 class CustomToggleSwitch extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -28,9 +30,13 @@ class CustomToggleSwitch extends StatelessWidget {
     // flood the whole pill. Keep the accent on the moving indicator (thumb)
     // and give the ON track only a soft tonal tint of that colour, layered
     // over the surface — closer to how daisyUI uses primary as an accent.
+    // The OFF track is the glass control surface; the ON track adds the soft
+    // accent tint over it.
+    final glass = LiquidGlassTheme.of(context);
+    final inactiveTrackColor = glass.fill(context, GlassRole.control);
     final activeTrackColor = Color.alphaBlend(
-      effectiveActiveColor.withValues(alpha: 0.20),
-      scheme.surface,
+      effectiveActiveColor.withValues(alpha: 0.22),
+      inactiveTrackColor,
     );
 
     // Colour sitting on top of the active (primary) indicator.
@@ -45,8 +51,13 @@ class CustomToggleSwitch extends StatelessWidget {
       second: true,
       spacing: 16.r,
       height: 28.r,
-      style: ToggleStyle(borderColor: Colors.transparent),
-      borderWidth: 2.r,
+      style: ToggleStyle(
+        borderColor: glass.rim(context, GlassRole.control),
+        borderRadius: BorderRadius.circular(999),
+        indicatorBorderRadius: BorderRadius.circular(999),
+      ),
+      borderWidth: 1.r,
+      animationDuration: glass.duration(context, GlassMotion.standard),
       onChanged: disabled
           ? null
           : (T) {
@@ -58,7 +69,7 @@ class CustomToggleSwitch extends StatelessWidget {
               onChanged?.call(T);
             },
       styleBuilder: (b) => ToggleStyle(
-        backgroundColor: b ? activeTrackColor : scheme.surface,
+        backgroundColor: b ? activeTrackColor : inactiveTrackColor,
         indicatorColor: b ? effectiveActiveColor : scheme.onSurfaceVariant,
       ),
       iconBuilder: (value) => Icon(
