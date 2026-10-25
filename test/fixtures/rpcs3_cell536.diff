@@ -1,0 +1,178 @@
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+index 269b17c..9749bd9 100644
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -608,11 +608,9 @@ namespace vm
+ 	writer_lock::~writer_lock() noexcept
+ 	{
+ #ifdef RPCS3_IOS
+-		// NEOSTATION_WRITER_LOCK_ATTRIBUTION_V1: hold time ends at release.
+-		{
+-			const u64 released = utils::get_tsc();
+-			rpcs3::ios::record_writer_lock(source, acquire_ticks, released >= acquired_tsc ? released - acquired_tsc : 0);
+-		}
++		// CELL536: sample the same boundary, but publish counters after releasing
++		// the writer exclusion. Profiling must not keep guest PPU threads parked.
++		const u64 released = utils::get_tsc();
+ #endif
+ 		// NEOSTATION_ARMSX3_RANGE_LOCK_WAIT_V1: wake PPUs only when the shared word becomes clear.
+ 		if (range_lock)
+@@ -623,11 +621,15 @@ namespace vm
+ 			{
+ 				g_range_lock_bits[1].notify_all();
+ 			}
+-			return;
+ 		}
+-
+-		g_range_lock_bits[1].release(0);
+-		g_range_lock_bits[1].notify_all();
++		else
++		{
++			g_range_lock_bits[1].release(0);
++			g_range_lock_bits[1].notify_all();
++		}
++#ifdef RPCS3_IOS
++		rpcs3::ios::record_writer_lock(source, acquire_ticks, released >= acquired_tsc ? released - acquired_tsc : 0);
++#endif
+ 	}
+ }
+ 
+@@ -3773,6 +3775,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+ 			}
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// CELL536_STORE128_PREFLIGHT: handle possible RSX readback before owning
++		// the reservation, as PUTLLC already does. Keep the paused/suspend-all
++		// route unchanged. If it resumes before the branch below, its original
++		// fault path remains available. The reservation is still acquired and
++		// validated by fetch_op; the RSX reservation lock remains held.
++		const bool write_fault_prepared = g_cfg.core.spu_accurate_reservations && !(cpu->state & cpu_flag::pause);
++		if (write_fault_prepared)
++		{
++			utils::trigger_write_page_fault(vm::base(addr));
++		}
++#endif
++
+ 		for (u64 j = 0;; j++)
+ 		{
+ 			auto [_oldd, _ok] = res.fetch_op([&](u128& r)
+@@ -3847,8 +3862,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+ 		}
+ 		else
+ 		{
+-			// Provoke page fault
+-			utils::trigger_write_page_fault(vm::base(addr));
++			// Provoke page fault if this store entered while paused and resumed.
++#ifdef RPCS3_IOS
++			if (!write_fault_prepared)
++#endif
++				utils::trigger_write_page_fault(vm::base(addr));
+ 
+ 			// Hard lock
+ 			auto spu = cpu ? cpu->try_get<spu_thread>() : nullptr;
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index d6a4ab9..268a6ef 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -23,6 +23,7 @@
+ #include "Emu/Memory/vm_locking.h"
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSShaderTiming.h"
+ #endif
+ 
+ #include "../Program/SPIRVCommon.h"
+@@ -490,6 +491,9 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+ 	}
+ 
+ #ifdef RPCS3_IOS
++    rpcs3::ios::shader_timing::configuration.begin(this,
++        static_cast<u32>(g_cfg.video.shadermode.get()), static_cast<u32>(m_shader_mode),
++        m_device->gpu().get_shader_interpreter_support());
+     rsx_log.notice("COREPROF SHADERCFG528 configured=%u applied=%u interpreter_supported=%u fallback=%u settings_preserved=1",
+         static_cast<u32>(g_cfg.video.shadermode.get()), static_cast<u32>(m_shader_mode),
+         m_device->gpu().get_shader_interpreter_support() ? 1u : 0u,
+@@ -817,6 +821,9 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+ 
+ VKGSRender::~VKGSRender()
+ {
++#ifdef RPCS3_IOS
++	rpcs3::ios::shader_timing::configuration.end(this);
++#endif
+ 	if (m_device == VK_NULL_HANDLE)
+ 	{
+ 		//Initialization failed
+diff --git a/rpcs3/ios/IOSShaderTiming.h b/rpcs3/ios/IOSShaderTiming.h
+index b0a06a6..1e57b1f 100644
+--- a/rpcs3/ios/IOSShaderTiming.h
++++ b/rpcs3/ios/IOSShaderTiming.h
+@@ -3,6 +3,7 @@
+ 
+ #include "IOSRuntimeMetrics.h"
+ #include <chrono>
++#include <mutex>
+ 
+ namespace rpcs3::ios::shader_timing
+ {
+@@ -12,6 +13,41 @@ namespace rpcs3::ios::shader_timing
+ enum class Stage : std::size_t { source, module, graphics, compute, debug_source, count };
+ inline std::array<diagnostics::EventCost, static_cast<std::size_t>(Stage::count)> costs{};
+ 
++// CELL536: retain the renderer's actual configuration in periodic evidence.
++// Fixed storage, no renderer dereference, no lock on a frame/compile path.
++struct Configuration
++{
++    bool captured = false, live = false, interpreter_supported = false;
++    std::uint32_t configured = 0, applied = 0;
++    std::uint64_t generation = 0;
++};
++class ConfigurationProfile final
++{
++    mutable std::mutex mutex_;
++    const void* owner_ = nullptr;
++    Configuration value_{};
++public:
++    void begin(const void* owner, std::uint32_t configured, std::uint32_t applied, bool supported)
++    {
++        std::lock_guard lock(mutex_);
++        owner_ = owner;
++        value_ = {true, true, supported, configured, applied, value_.generation + 1};
++    }
++    void end(const void* owner)
++    {
++        std::lock_guard lock(mutex_);
++        if (owner_ != owner) return;
++        owner_ = nullptr;
++        value_ = {true, false, false, 0, 0, value_.generation};
++    }
++    Configuration capture() const
++    {
++        std::unique_lock lock(mutex_, std::try_to_lock);
++        return lock ? value_ : Configuration{};
++    }
++};
++inline constinit ConfigurationProfile configuration;
++
+ class Scope final
+ {
+     using Clock = std::chrono::steady_clock;
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 0da5904..8b8d6b8 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -827,6 +827,14 @@ private:
+         // Queue time is asynchronous job residence, not a proved RSX stall.
+         {
+             const auto shader = rpcs3::ios::shader_timing::take();
++            const auto configuration = rpcs3::ios::shader_timing::configuration.capture();
++            ios_core_profiler.notice(
++                "COREPROF SHADERCFG536 session=%llu window=%llu captured=%u live=%u generation=%llu "
++                "configured=%u applied=%u interpreter_supported=%u fallback=%u settings_preserved=1",
++                profile_session, profile_window, configuration.captured ? 1u : 0u,
++                configuration.live ? 1u : 0u, configuration.generation,
++                configuration.configured, configuration.applied, configuration.interpreter_supported ? 1u : 0u,
++                configuration.live && configuration.configured != configuration.applied ? 1u : 0u);
+             ios_core_profiler.notice(
+                 "COREPROF SHADERCOST534 session=%llu window=%llu tuple=count:total_us:max_us "
+                 "source=%llu:%llu:%llu module=%llu:%llu:%llu graphics=%llu:%llu:%llu "
