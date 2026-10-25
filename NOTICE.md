@@ -30,44 +30,89 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 ---
 
-CURRENT PUBLIC IOS RELEASE — 0.0.8 / BUILD 480
+CURRENT PUBLISHED IOS RELEASE — FIX 0.0.9 / BUILD 530
 
-Latest published release:
+GitHub release title: fix 0.0.9
+Tag: 0.0.9-fix.1
+https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1
+
+Published IPA: RewindBox-Build530.ipa
+https://github.com/TarbleFR/RewindBox/releases/download/0.0.9-fix.1/RewindBox-Build530.ipa
+GitHub asset size: 186,305,438 bytes
+
+Build number: 530; embedded Info.plist marketing version: 0.0.8.
+"fix 0.0.9" is the GitHub release title; it is not the bundle marketing version.
+The preceding published 0.0.9 / Build 527 remains a separate release.
+
+Exact compiled application source:
+3f0c706afe1d0faa635465517871a500c3289582
+https://github.com/TarbleFR/RewindBox/tree/3f0c706afe1d0faa635465517871a500c3289582
+
+Build 530 publication workflow/target:
+97d68263ed64a7a7e38a715627a3851d40c679d9
+Successful complete GitHub Actions release run:
+https://github.com/TarbleFR/RewindBox/actions/runs/40156236364
+
+Embedded MeloNX Core source (iOS Vulkan host-memory import workaround):
+ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12
+https://github.com/TarbleFR/RewindBox/actions/runs/40152134234
+Pinned upstream engine source and reconstructed dependencies:
+build-utils/melonx/source.json
+The iOS GPU fallback avoids VK_EXT_external_memory_host direct imported buffers;
+the original Android/macOS/other platform code path is not reclassified as fixed.
+
+Retained RPCS3 source-built Core 528:
+17ee65469c39e560c91fdb6d55604ab590992f59
+https://github.com/TarbleFR/RewindBox/actions/runs/40142369420
+All 35 current Libretro core identities are present in the Build 530 package.
+Third-party licenses, original authorship and the per-core source gaps remain
+authoritative in assets/legal/ and docs/EMBEDDED_RUNTIME_PROVENANCE.md.
+
+The compiled IPA includes Legal/BUILD_SOURCE_IDENTITY.json and
+Legal/Sources/BUILD_SOURCE_EVIDENCE.json, which point to its immutable host
+source archive and recorded dependency inputs. The latter explicitly states
+complete_corresponding_source_attested: false.
+Full release-specific sources, verification scope and remaining obligations:
+docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md
+Source retrieval instructions: docs/SOURCE_CODE_ACCESS.md
+Engine and package audits: docs/ENGINE_CORRESPONDING_SOURCES.md,
+docs/PACKAGE_SOURCES_AND_LICENSES.md and docs/LEGAL_AND_CREDITS.md.
+
+Automated iOS simulator, engine and signing/package validations passed;
+long-session real-iPhone Nintendo Switch gameplay is not attested.
+This documentation does not relabel any upstream license or claim complete
+redistribution clearance. Proprietary game keys/firmware are not bundled.
+
+---
+
+HISTORICAL PUBLISHED IOS BASELINE — 0.0.8 / BUILD 480
+
+Historical GitHub release:
 https://github.com/TarbleFR/neostation-ios/releases/tag/0.0.8
 
-Compiled build source:
+Original compiled build source:
 7493d9babe20be1b2939e21a1051a72da8fb5d01
 
-Release packaging source:
+Historical release packaging source:
 bcca4e4a4dc89a96b1dde05d66436af54efd327e
 
-Successful Actions build:
+Historical successful Actions run:
 https://github.com/TarbleFR/neostation-ios/actions/runs/39132356516
 
-IPA asset: NeoStation-0.0.8.ipa
-Final checksum and repackaging identity are preserved in that release's
+Original IPA asset: NeoStation-0.0.8.ipa
+Its original checksum and repackaging identity were preserved in the historical
 NeoStation-0.0.8-SHA256SUMS.txt and NeoStation-0.0.8-Packaging.json.
+Historical links may no longer represent active release assets after repository
+renaming and release cleanup. The source/license findings remain recorded in
+docs/RELEASE_0.0.8_SOURCE_MANIFEST.md.
 
-The source and license observations for this release are recorded in
-docs/RELEASE_0.0.8_SOURCE_MANIFEST.md. The next-release preparation and new
-notices are recorded in docs/RELEASE_NEXT_LICENSE_REVIEW.md. Updating this
-notice does not change a previously published signed/distributed IPA.
+---
+CURRENT SOURCE ACCESS AND HISTORICAL PREPARATION
 
-SOURCE ACCESS AND DEPENDENCY RESOLUTION — NEXT-RELEASE PREPARATION
-
-Source access guide: docs/SOURCE_CODE_ACCESS.md.
-Exact locked package archives and local plugins: docs/PACKAGE_SOURCES_AND_LICENSES.md.
-Engine source/patch/recipe records: docs/ENGINE_CORRESPONDING_SOURCES.md.
-Rebuilt PSP source and actual compile inputs: docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md.
-
-Future packaging retains these records under Legal/Sources/ with the host
-commit, source-input hashes and the actual CocoaPods dependency resolution
-when available. Additional native package notices are in Legal/Packages/;
-identified engine dependency notices are in Legal/Engines/.
-The source collector verifies exact pub.dev archive hashes without executing
-package hooks. Source availability, copied notices and build correspondence
-are recorded separately; unresolved component rights and source obligations
-are not declared closed by this notice.
+Sources for Build 530 and its dependency revisions are linked in
+docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md.
+The older preparation review at docs/RELEASE_NEXT_LICENSE_REVIEW.md remains
+an archived 21 October snapshot, not the current public release identity.
 
 SECOND SOURCE-RIGHTS REVIEW — 18 OCTOBER 2026
 
