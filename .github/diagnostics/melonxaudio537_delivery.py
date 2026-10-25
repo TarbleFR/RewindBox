@@ -1,15 +1,15 @@
 """Private 537: automatic update targeting and the active Apple audio backend."""
-import argparse, hashlib, json, os, subprocess, time
+import argparse, hashlib, json, os, re, subprocess, time
 from pathlib import Path
 import rpcs3cell536_delivery as previous
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = '5fdc4c4feb729918eb1aaa96ac50bce470dc7e6c'
 BASE_RUN = 40186697206
-SOURCE = '94ae1314f653a4eb76f8020660273a9faf1b0680'
+SOURCE = '753bbdb1d11c22746bd3bb32eff51d5b58957616'
 MELONX_SOURCE = '23d92f17d0df716151ef136e64453fe774e8b6c7'
 MELONX_RUN = 40188516292
-HOST_SOURCE = SOURCE
+HOST_SOURCE = '94ae1314f653a4eb76f8020660273a9faf1b0680'
 HOST_RUN = 40187994797
 CORE_SOURCE, CORE_RUN, HOST = previous.CORE_SOURCE, previous.CORE_RUN, previous.HOST
 validate_rpc_core_identity = previous.validate_rpc_core_identity
@@ -62,8 +62,10 @@ def validate_local_imports(receipt):
     assert receipt['inputs']==hashes(IMPORT_INPUTS)
     for p in IMPORT_INPUTS:
         assert (ROOT/p).read_bytes()==subprocess.check_output(['git','show',SOURCE+':'+p],cwd=ROOT),p
-    assert '00:10 +12: All tests passed!' in receipt['flutterLog']
-    assert not any(' - '+severity+' - ' in receipt['analyzerLog'] for severity in ('error','warning'))
+    assert re.search(r'\+12: All tests passed!', receipt['flutterLog'])
+    assert "Actual: '0100999988880000'" in receipt['negativeControlLog']
+    assert '+0 -1: Some tests failed.' in receipt['negativeControlLog']
+    assert not re.search(r'^\s*(?:error|warning) - ', receipt['analyzerLog'], re.M)
     assert '13 issues found.' in receipt['analyzerLog']
 
 def retain_checks():

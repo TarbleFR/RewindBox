@@ -34,7 +34,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Retain completed import checks and unchanged successful RPCS3 logger evidence
+    - name: Retain final highlighted-game import checks and successful RPCS3 logger evidence
       run: python3 .github/diagnostics/melonxaudio537_delivery.py --retain-checks
     - name: Retain exact input-bound test receipts
       uses: actions/upload-artifact@v4
