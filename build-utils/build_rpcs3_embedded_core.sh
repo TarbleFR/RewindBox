@@ -114,6 +114,24 @@ grep -q 'add_library(RPCS3Core SHARED' "$SRC/rpcs3/CMakeLists.txt" || die "ios-p
 log "Apply the single reviewed NeoStation Core source delta"
 python3 "$PWD/build-utils/materialize_rpcs3_core.py" "$SRC"
 python3 "$PWD/build-utils/apply_rpcs3_llvm_patch.py" "$SRC"
+# REWINDBOX_MOLTENVK_COMPILE_QOS_V1: a Core source that defines
+# rbx_mvk_compile_qos_queue (rpcs3/ios/RPCS3IOSPlatform.mm) links a copy of the
+# pinned archive whose single dispatch_get_global_queue reference
+# (MVKMetalCompiler::compile) is renamed to it. The cached pinned package stays
+# pristine for Core sources without that definition.
+if grep -q 'REWINDBOX_MOLTENVK_COMPILE_QOS_V1' "$SRC/rpcs3/ios/RPCS3IOSPlatform.mm"; then
+  log "Link MoltenVK with Metal compiles in the waiting thread's QoS class"
+  MOLTENVK_QOS_ROOT="$WORK_ROOT/moltenvk-$MOLTENVK_VERSION-compile-qos"
+  rm -rf "$MOLTENVK_QOS_ROOT"
+  mkdir -p "$MOLTENVK_QOS_ROOT"
+  cp -R "$MOLTENVK_ROOT/." "$MOLTENVK_QOS_ROOT/"
+  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_compile_qos.py" "$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX" \
+    || die "MoltenVK compile QoS patch failed"
+  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_compile_qos.py" "$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX" --check \
+    || die "MoltenVK archive is not the pinned compile-QoS archive"
+  MOLTENVK_ROOT="$MOLTENVK_QOS_ROOT"
+  MOLTENVK_LIB="$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX"
+fi
 python3 "$PWD/test/rpcs3_preprocessor_balance_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build301_passive_dlopen_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_atomic_startup_test.py" "$SRC"
@@ -123,7 +141,9 @@ python3 "$PWD/test/rpcs3_build351_gow3_engine_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build352_gow3_memory_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build353_xitrix_v010_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_armsx3_performance_patch_test.py" "$SRC"
-if [[ -n "${RPCS3_CELL547_NATIVE_PROOF:-}" ]]; then
+if [[ -n "${RPCS3_CELL551_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell551_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL551_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL547_NATIVE_PROOF:-}" ]]; then
   python3 "$PWD/.github/diagnostics/rpcs3cell547_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL547_NATIVE_PROOF"
 elif [[ -n "${RPCS3_CELL546_NATIVE_PROOF:-}" ]]; then
   python3 "$PWD/.github/diagnostics/rpcs3cell546_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL546_NATIVE_PROOF"
@@ -259,6 +279,13 @@ lipo -archs "$OUTPUT_DIR/libRPCS3Core.dylib"
 vtool -show-build "$OUTPUT_DIR/libRPCS3Core.dylib"
 otool -L "$OUTPUT_DIR/libRPCS3Core.dylib"
 nm -gU "$OUTPUT_DIR/libRPCS3Core.dylib" | grep -E '_rpcs3_ios_(abi_version|build_info|initialize|boot_game|shutdown)$'
+if [[ -n "${MOLTENVK_QOS_ROOT:-}" ]]; then
+  # REWINDBOX_MOLTENVK_COMPILE_QOS_V1: MoltenVK's renamed reference resolved inside the Core.
+  if nm -u "$OUTPUT_DIR/libRPCS3Core.dylib" | grep -q '_rbx_mvk_compile_qos_queue$'; then
+    die "MoltenVK compile QoS hook is unresolved in libRPCS3Core.dylib"
+  fi
+  log "MoltenVK compile QoS hook linked"
+fi
 shasum -a 256 "$OUTPUT_DIR/libRPCS3Core.dylib" | tee "$OUTPUT_DIR/libRPCS3Core.dylib.sha256"
 printf '%s\n' "$RPCS3_COMMIT" > "$OUTPUT_DIR/RPCS3_SOURCE_COMMIT.txt"
 printf '%s\n' "$RPCS3_IOS_ABI" > "$OUTPUT_DIR/RPCS3_IOS_ABI.txt"

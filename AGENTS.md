@@ -3,6 +3,34 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 551: God of War III profile finally applied, RSX queue and Metal compile QoS — 25 October 2026
+
+- The maintainer sent build 547 logs (DBZ HD Collection BLES01658 process
+  32192; process 32208 with God of War III's measurements). Facts, changes,
+  limits and the iPhone protocol: `docs/rpcs3-cell551.md`.
+- Every God of War III boot from build 412 to 547 reported `CONFIG_LAYERS
+  legacy_custom=1 database=0`: an old full `config_BCES00510.yml` disabled the
+  database layer, so its RewindBox profile never ran. Core record `cell551`: a
+  full custom config now keeps only the settings it changed relative to the
+  global config and inherits the database settings it left at the global value
+  (`RPCS3IOSConfigInheritance.h`, `System.cpp`; CONFIG_LAYERS `inherited=`
+  `kept=`). The God of War III profile no longer forces Async shaders (skipped
+  draws are excluded by the maintainer).
+- iOS Experimental `MoltenVK Asynchronous Submits` (Automatic = off; enabled by
+  the God of War III and DBZ profiles) with high-priority device queues
+  (MoltenVK's encoding queue becomes user-interactive). Metal compiles run in
+  the waiting thread's QoS class: `build-utils/rpcs3/patch_moltenvk_compile_qos.py`
+  renames MoltenVK 1.4.2's single `dispatch_get_global_queue` call
+  (MVKMetalCompiler::compile) in a copy of the pinned archive; the Core defines
+  `rbx_mvk_compile_qos_queue`. New DBZ profile: async submits, FIFO 4 KiB, ARM64
+  batch, async texture streaming.
+- Diagnostics: `COREPROF RSXSYNC551` (GPU waits by reason, submit, acquire,
+  present, frame latency, Metal compile classes), `RSXFRAME551` (RPCS3 frame
+  statistics, stage timers on one frame in eight), `SPUWAIT551`; timeline
+  `title`, `config`, `rsx_sync`, `rsx_frame`, `spu_wait`. SPUThread.cpp aliased:
+  PPU/SPU identities unchanged. Build numbers: 549 is the combined Liquid Glass
+  + 547 Core + MeloNX threading IPA (c605eafd); 550 is the new interface on the
+  549 tree (69404f45); **551 is the RPCS3 delivery**. No iPhone validation yet.
 ## Private 549: Liquid Glass + RPCS3 547 Core + MeloNX threading and FPS counter — 25 October 2026
 
 - A user reported Persona 4 Golden flicker and slowdowns absent from standalone

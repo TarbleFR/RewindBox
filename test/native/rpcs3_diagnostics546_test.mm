@@ -94,12 +94,18 @@ int main(int argc, const char* argv[]) {
       @"TID: 7: COREPROF SHADERSTALL538_EVENT stage=2 begin_us=540575 end_us=945844 duration_us=405269 report_session=4 report_window=21",
       @"TID: 7: COREPROF WAITPROF527 session=4 window=21 cpu_gpu_fence=148:507.763:11.869 vm_range_episode=125:6.736:0.885",
       @"TID: 7: COREPROF MEMPROF527 session=4 window=21 footprint=2171016800 peak_footprint=2171180640 compressed=978026496",
+      @"TID: 7: COREPROF RSXSYNC551 session=4 window=21 tuple=count:total_ms:max_ms other=0:0.000:0.000 frame_cleanup=166:604.112:5.743 cb_reuse=166:580.306:5.102 hard_sync=0:0.000:0.000 texture=0:0.000:0.000 submit=332:3401.990:31.004 acquire=166:12.201:0.402 present=166:20.877:0.611 frame_latency=166:14940.000:96.112 mvk_async=1 metal_compiles_interactive=3 metal_compiles_default=0 scope=process_window",
+      @"TID: 7: COREPROF RSXFRAME551 session=4 window=21 frames=166 sampled=21 draws=99600 submits=498 draws_per_frame=600.0 sampled_draws_per_frame=601.2 setup_ms=6.120 vertex_ms=3.004 texture_ms=0.811 exec_ms=5.977 flip_ms=0.402 vertex_cache=0:0 program_lookups=199200:180002 fifo_idle_entries=2490 sample_period=8 scope=sampled_frame_averages",
+      @"TID: 7: COREPROF SPUWAIT551 session=4 window=21 tuple=count:total_ms getllar_poll=9120:812.004 getllar_sleep=310:95.441 event_wait=5022:4020.118 putllc_ok=81020 putllc_fail=341 putllc_heavy=80113 scope=process_window_all_spu_threads",
       @"TID: 7: COREPROF PRESSURE547 session=4 window=21 tuple=count:total_ms:max_ms blocking_builds=15:2474.657:540.573 spu_passive_waits=812 fence_spin_completed=3 fence_blocked=145:503.112:11.802 fence_spin_limit_us=100 scope=process_window",
       @"TID: 7: JITPROF session=4 ppu_codegen=1:6927.308:6927.308:0 ppu_cache_write=1:3578.573:3578.573:6665088",
       @"TID: 7: RANGELOCKPROF session=4 episodes=125 total_ms=6.736 max_ms=0.885 wl_putllc=40603:8.242:0.259",
       @"TID: 7: COREPROF_RESILIENCE memory_pressure_peak=0 memory_reclaims=0 shader_cache_misses=15",
       @"LOG_BUDGET dropped=7 limit_per_s=128",
     ];
+    // CELL551: the boot's CONFIG_LAYERS names the title of every later row and
+    // its layers ride on the first row only.
+    RPCS3Diagnostic(@"core_log", @"CONFIG_LAYERS title=BCES00510 name=/x/config_BCES00510.yml database=1 legacy_custom=1 legacy_path=/x/config_BCES00510.yml sparse_overrides=0 shader_mode=Legacy%20Recompiler%20(single-threaded) frame_limit=30 wcb=true wdb=false rsx_res=75 spu_block=Mega spu_decoder=Recompiler%20(LLVM) ppu_decoder=Recompiler%20(LLVM) async_tex=true max_spurs=6 getllar_pct=100 inherited=19 kept=0 accurate_res=false mt_rsx=true spu_spin=Reference mlaa_bypass=1");
     for (NSString* line in window) RPCS3Diagnostic(@"core_log", line);
     RPCS3Diagnostic(@"performance_sample", @"title=BLES01658 fps=35.11 available=4950026704 thermal=1 swap_attempts=355 swap_successes=83 swap_failures=272");
     RPCS3Diagnostic(@"performance_sample", @"title=BLES01658 fps=0.39 available=4900000000 thermal=2 swap_attempts=356 swap_successes=84 swap_failures=272");
@@ -132,6 +138,20 @@ int main(int argc, const char* argv[]) {
     assert([row[@"lost"][@"log_budget_dropped"] intValue] == 7);
     assert([row[@"lost"][@"rotations"] containsString:@"milestones=1 restore_trace=1"]);
     assert([row[@"scope"] isEqualToString:@"core_report_window_values_not_additive"]);
+    assert([row[@"title"] isEqualToString:@"BCES00510"] && [rows[2][@"title"] isEqualToString:@"BCES00510"]);
+    assert([row[@"config"][@"inherited"] intValue] == 19 && [row[@"config"][@"kept"] intValue] == 0);
+    assert([row[@"config"][@"accurate_res"] isEqualToString:@"false"] && [row[@"config"][@"mlaa_bypass"] intValue] == 1);
+    assert([row[@"config"][@"spu_block"] isEqualToString:@"Mega"] && [row[@"config"][@"legacy_custom"] intValue] == 1);
+    assert(rows[1][@"config"] == nil && rows[2][@"config"] == nil);
+    assert([row[@"rsx_sync"][@"submit"] isEqualToString:@"332:3401.990:31.004"]);
+    assert([row[@"rsx_sync"][@"frame_cleanup"] isEqualToString:@"166:604.112:5.743"]);
+    assert([row[@"rsx_sync"][@"mvk_async"] intValue] == 1);
+    assert([row[@"rsx_sync"][@"frame_latency"] isEqualToString:@"166:14940.000:96.112"]);
+    assert([row[@"rsx_sync"][@"metal_compiles_interactive"] intValue] == 3);
+    assert([row[@"spu_wait"][@"getllar_poll"] isEqualToString:@"9120:812.004"]);
+    assert(near([row[@"rsx_frame"][@"setup_ms"] doubleValue], 6.120) && [row[@"rsx_frame"][@"fifo_idle_entries"] intValue] == 2490);
+    assert([row[@"rsx_frame"][@"program_lookups"] isEqualToString:@"199200:180002"]);
+    assert([row[@"spu_wait"][@"putllc_heavy"] intValue] == 80113 && [row[@"spu_wait"][@"putllc_ok"] intValue] == 81020);
     assert([rows[1][@"complete"] isEqual:@NO] && [rows[1][@"window"] intValue] == 22);
     assert([rows[1][@"lost"][@"log_budget_dropped"] intValue] == 0);
     assert([rows[2][@"complete"] isEqual:@YES] && [rows[2][@"window"] intValue] == 23);

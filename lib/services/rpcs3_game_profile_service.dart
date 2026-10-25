@@ -84,6 +84,10 @@ class Rpcs3GameProfile {
           'iOS Experimental',
           'God of War III MLAA Bypass',
         ],
+        'experimental.moltenvk_async_submits' => const <String>[
+          'iOS Experimental',
+          'MoltenVK Asynchronous Submits',
+        ],
         _ => throw StateError(
           'Unsupported managed RPCS3 setting: ${entry.key}',
         ),
@@ -147,6 +151,24 @@ abstract final class Rpcs3GameProfileService {
     'BCAS25003': _godOfWarIII,
     'BCKS15003': _godOfWarIII,
 
+    // Dragon Ball Z HD Collection, build 547 iPhone logs (25 October 2026):
+    // 31-35 fps with an unimodal 22-36 ms frame (no 30 fps cap). The RSX
+    // thread is the critical path: 21 ms of CPU plus two GPU waits (7.3 ms)
+    // per frame. Asynchronous MoltenVK submits move the Metal encoding of each
+    // command buffer off that thread (high-priority queue, same QoS class).
+    // The RSX FIFO read cache and the guarded ARM64 copy/hash batch already
+    // used for God of War III shorten the same thread's FIFO and upload work;
+    // asynchronous texture streaming moves texture uploads to the transfer
+    // queue so they overlap rendering instead of serializing with it.
+    // Measured on the next run: COREPROF RSXSYNC551 (waits by reason, frame
+    // latency, submit) and RSXFRAME551 (RSX stage times).
+    'BLES01658': {
+      'experimental.moltenvk_async_submits': 'Enabled',
+      'experimental.fifo_cache_size': '4 KiB',
+      'experimental.fps_optimization_batch': 'Enabled',
+      'gpu.async_texture_uploads': 'true',
+    },
+
     // ARMSX3 issue #77 is guest pacing rather than an Android driver hack.
     // PS3 Native honours the title's alternate-vblank flip cadence.
     'BLUS31213': {'gpu.frame_limit': 'PS3 Native'},
@@ -178,12 +200,17 @@ abstract final class Rpcs3GameProfileService {
     // summary reports the hold ratio against this target.
     'gpu.frame_limit': '30',
     'gpu.resolution_scale': '75',
-    'gpu.shader_mode': 'Async Recompiler (multi-threaded)',
+    // Build 551: no shader mode is forced. "Async Recompiler" skips the draws
+    // whose pipeline is still compiling; the maintainer excludes skipped
+    // draws, so God of War III keeps the global (Legacy) mode.
     'gpu.multithreaded_rsx': 'true',
     'gpu.async_texture_uploads': 'true',
     'experimental.fps_optimization_batch': 'Enabled',
     'experimental.fifo_cache_size': '4 KiB',
     'experimental.getllar_backoff': 'Enabled',
+    // Build 547 logs: in the heavy scenes the RSX FIFO is busy 85-97 % of the
+    // time with no GPU wait; Metal encoding leaves the RSX thread (551).
+    'experimental.moltenvk_async_submits': 'Enabled',
     // The Core recognizes only the two official MLAA SPU hashes for God of
     // War III 01.00/01.03. It cannot affect another SPU module or title.
     'experimental.gow3_mlaa_bypass': 'Enabled',

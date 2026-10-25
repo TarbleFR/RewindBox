@@ -65,11 +65,14 @@ void main() {
           expect(profile.settings['advanced.accurate_spu_reservations'], 'false');
           expect(profile.settings['gpu.frame_limit'], '30');
           expect(profile.settings['gpu.resolution_scale'], '75');
-          expect(
-            profile.settings['gpu.shader_mode'],
-            'Async Recompiler (multi-threaded)',
-          );
+          // Build 551: Async skips draws while a pipeline compiles; the
+          // profile no longer forces any shader mode.
+          expect(profile.settings.containsKey('gpu.shader_mode'), isFalse);
           expect(profile.settings['gpu.multithreaded_rsx'], 'true');
+          expect(
+            profile.settings['experimental.moltenvk_async_submits'],
+            'Enabled',
+          );
           expect(profile.settings['experimental.fifo_cache_size'], '4 KiB');
           expect(
             profile.settings['experimental.getllar_backoff'],
@@ -173,7 +176,7 @@ void main() {
       expect(yaml, contains('LLVM Precompilation: true'));
       expect(yaml, contains('Video:'));
       expect(yaml, contains('Resolution Scale: 75'));
-      expect(yaml, contains('Shader Mode: Async Recompiler (multi-threaded)'));
+      expect(yaml, isNot(contains('Shader Mode:')));
       expect(yaml, contains('Multithreaded RSX: true'));
       expect(
         yaml,
@@ -192,6 +195,33 @@ void main() {
       expect(yaml, contains('Shader Precision: Ultra'));
       expect(yaml, contains('Write Color Buffers: true'));
       expect(yaml, isNot(contains('Audio:')));
+    });
+
+    test('Dragon Ball Z HD Collection requests only RSX-path levers', () async {
+      final profile = Rpcs3GameProfileService.profileForSerial('BLES01658')!;
+      expect(profile.settings, <String, String>{
+        'experimental.moltenvk_async_submits': 'Enabled',
+        'experimental.fifo_cache_size': '4 KiB',
+        'experimental.fps_optimization_batch': 'Enabled',
+        'gpu.async_texture_uploads': 'true',
+      });
+      final payload = await Rpcs3GameProfileService.databasePayloadForSerials(
+        <String>['BLES01658'],
+      );
+      final games =
+          (jsonDecode(payload) as Map<String, dynamic>)['games']
+              as Map<String, dynamic>;
+      final yaml =
+          (games['BLES01658'] as Map<String, dynamic>)['config'] as String;
+      expect(
+        yaml,
+        contains('iOS Experimental:\n  MoltenVK Asynchronous Submits: Enabled'),
+      );
+      expect(
+        yaml,
+        contains('  Vulkan:\n    Asynchronous Texture Streaming: true'),
+      );
+      expect(yaml, isNot(contains('Shader Mode:')));
     });
 
     test(

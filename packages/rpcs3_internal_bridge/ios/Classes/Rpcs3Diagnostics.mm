@@ -137,6 +137,9 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   long long _hostThermalMax;
   NSDictionary* _hostSwap;
   NSDictionary* _hostNeoSwap;
+  // CELL551: title and effective layers of the current boot (CONFIG_LAYERS).
+  NSString* _timelineTitle;
+  NSDictionary* _timelineConfig;
 #if defined(RPCS3_DIAGNOSTICS_TESTING)
   NSString* _testDirectory;
 #endif
@@ -375,6 +378,13 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
         gRPCS3Rotations[kRPCS3RestoreTraceFile].load(std::memory_order_relaxed),
         gRPCS3Rotations[kRPCS3TimelineFile].load(std::memory_order_relaxed)],
   };
+  // CELL551: every row names its title; the first row after a boot carries
+  // the configuration layers that boot applied.
+  if (_timelineTitle.length) row[@"title"] = _timelineTitle;
+  if (_timelineConfig.count) {
+    row[@"config"] = _timelineConfig;
+    _timelineConfig = nil;
+  }
   row[@"scope"] = @"core_report_window_values_not_additive";
   [self resetTimelineAccumulators];
   NSData* json = [NSJSONSerialization dataWithJSONObject:row
@@ -422,6 +432,13 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
         @"max_ms", @"over50ms", @"over100ms", @"window_ms"]);
     return;
   }
+  if (strstr(line, "CONFIG_LAYERS ") != nullptr) {
+    _timelineTitle = RPCS3TokenValue(line, "title");
+    _timelineConfig = RPCS3TimelineFamily(line, @[@"database", @"legacy_custom", @"sparse_overrides",
+        @"inherited", @"kept", @"shader_mode", @"frame_limit", @"rsx_res", @"wcb", @"spu_block",
+        @"accurate_res", @"mt_rsx", @"spu_spin", @"mlaa_bypass", @"max_spurs"]);
+    return;
+  }
   if (strstr(line, "LOG_BUDGET dropped=") != nullptr) {
     _timelineLogDropped += strtoull(RPCS3TokenValue(line, "dropped").UTF8String ?: "0", nullptr, 10);
     return;
@@ -451,6 +468,19 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     // meanwhile, and GPU fence waits that blocked instead of spinning.
     family = @"pressure"; keys = @[@"blocking_builds", @"spu_passive_waits", @"fence_spin_completed",
         @"fence_blocked"];
+  } else if (strstr(line, "COREPROF RSXSYNC551 ") != nullptr) {
+    // CELL551: GPU waits by reason, vkQueueSubmit (Metal encoding under
+    // synchronous MoltenVK submits), drawable acquisition and present.
+    family = @"rsx_sync"; keys = @[@"frame_cleanup", @"cb_reuse", @"hard_sync", @"texture", @"other",
+        @"submit", @"acquire", @"present", @"frame_latency", @"mvk_async", @"metal_compiles_interactive", @"metal_compiles_default"];
+  } else if (strstr(line, "COREPROF RSXFRAME551 ") != nullptr) {
+    // CELL551: RPCS3's per-frame RSX statistics; stage times are sampled-frame averages.
+    family = @"rsx_frame"; keys = @[@"frames", @"sampled", @"draws_per_frame", @"submits", @"setup_ms", @"vertex_ms",
+        @"texture_ms", @"exec_ms", @"flip_ms", @"vertex_cache", @"program_lookups", @"fifo_idle_entries"];
+  } else if (strstr(line, "COREPROF SPUWAIT551 ") != nullptr) {
+    // CELL551: SPU time outside guest code, summed over the SPU threads.
+    family = @"spu_wait"; keys = @[@"getllar_poll", @"getllar_sleep", @"event_wait", @"putllc_ok",
+        @"putllc_fail", @"putllc_heavy"];
   } else if (strstr(line, "COREPROF MEMPROF527 ") != nullptr) {
     family = @"memory_bytes"; keys = @[@"footprint", @"peak_footprint", @"resident", @"compressed"];
   } else if (strstr(line, "COREPROF VDECIO528 ") != nullptr) {
