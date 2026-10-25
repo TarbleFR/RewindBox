@@ -65,6 +65,21 @@ Aucun test sur iPhone, aucun gain de FPS revendiqué.
 ## 4. Livraison privée 545
 
 IPA cumulative : hôte 542 validé, correctifs MeloNX de fermeture (544), Core
-RPCS3 545. Elle s'installe par-dessus la 543 ou la 544 (même identifiant
-d'application, numéro supérieur). Aucune release, aucun tag, aucune fusion vers
-`main`.
+RPCS3 545. Aucune release, aucun tag, aucune fusion vers `main`.
+
+- Core : source `39ad9725`, run 40223313523 (tests natifs 545, compilation,
+  exports, chargement passif, identités PPU/SPU inchangées). Delta canonique
+  SHA-256 `44e75f15…77185d`.
+- IPA : source `e5007d92`, run 40223565422, tous les validateurs réussis, dont
+  `validate_rpcs3_545_ipa.py` et la validation MeloNX de fermeture.
+- Fichier remis : `RewindBox-Build545.ipa`, version 0.0.8 (545), iOS 18
+  minimum, **186 386 764 octets**, SHA-256
+  `26cf7d78a1f51c19c430c87a3f524a1d8aaee996ed4ad0d6f577519916d4c3ee`, égal à
+  `SHA256SUMS` et à `signed-payload-identity.json` ; 87 signatures vérifiées.
+  Artefact chiffré `12610469398` pour `build-utils/delivery-545-recipient.pem`
+  (clé privée hors Git), conservé jusqu'au 8 novembre 2026. Déchiffré et
+  revérifié : marqueurs 545 et 543 dans le Core RPCS3, marqueurs de fermeture
+  dans MeloNX, le plugin et Dart ; validateur MeloNX rejoué localement.
+- S'installe par-dessus la 543 ou la 544 (même identifiant, numéro supérieur),
+  après re-signature SideStore. Aucune validation sur iPhone. Ne pas
+  réutiliser le numéro 545. Preuve : `docs/evidence/rpcs3-cell545-delivery.json`.

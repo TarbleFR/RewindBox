@@ -3,6 +3,27 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 545: public ARMSX3 22528 fixes — 25 October 2026
+
+- The maintainer sent the ARMSX3 22528-eef0dc9c notes and chose "port the
+  missing, useful fixes". `eef0dc9c` is private; only public RPCS3/ARMSX3
+  commits were ported (classification: `docs/rpcs3-cell545.md`). The RPCS3 543
+  session handed over the RPCS3 files from 54fd900b.
+- Core `39ad9725` (run 40223313523), record `cell545`: SPU warmup dedup and
+  biggest-first order (codegen identities kept through
+  JITCacheCompatibility), PKG path containment (custom installers held to
+  dev_hdd0), debug SELF decryption, SCE iv_idx bound, in-memory savestate
+  files, cellSaveData SDK 2.6 cap, thread-local log buffer. Harness
+  `test/rpcs3_cell545_test.py`. MFC shuffling, SPU mailbox/SNR timing, RPCN
+  and app-side patches were deliberately not ported.
+- Private IPA **0.0.8 (545)** from `e5007d92`, run 40223565422: 542 host +
+  MeloNX close fix (544) + RPCS3 545 Core. 186,386,764 bytes, SHA-256
+  `26cf7d78…d4c3ee`, encrypted artifact 12610469398 for
+  `build-utils/delivery-545-recipient.pem`; decrypted, re-validated and
+  delivered for SideStore re-signing. Evidence:
+  `docs/evidence/rpcs3-cell545-delivery.json`. No iPhone validation yet.
+  **Do not reuse 545.**
+
 ## MeloNX close teardown and Persona review — 25 October 2026
 
 - Smash Bros. Ultimate (PID 30506, build ≥539) stopped its guest, then the
