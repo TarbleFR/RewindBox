@@ -51,7 +51,7 @@ def validate(ipa,build):
         for p in ['native/melonx/EmbeddedAddons.cs','native/melonx/EmbeddedAddonSelection.cs','native/melonx/EmbeddedContent.cs','build-utils/melonx/adapt_apple_audio.py']:
             assert identity['adaptations'][p]==hashlib.sha256((ROOT/p).read_bytes()).hexdigest(),p
         core=z.read(root+'Frameworks/MeloNXCore.framework/MeloNXCore')
-        for text in ['Apple AVAudioEngine; rate:','startup lead ms: 20','ambiguousUpdate','addonWrongGame','playAtTime:','hostTimeForSeconds:']:
+        for text in ['Apple AVAudioEngine; rate:','startup lead ms: 20','restartDeferred','ambiguousUpdate','addonWrongGame','playAtTime:','hostTimeForSeconds:']:
             assert contains(core,text),text
         host=z.read(root+'Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge')
         front=z.read(root+'Frameworks/external_folder_access.framework/external_folder_access')

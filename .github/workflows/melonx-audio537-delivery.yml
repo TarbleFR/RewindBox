@@ -17,8 +17,8 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: rewindbox-private537-${{ github.sha }}
-  cancel-in-progress: false
+  group: rewindbox-private537-be703da4545e813ea1a7d3c2b479d49b58b0587c
+  cancel-in-progress: true
 jobs:
   checks:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[retroarch-delivery]')
@@ -416,8 +416,8 @@ jobs:
     - name: Download the exact source-built MeloNX engine
       uses: actions/download-artifact@v4
       with:
-        name: MeloNX-engine-94ae1314f653a4eb76f8020660273a9faf1b0680
-        run-id: 40187994759
+        name: MeloNX-engine-23d92f17d0df716151ef136e64453fe774e8b6c7
+        run-id: 40188516292
         github-token: ${{ github.token }}
         path: dist/melonx
     - name: Download successful exact audio ownership and UIKit host proofs
@@ -706,7 +706,7 @@ jobs:
         build/delivery/melonx-launch514-ipa-validation.json
     - name: Verify the exact packaged key import correction
       run: python3 build-utils/validate_melonx_keys_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --core-source
-        94ae1314f653a4eb76f8020660273a9faf1b0680 --core-run 40187994759 --report build/delivery/melonx-keys517-ipa-validation.json
+        23d92f17d0df716151ef136e64453fe774e8b6c7 --core-run 40188516292 --report build/delivery/melonx-keys517-ipa-validation.json
     - name: Verify the compiled foreground presentation correction
       run: python3 build-utils/validate_melonx_audio537_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
         build/delivery/melonx-memory519-ipa-validation.json
