@@ -1,0 +1,69 @@
+name: MeloNX pinned-source audio routing audit
+'on':
+  push:
+    branches:
+      - diag/melonx-ios-audio-20261025
+    paths:
+      - .github/workflows/melonx-audio-source-audit.yml
+permissions:
+  contents: read
+jobs:
+  audio-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch exact embedded MeloNX sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init /tmp/melonx-src
+          git -C /tmp/melonx-src remote add origin https://starforgejo.dev/projects/MeloNX.git
+          for attempt in 1 2 3; do
+            if git -C /tmp/melonx-src -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67; then break; fi
+            sleep 5
+          done
+          git -C /tmp/melonx-src checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/melonx-src rev-parse HEAD)" = 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
+      - name: Report audio path and source lines, without modifying emulator
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root=Path('/tmp/melonx-src/src')
+          names = [p for p in root.rglob('*.cs') if
+                   ('Ryujinx.Library' in str(p) or
+                    'Ryujinx.Audio' in str(p) or
+                    'Ryujinx.SDL3' in str(p) or
+                    'Ryujinx.Headless.SDL3' in str(p) or
+                    'Ryujinx.Audio.Backends' in str(p))]
+          patterns=[r'InitializeAudio',r'SDL3HardwareDevice',r'DummyHardwareDevice',r'AudioBackend',r'OpenDeviceSession',r'AudioProcessor',
+                    r'SDL3Audio',r'SDL_AudioSpec',r'OnAudio',r'AudioDevice',r'AudioOutput',r'AudioPlayback',r'TargetSampleCount',r'TargetSampleRate',
+                    r'SDL_GetAudioStream',r'SDL_PutAudioStream',r'SDL_ClearAudioStream',r'AudioBufferDuration',r'AudioSync',r'AudioVolume',
+                    r'AudioInterface',r'BackendThreading',r'DelayLayerHardwareDevice']
+          rx=re.compile('|'.join(patterns),re.I)
+          hits=0
+          print('AUDIO_ROUTING_AUDIT: exact pinned source',flush=True)
+          print('TOTAL_CANDIDATE_FILES:',len(names),flush=True)
+          for p in sorted(names):
+            content=p.read_text(encoding='utf-8-sig',errors='replace')
+            if not rx.search(content):continue
+            lines=content.splitlines()
+            indices=[i for i,l in enumerate(lines) if rx.search(l)]
+            if len(indices)==0:continue
+            # Focus engine startup, driver entrypoints and only audio implementations
+            important=('Ryujinx.Library' in str(p) or 'Backends.SDL3' in str(p) or
+                ('Ryujinx.Audio/Backends' in str(p) and any(
+                    word in str(p) for word in ['HardwareDevice', 'DelayLayer', 'CompatLayer', 'Constants'])))
+            if not important:continue
+            print('FILE',p.relative_to(root),'COUNT',len(indices),flush=True)
+            last=-10
+            for i in indices[:75]:
+              for j in range(max(0,i-2),min(len(lines),i+3)):
+                if j>last:print(f'{j+1:4} {lines[j][:300]}',flush=True)
+                last=max(last,j)
+              hits+=1
+              if hits>500:break
+            if hits>500:break
+          PY
