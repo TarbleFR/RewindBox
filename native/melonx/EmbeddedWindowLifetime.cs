@@ -47,7 +47,12 @@ internal sealed class EmbeddedWindowLifetime
         {
             if (_used || _disposed) throw new InvalidOperationException("Window already used.");
             _used = true;
-            if (_requested) return;
+            // The loader has already created a guest before Window.Execute.
+            // Even an early stop must start its GPU service: guest teardown
+            // can wait for renderer readiness. Returning here strands that
+            // guest, then the outer context.Dispose waits forever.
+            // Cancellation before guest creation is handled by the session
+            // coordinator; here we own an already-created guest.
             _running = _rendering = true;
         }
         using ManualResetEventSlim guestStopped = new(false);
@@ -69,7 +74,7 @@ internal sealed class EmbeddedWindowLifetime
         {
             worker.Start();
             started = true;
-            input();
+            if (InputAllowed) input();
         }
         finally
         {

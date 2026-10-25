@@ -29,6 +29,12 @@ class SDL3HardwareDeviceSession
                 SDL_PutAudioStreamData(streamDevice, (nint)pStreamDst, additionalAmount);
             }
     }
+    void QueueBuffer(AudioBuffer buffer)
+    {
+                _ringBuffer.Write(buffer.Data, 0, buffer.Data.Length);
+
+                _queuedBuffers.Enqueue(driverBuffer);
+    }
 }
 """
 

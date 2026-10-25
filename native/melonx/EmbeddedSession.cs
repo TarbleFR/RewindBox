@@ -64,6 +64,10 @@ partial class Library
                 EmbeddedPrepareFailure = "";
                 EmbeddedLaunchDiagnostics.Record("session", "begin");
                 Options options = EmbeddedOptions(Path.GetFullPath(path), locale, width, height);
+                // Record effective values after personal/per-game overrides.
+                // No game path, personal profile or key material is included.
+                EmbeddedLaunchDiagnostics.Record("configuration", "effective", detail:
+                    FormattableString.Invariant($"resolution={options.ResScale}; shaderCache={!options.DisableShaderCache}; asyncShaders={options.EnableAsyncShaderCompilation}; vsync={options.VSyncMode}; hostMemoryBudget={options.EnableHostMemoryBudgetTracking}; textureRecompression={options.EnableTextureRecompression}; threading={options.BackendThreading}"));
                 // Native Npad disposal disconnects its pad objects. A new
                 // host view reattaches fresh pads after this reservation.
                 foreach (var pad in ((NativeGamepadDriver)_inputManager.GamepadDriver).GetGamepads().ToArray())

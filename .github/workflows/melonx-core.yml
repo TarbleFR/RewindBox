@@ -19,6 +19,7 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_runtime.py
     - build-utils/melonx/adapt_audio.py
     - test/melonx_ios_audio_underrun_test.py
+    - test/melonx_runtime_regressions_test.py
     - build-utils/melonx/reuse_keys_validation.py
     - build-utils/melonx/adapt_firmware.py
     - native/melonx/*.cs
@@ -112,6 +113,8 @@ jobs:
             subprocess.run(['git','-C',path,'checkout','--detach','FETCH_HEAD'],check=True)
             assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==revision
         PY_FETCH
+    - name: Execute production audio accounting and Vulkan failure regressions
+      run: python3 test/melonx_runtime_regressions_test.py .native-sources/MeloNX
     - name: Reuse exact successful Darwin and homebrew proofs
       env:
         GH_TOKEN: ${{ github.token }}
@@ -159,6 +162,13 @@ jobs:
         path: dist/melonx-native
     - name: Exercise this exact rebuilt engine in an ARM64 iOS app
       run: python3 test/melonx_runtime_smoke.py
+    - name: Retain actual runtime evidence
+      if: always()
+      run: |
+        if [ -d dist/melonx-smoke ]; then
+          mkdir -p dist/melonx/runtime-smoke
+          cp -R dist/melonx-smoke/. dist/melonx/runtime-smoke/
+        fi
     - uses: actions/upload-artifact@v4
       if: always()
       with:

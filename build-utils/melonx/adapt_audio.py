@@ -17,6 +17,11 @@ def apply(source):
         raise AssertionError("Pinned MeloNX SDL3 audio callback differs; refuse unverified patch")
     if original.count("            streamSpan.Clear();") != 1:
         raise AssertionError("Audio underrun path differs; refuse unverified patch")
+    queue = """                _ringBuffer.Write(buffer.Data, 0, buffer.Data.Length);
+
+                _queuedBuffers.Enqueue(driverBuffer);"""
+    if original.count(queue) != 1:
+        raise AssertionError("Audio producer publication differs; refuse unverified patch")
     once(target, guard,
          """            int byteCount = frameCount * _bytesPerFrame;
 
@@ -32,4 +37,9 @@ def apply(source):
          """                // Only send the audio samples we actually consumed from
                 // the producer ring; never pad the SDL queue to additionalAmount.
                 SDL_PutAudioStreamData(streamDevice, (nint)pStreamDst, byteCount);""")
+    once(target, queue, """                // Publish accounting before PCM becomes visible to the SDL
+                // callback. Otherwise it can consume those samples without
+                // retiring their buffer, starving the guest audio producer.
+                _queuedBuffers.Enqueue(driverBuffer);
+                _ringBuffer.Write(buffer.Data, 0, buffer.Data.Length);""")
     return [target]

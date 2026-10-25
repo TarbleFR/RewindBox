@@ -94,12 +94,21 @@ Case("many clean game sessions", () => {
         Check(owner.Run(id, () => 0) == 0 && owner.State == 0); previous = id;
     }
 });
-Case("stop before window execute is sticky", () => {
+Case("stop during load still services and retires the already-created guest", () => {
     var life = new EmbeddedWindowLifetime(); life.RequestStop();
-    Action fail = () => throw new Exception("Must not execute");
-    life.Run(fail, fail, fail, fail);
+    using var ready = new ManualResetEventSlim();
+    bool guestStopped = false, gpuReleased = false;
+    life.Run(() => throw new Exception("Stopped input must not run"), () => {
+        Check(life.RenderAllowed && !life.InputAllowed);
+        ready.Set();
+        while (life.RenderAllowed) Thread.Yield();
+        Check(guestStopped);
+    }, () => {
+        Wait(ready); // The real guest can wait for renderer initialization.
+        guestStopped = true;
+    }, () => { Check(guestStopped); gpuReleased = true; });
     int releases = 0; life.Dispose(() => releases++); life.Dispose(() => releases++);
-    Check(releases == 1 && !life.InputAllowed && !life.RenderAllowed);
+    Check(guestStopped && gpuReleased && releases == 1 && !life.InputAllowed && !life.RenderAllowed);
 });
 Case("guest stops before GPU release and worker join", () => {
     var life = new EmbeddedWindowLifetime(); using var rendered = new ManualResetEventSlim();
