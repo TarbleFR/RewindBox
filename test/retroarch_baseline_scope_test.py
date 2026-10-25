@@ -271,6 +271,20 @@ def restore_rewindbox_branding(data, name):
     return data
 
 
+
+
+def restore_rewindbox_branding(data, name):
+    """Undo only reviewed display-text edits before historical hash checks."""
+    record = json.loads((ROOT / 'docs/rewindbox-branding-compatibility.json').read_text())
+    for change in record['locked_replacements'].get(name, []):
+        current = change['new'].encode('utf-8')
+        original = change['old'].encode('utf-8')
+        if data.count(current) != change['count']:
+            raise AssertionError('Unexpected branding edit: ' + name)
+        data = data.replace(current, original)
+    return data
+
+
 class RetroArchBaselineScope(unittest.TestCase):
     def test_library_is_the_recorded_build419_reference(self):
         for name, expected in MANIFEST['library_sha256'].items():
