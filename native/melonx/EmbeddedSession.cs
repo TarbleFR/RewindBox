@@ -151,7 +151,10 @@ partial class Library
             ResScale = 1, MaxAnisotropy = -1, AspectRatio = AspectRatio.Fixed16x9,
             ScalingFilter = ScalingFilter.Bilinear, ScalingFilterLevel = 60, MetalFxUpscaleFactor = 2,
             EnableHostMemoryBudgetTracking = true, EnableTextureRecompression = true,
-            DisableShaderCache = true, EnableAsyncShaderCompilation = true,
+            // Match EmbeddedGraphicsSettings defaults before saved per-game overrides.
+            // Async compilation skipped draws in Persona 5 Royal on MoltenVK;
+            // synchronous compilation may stall briefly, but keeps geometry intact.
+            DisableShaderCache = false, EnableAsyncShaderCompilation = false,
             DisableDockedMode = true, MemoryManagerMode = MemoryManagerMode.HostMappedUnsafe,
             AudioVolume = 1, SystemLanguage = systemLanguage, SystemRegion = RegionCode.USA,
             SystemTimeZone = "UTC", MultiplayerLanInterfaceId = "0", PreferredGPUVendor = "",
