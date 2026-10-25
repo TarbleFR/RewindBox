@@ -2,6 +2,20 @@
 
 Effective 21 October 2026, the independently maintained iOS/iPadOS fork is named **RewindBox**. Its repository is https://github.com/TarbleFR/RewindBox. Support for this fork belongs in its own issue tracker, not the upstream project's support server. The upstream [NeoStation project](https://github.com/misobadev/neostation-frontend), Miguel Soto / misobadev and all contributors remain credited. This rename does not imply endorsement or change licenses.
 
+## Public release status as of 25 October 2026
+
+**RewindBox** now publishes [`fix 0.0.9` / Build 530](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1).
+The full `Claude` development branch, including embedded MeloNX and the
+iOS Vulkan stability correction, was merged into `main` through
+[PR #143](https://github.com/TarbleFR/RewindBox/pull/143).
+The compiled IPA displays RewindBox, retains the historical internal package/
+bundle identifiers for migration safety, and still reports internal app
+version `0.0.8` with build number `530`. Its exact source, not the moving
+branch tip, is [recorded here](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md).
+
+The following October 21 paragraphs are the **historical scope of the rename
+operation**. They do not describe the post-merge release status.
+
 ## Current source
 
 The app title, onboarding/help translations, in-game return labels, JIT permission descriptions, iOS display name, website-installer defaults and public repository presentation use RewindBox. The update endpoint points to this fork. Both main and Claude receive branding-only changes on their own existing source snapshots; unreleased development work is not merged into main. No new version, tag, release, IPA, game-engine feature or on-device validation is implied.
