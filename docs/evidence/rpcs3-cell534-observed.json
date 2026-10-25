@@ -40,6 +40,10 @@
           "count": 57,
           "totalUs": 448,
           "maxUs": 27,
+          "monotonicSpanUs": [
+            111781223315,
+            112274995694
+          ],
           "slowest": {
             "sequence": 509,
             "object": 106,
@@ -54,6 +58,10 @@
           "count": 104,
           "totalUs": 615440,
           "maxUs": 81921,
+          "monotonicSpanUs": [
+            111781242673,
+            112275000347
+          ],
           "slowest": {
             "sequence": 450,
             "object": 37,
@@ -68,6 +76,10 @@
           "count": 113,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            112116692201,
+            112823239478
+          ],
           "slowest": {
             "sequence": 2075,
             "object": 110,
@@ -82,6 +94,10 @@
           "count": 104,
           "totalUs": 647,
           "maxUs": 57,
+          "monotonicSpanUs": [
+            111781242678,
+            112275000405
+          ],
           "slowest": {
             "sequence": 2297,
             "object": 228,
@@ -96,6 +112,10 @@
           "count": 346,
           "totalUs": 77,
           "maxUs": 1,
+          "monotonicSpanUs": [
+            111781241063,
+            111781595054
+          ],
           "slowest": {
             "sequence": 93,
             "object": 0,
@@ -110,6 +130,10 @@
           "count": 11,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            112118785326,
+            112820585590
+          ],
           "slowest": {
             "sequence": 2291,
             "object": 0,
@@ -124,6 +148,10 @@
           "count": 115,
           "totalUs": 10810,
           "maxUs": 670,
+          "monotonicSpanUs": [
+            111999230559,
+            112009046398
+          ],
           "slowest": {
             "sequence": 684,
             "object": 114,
@@ -138,6 +166,10 @@
           "count": 1151,
           "totalUs": 9577827,
           "maxUs": 34533,
+          "monotonicSpanUs": [
+            111999234045,
+            112009446727
+          ],
           "slowest": {
             "sequence": 827,
             "object": 128,
@@ -152,6 +184,10 @@
           "count": 115,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            111999251127,
+            112116763432
+          ],
           "slowest": {
             "sequence": 690,
             "object": 113,
@@ -166,6 +202,10 @@
           "count": 104,
           "totalUs": 2870,
           "maxUs": 84,
+          "monotonicSpanUs": [
+            111999845346,
+            112009446751
+          ],
           "slowest": {
             "sequence": 799,
             "object": 125,
@@ -180,6 +220,10 @@
           "count": 5,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            112003186302,
+            112008252816
+          ],
           "slowest": {
             "sequence": 1188,
             "object": 0,
@@ -194,6 +238,10 @@
           "count": 6,
           "totalUs": 376,
           "maxUs": 75,
+          "monotonicSpanUs": [
+            111999241899,
+            111999585793
+          ],
           "slowest": {
             "sequence": 687,
             "object": 113,
@@ -282,6 +330,10 @@
           "count": 33,
           "totalUs": 223,
           "maxUs": 23,
+          "monotonicSpanUs": [
+            302660618556,
+            303009054906
+          ],
           "slowest": {
             "sequence": 507,
             "object": 97,
@@ -296,6 +348,10 @@
           "count": 97,
           "totalUs": 636276,
           "maxUs": 230145,
+          "monotonicSpanUs": [
+            302660619168,
+            303009056293
+          ],
           "slowest": {
             "sequence": 317,
             "object": 7,
@@ -310,6 +366,10 @@
           "count": 102,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            303015943687,
+            303015949669
+          ],
           "slowest": {
             "sequence": 668,
             "object": 97,
@@ -324,6 +384,10 @@
           "count": 97,
           "totalUs": 1174,
           "maxUs": 219,
+          "monotonicSpanUs": [
+            302660619170,
+            303009056296
+          ],
           "slowest": {
             "sequence": 378,
             "object": 13,
@@ -338,6 +402,10 @@
           "count": 291,
           "totalUs": 61,
           "maxUs": 8,
+          "monotonicSpanUs": [
+            302660798417,
+            302661077490
+          ],
           "slowest": {
             "sequence": 251,
             "object": 0,
@@ -352,6 +420,10 @@
           "count": 5,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            303018214747,
+            303498100651
+          ],
           "slowest": {
             "sequence": 770,
             "object": 0,
@@ -410,6 +482,10 @@
           "count": 94,
           "totalUs": 949,
           "maxUs": 183,
+          "monotonicSpanUs": [
+            342527949995,
+            342528497919
+          ],
           "slowest": {
             "sequence": 24,
             "object": 22,
@@ -424,6 +500,10 @@
           "count": 94,
           "totalUs": 656523,
           "maxUs": 165215,
+          "monotonicSpanUs": [
+            342527951000,
+            342528721051
+          ],
           "slowest": {
             "sequence": 479,
             "object": 28,
@@ -438,6 +518,10 @@
           "count": 94,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            342538213099,
+            342538215434
+          ],
           "slowest": {
             "sequence": 651,
             "object": 94,
@@ -452,6 +536,10 @@
           "count": 94,
           "totalUs": 835,
           "maxUs": 140,
+          "monotonicSpanUs": [
+            342527951004,
+            342528721063
+          ],
           "slowest": {
             "sequence": 279,
             "object": 21,
@@ -466,6 +554,10 @@
           "count": 368,
           "totalUs": 78,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            342528117344,
+            342528499012
+          ],
           "slowest": {
             "sequence": 104,
             "object": 0,
@@ -498,6 +590,10 @@
           "count": 110,
           "totalUs": 906,
           "maxUs": 36,
+          "monotonicSpanUs": [
+            342580851519,
+            342581340865
+          ],
           "slowest": {
             "sequence": 11,
             "object": 9,
@@ -512,6 +608,10 @@
           "count": 110,
           "totalUs": 619821,
           "maxUs": 77558,
+          "monotonicSpanUs": [
+            342580852488,
+            342581570285
+          ],
           "slowest": {
             "sequence": 240,
             "object": 10,
@@ -526,6 +626,10 @@
           "count": 110,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            342588172910,
+            342588176209
+          ],
           "slowest": {
             "sequence": 679,
             "object": 101,
@@ -540,6 +644,10 @@
           "count": 110,
           "totalUs": 3995,
           "maxUs": 2978,
+          "monotonicSpanUs": [
+            342580852494,
+            342581570374
+          ],
           "slowest": {
             "sequence": 112,
             "object": 6,
@@ -554,6 +662,10 @@
           "count": 348,
           "totalUs": 87,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            342580980553,
+            342581343492
+          ],
           "slowest": {
             "sequence": 76,
             "object": 0,
@@ -568,6 +680,10 @@
           "count": 2,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            342591488666,
+            342591720964
+          ],
           "slowest": {
             "sequence": 789,
             "object": 0,
@@ -611,6 +727,10 @@
           "count": 52,
           "totalUs": 431,
           "maxUs": 64,
+          "monotonicSpanUs": [
+            343047618785,
+            343072963447
+          ],
           "slowest": {
             "sequence": 11,
             "object": 9,
@@ -625,6 +745,10 @@
           "count": 96,
           "totalUs": 592016,
           "maxUs": 164200,
+          "monotonicSpanUs": [
+            343047619743,
+            343072974627
+          ],
           "slowest": {
             "sequence": 309,
             "object": 9,
@@ -639,6 +763,10 @@
           "count": 102,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            343130240426,
+            343130313045
+          ],
           "slowest": {
             "sequence": 714,
             "object": 99,
@@ -653,6 +781,10 @@
           "count": 96,
           "totalUs": 804,
           "maxUs": 51,
+          "monotonicSpanUs": [
+            343047619749,
+            343072974634
+          ],
           "slowest": {
             "sequence": 335,
             "object": 11,
@@ -667,6 +799,10 @@
           "count": 299,
           "totalUs": 62,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            343047860832,
+            343048172751
+          ],
           "slowest": {
             "sequence": 242,
             "object": 0,
@@ -681,6 +817,10 @@
           "count": 3,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            343134034291,
+            343134359598
+          ],
           "slowest": {
             "sequence": 816,
             "object": 0,
@@ -695,6 +835,10 @@
           "count": 2,
           "totalUs": 255,
           "maxUs": 136,
+          "monotonicSpanUs": [
+            343103597923,
+            343103598071
+          ],
           "slowest": {
             "sequence": 663,
             "object": 104,
@@ -709,6 +853,10 @@
           "count": 22,
           "totalUs": 257040,
           "maxUs": 16042,
+          "monotonicSpanUs": [
+            343103598928,
+            343103855763
+          ],
           "slowest": {
             "sequence": 665,
             "object": 103,
@@ -723,6 +871,10 @@
           "count": 2,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            343104058443,
+            343104058443
+          ],
           "slowest": {
             "sequence": 712,
             "object": 103,
@@ -737,6 +889,10 @@
           "count": 2,
           "totalUs": 43,
           "maxUs": 23,
+          "monotonicSpanUs": [
+            343103721142,
+            343103855786
+          ],
           "slowest": {
             "sequence": 687,
             "object": 104,
@@ -751,6 +907,10 @@
           "count": 22,
           "totalUs": 11911,
           "maxUs": 1084,
+          "monotonicSpanUs": [
+            343104047275,
+            343104058115
+          ],
           "slowest": {
             "sequence": 688,
             "object": 103,
@@ -765,6 +925,10 @@
           "count": 2,
           "totalUs": 11920,
           "maxUs": 6395,
+          "monotonicSpanUs": [
+            343104052586,
+            343104058118
+          ],
           "slowest": {
             "sequence": 699,
             "object": 103,
@@ -792,7 +956,9 @@
         }
       ],
       "missingSequencesWithinRetainedSpan": 118,
-      "repeatedRestoredObjectsRetained": {}
+      "repeatedRestoredObjectsRetained": {
+        "owned_software_vdec_pixels": {}
+      }
     },
     {
       "pid": 19478,
@@ -814,6 +980,10 @@
           "count": 72,
           "totalUs": 652,
           "maxUs": 41,
+          "monotonicSpanUs": [
+            346584172196,
+            346584708878
+          ],
           "slowest": {
             "sequence": 406,
             "object": 83,
@@ -828,6 +998,10 @@
           "count": 94,
           "totalUs": 626361,
           "maxUs": 66883,
+          "monotonicSpanUs": [
+            346584173159,
+            346584938223
+          ],
           "slowest": {
             "sequence": 368,
             "object": 18,
@@ -842,6 +1016,10 @@
           "count": 95,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            346592934613,
+            346592936828
+          ],
           "slowest": {
             "sequence": 628,
             "object": 89,
@@ -856,6 +1034,10 @@
           "count": 94,
           "totalUs": 974,
           "maxUs": 133,
+          "monotonicSpanUs": [
+            346584173163,
+            346584938235
+          ],
           "slowest": {
             "sequence": 519,
             "object": 41,
@@ -870,6 +1052,10 @@
           "count": 324,
           "totalUs": 71,
           "maxUs": 1,
+          "monotonicSpanUs": [
+            346584363544,
+            346584710785
+          ],
           "slowest": {
             "sequence": 117,
             "object": 0,
@@ -902,6 +1088,10 @@
           "count": 14,
           "totalUs": 80,
           "maxUs": 11,
+          "monotonicSpanUs": [
+            352581884257,
+            352582482762
+          ],
           "slowest": {
             "sequence": 1,
             "object": 1,
@@ -916,6 +1106,10 @@
           "count": 78,
           "totalUs": 560564,
           "maxUs": 166833,
+          "monotonicSpanUs": [
+            352581885720,
+            352582693951
+          ],
           "slowest": {
             "sequence": 301,
             "object": 19,
@@ -930,6 +1124,10 @@
           "count": 95,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            352589851542,
+            352589854483
+          ],
           "slowest": {
             "sequence": 648,
             "object": 94,
@@ -944,6 +1142,10 @@
           "count": 78,
           "totalUs": 5045,
           "maxUs": 4271,
+          "monotonicSpanUs": [
+            352581885724,
+            352582693969
+          ],
           "slowest": {
             "sequence": 393,
             "object": 22,
@@ -958,6 +1160,10 @@
           "count": 345,
           "totalUs": 81,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            352582150350,
+            352582478054
+          ],
           "slowest": {
             "sequence": 147,
             "object": 0,
@@ -990,6 +1196,10 @@
           "count": 95,
           "totalUs": 784,
           "maxUs": 35,
+          "monotonicSpanUs": [
+            352609382511,
+            352609840955
+          ],
           "slowest": {
             "sequence": 34,
             "object": 28,
@@ -1004,6 +1214,10 @@
           "count": 95,
           "totalUs": 617056,
           "maxUs": 82177,
+          "monotonicSpanUs": [
+            352609383116,
+            352610055779
+          ],
           "slowest": {
             "sequence": 512,
             "object": 30,
@@ -1018,6 +1232,10 @@
           "count": 95,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            352700309604,
+            352700315208
+          ],
           "slowest": {
             "sequence": 646,
             "object": 90,
@@ -1032,6 +1250,10 @@
           "count": 95,
           "totalUs": 4531,
           "maxUs": 2537,
+          "monotonicSpanUs": [
+            352609383119,
+            352610055793
+          ],
           "slowest": {
             "sequence": 334,
             "object": 14,
@@ -1046,6 +1268,10 @@
           "count": 360,
           "totalUs": 94,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            352609484834,
+            352609835433
+          ],
           "slowest": {
             "sequence": 97,
             "object": 0,
@@ -1078,6 +1304,10 @@
           "count": 66,
           "totalUs": 377,
           "maxUs": 16,
+          "monotonicSpanUs": [
+            352893114542,
+            352909583462
+          ],
           "slowest": {
             "sequence": 347,
             "object": 115,
@@ -1092,6 +1322,10 @@
           "count": 130,
           "totalUs": 471213,
           "maxUs": 10502,
+          "monotonicSpanUs": [
+            352893113671,
+            352909584605
+          ],
           "slowest": {
             "sequence": 430,
             "object": 64,
@@ -1106,6 +1340,10 @@
           "count": 171,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            352976393185,
+            352976411099
+          ],
           "slowest": {
             "sequence": 6528,
             "object": 43,
@@ -1120,6 +1358,10 @@
           "count": 130,
           "totalUs": 894,
           "maxUs": 120,
+          "monotonicSpanUs": [
+            352893113677,
+            352909584610
+          ],
           "slowest": {
             "sequence": 511,
             "object": 78,
@@ -1134,6 +1376,10 @@
           "count": 192,
           "totalUs": 38,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            352893109594,
+            352893344991
+          ],
           "slowest": {
             "sequence": 286,
             "object": 0,
@@ -1148,6 +1394,10 @@
           "count": 573,
           "totalUs": 75091,
           "maxUs": 370,
+          "monotonicSpanUs": [
+            352910323257,
+            352976340127
+          ],
           "slowest": {
             "sequence": 5506,
             "object": 653,
@@ -1162,6 +1412,10 @@
           "count": 2632,
           "totalUs": 20574735,
           "maxUs": 217898,
+          "monotonicSpanUs": [
+            352910325210,
+            352976455855
+          ],
           "slowest": {
             "sequence": 1721,
             "object": 266,
@@ -1176,6 +1430,10 @@
           "count": 525,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            352910349783,
+            352976455989
+          ],
           "slowest": {
             "sequence": 806,
             "object": 172,
@@ -1190,6 +1448,10 @@
           "count": 179,
           "totalUs": 6970,
           "maxUs": 193,
+          "monotonicSpanUs": [
+            352928267509,
+            352976393149
+          ],
           "slowest": {
             "sequence": 1857,
             "object": 277,
@@ -1204,6 +1466,10 @@
           "count": 716,
           "totalUs": 839363,
           "maxUs": 12366,
+          "monotonicSpanUs": [
+            352937372370,
+            352972149924
+          ],
           "slowest": {
             "sequence": 2338,
             "object": 210,
@@ -1218,6 +1484,10 @@
           "count": 6,
           "totalUs": 1,
           "maxUs": 1,
+          "monotonicSpanUs": [
+            352933303655,
+            352976340127
+          ],
           "slowest": {
             "sequence": 1720,
             "object": 0,
@@ -1232,6 +1502,10 @@
           "count": 66,
           "totalUs": 858658,
           "maxUs": 43064,
+          "monotonicSpanUs": [
+            352937401528,
+            352972149924
+          ],
           "slowest": {
             "sequence": 2846,
             "object": 245,
@@ -1246,6 +1520,10 @@
           "count": 389,
           "totalUs": 21355,
           "maxUs": 119,
+          "monotonicSpanUs": [
+            352910346824,
+            352970044460
+          ],
           "slowest": {
             "sequence": 5348,
             "object": 617,
@@ -1257,7 +1535,9 @@
       ],
       "pressure": [],
       "missingSequencesWithinRetainedSpan": 718,
-      "repeatedRestoredObjectsRetained": {}
+      "repeatedRestoredObjectsRetained": {
+        "owned_software_vdec_pixels": {}
+      }
     },
     {
       "pid": 21111,
@@ -1279,6 +1559,10 @@
           "count": 84,
           "totalUs": 596,
           "maxUs": 27,
+          "monotonicSpanUs": [
+            368001078340,
+            368001551546
+          ],
           "slowest": {
             "sequence": 42,
             "object": 28,
@@ -1293,6 +1577,10 @@
           "count": 106,
           "totalUs": 584890,
           "maxUs": 69637,
+          "monotonicSpanUs": [
+            368001079532,
+            368001780118
+          ],
           "slowest": {
             "sequence": 325,
             "object": 27,
@@ -1307,6 +1595,10 @@
           "count": 113,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            368007932941,
+            368007934978
+          ],
           "slowest": {
             "sequence": 685,
             "object": 101,
@@ -1321,6 +1613,10 @@
           "count": 106,
           "totalUs": 774,
           "maxUs": 80,
+          "monotonicSpanUs": [
+            368001079536,
+            368001780128
+          ],
           "slowest": {
             "sequence": 588,
             "object": 65,
@@ -1335,6 +1631,10 @@
           "count": 294,
           "totalUs": 73,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            368001241057,
+            368001551641
+          ],
           "slowest": {
             "sequence": 280,
             "object": 0,
@@ -1367,6 +1667,10 @@
           "count": 38,
           "totalUs": 252,
           "maxUs": 20,
+          "monotonicSpanUs": [
+            423194441330,
+            423627960526
+          ],
           "slowest": {
             "sequence": 670,
             "object": 104,
@@ -1381,6 +1685,10 @@
           "count": 102,
           "totalUs": 584924,
           "maxUs": 63062,
+          "monotonicSpanUs": [
+            423194440714,
+            423627961195
+          ],
           "slowest": {
             "sequence": 147,
             "object": 3,
@@ -1395,6 +1703,10 @@
           "count": 104,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            423646789867,
+            423646801663
+          ],
           "slowest": {
             "sequence": 673,
             "object": 102,
@@ -1409,6 +1721,10 @@
           "count": 102,
           "totalUs": 588,
           "maxUs": 15,
+          "monotonicSpanUs": [
+            423194440718,
+            423627961199
+          ],
           "slowest": {
             "sequence": 533,
             "object": 37,
@@ -1423,6 +1739,10 @@
           "count": 284,
           "totalUs": 68,
           "maxUs": 8,
+          "monotonicSpanUs": [
+            423194444255,
+            423194735144
+          ],
           "slowest": {
             "sequence": 263,
             "object": 0,
@@ -1455,6 +1775,10 @@
           "count": 96,
           "totalUs": 610,
           "maxUs": 36,
+          "monotonicSpanUs": [
+            423665374320,
+            423665869917
+          ],
           "slowest": {
             "sequence": 498,
             "object": 93,
@@ -1469,6 +1793,10 @@
           "count": 96,
           "totalUs": 675263,
           "maxUs": 93022,
+          "monotonicSpanUs": [
+            423665375214,
+            423666095332
+          ],
           "slowest": {
             "sequence": 490,
             "object": 28,
@@ -1483,6 +1811,10 @@
           "count": 96,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            423710566230,
+            423710574769
+          ],
           "slowest": {
             "sequence": 653,
             "object": 92,
@@ -1497,6 +1829,10 @@
           "count": 96,
           "totalUs": 721,
           "maxUs": 85,
+          "monotonicSpanUs": [
+            423665375219,
+            423666095345
+          ],
           "slowest": {
             "sequence": 536,
             "object": 38,
@@ -1511,6 +1847,10 @@
           "count": 364,
           "totalUs": 88,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            423665481467,
+            423665864668
+          ],
           "slowest": {
             "sequence": 163,
             "object": 0,
@@ -1543,6 +1883,10 @@
           "count": 72,
           "totalUs": 457,
           "maxUs": 24,
+          "monotonicSpanUs": [
+            423717224857,
+            423717629829
+          ],
           "slowest": {
             "sequence": 9,
             "object": 7,
@@ -1557,6 +1901,10 @@
           "count": 72,
           "totalUs": 583405,
           "maxUs": 171959,
+          "monotonicSpanUs": [
+            423717225976,
+            423717861260
+          ],
           "slowest": {
             "sequence": 403,
             "object": 6,
@@ -1571,6 +1919,10 @@
           "count": 72,
           "totalUs": 12559,
           "maxUs": 10973,
+          "monotonicSpanUs": [
+            423717225979,
+            423717861265
+          ],
           "slowest": {
             "sequence": 212,
             "object": 5,
@@ -1585,6 +1937,10 @@
           "count": 374,
           "totalUs": 87,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            423717297472,
+            423717633306
+          ],
           "slowest": {
             "sequence": 94,
             "object": 0,
@@ -1617,6 +1973,10 @@
           "count": 75,
           "totalUs": 433,
           "maxUs": 16,
+          "monotonicSpanUs": [
+            423798524665,
+            423814425148
+          ],
           "slowest": {
             "sequence": 54,
             "object": 50,
@@ -1631,6 +1991,10 @@
           "count": 75,
           "totalUs": 628770,
           "maxUs": 134029,
+          "monotonicSpanUs": [
+            423798525347,
+            423814442019
+          ],
           "slowest": {
             "sequence": 470,
             "object": 7,
@@ -1645,6 +2009,10 @@
           "count": 75,
           "totalUs": 985,
           "maxUs": 214,
+          "monotonicSpanUs": [
+            423798525350,
+            423814442024
+          ],
           "slowest": {
             "sequence": 505,
             "object": 22,
@@ -1659,6 +2027,10 @@
           "count": 388,
           "totalUs": 104,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            423798602524,
+            423798933209
+          ],
           "slowest": {
             "sequence": 133,
             "object": 0,
@@ -1673,6 +2045,10 @@
           "count": 1,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            424063406912,
+            424063406912
+          ],
           "slowest": {
             "sequence": 2018,
             "object": 0,
@@ -1687,6 +2063,10 @@
           "count": 106,
           "totalUs": 20205,
           "maxUs": 585,
+          "monotonicSpanUs": [
+            423841665364,
+            424020619848
+          ],
           "slowest": {
             "sequence": 1413,
             "object": 137,
@@ -1701,6 +2081,10 @@
           "count": 1166,
           "totalUs": 8421008,
           "maxUs": 42033,
+          "monotonicSpanUs": [
+            423841666863,
+            424021043348
+          ],
           "slowest": {
             "sequence": 1971,
             "object": 178,
@@ -1715,6 +2099,10 @@
           "count": 88,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            423842125198,
+            424069499993
+          ],
           "slowest": {
             "sequence": 664,
             "object": 76,
@@ -1729,6 +2117,10 @@
           "count": 106,
           "totalUs": 11562,
           "maxUs": 2464,
+          "monotonicSpanUs": [
+            423841766205,
+            424021043383
+          ],
           "slowest": {
             "sequence": 1757,
             "object": 161,
@@ -1743,6 +2135,10 @@
           "count": 976,
           "totalUs": 1243272,
           "maxUs": 60532,
+          "monotonicSpanUs": [
+            423842115662,
+            424069499653
+          ],
           "slowest": {
             "sequence": 2624,
             "object": 124,
@@ -1757,6 +2153,10 @@
           "count": 90,
           "totalUs": 1276019,
           "maxUs": 187391,
+          "monotonicSpanUs": [
+            423842119877,
+            424069499653
+          ],
           "slowest": {
             "sequence": 2628,
             "object": 124,
@@ -1774,7 +2174,9 @@
         }
       ],
       "missingSequencesWithinRetainedSpan": 224,
-      "repeatedRestoredObjectsRetained": {}
+      "repeatedRestoredObjectsRetained": {
+        "owned_software_vdec_pixels": {}
+      }
     },
     {
       "pid": 22952,
@@ -1796,6 +2198,10 @@
           "count": 24,
           "totalUs": 166,
           "maxUs": 14,
+          "monotonicSpanUs": [
+            432007873635,
+            432024603705
+          ],
           "slowest": {
             "sequence": 639,
             "object": 90,
@@ -1810,6 +2216,10 @@
           "count": 88,
           "totalUs": 650075,
           "maxUs": 103329,
+          "monotonicSpanUs": [
+            432007874243,
+            432024617892
+          ],
           "slowest": {
             "sequence": 151,
             "object": 4,
@@ -1824,6 +2234,10 @@
           "count": 90,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            432278710176,
+            432278804913
+          ],
           "slowest": {
             "sequence": 1874,
             "object": 87,
@@ -1838,6 +2252,10 @@
           "count": 88,
           "totalUs": 1804,
           "maxUs": 862,
+          "monotonicSpanUs": [
+            432007874246,
+            432024617896
+          ],
           "slowest": {
             "sequence": 318,
             "object": 15,
@@ -1852,6 +2270,10 @@
           "count": 321,
           "totalUs": 121,
           "maxUs": 41,
+          "monotonicSpanUs": [
+            432008060577,
+            432008377484
+          ],
           "slowest": {
             "sequence": 197,
             "object": 0,
@@ -1866,6 +2288,10 @@
           "count": 88,
           "totalUs": 15245,
           "maxUs": 425,
+          "monotonicSpanUs": [
+            432219302032,
+            432237045967
+          ],
           "slowest": {
             "sequence": 1370,
             "object": 147,
@@ -1880,6 +2306,10 @@
           "count": 968,
           "totalUs": 7471359,
           "maxUs": 29739,
+          "monotonicSpanUs": [
+            432219305069,
+            432237320125
+          ],
           "slowest": {
             "sequence": 979,
             "object": 116,
@@ -1894,6 +2324,10 @@
           "count": 88,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            432276729004,
+            432276730299
+          ],
           "slowest": {
             "sequence": 1786,
             "object": 177,
@@ -1908,6 +2342,10 @@
           "count": 88,
           "totalUs": 11564,
           "maxUs": 5434,
+          "monotonicSpanUs": [
+            432219381869,
+            432237320159
+          ],
           "slowest": {
             "sequence": 759,
             "object": 99,
@@ -1940,6 +2378,10 @@
           "count": 128,
           "totalUs": 758,
           "maxUs": 25,
+          "monotonicSpanUs": [
+            447640866231,
+            447657629272
+          ],
           "slowest": {
             "sequence": 69,
             "object": 51,
@@ -1954,6 +2396,10 @@
           "count": 128,
           "totalUs": 653363,
           "maxUs": 39742,
+          "monotonicSpanUs": [
+            447640867028,
+            447657637719
+          ],
           "slowest": {
             "sequence": 224,
             "object": 22,
@@ -1968,6 +2414,10 @@
           "count": 128,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            447886624444,
+            447886721651
+          ],
           "slowest": {
             "sequence": 4580,
             "object": 112,
@@ -1982,6 +2432,10 @@
           "count": 128,
           "totalUs": 1017,
           "maxUs": 155,
+          "monotonicSpanUs": [
+            447640867031,
+            447657637748
+          ],
           "slowest": {
             "sequence": 647,
             "object": 94,
@@ -1996,6 +2450,10 @@
           "count": 333,
           "totalUs": 54,
           "maxUs": 1,
+          "monotonicSpanUs": [
+            447640993583,
+            447641314440
+          ],
           "slowest": {
             "sequence": 102,
             "object": 0,
@@ -2010,6 +2468,10 @@
           "count": 189,
           "totalUs": 27120,
           "maxUs": 1155,
+          "monotonicSpanUs": [
+            447675253650,
+            447865112462
+          ],
           "slowest": {
             "sequence": 4357,
             "object": 314,
@@ -2024,6 +2486,10 @@
           "count": 2046,
           "totalUs": 16382837,
           "maxUs": 350923,
+          "monotonicSpanUs": [
+            447675254970,
+            447865258382
+          ],
           "slowest": {
             "sequence": 3615,
             "object": 255,
@@ -2038,6 +2504,10 @@
           "count": 173,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            447684643691,
+            447879805655
+          ],
           "slowest": {
             "sequence": 2060,
             "object": 135,
@@ -2052,6 +2522,10 @@
           "count": 186,
           "totalUs": 12726,
           "maxUs": 3538,
+          "monotonicSpanUs": [
+            447675344045,
+            447865258405
+          ],
           "slowest": {
             "sequence": 4297,
             "object": 308,
@@ -2066,6 +2540,10 @@
           "count": 749,
           "totalUs": 497501,
           "maxUs": 2499,
+          "monotonicSpanUs": [
+            447684643657,
+            447685984170
+          ],
           "slowest": {
             "sequence": 2952,
             "object": 205,
@@ -2080,6 +2558,10 @@
           "count": 3,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            447685654695,
+            447850507899
+          ],
           "slowest": {
             "sequence": 3008,
             "object": 0,
@@ -2094,6 +2576,10 @@
           "count": 69,
           "totalUs": 504695,
           "maxUs": 9199,
+          "monotonicSpanUs": [
+            447684643658,
+            447685984170
+          ],
           "slowest": {
             "sequence": 2086,
             "object": 144,
@@ -2108,6 +2594,10 @@
           "count": 5,
           "totalUs": 412,
           "maxUs": 166,
+          "monotonicSpanUs": [
+            447685984345,
+            447686038657
+          ],
           "slowest": {
             "sequence": 3290,
             "object": 228,
@@ -2119,7 +2609,9 @@
       ],
       "pressure": [],
       "missingSequencesWithinRetainedSpan": 442,
-      "repeatedRestoredObjectsRetained": {}
+      "repeatedRestoredObjectsRetained": {
+        "owned_software_vdec_pixels": {}
+      }
     },
     {
       "pid": 24255,
@@ -2141,6 +2633,10 @@
           "count": 100,
           "totalUs": 1255,
           "maxUs": 654,
+          "monotonicSpanUs": [
+            451119382519,
+            451443317851
+          ],
           "slowest": {
             "sequence": 26,
             "object": 24,
@@ -2155,6 +2651,10 @@
           "count": 100,
           "totalUs": 675064,
           "maxUs": 97254,
+          "monotonicSpanUs": [
+            451119383660,
+            451444339164
+          ],
           "slowest": {
             "sequence": 160,
             "object": 2,
@@ -2169,6 +2669,10 @@
           "count": 100,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            451454017751,
+            451454025999
+          ],
           "slowest": {
             "sequence": 662,
             "object": 94,
@@ -2183,6 +2687,10 @@
           "count": 100,
           "totalUs": 678,
           "maxUs": 44,
+          "monotonicSpanUs": [
+            451119383663,
+            451444339173
+          ],
           "slowest": {
             "sequence": 583,
             "object": 62,
@@ -2197,6 +2705,10 @@
           "count": 361,
           "totalUs": 80,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            451119531816,
+            451119879937
+          ],
           "slowest": {
             "sequence": 365,
             "object": 0,
@@ -2229,6 +2741,10 @@
           "count": 117,
           "totalUs": 673,
           "maxUs": 28,
+          "monotonicSpanUs": [
+            452265342831,
+            452265782135
+          ],
           "slowest": {
             "sequence": 472,
             "object": 104,
@@ -2243,6 +2759,10 @@
           "count": 117,
           "totalUs": 620163,
           "maxUs": 79803,
+          "monotonicSpanUs": [
+            452265345053,
+            452266010397
+          ],
           "slowest": {
             "sequence": 108,
             "object": 2,
@@ -2257,6 +2777,10 @@
           "count": 117,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            452272239895,
+            452272242985
+          ],
           "slowest": {
             "sequence": 693,
             "object": 107,
@@ -2271,6 +2795,10 @@
           "count": 117,
           "totalUs": 1071,
           "maxUs": 102,
+          "monotonicSpanUs": [
+            452265345057,
+            452266010403
+          ],
           "slowest": {
             "sequence": 364,
             "object": 35,
@@ -2285,6 +2813,10 @@
           "count": 341,
           "totalUs": 172,
           "maxUs": 82,
+          "monotonicSpanUs": [
+            452265433654,
+            452265787208
+          ],
           "slowest": {
             "sequence": 541,
             "object": 0,
@@ -2317,6 +2849,10 @@
           "count": 22,
           "totalUs": 745,
           "maxUs": 556,
+          "monotonicSpanUs": [
+            458505371715,
+            459005209267
+          ],
           "slowest": {
             "sequence": 230,
             "object": 76,
@@ -2331,6 +2867,10 @@
           "count": 86,
           "totalUs": 596598,
           "maxUs": 109595,
+          "monotonicSpanUs": [
+            458505370361,
+            459005223824
+          ],
           "slowest": {
             "sequence": 369,
             "object": 14,
@@ -2345,6 +2885,10 @@
           "count": 90,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            459024597919,
+            459024604750
+          ],
           "slowest": {
             "sequence": 644,
             "object": 84,
@@ -2359,6 +2903,10 @@
           "count": 86,
           "totalUs": 1224,
           "maxUs": 412,
+          "monotonicSpanUs": [
+            458505370366,
+            459005223828
+          ],
           "slowest": {
             "sequence": 370,
             "object": 14,
@@ -2373,6 +2921,10 @@
           "count": 328,
           "totalUs": 73,
           "maxUs": 1,
+          "monotonicSpanUs": [
+            458505373292,
+            458505699131
+          ],
           "slowest": {
             "sequence": 126,
             "object": 0,
@@ -2405,6 +2957,10 @@
           "count": 80,
           "totalUs": 621,
           "maxUs": 37,
+          "monotonicSpanUs": [
+            459041975497,
+            459058056940
+          ],
           "slowest": {
             "sequence": 12,
             "object": 10,
@@ -2419,6 +2975,10 @@
           "count": 80,
           "totalUs": 643217,
           "maxUs": 192427,
+          "monotonicSpanUs": [
+            459041976157,
+            459058058835
+          ],
           "slowest": {
             "sequence": 428,
             "object": 11,
@@ -2433,6 +2993,10 @@
           "count": 80,
           "totalUs": 4624,
           "maxUs": 4097,
+          "monotonicSpanUs": [
+            459041976163,
+            459058058840
+          ],
           "slowest": {
             "sequence": 152,
             "object": 7,
@@ -2447,6 +3011,10 @@
           "count": 377,
           "totalUs": 125,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            459042096312,
+            459042455379
+          ],
           "slowest": {
             "sequence": 95,
             "object": 0,
@@ -2461,6 +3029,10 @@
           "count": 1,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            459348257691,
+            459348257691
+          ],
           "slowest": {
             "sequence": 7315,
             "object": 0,
@@ -2475,6 +3047,10 @@
           "count": 420,
           "totalUs": 66659,
           "maxUs": 516,
+          "monotonicSpanUs": [
+            459256340107,
+            459348230998
+          ],
           "slowest": {
             "sequence": 7122,
             "object": 488,
@@ -2489,6 +3065,10 @@
           "count": 4068,
           "totalUs": 34061941,
           "maxUs": 145252,
+          "monotonicSpanUs": [
+            459256346839,
+            459348257413
+          ],
           "slowest": {
             "sequence": 3413,
             "object": 204,
@@ -2503,6 +3083,10 @@
           "count": 400,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            459320020993,
+            459348535956
+          ],
           "slowest": {
             "sequence": 1944,
             "object": 83,
@@ -2517,6 +3101,10 @@
           "count": 286,
           "totalUs": 20138,
           "maxUs": 2128,
+          "monotonicSpanUs": [
+            459256426050,
+            459348092005
+          ],
           "slowest": {
             "sequence": 4385,
             "object": 278,
@@ -2531,6 +3119,10 @@
           "count": 802,
           "totalUs": 792131,
           "maxUs": 5951,
+          "monotonicSpanUs": [
+            459319765982,
+            459321412662
+          ],
           "slowest": {
             "sequence": 2211,
             "object": 113,
@@ -2545,6 +3137,10 @@
           "count": 4,
           "totalUs": 1,
           "maxUs": 1,
+          "monotonicSpanUs": [
+            459320397600,
+            459321413388
+          ],
           "slowest": {
             "sequence": 2780,
             "object": 0,
@@ -2559,6 +3155,10 @@
           "count": 73,
           "totalUs": 793755,
           "maxUs": 19917,
+          "monotonicSpanUs": [
+            459319783864,
+            459321412662
+          ],
           "slowest": {
             "sequence": 2113,
             "object": 106,
@@ -2573,6 +3173,10 @@
           "count": 322,
           "totalUs": 30602,
           "maxUs": 367,
+          "monotonicSpanUs": [
+            459321416221,
+            459348535577
+          ],
           "slowest": {
             "sequence": 6960,
             "object": 477,
@@ -2590,7 +3194,9 @@
         }
       ],
       "missingSequencesWithinRetainedSpan": 328,
-      "repeatedRestoredObjectsRetained": {}
+      "repeatedRestoredObjectsRetained": {
+        "owned_software_vdec_pixels": {}
+      }
     },
     {
       "pid": 25548,
@@ -2612,6 +3218,10 @@
           "count": 27,
           "totalUs": 215,
           "maxUs": 29,
+          "monotonicSpanUs": [
+            463754095198,
+            464113740990
+          ],
           "slowest": {
             "sequence": 463,
             "object": 94,
@@ -2626,6 +3236,10 @@
           "count": 91,
           "totalUs": 556959,
           "maxUs": 85208,
+          "monotonicSpanUs": [
+            463754096122,
+            464113741557
+          ],
           "slowest": {
             "sequence": 245,
             "object": 15,
@@ -2640,6 +3254,10 @@
           "count": 91,
           "totalUs": 846,
           "maxUs": 64,
+          "monotonicSpanUs": [
+            463754096125,
+            464113741560
+          ],
           "slowest": {
             "sequence": 607,
             "object": 73,
@@ -2654,6 +3272,10 @@
           "count": 312,
           "totalUs": 68,
           "maxUs": 1,
+          "monotonicSpanUs": [
+            463754292102,
+            463754592357
+          ],
           "slowest": {
             "sequence": 161,
             "object": 0,
@@ -2668,6 +3290,10 @@
           "count": 2,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            464360572781,
+            464360638772
+          ],
           "slowest": {
             "sequence": 1816,
             "object": 0,
@@ -2682,6 +3308,10 @@
           "count": 88,
           "totalUs": 15470,
           "maxUs": 427,
+          "monotonicSpanUs": [
+            464314441520,
+            464322495108
+          ],
           "slowest": {
             "sequence": 1193,
             "object": 146,
@@ -2696,6 +3326,10 @@
           "count": 968,
           "totalUs": 6998114,
           "maxUs": 23844,
+          "monotonicSpanUs": [
+            464314447893,
+            464322640752
+          ],
           "slowest": {
             "sequence": 1195,
             "object": 145,
@@ -2710,6 +3344,10 @@
           "count": 62,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            464394833256,
+            464396681732
+          ],
           "slowest": {
             "sequence": 1866,
             "object": 107,
@@ -2724,6 +3362,10 @@
           "count": 88,
           "totalUs": 9248,
           "maxUs": 2123,
+          "monotonicSpanUs": [
+            464314526623,
+            464322640818
+          ],
           "slowest": {
             "sequence": 1115,
             "object": 138,
@@ -2738,6 +3380,10 @@
           "count": 718,
           "totalUs": 4262359,
           "maxUs": 991451,
+          "monotonicSpanUs": [
+            464392601738,
+            464396681491
+          ],
           "slowest": {
             "sequence": 1818,
             "object": 105,
@@ -2752,6 +3398,10 @@
           "count": 66,
           "totalUs": 4270948,
           "maxUs": 2037158,
+          "monotonicSpanUs": [
+            464393647443,
+            464396681491
+          ],
           "slowest": {
             "sequence": 1829,
             "object": 105,
@@ -2774,7 +3424,9 @@
         }
       ],
       "missingSequencesWithinRetainedSpan": 448,
-      "repeatedRestoredObjectsRetained": {}
+      "repeatedRestoredObjectsRetained": {
+        "owned_software_vdec_pixels": {}
+      }
     },
     {
       "pid": 25865,
@@ -2796,6 +3448,10 @@
           "count": 75,
           "totalUs": 718,
           "maxUs": 180,
+          "monotonicSpanUs": [
+            465470043025,
+            465486443212
+          ],
           "slowest": {
             "sequence": 20,
             "object": 18,
@@ -2810,6 +3466,10 @@
           "count": 119,
           "totalUs": 609430,
           "maxUs": 85623,
+          "monotonicSpanUs": [
+            465470044390,
+            465486444758
+          ],
           "slowest": {
             "sequence": 225,
             "object": 13,
@@ -2824,6 +3484,10 @@
           "count": 129,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            465580262657,
+            465580286475
+          ],
           "slowest": {
             "sequence": 720,
             "object": 126,
@@ -2838,6 +3502,10 @@
           "count": 119,
           "totalUs": 1476,
           "maxUs": 392,
+          "monotonicSpanUs": [
+            465470044393,
+            465486444762
+          ],
           "slowest": {
             "sequence": 613,
             "object": 77,
@@ -2852,6 +3520,10 @@
           "count": 231,
           "totalUs": 41,
           "maxUs": 1,
+          "monotonicSpanUs": [
+            465470414708,
+            465470662760
+          ],
           "slowest": {
             "sequence": 202,
             "object": 0,
@@ -2884,6 +3556,10 @@
           "count": 94,
           "totalUs": 670,
           "maxUs": 87,
+          "monotonicSpanUs": [
+            465769453287,
+            465785126707
+          ],
           "slowest": {
             "sequence": 44,
             "object": 38,
@@ -2898,6 +3574,10 @@
           "count": 94,
           "totalUs": 598544,
           "maxUs": 115530,
+          "monotonicSpanUs": [
+            465769453869,
+            465785140428
+          ],
           "slowest": {
             "sequence": 489,
             "object": 25,
@@ -2912,6 +3592,10 @@
           "count": 94,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            465796917819,
+            465796937689
+          ],
           "slowest": {
             "sequence": 650,
             "object": 89,
@@ -2926,6 +3610,10 @@
           "count": 94,
           "totalUs": 1522,
           "maxUs": 375,
+          "monotonicSpanUs": [
+            465769453872,
+            465785140431
+          ],
           "slowest": {
             "sequence": 276,
             "object": 17,
@@ -2940,6 +3628,10 @@
           "count": 367,
           "totalUs": 80,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            465769568100,
+            465769890297
+          ],
           "slowest": {
             "sequence": 437,
             "object": 0,
@@ -2972,6 +3664,10 @@
           "count": 3,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            476254074563,
+            476265652267
+          ],
           "slowest": {
             "sequence": 505,
             "object": 0,
@@ -2986,6 +3682,10 @@
           "count": 533,
           "totalUs": 86662,
           "maxUs": 1144,
+          "monotonicSpanUs": [
+            476031577439,
+            476303972492
+          ],
           "slowest": {
             "sequence": 1254,
             "object": 144,
@@ -3000,6 +3700,10 @@
           "count": 1076,
           "totalUs": 45613312,
           "maxUs": 236199,
+          "monotonicSpanUs": [
+            476031579851,
+            476304095647
+          ],
           "slowest": {
             "sequence": 1274,
             "object": 144,
@@ -3014,6 +3718,10 @@
           "count": 529,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            476031849703,
+            476303986041
+          ],
           "slowest": {
             "sequence": 20,
             "object": 1,
@@ -3028,6 +3736,10 @@
           "count": 308,
           "totalUs": 21987,
           "maxUs": 2319,
+          "monotonicSpanUs": [
+            476031682938,
+            476303912123
+          ],
           "slowest": {
             "sequence": 2867,
             "object": 446,
@@ -3042,6 +3754,10 @@
           "count": 327,
           "totalUs": 524243,
           "maxUs": 10959,
+          "monotonicSpanUs": [
+            476031798865,
+            476269381726
+          ],
           "slowest": {
             "sequence": 1122,
             "object": 120,
@@ -3056,6 +3772,10 @@
           "count": 13,
           "totalUs": 3,
           "maxUs": 1,
+          "monotonicSpanUs": [
+            476195615851,
+            476289935491
+          ],
           "slowest": {
             "sequence": 433,
             "object": 0,
@@ -3070,6 +3790,10 @@
           "count": 109,
           "totalUs": 524654,
           "maxUs": 13158,
+          "monotonicSpanUs": [
+            476031800285,
+            476269381726
+          ],
           "slowest": {
             "sequence": 1124,
             "object": 120,
@@ -3084,6 +3808,10 @@
           "count": 411,
           "totalUs": 34689,
           "maxUs": 319,
+          "monotonicSpanUs": [
+            476031800404,
+            476304003130
+          ],
           "slowest": {
             "sequence": 1258,
             "object": 145,
@@ -3116,7 +3844,9 @@
         1792415968107366
       ],
       "clockCaveat": "Range includes observed anchor spread, not a guarantee against an unobserved wall-clock step. Export timestamp is not event time.",
-      "repeatedRestoredObjectsRetained": {}
+      "repeatedRestoredObjectsRetained": {
+        "owned_software_vdec_pixels": {}
+      }
     },
     {
       "pid": 28367,
@@ -3138,6 +3868,10 @@
           "count": 106,
           "totalUs": 17520,
           "maxUs": 306,
+          "monotonicSpanUs": [
+            504263936747,
+            504435924625
+          ],
           "slowest": {
             "sequence": 295,
             "object": 63,
@@ -3152,6 +3886,10 @@
           "count": 270,
           "totalUs": 11414611,
           "maxUs": 857906,
+          "monotonicSpanUs": [
+            504263938579,
+            504436443142
+          ],
           "slowest": {
             "sequence": 293,
             "object": 57,
@@ -3166,6 +3904,10 @@
           "count": 106,
           "totalUs": 0,
           "maxUs": 0,
+          "monotonicSpanUs": [
+            504264232725,
+            504479442332
+          ],
           "slowest": {
             "sequence": 13,
             "object": 1,
@@ -3180,6 +3922,10 @@
           "count": 90,
           "totalUs": 9698,
           "maxUs": 964,
+          "monotonicSpanUs": [
+            504264074860,
+            504436443183
+          ],
           "slowest": {
             "sequence": 172,
             "object": 32,
@@ -3194,6 +3940,10 @@
           "count": 25,
           "totalUs": 13,
           "maxUs": 2,
+          "monotonicSpanUs": [
+            504428240500,
+            504435816867
+          ],
           "slowest": {
             "sequence": 289,
             "object": 0,
@@ -3208,6 +3958,10 @@
           "count": 2,
           "totalUs": 65,
           "maxUs": 33,
+          "monotonicSpanUs": [
+            504263946614,
+            504263946647
+          ],
           "slowest": {
             "sequence": 5,
             "object": 2,
@@ -4984,6 +5738,9 @@
       ],
       "bootReports": 0,
       "freezeDumps": 0,
+      "malformedIsoMountSuffixes": [
+        "disc.isoPS3_GAME/USRDIR/GAME.PSARC"
+      ],
       "missingResources": [
         {
           "phase": "missing_resource",

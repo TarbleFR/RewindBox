@@ -17,7 +17,9 @@ def rows(path):
     return result,invalid
 
 def fields(text):
-    return dict(re.findall(r'(\w+)=([^ ]+)',text))
+    matches=list(re.finditer(r'(?<!\S)(\w+)=',text))
+    return {m.group(1):text[m.end():matches[i+1].start() if i+1<len(matches) else len(text)].strip()
+            for i,m in enumerate(matches)}
 
 def utc(value):
     return datetime.datetime.fromtimestamp(value,datetime.timezone.utc).isoformat()
@@ -58,10 +60,11 @@ def main():
             slowest=max(values,key=lambda e:e['durationUs'])
             item['operations'].append(dict(domain=domain,operation=operation,count=len(values),
                 totalUs=sum(e['durationUs'] for e in values),maxUs=slowest['durationUs'],
+                monotonicSpanUs=[min(e['monotonicUs'] for e in values),max(e['monotonicUs'] for e in values)],
                 slowest={k:slowest[k] for k in ('sequence','object','chunk','logicalBytes','monotonicUs')}))
             if operation=='restored_from_managed_chunks':
                 counts=collections.Counter(e['object'] for e in values)
-                item['repeatedRestoredObjectsRetained']={str(k):v for k,v in counts.items() if v>1}
+                item.setdefault('repeatedRestoredObjectsRetained',{})[domain]={str(k):v for k,v in counts.items() if v>1}
             if operation=='pressure_changed':
                 item['pressure']=[{k:e[k] for k in ('sequence','monotonicUs','resultName')} for e in values]
         report['neoSessions'].append(item)
@@ -88,6 +91,7 @@ def main():
             config=config,windows=sorted(windows.values(),key=lambda x:(int(x['session']),int(x['window']))),
             bootReports=sum('JITPROF_BOOT' in r.get('message','') for r in items),
             freezeDumps=sum('FREEZE_DUMP' in r.get('message','') for r in items),
+            malformedIsoMountSuffixes=sorted({suffix for r in items for suffix in re.findall(r'(disc\.isoPS3_GAME/USRDIR/GAME\.PSARC)',r.get('message',''))}),
             missingResources=[fields(r['message']) for r in items if 'phase=missing_resource' in r.get('message','')]))
     app=a.app.read_text(errors='replace')
     report['app']={'clockAndPid':'Mixed history without reliable per-line native clock/PID; no causal join attempted.',
