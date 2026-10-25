@@ -16502,15 +16502,16 @@ index 9360215..fbdb63f 100644
  		{
  		case driver_vendor::AMD:
 diff --git a/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp b/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp
-index 85e981c..9ada142 100644
+index 85e981c..1d76a6c 100644
 --- a/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp
-@@ -4,6 +4,12 @@
+@@ -4,6 +4,13 @@
  #include "vkutils/device.h"
  #include "Utilities/Thread.h"
  
 +#ifdef RPCS3_IOS
 +#include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSShaderTiming.h"
 +#endif
 +
 +// NEOSTATION_BUILD258_CORE_ARCHITECTURE_V1
@@ -16518,7 +16519,7 @@ index 85e981c..9ada142 100644
  #include "util/sysinfo.hpp"
  
  namespace vk
-@@ -34,22 +40,31 @@ namespace vk
+@@ -34,22 +41,31 @@ namespace vk
  		{
  			for (auto&& job : m_work_queue.pop_all())
  			{
@@ -16556,7 +16557,19 @@ index 85e981c..9ada142 100644
  			}
  
  			thread_ctrl::wait_on(m_work_queue);
-@@ -159,22 +174,22 @@ namespace vk
+@@ -84,6 +100,11 @@ namespace vk
+ 		const std::vector<glsl::program_input>& fs_inputs,
+ 		op_flags flags)
+ 	{
++#ifdef RPCS3_IOS
++        rpcs3::ios::shader_timing::PipelineContextScope context({
++            rpcs3::hash_struct(create_info), create_info.renderpass_key,
++            reinterpret_cast<u64>(modules[0]), reinterpret_cast<u64>(modules[1]), flags});
++#endif
+ 		VkPipelineShaderStageCreateInfo shader_stages[2] = {};
+ 		shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+ 		shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+@@ -159,22 +180,22 @@ namespace vk
  		VkPipelineColorBlendStateCreateInfo cs = create_info.state.cs;
  		cs.pAttachments = create_info.state.att_state;
  
@@ -16592,7 +16605,7 @@ index 85e981c..9ada142 100644
  		info.pColorBlendState = &cs;
  		info.pMultisampleState = pmss;
  		info.pViewportState = &vp;
-@@ -190,10 +205,10 @@ namespace vk
+@@ -190,10 +211,10 @@ namespace vk
  		return int_compile_graphics_pipe(info, vs_inputs, fs_inputs, flags);
  	}
  
@@ -16607,7 +16620,7 @@ index 85e981c..9ada142 100644
  		op_flags flags)
  	{
  		VkGraphicsPipelineCreateInfo create_info = pipe_info_create_fn();
-@@ -210,6 +225,10 @@ namespace vk
+@@ -210,6 +231,10 @@ namespace vk
  			return int_compile_compute_pipe(create_info, cs_inputs, flags);
  		}
  
@@ -16618,7 +16631,7 @@ index 85e981c..9ada142 100644
  		m_work_queue.push(create_info, cs_inputs, flags, callback);
  		return {};
  	}
-@@ -239,6 +258,10 @@ namespace vk
+@@ -239,6 +264,10 @@ namespace vk
  			return int_compile_graphics_pipe(create_info, modules, vs_inputs, fs_inputs, flags);
  		}
  
@@ -16629,7 +16642,7 @@ index 85e981c..9ada142 100644
  		m_work_queue.push(create_info, modules, vs_inputs, fs_inputs, flags, callback);
  		return {};
  	}
-@@ -254,31 +277,35 @@ namespace vk
+@@ -254,31 +283,35 @@ namespace vk
  			return int_compile_graphics_pipe(get_create_info, vs_inputs, fs_inputs, flags);
  		}
  
@@ -16686,7 +16699,7 @@ index 85e981c..9ada142 100644
  			else if (hw_threads > 8)
  			{
  				num_worker_threads = 4;
-@@ -287,14 +314,14 @@ namespace vk
+@@ -287,14 +320,14 @@ namespace vk
  			{
  				num_worker_threads = 2;
  			}
@@ -16709,7 +16722,7 @@ index 85e981c..9ada142 100644
  
  		ensure(num_worker_threads >= 1);
  		ensure(g_render_device); // "Cannot initialize pipe compiler before creating a logical device"
-@@ -318,8 +345,27 @@ namespace vk
+@@ -318,8 +351,27 @@ namespace vk
  	pipe_compiler* get_pipe_compiler()
  	{
  		ensure(g_pipe_compilers);
@@ -16885,6 +16898,29 @@ index a604696..819de43 100644
  			single_target_pass = vk::get_renderpass(*m_device, key);
  			ensure(single_target_pass != VK_NULL_HANDLE);
  
+diff --git a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
+index ad7d5a0..c1c23b9 100644
+--- a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
++++ b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
+@@ -2,6 +2,7 @@
+ #include "VKVertexProgram.h"
+ #include "VKFragmentProgram.h"
+ #include "VKPipelineCompiler.h"
++#include "vkutils/pipeline_key_normalization.h"
+ #include "../Program/ProgramStateCache.h"
+ 
+ namespace vk
+@@ -38,6 +39,10 @@ namespace vk
+ 			properties.state.att_state[1].colorWriteMask &= fp.output_color_masks[1];
+ 			properties.state.att_state[2].colorWriteMask &= fp.output_color_masks[2];
+ 			properties.state.att_state[3].colorWriteMask &= fp.output_color_masks[3];
++			// Normalize only this private key, after the effective output mask.
++			// Guest state, actual render passes and image barriers stay intact.
++			properties.renderpass_key = compatible_pipeline_renderpass_key(properties.renderpass_key);
++			normalize_pipeline_blending(properties.state);
+ 		}
+ 
+ 		static
 diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
 index 20a4250..d8d8c8d 100644
 --- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
@@ -18586,6 +18622,65 @@ index 0000000..504190d
 +        [] { utils::pause(); });
 +    return result == VK_EVENT_SET ? VK_SUCCESS : result;
 +}
++}
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h b/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h
+new file mode 100644
+index 0000000..95b4aff
+--- /dev/null
++++ b/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h
+@@ -0,0 +1,53 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "graphics_pipeline_state.hpp"
++
++namespace vk
++{
++    // CELL542: a pipeline may be used with a compatible render pass. The
++    // current encoder stores five 3-bit layouts at bits 22..36. General and
++    // attachment-optimal layouts do not change compatibility. Preserve slot
++    // presence, formats, samples, input references, reserved bits and the
++    // feedback-loop encoding (4). Never use this key to begin a render pass or
++    // transition an image: only normalize the private compiled-pipeline key.
++    constexpr u64 compatible_pipeline_renderpass_key(u64 key) noexcept
++    {
++        for (u32 shift = 22; shift < 37; shift += 3)
++        {
++            const u64 layout = (key >> shift) & 7;
++            if (layout == 2 || layout == 3)
++                key = (key & ~(7ull << shift)) | (1ull << shift);
++        }
++        return key;
++    }
++
++    inline void normalize_pipeline_blending(graphics_pipeline_state& state) noexcept
++    {
++        for (u32 i = 0; i < state.cs.attachmentCount; ++i)
++        {
++            auto& a = state.att_state[i];
++            if (!a.colorWriteMask || state.cs.logicOpEnable)
++                a.blendEnable = VK_FALSE;
++
++            const bool rgb_unused = !a.blendEnable ||
++                !(a.colorWriteMask & (VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT));
++            const bool alpha_unused = !a.blendEnable || !(a.colorWriteMask & VK_COLOR_COMPONENT_A_BIT);
++            if (rgb_unused) a.colorBlendOp = VK_BLEND_OP_ADD;
++            if (alpha_unused) a.alphaBlendOp = VK_BLEND_OP_ADD;
++
++            // MIN/MAX do not multiply by the factors. Masked alpha blending
++            // does not remove the shader's alpha output: RGB may still use it.
++            if (rgb_unused || a.colorBlendOp == VK_BLEND_OP_MIN || a.colorBlendOp == VK_BLEND_OP_MAX)
++            {
++                a.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
++                a.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
++            }
++            if (alpha_unused || a.alphaBlendOp == VK_BLEND_OP_MIN || a.alphaBlendOp == VK_BLEND_OP_MAX)
++            {
++                a.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
++                a.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
++            }
++        }
++    }
 +}
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/query_slot_queue.hpp b/rpcs3/Emu/RSX/VK/vkutils/query_slot_queue.hpp
 new file mode 100644
@@ -21420,10 +21515,10 @@ index 0000000..433344e
 +}
 diff --git a/rpcs3/ios/IOSShaderTiming.h b/rpcs3/ios/IOSShaderTiming.h
 new file mode 100644
-index 0000000..14e25b0
+index 0000000..330f4cf
 --- /dev/null
 +++ b/rpcs3/ios/IOSShaderTiming.h
-@@ -0,0 +1,123 @@
+@@ -0,0 +1,146 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -21445,7 +21540,29 @@ index 0000000..14e25b0
 +// CELL538: operation boundaries permit alignment with guest-flip intervals.
 +// Fixed 32-entry storage; producers never wait for the reporter or each other.
 +// Slow startup bursts may overflow: every rejected record is counted.
-+struct SlowOperation { Stage stage{}; std::uint64_t begin_us = 0, end_us = 0; };
++struct PipelineContext
++{
++    std::uint64_t properties = 0, renderpass = 0, vertex_module = 0, fragment_module = 0, flags = 0;
++};
++inline thread_local PipelineContext pipeline_context;
++// Set once per actual pipeline construction, never per draw or SPU operation.
++// RAII restores nested contexts, exceptions and worker reuse without retaining
++// pointers to a renderer or a previous session. Handles are process-local IDs.
++class PipelineContextScope final
++{
++    PipelineContext previous_ = pipeline_context;
++public:
++    explicit PipelineContextScope(PipelineContext value) noexcept { pipeline_context = value; }
++    ~PipelineContextScope() noexcept { pipeline_context = previous_; }
++    PipelineContextScope(const PipelineContextScope&) = delete;
++    PipelineContextScope& operator=(const PipelineContextScope&) = delete;
++};
++struct SlowOperation
++{
++    Stage stage{};
++    std::uint64_t begin_us = 0, end_us = 0;
++    PipelineContext pipeline{};
++};
 +class SlowOperations final
 +{
 +    std::mutex mutex_;
@@ -21469,7 +21586,8 @@ index 0000000..14e25b0
 +            dropped_.fetch_add(1, std::memory_order_relaxed);
 +            return;
 +        }
-+        events_[size_++] = {stage, begin_us, end_us};
++        events_[size_++] = {stage, begin_us, end_us,
++            stage == Stage::graphics ? pipeline_context : PipelineContext{}};
 +    }
 +    Snapshot take() noexcept
 +    {
@@ -25717,7 +25835,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..5af51e8 100644
+index d800542..67dc622 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,176 @@
@@ -26308,7 +26426,7 @@ index d800542..5af51e8 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +614,566 @@ public:
+@@ -108,12 +614,569 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -26560,9 +26678,12 @@ index d800542..5af51e8 100644
 +                const auto& event = slow.events[i];
 +                ios_core_profiler.notice(
 +                    "COREPROF SHADERSTALL538_EVENT stage=%u begin_us=%llu end_us=%llu duration_us=%llu "
-+                    "scope=process_operation report_session=%llu report_window=%llu",
++                    "scope=process_operation report_session=%llu report_window=%llu "
++                    "context542=1 properties=%llx renderpass=%llx vp_module=%llx fp_module=%llx pipeline_flags=%llu",
 +                    static_cast<u32>(event.stage), event.begin_us, event.end_us,
-+                    event.end_us - event.begin_us, profile_session, profile_window);
++                    event.end_us - event.begin_us, profile_session, profile_window,
++                    event.pipeline.properties, event.pipeline.renderpass, event.pipeline.vertex_module,
++                    event.pipeline.fragment_module, event.pipeline.flags);
 +            }
 +        }
 +        // Fence scope excludes wait_flush(); range scope is one whole episode;
@@ -26877,7 +26998,7 @@ index d800542..5af51e8 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1181,91 @@ private:
+@@ -121,6 +1184,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -26969,7 +27090,7 @@ index d800542..5af51e8 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1273,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1276,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -27057,7 +27178,7 @@ index d800542..5af51e8 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1364,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1367,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -27186,7 +27307,7 @@ index d800542..5af51e8 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1495,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1498,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

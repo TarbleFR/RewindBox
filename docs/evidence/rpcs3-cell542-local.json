@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "sanitized": true,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "results": {
+    "beforeValidationSHA256": "5f5a3395d98faa0d0b42663f8ec7fe8a4ca7134396f0e724e91c5e7759d66a8f",
+    "afterValidationSHA256": "3f2271e7bec83241dadfab1e056d5a630fde4776e7a79de5c31277ae9538c890",
+    "beforeBuilds": [
+      32,
+      16,
+      16,
+      16
+    ],
+    "afterBuilds": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "renderpassCompatibilityCases": 1364,
+    "blendReferenceCases": 115520,
+    "harnessSHA256": "8b8f45c1d2d39d5e51e2bd65e3e9cf6351a63a9e7969b3438d702bee24641b1d"
+  },
+  "scope": "Exact production pipeline lookup/validation/hash with compiler adapter; synthetic equivalence sequences and independent blend equations. No Metal rendering or device FPS measurement."
+}
