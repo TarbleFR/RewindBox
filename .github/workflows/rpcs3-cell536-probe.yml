@@ -1,0 +1,37 @@
+name: RPCS3 536 Apple ARM64 reservation comparison experiment
+on:
+  push:
+    branches: [Claude]
+    paths: ['.github/workflows/rpcs3-cell536-probe.yml','test/rpcs3_reservation536_probe.py','test/native/rpcs3_reservation536_probe.cpp']
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-cell536-probe]') }}
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0, persist-credentials: false}
+      - uses: maxim-lobanov/setup-xcode@v1
+        with: {xcode-version: '16.4'}
+      - name: Materialize the unchanged 534 reference and measure native candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$RUNNER_TEMP/cell536-reference"
+          git init -q "$SOURCE"
+          git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
+          UPSTREAM=$(python3 -c 'import json;print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
+          git -C "$SOURCE" fetch --depth 1 origin "$UPSTREAM"
+          git -C "$SOURCE" checkout -q --detach FETCH_HEAD
+          python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
+          CXX="$(xcrun --sdk macosx --find clang++)" HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" python3 test/rpcs3_reservation536_probe.py "$SOURCE" --output build/reservation536-probe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: RPCS3-reservation536-probe-${{ github.sha }}
+          path: build/reservation536-probe/
+          retention-days: 14
+          if-no-files-found: error
