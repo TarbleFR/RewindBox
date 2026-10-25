@@ -84,7 +84,12 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        let missingKeys=try runtime.content(path:package.path,operation:8)
        guard missingKeys["success"] as? Bool == false, missingKeys["errorCode"] as? String == "keysMissing", missingKeys["nativeStatus"] is NSNumber, runtime.session.state == 0 else {throw NSError(domain:"actual-key-preflight",code:6)}
        let persisted=try String(contentsOf:journal,encoding:.utf8)
-       guard persisted.contains("[MeloNX:core]"), persisted.contains("keysMissing") else {throw NSError(domain:"actual-launch-journal-persistence",code:24)}
+       let persistedEvents=persisted.split(separator:"\\n").compactMap { line -> [String:Any]? in
+         let prefix="[MeloNX:core] "
+         guard line.hasPrefix(prefix), let data=String(line.dropFirst(prefix.count)).data(using:.utf8) else {return nil}
+         return (try? JSONSerialization.jsonObject(with:data)) as? [String:Any]
+       }
+       guard persistedEvents.contains(where:{$0["stage"] as? String == "keys" && $0["status"] as? String == "failed" && $0["nativeStatus"] as? Int == 1}) else {throw NSError(domain:"actual-launch-journal-persistence",code:24)}
        report["actualNativeLaunchJournalWritten"]=true
        // Exercise the actual new NativeAOT key import ABI using synthetic bytes.
        // Keep unsupported entries beside a supported one, exactly as an export.

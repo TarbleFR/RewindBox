@@ -19,8 +19,8 @@ jobs:
         persist-credentials: false
     - uses: actions/download-artifact@v4
       with:
-        name: MeloNX-engine-084fdb5d71609d3529c39cca9efa26093459827d
-        run-id: 40143289330
+        name: MeloNX-engine-329d9de706a647481e9d192aee890e92bb0b56ef
+        run-id: 40144482367
         github-token: ${{ github.token }}
         path: dist/melonx
     - uses: actions/download-artifact@v4
