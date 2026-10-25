@@ -15,8 +15,13 @@ class MelonxImportProgress {
 typedef MelonxImportObserver = void Function(MelonxImportProgress progress);
 
 class MelonxAddonReport {
-  const MelonxAddonReport(this.imported, this.refused);
+  const MelonxAddonReport(
+    this.imported,
+    this.refused, {
+    this.targets = const {},
+  });
   final List<String> imported;
   final Map<String, String> refused;
+  final Map<String, String> targets;
   bool get isEmpty => imported.isEmpty && refused.isEmpty;
 }

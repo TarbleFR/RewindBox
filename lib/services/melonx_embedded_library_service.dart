@@ -370,12 +370,13 @@ abstract final class MelonxEmbeddedLibraryService {
   }
 
   static Future<MelonxAddonReport> importAddon(
-    String titleId, {
+    String? titleId, {
     required bool dlc,
     MelonxImportObserver? onProgress,
   }) => StorageImportActivity.run(
     () => MelonxInternalService.editLibrary(() async {
-      final title = baseTitleId(titleId);
+      final title = titleId == null ? null : baseTitleId(titleId);
+      if (dlc && title == null) throw const FormatException('invalidContent');
       onProgress?.call(const MelonxImportProgress('choosingFiles'));
       final selection = await FilePicker.pickFiles(
         type: FileType.custom,
@@ -385,6 +386,7 @@ abstract final class MelonxEmbeddedLibraryService {
       );
       final imported = <String>[];
       final refused = <String, String>{};
+      final targets = <String, String>{};
       if (selection == null) return MelonxAddonReport(imported, refused);
       for (var index = 0; index < selection.files.length; index++) {
         final picked = selection.files[index];
@@ -415,7 +417,13 @@ abstract final class MelonxEmbeddedLibraryService {
             'MeloNX import ${dlc ? 'DLC' : 'update'} begin: $name',
           );
           progress('validating');
-          await _importAddonFile(source, title, dlc: dlc, progress: progress);
+          final target = await _importAddonFile(
+            source,
+            title,
+            dlc: dlc,
+            progress: progress,
+          );
+          if (target != null) targets[name] = target;
           imported.add(name);
           LoggerService.instance.i(
             'MeloNX import ${dlc ? 'DLC' : 'update'} completed: $name',
@@ -433,21 +441,30 @@ abstract final class MelonxEmbeddedLibraryService {
           );
         }
       }
-      return MelonxAddonReport(imported, refused);
+      return MelonxAddonReport(imported, refused, targets: targets);
     }),
   );
 
-  static Future<void> _importAddonFile(
+  static Future<String?> _importAddonFile(
     File source,
-    String title, {
+    String? selectedTitle, {
     required bool dlc,
     required void Function(String, [int, int]) progress,
   }) async {
     final info = await MelonxInternalService.content(
       dlc ? 'inspectDlc' : 'inspectUpdate',
       filePath: source.path,
-      titleId: title,
+      titleId: selectedTitle,
     );
+    final title = baseTitleId(info['baseTitleId']?.toString() ?? '');
+    if (selectedTitle != null && title != selectedTitle) {
+      throw const FormatException('addonWrongGame');
+    }
+    // A playlist-wide update targets an installed local base game using the
+    // inspected package ID, never the name of the selected NSP.
+    final gameName = selectedTitle == null
+        ? await _installedGameName(title)
+        : null;
     final root = await MelonxInternalService.rootDirectory();
     final output = await _copyUnique(
       source,
@@ -488,6 +505,67 @@ abstract final class MelonxEmbeddedLibraryService {
       source.path,
       expectedLength: await output.length(),
     );
+    return gameName;
+  }
+
+  static Future<String> _installedGameName(String title) async {
+    final system = await SystemRepository.getSystemByFolderName('switch');
+    if (system?.id == null) throw const FormatException('updateGameMissing');
+    final db = await SqliteService.getDatabase();
+    final rows = await db.query(
+      'user_roms',
+      columns: ['rom_path', 'filename', 'title_id', 'title_name'],
+      where: 'app_system_id = ?',
+      whereArgs: [system!.id],
+    );
+    final unknown = <Map<String, Object?>>[];
+    String label(Map<String, Object?> row) {
+      final name = row['title_name']?.toString().trim();
+      return name != null && name.isNotEmpty
+          ? name
+          : row['filename'].toString();
+    }
+
+    for (final row in rows) {
+      final game = row['rom_path']?.toString() ?? '';
+      if (!path.isAbsolute(game) || !await File(game).exists()) continue;
+      final id = row['title_id']?.toString() ?? '';
+      if (!RegExp(r'^[0-9a-fA-F]{16}$').hasMatch(id)) {
+        unknown.add(row);
+      } else if (baseTitleId(id) == title) {
+        return label(row);
+      }
+    }
+    // Older/moved playlist entries may lack a title ID. Read their native
+    // metadata only; do not hash, copy or rescan the library's game contents.
+    for (final row in unknown) {
+      final game = row['rom_path'].toString();
+      final extension = path.extension(game).toLowerCase();
+      if (extension.isEmpty ||
+          !MelonxInternalService.gameExtensions.contains(
+            extension.substring(1),
+          ))
+        continue;
+      try {
+        final info = await MelonxInternalService.content(
+          'metadata',
+          filePath: game,
+        );
+        final id = baseTitleId(info['titleId']?.toString() ?? '');
+        await db.update(
+          'user_roms',
+          {'title_id': id},
+          where: 'rom_path = ?',
+          whereArgs: [game],
+        );
+        if (id == title) return label(row);
+      } catch (error) {
+        LoggerService.instance.w(
+          'MeloNX update target metadata unavailable: $error',
+        );
+      }
+    }
+    throw const FormatException('updateGameMissing');
   }
 }
 

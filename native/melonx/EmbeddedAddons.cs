@@ -29,25 +29,25 @@ partial class Library
         if (request == null || request.Length > 16384) throw new ArgumentException("Invalid add-on request.");
         using var document = JsonDocument.Parse(request);
         string path = document.RootElement.GetProperty("path").GetString();
-        string title = document.RootElement.GetProperty("titleId").GetString();
-        if (title == null || title.Length != 16 || !ulong.TryParse(title, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out ulong titleId) || titleId == 0)
-            throw new ArgumentException("A valid base-game title ID is required.");
-        titleId &= ~0x1FFFUL;
+        string title = document.RootElement.TryGetProperty("titleId", out var titleProperty)
+            ? titleProperty.GetString() : null;
+        ulong? requested = EmbeddedAddonSelection.RequestedTitle(title, required: operation != 4);
+        ulong titleId = requested ?? 0;
         if (path == null || !Path.IsPathFullyQualified(path) || !File.Exists(path))
             throw new FileNotFoundException("The add-on must be a readable local package.");
         using IFileSystem pfs = PartitionFileSystemUtils.OpenApplicationFileSystem(path, _virtualFileSystem);
         _virtualFileSystem.ImportTickets(pfs);
         if (operation == 4)
         {
-            bool matched = false;
+            var verifiedTitles = new List<ulong>();
             foreach (var pair in pfs.GetContentData(ContentMetaType.Patch, _virtualFileSystem, IntegrityCheckLevel.None))
             {
-                if ((pair.Key & ~0x1FFFUL) != titleId) continue;
+                if (requested.HasValue && (pair.Key & ~0x1FFFUL) != requested.Value) continue;
                 var patch = pair.Value.GetNcaByType(_virtualFileSystem.KeySet, LibHac.Ncm.ContentType.Program, 0);
                 var control = pair.Value.GetNcaByType(_virtualFileSystem.KeySet, LibHac.Ncm.ContentType.Control, 0);
-                if (patch != null && control != null) { matched = true; break; }
+                if (patch != null && control != null) verifiedTitles.Add(pair.Key);
             }
-            if (!matched) throw new InvalidDataException("This package contains no compatible update for the selected game, or its keys are missing.");
+            titleId = EmbeddedAddonSelection.SelectUpdate(verifiedTitles, requested);
             json.WriteString("kind", "update");
         }
         else

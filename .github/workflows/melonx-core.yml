@@ -18,6 +18,9 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_memory.py
     - build-utils/melonx/adapt_runtime.py
     - build-utils/melonx/adapt_audio.py
+    - build-utils/melonx/adapt_apple_audio.py
+    - test/melonx_apple_audio_test.py
+    - test/melonx_apple_audio/**
     - test/melonx_ios_audio_underrun_test.py
     - test/melonx_runtime_regressions_test.py
     - build-utils/melonx/reuse_keys_validation.py
@@ -89,8 +92,10 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: python3 build-utils/melonx/reuse_launch_library.py --firmware-only
     - name: Verify iOS Vulkan host-import fallback contract
+      if: ${{ !contains(github.event.head_commit.message, '[melonx-audio-update]') }}
       run: python3 test/melonx_ios_vulkan_host_import_test.py
     - name: Verify SDL3 audio never queues synthetic silence on producer underrun
+      if: ${{ !contains(github.event.head_commit.message, '[melonx-audio-update]') }}
       run: python3 -m unittest discover -s test -p melonx_ios_audio_underrun_test.py
     - name: Fetch exact MeloNX source
       run: |
@@ -114,7 +119,15 @@ jobs:
             assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==revision
         PY_FETCH
     - name: Execute production audio accounting and Vulkan failure regressions
+      if: ${{ !contains(github.event.head_commit.message, '[melonx-audio-update]') }}
       run: python3 test/melonx_runtime_regressions_test.py .native-sources/MeloNX
+    - name: Retain exact unchanged runtime and graphics tests
+      if: ${{ contains(github.event.head_commit.message, '[melonx-audio-update]') }}
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 build-utils/melonx/reuse_apple_update_validation.py
+    - name: Exercise the selected Apple audio backend and update target selection
+      run: python3 test/melonx_apple_audio_test.py .native-sources/MeloNX
     - name: Reuse exact successful Darwin and homebrew proofs
       env:
         GH_TOKEN: ${{ github.token }}
@@ -128,6 +141,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: python3 build-utils/melonx/check_input.py .native-sources/MeloNX
     - name: Exercise display ratios, existing memory settings and stale-session refusal
+      if: ${{ !contains(github.event.head_commit.message, '[melonx-audio-update]') }}
       run: python3 test/melonx_display_native_test.py .native-sources/MeloNX
     - name: Compile NativeAOT library and verify exported ABI
       env:
@@ -152,7 +166,13 @@ jobs:
           assert 'if (byteCount == 0)' in patched
         evidence=json.loads((root/'embedded-inputs.json').read_text())
         assert 'build-utils/melonx/adapt_audio.py' in evidence
-        print('PASS exact compiled audio sink no longer pads available PCM with synthetic zeros')
+        with zipfile.ZipFile(source) as z:
+          apple=z.read('src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs').decode('utf-8-sig')
+          assert 'AVFoundation.PlayBuffered(_playerNode, 0.020);' in apple
+          assert 'Apple AVAudioEngine; rate:' in apple
+          library=z.read('src/Ryujinx.Library/Library.cs').decode('utf-8-sig')
+          assert 'new AppleHardwareDeviceDriver(),' in library
+        print('PASS actual Apple backend buffering and retained SDL3 correction in compiled source')
         PY
     - uses: actions/download-artifact@v4
       with:

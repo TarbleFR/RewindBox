@@ -10,6 +10,7 @@ from adapt_session import apply as adapt_session
 from adapt_input import apply as adapt_input
 from adapt_runtime import apply as adapt_runtime
 from adapt_audio import apply as adapt_audio
+from adapt_apple_audio import apply as adapt_apple_audio
 from adapt_firmware import apply as adapt_firmware
 from adapt_memory import apply as adapt_memory
 
@@ -42,6 +43,7 @@ def main():
     adapted += adapt_input(source)
     adapted += adapt_runtime(source)
     adapted += adapt_audio(source)
+    adapted += adapt_apple_audio(source)
     adapted += adapt_firmware(source)
     adapted += adapt_memory(source)
     inputs = {}
@@ -67,6 +69,8 @@ def main():
     inputs['build-utils/melonx/adapt_runtime.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_audio.py')
     inputs['build-utils/melonx/adapt_audio.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    adapter = Path(__file__).with_name('adapt_apple_audio.py')
+    inputs['build-utils/melonx/adapt_apple_audio.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_firmware.py')
     inputs['build-utils/melonx/adapt_firmware.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_memory.py')

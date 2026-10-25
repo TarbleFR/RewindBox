@@ -222,7 +222,7 @@ class _MelonxInternalPlaylistActionsState
         case 'dlc':
           final report = await _withImportProgress(
             (progress) => MelonxEmbeddedLibraryService.importAddon(
-              widget.titleId!,
+              widget.titleId,
               dlc: action == 'dlc',
               onProgress: progress,
             ),
@@ -328,7 +328,8 @@ class _MelonxInternalPlaylistActionsState
           child: Text(
             [
               '${MelonxTransferLocale.text(ctx, 'imported')}: ${report.imported.length}',
-              ...report.imported,
+              for (final name in report.imported)
+                report.targets.containsKey(name) ? '${report.targets[name]} — $name' : name,
               if (report.refused.isNotEmpty) ...[
                 '${MelonxTransferLocale.text(ctx, 'rejected')}: ${report.refused.length}',
                 for (final entry in report.refused.entries)
@@ -384,9 +385,9 @@ class _MelonxInternalPlaylistActionsState
           value: 'keys',
           child: Text(_text('Import personal keys')),
         ),
+        const PopupMenuDivider(),
+        PopupMenuItem(value: 'update', child: Text(_text('Import update'))),
         if (validTitle) ...[
-          const PopupMenuDivider(),
-          PopupMenuItem(value: 'update', child: Text(_text('Import update'))),
           PopupMenuItem(value: 'dlc', child: Text(_text('Import DLC'))),
         ],
         if (widget.gamePath != null)

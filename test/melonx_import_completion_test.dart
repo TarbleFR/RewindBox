@@ -16,6 +16,7 @@ import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/services/melonx_embedded_library_service.dart';
 import 'package:neostation/services/melonx_import_progress.dart';
 import 'package:neostation/services/melonx_internal_service.dart';
+import 'package:neostation/data/datasources/sqlite_service.dart';
 import 'package:neostation/services/storage/storage_import_activity.dart';
 import 'package:neostation/widgets/melonx_internal_playlist_actions.dart';
 import 'package:neostation/l10n/melonx_transfer_locale.dart';
@@ -123,7 +124,7 @@ void main() {
       }
       if (call.method == 'inspectDlc' || call.method == 'inspectUpdate') {
         final args = call.arguments as Map;
-        expectSync(args['titleId'], title);
+        if (args['titleId'] != null) expectSync(args['titleId'], title);
         if (args['path'].toString().endsWith('wrong.nsp'))
           return {
             'success': false,
@@ -133,6 +134,7 @@ void main() {
           };
         return {
           'success': true,
+          'baseTitleId': title,
           'dlc_nca_list': [
             {
               'title_id': '0100123456781001',
@@ -280,6 +282,7 @@ void main() {
         'copying',
         'importResults',
         'libraryBusy',
+        'invalidUpdate', 'addonWrongGame', 'ambiguousUpdate', 'updateGameMissing',
       ]) {
         expect(locale[key], isNotEmpty);
       }
@@ -300,6 +303,7 @@ void main() {
     WidgetTester tester,
     Future<void> Function() refresh, {
     int menus = 1,
+    String? selectedTitle = title,
   }) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     await tester.pumpWidget(
@@ -313,7 +317,7 @@ void main() {
                 children: [
                   for (var i = 0; i < menus; i++)
                     MelonxInternalPlaylistActions(
-                      titleId: title,
+                      titleId: selectedTitle,
                       onLibraryChanged: refresh,
                     ),
                 ],
@@ -337,6 +341,66 @@ void main() {
         find.byKey(const ValueKey('melonx-import-menu')).first,
       )
       .onSelected!(action);
+
+  Future<void> installedGame(String name, {String? id = title}) async {
+    final game = await file('$name.xci');
+    await (await SqliteService.getDatabase()).insert('user_roms', {
+      'app_system_id': 'switch', 'rom_path': game.path,
+      'filename': '$name.xci', 'title_name': name, 'title_id': id,
+    });
+  }
+
+  test('global update uses the inspected ID despite an unrelated filename', () async {
+    await installedGame('Correct game');
+    await installedGame('Unrelated game', id: '0100999988880000');
+    picker.files = [await file('Unrelated game update.nsp')];
+    final report = await MelonxEmbeddedLibraryService.importAddon(null, dlc: false);
+    expect(report.imported, ['Unrelated game update.nsp']);
+    expect(report.targets, {'Unrelated game update.nsp': 'Correct game'});
+    expect(metadata, 0);
+    expect(File('${temp.path}/MeloNX/games/$title/updates.json').existsSync(), true);
+    expect(File('${temp.path}/MeloNX/games/0100999988880000/updates.json').existsSync(), false);
+  });
+
+  test('global update refuses a missing base game before copying the NSP', () async {
+    await installedGame('Other game', id: '0100999988880000');
+    final source = await file('update.nsp');
+    picker.files = [source];
+    final report = await MelonxEmbeddedLibraryService.importAddon(null, dlc: false);
+    expect(report.refused, {'update.nsp': 'updateGameMissing'});
+    expect(report.imported, isEmpty);
+    expect(source.existsSync(), true);
+    expect(Directory('${temp.path}/MeloNX/addons').existsSync(), false);
+  });
+
+  test('global update resolves legacy playlist metadata without a hash scan', () async {
+    await installedGame('Moved game', id: null);
+    picker.files = [await file('update.nsp')];
+    final report = await MelonxEmbeddedLibraryService.importAddon(null, dlc: false);
+    expect(report.targets, {'update.nsp': 'Moved game'});
+    expect(metadata, 1);
+    final rows = await (await SqliteService.getDatabase()).query('user_roms');
+    expect(rows.single['title_id'], title);
+  });
+
+  testWidgets('playlist menu imports an update and names its game without selecting one', (tester) async {
+    await mount(tester, () async {}, selectedTitle: null);
+    await tester.runAsync(() async {
+      await installedGame('Recognized game');
+      picker.files = [await file('update.nsp')];
+    });
+    await tester.tap(find.byKey(const ValueKey('melonx-import-menu')));
+    await tester.pumpAndSettle();
+    expect(find.text('Import update'), findsOneWidget);
+    await tester.tap(find.text('Import update'));
+    await until(tester, () => find.text('Import completed').evaluate().isNotEmpty);
+    expect(find.textContaining('Recognized game — update.nsp'), findsOneWidget);
+    expect(find.text('Choose the game'), findsNothing);
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox());
+    debugDefaultTargetPlatformOverride = null;
+  });
   testWidgets(
     'game appears immediately without re-scanning all existing ROM bytes',
     (tester) async {

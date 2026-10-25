@@ -3,6 +3,10 @@ import 'package:flutter/widgets.dart';
 abstract final class MelonxTransferLocale {
   static const values = <String, Map<String, String>>{
     "en": {
+      "invalidUpdate": "No compatible update was found in this file. Check the file and your keys.",
+      "addonWrongGame": "This file belongs to a different game.",
+      "ambiguousUpdate": "This file contains updates for several games. Import it from the intended game's menu.",
+      "updateGameMissing": "The base game for this update was not found in the Switch playlist. Import the game first.",
       "importResults": "Import results",
       "copying": "Copying",
       "choosingFiles": "Choosing files…",
@@ -74,6 +78,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Link games in the selected folder",
     },
     "fr": {
+      "invalidUpdate": "Aucune mise à jour compatible dans ce fichier. Vérifiez le fichier et vos clés.",
+      "addonWrongGame": "Ce fichier correspond à un autre jeu.",
+      "ambiguousUpdate": "Ce fichier contient des mises à jour pour plusieurs jeux. Importez-le depuis le menu du jeu voulu.",
+      "updateGameMissing": "Le jeu de base de cette mise à jour est absent de la playlist Switch. Importez d’abord le jeu.",
       "importResults": "Bilan de l’importation",
       "copying": "Copie",
       "choosingFiles": "Sélection des fichiers…",
@@ -148,6 +156,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Lier les jeux du dossier sélectionné",
     },
     "de": {
+      "invalidUpdate": "Keine kompatible Aktualisierung in dieser Datei gefunden. Prüfe die Datei und deine Schlüssel.",
+      "addonWrongGame": "Diese Datei gehört zu einem anderen Spiel.",
+      "ambiguousUpdate": "Diese Datei enthält Updates für mehrere Spiele. Importiere sie über das Menü des gewünschten Spiels.",
+      "updateGameMissing": "Das Basisspiel für dieses Update fehlt in der Switch-Spieleliste. Importiere zuerst das Spiel.",
       "importResults": "Importergebnis",
       "copying": "Kopieren",
       "choosingFiles": "Dateien auswählen…",
@@ -220,6 +232,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Spiele im ausgewählten Ordner verknüpfen",
     },
     "es": {
+      "invalidUpdate": "No se encontró una actualización compatible en este archivo. Comprueba el archivo y tus claves.",
+      "addonWrongGame": "Este archivo corresponde a otro juego.",
+      "ambiguousUpdate": "Este archivo contiene actualizaciones para varios juegos. Impórtalo desde el menú del juego deseado.",
+      "updateGameMissing": "El juego base de esta actualización no está en la lista de Switch. Importa primero el juego.",
       "importResults": "Resultados de la importación",
       "copying": "Copiando",
       "choosingFiles": "Seleccionando archivos…",
@@ -292,6 +308,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Vincular los juegos de la carpeta seleccionada",
     },
     "it": {
+      "invalidUpdate": "Nessun aggiornamento compatibile trovato nel file. Controlla il file e le tue chiavi.",
+      "addonWrongGame": "Questo file appartiene a un altro gioco.",
+      "ambiguousUpdate": "Questo file contiene aggiornamenti per più giochi. Importalo dal menu del gioco desiderato.",
+      "updateGameMissing": "Il gioco base di questo aggiornamento non è nella raccolta Switch. Importa prima il gioco.",
       "importResults": "Risultati dell’importazione",
       "copying": "Copia",
       "choosingFiles": "Selezione dei file…",
@@ -363,6 +383,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Collega i giochi della cartella scelta",
     },
     "pt": {
+      "invalidUpdate": "Nenhuma atualização compatível encontrada neste ficheiro. Verifica o ficheiro e as tuas chaves.",
+      "addonWrongGame": "Este ficheiro pertence a outro jogo.",
+      "ambiguousUpdate": "Este ficheiro contém atualizações para vários jogos. Importa-o a partir do menu do jogo pretendido.",
+      "updateGameMissing": "O jogo base desta atualização não está na lista Switch. Importa primeiro o jogo.",
       "importResults": "Resultados da importação",
       "copying": "A copiar",
       "choosingFiles": "A selecionar ficheiros…",
@@ -435,6 +459,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Ligar os jogos da pasta selecionada",
     },
     "ru": {
+      "invalidUpdate": "В файле нет совместимого обновления. Проверьте файл и свои ключи.",
+      "addonWrongGame": "Этот файл относится к другой игре.",
+      "ambiguousUpdate": "В файле есть обновления для нескольких игр. Импортируйте его через меню нужной игры.",
+      "updateGameMissing": "Базовая игра для этого обновления не найдена в списке Switch. Сначала импортируйте игру.",
       "importResults": "Результаты импорта",
       "copying": "Копирование",
       "choosingFiles": "Выбор файлов…",
@@ -507,6 +535,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Подключить игры из выбранной папки",
     },
     "id": {
+      "invalidUpdate": "Tidak ada pembaruan yang kompatibel dalam berkas ini. Periksa berkas dan kunci Anda.",
+      "addonWrongGame": "Berkas ini milik gim lain.",
+      "ambiguousUpdate": "Berkas ini berisi pembaruan untuk beberapa gim. Impor melalui menu gim yang dituju.",
+      "updateGameMissing": "Gim dasar untuk pembaruan ini tidak ditemukan di daftar Switch. Impor gim terlebih dahulu.",
       "importResults": "Hasil impor",
       "copying": "Menyalin",
       "choosingFiles": "Memilih berkas…",
@@ -577,6 +609,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "Tautkan game di folder yang dipilih",
     },
     "ja": {
+      "invalidUpdate": "このファイルに対応する更新データがありません。ファイルとキーを確認してください。",
+      "addonWrongGame": "このファイルは別のゲーム用です。",
+      "ambiguousUpdate": "このファイルには複数のゲームの更新データが含まれています。対象のゲームのメニューからインポートしてください。",
+      "updateGameMissing": "この更新データに対応するゲーム本体がSwitchのリストにありません。先にゲームをインポートしてください。",
       "importResults": "インポート結果",
       "copying": "コピー中",
       "choosingFiles": "ファイルを選択中…",
@@ -640,6 +676,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "選択したフォルダーのゲームをリンク",
     },
     "ko": {
+      "invalidUpdate": "이 파일에 호환되는 업데이트가 없습니다. 파일과 키를 확인하세요.",
+      "addonWrongGame": "이 파일은 다른 게임용입니다.",
+      "ambiguousUpdate": "이 파일에는 여러 게임의 업데이트가 있습니다. 원하는 게임의 메뉴에서 가져오세요.",
+      "updateGameMissing": "이 업데이트의 기본 게임이 Switch 목록에 없습니다. 먼저 게임을 가져오세요.",
       "importResults": "가져오기 결과",
       "copying": "복사 중",
       "choosingFiles": "파일 선택 중…",
@@ -703,6 +743,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "선택한 폴더의 게임 연결",
     },
     "zh": {
+      "invalidUpdate": "此文件中没有兼容的更新。请检查文件和密钥。",
+      "addonWrongGame": "此文件属于其他游戏。",
+      "ambiguousUpdate": "此文件包含多个游戏的更新。请从目标游戏的菜单中导入。",
+      "updateGameMissing": "Switch列表中未找到此更新对应的本体游戏。请先导入游戏。",
       "importResults": "导入结果",
       "copying": "正在复制",
       "choosingFiles": "正在选择文件…",
@@ -764,6 +808,10 @@ abstract final class MelonxTransferLocale {
       "linkGames": "关联所选文件夹中的游戏",
     },
     "zh_Hant": {
+      "invalidUpdate": "此檔案中沒有相容的更新。請檢查檔案和金鑰。",
+      "addonWrongGame": "此檔案屬於其他遊戲。",
+      "ambiguousUpdate": "此檔案包含多個遊戲的更新。請從目標遊戲的選單匯入。",
+      "updateGameMissing": "Switch清單中找不到此更新對應的遊戲本體。請先匯入遊戲。",
       "importResults": "匯入結果",
       "copying": "正在複製",
       "choosingFiles": "正在選擇檔案…",

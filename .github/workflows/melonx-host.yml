@@ -9,6 +9,8 @@ run-name: MeloNX host • ${{ github.sha }}
     - .github/workflows/melonx-host.yml
     - packages/melonx_internal_bridge/**
     - test/melonx_session_host_test.py
+    - test/melonx_audio_ownership_test.py
+    - packages/external_folder_access/ios/Classes/**
     - test/melonx_memory_graph_test.py
     - test/melonx_memory_lease_test.py
     - test/melonx_memory_extension_test.py
@@ -61,7 +63,9 @@ jobs:
 
         '
     - name: Compile the iPhone host and execute its native ABI scenarios
-      run: python3 test/melonx_session_host_test.py ${{ contains(github.event.head_commit.message, '[melonx-display]') && '--sdk-only' || '' }}
+      run: python3 test/melonx_session_host_test.py ${{ (contains(github.event.head_commit.message, '[melonx-display]') || contains(github.event.head_commit.message, '[melonx-audio-update]')) && '--sdk-only' || '' }}
+    - name: Exercise audio ownership, route changes and presentation handoff
+      run: python3 test/melonx_audio_ownership_test.py
     - name: Exercise registered plugin presentation and retry in actual UIKit
       run: python3 test/melonx_presentation_test.py
     - name: Compile the original donor extension and validate target packaging

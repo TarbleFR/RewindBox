@@ -26,7 +26,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     private var jitReady = false
     private var arenaReady = false
     private var lastFailure = ""
-    private var previousAudio: (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)?
+    private var previousAudio: (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions, Double, TimeInterval)?
+    private var audioObservers: [NSObjectProtocol] = []
+    private static let audioOwnership = Notification.Name("RewindBox.MeloNX.AudioOwnership")
     private let tokenLock = NSLock()
     private var launchToken = UUID()
 
@@ -40,6 +42,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     public static func register(with registrar: FlutterPluginRegistrar) {
         let instance = MeloNXInternalBridgePlugin()
         instance.registrar = registrar
+        instance.installAudioObservers()
         let channel = FlutterMethodChannel(name:"neostation/melonx_internal",binaryMessenger:registrar.messenger())
         instance.diagnosticsChannel = channel
         MeloNXLaunchJournal.sink = { [weak instance] event in instance?.diagnosticsChannel?.invokeMethod("launchDiagnostic",arguments:event) }
@@ -147,8 +150,10 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                       let request = String(data:data,encoding:.utf8) else { result(FlutterError(code:"invalidSave",message:"Invalid save association.",details:nil)); return }
                 path = request
             } else if operation == 4 || operation == 5 {
-                guard let title = arguments["titleId"] as? String,
-                      let data = try? JSONSerialization.data(withJSONObject:["path":path,"titleId":title]),
+                var addon: [String:Any] = ["path":path]
+                if let title = arguments["titleId"] as? String { addon["titleId"] = title }
+                guard (operation == 4 || addon["titleId"] != nil),
+                      let data = try? JSONSerialization.data(withJSONObject:addon),
                       let request = String(data:data,encoding:.utf8) else { result(FlutterError(code:"invalidTitle",message:"A base-game title is required.",details:nil)); return }
                 path = request
             }
@@ -244,9 +249,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                             failLaunch("presentationUnavailable", diagnostic:"No attached foreground application controller became available.", stage:"presentation")
                             return
                         }
-                        let audio = AVAudioSession.sharedInstance()
-                        previousAudio = (audio.category,audio.mode,audio.categoryOptions)
-                        do { try audio.setCategory(.playback,mode:.default,options:[]); try audio.setActive(true) }
+                        do { try acquireAudio() }
                         catch { failLaunch("audioUnavailable",diagnostic:String(describing:error)); return }
                         let host = MeloNXSessionHost(api:runtime.session); self.host = host
                         let view = MeloNXMetalSessionViewController(host:host,game:URL(fileURLWithPath:path),locale:locale,runtime:runtime,titleID:titleID,settings:settings,
@@ -258,7 +261,15 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                             },
                             beforeRun:{ [weak self] in
                                 guard let self else { return false }
-                                return self.isCurrent(token) && self.jitReady
+                                // The frontend audio device may close during UIKit
+                                // presentation. Reassert ownership after that handoff,
+                                // immediately before the Apple backend is created.
+                                let authorize = { () -> Bool in
+                                    guard self.isCurrent(token), self.jitReady else { return false }
+                                    do { try self.activateAudio(reason:"beforeRun"); return true }
+                                    catch { MeloNXLaunchJournal.record("audio","failed",detail:String(describing:error)); return false }
+                                }
+                                return Thread.isMainThread ? authorize() : DispatchQueue.main.sync(execute:authorize)
                             },firstFrame:{ [weak self] in guard let self, self.isCurrent(token) else { return }; MeloNXLaunchJournal.record("firstFrame","passed",detail:"CAMetalDrawable presentedTime confirmed."); self.frameReady = true; self.completeLaunchIfReady() }) { [weak self] outcome in
                                 guard let self else { return }
                                 self.libraryQueue.async { _ = MeloNXMemoryLease.shared.retire(runtime:runtime) }
@@ -328,10 +339,69 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         reply?(["success":false,"error":errorCode,"errorCode":errorCode,"stage":stage,"nativeStatus":nativeStatus,
             "diagnostic":diagnostic,"sessionActive":host?.isSessionActive == true,"requiresRestart":host?.isSessionActive == true || errorCode == "jitRestartRequired" || (MeloNXMemoryLease.shared.snapshot()["donorState"] as? String) == "retained"])
     }
+    private func acquireAudio() throws {
+        let audio = AVAudioSession.sharedInstance()
+        if previousAudio == nil {
+            previousAudio = (audio.category,audio.mode,audio.categoryOptions,
+                             audio.preferredSampleRate,audio.preferredIOBufferDuration)
+            NotificationCenter.default.post(name:Self.audioOwnership,object:nil,userInfo:["active":true])
+        }
+        try audio.setCategory(.playback,mode:.default,options:[])
+        // Preferences are requests, not assumed hardware formats. Log the
+        // actual route/rate/quantum after activation for internal diagnostics.
+        do { try audio.setPreferredSampleRate(48000); try audio.setPreferredIOBufferDuration(256.0 / 48000.0) }
+        catch { MeloNXLaunchJournal.record("audio","preferenceUnavailable",detail:String(describing:error)) }
+        try activateAudio(reason:"acquired")
+    }
+
+    private func activateAudio(reason: String) throws {
+        guard previousAudio != nil else { return }
+        let audio = AVAudioSession.sharedInstance()
+        if audio.category != .playback || audio.mode != .default || !audio.categoryOptions.isEmpty {
+            try audio.setCategory(.playback,mode:.default,options:[])
+        }
+        try audio.setActive(true)
+        let routes = audio.currentRoute.outputs.map { $0.portType.rawValue }.joined(separator:",")
+        MeloNXLaunchJournal.record("audio",reason,detail:"Apple backend; rate: \(audio.sampleRate); I/O ms: \(audio.ioBufferDuration * 1000); category: \(audio.category.rawValue); route: \(routes)")
+    }
+
+    private func installAudioObservers() {
+        let center = NotificationCenter.default
+        audioObservers.append(center.addObserver(forName:UIApplication.didBecomeActiveNotification,object:nil,queue:.main) { [weak self] _ in
+            guard let self, self.previousAudio != nil else { return }
+            do { try self.activateAudio(reason:"foreground") }
+            catch { MeloNXLaunchJournal.record("audio","failed",detail:String(describing:error)) }
+        })
+        audioObservers.append(center.addObserver(forName:AVAudioSession.routeChangeNotification,object:AVAudioSession.sharedInstance(),queue:.main) { [weak self] _ in
+            guard let self, self.previousAudio != nil else { return }
+            let audio = AVAudioSession.sharedInstance()
+            guard audio.category != .playback || audio.mode != .default || !audio.categoryOptions.isEmpty else { return }
+            do { try self.activateAudio(reason:"ownershipRestored") }
+            catch { MeloNXLaunchJournal.record("audio","failed",detail:String(describing:error)) }
+        })
+        audioObservers.append(center.addObserver(forName:AVAudioSession.interruptionNotification,object:AVAudioSession.sharedInstance(),queue:.main) { [weak self] event in
+            guard let self, self.previousAudio != nil,
+                  (event.userInfo?[AVAudioSessionInterruptionTypeKey] as? NSNumber)?.uintValue == AVAudioSession.InterruptionType.ended.rawValue,
+                  let raw = (event.userInfo?[AVAudioSessionInterruptionOptionKey] as? NSNumber)?.uintValue,
+                  AVAudioSession.InterruptionOptions(rawValue:raw).contains(.shouldResume) else { return }
+            do { try self.activateAudio(reason:"interruptionEnded") }
+            catch { MeloNXLaunchJournal.record("audio","failed",detail:String(describing:error)) }
+        })
+    }
+
+    deinit {
+        for observer in audioObservers { NotificationCenter.default.removeObserver(observer) }
+    }
+
     private func restoreAudio() {
         guard let previousAudio else { return }; self.previousAudio = nil
         let audio = AVAudioSession.sharedInstance()
-        do { try audio.setCategory(previousAudio.0,mode:previousAudio.1,options:previousAudio.2) }
+        defer { NotificationCenter.default.post(name:Self.audioOwnership,object:nil,userInfo:["active":false]) }
+        do {
+            try audio.setCategory(previousAudio.0,mode:previousAudio.1,options:previousAudio.2)
+            try audio.setPreferredSampleRate(previousAudio.3)
+            try audio.setPreferredIOBufferDuration(previousAudio.4)
+        }
         catch { NSLog("[MeloNX] Audio restoration failed: %@",String(describing:error)) }
     }
 }

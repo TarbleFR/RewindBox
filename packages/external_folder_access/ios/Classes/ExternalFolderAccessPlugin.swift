@@ -22,6 +22,7 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
     private var channel: FlutterMethodChannel?
     private var audioSessionObservers: [NSObjectProtocol] = []
     private var audioSessionKnownActive = false
+    private var melonxOwnsAudioSession = false
     private let retroArchHandoff = RetroArchURLHandoff()
     private var retroArchBackgroundTask = UIBackgroundTaskIdentifier.invalid
     private var incomingUrlReady = false
@@ -408,6 +409,13 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
         let session = AVAudioSession.sharedInstance()
 
         audioSessionObservers.append(
+            center.addObserver(forName: Notification.Name("RewindBox.MeloNX.AudioOwnership"),
+                               object: nil, queue: .main) { [weak self] event in
+                self?.melonxOwnsAudioSession = event.userInfo?["active"] as? Bool ?? false
+            }
+        )
+
+        audioSessionObservers.append(
             center.addObserver(
                 forName: AVAudioSession.interruptionNotification,
                 object: session,
@@ -467,6 +475,9 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
     private func applySilentModeAudioSession(
         forceActivation: Bool
     ) throws -> Bool {
+        // A category change itself emits a route notification. Do not reset
+        // the game's playback session to ambient while MeloNX owns it.
+        guard !melonxOwnsAudioSession else { return true }
         let session = AVAudioSession.sharedInstance()
         let desiredOptions: AVAudioSession.CategoryOptions = [
             .mixWithOthers
