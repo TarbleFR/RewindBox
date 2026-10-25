@@ -3,14 +3,30 @@
 This record distinguishes an upstream license snapshot, the identity of a
 precompiled binary and the source revision actually attested for that binary.
 It is not a claim of complete Corresponding Source or license compatibility.
-The current development summary below was reviewed on 21 October 2026 at
-`dc46d73c6a42c5662ad3a863071edac0aa4081ad` on `Claude`. The published release
-remains [0.0.8, with its own source manifest](RELEASE_0.0.8_SOURCE_MANIFEST.md);
-its binary is not changed by this documentation. See the
-[next-release license review](RELEASE_NEXT_LICENSE_REVIEW.md) for the latest
-notice additions and remaining findings.
+The detailed milestone rows below originated from the 21 October 2026 audit
+at `dc46d73c6a42c5662ad3a863071edac0aa4081ad` on `Claude`.
+The current public release is now
+[**fix 0.0.9 / Build 530**](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1).
+Its [source-specific manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)
+supersedes the old Build 499/500 and MeloNX-staging identities for the
+**published binary**; the historical rows stay as audit history.
+The [original 0.0.8 record](RELEASE_0.0.8_SOURCE_MANIFEST.md)
+and [21 October license preparation](RELEASE_NEXT_LICENSE_REVIEW.md)
+remain useful records of their respective earlier scope.
 
-## Current development changes since public 0.0.8
+## Published Build 530 and historical development milestones
+
+The latest IPA contains **35 Libretro cores**, the **embedded MeloNX engine**
+with the iOS Vulkan host-import workaround (engine source
+`ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12`, run `40152134234`), and
+**RPCS3 Core 528** (source `17ee65469c39e560c91fdb6d55604ab590992f59`,
+run `40142369420`). The fixed application source is
+`3f0c706afe1d0faa635465517871a500c3289582`. The successful
+published-IPA workflow is [run `40156236364`](https://github.com/TarbleFR/RewindBox/actions/runs/40156236364).
+These are compiler and packaging identities, not evidence of a real-iPhone
+multi-minute game session or complete corresponding source for each binary.
+
+### Historical progression since public 0.0.8
 
 The delivery workflow currently pins **35 Libretro cores** in the package
 produced from NeoStation source `ab9361c29f7c9ab769c4263dd8b7427fc4f4c036`,
@@ -28,7 +44,7 @@ not the independent upstream commits listed below.
 | Mesen, Build 495 | Official iOS ARM64 buildbot binary, SHA-256 `547b840f3911dfe52bc1ce3b44f6bd4a137c869f21cb25e280434818ef06d2b6`; added by package source `4c2186204ce06b50b989689a9c2322068f523a58`, run `39366986940` | Added unchanged as the 35th core; [packaging code](../build-utils/libretro/add_cores.py) compiles nothing and checks preservation of the prior 34 cores. [Integration evidence](hd-textures-nes-mesen.md). `0102910c39ad1a62bc3f784466f3f67ca9eae335` is the **license-reference revision**, explicitly not an attested binary source in [license-sources.json](../assets/legal/libretro/license-sources.json). |
 | PPSSPP Libretro, Build 497 | Upstream `1bd28b0d634d4ec31acb7092563f3e1e247d1e9c`; NeoStation patch SHA-256 `c273728f2a30ed8d3cddcc83e2731db5877d15f71030632c09dbf8967f40cb75`; compiled core SHA-256 `a7d058581b657714e055dc9713e9a1252ad4acf6315b30610fcb2b1c81130b6f` | Source-built to correct PSP session memory ownership. [Source and patch identity](../native/ppsspp/source.json), [build and delivery receipt](evidence/psprelaunch497-delivery.json). This replaces the old PPSSPP buildbot artifact and its unattested-source status for subsequent deliveries using this package; it does not change the historical Build 479 binary below. |
 | RPCS3 / XITRIX, Build 499, reused in 500 | Upstream `22f1152783cef1f7e04af7b1c895173e28fd5b03`; NeoStation Core source `0b18a23460b0a9840406fda2e3d6da4c5cdb7273`, run `39472233521`; canonical patch SHA-256 `6a88c3f5046bbbbd52113ba691cc2f9074e4ebc260f195c1e73776a8c9f876e1` | [Core receipt](evidence/rpcs3audit499-core.json) records ABI 30 and compiled SHA-256 `87bd77794232fc44b61d421e55d71bae3b2829a58b87ee36b2a176730d78004f`; final signed Core SHA-256 is `49033f06bcbe5bfb635a956783f87e35934f21d9be5fd3d84b4d902adb190a63`. [Build 500 continuity](evidence/ps1rpcs3500-delivery.json) confirms the same compiled sections. Imported public RPCS3/ARMSX3-related changes and credits are documented in the [audit](build499-armsx3-rpcs3-audit.md); the supplied ARMSX3 IPA was not incorporated. |
-| MeloNX / Ryujinx, staged work only | MeloNX `13700519f3abc4e6d7ed8a065b118b2cc59bcd67`; reconstructed LibHac source `23e402ebb6dedc517e34a98a033078dc0f6fd478`; Melo-Controller reference `c049ce88a5635bddcd88e1965c42aa8fc92fe961` | [Source pins](../build-utils/melonx/source.json), [integration audit](melonx-embedded-integration-2026-10-20.md) and [session milestone](melonx-native-session-2026-10-20.md). The engine/session foundation has been compiled separately, but no playable MeloNX runtime is packaged or registered in NeoStation. LibHac's reconstructed source is not asserted byte-identical to its unavailable original NuGet package; the native dependency inventory does not establish every binary's matching build source. |
+| MeloNX / Ryujinx, staged in October 20; **embedded in Build 530** | MeloNX `13700519f3abc4e6d7ed8a065b118b2cc59bcd67`; reconstructed LibHac source `23e402ebb6dedc517e34a98a033078dc0f6fd478`; Melo-Controller `c049ce88a5635bddcd88e1965c42aa8fc92fe961`; patched RewindBox Core `ab6d87ebb8b33d0151953b1b9ea7cefaab7a4b12` | [Source pins](../build-utils/melonx/source.json), [historical integration audit](melonx-embedded-integration-2026-10-20.md), [current release manifest](RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md), and [successful NativeAOT / simulator CI](https://github.com/TarbleFR/RewindBox/actions/runs/40152134234). iOS disables the reported failing direct Vulkan host-memory import. LibHac's reconstructed source is **not** asserted byte-identical to its unavailable original NuGet package; complete dependency source evidence and long-session physical gameplay remain open. |
 
 The preserved 34-core record below, the Mesen addition and the PPSSPP
 replacement together establish **three current cores with exact upstream
