@@ -107,6 +107,30 @@ libre que la taille du fichier pendant la copie.
   `neoswap-storage`) sont inchangés.
 * `flutter analyze` sur les fichiers modifiés : aucun problème.
 
+Preuve locale `docs/evidence/rpcs3-library-files557-local.json`, produite sur
+l'arbre 557 épinglé (`d645f05`) et sur l'arbre 554 livré, épinglé depuis le
+même commit par la recette 554 :
+
+* analyse de toute l'application : aucun avertissement ni erreur
+  (108 informations, comme en 554) ;
+* les tests ci-dessus, plus ceux de l'image disque (11), des dossiers de ROM
+  (3) et de la bibliothèque RPCS3 (6) ;
+* **suite Dart complète** sur les deux arbres, en série : 3 551 réussites sur
+  l'arbre 557 contre 3 527 sur l'arbre 554 (les 24 tests ajoutés), et les
+  mêmes 23 échecs, déjà présents sur l'arbre 554 (interface Dolphin et
+  bibliothèque de lecture, `neo_glass_bubble`, deux contrats RPCS3 de la
+  Build 231, etc.) ;
+* contrat Build 419 : mêmes 10 échecs sur les deux arbres, aucun sur les deux
+  fichiers SQLite ;
+* contrôles négatifs sur l'arbre 554 : le test des sauvegardes simultanées y
+  échoue sur `UNIQUE constraint failed: user_rom_folders.path`, et le contrat
+  de routage 557 y échoue (« one guard for installed discs whose file is
+  gone »).
+
+Hors arbre épinglé, sur la branche entière : les 384 tests Python ont le même
+résultat avec et sans le correctif (237 échecs historiques des deux côtés,
+aucun écart).
+
 ## 4. Protocole iPhone
 
 1. Un disque de `roms/ps3` jamais installé : le supprimer depuis les

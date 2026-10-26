@@ -82,6 +82,8 @@ la recherche. L'erreur `UNIQUE constraint failed: user_rom_folders.path` du
 même journal vient de deux sauvegardes de configuration simultanées sur la
 même connexion SQLite (reproduite en test) ; `sqlite_service.dart` est figé par
 le contrat de retour arrière Build 419, elle n'est donc pas corrigée ici.
+Les deux sont corrigés en 557, avec la suppression et la conservation des
+disques installés (`docs/rpcs3-library-files557.md`).
 
 ## 4. Vérifications (sans iPhone)
 
