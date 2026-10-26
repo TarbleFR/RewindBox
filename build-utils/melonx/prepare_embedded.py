@@ -15,6 +15,7 @@ from adapt_firmware import apply as adapt_firmware
 from adapt_memory import apply as adapt_memory
 from adapt_pipeline import apply as adapt_pipeline
 from adapt_gpu_lifetime import apply as adapt_gpu_lifetime
+from adapt_audio_pacing import apply as adapt_audio_pacing
 
 
 def replace_once(path, old, new):
@@ -50,6 +51,7 @@ def main():
     adapted += adapt_memory(source)
     adapted += adapt_pipeline(source)
     adapted += adapt_gpu_lifetime(source)
+    adapted += adapt_audio_pacing(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -58,6 +60,7 @@ def main():
                    'EmbeddedNativeGamepadLease.cs': 'Ryujinx.Input.Native',
                    'EmbeddedNativeLibraries.cs': 'Ryujinx.Common',
                    'EmbeddedLaunchDiagnostics.cs': 'Ryujinx.Common',
+                   'EmbeddedAudioPacing.cs': 'Ryujinx.Common',
                    'EmbeddedFirmwareStore.cs': 'Ryujinx.HLE',
                    'EmbeddedFirmwareArchive.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
         target = source / 'src' / project / path.name
@@ -83,6 +86,8 @@ def main():
     inputs['build-utils/melonx/adapt_pipeline.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_gpu_lifetime.py')
     inputs['build-utils/melonx/adapt_gpu_lifetime.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    adapter = Path(__file__).with_name('adapt_audio_pacing.py')
+    inputs['build-utils/melonx/adapt_audio_pacing.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
     output.mkdir(parents=True, exist_ok=True)
     (output / 'embedded-inputs.json').write_text(json.dumps(inputs, indent=2) + '\n')

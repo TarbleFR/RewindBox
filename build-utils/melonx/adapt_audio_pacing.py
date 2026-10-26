@@ -1,0 +1,58 @@
+"""Count audio pacing events for the host's per-second performance journal.
+
+Measurement only; behaviour is unchanged. AudioProcessor.Wait paces the DSP
+in 5 ms periods by wall clock: each period records how late it ended and how
+many periods it skipped. The Apple backend records when its queue runs dry
+after a completed buffer and how long until the next buffer arrives (heard
+as silence). Each session keeps its own interval and a guest stop ends it
+uncounted. Counters: native/melonx/EmbeddedAudioPacing.cs.
+"""
+from adapt_session import once
+
+
+def apply(source):
+    processor = source / 'src/Ryujinx.Audio/Renderer/Dsp/AudioProcessor.cs'
+    once(processor, '''                // Skip a few frames so that we're not too far behind. (the target number of frames)
+                _lastTime += increment * (bufferedFrames - TargetBufferedFrames);''', '''                // Skip a few frames so that we're not too far behind. (the target number of frames)
+                _lastTime += increment * (bufferedFrames - TargetBufferedFrames);
+                EmbeddedAudioPacing.DspSkipped(bufferedFrames - TargetBufferedFrames);''')
+    once(processor, '''            while (timeNow < _lastTime + increment)
+            {
+                _event.WaitOne(1);
+
+                timeNow = PerformanceCounter.ElapsedNanoseconds;
+            }
+
+            _lastTime += increment;''', '''            long due = _lastTime + increment;
+
+            while (timeNow < _lastTime + increment)
+            {
+                _event.WaitOne(1);
+
+                timeNow = PerformanceCounter.ElapsedNanoseconds;
+            }
+
+            // How late this period ended (a late wake-up or a busy producer).
+            EmbeddedAudioPacing.DspPeriod(timeNow - due);
+
+            _lastTime += increment;''')
+    session = source / 'src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs'
+    once(session, '''        private ulong _playedSampleCount;
+''', '''        private ulong _playedSampleCount;
+        private long _pacingStarvedSince;
+''')
+    once(session, '''                Interlocked.Add(ref _playedSampleCount, remainingSamples);
+''', '''                Interlocked.Add(ref _playedSampleCount, remainingSamples);
+                Ryujinx.Common.EmbeddedAudioPacing.HostCompleted(ref _pacingStarvedSince, _queuedBuffers.IsEmpty, Ryujinx.Common.PerformanceCounter.ElapsedNanoseconds);
+''')
+    once(session, '''            _queuedBuffers.Enqueue(driverBuffer);
+            AVFoundation.ScheduleBuffer(_playerNode, pcmBuffer, _completionBlock);''', '''            _queuedBuffers.Enqueue(driverBuffer);
+            Ryujinx.Common.EmbeddedAudioPacing.HostQueued(ref _pacingStarvedSince, Ryujinx.Common.PerformanceCounter.ElapsedNanoseconds);
+            AVFoundation.ScheduleBuffer(_playerNode, pcmBuffer, _completionBlock);''')
+    once(session, '''                AVFoundation.Pause(_playerNode);
+                _playing = false;
+                _started = false;''', '''                AVFoundation.Pause(_playerNode);
+                _playing = false;
+                _started = false;
+                Ryujinx.Common.EmbeddedAudioPacing.HostIdle(ref _pacingStarvedSince);''')
+    return [processor, session]

@@ -49,6 +49,8 @@ int32_t neostation_melonx_performance_snapshot(int64_t generation, double *value
 int32_t neostation_melonx_set_present_target_fps(int64_t generation, int32_t fps);
 /* Before configure_native: 0 = source-built MoltenVK, 1 = the standalone MeloNX app's binary. */
 int32_t neostation_melonx_select_moltenvk(int32_t variant);
+/* Cumulative audio pacing counters (DSP lateness, host starvation); count is 9. */
+int32_t neostation_melonx_audio_pacing(int64_t *values, int32_t count);
 #ifdef __cplusplus
 }
 #endif
