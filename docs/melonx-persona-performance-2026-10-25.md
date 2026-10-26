@@ -375,17 +375,19 @@ pacing, log timeline, engine, host parity) plus a skeptical synthesis.
     mid-line);
   - thermal state is not journaled during a session.
 
-## MeloNX measurement build 556
+## MeloNX measurement build 558
 
-Number 555 is the RPCS3 Cell work (`f508f1b`, not this session); the
-interface session confirmed 556 for this build and took 557 for its own
-Dart fix. The maintainer asked for the build on 26 October, together with a
-real fix for the log after a data migration and the macOS tests on every
-push. 556 adds measurement only and changes nothing in emulation; the one new
+Number 555 is the RPCS3 Cell work (`f508f1b`, not this session); 557 is the
+interface session's library-file fix. The maintainer asked for this build on
+26 October, together with a real fix for the log after a data migration and
+the macOS tests on every push, and then asked for it to be compiled on top of
+557 once 557 finished. It was first prepared as 556 on the 554 tree; 556 was
+never armed nor delivered, and the same change ships as 558 on the delivered
+557 tree (recipe in `AGENTS.md`), so 558 also carries 557's library-file fix.
+558 adds measurement only and changes nothing in emulation; the one new
 setting, the in-game priority choice below, keeps today's behaviour by
-default. It is built on the delivered 554 tree (recipe in `AGENTS.md`). The
-comparison the tester runs with it: P5R with its shader cache back On, then
-the same scene in RewindBox and in the standalone app.
+default. The comparison the tester runs with it: P5R with its shader cache
+back On, then the same scene in RewindBox and in the standalone app.
 
 - **`[MeloNX:perf]` lines in app.log, one per second during a game**
   (`MeloNXPerfJournal.swift`). Format, with illustrative values:
@@ -434,7 +436,7 @@ the same scene in RewindBox and in the standalone app.
   of the generic copy; once every other copy is verified,
   `LoggerService.moveLogFile` copies it to the destination, writes there and
   deletes the old file, synchronously, before any source is deleted
-  (`test/user_data_migration_log_test.dart`, which fails on the 554
+  (`test/user_data_migration_log_test.dart`, which fails on the 557
   migration).
 - **The macOS Swift tests run on every push.** `melonx-host.yml` now runs
   `test/melonx_perf_journal_test.py` and `test/melonx_standalone_parity_test.py`

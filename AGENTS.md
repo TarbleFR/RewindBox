@@ -3,12 +3,12 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
-## Private 556: MeloNX measurement and log fixes — 26 October 2026
+## Private 558: MeloNX measurement and log fixes on 557 — 26 October 2026
 
 - Measurement build for the Persona 4 Golden / Persona 5 Royal stutter
   reported on 553 (flicker gone). Nothing changes emulation by default.
   Analysis and how to read the logs: `docs/melonx-persona-performance-2026-10-25.md`
-  ("Next MeloNX measurement build").
+  ("MeloNX measurement build 558").
 - Contents (`4464ed6..cfce9f6`, Claude MeloNX session only):
   - one `[MeloNX:perf]` app.log line per second during a game: game FPS,
     presented frames and gaps, audio DSP late episodes and output
@@ -22,17 +22,21 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
 - CI on push: engine 40376664278 (`8f83748`) and host 40385961915 (`e2c9437`),
   which now runs the performance journal and parity Swift tests on macOS
   (`melonx-host.yml`, maintainer-approved).
-- Recipe on the delivered 554 tree: `.github/diagnostics/melonxperf556_tree.py`
-  (FIX556 from `cfce9f6`; nine 553 parity files and `prepare_embedded.py`
-  replaced) and `melonxperf556_delivery.py`, which checks the inherited
-  receipts on the delivered 554 tree (`as_554`, as 557 does) and the new
-  engine and host on the pinned tree; the RAM graph proof stays the 553 host's
-  (inputs unchanged). Validators `validate_melonx_perf556_ipa.py`,
-  `validate_liquid_glass556_ipa.py`, `validate_rpcs3_import556_ipa.py`;
-  workflow `melonx-perf556-delivery.yml`; recipient
-  `build-utils/delivery-556-recipient.pem` (private key outside Git); local
-  receipt `docs/evidence/melonx-perf556-local.json`. Not stacked on 557
-  (Dart-only, not delivered yet).
+- Built on the delivered 557 tree at the maintainer's request (557 keeps its
+  library-file fix and the 554 import). The same change was first prepared as
+  556 on the 554 tree (`640ff06`); 556 was never armed nor delivered and its
+  recipe is replaced by this one: do not reuse build number 556.
+- Recipe: `.github/diagnostics/melonxperf558_tree.py` (FIX558 from `cfce9f6`;
+  nine 553 parity files replaced; no file of 550, 551, 552, 554 or 557) and
+  `melonxperf558_delivery.py`, which checks the 557 receipts on the delivered
+  557 tree (`as_557`; the 557 recipe puts the 554 tree back for its own
+  inherited checks) and the new engine and host on the pinned tree; the RAM
+  graph proof stays the 553 host's (inputs unchanged). The 537 import input
+  that 557 changed (`sqlite_service.dart`) is bound to the 557 receipt.
+  Validators `validate_melonx_perf558_ipa.py`, `validate_liquid_glass558_ipa.py`,
+  `validate_rpcs3_library_files558_ipa.py`; workflow
+  `melonx-perf558-delivery.yml`; recipient `build-utils/delivery-558-recipient.pem`
+  (private key outside Git); local receipt `docs/evidence/melonx-perf558-local.json`.
 
 ## Private 554: RPCS3 import of library-folder PS3 discs — 26 October 2026
 
@@ -67,7 +71,8 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   No iPhone validation yet. **Do not reuse 554.** Next numbers: 555 = the RPCS3
   Cell work of `f508f1b`/`8593169` (`[rpcs3-cell555-core]`, authored "Tarble FR":
   the maintainer or a non-Claude agent; not the Claude RPCS3 session, whose last
-  delivery is 551); 556 = MeloNX measurement (Claude MeloNX session). A build
+  delivery is 551); 556 = MeloNX measurement (Claude MeloNX session; never
+  delivered, rebuilt as 558 on the 557 tree). A build
   on the 554 tree chains `rpcs3import554_tree.py` and, like
   `rpcs3import554_delivery.py`, rebinds the previous recipe's `product_trees*`
   so the earlier receipts see the 554 files at their 553 versions.

@@ -1,29 +1,29 @@
-name: RewindBox private IPA 556 — MeloNX measurement (per-second journal, audio counters, priority A/B) and log fixes on the delivered 554 tree
-run-name: RewindBox Build 556 — MeloNX measurement and log fixes on the 554 tree — ${{ github.sha }}
+name: RewindBox private IPA 558 — MeloNX measurement (per-second journal, audio counters, priority A/B) and log fixes on the delivered 557 tree
+run-name: RewindBox Build 558 — MeloNX measurement and log fixes on the 557 tree — ${{ github.sha }}
 'on':
   push:
     branches:
     - Claude
     paths:
-    - .github/workflows/melonx-perf556-delivery.yml
-    - .github/diagnostics/melonxperf556_delivery.py
-    - .github/diagnostics/melonxperf556_tree.py
-    - build-utils/validate_rpcs3_import556_ipa.py
-    - build-utils/validate_melonx_perf556_ipa.py
-    - build-utils/validate_liquid_glass556_ipa.py
-    - docs/evidence/melonx-perf556-local.json
+    - .github/workflows/melonx-perf558-delivery.yml
+    - .github/diagnostics/melonxperf558_delivery.py
+    - .github/diagnostics/melonxperf558_tree.py
+    - build-utils/validate_rpcs3_library_files558_ipa.py
+    - build-utils/validate_melonx_perf558_ipa.py
+    - build-utils/validate_liquid_glass558_ipa.py
+    - docs/evidence/melonx-perf558-local.json
   workflow_dispatch:
     inputs:
       recipient:
-        description: Private Build556 public recipient
+        description: Private Build558 public recipient
         required: false
         type: string
-        default: build-utils/delivery-556-recipient.pem
+        default: build-utils/delivery-558-recipient.pem
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: rewindbox-private556-${{ github.sha }}
+  group: rewindbox-private558-${{ github.sha }}
   cancel-in-progress: false
 jobs:
   checks:
@@ -33,21 +33,21 @@ jobs:
     timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
-      BUILD_NUMBER: '556'
+      BUILD_NUMBER: '558'
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Pin the delivered 554 product tree with the 556 MeloNX measurement files, each file from the commit that validated it
-      run: python3 .github/diagnostics/melonxperf556_tree.py --pin
+    - name: Pin the delivered 557 product tree with the 558 MeloNX measurement files, each file from the commit that validated it
+      run: python3 .github/diagnostics/melonxperf558_tree.py --pin
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: 3.47.2
         channel: stable
         cache: true
-    - name: Analyze the complete application and exercise the interface, the MeloNX settings, the 552 game profiles, the 554 library files and the 556 log fixes on the 556 tree
+    - name: Analyze the complete application and exercise the interface, the MeloNX settings, the 552 game profiles, the 554/557 library files and the 558 log fixes on the 558 tree
       run: |
         flutter pub get --enforce-lockfile
         flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
@@ -78,6 +78,9 @@ jobs:
           test/rpcs3_game_profile_service_test.dart \
           test/rpcs3_disc_image_test.dart test/rpcs3_library_file_service_test.dart \
           test/rpcs3_library_file_dialog_test.dart test/rpcs3_library_service_test.dart \
+          test/rom_folders_concurrent_save_test.dart test/rom_folder_registration_test.dart \
+          test/rpcs3_library_file_rows_test.dart test/game_deletion_regression_test.dart \
+          test/search_filter_test.dart \
           test/logger_append_test.dart test/user_data_migration_log_test.dart test/user_data_migration_test.dart
         python3 test/rpcs3_ui_status_cleanup_test.py
         python3 test/rpcs3_core_log_durable552_test.py
@@ -85,10 +88,10 @@ jobs:
         python3 test/rpcs3_build487_host_diagnostics_test.py
         python3 test/rpcs3_diagnostics546_native_test.py
         python3 test/melonx_standalone_parity_test.py
-        python3 test/melonx_perf_journal_test.py
-        python3 test/external_display_scope_test.py
         python3 test/rpcs3_library_file_route_contract_test.py
         python3 test/localization_12_locale_coverage_test.py
+        python3 test/melonx_perf_journal_test.py
+        python3 test/external_display_scope_test.py
     - uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.100
@@ -110,12 +113,12 @@ jobs:
         assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==revision
         PY_FETCH
         python3 test/melonx_audio_pacing_test.py .native-sources/MeloNX
-    - name: Retain unchanged import checks; bind the 553 MeloNX re-run, the 550 interface, the 552 fix and the 554 import receipts on the delivered 554 tree, and the 556 receipts on the pinned tree
-      run: python3 .github/diagnostics/melonxperf556_delivery.py --retain-checks
+    - name: Retain unchanged import checks; bind the 553 MeloNX re-run, the 550 interface, the 552 fix and the 554 import receipts on the delivered 554 tree, the 557 receipt on the delivered 557 tree, and the 558 receipts on the pinned tree
+      run: python3 .github/diagnostics/melonxperf558_delivery.py --retain-checks
     - name: Retain exact input-bound test receipts
       uses: actions/upload-artifact@v4
       with:
-        name: MeloNX-perf556-checks-${{ github.sha }}
+        name: MeloNX-perf558-checks-${{ github.sha }}
         path: build/delivery/*.json
         if-no-files-found: error
         retention-days: 14
@@ -126,10 +129,10 @@ jobs:
     needs:
     - checks
     env:
-      BUILD_NUMBER: '556'
-      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-556-recipient.pem' }}
+      BUILD_NUMBER: '558'
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-558-recipient.pem' }}
       IPA_NAME: NeoStation
-      ARTIFACT_NAME: RewindBox-Build556-${{ github.sha }}-cold
+      ARTIFACT_NAME: RewindBox-Build558-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
@@ -156,12 +159,12 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Pin the delivered 554 product tree with the 556 MeloNX measurement files, each file from the commit that validated it
-      run: python3 .github/diagnostics/melonxperf556_tree.py --pin
+    - name: Pin the delivered 557 product tree with the 558 MeloNX measurement files, each file from the commit that validated it
+      run: python3 .github/diagnostics/melonxperf558_tree.py --pin
     - name: Load exact local import and historical Foundation receipts
       uses: actions/download-artifact@v4
       with:
-        name: MeloNX-perf556-checks-${{ github.sha }}
+        name: MeloNX-perf558-checks-${{ github.sha }}
         path: build/delivery
     - name: Execute the stderr capture, repeated stubs, emulation priority and MoltenVK preference in Swift, with the other parity checks
       run: python3 test/melonx_standalone_parity_test.py
@@ -185,7 +188,7 @@ jobs:
 
         python3 build-utils/delivery_benchmark.py environment
 
-        python3 .github/diagnostics/melonxperf556_delivery.py --scope "${{ inputs.validation_scope || ''full'' }}"
+        python3 .github/diagnostics/melonxperf558_delivery.py --scope "${{ inputs.validation_scope || ''full'' }}"
 
         '
     - name: Record empty device build cache
@@ -264,7 +267,7 @@ jobs:
         \        break\n    assert time.monotonic()<deadline,'NeoSwap Core did not finish within the allowed wait'\n    print('Waiting\
         \ for exact Core',result['id'],result['status'],flush=True)\n    time.sleep(30)\nPYCOREWAIT\n"
     - name: Wait for the exact source-built551 RPCS3 Core
-      run: python3 .github/diagnostics/melonxperf556_delivery.py --wait-for-components
+      run: python3 .github/diagnostics/melonxperf558_delivery.py --wait-for-components
     - name: Download pinned passive RPCS3 Core
       uses: actions/download-artifact@v4
       with:
@@ -276,7 +279,7 @@ jobs:
       shell: bash
       run: "set -euo pipefail\nSOURCE=dist/rpcs3-native/libRPCS3Core.dylib\nIDENTITY=dist/rpcs3-native/identity.json\nCORE=packages/rpcs3_internal_bridge/ios/Frameworks/libRPCS3Core.dylib\n\
         test -s \"$SOURCE\"\ntest -s \"$IDENTITY\"\ntest -s \"$CORE\"\n# The artifact's source, canonical patch, compiler\
-        \ recipe, binary\n# checks and native ABI must all be from the same Core commit.\nRPCS3_PIN_GUARD=.github/diagnostics/melonxperf556_delivery.py\n\
+        \ recipe, binary\n# checks and native ABI must all be from the same Core commit.\nRPCS3_PIN_GUARD=.github/diagnostics/melonxperf558_delivery.py\n\
         # RPCS3_CORE_INPUTS_BEGIN\npython3 \"$RPCS3_PIN_GUARD\" --rpc-core-inputs \"$RPCS3_CORE_HOST_SHA\" -- \\\n  test/rpcs3_restore_eof_test.py\
         \ \\\n  test/native/rpcs3_savestate_harness.cpp \\\n  test/rpcs3_build265_core_test.py \\\n  packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm\
         \ \\\n  test/rpcs3_gow3_restore_regression_test.py \\\n  test/fixtures/rpcs3_gow3_restore.diff \\\n  .github/diagnostics/rpcs3gow3_core.py\
@@ -496,9 +499,9 @@ jobs:
         \ indent=2) + '\\n')\nprint('Verified', len(identity['cores']), 'libretro cores and', len(identity['files']), 'files')\n\
         PY\n"
     - name: Require successful exact MeloNX engine and iPhone host before packaging
-      run: python3 .github/diagnostics/melonxperf556_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
+      run: python3 .github/diagnostics/melonxperf558_delivery.py --skin-session-evidence --output build/delivery/skin-session-evidence.json
     - name: Download the exact source-built MeloNX engine and iPhone host proofs by artifact ID and digest
-      run: python3 .github/diagnostics/melonxperf556_delivery.py --download-components --output build/delivery/melonx-components556.json
+      run: python3 .github/diagnostics/melonxperf558_delivery.py --download-components --output build/delivery/melonx-components558.json
     - name: Download the source-built private MeloNX dependencies
       uses: actions/download-artifact@v4
       with:
@@ -530,8 +533,8 @@ jobs:
         python3 build-utils/melonx/vendor_controller.py .native-sources/Melo-Controller .native-sources/MeloNX'
     - name: Package the standalone MeloNX app's own MoltenVK (maintainer exception, pinned upstream bytes)
       run: python3 build-utils/melonx/package_standalone_moltenvk.py --source .native-sources/MeloNX
-    - name: Bind the downloaded 556 engine, simulator and UIKit evidence to the pinned 556 sources (RAM graph proof from the 553 host)
-      run: python3 .github/diagnostics/melonxperf556_delivery.py --engine-evidence --output build/delivery/melonx-engine-evidence556.json
+    - name: Bind the downloaded 558 engine, simulator and UIKit evidence to the pinned 558 sources (RAM graph proof from the 553 host)
+      run: python3 .github/diagnostics/melonxperf558_delivery.py --engine-evidence --output build/delivery/melonx-engine-evidence558.json
     - name: Retain already compiled exact iPhone host evidence
       run: cp dist/melonx-host/checks.json build/delivery/melonx-header-sdk.json
     - name: Prepare emulator build definitions
@@ -623,7 +626,7 @@ jobs:
 
         python3 test/rpcs3_diagnostics_native_test.py
 
-        python3 .github/diagnostics/melonxperf556_delivery.py --logger-proofs
+        python3 .github/diagnostics/melonxperf558_delivery.py --logger-proofs
 
         python3 test/rpcs3_core_log_durable552_test.py --report build/delivery/core-log-durable552-tests.json
 
@@ -633,14 +636,14 @@ jobs:
         \ \\\n  --core-binary dist/rpcs3-native/libRPCS3Core.dylib --core-identity dist/rpcs3-native/identity.json \\\n  --report\
         \ build/delivery/rpcs3-memory-embedded.json\n"
     - name: Embed the exact Liquid Glass interface source and test identity
-      run: python3 build-utils/validate_liquid_glass556_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+      run: python3 build-utils/validate_liquid_glass558_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Bind the compiled Switch retirement and deletion fix to its exact app sources
       run: python3 build-utils/validate_melonx_delete509_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
         --build-number "$BUILD_NUMBER" --report build/delivery/melonx-delete509-embedded.json
     - name: Embed exact MeloNX measurement, parity, threading, FPS counter, donor/display source and test identity
-      run: python3 build-utils/validate_melonx_perf556_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
-    - name: Embed the exact RPCS3 library-file import source and test identity
-      run: python3 build-utils/validate_rpcs3_import556_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+      run: python3 build-utils/validate_melonx_perf558_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+    - name: Embed the exact library-file fix and RPCS3 import sources and test identities
+      run: python3 build-utils/validate_rpcs3_library_files558_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
     - name: Embed lazy-loaded ARMSX2 Core framework
       shell: bash
       run: 'set -euo pipefail
@@ -789,7 +792,7 @@ jobs:
     - name: Verify final signed RPCS3 551 Core identity, 552 host profiles and logger, timeline families and compiler broker
       run: python3 build-utils/validate_rpcs3_552_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/rpcs3-memory-audit-ipa.json
     - name: Verify the compiled Liquid Glass interface, its preference key and the translated settings
-      run: python3 build-utils/validate_liquid_glass556_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/liquid-glass-ui556-ipa-validation.json
+      run: python3 build-utils/validate_liquid_glass558_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/liquid-glass-ui558-ipa-validation.json
     - name: Verify the final signed Switch retirement and deletion fix
       run: python3 build-utils/validate_melonx_delete509_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
         build/delivery/melonx-delete509-ipa.json
@@ -806,11 +809,11 @@ jobs:
       run: python3 build-utils/validate_melonx_keys_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --core-source
         8f83748bd91fc759f4b199613225bfb4272c4574 --core-run 40376664278 --report build/delivery/melonx-keys517-ipa-validation.json
     - name: Verify the compiled MeloNX measurement (audio pacing export, per-second journal, priority choice, log fixes), parity, standalone MoltenVK, threading, FPS counter, close and presentation corrections
-      run: python3 build-utils/validate_melonx_perf556_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
-        build/delivery/melonx-perf556-ipa-validation.json
-    - name: Verify the compiled RPCS3 library-file import (prompt, progress, translations) and its receipt
-      run: python3 build-utils/validate_rpcs3_import556_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
-        build/delivery/rpcs3-import556-ipa-validation.json
+      run: python3 build-utils/validate_melonx_perf558_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
+        build/delivery/melonx-perf558-ipa-validation.json
+    - name: Verify the compiled library-file fix and RPCS3 import (prompt, free-space option, deletion, translations) and their receipts
+      run: python3 build-utils/validate_rpcs3_library_files558_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
+        build/delivery/rpcs3-library-files558-ipa-validation.json
     - name: Finalize observed timings and artifact identity
       if: always()
       run: 'python3 build-utils/delivery_benchmark.py report
