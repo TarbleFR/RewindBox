@@ -3,7 +3,12 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
-## Private 552: MeloNX standalone parity on the 551 tree — 26 October 2026
+## MeloNX standalone parity (private 553 after the RPCS3 crash fix 552) — 26 October 2026
+
+- **Numbering:** the user asked the interface session for the urgent RPCS3 551
+  crash fix as **552**; this MeloNX IPA yields 552 and becomes **553**, pinned on
+  that 552 tree. Run 40331958399 (recipe `melonxparity552_*`, commit `e458b1d`)
+  is only a dry run of the recipe on the 551 tree and is **not delivered**.
 
 - After 549 (`threading=On`, no more "GPU too slow"), the Persona 5 Royal
   flicker and Persona 4 Golden stutter remained. A second comparison with the
@@ -26,8 +31,8 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `validate_liquid_glass552_ipa.py`, workflow `melonx-parity552-delivery.yml`,
   recipient `build-utils/delivery-552-recipient.pem` (private key outside Git).
   Frontend re-run on the pinned tree: `docs/evidence/melonx-parity552-local.json`.
-  Keeps the RPCS3 551 Core and the 550 interface. **552 is the MeloNX parity
-  IPA; do not reuse 552.** Not a flicker fix claim: an A/B to run on iPhone.
+  The 553 recipe will pin on the RPCS3 crash-fix 552 tree instead of
+  `rpcs3cell551_tree.py`. Not a flicker fix claim: an A/B to run on iPhone.
 
 ## RPCS3 551: God of War III profile finally applied, RSX queue and Metal compile QoS — 25 October 2026
 
