@@ -33,8 +33,13 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `docs/evidence/rpcs3-import554-local.json`, `docs/evidence/rpcs3-import554-delivery.json`.
   The 553 checks are bound to the 553 tree computed from the 554 index
   (`rpcs3import554_tree.product_trees_553`), equal to the delivered 553 IPA's.
-  No iPhone validation yet. **Do not reuse 554.** 555 = RPCS3 Cell, 556 = MeloNX
-  measurement (announced by those sessions).
+  No iPhone validation yet. **Do not reuse 554.** Next numbers: 555 = the RPCS3
+  Cell work of `f508f1b`/`8593169` (`[rpcs3-cell555-core]`, authored "Tarble FR":
+  the maintainer or a non-Claude agent; not the Claude RPCS3 session, whose last
+  delivery is 551); 556 = MeloNX measurement (Claude MeloNX session). A build
+  on the 554 tree chains `rpcs3import554_tree.py` and, like
+  `rpcs3import554_delivery.py`, rebinds the previous recipe's `product_trees*`
+  so the earlier receipts see the 554 files at their 553 versions.
 
 ## Private 552: RPCS3 551 launch-crash fix — 26 October 2026
 

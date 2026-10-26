@@ -140,5 +140,10 @@ le contrat de retour arrière Build 419, elle n'est donc pas corrigée ici.
   `SHA256SUMS` et à `signed-payload-identity.json`. Reçu :
   `docs/evidence/rpcs3-import554-delivery.json`. Remise à l'utilisateur pour
   re-signature SideStore. Aucune validation sur iPhone. **Ne pas réutiliser le
-  numéro 554.** Numérotation suivante annoncée par les sessions : 555 = Cell
-  RPCS3, 556 = mesure MeloNX.
+  numéro 554.** Numéros suivants : 555 = travail Cell RPCS3 des commits
+  `f508f1b`/`8593169` (`[rpcs3-cell555-core]`, signés « Tarble FR » : le
+  mainteneur ou un agent autre que Claude, pas la session Claude RPCS3) ;
+  556 = mesure MeloNX (session Claude MeloNX). Une version posée sur l'arbre 554
+  chaîne `rpcs3import554_tree.py` et, comme `rpcs3import554_delivery.py`,
+  relie les reçus précédents à l'arbre où les fichiers 554 reprennent leur
+  version 553.
