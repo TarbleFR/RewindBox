@@ -3,6 +3,32 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Private 552: MeloNX standalone parity on the 551 tree — 26 October 2026
+
+- After 549 (`threading=On`, no more "GPU too slow"), the Persona 5 Royal
+  flicker and Persona 4 Golden stutter remained. A second comparison with the
+  standalone app (`docs/melonx-persona-performance-2026-10-25.md`, section
+  "Standalone parity after 549") led to `62626c0`: selectable MoltenVK, with
+  the standalone app's own `libMoltenVK.dylib` as default
+  (`MeloNXMoltenVKStandalone.framework`, unmodified pinned bytes SHA-256
+  `5735ca4a…`, only the install name changes; **maintainer-approved exception
+  to source-built engine libraries**, Apache-2.0 notice in
+  `Legal/MeloNX/StandaloneMoltenVK`), in-game "MoltenVK version" switch (next
+  start; falls back to RewindBox's 1.3.0 if the standalone one does not start),
+  stderr teed into `app.log` as `[MeloNX:stderr]`, `configuration/engine`
+  journal line, `set_unbounded_present_target_fps` on layout, Game Mode keys,
+  no auto-lock in game, and the standalone config's stored threading Off no
+  longer imported. Presentation probe fix `0452528` (tests only).
+- Engine `62626c0f` run 40328874348 (artifact 12654516832). Recipe:
+  `.github/diagnostics/melonxparity552_tree.py` (the 551 tree plus exactly the
+  `62626c0` files), `melonxparity552_delivery.py`,
+  `build-utils/validate_melonx_parity552_ipa.py`,
+  `validate_liquid_glass552_ipa.py`, workflow `melonx-parity552-delivery.yml`,
+  recipient `build-utils/delivery-552-recipient.pem` (private key outside Git).
+  Frontend re-run on the pinned tree: `docs/evidence/melonx-parity552-local.json`.
+  Keeps the RPCS3 551 Core and the 550 interface. **552 is the MeloNX parity
+  IPA; do not reuse 552.** Not a flicker fix claim: an A/B to run on iPhone.
+
 ## RPCS3 551: God of War III profile finally applied, RSX queue and Metal compile QoS — 25 October 2026
 
 - The maintainer sent build 547 logs (DBZ HD Collection BLES01658 process
