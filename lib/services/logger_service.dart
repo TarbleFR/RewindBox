@@ -57,7 +57,7 @@ class LoggerService {
         filter: CustomProductionFilter(),
         output: MultiOutput([
           ConsoleOutput(),
-          FileOutput(file: File(logFilePath)),
+          AppendFileOutput(file: File(logFilePath)),
         ]),
       );
 
@@ -122,6 +122,51 @@ class RedactingPrinter extends LogPrinter {
   @override
   List<String> log(LogEvent event) =>
       _inner.log(event).map(redactSecrets).toList();
+}
+
+/// Writes log lines at the end of [file] as it is at each write.
+///
+/// dart:io has no O_APPEND: the package's `FileOutput` seeks to the end once
+/// when it opens the file and then writes at its own position. On iOS the
+/// MeloNX bridge appends its launch journal, stderr capture and performance
+/// lines to the same app.log, and later Dart lines overwrote them. Each batch
+/// here reopens the file in append mode, which seeks to the current end, and
+/// batches are written one at a time in order. A failed write is dropped
+/// rather than thrown into the app.
+class AppendFileOutput extends LogOutput {
+  AppendFileOutput({required this.file});
+
+  final File file;
+  final StringBuffer _pending = StringBuffer();
+  Future<void>? _writing;
+
+  @override
+  void output(OutputEvent event) {
+    for (final line in event.lines) {
+      _pending.writeln(line);
+    }
+    _writing ??= _drain();
+  }
+
+  /// Completes once every line output so far has been written or dropped.
+  Future<void> get flushed => _writing ?? Future<void>.value();
+
+  Future<void> _drain() async {
+    try {
+      while (_pending.isNotEmpty) {
+        final text = _pending.toString();
+        _pending.clear();
+        try {
+          await file.writeAsString(text, mode: FileMode.append);
+        } catch (_) {}
+      }
+    } finally {
+      _writing = null;
+    }
+  }
+
+  @override
+  Future<void> destroy() => flushed;
 }
 
 /// Custom log filter that permits INFO level logs even in production/release environments.
