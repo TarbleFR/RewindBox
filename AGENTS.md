@@ -3,6 +3,34 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 Core 560: deferred framebuffer-commit write-back (DBZ HD) — 26 October 2026
+
+- Maintainer logs of build 559, Dragon Ball Z Budokai HD Collection `BLES01658`
+  (PID 36124). Each frame reads back two (light scenes) or three (battles)
+  1280x720x4 sections (3,686,400 bytes, origin `unknown`), 8.8 / 14.2 ms per
+  frame; RSX texture-site GPU waits are exactly one fewer per frame (4.0 / 8.7
+  ms). `OPT559` is zero. Analysis: `docs/rpcs3-cell560.md`; receipt
+  `docs/evidence/rpcs3-cell560-dbz-observed.json`.
+- Code path (deduced, not attributed by 559 logs): with Write Color Buffers
+  off, `prepare_rtts` commits each framebuffer (`committed_as_fbo`, which does
+  not skip flushes), so a blit-protected `framebuffer_storage` section at the
+  framebuffer base is read back synchronously on the RSX thread.
+- Core 560 (`CELL560_DEFERRED_COMMIT`, `ios/IOSDeferredCommit.h`): for a single
+  flushable framebuffer section, record the same GPU copy, keep the pages
+  locked, no wait; write the bytes at the first access that needs them (fault,
+  savestate commit, any flush) or before any release (unprotect, discard, dirty
+  release, readable reprotect); drop them if the GPU recreates the section
+  first. Guest-visible bytes are the 559 ones. `prepare_rtts` submits after
+  each commit that recorded a copy. Setting "Deferred Framebuffer Write-back"
+  (Automatic = `BLES01658` only). New `COREPROF OPT560`; `READBACK555` appends
+  `fbo_commit`, `fault_read`, `fault_write`. Codegen identities unchanged.
+- Host evidence `docs/evidence/rpcs3-cell560-host-linux.json`: 12 scenarios
+  identical to 559 for guest reads, GPU waits 17 -> 3, no wait on an
+  unsubmitted buffer, six mutations detected; ASan/UBSan, TSan, ARM64 qemu;
+  driver preflight authenticated the 559 diagnostics artifact. No iPhone
+  measurement. Core built by `rpcs3-cell560-core.yml` (`[rpcs3-cell560-core]`)
+  only when the maintainer authorizes it; no release.
+
 ## RPCS3 Core 559: SPU cache-hit, texture, shader and GPU copy costs — 26 October 2026
 
 - Resumed on `Claude` at `9d0ca40` (the session checkout was 83 commits behind;

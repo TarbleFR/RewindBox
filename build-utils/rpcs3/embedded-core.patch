@@ -15292,10 +15292,10 @@ index 6b306657f..42c324dd8 100644
  
  	namespace blit_engine_helpers
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
-index 0fa80b230..b65747259 100644
+index 0fa80b230..c2392e224 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.h
-@@ -12,6 +12,13 @@
+@@ -12,6 +12,14 @@
  
  #include <unordered_map>
  
@@ -15304,12 +15304,13 @@ index 0fa80b230..b65747259 100644
 +#include "ios/IOSReadbackProfile.h"
 +// CELL559_FULL_OVERWRITE_INCLUDE
 +#include "ios/IOSFullOverwrite.h"
++#include "ios/IOSDeferredCommit.h"
 +#endif
 +
  #define RSX_GCM_FORMAT_IGNORED 0
  
  namespace rsx
-@@ -795,6 +802,10 @@ namespace rsx
+@@ -795,6 +803,10 @@ namespace rsx
  		void flush_set(commandbuffer_type& cmd, thrashed_set& data, std::function<void()> on_data_transfer_completed, Args&&... extras)
  		{
  			AUDIT(!data.flushed);
@@ -15320,7 +15321,7 @@ index 0fa80b230..b65747259 100644
  
  			if (data.sections_to_flush.size() > 1)
  			{
-@@ -821,6 +832,17 @@ namespace rsx
+@@ -821,6 +833,17 @@ namespace rsx
  				}
  			}
  
@@ -15338,7 +15339,7 @@ index 0fa80b230..b65747259 100644
  			if (!sections_to_transfer.empty())
  			{
  				// Batch all hard faults together
-@@ -1145,6 +1167,13 @@ namespace rsx
+@@ -1145,6 +1168,13 @@ namespace rsx
  
  			AUDIT(cause.valid());
  			AUDIT(fault_range_in.valid());
@@ -15352,10 +15353,60 @@ index 0fa80b230..b65747259 100644
  			address_range32 fault_range = fault_range_in.to_page_range();
  
  			intersecting_set trampled_set = get_intersecting_set(fault_range);
-@@ -1284,6 +1313,22 @@ namespace rsx
+@@ -1237,6 +1267,22 @@ namespace rsx
+ 			// Decide which sections to flush, unprotect, and exclude
+ 			update_cache_tag();
+ 
++#ifdef RPCS3_IOS
++			// CELL560_DEFERRED_COMMIT: only a single flushable section, so no flush
++			// ordering, exclusion or inheritance between flushed sections changes.
++			bool ios_defer_commit = false;
++			if (cause == invalidation_cause::committed_as_fbo &&
++				rpcs3::ios::deferred_commit::enabled.load(std::memory_order_relaxed))
++			{
++				u32 flushables = 0;
++				for (const auto* section : trampled_set.sections)
++				{
++					flushables += section->is_locked() && section->is_flushable();
++				}
++				ios_defer_commit = (flushables == 1);
++			}
++#endif
++
+ 			for (auto &obj : trampled_set.sections)
+ 			{
+ 				auto &tex = *obj;
+@@ -1281,9 +1327,49 @@ namespace rsx
+ 						{
+ 							tex.set_dirty(true);
+ 						}
++#ifdef RPCS3_IOS
++						// CELL560_DEFERRED_COMMIT: owed bytes reach guest memory while the pages are still locked.
++						tex.write_back_deferred_commit();
++#endif
  
  						result.sections_to_unprotect.push_back(&tex);
  					}
++#ifdef RPCS3_IOS
++					else if (ios_defer_commit &&
++						tex.get_context() == texture_upload_context::framebuffer_storage &&
++						tex.is_locked(true))
++					{
++						// CELL560_DEFERRED_COMMIT: record the same GPU copy as the flush would,
++						// keep the pages locked and skip the wait. The first access that needs
++						// these bytes flushes them from the copy (exactly the bytes written today);
++						// a GPU rewrite before any access drops them unseen.
++						if (!tex.is_synchronized())
++						{
++							tex.copy_texture(cmd, true, std::forward<Args>(extras)...);
++						}
++						tex.mark_deferred_commit();
++						rpcs3::ios::deferred_commit::deferrals.fetch_add(1, std::memory_order_relaxed);
++						rpcs3::ios::deferred_commit::deferral_bytes.fetch_add(tex.get_confirmed_range().length(), std::memory_order_relaxed);
++						result.sections_to_exclude.push_back(&tex);
++						result.num_excluded++;
++					}
++#endif
 +#ifdef RPCS3_IOS
 +					else if (!cause.is_read() && cause.use_strict_data_bounds() &&
 +						tex.get_context() != texture_upload_context::framebuffer_storage &&
@@ -15375,7 +15426,7 @@ index 0fa80b230..b65747259 100644
  					else
  					{
  						result.sections_to_flush.push_back(&tex);
-@@ -1644,6 +1689,11 @@ namespace rsx
+@@ -1644,6 +1730,11 @@ namespace rsx
  
  					lock.upgrade();
  
@@ -15387,7 +15438,7 @@ index 0fa80b230..b65747259 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
  
  					cached_src = cache->upload_image_from_cpu(cmd, rsx_range, image_width, image_height, 1, 1, src.pitch, gcm_format, texture_upload_context::blit_engine_src,
-@@ -1734,6 +1784,11 @@ namespace rsx
+@@ -1734,6 +1825,11 @@ namespace rsx
  				{
  					// NOTE: Write flag set to remove all other overlapping regions (e.g shader_read or blit_src)
  					// NOTE: This step can potentially invalidate the newly created src image as well.
@@ -15399,7 +15450,7 @@ index 0fa80b230..b65747259 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::cause_is_write | invalidation_cause::cause_uses_strict_data_bounds, {}, std::forward<Args>(extras)...);
  
  					bool force_dma_load = false;
-@@ -1860,6 +1915,10 @@ namespace rsx
+@@ -1860,6 +1956,10 @@ namespace rsx
  
  		virtual void on_frame_end()
  		{
@@ -15410,7 +15461,7 @@ index 0fa80b230..b65747259 100644
  			// Must manually release each cached entry
  			for (auto& entry : m_temporary_subresource_cache)
  			{
-@@ -1871,7 +1930,7 @@ namespace rsx
+@@ -1871,7 +1971,7 @@ namespace rsx
  			reset_frame_statistics();
  		}
  
@@ -15419,7 +15470,7 @@ index 0fa80b230..b65747259 100644
  		rsx::simple_array<section_storage_type*> find_texture_from_range(const address_range32 &test_range, u32 required_pitch = 0, u32 context_mask = 0xFF)
  		{
  			rsx::simple_array<section_storage_type*> results;
-@@ -1887,7 +1946,7 @@ namespace rsx
+@@ -1887,7 +1987,7 @@ namespace rsx
  						continue;
  					}
  
@@ -15428,7 +15479,17 @@ index 0fa80b230..b65747259 100644
  					{
  						continue;
  					}
-@@ -2563,7 +2622,7 @@ namespace rsx
+@@ -2048,6 +2148,9 @@ namespace rsx
+ 				return;
+ 
+ 			std::lock_guard lock(m_cache_mutex);
++#ifdef RPCS3_IOS
++			const rpcs3::ios::readback::OriginScope ios_readback_origin(rpcs3::ios::readback::Origin::fbo_commit);
++#endif
+ 			invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::committed_as_fbo, {}, std::forward<Args>(extras)...);
+ 		}
+ 
+@@ -2563,7 +2666,7 @@ namespace rsx
  
  			auto fast_fbo_check = [&]() -> sampled_image_descriptor
  			{
@@ -15437,7 +15498,7 @@ index 0fa80b230..b65747259 100644
  
  				if (!last.is_clipped) //<- A non-clipped hit fully contains the requested box. We're good to go with the framebuffer processing.
  				{
-@@ -2609,12 +2668,17 @@ namespace rsx
+@@ -2609,12 +2712,17 @@ namespace rsx
  
  			// Check shader_read storage. In a given scene, reads from local memory far outnumber reads from the surface cache
  			const u32 lookup_mask = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_dst | rsx::texture_upload_context::blit_engine_src;
@@ -15457,7 +15518,7 @@ index 0fa80b230..b65747259 100644
  				{
  #ifdef TEXTURE_CACHE_DEBUG
  					if (!memory_range.inside(cached_texture->get_confirmed_range()))
-@@ -2649,10 +2713,11 @@ namespace rsx
+@@ -2649,10 +2757,11 @@ namespace rsx
  
  			if (!overlapping_locals.empty())
  			{
@@ -15471,7 +15532,7 @@ index 0fa80b230..b65747259 100644
  				});
  			}
  
-@@ -3326,6 +3391,11 @@ namespace rsx
+@@ -3326,6 +3435,11 @@ namespace rsx
  
  			// Invalidate
  			const address_range32 tex_range = address_range32::start_length(attributes.address, tex_size);
@@ -15483,7 +15544,7 @@ index 0fa80b230..b65747259 100644
  			invalidate_range_impl_base(cmd, tex_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
  
  			// Upload from CPU. Note that sRGB conversion is handled in the FS
-@@ -3628,6 +3698,15 @@ namespace rsx
+@@ -3628,6 +3742,15 @@ namespace rsx
  
  			if (!cached_dest && !dst_is_render_target)
  			{
@@ -15499,7 +15560,7 @@ index 0fa80b230..b65747259 100644
  				blit_engine_internals::create_blit_dst(
  					this,
  					cmd,
-@@ -3724,6 +3803,26 @@ namespace rsx
+@@ -3724,6 +3847,26 @@ namespace rsx
  
  				if (!dest_section || !dest_section->is_locked())
  				{
@@ -15566,21 +15627,22 @@ index e6789e84a..040fe8586 100644
  		{
  			if (g_cfg.video.strict_rendering_mode)
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
-index a10770d01..b4793a64a 100644
+index a10770d01..37c7e6338 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
-@@ -11,6 +11,10 @@
+@@ -11,6 +11,11 @@
  
  #include <list>
  #include <unordered_set>
 +#ifdef RPCS3_IOS
 +#include "ios/IOSTextureValidationProfile.h"
++#include "ios/IOSDeferredCommit.h"
 +#include "util/tsc.hpp"
 +#endif
  
  namespace rsx
  {
-@@ -610,6 +614,13 @@ namespace rsx
+@@ -610,6 +615,13 @@ namespace rsx
  
  		void trim_sections()
  		{
@@ -15594,7 +15656,7 @@ index a10770d01..b4793a64a 100644
  			for (auto it = m_in_use.begin(); it != m_in_use.end(); it++)
  			{
  				auto* block = *it;
-@@ -619,11 +630,21 @@ namespace rsx
+@@ -619,11 +631,21 @@ namespace rsx
  					{
  						if (tex.is_locked() && !tex.is_locked(true))
  						{
@@ -15616,7 +15678,7 @@ index a10770d01..b4793a64a 100644
  		}
  
  
-@@ -883,6 +904,10 @@ namespace rsx
+@@ -883,6 +905,10 @@ namespace rsx
  
  		section_protection_strategy protection_strat = section_protection_strategy::lock;
  		u64 mem_hash = 0;
@@ -15627,7 +15689,132 @@ index a10770d01..b4793a64a 100644
  
  		bool locked = false;
  		void init_lockable_range(const address_range32& range);
-@@ -1512,6 +1537,19 @@ namespace rsx
+@@ -1076,6 +1102,9 @@ namespace rsx
+ 		bool synchronized = false;
+ 		bool flushed = false;
+ 		bool speculatively_flushed = false;
++#ifdef RPCS3_IOS
++		bool deferred_commit = false; // CELL560_DEFERRED_COMMIT: synchronized bytes owed to guest memory
++#endif
+ 
+ 		rsx::memory_read_flags readback_behaviour = rsx::memory_read_flags::flush_once;
+ 		rsx::component_order view_flags = rsx::component_order::default_;
+@@ -1145,6 +1174,9 @@ namespace rsx
+ 			synchronized = false;
+ 			flushed = false;
+ 			speculatively_flushed = false;
++#ifdef RPCS3_IOS
++			deferred_commit = false;
++#endif
+ 
+ 			cache_tag = 0ull;
+ 			last_write_tag = 0ull;
+@@ -1403,6 +1435,9 @@ namespace rsx
+ 
+ 		inline void unprotect()
+ 		{
++#ifdef RPCS3_IOS
++			write_back_deferred_commit();
++#endif
+ 			utils::protection old_prot = get_protection();
+ 			rsx::buffered_section::unprotect();
+ 			post_protect(old_prot, utils::protection::rw);
+@@ -1410,6 +1445,9 @@ namespace rsx
+ 
+ 		inline void discard(bool set_dirty = true)
+ 		{
++#ifdef RPCS3_IOS
++			write_back_deferred_commit();
++#endif
+ 			utils::protection old_prot = get_protection();
+ 			rsx::buffered_section::discard();
+ 			post_protect(old_prot, utils::protection::rw);
+@@ -1422,6 +1460,9 @@ namespace rsx
+ 
+ 		void reprotect(const utils::protection prot)
+ 		{
++#ifdef RPCS3_IOS
++			settle_deferred_commit(prot);
++#endif
+ 			if (synchronized && !flushed)
+ 			{
+ 				// Abort enqueued transfer
+@@ -1438,6 +1479,9 @@ namespace rsx
+ 
+ 		void reprotect(const utils::protection prot, const std::pair<u32, u32>& range)
+ 		{
++#ifdef RPCS3_IOS
++			settle_deferred_commit(prot);
++#endif
+ 			if (synchronized && !flushed)
+ 			{
+ 				// Abort enqueued transfer
+@@ -1493,6 +1537,64 @@ namespace rsx
+ 			m_tex_cache->on_miss(*derived());
+ 		}
+ 
++#ifdef RPCS3_IOS
++		/**
++		 * CELL560_DEFERRED_COMMIT
++		 */
++		bool has_deferred_commit() const
++		{
++			return deferred_commit && synchronized && !flushed;
++		}
++
++		void mark_deferred_commit()
++		{
++			AUDIT(synchronized && !flushed && is_locked());
++			deferred_commit = true;
++		}
++
++		// Pages are about to be released without a flush: the owed bytes first.
++		void write_back_deferred_commit()
++		{
++			if (!has_deferred_commit())
++			{
++				deferred_commit = false;
++				return;
++			}
++
++			rpcs3::ios::deferred_commit::forced_writebacks.fetch_add(1, std::memory_order_relaxed);
++			flush();
++		}
++
++		// Protection changes: the bytes are owed only if the pages become readable.
++		void settle_deferred_commit(utils::protection prot)
++		{
++			if (!has_deferred_commit())
++			{
++				deferred_commit = false;
++			}
++			else if (prot != utils::protection::no)
++			{
++				write_back_deferred_commit();
++			}
++			else
++			{
++				drop_deferred_commit();
++			}
++		}
++
++		// The pages stay locked and the copy is no longer needed (new GPU contents).
++		void drop_deferred_commit()
++		{
++			if (has_deferred_commit())
++			{
++				rpcs3::ios::deferred_commit::dropped.fetch_add(1, std::memory_order_relaxed);
++				rpcs3::ios::deferred_commit::dropped_bytes.fetch_add(get_confirmed_range().length(), std::memory_order_relaxed);
++			}
++
++			deferred_commit = false;
++		}
++#endif
++
+ 		void touch(u64 tag)
+ 		{
+ 			last_write_tag = tag;
+@@ -1512,6 +1614,19 @@ namespace rsx
  
  		bool sync_protection()
  		{
@@ -15647,6 +15834,37 @@ index a10770d01..b4793a64a 100644
  			if (!buffered_section::sync())
  			{
  				discard(true);
+@@ -1642,6 +1757,9 @@ namespace rsx
+ 			auto cleanup_flush = [&]()
+ 			{
+ 				flushed = true;
++#ifdef RPCS3_IOS
++				deferred_commit = false;
++#endif
+ 				flush_exclusions.clear();
+ 				on_flush();
+ 			};
+@@ -1657,8 +1775,20 @@ namespace rsx
+ 			// NOTE: Hard faults should have been pre-processed beforehand
+ 			ensure(synchronized);
+ 
++#ifdef RPCS3_IOS
++			const bool ios_deferred = deferred_commit;
++			const u64 ios_writeback_begin = ios_deferred ? utils::get_tsc() : 0;
++#endif
+ 			// Copy flush result to guest memory
+ 			imp_flush();
++#ifdef RPCS3_IOS
++			if (ios_deferred)
++			{
++				const u64 end = utils::get_tsc();
++				rpcs3::ios::deferred_commit::writeback_ticks.record(end >= ios_writeback_begin ? end - ios_writeback_begin : 0);
++				rpcs3::ios::deferred_commit::writeback_bytes.fetch_add(get_confirmed_range().length(), std::memory_order_relaxed);
++			}
++#endif
+ 
+ 			// Finish up
+ 			// Its highly likely that this surface will be reused, so we just leave resources in place
 diff --git a/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp b/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp
 index 755f4eaca..655cf6bcc 100644
 --- a/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp
@@ -17937,10 +18155,10 @@ index af6a25a44..68145edf4 100644
  	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
  	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28e9..626fda9d6 100644
+index 63cab28e9..31bd55cfa 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-@@ -16,10 +16,15 @@
+@@ -16,10 +16,17 @@
  #include "vkutils/scratch.h"
  
  #include "Emu/RSX/rsx_methods.h"
@@ -17952,11 +18170,13 @@ index 63cab28e9..626fda9d6 100644
 +#ifdef RPCS3_IOS
 +#include "ios/RPCS3IOSPerformance.h"
 +#include "ios/IOSShaderTiming.h"
++#include "ios/IOSReadbackProfile.h"
++#include "ios/IOSDeferredCommit.h"
 +#endif
  
  #include "../Program/SPIRVCommon.h"
  
-@@ -475,6 +480,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -475,6 +482,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  	vk::set_current_renderer(m_swapchain->get_device());
  	vk::init();
  
@@ -17987,7 +18207,7 @@ index 63cab28e9..626fda9d6 100644
  	m_swapchain_dims.width = m_frame->client_width();
  	m_swapchain_dims.height = m_frame->client_height();
  
-@@ -537,7 +566,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -537,7 +568,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  	m_flushable_data_heaps = vk::data_heap_manager::to_list().filter(FN(x->has_shadow()));
  
@@ -17996,7 +18216,7 @@ index 63cab28e9..626fda9d6 100644
  
  	if (shadermode == shader_mode::async_with_interpreter || shadermode == shader_mode::interpreter_only)
  	{
-@@ -796,6 +825,9 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -796,6 +827,9 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  VKGSRender::~VKGSRender()
  {
@@ -18006,7 +18226,19 @@ index 63cab28e9..626fda9d6 100644
  	if (m_device == VK_NULL_HANDLE)
  	{
  		//Initialization failed
-@@ -1019,12 +1051,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
+@@ -983,6 +1017,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+ 			};
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// CELL560_READBACK_ORIGIN: guest CPU access to GPU-resident memory.
++		const rpcs3::ios::readback::OriginScope ios_readback_origin(is_writing ?
++			rpcs3::ios::readback::Origin::fault_write : rpcs3::ios::readback::Origin::fault_read);
++#endif
+ 		m_texture_cache.flush_all(*m_secondary_cb_list.next(), result, data_transfer_completed_callback);
+ 
+ 		if (has_queue_ref)
+@@ -1019,12 +1058,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
  
  void VKGSRender::on_semaphore_acquire_wait()
  {
@@ -18046,7 +18278,7 @@ index 63cab28e9..626fda9d6 100644
  }
  
  bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
-@@ -1048,6 +1107,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1048,6 +1114,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  				for (auto i = 0ull; i < texture_array.size(); ++i)
  				{
  					const auto& tex = texture_array[i];
@@ -18060,7 +18292,7 @@ index 63cab28e9..626fda9d6 100644
  					const auto addr = rsx::get_address(tex.offset(), tex.location());
  					exclusion_list.insert(addr);
  				}
-@@ -1096,33 +1162,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1096,33 +1169,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  		return any_cache_relieved;
  	}
  
@@ -18104,7 +18336,7 @@ index 63cab28e9..626fda9d6 100644
  		{
  			m_samplers_dirty.store(true);
  		}
-@@ -1250,8 +1301,8 @@ void VKGSRender::on_init_thread()
+@@ -1250,8 +1308,8 @@ void VKGSRender::on_init_thread()
  	GSRender::on_init_thread();
  	zcull_ctrl.reset(static_cast<::rsx::reports::ZCULL_control*>(this));
  
@@ -18115,7 +18347,7 @@ index 63cab28e9..626fda9d6 100644
  	{
  		std::unique_ptr<rsx::shader_loading_dialog> dlg = m_overlay_manager
  			? std::make_unique<rsx::shader_loading_dialog_native>(this)
-@@ -1260,7 +1311,7 @@ void VKGSRender::on_init_thread()
+@@ -1260,7 +1318,7 @@ void VKGSRender::on_init_thread()
  		dlg->close();
  	}
  
@@ -18124,7 +18356,7 @@ index 63cab28e9..626fda9d6 100644
  	{
  		if (!m_overlay_manager)
  		{
-@@ -1276,12 +1327,30 @@ void VKGSRender::on_init_thread()
+@@ -1276,12 +1334,30 @@ void VKGSRender::on_init_thread()
  			m_shaders_cache->load(&dlg);
  		}
  	}
@@ -18155,7 +18387,7 @@ index 63cab28e9..626fda9d6 100644
  	zcull_ctrl.release();
  }
  
-@@ -1541,6 +1610,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
+@@ -1541,6 +1617,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
  
  	if (hard_sync)
  	{
@@ -18165,7 +18397,7 @@ index 63cab28e9..626fda9d6 100644
  		// wait for the latest instruction to execute
  		m_current_command_buffer->reset();
  
-@@ -1801,7 +1873,7 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
+@@ -1801,7 +1880,7 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
  
  bool VKGSRender::load_program()
  {
@@ -18174,7 +18406,7 @@ index 63cab28e9..626fda9d6 100644
  
  	// TODO: EXT_dynamic_state should get rid of this sillyness soon (kd)
  	const auto vertex_state = vk::decode_vertex_input_assembly_state();
-@@ -1862,6 +1934,10 @@ bool VKGSRender::load_program()
+@@ -1862,6 +1941,10 @@ bool VKGSRender::load_program()
  		);
  
  		properties.renderpass_key = m_current_renderpass_key;
@@ -18185,7 +18417,7 @@ index 63cab28e9..626fda9d6 100644
  		if (m_program &&
  			!m_shader_interpreter.is_interpreter(m_program) &&
  			m_pipeline_properties == properties)
-@@ -1872,7 +1948,6 @@ bool VKGSRender::load_program()
+@@ -1872,7 +1955,6 @@ bool VKGSRender::load_program()
  
  		// Fallthrough
  		m_pipeline_properties = properties;
@@ -18193,7 +18425,7 @@ index 63cab28e9..626fda9d6 100644
  	}
  	else
  	{
-@@ -1912,7 +1987,11 @@ bool VKGSRender::load_program()
+@@ -1912,7 +1994,11 @@ bool VKGSRender::load_program()
  
  		vk::leave_uninterruptible();
  
@@ -18206,6 +18438,57 @@ index 63cab28e9..626fda9d6 100644
  		{
  			// Notify the user with HUD notification
  			if (g_cfg.misc.show_shader_compilation_hint)
+@@ -2602,6 +2688,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+ 		flush_command_queue();
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// CELL560_DEFERRED_COMMIT: a deferred commit records its copy without submitting.
++	// Submit it before the next commit, as after a speculative copy, so a later
++	// write-back never waits on an unsubmitted command buffer.
++	const auto ios_submit_deferred_commit = [this]()
++	{
++		if (m_current_command_buffer->flags & vk::command_buffer::cb_has_dma_transfer)
++		{
++			flush_command_queue();
++			rpcs3::ios::deferred_commit::submits.fetch_add(1, std::memory_order_relaxed);
++		}
++	};
++#endif
++
+ 	if (!m_rtts.superseded_surfaces.empty())
+ 	{
+ 		for (auto& surface : m_rtts.superseded_surfaces)
+@@ -2636,6 +2736,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+ 			if (!lock) [[likely]]
+ 			{
+ 				m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface->get_memory_range());
++#ifdef RPCS3_IOS
++				ios_submit_deferred_commit();
++#endif
+ 				continue;
+ 			}
+ 
+@@ -2663,6 +2766,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+ 		else
+ 		{
+ 			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
++#ifdef RPCS3_IOS
++			ios_submit_deferred_commit();
++#endif
+ 		}
+ 	}
+ 
+@@ -2679,6 +2785,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+ 		else
+ 		{
+ 			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
++#ifdef RPCS3_IOS
++			ios_submit_deferred_commit();
++#endif
+ 		}
+ 	}
+ 
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
 index e3817d8e6..c5100bee3 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.h
@@ -19996,10 +20279,21 @@ index c165762ea..5b9cdfa98 100644
  	}
  
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
-index b0ee05965..d9d4d94ad 100644
+index b0ee05965..7369f1910 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
-@@ -463,7 +463,7 @@ namespace vk
+@@ -89,6 +89,10 @@ namespace vk
+ 
+ 			if (synchronized)
+ 			{
++#ifdef RPCS3_IOS
++				// CELL560_DEFERRED_COMMIT: new GPU contents replace bytes nobody accessed.
++				this->drop_deferred_commit();
++#endif
+ 				// Even if we are managing the same vram section, we cannot guarantee contents are static
+ 				// The create method is only invoked when a new managed session is required
+ 				release_dma_resources();
+@@ -463,7 +467,7 @@ namespace vk
  		const u32 max_cached_image_pool_size = 256;
  		std::deque<cached_image_t> m_cached_images;
  		atomic_t<u64> m_cached_memory_size = { 0 };
@@ -22540,7 +22834,7 @@ index 130f54b02..4c096c903 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922d2..b006af854 100644
+index 7072922d2..0532dd9ba 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -22570,16 +22864,17 @@ index 7072922d2..b006af854 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -121,6 +132,8 @@ struct cfg_root : cfg::node
+@@ -121,6 +132,9 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
 +		// CELL559_TEXTURE_EPOCH: Automatic enables it for God of War III only.
 +		cfg::_enum<ios_experimental_mode> texture_validation_epoch{ this, "Texture Validation Per FIFO Batch", ios_experimental_mode::automatic };
++		cfg::_enum<ios_experimental_mode> deferred_fbo_writeback{ this, "Deferred Framebuffer Write-back", ios_experimental_mode::automatic };
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +147,18 @@ struct cfg_root : cfg::node
+@@ -134,6 +148,18 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -23561,6 +23856,44 @@ index b6c26eb87..a409cfc5a 100644
  		for (std::size_t offset = 0; offset < size; offset += 16)
  		{
  			*reinterpret_cast<Vector*>(dst + offset) = *reinterpret_cast<const Vector*>(src + offset);
+diff --git a/rpcs3/ios/IOSDeferredCommit.h b/rpcs3/ios/IOSDeferredCommit.h
+new file mode 100644
+index 000000000..661bcee0d
+--- /dev/null
++++ b/rpcs3/ios/IOSDeferredCommit.h
+@@ -0,0 +1,32 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "IOSRuntimeMetrics.h"
++
++#include <atomic>
++#include <cstdint>
++#include <string_view>
++
++// CELL560_DEFERRED_COMMIT: with Write Color Buffers off, binding a region as a
++// framebuffer writes a GPU-resident section starting at that address back to
++// guest memory before releasing its pages: the RSX thread submits, waits for
++// the GPU and copies. The GPU copy is recorded at the same point; the wait and
++// the copy to guest memory happen when an access needs the bytes. The pages
++// stay locked until then, so guest code cannot observe the difference; a
++// section rewritten by the GPU before any access never needs the bytes.
++namespace rpcs3::ios::deferred_commit
++{
++inline std::atomic<bool> enabled{false};
++
++inline std::atomic<std::uint64_t> deferrals{0}, deferral_bytes{0};
++// Write-backs of deferred bytes; the forced ones release pages without a flush request.
++inline diagnostics::EventCost writeback_ticks;
++inline std::atomic<std::uint64_t> writeback_bytes{0}, forced_writebacks{0};
++inline std::atomic<std::uint64_t> dropped{0}, dropped_bytes{0};
++inline std::atomic<std::uint64_t> submits{0};
++
++constexpr bool is_dbz_budokai_hd_title(std::string_view title_id) noexcept
++{
++	return title_id == "BLES01658";
++}
++}
 diff --git a/rpcs3/ios/IOSFullOverwrite.h b/rpcs3/ios/IOSFullOverwrite.h
 new file mode 100644
 index 000000000..dc152fa3d
@@ -23968,10 +24301,10 @@ index 6dc9a20ed..ae705ece4 100644
  		// Streaming compression is bounded, but committing guest/RSX state can
 diff --git a/rpcs3/ios/IOSReadbackProfile.h b/rpcs3/ios/IOSReadbackProfile.h
 new file mode 100644
-index 000000000..afd18357e
+index 000000000..2fa0e3502
 --- /dev/null
 +++ b/rpcs3/ios/IOSReadbackProfile.h
-@@ -0,0 +1,78 @@
+@@ -0,0 +1,82 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -23983,13 +24316,17 @@ index 000000000..afd18357e
 +// only for a nonempty DMA batch, never for an ordinary draw/cache hit.
 +namespace rpcs3::ios::readback
 +{
++// CELL560: framebuffer commits and guest CPU faults are named (appended, the
++// 555 field order is unchanged).
 +enum class Origin : unsigned
 +{
-+    unknown, texture_cpu, blit_source_cpu, blit_destination_dma, presentation_cpu, count
++    unknown, texture_cpu, blit_source_cpu, blit_destination_dma, presentation_cpu,
++    fbo_commit, fault_read, fault_write, count
 +};
 +inline constexpr unsigned origin_count = static_cast<unsigned>(Origin::count);
 +inline constexpr std::array<const char*, origin_count> names{
-+    "unknown", "texture_cpu", "blit_source_cpu", "blit_destination_dma", "presentation_cpu"};
++    "unknown", "texture_cpu", "blit_source_cpu", "blit_destination_dma", "presentation_cpu",
++    "fbo_commit", "fault_read", "fault_write"};
 +inline thread_local Origin current_origin = Origin::unknown;
 +
 +class OriginScope final
@@ -28526,10 +28863,10 @@ index b4602fea9..37a708aa6 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b83..2563295b1 100644
+index 7c3389b83..859afb3f9 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,8 +1,13 @@
+@@ -1,8 +1,14 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -28539,11 +28876,12 @@ index 7c3389b83..2563295b1 100644
 +#include "Emu/System.h"
 +#include "IOSMemoryPressurePolicy.h"
 +#include "IOSTextureValidationProfile.h"
++#include "IOSDeferredCommit.h"
 +#include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
  #include "util/logs.hpp"
  
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
-@@ -27,6 +32,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +33,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -28620,7 +28958,7 @@ index 7c3389b83..2563295b1 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +122,11 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +123,16 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -28629,10 +28967,15 @@ index 7c3389b83..2563295b1 100644
 +	resolved.texture_validation_epoch = resolve_mode(g_cfg.ios_experimental.texture_validation_epoch,
 +		is_god_of_war_iii_title(Emu.GetTitleID()));
 +	texture_validation::epoch_enabled.store(resolved.texture_validation_epoch, std::memory_order_relaxed);
++	// CELL560_DEFERRED_COMMIT: Automatic is Dragon Ball Z Budokai HD Collection only,
++	// where build 559 waited for the GPU on one or two framebuffer commits per frame.
++	resolved.deferred_fbo_writeback = resolve_mode(g_cfg.ios_experimental.deferred_fbo_writeback,
++		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
++	rpcs3::ios::deferred_commit::enabled.store(resolved.deferred_fbo_writeback, std::memory_order_relaxed);
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +138,57 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +144,58 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -28665,8 +29008,9 @@ index 7c3389b83..2563295b1 100644
  	s_policy = resolved;
 -	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d",
 -		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid);
-+	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d",
-+		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch);
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d",
++		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
++		resolved.deferred_fbo_writeback);
  	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
  
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
@@ -28701,7 +29045,7 @@ index 7c3389b83..2563295b1 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197b4..186e3e34a 100644
+index 8fba197b4..a30457f2c 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -28712,17 +29056,18 @@ index 8fba197b4..186e3e34a 100644
  
  namespace rpcs3::ios
  {
-@@ -12,6 +13,9 @@ struct experimental_policy
+@@ -12,6 +13,10 @@ struct experimental_policy
  	bool mobile_spu_scheduling = false;
  	bool dma_copy_specialization = false;
  	bool texture_hash_hybrid = false;
 +	// CELL559_TEXTURE_EPOCH: keep a confirmed texture hash until the next RSX
 +	// synchronization point instead of re-hashing it for every draw.
 +	bool texture_validation_epoch = false;
++	bool deferred_fbo_writeback = false;
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,8 +24,42 @@ struct experimental_policy
+@@ -20,8 +25,42 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -29386,10 +29731,10 @@ index 000000000..094a67210
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d8005424b..9db08a7c0 100644
+index d8005424b..823e7e21d 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,183 @@
+@@ -1,26 +1,184 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -29406,6 +29751,7 @@ index d8005424b..9db08a7c0 100644
 +#include "IOSTextureValidationProfile.h"
 +#include "IOSReadbackProfile.h"
 +#include "IOSFullOverwrite.h"
++#include "IOSDeferredCommit.h"
 +#include "IOSCompileAdmission.h"
 +#include "IOSRuntimeMetrics.h"
 +#include "IOSShaderTiming.h"
@@ -29573,7 +29919,7 @@ index d8005424b..9db08a7c0 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +195,387 @@ u64 process_memory_footprint()
+@@ -38,31 +196,387 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -29971,7 +30317,7 @@ index d8005424b..9db08a7c0 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +585,10 @@ public:
+@@ -72,10 +586,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -29984,7 +30330,7 @@ index d8005424b..9db08a7c0 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +621,738 @@ public:
+@@ -108,12 +622,753 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -30425,6 +30771,21 @@ index d8005424b..9db08a7c0 100644
 +                validation::epoch_skips.exchange(0, std::memory_order_relaxed), validation::epoch_skip_bytes.exchange(0, std::memory_order_relaxed),
 +                validation::epoch_bumps.exchange(0, std::memory_order_relaxed));
 +        }
++        // CELL560_OPT_EXPORT: framebuffer commits that skipped the GPU wait and what
++        // became of their bytes in this window, one bounded line.
++        {
++            namespace deferred = rpcs3::ios::deferred_commit;
++            const auto writebacks = deferred::writeback_ticks.take();
++            ios_core_profiler.notice("COREPROF OPT560 session=%llu window=%llu deferred_fbo_writeback=%u deferrals=%llu deferral_bytes=%llu "
++                "writebacks=%llu:%.3f:%.3f writeback_bytes=%llu forced_writebacks=%llu dropped=%llu dropped_bytes=%llu submits=%llu "
++                "tuple=count:total_ms:max_ms scope=process_window_counters bytes_scope=section_ranges_not_transfers window_boundary_approximate=1",
++                profile_session, profile_window, deferred::enabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                deferred::deferrals.exchange(0, std::memory_order_relaxed), deferred::deferral_bytes.exchange(0, std::memory_order_relaxed),
++                writebacks.count, milliseconds(writebacks.total), milliseconds(writebacks.maximum),
++                deferred::writeback_bytes.exchange(0, std::memory_order_relaxed), deferred::forced_writebacks.exchange(0, std::memory_order_relaxed),
++                deferred::dropped.exchange(0, std::memory_order_relaxed), deferred::dropped_bytes.exchange(0, std::memory_order_relaxed),
++                deferred::submits.exchange(0, std::memory_order_relaxed));
++        }
 +        const auto& mem = memory_window.latest;
 +        const auto& peak = memory_window.peak;
 +        ios_core_profiler.notice(
@@ -30725,7 +31086,7 @@ index d8005424b..9db08a7c0 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1360,91 @@ private:
+@@ -121,6 +1376,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -30817,7 +31178,7 @@ index d8005424b..9db08a7c0 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1452,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1468,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -30905,7 +31266,7 @@ index d8005424b..9db08a7c0 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1543,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1559,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -31034,7 +31395,7 @@ index d8005424b..9db08a7c0 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1674,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1690,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -31549,7 +31910,7 @@ index 000000000..b6b0c699e
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b047471..1145eae14 100644
+index b7b047471..60900fc33 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -31577,11 +31938,12 @@ index b7b047471..1145eae14 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,32 @@ const std::array catalog{
+@@ -122,21 +126,33 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
 +	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III only; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
++	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
  	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
  	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
  	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),
@@ -31612,7 +31974,7 @@ index b7b047471..1145eae14 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +220,89 @@ const std::array catalog{
+@@ -205,6 +221,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -31702,7 +32064,7 @@ index b7b047471..1145eae14 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +671,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +672,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
