@@ -6,8 +6,21 @@ import SwiftUI
 private final class MeloNXObservedMetalLayer: CAMetalLayer {
     private let observationLock = NSLock()
     private var presentedFrames: UInt64 = 0
+    private var lastPresented: CFTimeInterval = 0
+    private var pacing = MeloNXPerfJournal.Presentation()
     var firstPresentation: (() -> Void)?
     var frameCount: UInt64 { observationLock.lock(); defer { observationLock.unlock() }; return presentedFrames }
+    // Gaps between presentations for the performance journal; the longest gap
+    // resets on each read.
+    func presentation() -> MeloNXPerfJournal.Presentation {
+        observationLock.lock(); defer { observationLock.unlock() }
+        var result = pacing
+        result.frames = presentedFrames
+        pacing.maxGapMs = 0
+        return result
+    }
+    // A pause is not a held frame: the next presentation starts a new gap.
+    func restartPacing() { observationLock.lock(); lastPresented = 0; observationLock.unlock() }
     override func nextDrawable() -> CAMetalDrawable? {
         guard let drawable = super.nextDrawable() else { return nil }
         drawable.addPresentedHandler { [weak self] value in
@@ -15,6 +28,13 @@ private final class MeloNXObservedMetalLayer: CAMetalLayer {
             self.observationLock.lock()
             self.presentedFrames += 1
             let first = self.presentedFrames == 1
+            if self.lastPresented > 0, value.presentedTime > self.lastPresented {
+                let gap = (value.presentedTime - self.lastPresented) * 1000
+                self.pacing.maxGapMs = max(self.pacing.maxGapMs, gap)
+                if gap > 20 { self.pacing.over20 += 1 }
+                if gap > 40 { self.pacing.over40 += 1 }
+            }
+            self.lastPresented = max(self.lastPresented, value.presentedTime)
             self.observationLock.unlock()
             if first { DispatchQueue.main.async { [weak self] in self?.firstPresentation?() } }
         }
@@ -75,6 +95,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
     private let menuButton = UIButton(type:.system)
     private var router: MeloNXInputRouter?
     private var controls: UIHostingController<AnyView>?
+    private var perf: MeloNXPerfJournal?
     var presentedFrameCount: UInt64 { surface.metalLayer.frameCount }
 
     init(host: MeloNXSessionHost, game: URL, locale: String,
@@ -145,12 +166,24 @@ final class MeloNXMetalSessionViewController: UIViewController {
     private func installControls(generation: Int64) {
         self.generation = generation
         guard let runtime else { return }
+        startPerfJournal(runtime:runtime,generation:generation)
         let router = MeloNXInputRouter(runtime:runtime,generation:generation,game:game,titleID:titleID)
         self.router = router
         router.onMenu = { [weak self] in self?.showMenu() }
         refreshControls()
         if UIApplication.shared.applicationState != .active { pauseReasons.insert("application") }
         applyPause()
+    }
+    // One "[MeloNX:perf]" line per second in app.log (MeloNXPerfJournal).
+    private func startPerfJournal(runtime: MeloNXRuntimeAPI, generation: Int64) {
+        guard perf == nil, let path = MeloNXStdioCapture.journalPath else { return }
+        let layer = surface.metalLayer
+        let journal = MeloNXPerfJournal(path:path,
+            fps:{ runtime.performanceSnapshot(generation:generation) },
+            presentation:{ layer.presentation() },
+            audio:{ runtime.audioPacing() })
+        perf = journal
+        journal.start()
     }
     private func refreshControls() {
         guard let router else { return }
@@ -183,6 +216,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
                 width:Int32(max(1,min(16384,size.width))),height:Int32(max(1,min(16384,size.height))),
                 surface:surface.metalLayer,pointer:Unmanaged.passUnretained(surface.metalLayer).toOpaque(),
                 prepared:{ [weak self] id in self?.installControls(generation:id) },beforeRun:beforeRun) { [weak self, finished] result in
+                    self?.perf?.stop(); self?.perf = nil
                     MeloNXStdioCapture.end(); UIApplication.shared.isIdleTimerDisabled = false
                     self?.router?.close(); self?.closing = true; self?.updateMemoryGraph()
                     if let self, self.presentingViewController != nil {
@@ -211,6 +245,8 @@ final class MeloNXMetalSessionViewController: UIViewController {
         applyPause()
     }
     private func applyPause() {
+        perf?.setPaused(!pauseReasons.isEmpty)
+        surface.metalLayer.restartPacing()
         router?.suspend(!pauseReasons.isEmpty)
         host.setPaused(!pauseReasons.isEmpty)
     }
@@ -342,6 +378,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
         if isBeingDismissed || presentingViewController == nil { router?.close(); host.requestStop() }
     }
     deinit {
+        perf?.stop()
         memoryGraph?.setSampling(false)
         observers.forEach { NotificationCenter.default.removeObserver($0) }
         router?.close(); host.requestStop()

@@ -24,6 +24,7 @@ enum MeloNXStdioCapture {
         guard path.hasPrefix("/"), URL(fileURLWithPath:path).lastPathComponent == "app.log" else { return }
         lock.lock(); journal = path; lock.unlock()
     }
+    static var journalPath: String? { lock.lock(); defer { lock.unlock() }; return journal }
 
     static func begin() {
         lock.lock(); defer { lock.unlock() }
@@ -103,13 +104,17 @@ enum MeloNXStdioCapture {
         return false
     }
 
-    // Same discipline as MeloNXLaunchJournal: O_APPEND per line, shared with
-    // Dart's logger, skipped once app.log reaches 5 MiB.
     private static func append(_ text: String, to path: String) {
         let safe = text
             .replacingOccurrences(of:"(?i)\\b[0-9a-f]{32,}\\b", with:"[redacted]", options:.regularExpression)
             .replacingOccurrences(of:"(?im)^\\s*[a-z0-9_]+\\s*=\\s*[^\\r\\n]+", with:"[redacted key entry]", options:.regularExpression)
-        let line = Array(("[MeloNX:stderr] " + safe + "\n").utf8)
+        appendLine("[MeloNX:stderr] " + safe, to:path)
+    }
+
+    // Same discipline as MeloNXLaunchJournal: O_APPEND per line, shared with
+    // Dart's logger, skipped once app.log reaches 5 MiB.
+    static func appendLine(_ text: String, to path: String) {
+        let line = Array((text + "\n").utf8)
         let fd = open(path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR)
         guard fd >= 0 else { return }
         defer { close(fd) }

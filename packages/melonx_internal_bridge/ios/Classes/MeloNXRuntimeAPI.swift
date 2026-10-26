@@ -10,6 +10,7 @@ final class MeloNXRuntimeAPI {
     private typealias MemorySnapshot = @convention(c) (UnsafeMutablePointer<UInt64>?, Int32) -> Int32
     private typealias PerformanceSnapshot = @convention(c) (Int64, UnsafeMutablePointer<Double>?, Int32) -> Int32
     private typealias PresentTarget = @convention(c) (Int64, Int32) -> Int32
+    private typealias AudioPacing = @convention(c) (UnsafeMutablePointer<Int64>?, Int32) -> Int32
     private typealias Mode = @convention(c) (Int32) -> Int32
     private typealias Content = @convention(c) (UnsafePointer<CChar>?, Int32, UnsafeMutablePointer<CChar>?, Int32) -> Int32
     private typealias Attach = @convention(c) (Int64, Int32, UnsafePointer<CChar>?, Int32) -> Int32
@@ -52,6 +53,7 @@ final class MeloNXRuntimeAPI {
     private let performanceSnapshotFunction: PerformanceSnapshot?
     var providesPerformanceSnapshot: Bool { performanceSnapshotFunction != nil }
     private let presentTargetFunction: PresentTarget?
+    private let audioPacingFunction: AudioPacing?
     /// The MoltenVK this process loaded: 0 source-built, 1 the standalone app's.
     let moltenVk: Int32
     private let configureJit: Mode
@@ -91,6 +93,7 @@ final class MeloNXRuntimeAPI {
         // Optional: an older engine without it keeps the overlay RAM-only.
         performanceSnapshotFunction = dlsym(handle, "neostation_melonx_performance_snapshot").map { unsafeBitCast($0, to: PerformanceSnapshot.self) }
         presentTargetFunction = dlsym(handle, "neostation_melonx_set_present_target_fps").map { unsafeBitCast($0, to: PresentTarget.self) }
+        audioPacingFunction = dlsym(handle, "neostation_melonx_audio_pacing").map { unsafeBitCast($0, to: AudioPacing.self) }
         configureJit = try symbol("neostation_melonx_configure_jit", Mode.self)
         contentFunction = try symbol("neostation_melonx_content", Content.self)
         contentProgressFunction = dlsym(handle, "neostation_melonx_content_progress").map { unsafeBitCast($0, to: Version.self) }
@@ -147,6 +150,16 @@ final class MeloNXRuntimeAPI {
         var values = [Double](repeating:0,count:3)
         guard performanceSnapshotFunction(generation,&values,3) == 0 else { return [:] }
         return ["gameFps":values[0],"gameFrameTimeMs":values[1],"fifoPercent":values[2]]
+    }
+
+    // The engine's cumulative audio pacing counters (EmbeddedAudioPacing order:
+    // DSP periods, late, late ns, max late ns, skipped, buffers played,
+    // starvations, starved ns, max starved ns); nil without the export.
+    func audioPacing() -> [Int64]? {
+        guard let audioPacingFunction else { return nil }
+        var values = [Int64](repeating:0,count:9)
+        guard audioPacingFunction(&values,9) == 0 else { return nil }
+        return values
     }
 
     func setAspectRatio(_ value: Int32, generation: Int64) -> Bool {
