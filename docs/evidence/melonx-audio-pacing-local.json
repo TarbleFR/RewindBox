@@ -1,0 +1,38 @@
+{
+  "result": "passed",
+  "report": {
+    "result": "passed",
+    "assertions": 26,
+    "starvedNs": 10020834,
+    "physicalDeviceTested": false,
+    "avFoundationDouble": true
+  },
+  "physicalDeviceTested": false,
+  "avFoundationDouble": true,
+  "inputs": {
+    "build-utils/melonx/adapt_audio_pacing.py": "117cb4161ad4166f715845eb1a9231729e7b0fd7a881daddbfa69f3a36537259",
+    "build-utils/melonx/adapt_apple_audio.py": "161a334e4821b64b00d77c2a24e69a8f39276fbc4dfe45c0e6f984d63a3d61c3",
+    "native/melonx/EmbeddedAudioPacing.cs": "d644ae4de2b4e9c574f442b1c866684a6245a772c4e3fc01d2fbca04d2d6e94b",
+    "native/melonx/EmbeddedAudioPacingExport.cs": "d4fa9af0304a4e4f95ce60c957935e56569c53da91c66d17c2f7eb0172a027b5",
+    "test/melonx_audio_pacing_test.py": "5a8e74fb1468c19c555e8d84ce0d5f66dbf1426e0cb12936c4fad6ccb3932313",
+    "test/melonx_audio_pacing/Program.cs": "5c58226a8554a3cf446d21fbd50652d76ac5e4c9badd56d0e232d236600e0675",
+    "test/melonx_apple_audio/AVFoundationDouble.cs": "e2e4209cb6b535dd6a28ce6d7210d01e3d2f25f74ba49db9734ad957440f06e8"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs": "370b0e95178b1e378c45ca23bf0ece012fc9c566e3c77d3dce3240ac52f06cc7",
+    "src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceDriver.cs": "fca54f2112dac0260eb743cacd99bc55eb47e6ece04973564cad479b44889014",
+    "src/Ryujinx.Audio.Backends.Apple/AppleAudioBuffer.cs": "2e4500fe39821fb2b814fbb6a711d1e348a1658a8857f6db845a9bff4617167f",
+    "src/Ryujinx.Audio/Backends/Common/HardwareDeviceSessionOutputBase.cs": "453154f422748dccdb8ea7f6cec4b6b86610bab503aa76dcb730caee63645cee",
+    "src/Ryujinx.Audio/Backends/Common/BackendHelper.cs": "2a99a25ce65ad50bbb4b289dda6bf41204861118c7370381a2a0cc38ae84c111",
+    "src/Ryujinx.Audio/Common/AudioBuffer.cs": "1d08f5e845820a5bc1bbac44031d601a92393d217d922b42a0811abc1dc8ab69",
+    "src/Ryujinx.Audio/Common/SampleFormat.cs": "09ff4d4491822f2eae073a389c4c4a22ac473c7bf1d814ca27da1e438b5696db",
+    "src/Ryujinx.Audio/Integration/IHardwareDeviceDriver.cs": "4fec60900ed0250231b364304be7fbb6fab000941cef17653f30466ef715de8d",
+    "src/Ryujinx.Audio/Integration/IHardwareDeviceSession.cs": "9becaab33bfc06d638282eb07a1cc3660e36fe889572bd454d19e65841f636aa",
+    "src/Ryujinx.Audio/Renderer/Dsp/AudioProcessor.cs": "aaf79ec21aa9d8488368390734ca5a41091defd48fb8c7baa418553b9c1e0a9e",
+    "src/Ryujinx.Audio.Backends.Apple/Native/AVFoundation.cs": "fdde2d96723601571f7f9a96afc8619d0d41ae9be82078dbe432094256d94534",
+    "src/Ryujinx.Library/Library.cs": "d40520115737c610a2dd8ac03493e444fd099e4e1bd699e2435ec72da3094c48"
+  },
+  "upstreamCommit": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "ranOn": "Linux (cloud session), not CI; CI runs it from the delivery recipe"
+}

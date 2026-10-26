@@ -374,3 +374,61 @@ pacing, log timeline, engine, host parity) plus a skeptical synthesis.
   - the Dart logger overwrote a native app.log line (line 22805 starts
     mid-line);
   - thermal state is not journaled during a session.
+
+## Next MeloNX measurement build (prepared, not built)
+
+Number 555 went to the RPCS3 Cell delivery (`f508f1b`, pushed first). This
+MeloNX build takes the next free number, provisionally 556, confirmed with the
+other sessions before building. As the maintainer chose, it waits for the
+tester's comparison: P5R with its shader cache back On, then the same scene in
+RewindBox and in the standalone app. It adds measurement only and changes
+nothing in emulation; the one new setting, the in-game priority choice below,
+keeps today's behaviour by default. The recipe is written on the latest
+delivered tree, and the build runs only after the tester's results and the
+maintainer's approval.
+
+- **`[MeloNX:perf]` lines in app.log, one per second during a game**
+  (`MeloNXPerfJournal.swift`). Format, with illustrative values:
+  `t=42 fps=59.8/16.7/38 pres=60/34.1/2/0 dsp=200/3/7.5/3.1/0 out=200/1/12.0/12.0 cpu=245 NeoStation.MeloNX.Render:88/37 … th=nominal lp=0`
+  - `fps`: the engine's game FPS / frame time ms / FIFO %.
+  - `pres`: frames presented / longest gap between two presentations ms /
+    gaps over 20 ms / gaps over 40 ms. A pause restarts the gap
+    measurement.
+  - `dsp`: 5 ms audio DSP periods / periods more than 2 ms late / their
+    total lateness ms / the longest ms / periods skipped.
+  - `out`: audio buffers played / times the output queue ran dry / total
+    silence until the next buffer ms / the longest ms. A guest stop is not
+    counted.
+  - `cpu`: process CPU % (100 = one core), then the six busiest threads as
+    `name:CPU %/base priority` (47 user-interactive, 37 user-initiated,
+    31 default, 20 utility, 4 background).
+  - `th`, `lp`: thermal state and Low Power Mode; `paused` while the game is
+    paused.
+
+  The journal is capped at 1800 lines, then writes an end summary.
+- **Engine audio counters** (`EmbeddedAudioPacing.cs`, exported as
+  `neostation_melonx_audio_pacing`). They feed `dsp` and `out`, and were
+  added by `adapt_audio_pacing.py`, which only adds lines around the
+  unchanged wait loop. `test/melonx_audio_pacing_test.py` runs them with
+  the adapted Apple session against the timed AVFoundation double.
+- **Dart no longer overwrites native lines.** `AppendFileOutput` reopens
+  app.log in append mode for each batch (`test/logger_append_test.dart`).
+- **Repeated NSLog stubs are copied once.** Later repeats are counted, the
+  ten most repeated are listed at the end, and the 500-line budget keeps
+  distinct messages.
+- **"Emulation priority" in the in-game menu**, applied at the next game:
+  - "High (RewindBox)" (default) keeps the user-initiated session thread;
+  - "Default (MeloNX app)" lowers it to default QoS before the engine runs,
+    like the standalone app's plain thread.
+
+  The `session/emulationPriority` journal line gives the status and the
+  class in effect. The `cpu` field shows whether the render and guest
+  threads follow.
+- **Reading a stutter:**
+  - `pres` gaps with `dsp` lateness and high CPU on guest threads point to
+    scheduling;
+  - `out` starvations with on-time `dsp` point to the producer;
+  - gaps with `th=serious` point to heat;
+  - gaps with nothing else point to the game or scene.
+
+  Compare the A/B lines of the same scene.
