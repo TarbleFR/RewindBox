@@ -1,0 +1,742 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index c5ec81d70..851e04600 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -24,6 +24,13 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+            actual STREQUAL "23b66d39ba7cffc1574bf62aa91438dfd8fe188a2749d66bc29ff8a7d8afe032")
+         set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
++    # CELL559: compile() builds the LLVM analysis managers and the function pass
++    # pipeline only when no cached object is linked. A miss runs the same passes
++    # in the same order on the same IR; a hit generates no code. Generated
++    # objects are unchanged. Keep the 555 identity for this exact source snapshot only.
++    elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
++           actual STREQUAL "6b5a1b8d42dc43de1eac71dc3f002921284788c4aee258c1a734e3d802d8951a")
++        set(${output} "613a7fa9ff59420720c810b0040e3d3b89cae89ea41e3715e7daf62de20c9be7" PARENT_SCOPE)
+     else()
+         set(${output} "${actual}" PARENT_SCOPE)
+     endif()
+diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+index 2b24885d6..f23c2c618 100644
+--- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
++++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+@@ -4375,50 +4375,52 @@ public:
+ 		jit_phase::g_counters.add(jit_phase::spu_build, passes_started - compile_started, m_size);
+ #endif
+ 
+-		// Create the analysis managers.
+-		// These must be declared in this order so that they are destroyed in the
+-		// correct order due to inter-analysis-manager references.
+-		LoopAnalysisManager lam;
+-		FunctionAnalysisManager fam;
+-		CGSCCAnalysisManager cgam;
+-		ModuleAnalysisManager mam;
+-
+-		// Create the new pass manager builder.
+-		// Take a look at the PassBuilder constructor parameters for more
+-		// customization, e.g. specifying a TargetMachine or various debugging
+-		// options.
+-		PassBuilder pb;
+-
+-		// Register all the basic analyses with the managers.
+-		pb.registerModuleAnalyses(mam);
+-		pb.registerCGSCCAnalyses(cgam);
+-		pb.registerFunctionAnalyses(fam);
+-		pb.registerLoopAnalyses(lam);
+-		pb.crossRegisterProxies(lam, fam, cgam, mam);
+-
+-		FunctionPassManager fpm;
+-		// Basic optimizations
+-		fpm.addPass(EarlyCSEPass(true));
+-		fpm.addPass(SimplifyCFGPass());
+-		// NEOSTATION_BUILD483_LLVM_PIPELINES_V1: upstream RPCS3 (x86-64) and
+-		// ARMSX3 (ARM64) run InstCombine here. Every direct call to a function
+-		// defined in the module carries its callee's calling convention (see
+-		// m_test_state), which InstCombine requires: a mismatch becomes
+-		// unreachable. "Reference 481" keeps the previous pipeline to compare.
+-		if (g_cfg.core.spu_llvm_pipeline == spu_llvm_pipeline_type::upstream)
+-		{
+-			fpm.addPass(InstCombinePass());
+-		}
+-		fpm.addPass(DSEPass());
+-		fpm.addPass(createFunctionToLoopPassAdaptor(LICMPass(LICMOptions()), true));
+-		fpm.addPass(ADCEPass());
+-
+ #ifdef RPCS3_IOS
+ 		// A cached object replaces everything the passes would feed to the
+ 		// code generator; the IR only has to exist for linking.
++		// CELL559_SPU_CACHE_HIT_PASSES: a hit also skips building the analysis
++		// managers and registering every LLVM analysis it would never run.
+ 		if (!spu_cached_object)
+ #endif
+ 		{
++			// Create the analysis managers.
++			// These must be declared in this order so that they are destroyed in the
++			// correct order due to inter-analysis-manager references.
++			LoopAnalysisManager lam;
++			FunctionAnalysisManager fam;
++			CGSCCAnalysisManager cgam;
++			ModuleAnalysisManager mam;
++
++			// Create the new pass manager builder.
++			// Take a look at the PassBuilder constructor parameters for more
++			// customization, e.g. specifying a TargetMachine or various debugging
++			// options.
++			PassBuilder pb;
++
++			// Register all the basic analyses with the managers.
++			pb.registerModuleAnalyses(mam);
++			pb.registerCGSCCAnalyses(cgam);
++			pb.registerFunctionAnalyses(fam);
++			pb.registerLoopAnalyses(lam);
++			pb.crossRegisterProxies(lam, fam, cgam, mam);
++
++			FunctionPassManager fpm;
++			// Basic optimizations
++			fpm.addPass(EarlyCSEPass(true));
++			fpm.addPass(SimplifyCFGPass());
++			// NEOSTATION_BUILD483_LLVM_PIPELINES_V1: upstream RPCS3 (x86-64) and
++			// ARMSX3 (ARM64) run InstCombine here. Every direct call to a function
++			// defined in the module carries its callee's calling convention (see
++			// m_test_state), which InstCombine requires: a mismatch becomes
++			// unreachable. "Reference 481" keeps the previous pipeline to compare.
++			if (g_cfg.core.spu_llvm_pipeline == spu_llvm_pipeline_type::upstream)
++			{
++				fpm.addPass(InstCombinePass());
++			}
++			fpm.addPass(DSEPass());
++			fpm.addPass(createFunctionToLoopPassAdaptor(LICMPass(LICMOptions()), true));
++			fpm.addPass(ADCEPass());
++
+ 			for (auto& f : *m_module)
+ 			{
+ 				run_transforms(f);
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+index 6b306657f..42c324dd8 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
++++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+@@ -64,6 +64,9 @@ namespace rsx
+ 		{
+ 			mem_hash = 0;
+ 		}
++#ifdef RPCS3_IOS
++		validated_epoch = 0;
++#endif
+ 	}
+ 
+ 	void buffered_section::invalidate_range()
+@@ -102,7 +105,14 @@ namespace rsx
+ 		}
+ 		else if (new_prot != utils::protection::rw)
+ 		{
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: read the epoch before the bytes it covers.
++			const u64 epoch = rpcs3::ios::texture_validation::current_epoch();
++			mem_hash = fast_hash_internal();
++			validated_epoch = epoch;
++#else
+ 			mem_hash = fast_hash_internal();
++#endif
+ 		}
+ 
+ 		protection = new_prot;
+@@ -165,6 +175,9 @@ namespace rsx
+ 		protection = utils::protection::rw;
+ 		confirmed_range.invalidate();
+ 		locked = false;
++#ifdef RPCS3_IOS
++		validated_epoch = 0;
++#endif
+ 	}
+ 
+ 	const address_range32& buffered_section::get_bounds(section_bounds bounds) const
+@@ -266,7 +279,23 @@ namespace rsx
+ 			return true;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// CELL559_TEXTURE_EPOCH: confirmed in this epoch, nothing could have
++		// legitimately changed it since. Otherwise hash; only a match is kept.
++		const u64 epoch = rpcs3::ios::texture_validation::current_epoch();
++		if (epoch && validated_epoch == epoch)
++		{
++			rpcs3::ios::texture_validation::epoch_skips.fetch_add(1, std::memory_order_relaxed);
++			rpcs3::ios::texture_validation::epoch_skip_bytes.fetch_add(get_confirmed_range().length(), std::memory_order_relaxed);
++			return true;
++		}
++
++		const bool unchanged = (fast_hash_internal() == mem_hash);
++		validated_epoch = unchanged ? epoch : 0;
++		return unchanged;
++#else
+ 		return (fast_hash_internal() == mem_hash);
++#endif
+ 	}
+ 
+ 	namespace blit_engine_helpers
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+index 8c78dde71..b65747259 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -15,6 +15,8 @@
+ #ifdef RPCS3_IOS
+ // CELL555_READBACK_INCLUDE
+ #include "ios/IOSReadbackProfile.h"
++// CELL559_FULL_OVERWRITE_INCLUDE
++#include "ios/IOSFullOverwrite.h"
+ #endif
+ 
+ #define RSX_GCM_FORMAT_IGNORED 0
+@@ -800,6 +802,10 @@ namespace rsx
+ 		void flush_set(commandbuffer_type& cmd, thrashed_set& data, std::function<void()> on_data_transfer_completed, Args&&... extras)
+ 		{
+ 			AUDIT(!data.flushed);
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: GPU data is about to be written to guest memory.
++			rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 
+ 			if (data.sections_to_flush.size() > 1)
+ 			{
+@@ -1161,6 +1167,13 @@ namespace rsx
+ 
+ 			AUDIT(cause.valid());
+ 			AUDIT(fault_range_in.valid());
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: a write, unmap or surface commit changes guest memory.
++			if (!cause.is_read())
++			{
++				rpcs3::ios::texture_validation::advance_epoch();
++			}
++#endif
+ 			address_range32 fault_range = fault_range_in.to_page_range();
+ 
+ 			intersecting_set trampled_set = get_intersecting_set(fault_range);
+@@ -1300,6 +1313,22 @@ namespace rsx
+ 
+ 						result.sections_to_unprotect.push_back(&tex);
+ 					}
++#ifdef RPCS3_IOS
++					else if (!cause.is_read() && cause.use_strict_data_bounds() &&
++						tex.get_context() != texture_upload_context::framebuffer_storage &&
++						rpcs3::ios::full_overwrite::current_range.contains(tex.get_confirmed_range().start, tex.get_confirmed_range().end) &&
++						!rsx::get_current_renderer()->get_tiled_memory_region(tex.get_confirmed_range()))
++					{
++						// CELL559_FULL_OVERWRITE: the DMA copy that follows on this
++						// thread writes every byte this section would write back, and its
++						// destination section locks all of those pages. Reading the old
++						// GPU data back (a fence wait) would only be overwritten.
++						rpcs3::ios::full_overwrite::dma_flush_skips.fetch_add(1, std::memory_order_relaxed);
++						rpcs3::ios::full_overwrite::dma_flush_skip_bytes.fetch_add(tex.get_confirmed_range().length(), std::memory_order_relaxed);
++						tex.set_dirty(true);
++						result.sections_to_unprotect.push_back(&tex);
++					}
++#endif
+ 					else
+ 					{
+ 						result.sections_to_flush.push_back(&tex);
+@@ -1886,6 +1915,10 @@ namespace rsx
+ 
+ 		virtual void on_frame_end()
+ 		{
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: at most one frame between full revalidations.
++			rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 			// Must manually release each cached entry
+ 			for (auto& entry : m_temporary_subresource_cache)
+ 			{
+@@ -3665,6 +3698,15 @@ namespace rsx
+ 
+ 			if (!cached_dest && !dst_is_render_target)
+ 			{
++#ifdef RPCS3_IOS
++				// CELL559_FULL_OVERWRITE: only the strict-bounds invalidation of a new
++				// DMA destination consults this range; render-target creation does not.
++				const rpcs3::ios::full_overwrite::RangeScope ios_full_overwrite(
++					use_null_region && rpcs3::ios::full_overwrite::dma_copy_writes_whole_payload(
++						dst_w, dst_h, dst_bpp, dst.pitch, src_area.width(), src_area.height(), src_bpp,
++						typeless_info.src_is_typeless, dst_is_tiled),
++					dst_address, dst_payload_length);
++#endif
+ 				blit_engine_internals::create_blit_dst(
+ 					this,
+ 					cmd,
+@@ -3761,6 +3803,26 @@ namespace rsx
+ 
+ 				if (!dest_section || !dest_section->is_locked())
+ 				{
++#ifdef RPCS3_IOS
++					// CELL559_FULL_OVERWRITE: a single-sampled color target that this
++					// blit replaces entirely needs neither its old memory nor a clear,
++					// like a newly created blit target. Partial, depth, typeless and
++					// multisampled transfers keep the reload.
++					const auto surface = dst_subres.surface;
++					const bool replaces_surface = rpcs3::ios::full_overwrite::blit_replaces_whole_surface(
++						dst_area.x1, dst_area.y1, dst_area.x2, dst_area.y2,
++						surface->template get_surface_width<rsx::surface_metrics::pixels>(),
++						surface->template get_surface_height<rsx::surface_metrics::pixels>(),
++						surface->template get_surface_width<rsx::surface_metrics::samples>(),
++						surface->template get_surface_height<rsx::surface_metrics::samples>(),
++						dst_is_depth_surface || dst_subres.is_depth, typeless_info.dst_is_typeless);
++					if (replaces_surface)
++					{
++						rpcs3::ios::full_overwrite::rt_reload_skips.fetch_add(1, std::memory_order_relaxed);
++						rpcs3::ios::full_overwrite::rt_reload_skip_bytes.fetch_add(surface->get_memory_range().length(), std::memory_order_relaxed);
++					}
++					else
++#endif
+ 					// All blit targets must be protected, regardless of WCB/RCB settings
+ 					dst_subres.surface->state_flags |= rsx::surface_state_flags::force_data_load | rsx::surface_state_flags::erase_bkgnd;
+ 
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+index e644370a6..b4793a64a 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -904,6 +904,10 @@ namespace rsx
+ 
+ 		section_protection_strategy protection_strat = section_protection_strategy::lock;
+ 		u64 mem_hash = 0;
++#ifdef RPCS3_IOS
++		// CELL559_TEXTURE_EPOCH: epoch in which mem_hash was last confirmed (0: never).
++		mutable u64 validated_epoch = 0;
++#endif
+ 
+ 		bool locked = false;
+ 		void init_lockable_range(const address_range32& range);
+@@ -1533,6 +1537,19 @@ namespace rsx
+ 
+ 		bool sync_protection()
+ 		{
++#ifdef RPCS3_IOS
++			// CELL559_DIRTY_HASH_SKIP: a dirty section is never sampled before it
++			// is recreated, so validating it can only decide its release. Under the
++			// hash strategy release it as a mismatch would, without hashing memory
++			// that cannot make it valid again. Page-locked sections are unchanged.
++			if (is_dirty() && is_locked() && !is_locked(true))
++			{
++				rpcs3::ios::texture_validation::dirty_releases.fetch_add(1, std::memory_order_relaxed);
++				rpcs3::ios::texture_validation::dirty_release_bytes.fetch_add(get_confirmed_range().length(), std::memory_order_relaxed);
++				discard(true);
++				return false;
++			}
++#endif
+ 			if (!buffered_section::sync())
+ 			{
+ 				discard(true);
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
+index 49f592d0e..ba26ea600 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
+@@ -6,6 +6,7 @@
+ 
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSTextureValidationProfile.h"
+ #endif
+ 
+ // NEOSTATION_BUILD258_RUNTIME_RESILIENCE_V1
+@@ -44,6 +45,10 @@ namespace rsx
+ 			// after another guest thread has released the next label.
+ 			if (observed == arg)
+ 			{
++#ifdef RPCS3_IOS
++				// CELL559_TEXTURE_EPOCH: data released before this semaphore is visible now.
++				rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 				// Flip semaphore doesnt need wake-up delay
+ 				if (addr != RSX(ctx)->label_addr + 0x10)
+ 				{
+@@ -153,6 +158,10 @@ namespace rsx
+ 				observed = atomic_sema.load();
+ 			}
+ 
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: the producer released the semaphore after its writes.
++			rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 			const u64 waited = get_system_time() - wait_started;
+ #ifdef RPCS3_IOS
+ 			if (timed_out)
+diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
+index 843148839..294bb29a8 100644
+--- a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
++++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
+@@ -535,6 +535,17 @@ bool vertex_program_compare::operator()(const RSXVertexProgram &binary1, const R
+ 
+ 	const void* instBuffer1 = binary1.data.data();
+ 	const void* instBuffer2 = binary2.data.data();
++#ifdef RPCS3_IOS
++	// CELL559_VP_EXACT_MATCH: a cache hit compares the same ucode again. Equal
++	// words satisfy every masked comparison below, so libc's vectorized compare
++	// confirms it without testing each instruction bit. A difference, possibly
++	// in an unused slot, still falls through to the exact masked comparison.
++	if (const usz ucode_bytes = (binary1.data.size() / 4) * 16;
++		!ucode_bytes || std::memcmp(instBuffer1, instBuffer2, ucode_bytes) == 0)
++	{
++		return true;
++	}
++#endif
+ 	usz instIndex = 0;
+ 	while (instIndex < (binary1.data.size() / 4))
+ 	{
+diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.h b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
+index 6b918d340..c3fdcc46d 100644
+--- a/rpcs3/Emu/RSX/Program/ProgramStateCache.h
++++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
+@@ -434,6 +434,32 @@ public:
+ 
+ 		std::function<pipeline_type* (pipeline_storage_type&)> callback;
+ 
++#ifdef RPCS3_IOS
++		if (allow_notification && !compile_async)
++		{
++			// CELL559_INLINE_CALLBACK: an inline build runs this callback before
++			// returning and the disk writer copies what it keeps. The vertex
++			// program is RSX-thread state that cannot change meanwhile, so it is
++			// referenced instead of copied. The fragment ucode still points into
++			// guest memory that PPU/SPU may rewrite during a long driver compile:
++			// its snapshot is kept so the disk record matches the compiled shader.
++			callback = [this, &vertex_shader, fragment_shader_ = RSXFragmentProgram::clone(fragment_shader), key]
++			(pipeline_storage_type& pipeline) -> pipeline_type*
++			{
++				if (!pipeline)
++				{
++					return nullptr;
++				}
++
++				rsx_log.success("Program compiled successfully");
++				// Publish before the disk notification so equal requesters resume first.
++				pipeline_type* published = publish_pipeline(key, pipeline);
++				notify_pipeline_compiled(key.properties, vertex_shader, fragment_shader_);
++				return published;
++			};
++		}
++		else
++#endif
+ 		if (allow_notification)
+ 		{
+ 			callback = [this, vertex_shader, fragment_shader_ = RSXFragmentProgram::clone(fragment_shader), key]
+@@ -476,7 +502,11 @@ public:
+ 			fragment_program,               // FS, must already be decompiled and recompiled above
+ 			key.properties,                  // Same state as the cache key
+ 			compile_async,                  // Allow asynchronous compilation
++#ifdef RPCS3_IOS
++			std::move(callback),            // Insertion and notification callback, not copied
++#else
+ 			callback,                       // Insertion and notification callback
++#endif
+ 			std::forward<Args>(args)...);   // Other arguments
+ 
+ 		if (!result && !compile_async)
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
+index 9491837f7..5305bf1dc 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.cpp
++++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
+@@ -12,6 +12,7 @@
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
+ #include "ios/IOSRsxSyncProfile.h"
++#include "ios/IOSTextureValidationProfile.h"
+ #endif
+ 
+ #include "util/asm.hpp"
+@@ -132,6 +133,27 @@ namespace rsx
+ 		template <bool Full>
+ 		inline u32 FIFO_control::read_put() const
+ 		{
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: commands the guest just made visible may use
++			// guest data written before this PUT; they start a validation epoch.
++			u32 put;
++			if constexpr (!Full)
++			{
++				put = m_ctrl->put & ~3;
++			}
++			else if (put = m_ctrl->put; (put & 3) != 0) [[unlikely]]
++			{
++				put = m_ctrl->put.and_fetch(~3);
++			}
++
++			if (put != m_epoch_put) [[unlikely]]
++			{
++				m_epoch_put = put;
++				rpcs3::ios::texture_validation::advance_epoch();
++			}
++
++			return put;
++#else
+ 			if constexpr (!Full)
+ 			{
+ 				return m_ctrl->put & ~3;
+@@ -145,6 +167,7 @@ namespace rsx
+ 
+ 				return m_ctrl->put.and_fetch(~3);
+ 			}
++#endif
+ 		}
+ 
+ 		std::pair<bool, u32> FIFO_control::fetch_u32_refill(u32 addr)
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.h b/rpcs3/Emu/RSX/RSXFIFO.h
+index 5910bf826..274a6776c 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.h
++++ b/rpcs3/Emu/RSX/RSXFIFO.h
+@@ -137,6 +137,10 @@ namespace rsx
+ 
+ 			u32 m_memwatch_addr = 0;
+ 			u32 m_memwatch_cmp = 0;
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: last PUT that opened a texture validation epoch.
++			mutable u32 m_epoch_put = umax;
++#endif
+ 
+ 			u32 m_command_reg = 0;
+ 			u32 m_command_inc = 0;
+diff --git a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
+index 038d9a368..82fd3491c 100644
+--- a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
++++ b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
+@@ -66,7 +66,13 @@ namespace vk
+ 				pipelineProperties,
+ 				vertexProgramData.handle,
+ 				fragmentProgramData.handle,
++#ifdef RPCS3_IOS
++				// CELL559_INLINE_CALLBACK: an inline compile never stores the
++				// callback; only a deferred job needs its own copy.
++				compiler_flags, compile_async ? vk::pipe_compiler::callback_t(callback) : vk::pipe_compiler::callback_t{},
++#else
+ 				compiler_flags, callback,
++#endif
+ 				vertexProgramData.uniforms,
+ 				fragmentProgramData.uniforms);
+ 
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 0969f4055..b006af854 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -132,6 +132,8 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
++		// CELL559_TEXTURE_EPOCH: Automatic enables it for God of War III only.
++		cfg::_enum<ios_experimental_mode> texture_validation_epoch{ this, "Texture Validation Per FIFO Batch", ios_experimental_mode::automatic };
+ 
+ 		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSFullOverwrite.h b/rpcs3/ios/IOSFullOverwrite.h
+new file mode 100644
+index 000000000..dc152fa3d
+--- /dev/null
++++ b/rpcs3/ios/IOSFullOverwrite.h
+@@ -0,0 +1,76 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// CELL559_FULL_OVERWRITE: a GPU transfer that replaces every byte of its
++// destination does not need the previous destination contents. These pure
++// decisions stay conservative: any doubt keeps the existing read-back/reload.
++namespace rpcs3::ios::full_overwrite
++{
++// Guest bytes [start, end] (inclusive, like address_range32) that the transfer
++// on this thread writes completely. Only the RSX thread sets it, around the one
++// invalidation that precedes its own DMA destination; other threads see none.
++struct Range
++{
++    std::uint32_t start = 1, end = 0;
++    bool valid() const noexcept { return start <= end; }
++    bool contains(std::uint32_t first, std::uint32_t last) const noexcept
++    {
++        return valid() && first <= last && first >= start && last <= end;
++    }
++};
++inline thread_local Range current_range{};
++
++class RangeScope final
++{
++    Range previous_;
++public:
++    RangeScope(bool enabled, std::uint32_t start, std::uint32_t length) noexcept
++        : previous_(current_range)
++    {
++        current_range = (enabled && length) ? Range{start, start + (length - 1)} : Range{};
++    }
++    ~RangeScope() noexcept { current_range = previous_; }
++    RangeScope(const RangeScope&) = delete;
++    RangeScope& operator=(const RangeScope&) = delete;
++};
++
++// A 1:1 DMA copy writes rows of src_w texels at the destination pitch. All
++// payload bytes are written only when the rows are contiguous (or single),
++// the copy keeps its texel size and no tiling or partial source applies.
++constexpr bool dma_copy_writes_whole_payload(
++    std::uint32_t dst_w, std::uint32_t dst_h, std::uint32_t dst_bpp, std::uint32_t dst_pitch,
++    std::int64_t src_area_w, std::int64_t src_area_h, std::uint32_t src_bpp,
++    bool src_typeless, bool dst_tiled) noexcept
++{
++    if (!dst_w || !dst_h || !dst_bpp || dst_tiled || src_typeless || src_bpp != dst_bpp)
++        return false;
++    if (src_area_w != static_cast<std::int64_t>(dst_w) || src_area_h != static_cast<std::int64_t>(dst_h))
++        return false;
++    return dst_h == 1 || static_cast<std::uint64_t>(dst_w) * dst_bpp == dst_pitch;
++}
++
++// A blit into an existing single-sampled color target replaces all of it when
++// the destination rectangle covers the target. Depth/stencil, typeless and
++// multisampled targets keep the existing memory reload.
++constexpr bool blit_replaces_whole_surface(
++    std::int64_t x1, std::int64_t y1, std::int64_t x2, std::int64_t y2,
++    std::uint32_t surface_w, std::uint32_t surface_h,
++    std::uint32_t surface_samples_w, std::uint32_t surface_samples_h,
++    bool depth, bool dst_typeless) noexcept
++{
++    if (depth || dst_typeless || !surface_w || !surface_h)
++        return false;
++    if (surface_samples_w != surface_w || surface_samples_h != surface_h)
++        return false;
++    // Exact bounds, as upstream requires for a newly created blit target.
++    return x1 == 0 && y1 == 0 &&
++        x2 == static_cast<std::int64_t>(surface_w) && y2 == static_cast<std::int64_t>(surface_h);
++}
++
++// Fixed counters exported once per profiler window (OPT559 line).
++inline std::atomic<std::uint64_t> dma_flush_skips{0}, dma_flush_skip_bytes{0};
++inline std::atomic<std::uint64_t> rt_reload_skips{0}, rt_reload_skip_bytes{0};
++}
+diff --git a/rpcs3/ios/IOSTextureValidationProfile.h b/rpcs3/ios/IOSTextureValidationProfile.h
+index 7861c6ff9..13baaa863 100644
+--- a/rpcs3/ios/IOSTextureValidationProfile.h
++++ b/rpcs3/ios/IOSTextureValidationProfile.h
+@@ -11,4 +11,32 @@ namespace rpcs3::ios::texture_validation
+ // existing hash measurements, not an extra cost. No new per-hash observation.
+ inline std::atomic<std::uint64_t> trim_calls{0}, trim_sections{0};
+ inline std::atomic<std::uint64_t> trim_bytes{0}, trim_ticks{0};
++// CELL559_DIRTY_HASH_SKIP: dirty hashed sections released without hashing.
++inline std::atomic<std::uint64_t> dirty_releases{0}, dirty_release_bytes{0};
++
++// CELL559_TEXTURE_EPOCH: "Texture Validation Per FIFO Batch". A clean section
++// whose hash matched stays validated until the next synchronization point:
++// new commands made visible by the guest (PUT), a semaphore acquire, an RSX
++// write, flush or invalidation of guest memory, or the end of a frame. Guest
++// data a command needs is written before that command becomes visible, or
++// before the semaphore the RSX waits for is released; only an unsynchronized
++// write racing the RSX can be seen one batch later. Disabled: epoch 0, every
++// validation hashes as before.
++inline std::atomic<bool> epoch_enabled{false};
++inline std::atomic<std::uint64_t> validation_epoch{1};
++inline std::atomic<std::uint64_t> epoch_skips{0}, epoch_skip_bytes{0}, epoch_bumps{0};
++
++inline std::uint64_t current_epoch() noexcept
++{
++	return epoch_enabled.load(std::memory_order_relaxed) ? validation_epoch.load(std::memory_order_acquire) : 0;
++}
++
++inline void advance_epoch() noexcept
++{
++	if (epoch_enabled.load(std::memory_order_relaxed))
++	{
++		validation_epoch.fetch_add(1, std::memory_order_acq_rel);
++		epoch_bumps.fetch_add(1, std::memory_order_relaxed);
++	}
++}
+ }
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 57722bc78..2563295b1 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -4,6 +4,9 @@
+ #include "Emu/Cell/SPUObjectCachePolicy.h"
+ #include "Emu/RSX/Common/BufferUtils.h"
+ #include "Emu/system_config.h"
++#include "Emu/System.h"
++#include "IOSMemoryPressurePolicy.h"
++#include "IOSTextureValidationProfile.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+ 
+@@ -119,6 +122,11 @@ void resolve_experimental_policy() noexcept
+ 	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
+ 	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
+ 	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
++	// CELL559_TEXTURE_EPOCH: Automatic is God of War III only, where per-draw
++	// revalidation hashed about 270 MiB per frame interval on build 553.
++	resolved.texture_validation_epoch = resolve_mode(g_cfg.ios_experimental.texture_validation_epoch,
++		is_god_of_war_iii_title(Emu.GetTitleID()));
++	texture_validation::epoch_enabled.store(resolved.texture_validation_epoch, std::memory_order_relaxed);
+ 	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
+ 	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
+ 	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
+@@ -151,8 +159,8 @@ void resolve_experimental_policy() noexcept
+ 	}
+ 
+ 	s_policy = resolved;
+-	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d",
+-		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid);
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d",
++		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch);
+ 	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 1e1c877bf..186e3e34a 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -13,6 +13,9 @@ struct experimental_policy
+ 	bool mobile_spu_scheduling = false;
+ 	bool dma_copy_specialization = false;
+ 	bool texture_hash_hybrid = false;
++	// CELL559_TEXTURE_EPOCH: keep a confirmed texture hash until the next RSX
++	// synchronization point instead of re-hashing it for every draw.
++	bool texture_validation_epoch = false;
+ 	u32 fifo_cache_bytes = 1024;
+ 	bool fifo_idle_wfe = false;
+ 	bool deferred_get_publishing = false;
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 29869927f..9db08a7c0 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -13,6 +13,7 @@
+ #include "Utilities/JITMemoryProfile.h"
+ #include "IOSTextureValidationProfile.h"
+ #include "IOSReadbackProfile.h"
++#include "IOSFullOverwrite.h"
+ #include "IOSCompileAdmission.h"
+ #include "IOSRuntimeMetrics.h"
+ #include "IOSShaderTiming.h"
+@@ -1039,6 +1040,22 @@ private:
+             }
+             ios_core_profiler.notice("%s scope=process_window_all_threads parent_includes_gpu_fence=1 bytes_scope=confirmed_requested_not_dma_payload window_boundary_approximate=1", line);
+         }
++        // CELL559_OPT_EXPORT: work the 559 paths avoided in this window, one bounded line.
++        {
++            namespace overwrite = rpcs3::ios::full_overwrite;
++            namespace validation = rpcs3::ios::texture_validation;
++            ios_core_profiler.notice("COREPROF OPT559 session=%llu window=%llu dirty_hash_releases=%llu dirty_hash_release_bytes=%llu "
++                "dma_flush_skips=%llu dma_flush_skip_bytes=%llu rt_reload_skips=%llu rt_reload_skip_bytes=%llu "
++                "texture_epoch=%u epoch_skips=%llu epoch_skip_bytes=%llu epoch_advances=%llu "
++                "scope=process_window_counters bytes_scope=section_ranges_not_transfers window_boundary_approximate=1",
++                profile_session, profile_window,
++                validation::dirty_releases.exchange(0, std::memory_order_relaxed), validation::dirty_release_bytes.exchange(0, std::memory_order_relaxed),
++                overwrite::dma_flush_skips.exchange(0, std::memory_order_relaxed), overwrite::dma_flush_skip_bytes.exchange(0, std::memory_order_relaxed),
++                overwrite::rt_reload_skips.exchange(0, std::memory_order_relaxed), overwrite::rt_reload_skip_bytes.exchange(0, std::memory_order_relaxed),
++                validation::epoch_enabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                validation::epoch_skips.exchange(0, std::memory_order_relaxed), validation::epoch_skip_bytes.exchange(0, std::memory_order_relaxed),
++                validation::epoch_bumps.exchange(0, std::memory_order_relaxed));
++        }
+         const auto& mem = memory_window.latest;
+         const auto& peak = memory_window.peak;
+         ios_core_profiler.notice(
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 49a78a99a..1145eae14 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -126,6 +126,7 @@ const std::array catalog{
+ 	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
+ 	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
+ 	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
++	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III only; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
+ 	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
+ 	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
+ 	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),

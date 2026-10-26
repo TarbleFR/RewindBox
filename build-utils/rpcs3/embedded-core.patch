@@ -3836,10 +3836,10 @@ index e11a27509..353f45920 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 000000000..c5ec81d70
+index 000000000..851e04600
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,30 @@
+@@ -0,0 +1,37 @@
 +# CELL538: the exact reviewed JITLLVM change only suppresses a second SPU
 +# cache probe after a validated miss. It changes neither generated objects nor
 +# their ABI. Preserve the 536 identity for this exact source snapshot only.
@@ -3866,6 +3866,13 @@ index 000000000..c5ec81d70
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
 +           actual STREQUAL "23b66d39ba7cffc1574bf62aa91438dfd8fe188a2749d66bc29ff8a7d8afe032")
 +        set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
++    # CELL559: compile() builds the LLVM analysis managers and the function pass
++    # pipeline only when no cached object is linked. A miss runs the same passes
++    # in the same order on the same IR; a hit generates no code. Generated
++    # objects are unchanged. Keep the 555 identity for this exact source snapshot only.
++    elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
++           actual STREQUAL "6b5a1b8d42dc43de1eac71dc3f002921284788c4aee258c1a734e3d802d8951a")
++        set(${output} "613a7fa9ff59420720c810b0040e3d3b89cae89ea41e3715e7daf62de20c9be7" PARENT_SCOPE)
 +    else()
 +        set(${output} "${actual}" PARENT_SCOPE)
 +    endif()
@@ -10163,7 +10170,7 @@ index 000000000..9d192663c
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
-index 9a1e4c790..2b24885d6 100644
+index 9a1e4c790..f23c2c618 100644
 --- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 @@ -1,5 +1,12 @@
@@ -10917,10 +10924,40 @@ index 9a1e4c790..2b24885d6 100644
  			{
  				stride = 16;
  				elements = 4;
-@@ -3853,6 +4368,13 @@ public:
+@@ -3853,44 +4368,97 @@ public:
  			m_function_table->eraseFromParent();
  		}
  
+-		// Create the analysis managers.
+-		// These must be declared in this order so that they are destroyed in the
+-		// correct order due to inter-analysis-manager references.
+-		LoopAnalysisManager lam;
+-		FunctionAnalysisManager fam;
+-		CGSCCAnalysisManager cgam;
+-		ModuleAnalysisManager mam;
+-
+-		// Create the new pass manager builder.
+-		// Take a look at the PassBuilder constructor parameters for more
+-		// customization, e.g. specifying a TargetMachine or various debugging
+-		// options.
+-		PassBuilder pb;
+-
+-		// Register all the basic analyses with the managers.
+-		pb.registerModuleAnalyses(mam);
+-		pb.registerCGSCCAnalyses(cgam);
+-		pb.registerFunctionAnalyses(fam);
+-		pb.registerLoopAnalyses(lam);
+-		pb.crossRegisterProxies(lam, fam, cgam, mam);
+-
+-		FunctionPassManager fpm;
+-		// Basic optimizations
+-		fpm.addPass(EarlyCSEPass(true));
+-		fpm.addPass(SimplifyCFGPass());
+-		fpm.addPass(DSEPass());
+-		fpm.addPass(createFunctionToLoopPassAdaptor(LICMPass(LICMOptions()), true));
+-		fpm.addPass(ADCEPass());
+-
+-		for (auto& f : *m_module)
 +#ifdef RPCS3_IOS
 +		// JITPROF: IR construction ends here; the pass pipeline and the code
 +		// generation below are measured separately (SPUPROF keeps the total).
@@ -10928,34 +10965,53 @@ index 9a1e4c790..2b24885d6 100644
 +		jit_phase::g_counters.add(jit_phase::spu_build, passes_started - compile_started, m_size);
 +#endif
 +
- 		// Create the analysis managers.
- 		// These must be declared in this order so that they are destroyed in the
- 		// correct order due to inter-analysis-manager references.
-@@ -3878,19 +4400,63 @@ public:
- 		// Basic optimizations
- 		fpm.addPass(EarlyCSEPass(true));
- 		fpm.addPass(SimplifyCFGPass());
-+		// NEOSTATION_BUILD483_LLVM_PIPELINES_V1: upstream RPCS3 (x86-64) and
-+		// ARMSX3 (ARM64) run InstCombine here. Every direct call to a function
-+		// defined in the module carries its callee's calling convention (see
-+		// m_test_state), which InstCombine requires: a mismatch becomes
-+		// unreachable. "Reference 481" keeps the previous pipeline to compare.
-+		if (g_cfg.core.spu_llvm_pipeline == spu_llvm_pipeline_type::upstream)
-+		{
-+			fpm.addPass(InstCombinePass());
-+		}
- 		fpm.addPass(DSEPass());
- 		fpm.addPass(createFunctionToLoopPassAdaptor(LICMPass(LICMOptions()), true));
- 		fpm.addPass(ADCEPass());
- 
--		for (auto& f : *m_module)
 +#ifdef RPCS3_IOS
 +		// A cached object replaces everything the passes would feed to the
 +		// code generator; the IR only has to exist for linking.
++		// CELL559_SPU_CACHE_HIT_PASSES: a hit also skips building the analysis
++		// managers and registering every LLVM analysis it would never run.
 +		if (!spu_cached_object)
 +#endif
  		{
 -			run_transforms(f);
++			// Create the analysis managers.
++			// These must be declared in this order so that they are destroyed in the
++			// correct order due to inter-analysis-manager references.
++			LoopAnalysisManager lam;
++			FunctionAnalysisManager fam;
++			CGSCCAnalysisManager cgam;
++			ModuleAnalysisManager mam;
++
++			// Create the new pass manager builder.
++			// Take a look at the PassBuilder constructor parameters for more
++			// customization, e.g. specifying a TargetMachine or various debugging
++			// options.
++			PassBuilder pb;
++
++			// Register all the basic analyses with the managers.
++			pb.registerModuleAnalyses(mam);
++			pb.registerCGSCCAnalyses(cgam);
++			pb.registerFunctionAnalyses(fam);
++			pb.registerLoopAnalyses(lam);
++			pb.crossRegisterProxies(lam, fam, cgam, mam);
++
++			FunctionPassManager fpm;
++			// Basic optimizations
++			fpm.addPass(EarlyCSEPass(true));
++			fpm.addPass(SimplifyCFGPass());
++			// NEOSTATION_BUILD483_LLVM_PIPELINES_V1: upstream RPCS3 (x86-64) and
++			// ARMSX3 (ARM64) run InstCombine here. Every direct call to a function
++			// defined in the module carries its callee's calling convention (see
++			// m_test_state), which InstCombine requires: a mismatch becomes
++			// unreachable. "Reference 481" keeps the previous pipeline to compare.
++			if (g_cfg.core.spu_llvm_pipeline == spu_llvm_pipeline_type::upstream)
++			{
++				fpm.addPass(InstCombinePass());
++			}
++			fpm.addPass(DSEPass());
++			fpm.addPass(createFunctionToLoopPassAdaptor(LICMPass(LICMOptions()), true));
++			fpm.addPass(ADCEPass());
++
 +			for (auto& f : *m_module)
 +			{
 +				run_transforms(f);
@@ -11000,7 +11056,7 @@ index 9a1e4c790..2b24885d6 100644
  		}
  
  		// Clear context (TODO)
-@@ -3904,12 +4470,33 @@ public:
+@@ -3904,12 +4472,33 @@ public:
  		std::string& llvm_log = function_log;
  		raw_string_ostream out(llvm_log);
  
@@ -11011,7 +11067,7 @@ index 9a1e4c790..2b24885d6 100644
 -		if (verifyModule(*_module, &out))
 +		bool llvm_ir_logged = false;
 +		const auto append_llvm_ir = [&]
- 		{
++		{
 +			if (!llvm_ir_logged)
 +			{
 +				prepare_function_log();
@@ -11021,7 +11077,7 @@ index 9a1e4c790..2b24885d6 100644
 +			}
 +		};
 +		if (g_cfg.core.spu_debug)
-+		{
+ 		{
 +			append_llvm_ir();
 +		}
 +		std::string verification_log;
@@ -11039,7 +11095,7 @@ index 9a1e4c790..2b24885d6 100644
  			out.flush();
  			spu_log.error("LLVM: Verification failed at 0x%x:\n%s", func.entry_point, llvm_log);
  
-@@ -3951,22 +4538,39 @@ public:
+@@ -3951,22 +4540,39 @@ public:
  
  			if (recoverable)
  			{
@@ -11090,7 +11146,7 @@ index 9a1e4c790..2b24885d6 100644
  				{
  					added = m_jit.try_add(std::move(_module), llvm_error);
  				}
-@@ -3983,19 +4587,7 @@ public:
+@@ -3983,19 +4589,7 @@ public:
  			}
  			else
  			{
@@ -11111,7 +11167,7 @@ index 9a1e4c790..2b24885d6 100644
  
  				m_jit.fin();
  			}
-@@ -4018,11 +4610,60 @@ public:
+@@ -4018,11 +4612,60 @@ public:
  #endif
  		}
  
@@ -11172,7 +11228,7 @@ index 9a1e4c790..2b24885d6 100644
  
  		// Rebuild trampoline if necessary
  		if (!m_spurt->rebuild_ubertrampoline(func.data[0]))
-@@ -4069,7 +4710,7 @@ public:
+@@ -4069,7 +4712,7 @@ public:
  				cache.add(func);
  			}
  
@@ -11181,7 +11237,7 @@ index 9a1e4c790..2b24885d6 100644
  		}
  
  		return fn;
-@@ -4159,14 +4800,13 @@ public:
+@@ -4159,14 +4802,13 @@ public:
  		// Pinned constant, address of first register
  		m_interp_regs = _ptr(m_thread, get_reg_offset(0));
  
@@ -11200,7 +11256,7 @@ index 9a1e4c790..2b24885d6 100644
  
  		// Decode (shift) and load function pointer
  		const auto first = m_ir->CreateLoad(get_type<u8*>(), m_ir->CreateGEP(get_type<u8*>(), m_interp_table, m_ir->CreateLShr(m_interp_op, 32u - m_interp_magn)));
-@@ -4444,17 +5084,34 @@ public:
+@@ -4444,17 +5086,34 @@ public:
  		for (auto& f : *_module)
  		{
  			run_transforms(f);
@@ -11240,7 +11296,7 @@ index 9a1e4c790..2b24885d6 100644
  			out.flush();
  			spu_log.error("LLVM: Verification failed:\n%s", llvm_log);
  
-@@ -4466,6 +5123,11 @@ public:
+@@ -4466,6 +5125,11 @@ public:
  			fmt::throw_exception("Compilation failed");
  		}
  
@@ -11252,7 +11308,7 @@ index 9a1e4c790..2b24885d6 100644
  		if (g_cfg.core.spu_debug)
  		{
  			// Testing only
-@@ -4479,11 +5141,22 @@ public:
+@@ -4479,11 +5143,22 @@ public:
  		{
  			m_jit.add(std::move(_module));
  		}
@@ -11275,7 +11331,7 @@ index 9a1e4c790..2b24885d6 100644
  
  		for (u32 i = 0; i < spu_runtime::g_interpreter_table.size(); i++)
  		{
-@@ -4507,7 +5180,7 @@ public:
+@@ -4507,7 +5182,7 @@ public:
  
  	static bool exec_check_state(spu_thread* _spu)
  	{
@@ -11284,7 +11340,7 @@ index 9a1e4c790..2b24885d6 100644
  	}
  
  	template <spu_intrp_func_t F>
-@@ -4747,7 +5420,9 @@ public:
+@@ -4747,7 +5422,9 @@ public:
  #if defined(ARCH_X64) || defined(ARCH_ARM64)
  			if (utils::get_tsc_freq() && !(g_cfg.core.spu_loop_detection) && (g_cfg.core.clocks_scale == 100))
  			{
@@ -11295,7 +11351,7 @@ index 9a1e4c790..2b24885d6 100644
  				const auto timestamp = m_ir->CreateLoad(get_type<u64>(), spu_ptr(&spu_thread::ch_dec_start_timestamp));
  				const auto dec_value = m_ir->CreateLoad(get_type<u32>(), spu_ptr(&spu_thread::ch_dec_value));
  				const auto tsc = m_ir->CreateCall(get_intrinsic(llvm::Intrinsic::readcyclecounter));
-@@ -4924,9 +5599,25 @@ public:
+@@ -4924,9 +5601,25 @@ public:
  			{
  				auto wait_inbox = [](spu_thread* _spu, spu_channel_4_t* ch) -> u32
  				{
@@ -11322,7 +11378,7 @@ index 9a1e4c790..2b24885d6 100644
  				res.value = call("wait_spu_inbox", +wait_inbox, m_thread, spu_ptr(&spu_thread::ch_in_mbox));
  				break;
  			}
-@@ -5200,7 +5891,7 @@ public:
+@@ -5200,7 +5893,7 @@ public:
  				}
  			}
  
@@ -11331,7 +11387,7 @@ index 9a1e4c790..2b24885d6 100644
  			//m_ir->CreateStore(val.value, spu_ptr(&spu_thread::ch_mfc_cmd, &spu_mfc_cmd::eah));
  			return;
  		}
-@@ -5403,6 +6094,16 @@ public:
+@@ -5403,6 +6096,16 @@ public:
  					}
  					}
  
@@ -11348,7 +11404,7 @@ index 9a1e4c790..2b24885d6 100644
  					// Check if the LS address is constant and 256 bit aligned
  					u64 clsa = umax;
  
-@@ -5411,20 +6112,19 @@ public:
+@@ -5411,20 +6114,19 @@ public:
  						clsa = ci->getZExtValue();
  					}
  
@@ -11371,7 +11427,7 @@ index 9a1e4c790..2b24885d6 100644
  					{
  						// Generate fixed sequence of copy operations
  						for (u32 i = 0; i < csize; i += stride)
-@@ -5558,7 +6258,7 @@ public:
+@@ -5558,7 +6260,7 @@ public:
  			}
  
  			// Fallback to unoptimized WRCH implementation (TODO)
@@ -11380,7 +11436,7 @@ index 9a1e4c790..2b24885d6 100644
  			break;
  		}
  		case MFC_WrListStallAck:
-@@ -5580,29 +6280,8 @@ public:
+@@ -5580,29 +6282,8 @@ public:
  			return;
  		}
  		case SPU_WrDec:
@@ -11412,7 +11468,7 @@ index 9a1e4c790..2b24885d6 100644
  		case SPU_Set_Bkmk_Tag:
  		case SPU_PM_Start_Ev:
  		case SPU_PM_Stop_Ev:
-@@ -5702,14 +6381,34 @@ public:
+@@ -5702,14 +6383,34 @@ public:
  
  	void ABSDB(spu_opcode_t op)
  	{
@@ -11447,7 +11503,7 @@ index 9a1e4c790..2b24885d6 100644
  	}
  
  	void ROTM(spu_opcode_t op)
-@@ -5747,7 +6446,13 @@ public:
+@@ -5747,7 +6448,13 @@ public:
  			return;
  		}
  
@@ -11461,7 +11517,7 @@ index 9a1e4c790..2b24885d6 100644
  	}
  
  	void SHL(spu_opcode_t op)
-@@ -5766,7 +6471,13 @@ public:
+@@ -5766,7 +6473,13 @@ public:
  	void ROTH(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
@@ -11475,7 +11531,7 @@ index 9a1e4c790..2b24885d6 100644
  	}
  
  	void ROTHM(spu_opcode_t op)
-@@ -5804,7 +6515,13 @@ public:
+@@ -5804,7 +6517,13 @@ public:
  			return;
  		}
  
@@ -11489,7 +11545,7 @@ index 9a1e4c790..2b24885d6 100644
  	}
  
  	void SHLH(spu_opcode_t op)
-@@ -6258,13 +6975,12 @@ public:
+@@ -6258,13 +6977,12 @@ public:
  
  	void FSMB(spu_opcode_t op)
  	{
@@ -11507,7 +11563,7 @@ index 9a1e4c790..2b24885d6 100644
  		const auto m = bitcast<bool[16]>(trunc<u16>(v));
  		set_vr(op.rt, sext<s8[16]>(m));
  #endif
-@@ -6273,7 +6989,17 @@ public:
+@@ -6273,7 +6991,17 @@ public:
  	template <typename TA>
  	static auto byteswap(TA&& a)
  	{
@@ -11525,7 +11581,7 @@ index 9a1e4c790..2b24885d6 100644
  	}
  
  	static auto rotqby_reverse_base()
-@@ -6334,20 +7060,24 @@ public:
+@@ -6334,20 +7062,24 @@ public:
  				const auto sc = rotqby_reverse_base();
  				const auto sh = sc + (splat_scalar(b) >> 3);
  
@@ -11550,7 +11606,7 @@ index 9a1e4c790..2b24885d6 100644
  
  			return eval(pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  		});
-@@ -6504,8 +7234,14 @@ public:
+@@ -6504,8 +7236,14 @@ public:
  			}
  		}
  
@@ -11565,7 +11621,7 @@ index 9a1e4c790..2b24885d6 100644
  	}
  
  	void ROTQMBI(spu_opcode_t op)
-@@ -6518,15 +7254,27 @@ public:
+@@ -6518,15 +7256,27 @@ public:
  			minusb = eval(x);
  		}
  
@@ -11593,7 +11649,7 @@ index 9a1e4c790..2b24885d6 100644
  	}
  
  #if defined(ARCH_X64)
-@@ -6561,11 +7309,13 @@ public:
+@@ -6561,11 +7311,13 @@ public:
  			const auto sc = rotqby_reverse_base();
  			const auto sh = eval(sc + splat_scalar(b));
  
@@ -11607,7 +11663,7 @@ index 9a1e4c790..2b24885d6 100644
  
  			set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(as, (sh & 0xf)));
  			return;
-@@ -6574,11 +7324,13 @@ public:
+@@ -6574,11 +7326,13 @@ public:
  		const auto sc = rotqby_forward_base();
  		const auto sh = eval(sc - splat_scalar(b));
  
@@ -11621,7 +11677,7 @@ index 9a1e4c790..2b24885d6 100644
  
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  	}
-@@ -6724,6 +7476,16 @@ public:
+@@ -6724,6 +7478,16 @@ public:
  	void ROTQBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -11638,7 +11694,7 @@ index 9a1e4c790..2b24885d6 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = (sc - get_imm<u8[16]>(op.i7, false)) & 0xf;
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6732,6 +7494,16 @@ public:
+@@ -6732,6 +7496,16 @@ public:
  	void ROTQMBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -11655,7 +11711,7 @@ index 9a1e4c790..2b24885d6 100644
  		const auto sc = rotqby_zero_base();
  		const auto sh = sc + (-get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6741,6 +7513,16 @@ public:
+@@ -6741,6 +7515,16 @@ public:
  	{
  		if (get_reg_raw(op.ra) && !op.i7) return set_reg_fixed(op.rt, get_reg_raw(op.ra), false); // For expressions matching
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -11672,7 +11728,7 @@ index 9a1e4c790..2b24885d6 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = sc - (get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6773,6 +7555,7 @@ public:
+@@ -6773,6 +7557,7 @@ public:
  
  	void SUMB(spu_opcode_t op)
  	{
@@ -11680,7 +11736,7 @@ index 9a1e4c790..2b24885d6 100644
  		if (m_use_avx512)
  		{
  			const auto [a, b] = get_vrs<u8[16]>(op.ra, op.rb);
-@@ -6789,6 +7572,7 @@ public:
+@@ -6789,6 +7574,7 @@ public:
  			set_vr(op.rt, shuffle2(ax, bx, 0, 9, 2, 11, 4, 13, 6, 15));
  			return;
  		}
@@ -11688,7 +11744,7 @@ index 9a1e4c790..2b24885d6 100644
  
  #ifdef ARCH_ARM64
  		if (m_use_dotprod)
-@@ -6812,6 +7596,17 @@ public:
+@@ -6812,6 +7598,17 @@ public:
  			return;
  		}
  
@@ -11706,7 +11762,7 @@ index 9a1e4c790..2b24885d6 100644
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
  		const auto ahs = eval((a >> 8) + (a & 0xff));
  		const auto bhs = eval((b >> 8) + (b & 0xff));
-@@ -6850,11 +7645,31 @@ public:
+@@ -6850,11 +7647,31 @@ public:
  
  	void XSWD(spu_opcode_t op)
  	{
@@ -11738,7 +11794,7 @@ index 9a1e4c790..2b24885d6 100644
  		set_vr(op.rt, get_vr<s32[4]>(op.ra) << 16 >> 16);
  	}
  
-@@ -6865,6 +7680,16 @@ public:
+@@ -6865,6 +7682,16 @@ public:
  
  	void XSBH(spu_opcode_t op)
  	{
@@ -11755,7 +11811,7 @@ index 9a1e4c790..2b24885d6 100644
  		set_vr(op.rt, get_vr<s16[8]>(op.ra) << 8 >> 8);
  	}
  
-@@ -6925,16 +7750,28 @@ public:
+@@ -6925,16 +7752,28 @@ public:
  	void CGX(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u32[4]>(op.ra, op.rb);
@@ -11784,7 +11840,7 @@ index 9a1e4c790..2b24885d6 100644
  	}
  
  	void MPYHHA(spu_opcode_t op)
-@@ -7417,6 +8254,32 @@ public:
+@@ -7417,6 +8256,32 @@ public:
  			case 2:
  			case 1:
  			{
@@ -11817,7 +11873,7 @@ index 9a1e4c790..2b24885d6 100644
  				set_vr(op.rt4, select(bitcast<s8[16]>(c) != 0, get_vr<u8[16]>(op.rb), get_vr<u8[16]>(op.ra)));
  				return;
  			}
-@@ -7451,6 +8314,18 @@ public:
+@@ -7451,6 +8316,18 @@ public:
  			// If the mask comes from a constant generation instruction, replace SHUFB with insert
  			if (auto [ok, i] = match_expr(c, spu_get_insertion_shuffle_mask<VT>(match<u32>())); ok)
  			{
@@ -11836,7 +11892,7 @@ index 9a1e4c790..2b24885d6 100644
  				set_vr(op.rt4, insert(get_vr<VT>(op.rb), i, get_scalar(get_vr<VT>(op.ra))));
  				return true;
  			}
-@@ -7461,6 +8336,21 @@ public:
+@@ -7461,6 +8338,21 @@ public:
  			return;
  		}
  
@@ -11858,7 +11914,7 @@ index 9a1e4c790..2b24885d6 100644
  		const auto c = get_vr<u8[16]>(op.rc);
  
  		if (auto [ok, mask] = get_const_vector(c.value, m_pos); ok)
-@@ -7507,7 +8397,7 @@ public:
+@@ -7507,7 +8399,7 @@ public:
  					{ 0x1011121314151617, 0x000102031c1d1e1f, &cpu_translator::get_type<u32[4]>, 3, 1 },
  					{ 0x1011121314151617, 0x18191a1b00010203, &cpu_translator::get_type<u32[4]>, 3, 0 },
  					{ 0x0001020304050607, 0x18191a1b1c1d1e1f, &cpu_translator::get_type<u64[2]>, 1, 1 },
@@ -11867,7 +11923,7 @@ index 9a1e4c790..2b24885d6 100644
  				};
  
  				// Check important constants from CWD-like constant generation instructions
-@@ -7568,6 +8458,28 @@ public:
+@@ -7568,6 +8460,28 @@ public:
  		[[maybe_unused]] const bool consts_never_msb = known_idx.Zero[5];
  		[[maybe_unused]] const bool consts_never_allones = known_idx.One[5];
  		[[maybe_unused]] const bool idx_selects_single = known_idx.extractBits(1, 4).isConstant();
@@ -11896,7 +11952,7 @@ index 9a1e4c790..2b24885d6 100644
  
  		const auto a = get_vr<u8[16]>(op.ra);
  		const auto b = get_vr<u8[16]>(op.rb);
-@@ -7627,12 +8539,12 @@ public:
+@@ -7627,12 +8541,12 @@ public:
  			cv = eval(c ^ 0xf);
  		}
  
@@ -11914,7 +11970,7 @@ index 9a1e4c790..2b24885d6 100644
  #else
  		const std::optional<value_t<u8[16]>> single_src = (idx_selects_single || (op.ra == op.rb && !m_interp_magn))
  #endif
-@@ -7675,6 +8587,14 @@ public:
+@@ -7675,6 +8589,14 @@ public:
  				return;
  			}
  
@@ -11929,7 +11985,7 @@ index 9a1e4c790..2b24885d6 100644
  			const auto x = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  			const auto xv = perm_or_zero_only ? eval(splat<u8[16]>(0)) : x;
  			const auto cm = eval(cv & 0x8f);
-@@ -7694,6 +8614,15 @@ public:
+@@ -7694,6 +8616,15 @@ public:
  			return;
  		}
  
@@ -11945,7 +12001,7 @@ index 9a1e4c790..2b24885d6 100644
  		if (perm_only)
  		{
  			const auto cm = eval(cv & 0x1f);
-@@ -7701,6 +8630,14 @@ public:
+@@ -7701,6 +8632,14 @@ public:
  			return;
  		}
  
@@ -11960,7 +12016,7 @@ index 9a1e4c790..2b24885d6 100644
  		const auto idx_consts = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  		const auto idx_base = perm_or_zero_only ? eval(splat<u8[16]>(0)) : idx_consts;
  		const auto cm = eval(cv & 0x9f);
-@@ -7953,6 +8890,7 @@ public:
+@@ -7953,6 +8892,7 @@ public:
  	{
  		const auto known = known_opt.value_or(get_known_fp_class<3>(v, llvm::FPClassTest::fcNan | llvm::FPClassTest::fcInf));
  
@@ -11968,7 +12024,7 @@ index 9a1e4c790..2b24885d6 100644
  		// Avoid pessimation when full clamping isn't needed
  		if (m_use_avx512 && !(known.isKnownNeverNaN() && (known.isKnownNeverPosInfinity() || known.isKnownNeverNegInfinity())))
  		{
-@@ -7960,6 +8898,7 @@ public:
+@@ -7960,6 +8900,7 @@ public:
  			// Normally doesn't cause issues as SNaN frequently gets quieted beforehand
  			return eval(vrangeps(v, fsplat<f32[4]>(std::bit_cast<f32, u32>(0x7f7fffff)), 0x2, 0xff));
  		}
@@ -11976,7 +12032,7 @@ index 9a1e4c790..2b24885d6 100644
  
  		return eval(clamp_positive_smax(clamp_negative_smax(v, known), known));
  	}
-@@ -7993,6 +8932,7 @@ public:
+@@ -7993,6 +8934,7 @@ public:
  			const auto a_sign = (a & splat<u32[4]>(0x80000000));
  			value_t<u32[4]> final_result = eval(splat<u32[4]>(0));
  
@@ -11984,7 +12040,7 @@ index 9a1e4c790..2b24885d6 100644
  			if (m_use_avx512)
  			{
  				value_t<u32[16]> lo_lut;
-@@ -8003,6 +8943,7 @@ public:
+@@ -8003,6 +8945,7 @@ public:
  				final_result = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  			}
  			else
@@ -11992,7 +12048,7 @@ index 9a1e4c790..2b24885d6 100644
  			{
  				for (u32 i = 0; i < 4; i++)
  				{
-@@ -8058,6 +8999,15 @@ public:
+@@ -8058,6 +9001,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12008,7 +12064,7 @@ index 9a1e4c790..2b24885d6 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) > get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8154,6 +9104,15 @@ public:
+@@ -8154,6 +9106,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12024,7 +12080,7 @@ index 9a1e4c790..2b24885d6 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) > fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8432,6 +9391,15 @@ public:
+@@ -8432,6 +9393,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12040,7 +12096,7 @@ index 9a1e4c790..2b24885d6 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) == get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8481,6 +9449,15 @@ public:
+@@ -8481,6 +9451,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12056,7 +12112,7 @@ index 9a1e4c790..2b24885d6 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) == fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8669,6 +9646,7 @@ public:
+@@ -8669,6 +9648,7 @@ public:
  					return eval(select(fcmp_uno(b != fsplat<f32[4]>(0.)), normal_fma, c));
  				}
  
@@ -12064,7 +12120,7 @@ index 9a1e4c790..2b24885d6 100644
  				// Same number of operations well preventing a serial predicate chain pessimization
  				if (m_use_avx512)
  				{
-@@ -8677,6 +9655,7 @@ public:
+@@ -8677,6 +9657,7 @@ public:
  					const auto cb = vfixupimmps(b, a, splat<u32[4]>(0x00000800u), 0, 0xff);
  					return fma32x4(ca, cb, c, a_known, b_known);
  				}
@@ -12072,7 +12128,7 @@ index 9a1e4c790..2b24885d6 100644
  
  				const auto normal_fma = fma32x4(a, b, c, a_known, b_known);
  				const auto a_cmp = fcmp_uno(a != fsplat<f32[4]>(0.));
-@@ -8689,6 +9668,7 @@ public:
+@@ -8689,6 +9670,7 @@ public:
  			}
  		});
  
@@ -12080,7 +12136,7 @@ index 9a1e4c790..2b24885d6 100644
  		if (m_use_avx512)
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
-@@ -8702,6 +9682,7 @@ public:
+@@ -8702,6 +9684,7 @@ public:
  			});
  		}
  		else
@@ -12088,7 +12144,7 @@ index 9a1e4c790..2b24885d6 100644
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
  			{
-@@ -8910,17 +9891,38 @@ public:
+@@ -8910,17 +9893,38 @@ public:
  
  		if (auto [ok_re, mystery] = match_expr(a, spu_re(MT)); ok_re)
  		{
@@ -12127,7 +12183,7 @@ index 9a1e4c790..2b24885d6 100644
  		}
  
  		if (!m_interp_magn && op.ra == op.rb)
-@@ -9046,6 +10048,7 @@ public:
+@@ -9046,6 +10050,7 @@ public:
  				const auto a_sign = (a & splat<u32[4]>(0x80000000));
  				value_t<u32[4]> b = eval(splat<u32[4]>(0));
  
@@ -12135,7 +12191,7 @@ index 9a1e4c790..2b24885d6 100644
  				if (m_use_avx512)
  				{
  					value_t<u32[16]> lo_lut;
-@@ -9056,6 +10059,7 @@ public:
+@@ -9056,6 +10061,7 @@ public:
  					b = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  				}
  				else
@@ -12143,7 +12199,7 @@ index 9a1e4c790..2b24885d6 100644
  				{
  					for (u32 i = 0; i < 4; i++)
  					{
-@@ -9311,6 +10315,7 @@ public:
+@@ -9311,6 +10317,7 @@ public:
  
  			value_t<s32[4]> r;
  
@@ -12151,7 +12207,7 @@ index 9a1e4c790..2b24885d6 100644
  			if (m_use_avx512)
  			{
  				const auto sc = eval(bitcast<f32[4]>(max(bitcast<s32[4]>(a),splat<s32[4]>(0x0))));
-@@ -9318,6 +10323,7 @@ public:
+@@ -9318,6 +10325,7 @@ public:
  				set_vr(op.rt, r);
  				return;
  			}
@@ -12159,7 +12215,7 @@ index 9a1e4c790..2b24885d6 100644
  
  			r.value = m_ir->CreateFPToUI(a.value, get_type<s32[4]>());
  			set_vr(op.rt, select(bitcast<s32[4]>(a) > splat<s32[4]>(((32 + 127) << 23) - 1), splat<s32[4]>(-1), r & ~(bitcast<s32[4]>(a) >> 31)));
-@@ -9650,7 +10656,7 @@ public:
+@@ -9650,7 +10658,7 @@ public:
  
  		if (_spu->ch_events.load().count)
  		{
@@ -12168,7 +12224,7 @@ index 9a1e4c790..2b24885d6 100644
  			_spu->srr0 = addr;
  
  			// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -9667,6 +10673,13 @@ public:
+@@ -9667,6 +10675,13 @@ public:
  		return addr;
  	}
  
@@ -12182,7 +12238,7 @@ index 9a1e4c790..2b24885d6 100644
  	llvm::BasicBlock* add_block_indirect(spu_opcode_t op, value_t<u32> addr, bool ret = true)
  	{
  		if (m_interp_magn)
-@@ -9690,7 +10703,7 @@ public:
+@@ -9690,7 +10705,7 @@ public:
  			target->addIncoming(e_addr, e_exec);
  			m_ir->CreateCondBr(get_imm<bool>(op.d).value, d_exec, d_done, m_md_unlikely);
  			m_ir->SetInsertPoint(d_exec);
@@ -12191,7 +12247,7 @@ index 9a1e4c790..2b24885d6 100644
  			m_ir->CreateBr(d_done);
  			m_ir->SetInsertPoint(d_done);
  			m_ir->CreateBr(m_interp_bblock);
-@@ -9749,7 +10762,7 @@ public:
+@@ -9749,7 +10764,7 @@ public:
  
  		if (op.d)
  		{
@@ -12200,7 +12256,7 @@ index 9a1e4c790..2b24885d6 100644
  		}
  
  		m_ir->CreateStore(addr.value, spu_ptr(&spu_thread::pc));
-@@ -10036,7 +11049,7 @@ public:
+@@ -10036,7 +11051,7 @@ public:
  		if (op.d && tfound != m_targets.end() && tfound->second.size() == 1 && tfound->second[0] == spu_branch_target(m_pos, 1))
  		{
  			// Interrupts-disable pattern
@@ -12209,7 +12265,7 @@ index 9a1e4c790..2b24885d6 100644
  			return;
  		}
  
-@@ -10102,7 +11115,7 @@ public:
+@@ -10102,7 +11117,7 @@ public:
  			{
  				// Can't afford external tail call in true functions
  				m_ir->CreateStore(m_ir->getInt32("BIJT"_u32), _ptr(m_memptr, 0xffdead20));
@@ -15172,23 +15228,99 @@ index 817192730..967267261 100644
  
  				Traits::clone_surface(cmd, sink, region.source, new_address, region, region.source->resolution_scaling_config);
  				allocate_rsx_memory(Traits::get(sink));
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+index 6b306657f..42c324dd8 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
++++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+@@ -64,6 +64,9 @@ namespace rsx
+ 		{
+ 			mem_hash = 0;
+ 		}
++#ifdef RPCS3_IOS
++		validated_epoch = 0;
++#endif
+ 	}
+ 
+ 	void buffered_section::invalidate_range()
+@@ -102,7 +105,14 @@ namespace rsx
+ 		}
+ 		else if (new_prot != utils::protection::rw)
+ 		{
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: read the epoch before the bytes it covers.
++			const u64 epoch = rpcs3::ios::texture_validation::current_epoch();
++			mem_hash = fast_hash_internal();
++			validated_epoch = epoch;
++#else
+ 			mem_hash = fast_hash_internal();
++#endif
+ 		}
+ 
+ 		protection = new_prot;
+@@ -165,6 +175,9 @@ namespace rsx
+ 		protection = utils::protection::rw;
+ 		confirmed_range.invalidate();
+ 		locked = false;
++#ifdef RPCS3_IOS
++		validated_epoch = 0;
++#endif
+ 	}
+ 
+ 	const address_range32& buffered_section::get_bounds(section_bounds bounds) const
+@@ -266,7 +279,23 @@ namespace rsx
+ 			return true;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// CELL559_TEXTURE_EPOCH: confirmed in this epoch, nothing could have
++		// legitimately changed it since. Otherwise hash; only a match is kept.
++		const u64 epoch = rpcs3::ios::texture_validation::current_epoch();
++		if (epoch && validated_epoch == epoch)
++		{
++			rpcs3::ios::texture_validation::epoch_skips.fetch_add(1, std::memory_order_relaxed);
++			rpcs3::ios::texture_validation::epoch_skip_bytes.fetch_add(get_confirmed_range().length(), std::memory_order_relaxed);
++			return true;
++		}
++
++		const bool unchanged = (fast_hash_internal() == mem_hash);
++		validated_epoch = unchanged ? epoch : 0;
++		return unchanged;
++#else
+ 		return (fast_hash_internal() == mem_hash);
++#endif
+ 	}
+ 
+ 	namespace blit_engine_helpers
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
-index 0fa80b230..8c78dde71 100644
+index 0fa80b230..b65747259 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.h
-@@ -12,6 +12,11 @@
+@@ -12,6 +12,13 @@
  
  #include <unordered_map>
  
 +#ifdef RPCS3_IOS
 +// CELL555_READBACK_INCLUDE
 +#include "ios/IOSReadbackProfile.h"
++// CELL559_FULL_OVERWRITE_INCLUDE
++#include "ios/IOSFullOverwrite.h"
 +#endif
 +
  #define RSX_GCM_FORMAT_IGNORED 0
  
  namespace rsx
-@@ -821,6 +826,17 @@ namespace rsx
+@@ -795,6 +802,10 @@ namespace rsx
+ 		void flush_set(commandbuffer_type& cmd, thrashed_set& data, std::function<void()> on_data_transfer_completed, Args&&... extras)
+ 		{
+ 			AUDIT(!data.flushed);
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: GPU data is about to be written to guest memory.
++			rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 
+ 			if (data.sections_to_flush.size() > 1)
+ 			{
+@@ -821,6 +832,17 @@ namespace rsx
  				}
  			}
  
@@ -15206,7 +15338,44 @@ index 0fa80b230..8c78dde71 100644
  			if (!sections_to_transfer.empty())
  			{
  				// Batch all hard faults together
-@@ -1644,6 +1660,11 @@ namespace rsx
+@@ -1145,6 +1167,13 @@ namespace rsx
+ 
+ 			AUDIT(cause.valid());
+ 			AUDIT(fault_range_in.valid());
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: a write, unmap or surface commit changes guest memory.
++			if (!cause.is_read())
++			{
++				rpcs3::ios::texture_validation::advance_epoch();
++			}
++#endif
+ 			address_range32 fault_range = fault_range_in.to_page_range();
+ 
+ 			intersecting_set trampled_set = get_intersecting_set(fault_range);
+@@ -1284,6 +1313,22 @@ namespace rsx
+ 
+ 						result.sections_to_unprotect.push_back(&tex);
+ 					}
++#ifdef RPCS3_IOS
++					else if (!cause.is_read() && cause.use_strict_data_bounds() &&
++						tex.get_context() != texture_upload_context::framebuffer_storage &&
++						rpcs3::ios::full_overwrite::current_range.contains(tex.get_confirmed_range().start, tex.get_confirmed_range().end) &&
++						!rsx::get_current_renderer()->get_tiled_memory_region(tex.get_confirmed_range()))
++					{
++						// CELL559_FULL_OVERWRITE: the DMA copy that follows on this
++						// thread writes every byte this section would write back, and its
++						// destination section locks all of those pages. Reading the old
++						// GPU data back (a fence wait) would only be overwritten.
++						rpcs3::ios::full_overwrite::dma_flush_skips.fetch_add(1, std::memory_order_relaxed);
++						rpcs3::ios::full_overwrite::dma_flush_skip_bytes.fetch_add(tex.get_confirmed_range().length(), std::memory_order_relaxed);
++						tex.set_dirty(true);
++						result.sections_to_unprotect.push_back(&tex);
++					}
++#endif
+ 					else
+ 					{
+ 						result.sections_to_flush.push_back(&tex);
+@@ -1644,6 +1689,11 @@ namespace rsx
  
  					lock.upgrade();
  
@@ -15218,7 +15387,7 @@ index 0fa80b230..8c78dde71 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
  
  					cached_src = cache->upload_image_from_cpu(cmd, rsx_range, image_width, image_height, 1, 1, src.pitch, gcm_format, texture_upload_context::blit_engine_src,
-@@ -1734,6 +1755,11 @@ namespace rsx
+@@ -1734,6 +1784,11 @@ namespace rsx
  				{
  					// NOTE: Write flag set to remove all other overlapping regions (e.g shader_read or blit_src)
  					// NOTE: This step can potentially invalidate the newly created src image as well.
@@ -15230,7 +15399,18 @@ index 0fa80b230..8c78dde71 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::cause_is_write | invalidation_cause::cause_uses_strict_data_bounds, {}, std::forward<Args>(extras)...);
  
  					bool force_dma_load = false;
-@@ -1871,7 +1897,7 @@ namespace rsx
+@@ -1860,6 +1915,10 @@ namespace rsx
+ 
+ 		virtual void on_frame_end()
+ 		{
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: at most one frame between full revalidations.
++			rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 			// Must manually release each cached entry
+ 			for (auto& entry : m_temporary_subresource_cache)
+ 			{
+@@ -1871,7 +1930,7 @@ namespace rsx
  			reset_frame_statistics();
  		}
  
@@ -15239,7 +15419,7 @@ index 0fa80b230..8c78dde71 100644
  		rsx::simple_array<section_storage_type*> find_texture_from_range(const address_range32 &test_range, u32 required_pitch = 0, u32 context_mask = 0xFF)
  		{
  			rsx::simple_array<section_storage_type*> results;
-@@ -1887,7 +1913,7 @@ namespace rsx
+@@ -1887,7 +1946,7 @@ namespace rsx
  						continue;
  					}
  
@@ -15248,7 +15428,7 @@ index 0fa80b230..8c78dde71 100644
  					{
  						continue;
  					}
-@@ -2563,7 +2589,7 @@ namespace rsx
+@@ -2563,7 +2622,7 @@ namespace rsx
  
  			auto fast_fbo_check = [&]() -> sampled_image_descriptor
  			{
@@ -15257,7 +15437,7 @@ index 0fa80b230..8c78dde71 100644
  
  				if (!last.is_clipped) //<- A non-clipped hit fully contains the requested box. We're good to go with the framebuffer processing.
  				{
-@@ -2609,12 +2635,17 @@ namespace rsx
+@@ -2609,12 +2668,17 @@ namespace rsx
  
  			// Check shader_read storage. In a given scene, reads from local memory far outnumber reads from the surface cache
  			const u32 lookup_mask = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_dst | rsx::texture_upload_context::blit_engine_src;
@@ -15277,7 +15457,7 @@ index 0fa80b230..8c78dde71 100644
  				{
  #ifdef TEXTURE_CACHE_DEBUG
  					if (!memory_range.inside(cached_texture->get_confirmed_range()))
-@@ -2649,10 +2680,11 @@ namespace rsx
+@@ -2649,10 +2713,11 @@ namespace rsx
  
  			if (!overlapping_locals.empty())
  			{
@@ -15291,7 +15471,7 @@ index 0fa80b230..8c78dde71 100644
  				});
  			}
  
-@@ -3326,6 +3358,11 @@ namespace rsx
+@@ -3326,6 +3391,11 @@ namespace rsx
  
  			// Invalidate
  			const address_range32 tex_range = address_range32::start_length(attributes.address, tex_size);
@@ -15303,6 +15483,49 @@ index 0fa80b230..8c78dde71 100644
  			invalidate_range_impl_base(cmd, tex_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
  
  			// Upload from CPU. Note that sRGB conversion is handled in the FS
+@@ -3628,6 +3698,15 @@ namespace rsx
+ 
+ 			if (!cached_dest && !dst_is_render_target)
+ 			{
++#ifdef RPCS3_IOS
++				// CELL559_FULL_OVERWRITE: only the strict-bounds invalidation of a new
++				// DMA destination consults this range; render-target creation does not.
++				const rpcs3::ios::full_overwrite::RangeScope ios_full_overwrite(
++					use_null_region && rpcs3::ios::full_overwrite::dma_copy_writes_whole_payload(
++						dst_w, dst_h, dst_bpp, dst.pitch, src_area.width(), src_area.height(), src_bpp,
++						typeless_info.src_is_typeless, dst_is_tiled),
++					dst_address, dst_payload_length);
++#endif
+ 				blit_engine_internals::create_blit_dst(
+ 					this,
+ 					cmd,
+@@ -3724,6 +3803,26 @@ namespace rsx
+ 
+ 				if (!dest_section || !dest_section->is_locked())
+ 				{
++#ifdef RPCS3_IOS
++					// CELL559_FULL_OVERWRITE: a single-sampled color target that this
++					// blit replaces entirely needs neither its old memory nor a clear,
++					// like a newly created blit target. Partial, depth, typeless and
++					// multisampled transfers keep the reload.
++					const auto surface = dst_subres.surface;
++					const bool replaces_surface = rpcs3::ios::full_overwrite::blit_replaces_whole_surface(
++						dst_area.x1, dst_area.y1, dst_area.x2, dst_area.y2,
++						surface->template get_surface_width<rsx::surface_metrics::pixels>(),
++						surface->template get_surface_height<rsx::surface_metrics::pixels>(),
++						surface->template get_surface_width<rsx::surface_metrics::samples>(),
++						surface->template get_surface_height<rsx::surface_metrics::samples>(),
++						dst_is_depth_surface || dst_subres.is_depth, typeless_info.dst_is_typeless);
++					if (replaces_surface)
++					{
++						rpcs3::ios::full_overwrite::rt_reload_skips.fetch_add(1, std::memory_order_relaxed);
++						rpcs3::ios::full_overwrite::rt_reload_skip_bytes.fetch_add(surface->get_memory_range().length(), std::memory_order_relaxed);
++					}
++					else
++#endif
+ 					// All blit targets must be protected, regardless of WCB/RCB settings
+ 					dst_subres.surface->state_flags |= rsx::surface_state_flags::force_data_load | rsx::surface_state_flags::erase_bkgnd;
+ 
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache_helpers.h b/rpcs3/Emu/RSX/Common/texture_cache_helpers.h
 index e6789e84a..040fe8586 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache_helpers.h
@@ -15343,7 +15566,7 @@ index e6789e84a..040fe8586 100644
  		{
  			if (g_cfg.video.strict_rendering_mode)
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
-index a10770d01..e644370a6 100644
+index a10770d01..b4793a64a 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
 @@ -11,6 +11,10 @@
@@ -15393,6 +15616,37 @@ index a10770d01..e644370a6 100644
  		}
  
  
+@@ -883,6 +904,10 @@ namespace rsx
+ 
+ 		section_protection_strategy protection_strat = section_protection_strategy::lock;
+ 		u64 mem_hash = 0;
++#ifdef RPCS3_IOS
++		// CELL559_TEXTURE_EPOCH: epoch in which mem_hash was last confirmed (0: never).
++		mutable u64 validated_epoch = 0;
++#endif
+ 
+ 		bool locked = false;
+ 		void init_lockable_range(const address_range32& range);
+@@ -1512,6 +1537,19 @@ namespace rsx
+ 
+ 		bool sync_protection()
+ 		{
++#ifdef RPCS3_IOS
++			// CELL559_DIRTY_HASH_SKIP: a dirty section is never sampled before it
++			// is recreated, so validating it can only decide its release. Under the
++			// hash strategy release it as a mismatch would, without hashing memory
++			// that cannot make it valid again. Page-locked sections are unchanged.
++			if (is_dirty() && is_locked() && !is_locked(true))
++			{
++				rpcs3::ios::texture_validation::dirty_releases.fetch_add(1, std::memory_order_relaxed);
++				rpcs3::ios::texture_validation::dirty_release_bytes.fetch_add(get_confirmed_range().length(), std::memory_order_relaxed);
++				discard(true);
++				return false;
++			}
++#endif
+ 			if (!buffered_section::sync())
+ 			{
+ 				discard(true);
 diff --git a/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp b/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp
 index 755f4eaca..655cf6bcc 100644
 --- a/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp
@@ -15667,15 +15921,16 @@ index aa37fd331..703899d19 100644
  		}
  
 diff --git a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
-index 3eaebb152..49f592d0e 100644
+index 3eaebb152..ba26ea600 100644
 --- a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
 +++ b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
-@@ -4,6 +4,14 @@
+@@ -4,6 +4,15 @@
  
  #include "Emu/RSX/RSXThread.h"
  
 +#ifdef RPCS3_IOS
 +#include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSTextureValidationProfile.h"
 +#endif
 +
 +// NEOSTATION_BUILD258_RUNTIME_RESILIENCE_V1
@@ -15685,7 +15940,7 @@ index 3eaebb152..49f592d0e 100644
  #include "context_accessors.define.h"
  
  namespace rsx
-@@ -28,10 +36,13 @@ namespace rsx
+@@ -28,11 +37,18 @@ namespace rsx
  			// Syncronization point, may be associated with memory changes without actually changing addresses
  			RSX(ctx)->m_graphics_state |= rsx::pipeline_state::fragment_program_needs_rehash;
  
@@ -15700,9 +15955,14 @@ index 3eaebb152..49f592d0e 100644
 +			// after another guest thread has released the next label.
 +			if (observed == arg)
  			{
++#ifdef RPCS3_IOS
++				// CELL559_TEXTURE_EPOCH: data released before this semaphore is visible now.
++				rpcs3::ios::texture_validation::advance_epoch();
++#endif
  				// Flip semaphore doesnt need wake-up delay
  				if (addr != RSX(ctx)->label_addr + 0x10)
-@@ -42,15 +53,16 @@ namespace rsx
+ 				{
+@@ -42,15 +58,16 @@ namespace rsx
  
  				return;
  			}
@@ -15726,7 +15986,7 @@ index 3eaebb152..49f592d0e 100644
  			{
  				if (RSX(ctx)->test_stopped())
  				{
-@@ -61,40 +73,95 @@ namespace rsx
+@@ -61,40 +78,99 @@ namespace rsx
  				if (const auto tdr = static_cast<u64>(g_cfg.video.driver_recovery_timeout))
  				{
  					const u64 current = get_system_time();
@@ -15828,6 +16088,10 @@ index 3eaebb152..49f592d0e 100644
 +				observed = atomic_sema.load();
  			}
  
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: the producer released the semaphore after its writes.
++			rpcs3::ios::texture_validation::advance_epoch();
++#endif
 +			const u64 waited = get_system_time() - wait_started;
 +#ifdef RPCS3_IOS
 +			if (timed_out)
@@ -16045,7 +16309,7 @@ index cade46757..b4bbc16d8 100644
  		bool ROP_discard : 1;
  		bool ROP_channel_remap : 1;
 diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
-index 221e24ea7..843148839 100644
+index 221e24ea7..294bb29a8 100644
 --- a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
 +++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
 @@ -7,22 +7,7 @@
@@ -16072,7 +16336,25 @@ index 221e24ea7..843148839 100644
  
  #ifdef _MSC_VER
  #define AVX512_ICL_FUNC
-@@ -578,8 +563,15 @@ bool vertex_program_compare::compare_properties(const RSXVertexProgram& binary1,
+@@ -550,6 +535,17 @@ bool vertex_program_compare::operator()(const RSXVertexProgram &binary1, const R
+ 
+ 	const void* instBuffer1 = binary1.data.data();
+ 	const void* instBuffer2 = binary2.data.data();
++#ifdef RPCS3_IOS
++	// CELL559_VP_EXACT_MATCH: a cache hit compares the same ucode again. Equal
++	// words satisfy every masked comparison below, so libc's vectorized compare
++	// confirms it without testing each instruction bit. A difference, possibly
++	// in an unused slot, still falls through to the exact masked comparison.
++	if (const usz ucode_bytes = (binary1.data.size() / 4) * 16;
++		!ucode_bytes || std::memcmp(instBuffer1, instBuffer2, ucode_bytes) == 0)
++	{
++		return true;
++	}
++#endif
+ 	usz instIndex = 0;
+ 	while (instIndex < (binary1.data.size() / 4))
+ 	{
+@@ -578,8 +574,15 @@ bool vertex_program_compare::compare_properties(const RSXVertexProgram& binary1,
  
  bool fragment_program_utils::is_any_src_constant(v128 sourceOperand)
  {
@@ -16088,7 +16370,7 @@ index 221e24ea7..843148839 100644
  }
  
  usz fragment_program_utils::get_fragment_program_ucode_size(const void* ptr)
-@@ -650,6 +642,7 @@ fragment_program_utils::fragment_program_metadata fragment_program_utils::analys
+@@ -650,6 +653,7 @@ fragment_program_utils::fragment_program_metadata fragment_program_utils::analys
  		case RSX_FP_OPCODE_TXD:
  		case RSX_FP_OPCODE_TXB:
  		case RSX_FP_OPCODE_TXL:
@@ -16096,7 +16378,7 @@ index 221e24ea7..843148839 100644
  			result.referenced_textures_mask |= (1 << d0.tex_num);
  			result.bx2_texture_reads_mask |= ((d0.exp_tex ? 1u : 0u) << d0.tex_num);
  			break;
-@@ -746,12 +739,32 @@ bool fragment_program_compare::operator()(const RSXFragmentProgram& binary1, con
+@@ -746,12 +750,32 @@ bool fragment_program_compare::operator()(const RSXFragmentProgram& binary1, con
  
  	const void* instBuffer1 = binary1.get_data();
  	const void* instBuffer2 = binary2.get_data();
@@ -16129,7 +16411,7 @@ index 221e24ea7..843148839 100644
  		{
  			return false;
  		}
-@@ -777,31 +790,35 @@ bool fragment_program_compare::compare_properties(const RSXFragmentProgram& bina
+@@ -777,31 +801,35 @@ bool fragment_program_compare::compare_properties(const RSXFragmentProgram& bina
  namespace rsx
  {
  #if defined(ARCH_X64) || defined(ARCH_ARM64)
@@ -16182,7 +16464,7 @@ index 221e24ea7..843148839 100644
  	}
  #else
  	static inline void write_fragment_constants_to_buffer_fallback(const std::span<f32>& buffer, const RSXFragmentProgram& rsx_prog, const std::vector<u32>& offsets_cache, bool sanitize)
-@@ -835,7 +852,7 @@ namespace rsx
+@@ -835,7 +863,7 @@ namespace rsx
  	void write_fragment_constants_to_buffer(const std::span<f32>& buffer, const RSXFragmentProgram& rsx_prog, const std::vector<u32>& offsets_cache, bool sanitize)
  	{
  #if defined(ARCH_X64) || defined(ARCH_ARM64)
@@ -16192,7 +16474,7 @@ index 221e24ea7..843148839 100644
  		write_fragment_constants_to_buffer_fallback(buffer, rsx_prog, offsets_cache, sanitize);
  #endif
 diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.h b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
-index e1bdc8852..6b918d340 100644
+index e1bdc8852..c3fdcc46d 100644
 --- a/rpcs3/Emu/RSX/Program/ProgramStateCache.h
 +++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
 @@ -9,8 +9,16 @@
@@ -16286,7 +16568,7 @@ index e1bdc8852..6b918d340 100644
  	vertex_program_type __null_vertex_program;
  	fragment_program_type __null_fragment_program;
  	pipeline_storage_type __null_pipeline_handle;
-@@ -365,39 +392,46 @@ public:
+@@ -365,41 +392,74 @@ public:
  		const bool already_existing_vertex_program = std::get<1>(vp_search);
  		const vertex_program_type& vertex_program = std::get<0>(vp_search);
  		const fragment_program_type& fragment_program = std::get<0>(fp_search);
@@ -16348,8 +16630,36 @@ index e1bdc8852..6b918d340 100644
 +
  		std::function<pipeline_type* (pipeline_storage_type&)> callback;
  
++#ifdef RPCS3_IOS
++		if (allow_notification && !compile_async)
++		{
++			// CELL559_INLINE_CALLBACK: an inline build runs this callback before
++			// returning and the disk writer copies what it keeps. The vertex
++			// program is RSX-thread state that cannot change meanwhile, so it is
++			// referenced instead of copied. The fragment ucode still points into
++			// guest memory that PPU/SPU may rewrite during a long driver compile:
++			// its snapshot is kept so the disk record matches the compiled shader.
++			callback = [this, &vertex_shader, fragment_shader_ = RSXFragmentProgram::clone(fragment_shader), key]
++			(pipeline_storage_type& pipeline) -> pipeline_type*
++			{
++				if (!pipeline)
++				{
++					return nullptr;
++				}
++
++				rsx_log.success("Program compiled successfully");
++				// Publish before the disk notification so equal requesters resume first.
++				pipeline_type* published = publish_pipeline(key, pipeline);
++				notify_pipeline_compiled(key.properties, vertex_shader, fragment_shader_);
++				return published;
++			};
++		}
++		else
++#endif
  		if (allow_notification)
-@@ -411,12 +445,10 @@ public:
+ 		{
+ 			callback = [this, vertex_shader, fragment_shader_ = RSXFragmentProgram::clone(fragment_shader), key]
+@@ -411,12 +471,10 @@ public:
  				}
  
  				rsx_log.success("Program compiled successfully");
@@ -16365,7 +16675,7 @@ index e1bdc8852..6b918d340 100644
  			};
  		}
  		else
-@@ -428,24 +460,126 @@ public:
+@@ -428,24 +486,130 @@ public:
  					return nullptr;
  				}
  
@@ -16391,7 +16701,11 @@ index e1bdc8852..6b918d340 100644
 -			pipeline_properties,             // Pipeline state
 +			key.properties,                  // Same state as the cache key
  			compile_async,                  // Allow asynchronous compilation
++#ifdef RPCS3_IOS
++			std::move(callback),            // Insertion and notification callback, not copied
++#else
  			callback,                       // Insertion and notification callback
++#endif
  			std::forward<Args>(args)...);   // Other arguments
  
 +		if (!result && !compile_async)
@@ -16498,7 +16812,7 @@ index e1bdc8852..6b918d340 100644
  	void fill_fragment_constants_buffer(std::span<f32> dst_buffer, const fragment_program_type& fragment_program, const RSXFragmentProgram& rsx_prog, bool sanitize = false) const
  	{
  		if (dst_buffer.size_bytes() < (fragment_program.constant_offsets.size() * 16))
-@@ -466,5 +600,6 @@ public:
+@@ -466,5 +630,6 @@ public:
  		m_fragment_shader_cache.clear();
  		m_vertex_shader_cache.clear();
  		m_storage.clear();
@@ -16506,14 +16820,15 @@ index e1bdc8852..6b918d340 100644
  	}
  };
 diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
-index a36ce5242..9491837f7 100644
+index a36ce5242..5305bf1dc 100644
 --- a/rpcs3/Emu/RSX/RSXFIFO.cpp
 +++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
-@@ -11,10 +11,12 @@
+@@ -11,10 +11,13 @@
  
  #ifdef RPCS3_IOS
  #include "ios/RPCS3IOSExperimentalPolicy.h"
 +#include "ios/IOSRsxSyncProfile.h"
++#include "ios/IOSTextureValidationProfile.h"
  #endif
  
  #include "util/asm.hpp"
@@ -16522,7 +16837,7 @@ index a36ce5242..9491837f7 100644
  #include <thread>
  
  using spu_rdata_t = std::byte[128];
-@@ -36,6 +38,7 @@ namespace rsx
+@@ -36,6 +39,7 @@ namespace rsx
  			m_cache_line_count = policy.fifo_cache_bytes / 128;
  			m_deferred_get_publishing = policy.deferred_get_publishing;
  			m_fifo_idle_wfe = policy.fifo_idle_wfe;
@@ -16530,7 +16845,7 @@ index a36ce5242..9491837f7 100644
  #endif
  		}
  
-@@ -65,10 +68,32 @@ namespace rsx
+@@ -65,10 +69,32 @@ namespace rsx
  
  		void FIFO_control::idle_wait()
  		{
@@ -16564,7 +16879,43 @@ index a36ce5242..9491837f7 100644
  			else
  			{
  				std::this_thread::yield();
-@@ -178,15 +203,11 @@ namespace rsx
+@@ -107,6 +133,27 @@ namespace rsx
+ 		template <bool Full>
+ 		inline u32 FIFO_control::read_put() const
+ 		{
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: commands the guest just made visible may use
++			// guest data written before this PUT; they start a validation epoch.
++			u32 put;
++			if constexpr (!Full)
++			{
++				put = m_ctrl->put & ~3;
++			}
++			else if (put = m_ctrl->put; (put & 3) != 0) [[unlikely]]
++			{
++				put = m_ctrl->put.and_fetch(~3);
++			}
++
++			if (put != m_epoch_put) [[unlikely]]
++			{
++				m_epoch_put = put;
++				rpcs3::ios::texture_validation::advance_epoch();
++			}
++
++			return put;
++#else
+ 			if constexpr (!Full)
+ 			{
+ 				return m_ctrl->put & ~3;
+@@ -120,6 +167,7 @@ namespace rsx
+ 
+ 				return m_ctrl->put.and_fetch(~3);
+ 			}
++#endif
+ 		}
+ 
+ 		std::pair<bool, u32> FIFO_control::fetch_u32_refill(u32 addr)
+@@ -178,15 +226,11 @@ namespace rsx
  				u32 bytes_read = 0;
  				const auto next_cache_line = [&](u32 current)
  				{
@@ -16585,7 +16936,7 @@ index a36ce5242..9491837f7 100644
  				};
  
  				// Find the next set bit after every iteration
-@@ -708,6 +729,9 @@ namespace rsx
+@@ -708,6 +752,9 @@ namespace rsx
  				{
  					performance_counters.FIFO_idle_timestamp = get_system_time();
  					performance_counters.state = FIFO::state::nop;
@@ -16595,7 +16946,7 @@ index a36ce5242..9491837f7 100644
  				}
  
  				fifo_ctrl->sync_get_force();
-@@ -722,10 +746,25 @@ namespace rsx
+@@ -722,10 +769,25 @@ namespace rsx
  					performance_counters.FIFO_idle_timestamp = get_system_time();
  					performance_counters.state = FIFO::state::empty;
  					fifo_ctrl->reset_idle_wait();
@@ -16621,7 +16972,7 @@ index a36ce5242..9491837f7 100644
  				}
  
  				return;
-@@ -757,6 +796,9 @@ namespace rsx
+@@ -757,6 +819,9 @@ namespace rsx
  					{
  						performance_counters.FIFO_idle_timestamp = get_system_time();
  						sync_point_request.release(true);
@@ -16631,7 +16982,7 @@ index a36ce5242..9491837f7 100644
  					}
  
  					performance_counters.state = FIFO::state::spinning;
-@@ -946,7 +988,8 @@ namespace rsx
+@@ -946,7 +1011,8 @@ namespace rsx
  			{
  				method(m_ctx, reg, value);
  
@@ -16642,10 +16993,21 @@ index a36ce5242..9491837f7 100644
  					m_ctx->register_state->decode(reg, m_ctx->register_state->latch);
  					break;
 diff --git a/rpcs3/Emu/RSX/RSXFIFO.h b/rpcs3/Emu/RSX/RSXFIFO.h
-index 25916b1b9..5910bf826 100644
+index 25916b1b9..274a6776c 100644
 --- a/rpcs3/Emu/RSX/RSXFIFO.h
 +++ b/rpcs3/Emu/RSX/RSXFIFO.h
-@@ -151,6 +151,7 @@ namespace rsx
+@@ -137,6 +137,10 @@ namespace rsx
+ 
+ 			u32 m_memwatch_addr = 0;
+ 			u32 m_memwatch_cmp = 0;
++#ifdef RPCS3_IOS
++			// CELL559_TEXTURE_EPOCH: last PUT that opened a texture validation epoch.
++			mutable u32 m_epoch_put = umax;
++#endif
+ 
+ 			u32 m_command_reg = 0;
+ 			u32 m_command_inc = 0;
+@@ -151,6 +155,7 @@ namespace rsx
  			u32 m_cache_line_count = 8;
  			bool m_deferred_get_publishing = false;
  			bool m_fifo_idle_wfe = false;
@@ -18431,7 +18793,7 @@ index a604696f1..1dbf9499d 100644
  			ensure(single_target_pass != VK_NULL_HANDLE);
  
 diff --git a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
-index ad7d5a055..038d9a368 100644
+index ad7d5a055..82fd3491c 100644
 --- a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
 +++ b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
 @@ -2,6 +2,7 @@
@@ -18454,6 +18816,20 @@ index ad7d5a055..038d9a368 100644
  		}
  
  		static
+@@ -60,7 +66,13 @@ namespace vk
+ 				pipelineProperties,
+ 				vertexProgramData.handle,
+ 				fragmentProgramData.handle,
++#ifdef RPCS3_IOS
++				// CELL559_INLINE_CALLBACK: an inline compile never stores the
++				// callback; only a deferred job needs its own copy.
++				compiler_flags, compile_async ? vk::pipe_compiler::callback_t(callback) : vk::pipe_compiler::callback_t{},
++#else
+ 				compiler_flags, callback,
++#endif
+ 				vertexProgramData.uniforms,
+ 				fragmentProgramData.uniforms);
+ 
 diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
 index 20a4250ec..49a383fba 100644
 --- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
@@ -22164,7 +22540,7 @@ index 130f54b02..4c096c903 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922d2..0969f4055 100644
+index 7072922d2..b006af854 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -22194,7 +22570,16 @@ index 7072922d2..0969f4055 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -134,6 +145,18 @@ struct cfg_root : cfg::node
+@@ -121,6 +132,8 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
++		// CELL559_TEXTURE_EPOCH: Automatic enables it for God of War III only.
++		cfg::_enum<ios_experimental_mode> texture_validation_epoch{ this, "Texture Validation Per FIFO Batch", ios_experimental_mode::automatic };
+ 
+ 		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
+@@ -134,6 +147,18 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -23176,6 +23561,88 @@ index b6c26eb87..a409cfc5a 100644
  		for (std::size_t offset = 0; offset < size; offset += 16)
  		{
  			*reinterpret_cast<Vector*>(dst + offset) = *reinterpret_cast<const Vector*>(src + offset);
+diff --git a/rpcs3/ios/IOSFullOverwrite.h b/rpcs3/ios/IOSFullOverwrite.h
+new file mode 100644
+index 000000000..dc152fa3d
+--- /dev/null
++++ b/rpcs3/ios/IOSFullOverwrite.h
+@@ -0,0 +1,76 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// CELL559_FULL_OVERWRITE: a GPU transfer that replaces every byte of its
++// destination does not need the previous destination contents. These pure
++// decisions stay conservative: any doubt keeps the existing read-back/reload.
++namespace rpcs3::ios::full_overwrite
++{
++// Guest bytes [start, end] (inclusive, like address_range32) that the transfer
++// on this thread writes completely. Only the RSX thread sets it, around the one
++// invalidation that precedes its own DMA destination; other threads see none.
++struct Range
++{
++    std::uint32_t start = 1, end = 0;
++    bool valid() const noexcept { return start <= end; }
++    bool contains(std::uint32_t first, std::uint32_t last) const noexcept
++    {
++        return valid() && first <= last && first >= start && last <= end;
++    }
++};
++inline thread_local Range current_range{};
++
++class RangeScope final
++{
++    Range previous_;
++public:
++    RangeScope(bool enabled, std::uint32_t start, std::uint32_t length) noexcept
++        : previous_(current_range)
++    {
++        current_range = (enabled && length) ? Range{start, start + (length - 1)} : Range{};
++    }
++    ~RangeScope() noexcept { current_range = previous_; }
++    RangeScope(const RangeScope&) = delete;
++    RangeScope& operator=(const RangeScope&) = delete;
++};
++
++// A 1:1 DMA copy writes rows of src_w texels at the destination pitch. All
++// payload bytes are written only when the rows are contiguous (or single),
++// the copy keeps its texel size and no tiling or partial source applies.
++constexpr bool dma_copy_writes_whole_payload(
++    std::uint32_t dst_w, std::uint32_t dst_h, std::uint32_t dst_bpp, std::uint32_t dst_pitch,
++    std::int64_t src_area_w, std::int64_t src_area_h, std::uint32_t src_bpp,
++    bool src_typeless, bool dst_tiled) noexcept
++{
++    if (!dst_w || !dst_h || !dst_bpp || dst_tiled || src_typeless || src_bpp != dst_bpp)
++        return false;
++    if (src_area_w != static_cast<std::int64_t>(dst_w) || src_area_h != static_cast<std::int64_t>(dst_h))
++        return false;
++    return dst_h == 1 || static_cast<std::uint64_t>(dst_w) * dst_bpp == dst_pitch;
++}
++
++// A blit into an existing single-sampled color target replaces all of it when
++// the destination rectangle covers the target. Depth/stencil, typeless and
++// multisampled targets keep the existing memory reload.
++constexpr bool blit_replaces_whole_surface(
++    std::int64_t x1, std::int64_t y1, std::int64_t x2, std::int64_t y2,
++    std::uint32_t surface_w, std::uint32_t surface_h,
++    std::uint32_t surface_samples_w, std::uint32_t surface_samples_h,
++    bool depth, bool dst_typeless) noexcept
++{
++    if (depth || dst_typeless || !surface_w || !surface_h)
++        return false;
++    if (surface_samples_w != surface_w || surface_samples_h != surface_h)
++        return false;
++    // Exact bounds, as upstream requires for a newly created blit target.
++    return x1 == 0 && y1 == 0 &&
++        x2 == static_cast<std::int64_t>(surface_w) && y2 == static_cast<std::int64_t>(surface_h);
++}
++
++// Fixed counters exported once per profiler window (OPT559 line).
++inline std::atomic<std::uint64_t> dma_flush_skips{0}, dma_flush_skip_bytes{0};
++inline std::atomic<std::uint64_t> rt_reload_skips{0}, rt_reload_skip_bytes{0};
++}
 diff --git a/rpcs3/ios/IOSGPUEventWait.h b/rpcs3/ios/IOSGPUEventWait.h
 new file mode 100644
 index 000000000..3b8c4d2ae
@@ -24610,10 +25077,10 @@ index ccb4aae0b..5ec26b9c6 100644
  }
 diff --git a/rpcs3/ios/IOSTextureValidationProfile.h b/rpcs3/ios/IOSTextureValidationProfile.h
 new file mode 100644
-index 000000000..7861c6ff9
+index 000000000..13baaa863
 --- /dev/null
 +++ b/rpcs3/ios/IOSTextureValidationProfile.h
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,42 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -24627,6 +25094,34 @@ index 000000000..7861c6ff9
 +// existing hash measurements, not an extra cost. No new per-hash observation.
 +inline std::atomic<std::uint64_t> trim_calls{0}, trim_sections{0};
 +inline std::atomic<std::uint64_t> trim_bytes{0}, trim_ticks{0};
++// CELL559_DIRTY_HASH_SKIP: dirty hashed sections released without hashing.
++inline std::atomic<std::uint64_t> dirty_releases{0}, dirty_release_bytes{0};
++
++// CELL559_TEXTURE_EPOCH: "Texture Validation Per FIFO Batch". A clean section
++// whose hash matched stays validated until the next synchronization point:
++// new commands made visible by the guest (PUT), a semaphore acquire, an RSX
++// write, flush or invalidation of guest memory, or the end of a frame. Guest
++// data a command needs is written before that command becomes visible, or
++// before the semaphore the RSX waits for is released; only an unsynchronized
++// write racing the RSX can be seen one batch later. Disabled: epoch 0, every
++// validation hashes as before.
++inline std::atomic<bool> epoch_enabled{false};
++inline std::atomic<std::uint64_t> validation_epoch{1};
++inline std::atomic<std::uint64_t> epoch_skips{0}, epoch_skip_bytes{0}, epoch_bumps{0};
++
++inline std::uint64_t current_epoch() noexcept
++{
++	return epoch_enabled.load(std::memory_order_relaxed) ? validation_epoch.load(std::memory_order_acquire) : 0;
++}
++
++inline void advance_epoch() noexcept
++{
++	if (epoch_enabled.load(std::memory_order_relaxed))
++	{
++		validation_epoch.fetch_add(1, std::memory_order_acq_rel);
++		epoch_bumps.fetch_add(1, std::memory_order_relaxed);
++	}
++}
 +}
 diff --git a/rpcs3/ios/NeoStationSavestateIO.h b/rpcs3/ios/NeoStationSavestateIO.h
 new file mode 100644
@@ -28031,21 +28526,24 @@ index b4602fea9..37a708aa6 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b83..57722bc78 100644
+index 7c3389b83..2563295b1 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,8 +1,10 @@
+@@ -1,8 +1,13 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
 +#include "Emu/Cell/SPUObjectCachePolicy.h"
  #include "Emu/RSX/Common/BufferUtils.h"
  #include "Emu/system_config.h"
++#include "Emu/System.h"
++#include "IOSMemoryPressurePolicy.h"
++#include "IOSTextureValidationProfile.h"
 +#include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
  #include "util/logs.hpp"
  
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
-@@ -27,6 +29,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +32,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -28122,7 +28620,19 @@ index 7c3389b83..57722bc78 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -58,14 +130,24 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +122,11 @@ void resolve_experimental_policy() noexcept
+ 	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
+ 	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
+ 	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
++	// CELL559_TEXTURE_EPOCH: Automatic is God of War III only, where per-draw
++	// revalidation hashed about 270 MiB per frame interval on build 553.
++	resolved.texture_validation_epoch = resolve_mode(g_cfg.ios_experimental.texture_validation_epoch,
++		is_god_of_war_iii_title(Emu.GetTitleID()));
++	texture_validation::epoch_enabled.store(resolved.texture_validation_epoch, std::memory_order_relaxed);
+ 	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
+ 	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
+ 	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
+@@ -58,27 +138,57 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -28153,8 +28663,10 @@ index 7c3389b83..57722bc78 100644
  	}
  
  	s_policy = resolved;
-@@ -73,12 +155,32 @@ void resolve_experimental_policy() noexcept
- 		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid);
+-	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d",
+-		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid);
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d",
++		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch);
  	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
  
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
@@ -28189,7 +28701,7 @@ index 7c3389b83..57722bc78 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197b4..1e1c877bf 100644
+index 8fba197b4..186e3e34a 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -28200,7 +28712,17 @@ index 8fba197b4..1e1c877bf 100644
  
  namespace rpcs3::ios
  {
-@@ -20,8 +21,42 @@ struct experimental_policy
+@@ -12,6 +13,9 @@ struct experimental_policy
+ 	bool mobile_spu_scheduling = false;
+ 	bool dma_copy_specialization = false;
+ 	bool texture_hash_hybrid = false;
++	// CELL559_TEXTURE_EPOCH: keep a confirmed texture hash until the next RSX
++	// synchronization point instead of re-hashing it for every draw.
++	bool texture_validation_epoch = false;
+ 	u32 fifo_cache_bytes = 1024;
+ 	bool fifo_idle_wfe = false;
+ 	bool deferred_get_publishing = false;
+@@ -20,8 +24,42 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -28864,10 +29386,10 @@ index 000000000..094a67210
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d8005424b..29869927f 100644
+index d8005424b..9db08a7c0 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,182 @@
+@@ -1,26 +1,183 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -28883,6 +29405,7 @@ index d8005424b..29869927f 100644
 +#include "Utilities/JITMemoryProfile.h"
 +#include "IOSTextureValidationProfile.h"
 +#include "IOSReadbackProfile.h"
++#include "IOSFullOverwrite.h"
 +#include "IOSCompileAdmission.h"
 +#include "IOSRuntimeMetrics.h"
 +#include "IOSShaderTiming.h"
@@ -29050,7 +29573,7 @@ index d8005424b..29869927f 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +194,387 @@ u64 process_memory_footprint()
+@@ -38,31 +195,387 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -29448,7 +29971,7 @@ index d8005424b..29869927f 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +584,10 @@ public:
+@@ -72,10 +585,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -29461,7 +29984,7 @@ index d8005424b..29869927f 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +620,722 @@ public:
+@@ -108,12 +621,738 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -29886,6 +30409,22 @@ index d8005424b..29869927f 100644
 +            }
 +            ios_core_profiler.notice("%s scope=process_window_all_threads parent_includes_gpu_fence=1 bytes_scope=confirmed_requested_not_dma_payload window_boundary_approximate=1", line);
 +        }
++        // CELL559_OPT_EXPORT: work the 559 paths avoided in this window, one bounded line.
++        {
++            namespace overwrite = rpcs3::ios::full_overwrite;
++            namespace validation = rpcs3::ios::texture_validation;
++            ios_core_profiler.notice("COREPROF OPT559 session=%llu window=%llu dirty_hash_releases=%llu dirty_hash_release_bytes=%llu "
++                "dma_flush_skips=%llu dma_flush_skip_bytes=%llu rt_reload_skips=%llu rt_reload_skip_bytes=%llu "
++                "texture_epoch=%u epoch_skips=%llu epoch_skip_bytes=%llu epoch_advances=%llu "
++                "scope=process_window_counters bytes_scope=section_ranges_not_transfers window_boundary_approximate=1",
++                profile_session, profile_window,
++                validation::dirty_releases.exchange(0, std::memory_order_relaxed), validation::dirty_release_bytes.exchange(0, std::memory_order_relaxed),
++                overwrite::dma_flush_skips.exchange(0, std::memory_order_relaxed), overwrite::dma_flush_skip_bytes.exchange(0, std::memory_order_relaxed),
++                overwrite::rt_reload_skips.exchange(0, std::memory_order_relaxed), overwrite::rt_reload_skip_bytes.exchange(0, std::memory_order_relaxed),
++                validation::epoch_enabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                validation::epoch_skips.exchange(0, std::memory_order_relaxed), validation::epoch_skip_bytes.exchange(0, std::memory_order_relaxed),
++                validation::epoch_bumps.exchange(0, std::memory_order_relaxed));
++        }
 +        const auto& mem = memory_window.latest;
 +        const auto& peak = memory_window.peak;
 +        ios_core_profiler.notice(
@@ -30186,7 +30725,7 @@ index d8005424b..29869927f 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1343,91 @@ private:
+@@ -121,6 +1360,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -30278,7 +30817,7 @@ index d8005424b..29869927f 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1435,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1452,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -30366,7 +30905,7 @@ index d8005424b..29869927f 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1526,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1543,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -30495,7 +31034,7 @@ index d8005424b..29869927f 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1657,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1674,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -31010,7 +31549,7 @@ index 000000000..b6b0c699e
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b047471..49a78a99a 100644
+index b7b047471..1145eae14 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -31038,7 +31577,13 @@ index b7b047471..49a78a99a 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -127,16 +131,26 @@ const std::array catalog{
+@@ -122,21 +126,32 @@ const std::array catalog{
+ 	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
+ 	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
+ 	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
++	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III only; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
+ 	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
+ 	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
  	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),
  	SETTING("experimental.mobile_spu_scheduling", "Experimental", "SPU", "Mobile SPU compile scheduling", "Uses a nonzero compile-throttle floor on low-core mobile CPUs. Automatic currently preserves upstream behavior.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.mobile_spu_scheduling, 0, 0, 0),
  	SETTING("experimental.fifo_cache_size", "Experimental", "RSX FIFO", "RSX FIFO read cache", "Selects a 1 KiB compatibility cache or a 4 KiB cache with fewer refills. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fifo_cache_size, 0, 0, 0),
@@ -31067,7 +31612,7 @@ index b7b047471..49a78a99a 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +219,89 @@ const std::array catalog{
+@@ -205,6 +220,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -31157,7 +31702,7 @@ index b7b047471..49a78a99a 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +670,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +671,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

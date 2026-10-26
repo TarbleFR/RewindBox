@@ -3,6 +3,43 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 Core 559: SPU cache-hit, texture, shader and GPU copy costs — 26 October 2026
+
+- Resumed on `Claude` at `9d0ca40` (the session checkout was 83 commits behind;
+  fast-forwarded, nothing lost). The five optimizations reported as "engaged"
+  (SPU LLVM bypass on object-cache hit, no hash of invalid textures, fast
+  identical vertex-program compare, sync-compile copies, full-overwrite GPU
+  copies) existed in no commit, branch or PR: implemented on the 555 canonical
+  source as Core **559** (`CELL559_*`, analysis `docs/rpcs3-cell559.md`).
+- SPU `compile()` builds analysis managers/PassBuilder/pass pipeline only on a
+  cache miss. `JITCacheCompatibility.cmake` aliases the exact new
+  `SPULLVMRecompiler.cpp` hash to 555: identities stay PPU `a987639e9f838d1c` /
+  SPU `d070cb361bdef607` (without the alias SPU would become `7330ce26…`, a
+  cold recompile). Any later edit of that file must keep or drop the alias
+  deliberately.
+- Dirty hash-validated texture sections are released without hashing; clean
+  sections are always hashed. Exact vertex-program repeats are confirmed by one
+  `memcmp`. Inline pipeline builds reference the RSX-owned vertex program and
+  move the callback; the fragment snapshot is kept (guest memory). A strict
+  DMA blit destination skips the read-back of sections it overwrites entirely;
+  an existing single-sampled color target fully replaced by a blit skips its
+  memory reload. New bounded line `COREPROF OPT559`.
+- "Texture Validation Per FIFO Batch" (`experimental.texture_validation_epoch`,
+  `CELL559_TEXTURE_EPOCH`): a confirmed texture hash lasts until the next
+  synchronization point (new FIFO PUT, NV406E semaphore acquire, texture-cache
+  write/unmap/surface commit or flush, frame end). Automatic = the six God of
+  War III title IDs only; Disabled restores per-draw hashing exactly. Aimed at
+  the ~270 MiB/interval GoW3 hashing of 553; unverified on iPhone.
+- Not changed, by decision: Metal pipeline compile time (driver-bound; Async
+  shader mode excluded by the maintainer), the minimal-object SPU linker
+  (prototype pending real-title proof), and the public `neoswap-ipa.yml` Core
+  pin that `neo_swap_core_pin_test.py` checks.
+- Host evidence `docs/evidence/rpcs3-cell559-host-linux.json` (LLVM 22.1.8,
+  ASan/UBSan, TSan, ARM64 under qemu; CI preflight run locally, 555 Core
+  authenticated). No iPhone measurement: FPS, frame time and stalls remain
+  unconfirmed. The Core is built by `rpcs3-cell559-core.yml`
+  (`[rpcs3-cell559-core]`) on top of the delivered 558; no release.
+
 ## Private 558: MeloNX measurement and log fixes on 557 — 26 October 2026
 
 - Measurement build for the Persona 4 Golden / Persona 5 Royal stutter

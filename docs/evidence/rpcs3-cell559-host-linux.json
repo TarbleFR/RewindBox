@@ -1,0 +1,405 @@
+{
+  "build": 559,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "baseline": "9d0ca40569f8428e29bd4a65f29a330afb25b755",
+  "sourcePatchSHA256": "72498afce865b15186f72c554725e31079e6c7c69bf3108cec03d2fcd34c434a",
+  "fixtureSHA256": "a346be6320de54c401787cf3eef40b5aea8d188a95b5199a1f24194f5339c84b",
+  "hostPreflight": {
+    "command": "CXX=clang++-22 LLVM_CONFIG=llvm-config-22 python3 .github/diagnostics/rpcs3cell559_core.py --source <fresh materialized 559 source>",
+    "host": "Linux x86_64, Intel Xeon 2.8 GHz, 4 vCPU (cloud container)",
+    "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)",
+    "proofAllTestsPassed": true,
+    "verifyReusePassed": true,
+    "referenceCore555": {
+      "source": "f508f1bf87542fe6e9649d7240cbafbbeb8c2c2d",
+      "run": 40362434134,
+      "artifact": 12668749038,
+      "archiveSHA256": "1fea0ba7d6fb2891753e2e53e4918ea679b3c335b23d26db594771683cd60d98",
+      "coreSHA256": "ca495ee58661fd1c83a9f89ff823f6b353f53ec42b5546753521af39e2661407",
+      "tests": 1,
+      "historicalResults": true,
+      "coreBinaryReused": false,
+      "scope": "Authenticated555 Core evidence is historical. Current559 tests execute every559 change against the exact555 preimages. No iPhone gain claimed."
+    },
+    "proofInputSHA256Count": 143,
+    "report": {
+      "passed": true,
+      "result": "passed",
+      "build": 559,
+      "hostSystem": "Linux",
+      "hostMachine": "x86_64",
+      "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)",
+      "sourceContract": {
+        "baseline": "9d0ca40569f8428e29bd4a65f29a330afb25b755",
+        "fixtureSHA256": "a346be6320de54c401787cf3eef40b5aea8d188a95b5199a1f24194f5339c84b",
+        "manifestSHA256": "3217af6efa112cc2712f9367986cc322e866b8ad0331d0cbb77eb7dcf6afe489",
+        "sourceSHA256": {
+          "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "15339a27990d72c2a65cd043be3daeb78f387d83d9b2f1eba1d5516462276a58",
+          "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "6b5a1b8d42dc43de1eac71dc3f002921284788c4aee258c1a734e3d802d8951a",
+          "rpcs3/Emu/RSX/Common/texture_cache.cpp": "1adbaf78839ab65ee5fe5425852f45bad61eb14bf3a13f8b609638e0cb403c05",
+          "rpcs3/Emu/RSX/Common/texture_cache.h": "379f5f8ea98d4d15ab61642158c7ed644568853ad2c88280c72bf24ee1ddd117",
+          "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "d7af59e7bb00bafb68c948620789bdf767142eda7b7836997c952ba9bcd5bec4",
+          "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp": "4c976a1df2cda8f324595aeac7d44a41000ca106228e68760317bdfb983787a5",
+          "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "2e8f3d513d3547660787f5cf7530293f2531448bc490ccb784548ba7209f2299",
+          "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "35dcb012c2c85fd8d89a3b9258aa1717cdb34836d83e4406dd870e4c55664a12",
+          "rpcs3/Emu/RSX/RSXFIFO.cpp": "2e0899c6d8b86bf611fafc3292d1413d1164eedf9ca4a6585db2486352e54711",
+          "rpcs3/Emu/RSX/RSXFIFO.h": "a9c6a13ac46b58a17fa67eecf9bf75402590ba0a7cc20ced83c52c677ca2d6aa",
+          "rpcs3/Emu/RSX/VK/VKProgramBuffer.h": "5e95a3647b7103e5431f20ab418ee45953874c9099b5e25beb513f045c368678",
+          "rpcs3/Emu/system_config.h": "57b9c80848d5c330dd710f369c3326134fe0ca64964bec3ee4a7cb07771e15eb",
+          "rpcs3/ios/IOSTextureValidationProfile.h": "fc3d624474d58064d3df18b57a35ab96d9aa665c786d3336ffb3ca253276bdc6",
+          "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "8872906233fb75748d18780f0b479727b145ca4df9caae7dcb837b7ccc3de673",
+          "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "b0b9c2c6c1ccd8d64b68053145d713aad63fc1c88c0e3b8dc2401b44e5f8eed7",
+          "rpcs3/ios/RPCS3IOSPerformance.cpp": "53a4d517848a4a8e3d9aaf44463fa6a00e94335b6f07538f603b94a66ba1adeb",
+          "rpcs3/ios/RPCS3IOSSettings.cpp": "8c939452aae3e4f6b7171a40f52f43267ebfc94d22a468a055f1da43ae0eba13",
+          "rpcs3/ios/IOSFullOverwrite.h": "75a9cd542e595d4a78dac51a7263682319cbd103a60fb26c80e0bf9747316de7"
+        },
+        "otherCoreSourcesUnchanged": 268
+      },
+      "spuCacheHit": {
+        "passPipelineByteIdenticalModuloIndentation": true,
+        "constructedOnlyForCacheMiss": true,
+        "regionSHA256": "373b54dbd8637405a087d0779cc23b04bcf3794d1edcd4a0152178e0db4a254b"
+      },
+      "codegenIdentity": {
+        "identities": {
+          "PPU": "a987639e9f838d1c",
+          "SPU": "d070cb361bdef607"
+        },
+        "unchangedFrom555": true,
+        "aliasExactSnapshotOnly": true,
+        "spuIdentityWithoutAlias": "7330ce26f8290f0c",
+        "coldCompileRequiredByThisChange": false
+      },
+      "exportLine": {
+        "line": "COREPROF OPT559",
+        "oneLinePerWindow": true
+      },
+      "dirtyHash": {
+        "addressUndefined": {
+          "passed": true,
+          "cases": 16,
+          "identicalCases": 14,
+          "dirtyHashReleases": 2,
+          "hashCallsBefore": 4,
+          "hashCallsAfter": 2,
+          "releasedBytesCounted": 131072,
+          "modifiedCleanSectionStillDetected": true,
+          "harnessSHA256": "bfd178d7e76e02ffea610de2208cb85d63bfba38440f968f57052f7f03e0bb22",
+          "beforeSHA256": "8b2374af61d5270fe4e193915cee4dc4c9ac3c0bb8c77e5980d6b5e384215c5a",
+          "afterSHA256": "9be8f22168165325f3e7fff52c70a273cc43d768ff44efc656e553e04a118fab"
+        },
+        "thread": {
+          "passed": true,
+          "cases": 16,
+          "identicalCases": 14,
+          "dirtyHashReleases": 2,
+          "hashCallsBefore": 4,
+          "hashCallsAfter": 2,
+          "releasedBytesCounted": 131072,
+          "modifiedCleanSectionStillDetected": true,
+          "harnessSHA256": "bfd178d7e76e02ffea610de2208cb85d63bfba38440f968f57052f7f03e0bb22",
+          "beforeSHA256": "8b2374af61d5270fe4e193915cee4dc4c9ac3c0bb8c77e5980d6b5e384215c5a",
+          "afterSHA256": "9be8f22168165325f3e7fff52c70a273cc43d768ff44efc656e553e04a118fab"
+        }
+      },
+      "vertexCompare": {
+        "addressUndefined": {
+          "passed": true,
+          "differentialCases": 40000,
+          "equalResults": 11491,
+          "exactRepeat": 5669,
+          "unmaskedDifference": 5710,
+          "maskedDifference": 5845,
+          "propertyDifference": 5714,
+          "jumpTableDifference": 5698,
+          "sizeDifference": 5766,
+          "outputMaskDifference": 5598,
+          "harnessSHA256": "45749dc0ca1c70fcbf9084707fabed82dad13e78775503f5ce5ba167158ea922"
+        },
+        "thread": {
+          "passed": true,
+          "differentialCases": 40000,
+          "equalResults": 11491,
+          "exactRepeat": 5669,
+          "unmaskedDifference": 5710,
+          "maskedDifference": 5845,
+          "propertyDifference": 5714,
+          "jumpTableDifference": 5698,
+          "sizeDifference": 5766,
+          "outputMaskDifference": 5598,
+          "harnessSHA256": "45749dc0ca1c70fcbf9084707fabed82dad13e78775503f5ce5ba167158ea922"
+        }
+      },
+      "inlineCallback": {
+        "addressUndefined": {
+          "passed": true,
+          "allocationsCounted": true,
+          "inlineAllocationsBefore": 35,
+          "inlineAllocationsAfter": 10,
+          "inlineAllocatedBytesBefore": 53324,
+          "inlineAllocatedBytesAfter": 13532,
+          "callbackStoredByInlineCompilerBefore": 1,
+          "callbackStoredByInlineCompilerAfter": 0,
+          "fragmentSnapshotKeptDuringGuestRewrite": true,
+          "asyncBuildOutlivesCaller": true,
+          "preloadPublishesWithoutCallbackCopy": true,
+          "vertexInstructions": 512,
+          "fragmentUcodeBytes": 2048,
+          "harnessSHA256": "04967ef45f5b89d39f2d58374bb4d0604523a19d45c7e99f3bd6741b934ef92d"
+        },
+        "thread": {
+          "passed": true,
+          "allocationsCounted": false,
+          "inlineAllocationsBefore": 0,
+          "inlineAllocationsAfter": 0,
+          "inlineAllocatedBytesBefore": 0,
+          "inlineAllocatedBytesAfter": 0,
+          "callbackStoredByInlineCompilerBefore": 1,
+          "callbackStoredByInlineCompilerAfter": 0,
+          "fragmentSnapshotKeptDuringGuestRewrite": true,
+          "asyncBuildOutlivesCaller": true,
+          "preloadPublishesWithoutCallbackCopy": true,
+          "vertexInstructions": 512,
+          "fragmentUcodeBytes": 2048,
+          "harnessSHA256": "04967ef45f5b89d39f2d58374bb4d0604523a19d45c7e99f3bd6741b934ef92d"
+        }
+      },
+      "fullOverwrite": {
+        "addressUndefined": {
+          "passed": true,
+          "dmaCases": 60000,
+          "dmaWholeDeclared": 15753,
+          "dmaWholeByByteModel": 32952,
+          "rectangleCases": 60000,
+          "rectangleWholeDeclared": 322,
+          "invalidationCombinations": 288,
+          "invalidationUnchanged": 286,
+          "readBacksAvoided": 2,
+          "rangeScopeThreadLocal": true,
+          "harnessSHA256": "b65169545c5a0b904fe65d09c6741a3e39aae813b98d607aebbbef2c429b5f41",
+          "productionHeaderSHA256": "75a9cd542e595d4a78dac51a7263682319cbd103a60fb26c80e0bf9747316de7"
+        },
+        "thread": {
+          "passed": true,
+          "dmaCases": 60000,
+          "dmaWholeDeclared": 15753,
+          "dmaWholeByByteModel": 32952,
+          "rectangleCases": 60000,
+          "rectangleWholeDeclared": 322,
+          "invalidationCombinations": 288,
+          "invalidationUnchanged": 286,
+          "readBacksAvoided": 2,
+          "rangeScopeThreadLocal": true,
+          "harnessSHA256": "b65169545c5a0b904fe65d09c6741a3e39aae813b98d607aebbbef2c429b5f41",
+          "productionHeaderSHA256": "75a9cd542e595d4a78dac51a7263682319cbd103a60fb26c80e0bf9747316de7"
+        }
+      },
+      "textureEpoch": {
+        "addressUndefined": {
+          "passed": true,
+          "disabledIdenticalTo555": true,
+          "hashesPerTenValidationsDisabled": 10,
+          "hashesPerTenValidationsInOneEpoch": 0,
+          "changeDetectedAfterSynchronizationPoint": true,
+          "failedValidationNotRemembered": true,
+          "epochReadBeforeHash": true,
+          "pageLockedUnchanged": true,
+          "putChangeOpensEpoch": true,
+          "epochSkips": 12,
+          "harnessSHA256": "5857bc0ef1a39c2f5e4de0ac698285e2e613de9db056601712b0233d691052e9"
+        },
+        "thread": {
+          "passed": true,
+          "disabledIdenticalTo555": true,
+          "hashesPerTenValidationsDisabled": 10,
+          "hashesPerTenValidationsInOneEpoch": 0,
+          "changeDetectedAfterSynchronizationPoint": true,
+          "failedValidationNotRemembered": true,
+          "epochReadBeforeHash": true,
+          "pageLockedUnchanged": true,
+          "putChangeOpensEpoch": true,
+          "epochSkips": 12,
+          "harnessSHA256": "5857bc0ef1a39c2f5e4de0ac698285e2e613de9db056601712b0233d691052e9"
+        }
+      },
+      "vertexCompareBenchmark": {
+        "passed": true,
+        "differentialCases": 40000,
+        "equalResults": 11491,
+        "exactRepeat": 5669,
+        "unmaskedDifference": 5710,
+        "maskedDifference": 5845,
+        "propertyDifference": 5714,
+        "jumpTableDifference": 5698,
+        "sizeDifference": 5766,
+        "outputMaskDifference": 5598,
+        "benchmark": [
+          {
+            "instructions": 64,
+            "beforeMedianNs": 127.38,
+            "afterMedianNs": 22.24
+          },
+          {
+            "instructions": 128,
+            "beforeMedianNs": 242.9,
+            "afterMedianNs": 37.74
+          },
+          {
+            "instructions": 256,
+            "beforeMedianNs": 460.01,
+            "afterMedianNs": 66.65
+          },
+          {
+            "instructions": 512,
+            "beforeMedianNs": 929.35,
+            "afterMedianNs": 125.21
+          }
+        ],
+        "harnessSHA256": "45749dc0ca1c70fcbf9084707fabed82dad13e78775503f5ce5ba167158ea922"
+      },
+      "spuPassSetupBenchmark": {
+        "passed": true,
+        "llvmVersion": "22.1.8",
+        "pipeline": "upstream",
+        "medianMicrosecondsPerCacheHit": 6.754,
+        "p10Microseconds": 5.681,
+        "p90Microseconds": 10.182,
+        "rounds": 31,
+        "iterationsPerRound": 400,
+        "harnessSHA256": "7ff3aac50127835d91ae5798706c856bae3feb9800c74b2425b4f18df0eb9fdc",
+        "host": "x86_64"
+      },
+      "inputs": {
+        "test/rpcs3_cell559_test.py": "fe24243af8be083ce52624e5dcc5d3b491446ea9485ad5fa93a91f481d246619",
+        "test/native/rpcs3_dirty559.inc": "9a081997e83ace20707c69e82f9393cd31adda6fd07c01aa6beae5e43afab178",
+        "test/native/rpcs3_vpcompare559.inc": "c29505771af8f3a94495c7da2f67560f996cd59c6a1fd9bba43d5937018a6700",
+        "test/native/rpcs3_inline559.inc": "3d03b80be228d48850f19a8d4e29ff80ce45d915429d23706882169f5efb3f57",
+        "test/native/rpcs3_inline559_main.inc": "1aac8928185a9ca5f438e5a349475fb92863743a2578438dc0e5086f2c7f4513",
+        "test/native/rpcs3_overwrite559.inc": "7926d4b0a5d361dc9a1ae550f72c5a6f2c34ee0a09cf91a39ca8ec505bd58509",
+        "test/native/rpcs3_spupasses559.inc": "e9e5ebce3f4bd645a38e1b28fa8420b50aa3442aa966298b5bd66c18a5a92645",
+        "test/native/rpcs3_epoch559.inc": "dbb6e23fc299d684979d8aa1354c9da575450fdbee059e9a30e221e743babbd4"
+      },
+      "physicalDeviceTested": false,
+      "gameplayMeasured": false,
+      "scope": "Host correctness of the 559 production bodies against their exact 555 preimages, sanitizers and host CPU measurements; no iPhone FPS, frame time, Metal rendering, thermal, SPU stall or memory-pressure result."
+    }
+  },
+  "arm64Correctness": {
+    "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)",
+    "target": "aarch64-linux-gnu -mcpu=apple-a7 -march=armv8.4-a",
+    "runner": "qemu-aarch64-static",
+    "sanitizer": "UBSan trap mode (no ASan/TSan runtime under qemu-user)",
+    "harnessesIdenticalToHostRun": true,
+    "results": {
+      "vertexCompare": {
+        "passed": true,
+        "differentialCases": 40000,
+        "equalResults": 11491,
+        "exactRepeat": 5669,
+        "unmaskedDifference": 5710,
+        "maskedDifference": 5845,
+        "propertyDifference": 5714,
+        "jumpTableDifference": 5698,
+        "sizeDifference": 5766,
+        "outputMaskDifference": 5598,
+        "harnessSHA256": "45749dc0ca1c70fcbf9084707fabed82dad13e78775503f5ce5ba167158ea922"
+      },
+      "inlineCallback": {
+        "passed": true,
+        "allocationsCounted": true,
+        "inlineAllocationsBefore": 35,
+        "inlineAllocationsAfter": 10,
+        "inlineAllocatedBytesBefore": 53324,
+        "inlineAllocatedBytesAfter": 13532,
+        "callbackStoredByInlineCompilerBefore": 1,
+        "callbackStoredByInlineCompilerAfter": 0,
+        "fragmentSnapshotKeptDuringGuestRewrite": true,
+        "asyncBuildOutlivesCaller": true,
+        "preloadPublishesWithoutCallbackCopy": true,
+        "vertexInstructions": 512,
+        "fragmentUcodeBytes": 2048,
+        "harnessSHA256": "04967ef45f5b89d39f2d58374bb4d0604523a19d45c7e99f3bd6741b934ef92d"
+      },
+      "fullOverwrite": {
+        "passed": true,
+        "dmaCases": 60000,
+        "dmaWholeDeclared": 15753,
+        "dmaWholeByByteModel": 32952,
+        "rectangleCases": 60000,
+        "rectangleWholeDeclared": 322,
+        "invalidationCombinations": 288,
+        "invalidationUnchanged": 286,
+        "readBacksAvoided": 2,
+        "rangeScopeThreadLocal": true,
+        "harnessSHA256": "b65169545c5a0b904fe65d09c6741a3e39aae813b98d607aebbbef2c429b5f41",
+        "productionHeaderSHA256": "75a9cd542e595d4a78dac51a7263682319cbd103a60fb26c80e0bf9747316de7"
+      },
+      "dirtyHash": {
+        "passed": true,
+        "cases": 16,
+        "identicalCases": 14,
+        "dirtyHashReleases": 2,
+        "hashCallsBefore": 4,
+        "hashCallsAfter": 2,
+        "releasedBytesCounted": 131072,
+        "modifiedCleanSectionStillDetected": true,
+        "harnessSHA256": "bfd178d7e76e02ffea610de2208cb85d63bfba38440f968f57052f7f03e0bb22",
+        "beforeSHA256": "8b2374af61d5270fe4e193915cee4dc4c9ac3c0bb8c77e5980d6b5e384215c5a",
+        "afterSHA256": "9be8f22168165325f3e7fff52c70a273cc43d768ff44efc656e553e04a118fab"
+      },
+      "textureEpoch": {
+        "passed": true,
+        "disabledIdenticalTo555": true,
+        "hashesPerTenValidationsDisabled": 10,
+        "hashesPerTenValidationsInOneEpoch": 0,
+        "changeDetectedAfterSynchronizationPoint": true,
+        "failedValidationNotRemembered": true,
+        "epochReadBeforeHash": true,
+        "pageLockedUnchanged": true,
+        "putChangeOpensEpoch": true,
+        "epochSkips": 12,
+        "harnessSHA256": "5857bc0ef1a39c2f5e4de0ac698285e2e613de9db056601712b0233d691052e9"
+      }
+    },
+    "scope": "LLVM 22.1.8 aarch64 code generation with the Core CPU flags, executed under qemu-user with UBSan in trap mode; correctness only, no timing. B and the epoch harness were re-run after the epoch lever; C, D and E harnesses are byte-identical to the final host run."
+  },
+  "productionSyntax": {
+    "compiler": "clang++-22 --target=aarch64-linux-gnu -std=gnu++23 -DRPCS3_IOS=1 -fsyntax-only",
+    "units": [
+      "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp",
+      "rpcs3/Emu/RSX/RSXFIFO.cpp",
+      "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp",
+      "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp (LLVM 22 headers)",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp (Apple header shims)",
+      "get_graphics_pipeline instantiated for inline, asynchronous and preload builds (VKProgramBuffer.h)"
+    ],
+    "errors": 0,
+    "projectWarningSetIdenticalBeforeAfter": true,
+    "warningFlags": "-Wall -Wold-style-cast -Werror=old-style-cast -Werror=sign-compare -Werror=reorder -Werror=return-type -Werror=missing-noreturn -Werror=implicit-fallthrough -Wshadow",
+    "scope": "Syntax and template instantiation only; the actual iOS Core is compiled by rpcs3-cell559-core.yml.",
+    "warningBaseline": "clean 555 worktree, same flags and shims"
+  },
+  "existingSourceTests": {
+    "passed": [
+      "rpcs3_preprocessor_balance_test",
+      "rpcs3_build301_passive_dlopen_test",
+      "rpcs3_atomic_startup_test",
+      "rpcs3_failed_startup_test",
+      "rpcs3_build264_gow3_core_test",
+      "rpcs3_build351_gow3_engine_test",
+      "rpcs3_build352_gow3_memory_test",
+      "rpcs3_build353_xitrix_v010_test",
+      "rpcs3_armsx3_performance_patch_test"
+    ],
+    "preexistingFailure": {
+      "neo_swap_core_pin_test.py": "fails identically on the unchanged base: Core pin cfe92344 lacks input test/rpcs3_restore_eof_test.py (documented in 542/555); PATCH_SHA256 and the Core-skip condition were updated as in 555."
+    }
+  },
+  "scope": "Host correctness and host CPU measurements. No iPhone FPS, 1% low, frame time, Metal rendering, thermal, SPU stall or memory-pressure result."
+}
