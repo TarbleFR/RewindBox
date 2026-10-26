@@ -90,7 +90,10 @@ def validate_service():
  parity=at(MELONX_SOURCE,SERVICE)
  assert delivered549.replace(IMPORT_OFF,IMPORT_IGNORED,1)==parity
  current=(ROOT/SERVICE).read_bytes()
- assert current==at(tree.SOURCE_DART,SERVICE) and d549.only_added(parity,current)
+ # 6633588 replaces the one return of graphicsForGame and only adds otherwise.
+ old_return=b'      return {...migratedGraphics(values), ...saved};\n'
+ assert parity.count(old_return)==1 and old_return not in current
+ assert current==at(tree.SOURCE_DART,SERVICE) and d549.only_added(parity.replace(old_return,b'',1),current)
  assert b'static Future<Map<String, dynamic>> clearImportedThreading(' in current
 
 def validate_fix_tests():

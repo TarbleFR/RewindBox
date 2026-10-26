@@ -283,3 +283,30 @@ Not changed: `CADisableMinimumFrameDurationOnPhone` stays in RewindBox (the
 iPhone its game layer is capped at 60 Hz while RewindBox's is not; this remains
 a candidate for the Persona 4 Golden frame pacing. Shader cache defaults
 (standalone: off) stay a per-game setting.
+
+### Review before the build, and numbering
+
+An adversarial review of the parity change (four dimensions, two independent
+skeptics per finding) confirmed one defect and split on three:
+
+- **Confirmed, fixed (`6633588`).** Builds 549 to 551 imported the standalone
+  config's stored threading Off as `backendThreading: false`. Any per-game save
+  (RAM graph, screen format, the per-game dialog, a library move) kept it as
+  if chosen, so removing the import was not enough. `graphicsForGame` now
+  clears that value once per game when the imported config holds Off. A later
+  explicit choice is kept (`test/melonx_threading_residue553_test.dart`).
+- **Fixed (`a487268`).** While fd 2 is a pipe, NSLog copies its messages there
+  too, and on iOS .NET's `Console` (Ryujinx stubs and info) goes through
+  NSLog. Those lines could use up the 2000-line budget before MoltenVK's own
+  writes. They now have a separate 500-line budget, and the pump runs at
+  `userInitiated`. The MoltenVK preference falls back only when the private
+  frameworks fail to load.
+- **Accepted limits.** Lines still in the pipe when the process dies are lost.
+  The unbounded-present target is set again on layout, but not when a title
+  relaunches itself into a new Switch context; with VSync Switch it has no
+  effect.
+
+552 went to the urgent RPCS3 551 launch-crash fix. This change ships as
+**private 553** on that 552 tree, so the fix is kept. A dry run of the change
+on the 551 tree (run 40331958399) passed every job, including the macOS Swift
+capture and the signed-IPA validators. It was not delivered.

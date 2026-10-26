@@ -52,18 +52,22 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   journal line, `set_unbounded_present_target_fps` on layout, Game Mode keys,
   no auto-lock in game, and the standalone config's stored threading Off no
   longer imported. Presentation probe fix `0452528` (tests only).
-- Engine `62626c0f` run 40328874348 (artifact 12654516832), host `0452528a`
-  run 40330047357 (artifact 12653474239). 553 recipe:
+- Review before building (`docs/melonx-persona-performance-2026-10-25.md`):
+  `a487268` gives NSLog lines a separate stderr budget and limits the MoltenVK
+  fallback to a framework load failure; `6633588` clears, once per game, the
+  threading Off stored from the 549-551 import.
+- Engine `62626c0f` run 40328874348 (artifact 12654516832), host `a4872682`
+  run 40339415828 (artifact 12658953626). 553 recipe:
   `.github/diagnostics/melonxparity553_tree.py` (the RPCS3 crash-fix 552 tree,
-  `rpcs3fix552_tree.py`, plus exactly the `62626c0` files; the two sets share
-  no file), `melonxparity553_delivery.py`,
+  `rpcs3fix552_tree.py`, plus exactly the parity files, from `62626c0`,
+  `a487268` and `6633588`; the two sets share no file), `melonxparity553_delivery.py`,
   `build-utils/validate_melonx_parity553_ipa.py`,
   `validate_liquid_glass553_ipa.py` (the RPCS3 validator is
   `validate_rpcs3_552_ipa.py` unchanged), workflow
   `melonx-parity553-delivery.yml`, recipient
   `build-utils/delivery-553-recipient.pem` (private key outside Git). Frontend
   re-run on the pinned 553 tree: `docs/evidence/melonx-parity553-local.json`.
-  Committed unarmed; armed only after 552 is delivered unchanged. The dry run
+  Armed after 552 was delivered (run 40335530316). The dry run
   of the same change on the 551 tree (552-named recipe, run 40331958399) passed
   every job including the macOS Swift capture and the IPA validators.
   Not a flicker fix claim: an A/B to run on iPhone.
