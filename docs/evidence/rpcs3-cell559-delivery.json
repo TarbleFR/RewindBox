@@ -1,0 +1,101 @@
+{
+  "result": "passed",
+  "build": 559,
+  "version": "0.0.8",
+  "source": "fb0a80e7da6ecade04f0503a48ffaab507263dc4",
+  "run": 40407883637,
+  "jobs": {
+    "checks": {
+      "id": 121870241944,
+      "conclusion": "success"
+    },
+    "Release device build • cold": {
+      "id": 121872288933,
+      "conclusion": "success"
+    }
+  },
+  "artifact": {
+    "id": 12693906038,
+    "name": "RewindBox-Build559-fb0a80e7da6ecade04f0503a48ffaab507263dc4-cold",
+    "bytes": 188909085,
+    "sha256": "8ed6dc7017518d3fb2ee3a89c9955791a3d433076e9c9acbadc2c164d202cef6",
+    "expires": "2026-11-09T22:17:20Z",
+    "recipient": "build-utils/delivery-559-recipient.pem",
+    "privateKeyInGit": false,
+    "cipher": "RSA-OAEP-SHA256 envelope, AES-256-CBC PBKDF2 200000"
+  },
+  "ipa": {
+    "name": "RewindBox-Build559-fb0a80e7da6ecade04f0503a48ffaab507263dc4-cold.ipa",
+    "bytes": 188063063,
+    "sha256": "f16c2a3529537bfbaa933972ed63f6ce96bb2a9ca176f1e2d1726dcd7896480d",
+    "bundleVersion": "559",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "minimumOS": "18.0",
+    "sha256SumsMatches": true,
+    "signedPayloadIdentitySHA256": "f16c2a3529537bfbaa933972ed63f6ce96bb2a9ca176f1e2d1726dcd7896480d",
+    "sideStoreAppleReSigningRequired": true,
+    "allCompiledCodeAndDataSectionsUnchangedBySigning": true,
+    "signedImages": 85
+  },
+  "base558": {
+    "delivered": "7b4d0020f7ba55dcad3da26156151fc2a28ed0df",
+    "run": 40397869535,
+    "ipaSha256": "7a9964f55bb490ae4c3bd813d45c2c3b19bacfad04af49a8be4427f567446e5a",
+    "note": "559 ships the delivered 558 product trees byte for byte (lib, native, packages, assets, pubspec: identical Git trees); only the RPCS3 Core changes."
+  },
+  "productTrees": {
+    "lib": "8f44ab0deac261089ed40a185f9fce32380b7be3",
+    "native": "d02bf5f2b3255e8c446a6b8e9fbf62a3bfa13d49",
+    "packages": "43b727081425755a2102f3dcf32c1b6438e208eb",
+    "assets": "f364256146788c048293ef747389afc151648711",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "productTreesEqual558": true,
+  "rpcs3Core": {
+    "source": "07c76ec11f4000247f908b792f53b304c91c8bcd",
+    "run": 40403710130,
+    "artifact": 12690812338,
+    "sha256": "1b490126c9a9c8fcdc2cdaaabd39fa6131573ef68e4492551593f117355a25d0",
+    "abi": 30,
+    "exports": 88,
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "codegenUnchangedSince551": true,
+    "replaces": {
+      "source": "4e5bf59b29c3aed8c3680b8b987aa586a52069c0",
+      "run": 40247161327
+    },
+    "contains": [
+      "551 Core",
+      "555 readback/texture/pipeline diagnostics (never delivered before)",
+      "559 optimizations A-F"
+    ],
+    "evidence": [
+      "docs/evidence/rpcs3-cell559-host-linux.json",
+      "docs/evidence/rpcs3-cell559-macos.json"
+    ]
+  },
+  "ciValidation": {
+    "rpcs3": "rpcs3-memory-audit-ipa.json",
+    "interface": "liquid-glass-ui559-ipa-validation.json",
+    "libraryFiles": "rpcs3-library-files559-ipa-validation.json",
+    "melonx": "melonx-perf559-ipa-validation.json"
+  },
+  "localRevalidation": {
+    "worktree": "fb0a80e pinned with rpcs3cell559_tree.py",
+    "rpcs3ReportIdenticalToCI": true,
+    "interfaceReportIdenticalToCI": true,
+    "libraryFilesReportIdenticalToCI": true,
+    "melonxNotRerunLocally": "its engine evidence needs the macOS job materialization; passed on CI"
+  },
+  "installsOver": [
+    558
+  ],
+  "physicalDeviceTested": false,
+  "fpsGainMeasured": false,
+  "githubRelease": false,
+  "scope": "Delivered 558 product with the RPCS3 Core 559. Host and CI evidence only; no iPhone FPS, frame time, stall, thermal or memory result."
+}

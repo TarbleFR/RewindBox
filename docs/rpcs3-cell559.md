@@ -366,7 +366,7 @@ Il faut comparer 551/555/559 avec `OPT559`, `READBACK555`, `SHADERCOST534` et
   appareil ; c'est donc laissé au mainteneur. Le contrat de source
   (`--source-only`, utilisé par la CI 559) passe.
 - **Livraison** : le Core 559 est construit (run `40403710130`). L'IPA privée
-  559 suit `rpcs3-cell559-delivery.yml`. Aucune release.
+  559 est livrée (section 7). Aucune release.
 
 ## 6. Recette de l'IPA privée 559
 
@@ -415,3 +415,30 @@ aussi les diagnostics 555 jamais livrés.
 Le réglage *Experimental → FPS Experiments → Texture validation per FIFO batch*
 apparaît sans modifier l'app : l'écran de réglages RPCS3 énumère le catalogue
 du Core (`rpcs3_ios_enumerate_settings`).
+
+## 7. IPA privée 559 livrée
+
+- Source `fb0a80e7`, run `40407883637` : `checks` et `cold` réussis.
+- Artefact chiffré `12693906038` pour `build-utils/delivery-559-recipient.pem`.
+  La clé privée n'est pas dans Git.
+- IPA **0.0.8 (559)** `RewindBox-Build559-fb0a80e7…-cold.ipa` :
+  - **188 063 063 octets** ;
+  - SHA-256 **`f16c2a3529537bfbaa933972ed63f6ce96bb2a9ca176f1e2d1726dcd7896480d`**,
+    égal à `SHA256SUMS` et à `signed-payload-identity.json` ;
+  - 85 images signées, sections de code et de données inchangées par la
+    signature ;
+  - iOS 18.0 minimum ; re-signature SideStore requise.
+- Le reçu de l'IPA (`RPCS3-cell559-identity.json`) nomme :
+  - le build 559 ;
+  - le Core `07c76ec1` (run `40403710130`, dylib `1b490126…`) ;
+  - le Core remplacé, 551 `4e5bf59b`.
+
+  Il ne revendique aucun gain de FPS.
+- Les rapports RPCS3, interface et fichiers de bibliothèque, revalidés en
+  local contre l'IPA signée, sont identiques à ceux de la CI.
+- Les arbres produit sont ceux du 558. L'IPA 558 elle-même n'a pas pu être
+  comparée image par image : elle est chiffrée pour la clé 558, absente de
+  cette session.
+- Reçu : [`evidence/rpcs3-cell559-delivery.json`](evidence/rpcs3-cell559-delivery.json).
+- Aucune validation sur iPhone : le protocole de la section 4 reste à faire.
+  Ne pas réutiliser le numéro 559.

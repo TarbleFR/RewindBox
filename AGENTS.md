@@ -50,6 +50,11 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   only the RPCS3 Core swapped 551 → 559. The 558 recipe runs unchanged in
   `as_558()`, which also swaps the Core pin test module and sets aside the
   installed 559 Core identity, which only the 559 recipe checks. Do not reuse 559.
+- Private 559 delivered: source `fb0a80e7`, run `40407883637` (checks and cold
+  passed), encrypted artifact `12693906038`. IPA 0.0.8 (559), 188,063,063
+  bytes, SHA-256 `f16c2a3529537bfbaa933972ed63f6ce96bb2a9ca176f1e2d1726dcd7896480d`;
+  SideStore re-signing required. Receipt `docs/evidence/rpcs3-cell559-delivery.json`.
+  No iPhone validation; no release.
 
 ## Private 558: MeloNX measurement and log fixes on 557 — 26 October 2026
 
