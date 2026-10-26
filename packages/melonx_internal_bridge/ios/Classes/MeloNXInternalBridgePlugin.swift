@@ -295,7 +295,14 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                                     do { try self.activateAudio(reason:"beforeRun"); return true }
                                     catch { MeloNXLaunchJournal.record("audio","failed",detail:String(describing:error)); return false }
                                 }
-                                return Thread.isMainThread ? authorize() : DispatchQueue.main.sync(execute:authorize)
+                                let authorized = Thread.isMainThread ? authorize() : DispatchQueue.main.sync(execute:authorize)
+                                // Still on the thread that runs the engine, right before it
+                                // starts (the session queue; never UIKit's main thread).
+                                if authorized && !Thread.isMainThread {
+                                    let priority = MeloNXEmulationPriority.applyToCurrentThread()
+                                    MeloNXLaunchJournal.record("session","emulationPriority",code:Int64(priority.status),detail:"Choice \(MeloNXEmulationPriority.preferred); engine thread QoS " + MeloNXEmulationPriority.name(priority.qos))
+                                }
+                                return authorized
                             },firstFrame:{ [weak self] in guard let self, self.isCurrent(token) else { return }; MeloNXLaunchJournal.record("firstFrame","passed",detail:"CAMetalDrawable presentedTime confirmed."); self.frameReady = true; self.completeLaunchIfReady() }) { [weak self] outcome in
                                 guard let self else { return }
                                 self.libraryQueue.async { _ = MeloNXMemoryLease.shared.retire(runtime:runtime) }

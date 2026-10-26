@@ -264,6 +264,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
            MeloNXMoltenVKChoice.available(0,frameworks:frameworks), MeloNXMoltenVKChoice.available(1,frameworks:frameworks) {
             menu.addAction(UIAlertAction(title:MeloNXText("MoltenVK version") + ": " + MeloNXText(Self.moltenVkNames[Int(runtime.moltenVk)]),style:.default) { [weak self] _ in self?.showMoltenVk() })
         }
+        menu.addAction(UIAlertAction(title:MeloNXText("Emulation priority") + ": " + MeloNXText(Self.priorityNames[Int(MeloNXEmulationPriority.applied ?? 0)]),style:.default) { [weak self] _ in self?.showPriority() })
         if ready {
             menu.addAction(UIAlertAction(title:MeloNXText("Screen format"),style:.default) { [weak self] _ in self?.showFormats() })
         }
@@ -333,6 +334,28 @@ final class MeloNXMetalSessionViewController: UIViewController {
                 MeloNXLaunchJournal.record("frameworks","moltenVkPreference",code:Int64(variant),detail:"Next start: " + Self.moltenVkNames[Int(variant)])
                 guard variant != runtime.moltenVk else { self.setPause("menu",enabled:false); return }
                 let alert = UIAlertController(title:MeloNXText("Restart RewindBox to use this MoltenVK."),message:nil,preferredStyle:.alert)
+                alert.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self] _ in self?.setPause("menu",enabled:false) })
+                self.present(alert,animated:true)
+            })
+        }
+        menu.addAction(UIAlertAction(title:MeloNXText("Cancel"),style:.cancel) { [weak self] _ in self?.setPause("menu",enabled:false) })
+        menu.popoverPresentationController?.sourceView = menuButton
+        menu.popoverPresentationController?.sourceRect = menuButton.bounds
+        present(menu,animated:true)
+    }
+    private static let priorityNames = ["High (RewindBox)","Default (MeloNX app)"] // by choice
+    // The engine's threads already run; a choice applies when the next game starts.
+    private func showPriority() {
+        guard !closing else { setPause("menu",enabled:false); return }
+        let preferred = MeloNXEmulationPriority.preferred, applied = MeloNXEmulationPriority.applied ?? 0
+        let menu = UIAlertController(title:MeloNXText("Emulation priority"),message:MeloNXText("In use") + ": " + MeloNXText(Self.priorityNames[Int(applied)]),preferredStyle:.actionSheet)
+        for choice in [Int32(0),1] {
+            menu.addAction(UIAlertAction(title:(choice == preferred ? "✓ " : "") + MeloNXText(Self.priorityNames[Int(choice)]),style:.default) { [weak self] _ in
+                guard let self else { return }
+                MeloNXEmulationPriority.preferred = choice
+                MeloNXLaunchJournal.record("session","emulationPriorityPreference",code:Int64(choice),detail:"Next game: " + Self.priorityNames[Int(choice)])
+                guard choice != applied else { self.setPause("menu",enabled:false); return }
+                let alert = UIAlertController(title:MeloNXText("Applies when the next game starts."),message:nil,preferredStyle:.alert)
                 alert.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self] _ in self?.setPause("menu",enabled:false) })
                 self.present(alert,animated:true)
             })

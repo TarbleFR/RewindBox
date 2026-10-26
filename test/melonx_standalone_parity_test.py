@@ -92,11 +92,13 @@ check("NAMES = {'MeloNXMoltenVK','MeloNXSDL3','MeloNXAvUtil','MeloNXAvCodec','Me
 # Strings shown by the in-game MoltenVK menu, in all twelve languages.
 strings = json.loads((ROOT / 'build-utils/melonx/ui-strings.json').read_text())
 controller = (CLASSES / 'MeloNXMetalSessionViewController.swift').read_text()
-for key in ['MoltenVK version', 'In use', 'Restart RewindBox to use this MoltenVK.', 'RewindBox (1.3.0)', 'MeloNX app (1.4.0)']:
+for key in ['MoltenVK version', 'In use', 'Restart RewindBox to use this MoltenVK.', 'RewindBox (1.3.0)', 'MeloNX app (1.4.0)',
+            'Emulation priority', 'High (RewindBox)', 'Default (MeloNX app)', 'Applies when the next game starts.']:
     row = strings['rows'][key]
     check(len(row) == 12 and all(value.strip() for value in row), key)
     check(f'"{key}"' in controller, key + ' unused')
 check(strings['rows']['MoltenVK version'][1] == 'Version de MoltenVK', 'French label')
+check(strings['rows']['Emulation priority'][1] == 'Priorité de l’émulation', 'French priority label')
 
 # Wiring. The smoke app compiles MeloNXSessionHost.swift and MeloNXRuntimeAPI.swift
 # alone, and the session host must stay byte-identical (session host test).
@@ -116,6 +118,12 @@ check(controller.rindex('MeloNXStdioCapture.begin()', 0, start) > controller.rin
 check(controller.count('MeloNXStdioCapture.end(); UIApplication.shared.isIdleTimerDisabled = false') == 2, 'capture/idle timer not restored')
 check('UIApplication.shared.isIdleTimerDisabled = true' in controller, 'idle timer')
 check(controller.count('applyPresentTarget()') == 3 and 'maximumFramesPerSecond' in controller, 'present target')
+# Emulation priority: applied on the session thread after authorization, never
+# on the main thread, and journaled; the menu shows the choice in effect.
+before = plugin[plugin.index('beforeRun:{ [weak self] in'):plugin.index('},firstFrame:')]
+check(before.index('DispatchQueue.main.sync(execute:authorize)') < before.index('if authorized && !Thread.isMainThread {') < before.index('MeloNXEmulationPriority.applyToCurrentThread()'), 'priority wiring')
+check('MeloNXLaunchJournal.record("session","emulationPriority"' in before and before.rstrip().endswith('return authorized'), 'priority journal')
+check('MeloNXEmulationPriority.applied ?? 0' in controller and 'MeloNXEmulationPriority.preferred = choice' in controller, 'priority menu')
 session = (ROOT / 'native/melonx/EmbeddedSession.cs').read_text()
 check('Engine options: ptc=' in session and 'moltenVk={EmbeddedNativeLibraries.MoltenVk}' in session, 'options journal')
 
@@ -132,6 +140,27 @@ precondition(MeloNXMoltenVKChoice.preferred == 1)
 MeloNXMoltenVKChoice.preferred = 0
 precondition(MeloNXMoltenVKChoice.preferred == 0)
 UserDefaults.standard.removeObject(forKey:MeloNXMoltenVKChoice.key)
+// Emulation priority on a user-initiated thread, as the session queue's.
+UserDefaults.standard.removeObject(forKey:MeloNXEmulationPriority.key)
+precondition(MeloNXEmulationPriority.preferred == 0 && MeloNXEmulationPriority.applied == nil)
+func onUserInitiatedThread(_ body: @escaping () -> Void) {
+    let done = DispatchSemaphore(value:0)
+    let thread = Thread { body(); done.signal() }
+    thread.qualityOfService = .userInitiated
+    thread.start(); done.wait()
+}
+onUserInitiatedThread {
+    let kept = MeloNXEmulationPriority.applyToCurrentThread()
+    precondition(kept.status == 0 && kept.qos == QOS_CLASS_USER_INITIATED && MeloNXEmulationPriority.applied == 0)
+    precondition(MeloNXEmulationPriority.name(kept.qos) == "user-initiated")
+}
+MeloNXEmulationPriority.preferred = 1
+onUserInitiatedThread {
+    let lowered = MeloNXEmulationPriority.applyToCurrentThread()
+    precondition(lowered.status == 0 && lowered.qos == QOS_CLASS_DEFAULT && qos_class_self() == QOS_CLASS_DEFAULT)
+    precondition(MeloNXEmulationPriority.applied == 1 && MeloNXEmulationPriority.name(lowered.qos) == "default")
+}
+UserDefaults.standard.removeObject(forKey:MeloNXEmulationPriority.key)
 MeloNXStdioCapture.begin()          // unconfigured: no capture
 fputs("before configure\n", stderr)
 MeloNXStdioCapture.configure(path:"/tmp/not-the-journal.txt")
@@ -149,6 +178,11 @@ fputs(" line\n", stderr)
 for index in 0..<2100 { fputs("line \(index)\n", stderr) }
 // NSLog's stderr copies (Ryujinx console output on iOS) have their own budget.
 let banner = "\(ProcessInfo.processInfo.processName)[\(getpid()):"
+// A stub logged every frame: copied once, then counted. Timestamps differ.
+for index in 0..<300 {
+    fputs("2026-10-26 12:00:00.\(index) \(banner)772] |S| ServiceHid: Stubbed GetNpadJoyHoldType\n", stderr)
+    if index < 50 { fputs("2026-10-26 12:00:01.\(index) \(banner)773] |S| ServiceAudio: Stubbed QueryAudioDeviceSystemEvent\n", stderr) }
+}
 for index in 0..<520 { fputs("2026-10-26 12:00:00.000 \(banner)771] |S| stub \(index)\n", stderr) }
 fputs("unterminated", stderr)
 MeloNXStdioCapture.end()
@@ -175,13 +209,18 @@ exit(2)
         check('before configure' in result.stderr and 'after end' in result.stderr, 'uncaptured output lost')
         check(not any(x in body for x in ['before configure', 'still uncaptured', 'after end']), 'captured outside the session')
         # 4 lines before the loop, then 1996 of its 2100 lines: 104 + the
-        # unterminated tail are counted, not copied. The 520 NSLog-banner
-        # lines get their own 500-line budget: 20 more are not copied.
+        # unterminated tail are counted, not copied. NSLog-banner lines get
+        # their own 500-line budget: the two repeated stubs are copied once
+        # (348 repeats), then 498 of the 520 distinct ones; 22 more not copied.
         stubs = [line for line in body if '|S| stub ' in line]
-        check(len(stubs) == 500 and stubs[-1].endswith('stub 499'), (len(stubs), stubs[-1:]))
-        plain = [line for line in body if '|S| stub ' not in line]
+        check(len(stubs) == 498 and stubs[-1].endswith('stub 497'), (len(stubs), stubs[-1:]))
+        once = [line for line in body if line.endswith('] |S| ServiceHid: Stubbed GetNpadJoyHoldType')]
+        check(len(once) == 1 and once[0].startswith('2026-10-26 12:00:00.0 '), once)
+        plain = [line for line in body if '|S| ' not in line]
         check(len(plain) == 2002 and plain[-2] == 'line 1995', (len(plain), plain[-2:]))
-        check(body[-1] == 'capture end: 2000 lines, 500 NSLog lines, 125 not copied', body[-1])
+        check(body[-3:] == ['repeated 299 more times: |S| ServiceHid: Stubbed GetNpadJoyHoldType',
+                            'repeated 49 more times: |S| ServiceAudio: Stubbed QueryAudioDeviceSystemEvent',
+                            'capture end: 2000 lines, 500 NSLog lines, 348 repeats, 127 not copied'], body[-3:])
     print('Executed the stderr capture and MoltenVK preference on macOS.')
 
 print(f'PASS {checks} standalone parity checks')

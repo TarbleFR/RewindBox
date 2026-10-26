@@ -1175,6 +1175,62 @@
       "이 MoltenVK를 사용하려면 RewindBox를 다시 시작하세요.",
       "重新启动 RewindBox 以使用此 MoltenVK。",
       "重新啟動 RewindBox 以使用此 MoltenVK。"
+    ],
+    "Emulation priority": [
+      "Emulation priority",
+      "Priorité de l’émulation",
+      "Emulationspriorität",
+      "Prioridad de emulación",
+      "Priorità dell’emulazione",
+      "Prioridade da emulação",
+      "Приоритет эмуляции",
+      "Prioritas emulasi",
+      "エミュレーションの優先度",
+      "에뮬레이션 우선순위",
+      "模拟优先级",
+      "模擬優先順序"
+    ],
+    "High (RewindBox)": [
+      "High (RewindBox)",
+      "Élevée (RewindBox)",
+      "Hoch (RewindBox)",
+      "Alta (RewindBox)",
+      "Alta (RewindBox)",
+      "Alta (RewindBox)",
+      "Высокий (RewindBox)",
+      "Tinggi (RewindBox)",
+      "高 (RewindBox)",
+      "높음 (RewindBox)",
+      "高（RewindBox）",
+      "高（RewindBox）"
+    ],
+    "Default (MeloNX app)": [
+      "Default (MeloNX app)",
+      "Par défaut (app MeloNX)",
+      "Standard (MeloNX-App)",
+      "Predeterminada (app de MeloNX)",
+      "Predefinita (app MeloNX)",
+      "Padrão (app MeloNX)",
+      "По умолчанию (приложение MeloNX)",
+      "Bawaan (aplikasi MeloNX)",
+      "標準 (MeloNXアプリ)",
+      "기본 (MeloNX 앱)",
+      "默认（MeloNX 应用）",
+      "預設（MeloNX App）"
+    ],
+    "Applies when the next game starts.": [
+      "Applies when the next game starts.",
+      "S’applique au lancement du prochain jeu.",
+      "Gilt ab dem nächsten Spielstart.",
+      "Se aplica al iniciar el próximo juego.",
+      "Si applica all’avvio del prossimo gioco.",
+      "Aplica-se ao iniciar o próximo jogo.",
+      "Применится при запуске следующей игры.",
+      "Berlaku saat game berikutnya dimulai.",
+      "次にゲームを起動したときに適用されます。",
+      "다음 게임을 시작할 때 적용됩니다.",
+      "将在下次启动游戏时生效。",
+      "將在下次啟動遊戲時生效。"
     ]
   }
 }

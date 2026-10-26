@@ -12,10 +12,13 @@ import Darwin
 // While fd 2 is a pipe, NSLog copies its messages there too, and .NET's
 // Console (Ryujinx's console log target: stubs, info) goes through NSLog on
 // iOS. Those lines carry this process's NSLog banner and get a budget of
-// their own, so they never crowd out MoltenVK's direct writes.
+// their own, so they never crowd out MoltenVK's direct writes. An NSLog message
+// already copied (a stub logged every frame) is counted, not copied again; the
+// most repeated ones are listed at the end.
 enum MeloNXStdioCapture {
     static let lineLimit = 2000
     static let nslogLineLimit = 500
+    static let repeatLimit = 256
     private static let lock = NSLock()
     private static var journal: String?
     private static var savedStderr: Int32 = -1
@@ -60,7 +63,8 @@ enum MeloNXStdioCapture {
 
     private static func pump(_ source: Int32, mirror: Int32, journal: String) {
         var pending = [UInt8](), buffer = [UInt8](repeating:0, count:4096)
-        var lines = 0, nslogLines = 0, dropped = 0
+        var lines = 0, nslogLines = 0, dropped = 0, repeated = 0
+        var seen = [String: Int]()
         append("capture begin", to:journal)
         // NSLog may echo MeloNXLaunchJournal's own events to stderr; app.log
         // already has those as [MeloNX:native] lines.
@@ -68,7 +72,12 @@ enum MeloNXStdioCapture {
         let banner = Array("\(ProcessInfo.processInfo.processName)[\(getpid()):".utf8)
         func emit(_ bytes: ArraySlice<UInt8>) {
             guard !bytes.isEmpty, !contains(bytes, echo) else { return }
-            if contains(bytes.prefix(96), banner) {
+            if let start = index(of:banner, in:bytes.prefix(96)) {
+                // The message follows the banner's "[pid:tid] "; the timestamp before it varies.
+                let body = index(of:Array("] ".utf8), in:bytes[start...]).map { bytes[($0 + 2)...] } ?? bytes
+                let message = String(decoding:body.prefix(512), as:UTF8.self)
+                if let count = seen[message] { seen[message] = count + 1; repeated += 1; return }
+                if seen.count < repeatLimit { seen[message] = 0 }
                 guard nslogLines < nslogLineLimit else { dropped += 1; return }
                 nslogLines += 1
             } else {
@@ -90,18 +99,24 @@ enum MeloNXStdioCapture {
             if pending.count > 2048 { emit(pending[...]); pending.removeAll() }
         }
         if !pending.isEmpty { emit(pending[...]) }
-        append("capture end: \(lines) lines, \(nslogLines) NSLog lines, \(dropped) not copied", to:journal)
+        let most = seen.filter { $0.value > 0 }.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+        for (message, count) in most.prefix(10) { append("repeated \(count) more times: \(message)", to:journal) }
+        append("capture end: \(lines) lines, \(nslogLines) NSLog lines, \(repeated) repeats, \(dropped) not copied", to:journal)
         close(source); close(mirror)
     }
 
     private static func contains(_ bytes: ArraySlice<UInt8>, _ needle: [UInt8]) -> Bool {
-        guard bytes.count >= needle.count else { return false }
+        index(of:needle, in:bytes) != nil
+    }
+
+    private static func index(of needle: [UInt8], in bytes: ArraySlice<UInt8>) -> Int? {
+        guard bytes.count >= needle.count else { return nil }
         var start = bytes.startIndex
         while start + needle.count <= bytes.endIndex {
-            if bytes[start..<start + needle.count].elementsEqual(needle) { return true }
+            if bytes[start..<start + needle.count].elementsEqual(needle) { return start }
             start += 1
         }
-        return false
+        return nil
     }
 
     private static func append(_ text: String, to path: String) {
@@ -126,6 +141,44 @@ enum MeloNXStdioCapture {
             if count < 0 && errno == EINTR { continue }
             guard count > 0 else { return }
             offset += count
+        }
+    }
+}
+
+// Priority of the thread that runs the engine (MeloNXSessionHost's session
+// queue, user-initiated). Standalone MeloNX starts emulation on a plain
+// Thread at default QoS. 0 keeps RewindBox's, 1 lowers the thread to default
+// QoS right before the engine runs, so threads it creates may follow; the
+// performance journal shows each thread's priority. Applies at the next game.
+enum MeloNXEmulationPriority {
+    static let key = "RewindBoxMeloNXEmulationPriority"
+    private static let lock = NSLock()
+    private static var current: Int32?
+
+    static var preferred: Int32 {
+        get { UserDefaults.standard.string(forKey:key) == "standalone" ? 1 : 0 }
+        set { UserDefaults.standard.set(newValue == 1 ? "standalone" : "rewindbox", forKey:key) }
+    }
+    /// The choice applied when the running game started; nil before any.
+    static var applied: Int32? { lock.lock(); defer { lock.unlock() }; return current }
+
+    /// On the thread that runs the engine: the pthread status (0 when
+    /// nothing changes) and the QoS class now in effect.
+    static func applyToCurrentThread() -> (status: Int32, qos: qos_class_t) {
+        let choice = preferred
+        let status = choice == 1 ? pthread_set_qos_class_self_np(QOS_CLASS_DEFAULT, 0) : 0
+        lock.lock(); current = status == 0 ? choice : 0; lock.unlock()
+        return (status, qos_class_self())
+    }
+
+    static func name(_ qos: qos_class_t) -> String {
+        switch qos {
+        case QOS_CLASS_USER_INTERACTIVE: return "user-interactive"
+        case QOS_CLASS_USER_INITIATED: return "user-initiated"
+        case QOS_CLASS_DEFAULT: return "default"
+        case QOS_CLASS_UTILITY: return "utility"
+        case QOS_CLASS_BACKGROUND: return "background"
+        default: return "unspecified (\(qos))"
         }
     }
 }
