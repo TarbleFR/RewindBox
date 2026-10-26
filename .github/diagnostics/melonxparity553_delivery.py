@@ -16,11 +16,10 @@ HOST_TREE=close.BASE
 MELONX_SOURCE=tree.SOURCE_PARITY
 MELONX_RUN=40328874348
 MELONX_ARTIFACT=(12654516832,'4ed4f40c0a2fb5f037178f4b5d9f06873199d94a676b123725732e11a0893689')
-# The host run of 62626c0 failed only in its UIKit presentation probe, whose
-# test doubles lacked the new MoltenVK argument; 0452528 fixed the probe and
-# changed no shipped file, so its host run is the one bound here.
-HOST_SOURCE,HOST_RUN='0452528a534ce065cdce675120770f28ab94af3b',40330047357
-HOST_ARTIFACT=(12653474239,'4da865581a31b5cb94e659043ff0e8b616fa01ca036aa44b36d47ea106e5a5ec')
+# The iPhone host is built and tested from a487268: the 62626c0 host with the
+# review fixes in two Swift files (the engine does not change).
+HOST_SOURCE,HOST_RUN=tree.SOURCE_HOST,None
+HOST_ARTIFACT=(None,None)
 # The RPCS3 Core is the 551 one and its two host files are the 552 fix's, byte for byte.
 CORE_SOURCE,CORE_RUN,HOST,HOST551=fix552.CORE_SOURCE,fix552.CORE_RUN,fix552.HOST,fix552.HOST551
 FIX_SOURCE,HOST552,FIX_CORE_INPUTS=fix552.FIX_SOURCE,fix552.HOST552,fix552.FIX_CORE_INPUTS
@@ -48,7 +47,7 @@ IMPORT_IGNORED=b"""    // backendThreading is not imported: standalone MeloNX st
     // default but forces On at every launch (RyujinxController), so its
     // saved value never reached the engine there either.
 """
-ENGINE_INPUTS=sorted(set(d549.ENGINE_INPUTS)|{p for p in tree.PARITY if not p.startswith(('lib/','packages/','docs/melonx-persona'))})
+ENGINE_INPUTS=sorted(set(d549.ENGINE_INPUTS)|{p for p in tree.PARITY if not p.startswith(('lib/','packages/','docs/melonx-persona')) and p not in tree.HOST_FILES})
 LOCAL=tree.LOCAL
 # The MeloNX frontend tests re-run on the exact 553 tree (550's set, the
 # changed threading test and the standalone parity checks).
@@ -136,7 +135,7 @@ def source_contract():
  for p in close.CHANGED-PRODUCT:assert (ROOT/p).read_bytes()==at(close.HOST_SOURCE,p),p
  for p in HOST546-HOST552:assert (ROOT/p).read_bytes()==at(tree.HOST_TREE,p),p
  for p in HOST552:assert (ROOT/p).read_bytes()==at(FIX_SOURCE,p),p
- for p in PRODUCT:assert (ROOT/p).read_bytes()==at(MELONX_SOURCE,p),p
+ for p in PRODUCT:assert (ROOT/p).read_bytes()==at(HOST_SOURCE if p in tree.HOST_FILES else MELONX_SOURCE,p),p
  for p in DART549-PRODUCT_PARITY:assert d549.only_added(at(tree.HOST_TREE,p),(ROOT/p).read_bytes()),p
  validate_service()
  fix552.native.pin_module().validate_source_contract()
@@ -154,8 +153,8 @@ def source_contract():
   source548=tree.previous.previous.previous.SOURCE548,source549=tree.previous.previous.previous.SOURCE549,sourceInterface=tree.SOURCE_UI,
   source551=tree.SOURCE551,source552=FIX_SOURCE,sourceParity=MELONX_SOURCE,
   melonxSource=MELONX_SOURCE,melonxRun=MELONX_RUN,melonxArtifact=MELONX_ARTIFACT[0],
-  hostSource=HOST_SOURCE,hostRun=HOST_RUN,hostArtifact=HOST_ARTIFACT[0],rpcCoreSource=CORE_SOURCE,rpcCoreRun=CORE_RUN,
-  rpcs3HostFiles=sorted(HOST552),fixCoreInputs=sorted(FIX_CORE_INPUTS),profileTests=fix['profiles']['passedTests'],
+  hostSource=HOST_SOURCE,hostRun=HOST_RUN,hostArtifact=HOST_ARTIFACT[0],hostFiles=tree.HOST_FILES,
+  rpcCoreSource=CORE_SOURCE,rpcCoreRun=CORE_RUN,rpcs3HostFiles=sorted(HOST552),fixCoreInputs=sorted(FIX_CORE_INPUTS),profileTests=fix['profiles']['passedTests'],
   melonxChanged=sorted(PRODUCT_PARITY),interfaceChanged=sorted(ui),interfaceTests=interface['passedTests'],
   changed=sorted(expected),pinnedFiles=kept,productTrees=tree.product_trees(),productTrees552=tree.product_trees_552(),
   productTrees551=tree.product_trees_551(),productTrees550=tree.product_trees_550(),physicalDeviceTested=False,
@@ -205,7 +204,7 @@ def retain_checks():
  print('Reused the 12 local import checks; bound the 553 MeloNX re-run to the pinned tree, the 550 interface and the 552 fix receipt under the other shipped files.')
 
 def engine_evidence():
- """The downloaded engine and host are the 62626c0 builds with the 552 changes."""
+ """The downloaded engine (62626c0) and host (a487268) carry the parity changes."""
  identity=json.loads((ROOT/'dist/melonx/ios-arm64/identity.json').read_bytes())
  assert identity['host']==MELONX_SOURCE
  for name in ('neostation_melonx_performance_snapshot','neostation_melonx_select_moltenvk','neostation_melonx_set_present_target_fps'):
@@ -224,9 +223,12 @@ def engine_evidence():
  assert graph['result']=='passed' and graph['fpsLabelTested']
  checks=json.loads((ROOT/'dist/melonx-host/checks.json').read_bytes())
  assert checks['source']==HOST_SOURCE and checks['iphoneSDKTypecheck']
+ # The UIKit probe compiled the shipped plugin with the parity file.
+ presentation=json.loads((ROOT/'dist/melonx-host/presentation.json').read_bytes())
+ assert presentation['result']=='passed' and presentation['source']==HOST_SOURCE
  for p in tree.SHIPPED_PARITY:
   if p.startswith('packages/'):assert checks['inputs'][p]==hashlib.sha256((ROOT/p).read_bytes()).hexdigest(),p
- for receipt in (session,display,smoke,graph,checks):
+ for receipt in (session,display,smoke,graph,checks,presentation):
   for p,h in receipt.get('inputs',{}).items():assert hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==h,p
  return dict(coreSHA256=identity['sha256'],sessionCases=session['passedCases'],displaySummary=display['summary'].splitlines()[-1],
   livePerformanceSnapshotSessions=smoke['livePerformanceSnapshotSessions'],threadedSimulatorRelaunches=smoke['homebrewSimulatorSessions'],
