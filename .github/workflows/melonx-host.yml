@@ -21,6 +21,11 @@ run-name: MeloNX host • ${{ github.sha }}
     - build-utils/melonx/vendor_controller.py
     - build-utils/melonx/generate_ui_strings.py
     - build-utils/melonx/ui-strings.json
+    - test/melonx_perf_journal_test.py
+    - test/melonx_standalone_parity_test.py
+    - native/melonx/EmbeddedAudioPacing.cs
+    - native/melonx/EmbeddedAudioPacingExport.cs
+    - build-utils/melonx/build_core.sh
   workflow_dispatch: null
 permissions:
   contents: read
@@ -68,6 +73,10 @@ jobs:
       run: python3 test/melonx_audio_ownership_test.py
     - name: Exercise registered plugin presentation and retry in actual UIKit
       run: python3 test/melonx_presentation_test.py
+    - name: Execute the per-second performance journal in Swift (threads, pause, line limit, summary, ports)
+      run: python3 test/melonx_perf_journal_test.py
+    - name: Execute the stderr capture, repeated stubs, emulation priority and MoltenVK preference in Swift
+      run: python3 test/melonx_standalone_parity_test.py
     - name: Compile the original donor extension and validate target packaging
       if: ${{ contains(github.event.head_commit.message, '[melonx-display]') }}
       run: python3 test/melonx_memory_extension_test.py
