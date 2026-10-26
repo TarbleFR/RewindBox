@@ -183,9 +183,18 @@ def validate_perf_tests():
  app=local['applicationAnalyzer']
  assert app['errors']==0 and app['warnings']==0 and app['errors557']==0
  # The whole Dart suite on both trees: the same failing tests (already on the
- # delivered 557 tree), and the 558 tests added.
+ # delivered 557 tree), and the 558 tests added. A test that failed here and
+ # not in the 557 receipt's run counts only with a run of that test on the
+ # delivered 557 tree that fails the same way (a timing-dependent test).
  suite=local['fullSuite']
- assert set(suite['failedTests'])==set(suite['failedTests557']) and suite['failed']==suite['failed557'],suite
+ extra={x['test']:x for x in suite.get('failedAlsoOn557',[])}
+ assert set(suite['failedTests'])==set(suite['failedTests557'])|set(extra),suite
+ assert suite['failed']==suite['failed557']+len(set(extra)-set(suite['failedTests557'])),suite
+ for name,proof in extra.items():
+  test,title=name.split(': ',1)
+  assert name not in suite['failedTests557'] and proof['tree']=='557' and proof['exitCode557']!=0,name
+  for log in (proof['log557'],proof['log558']):
+   assert test in log and f'The test description was:\n  {title}' in log and 'Some tests failed.' in log,name
  assert suite['passed']>suite['passed557'],suite
  # Before the change, on the 557 tree: the live log stays behind a migration.
  control=local['negativeControl']
