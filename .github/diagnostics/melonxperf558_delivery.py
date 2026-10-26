@@ -237,11 +237,15 @@ def source_contract():
  report=inherited(d557.source_contract)
  assert report['productTrees']==tree.product_trees_557(),report['productTrees']
  # The pinned index differs from the delivered 557 tree by the 558 files and this recipe only.
+ versions=tree.at_557()
  with tempfile.TemporaryDirectory() as scratch:
-  env=tree.index_with(tree.at_557(),os.path.join(scratch,'index'))
+  env=tree.index_with(versions,os.path.join(scratch,'index'))
   view=tree.git('write-tree',env=env)
  changed=set(command('git','diff','--cached','--name-only',view).splitlines())
- expected=set(tree.FIX558)|set(tree.RECIPE)
+ # Documentation an earlier recipe owned follows HEAD in both trees (the
+ # MeloNX analysis), so it cannot differ.
+ expected={p for p in set(tree.FIX558)|set(tree.RECIPE) if versions[p]!=head}
+ assert all(p.startswith('docs/') for p in set(tree.FIX558)-expected),set(tree.FIX558)-expected
  assert changed==expected,changed^expected
  for p in SHIPPED558:assert (ROOT/p).read_bytes()==at(SOURCE558,p),p
  # The engine and host runs built exactly these files.
