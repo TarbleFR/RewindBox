@@ -14,7 +14,7 @@ permissions:
 jobs:
   benchmark:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-cell554-bench]') }}
-    runs-on: macos-15-arm64
+    runs-on: macos-15
     timeout-minutes: 30
     concurrency:
       group: rewindbox-rpcs3-cell554-bench-${{ github.sha }}
@@ -59,7 +59,9 @@ jobs:
           import hashlib, json, platform, subprocess
           from pathlib import Path
           files = ['test/rpcs3_texture_hash554_test.py', 'build-utils/rpcs3/canonical-source.json',
-                   'build-utils/rpcs3/embedded-core.patch', '.github/workflows/rpcs3-cell554-bench.yml']
+                   'build-utils/rpcs3/embedded-core.patch', '.github/workflows/rpcs3-cell554-bench.yml',
+                   'test/native/rpcs3_texture_hash554.inc', 'test/native/rpcs3_texture_hash554_pair.inc',
+                   'test/native/rpcs3_texture_hash554_group4.inc']
           record = dict(source=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
                         system=platform.system(), machine=platform.machine(),
                         compiler=subprocess.check_output(['xcrun', 'clang++', '--version'], text=True),
