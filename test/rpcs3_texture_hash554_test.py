@@ -33,6 +33,8 @@ def main():
     assert '#define XXH3_NEON_LANES 6' in baseline
     assert 'accumulate_texture_stripes' in baseline
     compiler = shlex.split(os.environ.get('CXX', 'c++'))
+    if sdk := os.environ.get('HOST_MACOS_SDK'):
+        compiler += ['-isysroot', sdk]
     cppflags = shlex.split(os.environ.get('HASH554_CXXFLAGS', ''))
     with tempfile.TemporaryDirectory(prefix='rpcs3-hash554-') as tmp:
         work = args.keep.resolve() if args.keep else Path(tmp)
