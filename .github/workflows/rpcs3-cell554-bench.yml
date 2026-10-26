@@ -44,19 +44,22 @@ jobs:
           git -C "$SOURCE" fetch --depth 1 origin "$UPSTREAM"
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
+      - name: Select the same LLVM major as the iPhone Core
+        run: brew list --versions llvm@22 >/dev/null 2>&1 || brew install llvm@22
       - name: Execute source-bound correctness checks and host timings
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p build/rpcs3-cell554-bench
-          CXX="$(xcrun --sdk macosx --find clang++)" \
-          HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
-            python3 test/rpcs3_texture_hash554_test.py "$RUNNER_TEMP/cell554-texture-source" \
+          export CXX="$(brew --prefix llvm@22)/bin/clang++"
+          export HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          export HASH554_CXXFLAGS='-mcpu=apple-a7 -march=armv8.4-a -fstack-protector -fno-exceptions'
+          python3 test/rpcs3_texture_hash554_test.py "$RUNNER_TEMP/cell554-texture-source" \
               --benchmark --keep build/rpcs3-cell554-bench \
               --report build/rpcs3-cell554-bench/texture-result.json \
               2>&1 | tee build/rpcs3-cell554-bench/output.txt
           python3 - <<'PY'
-          import hashlib, json, platform, subprocess
+          import hashlib, json, os, platform, shlex, subprocess
           from pathlib import Path
           files = ['test/rpcs3_texture_hash554_test.py', 'build-utils/rpcs3/canonical-source.json',
                    'build-utils/rpcs3/embedded-core.patch', '.github/workflows/rpcs3-cell554-bench.yml',
@@ -65,7 +68,9 @@ jobs:
                    'test/native/rpcs3_texture_hash554_twins6.inc', 'test/native/rpcs3_texture_hash554_twins8.inc']
           record = dict(source=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
                         system=platform.system(), machine=platform.machine(),
-                        compiler=subprocess.check_output(['xcrun', 'clang++', '--version'], text=True),
+                        compiler=subprocess.check_output(shlex.split(os.environ['CXX']) + ['--version'], text=True),
+                        compileFlags=shlex.split(os.environ['HASH554_CXXFLAGS']),
+                        macosSDK=os.environ['HOST_MACOS_SDK'],
                         inputSHA256={p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in files},
                         physicalDeviceTested=False, iPhoneCoreBuilt=False, ipaBuilt=False,
                         scope='Apple ARM64 host correctness and texture-hash microbenchmark only; not iPhone gameplay or FPS.')

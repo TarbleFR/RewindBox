@@ -6,14 +6,15 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <memory>
 #include <vector>
 
 using Hash = std::uint64_t (*)(const void*, std::size_t, const void*, std::size_t, std::uint64_t) noexcept;
 #define DECLARE(N) namespace N { std::uint64_t texture_hash_hybrid(const void*, std::size_t, const void*, std::size_t, std::uint64_t) noexcept; }
-DECLARE(baseline6) DECLARE(neon8) DECLARE(pair8) DECLARE(group4) DECLARE(neon4) DECLARE(hybrid4) DECLARE(twins6) DECLARE(twins8)
-const Hash functions[] = {baseline6::texture_hash_hybrid, neon8::texture_hash_hybrid, pair8::texture_hash_hybrid, group4::texture_hash_hybrid, neon4::texture_hash_hybrid, hybrid4::texture_hash_hybrid, twins6::texture_hash_hybrid, twins8::texture_hash_hybrid};
-const char* names[] = {"baseline6", "neon8", "pair8", "group4", "neon4", "hybrid4", "twins6", "twins8"};
+DECLARE(baseline6) DECLARE(neon8) DECLARE(pair8) DECLARE(group4) DECLARE(neon4) DECLARE(hybrid4) DECLARE(twins6) DECLARE(twins8) DECLARE(tuned6)
+const Hash functions[] = {baseline6::texture_hash_hybrid, neon8::texture_hash_hybrid, pair8::texture_hash_hybrid, group4::texture_hash_hybrid, neon4::texture_hash_hybrid, hybrid4::texture_hash_hybrid, twins6::texture_hash_hybrid, twins8::texture_hash_hybrid, tuned6::texture_hash_hybrid};
+const char* names[] = {"baseline6", "neon8", "pair8", "group4", "neon4", "hybrid4", "twins6", "twins8", "tuned6"};
 constexpr unsigned variant_count = sizeof(functions) / sizeof(functions[0]);
 static std::uint64_t state = 0x24691358bdfeca71ull;
 static std::uint64_t random_word()
@@ -22,6 +23,15 @@ static std::uint64_t random_word()
     return state;
 }
 static volatile std::uint64_t sink = 0;
+static double thread_cpu_seconds()
+{
+#if defined(CLOCK_THREAD_CPUTIME_ID)
+    timespec value{};
+    if (clock_gettime(CLOCK_THREAD_CPUTIME_ID, &value) == 0)
+        return static_cast<double>(value.tv_sec) + value.tv_nsec * 1e-9;
+#endif
+    return -1;
+}
 
 int main(int argc, char** argv)
 {
@@ -86,9 +96,9 @@ int main(int argc, char** argv)
         return 0;
     }
     // Six timed variants keep the twelve-round Williams design balanced.
-    // The rejected simple eight-lane and two-stripe controls remain included
+    // The simple four/eight-lane and two-stripe controls remain included
     // in correctness checks and in the first two measurement artifacts.
-    constexpr std::array<unsigned, 6> timed = {0, 4, 3, 5, 6, 7};
+    constexpr std::array<unsigned, 6> timed = {0, 8, 3, 5, 6, 7};
     constexpr std::array<unsigned, 6> williams = {0, 1, 5, 2, 4, 3};
     constexpr unsigned repeats = 12;
     constexpr std::uint64_t bytes_per_trial = 4ull * 1024 * 1024 * 1024;
@@ -103,14 +113,15 @@ int main(int argc, char** argv)
     auto print_values = [](const std::vector<double>& values, double scale)
     {
         for (unsigned i = 0; i < values.size(); ++i)
-            std::printf("%s%.6f", i ? "," : "", values[i] * scale);
+            if (values[i] < 0) std::printf("%snull", i ? "," : "");
+            else std::printf("%s%.6f", i ? "," : "", values[i] * scale);
     };
     std::printf("{\"passed\":true,\"benchmark\":true,\"repeats\":12,\"bytes_per_trial\":4294967296,\"order\":\"balanced Williams six treatments, reverse second cycle\",\"paired_ratio\":\"candidate_time / baseline_time in the same round; below1 is faster\",\"rows\":[");
     bool comma = false;
     for (unsigned mode = 0; mode < 2; ++mode)
     for (const auto size : {4096u, 65536u, 1048576u, 8388608u})
     {
-        std::array<std::vector<double>, timed.size()> samples;
+        std::array<std::vector<double>, timed.size()> samples, cpu_samples;
         const auto iterations = bytes_per_trial / size;
         const std::size_t working_set = mode == 0 ? size : 64u * 1024 * 1024;
         for (unsigned repeat = 0; repeat < repeats; ++repeat)
@@ -126,6 +137,7 @@ int main(int argc, char** argv)
                 std::uint64_t output = 0;
                 for (std::size_t offset = 0; offset < working_set; offset += size)
                     output ^= fn(data.data() + offset, size, secret.data(), 192, 0);
+                const double cpu_start = thread_cpu_seconds();
                 const auto start = std::chrono::steady_clock::now();
                 for (std::uint64_t iteration = 0; iteration < iterations; ++iteration)
                 {
@@ -133,8 +145,10 @@ int main(int argc, char** argv)
                     output ^= fn(data.data() + offset, size, secret.data(), 192, 0);
                 }
                 const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+                const double cpu_end = thread_cpu_seconds();
                 sink = output;
                 samples[treatment].push_back(seconds);
+                cpu_samples[treatment].push_back(cpu_start >= 0 && cpu_end >= cpu_start ? cpu_end - cpu_start : -1);
             }
         }
         for (unsigned treatment = 0; treatment < timed.size(); ++treatment)
@@ -149,7 +163,26 @@ int main(int argc, char** argv)
             print_values(values,1000);
             std::printf("],\"paired_ratios\":[");
             print_values(ratios,1);
-            std::printf("]}");
+            const auto& cpu_values = cpu_samples[treatment];
+            std::vector<double> cpu_ratios, wall_cpu_ratios;
+            bool valid_cpu = true;
+            for (unsigned round = 0; round < repeats; ++round)
+            {
+                const bool valid = cpu_values[round] > 0 && cpu_samples[0][round] > 0;
+                valid_cpu &= valid;
+                cpu_ratios.push_back(valid ? cpu_values[round] / cpu_samples[0][round] : -1);
+                wall_cpu_ratios.push_back(valid ? values[round] / cpu_values[round] : -1);
+            }
+            std::printf("],\"thread_cpu_samples_ms\":[");
+            print_values(cpu_values,1000);
+            std::printf("],\"thread_cpu_paired_ratios\":[");
+            print_values(cpu_ratios,1);
+            std::printf("],\"wall_to_thread_cpu_ratios\":[");
+            print_values(wall_cpu_ratios,1);
+            if (valid_cpu)
+                std::printf("],\"thread_cpu_clock_valid\":true,\"thread_cpu_median_ms\":%.6f,\"thread_cpu_paired_ratio_median\":%.6f,\"thread_cpu_paired_ratio_p10\":%.6f,\"thread_cpu_paired_ratio_p90\":%.6f}", quantile(cpu_values,.5)*1000, quantile(cpu_ratios,.5), quantile(cpu_ratios,.1), quantile(cpu_ratios,.9));
+            else
+                std::printf("],\"thread_cpu_clock_valid\":false,\"thread_cpu_median_ms\":null,\"thread_cpu_paired_ratio_median\":null}");
         }
     }
     std::printf("]}\n");

@@ -66,6 +66,11 @@ return std::chrono::steady_clock::now().time_since_epoch().count();
             start = text.index('XXH_FORCE_INLINE void accumulate_texture_stripes')
             end = text.index('\n#endif\n}', start)
             variants[name] = text[:start] + (NATIVE / f'rpcs3_texture_hash554_{fixture}.inc').read_text() + text[end:]
+        # Tune the entire translation unit so timer and measurement helpers
+        # remain inlinable; a per-function target attribute can block them.
+        variants['tuned6'] = baseline
+        native_arm = platform.machine().lower() in ('arm64', 'aarch64')
+        per_unit_flags = {'tuned6': ['-mtune=apple-m1']} if native_arm else {}
         units = []
         for name, text in variants.items():
             # Qualify the shared counters after changing only the public test
@@ -78,8 +83,16 @@ return std::chrono::steady_clock::now().time_since_epoch().count();
         includes = ['-I', str(work), '-I', str(source), '-I', str(source / 'rpcs3/ios')]
         common = compiler + ['-std=c++20', '-DNDEBUG'] + cppflags + includes
         exe = work / 'hash554'
-        command = common + ['-O2', '-fsanitize=address,undefined', '-fno-omit-frame-pointer'] + units + ['-x', 'c++', str(NATIVE / 'rpcs3_texture_hash554.inc'), '-o', str(exe)]
-        subprocess.run(command, check=True)
+        def compile_executable(optimization, sanitizers):
+            objects = []
+            flags = [optimization] + sanitizers
+            for unit in units:
+                output = Path(unit).with_suffix('.check.o' if sanitizers else '.bench.o')
+                tuning = per_unit_flags.get(Path(unit).stem, [])
+                subprocess.run(common + flags + tuning + ['-c', unit, '-o', str(output)], check=True)
+                objects.append(str(output))
+            subprocess.run(common + flags + objects + ['-x', 'c++', str(NATIVE / 'rpcs3_texture_hash554.inc'), '-o', str(exe)], check=True)
+        compile_executable('-O2', ['-fsanitize=address,undefined', '-fno-omit-frame-pointer'])
         runenv = os.environ.copy()
         if platform.system() == 'Linux':
             runenv['ASAN_OPTIONS'] = runenv.get('ASAN_OPTIONS', 'detect_leaks=0')
@@ -90,18 +103,20 @@ return std::chrono::steady_clock::now().time_since_epoch().count();
         assembly = {}
         for unit in units:
             output = Path(unit).with_suffix('.s')
-            subprocess.run(common + ['-O3', '-S', unit, '-o', str(output)], check=True)
+            subprocess.run(common + ['-O3'] + per_unit_flags.get(Path(unit).stem, []) + ['-S', unit, '-o', str(output)], check=True)
             body = output.read_text()
             assembly[Path(unit).stem] = {'bytes': len(body), 'sha256': hashlib.sha256(body.encode()).hexdigest()}
         if args.benchmark:
             if platform.machine().lower() not in ('arm64', 'aarch64'):
                 raise SystemExit('Native ARM64 required for throughput measurements; do not time a simulator or x86 fallback')
-            subprocess.run(common + ['-O3'] + units + ['-x', 'c++', str(NATIVE / 'rpcs3_texture_hash554.inc'), '-o', str(exe)], check=True)
+            compile_executable('-O3', [])
             results['benchmark'] = json.loads(subprocess.check_output([str(exe), '--bench'], text=True))
         report = {'passed': True, 'host': platform.platform(), 'machine': platform.machine(),
                   'compiler': subprocess.check_output(compiler + ['--version'], text=True).splitlines()[0],
                   'productionSHA256': hashlib.sha256(actual.read_bytes()).hexdigest(),
                   'xxhashSHA256': hashlib.sha256((source / 'Utilities/xxhash3.h').read_bytes()).hexdigest(),
+                  'compilerFlags': cppflags, 'optimization': '-O3',
+                  'variantCompilerFlags': per_unit_flags,
                   'results': results, 'assembly': assembly, 'physicalIPhoneTested': False,
                   'gameplayMeasured': False, 'nativeARM64Executed': platform.machine().lower() in ('arm64', 'aarch64')}
         if args.report:
