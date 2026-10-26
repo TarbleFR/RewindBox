@@ -155,8 +155,38 @@ abstract final class MelonxInternalService {
           }
         }
       }
-      return {...migratedGraphics(values), ...saved};
+      final cleaned = await clearImportedThreading(
+        await SharedPreferences.getInstance(),
+        _graphicsKey(gamePath),
+        values,
+        saved,
+      );
+      return {...migratedGraphics(values), ...cleaned};
     }
+  }
+
+  static const _threadingCheckedKey = 'rewindbox.melonx.threadingImportChecked553';
+
+  /// Builds 549 to 551 imported the standalone config's stored threading Off
+  /// (1) as `backendThreading: false`, and any later per-game save kept it as
+  /// if the player had chosen it. Once per game, a stored false next to that
+  /// imported Off is cleared, so the engine default (On, as in the standalone
+  /// app) applies; a choice made afterwards is kept.
+  static Future<Map<String, dynamic>> clearImportedThreading(
+    SharedPreferences prefs,
+    String key,
+    Map<String, dynamic> imported,
+    Map<String, dynamic> saved,
+  ) async {
+    final checked = prefs.getStringList(_threadingCheckedKey) ?? const <String>[];
+    if (checked.contains(key)) return saved;
+    var result = saved;
+    if (imported['backendThreading'] == 1 && saved['backendThreading'] == false) {
+      result = Map<String, dynamic>.from(saved)..remove('backendThreading');
+      if (!await prefs.setString(key, jsonEncode(result))) return saved;
+    }
+    await prefs.setStringList(_threadingCheckedKey, [...checked, key]);
+    return result;
   }
 
   static Map<String, dynamic> migratedGraphics(Map<String, dynamic> source) {
