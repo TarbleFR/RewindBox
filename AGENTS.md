@@ -38,6 +38,43 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `melonx-perf558-delivery.yml`; recipient `build-utils/delivery-558-recipient.pem`
   (private key outside Git); local receipt `docs/evidence/melonx-perf558-local.json`.
 
+## Private 557: library-folder PS3 disc lifecycle and queued ROM folder saves — 26 October 2026
+
+- Maintainer request after 554: "je t'autorise à finir ce que tu n'as pas
+  corrigé. Il faut tout corriger." Analysis: `docs/rpcs3-library-files557.md`.
+- Fix `d645f05` (Dart only; 551 Core and native bridges unchanged):
+  `SqliteService.saveUserRomFolders` queues saves in call order (a transaction
+  opened during another runs inside it on the shared connection: `UNIQUE
+  constraint failed: user_rom_folders.path`); the scan keeps an iOS PS3 `.iso`
+  row linked to a title while its folder exists (two `RPCS3_LIBRARY_FILE` blocks
+  in `sqlite_database_service.dart`); the launcher boots such a row by title ID
+  without its file; `Rpcs3LibraryService.settleLibraryFileRows` relinks renamed
+  ISOs from PARAM.SFO, folds rows whose file is gone, and on a live sync removes
+  rows of titles RPCS3 no longer holds; the install prompt can delete the
+  original and its key once installed (off by default); `Rpcs3LibraryFileDeletion`
+  deletes ISO, key, RPCS3 copy and row; the PS3 multi-delete lists every row;
+  search shows no error for a cancelled launch. The Build 419 contract
+  (`test/retroarch_baseline_scope_test.py`) reconstructs both SQLite files'
+  419 bytes (`ROM_FOLDERS_SAVE_557`, `RPCS3_LIBRARY_FILE_BLOCK`).
+- Private IPA **0.0.8 (557)** from `b71a046`, run 40389098711: the delivered 554
+  tree plus the 11 shipped Dart files of `d645f05` (recipe `4e232f7`); same 551
+  Core dylib as 554. 188,024,522 bytes, SHA-256 `208118f4…129c01`, encrypted
+  artifact 12685546029 for `build-utils/delivery-557-rpcs3-recipient.pem`
+  (private key outside Git); decrypted, re-checked, delivered. Evidence:
+  `docs/evidence/rpcs3-library-files557-local.json` (whole Dart suite on the 557
+  and 554 trees: 3551 vs 3527 passed, the same 23 failures; negative controls on
+  554), `docs/evidence/rpcs3-library-files557-delivery.json`. No iPhone
+  validation yet. **Do not reuse 557.** 556 was never delivered (MeloNX recipe
+  `640ff06`, unarmed); 558 = MeloNX measurement build on the 557 tree (Claude
+  MeloNX session).
+- 557 replaces files earlier receipts hash (550 `search_screen.dart`, eight 554
+  files, `sqlite_service.dart`, an input of the 550 and MeloNX 537–553
+  receipts): `rpcs3libraryfiles557_delivery.as_554()` puts the delivered 554
+  tree back (scratch index, 554 bytes of the 557 files, BUILD_NUMBER 554) for
+  every inherited check, then restores the 557 tree (re-entrant). A build on the
+  557 tree chains `rpcs3libraryfiles557_tree.py` and gives the 557 checks a view
+  where its own files are at their 557 versions and its recipe is absent.
+
 ## Private 554: RPCS3 import of library-folder PS3 discs — 26 October 2026
 
 - A user's `app.log`: a PS3 ISO in `Documents/roms/ps3` was listed by the scan,

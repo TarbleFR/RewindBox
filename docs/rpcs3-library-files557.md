@@ -145,3 +145,43 @@ aucun écart).
    aucune notification d'erreur.
 5. `app.log` ne doit plus contenir `UNIQUE constraint failed:
    user_rom_folders.path`.
+
+## 5. Livraison privée 557 (26 octobre 2026)
+
+- Recette : `.github/workflows/rpcs3-library-files557-delivery.yml`,
+  `.github/diagnostics/rpcs3libraryfiles557_tree.py` et
+  `rpcs3libraryfiles557_delivery.py`, `build-utils/validate_rpcs3_library_files557_ipa.py`,
+  `validate_liquid_glass557_ipa.py`, `validate_melonx_parity557_ipa.py`, clé
+  publique `build-utils/delivery-557-rpcs3-recipient.pem` (clé privée hors dépôt).
+- Arbre : celui de la 554 livrée, plus les seuls fichiers du correctif `d645f05`
+  (11 fichiers Dart livrés). Remis à leur version 554, ces fichiers redonnent
+  exactement l'arbre de l'IPA 554 (`lib` `ed42340e`). Comme la 557 remplace des
+  fichiers que des reçus précédents hachent (écran de recherche de
+  l'interface 550, huit fichiers de la 554, `sqlite_service.dart`, entrée des
+  reçus 550 et MeloNX), chaque contrôle hérité de la recette 554 s'exécute sur
+  cet arbre 554 reconstruit (`as_554()` : index temporaire, octets 554 des
+  fichiers 557, numéro de build 554, puis restauration). Core RPCS3 de la 551,
+  même `libRPCS3Core.dylib` que dans l'IPA 554.
+- Run `40389098711` (push `b71a046`) : `checks` (analyse, tests de l'interface,
+  de MeloNX, des profils 552 et des fichiers 554/557 sur l'arbre épinglé ;
+  reçus hérités sur l'arbre 554) et `cold` réussis du premier coup, avec la
+  validation 557 dans l'IPA signée (reçu, reçu 554 joint, constantes compilées
+  de l'option de libération d'espace et de la suppression).
+- Artefact chiffré `12685546029` (188 688 285 octets, archive SHA-256
+  `0fee5c2a9071e1694e90a4af3da28cf58d2ecdc1aad43b29cc5b4154eeab5f7d`), déchiffré
+  en local : IPA **0.0.8 (557)**
+  `RewindBox-Build557-b71a046ce178b02dce5718c75aa241aa9d2a36aa-cold.ipa`,
+  **188 024 522 octets**, SHA-256
+  **`208118f44f2ea2ed3f20ae8ad8d5d8f099a89c675d4d64360bc8c920fc129c01`**, égale à
+  `SHA256SUMS` et à `signed-payload-identity.json`. Reçu :
+  `docs/evidence/rpcs3-library-files557-delivery.json`.
+- Comparée à l'IPA 554 : seule l'image Dart (`App.framework`) change ;
+  DolphinCore, MeloNXCore, le MoltenVK autonome et les sept extensions sont
+  identiques hors signature (numéro de build 554 → 557) ; `Runner` ne diffère
+  que par son UUID et deux octets ; les plugins libretro et MeloNX ne
+  diffèrent que par l'ordre de liaison de `__objc_stubs`, comme déjà entre les
+  IPA 550 et 552, à sources identiques.
+- Remise à l'utilisateur pour re-signature SideStore. Aucune validation sur
+  iPhone. **Ne pas réutiliser le numéro 557.** 556 n'est pas livré (recette
+  MeloNX `640ff06` jamais armée) ; 558 = build MeloNX de mesure, sur l'arbre
+  557 (session Claude MeloNX).

@@ -1,0 +1,148 @@
+{
+  "result": "passed",
+  "build": 557,
+  "version": "0.0.8",
+  "source": "b71a046ce178b02dce5718c75aa241aa9d2a36aa",
+  "fixSource": "d645f05cf0af4e2052038fee361148b54f8eac6a",
+  "recipe": "4e232f72f3a59173b119946befc4ac53a1955e3d",
+  "run": 40389098711,
+  "jobs": {
+    "checks": 121805082005,
+    "cold": 121807267649
+  },
+  "artifact": {
+    "id": 12685546029,
+    "name": "RewindBox-Build557-b71a046ce178b02dce5718c75aa241aa9d2a36aa-cold",
+    "bytes": 188688285,
+    "zipSHA256": "0fee5c2a9071e1694e90a4af3da28cf58d2ecdc1aad43b29cc5b4154eeab5f7d",
+    "recipient": "build-utils/delivery-557-rpcs3-recipient.pem",
+    "cipher": "AES-256-CBC PBKDF2 200000 + RSA OAEP SHA256",
+    "expires": "2026-11-09T20:08:56Z",
+    "transportPieces": 4,
+    "recoveryPieces": 4
+  },
+  "ipa": {
+    "name": "RewindBox-Build557-b71a046ce178b02dce5718c75aa241aa9d2a36aa-cold.ipa",
+    "bytes": 188024522,
+    "sha256": "208118f44f2ea2ed3f20ae8ad8d5d8f099a89c675d4d64360bc8c920fc129c01",
+    "sha256sumsMatched": true,
+    "signedPayloadIdentityMatched": true,
+    "cfBundleShortVersion": "0.0.8",
+    "cfBundleVersion": "557",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "members": 5358
+  },
+  "tree": {
+    "hostTree": "6c6c624179540b860de16eab9c08323efaf12683",
+    "source552": "6b527cae4d07b8e43d1bb6b4d2fca618eb3ecdb5",
+    "sourceParity": "62626c0fa0263c8ce29671bf060c9bc7d746c1a0",
+    "source554": "410678b7b2d383c83fd60886333c48c4d977a361",
+    "source557": "d645f05cf0af4e2052038fee361148b54f8eac6a",
+    "productTrees": {
+      "lib": "d0559c36091f69749c2c5c9e6928a7c496b18926",
+      "native": "e08338eb443b529dd0723640f5c2afb8fa99df89",
+      "packages": "707f109ee53cf47630123b98b8ba52a1c02da032",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees554": {
+      "lib": "ed42340e67f5fbfc5082eccd1fb9eb4638cd38de",
+      "native": "e08338eb443b529dd0723640f5c2afb8fa99df89",
+      "packages": "707f109ee53cf47630123b98b8ba52a1c02da032",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees554EqualsDelivered554": true,
+    "replaced": [
+      "lib/l10n/rpcs3_library_file_locale.dart",
+      "lib/screens/search_screen/search_screen.dart",
+      "lib/services/game/game_launch_service.dart",
+      "lib/services/rpcs3_library_file_service.dart",
+      "lib/services/rpcs3_library_service.dart",
+      "lib/widgets/rpcs3_library_file_install_dialog.dart",
+      "test/rpcs3_library_file_dialog_test.dart",
+      "test/rpcs3_library_file_route_contract_test.py",
+      "test/rpcs3_library_file_service_test.dart"
+    ]
+  },
+  "libraryFilesChanged": [
+    "lib/data/datasources/sqlite_database_service.dart",
+    "lib/data/datasources/sqlite_service.dart",
+    "lib/l10n/rpcs3_library_file_locale.dart",
+    "lib/repositories/game_repository.dart",
+    "lib/screens/search_screen/search_screen.dart",
+    "lib/services/game/game_launch_service.dart",
+    "lib/services/rpcs3_library_file_deletion.dart",
+    "lib/services/rpcs3_library_file_service.dart",
+    "lib/services/rpcs3_library_service.dart",
+    "lib/widgets/rpcs3_library_file_install_dialog.dart",
+    "lib/widgets/rpcs3_multi_delete_dialog.dart"
+  ],
+  "tests": {
+    "concurrentSaves": 5,
+    "libraryFileRows": 16,
+    "libraryFile": 18,
+    "dialogs": 19,
+    "discImage": 11,
+    "romFolders": 3,
+    "library": 6
+  },
+  "fullSuite": {
+    "passed": 3551,
+    "failed": 23,
+    "passed554": 3527,
+    "failed554": 23
+  },
+  "analyzerIssues": 108,
+  "core": {
+    "source": "4e5bf59b29c3aed8c3680b8b987aa586a52069c0",
+    "run": 40247161327,
+    "dylibSHA256": "f25822a943c08054d26059c91dd08606494a0beb5a979f431e104464c4e1b3a2",
+    "sameAs554": true
+  },
+  "ciValidation": {
+    "libraryFiles": {
+      "result": "passed",
+      "build": 557,
+      "ipaSHA256": "208118f44f2ea2ed3f20ae8ad8d5d8f099a89c675d4d64360bc8c920fc129c01"
+    },
+    "liquidGlass": {
+      "result": "passed",
+      "build": 557,
+      "ipaSHA256": "208118f44f2ea2ed3f20ae8ad8d5d8f099a89c675d4d64360bc8c920fc129c01"
+    },
+    "melonx": {
+      "result": "passed",
+      "build": 557,
+      "ipaSHA256": "208118f44f2ea2ed3f20ae8ad8d5d8f099a89c675d4d64360bc8c920fc129c01"
+    },
+    "rpcs3": {
+      "result": "passed",
+      "build": 557,
+      "ipaSHA256": "208118f44f2ea2ed3f20ae8ad8d5d8f099a89c675d4d64360bc8c920fc129c01"
+    }
+  },
+  "localRevalidation": {
+    "ipaDigestRecomputed": true,
+    "infoPlistRead": true,
+    "embeddedReceipt": "RPCS3-library-files557-identity.json build 557, source d645f05, with the 554 import receipt",
+    "dartImageChecked": true,
+    "coreComparedWith554": true,
+    "binaryComparisonWith554": "Dart image (App.framework) changed; DolphinCore, MeloNXCore, standalone MoltenVK and the seven extension helpers identical apart from signatures (CFBundleVersion 554 to 557); Runner differs by its UUID and 2 bytes; the libretro and MeloNX bridge plugins differ only in __objc_stubs (link order), as between delivered 550 and 552, with identical sources"
+  },
+  "installsOver": [
+    547,
+    548,
+    549,
+    550,
+    551,
+    552,
+    553,
+    554
+  ],
+  "physicalDeviceTested": false,
+  "libraryFileFixDeviceVerified": false,
+  "scope": "Delivered 554 product tree with the 557 fix of d645f05 (11 shipped Dart files); same 551 Core. Host tests and CI validators only; no iPhone run."
+}
