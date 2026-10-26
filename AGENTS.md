@@ -37,6 +37,18 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `validate_rpcs3_library_files558_ipa.py`; workflow
   `melonx-perf558-delivery.yml`; recipient `build-utils/delivery-558-recipient.pem`
   (private key outside Git); local receipt `docs/evidence/melonx-perf558-local.json`.
+- **Delivered** (26 October, no GitHub release): commit `7b4d002`, run 40397869535
+  (checks and cold green), encrypted artifact 12688109052; IPA 0.0.8 (558)
+  `RewindBox-Build558-7b4d002…-cold.ipa`, 188,054,032 bytes, SHA-256
+  `7a9964f55bb490ae4c3bd813d45c2c3b19bacfad04af49a8be4427f567446e5a`
+  (= SHA256SUMS and signed-payload identity). Product trees: 557's with lib,
+  native and packages changed by the 558 files only. The three 558 IPA
+  validators re-run locally on the decrypted IPA give reports identical to
+  CI (standalone MoltenVK packaging hash taken from CI, as for 553). Whole
+  Dart suite 3560 passed / 24 failed against 557's 3551 / 23; the 24th
+  (`melonx_presentation_widgets_test`, a timed wait) fails identically on
+  the delivered 557 tree. Receipt `docs/evidence/melonx-perf558-delivery.json`.
+  No iPhone run yet. **Do not reuse 558.**
 
 ## Private 557: library-folder PS3 disc lifecycle and queued ROM folder saves — 26 October 2026
 
