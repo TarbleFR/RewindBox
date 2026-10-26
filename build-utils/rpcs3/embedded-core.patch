@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 2caa77d..daac444 100644
+index 2caa77deb..daac44424 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -63,6 +63,7 @@ option(USE_SYSTEM_ZLIB "Prefer system ZLIB instead of the builtin one" ON)
@@ -11,7 +11,7 @@ index 2caa77d..daac444 100644
  option(RUN_RPCS3_TESTS "Run RPCS3 unit tests. Requires BUILD_RPCS3_TESTS" OFF)
  option(USE_GAMEMODE "Choose whether to enable GameMode features or not." ON)
 diff --git a/Utilities/JIT.h b/Utilities/JIT.h
-index 6e17c58..18cfedb 100644
+index 6e17c582c..18cfedbff 100644
 --- a/Utilities/JIT.h
 +++ b/Utilities/JIT.h
 @@ -123,8 +123,11 @@ struct jit_runtime final : jit_runtime_base
@@ -122,7 +122,7 @@ index 6e17c58..18cfedb 100644
  };
  
 diff --git a/Utilities/JITASM.cpp b/Utilities/JITASM.cpp
-index f58f045..abf76ff 100644
+index f58f04522..abf76ff80 100644
 --- a/Utilities/JITASM.cpp
 +++ b/Utilities/JITASM.cpp
 @@ -152,11 +152,19 @@ static bool s_snapshot_initialized = false;
@@ -312,7 +312,7 @@ index f58f045..abf76ff 100644
  
  asmjit::inline_runtime::inline_runtime(uchar* data, usz size)
 diff --git a/Utilities/JITArenaAllocator.h b/Utilities/JITArenaAllocator.h
-index f6089ea..76479e3 100644
+index f6089ea0e..76479e35d 100644
 --- a/Utilities/JITArenaAllocator.h
 +++ b/Utilities/JITArenaAllocator.h
 @@ -28,12 +28,14 @@ public:
@@ -404,7 +404,7 @@ index f6089ea..76479e3 100644
  };
  }
 diff --git a/Utilities/JITIOS.cpp b/Utilities/JITIOS.cpp
-index 96fcc13..b7bfc04 100644
+index 96fcc1369..b7bfc0445 100644
 --- a/Utilities/JITIOS.cpp
 +++ b/Utilities/JITIOS.cpp
 @@ -7,6 +7,7 @@
@@ -1092,7 +1092,7 @@ index 96fcc13..b7bfc04 100644
  	result.expanded = g_arena.expanded;
  	result.sealed = g_arena.sealed;
 diff --git a/Utilities/JITIOS.h b/Utilities/JITIOS.h
-index 95b9656..bfe6c29 100644
+index 95b965623..bfe6c299f 100644
 --- a/Utilities/JITIOS.h
 +++ b/Utilities/JITIOS.h
 @@ -30,6 +30,7 @@ constexpr arena_backend backend_for_ios_major(u32 major_version) noexcept
@@ -1143,7 +1143,7 @@ index 95b9656..bfe6c29 100644
  const char* last_error() noexcept;
  }
 diff --git a/Utilities/JITIOSLayoutPolicy.h b/Utilities/JITIOSLayoutPolicy.h
-index 0d19acc..4717823 100644
+index 0d19acc22..471782373 100644
 --- a/Utilities/JITIOSLayoutPolicy.h
 +++ b/Utilities/JITIOSLayoutPolicy.h
 @@ -2,27 +2,49 @@
@@ -1226,7 +1226,7 @@ index 0d19acc..4717823 100644
  static_assert(arena_prepare_chunk_length(17 * mib, 0) == 16 * mib);
  static_assert(arena_prepare_chunk_length(17 * mib, 1) == 1 * mib);
 diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
-index 863624e..f254747 100644
+index 863624e0a..f254747b0 100644
 --- a/Utilities/JITLLVM.cpp
 +++ b/Utilities/JITLLVM.cpp
 @@ -9,10 +9,14 @@
@@ -2064,7 +2064,7 @@ index 863624e..f254747 100644
  
 diff --git a/Utilities/JITMemoryProfile.h b/Utilities/JITMemoryProfile.h
 new file mode 100644
-index 0000000..3bd4d98
+index 000000000..3bd4d98e6
 --- /dev/null
 +++ b/Utilities/JITMemoryProfile.h
 @@ -0,0 +1,19 @@
@@ -2089,7 +2089,7 @@ index 0000000..3bd4d98
 +}
 diff --git a/Utilities/JITMinimalObject.h b/Utilities/JITMinimalObject.h
 new file mode 100644
-index 0000000..1ee8976
+index 000000000..1ee8976ed
 --- /dev/null
 +++ b/Utilities/JITMinimalObject.h
 @@ -0,0 +1,45 @@
@@ -2140,7 +2140,7 @@ index 0000000..1ee8976
 +}
 diff --git a/Utilities/JITObjectBuffer.h b/Utilities/JITObjectBuffer.h
 new file mode 100644
-index 0000000..531d6e6
+index 000000000..531d6e6ac
 --- /dev/null
 +++ b/Utilities/JITObjectBuffer.h
 @@ -0,0 +1,68 @@
@@ -2214,7 +2214,7 @@ index 0000000..531d6e6
 +}
 diff --git a/Utilities/JITPhaseProfile.h b/Utilities/JITPhaseProfile.h
 new file mode 100644
-index 0000000..d7d9e95
+index 000000000..d7d9e9531
 --- /dev/null
 +++ b/Utilities/JITPhaseProfile.h
 @@ -0,0 +1,208 @@
@@ -2428,7 +2428,7 @@ index 0000000..d7d9e95
 +}
 diff --git a/Utilities/JITPublicationQueue.h b/Utilities/JITPublicationQueue.h
 new file mode 100644
-index 0000000..1708e6f
+index 000000000..1708e6f4d
 --- /dev/null
 +++ b/Utilities/JITPublicationQueue.h
 @@ -0,0 +1,160 @@
@@ -2593,7 +2593,7 @@ index 0000000..1708e6f
 +};
 +}
 diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
-index 9445110..4efc4f0 100644
+index 944511012..4efc4f05b 100644
 --- a/Utilities/Thread.cpp
 +++ b/Utilities/Thread.cpp
 @@ -1297,12 +1297,14 @@ a64_mem_info_t decode_a64_mem_inst(u32 inst)
@@ -2615,7 +2615,7 @@ index 9445110..4efc4f0 100644
  		const u32 size = (inst >> 30) & 3;
  		const u32 opc  = (inst >> 22) & 3;
 diff --git a/Utilities/mutex.h b/Utilities/mutex.h
-index 4c09431..0d16c55 100644
+index 4c0943109..0d16c5542 100644
 --- a/Utilities/mutex.h
 +++ b/Utilities/mutex.h
 @@ -28,12 +28,21 @@ class shared_mutex final
@@ -2645,7 +2645,7 @@ index 4c09431..0d16c55 100644
  
  	void lock_shared()
 diff --git a/rpcs3/CMakeLists.txt b/rpcs3/CMakeLists.txt
-index 4010442..67c3815 100644
+index 40104425e..67c381540 100644
 --- a/rpcs3/CMakeLists.txt
 +++ b/rpcs3/CMakeLists.txt
 @@ -201,6 +201,9 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
@@ -2675,7 +2675,7 @@ index 4010442..67c3815 100644
  
      set_target_properties(RPCS3Core PROPERTIES
 diff --git a/rpcs3/Crypto/unpkg.cpp b/rpcs3/Crypto/unpkg.cpp
-index c9a4934..fc76179 100644
+index c9a49348a..fc76179cd 100644
 --- a/rpcs3/Crypto/unpkg.cpp
 +++ b/rpcs3/Crypto/unpkg.cpp
 @@ -14,9 +14,100 @@
@@ -2845,7 +2845,7 @@ index c9a4934..fc76179 100644
  		if (entry.pad || (entry.type & ~PKG_FILE_ENTRY_KNOWN_BITS))
  		{
 diff --git a/rpcs3/Crypto/unself.cpp b/rpcs3/Crypto/unself.cpp
-index eb6a2c7..bee8bdf 100644
+index eb6a2c72c..bee8bdfd1 100644
 --- a/rpcs3/Crypto/unself.cpp
 +++ b/rpcs3/Crypto/unself.cpp
 @@ -735,7 +735,7 @@ bool SCEDecrypter::DecryptData()
@@ -3257,7 +3257,7 @@ index eb6a2c7..bee8bdf 100644
  		// Check the ELF file class (32 or 64 bit).
  		const bool isElf32 = IsSelfElf32(self);
 diff --git a/rpcs3/Crypto/unself.h b/rpcs3/Crypto/unself.h
-index beae025..42b77a1 100644
+index beae02500..42b77a15a 100644
 --- a/rpcs3/Crypto/unself.h
 +++ b/rpcs3/Crypto/unself.h
 @@ -490,12 +490,6 @@ private:
@@ -3293,7 +3293,7 @@ index beae025..42b77a1 100644
  };
  
 diff --git a/rpcs3/Crypto/unzip.cpp b/rpcs3/Crypto/unzip.cpp
-index 6485e4d..bc6f871 100644
+index 6485e4d94..bc6f871a9 100644
 --- a/rpcs3/Crypto/unzip.cpp
 +++ b/rpcs3/Crypto/unzip.cpp
 @@ -141,7 +141,17 @@ bool zip(const void* src, usz size, fs::file& out, bool multi_thread_it)
@@ -3316,7 +3316,7 @@ index 6485e4d..bc6f871 100644
  	std::string_view buffer_view{static_cast<const char*>(src), size};
  
 diff --git a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp b/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
-index 322dcff..12aa8d6 100644
+index 322dcffdc..12aa8d64c 100644
 --- a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
 +++ b/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
 @@ -1,6 +1,7 @@
@@ -3474,7 +3474,7 @@ index 322dcff..12aa8d6 100644
  	return noErr;
  }
 diff --git a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.h b/rpcs3/Emu/Audio/IOS/IOSAudioBackend.h
-index 9b6c752..e53815e 100644
+index 9b6c75202..e53815e51 100644
 --- a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.h
 +++ b/rpcs3/Emu/Audio/IOS/IOSAudioBackend.h
 @@ -1,6 +1,7 @@
@@ -3505,7 +3505,7 @@ index 9b6c752..e53815e 100644
  	std::atomic_bool m_operational = false;
  };
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index 9bb3ea1..f48435a 100644
+index 9bb3ea11d..f48435a02 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
 @@ -25,6 +25,103 @@ if(USE_LTO)
@@ -3643,7 +3643,7 @@ index 9bb3ea1..f48435a 100644
  
 diff --git a/rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h b/rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h
 new file mode 100644
-index 0000000..341b7c8
+index 000000000..341b7c8ad
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h
 @@ -0,0 +1,75 @@
@@ -3724,7 +3724,7 @@ index 0000000..341b7c8
 +} // namespace rpcs3::cell::arm64
 diff --git a/rpcs3/Emu/CPU/Backends/AArch64/SPUInterpreterGateway.h b/rpcs3/Emu/CPU/Backends/AArch64/SPUInterpreterGateway.h
 new file mode 100644
-index 0000000..aa747a8
+index 000000000..aa747a87f
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/Backends/AArch64/SPUInterpreterGateway.h
 @@ -0,0 +1,61 @@
@@ -3791,7 +3791,7 @@ index 0000000..aa747a8
 +}
 diff --git a/rpcs3/Emu/CPU/Backends/AArch64/SPUReservationHash.h b/rpcs3/Emu/CPU/Backends/AArch64/SPUReservationHash.h
 new file mode 100644
-index 0000000..409949a
+index 000000000..409949afe
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/Backends/AArch64/SPUReservationHash.h
 @@ -0,0 +1,20 @@
@@ -3816,7 +3816,7 @@ index 0000000..409949a
 +}
 +}
 diff --git a/rpcs3/Emu/CPU/CPUTranslator.h b/rpcs3/Emu/CPU/CPUTranslator.h
-index e11a275..353f459 100644
+index e11a27509..353f45920 100644
 --- a/rpcs3/Emu/CPU/CPUTranslator.h
 +++ b/rpcs3/Emu/CPU/CPUTranslator.h
 @@ -4468,6 +4468,14 @@ public:
@@ -3836,7 +3836,7 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..c5ec81d
+index 000000000..c5ec81d70
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 @@ -0,0 +1,30 @@
@@ -3871,7 +3871,7 @@ index 0000000..c5ec81d
 +    endif()
 +endfunction()
 diff --git a/rpcs3/Emu/Cell/Modules/cellAudio.cpp b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
-index 557c7ef..4ff7c51 100644
+index 557c7ef13..4ff7c5195 100644
 --- a/rpcs3/Emu/Cell/Modules/cellAudio.cpp
 +++ b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
 @@ -168,6 +168,14 @@ audio_ringbuffer::audio_ringbuffer(cell_audio_config& _cfg)
@@ -4137,7 +4137,7 @@ index 557c7ef..4ff7c51 100644
  			}
  		}
 diff --git a/rpcs3/Emu/Cell/Modules/cellAudio.h b/rpcs3/Emu/Cell/Modules/cellAudio.h
-index a88ac6e..5a8d88e 100644
+index a88ac6eda..5a8d88eaa 100644
 --- a/rpcs3/Emu/Cell/Modules/cellAudio.h
 +++ b/rpcs3/Emu/Cell/Modules/cellAudio.h
 @@ -9,6 +9,11 @@
@@ -4178,7 +4178,7 @@ index a88ac6e..5a8d88e 100644
  	~audio_ringbuffer();
  
 diff --git a/rpcs3/Emu/Cell/Modules/cellSaveData.cpp b/rpcs3/Emu/Cell/Modules/cellSaveData.cpp
-index 5f6fd0e..1710843 100644
+index 5f6fd0eb7..171084307 100644
 --- a/rpcs3/Emu/Cell/Modules/cellSaveData.cpp
 +++ b/rpcs3/Emu/Cell/Modules/cellSaveData.cpp
 @@ -1595,6 +1595,12 @@ static NEVER_INLINE error_code savedata_op(ppu_thread& ppu, u32 operation, u32 v
@@ -4195,7 +4195,7 @@ index 5f6fd0e..1710843 100644
  		{
  			{
 diff --git a/rpcs3/Emu/Cell/Modules/cellVdec.cpp b/rpcs3/Emu/Cell/Modules/cellVdec.cpp
-index 1847c8c..41a61fd 100644
+index 1847c8cfe..41a61fd96 100644
 --- a/rpcs3/Emu/Cell/Modules/cellVdec.cpp
 +++ b/rpcs3/Emu/Cell/Modules/cellVdec.cpp
 @@ -46,6 +46,11 @@ extern "C"
@@ -4585,7 +4585,7 @@ index 1847c8c..41a61fd 100644
  
  	return CELL_OK;
 diff --git a/rpcs3/Emu/Cell/PPUAnalyser.cpp b/rpcs3/Emu/Cell/PPUAnalyser.cpp
-index 608e213..9c6b016 100644
+index 608e213ab..9c6b0166b 100644
 --- a/rpcs3/Emu/Cell/PPUAnalyser.cpp
 +++ b/rpcs3/Emu/Cell/PPUAnalyser.cpp
 @@ -1,5 +1,6 @@
@@ -4628,7 +4628,7 @@ index 608e213..9c6b016 100644
  			ppu_log.warning("Block 0x%x will be compiled on per-instruction basis (size=0x%x)", block.addr, block.size);
  
 diff --git a/rpcs3/Emu/Cell/PPUFunction.cpp b/rpcs3/Emu/Cell/PPUFunction.cpp
-index 1cc1544..253f83f 100644
+index 1cc15440c..253f83f14 100644
 --- a/rpcs3/Emu/Cell/PPUFunction.cpp
 +++ b/rpcs3/Emu/Cell/PPUFunction.cpp
 @@ -6,6 +6,8 @@
@@ -4706,7 +4706,7 @@ index 1cc1544..253f83f 100644
 +		return true;
  }
 diff --git a/rpcs3/Emu/Cell/PPUFunction.h b/rpcs3/Emu/Cell/PPUFunction.h
-index a42ae12..de2bea5 100644
+index a42ae12d6..de2bea568 100644
 --- a/rpcs3/Emu/Cell/PPUFunction.h
 +++ b/rpcs3/Emu/Cell/PPUFunction.h
 @@ -4,6 +4,7 @@
@@ -4729,7 +4729,7 @@ index a42ae12..de2bea5 100644
  	static inline const auto& get(bool llvm = false)
  	{
 diff --git a/rpcs3/Emu/Cell/PPUModule.cpp b/rpcs3/Emu/Cell/PPUModule.cpp
-index dc78ddc..9b7a528 100644
+index dc78ddcb8..9b7a5289d 100644
 --- a/rpcs3/Emu/Cell/PPUModule.cpp
 +++ b/rpcs3/Emu/Cell/PPUModule.cpp
 @@ -1,4 +1,7 @@
@@ -4900,7 +4900,7 @@ index dc78ddc..9b7a528 100644
  		liblv2_end = 0;
 diff --git a/rpcs3/Emu/Cell/PPUNoSizeSplitPolicy.h b/rpcs3/Emu/Cell/PPUNoSizeSplitPolicy.h
 new file mode 100644
-index 0000000..76893b1
+index 000000000..76893b165
 --- /dev/null
 +++ b/rpcs3/Emu/Cell/PPUNoSizeSplitPolicy.h
 @@ -0,0 +1,15 @@
@@ -4920,7 +4920,7 @@ index 0000000..76893b1
 +	}
 +}
 diff --git a/rpcs3/Emu/Cell/PPUThread.cpp b/rpcs3/Emu/Cell/PPUThread.cpp
-index b1f1a74..fcbcf39 100644
+index b1f1a749b..fcbcf3940 100644
 --- a/rpcs3/Emu/Cell/PPUThread.cpp
 +++ b/rpcs3/Emu/Cell/PPUThread.cpp
 @@ -1,9 +1,15 @@
@@ -5708,7 +5708,7 @@ index b1f1a74..fcbcf39 100644
  			out.flush();
  			ppu_log.error("LLVM: Verification failed for %s:\n%s", obj_name, result);
 diff --git a/rpcs3/Emu/Cell/PPUThread.h b/rpcs3/Emu/Cell/PPUThread.h
-index 9a135c0..618b1e5 100644
+index 9a135c00c..618b1e592 100644
 --- a/rpcs3/Emu/Cell/PPUThread.h
 +++ b/rpcs3/Emu/Cell/PPUThread.h
 @@ -8,6 +8,7 @@
@@ -5731,7 +5731,7 @@ index 9a135c0..618b1e5 100644
  {
  	vm::addr_t stack_addr;
 diff --git a/rpcs3/Emu/Cell/PPUTranslator.cpp b/rpcs3/Emu/Cell/PPUTranslator.cpp
-index 864eb63..f5a7524 100644
+index 864eb63d6..f5a752469 100644
 --- a/rpcs3/Emu/Cell/PPUTranslator.cpp
 +++ b/rpcs3/Emu/Cell/PPUTranslator.cpp
 @@ -18,6 +18,7 @@
@@ -6248,7 +6248,7 @@ index 864eb63..f5a7524 100644
  {
  	RegStore(bit, m_ov);
 diff --git a/rpcs3/Emu/Cell/PPUTranslator.h b/rpcs3/Emu/Cell/PPUTranslator.h
-index 1d99b27..eb05475 100644
+index 1d99b27f8..eb0547510 100644
 --- a/rpcs3/Emu/Cell/PPUTranslator.h
 +++ b/rpcs3/Emu/Cell/PPUTranslator.h
 @@ -287,6 +287,9 @@ public:
@@ -6263,7 +6263,7 @@ index 1d99b27..eb05475 100644
  
 diff --git a/rpcs3/Emu/Cell/SPUARM64CompareLowering.h b/rpcs3/Emu/Cell/SPUARM64CompareLowering.h
 new file mode 100644
-index 0000000..2344206
+index 000000000..234420688
 --- /dev/null
 +++ b/rpcs3/Emu/Cell/SPUARM64CompareLowering.h
 @@ -0,0 +1,125 @@
@@ -6394,7 +6394,7 @@ index 0000000..2344206
 +}
 diff --git a/rpcs3/Emu/Cell/SPUARM64ConstantTable.h b/rpcs3/Emu/Cell/SPUARM64ConstantTable.h
 new file mode 100644
-index 0000000..ca9b019
+index 000000000..ca9b0199f
 --- /dev/null
 +++ b/rpcs3/Emu/Cell/SPUARM64ConstantTable.h
 @@ -0,0 +1,77 @@
@@ -6477,7 +6477,7 @@ index 0000000..ca9b019
 +} // namespace spu_llvm::arm64
 diff --git a/rpcs3/Emu/Cell/SPUARM64Lowering.h b/rpcs3/Emu/Cell/SPUARM64Lowering.h
 new file mode 100644
-index 0000000..665988a
+index 000000000..665988abc
 --- /dev/null
 +++ b/rpcs3/Emu/Cell/SPUARM64Lowering.h
 @@ -0,0 +1,437 @@
@@ -6919,7 +6919,7 @@ index 0000000..665988a
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp b/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
-index d451a94..9088421 100644
+index d451a943a..9088421e9 100644
 --- a/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
 @@ -1,5 +1,6 @@
@@ -8378,7 +8378,7 @@ index d451a94..9088421 100644
  		if (set_relax_flag)
 diff --git a/rpcs3/Emu/Cell/SPUDeferredCompilePolicy.h b/rpcs3/Emu/Cell/SPUDeferredCompilePolicy.h
 new file mode 100644
-index 0000000..a994d9b
+index 000000000..a994d9b28
 --- /dev/null
 +++ b/rpcs3/Emu/Cell/SPUDeferredCompilePolicy.h
 @@ -0,0 +1,98 @@
@@ -8481,7 +8481,7 @@ index 0000000..a994d9b
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPUInterpreter.cpp b/rpcs3/Emu/Cell/SPUInterpreter.cpp
-index ca3133c..3169134 100644
+index ca3133c30..3169134ae 100644
 --- a/rpcs3/Emu/Cell/SPUInterpreter.cpp
 +++ b/rpcs3/Emu/Cell/SPUInterpreter.cpp
 @@ -1,5 +1,6 @@
@@ -10012,7 +10012,7 @@ index ca3133c..3169134 100644
  
  #if 0
 diff --git a/rpcs3/Emu/Cell/SPUInterpreter.h b/rpcs3/Emu/Cell/SPUInterpreter.h
-index c6073ba..0fc5978 100644
+index c6073ba57..0fc5978c9 100644
 --- a/rpcs3/Emu/Cell/SPUInterpreter.h
 +++ b/rpcs3/Emu/Cell/SPUInterpreter.h
 @@ -12,6 +12,7 @@ struct spu_interpreter_t;
@@ -10025,7 +10025,7 @@ index c6073ba..0fc5978 100644
  struct spu_interpreter_rt_base
 diff --git a/rpcs3/Emu/Cell/SPUInterpreterDiagnostics.h b/rpcs3/Emu/Cell/SPUInterpreterDiagnostics.h
 new file mode 100644
-index 0000000..9d19266
+index 000000000..9d192663c
 --- /dev/null
 +++ b/rpcs3/Emu/Cell/SPUInterpreterDiagnostics.h
 @@ -0,0 +1,133 @@
@@ -10163,7 +10163,7 @@ index 0000000..9d19266
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
-index 9a1e4c7..2b24885 100644
+index 9a1e4c790..2b24885d6 100644
 --- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 @@ -1,5 +1,12 @@
@@ -12220,7 +12220,7 @@ index 9a1e4c7..2b24885 100644
  			else
 diff --git a/rpcs3/Emu/Cell/SPUObjectCachePolicy.h b/rpcs3/Emu/Cell/SPUObjectCachePolicy.h
 new file mode 100644
-index 0000000..9d87383
+index 000000000..9d8738321
 --- /dev/null
 +++ b/rpcs3/Emu/Cell/SPUObjectCachePolicy.h
 @@ -0,0 +1,131 @@
@@ -12356,7 +12356,7 @@ index 0000000..9d87383
 +	}
 +}
 diff --git a/rpcs3/Emu/Cell/SPURecompiler.h b/rpcs3/Emu/Cell/SPURecompiler.h
-index faf4082..d08c480 100644
+index faf4082dc..d08c48071 100644
 --- a/rpcs3/Emu/Cell/SPURecompiler.h
 +++ b/rpcs3/Emu/Cell/SPURecompiler.h
 @@ -8,6 +8,7 @@
@@ -12442,7 +12442,7 @@ index faf4082..d08c480 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e..85a5ef5 100644
+index bc9ec5e5b..85a5ef549 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
 @@ -25,11 +25,19 @@
@@ -13367,7 +13367,7 @@ index bc9ec5e..85a5ef5 100644
  
  		if (check_intr)
 diff --git a/rpcs3/Emu/Cell/SPUThread.h b/rpcs3/Emu/Cell/SPUThread.h
-index 6e59cd8..e04eadb 100644
+index 6e59cd8bf..e04eadbfa 100644
 --- a/rpcs3/Emu/Cell/SPUThread.h
 +++ b/rpcs3/Emu/Cell/SPUThread.h
 @@ -752,6 +752,11 @@ public:
@@ -13404,7 +13404,7 @@ index 6e59cd8..e04eadb 100644
  	std::array<v128, 0x4000> stack_mirror; // Return address information
 diff --git a/rpcs3/Emu/Cell/SPUWarmupPolicy.h b/rpcs3/Emu/Cell/SPUWarmupPolicy.h
 new file mode 100644
-index 0000000..eb97f59
+index 000000000..eb97f591b
 --- /dev/null
 +++ b/rpcs3/Emu/Cell/SPUWarmupPolicy.h
 @@ -0,0 +1,97 @@
@@ -13506,7 +13506,7 @@ index 0000000..eb97f59
 +};
 +}
 diff --git a/rpcs3/Emu/Cell/lv2/sys_fs.cpp b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
-index 79c74da..f5d1993 100644
+index 79c74dac3..f5d19937e 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_fs.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
 @@ -1,4 +1,7 @@
@@ -13738,7 +13738,7 @@ index 79c74da..f5d1993 100644
  
  void lv2_dir::save(utils::serial& ar)
 diff --git a/rpcs3/Emu/Cell/lv2/sys_game.cpp b/rpcs3/Emu/Cell/lv2/sys_game.cpp
-index db2bbe4..ad7e57e 100644
+index db2bbe49e..ad7e57e01 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_game.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_game.cpp
 @@ -12,6 +12,9 @@
@@ -13764,7 +13764,7 @@ index db2bbe4..ad7e57e 100644
  				});
  
 diff --git a/rpcs3/Emu/Cell/lv2/sys_memory.cpp b/rpcs3/Emu/Cell/lv2/sys_memory.cpp
-index 01b36d8..403436f 100644
+index 01b36d8ee..403436ff6 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_memory.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_memory.cpp
 @@ -447,7 +447,16 @@ error_code sys_memory_container_get_size(cpu_thread& cpu, vm::ptr<sys_memory_inf
@@ -13786,7 +13786,7 @@ index 01b36d8..403436f 100644
  	const auto ct = idm::get_unlocked<lv2_memory_container>(cid);
  
 diff --git a/rpcs3/Emu/Cell/lv2/sys_mmapper.cpp b/rpcs3/Emu/Cell/lv2/sys_mmapper.cpp
-index 1f939ba..46b165f 100644
+index 1f939ba7a..46b165f58 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_mmapper.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_mmapper.cpp
 @@ -642,7 +642,7 @@ error_code sys_mmapper_map_shared_memory(ppu_thread& ppu, u32 addr, u32 mem_id,
@@ -13808,7 +13808,7 @@ index 1f939ba..46b165f 100644
  
  			null.reset();
 diff --git a/rpcs3/Emu/Cell/lv2/sys_mutex.cpp b/rpcs3/Emu/Cell/lv2/sys_mutex.cpp
-index 2f65761..c3028d9 100644
+index 2f657616e..c3028d9ac 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_mutex.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_mutex.cpp
 @@ -10,6 +10,10 @@
@@ -13882,7 +13882,7 @@ index 2f65761..c3028d9 100644
  	{
  		sys_mutex.warning("sys_mutex_destroy(mutex_id=0x%x): IPC=0x%016x", mutex_id, mutex->key);
 diff --git a/rpcs3/Emu/Cell/lv2/sys_net/lv2_socket.cpp b/rpcs3/Emu/Cell/lv2/sys_net/lv2_socket.cpp
-index 0d2a598..cc8055e 100644
+index 0d2a59821..cc8055e0f 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_net/lv2_socket.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_net/lv2_socket.cpp
 @@ -118,9 +118,12 @@ void lv2_socket::handle_events(const pollfd& native_pfd, [[maybe_unused]] bool u
@@ -13901,7 +13901,7 @@ index 0d2a598..cc8055e 100644
  	if (native_pfd.revents & POLLERR && events.test_and_reset(lv2_socket::poll_t::error))
  		events_happening += lv2_socket::poll_t::error;
 diff --git a/rpcs3/Emu/Cell/lv2/sys_spu.cpp b/rpcs3/Emu/Cell/lv2/sys_spu.cpp
-index ee0e070..5de917b 100644
+index ee0e07050..5de917bf3 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_spu.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_spu.cpp
 @@ -13,6 +13,9 @@
@@ -13980,7 +13980,7 @@ index ee0e070..5de917b 100644
  }
  
 diff --git a/rpcs3/Emu/IdManager.h b/rpcs3/Emu/IdManager.h
-index a626995..b53b5d6 100644
+index a626995ce..b53b5d6df 100644
 --- a/rpcs3/Emu/IdManager.h
 +++ b/rpcs3/Emu/IdManager.h
 @@ -19,6 +19,14 @@ enum class thread_state : u32;
@@ -14060,7 +14060,7 @@ index a626995..b53b5d6 100644
  		}
  
 diff --git a/rpcs3/Emu/Memory/VMReservationRange.h b/rpcs3/Emu/Memory/VMReservationRange.h
-index 669f759..d0e01fd 100644
+index 669f7594e..d0e01fd8c 100644
 --- a/rpcs3/Emu/Memory/VMReservationRange.h
 +++ b/rpcs3/Emu/Memory/VMReservationRange.h
 @@ -1,36 +1,53 @@
@@ -14132,7 +14132,7 @@ index 669f759..d0e01fd 100644
  
  		return false;
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index e7f55d7..6a2cec6 100644
+index e7f55d727..6a2cec6df 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
 @@ -13,6 +13,8 @@
@@ -14390,7 +14390,7 @@ index e7f55d7..6a2cec6 100644
  			// Load binary image
  			// elad335: I'm not proud about it as well.. (ideal situation is to not call map_self())
 diff --git a/rpcs3/Emu/Memory/vm_locking.h b/rpcs3/Emu/Memory/vm_locking.h
-index b924300..001143a 100644
+index b92430076..001143a9b 100644
 --- a/rpcs3/Emu/Memory/vm_locking.h
 +++ b/rpcs3/Emu/Memory/vm_locking.h
 @@ -86,9 +86,46 @@ namespace vm
@@ -14441,7 +14441,7 @@ index b924300..001143a 100644
  		writer_lock(const writer_lock&) = delete;
  		writer_lock& operator=(const writer_lock&) = delete;
 diff --git a/rpcs3/Emu/Memory/vm_reservation.h b/rpcs3/Emu/Memory/vm_reservation.h
-index 1a1e818..8738311 100644
+index 1a1e81807..87383111f 100644
 --- a/rpcs3/Emu/Memory/vm_reservation.h
 +++ b/rpcs3/Emu/Memory/vm_reservation.h
 @@ -168,6 +168,9 @@ namespace vm
@@ -14465,7 +14465,7 @@ index 1a1e818..8738311 100644
  
  				if ((result = std::invoke(op, *sptr)))
 diff --git a/rpcs3/Emu/RSX/Capture/rsx_replay.h b/rpcs3/Emu/RSX/Capture/rsx_replay.h
-index f11f2e0..a6d982d 100644
+index f11f2e08e..a6d982d81 100644
 --- a/rpcs3/Emu/RSX/Capture/rsx_replay.h
 +++ b/rpcs3/Emu/RSX/Capture/rsx_replay.h
 @@ -152,6 +152,9 @@ namespace rsx
@@ -14479,7 +14479,7 @@ index f11f2e0..a6d982d 100644
  			reg_state = method_registers;
  		}
 diff --git a/rpcs3/Emu/RSX/Common/BufferUtils.cpp b/rpcs3/Emu/RSX/Common/BufferUtils.cpp
-index 8b2689b..d261a3d 100644
+index 8b2689b3e..d261a3d76 100644
 --- a/rpcs3/Emu/RSX/Common/BufferUtils.cpp
 +++ b/rpcs3/Emu/RSX/Common/BufferUtils.cpp
 @@ -6,6 +6,7 @@
@@ -14624,7 +14624,7 @@ index 8b2689b..d261a3d 100644
  namespace
  {
 diff --git a/rpcs3/Emu/RSX/Common/BufferUtils.h b/rpcs3/Emu/RSX/Common/BufferUtils.h
-index bad086c..fd0839e 100644
+index bad086cb4..fd0839e30 100644
 --- a/rpcs3/Emu/RSX/Common/BufferUtils.h
 +++ b/rpcs3/Emu/RSX/Common/BufferUtils.h
 @@ -1,6 +1,7 @@
@@ -14653,7 +14653,7 @@ index bad086c..fd0839e 100644
  /**
   * Write count indexes using (first, first + count) ranges.
 diff --git a/rpcs3/Emu/RSX/Common/aligned_malloc.hpp b/rpcs3/Emu/RSX/Common/aligned_malloc.hpp
-index 2ca59c3..a7f4f74 100644
+index 2ca59c3cf..a7f4f74a1 100644
 --- a/rpcs3/Emu/RSX/Common/aligned_malloc.hpp
 +++ b/rpcs3/Emu/RSX/Common/aligned_malloc.hpp
 @@ -1,88 +1,107 @@
@@ -14853,7 +14853,7 @@ index 2ca59c3..a7f4f74 100644
 +	};
 +}
 diff --git a/rpcs3/Emu/RSX/Common/buffer_stream.hpp b/rpcs3/Emu/RSX/Common/buffer_stream.hpp
-index 5cf4da2..bb721d8 100644
+index 5cf4da22f..bb721d883 100644
 --- a/rpcs3/Emu/RSX/Common/buffer_stream.hpp
 +++ b/rpcs3/Emu/RSX/Common/buffer_stream.hpp
 @@ -1,23 +1,6 @@
@@ -14910,7 +14910,7 @@ index 5cf4da2..bb721d8 100644
  }
 diff --git a/rpcs3/Emu/RSX/Common/deferred_publisher.h b/rpcs3/Emu/RSX/Common/deferred_publisher.h
 new file mode 100644
-index 0000000..91b9be7
+index 000000000..91b9be7e4
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Common/deferred_publisher.h
 @@ -0,0 +1,172 @@
@@ -15088,7 +15088,7 @@ index 0000000..91b9be7
 +}
 diff --git a/rpcs3/Emu/RSX/Common/sampler_invalidation.h b/rpcs3/Emu/RSX/Common/sampler_invalidation.h
 new file mode 100644
-index 0000000..9345076
+index 000000000..9345076e5
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Common/sampler_invalidation.h
 @@ -0,0 +1,26 @@
@@ -15119,7 +15119,7 @@ index 0000000..9345076
 +	}
 +}
 diff --git a/rpcs3/Emu/RSX/Common/surface_store.h b/rpcs3/Emu/RSX/Common/surface_store.h
-index 8171927..9672672 100644
+index 817192730..967267261 100644
 --- a/rpcs3/Emu/RSX/Common/surface_store.h
 +++ b/rpcs3/Emu/RSX/Common/surface_store.h
 @@ -86,6 +86,38 @@ namespace rsx
@@ -15173,10 +15173,64 @@ index 8171927..9672672 100644
  				Traits::clone_surface(cmd, sink, region.source, new_address, region, region.source->resolution_scaling_config);
  				allocate_rsx_memory(Traits::get(sink));
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
-index 0fa80b2..a85692e 100644
+index 0fa80b230..8c78dde71 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.h
-@@ -1871,7 +1871,7 @@ namespace rsx
+@@ -12,6 +12,11 @@
+ 
+ #include <unordered_map>
+ 
++#ifdef RPCS3_IOS
++// CELL555_READBACK_INCLUDE
++#include "ios/IOSReadbackProfile.h"
++#endif
++
+ #define RSX_GCM_FORMAT_IGNORED 0
+ 
+ namespace rsx
+@@ -821,6 +826,17 @@ namespace rsx
+ 				}
+ 			}
+ 
++#ifdef RPCS3_IOS
++			// CELL555_READBACK_BATCH: parent duration includes the nested GPU fence
++			// and subsequent flushes/inheritance. Confirmed bytes are requested
++			// ranges, not exact DMA traffic (pitch, tiling and overlaps can differ).
++			u64 ios_readback_confirmed_bytes = 0;
++			for (const auto* surface : sections_to_transfer)
++				ios_readback_confirmed_bytes += surface->get_confirmed_range().length();
++			const rpcs3::ios::readback::BatchScope ios_readback_batch(
++				sections_to_transfer.size(), ios_readback_confirmed_bytes);
++#endif
++
+ 			if (!sections_to_transfer.empty())
+ 			{
+ 				// Batch all hard faults together
+@@ -1644,6 +1660,11 @@ namespace rsx
+ 
+ 					lock.upgrade();
+ 
++#ifdef RPCS3_IOS
++					// CELL555_READBACK_ORIGIN
++					const rpcs3::ios::readback::OriginScope ios_readback_origin(
++						rpcs3::ios::readback::Origin::blit_source_cpu);
++#endif
+ 					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
+ 
+ 					cached_src = cache->upload_image_from_cpu(cmd, rsx_range, image_width, image_height, 1, 1, src.pitch, gcm_format, texture_upload_context::blit_engine_src,
+@@ -1734,6 +1755,11 @@ namespace rsx
+ 				{
+ 					// NOTE: Write flag set to remove all other overlapping regions (e.g shader_read or blit_src)
+ 					// NOTE: This step can potentially invalidate the newly created src image as well.
++#ifdef RPCS3_IOS
++					// CELL555_READBACK_ORIGIN
++					const rpcs3::ios::readback::OriginScope ios_readback_origin(
++						rpcs3::ios::readback::Origin::blit_destination_dma);
++#endif
+ 					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::cause_is_write | invalidation_cause::cause_uses_strict_data_bounds, {}, std::forward<Args>(extras)...);
+ 
+ 					bool force_dma_load = false;
+@@ -1871,7 +1897,7 @@ namespace rsx
  			reset_frame_statistics();
  		}
  
@@ -15185,7 +15239,7 @@ index 0fa80b2..a85692e 100644
  		rsx::simple_array<section_storage_type*> find_texture_from_range(const address_range32 &test_range, u32 required_pitch = 0, u32 context_mask = 0xFF)
  		{
  			rsx::simple_array<section_storage_type*> results;
-@@ -1887,7 +1887,7 @@ namespace rsx
+@@ -1887,7 +1913,7 @@ namespace rsx
  						continue;
  					}
  
@@ -15194,7 +15248,7 @@ index 0fa80b2..a85692e 100644
  					{
  						continue;
  					}
-@@ -2563,7 +2563,7 @@ namespace rsx
+@@ -2563,7 +2589,7 @@ namespace rsx
  
  			auto fast_fbo_check = [&]() -> sampled_image_descriptor
  			{
@@ -15203,7 +15257,7 @@ index 0fa80b2..a85692e 100644
  
  				if (!last.is_clipped) //<- A non-clipped hit fully contains the requested box. We're good to go with the framebuffer processing.
  				{
-@@ -2609,12 +2609,17 @@ namespace rsx
+@@ -2609,12 +2635,17 @@ namespace rsx
  
  			// Check shader_read storage. In a given scene, reads from local memory far outnumber reads from the surface cache
  			const u32 lookup_mask = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_dst | rsx::texture_upload_context::blit_engine_src;
@@ -15223,7 +15277,7 @@ index 0fa80b2..a85692e 100644
  				{
  #ifdef TEXTURE_CACHE_DEBUG
  					if (!memory_range.inside(cached_texture->get_confirmed_range()))
-@@ -2649,10 +2654,11 @@ namespace rsx
+@@ -2649,10 +2680,11 @@ namespace rsx
  
  			if (!overlapping_locals.empty())
  			{
@@ -15237,8 +15291,20 @@ index 0fa80b2..a85692e 100644
  				});
  			}
  
+@@ -3326,6 +3358,11 @@ namespace rsx
+ 
+ 			// Invalidate
+ 			const address_range32 tex_range = address_range32::start_length(attributes.address, tex_size);
++#ifdef RPCS3_IOS
++			// CELL555_READBACK_ORIGIN
++			const rpcs3::ios::readback::OriginScope ios_readback_origin(
++				rpcs3::ios::readback::Origin::texture_cpu);
++#endif
+ 			invalidate_range_impl_base(cmd, tex_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
+ 
+ 			// Upload from CPU. Note that sRGB conversion is handled in the FS
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache_helpers.h b/rpcs3/Emu/RSX/Common/texture_cache_helpers.h
-index e6789e8..040fe85 100644
+index e6789e84a..040fe8586 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache_helpers.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache_helpers.h
 @@ -80,6 +80,34 @@ namespace rsx
@@ -15276,8 +15342,59 @@ index e6789e8..040fe85 100644
  		static inline bool force_strict_fbo_sampling(u8 samples)
  		{
  			if (g_cfg.video.strict_rendering_mode)
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+index a10770d01..e644370a6 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -11,6 +11,10 @@
+ 
+ #include <list>
+ #include <unordered_set>
++#ifdef RPCS3_IOS
++#include "ios/IOSTextureValidationProfile.h"
++#include "util/tsc.hpp"
++#endif
+ 
+ namespace rsx
+ {
+@@ -610,6 +614,13 @@ namespace rsx
+ 
+ 		void trim_sections()
+ 		{
++#ifdef RPCS3_IOS
++			// One timer pair per maintenance pass, never per texture. On-demand
++			// validation remains unchanged; these observations distinguish it
++			// from the full maintenance walk before changing its memory policy.
++			const auto trim_begin = utils::get_tsc();
++			u64 observed_sections = 0, observed_bytes = 0;
++#endif
+ 			for (auto it = m_in_use.begin(); it != m_in_use.end(); it++)
+ 			{
+ 				auto* block = *it;
+@@ -619,11 +630,21 @@ namespace rsx
+ 					{
+ 						if (tex.is_locked() && !tex.is_locked(true))
+ 						{
++#ifdef RPCS3_IOS
++							++observed_sections;
++							observed_bytes += tex.get_confirmed_range().length();
++#endif
+ 							tex.sync_protection();
+ 						}
+ 					}
+ 				}
+ 			}
++#ifdef RPCS3_IOS
++			rpcs3::ios::texture_validation::trim_calls.fetch_add(1, std::memory_order_relaxed);
++			rpcs3::ios::texture_validation::trim_sections.fetch_add(observed_sections, std::memory_order_relaxed);
++			rpcs3::ios::texture_validation::trim_bytes.fetch_add(observed_bytes, std::memory_order_relaxed);
++			rpcs3::ios::texture_validation::trim_ticks.fetch_add(utils::get_tsc() - trim_begin, std::memory_order_relaxed);
++#endif
+ 		}
+ 
+ 
 diff --git a/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp b/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp
-index 755f4ea..655cf6b 100644
+index 755f4eaca..655cf6bcc 100644
 --- a/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp
 +++ b/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp
 @@ -63,16 +63,11 @@ namespace rsx
@@ -15334,7 +15451,7 @@ index 755f4ea..655cf6b 100644
  				const u32 data_size = range.second * block->attribute_stride;
  				const u32 vertex_base = range.first * block->attribute_stride;
 diff --git a/rpcs3/Emu/RSX/Core/RSXIOMap.hpp b/rpcs3/Emu/RSX/Core/RSXIOMap.hpp
-index 46d749c..494d6b4 100644
+index 46d749c13..494d6b4c2 100644
 --- a/rpcs3/Emu/RSX/Core/RSXIOMap.hpp
 +++ b/rpcs3/Emu/RSX/Core/RSXIOMap.hpp
 @@ -21,7 +21,11 @@ namespace rsx
@@ -15393,7 +15510,7 @@ index 46d749c..494d6b4 100644
  					{
  						added_wait |= !self->state.test_and_set(cpu_flag::wait);
 diff --git a/rpcs3/Emu/RSX/Core/RSXReservationLock.hpp b/rpcs3/Emu/RSX/Core/RSXReservationLock.hpp
-index 7a4ab76..067bd87 100644
+index 7a4ab7662..067bd8778 100644
 --- a/rpcs3/Emu/RSX/Core/RSXReservationLock.hpp
 +++ b/rpcs3/Emu/RSX/Core/RSXReservationLock.hpp
 @@ -10,10 +10,19 @@ namespace rsx
@@ -15447,7 +15564,7 @@ index 7a4ab76..067bd87 100644
  			if (!destructor)
  			{
 diff --git a/rpcs3/Emu/RSX/Core/RSXVertexTypes.h b/rpcs3/Emu/RSX/Core/RSXVertexTypes.h
-index 51cad0a..511b3a7 100644
+index 51cad0a4b..511b3a780 100644
 --- a/rpcs3/Emu/RSX/Core/RSXVertexTypes.h
 +++ b/rpcs3/Emu/RSX/Core/RSXVertexTypes.h
 @@ -68,6 +68,13 @@ namespace rsx
@@ -15481,7 +15598,7 @@ index 51cad0a..511b3a7 100644
  				switch (attribute_placement[index])
  				{
 diff --git a/rpcs3/Emu/RSX/GL/GLFragmentProgram.cpp b/rpcs3/Emu/RSX/GL/GLFragmentProgram.cpp
-index f6d8a25..9aafb7c 100644
+index f6d8a25aa..9aafb7cbc 100644
 --- a/rpcs3/Emu/RSX/GL/GLFragmentProgram.cpp
 +++ b/rpcs3/Emu/RSX/GL/GLFragmentProgram.cpp
 @@ -238,6 +238,7 @@ void GLFragmentDecompilerThread::insertGlobalFunctions(std::stringstream &OS)
@@ -15493,7 +15610,7 @@ index f6d8a25..9aafb7c 100644
  	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
  	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
 diff --git a/rpcs3/Emu/RSX/GL/GLRenderTargets.h b/rpcs3/Emu/RSX/GL/GLRenderTargets.h
-index aa37fd3..703899d 100644
+index aa37fd331..703899d19 100644
 --- a/rpcs3/Emu/RSX/GL/GLRenderTargets.h
 +++ b/rpcs3/Emu/RSX/GL/GLRenderTargets.h
 @@ -240,6 +240,14 @@ struct gl_render_target_traits
@@ -15550,7 +15667,7 @@ index aa37fd3..703899d 100644
  		}
  
 diff --git a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
-index 3eaebb1..49f592d 100644
+index 3eaebb152..49f592d0e 100644
 --- a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
 +++ b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
 @@ -4,6 +4,14 @@
@@ -15725,7 +15842,7 @@ index 3eaebb1..49f592d 100644
  
  		void semaphore_release(context* ctx, u32 reg, u32 arg)
 diff --git a/rpcs3/Emu/RSX/NV47/HW/nv4097.cpp b/rpcs3/Emu/RSX/NV47/HW/nv4097.cpp
-index 2b2652f..c1b601d 100644
+index 2b2652f7b..c1b601dfa 100644
 --- a/rpcs3/Emu/RSX/NV47/HW/nv4097.cpp
 +++ b/rpcs3/Emu/RSX/NV47/HW/nv4097.cpp
 @@ -345,7 +345,9 @@ namespace rsx
@@ -15740,7 +15857,7 @@ index 2b2652f..c1b601d 100644
  				RSX(ctx)->m_graphics_state |= rsx::fragment_program_state_dirty;
  			}
 diff --git a/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_main_menu.cpp b/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_main_menu.cpp
-index fb5eadf..46102af 100644
+index fb5eadf50..46102af22 100644
 --- a/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_main_menu.cpp
 +++ b/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_main_menu.cpp
 @@ -9,6 +9,9 @@
@@ -15766,7 +15883,7 @@ index fb5eadf..46102af 100644
  				});
  				return page_navigation::exit;
 diff --git a/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_savestate.cpp b/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_savestate.cpp
-index 17c0d18..c698e8b 100644
+index 17c0d18eb..c698e8b5c 100644
 --- a/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_savestate.cpp
 +++ b/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_savestate.cpp
 @@ -8,6 +8,7 @@
@@ -15819,7 +15936,7 @@ index 17c0d18..c698e8b 100644
  						return page_navigation::exit;
  					});
 diff --git a/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp b/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp
-index 0178ba5..ab8c6b1 100644
+index 0178ba5ef..ab8c6b16a 100644
 --- a/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp
 +++ b/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp
 @@ -6,21 +6,9 @@
@@ -15863,7 +15980,7 @@ index 0178ba5..ab8c6b1 100644
  
  	FlowGraph deconstruct_fragment_program(const RSXFragmentProgram& prog)
 diff --git a/rpcs3/Emu/RSX/Program/GLSLCommon.cpp b/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
-index 61e2836..713b270 100644
+index 61e283681..713b270ad 100644
 --- a/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
 +++ b/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
 @@ -323,6 +323,11 @@ namespace glsl
@@ -15879,7 +15996,7 @@ index 61e2836..713b270 100644
  		{
  			enabled_options.push_back("_ENABLE_LINEAR_TO_SRGB");
 diff --git a/rpcs3/Emu/RSX/Program/GLSLSnippets/GPUDeswizzle.glsl b/rpcs3/Emu/RSX/Program/GLSLSnippets/GPUDeswizzle.glsl
-index 1e0b66c..854ee80 100644
+index 1e0b66c36..854ee8031 100644
 --- a/rpcs3/Emu/RSX/Program/GLSLSnippets/GPUDeswizzle.glsl
 +++ b/rpcs3/Emu/RSX/Program/GLSLSnippets/GPUDeswizzle.glsl
 @@ -48,11 +48,11 @@ bool init_invocation_properties(const in uint offset)
@@ -15900,7 +16017,7 @@ index 1e0b66c..854ee80 100644
  	}
  
 diff --git a/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXROPEpilogue.glsl b/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXROPEpilogue.glsl
-index a46c420..0c03cc2 100644
+index a46c420ed..0c03cc2c5 100644
 --- a/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXROPEpilogue.glsl
 +++ b/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXROPEpilogue.glsl
 @@ -45,6 +45,11 @@ R"(
@@ -15916,7 +16033,7 @@ index a46c420..0c03cc2 100644
  #if _MRT_BUFFERS_COUNT >= 1
  
 diff --git a/rpcs3/Emu/RSX/Program/GLSLTypes.h b/rpcs3/Emu/RSX/Program/GLSLTypes.h
-index cade467..b4bbc16 100644
+index cade46757..b4bbc16d8 100644
 --- a/rpcs3/Emu/RSX/Program/GLSLTypes.h
 +++ b/rpcs3/Emu/RSX/Program/GLSLTypes.h
 @@ -48,6 +48,7 @@ namespace glsl
@@ -15928,7 +16045,7 @@ index cade467..b4bbc16 100644
  		bool ROP_discard : 1;
  		bool ROP_channel_remap : 1;
 diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
-index 221e24e..8431488 100644
+index 221e24ea7..843148839 100644
 --- a/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
 +++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp
 @@ -7,22 +7,7 @@
@@ -16075,7 +16192,7 @@ index 221e24e..8431488 100644
  		write_fragment_constants_to_buffer_fallback(buffer, rsx_prog, offsets_cache, sanitize);
  #endif
 diff --git a/rpcs3/Emu/RSX/Program/ProgramStateCache.h b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
-index e1bdc88..6b918d3 100644
+index e1bdc8852..6b918d340 100644
 --- a/rpcs3/Emu/RSX/Program/ProgramStateCache.h
 +++ b/rpcs3/Emu/RSX/Program/ProgramStateCache.h
 @@ -9,8 +9,16 @@
@@ -16389,7 +16506,7 @@ index e1bdc88..6b918d3 100644
  	}
  };
 diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
-index a36ce52..9491837 100644
+index a36ce5242..9491837f7 100644
 --- a/rpcs3/Emu/RSX/RSXFIFO.cpp
 +++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
 @@ -11,10 +11,12 @@
@@ -16525,7 +16642,7 @@ index a36ce52..9491837 100644
  					m_ctx->register_state->decode(reg, m_ctx->register_state->latch);
  					break;
 diff --git a/rpcs3/Emu/RSX/RSXFIFO.h b/rpcs3/Emu/RSX/RSXFIFO.h
-index 25916b1..5910bf8 100644
+index 25916b1b9..5910bf826 100644
 --- a/rpcs3/Emu/RSX/RSXFIFO.h
 +++ b/rpcs3/Emu/RSX/RSXFIFO.h
 @@ -151,6 +151,7 @@ namespace rsx
@@ -16537,7 +16654,7 @@ index 25916b1..5910bf8 100644
  			mutable u32 m_published_get = umax;
  			u32 m_idle_spins = 0;
 diff --git a/rpcs3/Emu/RSX/RSXOffload.cpp b/rpcs3/Emu/RSX/RSXOffload.cpp
-index 8b57f19..c8bd51d 100644
+index 8b57f19de..c8bd51ddf 100644
 --- a/rpcs3/Emu/RSX/RSXOffload.cpp
 +++ b/rpcs3/Emu/RSX/RSXOffload.cpp
 @@ -138,7 +138,14 @@ namespace rsx
@@ -16592,7 +16709,7 @@ index 8b57f19..c8bd51d 100644
  		*m_thread = thread_state::aborting;
  	}
 diff --git a/rpcs3/Emu/RSX/RSXTexture.cpp b/rpcs3/Emu/RSX/RSXTexture.cpp
-index a710d66..f6c2cbc 100644
+index a710d6639..f6c2cbc5e 100644
 --- a/rpcs3/Emu/RSX/RSXTexture.cpp
 +++ b/rpcs3/Emu/RSX/RSXTexture.cpp
 @@ -14,13 +14,6 @@
@@ -16649,7 +16766,7 @@ index a710d66..f6c2cbc 100644
  
  	color4f fragment_texture::remapped_border_color(bool apply_colorspace_remapping) const
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index dff27c6..e5b7847 100644
+index dff27c6ed..e5b7847d2 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
 @@ -26,6 +26,14 @@
@@ -17103,7 +17220,7 @@ index dff27c6..e5b7847 100644
  
  	f64 thread::get_cached_display_refresh_rate()
 diff --git a/rpcs3/Emu/RSX/RSXThread.h b/rpcs3/Emu/RSX/RSXThread.h
-index fefbfb9..041fbbf 100644
+index fefbfb962..041fbbf2e 100644
 --- a/rpcs3/Emu/RSX/RSXThread.h
 +++ b/rpcs3/Emu/RSX/RSXThread.h
 @@ -32,6 +32,9 @@
@@ -17187,7 +17304,7 @@ index fefbfb9..041fbbf 100644
  		u64 vblank_at_flip = umax;
  		u64 flip_notification_count = 0;
 diff --git a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
-index 4925d88..b2b000f 100644
+index 4925d8830..b2b000f21 100644
 --- a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
 @@ -9,6 +9,11 @@
@@ -17219,7 +17336,7 @@ index 4925d88..b2b000f 100644
  
  		// Signal fence
 diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-index 77927e2..9102bf6 100644
+index 77927e27b..9102bf6d2 100644
 --- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
 @@ -172,14 +172,14 @@ void VKGSRender::update_draw_state()
@@ -17446,7 +17563,7 @@ index 77927e2..9102bf6 100644
  		auto& sampled_image_info = texture_env[offsets[static_cast<u32>(sampler_state->image_type)] + i];
  		sampled_image_info = { *view, *fs_sampler_handles[i] };
 diff --git a/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp b/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
-index af6a25a..68145ed 100644
+index af6a25a44..68145edf4 100644
 --- a/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
 @@ -406,6 +406,7 @@ void VKFragmentDecompilerThread::insertGlobalFunctions(std::stringstream &OS)
@@ -17458,7 +17575,7 @@ index af6a25a..68145ed 100644
  	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
  	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28..626fda9 100644
+index 63cab28e9..626fda9d6 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 @@ -16,10 +16,15 @@
@@ -17728,7 +17845,7 @@ index 63cab28..626fda9 100644
  			// Notify the user with HUD notification
  			if (g_cfg.misc.show_shader_compilation_hint)
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
-index e3817d8..c5100be 100644
+index e3817d8e6..c5100bee3 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.h
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
 @@ -104,6 +104,7 @@ private:
@@ -17761,7 +17878,7 @@ index e3817d8..c5100be 100644
  	bool bind_interpreter_texture_env();
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp b/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
-index e6dae0f..dffd7be 100644
+index e6dae0f19..dffd7be40 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
 @@ -14,6 +14,10 @@
@@ -17798,7 +17915,7 @@ index e6dae0f..dffd7be 100644
  		void init(VkDevice dev)
  		{
 diff --git a/rpcs3/Emu/RSX/VK/VKHelpers.cpp b/rpcs3/Emu/RSX/VK/VKHelpers.cpp
-index 9360215..fbdb63f 100644
+index 936021579..fbdb63f27 100644
 --- a/rpcs3/Emu/RSX/VK/VKHelpers.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKHelpers.cpp
 @@ -91,7 +91,6 @@ namespace vk
@@ -17823,7 +17940,7 @@ index 9360215..fbdb63f 100644
  		{
  		case driver_vendor::AMD:
 diff --git a/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp b/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp
-index 85e981c..1d76a6c 100644
+index 85e981c4f..1d76a6c7f 100644
 --- a/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp
 @@ -4,6 +4,13 @@
@@ -18074,7 +18191,7 @@ index 85e981c..1d76a6c 100644
  	}
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKPipelineCompiler.h b/rpcs3/Emu/RSX/VK/VKPipelineCompiler.h
-index 712505e..d67babe 100644
+index 712505ee2..d67babe62 100644
 --- a/rpcs3/Emu/RSX/VK/VKPipelineCompiler.h
 +++ b/rpcs3/Emu/RSX/VK/VKPipelineCompiler.h
 @@ -3,6 +3,7 @@
@@ -18190,21 +18307,23 @@ index 712505e..d67babe 100644
  	}
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
-index a604696..2f11990 100644
+index a604696f1..1dbf9499d 100644
 --- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
-@@ -12,6 +12,10 @@
+@@ -12,6 +12,12 @@
  #include "util/asm.hpp"
  #include "util/video_provider.h"
  
 +#ifdef RPCS3_IOS
 +#include "ios/IOSRsxSyncProfile.h"
++// CELL555_READBACK_INCLUDE
++#include "ios/IOSReadbackProfile.h"
 +#endif
 +
  extern atomic_t<bool> g_user_asked_for_screenshot;
  extern atomic_t<recording_mode> g_recording_mode;
  
-@@ -159,7 +163,14 @@ void VKGSRender::present(vk::frame_context_t *ctx)
+@@ -159,7 +165,14 @@ void VKGSRender::present(vk::frame_context_t *ctx)
  
  	if (!swapchain_unavailable)
  	{
@@ -18219,7 +18338,7 @@ index a604696..2f11990 100644
  		{
  		case VK_SUCCESS:
  			break;
-@@ -191,10 +202,11 @@ void VKGSRender::advance_queued_frames()
+@@ -191,10 +204,11 @@ void VKGSRender::advance_queued_frames()
  
  	// Run video memory balancer
  	m_device->rebalance_memory_type_usage();
@@ -18234,7 +18353,7 @@ index a604696..2f11990 100644
  
  	// Texture cache is also double buffered to prevent use-after-free
  	m_texture_cache.on_frame_end();
-@@ -233,6 +245,9 @@ void VKGSRender::queue_swap_request(bool wait_on_acquire)
+@@ -233,6 +247,9 @@ void VKGSRender::queue_swap_request(bool wait_on_acquire)
  			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT);
  	}
  
@@ -18244,7 +18363,7 @@ index a604696..2f11990 100644
  	// Set up a present request for this frame as well
  	present(m_current_frame);
  
-@@ -250,11 +265,21 @@ void VKGSRender::frame_context_cleanup(vk::frame_context_t *ctx)
+@@ -250,11 +267,21 @@ void VKGSRender::frame_context_cleanup(vk::frame_context_t *ctx)
  	ensure(ctx->swap_command_buffer);
  
  	// Perform hard swap here
@@ -18266,7 +18385,19 @@ index a604696..2f11990 100644
  
  	// Resource cleanup.
  	{
-@@ -597,6 +622,10 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -392,6 +419,11 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
+ 			flush_command_queue();
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// CELL555_READBACK_ORIGIN
++		const rpcs3::ios::readback::OriginScope ios_readback_origin(
++			rpcs3::ios::readback::Origin::presentation_cpu);
++#endif
+ 		m_texture_cache.invalidate_range(*m_current_command_buffer, range, rsx::invalidation_cause::read);
+ 		image_to_flip = m_texture_cache.upload_image_simple(*m_current_command_buffer, expected_format, info->address, info->width, info->height, info->pitch);
+ 	}
+@@ -597,6 +629,10 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  
  	u64 timeout = m_swapchain->get_swap_image_count() <= 2? 0ull: 100000000ull;
  	u32 out_of_date_rebuilds = 0;
@@ -18277,7 +18408,7 @@ index a604696..2f11990 100644
  	while (VkResult status = m_swapchain->acquire_next_swapchain_image(m_current_frame->acquire_signal_semaphore, timeout, &m_current_frame->present_image))
  	{
  		switch (status)
-@@ -641,6 +670,10 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -641,6 +677,10 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  		}
  	}
  
@@ -18288,7 +18419,7 @@ index a604696..2f11990 100644
  	// Confirm that the driver did not silently fail
  	ensure(m_current_frame->present_image != umax);
  
-@@ -718,7 +751,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -718,7 +758,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  
  		if (g_cfg.video.record_with_overlays && has_overlay)
  		{
@@ -18300,7 +18431,7 @@ index a604696..2f11990 100644
  			ensure(single_target_pass != VK_NULL_HANDLE);
  
 diff --git a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
-index ad7d5a0..038d9a3 100644
+index ad7d5a055..038d9a368 100644
 --- a/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
 +++ b/rpcs3/Emu/RSX/VK/VKProgramBuffer.h
 @@ -2,6 +2,7 @@
@@ -18324,7 +18455,7 @@ index ad7d5a0..038d9a3 100644
  
  		static
 diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
-index 20a4250..e98454b 100644
+index 20a4250ec..49a383fba 100644
 --- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
 @@ -7,6 +7,12 @@
@@ -18634,7 +18765,7 @@ index 20a4250..e98454b 100644
 +                if (result == VK_SUCCESS)
 +                {
 +                    pipeline_profile.live.fetch_add(1, std::memory_order_relaxed);
-+                    pipeline_profile.fingerprints.record(FingerprintTable::fingerprint(context), static_cast<u64>(
++                    pipeline_profile.fingerprints.record(context, static_cast<u64>(
 +                        std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - wall_before).count()));
 +                }
 +#else
@@ -18705,7 +18836,7 @@ index 20a4250..e98454b 100644
  		{
  			if (m_sets[set_id].m_descriptor_slots[binding_point] == image_descriptors)
 diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.h b/rpcs3/Emu/RSX/VK/VKProgramPipeline.h
-index 79b8371..b40bd1c 100644
+index 79b83717b..b40bd1c98 100644
 --- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.h
 +++ b/rpcs3/Emu/RSX/VK/VKProgramPipeline.h
 @@ -9,6 +9,10 @@
@@ -18822,7 +18953,7 @@ index 79b8371..b40bd1c 100644
  			void bind_uniform_array(const std::span<const VkDescriptorImageInfoEx>& image_descriptors,u32 set_id, u32 binding_point);
  
 diff --git a/rpcs3/Emu/RSX/VK/VKQueryPool.cpp b/rpcs3/Emu/RSX/VK/VKQueryPool.cpp
-index bcd00a9..f47ed3c 100644
+index bcd00a9b4..f47ed3c86 100644
 --- a/rpcs3/Emu/RSX/VK/VKQueryPool.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKQueryPool.cpp
 @@ -57,6 +57,7 @@ namespace vk
@@ -18894,7 +19025,7 @@ index bcd00a9..f47ed3c 100644
  
  	u32 query_pool_manager::allocate_query(vk::command_buffer& cmd)
 diff --git a/rpcs3/Emu/RSX/VK/VKQueryPool.h b/rpcs3/Emu/RSX/VK/VKQueryPool.h
-index 3427f2c..ee91ba1 100644
+index 3427f2ce5..ee91ba171 100644
 --- a/rpcs3/Emu/RSX/VK/VKQueryPool.h
 +++ b/rpcs3/Emu/RSX/VK/VKQueryPool.h
 @@ -1,5 +1,6 @@
@@ -18941,7 +19072,7 @@ index 3427f2c..ee91ba1 100644
  		}
  	};
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderTargets.h b/rpcs3/Emu/RSX/VK/VKRenderTargets.h
-index 3ee5010..2a8b935 100644
+index 3ee5010d8..2a8b93560 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderTargets.h
 +++ b/rpcs3/Emu/RSX/VK/VKRenderTargets.h
 @@ -365,12 +365,30 @@ namespace vk
@@ -19002,7 +19133,7 @@ index 3ee5010..2a8b935 100644
  				sink->stencil_init_flags = ref->stencil_init_flags;
  				sink->native_pitch = static_cast<u32>(prev.width) * ref->get_bpp() * ref->samples_x;
 diff --git a/rpcs3/Emu/RSX/VK/VKResolveHelper.h b/rpcs3/Emu/RSX/VK/VKResolveHelper.h
-index ada374a..4efb448 100644
+index ada374a83..4efb44830 100644
 --- a/rpcs3/Emu/RSX/VK/VKResolveHelper.h
 +++ b/rpcs3/Emu/RSX/VK/VKResolveHelper.h
 @@ -237,7 +237,7 @@ namespace vk
@@ -19024,7 +19155,7 @@ index ada374a..4efb448 100644
  
  				overlay_pass::emit_geometry(cmd, program);
 diff --git a/rpcs3/Emu/RSX/VK/VKResourceManager.cpp b/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
-index 95b81bf..64838fa 100644
+index 95b81bf94..64838fae5 100644
 --- a/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKResourceManager.cpp
 @@ -3,10 +3,13 @@
@@ -19253,7 +19384,7 @@ index 95b81bf..64838fa 100644
 +}
 +#endif
 diff --git a/rpcs3/Emu/RSX/VK/VKResourceManager.h b/rpcs3/Emu/RSX/VK/VKResourceManager.h
-index c9bbf4e..2bc13d6 100644
+index c9bbf4e31..2bc13d671 100644
 --- a/rpcs3/Emu/RSX/VK/VKResourceManager.h
 +++ b/rpcs3/Emu/RSX/VK/VKResourceManager.h
 @@ -112,6 +112,11 @@ namespace vk
@@ -19269,7 +19400,7 @@ index c9bbf4e..2bc13d6 100644
  			}
  
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
-index c165762..5b9cdfa 100644
+index c165762ea..5b9cdfa98 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 @@ -6,8 +6,11 @@
@@ -19489,7 +19620,7 @@ index c165762..5b9cdfa 100644
  	}
  
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
-index b0ee059..d9d4d94 100644
+index b0ee05965..d9d4d94ad 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
 @@ -463,7 +463,7 @@ namespace vk
@@ -19502,7 +19633,7 @@ index b0ee059..d9d4d94 100644
  		// Blocks some operations when exiting
  		atomic_t<bool> m_cache_is_exiting = false;
 diff --git a/rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp b/rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp
-index dd10f2a..e1f251b 100644
+index dd10f2a22..e1f251bf9 100644
 --- a/rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp
 +++ b/rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp
 @@ -233,9 +233,9 @@ namespace vk
@@ -19597,7 +19728,7 @@ index dd10f2a..e1f251b 100644
  		}
  
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/VRAMBudgetPolicy.h b/rpcs3/Emu/RSX/VK/vkutils/VRAMBudgetPolicy.h
-index 5892f8c..35cc4a3 100644
+index 5892f8cda..35cc4a30f 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/VRAMBudgetPolicy.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/VRAMBudgetPolicy.h
 @@ -7,6 +7,24 @@ namespace vk
@@ -19626,7 +19757,7 @@ index 5892f8c..35cc4a3 100644
  	// MoltenVK exposes unified system memory as device-local memory. Leaving the
  	// desktop VRAM limit in charge lets RSX consume most of the process's jetsam
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/buffer_object.cpp b/rpcs3/Emu/RSX/VK/vkutils/buffer_object.cpp
-index 47f79ad..b47d49b 100644
+index 47f79ad98..b47d49bdd 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/buffer_object.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/buffer_object.cpp
 @@ -1,6 +1,9 @@
@@ -19673,7 +19804,7 @@ index 47f79ad..b47d49b 100644
  		memory = std::make_unique<memory_block>(m_device, request);
  
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/buffer_object.h b/rpcs3/Emu/RSX/VK/vkutils/buffer_object.h
-index 136b693..c2b321a 100644
+index 136b6938b..c2b321ac7 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/buffer_object.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/buffer_object.h
 @@ -11,8 +11,9 @@ namespace vk
@@ -19688,7 +19819,7 @@ index 136b693..c2b321a 100644
  
  	struct buffer_view : public unique_resource
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
-index 549d557..8bd563b 100644
+index 549d557af..8bd563bfa 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
 @@ -3,6 +3,10 @@
@@ -19793,7 +19924,7 @@ index 549d557..8bd563b 100644
  		const std::span<VkDescriptorSet>& sets,
  		const std::span<u32>& dynamic_offsets,
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.h b/rpcs3/Emu/RSX/VK/vkutils/commands.h
-index 81f65b3..d8e9fa8 100644
+index 81f65b357..d8e9fa8aa 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/commands.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/commands.h
 @@ -3,6 +3,7 @@
@@ -19827,7 +19958,7 @@ index 81f65b3..d8e9fa8 100644
  		void bind_descriptor_sets(const std::span<VkDescriptorSet>& sets, const std::span<u32>& dynamic_offsets, VkPipelineBindPoint bind_point, VkPipelineLayout pipe_layout) const;
  
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp b/rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp
-index 9534b5f..cff7774 100644
+index 9534b5f57..cff77744a 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp
 @@ -137,6 +137,10 @@ namespace vk
@@ -19869,7 +20000,7 @@ index 9534b5f..cff7774 100644
  
  		if (notify_on_grow)
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.cpp b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
-index 2b2e2c3..261d0b2 100644
+index 2b2e2c316..261d0b243 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 @@ -6,6 +6,7 @@
@@ -19995,7 +20126,7 @@ index 2b2e2c3..261d0b2 100644
  		enabled_features.fullDrawIndexUint32 = VK_TRUE;
  		enabled_features.independentBlend = VK_TRUE;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.h b/rpcs3/Emu/RSX/VK/vkutils/device.h
-index ffafbae..442bcd7 100644
+index ffafbae16..442bcd761 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.h
 @@ -5,6 +5,7 @@
@@ -20077,7 +20208,7 @@ index ffafbae..442bcd7 100644
  		u32 get_descriptor_max_draw_calls() const { return pgpu->descriptor_max_draw_calls; }
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp b/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp
 new file mode 100644
-index 0000000..44ac28b
+index 000000000..44ac28bfc
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp
 @@ -0,0 +1,36 @@
@@ -20118,7 +20249,7 @@ index 0000000..44ac28b
 +	};
 +}
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/image.cpp b/rpcs3/Emu/RSX/VK/vkutils/image.cpp
-index 9197c5a..b55fe33 100644
+index 9197c5a93..b55fe334c 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/image.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/image.cpp
 @@ -469,6 +469,7 @@ namespace vk
@@ -20166,7 +20297,7 @@ index 9197c5a..b55fe33 100644
  			// Safely discard existing views
  			auto gc = vk::get_resource_manager();
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/image.h b/rpcs3/Emu/RSX/VK/vkutils/image.h
-index a301db6..a5fa747 100644
+index a301db6a6..a5fa74765 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/image.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/image.h
 @@ -147,6 +147,10 @@ namespace vk
@@ -20181,7 +20312,7 @@ index a301db6..a5fa747 100644
  		using image::image;
  
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/instance.cpp b/rpcs3/Emu/RSX/VK/vkutils/instance.cpp
-index 87bbe4b..490e61a 100644
+index 87bbe4b80..490e61a28 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/instance.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/instance.cpp
 @@ -1,6 +1,10 @@
@@ -20223,7 +20354,7 @@ index 87bbe4b..490e61a 100644
  				mvk_layer_settings_create_info.sType = VK_STRUCTURE_TYPE_LAYER_SETTINGS_CREATE_INFO_EXT;
  				mvk_layer_settings_create_info.pNext = next_info;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/memory.cpp b/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
-index 3db1b27..72bd887 100644
+index 3db1b2787..72bd88728 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/memory.cpp
 @@ -1,3 +1,6 @@
@@ -20301,7 +20432,7 @@ index 3db1b27..72bd887 100644
  		// Filter out the Re-BAR heap
  		if (::size32(stats) > m_rebar_heap_idx)
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/memory.h b/rpcs3/Emu/RSX/VK/vkutils/memory.h
-index 352aaba..5837ecc 100644
+index 352aaba0b..5837ecc57 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/memory.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/memory.h
 @@ -74,6 +74,10 @@ namespace vk
@@ -20335,7 +20466,7 @@ index 352aaba..5837ecc 100644
  	bool vmm_handle_memory_pressure(rsx::problem_severity severity);
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/metal_event.h b/rpcs3/Emu/RSX/VK/vkutils/metal_event.h
 new file mode 100644
-index 0000000..096a888
+index 000000000..096a88886
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/VK/vkutils/metal_event.h
 @@ -0,0 +1,10 @@
@@ -20351,7 +20482,7 @@ index 0000000..096a888
 +}
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/metal_event.mm b/rpcs3/Emu/RSX/VK/vkutils/metal_event.mm
 new file mode 100644
-index 0000000..504190d
+index 000000000..504190dac
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/VK/vkutils/metal_event.mm
 @@ -0,0 +1,48 @@
@@ -20405,7 +20536,7 @@ index 0000000..504190d
 +}
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h b/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h
 new file mode 100644
-index 0000000..b5f8e66
+index 000000000..b5f8e66ab
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h
 @@ -0,0 +1,92 @@
@@ -20503,7 +20634,7 @@ index 0000000..b5f8e66
 +}
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/query_slot_queue.hpp b/rpcs3/Emu/RSX/VK/vkutils/query_slot_queue.hpp
 new file mode 100644
-index 0000000..00b0ad0
+index 000000000..00b0ad07a
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/VK/vkutils/query_slot_queue.hpp
 @@ -0,0 +1,43 @@
@@ -20551,7 +20682,7 @@ index 0000000..00b0ad0
 +};
 +}
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/sync.cpp b/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
-index 6d36283..c1d9474 100644
+index 6d36283ca..c1d9474cd 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/sync.cpp
 @@ -8,9 +8,22 @@
@@ -20761,7 +20892,7 @@ index 6d36283..c1d9474 100644
  		const u64 freq = utils::get_tsc_freq();
  
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/sync.h b/rpcs3/Emu/RSX/VK/vkutils/sync.h
-index 9177e84..3e3b523 100644
+index 9177e8411..3e3b52381 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/sync.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/sync.h
 @@ -20,7 +20,12 @@ namespace vk
@@ -20800,7 +20931,7 @@ index 9177e84..3e3b523 100644
  
  	class semaphore
 diff --git a/rpcs3/Emu/RSX/gcm_enums.h b/rpcs3/Emu/RSX/gcm_enums.h
-index fe5cf89..a01d0b4 100644
+index fe5cf89eb..a01d0b4c6 100644
 --- a/rpcs3/Emu/RSX/gcm_enums.h
 +++ b/rpcs3/Emu/RSX/gcm_enums.h
 @@ -476,6 +476,7 @@ namespace gcm
@@ -20812,7 +20943,7 @@ index fe5cf89..a01d0b4 100644
  		// Meta
  		RSX_SHADER_CONTROL_META_USES_DISCARD       = (RSX_SHADER_CONTROL_USES_KIL | RSX_SHADER_CONTROL_TEXTURE_ALPHA_KILL | RSX_SHADER_CONTROL_ALPHA_TEST | RSX_SHADER_CONTROL_POLYGON_STIPPLE | RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE),
 diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
-index 625311f..465461f 100644
+index 625311fc1..465461f08 100644
 --- a/rpcs3/Emu/RSX/rsx_cache.h
 +++ b/rpcs3/Emu/RSX/rsx_cache.h
 @@ -11,8 +11,12 @@
@@ -21127,7 +21258,7 @@ index 625311f..465461f 100644
  
  	namespace vertex_cache
 diff --git a/rpcs3/Emu/RSX/rsx_methods.cpp b/rpcs3/Emu/RSX/rsx_methods.cpp
-index 8aea1a4..ab99381 100644
+index 8aea1a493..ab99381e2 100644
 --- a/rpcs3/Emu/RSX/rsx_methods.cpp
 +++ b/rpcs3/Emu/RSX/rsx_methods.cpp
 @@ -1198,11 +1198,6 @@ namespace rsx
@@ -21143,7 +21274,7 @@ index 8aea1a4..ab99381 100644
  	bool rsx_state::test(u32 reg, u32 value) const
  	{
 diff --git a/rpcs3/Emu/RSX/rsx_methods.h b/rpcs3/Emu/RSX/rsx_methods.h
-index 7cfb22d..88a56d2 100644
+index 7cfb22ddc..88a56d224 100644
 --- a/rpcs3/Emu/RSX/rsx_methods.h
 +++ b/rpcs3/Emu/RSX/rsx_methods.h
 @@ -173,7 +173,15 @@ namespace rsx
@@ -21164,7 +21295,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..cb15c04 100644
+index 1f53c64b0..cb15c04d0 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -21869,7 +22000,7 @@ index 1f53c64..cb15c04 100644
  	{
  		// Reset boot path in case of ISO
 diff --git a/rpcs3/Emu/savestate_utils.cpp b/rpcs3/Emu/savestate_utils.cpp
-index f43643d..b6ca2d7 100644
+index f43643d22..b6ca2d733 100644
 --- a/rpcs3/Emu/savestate_utils.cpp
 +++ b/rpcs3/Emu/savestate_utils.cpp
 @@ -1,4 +1,7 @@
@@ -22024,7 +22155,7 @@ index f43643d..b6ca2d7 100644
  	}
  
 diff --git a/rpcs3/Emu/savestate_utils.hpp b/rpcs3/Emu/savestate_utils.hpp
-index 130f54b..4c096c9 100644
+index 130f54b02..4c096c903 100644
 --- a/rpcs3/Emu/savestate_utils.hpp
 +++ b/rpcs3/Emu/savestate_utils.hpp
 @@ -53,3 +53,4 @@ std::vector<savestate_file_entry> get_savestate_files(std::string_view title_id,
@@ -22033,7 +22164,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..0969f40 100644
+index 7072922d2..0969f4055 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -22083,7 +22214,7 @@ index 7072922..0969f40 100644
  #endif
  
 diff --git a/rpcs3/Emu/system_config_types.cpp b/rpcs3/Emu/system_config_types.cpp
-index 0fcfeb7..2d47630 100644
+index 0fcfeb78e..2d4763033 100644
 --- a/rpcs3/Emu/system_config_types.cpp
 +++ b/rpcs3/Emu/system_config_types.cpp
 @@ -308,6 +308,37 @@ void fmt_class_string<spu_decoder_type>::format(std::string& out, u64 arg)
@@ -22164,7 +22295,7 @@ index 0fcfeb7..2d47630 100644
  
  		return unknown;
 diff --git a/rpcs3/Emu/system_config_types.h b/rpcs3/Emu/system_config_types.h
-index c1be7dd..7893f76 100644
+index c1be7dd72..7893f7651 100644
 --- a/rpcs3/Emu/system_config_types.h
 +++ b/rpcs3/Emu/system_config_types.h
 @@ -21,6 +21,22 @@ enum class spu_block_size_type
@@ -22217,7 +22348,7 @@ index c1be7dd..7893f76 100644
 +	all_titles_with_metadata,
  };
 diff --git a/rpcs3/Emu/system_progress.cpp b/rpcs3/Emu/system_progress.cpp
-index 52e4951..580947d 100644
+index 52e49516f..580947dc0 100644
 --- a/rpcs3/Emu/system_progress.cpp
 +++ b/rpcs3/Emu/system_progress.cpp
 @@ -196,6 +196,21 @@ void progress_dialog_server::operator()()
@@ -22257,7 +22388,7 @@ index 52e4951..580947d 100644
  			wait_no_update_count++;
  		}
 diff --git a/rpcs3/Loader/ISO.cpp b/rpcs3/Loader/ISO.cpp
-index 94d5fdc..6201c64 100644
+index 94d5fdcb8..6201c648b 100644
 --- a/rpcs3/Loader/ISO.cpp
 +++ b/rpcs3/Loader/ISO.cpp
 @@ -903,7 +903,10 @@ static std::optional<iso_fs_metadata> iso_read_directory_entry(fs::file& entry,
@@ -22273,7 +22404,7 @@ index 94d5fdc..6201c64 100644
  		file_name.pop_back();
  	}
 diff --git a/rpcs3/Loader/TAR.cpp b/rpcs3/Loader/TAR.cpp
-index f3ea297..a4a3aa9 100644
+index f3ea2970b..a4a3aa9d4 100644
 --- a/rpcs3/Loader/TAR.cpp
 +++ b/rpcs3/Loader/TAR.cpp
 @@ -299,8 +299,14 @@ bool tar_object::extract(const std::string& prefix_path, bool is_vfs)
@@ -22343,7 +22474,7 @@ index f3ea297..a4a3aa9 100644
  								if (unread_size)
  								{
 diff --git a/rpcs3/ios/GameLibrary.cpp b/rpcs3/ios/GameLibrary.cpp
-index f9a5950..ef2bf6a 100644
+index f9a5950e1..ef2bf6a15 100644
 --- a/rpcs3/ios/GameLibrary.cpp
 +++ b/rpcs3/ios/GameLibrary.cpp
 @@ -847,8 +847,14 @@ bool copy_file_with_progress(
@@ -22514,7 +22645,7 @@ index f9a5950..ef2bf6a 100644
  	if (progress)
  	{
 diff --git a/rpcs3/ios/GameLibrary.h b/rpcs3/ios/GameLibrary.h
-index de1b709..fd07001 100644
+index de1b709f1..fd07001d1 100644
 --- a/rpcs3/ios/GameLibrary.h
 +++ b/rpcs3/ios/GameLibrary.h
 @@ -189,6 +189,7 @@ game_delete_result delete_installed_game(std::string_view title_id);
@@ -22527,7 +22658,7 @@ index de1b709..fd07001 100644
  std::vector<installed_game_patch> installed_game_patches(std::string_view title_id);
 diff --git a/rpcs3/ios/IOSAudioDiagnostics.h b/rpcs3/ios/IOSAudioDiagnostics.h
 new file mode 100644
-index 0000000..6cf0035
+index 000000000..6cf003561
 --- /dev/null
 +++ b/rpcs3/ios/IOSAudioDiagnostics.h
 @@ -0,0 +1,125 @@
@@ -22658,7 +22789,7 @@ index 0000000..6cf0035
 +}
 diff --git a/rpcs3/ios/IOSAudioRecovery.h b/rpcs3/ios/IOSAudioRecovery.h
 new file mode 100644
-index 0000000..f85e758
+index 000000000..f85e758f2
 --- /dev/null
 +++ b/rpcs3/ios/IOSAudioRecovery.h
 @@ -0,0 +1,172 @@
@@ -22836,7 +22967,7 @@ index 0000000..f85e758
 +}
 diff --git a/rpcs3/ios/IOSAudioTempo.h b/rpcs3/ios/IOSAudioTempo.h
 new file mode 100644
-index 0000000..317bb2e
+index 000000000..317bb2e46
 --- /dev/null
 +++ b/rpcs3/ios/IOSAudioTempo.h
 @@ -0,0 +1,85 @@
@@ -22927,7 +23058,7 @@ index 0000000..317bb2e
 +}
 diff --git a/rpcs3/ios/IOSCompileAdmission.h b/rpcs3/ios/IOSCompileAdmission.h
 new file mode 100644
-index 0000000..4eac154
+index 000000000..4eac15472
 --- /dev/null
 +++ b/rpcs3/ios/IOSCompileAdmission.h
 @@ -0,0 +1,21 @@
@@ -22954,7 +23085,7 @@ index 0000000..4eac154
 +}
 diff --git a/rpcs3/ios/IOSCompilePressure.h b/rpcs3/ios/IOSCompilePressure.h
 new file mode 100644
-index 0000000..98abac4
+index 000000000..98abac4e9
 --- /dev/null
 +++ b/rpcs3/ios/IOSCompilePressure.h
 @@ -0,0 +1,73 @@
@@ -23032,7 +23163,7 @@ index 0000000..98abac4
 +inline diagnostics::EventCost blocked_us{};
 +}
 diff --git a/rpcs3/ios/IOSDMACopy.h b/rpcs3/ios/IOSDMACopy.h
-index b6c26eb..a409cfc 100644
+index b6c26eb87..a409cfc5a 100644
 --- a/rpcs3/ios/IOSDMACopy.h
 +++ b/rpcs3/ios/IOSDMACopy.h
 @@ -29,6 +29,9 @@ inline void copy_dma_vectors(unsigned char* dst, const unsigned char* src, std::
@@ -23047,7 +23178,7 @@ index b6c26eb..a409cfc 100644
  			*reinterpret_cast<Vector*>(dst + offset) = *reinterpret_cast<const Vector*>(src + offset);
 diff --git a/rpcs3/ios/IOSGPUEventWait.h b/rpcs3/ios/IOSGPUEventWait.h
 new file mode 100644
-index 0000000..3b8c4d2
+index 000000000..3b8c4d2ae
 --- /dev/null
 +++ b/rpcs3/ios/IOSGPUEventWait.h
 @@ -0,0 +1,48 @@
@@ -23101,7 +23232,7 @@ index 0000000..3b8c4d2
 +}
 diff --git a/rpcs3/ios/IOSGPUMemoryProfile.h b/rpcs3/ios/IOSGPUMemoryProfile.h
 new file mode 100644
-index 0000000..286359d
+index 000000000..286359ddf
 --- /dev/null
 +++ b/rpcs3/ios/IOSGPUMemoryProfile.h
 @@ -0,0 +1,58 @@
@@ -23165,7 +23296,7 @@ index 0000000..286359d
 +}
 diff --git a/rpcs3/ios/IOSGraphicsMemorySnapshot.h b/rpcs3/ios/IOSGraphicsMemorySnapshot.h
 new file mode 100644
-index 0000000..56877cf
+index 000000000..56877cffd
 --- /dev/null
 +++ b/rpcs3/ios/IOSGraphicsMemorySnapshot.h
 @@ -0,0 +1,14 @@
@@ -23184,7 +23315,7 @@ index 0000000..56877cf
 +graphics_memory_snapshot capture_graphics_memory_snapshot() noexcept;
 +}
 diff --git a/rpcs3/ios/IOSMemoryPressurePolicy.h b/rpcs3/ios/IOSMemoryPressurePolicy.h
-index 6dc9a20..ae705ec 100644
+index 6dc9a20ed..ae705ece4 100644
 --- a/rpcs3/ios/IOSMemoryPressurePolicy.h
 +++ b/rpcs3/ios/IOSMemoryPressurePolicy.h
 @@ -1,6 +1,8 @@
@@ -23368,9 +23499,93 @@ index 6dc9a20..ae705ec 100644
  	constexpr bool has_safe_savestate_headroom(std::uint64_t available_bytes)
  	{
  		// Streaming compression is bounded, but committing guest/RSX state can
+diff --git a/rpcs3/ios/IOSReadbackProfile.h b/rpcs3/ios/IOSReadbackProfile.h
+new file mode 100644
+index 000000000..afd18357e
+--- /dev/null
++++ b/rpcs3/ios/IOSReadbackProfile.h
+@@ -0,0 +1,78 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "IOSRuntimeMetrics.h"
++#include "util/tsc.hpp"
++
++// CELL555: identify synchronous GPU-to-guest transfers without recording guest
++// addresses or changing their ordering. Five fixed counters; two clock reads
++// only for a nonempty DMA batch, never for an ordinary draw/cache hit.
++namespace rpcs3::ios::readback
++{
++enum class Origin : unsigned
++{
++    unknown, texture_cpu, blit_source_cpu, blit_destination_dma, presentation_cpu, count
++};
++inline constexpr unsigned origin_count = static_cast<unsigned>(Origin::count);
++inline constexpr std::array<const char*, origin_count> names{
++    "unknown", "texture_cpu", "blit_source_cpu", "blit_destination_dma", "presentation_cpu"};
++inline thread_local Origin current_origin = Origin::unknown;
++
++class OriginScope final
++{
++    Origin previous_;
++public:
++    explicit OriginScope(Origin value) noexcept : previous_(current_origin) { current_origin = value; }
++    ~OriginScope() noexcept { current_origin = previous_; }
++    OriginScope(const OriginScope&) = delete;
++    OriginScope& operator=(const OriginScope&) = delete;
++};
++
++struct Counter
++{
++    diagnostics::EventCost duration_ticks;
++    std::atomic<std::uint64_t> sections{0}, confirmed_bytes{0};
++    struct Sample
++    {
++        diagnostics::EventCost::Sample duration_ticks;
++        std::uint64_t sections = 0, confirmed_bytes = 0;
++    };
++    Sample take() noexcept
++    {
++        return {duration_ticks.take(), sections.exchange(0, std::memory_order_relaxed),
++            confirmed_bytes.exchange(0, std::memory_order_relaxed)};
++    }
++};
++inline std::array<Counter, origin_count> counters{};
++
++class BatchScope final
++{
++    unsigned origin_;
++    std::uint64_t sections_, bytes_, begin_;
++public:
++    BatchScope(std::uint64_t sections, std::uint64_t confirmed_bytes) noexcept
++        : origin_(static_cast<unsigned>(current_origin)), sections_(sections), bytes_(confirmed_bytes),
++          begin_(sections ? utils::get_tsc() : 0)
++    {
++        if (origin_ >= origin_count) origin_ = 0;
++    }
++    ~BatchScope() noexcept
++    {
++        if (!sections_) return;
++        const auto end = utils::get_tsc();
++        auto& counter = counters[origin_];
++        counter.sections.fetch_add(sections_, std::memory_order_relaxed);
++        counter.confirmed_bytes.fetch_add(bytes_, std::memory_order_relaxed);
++        counter.duration_ticks.record(end >= begin_ ? end - begin_ : 0);
++    }
++    BatchScope(const BatchScope&) = delete;
++    BatchScope& operator=(const BatchScope&) = delete;
++};
++
++inline auto take() noexcept
++{
++    std::array<Counter::Sample, origin_count> result{};
++    for (unsigned i = 0; i < origin_count; ++i) result[i] = counters[i].take();
++    return result;
++}
++}
 diff --git a/rpcs3/ios/IOSRecyclableImagePool.h b/rpcs3/ios/IOSRecyclableImagePool.h
 new file mode 100644
-index 0000000..65d78d3
+index 000000000..65d78d311
 --- /dev/null
 +++ b/rpcs3/ios/IOSRecyclableImagePool.h
 @@ -0,0 +1,63 @@
@@ -23439,7 +23654,7 @@ index 0000000..65d78d3
 +}
 diff --git a/rpcs3/ios/IOSRestoreExecutor.h b/rpcs3/ios/IOSRestoreExecutor.h
 new file mode 100644
-index 0000000..31b2c81
+index 000000000..31b2c8149
 --- /dev/null
 +++ b/rpcs3/ios/IOSRestoreExecutor.h
 @@ -0,0 +1,46 @@
@@ -23491,7 +23706,7 @@ index 0000000..31b2c81
 +}
 diff --git a/rpcs3/ios/IOSRestoreFailure.h b/rpcs3/ios/IOSRestoreFailure.h
 new file mode 100644
-index 0000000..8c8be8d
+index 000000000..8c8be8d89
 --- /dev/null
 +++ b/rpcs3/ios/IOSRestoreFailure.h
 @@ -0,0 +1,35 @@
@@ -23532,7 +23747,7 @@ index 0000000..8c8be8d
 +}
 diff --git a/rpcs3/ios/IOSRsxSyncProfile.h b/rpcs3/ios/IOSRsxSyncProfile.h
 new file mode 100644
-index 0000000..612c9b4
+index 000000000..612c9b4cb
 --- /dev/null
 +++ b/rpcs3/ios/IOSRsxSyncProfile.h
 @@ -0,0 +1,90 @@
@@ -23628,7 +23843,7 @@ index 0000000..612c9b4
 +}
 diff --git a/rpcs3/ios/IOSRuntimeMetrics.h b/rpcs3/ios/IOSRuntimeMetrics.h
 new file mode 100644
-index 0000000..433344e
+index 000000000..433344e35
 --- /dev/null
 +++ b/rpcs3/ios/IOSRuntimeMetrics.h
 @@ -0,0 +1,162 @@
@@ -23796,10 +24011,10 @@ index 0000000..433344e
 +}
 diff --git a/rpcs3/ios/IOSShaderTiming.h b/rpcs3/ios/IOSShaderTiming.h
 new file mode 100644
-index 0000000..3dc88bc
+index 000000000..e4b237974
 --- /dev/null
 +++ b/rpcs3/ios/IOSShaderTiming.h
-@@ -0,0 +1,353 @@
+@@ -0,0 +1,380 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -24016,11 +24231,12 @@ index 0000000..3dc88bc
 +};
 +inline PublicationProfile publication;
 +
-+// CELL543: bounded per-fingerprint build aggregation. A fingerprint mixes the
-+// complete key hash, render pass and both process-local module handles of one
-+// actual construction. With exact single-flight lookup a repeat should stay 0;
-+// a repeat exposes an identity defect or an abandoned build. Fixed storage,
-+// try-lock producers, saturation counted, reset only for a new renderer.
++// CELL555: bounded recent-key observations, not a pipeline cache. The old table
++// permanently filled during warm-up, losing every later unknown key. Retain
++// the latest 64 admitted identities with FIFO replacement and explicit eviction
++// counts. Repeats are a lifetime lower bound: an evicted identity may return.
++// Raw/UI pipelines lack a complete context and are counted as unattributed,
++// never merged into the all-zero fingerprint. Their timing remains recorded.
 +class FingerprintTable final
 +{
 +public:
@@ -24029,6 +24245,7 @@ index 0000000..3dc88bc
 +    struct Snapshot
 +    {
 +        std::uint64_t distinct = 0, repeated_builds = 0, dropped = 0;
++        std::uint64_t tracked = 0, evicted = 0, unattributed = 0;
 +        std::array<Entry, 3> costliest{}, repeated{};
 +        bool captured = false;
 +    };
@@ -24042,6 +24259,15 @@ index 0000000..3dc88bc
 +        const auto result = mix(mix(mix(mix(mix(0x51ed270b27aeb4ffull, c.properties), c.renderpass), c.vertex_module), c.fragment_module), c.flags);
 +        return result ? result : 1;
 +    }
++    void record(const PipelineContext& context, std::uint64_t duration_us) noexcept
++    {
++        if (!context.vertex_module || !context.fragment_module)
++        {
++            unattributed_.fetch_add(1, std::memory_order_relaxed);
++            return;
++        }
++        record(fingerprint(context), duration_us);
++    }
 +    void record(std::uint64_t key, std::uint64_t duration_us) noexcept
 +    {
 +        std::unique_lock lock(mutex_, std::try_to_lock);
@@ -24052,15 +24278,22 @@ index 0000000..3dc88bc
 +        }
 +        for (std::size_t i = 0; i < capacity; ++i)
 +        {
-+            auto& entry = entries_[(key + i) % capacity];
++            auto& entry = entries_[i];
 +            if (entry.fingerprint && entry.fingerprint != key) continue;
++            tracked_++;
++            repeated_builds_ += entry.fingerprint ? 1 : 0;
 +            entry.fingerprint = key;
 +            entry.builds++;
 +            entry.total_us += duration_us;
 +            entry.max_us = std::max(entry.max_us, duration_us);
 +            return;
 +        }
-+        dropped_.fetch_add(1, std::memory_order_relaxed);
++        // Full table: replace one observation, never an actual GPU pipeline.
++        // No allocation, no waiting and no increase in the 64-entry capacity.
++        entries_[next_replacement_] = {key, 1, duration_us, duration_us};
++        next_replacement_ = (next_replacement_ + 1) % capacity;
++        tracked_++;
++        evicted_++;
 +    }
 +    Snapshot snapshot() noexcept
 +    {
@@ -24069,11 +24302,14 @@ index 0000000..3dc88bc
 +        if (!lock) return result;
 +        result.captured = true;
 +        result.dropped = dropped_.load(std::memory_order_relaxed);
++        result.unattributed = unattributed_.load(std::memory_order_relaxed);
++        result.tracked = tracked_;
++        result.evicted = evicted_;
++        result.repeated_builds = repeated_builds_;
 +        for (const auto& entry : entries_)
 +        {
 +            if (!entry.fingerprint) continue;
 +            result.distinct++;
-+            result.repeated_builds += entry.builds - 1;
 +            auto insert = [&entry](std::array<Entry, 3>& list, auto&& better)
 +            {
 +                for (auto& slot : list)
@@ -24096,11 +24332,17 @@ index 0000000..3dc88bc
 +        std::lock_guard lock(mutex_);
 +        entries_ = {};
 +        dropped_.store(0, std::memory_order_relaxed);
++        unattributed_.store(0, std::memory_order_relaxed);
++        tracked_ = repeated_builds_ = evicted_ = 0;
++        next_replacement_ = 0;
 +    }
 +private:
 +    std::mutex mutex_;
 +    std::array<Entry, capacity> entries_{};
 +    std::atomic<std::uint64_t> dropped_{0};
++    std::atomic<std::uint64_t> unattributed_{0};
++    std::uint64_t tracked_ = 0, repeated_builds_ = 0, evicted_ = 0;
++    std::size_t next_replacement_ = 0;
 +};
 +
 +// CELL543: single-flight, origin and MoltenVK cache attribution counters.
@@ -24155,7 +24397,7 @@ index 0000000..3dc88bc
 +}
 diff --git a/rpcs3/ios/IOSSpuWaitProfile.h b/rpcs3/ios/IOSSpuWaitProfile.h
 new file mode 100644
-index 0000000..7167ee8
+index 000000000..7167ee82d
 --- /dev/null
 +++ b/rpcs3/ios/IOSSpuWaitProfile.h
 @@ -0,0 +1,130 @@
@@ -24290,7 +24532,7 @@ index 0000000..7167ee8
 +	}
 +}
 diff --git a/rpcs3/ios/IOSTextureHash.cpp b/rpcs3/ios/IOSTextureHash.cpp
-index 4d7a339..cb021bc 100644
+index 4d7a3391d..cb021bc6f 100644
 --- a/rpcs3/ios/IOSTextureHash.cpp
 +++ b/rpcs3/ios/IOSTextureHash.cpp
 @@ -1,4 +1,6 @@
@@ -24354,7 +24596,7 @@ index 4d7a339..cb021bc 100644
  }
  }
 diff --git a/rpcs3/ios/IOSTextureHash.h b/rpcs3/ios/IOSTextureHash.h
-index ccb4aae..5ec26b9 100644
+index ccb4aae0b..5ec26b9c6 100644
 --- a/rpcs3/ios/IOSTextureHash.h
 +++ b/rpcs3/ios/IOSTextureHash.h
 @@ -7,6 +7,8 @@ namespace rpcs3::ios
@@ -24366,9 +24608,29 @@ index ccb4aae..5ec26b9 100644
  std::uint64_t texture_hash_hybrid(const void* src, std::size_t size,
  	const void* secret, std::size_t secret_size, std::uint64_t seed) noexcept;
  }
+diff --git a/rpcs3/ios/IOSTextureValidationProfile.h b/rpcs3/ios/IOSTextureValidationProfile.h
+new file mode 100644
+index 000000000..7861c6ff9
+--- /dev/null
++++ b/rpcs3/ios/IOSTextureValidationProfile.h
+@@ -0,0 +1,14 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++namespace rpcs3::ios::texture_validation
++{
++// Fixed 32-byte observations, outside all PPU/SPU code-generation inputs.
++// Frame-end maintenance covers all validation sizes; its time overlaps the
++// existing hash measurements, not an extra cost. No new per-hash observation.
++inline std::atomic<std::uint64_t> trim_calls{0}, trim_sections{0};
++inline std::atomic<std::uint64_t> trim_bytes{0}, trim_ticks{0};
++}
 diff --git a/rpcs3/ios/NeoStationSavestateIO.h b/rpcs3/ios/NeoStationSavestateIO.h
 new file mode 100644
-index 0000000..d6f54a1
+index 000000000..d6f54a1ed
 --- /dev/null
 +++ b/rpcs3/ios/NeoStationSavestateIO.h
 @@ -0,0 +1,41 @@
@@ -24415,7 +24677,7 @@ index 0000000..d6f54a1
 +}
 diff --git a/rpcs3/ios/NeoStationSavestateStatus.h b/rpcs3/ios/NeoStationSavestateStatus.h
 new file mode 100644
-index 0000000..006640b
+index 000000000..006640b01
 --- /dev/null
 +++ b/rpcs3/ios/NeoStationSavestateStatus.h
 @@ -0,0 +1,72 @@
@@ -24493,7 +24755,7 @@ index 0000000..006640b
 +}
 diff --git a/rpcs3/ios/NeoSwap.h b/rpcs3/ios/NeoSwap.h
 new file mode 100644
-index 0000000..79d7cef
+index 000000000..79d7cef6a
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwap.h
 @@ -0,0 +1,80 @@
@@ -24579,7 +24841,7 @@ index 0000000..79d7cef
 +#endif
 diff --git a/rpcs3/ios/NeoSwapClient.h b/rpcs3/ios/NeoSwapClient.h
 new file mode 100644
-index 0000000..fa17794
+index 000000000..fa1779417
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapClient.h
 @@ -0,0 +1,102 @@
@@ -24687,7 +24949,7 @@ index 0000000..fa17794
 +}
 diff --git a/rpcs3/ios/NeoSwapClientStats.h b/rpcs3/ios/NeoSwapClientStats.h
 new file mode 100644
-index 0000000..91bb89d
+index 000000000..91bb89d96
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapClientStats.h
 @@ -0,0 +1,13 @@
@@ -24706,7 +24968,7 @@ index 0000000..91bb89d
 +} NeoSwapClientStats;
 diff --git a/rpcs3/ios/NeoSwapCompilerAPI.h b/rpcs3/ios/NeoSwapCompilerAPI.h
 new file mode 100644
-index 0000000..d02d254
+index 000000000..d02d25449
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapCompilerAPI.h
 @@ -0,0 +1,16 @@
@@ -24728,7 +24990,7 @@ index 0000000..d02d254
 +#endif
 diff --git a/rpcs3/ios/NeoSwapRelay.h b/rpcs3/ios/NeoSwapRelay.h
 new file mode 100644
-index 0000000..7c8d616
+index 000000000..7c8d6165c
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapRelay.h
 @@ -0,0 +1,165 @@
@@ -24899,7 +25161,7 @@ index 0000000..7c8d616
 +#endif
 diff --git a/rpcs3/ios/NeoSwapRelayClient.h b/rpcs3/ios/NeoSwapRelayClient.h
 new file mode 100644
-index 0000000..2299c6c
+index 000000000..2299c6c2a
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapRelayClient.h
 @@ -0,0 +1,336 @@
@@ -25241,7 +25503,7 @@ index 0000000..2299c6c
 +}
 diff --git a/rpcs3/ios/NeoSwapStorage/Client.h b/rpcs3/ios/NeoSwapStorage/Client.h
 new file mode 100644
-index 0000000..a0d7975
+index 000000000..a0d79757d
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapStorage/Client.h
 @@ -0,0 +1,72 @@
@@ -25319,7 +25581,7 @@ index 0000000..a0d7975
 +}
 diff --git a/rpcs3/ios/NeoSwapStorage/FrameClient.h b/rpcs3/ios/NeoSwapStorage/FrameClient.h
 new file mode 100644
-index 0000000..e0724fa
+index 000000000..e0724fae9
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapStorage/FrameClient.h
 @@ -0,0 +1,80 @@
@@ -25405,7 +25667,7 @@ index 0000000..e0724fa
 +}
 diff --git a/rpcs3/ios/NeoSwapStorage/ShaderKey.h b/rpcs3/ios/NeoSwapStorage/ShaderKey.h
 new file mode 100644
-index 0000000..86f7444
+index 000000000..86f7444df
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapStorage/ShaderKey.h
 @@ -0,0 +1,22 @@
@@ -25433,7 +25695,7 @@ index 0000000..86f7444
 +}
 diff --git a/rpcs3/ios/NeoSwapStorage/SourceABI.h b/rpcs3/ios/NeoSwapStorage/SourceABI.h
 new file mode 100644
-index 0000000..aad4038
+index 000000000..aad4038f9
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapStorage/SourceABI.h
 @@ -0,0 +1,34 @@
@@ -25473,7 +25735,7 @@ index 0000000..aad4038
 +#endif
 diff --git a/rpcs3/ios/NeoSwapStorage/SourceClient.cpp b/rpcs3/ios/NeoSwapStorage/SourceClient.cpp
 new file mode 100644
-index 0000000..02c18dd
+index 000000000..02c18dd7d
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapStorage/SourceClient.cpp
 @@ -0,0 +1,180 @@
@@ -25659,7 +25921,7 @@ index 0000000..02c18dd
 +}
 diff --git a/rpcs3/ios/NeoSwapStorage/SourceClient.h b/rpcs3/ios/NeoSwapStorage/SourceClient.h
 new file mode 100644
-index 0000000..313e75b
+index 000000000..313e75b10
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapStorage/SourceClient.h
 @@ -0,0 +1,35 @@
@@ -25700,7 +25962,7 @@ index 0000000..313e75b
 +}
 diff --git a/rpcs3/ios/NeoSwapStorage/StorageABI.h b/rpcs3/ios/NeoSwapStorage/StorageABI.h
 new file mode 100644
-index 0000000..535b53e
+index 000000000..535b53ed2
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapStorage/StorageABI.h
 @@ -0,0 +1,36 @@
@@ -25742,7 +26004,7 @@ index 0000000..535b53e
 +#endif
 diff --git a/rpcs3/ios/NeoSwapStorage/VideoBuffer.h b/rpcs3/ios/NeoSwapStorage/VideoBuffer.h
 new file mode 100644
-index 0000000..3ddea67
+index 000000000..3ddea67bf
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapStorage/VideoBuffer.h
 @@ -0,0 +1,122 @@
@@ -25870,7 +26132,7 @@ index 0000000..3ddea67
 +}
 diff --git a/rpcs3/ios/NeoSwapVulkanBuffer.h b/rpcs3/ios/NeoSwapVulkanBuffer.h
 new file mode 100644
-index 0000000..112f20b
+index 000000000..112f20b35
 --- /dev/null
 +++ b/rpcs3/ios/NeoSwapVulkanBuffer.h
 @@ -0,0 +1,142 @@
@@ -26017,7 +26279,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..848875c 100644
+index 74a6dc731..848875cd7 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,15 @@
@@ -27007,7 +27269,7 @@ index 74a6dc7..848875c 100644
 +    return neostation::source_client::install(api);
 +}
 diff --git a/rpcs3/ios/RPCS3IOS.exports b/rpcs3/ios/RPCS3IOS.exports
-index d7529ab..de1231a 100644
+index d7529ab6a..de1231a0e 100644
 --- a/rpcs3/ios/RPCS3IOS.exports
 +++ b/rpcs3/ios/RPCS3IOS.exports
 @@ -72,3 +72,19 @@ _rpcs3_ios_stop_emulation
@@ -27031,7 +27293,7 @@ index d7529ab..de1231a 100644
 +
 +_rpcs3_ios_set_compiler_budget_api
 diff --git a/rpcs3/ios/RPCS3IOS.h b/rpcs3/ios/RPCS3IOS.h
-index 20526d0..7c44b0f 100644
+index 20526d090..7c44b0fef 100644
 --- a/rpcs3/ios/RPCS3IOS.h
 +++ b/rpcs3/ios/RPCS3IOS.h
 @@ -3,6 +3,8 @@
@@ -27119,7 +27381,7 @@ index 20526d0..7c44b0f 100644
  RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_pause_emulation(void) RPCS3_IOS_NOEXCEPT;
 diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 new file mode 100644
-index 0000000..74ff550
+index 000000000..74ff550bd
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 @@ -0,0 +1,492 @@
@@ -27617,7 +27879,7 @@ index 0000000..74ff550
 +}
 diff --git a/rpcs3/ios/RPCS3IOSConfigInheritance.h b/rpcs3/ios/RPCS3IOSConfigInheritance.h
 new file mode 100644
-index 0000000..23005f9
+index 000000000..23005f959
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSConfigInheritance.h
 @@ -0,0 +1,119 @@
@@ -27741,7 +28003,7 @@ index 0000000..23005f9
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSContract.h b/rpcs3/ios/RPCS3IOSContract.h
-index b4602fe..37a708a 100644
+index b4602fea9..37a708aa6 100644
 --- a/rpcs3/ios/RPCS3IOSContract.h
 +++ b/rpcs3/ios/RPCS3IOSContract.h
 @@ -34,7 +34,9 @@ inline rpcs3_ios_status validate_config_contract(const rpcs3_ios_config* config)
@@ -27769,7 +28031,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..57722bc 100644
+index 7c3389b83..57722bc78 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,8 +1,10 @@
@@ -27927,7 +28189,7 @@ index 7c3389b..57722bc 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..1e1c877 100644
+index 8fba197b4..1e1c877bf 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -27983,7 +28245,7 @@ index 8fba197..1e1c877 100644
  // function pointer from resolve_experimental_policy().
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
-index 0000000..cc826f8
+index 000000000..cc826f811
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 @@ -0,0 +1,277 @@
@@ -28266,7 +28528,7 @@ index 0000000..cc826f8
 +}
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.h b/rpcs3/ios/RPCS3IOSFreezeDump.h
 new file mode 100644
-index 0000000..214e4fe
+index 000000000..214e4fe21
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.h
 @@ -0,0 +1,18 @@
@@ -28290,7 +28552,7 @@ index 0000000..214e4fe
 +void neostation_freeze_dump(const char* reason, double seconds_without_frames, double busiest_group_cores);
 diff --git a/rpcs3/ios/RPCS3IOSLeverHelpers.h b/rpcs3/ios/RPCS3IOSLeverHelpers.h
 new file mode 100644
-index 0000000..094a672
+index 000000000..094a67210
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSLeverHelpers.h
 @@ -0,0 +1,307 @@
@@ -28602,10 +28864,10 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..15ffa11 100644
+index d8005424b..29869927f 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,180 @@
+@@ -1,26 +1,182 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -28619,6 +28881,8 @@ index d800542..15ffa11 100644
 +#include "Emu/system_config.h"
 +#include "Utilities/JITPhaseProfile.h"
 +#include "Utilities/JITMemoryProfile.h"
++#include "IOSTextureValidationProfile.h"
++#include "IOSReadbackProfile.h"
 +#include "IOSCompileAdmission.h"
 +#include "IOSRuntimeMetrics.h"
 +#include "IOSShaderTiming.h"
@@ -28786,7 +29050,7 @@ index d800542..15ffa11 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +192,387 @@ u64 process_memory_footprint()
+@@ -38,31 +194,387 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -29184,7 +29448,7 @@ index d800542..15ffa11 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +582,10 @@ public:
+@@ -72,10 +584,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -29197,7 +29461,7 @@ index d800542..15ffa11 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +618,703 @@ public:
+@@ -108,12 +620,722 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -29482,12 +29746,14 @@ index d800542..15ffa11 100644
 +                "COREPROF SHADERPIPE543 session=%llu window=%llu new_vertex=%llu new_fragment=%llu state_only=%llu "
 +                "abandoned=%llu pending_wait=%llu:%llu:%llu feedback=%llu vs_cached=%llu vs_compiled=%llu "
 +                "fs_cached=%llu fs_compiled=%llu cache_additions=%llu live_pipelines=%lld "
-+                "fingerprints_captured=%u distinct=%llu repeated_builds=%llu fingerprint_dropped=%llu",
++                "fingerprints_captured=%u distinct=%llu repeated_builds=%llu fingerprint_dropped=%llu "
++                "fingerprint_tracked=%llu fingerprint_evicted=%llu fingerprint_unattributed=%llu fingerprint_scope=recent64 repeats_lower_bound=1",
 +                profile_session, profile_window, pipe.new_vertex, pipe.new_fragment, pipe.state_only,
 +                pipe.abandoned, pipe.pending_wait.count, pipe.pending_wait.total, pipe.pending_wait.maximum,
 +                pipe.feedback, pipe.vertex_cached, pipe.vertex_compiled, pipe.fragment_cached, pipe.fragment_compiled,
 +                pipe.cache_additions, static_cast<long long>(pipe.live), prints.captured ? 1u : 0u,
-+                prints.distinct, prints.repeated_builds, prints.dropped);
++                prints.distinct, prints.repeated_builds, prints.dropped,
++                prints.tracked, prints.evicted, prints.unattributed);
 +            for (const auto& entry : prints.costliest)
 +            {
 +                if (!entry.fingerprint) continue;
@@ -29606,6 +29872,20 @@ index d800542..15ffa11 100644
 +                d[wait::event_waits], milliseconds(d[wait::event_wait_ticks]),
 +                d[wait::putllc_ok], d[wait::putllc_fail], d[wait::putllc_heavy]);
 +        }
++        // CELL555_READBACK_EXPORT: fixed five origins, one bounded line per window.
++        {
++            const auto batches = rpcs3::ios::readback::take();
++            std::string line = fmt::format("COREPROF READBACK555 session=%llu window=%llu tuple=batches:sections:confirmed_bytes:total_ms:max_ms",
++                profile_session, profile_window);
++            for (unsigned i = 0; i < batches.size(); ++i)
++            {
++                const auto& batch = batches[i];
++                fmt::append(line, " %s=%llu:%llu:%llu:%.3f:%.3f", rpcs3::ios::readback::names[i],
++                    batch.duration_ticks.count, batch.sections, batch.confirmed_bytes,
++                    milliseconds(batch.duration_ticks.total), milliseconds(batch.duration_ticks.maximum));
++            }
++            ios_core_profiler.notice("%s scope=process_window_all_threads parent_includes_gpu_fence=1 bytes_scope=confirmed_requested_not_dma_payload window_boundary_approximate=1", line);
++        }
 +        const auto& mem = memory_window.latest;
 +        const auto& peak = memory_window.peak;
 +        ios_core_profiler.notice(
@@ -29699,12 +29979,15 @@ index d800542..15ffa11 100644
 +		const auto gpu_memory = rpcs3::ios::capture_graphics_memory_snapshot();
 +		const auto vma_memory = rpcs3::ios::vma_profile.capture();
 +		const auto texture_memory = rpcs3::ios::texture_profile.capture();
-+		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu vma_snapshot_valid=%u vma_owner_live=%u vma_sample_valid=%u vma_generation=%llu gpu_pools_valid=%u gpu_system_requested=%llu gpu_surfaces_requested=%llu gpu_textures_requested=%llu gpu_swapchain_requested=%llu gpu_scratch_requested=%llu gpu_other_requested=%llu gpu_samplers=%llu gpu_pool_scope=requested_allocation_bytes_not_physical_ram texture_snapshot_valid=%u texture_owner_live=%u texture_sample_valid=%u texture_generation=%llu texture_recyclable_images=%llu texture_recyclable_bytes=%llu texture_sample_scope=last_frame_end texture_pending_scope=unmeasured",
++		ios_core_profiler.notice("JITMEM active=%u active_peak=%u samples=%llu footprint_peak_mib=%.3f headroom_min_mib=%.3f cache_index_hits=%llu cache_buffer_hits=%llu texture_hash_bytes=%llu texture_hash_ticks=%llu texture_hash_counter_hz=%llu texture_hash_scope=hybrid_ge4096 texture_trim_calls=%llu texture_trim_sections=%llu texture_trim_bytes=%llu texture_trim_ticks=%llu texture_trim_scope=frame_end_all_sizes vma_block_bytes=%llu vma_allocated=%llu vma_unused=%llu vma_snapshot_valid=%u vma_owner_live=%u vma_sample_valid=%u vma_generation=%llu gpu_pools_valid=%u gpu_system_requested=%llu gpu_surfaces_requested=%llu gpu_textures_requested=%llu gpu_swapchain_requested=%llu gpu_scratch_requested=%llu gpu_other_requested=%llu gpu_samplers=%llu gpu_pool_scope=requested_allocation_bytes_not_physical_ram texture_snapshot_valid=%u texture_owner_live=%u texture_sample_valid=%u texture_generation=%llu texture_recyclable_images=%llu texture_recyclable_bytes=%llu texture_sample_scope=last_frame_end texture_pending_scope=unmeasured",
 +			jit_memory::active.load(), jit_memory::peak_active.exchange(0), jit_memory::samples.exchange(0),
 +			static_cast<double>(jit_memory::footprint_peak.exchange(0)) / 0x100000,
 +			static_cast<double>(jit_memory::headroom_min.load() == UINT64_MAX ? 0 : jit_memory::headroom_min.exchange(UINT64_MAX)) / 0x100000,
 +			jit_memory::cache_index_hits.exchange(0), jit_memory::cache_buffer_hits.exchange(0),
 +			jit_memory::texture_hash_bytes.exchange(0), jit_memory::texture_hash_ticks.exchange(0),
++			frequency,
++			rpcs3::ios::texture_validation::trim_calls.exchange(0), rpcs3::ios::texture_validation::trim_sections.exchange(0),
++			rpcs3::ios::texture_validation::trim_bytes.exchange(0), rpcs3::ios::texture_validation::trim_ticks.exchange(0),
 +			vma_memory.block_bytes, vma_memory.allocated, vma_memory.unused,
 +			vma_memory.captured ? 1u : 0u, vma_memory.owner_live ? 1u : 0u,
 +			vma_memory.sampled ? 1u : 0u, vma_memory.generation,
@@ -29903,7 +30186,7 @@ index d800542..15ffa11 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1322,91 @@ private:
+@@ -121,6 +1343,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -29995,7 +30278,7 @@ index d800542..15ffa11 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1414,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1435,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -30083,7 +30366,7 @@ index d800542..15ffa11 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1505,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1526,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -30212,7 +30495,7 @@ index d800542..15ffa11 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1636,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1657,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -30255,7 +30538,7 @@ index d800542..15ffa11 100644
  {
  #ifdef RPCS3_IOS
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.h b/rpcs3/ios/RPCS3IOSPerformance.h
-index 88392e0..d083837 100644
+index 88392e05f..d08383774 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.h
 +++ b/rpcs3/ios/RPCS3IOSPerformance.h
 @@ -15,10 +15,82 @@ void reset_performance_metrics();
@@ -30342,7 +30625,7 @@ index 88392e0..d083837 100644
  // allocation workload, such as an LLVM compilation batch.
  u64 relieve_process_memory_pressure() noexcept;
 diff --git a/rpcs3/ios/RPCS3IOSPlatform.mm b/rpcs3/ios/RPCS3IOSPlatform.mm
-index 41559b0..5f14975 100644
+index 41559b064..5f149756e 100644
 --- a/rpcs3/ios/RPCS3IOSPlatform.mm
 +++ b/rpcs3/ios/RPCS3IOSPlatform.mm
 @@ -8,6 +8,32 @@
@@ -30380,7 +30663,7 @@ index 41559b0..5f14975 100644
  {
 diff --git a/rpcs3/ios/RPCS3IOSProfilerHelpers.h b/rpcs3/ios/RPCS3IOSProfilerHelpers.h
 new file mode 100644
-index 0000000..b6b0c69
+index 000000000..b6b0c699e
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSProfilerHelpers.h
 @@ -0,0 +1,342 @@
@@ -30727,7 +31010,7 @@ index 0000000..b6b0c69
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..49a78a9 100644
+index b7b047471..49a78a99a 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -30959,7 +31242,7 @@ index b7b0474..49a78a9 100644
  {
  	switch (error)
 diff --git a/rpcs3/ios/RPCS3IOSSettings.h b/rpcs3/ios/RPCS3IOSSettings.h
-index 74abaa0..b00e894 100644
+index 74abaa0cb..b00e89473 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.h
 +++ b/rpcs3/ios/RPCS3IOSSettings.h
 @@ -75,6 +75,10 @@ bool save_global_settings() noexcept;
@@ -30975,7 +31258,7 @@ index 74abaa0..b00e894 100644
  game_settings_preset_result enumerate_game_settings_presets(
 diff --git a/rpcs3/ios/RPCS3IOSWriterCounters.h b/rpcs3/ios/RPCS3IOSWriterCounters.h
 new file mode 100644
-index 0000000..f54ef27
+index 000000000..f54ef27c6
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSWriterCounters.h
 @@ -0,0 +1,95 @@
@@ -31076,7 +31359,7 @@ index 0000000..f54ef27
 +}
 diff --git a/rpcs3/ios/tests/FramebufferSourceTests.cpp b/rpcs3/ios/tests/FramebufferSourceTests.cpp
 new file mode 100644
-index 0000000..717dbdd
+index 000000000..717dbdd7d
 --- /dev/null
 +++ b/rpcs3/ios/tests/FramebufferSourceTests.cpp
 @@ -0,0 +1,69 @@
@@ -31150,7 +31433,7 @@ index 0000000..717dbdd
 +    std::printf("Framebuffer source selection: %d checks passed\n", checks);
 +}
 diff --git a/rpcs3/ios/tests/IOSMemoryPressurePolicyTests.cpp b/rpcs3/ios/tests/IOSMemoryPressurePolicyTests.cpp
-index 3d22dfa..9b109be 100644
+index 3d22dfa3e..9b109be4d 100644
 --- a/rpcs3/ios/tests/IOSMemoryPressurePolicyTests.cpp
 +++ b/rpcs3/ios/tests/IOSMemoryPressurePolicyTests.cpp
 @@ -47,4 +47,52 @@ int main()
@@ -31208,7 +31491,7 @@ index 3d22dfa..9b109be 100644
  }
 diff --git a/rpcs3/ios/tests/ISODirectoryTests.cpp b/rpcs3/ios/tests/ISODirectoryTests.cpp
 new file mode 100644
-index 0000000..7ee646a
+index 000000000..7ee646a38
 --- /dev/null
 +++ b/rpcs3/ios/tests/ISODirectoryTests.cpp
 @@ -0,0 +1,121 @@
@@ -31334,7 +31617,7 @@ index 0000000..7ee646a
 +    printf("ISO directory: %u parser/enumeration/ordering cases passed.\n", cases);
 +}
 diff --git a/rpcs3/ios/tests/JITArenaAllocatorTests.cpp b/rpcs3/ios/tests/JITArenaAllocatorTests.cpp
-index 22e57cf..0f73a7a 100644
+index 22e57cfff..0f73a7a63 100644
 --- a/rpcs3/ios/tests/JITArenaAllocatorTests.cpp
 +++ b/rpcs3/ios/tests/JITArenaAllocatorTests.cpp
 @@ -2,6 +2,7 @@
@@ -31451,7 +31734,7 @@ index 22e57cf..0f73a7a 100644
  }
 diff --git a/rpcs3/ios/tests/MinecraftAtomicSupport.cpp b/rpcs3/ios/tests/MinecraftAtomicSupport.cpp
 new file mode 100644
-index 0000000..774d191
+index 000000000..774d19128
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftAtomicSupport.cpp
 @@ -0,0 +1,37 @@
@@ -31494,7 +31777,7 @@ index 0000000..774d191
 +}
 diff --git a/rpcs3/ios/tests/MinecraftDMABenchmark.cpp b/rpcs3/ios/tests/MinecraftDMABenchmark.cpp
 new file mode 100644
-index 0000000..c921885
+index 000000000..c921885bd
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftDMABenchmark.cpp
 @@ -0,0 +1,50 @@
@@ -31550,7 +31833,7 @@ index 0000000..c921885
 +}
 diff --git a/rpcs3/ios/tests/MinecraftDescriptorTests.cpp b/rpcs3/ios/tests/MinecraftDescriptorTests.cpp
 new file mode 100644
-index 0000000..8ef14e3
+index 000000000..8ef14e364
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftDescriptorTests.cpp
 @@ -0,0 +1,237 @@
@@ -31793,7 +32076,7 @@ index 0000000..8ef14e3
 +}
 diff --git a/rpcs3/ios/tests/MinecraftFenceTests.cpp b/rpcs3/ios/tests/MinecraftFenceTests.cpp
 new file mode 100644
-index 0000000..164fdf4
+index 000000000..164fdf40c
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftFenceTests.cpp
 @@ -0,0 +1,181 @@
@@ -31980,7 +32263,7 @@ index 0000000..164fdf4
 +}
 diff --git a/rpcs3/ios/tests/MinecraftIndexTests.cpp b/rpcs3/ios/tests/MinecraftIndexTests.cpp
 new file mode 100644
-index 0000000..bf44b40
+index 000000000..bf44b4055
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftIndexTests.cpp
 @@ -0,0 +1,213 @@
@@ -32199,7 +32482,7 @@ index 0000000..bf44b40
 +}
 diff --git a/rpcs3/ios/tests/MinecraftOptimizationTests.cpp b/rpcs3/ios/tests/MinecraftOptimizationTests.cpp
 new file mode 100644
-index 0000000..d62a9df
+index 000000000..d62a9df59
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftOptimizationTests.cpp
 @@ -0,0 +1,389 @@
@@ -32594,7 +32877,7 @@ index 0000000..d62a9df
 +}
 diff --git a/rpcs3/ios/tests/MinecraftReference/IOSDMACopy.h b/rpcs3/ios/tests/MinecraftReference/IOSDMACopy.h
 new file mode 100644
-index 0000000..b6c26eb
+index 000000000..b6c26eb87
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/IOSDMACopy.h
 @@ -0,0 +1,38 @@
@@ -32638,7 +32921,7 @@ index 0000000..b6c26eb
 +}
 diff --git a/rpcs3/ios/tests/MinecraftReference/README.md b/rpcs3/ios/tests/MinecraftReference/README.md
 new file mode 100644
-index 0000000..3c1eb86
+index 000000000..3c1eb866a
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/README.md
 @@ -0,0 +1,7 @@
@@ -32651,7 +32934,7 @@ index 0000000..3c1eb86
 +Run each Python runner normally or with `--sanitize`; `--benchmark` alternates old/new order, excludes two warmups and reports ten-repeat medians. Fence benchmarks report waiting CPU and wake latency separately. Mac/ARM host measurements establish component performance, not iPhone FPS. References cover test domains, not a proof of all emulator behavior. The full contract runner includes the new paths; the existing IOSFPSBatch fixture covers DMA and hashing. See the parent diagnostics report for accepted/rejected candidates, validation and the physical checkpoint.
 diff --git a/rpcs3/ios/tests/MinecraftReference/SHA256.json b/rpcs3/ios/tests/MinecraftReference/SHA256.json
 new file mode 100644
-index 0000000..77e63fc
+index 000000000..77e63fce0
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/SHA256.json
 @@ -0,0 +1,27 @@
@@ -32684,7 +32967,7 @@ index 0000000..77e63fc
 +}
 diff --git a/rpcs3/ios/tests/MinecraftReference/analyse.inc b/rpcs3/ios/tests/MinecraftReference/analyse.inc
 new file mode 100644
-index 0000000..16c6d3a
+index 000000000..16c6d3aac
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/analyse.inc
 @@ -0,0 +1,176 @@
@@ -32866,7 +33149,7 @@ index 0000000..16c6d3a
 +	}
 diff --git a/rpcs3/ios/tests/MinecraftReference/cache.inc b/rpcs3/ios/tests/MinecraftReference/cache.inc
 new file mode 100644
-index 0000000..850f248
+index 000000000..850f24870
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/cache.inc
 @@ -0,0 +1,56 @@
@@ -32928,7 +33211,7 @@ index 0000000..850f248
 +		};
 diff --git a/rpcs3/ios/tests/MinecraftReference/cmp.inc b/rpcs3/ios/tests/MinecraftReference/cmp.inc
 new file mode 100644
-index 0000000..89458e6
+index 000000000..89458e65a
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/cmp.inc
 @@ -0,0 +1,37 @@
@@ -32971,7 +33254,7 @@ index 0000000..89458e6
 +}
 diff --git a/rpcs3/ios/tests/MinecraftReference/descriptor-bind-BufferInfo.inc b/rpcs3/ios/tests/MinecraftReference/descriptor-bind-BufferInfo.inc
 new file mode 100644
-index 0000000..78e97ec
+index 000000000..78e97ec2e
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/descriptor-bind-BufferInfo.inc
 @@ -0,0 +1,9 @@
@@ -32987,7 +33270,7 @@ index 0000000..78e97ec
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/descriptor-bind-BufferView.inc b/rpcs3/ios/tests/MinecraftReference/descriptor-bind-BufferView.inc
 new file mode 100644
-index 0000000..85d25f1
+index 000000000..85d25f1b3
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/descriptor-bind-BufferView.inc
 @@ -0,0 +1,9 @@
@@ -33003,7 +33286,7 @@ index 0000000..85d25f1
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/descriptor-bind-ImageInfo.inc b/rpcs3/ios/tests/MinecraftReference/descriptor-bind-ImageInfo.inc
 new file mode 100644
-index 0000000..79d65a2
+index 000000000..79d65a25f
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/descriptor-bind-ImageInfo.inc
 @@ -0,0 +1,9 @@
@@ -33019,7 +33302,7 @@ index 0000000..79d65a2
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/descriptor-eq-BufferInfo.inc b/rpcs3/ios/tests/MinecraftReference/descriptor-eq-BufferInfo.inc
 new file mode 100644
-index 0000000..ce93fb2
+index 000000000..ce93fb292
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/descriptor-eq-BufferInfo.inc
 @@ -0,0 +1,9 @@
@@ -33035,7 +33318,7 @@ index 0000000..ce93fb2
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/descriptor-eq-BufferView.inc b/rpcs3/ios/tests/MinecraftReference/descriptor-eq-BufferView.inc
 new file mode 100644
-index 0000000..8cb8ece
+index 000000000..8cb8ece85
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/descriptor-eq-BufferView.inc
 @@ -0,0 +1,5 @@
@@ -33047,7 +33330,7 @@ index 0000000..8cb8ece
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/descriptor-eq-ImageInfo.inc b/rpcs3/ios/tests/MinecraftReference/descriptor-eq-ImageInfo.inc
 new file mode 100644
-index 0000000..2041b09
+index 000000000..2041b09be
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/descriptor-eq-ImageInfo.inc
 @@ -0,0 +1,9 @@
@@ -33063,7 +33346,7 @@ index 0000000..2041b09
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/descriptor-types.inc b/rpcs3/ios/tests/MinecraftReference/descriptor-types.inc
 new file mode 100644
-index 0000000..5b6232e
+index 000000000..5b6232ed7
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/descriptor-types.inc
 @@ -0,0 +1,25 @@
@@ -33095,7 +33378,7 @@ index 0000000..5b6232e
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/dirty.inc b/rpcs3/ios/tests/MinecraftReference/dirty.inc
 new file mode 100644
-index 0000000..26fbeae
+index 000000000..26fbeaeff
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/dirty.inc
 @@ -0,0 +1,6 @@
@@ -33107,7 +33390,7 @@ index 0000000..26fbeae
 +			}
 diff --git a/rpcs3/ios/tests/MinecraftReference/fence-signal_flushed.inc b/rpcs3/ios/tests/MinecraftReference/fence-signal_flushed.inc
 new file mode 100644
-index 0000000..f0a8dd8
+index 000000000..f0a8dd8d9
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/fence-signal_flushed.inc
 @@ -0,0 +1,4 @@
@@ -33118,7 +33401,7 @@ index 0000000..f0a8dd8
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/fence-wait_flush.inc b/rpcs3/ios/tests/MinecraftReference/fence-wait_flush.inc
 new file mode 100644
-index 0000000..472ba7d
+index 000000000..472ba7d33
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/fence-wait_flush.inc
 @@ -0,0 +1,7 @@
@@ -33132,7 +33415,7 @@ index 0000000..472ba7d
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/fill.inc b/rpcs3/ios/tests/MinecraftReference/fill.inc
 new file mode 100644
-index 0000000..f2c79ee
+index 000000000..f2c79eee2
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/fill.inc
 @@ -0,0 +1,212 @@
@@ -33350,7 +33633,7 @@ index 0000000..f2c79ee
 +	}
 diff --git a/rpcs3/ios/tests/MinecraftReference/index-dispatch.inc b/rpcs3/ios/tests/MinecraftReference/index-dispatch.inc
 new file mode 100644
-index 0000000..0893d90
+index 000000000..0893d9008
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/index-dispatch.inc
 @@ -0,0 +1,13 @@
@@ -33370,7 +33653,7 @@ index 0000000..0893d90
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/index-generator.inc b/rpcs3/ios/tests/MinecraftReference/index-generator.inc
 new file mode 100644
-index 0000000..b9a9c9d
+index 000000000..b9a9c9daf
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/index-generator.inc
 @@ -0,0 +1,110 @@
@@ -33486,7 +33769,7 @@ index 0000000..b9a9c9d
 +
 diff --git a/rpcs3/ios/tests/MinecraftReference/index-size.inc b/rpcs3/ios/tests/MinecraftReference/index-size.inc
 new file mode 100644
-index 0000000..5e2cf0c
+index 000000000..5e2cf0c58
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/index-size.inc
 @@ -0,0 +1,9 @@
@@ -33502,7 +33785,7 @@ index 0000000..5e2cf0c
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/layout.inc b/rpcs3/ios/tests/MinecraftReference/layout.inc
 new file mode 100644
-index 0000000..280939e
+index 000000000..280939e61
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/layout.inc
 @@ -0,0 +1,97 @@
@@ -33605,7 +33888,7 @@ index 0000000..280939e
 +	};
 diff --git a/rpcs3/ios/tests/MinecraftReference/mov.inc b/rpcs3/ios/tests/MinecraftReference/mov.inc
 new file mode 100644
-index 0000000..a54204f
+index 000000000..a54204f10
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/mov.inc
 @@ -0,0 +1,34 @@
@@ -33645,7 +33928,7 @@ index 0000000..a54204f
 +}
 diff --git a/rpcs3/ios/tests/MinecraftReference/range.inc b/rpcs3/ios/tests/MinecraftReference/range.inc
 new file mode 100644
-index 0000000..6ef0e66
+index 000000000..6ef0e664b
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/range.inc
 @@ -0,0 +1,165 @@
@@ -33816,7 +34099,7 @@ index 0000000..6ef0e66
 +	}
 diff --git a/rpcs3/ios/tests/MinecraftReference/transfer.inc b/rpcs3/ios/tests/MinecraftReference/transfer.inc
 new file mode 100644
-index 0000000..c7f41a5
+index 000000000..c7f41a546
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/transfer.inc
 @@ -0,0 +1,25 @@
@@ -33847,7 +34130,7 @@ index 0000000..c7f41a5
 +	}
 diff --git a/rpcs3/ios/tests/MinecraftReference/transport.inc b/rpcs3/ios/tests/MinecraftReference/transport.inc
 new file mode 100644
-index 0000000..48daae7
+index 000000000..48daae7db
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/transport.inc
 @@ -0,0 +1,29 @@
@@ -33883,7 +34166,7 @@ index 0000000..48daae7
 \ No newline at end of file
 diff --git a/rpcs3/ios/tests/MinecraftReference/type.inc b/rpcs3/ios/tests/MinecraftReference/type.inc
 new file mode 100644
-index 0000000..1583677
+index 000000000..15836774e
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/type.inc
 @@ -0,0 +1,52 @@
@@ -33941,7 +34224,7 @@ index 0000000..1583677
 +	}
 diff --git a/rpcs3/ios/tests/MinecraftReference/validate.inc b/rpcs3/ios/tests/MinecraftReference/validate.inc
 new file mode 100644
-index 0000000..0f4ec85
+index 000000000..0f4ec8583
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReference/validate.inc
 @@ -0,0 +1,46 @@
@@ -33993,7 +34276,7 @@ index 0000000..0f4ec85
 +		}
 diff --git a/rpcs3/ios/tests/MinecraftReservationTests.cpp b/rpcs3/ios/tests/MinecraftReservationTests.cpp
 new file mode 100644
-index 0000000..49c2c95
+index 000000000..49c2c95b0
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftReservationTests.cpp
 @@ -0,0 +1,156 @@
@@ -34155,7 +34438,7 @@ index 0000000..49c2c95
 +}
 diff --git a/rpcs3/ios/tests/MinecraftVertexTests.cpp b/rpcs3/ios/tests/MinecraftVertexTests.cpp
 new file mode 100644
-index 0000000..90962b5
+index 000000000..90962b51a
 --- /dev/null
 +++ b/rpcs3/ios/tests/MinecraftVertexTests.cpp
 @@ -0,0 +1,614 @@
@@ -34775,7 +35058,7 @@ index 0000000..90962b5
 +}
 diff --git a/rpcs3/ios/tests/NativeProgressCompletionTests.cpp b/rpcs3/ios/tests/NativeProgressCompletionTests.cpp
 new file mode 100644
-index 0000000..cc8d484
+index 000000000..cc8d484f3
 --- /dev/null
 +++ b/rpcs3/ios/tests/NativeProgressCompletionTests.cpp
 @@ -0,0 +1,58 @@
@@ -34839,7 +35122,7 @@ index 0000000..cc8d484
 +}
 diff --git a/rpcs3/ios/tests/PPUFarJumpTests.cpp b/rpcs3/ios/tests/PPUFarJumpTests.cpp
 new file mode 100644
-index 0000000..6af495c
+index 000000000..6af495cca
 --- /dev/null
 +++ b/rpcs3/ios/tests/PPUFarJumpTests.cpp
 @@ -0,0 +1,67 @@
@@ -34911,7 +35194,7 @@ index 0000000..6af495c
 +    std::puts("ARM64 far jump: 10,000 generated GHC entries preserve the thread, update PC and escape to the host.");
 +}
 diff --git a/rpcs3/ios/tests/RPCS3IOSContractTests.cpp b/rpcs3/ios/tests/RPCS3IOSContractTests.cpp
-index 453c089..3b1c489 100644
+index 453c089e0..3b1c48918 100644
 --- a/rpcs3/ios/tests/RPCS3IOSContractTests.cpp
 +++ b/rpcs3/ios/tests/RPCS3IOSContractTests.cpp
 @@ -2,6 +2,7 @@
@@ -34948,7 +35231,7 @@ index 453c089..3b1c489 100644
  	static_assert(RPCS3_IOS_EMULATION_STATE_UNKNOWN == 0);
 diff --git a/rpcs3/ios/tests/RSXAlphaCoverageTests.cpp b/rpcs3/ios/tests/RSXAlphaCoverageTests.cpp
 new file mode 100644
-index 0000000..4f2c82f
+index 000000000..4f2c82fd8
 --- /dev/null
 +++ b/rpcs3/ios/tests/RSXAlphaCoverageTests.cpp
 @@ -0,0 +1,143 @@
@@ -35097,7 +35380,7 @@ index 0000000..4f2c82f
 +}
 diff --git a/rpcs3/ios/tests/SPUARM64ConstantTableFixture.cpp b/rpcs3/ios/tests/SPUARM64ConstantTableFixture.cpp
 new file mode 100644
-index 0000000..a72e091
+index 000000000..a72e091db
 --- /dev/null
 +++ b/rpcs3/ios/tests/SPUARM64ConstantTableFixture.cpp
 @@ -0,0 +1,182 @@
@@ -35285,7 +35568,7 @@ index 0000000..a72e091
 +}
 diff --git a/rpcs3/ios/tests/SPUARM64ConstantTableTests.cpp b/rpcs3/ios/tests/SPUARM64ConstantTableTests.cpp
 new file mode 100644
-index 0000000..71f433c
+index 000000000..71f433c85
 --- /dev/null
 +++ b/rpcs3/ios/tests/SPUARM64ConstantTableTests.cpp
 @@ -0,0 +1,518 @@
@@ -35809,7 +36092,7 @@ index 0000000..71f433c
 +}
 diff --git a/rpcs3/ios/tests/VKImagePoolTests.cpp b/rpcs3/ios/tests/VKImagePoolTests.cpp
 new file mode 100644
-index 0000000..fccfb36
+index 000000000..fccfb36e7
 --- /dev/null
 +++ b/rpcs3/ios/tests/VKImagePoolTests.cpp
 @@ -0,0 +1,224 @@
@@ -36039,7 +36322,7 @@ index 0000000..fccfb36
 +}
 diff --git a/rpcs3/ios/tests/WRC4VertexRangeTests.cpp b/rpcs3/ios/tests/WRC4VertexRangeTests.cpp
 new file mode 100644
-index 0000000..afc294b
+index 000000000..afc294b56
 --- /dev/null
 +++ b/rpcs3/ios/tests/WRC4VertexRangeTests.cpp
 @@ -0,0 +1,136 @@
@@ -36181,7 +36464,7 @@ index 0000000..afc294b
 +}
 diff --git a/rpcs3/ios/tests/run-framebuffer-source-tests.py b/rpcs3/ios/tests/run-framebuffer-source-tests.py
 new file mode 100644
-index 0000000..8736de8
+index 000000000..8736de8e0
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-framebuffer-source-tests.py
 @@ -0,0 +1,41 @@
@@ -36228,7 +36511,7 @@ index 0000000..8736de8
 +        result.check_returncode()
 diff --git a/rpcs3/ios/tests/run-iso-directory-tests.py b/rpcs3/ios/tests/run-iso-directory-tests.py
 new file mode 100644
-index 0000000..84a4694
+index 000000000..84a469471
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-iso-directory-tests.py
 @@ -0,0 +1,37 @@
@@ -36271,7 +36554,7 @@ index 0000000..84a4694
 +    subprocess.run([out / 'tests'], check=True)
 diff --git a/rpcs3/ios/tests/run-minecraft-descriptor-tests.py b/rpcs3/ios/tests/run-minecraft-descriptor-tests.py
 new file mode 100644
-index 0000000..e726a27
+index 000000000..e726a27b6
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-minecraft-descriptor-tests.py
 @@ -0,0 +1,24 @@
@@ -36301,7 +36584,7 @@ index 0000000..e726a27
 + subprocess.run(cmd,check=True); subprocess.run([str(t/'test'),*(['benchmark'] if args.benchmark else [])],check=True)
 diff --git a/rpcs3/ios/tests/run-minecraft-dma-tests.py b/rpcs3/ios/tests/run-minecraft-dma-tests.py
 new file mode 100644
-index 0000000..e2ea30b
+index 000000000..e2ea30b6c
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-minecraft-dma-tests.py
 @@ -0,0 +1,13 @@
@@ -36320,7 +36603,7 @@ index 0000000..e2ea30b
 +  subprocess.run([*common,str(HERE/'MinecraftDMABenchmark.cpp'),'-o',str(t/'bench')],check=True);subprocess.run([str(t/'bench')],check=True)
 diff --git a/rpcs3/ios/tests/run-minecraft-fence-tests.py b/rpcs3/ios/tests/run-minecraft-fence-tests.py
 new file mode 100644
-index 0000000..5d5a72e
+index 000000000..5d5a72e64
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-minecraft-fence-tests.py
 @@ -0,0 +1,18 @@
@@ -36344,7 +36627,7 @@ index 0000000..5d5a72e
 + subprocess.run(cmd,check=True);subprocess.run([str(t/'test'),*(['benchmark'] if args.benchmark else [])],check=True,timeout=90)
 diff --git a/rpcs3/ios/tests/run-minecraft-index-tests.py b/rpcs3/ios/tests/run-minecraft-index-tests.py
 new file mode 100644
-index 0000000..750c574
+index 000000000..750c57496
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-minecraft-index-tests.py
 @@ -0,0 +1,16 @@
@@ -36366,7 +36649,7 @@ index 0000000..750c574
 + subprocess.run(cmd,check=True);subprocess.run([str(t/'test'),*(['benchmark'] if args.benchmark else [])],check=True)
 diff --git a/rpcs3/ios/tests/run-minecraft-optimization-tests.py b/rpcs3/ios/tests/run-minecraft-optimization-tests.py
 new file mode 100644
-index 0000000..d1138ee
+index 000000000..d1138ee37
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-minecraft-optimization-tests.py
 @@ -0,0 +1,34 @@
@@ -36406,7 +36689,7 @@ index 0000000..d1138ee
 + subprocess.run([str(t/'test'),*(['benchmark'] if args.benchmark else [])],check=True)
 diff --git a/rpcs3/ios/tests/run-minecraft-reservation-tests.py b/rpcs3/ios/tests/run-minecraft-reservation-tests.py
 new file mode 100644
-index 0000000..9427373
+index 000000000..94273736c
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-minecraft-reservation-tests.py
 @@ -0,0 +1,12 @@
@@ -36424,7 +36707,7 @@ index 0000000..9427373
 + subprocess.run(cmd,check=True);subprocess.run([str(t/'test'),*(['benchmark'] if args.benchmark else [])],check=True)
 diff --git a/rpcs3/ios/tests/run-minecraft-vertex-tests.py b/rpcs3/ios/tests/run-minecraft-vertex-tests.py
 new file mode 100644
-index 0000000..24c072d
+index 000000000..24c072ddf
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-minecraft-vertex-tests.py
 @@ -0,0 +1,23 @@
@@ -36453,7 +36736,7 @@ index 0000000..24c072d
 + subprocess.run(cmd,check=True);subprocess.run([str(t/'test'),*(['benchmark'] if args.benchmark else []),*args.test_argument],check=True)
 diff --git a/rpcs3/ios/tests/run-ppu-far-jump-tests.py b/rpcs3/ios/tests/run-ppu-far-jump-tests.py
 new file mode 100755
-index 0000000..e3a3516
+index 000000000..e3a351673
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-ppu-far-jump-tests.py
 @@ -0,0 +1,34 @@
@@ -36493,7 +36776,7 @@ index 0000000..e3a3516
 +        result.check_returncode()
 diff --git a/rpcs3/ios/tests/run-rsx-alpha-coverage-tests.py b/rpcs3/ios/tests/run-rsx-alpha-coverage-tests.py
 new file mode 100644
-index 0000000..bc8adca
+index 000000000..bc8adca3d
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-rsx-alpha-coverage-tests.py
 @@ -0,0 +1,64 @@
@@ -36563,7 +36846,7 @@ index 0000000..bc8adca
 +        result.check_returncode()
 diff --git a/rpcs3/ios/tests/run-spu-arm64-constant-table-tests.py b/rpcs3/ios/tests/run-spu-arm64-constant-table-tests.py
 new file mode 100644
-index 0000000..3bab624
+index 000000000..3bab6247e
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-spu-arm64-constant-table-tests.py
 @@ -0,0 +1,57 @@
@@ -36626,7 +36909,7 @@ index 0000000..3bab624
 +    main()
 diff --git a/rpcs3/ios/tests/run-vk-image-pool-tests.py b/rpcs3/ios/tests/run-vk-image-pool-tests.py
 new file mode 100644
-index 0000000..d59b084
+index 000000000..d59b08496
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-vk-image-pool-tests.py
 @@ -0,0 +1,61 @@
@@ -36693,7 +36976,7 @@ index 0000000..d59b084
 +            raise SystemExit(result.stderr)
 diff --git a/rpcs3/ios/tests/run-wrc4-vertex-range-tests.py b/rpcs3/ios/tests/run-wrc4-vertex-range-tests.py
 new file mode 100644
-index 0000000..9af25b9
+index 000000000..9af25b91f
 --- /dev/null
 +++ b/rpcs3/ios/tests/run-wrc4-vertex-range-tests.py
 @@ -0,0 +1,10 @@
@@ -36708,7 +36991,7 @@ index 0000000..9af25b9
 +                '--test-source', str(here / 'WRC4VertexRangeTests.cpp'),
 +                *sys.argv[1:]], check=True)
 diff --git a/rpcs3/util/asm.hpp b/rpcs3/util/asm.hpp
-index 406b4e9..8f68949 100644
+index 406b4e94c..8f68949b9 100644
 --- a/rpcs3/util/asm.hpp
 +++ b/rpcs3/util/asm.hpp
 @@ -208,6 +208,12 @@ namespace utils
@@ -36725,7 +37008,7 @@ index 406b4e9..8f68949 100644
  	{
  		u64 freq = 0;
 diff --git a/rpcs3/util/fixed_typemap.hpp b/rpcs3/util/fixed_typemap.hpp
-index bcb5f36..b8fd3bc 100644
+index bcb5f36ba..b8fd3bcfc 100644
 --- a/rpcs3/util/fixed_typemap.hpp
 +++ b/rpcs3/util/fixed_typemap.hpp
 @@ -4,6 +4,9 @@
@@ -36834,7 +37117,7 @@ index bcb5f36..b8fd3bc 100644
  
  			*m_order++ = obj;
 diff --git a/rpcs3/util/logs.cpp b/rpcs3/util/logs.cpp
-index 930cdaa..5a4ef70 100644
+index 930cdaad2..5a4ef704e 100644
 --- a/rpcs3/util/logs.cpp
 +++ b/rpcs3/util/logs.cpp
 @@ -212,7 +212,14 @@ namespace logs
@@ -36875,7 +37158,7 @@ index 930cdaa..5a4ef70 100644
  	// Used character: U+00B7 (Middle Dot)
  	switch (msg)
 diff --git a/rpcs3/util/serialization.hpp b/rpcs3/util/serialization.hpp
-index da54981..b0e3f84 100644
+index da54981d8..b0e3f845c 100644
 --- a/rpcs3/util/serialization.hpp
 +++ b/rpcs3/util/serialization.hpp
 @@ -550,12 +550,13 @@ public:
@@ -36897,7 +37180,7 @@ index da54981..b0e3f84 100644
  
  		// Allow for memory saving operations: if writing, flush to file if too large. If reading, discard memory (not implemented).
 diff --git a/rpcs3/util/serialization_ext.cpp b/rpcs3/util/serialization_ext.cpp
-index cd3dfab..288b9a6 100644
+index cd3dfab08..288b9a6b6 100644
 --- a/rpcs3/util/serialization_ext.cpp
 +++ b/rpcs3/util/serialization_ext.cpp
 @@ -14,6 +14,7 @@
@@ -37093,7 +37376,7 @@ index cd3dfab..288b9a6 100644
  }
  
 diff --git a/rpcs3/util/serialization_ext.hpp b/rpcs3/util/serialization_ext.hpp
-index 5bdeab0..0ed624b 100644
+index 5bdeab0a5..0ed624b74 100644
 --- a/rpcs3/util/serialization_ext.hpp
 +++ b/rpcs3/util/serialization_ext.hpp
 @@ -89,6 +89,13 @@ struct compressed_serialization_file_handler : utils::serialization_file_handler
@@ -37119,7 +37402,7 @@ index 5bdeab0..0ed624b 100644
  	std::unique_ptr<named_thread<std::function<void()>>> m_stream_data_prepare_thread;
  	std::unique_ptr<named_thread<std::function<void()>>> m_file_writer_thread;
 diff --git a/rpcs3/util/simd.hpp b/rpcs3/util/simd.hpp
-index e5de73d..117bd36 100644
+index e5de73dc8..117bd36ee 100644
 --- a/rpcs3/util/simd.hpp
 +++ b/rpcs3/util/simd.hpp
 @@ -3274,6 +3274,320 @@ inline v128 gv_to_be32(const v128& vec)
@@ -37444,7 +37727,7 @@ index e5de73d..117bd36 100644
  #pragma clang diagnostic pop
  #elif defined(__GNUC__)
 diff --git a/rpcs3/util/vm.hpp b/rpcs3/util/vm.hpp
-index 560823c..d173fcf 100644
+index 560823cb3..d173fcf7c 100644
 --- a/rpcs3/util/vm.hpp
 +++ b/rpcs3/util/vm.hpp
 @@ -4,6 +4,9 @@
@@ -37486,7 +37769,7 @@ index 560823c..d173fcf 100644
  		shm(const shm&) = delete;
  
 diff --git a/rpcs3/util/vm_native.cpp b/rpcs3/util/vm_native.cpp
-index 822c170..4afd1a3 100644
+index 822c1708a..4afd1a39c 100644
 --- a/rpcs3/util/vm_native.cpp
 +++ b/rpcs3/util/vm_native.cpp
 @@ -497,7 +497,7 @@ namespace utils
