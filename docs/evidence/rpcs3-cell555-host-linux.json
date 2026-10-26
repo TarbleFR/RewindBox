@@ -1,0 +1,171 @@
+{
+  "passed": true,
+  "result": "passed",
+  "build": 555,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "sourceContract": {
+    "baseline": "b3955a21b8c23bca27251c49a5c73112cd790d95",
+    "fixtureSHA256": "32eaf0f7b5c14354c74ea755496af3b1e1547806c6fcc2f36e70062d02cdf2f5",
+    "manifestSHA256": "042290db6a42eeb78a9bf1e2b7db9c1563532919a8d9b98e82954f8f21e4a7c4",
+    "sourceSHA256": {
+      "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "41f2fec60207c210c5f9b4adf7d9b7c78f2265ac14a1769d6f90c98270af5a4b",
+      "rpcs3/ios/IOSShaderTiming.h": "e6e01cbc2457813dd9e5c01973a4323690d7bad0749f8c41cafaecde25213a54",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "c1be39f2d09be5febe25ca1a4297ed0a1f5390699894769c222e4b14a5246e9e",
+      "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "d9af29d486b675c00a838608ac3c6bc48b3eb51ca629270b0909dd2f28b0e3a1",
+      "rpcs3/Emu/RSX/Common/texture_cache.h": "6a6790a1c28f45409bfe7ef088cfee927e93ecece5fe3420a360b0fe081b5de3",
+      "rpcs3/Emu/RSX/VK/VKPresent.cpp": "1139e368ad0f5a039cd8ccf1f58149a2853742ef4f79c3e711bb23756fa69c50",
+      "rpcs3/ios/IOSTextureValidationProfile.h": "4541e9eaf9368094e805fafee57369fa5a645711dd69422b0fb945c2e90becee",
+      "rpcs3/ios/IOSReadbackProfile.h": "393150dd19aef73e7f116fe09aaa0fd5a6171cd67e0656d5ce6bad1e44cd6c9c"
+    },
+    "codegenIdentitiesUnchanged": true
+  },
+  "trim": {
+    "oldTrimSHA256": "1075a1f8eafe2ea26bafdb9531d0219f80de3c37d8ba86df02d74fafee858cd3",
+    "currentTrimSHA256": "5869195bf1ea3bf9bc7490503df54732e0da5cc6a8249a5ad85849449eecd97a",
+    "confirmedRangeGetterSHA256": "a4c5dd077cee75804aa1462c9be9c6201fd2b290396180070909b063f866cb0e",
+    "productionProfileSHA256": "4541e9eaf9368094e805fafee57369fa5a645711dd69422b0fb945c2e90becee",
+    "validationPolicyByteIdenticalWithoutObservations": true,
+    "harnessSHA256": "17f9b4d328a54224b1bb53912bce4e44f6f0d18a2b7a677ef115ad5212d48623",
+    "scenarios": {
+      "addressUndefined": {
+        "passed": true,
+        "thresholdCases": 4,
+        "emptyCases": 2,
+        "dirtyThenBelowThreshold": true,
+        "byteTotalsBeyond32Bits": true,
+        "confirmedRangeBytesPerPass": 2079,
+        "timerCallsPerPass": 2,
+        "concurrentPasses": 800,
+        "concurrentValidatedSections": 1600,
+        "concurrentValidatedBytes": 1663200,
+        "validationBehaviorMatchesControl": true,
+        "physicalDeviceTested": false
+      },
+      "thread": {
+        "passed": true,
+        "thresholdCases": 4,
+        "emptyCases": 2,
+        "dirtyThenBelowThreshold": true,
+        "byteTotalsBeyond32Bits": true,
+        "confirmedRangeBytesPerPass": 2079,
+        "timerCallsPerPass": 2,
+        "concurrentPasses": 800,
+        "concurrentValidatedSections": 1600,
+        "concurrentValidatedBytes": 1663200,
+        "validationBehaviorMatchesControl": true,
+        "physicalDeviceTested": false
+      }
+    }
+  },
+  "pipelineDiagnostics": {
+    "addressUndefined": {
+      "baselineFalseRepeats": 2,
+      "fixedFalseRepeats": 0,
+      "baselineWarmupDropped": 838,
+      "fixedWarmupDropped": 0,
+      "fixedWarmupEvicted": 837,
+      "postWarmupRepeatDetected": 1,
+      "concurrentAttributedRequests": 16000,
+      "concurrentUnknownRequests": 16000,
+      "capacity": 64,
+      "extraBytes": 40,
+      "renderingTested": false,
+      "deviceTimingMeasured": false,
+      "sanitizer": "address,undefined",
+      "controlSHA256": "995ac907327c436494201b696a2a39428878c8cbf28d11ec15bf14d18fa06284",
+      "productionHeaderSHA256": "e6e01cbc2457813dd9e5c01973a4323690d7bad0749f8c41cafaecde25213a54",
+      "harnessSHA256": "5e1299a1710c13202e3d1d5c9c8b00302b2a85698097737ade1997d5f37a833d"
+    },
+    "thread": {
+      "baselineFalseRepeats": 2,
+      "fixedFalseRepeats": 0,
+      "baselineWarmupDropped": 838,
+      "fixedWarmupDropped": 0,
+      "fixedWarmupEvicted": 837,
+      "postWarmupRepeatDetected": 1,
+      "concurrentAttributedRequests": 16000,
+      "concurrentUnknownRequests": 16000,
+      "capacity": 64,
+      "extraBytes": 40,
+      "renderingTested": false,
+      "deviceTimingMeasured": false,
+      "sanitizer": "thread",
+      "controlSHA256": "995ac907327c436494201b696a2a39428878c8cbf28d11ec15bf14d18fa06284",
+      "productionHeaderSHA256": "e6e01cbc2457813dd9e5c01973a4323690d7bad0749f8c41cafaecde25213a54",
+      "harnessSHA256": "5e1299a1710c13202e3d1d5c9c8b00302b2a85698097737ade1997d5f37a833d"
+    }
+  },
+  "unchangedTextureHashSources": {
+    "rpcs3/ios/IOSTextureHash.cpp": {
+      "sha256": "561c3a31438f3c492493c778bbeebba8291e180a29defab75a34c86b45688e72",
+      "baselineIdentity": "canonical baseline b3955a21b8c23bca27251c49a5c73112cd790d95",
+      "unchanged": true
+    },
+    "rpcs3/ios/IOSTextureHash.h": {
+      "sha256": "83d4f2a310604a5a72d83e25e8a1180ca8acba3cd4069394166bdfa3e3393724",
+      "baselineIdentity": "canonical baseline b3955a21b8c23bca27251c49a5c73112cd790d95",
+      "unchanged": true
+    },
+    "Utilities/xxhash3.h": {
+      "sha256": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c",
+      "baselineIdentity": "upstream 22f1152783cef1f7e04af7b1c895173e28fd5b03",
+      "unchanged": true
+    }
+  },
+  "readbackDiagnostics": {
+    "passed": true,
+    "sourcePreimages": {
+      "rpcs3/Emu/RSX/Common/texture_cache.h": {
+        "beforeSHA256": "46ec6cc856397318e584f5588c4ff579690840a971d7fa166121c00fa6caeb1b",
+        "afterSHA256": "6a6790a1c28f45409bfe7ef088cfee927e93ecece5fe3420a360b0fe081b5de3",
+        "behaviorBytesUnchanged": true
+      },
+      "rpcs3/Emu/RSX/VK/VKPresent.cpp": {
+        "beforeSHA256": "dadac00185ac425ad18039f33aa8d8338ecec0c08f2bfcdb0a540480bbb25046",
+        "afterSHA256": "1139e368ad0f5a039cd8ccf1f58149a2853742ef4f79c3e711bb23756fa69c50",
+        "behaviorBytesUnchanged": true
+      }
+    },
+    "scenarios": {
+      "addressUndefined": {
+        "passed": true,
+        "counterBytes": 200,
+        "origins": 5,
+        "clockReadsPerNonemptyBatch": 2,
+        "emptyBatchClockReads": 0,
+        "concurrentBatches": 4000,
+        "conservedRequestedBytes": 17179869184000
+      },
+      "thread": {
+        "passed": true,
+        "counterBytes": 200,
+        "origins": 5,
+        "clockReadsPerNonemptyBatch": 2,
+        "emptyBatchClockReads": 0,
+        "concurrentBatches": 4000,
+        "conservedRequestedBytes": 17179869184000
+      }
+    },
+    "productionHeaderSHA256": "393150dd19aef73e7f116fe09aaa0fd5a6171cd67e0656d5ce6bad1e44cd6c9c",
+    "inputs": {
+      "test/rpcs3_readback555_test.py": "9d0b868311bac5e224daeccf662ac0d9e9b2724c058555125457f0f80a96c98b",
+      "test/native/rpcs3_readback555.inc": "62a93d0411322bdbf579d6b758dc1c95641a5f42b6f09ed76351d32f16fc3c0c"
+    },
+    "physicalDeviceTested": false,
+    "gameplayMeasured": false,
+    "scope": "Observation correctness only; no GPU synchronization, data copies, buffer lifetime or rendering policy changed."
+  },
+  "inputs": {
+    "test/rpcs3_cell555_test.py": "526a7b2f7c2b5067f05471834d6af9bd250160448b697a331281ba7e129abf8c",
+    "test/native/rpcs3_cell555.inc": "6858ab83e50c242e5f79b024b1322c08e8c3583cf93c3654fe9d45ee3f5d5fd8",
+    "test/rpcs3_shader555_test.py": "2e5e360190497000f71eab930ec9b4af7f3a5ca1eea2d430160cbb50f15cb8df",
+    "test/native/rpcs3_shader555.inc": "0fcec7e8ea8d354ff258574feb798368e8420a3db0ea2d62395765f56c25233b",
+    "test/native/rpcs3_fingerprint553.inc": "995ac907327c436494201b696a2a39428878c8cbf28d11ec15bf14d18fa06284",
+    "test/rpcs3_readback555_test.py": "9d0b868311bac5e224daeccf662ac0d9e9b2724c058555125457f0f80a96c98b",
+    "test/native/rpcs3_readback555.inc": "62a93d0411322bdbf579d6b758dc1c95641a5f42b6f09ed76351d32f16fc3c0c"
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Host observation correctness, concurrency and unchanged texture-hash sources; no iPhone frame times, Metal rendering, thermal or memory-pressure validation."
+}
