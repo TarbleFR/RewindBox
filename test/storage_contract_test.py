@@ -659,6 +659,10 @@ IMPORT_SITES = {
     'lib/services/rpcs3_content_import_service.dart': (
         'static Future<Rpcs3ImportResult> importGames(',
         'static Future<bool> importExtractedGameFolder(',),
+    # Build 554: the RPCS3 installation of a library-folder PS3 disc, started
+    # from its launch (no pick: the file is already in the library folder).
+    'lib/services/rpcs3_library_file_service.dart': (
+        'static Future<Rpcs3LibraryFileOutcome> install(',),
     'lib/services/rpcs3_save_exchange_service.dart': (
         'Future<Rpcs3SaveImportReport?> importGuarded(',),
     'lib/services/rpcs3_rap_licence_service.dart': (

@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/rpcs3_library_locale.dart';
+import 'package:neostation/l10n/rpcs3_library_file_locale.dart';
 import 'package:neostation/l10n/dolphin_import_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/l10n/console_manager_locale.dart';
@@ -21,6 +22,8 @@ import 'package:neostation/services/armsx2_library_service.dart';
 import 'package:neostation/services/armsx2_folder_service.dart';
 import 'package:neostation/services/rpcs3_library_service.dart';
 import 'package:neostation/services/rpcs3_launch_service.dart';
+import 'package:neostation/services/rpcs3_library_file_service.dart';
+import 'package:neostation/widgets/rpcs3_library_file_install_dialog.dart';
 import 'package:neostation/services/libretro_internal_service.dart';
 // DOLPHIN_ISOLATION_BEGIN: launcher_import
 import '../dolphin_internal_v2_service.dart';
@@ -55,6 +58,11 @@ class GameLaunchResult {
   /// Whether the launch was successful.
   final bool success;
 
+  /// True when the user stopped the launch before anything ran (Build 554:
+  /// a PS3 disc image they chose not to install into RPCS3). Not an error:
+  /// callers clean up without showing one.
+  final bool cancelled;
+
   /// Human-readable error message.
   final String? errorMessage;
 
@@ -63,11 +71,19 @@ class GameLaunchResult {
 
   GameLaunchResult.success()
     : success = true,
+      cancelled = false,
       errorMessage = null,
       errorDetails = null;
 
   GameLaunchResult.failure(this.errorMessage, [this.errorDetails])
-    : success = false;
+    : success = false,
+      cancelled = false;
+
+  GameLaunchResult.cancelled()
+    : success = false,
+      cancelled = true,
+      errorMessage = null,
+      errorDetails = null;
 }
 
 /// Executes game launches across all supported platforms and monitors the
@@ -338,14 +354,40 @@ class GameLaunchService {
       // frequently-used apps to the front of that list afterwards.
       if (Platform.isIOS) {
         final isPs3 = system.folderName.toLowerCase() == 'ps3';
-        if (isPs3 &&
-            (isRpcs3VirtualRom || (game.titleId?.trim().isNotEmpty ?? false))) {
+        // Build 554: every PS3 row belongs to RPCS3. A disc image found in
+        // the library folder (roms/ps3) has no title ID until RPCS3 installs
+        // it, and used to fall through to the RetroArch route below, which
+        // runs no PS3 game ("No persisted RetroArch export is available").
+        if (isPs3 && game.romPath != null) {
           // Build 448: RPCS3 switched off; no external app runs PS3 games.
           final rpcs3Allowed =
               await EmbeddedEnginePolicy.instance.allowsSystem(system);
           if (!context.mounted) return GameLaunchResult.failure('', '');
           if (!rpcs3Allowed) return _embeddedEngineOff(context, system);
-          final titleId = Rpcs3LaunchService.normalizeTitleId(game.titleId);
+          var titleId = Rpcs3LaunchService.normalizeTitleId(game.titleId);
+          if (!isRpcs3VirtualRom &&
+              Rpcs3LibraryFileService.needsResolution(
+                game.romPath,
+                game.titleId,
+              )) {
+            final prepared = await prepareRpcs3LibraryFileForLaunch(
+              context,
+              game.romPath!,
+            );
+            if (!context.mounted) return GameLaunchResult.failure('', '');
+            if (prepared == null) return GameLaunchResult.cancelled();
+            final failure = prepared.failure;
+            if (failure != null) {
+              return GameLaunchResult.failure(
+                Rpcs3LibraryFileLocale.failure(
+                  Localizations.localeOf(context),
+                  failure,
+                ),
+                prepared.details,
+              );
+            }
+            titleId = prepared.titleId;
+          }
           if (titleId == null) {
             return GameLaunchResult.failure(
               Rpcs3LibraryLocale.launchUnavailable(context),

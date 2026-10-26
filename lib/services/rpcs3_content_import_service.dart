@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:rpcs3_internal_bridge/rpcs3_internal_bridge.dart';
 
+import 'logger_service.dart';
+import 'rpcs3_disc_image.dart';
 import 'rpcs3_internal_service.dart';
 import 'rpcs3_library_service.dart';
 import 'storage/storage_import_activity.dart';
@@ -39,6 +41,8 @@ class Rpcs3ContentImportProgress {
 /// workflow supported by the standalone RPCS3 iOS application.
 class Rpcs3ContentImportService {
   Rpcs3ContentImportService._();
+
+  static final LoggerService _log = LoggerService.instance;
 
   static final _progressController =
       StreamController<Rpcs3ContentImportProgress>.broadcast(sync: true);
@@ -123,15 +127,24 @@ class Rpcs3ContentImportService {
       final gamePaths = <String>[];
       for (final filePath in selected) {
         final extension = path.extension(filePath).toLowerCase();
-        if (extension == '.key') {
+        // Build 554: Redump disc keys ship as .dkey as well as .key; a .dkey
+        // picked with its ISO used to be rejected as an unsupported game.
+        if (extension == '.key' || extension == '.dkey') {
           selectedKeys[path.withoutExtension(filePath).toLowerCase()] = filePath;
         } else if (const {'.pkg', '.zip', '.iso'}.contains(extension)) {
           gamePaths.add(filePath);
         } else {
           rejected++;
           errors.add('${path.basename(filePath)}: unsupported game format.');
+          _log.w(
+            'RPCS3 import: ${path.basename(filePath)} is not a PS3 game file.',
+          );
         }
       }
+      _log.i(
+        'RPCS3 import: ${selected.length} file(s) picked, '
+        '${gamePaths.length} game file(s), ${selectedKeys.length} disc key(s).',
+      );
 
       if (gamePaths.isEmpty) {
         await Rpcs3InternalBridge.releaseScopedResources();
@@ -169,12 +182,13 @@ class Rpcs3ContentImportService {
             }
 
             final stem = path.withoutExtension(filePath).toLowerCase();
-            final selectedKey = selectedKeys[stem];
-            String? keyPath = selectedKey;
-            if (keyPath == null) {
-              final sibling = File(path.setExtension(filePath, '.key'));
-              if (await sibling.exists()) keyPath = sibling.path;
-            }
+            final keyPath =
+                selectedKeys[stem] ??
+                await Rpcs3DiscImage.findDiscKey(filePath);
+            _log.i(
+              'RPCS3 import: $name with disc key '
+              '${keyPath == null ? 'none' : path.basename(keyPath)}.',
+            );
             return Rpcs3InternalBridge.installIso(
               filePath,
               keyPath: keyPath,
@@ -184,12 +198,15 @@ class Rpcs3ContentImportService {
           if (report['success'] == true) {
             imported++;
             importedThisSelection++;
+            _log.i('RPCS3 import: $name imported.');
             _emit(current: 1, total: 1, detail: '$name imported.');
             continue;
           }
 
           final message =
               report['message']?.toString() ?? 'RPCS3 import failed.';
+          // The reason used to reach only a snackbar: keep it in app.log.
+          _log.e('RPCS3 import: $name rejected: $message');
           final formatted = '$name: $message';
           if (extension == '.iso' && _isIncompleteIsoFailure(message)) {
             incompleteErrors.add(formatted);

@@ -326,6 +326,79 @@ class Rpcs3LibraryService {
     return importResult;
   }
 
+  /// The titles installed in RPCS3's private library right now, read from
+  /// disk like [syncLinkedLibrary] does; empty when the library is not
+  /// available.
+  static Future<List<Rpcs3LibraryGame>> installedGames() async {
+    final dataRoot = await _resolveLinkedDataRoot();
+    if (dataRoot == null) return const <Rpcs3LibraryGame>[];
+    return discoverLibrary(dataRoot);
+  }
+
+  /// Build 554: links the PS3 row of a library-folder disc image
+  /// ([romPath], e.g. `roms/ps3/Game.iso`) to the RPCS3 title it is
+  /// installed as, so it launches through RPCS3 by [titleId]. The next
+  /// synchronization then removes the RPCS3 row of that title, as it does
+  /// for every title a physical row stands for: its favourite flag, play
+  /// time and last play are carried over to the linked row first.
+  static Future<void> linkLibraryFile(String romPath, String titleId) async {
+    final ps3 = await SystemRepository.getSystemByFolderName('ps3');
+    final systemId = ps3?.id;
+    if (systemId == null) {
+      throw StateError('RewindBox PS3 system definition was not found.');
+    }
+    final id = titleId.trim().toUpperCase();
+    final virtualPath = Uri(
+      scheme: _virtualScheme,
+      host: 'game',
+      queryParameters: <String, String>{'title-id': id},
+    ).toString();
+    final db = await SqliteService.getDatabase();
+    await db.transaction((txn) async {
+      final linked = await txn.rawUpdate(
+        "UPDATE user_roms SET title_id = ?, updated_at = datetime('now') "
+        'WHERE app_system_id = ? AND rom_path = ?',
+        <Object?>[id, systemId, romPath],
+      );
+      if (linked == 0 || romPath == virtualPath) return;
+      final library = await txn.rawQuery(
+        'SELECT is_favorite, play_time, last_played FROM user_roms '
+        'WHERE app_system_id = ? AND rom_path = ?',
+        <Object?>[systemId, virtualPath],
+      );
+      if (library.isEmpty) return;
+      final row = library.first;
+      final lastPlayed = row['last_played']?.toString();
+      await txn.rawUpdate(
+        '''
+        UPDATE user_roms SET
+          is_favorite = MAX(COALESCE(is_favorite, 0), ?),
+          play_time = COALESCE(play_time, 0) + ?,
+          last_played = CASE
+            WHEN ? IS NOT NULL AND (last_played IS NULL OR last_played < ?)
+            THEN ? ELSE last_played END
+        WHERE app_system_id = ? AND rom_path = ?
+        ''',
+        <Object?>[
+          int.tryParse('${row['is_favorite'] ?? 0}') ?? 0,
+          int.tryParse('${row['play_time'] ?? 0}') ?? 0,
+          lastPlayed,
+          lastPlayed,
+          lastPlayed,
+          systemId,
+          romPath,
+        ],
+      );
+      // The carried values must not be counted twice if the RPCS3 row
+      // outlives this link (the synchronization below is what removes it).
+      await txn.rawUpdate(
+        'UPDATE user_roms SET is_favorite = 0, play_time = 0, '
+        'last_played = NULL WHERE app_system_id = ? AND rom_path = ?',
+        <Object?>[systemId, virtualPath],
+      );
+    });
+  }
+
   /// Pure filesystem discovery entry point, also used by unit tests.
   @visibleForTesting
   static Future<List<Rpcs3LibraryGame>> discoverLibrary(String dataRoot) async {
