@@ -113,3 +113,32 @@ le contrat de retour arrière Build 419, elle n'est donc pas corrigée ici.
 3. Le jeu doit démarrer dans RPCS3 ; un second lancement démarre sans copie.
 4. En cas d'échec, `app.log` contient désormais les lignes
    `RPCS3 library file: …` avec la raison exacte donnée par RPCS3.
+
+## 6. Livraison privée 554 (26 octobre 2026)
+
+- Recette : `.github/workflows/rpcs3-import554-delivery.yml`,
+  `.github/diagnostics/rpcs3import554_tree.py` et `rpcs3import554_delivery.py`,
+  `build-utils/validate_rpcs3_import554_ipa.py`, `validate_liquid_glass554_ipa.py`,
+  `validate_melonx_parity554_ipa.py`, clé publique
+  `build-utils/delivery-554-rpcs3-recipient.pem` (clé privée hors dépôt).
+- Arbre : celui de la 553 livrée, plus les seuls fichiers du correctif
+  `410678b` (8 fichiers Dart livrés, communs à aucune version précédente).
+  Remis à leur version 553, ces fichiers redonnent exactement l'arbre de l'IPA
+  553 (`lib` `4ac259a9`) ; les reçus 550, 552 et 553 restent donc liés tels
+  quels. Le Core RPCS3 est celui de la 551 (même `libRPCS3Core.dylib` que dans
+  les IPA 552 et 553).
+- Run `40360743251` (push `9f6892b`) : `checks` (analyse, 494 tests sur l'arbre
+  épinglé) et `cold` réussis du premier coup, avec la validation de l'import
+  554 dans l'IPA signée (reçu, constantes compilées de la demande et de la
+  progression, textes traduits).
+- Artefact chiffré `12667899580` (188 592 541 octets, archive SHA-256
+  `d2975fb62df35868f1e5a0e061d07be7539059cbc0d3fe4f7dac48e5d9ecc480`), déchiffré
+  en local : IPA **0.0.8 (554)**
+  `RewindBox-Build554-9f6892b9422aa584e4949680adaa01180458c401-cold.ipa`,
+  **188 012 202 octets**, SHA-256
+  **`51d8024e3b423390a379eb47bb0a859545a28e886619251f989fd8f723d4f2b4`**, égale à
+  `SHA256SUMS` et à `signed-payload-identity.json`. Reçu :
+  `docs/evidence/rpcs3-import554-delivery.json`. Remise à l'utilisateur pour
+  re-signature SideStore. Aucune validation sur iPhone. **Ne pas réutiliser le
+  numéro 554.** Numérotation suivante annoncée par les sessions : 555 = Cell
+  RPCS3, 556 = mesure MeloNX.

@@ -3,6 +3,39 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Private 554: RPCS3 import of library-folder PS3 discs — 26 October 2026
+
+- A user's `app.log`: a PS3 ISO in `Documents/roms/ps3` was listed by the scan,
+  but all 20 launches ended in the RetroArch route (`RetroArchLaunch ...
+  stage=cacheEmpty ... No persisted RetroArch export is available`) while the
+  RPCS3 library stayed at 0 games. On iOS the router handed a PS3 row to RPCS3
+  only with a title ID, which a scanned file never has; RPCS3 boots only
+  titles installed in its library. Analysis: `docs/rpcs3-import554.md`.
+- Fix `410678b` (Dart only): every iOS PS3 row takes the RPCS3 branch, which
+  returns on every path. A library-folder `.iso` is resolved by
+  `Rpcs3LibraryFileService`: `PS3_GAME/PARAM.SFO` read in place
+  (`Rpcs3DiscImage`, ISO 9660); a disc RPCS3 holds (title ID, or same image)
+  is linked; otherwise the user is asked, RPCS3's own `installIso` copies it
+  (sibling `.dkey`/`.key`), the row is linked (`Rpcs3LibraryService.linkLibraryFile`)
+  and the game boots. The import menu accepts `.dkey` and logs every result
+  (`RPCS3 import: ...`, `RPCS3 library file: ...`; never `key=`, which the log
+  redaction scrubs). `GameLaunchResult.cancelled()` is a decline, not an error.
+- Not changed: `search_screen.dart` (frozen 550 interface) still notifies a
+  generic launch error after a decline from search; the repeated
+  `UNIQUE constraint failed: user_rom_folders.path` is two concurrent config
+  saves on one SQLite connection (reproduced), but `sqlite_service.dart` is
+  pinned by the Build 419 rollback contract.
+- Private IPA **0.0.8 (554)** from `9f6892b`, run 40360743251: the delivered 553
+  tree plus the 8 shipped Dart files of `410678b`; 551 Core unchanged (same
+  dylib as 552/553). 188,012,202 bytes, SHA-256 `51d8024e…d4f2b4`, encrypted
+  artifact 12667899580 for `build-utils/delivery-554-rpcs3-recipient.pem`
+  (private key outside Git); decrypted, re-checked, delivered. Evidence:
+  `docs/evidence/rpcs3-import554-local.json`, `docs/evidence/rpcs3-import554-delivery.json`.
+  The 553 checks are bound to the 553 tree computed from the 554 index
+  (`rpcs3import554_tree.product_trees_553`), equal to the delivered 553 IPA's.
+  No iPhone validation yet. **Do not reuse 554.** 555 = RPCS3 Cell, 556 = MeloNX
+  measurement (announced by those sessions).
+
 ## Private 552: RPCS3 551 launch-crash fix — 26 October 2026
 
 - Maintainer logs: every 551 launch (Dragon Ball Z twice, God of War III once)
