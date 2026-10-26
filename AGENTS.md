@@ -39,6 +39,17 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   authenticated). No iPhone measurement: FPS, frame time and stalls remain
   unconfirmed. The Core is built by `rpcs3-cell559-core.yml`
   (`[rpcs3-cell559-core]`) on top of the delivered 558; no release.
+- Core 559 built: run `40403710130` on `07c76ec1`, artifact `12690812338`,
+  dylib SHA-256 `1b490126…55a25d0`, ABI 30, 88 exports, codegen identities
+  unchanged since 551. macOS ARM64 evidence
+  `docs/evidence/rpcs3-cell559-macos.json` (VP compare 512 instr. 707 → 283 ns,
+  SPU pass setup 3.29 µs per cache hit avoided; not iPhone measurements).
+- Private 559 recipe (`rpcs3cell559_tree.py`, `rpcs3cell559_delivery.py`,
+  `rpcs3-cell559-delivery.yml`, `validate_*559_ipa.py`,
+  `delivery-559-recipient.pem`): the delivered 558 product byte for byte with
+  only the RPCS3 Core swapped 551 → 559. The 558 recipe runs unchanged in
+  `as_558()`, which also swaps the Core pin test module and sets aside the
+  installed 559 Core identity, which only the 559 recipe checks. Do not reuse 559.
 
 ## Private 558: MeloNX measurement and log fixes on 557 — 26 October 2026
 

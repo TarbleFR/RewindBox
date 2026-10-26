@@ -289,6 +289,34 @@ Le workflow `rpcs3-cell559-core.yml` réexécute toute la suite et les benchmark
 nativement sur le runner macOS ARM64 (Apple Silicon), puis construit le vrai
 Core iPhone.
 
+**Core iPhone 559 construit.** Run `40403710130` sur `07c76ec1`, réussi.
+- Toutes les étapes sont passées : tests natifs, compilation (12 min) et
+  vérification du Core.
+- Artefact `12690812338` (`sha256:44a5c7f6…`).
+- Dylib SHA-256 `1b490126c9a9c8fcdc2cdaaabd39fa6131573ef68e4492551593f117355a25d0`,
+  ABI 30, 88 exports, 143 entrées enregistrées.
+- Identités de codegen PPU `a987639e9f838d1c` et SPU `d070cb361bdef607`,
+  identiques depuis le 551 : les caches SPU/PPU des builds 551 à 558 restent
+  valides, sans recompilation à froid.
+
+Sur le runner (Apple clang 17, macOS ARM64), les cinq harnais passent sous
+ASan+UBSan et sous TSan, avec les mêmes résultats que sur Linux. Différence :
+D compte 40 → 10 allocations (61 300 → 13 364 octets) avec la libc++ d'Apple.
+Benchmarks ARM64 Apple Silicon (médianes, mêmes harnais) — ce ne sont pas des
+mesures iPhone :
+
+| Mesure (macOS ARM64) | 555 | 559 |
+|---|---:|---:|
+| Comparaison d'un VP identique, 64 instr. | 71,0 ns | 36,8 ns |
+| 128 instr. | 139,6 ns | 79,8 ns |
+| 256 instr. | 329,2 ns | 156,8 ns |
+| 512 instr. | 707,3 ns | 283,3 ns |
+| Préparation LLVM par hit du cache SPU (LLVM 22.1.8) | 3,29 µs | 0 |
+
+Avec 4 933 hits SPU par session (log 541), A économise environ 16 ms de CPU par
+session sur ce processeur. Le reçu est dans
+[`evidence/rpcs3-cell559-macos.json`](evidence/rpcs3-cell559-macos.json).
+
 ## 4. Ce qui reste à mesurer sur iPhone
 
 Les effets en jeu ne sont **pas confirmés** :
@@ -337,5 +365,53 @@ Il faut comparer 551/555/559 avec `OPT559`, `READBACK555`, `SHADERCOST534` et
   rééplinger ferait construire l'IPA publique avec un Core non validé sur
   appareil ; c'est donc laissé au mainteneur. Le contrat de source
   (`--source-only`, utilisé par la CI 559) passe.
-- **Livraison** : le Core 559 est construit par `rpcs3-cell559-core.yml`.
-  L'IPA privée 559 se prépare sur l'arbre livré 558. Aucune release.
+- **Livraison** : le Core 559 est construit (run `40403710130`). L'IPA privée
+  559 suit `rpcs3-cell559-delivery.yml`. Aucune release.
+
+## 6. Recette de l'IPA privée 559
+
+559 livre le produit 558 octet pour octet : interface, moteur et hôte MeloNX,
+fichiers de bibliothèque, import et fichiers hôtes RPCS3. Seul le Core RPCS3
+change : le 551 (`4e5bf59`) est remplacé par le 559 (`07c76ec1`), qui contient
+aussi les diagnostics 555 jamais livrés.
+
+- **Arbre** (`rpcs3cell559_tree.py`) : l'arbre 558 livré, plus 16 fichiers de
+  recette Core pris à `07c76ec1`.
+  - 5 d'entre eux étaient épinglés au 551 : le delta, le manifeste, le script
+    de build, le test de pin et `rpcs3-core.yml`.
+  - Seuls les commits Core `f1a30bf8` (554, banc d'essai), `f508f1bf` (555) et
+    `07c76ec1` (559) les ont modifiés.
+  - Les arbres produit (`lib`, `native`, `packages`, `assets`, `pubspec`) sont
+    identiques à ceux du 558, ce qui est vérifié au pin.
+- **Contrôles hérités** (`rpcs3cell559_delivery.py`, `as_558()`) : la recette
+  558 tourne inchangée sur l'arbre 558 livré. La vue remet en place :
+  - l'index ;
+  - les fichiers 559 dans leur version 558 ;
+  - le module Python du test de pin ;
+  - `BUILD_NUMBER` 558.
+
+  Elle met aussi de côté l'identité du Core installé, que seule la recette 559
+  valide. Les vues 557 et 554 suivent par emboîtement.
+- **Core** : l'identité 559 est liée au commit `07c76ec1`. Le delta, les 286
+  sources et les 143 entrées enregistrées doivent tous être égaux à ce commit
+  et à l'arbre épinglé. Le run est vérifié par l'API GitHub : commit, workflow
+  et quatre étapes requises.
+- **Validateurs IPA** :
+  - `validate_rpcs3_559_ipa.py` : chaîne 551/552, plus les marqueurs 555/559
+    et le réglage `experimental.texture_validation_epoch`.
+  - Interface, MeloNX et fichiers de bibliothèque : les validateurs 558, dont
+    les reçus sont calculés dans la vue 558.
+- **Vérifications locales** (Linux) :
+  - pin et contrat source complets ;
+  - `--retain-checks` ;
+  - `--download-components` avec le Core 559 installé ;
+  - garde des 93 entrées Core ;
+  - identité, ABI et chargement passif de l'artefact téléchargé ;
+  - reçus interface et bibliothèque.
+
+  Les preuves moteur MeloNX demandent la matérialisation propre au job macOS ;
+  leur code est inchangé depuis 558.
+
+Le réglage *Experimental → FPS Experiments → Texture validation per FIFO batch*
+apparaît sans modifier l'app : l'écran de réglages RPCS3 énumère le catalogue
+du Core (`rpcs3_ios_enumerate_settings`).
