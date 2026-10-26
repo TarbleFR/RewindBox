@@ -164,3 +164,27 @@ revendiqué.**
    `rsx_frame` (étapes RSX), puis `summary.avg_fps`.
 3. Exporter `RPCS3-timeline*.log` **et** `RPCS3-performance*.log`, y compris
    les fichiers `.1`.
+
+## 6. Livraison privée 551 (26 octobre 2026)
+
+- Core : run `40247161327` sur `4e5bf59b` (tests natifs sous Xcode clang,
+  compilation, vérification), binaire SHA-256 `38bd663e…3da998`, identités
+  PPU/SPU inchangées, correctif QoS MoltenVK lié (`245e7e05…` → `b91a46f7…`).
+- IPA : run `40249519900` sur `8715bd55` (`checks` et `cold` réussis),
+  artefact `12620386313` chiffré pour `build-utils/delivery-551-recipient.pem`
+  (clé privée hors Git). **IPA 0.0.8 (551), 186 532 490 octets, SHA-256
+  `2795e6db2dbdd0c95ce6313f3ad905ec4f2f8701b13efbc5b02bbd67090cd7d5`**, égal à
+  `SHA256SUMS` et à `signed-payload-identity.json`.
+- Arbre : l'arbre produit 550 (interface e12f1d4, MeloNX 549, arbre de
+  livraison 546) avec les seuls fichiers de `4e5bf59b`
+  (`.github/diagnostics/rpcs3cell551_tree.py`). Sans les deux fichiers hôte 551,
+  ses arbres `lib`/`packages` sont exactement ceux sur lesquels les reçus 550
+  ont été établis.
+- Premier essai (run `40248010529`) arrêté par le validateur : le binaire Dart
+  universel (`cafebabe`) n'était pas parmi les images Mach-O 64 bits
+  collectées ; corrigé dans `8715bd55`.
+- Vérification indépendante de l'IPA déchiffrée : Core signé de même charge
+  utile que l'artefact, marqueurs 551 dans le pont et le Core, profil DBZ et
+  interface compilés dans `App`. Reçu : `docs/evidence/rpcs3-cell551-delivery.json`.
+- Aucune validation sur iPhone ; aucun gain de FPS mesuré. Re-signature
+  SideStore/AltStore requise.

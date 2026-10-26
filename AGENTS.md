@@ -31,6 +31,13 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   PPU/SPU identities unchanged. Build numbers: 549 is the combined Liquid Glass
   + 547 Core + MeloNX threading IPA (c605eafd); 550 is the new interface on the
   549 tree (69404f45); **551 is the RPCS3 delivery**. No iPhone validation yet.
+- Delivered private 551: run `40249519900` on `8715bd55` (the 550 product tree
+  plus only the files of `4e5bf59b`; Core run `40247161327`, Core SHA-256
+  `38bd663e…`), IPA 0.0.8 (551) 186,532,490 bytes, SHA-256
+  `2795e6db2dbdd0c95ce6313f3ad905ec4f2f8701b13efbc5b02bbd67090cd7d5`, recipient
+  `build-utils/delivery-551-recipient.pem` (private key outside Git). Receipt:
+  `docs/evidence/rpcs3-cell551-delivery.json`. A later RPCS3 IPA should pin on
+  `.github/diagnostics/rpcs3cell551_tree.py`. **Do not reuse 551.**
 
 ## Private 550: interface feedback on the 549 tree — 26 October 2026
 
