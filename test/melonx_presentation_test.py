@@ -41,7 +41,7 @@ try:
                 run('xcrun','swiftc','-swift-version','5','-target','arm64-apple-ios18.0-simulator','-sdk',sdk,
                     '-F',framework.parent,'-framework','Flutter','-framework','UIKit','-framework','AVFoundation',
                     '-import-objc-header',FIXTURES/'Registrar.h','-Xlinker','-rpath','-Xlinker','@executable_path/Frameworks',
-                    source,CLASSES/'MeloNXPresentation.swift',FIXTURES/'Doubles.swift',FIXTURES/'App.swift',obj,'-o',app/name)
+                    source,CLASSES/'MeloNXPresentation.swift',CLASSES/'MeloNXStandaloneParity.swift',FIXTURES/'Doubles.swift',FIXTURES/'App.swift',obj,'-o',app/name)
                 run('codesign','--force','--sign','-',app/'Frameworks/Flutter.framework')
                 run('codesign','--force','--sign','-',app)
                 run('xcrun','simctl','install',device,app)
@@ -62,7 +62,7 @@ try:
 finally:
     subprocess.run(['xcrun','simctl','shutdown',device],check=False,capture_output=True)
     subprocess.run(['xcrun','simctl','delete',device],check=False,capture_output=True)
-inputs=[CLASSES/'MeloNXInternalBridgePlugin.swift',CLASSES/'MeloNXPresentation.swift',Path(__file__),*sorted(FIXTURES.glob('*'))]
+inputs=[CLASSES/'MeloNXInternalBridgePlugin.swift',CLASSES/'MeloNXPresentation.swift',CLASSES/'MeloNXStandaloneParity.swift',Path(__file__),*sorted(FIXTURES.glob('*'))]
 receipt=dict(result='passed',source=run('git','-C',ROOT,'rev-parse','HEAD'),runtime=runtime,
     oldControlSource='fa6d056e668e55fb7b96959b20cc15064e52e68a',reports=reports,
     inputs={str(p.relative_to(ROOT)):sha(p) for p in inputs},physicalDeviceTested=False,gameplayTested=False)

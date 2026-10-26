@@ -28,7 +28,7 @@ enum MeloNXHostError: Error {
 final class SessionAPI {}
 final class MeloNXRuntimeAPI {
     let session=SessionAPI()
-    init(library:URL,frameworks:URL,root:URL) throws {}
+    init(library:URL,frameworks:URL,root:URL,moltenVk:Int32=0) throws {}
     func content(path:String="",operation:Int32) throws -> [String:Any] { ["success":true] }
     func diagnostics() -> [String:Any] { ["events":[]] }
     func contentProgress() -> Int32 { 0 }
