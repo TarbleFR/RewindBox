@@ -67,7 +67,17 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `melonx-parity553-delivery.yml`, recipient
   `build-utils/delivery-553-recipient.pem` (private key outside Git). Frontend
   re-run on the pinned 553 tree: `docs/evidence/melonx-parity553-local.json`.
-  Armed after 552 was delivered (run 40335530316). The dry run
+  Armed after 552 was delivered (run 40335530316).
+- Delivered private **0.0.8 (553)**: run `40342988817` on `4a4d0fc6`,
+  187,987,716 bytes, SHA-256
+  `82abd2480f6a7e1d666088262dbe985b596ebd51be2f8b232bfad2a004e1997a`,
+  encrypted artifact 12661083441 for `build-utils/delivery-553-recipient.pem`
+  (private key outside Git); decrypted, parity and interface validators re-run
+  locally on the build commit (reports identical to CI), delivered for
+  SideStore re-signing. Installs over 547-552 keeping the RPCS3 552 fix and the
+  550 interface. Receipt: `docs/evidence/melonx-parity553-delivery.json`.
+  **Do not reuse 553.** A later MeloNX IPA should pin on
+  `.github/diagnostics/melonxparity553_tree.py`. The dry run
   of the same change on the 551 tree (552-named recipe, run 40331958399) passed
   every job including the macOS Swift capture and the IPA validators.
   Not a flicker fix claim: an A/B to run on iPhone.

@@ -310,3 +310,24 @@ skeptics per finding) confirmed one defect and split on three:
 **private 553** on that 552 tree, so the fix is kept. A dry run of the change
 on the 551 tree (run 40331958399) passed every job, including the macOS Swift
 capture and the signed-IPA validators. It was not delivered.
+
+## Private build 553
+
+- Private IPA **0.0.8 (553)**, run 40342988817 on `4a4d0fc`: the delivered
+  552 tree (551 tree + RPCS3 launch-crash fix) with the parity files of
+  `62626c0`, `a487268` and `6633588`. 187,987,716 bytes, SHA-256
+  `82abd248…1997a`. Receipt: `docs/evidence/melonx-parity553-delivery.json`.
+- The standalone app's MoltenVK is not a Khronos release: its `MVK_GIT_REV`
+  (`85d607a1…`) is not in KhronosGroup/MoltenVK. It is a fork build that
+  reports 1.4.0. The latest Khronos release is v1.4.2, which RewindBox's RPCS3
+  already uses. 553 compares the standalone binary with RewindBox's 1.3.0, one
+  variable at a time. If the standalone binary removes the flicker, a later
+  build can offer Khronos 1.4.2 as a third choice to see whether a traceable
+  release is enough.
+- On iPhone, check:
+  - the `frameworks` journal line names `MeloNXMoltenVKStandalone sha256:…`;
+  - `[MeloNX:stderr]` lines appear during a session;
+  - the `configuration/engine` line is present;
+  - Persona 5 Royal flicker and Persona 4 Golden stutter with the default,
+    then with "MoltenVK version: RewindBox (1.3.0)" after restarting
+    RewindBox.
