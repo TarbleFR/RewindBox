@@ -34,9 +34,10 @@ CORE551_MARKERS = (b'COREPROF RSXSYNC551 session=', b'COREPROF RSXFRAME551 sessi
 # The 551 game profiles, compiled into the Dart snapshot.
 DART551_MARKERS = ('BLES01658', 'experimental.moltenvk_async_submits')
 CORE = 'Frameworks/libRPCS3Core.dylib'
+DART = 'Frameworks/App.framework/App'
 
 
-def inspect(core, images, receipt):
+def inspect(core, images, receipt, dart):
     validate_rpc_core_identity(receipt['coreIdentity'])
     # The changed logger was executed by this delivery job (536 retention and
     # 546 rotation/restore-trace/timeline cases), not reused from history.
@@ -48,7 +49,8 @@ def inspect(core, images, receipt):
     bridge = images.get('Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge', b'')
     for marker in BRIDGE546_MARKERS + BRIDGE551_MARKERS:
         assert marker in bridge, marker
-    dart = images['Frameworks/App.framework/App']
+    # The Dart AOT image is passed by path: embed() and validate() collect
+    # only images that start with the 64-bit Mach-O header, and App does not.
     for text in DART551_MARKERS:
         assert text.encode('latin-1') in dart or text.encode('utf-16le') in dart, text
 
@@ -95,7 +97,7 @@ def embed(app, core_path, identity_path):
             data = path.read_bytes()
             if data[:4] == b'\xcf\xfa\xed\xfe':
                 images[str(path.relative_to(app))] = data
-    inspect((app / CORE).read_bytes(), images, receipt)
+    inspect((app / CORE).read_bytes(), images, receipt, (app / DART).read_bytes())
     (app / RECEIPT).write_text(json.dumps(receipt, indent=2) + '\n')
     return {'result': 'passed', 'sourceArtifactSHA256': identity['sha256'],
             'compiledCorePayloadFingerprint': receipt['compiledCorePayloadFingerprint']}
@@ -118,7 +120,7 @@ def validate(ipa, build):
                     data = archive.read(name)
                     if data[:4] == b'\xcf\xfa\xed\xfe':
                         images[name.removeprefix(root)] = data
-        inspect(archive.read(root + CORE), images, receipt)
+        inspect(archive.read(root + CORE), images, receipt, archive.read(root + DART))
     return {'result': 'passed', 'build': build,
         'ipaSHA256': hashlib.sha256(ipa.read_bytes()).hexdigest(),
         'coreSource': CORE_SOURCE, 'coreRun': CORE_RUN,
