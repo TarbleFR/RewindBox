@@ -181,6 +181,20 @@ Résultats :
 Le reçu complet est dans
 [`evidence/rpcs3-cell560-host-linux.json`](evidence/rpcs3-cell560-host-linux.json).
 
+**Core iPhone 560 construit** (run `40420391683` sur `cba3fa9f`, macOS ARM64,
+Apple clang 17, Xcode 16.4) :
+- les 12 scénarios passent sous ASan+UBSan et TSan avec les mêmes chiffres que
+  sur Linux (attentes GPU 17 → 3, 0 attente non soumise, 0 page libérée avec
+  des octets dus) ; l'empreinte du banc est celle du run Linux ;
+- dylib SHA-256 `84e4e21c…2678cf`, ABI 30, 88 exports, chargement passif
+  vérifié, 138 entrées enregistrées ;
+- identités de codegen inchangées (PPU `a987639e9f838d1c`, SPU
+  `d070cb361bdef607`) : aucune recompilation à froid ;
+- artefacts : Core `12698001069`, diagnostics `12698765197`.
+
+Reçu : [`evidence/rpcs3-cell560-macos.json`](evidence/rpcs3-cell560-macos.json).
+Ce ne sont pas des mesures iPhone.
+
 ## 6. Limites
 
 - **Rien n'est mesuré sur iPhone** pour 560 : ni FPS, ni temps d'image, ni
@@ -193,3 +207,49 @@ Le reçu complet est dans
   nécessaire.
 - Le modèle de test remplace Vulkan, Metal et le GPU par des adaptateurs. Il
   vérifie les états du cache et ce que lit le jeu, pas le pilote.
+
+## 7. Recette de l'IPA privée 560
+
+560 livre le produit 559 octet pour octet, qui est lui-même le produit 558 :
+interface, moteur et hôte MeloNX, fichiers de bibliothèque, import et fichiers
+hôtes RPCS3. Seul le Core RPCS3 change : le 559 (`07c76ec1`) est remplacé par
+le 560 (`cba3fa9f`).
+
+- **Arbre** (`rpcs3cell560_tree.py`) : l'arbre 559 livré, plus 10 fichiers de
+  recette Core pris à `cba3fa9f` et la documentation 560.
+  - 5 d'entre eux étaient épinglés au 559 : le delta, le manifeste, le script
+    de build, le test de pin et `rpcs3-core.yml`.
+  - Seul le commit Core `cba3fa9f` les a modifiés depuis `07c76ec1`.
+  - Les arbres produit (`lib`, `native`, `packages`, `assets`, `pubspec`) sont
+    identiques à ceux de la 559 livrée, ce qui est vérifié au pin et comparé
+    au reçu `evidence/rpcs3-cell559-delivery.json`.
+- **Contrôles hérités** (`rpcs3cell560_delivery.py`, `as_559()`) : la recette
+  559 tourne inchangée sur l'arbre 559 livré. La vue remet en place :
+  - l'index ;
+  - les fichiers 560 dans leur version 559 ;
+  - les modules Python du test de pin et du pilote Core ;
+  - `BUILD_NUMBER` 559.
+
+  Elle met aussi de côté l'identité du Core installé, que seule la recette 560
+  valide. Les vues 558, 557 et 554 suivent par emboîtement.
+- **Core** : l'identité 560 est liée au commit `cba3fa9f`. Le delta, les 287
+  sources et les 138 entrées enregistrées doivent tous être égaux à ce commit
+  et à l'arbre épinglé. Le run est vérifié par l'API GitHub : commit, workflow
+  et quatre étapes requises.
+- **Validateurs IPA** :
+  - `validate_rpcs3_560_ipa.py` : chaîne 551/552, plus les marqueurs 555, 559
+    et 560, le réglage `experimental.deferred_fbo_writeback` et les origines
+    `fbo_commit`, `fault_read` et `fault_write`.
+  - Interface, MeloNX et fichiers de bibliothèque : les validateurs 558, dont
+    les reçus sont calculés dans la vue 558, atteinte à travers la vue 559.
+- **Vérifications locales** (Linux, copie de travail jetable) :
+  - pin : arbres produit égaux à ceux du reçu de livraison 559 ;
+  - contrat source complet, avec les contrats 559, 558, 557 et 554 hérités ;
+    aucune différence entre l'index épinglé et l'arbre de travail ensuite ;
+  - garde des entrées Core du workflow ;
+  - identité, ABI, marqueurs 555/559/560 et chargement passif de l'artefact
+    Core téléchargé ;
+  - reçus interface et bibliothèque, et champs Core du validateur RPCS3.
+
+  Le reçu MeloNX demande les preuves produites par le job macOS ; son code est
+  inchangé depuis 558.

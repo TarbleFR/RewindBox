@@ -28,8 +28,19 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   identical to 559 for guest reads, GPU waits 17 -> 3, no wait on an
   unsubmitted buffer, six mutations detected; ASan/UBSan, TSan, ARM64 qemu;
   driver preflight authenticated the 559 diagnostics artifact. No iPhone
-  measurement. Core built by `rpcs3-cell560-core.yml` (`[rpcs3-cell560-core]`)
-  only when the maintainer authorizes it; no release.
+  measurement.
+- Core 560 built: run `40420391683` on `cba3fa9f`, artifact `12698001069`,
+  dylib SHA-256 `84e4e21c…2678cf`, ABI 30, 88 exports, codegen identities
+  unchanged. macOS ARM64 evidence `docs/evidence/rpcs3-cell560-macos.json`
+  (same 12 scenarios and figures as Linux, harness hash identical).
+- Private 560 recipe (`rpcs3cell560_tree.py`, `rpcs3cell560_delivery.py`,
+  `rpcs3-cell560-delivery.yml`, `validate_*560_ipa.py`,
+  `delivery-560-recipient.pem`): the delivered 559 product byte for byte (the
+  558 product) with only the RPCS3 Core swapped 559 → 560. The 559 recipe runs
+  unchanged in `as_559()` (scratch index, the 560 Core recipe files at their
+  559 versions, the pin test and Core driver modules of that tree,
+  BUILD_NUMBER 559, installed 560 identity set aside); 558 receipts go through
+  `as_559()` then the 559 recipe's `as_558()`. No release. Do not reuse 560.
 
 ## RPCS3 Core 559: SPU cache-hit, texture, shader and GPU copy costs — 26 October 2026
 
