@@ -3,6 +3,37 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Private 556: MeloNX measurement and log fixes — 26 October 2026
+
+- Measurement build for the Persona 4 Golden / Persona 5 Royal stutter
+  reported on 553 (flicker gone). Nothing changes emulation by default.
+  Analysis and how to read the logs: `docs/melonx-persona-performance-2026-10-25.md`
+  ("Next MeloNX measurement build").
+- Contents (`4464ed6..cfce9f6`, Claude MeloNX session only):
+  - one `[MeloNX:perf]` app.log line per second during a game: game FPS,
+    presented frames and gaps, audio DSP late episodes and output
+    starvations (engine export `neostation_melonx_audio_pacing`; a host pause
+    is not counted), per-thread CPU and priority, thermal state;
+  - "Emulation priority" in the in-game menu (default unchanged);
+  - repeated NSLog stubs copied once in the stderr capture;
+  - Dart log lines written with O_APPEND (`fopen(path, "a")` through
+    `dart:ffi`), so native app.log lines are no longer overwritten;
+  - the live log follows a user-data migration (`LoggerService.moveLogFile`).
+- CI on push: engine 40376664278 (`8f83748`) and host 40385961915 (`e2c9437`),
+  which now runs the performance journal and parity Swift tests on macOS
+  (`melonx-host.yml`, maintainer-approved).
+- Recipe on the delivered 554 tree: `.github/diagnostics/melonxperf556_tree.py`
+  (FIX556 from `cfce9f6`; nine 553 parity files and `prepare_embedded.py`
+  replaced) and `melonxperf556_delivery.py`, which checks the inherited
+  receipts on the delivered 554 tree (`as_554`, as 557 does) and the new
+  engine and host on the pinned tree; the RAM graph proof stays the 553 host's
+  (inputs unchanged). Validators `validate_melonx_perf556_ipa.py`,
+  `validate_liquid_glass556_ipa.py`, `validate_rpcs3_import556_ipa.py`;
+  workflow `melonx-perf556-delivery.yml`; recipient
+  `build-utils/delivery-556-recipient.pem` (private key outside Git); local
+  receipt `docs/evidence/melonx-perf556-local.json`. Not stacked on 557
+  (Dart-only, not delivered yet).
+
 ## Private 554: RPCS3 import of library-folder PS3 discs — 26 October 2026
 
 - A user's `app.log`: a PS3 ISO in `Documents/roms/ps3` was listed by the scan,

@@ -375,17 +375,17 @@ pacing, log timeline, engine, host parity) plus a skeptical synthesis.
     mid-line);
   - thermal state is not journaled during a session.
 
-## Next MeloNX measurement build (prepared, not built)
+## MeloNX measurement build 556
 
-Number 555 went to the RPCS3 Cell delivery (`f508f1b`, pushed first). This
-MeloNX build takes the next free number, provisionally 556, confirmed with the
-other sessions before building. As the maintainer chose, it waits for the
-tester's comparison: P5R with its shader cache back On, then the same scene in
-RewindBox and in the standalone app. It adds measurement only and changes
-nothing in emulation; the one new setting, the in-game priority choice below,
-keeps today's behaviour by default. The recipe is written on the latest
-delivered tree, and the build runs only after the tester's results and the
-maintainer's approval.
+Number 555 is the RPCS3 Cell work (`f508f1b`, not this session); the
+interface session confirmed 556 for this build and took 557 for its own
+Dart fix. The maintainer asked for the build on 26 October, together with a
+real fix for the log after a data migration and the macOS tests on every
+push. 556 adds measurement only and changes nothing in emulation; the one new
+setting, the in-game priority choice below, keeps today's behaviour by
+default. It is built on the delivered 554 tree (recipe in `AGENTS.md`). The
+comparison the tester runs with it: P5R with its shader cache back On, then
+the same scene in RewindBox and in the standalone app.
 
 - **`[MeloNX:perf]` lines in app.log, one per second during a game**
   (`MeloNXPerfJournal.swift`). Format, with illustrative values:
@@ -427,6 +427,18 @@ maintainer's approval.
   with dart:io was not enough: it seeks to the end, then writes later, and
   lost 6 of 20,000 lines from a concurrent `>>` writer in the local
   stress test. With `fopen` it lost none (`test/logger_append_test.dart`).
+- **The live log follows a user-data migration.** `migrateData` copied
+  app.log like any owned file: its size check raced the logger's writes, the
+  lines logged after the copy were deleted with the source, and later lines
+  recreated app.log in the old folder. The log being written is now left out
+  of the generic copy; once every other copy is verified,
+  `LoggerService.moveLogFile` copies it to the destination, writes there and
+  deletes the old file, synchronously, before any source is deleted
+  (`test/user_data_migration_log_test.dart`, which fails on the 554
+  migration).
+- **The macOS Swift tests run on every push.** `melonx-host.yml` now runs
+  `test/melonx_perf_journal_test.py` and `test/melonx_standalone_parity_test.py`
+  (approved by the maintainer); both passed on macOS in host run 40385961915.
 - **Repeated NSLog stubs are copied once.** The key ignores both NSLog's
   timestamp and Ryujinx's own clock (`00:00:00.715 |S| …`). Later repeats
   are counted, the ten most repeated are listed at the end, and the 500-line
