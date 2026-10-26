@@ -731,7 +731,9 @@ class _SearchScreenState extends State<SearchScreen> {
       },
       onLaunchFailed: (ctx, result) async {
         _achievementsController.stop(hidePanel: true);
-        if (mounted) {
+        // Build 557: a launch the user cancelled (RPCS3's installation of a
+        // library-folder disc declined) is not an error.
+        if (mounted && !result.cancelled) {
           AppNotification.showNotification(
             context,
             AppLocale.errorLaunchingGame

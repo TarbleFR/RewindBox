@@ -3,7 +3,8 @@
 // falling through to the RetroArch route ("No persisted RetroArch export is
 // available") while RPCS3's library stayed empty. The service links a disc
 // RPCS3 already holds, otherwise plans and runs RPCS3's own validated
-// import, then links the row to the installed title.
+// import, then links the row to the installed title. Build 557: on request,
+// the original file and its key go once RPCS3 holds the title.
 import 'dart:convert';
 import 'dart:io';
 
@@ -76,6 +77,12 @@ void main() {
     Rpcs3LibraryFileService.linkRow = (romPath, titleId) async =>
         calls.add('link ${path.basename(romPath)} $titleId');
     Rpcs3LibraryFileService.syncLibrary = () async => calls.add('sync');
+    Rpcs3LibraryFileService.removeOriginalFiles = (iso, key) async {
+      calls.add(
+        'free ${path.basename(iso)} key=${key == null ? '-' : path.basename(key)}',
+      );
+      return true;
+    };
   });
 
   tearDown(() async {
@@ -235,6 +242,61 @@ void main() {
           'link Black Ops.iso BLUS30591',
           'sync',
         ]);
+      },
+    );
+
+    test(
+      'Build 557: the original goes once RPCS3 holds the title, if asked',
+      () async {
+        final rom = await disc('Black Ops.iso');
+        await File(
+          path.join(temp.path, 'Black Ops.dkey'),
+        ).writeAsBytes(List.filled(16, 1));
+        final plan = (await Rpcs3LibraryFileService.resolve(rom)).plan!;
+        afterInstall = () => [
+          _installed('BLUS30591', path.join(temp.path, 'BLUS30591')),
+        ];
+        final outcome = await Rpcs3LibraryFileService.install(
+          plan,
+          removeOriginal: true,
+        );
+        expect(outcome.titleId, 'BLUS30591');
+        expect(calls, [
+          'runtime',
+          'install Black Ops.iso key=Black Ops.dkey',
+          'link Black Ops.iso BLUS30591',
+          'sync',
+          'free Black Ops.iso key=Black Ops.dkey',
+        ]);
+      },
+    );
+
+    test(
+      'Build 557: the original stays when not asked or not installed',
+      () async {
+        final rom = await disc('Black Ops.iso');
+        final plan = (await Rpcs3LibraryFileService.resolve(rom)).plan!;
+        afterInstall = () => [
+          _installed('BLUS30591', path.join(temp.path, 'BLUS30591')),
+        ];
+        await Rpcs3LibraryFileService.install(plan);
+        nativeReport = <String, dynamic>{
+          'success': false,
+          'message': 'Not enough free space to import this disc image.',
+        };
+        final refused = await Rpcs3LibraryFileService.install(
+          plan,
+          removeOriginal: true,
+        );
+        expect(refused.failure, Rpcs3LibraryFileFailure.notEnoughSpace);
+        afterInstall = () => library;
+        nativeReport = <String, dynamic>{'success': true};
+        final unidentified = await Rpcs3LibraryFileService.install(
+          const Rpcs3LibraryFilePlan(romPath: '/roms/ps3/X.iso', sizeBytes: 1),
+          removeOriginal: true,
+        );
+        expect(unidentified.failure, Rpcs3LibraryFileFailure.unidentified);
+        expect(calls.where((call) => call.startsWith('free')), isEmpty);
       },
     );
 

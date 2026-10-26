@@ -11,6 +11,7 @@ import '../data/datasources/sqlite_service.dart';
 import '../providers/file_provider.dart';
 import '../services/game_file_deletion.dart';
 import '../services/rpcs3_internal_service.dart';
+import '../services/rpcs3_library_file_deletion.dart';
 import '../services/rpcs3_library_service.dart';
 
 /// Repository for game data access operations.
@@ -138,16 +139,23 @@ class GameRepository {
           romPath: romPath,
         );
         log.i('GameDelete[$operation] retired_switch_reference_removed');
-      } else if (Rpcs3LibraryService.isVirtualLibraryPath(romPath) ||
-          (Platform.isIOS && systemFolderName.toLowerCase() == 'ps3')) {
-        final row = await SqliteService.getSingleGame(appSystemId, filename);
-        final titleId = Rpcs3LibraryService.isVirtualLibraryPath(romPath)
-            ? Uri.parse(romPath).queryParameters['title-id']
-            : row?.titleId;
+      } else if (Rpcs3LibraryService.isVirtualLibraryPath(romPath)) {
+        final titleId = Uri.parse(romPath).queryParameters['title-id'];
         if (systemFolderName.toLowerCase() != 'ps3' || titleId == null) {
           throw StateError('Invalid RPCS3 library entry.');
         }
         await Rpcs3InternalService.deleteInstalledGame(titleId);
+      } else if (Platform.isIOS && systemFolderName.toLowerCase() == 'ps3') {
+        // Build 557: a disc image of the library folder (roms/ps3), with
+        // RPCS3's copy when it was installed. Before, a row without a title
+        // ID could not be deleted ("Invalid RPCS3 library entry.") and a
+        // linked row lost only RPCS3's copy: the next scan listed it again.
+        canRemoveSharedMedia = await Rpcs3LibraryFileDeletion.deleteGame(
+          appSystemId: appSystemId,
+          filename: filename,
+          romPath: romPath,
+        );
+        log.i('GameDelete[$operation] rpcs3_library_file_complete');
       } else {
         await GameFileDeletion.delete(romPath);
         log.i('GameDelete[$operation] filesystem_complete');

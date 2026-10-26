@@ -11,8 +11,11 @@ abstract final class Rpcs3LibraryFileLocale {
     'en': {
       'promptTitle': 'Install this game in RPCS3?',
       'promptBody':
-          'RPCS3 runs PS3 games from its own library. Before the first launch, RewindBox copies “{file}” ({size}) into it, which needs as much free space. The file stays in your folder.',
+          'RPCS3 runs PS3 games from its own library. Before the first launch, RewindBox copies “{file}” ({size}) into it, which needs as much free space.',
       'promptKey': 'Disc key found: {key}',
+      'promptFreeSpace': 'Then delete the original file to free {size}',
+      'promptFreeSpaceKey':
+          'Then delete the original file and its disc key to free {size}',
       'promptCancel': 'Cancel',
       'promptInstall': 'Install and play',
       'progressTitle': 'Installing in RPCS3',
@@ -34,8 +37,12 @@ abstract final class Rpcs3LibraryFileLocale {
     'fr': {
       'promptTitle': 'Installer ce jeu dans RPCS3 ?',
       'promptBody':
-          'RPCS3 lance les jeux PS3 depuis sa propre bibliothèque. Avant le premier lancement, RewindBox y copie « {file} » ({size}) : il faut autant d’espace libre. Le fichier reste dans votre dossier.',
+          'RPCS3 lance les jeux PS3 depuis sa propre bibliothèque. Avant le premier lancement, RewindBox y copie « {file} » ({size}) : il faut autant d’espace libre.',
       'promptKey': 'Clé de disque trouvée : {key}',
+      'promptFreeSpace':
+          'Supprimer ensuite le fichier d’origine pour libérer {size}',
+      'promptFreeSpaceKey':
+          'Supprimer ensuite le fichier d’origine et sa clé de disque pour libérer {size}',
       'promptCancel': 'Annuler',
       'promptInstall': 'Installer et jouer',
       'progressTitle': 'Installation dans RPCS3',
@@ -57,8 +64,12 @@ abstract final class Rpcs3LibraryFileLocale {
     'de': {
       'promptTitle': 'Dieses Spiel in RPCS3 installieren?',
       'promptBody':
-          'RPCS3 startet PS3-Spiele aus seiner eigenen Bibliothek. Vor dem ersten Start kopiert RewindBox „{file}“ ({size}) dorthin; dafür wird genauso viel freier Speicher benötigt. Die Datei bleibt in deinem Ordner.',
+          'RPCS3 startet PS3-Spiele aus seiner eigenen Bibliothek. Vor dem ersten Start kopiert RewindBox „{file}“ ({size}) dorthin; dafür wird genauso viel freier Speicher benötigt.',
       'promptKey': 'Disc-Schlüssel gefunden: {key}',
+      'promptFreeSpace':
+          'Danach die Originaldatei löschen, um {size} freizugeben',
+      'promptFreeSpaceKey':
+          'Danach die Originaldatei und ihren Disc-Schlüssel löschen, um {size} freizugeben',
       'promptCancel': 'Abbrechen',
       'promptInstall': 'Installieren und spielen',
       'progressTitle': 'Installation in RPCS3',
@@ -80,8 +91,12 @@ abstract final class Rpcs3LibraryFileLocale {
     'es': {
       'promptTitle': '¿Instalar este juego en RPCS3?',
       'promptBody':
-          'RPCS3 ejecuta los juegos de PS3 desde su propia biblioteca. Antes del primer inicio, RewindBox copia «{file}» ({size}) en ella, lo que requiere el mismo espacio libre. El archivo se queda en tu carpeta.',
+          'RPCS3 ejecuta los juegos de PS3 desde su propia biblioteca. Antes del primer inicio, RewindBox copia «{file}» ({size}) en ella, lo que requiere el mismo espacio libre.',
       'promptKey': 'Clave de disco encontrada: {key}',
+      'promptFreeSpace':
+          'Después, eliminar el archivo original para liberar {size}',
+      'promptFreeSpaceKey':
+          'Después, eliminar el archivo original y su clave de disco para liberar {size}',
       'promptCancel': 'Cancelar',
       'promptInstall': 'Instalar y jugar',
       'progressTitle': 'Instalando en RPCS3',
@@ -103,8 +118,11 @@ abstract final class Rpcs3LibraryFileLocale {
     'it': {
       'promptTitle': 'Installare questo gioco in RPCS3?',
       'promptBody':
-          'RPCS3 avvia i giochi PS3 dalla propria libreria. Prima del primo avvio, RewindBox vi copia «{file}» ({size}): serve altrettanto spazio libero. Il file resta nella tua cartella.',
+          'RPCS3 avvia i giochi PS3 dalla propria libreria. Prima del primo avvio, RewindBox vi copia «{file}» ({size}): serve altrettanto spazio libero.',
       'promptKey': 'Chiave del disco trovata: {key}',
+      'promptFreeSpace': 'Poi elimina il file originale per liberare {size}',
+      'promptFreeSpaceKey':
+          'Poi elimina il file originale e la sua chiave del disco per liberare {size}',
       'promptCancel': 'Annulla',
       'promptInstall': 'Installa e gioca',
       'progressTitle': 'Installazione in RPCS3',
@@ -126,8 +144,12 @@ abstract final class Rpcs3LibraryFileLocale {
     'pt': {
       'promptTitle': 'Instalar este jogo no RPCS3?',
       'promptBody':
-          'O RPCS3 executa os jogos de PS3 a partir da própria biblioteca. Antes da primeira execução, o RewindBox copia “{file}” ({size}) para ela, o que exige o mesmo espaço livre. O arquivo permanece na sua pasta.',
+          'O RPCS3 executa os jogos de PS3 a partir da própria biblioteca. Antes da primeira execução, o RewindBox copia “{file}” ({size}) para ela, o que exige o mesmo espaço livre.',
       'promptKey': 'Chave do disco encontrada: {key}',
+      'promptFreeSpace':
+          'Depois, apagar o arquivo original para liberar {size}',
+      'promptFreeSpaceKey':
+          'Depois, apagar o arquivo original e a chave do disco para liberar {size}',
       'promptCancel': 'Cancelar',
       'promptInstall': 'Instalar e jogar',
       'progressTitle': 'Instalando no RPCS3',
@@ -149,8 +171,11 @@ abstract final class Rpcs3LibraryFileLocale {
     'ru': {
       'promptTitle': 'Установить эту игру в RPCS3?',
       'promptBody':
-          'RPCS3 запускает игры PS3 из собственной библиотеки. Перед первым запуском RewindBox копирует туда «{file}» ({size}), для этого нужно столько же свободного места. Файл остаётся в вашей папке.',
+          'RPCS3 запускает игры PS3 из собственной библиотеки. Перед первым запуском RewindBox копирует туда «{file}» ({size}), для этого нужно столько же свободного места.',
       'promptKey': 'Найден ключ диска: {key}',
+      'promptFreeSpace': 'Затем удалить исходный файл, чтобы освободить {size}',
+      'promptFreeSpaceKey':
+          'Затем удалить исходный файл и его ключ диска, чтобы освободить {size}',
       'promptCancel': 'Отмена',
       'promptInstall': 'Установить и играть',
       'progressTitle': 'Установка в RPCS3',
@@ -171,8 +196,11 @@ abstract final class Rpcs3LibraryFileLocale {
     'id': {
       'promptTitle': 'Pasang game ini di RPCS3?',
       'promptBody':
-          'RPCS3 menjalankan game PS3 dari pustakanya sendiri. Sebelum peluncuran pertama, RewindBox menyalin “{file}” ({size}) ke sana, sehingga dibutuhkan ruang kosong sebesar itu. Berkas tetap ada di folder Anda.',
+          'RPCS3 menjalankan game PS3 dari pustakanya sendiri. Sebelum peluncuran pertama, RewindBox menyalin “{file}” ({size}) ke sana, sehingga dibutuhkan ruang kosong sebesar itu.',
       'promptKey': 'Kunci disk ditemukan: {key}',
+      'promptFreeSpace': 'Lalu hapus berkas asli untuk mengosongkan {size}',
+      'promptFreeSpaceKey':
+          'Lalu hapus berkas asli dan kunci disknya untuk mengosongkan {size}',
       'promptCancel': 'Batal',
       'promptInstall': 'Pasang dan mainkan',
       'progressTitle': 'Memasang di RPCS3',
@@ -194,8 +222,10 @@ abstract final class Rpcs3LibraryFileLocale {
     'ja': {
       'promptTitle': 'このゲームを RPCS3 にインストールしますか？',
       'promptBody':
-          'RPCS3 は自身のライブラリから PS3 ゲームを起動します。初回起動の前に、RewindBox が「{file}」（{size}）をそこへコピーするため、同じ容量の空き領域が必要です。ファイルはフォルダに残ります。',
+          'RPCS3 は自身のライブラリから PS3 ゲームを起動します。初回起動の前に、RewindBox が「{file}」（{size}）をそこへコピーするため、同じ容量の空き領域が必要です。',
       'promptKey': 'ディスクキーが見つかりました：{key}',
+      'promptFreeSpace': 'インストール後に元のファイルを削除して {size} を空ける',
+      'promptFreeSpaceKey': 'インストール後に元のファイルとディスクキーを削除して {size} を空ける',
       'promptCancel': 'キャンセル',
       'promptInstall': 'インストールしてプレイ',
       'progressTitle': 'RPCS3 にインストール中',
@@ -215,8 +245,10 @@ abstract final class Rpcs3LibraryFileLocale {
     'ko': {
       'promptTitle': '이 게임을 RPCS3에 설치할까요?',
       'promptBody':
-          'RPCS3는 자체 라이브러리에서 PS3 게임을 실행합니다. 처음 실행하기 전에 RewindBox가 “{file}”({size})을(를) 그곳에 복사하므로 같은 크기의 여유 공간이 필요합니다. 파일은 폴더에 그대로 남습니다.',
+          'RPCS3는 자체 라이브러리에서 PS3 게임을 실행합니다. 처음 실행하기 전에 RewindBox가 “{file}”({size})을(를) 그곳에 복사하므로 같은 크기의 여유 공간이 필요합니다.',
       'promptKey': '디스크 키를 찾았습니다: {key}',
+      'promptFreeSpace': '설치 후 원본 파일을 삭제하여 {size} 확보',
+      'promptFreeSpaceKey': '설치 후 원본 파일과 디스크 키를 삭제하여 {size} 확보',
       'promptCancel': '취소',
       'promptInstall': '설치하고 플레이',
       'progressTitle': 'RPCS3에 설치 중',
@@ -236,8 +268,10 @@ abstract final class Rpcs3LibraryFileLocale {
     'zh': {
       'promptTitle': '要将此游戏安装到 RPCS3 吗？',
       'promptBody':
-          'RPCS3 从自己的游戏库运行 PS3 游戏。首次启动前，RewindBox 会将“{file}”（{size}）复制到该库中，因此需要同样大小的可用空间。文件仍保留在你的文件夹中。',
+          'RPCS3 从自己的游戏库运行 PS3 游戏。首次启动前，RewindBox 会将“{file}”（{size}）复制到该库中，因此需要同样大小的可用空间。',
       'promptKey': '已找到光盘密钥：{key}',
+      'promptFreeSpace': '安装后删除原始文件，释放 {size}',
+      'promptFreeSpaceKey': '安装后删除原始文件及其光盘密钥，释放 {size}',
       'promptCancel': '取消',
       'promptInstall': '安装并开始游戏',
       'progressTitle': '正在安装到 RPCS3',
@@ -253,8 +287,10 @@ abstract final class Rpcs3LibraryFileLocale {
     'zh_Hant': {
       'promptTitle': '要將此遊戲安裝到 RPCS3 嗎？',
       'promptBody':
-          'RPCS3 從自己的遊戲庫執行 PS3 遊戲。首次啟動前，RewindBox 會將「{file}」（{size}）複製到該庫中，因此需要同樣大小的可用空間。檔案仍保留在你的資料夾中。',
+          'RPCS3 從自己的遊戲庫執行 PS3 遊戲。首次啟動前，RewindBox 會將「{file}」（{size}）複製到該庫中，因此需要同樣大小的可用空間。',
       'promptKey': '已找到光碟金鑰：{key}',
+      'promptFreeSpace': '安裝後刪除原始檔案，釋放 {size}',
+      'promptFreeSpaceKey': '安裝後刪除原始檔案及其光碟金鑰，釋放 {size}',
       'promptCancel': '取消',
       'promptInstall': '安裝並開始遊戲',
       'progressTitle': '正在安裝到 RPCS3',

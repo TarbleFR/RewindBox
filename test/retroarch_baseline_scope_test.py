@@ -247,6 +247,65 @@ RETIRED_PORTS_BLOCK = re.compile(
 RETIRED_DUSKLIGHT_NATIVE = 'native/dusklight/'
 
 
+# Build 557, at the maintainer's request (26 October 2026): two library fixes
+# in pinned files, each reconstructed below to its exact 419 bytes.
+# * sqlite_service.dart: configuration saves started together interleaved
+#   their replacement of user_rom_folders on the shared connection (UNIQUE
+#   constraint failed: user_rom_folders.path, in a user's app.log); the saves
+#   are now queued. Exactly this one function changes (current, original).
+# * sqlite_database_service.dart: the scan keeps the row of a PS3 disc image
+#   RPCS3 installed once its file was deleted to free space; exactly two
+#   marked RPCS3_LIBRARY_FILE blocks, each followed by one blank line.
+ROM_FOLDERS_SAVE_557 = (b"""  /// Persists a complete list of ROM directories, replacing existing ones.
+  ///
+  /// Saves run one after another, in call order: the shared connection runs
+  /// a transaction opened while another is open inside it, so two concurrent
+  /// saves interleaved their delete and inserts (UNIQUE constraint failed:
+  /// user_rom_folders.path). A path listed twice is stored once.
+  static Future<void> saveUserRomFolders(List<String> folders) {
+    final snapshot = List<String>.of(folders);
+    final write = _romFoldersWrite.then(
+      (_) => _replaceUserRomFolders(snapshot),
+    );
+    _romFoldersWrite = write.then((_) {}, onError: (_) {});
+    return write;
+  }
+
+  static Future<void> _romFoldersWrite = Future<void>.value();
+
+  static Future<void> _replaceUserRomFolders(List<String> folders) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      await txn.delete('user_rom_folders');
+      for (final folder in folders) {
+        if (folder.isNotEmpty) {
+          await txn.insert('user_rom_folders', {
+            'path': folder,
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+        }
+      }
+    });
+  }
+
+""",
+    b"""  /// Persists a complete list of ROM directories, replacing existing ones.
+  static Future<void> saveUserRomFolders(List<String> folders) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      await txn.delete('user_rom_folders');
+      for (final folder in folders) {
+        if (folder.isNotEmpty) {
+          await txn.insert('user_rom_folders', {'path': folder});
+        }
+      }
+    });
+  }
+
+""")
+RPCS3_LIBRARY_FILE_BLOCK = re.compile(
+    rb'(?m)^[ \t]*// RPCS3_LIBRARY_FILE_BEGIN: (\w+)\n.*?^[ \t]*// RPCS3_LIBRARY_FILE_END: \1\n\n', re.S)
+
+
 
 
 def restore_rewindbox_branding(data, name):
@@ -306,6 +365,15 @@ class RetroArchBaselineScope(unittest.TestCase):
                     for current, original, occurrences in PORTS_REMOVAL_EDITS[name]:
                         self.assertEqual(data.count(current), occurrences)
                         data = data.replace(current, original)
+                if name == 'lib/data/datasources/sqlite_service.dart':
+                    # Build 557: the queued ROM folder save.
+                    current, original = ROM_FOLDERS_SAVE_557
+                    self.assertEqual(data.count(current), 1)
+                    data = data.replace(current, original, 1)
+                if name == 'lib/data/datasources/sqlite_database_service.dart':
+                    # Build 557: installed PS3 disc rows kept by the scan.
+                    data, blocks = RPCS3_LIBRARY_FILE_BLOCK.subn(b'', data)
+                    self.assertEqual(blocks, 2)
                 if name == 'lib/providers/sqlite_config_provider/scanning.dart':
                     # Build423: the user's seven saved roots exposed the silent
                     # five-folder cap. Only registration changes; scan logic is

@@ -1,7 +1,9 @@
 // Build 554: before RPCS3 copies a library-folder PS3 disc into its own
 // library, the launcher says so (file, size, disc key) and lets the user
 // decline; the copy then runs under a progress dialog that cannot be
-// dismissed and closes when RPCS3 is done. Twelve languages.
+// dismissed and closes when RPCS3 is done. Twelve languages. Build 557: the
+// user may also choose to delete the original file once it is installed
+// (off by default).
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -11,6 +13,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/l10n/rpcs3_library_file_locale.dart';
 import 'package:neostation/services/rpcs3_disc_image.dart';
 import 'package:neostation/services/rpcs3_library_file_service.dart';
+import 'package:neostation/services/rpcs3_save_exchange_service.dart';
 import 'package:neostation/widgets/rpcs3_library_file_install_dialog.dart';
 import 'package:rpcs3_internal_bridge/rpcs3_internal_bridge.dart';
 
@@ -113,11 +116,11 @@ void main() {
   );
 
   group('prompt', () {
-    Future<List<bool>> open(
+    Future<List<Rpcs3LibraryFileInstallChoice>> open(
       WidgetTester tester,
       Rpcs3LibraryFilePlan plan,
     ) async {
-      final results = <bool>[];
+      final results = <Rpcs3LibraryFileInstallChoice>[];
       await tester.pumpWidget(
         app(
           (context) => ElevatedButton(
@@ -139,7 +142,7 @@ void main() {
     }
 
     testWidgets(
-      'names the file, its size, the disc and its key; Install returns true',
+      'names the file, its size, the disc and its key; Install keeps the file',
       (tester) async {
         final results = await open(tester, plan);
         final fr = Rpcs3LibraryFileLocale.values['fr']!;
@@ -165,11 +168,25 @@ void main() {
           ),
           findsOneWidget,
         );
+        // With a key beside the image, the option names the key too.
+        expect(
+          find.text(fr['promptFreeSpaceKey']!.replaceAll('{size}', '12.3 GB')),
+          findsOneWidget,
+        );
+        expect(
+          tester
+              .widget<CheckboxListTile>(
+                find.byKey(const ValueKey('rpcs3-library-file-free-space')),
+              )
+              .value,
+          isFalse,
+          reason: 'the original is the user\'s file: kept unless asked',
+        );
         await tester.tap(
           find.byKey(const ValueKey('rpcs3-library-file-install')),
         );
         await tester.pumpAndSettle();
-        expect(results, [true]);
+        expect(results, [Rpcs3LibraryFileInstallChoice.install]);
         expect(
           find.byKey(const ValueKey('rpcs3-library-file-prompt')),
           findsNothing,
@@ -177,7 +194,7 @@ void main() {
       },
     );
 
-    testWidgets('Cancel returns false; no identity or key line when unknown', (
+    testWidgets('Cancel declines; no identity or key line when unknown', (
       tester,
     ) async {
       final results = await open(
@@ -195,9 +212,41 @@ void main() {
         find.byKey(const ValueKey('rpcs3-library-file-key')),
         findsNothing,
       );
+      expect(
+        find.text(
+          Rpcs3LibraryFileLocale.values['fr']!['promptFreeSpace']!.replaceAll(
+            '{size}',
+            Rpcs3SaveExchangeService.formatBytes(1000),
+          ),
+        ),
+        findsOneWidget,
+      );
       await tester.tap(find.byKey(const ValueKey('rpcs3-library-file-cancel')));
       await tester.pumpAndSettle();
-      expect(results, [false]);
+      expect(results, [Rpcs3LibraryFileInstallChoice.cancel]);
+    });
+
+    testWidgets('the ticked option installs, then frees the space', (
+      tester,
+    ) async {
+      final results = await open(tester, plan);
+      await tester.tap(
+        find.byKey(const ValueKey('rpcs3-library-file-free-space')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<CheckboxListTile>(
+              find.byKey(const ValueKey('rpcs3-library-file-free-space')),
+            )
+            .value,
+        isTrue,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('rpcs3-library-file-install')),
+      );
+      await tester.pumpAndSettle();
+      expect(results, [Rpcs3LibraryFileInstallChoice.installAndFreeSpace]);
     });
   });
 

@@ -12,6 +12,7 @@ import 'package:neostation/repositories/system_repository.dart';
 import 'package:neostation/services/config_service.dart';
 import 'package:neostation/services/diagnostics_directory.dart';
 import 'package:neostation/services/logger_service.dart';
+import 'package:neostation/services/rpcs3_disc_image.dart';
 import 'package:neostation/services/rpcs3_game_profile_service.dart';
 import 'package:neostation/services/rpcs3_title_catalog_service.dart';
 import 'package:path/path.dart' as path;
@@ -196,7 +197,7 @@ class Rpcs3LibraryService {
           discovered,
           allowNetwork: false,
         );
-        final result = await _importIntoNeoStation(games);
+        final result = await _importIntoNeoStation(games, live: true);
         await _replaceCache(games);
         await _writeDebugFile(dataRoot: dataRoot, games: games, result: result);
         await _writeStartupDebugFile(
@@ -305,7 +306,7 @@ class Rpcs3LibraryService {
 
     final discovered = await discoverLibrary(dataRoot);
     final games = await _applyTitleFallbacks(discovered, allowNetwork: true);
-    final importResult = await _importIntoNeoStation(games);
+    final importResult = await _importIntoNeoStation(games, live: true);
     await _replaceCache(games);
 
     await _writeDebugFile(
@@ -361,34 +362,14 @@ class Rpcs3LibraryService {
         <Object?>[id, systemId, romPath],
       );
       if (linked == 0 || romPath == virtualPath) return;
-      final library = await txn.rawQuery(
-        'SELECT is_favorite, play_time, last_played FROM user_roms '
-        'WHERE app_system_id = ? AND rom_path = ?',
-        <Object?>[systemId, virtualPath],
-      );
-      if (library.isEmpty) return;
-      final row = library.first;
-      final lastPlayed = row['last_played']?.toString();
-      await txn.rawUpdate(
-        '''
-        UPDATE user_roms SET
-          is_favorite = MAX(COALESCE(is_favorite, 0), ?),
-          play_time = COALESCE(play_time, 0) + ?,
-          last_played = CASE
-            WHEN ? IS NOT NULL AND (last_played IS NULL OR last_played < ?)
-            THEN ? ELSE last_played END
-        WHERE app_system_id = ? AND rom_path = ?
-        ''',
-        <Object?>[
-          int.tryParse('${row['is_favorite'] ?? 0}') ?? 0,
-          int.tryParse('${row['play_time'] ?? 0}') ?? 0,
-          lastPlayed,
-          lastPlayed,
-          lastPlayed,
-          systemId,
-          romPath,
-        ],
-      );
+      if (!await _carryPlayStatistics(
+        txn,
+        systemId,
+        from: virtualPath,
+        into: romPath,
+      )) {
+        return;
+      }
       // The carried values must not be counted twice if the RPCS3 row
       // outlives this link (the synchronization below is what removes it).
       await txn.rawUpdate(
@@ -397,6 +378,158 @@ class Rpcs3LibraryService {
         <Object?>[systemId, virtualPath],
       );
     });
+  }
+
+  /// Adds the favourite flag, play time and last play of the row [from] to
+  /// the row [into]; false when there is no row [from].
+  static Future<bool> _carryPlayStatistics(
+    DatabaseAdapter txn,
+    String systemId, {
+    required String from,
+    required String into,
+  }) async {
+    final source = await txn.rawQuery(
+      'SELECT is_favorite, play_time, last_played FROM user_roms '
+      'WHERE app_system_id = ? AND rom_path = ?',
+      <Object?>[systemId, from],
+    );
+    if (source.isEmpty) return false;
+    final row = source.first;
+    final lastPlayed = row['last_played']?.toString();
+    await txn.rawUpdate(
+      '''
+      UPDATE user_roms SET
+        is_favorite = MAX(COALESCE(is_favorite, 0), ?),
+        play_time = COALESCE(play_time, 0) + ?,
+        last_played = CASE
+          WHEN ? IS NOT NULL AND (last_played IS NULL OR last_played < ?)
+          THEN ? ELSE last_played END
+      WHERE app_system_id = ? AND rom_path = ?
+      ''',
+      <Object?>[
+        int.tryParse('${row['is_favorite'] ?? 0}') ?? 0,
+        int.tryParse('${row['play_time'] ?? 0}') ?? 0,
+        lastPlayed,
+        lastPlayed,
+        lastPlayed,
+        systemId,
+        into,
+      ],
+    );
+    return true;
+  }
+
+  /// Build 557: settles the rows of library-folder disc images
+  /// (`roms/ps3/*.iso`) before a synchronization matches the PS3 rows with
+  /// RPCS3's titles, and returns the rows left:
+  /// * an image RPCS3 holds whose row has no title ID yet (a file renamed or
+  ///   moved after its installation) is linked to its title, read from its
+  ///   PARAM.SFO, as its launch would link it;
+  /// * a linked row whose file was deleted from a folder that is still there
+  ///   (to free space: RPCS3 keeps its own copy) stands for its title and
+  ///   launches by title ID. When a row of the same title has its file, the
+  ///   play time, favourite flag and last play move to it and the row goes;
+  ///   with [pruneUninstalled] (a live synchronization), the row also goes
+  ///   once RPCS3 no longer holds its title.
+  @visibleForTesting
+  static Future<List<Map<String, Object?>>> settleLibraryFileRows(
+    String systemId,
+    List<Map<String, Object?>> rows,
+    List<Rpcs3LibraryGame> games, {
+    bool pruneUninstalled = false,
+  }) async {
+    final installed = <String>{
+      for (final game in games) game.titleId.trim().toUpperCase(),
+    };
+    final linked = <String, String>{};
+    final present = <String, String>{};
+    final missing = <String, List<String>>{};
+    for (final row in rows) {
+      final romPath = row['rom_path']?.toString() ?? '';
+      if (romPath.isEmpty ||
+          isVirtualLibraryPath(romPath) ||
+          !path.isAbsolute(romPath) ||
+          !Rpcs3DiscImage.isDiscImagePath(romPath)) {
+        continue;
+      }
+      var titleId = Rpcs3GameProfileService.normalizeSerial(
+        row['title_id']?.toString(),
+      );
+      final exists = await File(romPath).exists();
+      // A folder that cannot be seen (unmounted, or access not granted yet)
+      // proves nothing about its files: the library scan decides for it.
+      if (!exists && !await Directory(path.dirname(romPath)).exists()) {
+        continue;
+      }
+      if (titleId == null) {
+        if (!exists || installed.isEmpty) continue;
+        final identity = await Rpcs3DiscImage.readIdentity(romPath);
+        if (identity == null || !installed.contains(identity.titleId)) {
+          continue;
+        }
+        titleId = identity.titleId;
+        linked[romPath] = titleId;
+      }
+      if (exists) {
+        present.putIfAbsent(titleId, () => romPath);
+      } else {
+        (missing[titleId] ??= <String>[]).add(romPath);
+      }
+    }
+    if (linked.isEmpty && missing.isEmpty) return rows;
+
+    for (final link in linked.entries) {
+      await linkLibraryFile(link.key, link.value);
+      _log.i(
+        'RPCS3 library file: ${path.basename(link.key)} is installed as '
+        '${link.value}; row linked.',
+      );
+    }
+    final gone = <String>{};
+    final db = await SqliteService.getDatabase();
+    await db.transaction((txn) async {
+      for (final entry in missing.entries) {
+        final titleId = entry.key;
+        final keeper =
+            present[titleId] ??
+            (installed.contains(titleId) || !pruneUninstalled
+                ? entry.value.first
+                : null);
+        for (final romPath in entry.value) {
+          if (romPath == keeper) continue;
+          if (keeper != null) {
+            await _carryPlayStatistics(
+              txn,
+              systemId,
+              from: romPath,
+              into: keeper,
+            );
+          }
+          await txn.rawDelete(
+            'DELETE FROM user_roms WHERE app_system_id = ? AND rom_path = ?',
+            <Object?>[systemId, romPath],
+          );
+          gone.add(romPath);
+          _log.i(
+            keeper == null
+                ? 'RPCS3 library file: ${path.basename(romPath)} is gone and '
+                      'RPCS3 no longer holds $titleId; row removed.'
+                : 'RPCS3 library file: ${path.basename(romPath)} is gone; '
+                      'its row joined ${path.basename(keeper)} ($titleId).',
+          );
+        }
+      }
+    });
+    return <Map<String, Object?>>[
+      for (final row in rows)
+        if (!gone.contains(row['rom_path']?.toString()))
+          linked.containsKey(row['rom_path']?.toString())
+              ? <String, Object?>{
+                  ...row,
+                  'title_id': linked[row['rom_path']?.toString()],
+                }
+              : row,
+    ];
   }
 
   /// Pure filesystem discovery entry point, also used by unit tests.
@@ -1078,8 +1211,9 @@ class Rpcs3LibraryService {
   }
 
   static Future<Rpcs3SyncResult> _importIntoNeoStation(
-    List<Rpcs3LibraryGame> games,
-  ) async {
+    List<Rpcs3LibraryGame> games, {
+    bool live = false,
+  }) async {
     final ps3 = await SystemRepository.getSystemByFolderName('ps3');
     if (ps3?.id == null) {
       throw StateError('RewindBox PS3 system definition was not found.');
@@ -1087,10 +1221,15 @@ class Rpcs3LibraryService {
 
     final systemId = ps3!.id!;
     final db = await SqliteService.getDatabase();
-    final existingRows = await db.rawQuery(
-      'SELECT filename, rom_path, title_id, title_name '
-      'FROM user_roms WHERE app_system_id = ?',
-      <Object?>[systemId],
+    final existingRows = await settleLibraryFileRows(
+      systemId,
+      await db.rawQuery(
+        'SELECT filename, rom_path, title_id, title_name '
+        'FROM user_roms WHERE app_system_id = ?',
+        <Object?>[systemId],
+      ),
+      games,
+      pruneUninstalled: live,
     );
 
     final physicalByTitleId = <String, Map<String, Object?>>{};

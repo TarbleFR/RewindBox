@@ -2434,13 +2434,31 @@ class SqliteService {
   }
 
   /// Persists a complete list of ROM directories, replacing existing ones.
-  static Future<void> saveUserRomFolders(List<String> folders) async {
+  ///
+  /// Saves run one after another, in call order: the shared connection runs
+  /// a transaction opened while another is open inside it, so two concurrent
+  /// saves interleaved their delete and inserts (UNIQUE constraint failed:
+  /// user_rom_folders.path). A path listed twice is stored once.
+  static Future<void> saveUserRomFolders(List<String> folders) {
+    final snapshot = List<String>.of(folders);
+    final write = _romFoldersWrite.then(
+      (_) => _replaceUserRomFolders(snapshot),
+    );
+    _romFoldersWrite = write.then((_) {}, onError: (_) {});
+    return write;
+  }
+
+  static Future<void> _romFoldersWrite = Future<void>.value();
+
+  static Future<void> _replaceUserRomFolders(List<String> folders) async {
     final db = await instance.database;
     await db.transaction((txn) async {
       await txn.delete('user_rom_folders');
       for (final folder in folders) {
         if (folder.isNotEmpty) {
-          await txn.insert('user_rom_folders', {'path': folder});
+          await txn.insert('user_rom_folders', {
+            'path': folder,
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
         }
       }
     });

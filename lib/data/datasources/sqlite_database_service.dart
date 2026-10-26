@@ -822,6 +822,25 @@ class SqliteDatabaseService {
         return (removed: 0, knownPaths: knownPaths);
       }
 
+      // RPCS3_LIBRARY_FILE_BEGIN: installed_disc_rows
+      // Build 557: a PS3 disc image of the library folder that RPCS3 has
+      // installed launches by its title ID; its own file may be deleted to
+      // free space (RPCS3 keeps a copy). Its row stays while the folder that
+      // held it remains, with its play time, favourite flag and scraped data;
+      // the RPCS3 synchronization removes it once the title is gone.
+      final installedDiscs = await _installedPs3DiscRows(
+        systemId,
+        romsToDelete,
+      );
+      if (installedDiscs.isNotEmpty) {
+        romsToDelete.removeWhere(installedDiscs.contains);
+        knownPaths.addAll(installedDiscs);
+        if (romsToDelete.isEmpty) {
+          return (removed: 0, knownPaths: knownPaths);
+        }
+      }
+      // RPCS3_LIBRARY_FILE_END: installed_disc_rows
+
       // Rows stored before the scan learned to skip symlinked alias folders
       // still spell the path through the alias (…/roms/gamecube/x.rvz for a
       // file the scan now keeps as …/roms/gc/x.rvz). Those files are not
@@ -862,6 +881,41 @@ class SqliteDatabaseService {
       return (removed: 0, knownPaths: <String>{});
     }
   }
+
+  // RPCS3_LIBRARY_FILE_BEGIN: installed_disc_helper
+  /// Build 557: on iOS every PS3 row belongs to RPCS3; tests set it.
+  @visibleForTesting
+  static bool rpcs3OwnsPs3Rows = Platform.isIOS;
+
+  /// The rows among [orphanPaths] of PS3 disc images (`.iso`) linked to an
+  /// RPCS3 title whose folder still exists.
+  static Future<Set<String>> _installedPs3DiscRows(
+    String systemId,
+    List<String> orphanPaths,
+  ) async {
+    if (!rpcs3OwnsPs3Rows) return const <String>{};
+    final db = await SqliteService.getDatabase();
+    final rows = await db.rawQuery(
+      'SELECT ur.rom_path FROM user_roms ur '
+      'JOIN app_systems s ON s.id = ur.app_system_id '
+      "WHERE ur.app_system_id = ? AND lower(s.folder_name) = 'ps3' "
+      "AND ur.title_id IS NOT NULL AND trim(ur.title_id) != ''",
+      [systemId],
+    );
+    final orphans = orphanPaths.toSet();
+    final kept = <String>{};
+    for (final row in rows) {
+      final romPath = row['rom_path']?.toString() ?? '';
+      if (!orphans.contains(romPath) ||
+          !path.isAbsolute(romPath) ||
+          path.extension(romPath).toLowerCase() != '.iso') {
+        continue;
+      }
+      if (await Directory(path.dirname(romPath)).exists()) kept.add(romPath);
+    }
+    return kept;
+  }
+  // RPCS3_LIBRARY_FILE_END: installed_disc_helper
 
   /// Folds rows that reach an already-scanned file through a symlinked alias
   /// folder into the row the scan keeps, and returns the ones that were instead

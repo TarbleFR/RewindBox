@@ -12,6 +12,13 @@ the session is registered, and the branch returns on every path, so no PS3
 row reaches RetroArch. The behaviour is tested in Dart
 (test/rpcs3_library_file_service_test.dart, test/rpcs3_disc_image_test.dart,
 test/rpcs3_library_file_dialog_test.dart); this file pins the wiring.
+
+Build 557 (test/rpcs3_library_file_rows_test.dart for the behaviour): a disc
+RPCS3 installed launches by title ID even once its own file is deleted to
+free space (optionally right after the installation); deleting such a game
+removes its file, its disc key and RPCS3's copy, where a row without a title
+ID could not be deleted; the PS3 multi-delete lists every row; the search
+screen shows no error for a declined installation.
 """
 import re
 from pathlib import Path
@@ -90,7 +97,7 @@ require('Rpcs3LibraryService.linkLibraryFile' in service, 'the row is linked to 
 
 dialog = read('lib/widgets/rpcs3_library_file_install_dialog.dart')
 require(dialog.index('Rpcs3LibraryFileService.resolve(romPath)') < dialog.index('showRpcs3LibraryFileInstallPrompt(context, plan)')
-        < dialog.index('Rpcs3LibraryFileService.install(plan)'), 'resolve, ask, then install')
+        < dialog.index('Rpcs3LibraryFileService.install('), 'resolve, ask, then install')
 require('canPop: false' in dialog, 'the progress dialog cannot be dismissed while RPCS3 copies')
 
 importer = read('lib/services/rpcs3_content_import_service.dart')
@@ -99,4 +106,60 @@ require("if (extension == '.key' || extension == '.dkey') {" in importer,
 require('await Rpcs3DiscImage.findDiscKey(filePath)' in importer, 'the sibling disc key may be .dkey')
 require("_log.e('RPCS3 import: $name rejected: $message');" in importer,
         'an import refusal reaches app.log, not only a snackbar')
+# Build 557.
+GUARD = 'final isRpcs3InstalledFile ='
+require(router.count(GUARD) == 1, 'one guard for installed discs whose file is gone')
+guard = router[router.index(GUARD):router.index('bool romExists = false;')]
+for token in ('Platform.isIOS', "system.folderName.toLowerCase() == 'ps3'",
+              'Rpcs3LibraryService.cachedGameForTitleId(',
+              'Rpcs3LaunchService.normalizeTitleId(game.titleId)'):
+    require(token in guard, 'an installed disc is one RPCS3 holds by its title: ' + token)
+require('if (isArmsx2VirtualRom || isRpcs3VirtualRom || isRpcs3InstalledFile) {' in router,
+        'such a disc launches without its own file')
+require(router.index(GUARD) < router.index('romExists = await File(game.romPath!).exists();') < start,
+        'the file check is skipped before the PS3 branch, never inside it')
+
+require(re.search(r'removeOriginal:\s+choice == Rpcs3LibraryFileInstallChoice\.installAndFreeSpace', dialog),
+        'the original goes only when the user ticked the option')
+require('bool _freeSpace = false;' in dialog, 'the option is off by default')
+install = service[service.index('static Future<Rpcs3LibraryFileOutcome> install('):service.index('static Future<String?> _installedTitle(')]
+require(install.index('await linkRow(plan.romPath, titleId);') < install.index('await syncLibrary();\n    _log.i(')
+        < install.index('if (removeOriginal) await removeOriginalFiles(plan.romPath, plan.keyPath);'),
+        'the original goes only once RPCS3 holds the title and the row is linked')
+require('removeOriginalFiles = Rpcs3LibraryFileDeletion.removeOriginal;' in service,
+        'the removal is the deletion module\'s, never the service\'s own')
+
+deletion = read('lib/services/rpcs3_library_file_deletion.dart')
+game_delete = deletion[deletion.index('static Future<bool> deleteGame('):deletion.index('static Future<bool> removeOriginal(')]
+steps = ['await deleteFile(romPath);', 'await _deleteDiscKey(romPath);',
+         'await deleteInstalledTitle(titleId);', 'return SqliteService.deleteGame(']
+require(all(step in game_delete for step in steps), 'file, key, installation, row')
+require([game_delete.index(step) for step in steps] == sorted(game_delete.index(step) for step in steps),
+        'the file goes first: a refused deletion leaves everything in place')
+require('GameFileDeletion.delete' in deletion and 'recursive' not in deletion,
+        'files go through the verified game file deletion, never a recursive one')
+
+repository = read('lib/repositories/game_repository.dart')
+branch = repository[repository.index("} else if (Platform.isIOS && systemFolderName.toLowerCase() == 'ps3') {"):]
+branch = branch[:branch.index('} else {')]
+require('Rpcs3LibraryFileDeletion.deleteGame(' in branch and 'StateError' not in branch,
+        'a library-folder disc is deletable, with or without a title ID')
+
+multi = read('lib/widgets/rpcs3_multi_delete_dialog.dart')
+require('.where((game) => _key(game) != null)' in multi and '.where((game) => _titleId(game) != null)' not in multi,
+        'the multi-delete lists every PS3 row, by path')
+require('await GameRepository.deleteGame(' in multi and 'Rpcs3InternalService.deleteInstalledGame' not in multi,
+        'each selected row goes through the per-game deletion')
+
+search = read('lib/screens/search_screen/search_screen.dart')
+searched = search[search.index('onLaunchFailed: (ctx, result) async {'):]
+require(searched.index('if (mounted && !result.cancelled) {') < searched.index('AppNotification.showNotification('),
+        'the search screen shows no error for a declined installation')
+
+scan = read('lib/data/datasources/sqlite_database_service.dart')
+require(len(re.findall(r'// RPCS3_LIBRARY_FILE_BEGIN: (\w+)\n.*?// RPCS3_LIBRARY_FILE_END: \1\n', scan, re.S)) == 2,
+        'the scan keeps installed discs through two marked blocks only (Build 419 reconstruction)')
+sync = read('lib/services/rpcs3_library_service.dart')
+require('final existingRows = await settleLibraryFileRows(' in sync and sync.count('_importIntoNeoStation(games, live: true);') == 2,
+        'every synchronization settles library-file rows; only live ones prune')
 print('RPCS3 library file route contract: ok')

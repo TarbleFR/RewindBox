@@ -254,9 +254,19 @@ class GameLaunchService {
           game.romPath != null &&
           Rpcs3LibraryService.isVirtualLibraryPath(game.romPath!);
 
+      // Build 557: a library-folder disc image RPCS3 has installed launches
+      // by its title ID; its own file may have been deleted to free space.
+      final isRpcs3InstalledFile =
+          Platform.isIOS &&
+          system.folderName.toLowerCase() == 'ps3' &&
+          Rpcs3LibraryService.cachedGameForTitleId(
+                Rpcs3LaunchService.normalizeTitleId(game.titleId),
+              ) !=
+              null;
+
       bool romExists = false;
       if (game.romPath != null) {
-        if (isArmsx2VirtualRom || isRpcs3VirtualRom) {
+        if (isArmsx2VirtualRom || isRpcs3VirtualRom || isRpcs3InstalledFile) {
           // External iOS library imports are represented by direct-launch URLs
           // rather than filesystem paths. They remain launchable even when
           // NeoStation cannot see the underlying ROM file itself.

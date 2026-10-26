@@ -23,7 +23,8 @@ Future<Rpcs3LibraryFileOutcome?> prepareRpcs3LibraryFileForLaunch(
   final plan = resolved.plan;
   if (plan == null) return resolved;
   if (!context.mounted) return null;
-  if (!await showRpcs3LibraryFileInstallPrompt(context, plan)) {
+  final choice = await showRpcs3LibraryFileInstallPrompt(context, plan);
+  if (choice == Rpcs3LibraryFileInstallChoice.cancel) {
     LoggerService.instance.i(
       'RPCS3 library file: installation of ${plan.fileName} declined.',
     );
@@ -33,22 +34,36 @@ Future<Rpcs3LibraryFileOutcome?> prepareRpcs3LibraryFileForLaunch(
   return runWithRpcs3LibraryFileProgress(
     context,
     plan,
-    () => Rpcs3LibraryFileService.install(plan),
+    () => Rpcs3LibraryFileService.install(
+      plan,
+      removeOriginal:
+          choice == Rpcs3LibraryFileInstallChoice.installAndFreeSpace,
+    ),
   );
 }
 
-/// Asks before RPCS3 copies [plan]'s disc into its library. True to install.
-Future<bool> showRpcs3LibraryFileInstallPrompt(
+/// The answer to [Rpcs3LibraryFileInstallPrompt].
+enum Rpcs3LibraryFileInstallChoice {
+  cancel,
+  install,
+
+  /// Build 557: install, then delete the original file and its disc key
+  /// (RPCS3 keeps its own copy of both).
+  installAndFreeSpace,
+}
+
+/// Asks before RPCS3 copies [plan]'s disc into its library.
+Future<Rpcs3LibraryFileInstallChoice> showRpcs3LibraryFileInstallPrompt(
   BuildContext context,
   Rpcs3LibraryFilePlan plan,
 ) async {
-  final accepted = await showDialog<bool>(
+  final choice = await showDialog<Rpcs3LibraryFileInstallChoice>(
     context: context,
     useRootNavigator: true,
     barrierDismissible: false,
     builder: (_) => Rpcs3LibraryFileInstallPrompt(plan: plan),
   );
-  return accepted ?? false;
+  return choice ?? Rpcs3LibraryFileInstallChoice.cancel;
 }
 
 /// Shows the installation progress of [plan] above the launch screen while
@@ -96,21 +111,36 @@ Future<Future<void> Function()> _keepScreenOn() async {
   }
 }
 
-class Rpcs3LibraryFileInstallPrompt extends StatelessWidget {
+class Rpcs3LibraryFileInstallPrompt extends StatefulWidget {
   const Rpcs3LibraryFileInstallPrompt({super.key, required this.plan});
 
   final Rpcs3LibraryFilePlan plan;
 
   @override
+  State<Rpcs3LibraryFileInstallPrompt> createState() =>
+      _Rpcs3LibraryFileInstallPromptState();
+}
+
+class _Rpcs3LibraryFileInstallPromptState
+    extends State<Rpcs3LibraryFileInstallPrompt> {
+  /// Build 557: off by default; the original is the user's file.
+  bool _freeSpace = false;
+
+  void _close(Rpcs3LibraryFileInstallChoice choice) =>
+      Navigator.of(context).pop(choice);
+
+  @override
   Widget build(BuildContext context) {
     String t(String key) => Rpcs3LibraryFileLocale.text(context, key);
     final theme = Theme.of(context);
+    final plan = widget.plan;
     final identity = plan.identity;
     final keyPath = plan.keyPath;
+    final size = Rpcs3SaveExchangeService.formatBytes(plan.sizeBytes);
     return LibraryFocusGamepadLayer(
       debugLabel: 'rpcs3_library_file_prompt',
       autofocus: false,
-      onBack: () => Navigator.of(context).pop(false),
+      onBack: () => _close(Rpcs3LibraryFileInstallChoice.cancel),
       child: AlertDialog(
         key: const ValueKey('rpcs3-library-file-prompt'),
         title: Text(t('promptTitle')),
@@ -124,9 +154,7 @@ class Rpcs3LibraryFileInstallPrompt extends StatelessWidget {
                 Text(
                   Rpcs3LibraryFileLocale.formatContext(context, 'promptBody', {
                     'file': plan.fileName,
-                    'size': Rpcs3SaveExchangeService.formatBytes(
-                      plan.sizeBytes,
-                    ),
+                    'size': size,
                   }),
                 ),
                 if (identity != null) ...[
@@ -148,6 +176,27 @@ class Rpcs3LibraryFileInstallPrompt extends StatelessWidget {
                     style: theme.textTheme.bodySmall,
                   ),
                 ],
+                const SizedBox(height: 8),
+                LibraryFocusRing(
+                  child: CheckboxListTile(
+                    key: const ValueKey('rpcs3-library-file-free-space'),
+                    value: _freeSpace,
+                    onChanged: (value) =>
+                        setState(() => _freeSpace = value ?? false),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: Text(
+                      Rpcs3LibraryFileLocale.formatContext(
+                        context,
+                        keyPath == null
+                            ? 'promptFreeSpace'
+                            : 'promptFreeSpaceKey',
+                        {'size': size},
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -156,7 +205,7 @@ class Rpcs3LibraryFileInstallPrompt extends StatelessWidget {
           LibraryFocusRing(
             child: TextButton(
               key: const ValueKey('rpcs3-library-file-cancel'),
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => _close(Rpcs3LibraryFileInstallChoice.cancel),
               child: Text(t('promptCancel')),
             ),
           ),
@@ -164,7 +213,11 @@ class Rpcs3LibraryFileInstallPrompt extends StatelessWidget {
             child: FilledButton(
               key: const ValueKey('rpcs3-library-file-install'),
               autofocus: true,
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed: () => _close(
+                _freeSpace
+                    ? Rpcs3LibraryFileInstallChoice.installAndFreeSpace
+                    : Rpcs3LibraryFileInstallChoice.install,
+              ),
               child: Text(t('promptInstall')),
             ),
           ),

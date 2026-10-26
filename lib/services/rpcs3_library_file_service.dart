@@ -8,6 +8,7 @@ import 'package:rpcs3_internal_bridge/rpcs3_internal_bridge.dart';
 import 'logger_service.dart';
 import 'rpcs3_disc_image.dart';
 import 'rpcs3_internal_service.dart';
+import 'rpcs3_library_file_deletion.dart';
 import 'rpcs3_launch_service.dart';
 import 'rpcs3_library_service.dart';
 import 'storage/storage_import_activity.dart';
@@ -91,8 +92,9 @@ class Rpcs3LibraryFileOutcome {
 /// Now such a row is resolved here first. A disc RPCS3 already holds (same
 /// title ID, or the same image when the title ID cannot be read) is linked
 /// at once; otherwise the launcher asks, then RPCS3 installs the image with
-/// its own validated import (a copy: the file stays in the folder), and the
-/// row is linked to the installed title.
+/// its own validated import (a copy: the file stays in the folder unless
+/// the user chose to free its space, Build 557), and the row is linked to
+/// the installed title.
 abstract final class Rpcs3LibraryFileService {
   static final LoggerService _log = LoggerService.instance;
 
@@ -120,6 +122,10 @@ abstract final class Rpcs3LibraryFileService {
   static Future<void> Function() syncLibrary = _syncLibrary;
 
   @visibleForTesting
+  static Future<bool> Function(String romPath, String? keyPath)
+  removeOriginalFiles = Rpcs3LibraryFileDeletion.removeOriginal;
+
+  @visibleForTesting
   static void resetForTesting() {
     firmwareInstalled = Rpcs3InternalService.hasFirmware;
     installedGames = Rpcs3LibraryService.installedGames;
@@ -127,6 +133,7 @@ abstract final class Rpcs3LibraryFileService {
     installImage = _installImage;
     linkRow = Rpcs3LibraryService.linkLibraryFile;
     syncLibrary = _syncLibrary;
+    removeOriginalFiles = Rpcs3LibraryFileDeletion.removeOriginal;
   }
 
   static Future<Map<String, dynamic>> _installImage(
@@ -228,10 +235,14 @@ abstract final class Rpcs3LibraryFileService {
   }
 
   /// Copies the disc of [plan] into RPCS3's library with RPCS3's own
-  /// validated import, links its row and returns the installed title.
+  /// validated import, links its row and returns the installed title. With
+  /// [removeOriginal] (Build 557), the original file and its disc key are
+  /// deleted once RPCS3 holds the title: its row stays, linked, and
+  /// launches by title ID; a refused deletion leaves them in place.
   static Future<Rpcs3LibraryFileOutcome> install(
-    Rpcs3LibraryFilePlan plan,
-  ) => StorageImportActivity.run(() async {
+    Rpcs3LibraryFilePlan plan, {
+    bool removeOriginal = false,
+  }) => StorageImportActivity.run(() async {
     final name = plan.fileName;
     final watch = Stopwatch()..start();
     final started = DateTime.now();
@@ -287,6 +298,7 @@ abstract final class Rpcs3LibraryFileService {
       'RPCS3 library file: installed $name as $titleId in '
       '${watch.elapsedMilliseconds} ms; row linked.',
     );
+    if (removeOriginal) await removeOriginalFiles(plan.romPath, plan.keyPath);
     return Rpcs3LibraryFileOutcome.ready(titleId, installed: true);
   });
 
