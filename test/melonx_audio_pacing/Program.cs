@@ -37,27 +37,34 @@ unsafe class Program {
         Check(export(scratch, EmbeddedAudioPacing.Count - 1) == 1 && export(scratch, EmbeddedAudioPacing.Count + 1) == 1, "Wrong count accepted");
         Check(Read().All(v => v == 0), "Counters did not start at zero");
 
-        // DSP periods: on time and at the threshold are not late.
+        // DSP periods: on time and at the threshold are not late. A run of late
+        // periods (a stall, then catch-up) is one episode, counted by its first
+        // period; the maximum still sees every period.
         EmbeddedAudioPacing.DspPeriod(0);
         EmbeddedAudioPacing.DspPeriod(EmbeddedAudioPacing.LateThresholdNs);
+        EmbeddedAudioPacing.DspPeriod(20_000_000);
+        EmbeddedAudioPacing.DspPeriod(15_000_000);
+        EmbeddedAudioPacing.DspPeriod(10_000_000);
+        EmbeddedAudioPacing.DspPeriod(0);
         EmbeddedAudioPacing.DspPeriod(EmbeddedAudioPacing.LateThresholdNs + 1);
-        EmbeddedAudioPacing.DspPeriod(9_000_000);
+        EmbeddedAudioPacing.DspPeriod(0);
         EmbeddedAudioPacing.DspSkipped(0); EmbeddedAudioPacing.DspSkipped(-3); EmbeddedAudioPacing.DspSkipped(2);
         long[] v = Read();
-        Check(v[0] == 4 && v[1] == 2 && v[2] == 11_000_001 && v[3] == 9_000_000 && v[4] == 2, "DSP counters wrong: " + string.Join(",", v));
+        Check(v[0] == 8 && v[1] == 2 && v[2] == 22_000_001 && v[3] == 20_000_000 && v[4] == 2, "DSP counters wrong: " + string.Join(",", v));
         long[] again = Read();
         Check(again[3] == 0 && again[8] == 0, "Maxima were not reset by the read");
-        Check(again[0] == 4 && again[1] == 2 && again[2] == 11_000_001 && again[4] == 2, "Totals changed on read");
+        Check(again[0] == 8 && again[1] == 2 && again[2] == 22_000_001 && again[4] == 2, "Totals changed on read");
 
-        // Concurrent writers: no lost increments, the maximum is the largest value.
+        // Concurrent writers (more than the one DSP thread): no lost period, and
+        // the maximum is the largest value.
         var threads = Enumerable.Range(0, 8).Select(t => new Thread(() => {
             for (int i = 0; i < 20000; i++) EmbeddedAudioPacing.DspPeriod(t * 1_000_000L + i);
         })).ToArray();
         foreach (var t in threads) t.Start();
         foreach (var t in threads) t.Join();
         v = Read();
-        long late = Enumerable.Range(0, 8).Sum(t => Enumerable.Range(0, 20000).Count(i => t * 1_000_000L + i > EmbeddedAudioPacing.LateThresholdNs));
-        Check(v[0] == 4 + 160000 && v[1] == 2 + late && v[3] == 7_000_000 + 19999, "Concurrent DSP counters wrong: " + string.Join(",", v));
+        Check(v[0] == 8 + 160000 && v[3] == 7_000_000 + 19999, "Concurrent DSP counters wrong: " + string.Join(",", v));
+        EmbeddedAudioPacing.DspPeriod(0);
 
         // Each session owns its interval: another session's buffer does not end it,
         // a completion with buffers still queued does not open one.

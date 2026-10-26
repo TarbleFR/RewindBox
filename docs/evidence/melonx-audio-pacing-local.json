@@ -10,12 +10,12 @@
   "physicalDeviceTested": false,
   "avFoundationDouble": true,
   "inputs": {
-    "build-utils/melonx/adapt_audio_pacing.py": "117cb4161ad4166f715845eb1a9231729e7b0fd7a881daddbfa69f3a36537259",
+    "build-utils/melonx/adapt_audio_pacing.py": "2eda68cbb433c3daae7a76ce747a11fb1a4c793d958810b39e86e8fffaac0a21",
     "build-utils/melonx/adapt_apple_audio.py": "161a334e4821b64b00d77c2a24e69a8f39276fbc4dfe45c0e6f984d63a3d61c3",
-    "native/melonx/EmbeddedAudioPacing.cs": "d644ae4de2b4e9c574f442b1c866684a6245a772c4e3fc01d2fbca04d2d6e94b",
+    "native/melonx/EmbeddedAudioPacing.cs": "274c44ccf7c18fbc9d553f66c3500061032104e5a9527807246e4c9abc85a1f0",
     "native/melonx/EmbeddedAudioPacingExport.cs": "d4fa9af0304a4e4f95ce60c957935e56569c53da91c66d17c2f7eb0172a027b5",
-    "test/melonx_audio_pacing_test.py": "5a8e74fb1468c19c555e8d84ce0d5f66dbf1426e0cb12936c4fad6ccb3932313",
-    "test/melonx_audio_pacing/Program.cs": "5c58226a8554a3cf446d21fbd50652d76ac5e4c9badd56d0e232d236600e0675",
+    "test/melonx_audio_pacing_test.py": "43bea283202da61ed8804d7ba0dde32414043007ec248b03e092f4e4cb4f8c4a",
+    "test/melonx_audio_pacing/Program.cs": "d4f070cdf10cbbdebdb82a37ef56a75f8c3843fb8e8d42091908ce71ed0b0969",
     "test/melonx_apple_audio/AVFoundationDouble.cs": "e2e4209cb6b535dd6a28ce6d7210d01e3d2f25f74ba49db9734ad957440f06e8"
   },
   "upstreamInputs": {

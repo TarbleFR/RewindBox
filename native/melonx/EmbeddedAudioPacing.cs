@@ -15,16 +15,23 @@ public static class EmbeddedAudioPacing
     public const long LateThresholdNs = 2_000_000;
 
     private static long _dspPeriods, _dspLate, _dspLateNs, _dspMaxLateNs, _dspSkipped;
+    // Only the audio renderer's DSP thread calls DspPeriod.
+    private static bool _dspWasLate;
     private static long _hostCompleted, _hostStarvations, _hostStarvedNs, _hostMaxStarvedNs;
 
     // One DSP period finished waiting `lateNs` after its due time (0 if on time).
+    // After a stall the next periods run back to back and are late by less and
+    // less: one late episode, counted once with its first (largest) lateness.
     public static void DspPeriod(long lateNs)
     {
         Interlocked.Increment(ref _dspPeriods);
-        if (lateNs <= LateThresholdNs) return;
+        bool late = lateNs > LateThresholdNs, continuing = _dspWasLate;
+        _dspWasLate = late;
+        if (!late) return;
+        Max(ref _dspMaxLateNs, lateNs);
+        if (continuing) return;
         Interlocked.Increment(ref _dspLate);
         Interlocked.Add(ref _dspLateNs, lateNs);
-        Max(ref _dspMaxLateNs, lateNs);
     }
 
     // The DSP skipped `frames` periods because it judged the backend too far ahead.
@@ -58,8 +65,8 @@ public static class EmbeddedAudioPacing
     // The guest stopped the output: its silence is not a starvation.
     public static void HostIdle(ref long starvedSince) => Interlocked.Exchange(ref starvedSince, 0);
 
-    // [0] DSP periods, [1] late periods, [2] total lateness ns, [3] max lateness ns
-    // since the last read, [4] skipped periods, [5] host buffers completed,
+    // [0] DSP periods, [1] late episodes, [2] their total lateness ns (each by
+    // its first period), [3] max lateness ns since the last read, [4] skipped periods, [5] host buffers completed,
     // [6] host starvations, [7] total starved ns, [8] max starved ns since the last read.
     public static void Snapshot(Span<long> values)
     {

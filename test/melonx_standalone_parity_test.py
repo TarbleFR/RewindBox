@@ -140,14 +140,15 @@ precondition(MeloNXMoltenVKChoice.preferred == 1)
 MeloNXMoltenVKChoice.preferred = 0
 precondition(MeloNXMoltenVKChoice.preferred == 0)
 UserDefaults.standard.removeObject(forKey:MeloNXMoltenVKChoice.key)
-// Emulation priority on a user-initiated thread, as the session queue's.
+// Emulation priority on a GCD worker of a user-initiated serial queue, like
+// MeloNXSessionHost's session queue that runs beforeRun and the engine.
 UserDefaults.standard.removeObject(forKey:MeloNXEmulationPriority.key)
 precondition(MeloNXEmulationPriority.preferred == 0 && MeloNXEmulationPriority.applied == nil)
+let sessionQueue = DispatchQueue(label:"parity.session", qos:.userInitiated)
 func onUserInitiatedThread(_ body: @escaping () -> Void) {
     let done = DispatchSemaphore(value:0)
-    let thread = Thread { body(); done.signal() }
-    thread.qualityOfService = .userInitiated
-    thread.start(); done.wait()
+    sessionQueue.async { body(); done.signal() }
+    done.wait()
 }
 onUserInitiatedThread {
     let kept = MeloNXEmulationPriority.applyToCurrentThread()
@@ -178,10 +179,12 @@ fputs(" line\n", stderr)
 for index in 0..<2100 { fputs("line \(index)\n", stderr) }
 // NSLog's stderr copies (Ryujinx console output on iOS) have their own budget.
 let banner = "\(ProcessInfo.processInfo.processName)[\(getpid()):"
-// A stub logged every frame: copied once, then counted. Timestamps differ.
+// A stub logged every frame, in Ryujinx's real format (its own clock after
+// the banner, as in the 553 log): copied once, then counted. Both clocks differ.
+func clock(_ index: Int) -> String { String(format:"00:00:%02ld.%03ld", index / 10, index % 1000) }
 for index in 0..<300 {
-    fputs("2026-10-26 12:00:00.\(index) \(banner)772] |S| ServiceHid: Stubbed GetNpadJoyHoldType\n", stderr)
-    if index < 50 { fputs("2026-10-26 12:00:01.\(index) \(banner)773] |S| ServiceAudio: Stubbed QueryAudioDeviceSystemEvent\n", stderr) }
+    fputs("2026-10-26 12:00:00.\(index) \(banner)772] \(clock(index)) |S| {Common} ServiceHid GetNpadJoyHoldType: Stubbed. {}\n", stderr)
+    if index < 50 { fputs("2026-10-26 12:00:01.\(index) \(banner)773] \(clock(index + 1)) |S| {Common} ServiceAudio QueryAudioDeviceSystemEvent: Stubbed. \n", stderr) }
 }
 for index in 0..<520 { fputs("2026-10-26 12:00:00.000 \(banner)771] |S| stub \(index)\n", stderr) }
 fputs("unterminated", stderr)
@@ -214,12 +217,12 @@ exit(2)
         # (348 repeats), then 498 of the 520 distinct ones; 22 more not copied.
         stubs = [line for line in body if '|S| stub ' in line]
         check(len(stubs) == 498 and stubs[-1].endswith('stub 497'), (len(stubs), stubs[-1:]))
-        once = [line for line in body if line.endswith('] |S| ServiceHid: Stubbed GetNpadJoyHoldType')]
+        once = [line for line in body if line.endswith('] 00:00:00.000 |S| {Common} ServiceHid GetNpadJoyHoldType: Stubbed. {}')]
         check(len(once) == 1 and once[0].startswith('2026-10-26 12:00:00.0 '), once)
         plain = [line for line in body if '|S| ' not in line]
         check(len(plain) == 2002 and plain[-2] == 'line 1995', (len(plain), plain[-2:]))
-        check(body[-3:] == ['repeated 299 more times: |S| ServiceHid: Stubbed GetNpadJoyHoldType',
-                            'repeated 49 more times: |S| ServiceAudio: Stubbed QueryAudioDeviceSystemEvent',
+        check(body[-3:] == ['repeated 299 more times: |S| {Common} ServiceHid GetNpadJoyHoldType: Stubbed. {}',
+                            'repeated 49 more times: |S| {Common} ServiceAudio QueryAudioDeviceSystemEvent: Stubbed. ',
                             'capture end: 2000 lines, 500 NSLog lines, 348 repeats, 127 not copied'], body[-3:])
     print('Executed the stderr capture and MoltenVK preference on macOS.')
 

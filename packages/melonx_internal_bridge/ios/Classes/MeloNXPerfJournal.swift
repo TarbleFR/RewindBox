@@ -8,9 +8,11 @@ import Darwin
 //   t=     seconds since the game's controls were installed
 //   fps=   the engine's game FPS / frame time ms / FIFO %
 //   pres=  frames presented / longest gap between two presentations ms /
-//          gaps over 20 ms / gaps over 40 ms
-//   dsp=   5 ms audio DSP periods / periods over 2 ms late / their lateness ms /
-//          the longest ms / periods skipped
+//          gaps over 20 ms / gaps over 40 ms (at 60 fps a gap over 20 ms is a
+//          held frame; at 30 fps every frame exceeds 20 ms, read over 40)
+//   dsp=   5 ms audio DSP periods / late episodes (a stall over 2 ms and its
+//          catch-up periods count once) / their lateness ms / the longest ms /
+//          periods skipped
 //   out=   audio buffers played / queue starvations / silence ms / longest ms
 //   cpu=   process CPU % (100 = one core), then the busiest threads as
 //          name:CPU %/base priority (47 user-interactive, 37 user-initiated,
@@ -78,7 +80,7 @@ final class MeloNXPerfJournal {
             guard let timer else { return }
             timer.cancel(); self.timer = nil
             let average = fpsCount > 0 ? fpsTotal / Double(fpsCount) : 0
-            MeloNXStdioCapture.appendLine("[MeloNX:perf] end: \(samples) s sampled, \(lines) lines; game FPS \(Self.decimal(average)) on average while running; \(totalFrames) frames presented, \(totalOver20) gaps over 20 ms, \(totalOver40) over 40 ms; \(totalLate) late DSP periods (\(Self.decimal(Double(totalLateNs) / 1e6)) ms), \(totalSkipped) skipped; \(totalStarved) audio starvations (\(Self.decimal(Double(totalStarvedNs) / 1e6)) ms); hottest thermal state \(Self.thermal(hottest))", to:path)
+            MeloNXStdioCapture.appendLine("[MeloNX:perf] end: \(samples) s sampled, \(lines) lines; game FPS \(Self.decimal(average)) on average while running; \(totalFrames) frames presented, \(totalOver20) gaps over 20 ms, \(totalOver40) over 40 ms; \(totalLate) late DSP episodes (\(Self.decimal(Double(totalLateNs) / 1e6)) ms), \(totalSkipped) skipped; \(totalStarved) audio starvations (\(Self.decimal(Double(totalStarvedNs) / 1e6)) ms); hottest thermal state \(Self.thermal(hottest))", to:path)
         }
     }
 

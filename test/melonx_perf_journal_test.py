@@ -135,7 +135,7 @@ exit(2)
         total = int(re.search(r'^end: (\d+) s sampled, 6 lines;', body[-1]).group(1))
         check(total >= 9, body[-1])
         check(f'{total * 60} frames presented, {total * 2} gaps over 20 ms, 0 over 40 ms' in body[-1], body[-1])
-        check(f'{total * 3} late DSP periods ({total * 7.5:.1f} ms), {total} skipped' in body[-1], body[-1])
+        check(f'{total * 3} late DSP episodes ({total * 7.5:.1f} ms), {total} skipped' in body[-1], body[-1])
         check(f'{total} audio starvations ({total * 12:.1f} ms)' in body[-1] and 'game FPS 59.5 on average' in body[-1], body[-1])
     print('Executed the performance journal on macOS.')
 

@@ -1,11 +1,12 @@
 """Count audio pacing events for the host's per-second performance journal.
 
 Measurement only; behaviour is unchanged. AudioProcessor.Wait paces the DSP
-in 5 ms periods by wall clock: each period records how late it ended and how
-many periods it skipped. The Apple backend records when its queue runs dry
+in 5 ms periods by wall clock: each period records how late it ended (runs
+of late periods count as one episode) and how many periods it skipped. The Apple backend records when its queue runs dry
 after a completed buffer and how long until the next buffer arrives (heard
 as silence). Each session keeps its own interval and a guest stop ends it
-uncounted. Counters: native/melonx/EmbeddedAudioPacing.cs.
+uncounted; a completion that races a new buffer or a stop is re-checked.
+Counters: native/melonx/EmbeddedAudioPacing.cs.
 """
 from adapt_session import once
 
@@ -43,7 +44,9 @@ def apply(source):
 ''')
     once(session, '''                Interlocked.Add(ref _playedSampleCount, remainingSamples);
 ''', '''                Interlocked.Add(ref _playedSampleCount, remainingSamples);
-                Ryujinx.Common.EmbeddedAudioPacing.HostCompleted(ref _pacingStarvedSince, _queuedBuffers.IsEmpty, Ryujinx.Common.PerformanceCounter.ElapsedNanoseconds);
+                Ryujinx.Common.EmbeddedAudioPacing.HostCompleted(ref _pacingStarvedSince, _queuedBuffers.IsEmpty && _started, Ryujinx.Common.PerformanceCounter.ElapsedNanoseconds);
+                // A buffer queued, or a guest stop, while that ran is not a starvation.
+                if (!_queuedBuffers.IsEmpty || !_started) Ryujinx.Common.EmbeddedAudioPacing.HostIdle(ref _pacingStarvedSince);
 ''')
     once(session, '''            _queuedBuffers.Enqueue(driverBuffer);
             AVFoundation.ScheduleBuffer(_playerNode, pcmBuffer, _completionBlock);''', '''            _queuedBuffers.Enqueue(driverBuffer);

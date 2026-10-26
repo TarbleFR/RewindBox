@@ -393,12 +393,15 @@ maintainer's approval.
   - `fps`: the engine's game FPS / frame time ms / FIFO %.
   - `pres`: frames presented / longest gap between two presentations ms /
     gaps over 20 ms / gaps over 40 ms. A pause restarts the gap
-    measurement.
-  - `dsp`: 5 ms audio DSP periods / periods more than 2 ms late / their
-    total lateness ms / the longest ms / periods skipped.
+    measurement. At 60 fps a gap over 20 ms is a held frame. At 30 fps
+    (P5R) every frame is over 20 ms, so read the 40 ms count.
+  - `dsp`: 5 ms audio DSP periods / late episodes / their lateness ms / the
+    longest ms / periods skipped. An episode is a period more than 2 ms late
+    plus the catch-up periods that follow it, counted once by its first
+    lateness, so a 20 ms stall counts 20 ms, not 20+15+10+5.
   - `out`: audio buffers played / times the output queue ran dry / total
     silence until the next buffer ms / the longest ms. A guest stop is not
-    counted.
+    counted, nor is a completion that races a new buffer.
   - `cpu`: process CPU % (100 = one core), then the six busiest threads as
     `name:CPU %/base priority` (47 user-interactive, 37 user-initiated,
     31 default, 20 utility, 4 background).
@@ -411,11 +414,15 @@ maintainer's approval.
   added by `adapt_audio_pacing.py`, which only adds lines around the
   unchanged wait loop. `test/melonx_audio_pacing_test.py` runs them with
   the adapted Apple session against the timed AVFoundation double.
-- **Dart no longer overwrites native lines.** `AppendFileOutput` reopens
-  app.log in append mode for each batch (`test/logger_append_test.dart`).
-- **Repeated NSLog stubs are copied once.** Later repeats are counted, the
-  ten most repeated are listed at the end, and the 500-line budget keeps
-  distinct messages.
+- **Dart no longer overwrites native lines.** `AppendFileOutput` writes each
+  event with C `fopen(path, "a")` (O_APPEND) through `dart:ffi`. Reopening
+  with dart:io was not enough: it seeks to the end, then writes later, and
+  lost 6 of 20,000 lines from a concurrent `>>` writer in the local
+  stress test. With `fopen` it lost none (`test/logger_append_test.dart`).
+- **Repeated NSLog stubs are copied once.** The key ignores both NSLog's
+  timestamp and Ryujinx's own clock (`00:00:00.715 |S| …`). Later repeats
+  are counted, the ten most repeated are listed at the end, and the 500-line
+  budget keeps distinct messages.
 - **"Emulation priority" in the in-game menu**, applied at the next game:
   - "High (RewindBox)" (default) keeps the user-initiated session thread;
   - "Default (MeloNX app)" lowers it to default QoS before the engine runs,

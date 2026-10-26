@@ -73,9 +73,10 @@ enum MeloNXStdioCapture {
         func emit(_ bytes: ArraySlice<UInt8>) {
             guard !bytes.isEmpty, !contains(bytes, echo) else { return }
             if let start = index(of:banner, in:bytes.prefix(96)) {
-                // The message follows the banner's "[pid:tid] "; the timestamp before it varies.
+                // The message follows the banner's "[pid:tid] " and Ryujinx's own
+                // clock ("00:00:00.715 "); both timestamps vary between repeats.
                 let body = index(of:Array("] ".utf8), in:bytes[start...]).map { bytes[($0 + 2)...] } ?? bytes
-                let message = String(decoding:body.prefix(512), as:UTF8.self)
+                let message = String(decoding:dropClock(body).prefix(512), as:UTF8.self)
                 if let count = seen[message] { seen[message] = count + 1; repeated += 1; return }
                 if seen.count < repeatLimit { seen[message] = 0 }
                 guard nslogLines < nslogLineLimit else { dropped += 1; return }
@@ -103,6 +104,18 @@ enum MeloNXStdioCapture {
         for (message, count) in most.prefix(10) { append("repeated \(count) more times: \(message)", to:journal) }
         append("capture end: \(lines) lines, \(nslogLines) NSLog lines, \(repeated) repeats, \(dropped) not copied", to:journal)
         close(source); close(mirror)
+    }
+
+    // Drops a leading "hh:mm:ss.fff " (Ryujinx's DefaultLogFormatter clock).
+    private static func dropClock(_ bytes: ArraySlice<UInt8>) -> ArraySlice<UInt8> {
+        var index = bytes.startIndex, colons = 0
+        while index < bytes.endIndex, index - bytes.startIndex < 20 {
+            let byte = bytes[index]
+            if byte == 0x20 { return colons == 2 ? bytes[(index + 1)...] : bytes }
+            if byte == 0x3a { colons += 1 } else if byte != 0x2e && !(0x30...0x39).contains(byte) { return bytes }
+            index += 1
+        }
+        return bytes
     }
 
     private static func contains(_ bytes: ArraySlice<UInt8>, _ needle: [UInt8]) -> Bool {

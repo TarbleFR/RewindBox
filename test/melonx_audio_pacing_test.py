@@ -58,6 +58,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-audio-pacing-') as temporary:
     assert wait, 'Lateness is not measured around the wait loop'
     print('PASS DSP pacing measured around the unchanged wait loop', flush=True)
 
+    # A completion that races a new buffer or a guest stop cannot be driven by
+    # the double; the re-check must directly follow the completion's count.
+    apple = (source / paths[0]).read_text(encoding='utf-8')
+    completed = apple.index('EmbeddedAudioPacing.HostCompleted(ref _pacingStarvedSince, _queuedBuffers.IsEmpty && _started,')
+    recheck = apple.index('if (!_queuedBuffers.IsEmpty || !_started) Ryujinx.Common.EmbeddedAudioPacing.HostIdle(ref _pacingStarvedSince);')
+    assert completed < recheck < apple.index('AVFoundation.Release(buffer.NativeBuffer);', completed), 'starvation re-check missing'
+
     for name in paths:
         shutil.copyfile(source / name, case / Path(name).name)
     shutil.copyfile(ROOT / 'native/melonx/EmbeddedAudioPacing.cs', case / 'EmbeddedAudioPacing.cs')

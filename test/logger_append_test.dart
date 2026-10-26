@@ -59,14 +59,45 @@ void main() {
     expect(file.readAsLinesSync(), [for (var i = 0; i < 500; i++) 'line $i']);
   });
 
-  test('lines output during a write follow it', () async {
+  test('writes go through C fopen(path, "a") on this platform', () {
+    expect(AppendFileOutput.usesAppendMode, isTrue);
+  });
+
+  test('a concurrent O_APPEND writer loses no line and splits none', () async {
+    // The shell's `>>` opens with O_APPEND, as the iOS bridge does.
+    final native = await Process.start('sh', [
+      '-c',
+      'i=0; while [ \$i -lt 20000 ]; do echo "native \$i" >> "\$1"; i=\$((i+1)); done',
+      'sh',
+      file.path,
+    ]);
     final output = AppendFileOutput(file: file);
-    output.output(_event(['first']));
-    final writing = output.flushed;
-    output.output(_event(['second']));
-    await writing;
-    await output.flushed;
-    expect(file.readAsLinesSync(), ['first', 'second']);
+    for (var i = 0; i < 5000; i++) {
+      output.output(_event(['dart $i']));
+    }
+    expect(await native.exitCode, 0);
+    final lines = file.readAsLinesSync();
+    expect(
+      lines.where((l) => !RegExp(r'^(dart|native) \d+$').hasMatch(l)),
+      isEmpty,
+    );
+    expect(lines.where((l) => l.startsWith('dart ')).toList(), [
+      for (var i = 0; i < 5000; i++) 'dart $i',
+    ]);
+    expect(lines.where((l) => l.startsWith('native ')).toList(), [
+      for (var i = 0; i < 20000; i++) 'native $i',
+    ]);
+    // The writers really overlapped.
+    final first = lines.indexOf('dart 0'), last = lines.indexOf('dart 4999');
+    expect(
+      lines.sublist(first, last).any((l) => l.startsWith('native ')),
+      isTrue,
+    );
+  });
+
+  test('an event without lines writes nothing', () {
+    AppendFileOutput(file: file).output(_event([]));
+    expect(file.existsSync(), isFalse);
   });
 
   test('an unwritable file never throws into the app', () async {

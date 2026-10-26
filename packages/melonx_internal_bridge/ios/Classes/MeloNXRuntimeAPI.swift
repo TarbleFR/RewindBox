@@ -153,7 +153,7 @@ final class MeloNXRuntimeAPI {
     }
 
     // The engine's cumulative audio pacing counters (EmbeddedAudioPacing order:
-    // DSP periods, late, late ns, max late ns, skipped, buffers played,
+    // DSP periods, late episodes, their late ns, max late ns, skipped, buffers played,
     // starvations, starved ns, max starved ns); nil without the export.
     func audioPacing() -> [Int64]? {
         guard let audioPacingFunction else { return nil }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:ffi';
 import 'dart:io';
 import 'package:logger/logger.dart';
 import 'package:neostation/services/config_service.dart';
@@ -124,49 +126,133 @@ class RedactingPrinter extends LogPrinter {
       _inner.log(event).map(redactSecrets).toList();
 }
 
-/// Writes log lines at the end of [file] as it is at each write.
+/// Writes each log event at the end of [file] with O_APPEND.
 ///
-/// dart:io has no O_APPEND: the package's `FileOutput` seeks to the end once
-/// when it opens the file and then writes at its own position. On iOS the
-/// MeloNX bridge appends its launch journal, stderr capture and performance
-/// lines to the same app.log, and later Dart lines overwrote them. Each batch
-/// here reopens the file in append mode, which seeks to the current end, and
-/// batches are written one at a time in order. A failed write is dropped
-/// rather than thrown into the app.
+/// dart:io never opens with O_APPEND: it seeks to the end once, then writes
+/// at its own position. The package's `FileOutput` keeps one such sink open,
+/// and even a reopen per write leaves a gap between that seek and the write.
+/// On iOS the MeloNX bridge appends its launch journal, stderr capture and
+/// performance lines to the same app.log with O_APPEND, and Dart lines
+/// overwrote them. Here each event is one unbuffered `fwrite` on a stream
+/// opened by C `fopen(path, "a")` (POSIX: O_APPEND), through `dart:ffi` and
+/// `DynamicLibrary.process()` as in `storage_stat_ffi.dart`: the kernel puts
+/// it at the end, after any native line. Without those symbols (Windows) it
+/// falls back to `writeAsStringSync` in append mode. A failed write is
+/// dropped rather than thrown into the app.
 class AppendFileOutput extends LogOutput {
   AppendFileOutput({required this.file});
 
   final File file;
-  final StringBuffer _pending = StringBuffer();
-  Future<void>? _writing;
+  static final _CAppend? _c = _CAppend.load();
+
+  /// True when writes go through C `fopen(path, "a")`.
+  static bool get usesAppendMode => _c != null;
 
   @override
   void output(OutputEvent event) {
-    for (final line in event.lines) {
-      _pending.writeln(line);
-    }
-    _writing ??= _drain();
-  }
-
-  /// Completes once every line output so far has been written or dropped.
-  Future<void> get flushed => _writing ?? Future<void>.value();
-
-  Future<void> _drain() async {
+    if (event.lines.isEmpty) return;
+    final text = '${event.lines.join('\n')}\n';
     try {
-      while (_pending.isNotEmpty) {
-        final text = _pending.toString();
-        _pending.clear();
-        try {
-          await file.writeAsString(text, mode: FileMode.append);
-        } catch (_) {}
+      final c = _c;
+      if (c != null) {
+        c.append(file.path, utf8.encode(text));
+      } else {
+        file.writeAsStringSync(text, mode: FileMode.append);
       }
-    } finally {
-      _writing = null;
+    } catch (_) {}
+  }
+
+  /// Writes are synchronous: complete once [output] returns.
+  Future<void> get flushed => Future<void>.value();
+}
+
+typedef _FopenNative = Pointer<Void> Function(Pointer<Uint8>, Pointer<Uint8>);
+typedef _SetvbufNative =
+    Int32 Function(Pointer<Void>, Pointer<Void>, Int32, Size);
+typedef _SetvbufDart = int Function(Pointer<Void>, Pointer<Void>, int, int);
+typedef _FwriteNative =
+    Size Function(Pointer<Uint8>, Size, Size, Pointer<Void>);
+typedef _FwriteDart = int Function(Pointer<Uint8>, int, int, Pointer<Void>);
+typedef _FcloseNative = Int32 Function(Pointer<Void>);
+typedef _FcloseDart = int Function(Pointer<Void>);
+typedef _CallocNative = Pointer<Uint8> Function(Size, Size);
+typedef _CallocDart = Pointer<Uint8> Function(int, int);
+typedef _FreeNative = Void Function(Pointer<Uint8>);
+typedef _FreeDart = void Function(Pointer<Uint8>);
+
+/// C stdio append: `fopen(path, "a")`, unbuffered, one `fwrite`, `fclose`.
+class _CAppend {
+  _CAppend._(
+    this._fopen,
+    this._setvbuf,
+    this._fwrite,
+    this._fclose,
+    this._calloc,
+    this._free,
+  );
+
+  final Pointer<Void> Function(Pointer<Uint8>, Pointer<Uint8>) _fopen;
+  final _SetvbufDart _setvbuf;
+  final _FwriteDart _fwrite;
+  final _FcloseDart _fclose;
+  final _CallocDart _calloc;
+  final _FreeDart _free;
+
+  /// `_IONBF` in both Darwin's and glibc's stdio.h.
+  static const int _unbuffered = 2;
+
+  static _CAppend? load() {
+    if (Platform.isWindows) return null;
+    try {
+      final c = DynamicLibrary.process();
+      for (final name in [
+        'fopen',
+        'setvbuf',
+        'fwrite',
+        'fclose',
+        'calloc',
+        'free',
+      ]) {
+        if (!c.providesSymbol(name)) return null;
+      }
+      return _CAppend._(
+        c.lookupFunction<
+          _FopenNative,
+          Pointer<Void> Function(Pointer<Uint8>, Pointer<Uint8>)
+        >('fopen'),
+        c.lookupFunction<_SetvbufNative, _SetvbufDart>('setvbuf'),
+        c.lookupFunction<_FwriteNative, _FwriteDart>('fwrite'),
+        c.lookupFunction<_FcloseNative, _FcloseDart>('fclose'),
+        c.lookupFunction<_CallocNative, _CallocDart>('calloc'),
+        c.lookupFunction<_FreeNative, _FreeDart>('free'),
+      );
+    } catch (_) {
+      return null;
     }
   }
 
-  @override
-  Future<void> destroy() => flushed;
+  /// Appends [bytes] to [path]; false if it could not be opened or written.
+  bool append(String path, List<int> bytes) {
+    final name = utf8.encode(path);
+    final buffer = _calloc(name.length + bytes.length + 3, 1);
+    if (buffer.address == 0) return false;
+    try {
+      final view = buffer.asTypedList(name.length + bytes.length + 3);
+      view.setRange(0, name.length, name); // NUL-terminated by calloc
+      view[name.length + 1] = 0x61; // "a", NUL-terminated
+      final data = buffer + name.length + 3;
+      view.setRange(name.length + 3, name.length + 3 + bytes.length, bytes);
+      final stream = _fopen(buffer, buffer + name.length + 1);
+      if (stream.address == 0) return false;
+      _setvbuf(stream, nullptr, _unbuffered, 0);
+      final written = bytes.isEmpty
+          ? 0
+          : _fwrite(data, 1, bytes.length, stream);
+      return _fclose(stream) == 0 && written == bytes.length;
+    } finally {
+      _free(buffer);
+    }
+  }
 }
 
 /// Custom log filter that permits INFO level logs even in production/release environments.
