@@ -10,9 +10,10 @@
 
 using Hash = std::uint64_t (*)(const void*, std::size_t, const void*, std::size_t, std::uint64_t) noexcept;
 #define DECLARE(N) namespace N { std::uint64_t texture_hash_hybrid(const void*, std::size_t, const void*, std::size_t, std::uint64_t) noexcept; }
-DECLARE(baseline6) DECLARE(neon8) DECLARE(pair8) DECLARE(group4)
-const Hash functions[] = {baseline6::texture_hash_hybrid, neon8::texture_hash_hybrid, pair8::texture_hash_hybrid, group4::texture_hash_hybrid};
-const char* names[] = {"baseline6", "neon8", "pair8", "group4"};
+DECLARE(baseline6) DECLARE(neon8) DECLARE(pair8) DECLARE(group4) DECLARE(neon4) DECLARE(hybrid4)
+const Hash functions[] = {baseline6::texture_hash_hybrid, neon8::texture_hash_hybrid, pair8::texture_hash_hybrid, group4::texture_hash_hybrid, neon4::texture_hash_hybrid, hybrid4::texture_hash_hybrid};
+const char* names[] = {"baseline6", "neon8", "pair8", "group4", "neon4", "hybrid4"};
+constexpr unsigned variant_count = sizeof(functions) / sizeof(functions[0]);
 static std::uint64_t state = 0x24691358bdfeca71ull;
 static std::uint64_t random_word()
 {
@@ -32,7 +33,7 @@ int main(int argc, char** argv)
     auto check = [&](std::size_t size, std::size_t offset, std::size_t secret_size, std::uint64_t seed)
     {
         const auto expected = functions[0](data.data() + offset, size, secret.data(), secret_size, seed);
-        for (unsigned variant = 1; variant < 4; ++variant)
+        for (unsigned variant = 1; variant < variant_count; ++variant)
         {
             const auto actual = functions[variant](data.data() + offset, size, secret.data(), secret_size, seed);
             if (actual != expected)
@@ -62,22 +63,22 @@ int main(int argc, char** argv)
                     check(random_word() % (2 * 1024 * 1024), random_word() % 64, secret_size, seed);
             }
         }
-        std::printf("{\"passed\":true,\"comparisons\":%llu,\"variants\":4,\"reference\":\"unaltered six-lane production hash\"}\n", static_cast<unsigned long long>(cases * 3));
+        std::printf("{\"passed\":true,\"comparisons\":%llu,\"variants\":%u,\"reference\":\"unaltered six-lane production hash\"}\n", static_cast<unsigned long long>(cases * (variant_count - 1)), variant_count);
         return 0;
     }
     std::printf("{\"passed\":true,\"benchmark\":true,\"repeats\":9,\"rows\":[");
     bool comma = false;
     for (const auto size : {4096u, 65536u, 1048576u, 8388608u})
     {
-        std::array<std::vector<double>, 4> samples;
+        std::array<std::vector<double>, variant_count> samples;
         const auto iterations = (256ull * 1024 * 1024) / size;
         for (unsigned repeat = 0; repeat < 9; ++repeat)
         {
             // Rotate the execution order. No candidate always inherits the
             // warmed cache from the same predecessor.
-            for (unsigned position = 0; position < 4; ++position)
+            for (unsigned position = 0; position < variant_count; ++position)
             {
-                const auto variant = (position + repeat) % 4;
+                const auto variant = (position + repeat) % variant_count;
                 const auto fn = functions[variant];
                 std::uint64_t output = 0;
                 for (unsigned warm = 0; warm < 4; ++warm)
@@ -90,7 +91,7 @@ int main(int argc, char** argv)
                 samples[variant].push_back(seconds);
             }
         }
-        for (unsigned variant = 0; variant < 4; ++variant)
+        for (unsigned variant = 0; variant < variant_count; ++variant)
         {
             auto ordered = samples[variant];
             std::sort(ordered.begin(), ordered.end());
