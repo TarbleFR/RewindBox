@@ -36,6 +36,20 @@ def configure_entitlements() -> None:
     write_plist(path, payload)
 
 
+def configure_game_mode() -> None:
+    """The standalone MeloNX app's Game Mode declarations (Info.plist and its
+    project's INFOPLIST_KEY settings). iOS then gives the full-screen game
+    priority on CPU/GPU and lowers controller Bluetooth latency."""
+    path = RUNNER / 'Info.plist'
+    payload = plistlib.loads(path.read_bytes())
+    if not isinstance(payload, dict):
+        raise SystemExit('Runner Info.plist is not a dictionary')
+    payload['LSSupportsGameMode'] = True
+    payload['GCSupportsGameMode'] = True
+    payload['LSApplicationCategoryType'] = 'public.app-category.games'
+    write_plist(path, payload)
+
+
 def configure_helper_files() -> None:
     source = ROOT / 'native' / 'melonx_internal_helper'
     HELPER.mkdir(parents=True, exist_ok=True)
@@ -237,6 +251,7 @@ def main() -> None:
 
     configure_helper_files()
     configure_entitlements()
+    configure_game_mode()
     configure_podfile()
     configure_xcode_project()
     from configure_melonx_memory_ios import configure as configure_memory

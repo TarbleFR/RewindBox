@@ -9,6 +9,7 @@ final class MeloNXRuntimeAPI {
     private typealias MemoryOffer = @convention(c) (UnsafeMutableRawPointer?, UInt64) -> Int32
     private typealias MemorySnapshot = @convention(c) (UnsafeMutablePointer<UInt64>?, Int32) -> Int32
     private typealias PerformanceSnapshot = @convention(c) (Int64, UnsafeMutablePointer<Double>?, Int32) -> Int32
+    private typealias PresentTarget = @convention(c) (Int64, Int32) -> Int32
     private typealias Mode = @convention(c) (Int32) -> Int32
     private typealias Content = @convention(c) (UnsafePointer<CChar>?, Int32, UnsafeMutablePointer<CChar>?, Int32) -> Int32
     private typealias Attach = @convention(c) (Int64, Int32, UnsafePointer<CChar>?, Int32) -> Int32
@@ -50,6 +51,9 @@ final class MeloNXRuntimeAPI {
     private let memorySnapshotFunction: MemorySnapshot
     private let performanceSnapshotFunction: PerformanceSnapshot?
     var providesPerformanceSnapshot: Bool { performanceSnapshotFunction != nil }
+    private let presentTargetFunction: PresentTarget?
+    /// The MoltenVK this process loaded: 0 source-built, 1 the standalone app's.
+    let moltenVk: Int32
     private let configureJit: Mode
     private let contentFunction: Content
     private let contentProgressFunction: Version?
@@ -64,7 +68,7 @@ final class MeloNXRuntimeAPI {
     private let diagnosticsFunction: Diagnostic
     private let prepareJitFunction: Version
 
-    init(library: URL, frameworks: URL, root: URL) throws {
+    init(library: URL, frameworks: URL, root: URL, moltenVk requested: Int32 = 0) throws {
         MeloNXLaunchJournal.record("frameworks", "begin", detail:"Loading the private ARM64 MeloNX engine and resolving its ABI.")
         session = try MeloNXNativeSessionAPI(libraryURL: library)
         // session already owns a process-lifetime handle, including on error.
@@ -86,6 +90,7 @@ final class MeloNXRuntimeAPI {
         memorySnapshotFunction = try symbol("neostation_melonx_memory_snapshot", MemorySnapshot.self)
         // Optional: an older engine without it keeps the overlay RAM-only.
         performanceSnapshotFunction = dlsym(handle, "neostation_melonx_performance_snapshot").map { unsafeBitCast($0, to: PerformanceSnapshot.self) }
+        presentTargetFunction = dlsym(handle, "neostation_melonx_set_present_target_fps").map { unsafeBitCast($0, to: PresentTarget.self) }
         configureJit = try symbol("neostation_melonx_configure_jit", Mode.self)
         contentFunction = try symbol("neostation_melonx_content", Content.self)
         contentProgressFunction = dlsym(handle, "neostation_melonx_content_progress").map { unsafeBitCast($0, to: Version.self) }
@@ -99,12 +104,22 @@ final class MeloNXRuntimeAPI {
         prepareJitFunction = try symbol("neostation_melonx_prepare_jit", Version.self)
         let diagnosticsVersion = try symbol("neostation_melonx_diagnostics_abi", Version.self)
         guard runtimeVersion() == 1, inputVersion() == 1, libraryVersion() == 2, diagnosticsVersion() == 1 else { throw MeloNXHostError.incompatibleABI }
+        // Optional, and only before configure_native: an engine without it
+        // always loads the source-built MoltenVK.
+        var variant: Int32 = 0
+        if requested != 0, let address = dlsym(handle, "neostation_melonx_select_moltenvk") {
+            let choose = unsafeBitCast(address, to: Mode.self)
+            let status = choose(requested)
+            if status == 0 { variant = requested }
+            else { MeloNXLaunchJournal.record("frameworks", "moltenVk", code:Int64(status), detail:"MoltenVK \(requested) refused; the source-built MoltenVK is used.") }
+        }
+        moltenVk = variant
         let nativeStatus = frameworks.path.withCString({ configureNative($0) })
         guard nativeStatus == 0 else {
             throw MeloNXHostError.operation("frameworks",Int64(nativeStatus),diagnostics()["diagnostic"] as? String ?? "Private MeloNX native dependencies could not be loaded")
         }
         try Self.prepareSDL(frameworks:frameworks)
-        MeloNXLaunchJournal.record("frameworks", "passed", detail:"Private SDL video and dependency closure initialized.")
+        MeloNXLaunchJournal.record("frameworks", "passed", detail:"Private SDL video and dependency closure initialized; MoltenVK \(variant == 1 ? "standalone MeloNX" : "source-built").")
         MeloNXLaunchJournal.record("nativeAot", "begin")
         try session.initialize(root: root)
         MeloNXLaunchJournal.record("nativeAot", "passed")
@@ -136,6 +151,10 @@ final class MeloNXRuntimeAPI {
 
     func setAspectRatio(_ value: Int32, generation: Int64) -> Bool {
         setAspectFunction(generation,value) == 0
+    }
+    // The standalone app's unbounded-present cap (its screen's maximum rate).
+    func setPresentTargetFps(_ fps: Int32, generation: Int64) -> Bool {
+        presentTargetFunction?(generation,fps) == 0
     }
 
     func prepareJit() throws {

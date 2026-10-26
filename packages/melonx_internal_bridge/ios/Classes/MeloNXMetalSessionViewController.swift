@@ -103,7 +103,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
         surface.metalLayer.firstPresentation = { [weak self] in
             guard let self, !self.closing else { return }
             self.ready = true; self.spinner.stopAnimating()
-            self.applyPause(); self.firstFrame()
+            self.applyPause(); self.applyPresentTarget(); self.firstFrame()
         }
         surface.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(surface)
@@ -174,20 +174,36 @@ final class MeloNXMetalSessionViewController: UIViewController {
         }
         surface.layoutIfNeeded()
         let size = surface.metalLayer.drawableSize
+        // As in standalone MeloNX: no auto-lock while a game runs, and the
+        // process's stderr (MoltenVK's reports) goes to the journal.
+        UIApplication.shared.isIdleTimerDisabled = true
+        MeloNXStdioCapture.begin()
         do {
             try host.start(game:game,locale:locale,
                 width:Int32(max(1,min(16384,size.width))),height:Int32(max(1,min(16384,size.height))),
                 surface:surface.metalLayer,pointer:Unmanaged.passUnretained(surface.metalLayer).toOpaque(),
                 prepared:{ [weak self] id in self?.installControls(generation:id) },beforeRun:beforeRun) { [weak self, finished] result in
+                    MeloNXStdioCapture.end(); UIApplication.shared.isIdleTimerDisabled = false
                     self?.router?.close(); self?.closing = true; self?.updateMemoryGraph()
                     if let self, self.presentingViewController != nil {
                         self.dismiss(animated:true) { finished(result) }
                     } else { finished(result) }
                 }
         } catch {
+            MeloNXStdioCapture.end(); UIApplication.shared.isIdleTimerDisabled = false
             let failure = error as? MeloNXHostError ?? .load(String(describing:error))
             dismiss(animated:true) { [finished] in finished(.failure(failure)) }
         }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        applyPresentTarget()
+    }
+    // Standalone MeloNX sends its screen's maximum rate on every layout.
+    private func applyPresentTarget() {
+        guard let runtime, let generation, !closing, let screen = view.window?.windowScene?.screen else { return }
+        _ = runtime.setPresentTargetFps(Int32(max(1,screen.maximumFramesPerSecond)),generation:generation)
     }
 
     private func setPause(_ reason: String, enabled: Bool) {
@@ -208,6 +224,10 @@ final class MeloNXMetalSessionViewController: UIViewController {
             self.saveOption("showRamGraph",value:!(self.settings["showRamGraph"] as? Bool ?? true))
         })
         menu.addAction(UIAlertAction(title:MeloNXText("Memory status"),style:.default) { [weak self] _ in self?.showMemoryStatus() })
+        if let runtime, let frameworks = Bundle.main.privateFrameworksURL,
+           MeloNXMoltenVKChoice.available(0,frameworks:frameworks), MeloNXMoltenVKChoice.available(1,frameworks:frameworks) {
+            menu.addAction(UIAlertAction(title:MeloNXText("MoltenVK version") + ": " + MeloNXText(Self.moltenVkNames[Int(runtime.moltenVk)]),style:.default) { [weak self] _ in self?.showMoltenVk() })
+        }
         if ready {
             menu.addAction(UIAlertAction(title:MeloNXText("Screen format"),style:.default) { [weak self] _ in self?.showFormats() })
         }
@@ -263,6 +283,28 @@ final class MeloNXMetalSessionViewController: UIViewController {
         let alert = UIAlertController(title:MeloNXText("Settings could not be saved."),message:nil,preferredStyle:.alert)
         alert.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self] _ in self?.setPause("menu",enabled:false) })
         present(alert,animated:true)
+    }
+    private static let moltenVkNames = ["RewindBox (1.3.0)","MeloNX app (1.4.0)"] // by variant
+    // The loaded MoltenVK is fixed for the process; a choice applies at the next start.
+    private func showMoltenVk() {
+        guard !closing, let runtime else { setPause("menu",enabled:false); return }
+        let preferred = MeloNXMoltenVKChoice.preferred
+        let menu = UIAlertController(title:MeloNXText("MoltenVK version"),message:MeloNXText("In use") + ": " + MeloNXText(Self.moltenVkNames[Int(runtime.moltenVk)]),preferredStyle:.actionSheet)
+        for variant in [Int32(1),0] {
+            menu.addAction(UIAlertAction(title:(variant == preferred ? "✓ " : "") + MeloNXText(Self.moltenVkNames[Int(variant)]),style:.default) { [weak self] _ in
+                guard let self else { return }
+                MeloNXMoltenVKChoice.preferred = variant
+                MeloNXLaunchJournal.record("frameworks","moltenVkPreference",code:Int64(variant),detail:"Next start: " + Self.moltenVkNames[Int(variant)])
+                guard variant != runtime.moltenVk else { self.setPause("menu",enabled:false); return }
+                let alert = UIAlertController(title:MeloNXText("Restart RewindBox to use this MoltenVK."),message:nil,preferredStyle:.alert)
+                alert.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self] _ in self?.setPause("menu",enabled:false) })
+                self.present(alert,animated:true)
+            })
+        }
+        menu.addAction(UIAlertAction(title:MeloNXText("Cancel"),style:.cancel) { [weak self] _ in self?.setPause("menu",enabled:false) })
+        menu.popoverPresentationController?.sourceView = menuButton
+        menu.popoverPresentationController?.sourceRect = menuButton.bounds
+        present(menu,animated:true)
     }
     private func showMemoryStatus() {
         let access = MeloNXMemoryEntitlements()

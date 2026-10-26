@@ -36,4 +36,28 @@ partial class Library
         }
         catch { return 3; }
     }
+
+    // The standalone app pushes UIScreen.maximumFramesPerSecond through
+    // set_unbounded_present_target_fps on layout. It only matters when the
+    // guest presents with swap interval 0 (VSync Unbounded, or a game picking
+    // 0): the engine default otherwise drops every frame above 60 on a timer.
+    // Gated like the live aspect ratio; returns 2 for a stale generation.
+    [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_set_present_target_fps")]
+    public static int EmbeddedSetPresentTargetFps(long generation, int fps)
+    {
+        if (fps < 1 || fps > 1000) return 1;
+        try
+        {
+            bool applied = false;
+            bool current = EmbeddedSessions.WithInputs(generation, () =>
+            {
+                var context = _emulationContext;
+                if (context == null) return;
+                context.SetUnboundedPresentTargetFps(fps);
+                applied = true;
+            });
+            return current && applied ? 0 : 2;
+        }
+        catch { return 3; }
+    }
 }

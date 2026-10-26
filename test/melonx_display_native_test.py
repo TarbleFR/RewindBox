@@ -7,7 +7,7 @@ ROOT=Path(__file__).resolve().parents[1]
 source=Path(sys.argv[1])
 with tempfile.TemporaryDirectory(prefix='melonx-display-') as d:
  w=Path(d)
- paths=['native/melonx/EmbeddedGraphicsSettings.cs','native/melonx/EmbeddedSessionCoordinator.cs','native/melonx/EmbeddedMemory.cs','native/melonx/EmbeddedPerformance.cs']
+ paths=['native/melonx/EmbeddedGraphicsSettings.cs','native/melonx/EmbeddedSessionCoordinator.cs','native/melonx/EmbeddedMemory.cs','native/melonx/EmbeddedPerformance.cs','native/melonx/EmbeddedNativeLibraries.cs']
  for p in paths:shutil.copyfile(ROOT/p,w/Path(p).name)
  sys.path.insert(0,str(ROOT/'build-utils/melonx'))
  from adapt_memory import apply
@@ -38,14 +38,17 @@ class Configuration {public AspectRatio AspectRatio {get;set;}}
 // Same accessors as Ryujinx.HLE.PerformanceStatistics; frame time is 1000 / FPS.
 class PerformanceStatistics {public double Fps,Fifo;public double GetGameFrameRate()=>Fps;public double GetGameFrameTime()=>1000/Fps;public double GetFifoPercent()=>Fifo;}
 class Device {public Configuration Configuration=new();public PerformanceStatistics Statistics;}
+// Ryujinx.HLE.Switch's present-cap entry point (Switch.cs:193).
+class Switch {public int PresentTargetFps;public void SetUnboundedPresentTargetFps(int fps)=>PresentTargetFps=fps;}
 class Window {public Device Device=new();}
 partial class Library {
  static readonly object EmbeddedHostGate=new();
  internal static EmbeddedSessionCoordinator EmbeddedSessions=new();
  internal static Window _window;
+ internal static Switch _emulationContext;
 }}
 ''')
- (w/'Program.cs').write_text(r'''using System;using Ryujinx.Library;using Ryujinx.Common.Configuration;using System.Runtime.InteropServices;using Ryujinx.Memory;
+ (w/'Program.cs').write_text(r'''using System;using Ryujinx.Library;using Ryujinx.Common.Configuration;using System.Runtime.InteropServices;using Ryujinx.Memory;using Ryujinx.Common;
 unsafe class Program {static void Main(){
 int checks=0;void Check(bool v){if(!v)throw new Exception("display assertion "+checks);checks++;}
 var old=new Options {AspectRatio=AspectRatio.Fixed21x9,EnableHostMemoryBudgetTracking=false,EnableTextureRecompression=false};
@@ -68,10 +71,13 @@ foreach(int ratio in new[]{0,1,2,3,4,5}) {
  var options=EmbeddedGraphicsSettings.Parse("{\"aspectRatio\":"+ratio+",\"hostMemoryBudget\":true,\"textureRecompression\":true}").Apply(new());
  Check((int)options.AspectRatio==ratio && options.EnableHostMemoryBudgetTracking && options.EnableTextureRecompression);
 }
-// Backend threading: an absent key keeps the base (On, as EmbeddedSession builds
-// it, matching standalone); explicit false is the per-game escape hatch.
+// Backend threading: an absent key means On, as the standalone forces before every
+// launch whatever its saved config says; explicit false is the per-game escape hatch.
 var threadedDefault=EmbeddedGraphicsSettings.Parse("{}").Apply(new(){BackendThreading=BackendThreading.On});
 Check(threadedDefault.BackendThreading==BackendThreading.On);
+// An Off base (an imported standalone config.json) is not honoured: standalone forces On.
+var importedOff=EmbeddedGraphicsSettings.Parse("{}").Apply(new(){BackendThreading=BackendThreading.Off});
+Check(importedOff.BackendThreading==BackendThreading.On);
 var threadedOff=EmbeddedGraphicsSettings.Parse("{\"backendThreading\":false}").Apply(new(){BackendThreading=BackendThreading.On});
 Check(threadedOff.BackendThreading==BackendThreading.Off);
 var threadedOn=EmbeddedGraphicsSettings.Parse("{\"backendThreading\":true}").Apply(new(){BackendThreading=BackendThreading.Off});
@@ -98,11 +104,17 @@ Library._window.Device.Statistics.Fps=double.NaN;Library._window.Device.Statisti
 Check(performance(generation,fps,3)==0 && fps[0]==0 && fps[1]==0 && fps[2]==0);
 Library._window.Device.Statistics.Fps=30;
 Check(performance(generation+1,fps,3)==2 && fps[0]==0);
+// Unbounded-present cap: argument checks, no emulation context yet, live, stale.
+delegate* unmanaged<long,int,int> presentCap=&Library.EmbeddedSetPresentTargetFps;
+Check(presentCap(generation,0)==1 && presentCap(generation,1001)==1);
+Check(presentCap(generation,120)==2);Library._emulationContext=new();
+Check(presentCap(generation,120)==0 && Library._emulationContext.PresentTargetFps==120);
+Check(presentCap(generation+1,60)==2 && Library._emulationContext.PresentTargetFps==120);
 Check(set(generation,5)==0 && Library._window.Device.Configuration.AspectRatio==AspectRatio.Stretched);
 Check(set(generation,0)==0 && Library._window.Device.Configuration.AspectRatio==AspectRatio.Fixed4x3);
 Check(set(generation,6)==1 && Library._window.Device.Configuration.AspectRatio==AspectRatio.Fixed4x3);
 Check(set(generation+1,1)==2 && Library._window.Device.Configuration.AspectRatio==AspectRatio.Fixed4x3);
-Library.EmbeddedSessions.Stop(generation);Check(set(generation,5)==2 && performance(generation,fps,3)==2);
+Library.EmbeddedSessions.Stop(generation);Check(set(generation,5)==2 && performance(generation,fps,3)==2 && presentCap(generation,60)==2);
 Library.EmbeddedSessions.CancelPrepared(generation);var second=Library.EmbeddedSessions.Prepare();
 Check(set(generation,5)==2 && set(second,1)==0);
 Library.EmbeddedSessions.CancelPrepared(second);
@@ -129,6 +141,25 @@ try {
  Check(offer(region,65536)==0 && withdraw()==0);
  Check(!DonatedMemory.TryAllocate(1,out _));
 } finally {NativeMemory.AlignedFree((void*)region);}
+// MoltenVK selection: only 0 and 1; the selected framework is the one that must
+// exist; once a root is fixed the choice cannot change. Runs last: it fixes
+// the process-wide native root.
+bool Throws<T>(Action action) where T:Exception {try{action();return false;}catch(T){return true;}}
+Check(Throws<ArgumentOutOfRangeException>(()=>EmbeddedNativeLibraries.SelectMoltenVk(2)));
+EmbeddedNativeLibraries.SelectMoltenVk(1);Check(EmbeddedNativeLibraries.MoltenVk=="MeloNXMoltenVKStandalone");
+var frameworks=System.IO.Directory.CreateTempSubdirectory("melonx-frameworks-").FullName;
+foreach(var name in new[]{"MeloNXMoltenVK","MeloNXSDL3","MeloNXAvCodec","MeloNXAvUtil","MeloNXJitSupport"}) {
+ System.IO.Directory.CreateDirectory(System.IO.Path.Combine(frameworks,name+".framework"));
+ System.IO.File.WriteAllBytes(System.IO.Path.Combine(frameworks,name+".framework",name),new byte[16]);
+}
+// The standalone framework is missing: nothing is fixed, another choice is still possible.
+Check(Throws<System.IO.FileNotFoundException>(()=>EmbeddedNativeLibraries.Configure(frameworks)));
+EmbeddedNativeLibraries.SelectMoltenVk(0);Check(EmbeddedNativeLibraries.MoltenVk=="MeloNXMoltenVK");
+// Every framework present: the root is fixed before loading (these stand-ins
+// are not loadable), so MoltenVK can no longer be switched in this process.
+Check(Throws<Exception>(()=>EmbeddedNativeLibraries.Configure(frameworks)));
+Check(Throws<InvalidOperationException>(()=>EmbeddedNativeLibraries.SelectMoltenVk(1)));
+EmbeddedNativeLibraries.SelectMoltenVk(0);Check(EmbeddedNativeLibraries.MoltenVk=="MeloNXMoltenVK");
 Console.WriteLine($"PASS {checks} graphics, FPS snapshot, generation and real donated allocator cases; window double, no gameplay claim.");
 }}''')
  result=subprocess.check_output(['dotnet','run','--project',str(w/'test.csproj'),'-c','Release'],text=True,stderr=subprocess.STDOUT,timeout=120)

@@ -1105,6 +1105,76 @@
       "다른 엔진이 기증 프로세스를 사용 중",
       "其他引擎正在使用供体",
       "其他引擎正在使用供體"
+    ],
+    "MoltenVK version": [
+      "MoltenVK version",
+      "Version de MoltenVK",
+      "MoltenVK-Version",
+      "Versión de MoltenVK",
+      "Versione di MoltenVK",
+      "Versão do MoltenVK",
+      "Версия MoltenVK",
+      "Versi MoltenVK",
+      "MoltenVKのバージョン",
+      "MoltenVK 버전",
+      "MoltenVK 版本",
+      "MoltenVK 版本"
+    ],
+    "MeloNX app (1.4.0)": [
+      "MeloNX app (1.4.0)",
+      "App MeloNX (1.4.0)",
+      "MeloNX-App (1.4.0)",
+      "App de MeloNX (1.4.0)",
+      "App MeloNX (1.4.0)",
+      "App MeloNX (1.4.0)",
+      "Приложение MeloNX (1.4.0)",
+      "Aplikasi MeloNX (1.4.0)",
+      "MeloNXアプリ (1.4.0)",
+      "MeloNX 앱 (1.4.0)",
+      "MeloNX 应用 (1.4.0)",
+      "MeloNX App (1.4.0)"
+    ],
+    "RewindBox (1.3.0)": [
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)",
+      "RewindBox (1.3.0)"
+    ],
+    "In use": [
+      "In use",
+      "En cours d’utilisation",
+      "Aktiv",
+      "En uso",
+      "In uso",
+      "Em uso",
+      "Используется",
+      "Sedang dipakai",
+      "使用中",
+      "사용 중",
+      "使用中",
+      "使用中"
+    ],
+    "Restart RewindBox to use this MoltenVK.": [
+      "Restart RewindBox to use this MoltenVK.",
+      "Redémarrez RewindBox pour utiliser ce MoltenVK.",
+      "Starte RewindBox neu, um dieses MoltenVK zu verwenden.",
+      "Reinicia RewindBox para usar este MoltenVK.",
+      "Riavvia RewindBox per usare questo MoltenVK.",
+      "Reinicie o RewindBox para usar este MoltenVK.",
+      "Перезапустите RewindBox, чтобы использовать этот MoltenVK.",
+      "Mulai ulang RewindBox untuk memakai MoltenVK ini.",
+      "このMoltenVKを使うにはRewindBoxを再起動してください。",
+      "이 MoltenVK를 사용하려면 RewindBox를 다시 시작하세요.",
+      "重新启动 RewindBox 以使用此 MoltenVK。",
+      "重新啟動 RewindBox 以使用此 MoltenVK。"
     ]
   }
 }

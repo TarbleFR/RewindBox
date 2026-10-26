@@ -45,6 +45,10 @@ int32_t neostation_melonx_memory_withdraw(void);
 int32_t neostation_melonx_memory_snapshot(uint64_t *values, int32_t count);
 /* Game FPS, frame time (ms) and FIFO percent for a live generation; count is 3. */
 int32_t neostation_melonx_performance_snapshot(int64_t generation, double *values, int32_t count);
+/* Unbounded-present cap in frames per second for a live generation (standalone: screen maximum). */
+int32_t neostation_melonx_set_present_target_fps(int64_t generation, int32_t fps);
+/* Before configure_native: 0 = source-built MoltenVK, 1 = the standalone MeloNX app's binary. */
+int32_t neostation_melonx_select_moltenvk(int32_t variant);
 #ifdef __cplusplus
 }
 #endif

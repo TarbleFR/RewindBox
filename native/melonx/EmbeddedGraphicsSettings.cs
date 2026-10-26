@@ -70,7 +70,10 @@ internal sealed class EmbeddedGraphicsSettings
         options.EnableAsyncShaderCompilation = AsyncShaders;
         options.VSyncMode = Vsync;
         options.ScalingFilter = Filter;
-        if (Threading.HasValue) options.BackendThreading = Threading.Value;
+        // The standalone app forces BackendThreading.On before every launch and
+        // never applies its saved value (default Off), so an imported personal
+        // config must not turn it off here either: only this per-game switch can.
+        options.BackendThreading = Threading ?? BackendThreading.On;
         return options;
     }
 }

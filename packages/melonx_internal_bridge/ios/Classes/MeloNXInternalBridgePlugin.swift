@@ -85,7 +85,21 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         guard !FileManager.default.fileExists(atPath: documents.appendingPathComponent("MeloNX/.rewindbox-transfer.json").path) else { throw MeloNXHostError.load("Library recovery required") }
         guard let frameworks = Bundle.main.privateFrameworksURL else { throw MeloNXHostError.load("Frameworks directory missing") }
         let root = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("MeloNX")
-        let runtime = try MeloNXRuntimeAPI(library:frameworks.appendingPathComponent("MeloNXCore.framework/MeloNXCore"),frameworks:frameworks,root:root)
+        // The standalone app's MoltenVK unless the player chose RewindBox's,
+        // or this build does not carry it.
+        var moltenVk = MeloNXMoltenVKChoice.preferred
+        if !MeloNXMoltenVKChoice.available(moltenVk,frameworks:frameworks) { moltenVk = 0 }
+        let runtime: MeloNXRuntimeAPI
+        do { runtime = try MeloNXRuntimeAPI(library:frameworks.appendingPathComponent("MeloNXCore.framework/MeloNXCore"),frameworks:frameworks,root:root,moltenVk:moltenVk) }
+        catch {
+            // The switch lives in the game menu: never leave the player stuck
+            // on a MoltenVK that does not load. The next start uses RewindBox's.
+            if moltenVk == 1 {
+                MeloNXMoltenVKChoice.preferred = 0
+                MeloNXLaunchJournal.record("frameworks","moltenVkPreference",detail:"The standalone MoltenVK did not start; RewindBox's is used from the next start.")
+            }
+            throw error
+        }
         self.runtime = runtime
         DispatchQueue.main.async { [weak self] in self?.contentProgress = { runtime.contentProgress() }; self?.contentCancellation = { runtime.cancelContent() } }
         return runtime
@@ -109,6 +123,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                 result(FlutterError(code:"invalidJournal",message:"Invalid application journal path.",details:nil)); return
             }
             MeloNXLaunchJournal.configure(path:path)
+            MeloNXStdioCapture.configure(path:path)
             libraryQueue.async { [self] in
                 do {
                     let response = try ensureRuntime().content(path:path,operation:9)

@@ -3,11 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 namespace Ryujinx.Common;
 
 // This belongs to the MeloNX NativeAOT image only. No DYLD search path, shared
-// MoltenVK, other engine handle or upstream prebuilt library is used.
+// MoltenVK or other engine handle is used. The one upstream prebuilt library
+// is the standalone MeloNX app's own MoltenVK, shipped privately next to the
+// source-built one for an A/B of the Persona flicker; the host selects one per
+// process before anything is loaded.
 public static class EmbeddedNativeLibraries
 {
     private static readonly object Gate = new();
@@ -15,6 +19,12 @@ public static class EmbeddedNativeLibraries
     private static string Root;
     private static int JitMode = -1;
     public static bool UniversalJit { get { lock (Gate) return JitMode == 1; } }
+    // 0: RewindBox's source-built Khronos MoltenVK; 1: the standalone MeloNX
+    // app's libMoltenVK.dylib. 0 when the host never selects.
+    private static readonly string[] MoltenVkFrameworks = { "MeloNXMoltenVK", "MeloNXMoltenVKStandalone" };
+    private static int MoltenVkVariant;
+    private static string MoltenVkIdentity = "";
+    public static string MoltenVk { get { lock (Gate) return MoltenVkFrameworks[MoltenVkVariant] + MoltenVkIdentity; } }
 
     private static readonly Dictionary<string, string> Names = new()
     {
@@ -40,6 +50,21 @@ public static class EmbeddedNativeLibraries
             // NativeAOT and these handles remain process-owned after shutdown.
             foreach (string name in new[] { "avutil", "avcodec", "SDL3", "libMoltenVK.dylib", "MeloNXJitSupport" })
                 Load(name);
+            // Name the exact MoltenVK binary in the launch journal.
+            using var binary = File.OpenRead(PathFor("libMoltenVK.dylib"));
+            MoltenVkIdentity = " sha256:" + Convert.ToHexString(SHA256.HashData(binary)).ToLowerInvariant()[..16];
+        }
+    }
+
+    public static void SelectMoltenVk(int variant)
+    {
+        if (variant != 0 && variant != 1) throw new ArgumentOutOfRangeException(nameof(variant));
+        lock (Gate)
+        {
+            if (Root != null && variant != MoltenVkVariant)
+                throw new InvalidOperationException("MoltenVK is already loaded for this process.");
+            MoltenVkVariant = variant;
+            Names["libMoltenVK.dylib"] = MoltenVkFrameworks[variant];
         }
     }
 

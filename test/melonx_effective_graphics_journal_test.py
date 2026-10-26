@@ -93,8 +93,8 @@ var explicitOther=EmbeddedGraphicsSettings.Parse("""
 """).Apply(new Options {BackendThreading=BackendThreading.Off});
 Record(explicitOther);
 var threaded=EmbeddedGraphicsSettings.Parse("""
-{"resolution":1,"backendThreading":true}
-""").Apply(new Options {BackendThreading=BackendThreading.Off});
+{"resolution":1,"backendThreading":false}
+""").Apply(new Options {BackendThreading=BackendThreading.On});
 Record(threaded);
 EmbeddedLaunchDiagnostics.Record("keys","failed",detail:"header_key = "+new string('a',64));
 using var snapshot=JsonDocument.Parse(EmbeddedLaunchDiagnostics.Snapshot());
@@ -103,15 +103,15 @@ Check(events.GetArrayLength()==5,"Unexpected journal events");
 string Detail(int index)=>events[index].GetProperty("diagnostic").GetString();
 Check(Detail(0)=="[redacted key entry]","Old production false positive was not reproduced");
 foreach(string field in new[]{"resolution=0.75","shaderCache=True","asyncShaders=False",
- "vsync=Switch","hostMemoryBudget=True","textureRecompression=False","threading=Off"})
+ "vsync=Switch","hostMemoryBudget=True","textureRecompression=False","threading=On"})
  Check(Detail(1).Contains(field),"Video options did not survive: "+field);
 foreach(string field in new[]{"resolution=1.5","shaderCache=False","asyncShaders=True",
  "vsync=Unbounded","hostMemoryBudget=False","textureRecompression=True"})
  Check(Detail(2).Contains(field),"Explicit option did not survive: "+field);
-// Default (no backendThreading key) keeps the base value; an explicit per-game
-// value overrides it. threading=On is the shipped default from EmbeddedSession.
-Check(Detail(1).Contains("threading=Off"),"Absent backendThreading changed the base value");
-foreach(string field in new[]{"resolution=1","threading=On"})
+// No backendThreading key means On even over an Off base (an imported standalone
+// config saves Off but the standalone forces On); an explicit value overrides it.
+Check(Detail(1).Contains("threading=On"),"Absent backendThreading did not force On");
+foreach(string field in new[]{"resolution=1","threading=Off"})
  Check(Detail(3).Contains(field),"Explicit backendThreading override did not survive: "+field);
 Check(Detail(4)=="[redacted key entry]","Key assignment no longer redacted");
 Check(!File.ReadAllText(journal).Contains(new string('a',64)),"Synthetic key reached file");

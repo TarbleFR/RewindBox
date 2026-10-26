@@ -68,6 +68,10 @@ partial class Library
                 // No game path, personal profile or key material is included.
                 EmbeddedLaunchDiagnostics.Record("configuration", "effective", detail:
                     FormattableString.Invariant($"Applied graphics: resolution={options.ResScale}; shaderCache={!options.DisableShaderCache}; asyncShaders={options.EnableAsyncShaderCompilation}; vsync={options.VSyncMode}; hostMemoryBudget={options.EnableHostMemoryBudgetTracking}; textureRecompression={options.EnableTextureRecompression}; threading={options.BackendThreading}"));
+                // Every other option the engine consumes, so a session can be
+                // compared field by field with the standalone app's config.
+                EmbeddedLaunchDiagnostics.Record("configuration", "engine", detail:
+                    FormattableString.Invariant($"Engine options: ptc={!options.DisablePTC}; macroHle={!options.DisableMacroHLE}; docked={!options.DisableDockedMode}; memoryManager={options.MemoryManagerMode}; aspect={options.AspectRatio}; anisotropy={options.MaxAnisotropy}; antiAliasing={options.AntiAliasing}; scaling={options.ScalingFilter}/{options.ScalingFilterLevel}; language={options.SystemLanguage}; region={options.SystemRegion}; ignoreMissingServices={options.IgnoreMissingServices}; customVsync={options.CustomVSyncInterval}; moltenVk={EmbeddedNativeLibraries.MoltenVk}"));
                 // Native Npad disposal disconnects its pad objects. A new
                 // host view reattaches fresh pads after this reservation.
                 foreach (var pad in ((NativeGamepadDriver)_inputManager.GamepadDriver).GetGamepads().ToArray())

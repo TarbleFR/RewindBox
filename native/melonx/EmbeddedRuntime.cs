@@ -72,10 +72,20 @@ partial class Library
             EmbeddedSubscribeDiagnostics();
             EmbeddedLaunchDiagnostics.Record("frameworks", "begin");
             EmbeddedNativeLibraries.Configure(Marshal.PtrToStringUTF8(rootUtf8));
-            EmbeddedLaunchDiagnostics.Record("frameworks", "passed");
+            EmbeddedLaunchDiagnostics.Record("frameworks", "passed", detail: "MoltenVK: " + EmbeddedNativeLibraries.MoltenVk);
             return 0;
         }
         catch (Exception error) { EmbeddedLaunchDiagnostics.Fail("frameworks", "runtimeUnavailable", error); return 1; }
+    }
+
+    // Before configure_native only: 0 = RewindBox's source-built MoltenVK,
+    // 1 = the standalone MeloNX app's binary. Fixed for the process once loaded.
+    [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_select_moltenvk")]
+    public static int EmbeddedSelectMoltenVk(int variant)
+    {
+        try { EmbeddedNativeLibraries.SelectMoltenVk(variant); return 0; }
+        catch (ArgumentOutOfRangeException) { return 1; }
+        catch (Exception error) { EmbeddedLaunchDiagnostics.Fail("frameworks", "moltenVkFixed", error); return 2; }
     }
 
     // Configuration does not assert authorization. The host must first prove

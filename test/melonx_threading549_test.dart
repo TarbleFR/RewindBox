@@ -8,14 +8,13 @@ import 'package:neostation/services/melonx_internal_service.dart';
 // (EmbeddedSession.cs); the app only stores an explicit choice.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  test('imported standalone BackendThreading enum maps to the per-game switch', () {
-    // Ryujinx BackendThreading: 0 Auto, 1 Off, 2 On. Auto is On for Vulkan.
-    expect(MelonxInternalService.migratedGraphics({'backendThreading': 0}), {'backendThreading': true});
-    expect(MelonxInternalService.migratedGraphics({'backendThreading': 1}), {'backendThreading': false});
-    expect(MelonxInternalService.migratedGraphics({'backendThreading': 2}), {'backendThreading': true});
-    for (final invalid in ['2', true, null, 1.0]) {
-      expect(MelonxInternalService.migratedGraphics({'backendThreading': invalid}), isEmpty);
+  test('an imported standalone BackendThreading value is ignored', () {
+    // Standalone MeloNX saves Off (1) by default and forces On at launch;
+    // importing it would turn threading off where the standalone never does.
+    for (final value in [0, 1, 2, '2', true, null, 1.0]) {
+      expect(MelonxInternalService.migratedGraphics({'backendThreading': value}), isEmpty);
     }
+    expect(MelonxInternalService.migratedGraphics({'backendThreading': 1, 'aspectRatio': 2}), {'aspectRatio': 2});
     expect(MelonxInternalService.migratedGraphics({}), isEmpty);
   });
   test('an explicit per-game choice persists and an absent one stays absent', () async {

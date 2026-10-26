@@ -240,3 +240,46 @@ counter above. Installing 549 over 547 or 548 loses nothing from either.
 - On iPhone, check: the journal line `threading=On`; Persona 4 Golden fluidity
   and flicker against the standalone app; the `NN FPS` counter in the RAM
   overlay; closing from RewindBox and in game, then relaunching.
+
+## Standalone parity after 549 (build 552)
+
+The 549 report (`threading=On`, no more "GPU too slow") left the Persona 5
+Royal flicker and the Persona 4 Golden stutter. A second comparison with the
+standalone app at the pinned revision found these differences; 552 closes them
+or makes them testable.
+
+- **MoltenVK binary.** The standalone app links its own
+  `src/MeloNX/MeloNX/Dependencies/libMoltenVK.dylib` (reports MoltenVK 1.4.0,
+  SHA-256 `5735ca4a…6bfa5`); RewindBox builds Khronos MoltenVK v1.3.0 from
+  source. By the maintainer's explicit exception, 552 ships both:
+  `MeloNXMoltenVKStandalone.framework` holds the unmodified standalone bytes
+  (only the install name changes; `build-utils/melonx/package_standalone_moltenvk.py`,
+  Apache-2.0 notice in `Legal/MeloNX/StandaloneMoltenVK`). The host selects one
+  per process before the engine loads (`neostation_melonx_select_moltenvk`);
+  the standalone one is the default. The in-game menu entry *MoltenVK version*
+  switches, applied at the next RewindBox start. The journal's `frameworks`
+  line names the loaded binary and its hash prefix.
+- **MoltenVK's own reports.** The standalone app sends stdout and stderr to its
+  log file; MoltenVK writes there (device loss, failed command buffers).
+  During a session RewindBox now copies stderr into `app.log` as
+  `[MeloNX:stderr]` lines (2000 per session, same redaction as the journal).
+- **Engine options journal.** A `configuration/engine` line lists every other
+  option the engine consumes (PTC, macro HLE, docked, memory manager, scaling,
+  language, region, custom VSync, MoltenVK) for a field-by-field comparison
+  with the standalone config.
+- **Unbounded present target.** The standalone app calls
+  `set_unbounded_present_target_fps(screen.maximumFramesPerSecond)` on every
+  layout; RewindBox never did, so VSync *Unbounded* was capped at 60 by the
+  engine default. Now sent on layout and at the first frame.
+- **Game Mode.** `LSSupportsGameMode`, `GCSupportsGameMode` and
+  `LSApplicationCategoryType = public.app-category.games`, as in the standalone
+  Info.plist and project.
+- **Auto-lock** is disabled during a session, as in the standalone app.
+- **Imported backend threading.** The standalone config stores Off by default
+  but forces On at launch; RewindBox no longer imports that stored value.
+
+Not changed: `CADisableMinimumFrameDurationOnPhone` stays in RewindBox (the
+120 Hz interface needs it). The standalone app lacks it, so on a ProMotion
+iPhone its game layer is capped at 60 Hz while RewindBox's is not; this remains
+a candidate for the Persona 4 Golden frame pacing. Shader cache defaults
+(standalone: off) stay a per-game setting.
