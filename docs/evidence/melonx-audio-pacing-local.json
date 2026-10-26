@@ -2,7 +2,7 @@
   "result": "passed",
   "report": {
     "result": "passed",
-    "assertions": 26,
+    "assertions": 35,
     "starvedNs": 10020834,
     "physicalDeviceTested": false,
     "avFoundationDouble": true
@@ -10,12 +10,12 @@
   "physicalDeviceTested": false,
   "avFoundationDouble": true,
   "inputs": {
-    "build-utils/melonx/adapt_audio_pacing.py": "2eda68cbb433c3daae7a76ce747a11fb1a4c793d958810b39e86e8fffaac0a21",
+    "build-utils/melonx/adapt_audio_pacing.py": "eba34129e866e9079cb2a6cb18e15fbad496290685baeed1e697bc620438a973",
     "build-utils/melonx/adapt_apple_audio.py": "161a334e4821b64b00d77c2a24e69a8f39276fbc4dfe45c0e6f984d63a3d61c3",
-    "native/melonx/EmbeddedAudioPacing.cs": "274c44ccf7c18fbc9d553f66c3500061032104e5a9527807246e4c9abc85a1f0",
+    "native/melonx/EmbeddedAudioPacing.cs": "5d653790196980380037c38094731d60403cd34b94a9cfe93f66ed55aabaf492",
     "native/melonx/EmbeddedAudioPacingExport.cs": "d4fa9af0304a4e4f95ce60c957935e56569c53da91c66d17c2f7eb0172a027b5",
-    "test/melonx_audio_pacing_test.py": "43bea283202da61ed8804d7ba0dde32414043007ec248b03e092f4e4cb4f8c4a",
-    "test/melonx_audio_pacing/Program.cs": "d4f070cdf10cbbdebdb82a37ef56a75f8c3843fb8e8d42091908ce71ed0b0969",
+    "test/melonx_audio_pacing_test.py": "183380003ea8a9ed2864353b313a510d37531bc334c60959a1d97cd9160869cf",
+    "test/melonx_audio_pacing/Program.cs": "e45a79bbb87bf0b52ab338c2404c62c71d23fcc633162581950b5cd14cae3904",
     "test/melonx_apple_audio/AVFoundationDouble.cs": "e2e4209cb6b535dd6a28ce6d7210d01e3d2f25f74ba49db9734ad957440f06e8"
   },
   "upstreamInputs": {
@@ -29,6 +29,7 @@
     "src/Ryujinx.Audio/Integration/IHardwareDeviceDriver.cs": "4fec60900ed0250231b364304be7fbb6fab000941cef17653f30466ef715de8d",
     "src/Ryujinx.Audio/Integration/IHardwareDeviceSession.cs": "9becaab33bfc06d638282eb07a1cc3660e36fe889572bd454d19e65841f636aa",
     "src/Ryujinx.Audio/Renderer/Dsp/AudioProcessor.cs": "aaf79ec21aa9d8488368390734ca5a41091defd48fb8c7baa418553b9c1e0a9e",
+    "src/Ryujinx.HLE/HOS/Horizon.cs": "80c623b66e197c21928f321ce6a2407f91022c4902bfcc3dfa570965f9e385b6",
     "src/Ryujinx.Audio.Backends.Apple/Native/AVFoundation.cs": "fdde2d96723601571f7f9a96afc8619d0d41ae9be82078dbe432094256d94534",
     "src/Ryujinx.Library/Library.cs": "d40520115737c610a2dd8ac03493e444fd099e4e1bd699e2435ec72da3094c48"
   },

@@ -25,7 +25,8 @@ paths = [
     'src/Ryujinx.Audio/Integration/IHardwareDeviceDriver.cs',
     'src/Ryujinx.Audio/Integration/IHardwareDeviceSession.cs',
 ]
-upstream_inputs = paths + [processor,
+horizon = 'src/Ryujinx.HLE/HOS/Horizon.cs'
+upstream_inputs = paths + [processor, horizon,
     'src/Ryujinx.Audio.Backends.Apple/Native/AVFoundation.cs',
     'src/Ryujinx.Library/Library.cs',
 ]
@@ -39,14 +40,14 @@ with tempfile.TemporaryDirectory(prefix='melonx-audio-pacing-') as temporary:
     adapt_apple_audio(source)
     upstream = (SOURCE / processor).read_text(encoding='utf-8-sig')
     adapted = adapt_audio_pacing(source)
-    assert [p.relative_to(source).as_posix() for p in adapted] == [processor, paths[0]]
+    assert [p.relative_to(source).as_posix() for p in adapted] == [processor, paths[0], horizon]
 
     # The DSP edit only adds lines: removing them restores the upstream text.
     dsp = (source / processor).read_text(encoding='utf-8')
-    added = ['                EmbeddedAudioPacing.DspSkipped(bufferedFrames - TargetBufferedFrames);\n',
+    added = ['                EmbeddedAudioPacing.DspSkipped(bufferedFrames - TargetBufferedFrames, _lastTime + increment);\n',
              '            long due = _lastTime + increment;\n\n',
              '            // How late this period ended (a late wake-up or a busy producer).\n',
-             '            EmbeddedAudioPacing.DspPeriod(timeNow - due);\n\n']
+             '            EmbeddedAudioPacing.DspPeriod(due, timeNow);\n\n']
     restored = dsp
     for line in added:
         assert restored.count(line) == 1, line
@@ -54,9 +55,18 @@ with tempfile.TemporaryDirectory(prefix='melonx-audio-pacing-') as temporary:
     assert restored == upstream.replace('\r\n', '\n') or restored == upstream, 'DSP pacing changed more than measurement lines'
     assert 'using Ryujinx.Common;' in dsp
     wait = re.search(r'long due = _lastTime \+ increment;\s+while \(timeNow < _lastTime \+ increment\)\s+\{[^}]*\}\s+'
-                     r'// How late[^\n]*\n\s+EmbeddedAudioPacing\.DspPeriod\(timeNow - due\);\s+_lastTime \+= increment;', dsp)
+                     r'// How late[^\n]*\n\s+EmbeddedAudioPacing\.DspPeriod\(due, timeNow\);\s+_lastTime \+= increment;', dsp)
     assert wait, 'Lateness is not measured around the wait loop'
+    skip = dsp.index('EmbeddedAudioPacing.DspSkipped(')
+    assert dsp.index('if (bufferedFrames > MaxBufferedFrames)') < skip < dsp.index('_lastTime += increment * (bufferedFrames - TargetBufferedFrames);'), 'skip counted after the deadline moved'
     print('PASS DSP pacing measured around the unchanged wait loop', flush=True)
+
+    # The resume from a host pause is marked just before the audio resumes,
+    # and is the only edit to Horizon.cs.
+    resume = (source / horizon).read_text(encoding='utf-8')
+    mark = '                    Ryujinx.Common.EmbeddedAudioPacing.Resumed(Ryujinx.Common.PerformanceCounter.ElapsedNanoseconds);\n'
+    assert resume.count(mark) == 1 and resume.replace(mark, '') == (SOURCE / horizon).read_text(encoding='utf-8-sig').replace('\r\n', '\n')
+    assert resume.index(mark) < resume.index('Device.AudioDeviceDriver.GetPauseEvent().Set();') < resume.index('TickSource.Resume();')
 
     # A completion that races a new buffer or a guest stop cannot be driven by
     # the double; the re-check must directly follow the completion's count.

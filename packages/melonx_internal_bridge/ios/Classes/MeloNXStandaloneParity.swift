@@ -140,21 +140,23 @@ enum MeloNXStdioCapture {
     }
 
     // Same discipline as MeloNXLaunchJournal: O_APPEND per line, shared with
-    // Dart's logger, skipped once app.log reaches 5 MiB.
-    static func appendLine(_ text: String, to path: String) {
+    // Dart's logger, skipped once app.log reaches `limit` (5 MiB by default).
+    @discardableResult
+    static func appendLine(_ text: String, to path: String, limit: Int64 = 5 * 1024 * 1024) -> Bool {
         let line = Array((text + "\n").utf8)
         let fd = open(path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR)
-        guard fd >= 0 else { return }
+        guard fd >= 0 else { return false }
         defer { close(fd) }
         var info = stat()
-        guard fstat(fd, &info) == 0, info.st_size < 5 * 1024 * 1024 else { return }
+        guard fstat(fd, &info) == 0, Int64(info.st_size) < limit else { return false }
         var offset = 0
         while offset < line.count {
             let count = line.withUnsafeBytes { write(fd, $0.baseAddress!.advanced(by:offset), line.count - offset) }
             if count < 0 && errno == EINTR { continue }
-            guard count > 0 else { return }
+            guard count > 0 else { return false }
             offset += count
         }
+        return true
     }
 }
 

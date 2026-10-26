@@ -6,6 +6,8 @@ of late periods count as one episode) and how many periods it skipped. The Apple
 after a completed buffer and how long until the next buffer arrives (heard
 as silence). Each session keeps its own interval and a guest stop ends it
 uncounted; a completion that races a new buffer or a stop is re-checked.
+Horizon.TogglePauseEmulation marks each resume from a host pause: what
+waited through the pause is not counted.
 Counters: native/melonx/EmbeddedAudioPacing.cs.
 """
 from adapt_session import once
@@ -15,8 +17,8 @@ def apply(source):
     processor = source / 'src/Ryujinx.Audio/Renderer/Dsp/AudioProcessor.cs'
     once(processor, '''                // Skip a few frames so that we're not too far behind. (the target number of frames)
                 _lastTime += increment * (bufferedFrames - TargetBufferedFrames);''', '''                // Skip a few frames so that we're not too far behind. (the target number of frames)
-                _lastTime += increment * (bufferedFrames - TargetBufferedFrames);
-                EmbeddedAudioPacing.DspSkipped(bufferedFrames - TargetBufferedFrames);''')
+                EmbeddedAudioPacing.DspSkipped(bufferedFrames - TargetBufferedFrames, _lastTime + increment);
+                _lastTime += increment * (bufferedFrames - TargetBufferedFrames);''')
     once(processor, '''            while (timeNow < _lastTime + increment)
             {
                 _event.WaitOne(1);
@@ -34,7 +36,7 @@ def apply(source):
             }
 
             // How late this period ended (a late wake-up or a busy producer).
-            EmbeddedAudioPacing.DspPeriod(timeNow - due);
+            EmbeddedAudioPacing.DspPeriod(due, timeNow);
 
             _lastTime += increment;''')
     session = source / 'src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs'
@@ -58,4 +60,7 @@ def apply(source):
                 _playing = false;
                 _started = false;
                 Ryujinx.Common.EmbeddedAudioPacing.HostIdle(ref _pacingStarvedSince);''')
-    return [processor, session]
+    horizon = source / 'src/Ryujinx.HLE/HOS/Horizon.cs'
+    once(horizon, '''                    Device.AudioDeviceDriver.GetPauseEvent().Set();''', '''                    Ryujinx.Common.EmbeddedAudioPacing.Resumed(Ryujinx.Common.PerformanceCounter.ElapsedNanoseconds);
+                    Device.AudioDeviceDriver.GetPauseEvent().Set();''')
+    return [processor, session, horizon]

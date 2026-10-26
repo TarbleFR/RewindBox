@@ -13,19 +13,34 @@ public static class EmbeddedAudioPacing
     public const int Count = 9;
     // A DSP period that ends more than this after its due time counts as late.
     public const long LateThresholdNs = 2_000_000;
+    // A host pause stops the guest and its audio. On resume, DSP periods due
+    // and output starvations begun before it, plus this catch-up, are the
+    // pause, not a stutter.
+    public const long ResumeGraceNs = 50_000_000;
 
     private static long _dspPeriods, _dspLate, _dspLateNs, _dspMaxLateNs, _dspSkipped;
     // Only the audio renderer's DSP thread calls DspPeriod.
     private static bool _dspWasLate;
     private static long _hostCompleted, _hostStarvations, _hostStarvedNs, _hostMaxStarvedNs;
+    private static long _resumedAtNs;
 
-    // One DSP period finished waiting `lateNs` after its due time (0 if on time).
-    // After a stall the next periods run back to back and are late by less and
-    // less: one late episode, counted once with its first (largest) lateness.
-    public static void DspPeriod(long lateNs)
+    // The guest resumed from a host pause (Horizon.TogglePauseEmulation).
+    public static void Resumed(long nowNs) => Interlocked.Exchange(ref _resumedAtNs, Math.Max(1, nowNs));
+
+    private static bool SpansPause(long ns)
+    {
+        long resumed = Interlocked.Read(ref _resumedAtNs);
+        return resumed != 0 && ns < resumed + ResumeGraceNs;
+    }
+
+    // One DSP period, due at `dueNs`, finished waiting at `nowNs`. After a
+    // stall the next periods run back to back and are late by less and less:
+    // one late episode, counted once with its first (largest) lateness.
+    public static void DspPeriod(long dueNs, long nowNs)
     {
         Interlocked.Increment(ref _dspPeriods);
-        bool late = lateNs > LateThresholdNs, continuing = _dspWasLate;
+        long lateNs = nowNs - dueNs;
+        bool late = lateNs > LateThresholdNs && !SpansPause(dueNs), continuing = _dspWasLate;
         _dspWasLate = late;
         if (!late) return;
         Max(ref _dspMaxLateNs, lateNs);
@@ -34,10 +49,11 @@ public static class EmbeddedAudioPacing
         Interlocked.Add(ref _dspLateNs, lateNs);
     }
 
-    // The DSP skipped `frames` periods because it judged the backend too far ahead.
-    public static void DspSkipped(long frames)
+    // The DSP skipped `frames` periods, the first due at `dueNs`, because it
+    // judged the backend too far ahead.
+    public static void DspSkipped(long frames, long dueNs)
     {
-        if (frames > 0) Interlocked.Add(ref _dspSkipped, frames);
+        if (frames > 0 && !SpansPause(dueNs)) Interlocked.Add(ref _dspSkipped, frames);
     }
 
     // Each output session owns `starvedSince` (0 when no interval is open), so
@@ -55,7 +71,7 @@ public static class EmbeddedAudioPacing
     public static void HostQueued(ref long starvedSince, long nowNs)
     {
         long since = Interlocked.Exchange(ref starvedSince, 0);
-        if (since == 0) return;
+        if (since == 0 || SpansPause(since)) return;
         long gap = Math.Max(0, nowNs - since);
         Interlocked.Increment(ref _hostStarvations);
         Interlocked.Add(ref _hostStarvedNs, gap);

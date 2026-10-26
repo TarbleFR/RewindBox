@@ -402,13 +402,21 @@ maintainer's approval.
   - `out`: audio buffers played / times the output queue ran dry / total
     silence until the next buffer ms / the longest ms. A guest stop is not
     counted, nor is a completion that races a new buffer.
+  - A RewindBox pause (the menu, the app in the background) stops the guest
+    and its audio. The engine marks each resume (`Horizon.TogglePauseEmulation`).
+    DSP periods due before the resume, plus 50 ms of catch-up, are not
+    counted as late or skipped. An output starvation that began during the
+    pause is not counted either.
   - `cpu`: process CPU % (100 = one core), then the six busiest threads as
     `name:CPU %/base priority` (47 user-interactive, 37 user-initiated,
     31 default, 20 utility, 4 background).
   - `th`, `lp`: thermal state and Low Power Mode; `paused` while the game is
     paused.
 
-  The journal is capped at 1800 lines, then writes an end summary.
+  The journal is capped at 1800 lines, then writes an end summary; its
+  game-FPS average leaves out paused seconds and boot seconds at 0 FPS. Its
+  lines may go past app.log's 5 MiB general cap, up to 8 MiB, so a long
+  stderr capture cannot cut them off.
 - **Engine audio counters** (`EmbeddedAudioPacing.cs`, exported as
   `neostation_melonx_audio_pacing`). They feed `dsp` and `out`, and were
   added by `adapt_audio_pacing.py`, which only adds lines around the

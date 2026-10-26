@@ -20,6 +20,7 @@ unsafe class Program {
     static int checks;
     static void Check(bool value, string message) { if (!value) throw new Exception(message); checks++; }
     static long Ns(int frame) => frame * 1_000_000_000L / 48000;
+    static void Period(long lateNs) => EmbeddedAudioPacing.DspPeriod(1_000, 1_000 + lateNs);
     static AudioBuffer Buffer(int frames) {
         float[] data = Enumerable.Range(0, frames * 2).Select(i => (i % 97 + 1) / 100f).ToArray();
         return new AudioBuffer { Data = MemoryMarshal.AsBytes(data.AsSpan()).ToArray(), DataSize = (ulong)(data.Length * 4) };
@@ -40,15 +41,15 @@ unsafe class Program {
         // DSP periods: on time and at the threshold are not late. A run of late
         // periods (a stall, then catch-up) is one episode, counted by its first
         // period; the maximum still sees every period.
-        EmbeddedAudioPacing.DspPeriod(0);
-        EmbeddedAudioPacing.DspPeriod(EmbeddedAudioPacing.LateThresholdNs);
-        EmbeddedAudioPacing.DspPeriod(20_000_000);
-        EmbeddedAudioPacing.DspPeriod(15_000_000);
-        EmbeddedAudioPacing.DspPeriod(10_000_000);
-        EmbeddedAudioPacing.DspPeriod(0);
-        EmbeddedAudioPacing.DspPeriod(EmbeddedAudioPacing.LateThresholdNs + 1);
-        EmbeddedAudioPacing.DspPeriod(0);
-        EmbeddedAudioPacing.DspSkipped(0); EmbeddedAudioPacing.DspSkipped(-3); EmbeddedAudioPacing.DspSkipped(2);
+        Period(0);
+        Period(EmbeddedAudioPacing.LateThresholdNs);
+        Period(20_000_000);
+        Period(15_000_000);
+        Period(10_000_000);
+        Period(0);
+        Period(EmbeddedAudioPacing.LateThresholdNs + 1);
+        Period(0);
+        EmbeddedAudioPacing.DspSkipped(0, 1_000); EmbeddedAudioPacing.DspSkipped(-3, 1_000); EmbeddedAudioPacing.DspSkipped(2, 1_000);
         long[] v = Read();
         Check(v[0] == 8 && v[1] == 2 && v[2] == 22_000_001 && v[3] == 20_000_000 && v[4] == 2, "DSP counters wrong: " + string.Join(",", v));
         long[] again = Read();
@@ -58,13 +59,13 @@ unsafe class Program {
         // Concurrent writers (more than the one DSP thread): no lost period, and
         // the maximum is the largest value.
         var threads = Enumerable.Range(0, 8).Select(t => new Thread(() => {
-            for (int i = 0; i < 20000; i++) EmbeddedAudioPacing.DspPeriod(t * 1_000_000L + i);
+            for (int i = 0; i < 20000; i++) Period(t * 1_000_000L + i);
         })).ToArray();
         foreach (var t in threads) t.Start();
         foreach (var t in threads) t.Join();
         v = Read();
         Check(v[0] == 8 + 160000 && v[3] == 7_000_000 + 19999, "Concurrent DSP counters wrong: " + string.Join(",", v));
-        EmbeddedAudioPacing.DspPeriod(0);
+        Period(0);
 
         // Each session owns its interval: another session's buffer does not end it,
         // a completion with buffers still queued does not open one.
@@ -105,6 +106,30 @@ unsafe class Program {
         AVFoundation.AdvanceTo(3000 + 960 + 240);
         Check(Read()[5] == hostBase + 4, "Resumed buffer not counted");
         driver.Dispose(); AVFoundation.Reset();
+
+        // A host pause, then resume at R (far after the session timeline above):
+        // what waited through the pause and the 50 ms catch-up is not counted;
+        // what happens after is.
+        long resumed = 1_000_000_000_000L, before = Read()[0];
+        long[] baseline = Read();
+        EmbeddedAudioPacing.Resumed(resumed);
+        EmbeddedAudioPacing.DspSkipped(400, resumed - 2_000_000_000);
+        EmbeddedAudioPacing.DspPeriod(resumed - 2_000_000_000, resumed + 3_000_000);
+        EmbeddedAudioPacing.DspPeriod(resumed + 10_000_000, resumed + 40_000_000);
+        long pausedOutput = 0;
+        EmbeddedAudioPacing.HostCompleted(ref pausedOutput, true, resumed - 2_000_000_000);
+        EmbeddedAudioPacing.HostQueued(ref pausedOutput, resumed + 5_000_000);
+        v = Read();
+        Check(v[1] == baseline[1] && v[2] == baseline[2] && v[3] == 0 && v[4] == baseline[4], "Pause counted as DSP lateness or skips: " + string.Join(",", v));
+        Check(v[6] == baseline[6] && v[7] == baseline[7] && v[8] == 0, "Pause counted as starvation: " + string.Join(",", v));
+        EmbeddedAudioPacing.DspSkipped(2, resumed + 200_000_000);
+        EmbeddedAudioPacing.DspPeriod(resumed + 300_000_000, resumed + 310_000_000);
+        EmbeddedAudioPacing.HostCompleted(ref pausedOutput, true, resumed + 400_000_000);
+        EmbeddedAudioPacing.HostQueued(ref pausedOutput, resumed + 410_000_000);
+        v = Read();
+        Check(v[1] == baseline[1] + 1 && v[2] == baseline[2] + 10_000_000 && v[3] == 10_000_000 && v[4] == baseline[4] + 2, "Lateness after the resume not counted: " + string.Join(",", v));
+        Check(v[6] == baseline[6] + 1 && v[7] == baseline[7] + 10_000_000 && v[8] == 10_000_000, "Starvation after the resume not counted: " + string.Join(",", v));
+        Check(v[0] == before + 3, "DSP periods not counted across the pause");
         Console.WriteLine(JsonSerializer.Serialize(new { result = "passed", assertions = checks, starvedNs = gap,
             physicalDeviceTested = false, avFoundationDouble = true }));
     }

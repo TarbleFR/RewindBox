@@ -24,6 +24,10 @@ final class MeloNXPerfJournal {
     }
     struct ThreadSample { let id: UInt64; let name: String; let cpuNs: UInt64; let priority: Int32 }
     static let topThreads = 6
+    // app.log's general cap is 5 MiB; this journal is bounded (lineLimit lines
+    // per game), so it may write past that up to here and is not cut off by
+    // a long stderr capture.
+    static let fileLimit: Int64 = 8 * 1024 * 1024
     static let thermalNames = ["nominal", "fair", "serious", "critical"]
 
     private let path: String
@@ -65,7 +69,7 @@ final class MeloNXPerfJournal {
             previousShown = presentation()
             previousAudio = audio()
             for thread in Self.threads() { previousThreads[thread.id] = thread.cpuNs }
-            MeloNXStdioCapture.appendLine("[MeloNX:perf] begin: every \(interval) s, \(ProcessInfo.processInfo.activeProcessorCount) cores, audio counters \(previousAudio == nil ? "unavailable" : "available")", to:path)
+            MeloNXStdioCapture.appendLine("[MeloNX:perf] begin: every \(interval) s, \(ProcessInfo.processInfo.activeProcessorCount) cores, audio counters \(previousAudio == nil ? "unavailable" : "available")", to:path, limit:Self.fileLimit)
             let source = DispatchSource.makeTimerSource(queue:queue)
             source.schedule(deadline:.now() + interval, repeating:interval, leeway:.milliseconds(100))
             source.setEventHandler { [weak self] in self?.sample() }
@@ -80,7 +84,7 @@ final class MeloNXPerfJournal {
             guard let timer else { return }
             timer.cancel(); self.timer = nil
             let average = fpsCount > 0 ? fpsTotal / Double(fpsCount) : 0
-            MeloNXStdioCapture.appendLine("[MeloNX:perf] end: \(samples) s sampled, \(lines) lines; game FPS \(Self.decimal(average)) on average while running; \(totalFrames) frames presented, \(totalOver20) gaps over 20 ms, \(totalOver40) over 40 ms; \(totalLate) late DSP episodes (\(Self.decimal(Double(totalLateNs) / 1e6)) ms), \(totalSkipped) skipped; \(totalStarved) audio starvations (\(Self.decimal(Double(totalStarvedNs) / 1e6)) ms); hottest thermal state \(Self.thermal(hottest))", to:path)
+            MeloNXStdioCapture.appendLine("[MeloNX:perf] end: \(samples) s sampled, \(lines) lines; game FPS \(Self.decimal(average)) on average while running; \(totalFrames) frames presented, \(totalOver20) gaps over 20 ms, \(totalOver40) over 40 ms; \(totalLate) late DSP episodes (\(Self.decimal(Double(totalLateNs) / 1e6)) ms), \(totalSkipped) skipped; \(totalStarved) audio starvations (\(Self.decimal(Double(totalStarvedNs) / 1e6)) ms); hottest thermal state \(Self.thermal(hottest))", to:path, limit:Self.fileLimit)
         }
     }
 
@@ -95,7 +99,8 @@ final class MeloNXPerfJournal {
         if let rate = engine["gameFps"] as? Double {
             let time = engine["gameFrameTimeMs"] as? Double ?? 0, fifo = engine["fifoPercent"] as? Double ?? 0
             fields.append("fps=\(Self.decimal(rate))/\(Self.decimal(time))/\(Int(fifo.rounded()))")
-            if !isPaused { fpsTotal += rate; fpsCount += 1 }
+            // Boot seconds before the first measured frame read 0.
+            if !isPaused && rate > 0 { fpsTotal += rate; fpsCount += 1 }
         } else { fields.append("fps=-") }
 
         let shown = presentation()
@@ -144,9 +149,9 @@ final class MeloNXPerfJournal {
 
         guard lines < lineLimit else { return }
         lines += 1
-        MeloNXStdioCapture.appendLine("[MeloNX:perf] " + fields.joined(separator:" "), to:path)
+        MeloNXStdioCapture.appendLine("[MeloNX:perf] " + fields.joined(separator:" "), to:path, limit:Self.fileLimit)
         if lines == lineLimit {
-            MeloNXStdioCapture.appendLine("[MeloNX:perf] limit: \(lineLimit) lines; only the end summary follows", to:path)
+            MeloNXStdioCapture.appendLine("[MeloNX:perf] limit: \(lineLimit) lines; only the end summary follows", to:path, limit:Self.fileLimit)
         }
     }
 
