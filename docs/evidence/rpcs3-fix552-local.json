@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "result": "passed",
+  "build": 552,
+  "source": "6b527cae4d07b8e43d1bb6b4d2fca618eb3ecdb5",
+  "coreSource": "4e5bf59b29c3aed8c3680b8b987aa586a52069c0",
+  "pinnedHead": "6b527cae4d07b8e43d1bb6b4d2fca618eb3ecdb5",
+  "executor": "local Linux",
+  "flutter": "3.47.2",
+  "pinReceipt": {
+    "hostTree": "6c6c624179540b860de16eab9c08323efaf12683",
+    "source551": "4e5bf59b29c3aed8c3680b8b987aa586a52069c0",
+    "source552": "6b527cae4d07b8e43d1bb6b4d2fca618eb3ecdb5",
+    "restored": {
+      "6c6c624179540b860de16eab9c08323efaf12683": [
+        "build-utils/configure_melonx_ios.py",
+        "build-utils/melonx/ui-strings.json",
+        "native/melonx/EmbeddedNativeLibraries.cs",
+        "native/melonx/EmbeddedRuntime.cs",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift",
+        "test/melonx_presentation/Doubles.swift",
+        "test/melonx_presentation_test.py"
+      ],
+      "c605eafdea4064b13cc316524c851ef2c75257c2": [
+        "build-utils/melonx/build_core.sh",
+        "docs/evidence/melonx-effective-graphics-journal.json",
+        "lib/services/melonx_internal_service.dart",
+        "native/melonx/EmbeddedGraphicsSettings.cs",
+        "native/melonx/EmbeddedPerformance.cs",
+        "native/melonx/EmbeddedSession.cs",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift",
+        "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionABI.h",
+        "test/melonx_display_native_test.py",
+        "test/melonx_effective_graphics_journal_test.py",
+        "test/melonx_threading549_test.dart"
+      ]
+    },
+    "removed": [
+      ".github/diagnostics/melonxparity552_delivery.py",
+      ".github/diagnostics/melonxparity552_tree.py",
+      ".github/workflows/melonx-parity552-delivery.yml",
+      "build-utils/delivery-552-recipient.pem",
+      "build-utils/melonx/package_standalone_moltenvk.py",
+      "build-utils/validate_liquid_glass552_ipa.py",
+      "build-utils/validate_melonx_parity552_ipa.py",
+      "docs/evidence/liquid-glass-ui548-delivery.json",
+      "docs/evidence/liquid-glass-ui550-delivery.json",
+      "docs/evidence/melonx-parity552-local.json",
+      "docs/evidence/melonx-threading549-delivery.json",
+      "docs/evidence/rpcs3-cell551-delivery.json",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift",
+      "test/melonx_standalone_parity_test.py"
+    ]
+  },
+  "productTrees": {
+    "lib": "cdf88dda580afea06bc0690122e4b98663c91852",
+    "native": "43f34401d7d32c35d027c037bef6a1654ce3d94a",
+    "packages": "8925c7c23af47e10306836ac213d512b9f33861d",
+    "assets": "f364256146788c048293ef747389afc151648711",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "productTrees551": {
+    "lib": "0dbd5db92a7de3dac11983b67d0092f757c82e3e",
+    "native": "43f34401d7d32c35d027c037bef6a1654ce3d94a",
+    "packages": "26776d4bb632215d78b1bc0bc7aaa548f2533ae0",
+    "assets": "f364256146788c048293ef747389afc151648711",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "productTrees550": {
+    "lib": "6d7d826dc950e9ce018d74538b0ccc9d37f79856",
+    "native": "43f34401d7d32c35d027c037bef6a1654ce3d94a",
+    "packages": "b3b03d3be2f2d0a5bef2408823cbec1de25ac090",
+    "assets": "f364256146788c048293ef747389afc151648711",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "inputs": {
+    "assets/data/rpcs3_ios_profiles.json": "f224cb0cf7aedafec728c8543465d483d0a5e40ce91013f3546170cb554c9378",
+    "lib/services/rpcs3_config_adapter.dart": "0ea4e83708c2477b7bf2b671e74ed7cd57acec391892d01d4d0d47b4aed28a2e",
+    "lib/services/rpcs3_game_profile_service.dart": "2f3b115c1815da97133dd686283e15faf468c65e9cb6f4f89fa2aeb67f124197",
+    "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm": "1bfbab2e7b07c78f17981f03aabb88f8c477b4ce44badf3275ab59bf6c202f98",
+    "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm": "60f7140fd100aab0fab929864a171a027d05cd2d5b3523a51c471792225bce01",
+    "test/native/rpcs3_cell551.inc": "3ca64ba673b58f7b714a35d4e570b5055738d38f57c9506958b1bd1fe7bd3e4a",
+    "test/native/rpcs3_core_log_durable552_test.mm": "da21ddea69cb16198dd1efc36a3e7da6214fc3bc6d9165fb968c9b33c5940755",
+    "test/rpcs3_cell551_test.py": "ece4cd9749e1e256b1bce31f386f5141100d71a5cba9b22df0749da765da6487",
+    "test/rpcs3_core_log_durable552_test.py": "2f4a619a68287095d7471b5692ca23f1fc32a811feeeb94e0c3cd3d8b74f4880",
+    "test/rpcs3_game_profile_service_test.dart": "e53c06ca900592964737ba8d60aa2b195882057e3e3a0ea05ee5a10d91c7ac5a"
+  },
+  "profiles": {
+    "test": "test/rpcs3_game_profile_service_test.dart",
+    "passedTests": 12,
+    "failed": 0,
+    "log": "   Woah! You appear to be trying to run flutter as root.\n   We strongly recommend running the flutter tool without superuser privileges.\n  /\n📎\n00:00 +0: loading /tmp/claude-0/-home-user-RewindBox/a1b3154f-5108-55ad-a662-3e6f2efff0e1/scratchpad/wt552/test/rpcs3_game_profile_service_test.dart\n00:00 +0: RPCS3 serial configuration profiles normalizes recognized RPCS3 serial families without using titles\n00:00 +1: RPCS3 serial configuration profiles isolates the PPU interpreter fallback to Dynasty Warriors 6 serials\n00:00 +2: RPCS3 serial configuration profiles targets only the registered God of War III serials\n00:00 +3: RPCS3 serial configuration profiles returns independent profile maps between games and launches\n00:00 +4: RPCS3 serial configuration profiles merges title overrides into GameDB YAML keyed only by serial\n\u001b[38;5;208m[W]\u001b[0m  RPCS3 GameDB disk cache could not be loaded: MissingPluginException(No implementation found for method getAll on channel plugins.flutter.io/shared_preferences)\n\u001b[38;5;208m[W]\u001b[0m  RPCS3 GameDB disk cache could not be loaded: MissingPluginException(No implementation found for method getAll on channel plugins.flutter.io/shared_preferences)\n00:00 +5: RPCS3 serial configuration profiles never publishes empty inherited-global entries\n00:00 +6: RPCS3 serial configuration profiles merges God of War III official and iOS performance keys\n00:00 +7: RPCS3 serial configuration profiles Dragon Ball Z HD Collection runs the global profile it ran on 547\n00:00 +8: RPCS3 serial configuration profiles launch delegates once to the runtime owner before boot without mutating settings\n00:00 +9: RPCS3 serial configuration profiles runtime publishes local profiles after successful helper completion\n00:00 +10: RPCS3 serial configuration profiles offline publication survives a cold Core and omits inherited globals\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 GameDB publication failed: Core not ready\n\u001b[38;5;12m[I]\u001b[0m  RPCS3 GameDB published: 6 profile(s) [BCUS98111,BCES00510,BCES00799,BCJS37001,BCAS25003,BCKS15003].\n00:00 +11: RPCS3 serial configuration profiles launch bypasses the native database for inherited-global serials\n00:00 +12: All tests passed!\n"
+  },
+  "cell551WithFixProfile": {
+    "result": "passed",
+    "gow3DatabaseLeaves": 19,
+    "gow3DatabaseSHA256": "8dccc2401dc350a00ad8975e744b99a41cfb90dd95c989e2c68fbdbb898c5f5d",
+    "scenarios": {
+      "sanitized": {
+        "observedSnapshot": {
+          "inherited": 19,
+          "kept": 0
+        },
+        "userChange": {
+          "inherited": 18,
+          "kept": 1
+        },
+        "spuWait": {
+          "threads": 120,
+          "slots": 32
+        },
+        "failures": 0
+      },
+      "thread": {
+        "observedSnapshot": {
+          "inherited": 19,
+          "kept": 0
+        },
+        "userChange": {
+          "inherited": 18,
+          "kept": 1
+        },
+        "spuWait": {
+          "threads": 120,
+          "slots": 32
+        },
+        "failures": 0
+      },
+      "configLayers": "PASS Build 487 boot diagnostics helpers: 55 checks"
+    },
+    "inputs": {
+      "test/rpcs3_cell551_test.py": "ece4cd9749e1e256b1bce31f386f5141100d71a5cba9b22df0749da765da6487",
+      "test/native/rpcs3_cell551.inc": "3ca64ba673b58f7b714a35d4e570b5055738d38f57c9506958b1bd1fe7bd3e4a",
+      "test/fixtures/rpcs3_cell551.diff": "d9ca1230b4422a855fa00d724e4b076a1dee5cf34e008663618c4f71c9ab6315",
+      "test/native/rpcs3_build487_boot_diagnostics_test.cpp": "3f61bbf86af16481f1466d73a8a8dd2a06a845b3253a1e5259027438319dd78d",
+      "lib/services/rpcs3_game_profile_service.dart": "2f3b115c1815da97133dd686283e15faf468c65e9cb6f4f89fa2aeb67f124197",
+      "assets/data/rpcs3_ios_profiles.json": "f224cb0cf7aedafec728c8543465d483d0a5e40ce91013f3546170cb554c9378"
+    },
+    "sanitizers": "ASan+UBSan, then TSan",
+    "core": "/tmp/claude-0/-home-user-RewindBox/a1b3154f-5108-55ad-a662-3e6f2efff0e1/scratchpad/core551",
+    "coreMaterialized": "XITRIX/rpcs3 22f11527 + build-utils/rpcs3/embedded-core.patch (551, postimage hashes verified)"
+  },
+  "coreLogDurable": {
+    "passed": true,
+    "marker": "REWINDBOX_CORE_LOG_DURABLE_V1",
+    "contract": {
+      "writer": "core_log synchronous, other stages asynchronous",
+      "recursion": "none",
+      "fatalLevelForwarded": true,
+      "coreFatalHandler": "emit_log(1, text) then std::abort()"
+    },
+    "inputs": {
+      "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm": "1bfbab2e7b07c78f17981f03aabb88f8c477b4ce44badf3275ab59bf6c202f98",
+      "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.h": "2f1d57c5b5ac9206ba6dd9c2901d65053febffc19abc53ec519cc694f7bc7ad3",
+      "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm": "60f7140fd100aab0fab929864a171a027d05cd2d5b3523a51c471792225bce01",
+      "test/native/rpcs3_core_log_durable552_test.mm": "da21ddea69cb16198dd1efc36a3e7da6214fc3bc6d9165fb968c9b33c5940755",
+      "test/rpcs3_core_log_durable552_test.py": "2f4a619a68287095d7471b5692ca23f1fc32a811feeeb94e0c3cd3d8b74f4880"
+    },
+    "physicalDeviceTested": false,
+    "run": null,
+    "native": "SKIP (requires macOS Foundation)"
+  },
+  "physicalDeviceTested": false,
+  "crashFixDeviceVerified": false,
+  "scope": "Pinned 552 tree: the game profile tests, the 551 Core test re-run with the 552 profile on the materialized 551 Core (ASan+UBSan, TSan) and the core-log durability source contract. The macOS durability run happens in the delivery job. No iPhone."
+}
