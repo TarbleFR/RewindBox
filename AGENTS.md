@@ -3,6 +3,34 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Private 552: RPCS3 551 launch-crash fix — 26 October 2026
+
+- Maintainer logs: every 551 launch (Dragon Ball Z twice, God of War III once)
+  ended within 0.4 s of `game_boot_return`, before `JITPROF_BOOT`, with no
+  error line; the app restarted 2-3 s later. Only the RSX thread was starting.
+  Both titles had, for the first time on the iPhone, MoltenVK asynchronous
+  submits (+ high global priority), asynchronous texture streaming, FIFO 4 KiB
+  and the ARM64 batch; only the submits act in that window. Unproven without a
+  stack. Analysis: `docs/rpcs3-crash552.md`.
+- Fix `6b527ca`: Dragon Ball Z `BLES01658` has no title profile (the 547 global
+  profile); God of War III keeps the 551 profile with
+  `MoltenVK Asynchronous Submits: Disabled` and
+  `Asynchronous Texture Streaming: false` (explicit; the official GameDB asks
+  for true; on MoltenVK it enables async compute, passthrough DMA and
+  cross-queue events). `report_fatal_error` logs then aborts: the logger now
+  writes `core_log` lines before returning, so a fatal line reaches
+  `RPCS3-diagnostic.log` (macOS test with the 551 logger as losing control).
+- Private IPA **0.0.8 (552)** from `6a72700`, run 40335530316: the 551 tree plus
+  the `6b527ca` files, 551 Core unchanged (run 40247161327, artifact `38bd663e…`).
+  186,533,120 bytes, SHA-256 `5ffc8bcd…037467`, encrypted artifact 12657104494
+  for `build-utils/delivery-552-rpcs3-recipient.pem` (private key outside Git);
+  decrypted, re-checked, delivered. Evidence: `docs/evidence/rpcs3-fix552-local.json`,
+  `docs/evidence/rpcs3-fix552-delivery.json`. The 551 Core identity records the
+  profile file, its Dart test and `test/native/rpcs3_cell551.inc` as inputs;
+  `rpcs3fix552_delivery.validate_rpc_core_identity` binds those three to
+  `6b527ca` and the rest to `4e5bf59`. No iPhone validation yet.
+  **Do not reuse 552.** 553 is the MeloNX parity IPA on this tree.
+
 ## MeloNX standalone parity (private 553 after the RPCS3 crash fix 552) — 26 October 2026
 
 - **Numbering:** the user asked the interface session for the urgent RPCS3 551

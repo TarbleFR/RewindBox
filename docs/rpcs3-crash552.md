@@ -98,3 +98,36 @@ erreur fatale de RPCS3 n'a jamais pu atteindre `RPCS3-diagnostic.log`.
    sécurité › Analyses et améliorations › Données d'analyse, entrée du jour au
    nom de l'app). Un plantage par erreur fatale de RPCS3 apparaîtra désormais
    comme dernière ligne `core_log`.
+
+## 7. Livraison privée 552 (26 octobre 2026)
+
+- Recette : `.github/workflows/rpcs3-fix552-delivery.yml`,
+  `.github/diagnostics/rpcs3fix552_tree.py` et `rpcs3fix552_delivery.py`,
+  `build-utils/validate_rpcs3_552_ipa.py`, `validate_liquid_glass_fix552_ipa.py`,
+  `validate_melonx_threading552_ipa.py`, clé publique
+  `build-utils/delivery-552-rpcs3-recipient.pem` (clé privée hors dépôt). Les
+  fichiers `melonxparity552_*`, `delivery-552-recipient.pem` et
+  `validate_liquid_glass552_ipa.py` appartiennent à l'essai à blanc de la
+  session MeloNX (run `40331958399`, non livré), qui devient la 553 sur cet
+  arbre.
+- Arbre : celui de la 551, plus les seuls fichiers du correctif `6b527ca` (les
+  deux fichiers livrés sont les deux fichiers livrés de la 551). Les fichiers
+  livrés remis à leur version 551, l'arbre redonne exactement celui de la 551
+  (`lib` `0dbd5db9`, `packages` `26776d4b`) ; remis à leur version 550, celui
+  des reçus 550 de l'interface et de MeloNX.
+- Run `40335530316` (push `6a72700`), `checks` et `cold` réussis du premier
+  coup. Sur macOS, le vrai journal 552 garde la ligne fatale à travers
+  `abort()` et les 800 lignes de la rafale ; le journal 551 (témoin) perd la
+  ligne fatale et toute la rafale.
+- Artefact chiffré `12657104494` (187 031 965 octets, archive SHA-256
+  `4db768dd4619fe0c2c7aa0ab6d434848b998b6d4f11db36395e45be0af888e5f`), déchiffré
+  en local : IPA **0.0.8 (552)**
+  `RewindBox-Build552-6a7270071cf0b7f28ef802c53dd64e9a6ad4153b-cold.ipa`,
+  **186 533 120 octets**, SHA-256
+  **`5ffc8bcd6a0ad681d2deff87f4fce5b0ed637c76116b13a0073e90a676037467`**, égale à
+  `SHA256SUMS` et à `signed-payload-identity.json`. Core identique à
+  l'artefact 551 (`38bd663e…`). Dans l'image Dart compilée : plus de numéro de
+  série Dragon Ball Z, profil God of War III avec `Disabled`. Reçu :
+  `docs/evidence/rpcs3-fix552-delivery.json`. Remise à l'utilisateur pour
+  re-signature SideStore. Aucune validation sur iPhone. **Ne pas réutiliser le
+  numéro 552.**
