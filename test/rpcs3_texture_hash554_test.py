@@ -61,8 +61,8 @@ return std::chrono::steady_clock::now().time_since_epoch().count();
 ''')
         variants = {'baseline6': baseline, 'neon8': baseline.replace('XXH3_NEON_LANES 6', 'XXH3_NEON_LANES 8'),
                     'neon4': baseline.replace('XXH3_NEON_LANES 6', 'XXH3_NEON_LANES 4')}
-        for name, fixture in [('pair8', 'pair'), ('group4', 'group4'), ('hybrid4', 'hybrid4')]:
-            text = variants['baseline6' if name == 'hybrid4' else 'neon8']
+        for name, fixture in [('pair8', 'pair'), ('group4', 'group4'), ('hybrid4', 'hybrid4'), ('twins6', 'twins6'), ('twins8', 'twins8')]:
+            text = variants['baseline6' if name in ('hybrid4', 'twins6') else 'neon8']
             start = text.index('XXH_FORCE_INLINE void accumulate_texture_stripes')
             end = text.index('\n#endif\n}', start)
             variants[name] = text[:start] + (NATIVE / f'rpcs3_texture_hash554_{fixture}.inc').read_text() + text[end:]

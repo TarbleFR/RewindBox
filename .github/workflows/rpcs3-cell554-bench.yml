@@ -61,7 +61,8 @@ jobs:
           files = ['test/rpcs3_texture_hash554_test.py', 'build-utils/rpcs3/canonical-source.json',
                    'build-utils/rpcs3/embedded-core.patch', '.github/workflows/rpcs3-cell554-bench.yml',
                    'test/native/rpcs3_texture_hash554.inc', 'test/native/rpcs3_texture_hash554_pair.inc',
-                   'test/native/rpcs3_texture_hash554_group4.inc']
+                   'test/native/rpcs3_texture_hash554_group4.inc', 'test/native/rpcs3_texture_hash554_hybrid4.inc',
+                   'test/native/rpcs3_texture_hash554_twins6.inc', 'test/native/rpcs3_texture_hash554_twins8.inc']
           record = dict(source=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
                         system=platform.system(), machine=platform.machine(),
                         compiler=subprocess.check_output(['xcrun', 'clang++', '--version'], text=True),
