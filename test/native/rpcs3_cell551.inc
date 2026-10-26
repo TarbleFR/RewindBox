@@ -78,7 +78,10 @@ int main()
 		CHECK(value_at(eff, {"Video", "Frame limit"}) == "30");
 		CHECK(value_at(eff, {"Video", "Multithreaded RSX"}) == "true");
 		CHECK(value_at(eff, {"Video", "Write Color Buffers"}) == "true");
-		CHECK(value_at(eff, {"Video", "Vulkan", "Asynchronous Texture Streaming"}) == "true");
+		// Build 552: the profile overrides the GameDB's asynchronous texture
+		// streaming (never run on the iPhone) and keeps synchronous submits.
+		CHECK(value_at(eff, {"Video", "Vulkan", "Asynchronous Texture Streaming"}) == "false");
+		CHECK(value_at(eff, {"iOS Experimental", "MoltenVK Asynchronous Submits"}) == "Disabled");
 		CHECK(value_at(eff, {"iOS Experimental", "God of War III MLAA Bypass"}) == "Enabled");
 		// The profile forces no shader mode: the snapshot's Legacy mode stays.
 		CHECK(value_at(eff, {"Video", "Shader Mode"}) == "Legacy Recompiler (single-threaded)");

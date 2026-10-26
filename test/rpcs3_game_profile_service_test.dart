@@ -69,10 +69,14 @@ void main() {
           // profile no longer forces any shader mode.
           expect(profile.settings.containsKey('gpu.shader_mode'), isFalse);
           expect(profile.settings['gpu.multithreaded_rsx'], 'true');
+          // Build 552: the 551 boots crashed with asynchronous MoltenVK
+          // submits; they and asynchronous texture streaming, which had
+          // never run on the iPhone, are explicitly off for this title.
           expect(
             profile.settings['experimental.moltenvk_async_submits'],
-            'Enabled',
+            'Disabled',
           );
+          expect(profile.settings['gpu.async_texture_uploads'], 'false');
           expect(profile.settings['experimental.fifo_cache_size'], '4 KiB');
           expect(
             profile.settings['experimental.getllar_backoff'],
@@ -180,8 +184,10 @@ void main() {
       expect(yaml, contains('Multithreaded RSX: true'));
       expect(
         yaml,
-        contains('  Vulkan:\n    Asynchronous Texture Streaming: true'),
+        contains('  Vulkan:\n    Asynchronous Texture Streaming: false'),
       );
+      expect(yaml, contains('MoltenVK Asynchronous Submits: Disabled'));
+      expect(yaml, isNot(contains('MoltenVK Asynchronous Submits: Enabled')));
       expect(yaml, contains('FPS Optimization Batch: Enabled'));
       expect(yaml, contains('RSX FIFO Read Cache: 4 KiB'));
       expect(yaml, contains('GETLLAR Mobile Backoff: Enabled'));
@@ -197,32 +203,28 @@ void main() {
       expect(yaml, isNot(contains('Audio:')));
     });
 
-    test('Dragon Ball Z HD Collection requests only RSX-path levers', () async {
-      final profile = Rpcs3GameProfileService.profileForSerial('BLES01658')!;
-      expect(profile.settings, <String, String>{
-        'experimental.moltenvk_async_submits': 'Enabled',
-        'experimental.fifo_cache_size': '4 KiB',
-        'experimental.fps_optimization_batch': 'Enabled',
-        'gpu.async_texture_uploads': 'true',
-      });
-      final payload = await Rpcs3GameProfileService.databasePayloadForSerials(
-        <String>['BLES01658'],
-      );
-      final games =
-          (jsonDecode(payload) as Map<String, dynamic>)['games']
-              as Map<String, dynamic>;
-      final yaml =
-          (games['BLES01658'] as Map<String, dynamic>)['config'] as String;
-      expect(
-        yaml,
-        contains('iOS Experimental:\n  MoltenVK Asynchronous Submits: Enabled'),
-      );
-      expect(
-        yaml,
-        contains('  Vulkan:\n    Asynchronous Texture Streaming: true'),
-      );
-      expect(yaml, isNot(contains('Shader Mode:')));
-    });
+    test(
+      'Dragon Ball Z HD Collection runs the global profile it ran on 547',
+      () async {
+        // Build 552: the 551 title profile (asynchronous submits and texture
+        // streaming, FIFO 4 KiB, ARM64 batch) is withdrawn after the 551
+        // boot crashes; no setting of this title may turn them back on.
+        final profile = Rpcs3GameProfileService.profileForSerial('BLES01658')!;
+        expect(profile.settings, isEmpty);
+        final payload = await Rpcs3GameProfileService.databasePayloadForSerials(
+          <String>['BLES01658'],
+        );
+        final games =
+            (jsonDecode(payload) as Map<String, dynamic>)['games']
+                as Map<String, dynamic>;
+        final entry = games['BLES01658'] as Map<String, dynamic>?;
+        final yaml = entry?['config'] as String? ?? '';
+        expect(yaml, isNot(contains('MoltenVK Asynchronous Submits: Enabled')));
+        expect(yaml, isNot(contains('Asynchronous Texture Streaming: true')));
+        expect(yaml, isNot(contains('RSX FIFO Read Cache: 4 KiB')));
+        expect(yaml, isNot(contains('FPS Optimization Batch: Enabled')));
+      },
+    );
 
     test(
       'launch delegates once to the runtime owner before boot without mutating settings',

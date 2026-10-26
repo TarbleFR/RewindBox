@@ -151,23 +151,15 @@ abstract final class Rpcs3GameProfileService {
     'BCAS25003': _godOfWarIII,
     'BCKS15003': _godOfWarIII,
 
-    // Dragon Ball Z HD Collection, build 547 iPhone logs (25 October 2026):
-    // 31-35 fps with an unimodal 22-36 ms frame (no 30 fps cap). The RSX
-    // thread is the critical path: 21 ms of CPU plus two GPU waits (7.3 ms)
-    // per frame. Asynchronous MoltenVK submits move the Metal encoding of each
-    // command buffer off that thread (high-priority queue, same QoS class).
-    // The RSX FIFO read cache and the guarded ARM64 copy/hash batch already
-    // used for God of War III shorten the same thread's FIFO and upload work;
-    // asynchronous texture streaming moves texture uploads to the transfer
-    // queue so they overlap rendering instead of serializing with it.
-    // Measured on the next run: COREPROF RSXSYNC551 (waits by reason, frame
-    // latency, submit) and RSXFRAME551 (RSX stage times).
-    'BLES01658': {
-      'experimental.moltenvk_async_submits': 'Enabled',
-      'experimental.fifo_cache_size': '4 KiB',
-      'experimental.fps_optimization_batch': 'Enabled',
-      'gpu.async_texture_uploads': 'true',
-    },
+    // Dragon Ball Z HD Collection (BLES01658) has no title profile again.
+    // Build 551 gave it asynchronous MoltenVK submits, asynchronous texture
+    // streaming, the 4 KiB FIFO cache and the ARM64 batch, none of which had
+    // ever run on the iPhone: every 551 boot (Dragon Ball Z twice, God of War
+    // III once, 26 October 2026 logs) ended within 0.4 s of boot return,
+    // before the PPU modules were loaded, while 545 and 547 reached that point
+    // 0.40-0.44 s after boot return with the global profile. It runs the
+    // global profile it ran on 547 (31-35 fps, no crash); a lever comes back
+    // only alone and with device evidence.
 
     // ARMSX3 issue #77 is guest pacing rather than an Android driver hack.
     // PS3 Native honours the title's alternate-vblank flip cadence.
@@ -204,13 +196,22 @@ abstract final class Rpcs3GameProfileService {
     // whose pipeline is still compiling; the maintainer excludes skipped
     // draws, so God of War III keeps the global (Legacy) mode.
     'gpu.multithreaded_rsx': 'true',
-    'gpu.async_texture_uploads': 'true',
+    // Build 552: asynchronous texture streaming stays off. In this RPCS3 it
+    // turns on asynchronous compute on MoltenVK, whose separate transfer
+    // queue keeps passthrough DMA (guest memory imported as Vulkan buffers)
+    // and synchronizes both queues with Vulkan events. None of it has run on
+    // the iPhone: every logged boot reports async_tex=false.
+    'gpu.async_texture_uploads': 'false',
     'experimental.fps_optimization_batch': 'Enabled',
     'experimental.fifo_cache_size': '4 KiB',
     'experimental.getllar_backoff': 'Enabled',
-    // Build 547 logs: in the heavy scenes the RSX FIFO is busy 85-97 % of the
-    // time with no GPU wait; Metal encoding leaves the RSX thread (551).
-    'experimental.moltenvk_async_submits': 'Enabled',
+    // Build 552: MoltenVK keeps synchronous submits. The 551 asynchronous
+    // submits (Metal encoding on MoltenVK's own queue thread, high global
+    // priority) ran for the first time in the 551 boots, all of which ended
+    // within 0.4 s of boot return, while only the RSX thread was starting
+    // (shader cache, first submits and presents). Explicit, so neither the
+    // GameDB nor a global value can turn them back on for this title.
+    'experimental.moltenvk_async_submits': 'Disabled',
     // The Core recognizes only the two official MLAA SPU hashes for God of
     // War III 01.00/01.03. It cannot affect another SPU module or title.
     'experimental.gow3_mlaa_bypass': 'Enabled',

@@ -512,7 +512,7 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   NSTimeInterval timestamp = [NSDate.date timeIntervalSince1970];
   const uint64_t monotonicEnd = RPCS3MonotonicUs();
 
-  dispatch_async(_diagnosticQueue, ^{
+  dispatch_block_t write = ^{
     @autoreleasepool {
       @try {
         [self observeTimelineStage:stageCopy message:messageCopy timestamp:timestamp];
@@ -542,7 +542,22 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
         [self closeDiagnosticFile];
       }
     }
-  });
+  };
+  // REWINDBOX_CORE_LOG_DURABLE_V1: report_fatal_error (rpcs3/ios/RPCS3IOS.cpp)
+  // hands its message to the log callback and calls std::abort() as soon as
+  // the callback returns. Queued on this utility-class queue, the line was
+  // still in memory when the process ended: no RPCS3 fatal error ever reached
+  // this file, and the build 551 boot crashes left none. Core log lines are
+  // bounded by the host (128 ordinary lines per second, plus the profiler's
+  // periodic reports), so they are written before returning; write(2) hands
+  // them to the kernel, which keeps them through an abort (no fsync). Nothing
+  // run by this queue writes a diagnostic, so the wait cannot recurse.
+  // Per-second samples and the other stages stay asynchronous.
+  if ([stageCopy isEqualToString:@"core_log"]) {
+    dispatch_sync(_diagnosticQueue, write);
+  } else {
+    dispatch_async(_diagnosticQueue, write);
+  }
 }
 
 - (void)writeMilestoneStage:(nullable NSString*)stage
