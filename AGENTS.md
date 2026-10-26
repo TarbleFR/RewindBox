@@ -31,6 +31,32 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   PPU/SPU identities unchanged. Build numbers: 549 is the combined Liquid Glass
   + 547 Core + MeloNX threading IPA (c605eafd); 550 is the new interface on the
   549 tree (69404f45); **551 is the RPCS3 delivery**. No iPhone validation yet.
+
+## Private 550: interface feedback on the 549 tree — 26 October 2026
+
+- Maintainer feedback on 548, fixed in `e12f1d4`: main header on one line
+  (JIT dot and its 2 s polling removed, clock glyph removed, header pills then
+  tabs shrink instead of wrapping; text above 125 % keeps its size and wraps),
+  fourth general style "NeoStation" (solid accent pill, 160 ms, LB/RB glyphs,
+  matte surfaces, no blur), working Interface preview (style chip and menu,
+  labels switch, Apply/Revert), opaque Interface screen, floating side-menu
+  bubbles in Settings and Scraper (panel optional), and new options in 12
+  languages: status bar items, accent colour, controller focus style, LB/RB
+  glyphs, side-menu panel. Details: `docs/liquid-glass-ui.md`.
+- Private IPA **0.0.8 (550)** from `69404f4`, run 40245459841: the 549
+  product tree with the `e12f1d4` interface, each file from the commit that
+  validated it (`.github/diagnostics/liquidglass550_tree.py`); 15 shipped files
+  differ from 549, all interface files. 186,517,507 bytes, SHA-256
+  `fcb25fca…281ac0b`, encrypted artifact 12619082525 for
+  `build-utils/delivery-550-recipient.pem` (private key outside Git);
+  decrypted, interface validator re-run locally (report identical to CI),
+  delivered for SideStore re-signing. Installs over 547, 548 and 549 without
+  losing the RPCS3 547 Core or MeloNX threading. Evidence:
+  `docs/evidence/liquid-glass-ui550-local.json`,
+  `docs/evidence/liquid-glass-ui550-delivery.json`. No iPhone validation yet.
+  **Do not reuse 550.** 551 is claimed by the RPCS3 session; a later RPCS3 or
+  MeloNX delivery that must keep this interface should build on the 550 tree.
+
 ## Private 549: Liquid Glass + RPCS3 547 Core + MeloNX threading and FPS counter — 25 October 2026
 
 - A user reported Persona 4 Golden flicker and slowdowns absent from standalone
