@@ -331,3 +331,46 @@ capture and the signed-IPA validators. It was not delivered.
   - Persona 5 Royal flicker and Persona 4 Golden stutter with the default,
     then with "MoltenVK version: RewindBox (1.3.0)" after restarting
     RewindBox.
+
+## Tester report on 553: flicker gone, stutter remains (26 October 2026)
+
+With the standalone app's MoltenVK (553 default), the flicker is gone. A
+23 s recording and app.log were analysed: four independent analyses (video
+pacing, log timeline, engine, host parity) plus a skeptical synthesis.
+
+- **The clip is Persona 4 Golden's anime FMV** (limousine intro, session pid
+  96631), not real-time 3D. The FPS overlay reads 60-62 FPS while one movie
+  image stays on screen for up to 14 refreshes: the renderer is not the
+  bottleneck.
+- **Movie images arrive irregularly.** 161 holds over 19.4 s: mean 7.23
+  refreshes, sd 2.67, range 1-14. The ideal is 8 for the 7.5 Hz pan and 6 for
+  the 10 Hz pan. No image is skipped, and the movie keeps real time on
+  average, wandering by up to about 0.44 s.
+- **The game audio cuts out at the same time:** about 30% digital silence, 9-12
+  gaps per second, up to 380 ms. The same build's P5R session logged 23 CRI
+  "Output buffer underrun" lines. Leading hypothesis (unproven): the guest's
+  CRI audio and movie threads, or the audio renderer's DSP thread, sometimes
+  run too late.
+- **Ruled out as the difference from standalone:**
+  - shaders (0 pipeline misses in the P4G session);
+  - MoltenVK;
+  - the 120 Hz screen (at most ±1 refresh);
+  - the Flutter UI, the RAM graph and the stderr capture;
+  - the FFmpeg build;
+  - the iOS audio session (48 kHz and about 5 ms I/O in both apps);
+  - the audio backend (the same AVAudioEngine driver);
+  - the NativeAOT project settings (identical csproj, `ConserveMemory=9`).
+
+  Not ruled out: emulation-thread QoS, device temperature, and the scene
+  itself. The standalone was never recorded on the same scene.
+- **P5R (separate issue):** its per-game shader cache was Off from 12:57Z on.
+  That was the no-build flicker test. 83 synchronous pipeline compiles on the
+  render thread were logged, 76 within 13.6 s. Earlier P5R sessions with the
+  shader cache On had none. Now that MoltenVK fixed the flicker, the shader
+  cache should go back On.
+- **Logging gaps:**
+  - the 500-line NSLog budget ran out at 11.9 s of emulation, so the recorded
+    window has no engine lines;
+  - the Dart logger overwrote a native app.log line (line 22805 starts
+    mid-line);
+  - thermal state is not journaled during a session.
