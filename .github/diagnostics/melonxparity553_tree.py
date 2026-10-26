@@ -8,7 +8,8 @@ the present target, the engine options journal and the threading import fix.
 Two Swift files, the parity test and the UIKit presentation probe come from
 a487268 (review fixes: NSLog lines get their own stderr budget, the MoltenVK
 fallback only follows a framework load failure; the probe compiles the
-parity file). The two sets share no file, and every file's parent version
+parity file); the MeloNX Dart service and its residue test from 6633588
+(the threading Off stored from the 549-551 import is cleared once per game). The two sets share no file, and every file's parent version
 equals the 552 pinned one, so the change is exactly those commits. (The dry run of this
 change on the 551 tree, recipe melonxparity552_*, was not delivered.)
 Runner checkout only: Git history is not changed.
@@ -29,6 +30,8 @@ HOST_FILES = ['packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgeP
               'packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift',
               'test/melonx_presentation/Doubles.swift', 'test/melonx_presentation_test.py',
               'test/melonx_standalone_parity_test.py']
+SOURCE_DART = '6633588a23fbc5c1c4663514edca9b4f9e88f097'
+DART_FILES = ['lib/services/melonx_internal_service.dart', 'test/melonx_threading_residue553_test.dart']
 PARITY = ['build-utils/configure_melonx_ios.py', 'build-utils/melonx/build_core.sh',
              'build-utils/melonx/package_standalone_moltenvk.py', 'build-utils/melonx/ui-strings.json',
              'docs/evidence/melonx-effective-graphics-journal.json', 'docs/melonx-persona-performance-2026-10-25.md',
@@ -42,7 +45,8 @@ PARITY = ['build-utils/configure_melonx_ios.py', 'build-utils/melonx/build_core.
              'packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift',
              'test/melonx_display_native_test.py', 'test/melonx_effective_graphics_journal_test.py',
              'test/melonx_standalone_parity_test.py', 'test/melonx_threading549_test.dart',
-             'test/melonx_presentation/Doubles.swift', 'test/melonx_presentation_test.py']
+             'test/melonx_presentation/Doubles.swift', 'test/melonx_presentation_test.py',
+             'test/melonx_threading_residue553_test.dart']
 # The shipped MeloNX files (lib, native, packages, assets, pubspec).
 SHIPPED_PARITY = sorted(p for p in PARITY if p.startswith(('lib/', 'native/', 'packages/', 'assets/', 'pubspec.')))
 LOCAL = 'docs/evidence/melonx-parity553-local.json'
@@ -69,6 +73,8 @@ def owned(path):
 def source_of(path):
     """Commit whose version of a file this build carries; None for this
     build's own recipe and for documentation, which follow HEAD."""
+    if path in DART_FILES:
+        return SOURCE_DART
     if path in HOST_FILES:
         return SOURCE_HOST
     if path in PARITY:
@@ -134,10 +140,10 @@ def pin(report):
     assert not git('ls-files', '--others', '--exclude-standard', '--', 'lib', 'native', 'packages', 'assets', 'build-utils/rpcs3')
     receipt = dict(schemaVersion=1, head=head, hostTree=HOST_TREE, source547=previous.previous.previous.SOURCE547,
                    source548=previous.previous.previous.SOURCE548, source549=previous.previous.previous.SOURCE549,
-                   sourceInterface=SOURCE_UI, source551=SOURCE551, source552=SOURCE552, sourceParity=SOURCE_PARITY, sourceHost=SOURCE_HOST,
+                   sourceInterface=SOURCE_UI, source551=SOURCE551, source552=SOURCE552, sourceParity=SOURCE_PARITY, sourceHost=SOURCE_HOST, sourceDart=SOURCE_DART,
                    restored=restored, removed=sorted(removed), keptFiles=kept, productTrees=product_trees(),
                    productTrees552=product_trees_552(), productTrees551=product_trees_551(), productTrees550=product_trees_550(),
-                   reason='The 552 product tree with the MeloNX parity files of 62626c0 and a487268; each file from the commit that validated it; Git history unchanged.')
+                   reason='The 552 product tree with the MeloNX parity files of 62626c0, a487268 and 6633588; each file from the commit that validated it; Git history unchanged.')
     if report:
         out = ROOT / report
         out.parent.mkdir(parents=True, exist_ok=True)

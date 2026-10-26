@@ -18,8 +18,8 @@ MELONX_RUN=40328874348
 MELONX_ARTIFACT=(12654516832,'4ed4f40c0a2fb5f037178f4b5d9f06873199d94a676b123725732e11a0893689')
 # The iPhone host is built and tested from a487268: the 62626c0 host with the
 # review fixes in two Swift files (the engine does not change).
-HOST_SOURCE,HOST_RUN=tree.SOURCE_HOST,None
-HOST_ARTIFACT=(None,None)
+HOST_SOURCE,HOST_RUN=tree.SOURCE_HOST,40339415828
+HOST_ARTIFACT=(12658953626,'df355fd5e5825ea6f1f42423da112b8a0903629e811ef7e3fb0858906611f393')
 # The RPCS3 Core is the 551 one and its two host files are the 552 fix's, byte for byte.
 CORE_SOURCE,CORE_RUN,HOST,HOST551=fix552.CORE_SOURCE,fix552.CORE_RUN,fix552.HOST,fix552.HOST551
 FIX_SOURCE,HOST552,FIX_CORE_INPUTS=fix552.FIX_SOURCE,fix552.HOST552,fix552.FIX_CORE_INPUTS
@@ -47,7 +47,7 @@ IMPORT_IGNORED=b"""    // backendThreading is not imported: standalone MeloNX st
     // default but forces On at every launch (RyujinxController), so its
     // saved value never reached the engine there either.
 """
-ENGINE_INPUTS=sorted(set(d549.ENGINE_INPUTS)|{p for p in tree.PARITY if not p.startswith(('lib/','packages/','docs/melonx-persona')) and p not in tree.HOST_FILES})
+ENGINE_INPUTS=sorted(set(d549.ENGINE_INPUTS)|{p for p in tree.PARITY if not p.startswith(('lib/','packages/','docs/melonx-persona')) and p not in tree.HOST_FILES+tree.DART_FILES})
 LOCAL=tree.LOCAL
 # The MeloNX frontend tests re-run on the exact 553 tree (550's set, the
 # changed threading test and the standalone parity checks).
@@ -82,11 +82,16 @@ def validate_interface():
  return local
 
 def validate_service():
- """melonx_internal_service.dart: 549's additions to the 547 file, minus the threading import."""
+ """melonx_internal_service.dart: 549's additions to the 547 file, minus the
+ threading import (62626c0), plus only the residue cleanup (6633588)."""
  delivered549=at(tree.previous.previous.previous.SOURCE549,SERVICE)
  assert d549.only_added(at(tree.HOST_TREE,SERVICE),delivered549)
  assert delivered549.count(IMPORT_OFF)==1
- assert delivered549.replace(IMPORT_OFF,IMPORT_IGNORED,1)==(ROOT/SERVICE).read_bytes()
+ parity=at(MELONX_SOURCE,SERVICE)
+ assert delivered549.replace(IMPORT_OFF,IMPORT_IGNORED,1)==parity
+ current=(ROOT/SERVICE).read_bytes()
+ assert current==at(tree.SOURCE_DART,SERVICE) and d549.only_added(parity,current)
+ assert b'static Future<Map<String, dynamic>> clearImportedThreading(' in current
 
 def validate_fix_tests():
  """The 552 fix receipt, produced on the exact 552 tree: this tree with the
@@ -135,7 +140,7 @@ def source_contract():
  for p in close.CHANGED-PRODUCT:assert (ROOT/p).read_bytes()==at(close.HOST_SOURCE,p),p
  for p in HOST546-HOST552:assert (ROOT/p).read_bytes()==at(tree.HOST_TREE,p),p
  for p in HOST552:assert (ROOT/p).read_bytes()==at(FIX_SOURCE,p),p
- for p in PRODUCT:assert (ROOT/p).read_bytes()==at(HOST_SOURCE if p in tree.HOST_FILES else MELONX_SOURCE,p),p
+ for p in PRODUCT:assert (ROOT/p).read_bytes()==at(tree.source_of(p) if p in tree.PARITY else MELONX_SOURCE,p),p
  for p in DART549-PRODUCT_PARITY:assert d549.only_added(at(tree.HOST_TREE,p),(ROOT/p).read_bytes()),p
  validate_service()
  fix552.native.pin_module().validate_source_contract()
@@ -185,6 +190,10 @@ def validate_melonx_rerun(receipt):
  # The new threading test fails on the 552 migration (c605eafd), which imported Off.
  assert '+2 -1: Some tests failed.' in rerun['threading']['negativeControl']['log']
  assert f'PASS {PARITY_CHECKS} standalone parity checks' in rerun['parity']['log']
+ residue=rerun['residue']
+ assert residue['passedTests']==1 and '+1: All tests passed!' in residue['log']
+ # The residue test cannot pass on the 62626c0 service, which had no cleanup.
+ assert 'Some tests failed.' in residue['negativeControl']['log'] and 'clearImportedThreading' in residue['negativeControl']['log']
  assert not re.search(r'^\s*(?:error|warning) ',rerun['analyzerLog'],re.M)
  assert f"{rerun['analyzerBaselineIssues']} issues found." in rerun['analyzerLog']
  return rerun

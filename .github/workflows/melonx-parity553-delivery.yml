@@ -73,7 +73,7 @@ jobs:
           test/header_one_line_test.dart test/new_scraper_options_screen_test.dart \
           test/libretro_main_menu_test.dart test/rpcs3_rap_import_menu_test.dart \
           test/scraping_notification_listener_test.dart \
-          test/melonx_threading549_test.dart test/melonx_display_test.dart test/melonx_import_completion_test.dart \
+          test/melonx_threading549_test.dart test/melonx_threading_residue553_test.dart test/melonx_display_test.dart test/melonx_import_completion_test.dart \
           test/rpcs3_game_profile_service_test.dart
         python3 test/rpcs3_ui_status_cleanup_test.py
         python3 test/rpcs3_core_log_durable552_test.py
