@@ -109,7 +109,7 @@ check(runtime.index('"neostation_melonx_select_moltenvk"') < runtime.index('conf
 check('init(library: URL, frameworks: URL, root: URL, moltenVk requested: Int32 = 0)' in runtime, 'smoke default changed')
 plugin = (CLASSES / 'MeloNXInternalBridgePlugin.swift').read_text()
 check('moltenVk:moltenVk' in plugin and 'MeloNXMoltenVKChoice.available(moltenVk' in plugin, 'plugin does not choose MoltenVK')
-check('if moltenVk == 1 {\n                MeloNXMoltenVKChoice.preferred = 0' in plugin, 'no way back from a failing standalone MoltenVK')
+check('if moltenVk == 1, case .operation("frameworks", _, _)? = error as? MeloNXHostError {\n                MeloNXMoltenVKChoice.preferred = 0' in plugin, 'no way back from a failing standalone MoltenVK')
 check(plugin.index('MeloNXLaunchJournal.configure(path:path)') < plugin.index('MeloNXStdioCapture.configure(path:path)'), 'capture journal')
 start = controller.index('try host.start(')
 check(controller.rindex('MeloNXStdioCapture.begin()', 0, start) > controller.rindex('override func viewDidAppear', 0, start), 'capture not begun')
@@ -147,6 +147,9 @@ fputs("header_key = 0123\n", stderr)
 fputs("partial", stderr)
 fputs(" line\n", stderr)
 for index in 0..<2100 { fputs("line \(index)\n", stderr) }
+// NSLog's stderr copies (Ryujinx console output on iOS) have their own budget.
+let banner = "\(ProcessInfo.processInfo.processName)[\(getpid()):"
+for index in 0..<520 { fputs("2026-10-26 12:00:00.000 \(banner)771] |S| stub \(index)\n", stderr) }
 fputs("unterminated", stderr)
 MeloNXStdioCapture.end()
 MeloNXStdioCapture.end()            // idempotent
@@ -172,9 +175,13 @@ exit(2)
         check('before configure' in result.stderr and 'after end' in result.stderr, 'uncaptured output lost')
         check(not any(x in body for x in ['before configure', 'still uncaptured', 'after end']), 'captured outside the session')
         # 4 lines before the loop, then 1996 of its 2100 lines: 104 + the
-        # unterminated tail are counted, not copied.
-        check(len(body) == 2002 and body[-2] == 'line 1995', (len(body), body[-2:]))
-        check(body[-1] == 'capture end: 2000 lines, 105 not copied', body[-1])
+        # unterminated tail are counted, not copied. The 520 NSLog-banner
+        # lines get their own 500-line budget: 20 more are not copied.
+        stubs = [line for line in body if '|S| stub ' in line]
+        check(len(stubs) == 500 and stubs[-1].endswith('stub 499'), (len(stubs), stubs[-1:]))
+        plain = [line for line in body if '|S| stub ' not in line]
+        check(len(plain) == 2002 and plain[-2] == 'line 1995', (len(plain), plain[-2:]))
+        check(body[-1] == 'capture end: 2000 lines, 500 NSLog lines, 125 not copied', body[-1])
     print('Executed the stderr capture and MoltenVK preference on macOS.')
 
 print(f'PASS {checks} standalone parity checks')

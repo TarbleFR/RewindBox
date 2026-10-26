@@ -9,8 +9,13 @@ import Darwin
 // journal never saw. While a MeloNX session runs, stderr is teed into app.log
 // as "[MeloNX:stderr]" lines and still reaches the original stderr. Lines are
 // written directly (no NSLog, no Flutter hop), bounded per session.
+// While fd 2 is a pipe, NSLog copies its messages there too, and .NET's
+// Console (Ryujinx's console log target: stubs, info) goes through NSLog on
+// iOS. Those lines carry this process's NSLog banner and get a budget of
+// their own, so they never crowd out MoltenVK's direct writes.
 enum MeloNXStdioCapture {
     static let lineLimit = 2000
+    static let nslogLineLimit = 500
     private static let lock = NSLock()
     private static var journal: String?
     private static var savedStderr: Int32 = -1
@@ -36,7 +41,9 @@ enum MeloNXStdioCapture {
         let source = fds[0]
         let thread = Thread { MeloNXStdioCapture.pump(source, mirror: mirror, journal: journal) }
         thread.name = "RewindBox.MeloNX.Stderr"
-        thread.qualityOfService = .utility
+        // Above the writers' default, so little is left in the pipe if the
+        // process ends abruptly.
+        thread.qualityOfService = .userInitiated
         thread.start()
     }
 
@@ -52,15 +59,21 @@ enum MeloNXStdioCapture {
 
     private static func pump(_ source: Int32, mirror: Int32, journal: String) {
         var pending = [UInt8](), buffer = [UInt8](repeating:0, count:4096)
-        var lines = 0, dropped = 0
+        var lines = 0, nslogLines = 0, dropped = 0
         append("capture begin", to:journal)
         // NSLog may echo MeloNXLaunchJournal's own events to stderr; app.log
         // already has those as [MeloNX:native] lines.
         let echo = Array("[MeloNX:launch]".utf8)
+        let banner = Array("\(ProcessInfo.processInfo.processName)[\(getpid()):".utf8)
         func emit(_ bytes: ArraySlice<UInt8>) {
             guard !bytes.isEmpty, !contains(bytes, echo) else { return }
-            guard lines < lineLimit else { dropped += 1; return }
-            lines += 1
+            if contains(bytes.prefix(96), banner) {
+                guard nslogLines < nslogLineLimit else { dropped += 1; return }
+                nslogLines += 1
+            } else {
+                guard lines < lineLimit else { dropped += 1; return }
+                lines += 1
+            }
             append(String(decoding:bytes.prefix(2048), as:UTF8.self), to:journal)
         }
         while true {
@@ -76,7 +89,7 @@ enum MeloNXStdioCapture {
             if pending.count > 2048 { emit(pending[...]); pending.removeAll() }
         }
         if !pending.isEmpty { emit(pending[...]) }
-        append("capture end: \(lines) lines, \(dropped) not copied", to:journal)
+        append("capture end: \(lines) lines, \(nslogLines) NSLog lines, \(dropped) not copied", to:journal)
         close(source); close(mirror)
     }
 

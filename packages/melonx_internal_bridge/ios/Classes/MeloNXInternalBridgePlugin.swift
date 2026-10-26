@@ -93,10 +93,12 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         do { runtime = try MeloNXRuntimeAPI(library:frameworks.appendingPathComponent("MeloNXCore.framework/MeloNXCore"),frameworks:frameworks,root:root,moltenVk:moltenVk) }
         catch {
             // The switch lives in the game menu: never leave the player stuck
-            // on a MoltenVK that does not load. The next start uses RewindBox's.
-            if moltenVk == 1 {
+            // on a MoltenVK that does not load. Only a failure to load the
+            // private frameworks (configure_native) counts; the next start
+            // then uses RewindBox's.
+            if moltenVk == 1, case .operation("frameworks", _, _)? = error as? MeloNXHostError {
                 MeloNXMoltenVKChoice.preferred = 0
-                MeloNXLaunchJournal.record("frameworks","moltenVkPreference",detail:"The standalone MoltenVK did not start; RewindBox's is used from the next start.")
+                MeloNXLaunchJournal.record("frameworks","moltenVkPreference",detail:"The private frameworks did not load with the standalone MoltenVK; RewindBox's is used from the next start.")
             }
             throw error
         }
