@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:logger/logger.dart';
 import 'package:neostation/services/config_service.dart';
 import 'package:neostation/utils/log_redaction.dart';
@@ -19,6 +20,7 @@ class LoggerService {
 
   Logger _logger;
   bool _initialized = false;
+  AppendFileOutput? _fileOutput;
 
   LoggerService._internal()
     : _logger = Logger(
@@ -53,21 +55,56 @@ class LoggerService {
         }
       }
 
-      _logger = Logger(
-        level: Level.info,
-        printer: RedactingPrinter(SimplePrinter(colors: true)),
-        filter: CustomProductionFilter(),
-        output: MultiOutput([
-          ConsoleOutput(),
-          AppendFileOutput(file: File(logFilePath)),
-        ]),
-      );
+      _attach(File(logFilePath));
 
       _initialized = true;
       i('Logger initialized with file output: $logFilePath');
     } catch (e) {
       // ignore: avoid_print
       print('Error initializing file logger: $e');
+    }
+  }
+
+  void _attach(File file) {
+    final output = AppendFileOutput(file: file);
+    _logger = Logger(
+      level: Level.info,
+      printer: RedactingPrinter(SimplePrinter(colors: true)),
+      filter: CustomProductionFilter(),
+      output: MultiOutput([ConsoleOutput(), output]),
+    );
+    _fileOutput = output;
+  }
+
+  /// Writes to [file] as [init] would, without reading the configuration.
+  @visibleForTesting
+  void attachFileForTesting(File file) => _attach(file);
+
+  /// The file the log is written to; null without file output.
+  String? get logFilePath => _fileOutput?.file.path;
+
+  /// Moves the log file to [destination] when the user-data folder moves
+  /// (`UserDataLocationService.migrateData`): copies its bytes there,
+  /// replacing a file of that name, writes there from now on, then deletes
+  /// the old file. Synchronous, so no line logged in between is lost or left
+  /// in the old folder. Throws, keeping the current file, when the copy
+  /// cannot be written whole.
+  void moveLogFile(String destination) {
+    final output = _fileOutput;
+    if (output == null || output.file.path == destination) return;
+    final source = output.file;
+    final bytes = source.existsSync() ? source.readAsBytesSync() : <int>[];
+    final target = File(destination);
+    target.parent.createSync(recursive: true);
+    target.writeAsBytesSync(bytes, flush: true);
+    if (target.lengthSync() != bytes.length) {
+      throw FileSystemException('Log file copy is incomplete', destination);
+    }
+    output.file = target;
+    try {
+      if (source.existsSync()) source.deleteSync();
+    } catch (e) {
+      w('Could not delete the previous log file ${source.path}: $e');
     }
   }
 
@@ -142,7 +179,8 @@ class RedactingPrinter extends LogPrinter {
 class AppendFileOutput extends LogOutput {
   AppendFileOutput({required this.file});
 
-  final File file;
+  /// Changes only through [LoggerService.moveLogFile].
+  File file;
   static final _CAppend? _c = _CAppend.load();
 
   /// True when writes go through C `fopen(path, "a")`.
