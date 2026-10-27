@@ -32,6 +32,9 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   revalidation re-hashes 2 of 5 (flush) and 3 of 5 (commit) instead of 5, every
   change detected. Evidence `docs/evidence/rpcs3-cell573-host-linux.json`. No
   iPhone measurement. See `docs/rpcs3-cell573.md`.
+- Core run `40578797847` (`92074e51`, Apple Silicon): same model results; iPhone
+  Core SHA-256 `2d80a2beee8e…`, 88 exports, identities unchanged. Evidence
+  `docs/evidence/rpcs3-cell573-macos.json`.
 
 ## StikDebug fallback removed — 27 October 2026
 

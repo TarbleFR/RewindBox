@@ -117,6 +117,13 @@ Rapport : [`evidence/rpcs3-cell573-host-linux.json`](evidence/rpcs3-cell573-host
 
 Ce sont des modèles sur l'hôte, pas des mesures sur iPhone.
 
+**Run Core sur Mac Apple Silicon (`40578797847`, `92074e51`).**
+Reçu : [`evidence/rpcs3-cell573-macos.json`](evidence/rpcs3-cell573-macos.json).
+- Mêmes résultats de modèle que sous Linux (pic 828 Mo, aucun rechargement ;
+  2 et 3 sections re-hachées au lieu de 5, chaque changement détecté).
+- Le Core iPhone est compilé : SHA-256 `2d80a2be…`, 88 exports, identités
+  PPU/SPU inchangées, aucune recompilation à froid.
+
 ## 5. À relever sur iPhone (God of War III)
 
 - `MEMPROF527` : empreinte et compression en baisse.
