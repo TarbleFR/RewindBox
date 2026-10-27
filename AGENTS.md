@@ -48,6 +48,15 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   light scenes and disabled identical to 560, GPU-bound not worse; seven
   behavioral mutations detected; driver preflight authenticated the 560
   diagnostics artifact. No iPhone measurement. See `docs/rpcs3-cell561.md`.
+- Core 561 pushed as `5b033881` (rebased over the MeloNX commit `9b40129f`;
+  Core run `40486026315`). Private 561 recipe (`rpcs3cell561_tree.py`,
+  `rpcs3cell561_delivery.py`, `validate_*561_ipa.py`,
+  `delivery-561-recipient.pem`): the delivered 560 product (the 559/558 one)
+  with only the RPCS3 Core swapped 560 -> 561; the 560 recipe runs unchanged in
+  `as_560()`. First Core-swap delivery: `rpcs3-cell561-delivery.yml` is the
+  `make_core_swap_workflow.py` variant (base release 0.0.10, build 559). The
+  `9b40129f` MeloNX change is not in 561 (product files stay pinned to their
+  delivered versions; it needs a full build). No release. Do not reuse 561.
 
 ## RPCS3 Core 560: deferred framebuffer-commit write-back (DBZ HD) — 26 October 2026
 

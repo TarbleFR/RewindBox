@@ -157,3 +157,37 @@ Le reçu complet est dans
 - Les autres titres sont inchangés en Automatique. En particulier, `BLES01717`
   est limité par le CPU invité, et sa GameDB impose le mode SPU sûr : aucun
   levier sûr n'est ajouté pour lui.
+
+## 7. Recette de l'IPA privée 561 (mode « Core seul »)
+
+561 livre le produit 560 octet pour octet, qui est lui-même le produit 559 et
+558. Seul le Core RPCS3 change : le 560 (`cba3fa9f`) est remplacé par le 561
+(`5b033881`, run `40486026315`). C'est la première livraison qui utilise le
+mode « Core seul » de [`core-swap-delivery.md`](core-swap-delivery.md) : le
+job macOS part de l'application publiée `0.0.10` (build 559) au lieu de la
+recompiler.
+
+- **Arbre** (`rpcs3cell561_tree.py`) : l'arbre 560 livré, plus les fichiers de
+  recette Core pris à `5b033881` et la documentation 561.
+  - 5 d'entre eux étaient épinglés au 560 : le delta, le manifeste, le script
+    de build, le test de pin et `rpcs3-core.yml`. Seul le commit Core
+    `5b033881` les a modifiés depuis `cba3fa9f`.
+  - La recette porte `build-utils/core_swap_base.py`.
+  - Le travail MeloNX poussé entre-temps (`9b40129f`, clavier Switch et
+    bascule L3/R3) n'entre pas dans cette IPA : le pin remet chaque fichier
+    produit à sa version livrée, et un changement de fichier produit exige le
+    build complet.
+- **Contrôles hérités** (`rpcs3cell561_delivery.py`, `as_560()`) : la recette
+  560 tourne inchangée sur l'arbre 560 livré (index de travail, fichiers 561
+  dans leur version 560, modules Python de cet arbre, `BUILD_NUMBER` 560,
+  identité du Core installé mise de côté). Les vues 559, 558, 557 et 554
+  suivent par emboîtement.
+- **Core** : l'identité 561 est liée au commit `5b033881`. Le run est vérifié
+  par l'API GitHub : commit, workflow et quatre étapes requises.
+- **Validateurs IPA** : `validate_rpcs3_561_ipa.py` ajoute les marqueurs 561
+  (`COREPROF OPT561`, compteurs, réglage `experimental.early_submit`) aux
+  marqueurs 555, 559 et 560. Interface, MeloNX et fichiers de bibliothèque :
+  les validateurs 558, atteints à travers les vues 560 et 559.
+- **Workflow** : `rpcs3-cell561-delivery.yml` est dérivé du workflow complet
+  par `make_core_swap_workflow.py` (base `0.0.10`, SHA-256 `f16c2a35…7896480d`,
+  reçu `evidence/rpcs3-cell559-delivery.json`).
