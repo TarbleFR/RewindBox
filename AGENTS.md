@@ -3,6 +3,35 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Private 562: MeloNX Switch keyboard and L3/R3 touch buttons — 27 October 2026
+
+- User requests (Discord, via the maintainer): a game asking for text crashed
+  or hung (Hogwarts Legacy, character name), and an L3/R3 option for the
+  virtual gamepad. Analysis and iPhone protocol: `docs/melonx-keyboard562.md`.
+- Cause: MeloNX's `AlertHelper` sends `show_text_input` through the engine's
+  callback registry and blocks the HLE thread until
+  `show_text_input_result_<id>` is invoked; the standalone app registers it,
+  RewindBox never did. Host-only fix in `9b40129f` (no engine rebuild; the
+  engine already exports `RegisterCallback`/`InvokeCallback`):
+  `MeloNXTextInput.swift` (UIKit text field, answers queued and every request
+  answered before each session stop, entered text never journaled),
+  optional binding in `MeloNXRuntimeAPI.swift`, wiring and the in-game
+  "Stick buttons (L3/R3)" entry (Melo-Controller's own
+  `rewindbox.melonx.stickButton`) in `MeloNXMetalSessionViewController.swift`,
+  two strings in twelve languages. Host run `40484359276` green, including
+  the UIKit keyboard probe (`test/melonx_text_input_test.py`, 45 + 19 checks).
+- `melonx-display` fails on `melonx_presentation_widgets_test.dart` at
+  `9b40129f` and already at its parent when run after
+  `melonx_display_test.dart` (timing-dependent, not this change).
+- 561 is the RPCS3 Core 561 delivery of another session (`5dd6a5ae`), so this
+  build is 562, stacked on it. Private 562 recipe (`melonxinput562_tree.py`,
+  `melonxinput562_delivery.py`, `melonx-input562-delivery.yml`,
+  `validate_*562_ipa.py`, `delivery-562-recipient.pem`): the delivered 561
+  product with only the 562 MeloNX host files; the 561 recipe runs unchanged
+  in `as_561()` (which also regenerates the 561 controller strings), the 562
+  host run is bound to the pinned tree. RPCS3 Core 561 and the 558 MeloNX
+  engine unchanged. Claimed by session `session_01K9YJtz…`. Do not reuse 562.
+
 ## Core-only deliveries from the published application (core swap) — 27 October 2026
 
 - Release `0.0.10` was published by the maintainer on 26 October 2026 (tag at
