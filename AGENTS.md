@@ -87,6 +87,11 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   not bounded (run `40568663915` failed on a 10 ms TSan bound). Evidence
   `docs/evidence/rpcs3-cell571-host-linux.json`. No iPhone measurement. See
   `docs/rpcs3-cell571.md`.
+- Core run `40570081835` (`0522f593`, Apple Silicon, 3 cores, 2 writers,
+  optimized): capped re-entries 2 -> 0, max wait 26.4 -> 12.1 ms, total 786 ->
+  211 ms, writer throughput -18 %; sanitizer builds without a capped re-entry.
+  iPhone Core SHA-256 `4f13dda2893c…`, 88 exports, identities unchanged.
+  Evidence `docs/evidence/rpcs3-cell571-macos.json`.
 
 ## RPCS3 Core 569: iOS threads keep their QoS (567 fix) — 27 October 2026
 

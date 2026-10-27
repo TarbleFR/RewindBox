@@ -93,6 +93,21 @@ Rapport : [`evidence/rpcs3-cell571-host-linux.json`](evidence/rpcs3-cell571-host
 
 Ce sont des chiffres de modèle sur l'hôte, pas des FPS sur iPhone.
 
+**Run Core sur Mac Apple Silicon (`40570081835`, `0522f593`).**
+Reçu : [`evidence/rpcs3-cell571-macos.json`](evidence/rpcs3-cell571-macos.json).
+- Build optimisé, 3 cœurs, 2 écrivains, 2 000 reprises :
+
+| | Sans le correctif | Avec |
+| --- | --- | --- |
+| Reprises au plafond de 20 ms | 2 | 0 |
+| Attente maximale | 26,4 ms | 12,1 ms |
+| Attente totale | 786 ms | 211 ms |
+| Débit des écrivains | 428 / ms | 351 / ms (−18 %) |
+
+- ASan/UBSan et TSan : aucune reprise au plafond avec le correctif.
+- Le Core iPhone est compilé : SHA-256 `4f13dda2…`, 88 exports, identités
+  PPU/SPU inchangées, aucune recompilation à froid.
+
 ## 5. À relever sur iPhone (DBZ, combat)
 
 - `WAITPROF527 vm_range_episode` et `RANGELOCKPROF` : total et maximum en forte
