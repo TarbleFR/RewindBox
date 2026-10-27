@@ -1,5 +1,6 @@
 import '../../../widgets/console_bubble_transition.dart';
 import '../../../widgets/neo_glass_bubble.dart';
+import '../../../themes/liquid_glass_theme.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -1034,11 +1035,13 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
                 width: selWidth - 2.r,
                 height: selHeight - 2.r,
                 child: IgnorePointer(
-                  child: NeoGlassBubble(
-                    selected: true,
-                    radius: 30.r,
-                    child: const SizedBox.expand(),
-                  ),
+                  child: LiquidGlassTheme.of(context).settings.showSystemBubbles
+                      ? NeoGlassBubble(
+                          selected: true,
+                          radius: 30.r,
+                          child: const SizedBox.expand(),
+                        )
+                      : const SystemSelectionMarker(),
                 ),
               )
             : const SizedBox.shrink();
@@ -1058,6 +1061,36 @@ class _SystemCardGridViewState extends State<SystemCardGridView> {
           ),
         );
       },
+    );
+  }
+}
+
+/// Selection cue used when the system bubbles are turned off: a short accent
+/// bar with a soft glow just under the focused art pack. It slides with the
+/// grid's focus indicator and never covers the artwork or the console name.
+class SystemSelectionMarker extends StatelessWidget {
+  const SystemSelectionMarker({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: FractionalTranslation(
+        translation: const Offset(0, 1.6),
+        child: Container(
+          key: const ValueKey('system-selection-marker'),
+          width: 28.r,
+          height: 3.r,
+          decoration: BoxDecoration(
+            color: accent,
+            borderRadius: BorderRadius.circular(2.r),
+            boxShadow: [
+              BoxShadow(color: accent.withValues(alpha: 0.55), blurRadius: 6.r),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

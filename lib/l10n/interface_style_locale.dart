@@ -101,6 +101,8 @@ abstract final class InterfaceStyleLocale {
   static const focusRingGlow = 'focusRingGlow';
   static const sidePanel = 'sidePanel';
   static const sidePanelHint = 'sidePanelHint';
+  static const systemBubbles = 'systemBubbles';
+  static const systemBubblesHint = 'systemBubblesHint';
   static const previewTapHint = 'previewTapHint';
   static const previewLabelsHint = 'previewLabelsHint';
   static const revert = 'revert';
@@ -212,6 +214,9 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: 'Ring + halo',
       sidePanel: 'Side menu background',
       sidePanelHint: 'Off: only the bubbles float over the background.',
+      systemBubbles: 'Show system bubbles',
+      systemBubblesHint:
+          'Off: the System Art Packs sit directly on the main menu background.',
       previewTapHint: 'Tap the value to try another style.',
       previewLabelsHint: 'Shows the tab names in the bar above.',
       revert: 'Undo changes',
@@ -325,6 +330,9 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: 'Anneau + halo',
       sidePanel: 'Fond du menu latéral',
       sidePanelHint: 'Désactivé : seules les bulles flottent sur le décor.',
+      systemBubbles: 'Afficher les bulles des systèmes',
+      systemBubblesHint:
+          'Désactivé : les System Art Packs s\'affichent directement sur le fond du menu principal.',
       previewTapHint: 'Touchez la valeur pour essayer un autre style.',
       previewLabelsHint: 'Affiche le nom des onglets dans la barre ci-dessus.',
       revert: 'Annuler les modifications',
@@ -437,6 +445,9 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: 'Anillo + resplandor',
       sidePanel: 'Fondo del menú lateral',
       sidePanelHint: 'Desactivado: solo las burbujas flotan sobre el fondo.',
+      systemBubbles: 'Mostrar las burbujas de los sistemas',
+      systemBubblesHint:
+          'Desactivado: los System Art Packs se muestran directamente sobre el fondo del menú principal.',
       previewTapHint: 'Toca el valor para probar otro estilo.',
       previewLabelsHint:
           'Muestra el nombre de las pestañas en la barra de arriba.',
@@ -552,6 +563,9 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: 'Anel + brilho',
       sidePanel: 'Fundo do menu lateral',
       sidePanelHint: 'Desativado: só as bolhas flutuam sobre o fundo.',
+      systemBubbles: 'Mostrar as bolhas dos sistemas',
+      systemBubblesHint:
+          'Desativado: os System Art Packs aparecem diretamente sobre o fundo do menu principal.',
       previewTapHint: 'Toque no valor para testar outro estilo.',
       previewLabelsHint: 'Mostra o nome das abas na barra acima.',
       revert: 'Desfazer alterações',
@@ -663,6 +677,9 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: 'Рамка + свечение',
       sidePanel: 'Фон бокового меню',
       sidePanelHint: 'Выключено: над фоном парят только пузыри.',
+      systemBubbles: 'Показывать пузыри систем',
+      systemBubblesHint:
+          'Выключено: System Art Packs отображаются прямо на фоне главного меню.',
       previewTapHint: 'Коснитесь значения, чтобы попробовать другой стиль.',
       previewLabelsHint: 'Показывает названия вкладок на панели выше.',
       revert: 'Отменить изменения',
@@ -767,6 +784,8 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: '描边 + 光晕',
       sidePanel: '侧边菜单背景',
       sidePanelHint: '关闭时：只有气泡浮在背景上。',
+      systemBubbles: '显示系统气泡',
+      systemBubblesHint: '关闭时：System Art Packs 直接显示在主菜单背景上。',
       previewTapHint: '轻点数值即可试用其他样式。',
       previewLabelsHint: '在上方栏中显示标签名称。',
       revert: '撤销更改',
@@ -871,6 +890,8 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: '描邊 + 光暈',
       sidePanel: '側邊選單背景',
       sidePanelHint: '關閉時：只有泡泡浮在背景上。',
+      systemBubbles: '顯示系統泡泡',
+      systemBubblesHint: '關閉時：System Art Packs 直接顯示在主選單背景上。',
       previewTapHint: '輕點數值即可試用其他樣式。',
       previewLabelsHint: '在上方列中顯示分頁名稱。',
       revert: '復原變更',
@@ -985,6 +1006,9 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: 'Rahmen + Leuchten',
       sidePanel: 'Hintergrund des Seitenmenüs',
       sidePanelHint: 'Aus: Nur die Blasen schweben über dem Hintergrund.',
+      systemBubbles: 'Systemblasen anzeigen',
+      systemBubblesHint:
+          'Aus: Die System Art Packs erscheinen direkt auf dem Hintergrund des Hauptmenüs.',
       previewTapHint: 'Tippe auf den Wert, um einen anderen Stil zu testen.',
       previewLabelsHint: 'Zeigt die Namen der Tabs in der Leiste oben.',
       revert: 'Änderungen verwerfen',
@@ -1098,6 +1122,9 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: 'Anello + alone',
       sidePanel: 'Sfondo del menu laterale',
       sidePanelHint: 'Disattivato: solo le bolle fluttuano sullo sfondo.',
+      systemBubbles: 'Mostra le bolle dei sistemi',
+      systemBubblesHint:
+          'Disattivato: i System Art Packs appaiono direttamente sullo sfondo del menu principale.',
       previewTapHint: 'Tocca il valore per provare un altro stile.',
       previewLabelsHint: 'Mostra i nomi delle schede nella barra qui sopra.',
       revert: 'Annulla modifiche',
@@ -1210,6 +1237,9 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: 'Cincin + pendar',
       sidePanel: 'Latar menu samping',
       sidePanelHint: 'Nonaktif: hanya gelembung yang melayang di atas latar.',
+      systemBubbles: 'Tampilkan gelembung sistem',
+      systemBubblesHint:
+          'Nonaktif: System Art Packs tampil langsung di atas latar menu utama.',
       previewTapHint: 'Ketuk nilainya untuk mencoba gaya lain.',
       previewLabelsHint: 'Menampilkan nama tab di bilah atas.',
       revert: 'Batalkan perubahan',
@@ -1314,6 +1344,8 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: '枠線＋光彩',
       sidePanel: 'サイドメニューの背景',
       sidePanelHint: 'オフ：背景の上にバブルだけが浮かびます。',
+      systemBubbles: 'システムのバブルを表示',
+      systemBubblesHint: 'オフ：System Art Packs をメインメニューの背景に直接表示します。',
       previewTapHint: '値をタップすると別のスタイルを試せます。',
       previewLabelsHint: '上のバーにタブ名を表示します。',
       revert: '変更を取り消す',
@@ -1418,6 +1450,8 @@ abstract final class InterfaceStyleLocale {
       focusRingGlow: '테두리 + 광채',
       sidePanel: '사이드 메뉴 배경',
       sidePanelHint: '끄면: 배경 위에 버블만 떠 있습니다.',
+      systemBubbles: '시스템 버블 표시',
+      systemBubblesHint: '끄면: System Art Packs가 메인 메뉴 배경 위에 바로 표시됩니다.',
       previewTapHint: '값을 탭해 다른 스타일을 사용해 보세요.',
       previewLabelsHint: '위 바에 탭 이름을 표시합니다.',
       revert: '변경 취소',

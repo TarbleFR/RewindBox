@@ -1701,6 +1701,8 @@ class _SystemGamesListState extends State<SystemGamesList> {
                     onSettings: _openGameSettingsDialog,
                     onRandom: _showRandomGameDialog,
                     onScrape: () => _scrapeAction?.call(),
+                    onContextAction: _handleSelectContextAction,
+                    contextActionIcon: _selectContextIcon,
                   ),
                 ),
               ),

@@ -11,6 +11,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../../../themes/corner_radii.dart';
 import '../../../themes/chrome_surface.dart';
+import '../../../themes/liquid_glass_theme.dart';
 import '../../../widgets/neo_glass.dart';
 import '../../../widgets/neo_glass_bubble.dart';
 import '../../../widgets/console_bubble_transition.dart';
@@ -387,6 +388,10 @@ class _SystemCardState extends State<SystemCard> {
         child: child,
       );
     }
+    // Without system bubbles the art pack sits on the menu background as
+    // is: no rim, fill or lens. The grid's selection marker and the float of
+    // [NeoBubbleMotion] still show which system is focused.
+    if (!LiquidGlassTheme.of(context).settings.showSystemBubbles) return child;
     return NeoGlassBubble(
       selected: widget.isSelected,
       radius: 30.r,

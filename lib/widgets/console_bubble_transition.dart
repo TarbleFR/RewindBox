@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
 import '../services/gamepad/gamepad_navigation_manager.dart';
+import '../themes/liquid_glass_theme.dart';
 import 'neo_glass_bubble.dart';
 
 /// Presentation-only ownership for the console cards on one Systems screen.
@@ -441,7 +442,15 @@ class _ConsolePlaylistRoute<T> extends PageRoute<T> {
                     painter: NeoGlassLensPainter(
                       selected: true,
                       radius: radius,
-                      opacity: reduced ? 0 : 1 - flight,
+                      // No lens rim around an art pack shown without its
+                      // system bubble; the flight and reveal stay the same.
+                      opacity:
+                          reduced ||
+                              !LiquidGlassTheme.of(
+                                context,
+                              ).settings.showSystemBubbles
+                          ? 0
+                          : 1 - flight,
                       highContrast:
                           MediaQuery.maybeOf(context)?.highContrast ?? false,
                     ),

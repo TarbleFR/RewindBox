@@ -254,6 +254,19 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
     );
   }
 
+  /// Applies and saves one change at once, leaving the rest of the draft
+  /// pending: the main menu shows it as soon as the switch moves, without
+  /// also applying the other unconfirmed edits.
+  Future<void> _applyNow(
+    InterfaceStyleSettings Function(InterfaceStyleSettings) change,
+  ) async {
+    final provider = context.read<ThemeProvider>();
+    setState(() => _draft = change(_draft).normalized());
+    await provider.setInterfaceStyle(change(provider.interfaceStyle));
+    if (!mounted) return;
+    setState(() => _applied = provider.interfaceStyle);
+  }
+
   /// Drops the draft and goes back to the applied style.
   void _revert() {
     if (!_dirty) return;
@@ -603,6 +616,13 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
         subtitle: _t(InterfaceStyleLocale.sidePanelHint),
         value: d.showSideMenuPanel,
         onChanged: (v) => _update(d.copyWith(showSideMenuPanel: v)),
+      ),
+      _ToggleRow(
+        'systemBubbles',
+        title: _t(InterfaceStyleLocale.systemBubbles),
+        subtitle: _t(InterfaceStyleLocale.systemBubblesHint),
+        value: d.showSystemBubbles,
+        onChanged: (v) => _applyNow((s) => s.copyWith(showSystemBubbles: v)),
       ),
       _SectionRow(
         'section.motion',

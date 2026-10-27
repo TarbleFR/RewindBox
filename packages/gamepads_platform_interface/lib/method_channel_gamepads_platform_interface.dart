@@ -25,6 +25,15 @@ class MethodChannelGamepadsPlatformInterface extends GamepadsPlatformInterface {
     }).toList();
   }
 
+  @override
+  Future<void> reclaimGamepads() async {
+    try {
+      await _channel.call('reclaimGamepads', <String, dynamic>{});
+    } on MissingPluginException {
+      // Only the iOS bridge shares its controller handlers with engines.
+    }
+  }
+
   Future<void> platformCallHandler(MethodCall call) async {
     switch (call.method) {
       case 'onGamepadEvent':

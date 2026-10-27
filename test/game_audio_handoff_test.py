@@ -79,6 +79,10 @@ class AudioPolicyService {
     active = true; events.add('activated');
   }
 }
+class Gamepads {
+  // The iOS bridge gives the menu its controller back once the engine ended.
+  static Future<void> reclaim() async { events.add('reclaim'); }
+}
 Future<void> flush() async {
   for (var i = 0; i < 20; ++i) { await Future<void>.value(); }
 }
@@ -109,6 +113,9 @@ void main() {
       manager.completeClose(); manager.onDialogDisposed(); manager.onDialogDisposed();
       await flush();
       expect(events.where((e) => e == 'activate').length, 1);
+      // Controller input returns to the menu once per ended session, without
+      // waiting for the audio handoff.
+      expect(events.where((e) => e == 'reclaim').length, 1);
       expect(music.playing, isFalse); expect(sfx.isEnabled, isFalse);
       expect(events, isNot(contains('inactive')));
       audio.activation!.complete(); await flush();

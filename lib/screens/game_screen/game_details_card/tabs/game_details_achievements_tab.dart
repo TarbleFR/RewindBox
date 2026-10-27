@@ -331,10 +331,22 @@ class GameDetailsAchievementsTabState
                           ),
                           SizedBox(width: 6.r),
                           HeaderActionButton(
-                            icon: Image.asset(
-                              'assets/images/gamepad/Xbox_View_button.png',
-                              width: 12.r,
-                              height: 12.r,
+                            // Select + X, or X in the open ⋯ menu.
+                            icon: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Image.asset(
+                                  'assets/images/gamepad/Xbox_View_button.png',
+                                  width: 12.r,
+                                  height: 12.r,
+                                ),
+                                SizedBox(width: 2.r),
+                                Image.asset(
+                                  'assets/images/gamepad/Xbox_X_button.png',
+                                  width: 12.r,
+                                  height: 12.r,
+                                ),
+                              ],
                             ),
                             label: AppLocale.refresh
                                 .getString(context)

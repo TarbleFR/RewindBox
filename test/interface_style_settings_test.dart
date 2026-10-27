@@ -33,6 +33,8 @@ void main() {
     expect(defaults.accent, AccentColor.theme);
     expect(defaults.focusIndicator, FocusIndicatorStyle.ring);
     expect(defaults.showSideMenuPanel, isFalse);
+    // The main menu keeps its Liquid Glass system bubbles unless turned off.
+    expect(defaults.showSystemBubbles, isTrue);
   });
 
   test('encode and decode round-trip every field', () {
@@ -60,6 +62,7 @@ void main() {
       accent: AccentColor.cyan,
       focusIndicator: FocusIndicatorStyle.ringGlow,
       showSideMenuPanel: true,
+      showSystemBubbles: false,
     );
     final decoded = InterfaceStyleSettings.decode(custom.encode());
     expect(decoded, custom);
@@ -105,11 +108,14 @@ void main() {
         'showClock': 'no',
         'accent': 'magenta',
         'showSideMenuPanel': 1,
+        'showSystemBubbles': 'off',
       });
       expect(v1.style, InterfaceStyle.classic);
       expect(v1.showClock, isTrue);
       expect(v1.accent, AccentColor.theme);
       expect(v1.showSideMenuPanel, isFalse);
+      // Saved before the option existed: the bubbles stay on.
+      expect(v1.showSystemBubbles, isTrue);
     },
   );
 
@@ -137,6 +143,7 @@ void main() {
       showClock: false,
       focusIndicator: FocusIndicatorStyle.glow,
       showSideMenuPanel: true,
+      showSystemBubbles: false,
     );
     final minimal = InterfaceStyleSettings.presetFor(
       InterfaceStyle.minimal,
@@ -181,6 +188,7 @@ void main() {
       expect(styled.showClock, isFalse);
       expect(styled.focusIndicator, FocusIndicatorStyle.glow);
       expect(styled.showSideMenuPanel, isTrue);
+      expect(styled.showSystemBubbles, isFalse);
     }
     // Leaving NeoStation drops its glyphs again.
     expect(

@@ -3,6 +3,14 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Interface option and controller navigation after a game — 27 October 2026
+
+Maintainer request (video of the Switch playlist, `app.log`), branch `Claude`, no IPA, nothing pushed.
+
+- **Controller lost after a game (cause found in the sources):** GameController keeps one `valueChangedHandler` per pad. `RPCS3GameInputController` replaced the menu bridge's handler at bind and set it to `nil` at unbind; `GamepadsListener` never reinstalled it for a pad it already knew, so the menu stayed deaf until the controller reconnected. The Dart navigation stack itself was restored correctly (log: `system_games_list` reactivated after each close). Fix: RPCS3 restores the previous handler; `GamepadsListener.reclaimHandlers()` (channel `reclaimGamepads`, `Gamepads.reclaim()`) reinstalls the menu handler on the main queue, called once by `GameLaunchManager._finalize` on iOS when any session ends (RPCS3, MeloNX, Dolphin, ARMSX2, libretro, external). Never call it while an engine owns the controller. Libretro and ARMSX2 (SDL) poll the pad and MeloNX restores its per-element handlers, so they are unaffected.
+- **`⋯` playlist menu:** a Select (View) tap now latches the chord layer open (`GamepadNavigation.latchSelectLayer`); A/X/Y run one action and close it, B only closes it, only the focused layer can close it. Mute/refresh moved to X in that layer (View + X). Option **Show system bubbles** (`showSystemBubbles`, default on, 12 languages). Details: `docs/liquid-glass-ui.md`, last section.
+- Tests: `test/select_layer_latch_test.dart`, `test/system_bubbles_option_test.dart`, contract guard in `test/ios_gamepad_navigation_test.dart`, reclaim count in `test/game_audio_handoff_test.py`. Swift/Objective-C++ not compiled here (Linux, no Apple SDK). **No iPhone or physical-controller validation.**
+
 ## MeloNX engine 576: shader-cache warm-ups off the game's start, attachment-less framebuffers, temporary FFT boot trace — 27 October 2026
 
 - Build 572 app.log: Super Smash Bros. Ultimate spent 18 s in "Loading 2743

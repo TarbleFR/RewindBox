@@ -75,6 +75,7 @@ class InterfaceStyleSettings {
     this.accent = AccentColor.theme,
     this.focusIndicator = FocusIndicatorStyle.ring,
     this.showSideMenuPanel = false,
+    this.showSystemBubbles = true,
   });
 
   static const int schemaVersion = 2;
@@ -125,6 +126,11 @@ class InterfaceStyleSettings {
   /// Translucent panel behind the settings and scraper side menus. Hidden by
   /// default: only the category bubbles float over the background.
   final bool showSideMenuPanel;
+
+  /// Liquid Glass bubbles around the System Art Packs of the main menu. Off,
+  /// the artwork sits directly on the menu background and only a discreet
+  /// marker follows the selection. Other menus keep their bubbles either way.
+  final bool showSystemBubbles;
 
   /// A general style sets its surfaces, its navigation bar and its motion;
   /// labels, icon size, density, tint, colours and the status pill are kept.
@@ -225,6 +231,7 @@ class InterfaceStyleSettings {
     AccentColor? accent,
     FocusIndicatorStyle? focusIndicator,
     bool? showSideMenuPanel,
+    bool? showSystemBubbles,
   }) => InterfaceStyleSettings(
     style: style ?? this.style,
     tabBarStyle: tabBarStyle ?? this.tabBarStyle,
@@ -249,6 +256,7 @@ class InterfaceStyleSettings {
     accent: accent ?? this.accent,
     focusIndicator: focusIndicator ?? this.focusIndicator,
     showSideMenuPanel: showSideMenuPanel ?? this.showSideMenuPanel,
+    showSystemBubbles: showSystemBubbles ?? this.showSystemBubbles,
   );
 
   Map<String, Object> toJson() => <String, Object>{
@@ -276,6 +284,7 @@ class InterfaceStyleSettings {
     'accent': accent.name,
     'focusIndicator': focusIndicator.name,
     'showSideMenuPanel': showSideMenuPanel,
+    'showSystemBubbles': showSystemBubbles,
   };
 
   String encode() => jsonEncode(toJson());
@@ -340,6 +349,7 @@ class InterfaceStyleSettings {
         d.focusIndicator,
       ),
       showSideMenuPanel: flag('showSideMenuPanel', d.showSideMenuPanel),
+      showSystemBubbles: flag('showSystemBubbles', d.showSystemBubbles),
     );
   }
 
@@ -378,7 +388,8 @@ class InterfaceStyleSettings {
       other.showControllerBattery == showControllerBattery &&
       other.accent == accent &&
       other.focusIndicator == focusIndicator &&
-      other.showSideMenuPanel == showSideMenuPanel;
+      other.showSideMenuPanel == showSideMenuPanel &&
+      other.showSystemBubbles == showSystemBubbles;
 
   @override
   int get hashCode => Object.hashAll([
@@ -405,6 +416,7 @@ class InterfaceStyleSettings {
     accent,
     focusIndicator,
     showSideMenuPanel,
+    showSystemBubbles,
   ]);
 
   @override

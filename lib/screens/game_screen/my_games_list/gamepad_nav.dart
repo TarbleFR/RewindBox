@@ -22,12 +22,17 @@ extension _GamepadNav on _SystemGamesListState {
     }
   }
 
-  /// Handles Select button (View/Share) for mute refresh depending on the
-  /// active details tab.
-  void _handleSelectButton() {
-    SfxService().playNavSound();
+  /// Runs the Select context action — mute the preview, or refresh on the
+  /// achievements tab — from Select + X or X in the open `⋯` menu (the
+  /// navigator plays the sound of that layer action).
+  void _handleSelectContextAction() {
     _selectButtonAction?.call();
   }
+
+  /// Icon of [_handleSelectContextAction] for the open `⋯` menu.
+  IconData _selectContextIcon() => (_isAchievementsOpen?.call() ?? false)
+      ? Symbols.refresh_rounded
+      : Symbols.volume_up_rounded;
 
   /// Handles the X button: opens the game view-mode picker (list/grid/carousel
   /// + card size/style). For the music library, X keeps its shuffle toggle.
@@ -62,9 +67,12 @@ extension _GamepadNav on _SystemGamesListState {
       onXButton:
           _handleXButton, // Button X - View mode picker (music: shuffle).
       onSettings: _openGameSettingsDialog, // Button Start.
-      onSelectButton: _handleSelectButton, // Button Select (View) - tap.
+      // Select tap opens the ⋯ menu of the action rail and keeps it open.
+      latchSelectLayer: true,
       onSelectModifierA: () => _scrapeAction?.call(), // Select + A - Scrape.
       onSelectModifierB: _toggleLegend, // Select + B - Hide/show legend.
+      onSelectModifierX:
+          _handleSelectContextAction, // Select + X - Mute/refresh.
       onSelectModifierY: _showRandomGameDialog, // Select + Y - Random.
       onRightStickClick: _inspectSelectedBox, // Examine the 3D box.
       onLeftBumper: _handleLeftBumper,

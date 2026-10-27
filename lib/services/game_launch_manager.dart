@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:armsx2_internal_bridge/armsx2_internal_bridge.dart';
 import 'package:flutter/widgets.dart';
+import 'package:gamepads/gamepads.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'audio_policy_service.dart';
 import 'game_service.dart';
@@ -222,6 +223,9 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
     GameService.clearOnGameReturnedCallback();
     GameService.clearOnProcessExitCallback();
     WidgetsBinding.instance.removeObserver(this);
+    // The engine has released the game: give the menu its controller back
+    // before the user reaches for it (see [_reclaimControllers]).
+    if (Platform.isIOS) unawaited(_reclaimControllers());
     try {
       // The native session has ended before this route is disposed. Restore
       // audio ownership before resuming any menu voices, including on failure.
@@ -251,6 +255,23 @@ class GameLaunchManager extends ChangeNotifier with WidgetsBindingObserver {
           : '[GameLaunchManager] Session finalized — music resumed, SFX re-enabled '
                 'at ${DateTime.now().toUtc().toIso8601String()}.',
     );
+  }
+
+  /// Embedded engines (RPCS3, Dolphin, MeloNX, ARMSX2, libretro) read the
+  /// controller in-process through GameController, whose per-pad handler holds
+  /// one owner at a time. An engine that keeps or clears it at teardown left
+  /// the menu deaf to the controller until it was reconnected.
+  Future<void> _reclaimControllers() async {
+    try {
+      await Gamepads.reclaim();
+      _log.i('[GameLaunchManager] Controller input returned to the menu.');
+    } catch (error, stack) {
+      _log.e(
+        '[GameLaunchManager] Could not return controller input to the menu.',
+        error: error,
+        stackTrace: stack,
+      );
+    }
   }
 
   /// Monitors Android app lifecycle states to detect user return from the emulator.

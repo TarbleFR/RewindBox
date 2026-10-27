@@ -21,6 +21,10 @@ abstract class GamepadsPlatformInterface extends PlatformInterface {
 
   Stream<GamepadEvent> get gamepadEventsStream;
 
+  /// Gives the frontend its controller input back after an embedded engine
+  /// used the controllers. A no-op where nothing can take the input over.
+  Future<void> reclaimGamepads() async {}
+
   Stream<GamepadEvent> eventsByGamepad(String gamepadId) =>
       gamepadEventsStream.where((event) => event.gamepadId == gamepadId);
 }
