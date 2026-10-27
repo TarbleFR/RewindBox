@@ -823,7 +823,7 @@ jobs:
         build/delivery/melonx-launch514-ipa-validation.json
     - name: Verify the exact packaged key import correction
       run: python3 build-utils/validate_melonx_keys_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --core-source
-        86c2b4dc4c2239bdae427e1725ca557a2b400f99 --core-run 40535449055 --report build/delivery/melonx-keys517-ipa-validation.json
+        8cc2348037890adb7b8eef8adde3cd5e4a57c8d2 --core-run 40570622034 --report build/delivery/melonx-keys517-ipa-validation.json
     - name: Verify the compiled MeloNX measurement (audio pacing export, per-second journal, priority choice, log fixes), parity, standalone MoltenVK, threading, FPS counter, close and presentation corrections
       run: python3 build-utils/validate_melonx_perf572_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
         build/delivery/melonx-perf572-ipa-validation.json
