@@ -2593,7 +2593,7 @@ index 000000000..1708e6f4d
 +};
 +}
 diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
-index 944511012..9bdc28a06 100644
+index 944511012..ca6db42d0 100644
 --- a/Utilities/Thread.cpp
 +++ b/Utilities/Thread.cpp
 @@ -1297,12 +1297,14 @@ a64_mem_info_t decode_a64_mem_inst(u32 inst)
@@ -2648,6 +2648,20 @@ index 944511012..9bdc28a06 100644
  	{
  		sig_log.error("pthread_set_qos_class_self_np() failed: %d", err);
  	}
+@@ -4125,6 +4135,13 @@ void thread_ctrl::set_thread_affinity_mask(u64 mask)
+ 	{
+ 		sig_log.error("Failed to set thread affinity 0x%x: error: %s", mask, fmt::win_error{GetLastError(), nullptr});
+ 	}
++#elif defined(RPCS3_IOS)
++	// CELL569_QOS_KEEP: iOS has no affinity sets, so THREAD_AFFINITY_POLICY always
++	// fails. XNU's thread_policy_set() first removes the thread's QoS and, on failure,
++	// restores it with the stored relative priority unnegated: any relative priority
++	// below 0 (ios/IOSThreadQoS.h) is rejected and the thread is left opted out of
++	// QoS, so every later pthread_set_qos_class_self_np() fails with EPERM. Nothing
++	// to apply here.
+ #elif __APPLE__
+ 	// Supports only one core
+ 	thread_affinity_policy_data_t policy = { static_cast<integer_t>(std::countr_zero(mask)) };
 diff --git a/Utilities/mutex.h b/Utilities/mutex.h
 index 4c0943109..0d16c5542 100644
 --- a/Utilities/mutex.h

@@ -3,6 +3,22 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 Core 569: iOS threads keep their QoS (567 fix) — 27 October 2026
+
+- Build 567 `RPCS3-diagnostic.log`: `pthread_set_qos_class_self_np() failed: 1`
+  (EPERM) 1,486 times (none in any earlier build): worker job starts, RSX,
+  cellAudio, RsxAudioData, SPU workers. The 567 priorities were never applied.
+- Cause: `thread_ctrl::set_thread_affinity_mask` calls
+  `thread_policy_set(THREAD_AFFINITY_POLICY)` (every pooled job end; CPU/RSX
+  threads when the thread scheduler is not the OS one). iOS has no affinity
+  sets, so it fails; XNU's `thread_policy_set()` removed the QoS first and
+  restores it with the stored relative priority unnegated: 0 survives, -2
+  (567) is rejected and the thread stays opted out of QoS (EPERM afterwards).
+- `CELL569_QOS_KEEP`: the iOS branch of `set_thread_affinity_mask` applies
+  nothing. Callers unchanged; identities unchanged (no cold compile).
+  Host evidence `docs/evidence/rpcs3-cell569-host-linux.json`; the Mac CI runs
+  the real QoS/affinity calls. No iPhone measurement. See `docs/rpcs3-cell569.md`.
+
 ## RPCS3 Core 567: RSX thread priority, pooled-worker QoS reset — 27 October 2026
 
 - From 565 logs: God of War III without the 30 cap runs 13-17 FPS with the RSX

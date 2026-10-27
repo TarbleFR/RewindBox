@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "build": 569,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "sourceContract": {
+    "baseline": "4801af965dd8855e0320591147610d2c28cc3b12",
+    "fixtureSHA256": "7b0168f51f54538f2b515f4aaf4aa48bb3f69372a0e7af439ef67e61dc8a0795",
+    "sourceSHA256": {
+      "Utilities/Thread.cpp": "54cbbb76102708af70118eeebe3208a32b235705fb6a7b791097932e729a0075"
+    },
+    "otherCoreSourcesUnchanged": 290
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom567": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "placement": {
+    "iosBranchAppliesNoPolicy": true,
+    "threadCppOtherwiseIdentical": true,
+    "callersUnchanged": 4
+  },
+  "experiment": {
+    "addressUndefined": {
+      "passed": true,
+      "darwinKernel": 0,
+      "rawAffinityThenRaiseErr": -1,
+      "rawRelativeZeroErr": -1,
+      "harnessSHA256": "b99eb5546efaa5b65bef6937a1e7af2d251c609f4a88882304c3b292f433ab01"
+    },
+    "thread": {
+      "passed": true,
+      "darwinKernel": 0,
+      "rawAffinityThenRaiseErr": -1,
+      "rawRelativeZeroErr": -1,
+      "harnessSHA256": "b99eb5546efaa5b65bef6937a1e7af2d251c609f4a88882304c3b292f433ab01"
+    }
+  },
+  "inputs": {
+    "test/rpcs3_cell569_test.py": "74fa86bb24cf28093bd3b0b7ea497b507e8088b9ca3cf37d5efa6cba80d13f33",
+    "test/native/rpcs3_qos_keep569.inc": "a553dfb3cb66a323b10dcd2f35988665719dbe7945f97db8471d8622027cb798"
+  },
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Host behaviour of the 569 iOS affinity branch and the 567 QoS calls (real calls on Apple hosts); no iPhone FPS or scheduling result."
+}
