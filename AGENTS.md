@@ -3,6 +3,30 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Core-only deliveries from the published application (core swap) — 27 October 2026
+
+- Release `0.0.10` was published by the maintainer on 26 October 2026 (tag at
+  `9e7bed79`, normal release). Its IPA asset `RewindBox-.0.0.10.ipa` is build
+  559, SHA-256 `f16c2a35…7896480d`, identical to the delivered private 559
+  (`docs/evidence/rpcs3-cell559-delivery.json`). The release also carries a
+  `body.md` asset.
+- A delivery that changes only the RPCS3 Core may be derived with
+  `build-utils/make_core_swap_workflow.py` from its full workflow. The macOS
+  job runs `build-utils/core_swap_base.py` in place of the Xcode compile; it
+  verifies the published asset (pinned SHA-256, GitHub digest, base delivery
+  receipt) and that the pinned product trees equal the base receipt's, then
+  extracts the app to the Xcode products path, stamps the build number into
+  the bundles of the base build and removes the base's build-numbered identity
+  receipts. The four RPCS3 Core steps move just before the Core is embedded;
+  every other step and validator is unchanged, and the checks job runs
+  `core_swap_base.py --check` first. The build's tree module must list
+  `build-utils/core_swap_base.py` in its recipe.
+- Prepared and tested off CI only (`test/core_swap_base_test.py`, the real
+  0.0.10 asset, comparison with the full 560 IPA); not yet run on CI. Any
+  shipped-source change requires the full build. Push the Core commit and the
+  delivery recipe together; the delivery waits for the exact Core run. See
+  `docs/core-swap-delivery.md`.
+
 ## RPCS3 Core 560: deferred framebuffer-commit write-back (DBZ HD) — 26 October 2026
 
 - Maintainer logs of build 559, Dragon Ball Z Budokai HD Collection `BLES01658`
