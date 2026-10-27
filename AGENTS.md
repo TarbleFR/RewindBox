@@ -27,6 +27,14 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `package_runtime` on the 563 tree, every other entry byte for byte).
   `validate_melonx_texture564_ipa.py` checks the real engine and that only the
   engine entries differ. Claimed by session `session_01K9YJtz…`. Do not reuse 564.
+- Delivered private 564: run `40516675743` on `19914ca9` (the first attempt,
+  run `40509468373`, stopped at an embed step: `old_engine()` had moved the
+  standalone MoltenVK receipt aside; fixed), artifact `12742845669`, IPA 0.0.8
+  (564) 188,082,264 bytes, SHA-256
+  `a5703d7fd8e82d492b781e2a7ad6b9e7175e78d2fa0c59b2689970cf8fb5c4c7`; every
+  validator passed; decrypted and inspected independently (engine identity
+  `876a087b`). Receipt `docs/evidence/melonx-texture564-delivery.json`. Not
+  tested on iPhone.
 
 ## Private 562: MeloNX Switch keyboard and L3/R3 touch buttons — 27 October 2026
 

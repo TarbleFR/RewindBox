@@ -1,0 +1,92 @@
+{
+  "result": "passed",
+  "build": 564,
+  "version": "0.0.8",
+  "source": "19914ca9c98a06fcb104b6cc9caf87d3e4a9f1ee",
+  "run": 40516675743,
+  "firstAttempt": {
+    "run": 40509468373,
+    "source": "fa48325e7fadec69e38ac53c004fb3b4c1dd2aab",
+    "failedStep": "Embed exact MeloNX measurement, parity, threading, FPS counter, donor/display source and test identity",
+    "cause": "old_engine() moved dist/melonx aside with the standalone MoltenVK receipt that the 553 parity validator reads; fixed in 19914ca9 (receipt carried into the 558 engine view)"
+  },
+  "artifact": {
+    "id": 12742845669,
+    "name": "RewindBox-Build564-19914ca9c98a06fcb104b6cc9caf87d3e4a9f1ee-cold",
+    "zipSHA256": "5de59c6a0466c78c130e4d702c7b4c95f7588960f99423e4d9c0f17a326d1190",
+    "recipient": "build-utils/delivery-564-recipient.pem",
+    "cipher": "AES-256-CBC PBKDF2 200000 + RSA OAEP SHA256",
+    "privateKey": "outside Git"
+  },
+  "ipa": {
+    "name": "RewindBox-Build564-19914ca9c98a06fcb104b6cc9caf87d3e4a9f1ee-cold.ipa",
+    "bytes": 188082264,
+    "sha256": "a5703d7fd8e82d492b781e2a7ad6b9e7175e78d2fa0c59b2689970cf8fb5c4c7",
+    "sha256sumsMatched": true,
+    "cfBundleShortVersion": "0.0.8",
+    "cfBundleVersion": "564",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "members": 5360
+  },
+  "engine": {
+    "source": "876a087b536469017f2e71b41c8d4df4643c3976",
+    "coreSHA256": "fe760d022fd6277e812f8c8dbae11746dab0f11ea64d5c8a45a53c9cedca6fff",
+    "run": 40502672385,
+    "artifact": 12734162101,
+    "replacedEngine": "8f83748bd91fc759f4b199613225bfb4272c4574",
+    "validated563EquivalentSHA256": "5d4827890a18f39f0a833375477c0933c6541f4cc6cb6a753f1f222e132122f7",
+    "entriesEqualTo563Equivalent": 4906
+  },
+  "tree": {
+    "hostTree": "6c6c624179540b860de16eab9c08323efaf12683",
+    "source563": "dd65e867f2d6a5408e02c0677ed3aaa95e5e3f57",
+    "source564": "876a087b536469017f2e71b41c8d4df4643c3976",
+    "replaced": [
+      "build-utils/melonx/prepare_embedded.py",
+      "docs/evidence/melonx-effective-graphics-journal.json",
+      "native/melonx/EmbeddedRuntime.cs"
+    ],
+    "productTrees": {
+      "lib": "8f44ab0deac261089ed40a185f9fce32380b7be3",
+      "native": "fd52d19da8728d0f41e4b0d18ab69c6bceda4e97",
+      "packages": "d88f20ab17f075804d021c8d2c9b86d8046c6bc7",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees563": {
+      "lib": "8f44ab0deac261089ed40a185f9fce32380b7be3",
+      "native": "d02bf5f2b3255e8c446a6b8e9fbf62a3bfa13d49",
+      "packages": "d88f20ab17f075804d021c8d2c9b86d8046c6bc7",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    }
+  },
+  "rpcCore": {
+    "source": "dd65e867f2d6a5408e02c0677ed3aaa95e5e3f57",
+    "run": 40500425037
+  },
+  "validators": {
+    "hd-textures-ipa-validation.json": "passed",
+    "liquid-glass-ui564-ipa-validation.json": "passed",
+    "melonx-delete509-ipa.json": "passed",
+    "melonx-input564-ipa-validation.json": "passed",
+    "melonx-ipa.json": "passed",
+    "melonx-keys517-ipa-validation.json": "passed",
+    "melonx-launch514-ipa-validation.json": "passed",
+    "melonx-perf564-ipa-validation.json": "passed",
+    "melonx-texture564-ipa-validation.json": "passed",
+    "motion507-ipa-validation.json": "passed",
+    "navigation512-ipa-validation.json": "passed",
+    "rpcs3-diag487-ipa-validation.json": "passed",
+    "rpcs3-library-files564-ipa-validation.json": "passed",
+    "rpcs3-memory-audit-ipa.json": "passed",
+    "ui-correction511-ipa-validation.json": "passed",
+    "unified-cheats-ipa-validation.json": "passed"
+  },
+  "decryptedAndInspected": true,
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "fpsGainMeasured": false
+}
