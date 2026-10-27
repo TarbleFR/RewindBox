@@ -253,3 +253,28 @@ le 560 (`cba3fa9f`).
 
   Le reçu MeloNX demande les preuves produites par le job macOS ; son code est
   inchangé depuis 558.
+
+## 8. IPA privée 560 livrée
+
+- **Run** `40422457325` sur `b5f1a3a4` : `checks` et `cold` réussis.
+- **Artefact** `12699494190`, chiffré pour `build-utils/delivery-560-recipient.pem`
+  (la clé privée n'est pas dans Git).
+- **IPA** `RewindBox-Build560-b5f1a3a4…-cold.ipa` : 0.0.8 (560), 188 062 719
+  octets, SHA-256 `98483d55027b6162ebc7cd5604a0f38eda73aa7fbce0d3289e50c856a2c3ecd9`,
+  égal à `SHA256SUMS` et à `signed-payload-identity.json`.
+- **Comparée à l'IPA 559** (4 599 fichiers) :
+  - image Dart (`App.framework`) identique ;
+  - dix exécutables (moteurs MeloNX et Dolphin, helpers JIT, extensions
+    NeoSwap) ne diffèrent que par leur signature ;
+  - `Runner` et `dolphin_internal_bridge` sont recompilés par Xcode : nouveaux
+    `LC_UUID` et version de projet `Runner-560` ;
+  - `libRPCS3Core.dylib` est le Core 560 ;
+  - le reste : versions des `Info.plist`, signatures, reçus de source et
+    d'identité (les quatre reçus 559 deviennent 560).
+- **Revalidation locale** sur `b5f1a3a4` épinglé : les rapports RPCS3,
+  interface et fichiers de bibliothèque sont identiques octet pour octet à
+  ceux de la CI.
+
+Reçu : [`evidence/rpcs3-cell560-delivery.json`](evidence/rpcs3-cell560-delivery.json).
+Elle s'installe par-dessus la 559 après re-signature SideStore. Aucune release
+GitHub, aucune mesure sur iPhone.

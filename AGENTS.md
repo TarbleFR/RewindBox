@@ -41,6 +41,13 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   559 versions, the pin test and Core driver modules of that tree,
   BUILD_NUMBER 559, installed 560 identity set aside); 558 receipts go through
   `as_559()` then the 559 recipe's `as_558()`. No release. Do not reuse 560.
+- Private 560 delivered: run `40422457325` on `b5f1a3a4`, artifact
+  `12699494190`, IPA 0.0.8 (560) 188,062,719 bytes, SHA-256
+  `98483d55…2c3ecd9`. Dart image identical to 559; only the RPCS3 Core,
+  versions, signatures and receipts change (`Runner` rebuilt: UUID and project
+  version). Local revalidation identical to CI. Receipt
+  `docs/evidence/rpcs3-cell560-delivery.json`. Installs over 559 after
+  SideStore re-signing; not tested on iPhone.
 
 ## RPCS3 Core 559: SPU cache-hit, texture, shader and GPU copy costs — 26 October 2026
 
