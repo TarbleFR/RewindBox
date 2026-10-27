@@ -106,6 +106,13 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `libRPCS3Core.dylib` changes code: 73 of 85 Mach-O images are byte-identical,
   11 differ only in signature. Local revalidation identical to CI. Receipt
   `docs/evidence/rpcs3-cell561-delivery.json`. Not tested on iPhone.
+- Measured on DBZ with the other session's 562 (Core 561): combat 35.4 FPS vs
+  41.7 in 560, but menus where 561 never submitted early (the 560 code path) are
+  also 17% slower (43.0 vs 51.9 FPS; new app container, RSX CPU costs equal):
+  the drop is not attributable to 561. Where 561 acts, the readback wait falls
+  8.0 -> 6.2 ms/frame with no FPS gain; the GPU is busy at ~118 of ~208 draw
+  ends. No gain from 561. Isolating it needs an in-session A/B. Receipt
+  `docs/evidence/rpcs3-cell561-dbz-measured.json`, `docs/rpcs3-cell561.md` §9.
 
 ## RPCS3 Core 560: deferred framebuffer-commit write-back (DBZ HD) — 26 October 2026
 

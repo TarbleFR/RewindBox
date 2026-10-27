@@ -236,3 +236,37 @@ Aucune release GitHub, aucune mesure sur iPhone.
 
 La 562 (autre session, run `40490382532`) porte ce même Core 561 avec le
 clavier Switch et la bascule L3/R3 de MeloNX ; voir `docs/melonx-keyboard562.md`.
+
+## 9. Mesure sur DBZ (journaux de la 562, Core 561)
+
+27 octobre 2026. Le mainteneur a fourni les journaux de la **562** (autre
+session : Core 561 et clavier MeloNX) sur Dragon Ball Z Budokai HD Collection.
+Le fichier de performance contient aussi la session DBZ 560 déjà mesurée.
+Reçu : [`evidence/rpcs3-cell561-dbz-measured.json`](evidence/rpcs3-cell561-dbz-measured.json).
+Mêmes réglages dans les deux sessions ; état thermique nominal en 562.
+
+| Phase (médianes) | 560 | 562 |
+|---|---:|---:|
+| Combat (~200 dessins/image) : FPS / temps d'image | 41,7 / 24,0 ms | 35,4 / 28,2 ms |
+| Combat : attente de relecture (`fault_read`) | 8,0 ms/image | 6,2 ms/image |
+| Combat : `frame_latency` | 8,1 ms/image | 6,4 ms/image |
+| Combat : soumissions / soumissions anticipées | 3 / 0 | 5 / 2,1 par image |
+| Menus sans soumission anticipée (fenêtres 3, 4, 6, 7) : FPS | 51,9 | 43,0 |
+
+**Ce que montrent les journaux.**
+- Le 561 fait ce qui était prévu là où il agit : environ deux soumissions
+  anticipées par image en combat, et l'attente de relecture baisse de
+  ~1,8 ms par image.
+- Aucun gain de FPS n'apparaît. Le GPU est encore occupé à ~118 des ~208 fins
+  de dessin de chaque image : il est proche de la saturation, et couper l'image
+  en plus de morceaux lui ajoute du travail.
+- **Le ralentissement de la 562 existe aussi sans le 561** : dans les menus où
+  aucune soumission anticipée n'a eu lieu, donc sur le chemin de code exact du
+  560, la 562 perd 17 %. Les coûts CPU du thread RSX sont égaux ou plus bas :
+  le CPU n'est pas plus lent. La session 562 tourne dans un nouveau conteneur
+  d'application. Ces journaux ne permettent donc pas d'attribuer la baisse au
+  561.
+
+**Conclusion.** Le 561 n'apporte aucun gain mesurable sur DBZ. Son effet
+propre (neutre ou légèrement négatif) ne peut être isolé qu'en alternant le
+réglage fenêtre par fenêtre dans une même session.
