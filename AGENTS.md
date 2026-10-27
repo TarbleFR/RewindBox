@@ -93,6 +93,25 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   delivery recipe together; the delivery waits for the exact Core run. See
   `docs/core-swap-delivery.md`.
 
+## Delivery speed: the source contract computed once per job — 27 October 2026
+
+- Measured (563, run `40501404250`): 40 min end to end; the macOS job (32.6 min)
+  waits for `checks` (7.6 min). Every delivery-module call starts with the full
+  source contract (pin, parent, the whole chain of earlier recipes in nested
+  views): ~2 min on macOS, six calls per job, ~12 min of identical work.
+- `build-utils/delivery_contract_memo.py`: `reuse(BUILD, source_contract,
+  declared=[INSTALLED])` records the first report of a job and reuses it only
+  when the commit, the index tree, every tracked file in the working tree,
+  every untracked file the contract opened, every listed or globbed directory,
+  the declared existence-tested paths and the asserted environment are
+  unchanged; otherwise it recomputes and prints why. Failing or
+  checkout-changing contracts are never recorded; the record
+  (`build/source-contract-memo/`) is never uploaded. Use it in each new
+  delivery module's `main()` and list the file in the tree module's recipe.
+  Expected 6-10 min less on the macOS job (build steps that patch tracked files
+  force one recomputation); not yet measured on CI. Tests:
+  `test/delivery_contract_memo_test.py`. See `docs/delivery-speed.md`.
+
 ## RPCS3 Core 563: in-session A/B of the 561 early submission (DBZ HD) — 27 October 2026
 
 - Reason: the 562 measurement could not isolate 561 (the 562 session was also
