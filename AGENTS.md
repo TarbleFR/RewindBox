@@ -3,6 +3,38 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 Core 575: title levers for Black Ops II and Bladestorm — 27 October 2026
+
+- Build 567 logs. Call of Duty: Black Ops II `BLES01717` (SPU and RSX bound,
+  accurate reservations on): 3.5-10 M failed SPU PUTLLC per 5 s window, 9-16 ms
+  texture preparation per frame at ~5,270 draws. Bladestorm `BLES00113`
+  (paced at 30 fps by the game): RSX thread 0.66 core for a FIFO busy 31 %,
+  7.4 ms texture preparation per frame.
+- `CELL575_TITLE_LEVERS` (`ios/IOSTitleLevers.h`): no new mechanism; the
+  Automatic mode of four existing levers adds them: no-op PUTLLC (565) +
+  Black Ops II; texture validation per FIFO batch (559) and scoped
+  revalidation (573) + Black Ops II and Bladestorm (`BLES00113`, `BLUS30070`);
+  RSX idle park (565) + Bladestorm. Enabled/Disabled unchanged. Identities
+  unchanged.
+- BO2 PUTLLC: same signature as DBZ before 565 (DBZ 14-22 M ok / 8-14 M failed
+  per window on 560-564, 2.4 M / 0.03 M with the lever on 567; BO2 567 27 M /
+  5.3 M).
+- Not changed: the BO2 567 freezes are the first launch of an executable
+  never run before (85 PPU modules compiled at boot in 111 s, 0 SPU object
+  hits for ~11,000 compiles, 389 new pipelines; the ~70 s freeze = ~26 s of
+  SPU compiles, then ~55 s of back-to-back Metal pipeline compiles at
+  0.35-0.48 s each). All three caches were written; identities unchanged since
+  536. Removing first-launch freezes needs an excluded mode (shader
+  interpreter, deferred SPU compile). BO2 4.1-4.8 GB = that compile session
+  (2.5 -> 4.7 GB in 200 s, all compressed; Vulkan 392 -> 968 MB; the 559
+  partly cached session peaked at 3.05 GB; >= 1.75 GB headroom). Bladestorm
+  30 fps: no RPCS3 patch exists; the logs cannot tell a 30 fps design from a
+  60 fps vsync target missed by an 18.8 ms main PPU thread.
+- Host: policy file equal to 573 with the four 573 blocks restored; the four
+  blocks compiled verbatim for 7 titles x 2 FIFO idle modes x 3 modes (42
+  cases). Evidence `docs/evidence/rpcs3-cell575-host-linux.json`. No iPhone
+  measurement. See `docs/rpcs3-cell575.md`.
+
 ## RPCS3 Core 573: texture residency cap and scoped revalidation (God of War III) — 27 October 2026
 
 - Build 567 God of War III: 4.75 GB footprint (1.25 GB compressed by iOS);

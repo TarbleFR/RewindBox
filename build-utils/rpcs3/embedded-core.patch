@@ -26412,6 +26412,39 @@ index 000000000..0f2f94b52
 +	return {false, default_relative_priority.load(std::memory_order_relaxed)};
 +}
 +}
+diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
+new file mode 100644
+index 000000000..9d6e815da
+--- /dev/null
++++ b/rpcs3/ios/IOSTitleLevers.h
+@@ -0,0 +1,27 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <string_view>
++
++// CELL575_TITLE_LEVERS: titles whose build 567 logs show the bottleneck an
++// existing lever removes, so that lever's Automatic mode includes them.
++// - Call of Duty: Black Ops II (SPU and RSX bound, accurate reservations on):
++//   3.5-10 million failed SPU PUTLLC per 5 s window (the no-op write-back
++//   pattern of Dragon Ball Z before 565), and 9-16 ms of texture preparation
++//   per frame at about 5,270 draws, every texture lookup hashing again.
++// - Bladestorm: The Hundred Years' War (30 fps, main PPU thread 18.8 ms per
++//   frame): an RSX thread at 0.66 core for a FIFO busy 31 % of the time, and
++//   7.4 ms of texture preparation per frame.
++// Only serials seen in those logs or in the shipped catalogue are listed.
++namespace rpcs3::ios::title_levers
++{
++constexpr bool is_black_ops_ii_title(std::string_view title_id) noexcept
++{
++	return title_id == "BLES01717";
++}
++
++constexpr bool is_bladestorm_title(std::string_view title_id) noexcept
++{
++	return title_id == "BLES00113" || title_id == "BLUS30070";
++}
++}
 diff --git a/rpcs3/ios/NeoStationSavestateIO.h b/rpcs3/ios/NeoStationSavestateIO.h
 new file mode 100644
 index 000000000..d6f54a1ed
@@ -29815,10 +29848,10 @@ index b4602fea9..37a708aa6 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b83..128aa5cfc 100644
+index 7c3389b83..dc809f104 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,8 +1,19 @@
+@@ -1,8 +1,20 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -29833,12 +29866,13 @@ index 7c3389b83..128aa5cfc 100644
 +#include "IOSRsxIdlePark.h"
 +#include "IOSPassiveLockGate.h"
 +#include "IOSTextureResidency.h"
++#include "IOSTitleLevers.h"
 +#include "IOSThreadQoS.h"
 +#include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
  #include "util/logs.hpp"
  
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
-@@ -27,6 +38,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +39,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -29915,14 +29949,17 @@ index 7c3389b83..128aa5cfc 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +128,55 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +129,62 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
-+	// CELL559_TEXTURE_EPOCH: Automatic is God of War III only, where per-draw
-+	// revalidation hashed about 270 MiB per frame interval on build 553.
-+	resolved.texture_validation_epoch = resolve_mode(g_cfg.ios_experimental.texture_validation_epoch,
-+		is_god_of_war_iii_title(Emu.GetTitleID()));
++	// CELL559_TEXTURE_EPOCH: Automatic is God of War III, where per-draw revalidation
++	// hashed about 270 MiB per frame interval on build 553; CELL575_TITLE_LEVERS adds
++	// Call of Duty: Black Ops II and Bladestorm (ios/IOSTitleLevers.h).
++	const std::string_view title_id = Emu.GetTitleID();
++	const bool texture_epoch_title = is_god_of_war_iii_title(title_id) ||
++		rpcs3::ios::title_levers::is_black_ops_ii_title(title_id) || rpcs3::ios::title_levers::is_bladestorm_title(title_id);
++	resolved.texture_validation_epoch = resolve_mode(g_cfg.ios_experimental.texture_validation_epoch, texture_epoch_title);
 +	texture_validation::epoch_enabled.store(resolved.texture_validation_epoch, std::memory_order_relaxed);
 +	// CELL560_DEFERRED_COMMIT: Automatic is Dragon Ball Z Budokai HD Collection only,
 +	// where build 559 waited for the GPU on one or two framebuffer commits per frame.
@@ -29939,15 +29976,19 @@ index 7c3389b83..128aa5cfc 100644
 +	// build 564 counted about 120,000 successful and 75,000 failed PUTLLC per frame in
 +	// combat for about 500 that changed data: the no-op write-backs invalidated each
 +	// other's reservations.
++	// CELL575_TITLE_LEVERS adds Call of Duty: Black Ops II: 3.5-10 million failed PUTLLC
++	// per 5 s window on build 567, with accurate reservations on.
 +	resolved.noop_putllc_keeps_reservations = resolve_mode(g_cfg.ios_experimental.noop_putllc_keeps_reservations,
-+		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
++		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(title_id) || rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));
 +	// CELL565_RSX_IDLE_PARK: Automatic is Dragon Ball Z Budokai HD Collection, whose RSX
 +	// thread yielded 0.90 core for a FIFO busy 33-43 % of the time on build 564, and
 +	// God of War III, whose CELL threads need every core. A non-default FIFO idle wait
 +	// (Wait for event, Bounded sleep) keeps its own behaviour.
++	// CELL575_TITLE_LEVERS adds Bladestorm: RSX thread 0.66 core for a FIFO busy 31 % on build 567.
 +	resolved.rsx_idle_park = g_cfg.ios_experimental.fifo_idle_mode == ios_fifo_idle_mode::yield &&
 +		resolve_mode(g_cfg.ios_experimental.rsx_idle_park,
-+			rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()) || is_god_of_war_iii_title(Emu.GetTitleID()));
++			rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(title_id) || is_god_of_war_iii_title(title_id) ||
++			rpcs3::ios::title_levers::is_bladestorm_title(title_id));
 +	rpcs3::ios::rsx_idle_park::enabled.store(resolved.rsx_idle_park, std::memory_order_relaxed);
 +	// CELL567_THREAD_QOS: Automatic is every title. RPCS3 raises the RSX and audio threads
 +	// above the others; on iOS that order only exists while the others run one step lower.
@@ -29965,13 +30006,13 @@ index 7c3389b83..128aa5cfc 100644
 +	resolved.texture_residency = resolve_mode(g_cfg.ios_experimental.texture_residency,
 +		is_god_of_war_iii_title(Emu.GetTitleID()));
 +	rpcs3::ios::texture_residency::enabled.store(resolved.texture_residency, std::memory_order_relaxed);
-+	resolved.scoped_texture_revalidation = resolve_mode(g_cfg.ios_experimental.scoped_texture_revalidation,
-+		is_god_of_war_iii_title(Emu.GetTitleID()));
++	// CELL575_TITLE_LEVERS: with the texture epoch, Call of Duty: Black Ops II and Bladestorm.
++	resolved.scoped_texture_revalidation = resolve_mode(g_cfg.ios_experimental.scoped_texture_revalidation, texture_epoch_title);
 +	rpcs3::ios::texture_validation_scope::enabled.store(resolved.scoped_texture_revalidation, std::memory_order_relaxed);
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +188,59 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +196,59 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -32935,7 +32976,7 @@ index 000000000..b6b0c699e
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b047471..184a97323 100644
+index b7b047471..da156346b 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -32967,15 +33008,15 @@ index b7b047471..184a97323 100644
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
-+	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III only; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
++	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III, Call of Duty: Black Ops II and Bladestorm; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
 +	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
 +	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
-+	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
-+	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
++	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection and Call of Duty: Black Ops II; Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
++	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for Dragon Ball Z Budokai HD Collection, God of War III and Bladestorm; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
 +	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
 +	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
 +	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
-+	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),
++	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III, Call of Duty: Black Ops II and Bladestorm; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),
  	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
  	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
  	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),
