@@ -97,6 +97,17 @@ ASan+UBSan puis TSan :
 
 Reçu : [`evidence/rpcs3-cell563-host-linux.json`](evidence/rpcs3-cell563-host-linux.json).
 
+**Core iPhone 563 construit** (run `40500425037` sur `dd65e867`, macOS ARM64,
+Apple clang 17, Xcode 16.4) :
+- le banc passe sous ASan+UBSan et TSan avec exactement les résultats du run
+  Linux (alternance `101010101010`) ; l'empreinte du banc est la même ;
+- dylib SHA-256 `7e3ef6ad…1c408447`, ABI 30, 88 exports, chargement passif
+  vérifié, 138 entrées enregistrées ; les marqueurs 563 sont présents ;
+- identités de codegen inchangées : aucune recompilation à froid ;
+- artefacts : Core `12732947797`, diagnostics `12733127635`.
+
+Reçu : [`evidence/rpcs3-cell563-macos.json`](evidence/rpcs3-cell563-macos.json).
+
 ## 5. Limites
 
 - Ce n'est pas une optimisation : la 563 mesure. Une fenêtre sur deux tourne

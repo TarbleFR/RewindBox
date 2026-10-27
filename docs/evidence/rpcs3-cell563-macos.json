@@ -1,0 +1,100 @@
+{
+  "build": 563,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "dd65e867f2d6a5408e02c0677ed3aaa95e5e3f57",
+  "run": 40500425037,
+  "workflow": ".github/workflows/rpcs3-cell563-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12732947797,
+      "name": "RPCS3Core-dd65e867f2d6a5408e02c0677ed3aaa95e5e3f57",
+      "bytes": 29069584,
+      "digest": "sha256:989412caa104f2602cb53b3afa19f0af094a92cb1d70b0a08a61cfaebb60dac3"
+    },
+    "diagnostics": {
+      "id": 12733127635,
+      "bytes": 203212,
+      "digest": "sha256:e43ee88ff8e23fb8cc71d6df1baf3d17221fa8c93ff4d9b413ea9a33b2fd56ee"
+    }
+  },
+  "core": {
+    "sha256": "7e3ef6ad788d522810bd6b24b28abdb769b298b05c3394402a917f231c408447",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "fcc3d203e26b2f16c17741b180b704baca7668a94a235638b85e1a123d94cde2",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 138,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom561": true,
+    "coldCompileRequiredByThisChange": false,
+    "markers563": [
+      "max_per_frame=%u ab=%u",
+      "early_submit_ab=",
+      "alternates it every profiling window"
+    ],
+    "replaces": {
+      "source": "5b033881a032be1c2ac71080e229b86dc675ed6d",
+      "run": 40486026315,
+      "sha256": "7b1e4fda0b94eaaf9224561259d78541a7cb8f34a75ddcf23f04702ab5c20cbe"
+    }
+  },
+  "sanitizers": {
+    "addressUndefined": true,
+    "thread": true
+  },
+  "results": {
+    "abExperiment": {
+      "passed": true,
+      "policyCases": 7,
+      "windows": 12,
+      "onWindows": 6,
+      "offWindows": 6,
+      "sequence": "101010101010",
+      "explicitModesStable": true,
+      "otherTitlesOff": true,
+      "threadWindows": 400,
+      "everySubmissionReportedOnce": true,
+      "decisions": 1024
+    },
+    "threadIdentical": true,
+    "boundary": {
+      "boundary": "window snapshot under m_profile_mutex",
+      "exportsEndingWindowState": true,
+      "fpsSummarySameWindow": true,
+      "decisionUnchangedFrom561": true
+    },
+    "exportLine": {
+      "line": "COREPROF OPT561 ... ab=",
+      "bootLog": "early_submit_ab=",
+      "automaticTitles": [
+        "BLES01658"
+      ],
+      "settingKeyUnchanged": "experimental.early_submit"
+    }
+  },
+  "harnessSHA256": "501a4f0603955f4fbfd07d9ab7c95d1223850c96df4ea98b3287d4160b1cb1f2",
+  "harnessIdenticalToLinuxRun": true,
+  "resultsIdenticalToLinuxRun": true,
+  "inputsSHA256": {
+    "test/rpcs3_cell563_test.py": "98f7421aaa4d27da364a9511e1e214e7a5d2e868a7ca1a1477e4693cbaa762b7",
+    "test/native/rpcs3_ab563.inc": "b2d2350e49a4ff818c8cabf8a5afc659298402fe3f097d6ddbc5eb1bc9eef3dc"
+  },
+  "diagnosticsResultSHA256": "c928cc8731061a6c77158c58b78853c590238a319d5c2c8610f3f347c2f276f4",
+  "scope": "Host correctness of the 563 production bodies: the state each profiling window runs with and reports; no iPhone FPS, frame time, Metal rendering, thermal or memory-pressure result."
+}
