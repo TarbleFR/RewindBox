@@ -3,6 +3,27 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 Core 571: passive-lock fairness (DBZ combat stalls) — 27 October 2026
+
+- Build 567 DBZ combat (~195 draws/frame), per 5 s window: passive-lock
+  episodes 520-720, 90-200 ms, max ~10 ms (build 564: 140-230, 3-10 ms total);
+  ~120,000 heavy PUTLLC acquired their writer lock in ~103 ms (564: 12.8 ms);
+  frame max 130-150 ms. 565's no-op PUTLLC removed the SPU failure loop
+  (PUTLLC fails 10 M -> 30 k) and SPUs now take writer locks in bursts; a
+  `vm::passive_lock` waiter needs the whole exclusive word clear and is only
+  notified when it clears, so it starves.
+- `CELL571_PASSIVE_LOCK_FAIRNESS` (`ios/IOSPassiveLockGate.h`, `vm.cpp`): a
+  waiter past two 50 us timed waits marks itself starving; range-lock writers
+  (`vm::writer_lock` with a range lock) defer while one is, at most ~0.5 ms,
+  before publishing their bit. No lock skipped. Setting
+  `experimental.passive_lock_fairness`, Automatic = every title; Disabled = 569.
+  Boot log `passive_fairness=%d`. Identities unchanged (no cold compile).
+- Host model with the production header (3 bursty writers, 1 passive waiter,
+  2,000 re-entries, optimized, 4-core Linux): max wait 15.9 -> 0.9 ms, total
+  1,783 -> 305 ms, writer throughput -7 %. Evidence
+  `docs/evidence/rpcs3-cell571-host-linux.json`. No iPhone measurement. See
+  `docs/rpcs3-cell571.md`.
+
 ## RPCS3 Core 569: iOS threads keep their QoS (567 fix) — 27 October 2026
 
 - Build 567 `RPCS3-diagnostic.log`: `pthread_set_qos_class_self_np() failed: 1`

@@ -1,0 +1,109 @@
+{
+  "passed": true,
+  "build": 571,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "sourceContract": {
+    "baseline": "92ea4ef0b19ec841a25667f5915d336b606ff0f9",
+    "fixtureSHA256": "e5e9577f44e10dc0a8aa9c7866ca0e3f48579a29e1829ab9571cd48e4c0693a6",
+    "sourceSHA256": {
+      "rpcs3/Emu/Memory/vm.cpp": "7b0aaf099c46af1184f49135e54f0def7ae72670e6fc33d7bdf78fd2adc04dc3",
+      "rpcs3/Emu/system_config.h": "6bf3ff5b4d05c68fcb272ed3f127284f1a4b5ab4a089026e099cc8113ce4f2d7",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "4c81853f826fe073e87483e0f615a1750c1bee57db66308853b21f111a048199",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "6949965dd80aa9fdc36f471e882dc1d9a84cd8808b2d8ede1097c91c6964392d",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "580b62a680209abd5745da2cdb8ce48eec43d224f14131f15eb1a795e8b234b3",
+      "rpcs3/ios/IOSPassiveLockGate.h": "922b4e2e5208797b6f4a40c0463589e82f6263e2be91700ab30b604c18323121"
+    },
+    "otherCoreSourcesUnchanged": 286
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom569": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "placement": {
+    "waiterMarkedInIosEpisode": true,
+    "onlyRangeLockWritersDefer": true,
+    "vmCppOtherwiseIdentical": true,
+    "settingAndLogWired": true
+  },
+  "policy": {
+    "passed": true,
+    "modes": 3,
+    "harnessSHA256": "bcec7970ca12b5f8784022d1d626ded861a17d33ef389b5c38cb13442830afa9"
+  },
+  "experiment": {
+    "addressUndefined": {
+      "passed": true,
+      "episodes": 2000,
+      "capMs": 20,
+      "off": {
+        "starved": 0,
+        "maxEpisodeUs": 9093.6,
+        "totalEpisodeMs": 595.0,
+        "writerOpsPerMs": 454.6
+      },
+      "on": {
+        "starved": 0,
+        "maxEpisodeUs": 1307.8,
+        "totalEpisodeMs": 134.1,
+        "writerOpsPerMs": 430.0,
+        "deferrals": 2627,
+        "maxDeferUs": 501.7
+      },
+      "harnessSHA256": "28eecab4691e31e4afbb3abab07c3e0bec5048092cf700bc2184c53bd7f0c233"
+    },
+    "thread": {
+      "passed": true,
+      "episodes": 2000,
+      "capMs": 20,
+      "off": {
+        "starved": 0,
+        "maxEpisodeUs": 5214.3,
+        "totalEpisodeMs": 84.0,
+        "writerOpsPerMs": 306.2
+      },
+      "on": {
+        "starved": 0,
+        "maxEpisodeUs": 455.4,
+        "totalEpisodeMs": 76.7,
+        "writerOpsPerMs": 319.5,
+        "deferrals": 277,
+        "maxDeferUs": 206.5
+      },
+      "harnessSHA256": "28eecab4691e31e4afbb3abab07c3e0bec5048092cf700bc2184c53bd7f0c233"
+    }
+  },
+  "hostTiming": {
+    "passed": true,
+    "episodes": 2000,
+    "capMs": 20,
+    "off": {
+      "starved": 0,
+      "maxEpisodeUs": 15864.5,
+      "totalEpisodeMs": 1783.3,
+      "writerOpsPerMs": 585.3
+    },
+    "on": {
+      "starved": 0,
+      "maxEpisodeUs": 908.2,
+      "totalEpisodeMs": 305.1,
+      "writerOpsPerMs": 545.1,
+      "deferrals": 4201,
+      "maxDeferUs": 911.6
+    },
+    "harnessSHA256": "28eecab4691e31e4afbb3abab07c3e0bec5048092cf700bc2184c53bd7f0c233"
+  },
+  "inputs": {
+    "test/rpcs3_cell571_test.py": "d1ab11fc587e26e43b0d7c5c0e873fd21524510a90f0d35dd73b95b081f8fa3d",
+    "test/native/rpcs3_passive_gate571.inc": "c5b6fd440bad7cfd7e38ec83f83294daea8057ed6bafca0a86148edc0cd5fb33"
+  },
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Host model of the 571 gate with the production header and the vm.cpp lock timings; no iPhone FPS, frame time or scheduling result."
+}
