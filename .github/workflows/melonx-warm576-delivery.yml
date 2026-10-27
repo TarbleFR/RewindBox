@@ -1,5 +1,5 @@
-name: RewindBox private IPA 576 — MeloNX engine 301e0f8 (shader-cache warm-ups off the game's start, attachment-less framebuffers, temporary FFT boot trace) on the delivered 575 tree (RPCS3 Core 575, MeloNX engine 8cc2348, God of War III without the 30 fps limiter, MeloNX keyboard and L3/R3)
-run-name: RewindBox Build 576 — MeloNX engine 301e0f8 on the 575 tree — ${{ github.sha }}
+name: RewindBox private IPA 576 — MeloNX engine 301e0f8 (shader-cache warm-ups off the game's start, attachment-less framebuffers, temporary FFT boot trace) and the StikDebug fallback removal (504f9c0) on the delivered 575 tree (RPCS3 Core 575, MeloNX engine 8cc2348, God of War III without the 30 fps limiter, MeloNX keyboard and L3/R3)
+run-name: RewindBox Build 576 — MeloNX engine 301e0f8 and StikDebug removal on the 575 tree — ${{ github.sha }}
 'on':
   push:
     branches:
@@ -46,14 +46,14 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Pin the delivered 575 product tree with the MeloNX engine files of 301e0f8, each file from the commit that validated it
+    - name: Pin the delivered 575 product tree with the MeloNX engine files of 301e0f8 and the StikDebug removal of 504f9c0, each file from the commit that validated it
       run: python3 .github/diagnostics/melonxwarm576_tree.py --pin
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: 3.47.2
         channel: stable
         cache: true
-    - name: Analyze the complete application and exercise the interface, the MeloNX settings, the 552 game profiles, the 554/557 library files and the 558 log fixes and the 562 keyboard wiring on the 576 tree (the 575 product)
+    - name: Analyze the complete application and exercise the interface, the MeloNX settings, the 552 game profiles, the 554/557 library files and the 558 log fixes and the 562 keyboard wiring on the 576 tree (the 575 product without the StikDebug fallback)
       run: |
         flutter pub get --enforce-lockfile
         flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
@@ -168,7 +168,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Pin the delivered 575 product tree with the MeloNX engine files of 301e0f8, each file from the commit that validated it
+    - name: Pin the delivered 575 product tree with the MeloNX engine files of 301e0f8 and the StikDebug removal of 504f9c0, each file from the commit that validated it
       run: python3 .github/diagnostics/melonxwarm576_tree.py --pin
     - name: Load exact local import and historical Foundation receipts
       uses: actions/download-artifact@v4

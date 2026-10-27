@@ -39,6 +39,11 @@ Maintainer request (video of the Switch playlist, `app.log`), branch `Claude`, n
   the inherited validators on `derived_ipa()` (this IPA with the 572 engine
   entries); nine validators (eight wrap the 575 ones, `validate_melonx_warm576`
   binds the 576 engine). Recipient `build-utils/delivery-576-recipient.pem`.
+- At the maintainer's request 576 also carries the StikDebug fallback removal
+  (`504f9c08`, the only application change since 575): its three product
+  files (lib, packages) and tests from `504f9c08`, the two deleted Dart files
+  removed, `test/storage_contract_test.py` from `bfbb8067`. The product trees
+  differ from 575 in lib and packages only.
 
 ## RPCS3 Core 575: title levers for Black Ops II and Bladestorm — 27 October 2026
 

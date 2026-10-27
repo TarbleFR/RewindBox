@@ -1,14 +1,17 @@
-"""Private576: the MeloNX engine of 301e0f8 (shader-cache warm-ups off the game's start, attachment-less framebuffers sized to the viewports, temporary FFT boot trace; its own engine run) on the delivered 575 product tree.
+"""Private576: the MeloNX engine of 301e0f8 (shader-cache warm-ups off the game's start, attachment-less framebuffers sized to the viewports, temporary FFT boot trace; its own engine run) and the StikDebug fallback removal of 504f9c0 on the delivered 575 product tree.
 
 576 ships the 575 product (the 573 product with the RPCS3 Core 575; MeloNX
 engine 8cc2348, God of War III without the 30 fps limiter, MeloNX keyboard
 and L3/R3) and swaps only the MeloNX engine: the 572 engine becomes the one
-built and tested from 301e0f8. Its sources change no file compiled into the
-application: three engine adaptations, the adaptation list and the engine
-workflow's push paths. The 575 recipe therefore runs unchanged on the
-delivered 575 tree, which as_575() puts in place of the pinned 576 one for
-each inherited check (a scratch index, the 576 files' 575 versions in the
-working tree and BUILD_NUMBER 575, all restored afterwards), with the 572
+built and tested from 301e0f8, whose sources change no file compiled into
+the application (three engine adaptations, the adaptation list and the
+engine workflow's push paths). The application also loses the StikDebug JIT
+fallback (504f9c0: MeloNX always uses the integrated helper; three product
+files in lib and packages, two Dart files deleted, their tests). The 575
+recipe runs unchanged on the delivered 575 tree, which as_575() puts in
+place of the pinned 576 one for each inherited check (a scratch index, the
+576 files' 575 versions in the working tree, the deleted files restored, and
+BUILD_NUMBER 575, all restored afterwards), with the 572
 engine's downloaded evidence in dist/melonx (old_engine()). The inherited
 IPA validators check derived_ipa(): this IPA with the engine payload that
 package_runtime produces for the 572 engine on the 575 tree, every other
@@ -50,7 +53,7 @@ assert MELONX572_SOURCE==d572.MELONX_SOURCE==tree.SOURCE572
 # Engine built and tested from 301e0f8, taken by ID and digest.
 MELONX_SOURCE=tree.SOURCE576
 MELONX_RUN=40591863306
-MELONX_ARTIFACT=(None,None)
+MELONX_ARTIFACT=(12774198978,'f5502a45adae30ea6d20a92c282d0139f61fe37d779b04b26840530d91157354')
 # The engine workflow keeps its 572 steps; only its push paths changed.
 ENGINE_STEPS576=d572.ENGINE_STEPS572
 # 576 adds no export and no engine literal; the 572 ones must remain.
@@ -61,7 +64,8 @@ ENGINE576=set(tree.ENGINE576)
 OLD=ROOT/'dist/melonx572engine'
 NEW=ROOT/'dist/melonx'
 # Python modules of 576 files: each tree imports its own version.
-MODULES=sorted(Path(p).stem for p in tree.FIX576 if p.endswith('.py'))
+MODULES=sorted(Path(p).stem for p in list(tree.FIX576)+list(tree.APP576) if p.endswith('.py'))
+CHANGED576=list(tree.FIX576)+sorted(tree.APP576)
 # What each adaptation must have put into the adapted engine source.
 ADAPTED576={
  'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs':['_detachedWarmUp = fromCache && warmUpInitialPipeline;',
@@ -85,7 +89,7 @@ def _forget(modules):
  """Drops cached modules and bytecode, so the next import reads the current file."""
  for name in modules:
   sys.modules.pop(name,None)
- for p in tree.FIX576:
+ for p in CHANGED576:
   if p.endswith('.py'):
    for cached in (ROOT/p).parent.glob('__pycache__/'+Path(p).stem+'.*.pyc'):cached.unlink(missing_ok=True)
  importlib.invalidate_caches()
@@ -103,7 +107,7 @@ def as_575():
   yield
   return
  versions=tree.at_575()
- files={p:s for p,s in versions.items() if p in tree.FIX576}
+ files={p:s for p,s in versions.items() if p in CHANGED576}
  saved={p:(ROOT/p).read_bytes() if (ROOT/p).is_file() else None for p in files}
  modules={name:sys.modules[name] for name in MODULES if name in sys.modules}
  env={k:os.environ.get(k) for k in ('GIT_INDEX_FILE','BUILD_NUMBER')}
@@ -257,13 +261,16 @@ def source_contract():
  report=inherited(d575.source_contract)
  assert report['productTrees']==tree.product_trees_575(),report['productTrees']
  trees=tree.product_trees()
- # No product tree changes: only the engine, built by its own run, does.
- assert trees==report['productTrees'],trees
+ # The engine is built by its own run; only the StikDebug removal changes product trees (lib, packages).
+ assert {p for p in tree.TREES if trees[p]!=report['productTrees'][p]}=={'lib','packages'},trees
  # The pinned index differs from the delivered 575 tree by the 576 files and this recipe only.
  changed=set(command('git','diff','--cached','--name-only',tree.tree_575()).splitlines())
- expected=set(tree.FIX576)|set(tree.RECIPE)
+ expected=set(CHANGED576)|set(tree.RECIPE)
  assert changed==expected,changed^expected
  for p in tree.FIX576:assert (ROOT/p).read_bytes()==at(MELONX_SOURCE,p),p
+ for p,source in tree.APP576.items():
+  if p in tree.DELETED576:assert not (ROOT/p).exists(),p
+  else:assert (ROOT/p).read_bytes()==at(source,p),p
  # The engine run built exactly these engine inputs.
  for p in sorted(set(d558.ENGINE_INPUTS)|set(d564.ENGINE564)|d566.ENGINE566|d572.ENGINE572|ENGINE576):
   assert (ROOT/p).read_bytes()==at(MELONX_SOURCE,p),p
@@ -276,6 +283,7 @@ def source_contract():
  return dict(report,build=int(BUILD),source=head,build575=report['build'],source575Recipe=report['source'],
   source576=MELONX_SOURCE,melonxSource=MELONX_SOURCE,melonxRun=MELONX_RUN,melonxArtifact=MELONX_ARTIFACT[0],
   melonx572Source=MELONX572_SOURCE,melonx572Run=MELONX572_RUN,replaced576=tree.REPLACED,added576=tree.ADDED,
+  sourceApp576=tree.SOURCE_APP576,app576=sorted(tree.APP576),deleted576=tree.DELETED576,stikDebugFallbackRemoved=True,
   changed576=sorted(changed),pinnedFiles=kept,productTrees=trees,productTrees575=report['productTrees'],
   physicalDeviceTested=False,gameTested=False)
 
