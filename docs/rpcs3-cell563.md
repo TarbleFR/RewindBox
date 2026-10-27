@@ -162,3 +162,40 @@ publiée, donc le mode « Core seul » n'a pas de base.
 Reçu : [`evidence/rpcs3-cell563-delivery.json`](evidence/rpcs3-cell563-delivery.json).
 Elle s'installe par-dessus la 559 à la 562 après re-signature SideStore.
 Aucune release GitHub, aucune mesure sur iPhone.
+
+## 8. Résultat de l'A/B sur DBZ (journaux de la 564)
+
+27 octobre 2026. Le mainteneur a joué DBZ avec la 564 (Core 563 et moteur
+MeloNX corrigé). Reçu :
+[`evidence/rpcs3-cell563-dbz-ab-measured.json`](evidence/rpcs3-cell563-dbz-ab-measured.json).
+
+**Méthode.** Fenêtres de combat (au moins 170 dessins par image, aucune image
+au-delà de 60 ms) : chaque fenêtre active est comparée à la moyenne de ses
+deux voisines inactives. La scène et l'état de l'appareil s'annulent ainsi.
+Les fenêtres 43 et 45 (saccades de 226 et 77 ms) sont écartées.
+
+| Combat (médianes) | Réglage actif | Réglage inactif |
+|---|---:|---:|
+| FPS | 45,4 | 43,7 |
+| Temps d'image | 22,0 ms | 22,9 ms |
+| p95 | 24,5 ms | 25,2 ms |
+| Attente de relecture `fault_read` | 6,2 ms/image | 7,9 ms/image |
+| `frame_latency` | 6,4 ms/image | 8,0 ms/image |
+
+**Écarts appariés (12 paires).**
+- **Les 12 paires sont plus rapides avec le réglage actif** : +1,8 FPS en
+  médiane (+1,1 à +2,3), temps d'image −0,9 ms (−4 %), p95 −0,7 ms.
+- Le p99 et le 1 % bas ne changent pas au-delà du bruit.
+- Le mécanisme est confirmé : avec ~2 soumissions anticipées par image,
+  l'attente de relecture baisse de 1,7 ms par image.
+
+**Scènes légères.** Seulement 3 paires : trop peu pour conclure, mais rien
+n'indique de régression.
+
+**Le ralentissement de la 562 venait de la session.** Ici, le combat sans le
+réglage tourne à 43,7 FPS, contre 35,4 dans la session 562 et 41,7 dans la
+session 560.
+
+**Conclusion.** Le réglage 561 apporte un gain faible mais constant sur DBZ
+en combat, mesuré dans des conditions identiques. Les données justifient de le
+laisser actif en permanence.

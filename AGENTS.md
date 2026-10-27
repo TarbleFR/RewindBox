@@ -151,6 +151,12 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   present; against 561 only `libRPCS3Core.dylib`, `melonx_internal_bridge` and
   `Runner` change code. Local revalidation identical to CI. Receipt
   `docs/evidence/rpcs3-cell563-delivery.json`. Not tested on iPhone.
+- A/B measured on DBZ with the other session's 564 (Core 563): in combat,
+  lever-on windows are faster than their two lever-off neighbours in 12 of 12
+  pairs: +1.8 FPS median (+1.1 to +2.3), frame -0.9 ms (-4%), p95 -0.7 ms,
+  readback wait -1.7 ms/frame; p99 and 1% low unchanged within noise. The 562
+  slowdown was session conditions (lever-off combat 43.7 FPS here). Receipt
+  `docs/evidence/rpcs3-cell563-dbz-ab-measured.json`, `docs/rpcs3-cell563.md` §8.
 
 ## RPCS3 Core 561: early command buffer submission (DBZ HD) — 27 October 2026
 
