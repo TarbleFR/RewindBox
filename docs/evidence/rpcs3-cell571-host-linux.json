@@ -6,14 +6,14 @@
   "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
   "sourceContract": {
     "baseline": "92ea4ef0b19ec841a25667f5915d336b606ff0f9",
-    "fixtureSHA256": "e5e9577f44e10dc0a8aa9c7866ca0e3f48579a29e1829ab9571cd48e4c0693a6",
+    "fixtureSHA256": "067bd69ccfebd0a0fc106d859f200ee2cde8a9b4e48064f42fc7e2a353b9871a",
     "sourceSHA256": {
       "rpcs3/Emu/Memory/vm.cpp": "7b0aaf099c46af1184f49135e54f0def7ae72670e6fc33d7bdf78fd2adc04dc3",
       "rpcs3/Emu/system_config.h": "6bf3ff5b4d05c68fcb272ed3f127284f1a4b5ab4a089026e099cc8113ce4f2d7",
       "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "4c81853f826fe073e87483e0f615a1750c1bee57db66308853b21f111a048199",
       "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "6949965dd80aa9fdc36f471e882dc1d9a84cd8808b2d8ede1097c91c6964392d",
       "rpcs3/ios/RPCS3IOSSettings.cpp": "580b62a680209abd5745da2cdb8ce48eec43d224f14131f15eb1a795e8b234b3",
-      "rpcs3/ios/IOSPassiveLockGate.h": "922b4e2e5208797b6f4a40c0463589e82f6263e2be91700ab30b604c18323121"
+      "rpcs3/ios/IOSPassiveLockGate.h": "a7d95925a1824c5ad7b8d9b3af33106586d41c53c8bb9df0f9df04876cbea74f"
     },
     "otherCoreSourcesUnchanged": 286
   },
@@ -41,66 +41,72 @@
       "passed": true,
       "episodes": 2000,
       "capMs": 20,
+      "writers": 3,
+      "cores": 4,
       "off": {
         "starved": 0,
-        "maxEpisodeUs": 8151.2,
-        "totalEpisodeMs": 978.7,
-        "writerOpsPerMs": 548.3
+        "maxEpisodeUs": 8327.2,
+        "totalEpisodeMs": 934.0,
+        "writerOpsPerMs": 514.3
       },
       "on": {
         "starved": 0,
-        "maxEpisodeUs": 1483.0,
-        "totalEpisodeMs": 173.0,
-        "writerOpsPerMs": 489.7,
-        "deferrals": 3201,
-        "maxDeferUs": 695.4
+        "maxEpisodeUs": 2379.2,
+        "totalEpisodeMs": 169.8,
+        "writerOpsPerMs": 536.6,
+        "deferrals": 3439,
+        "maxDeferUs": 176.2
       },
-      "harnessSHA256": "18ceaf9a49c146b421ccaf856ad01cd869510059694de61c9a1dbb4839b707fe"
+      "harnessSHA256": "c10eea9a4bd9f2351d35c4ff6119ac1e51b888499f16897125178308b55fa0ad"
     },
     "thread": {
       "passed": true,
       "episodes": 2000,
       "capMs": 20,
+      "writers": 3,
+      "cores": 4,
       "off": {
         "starved": 0,
-        "maxEpisodeUs": 2215.0,
-        "totalEpisodeMs": 126.0,
-        "writerOpsPerMs": 325.2
+        "maxEpisodeUs": 1414.7,
+        "totalEpisodeMs": 65.1,
+        "writerOpsPerMs": 303.4
       },
       "on": {
         "starved": 0,
-        "maxEpisodeUs": 2232.6,
-        "totalEpisodeMs": 63.0,
-        "writerOpsPerMs": 327.0,
-        "deferrals": 463,
-        "maxDeferUs": 503.0
+        "maxEpisodeUs": 1384.6,
+        "totalEpisodeMs": 49.6,
+        "writerOpsPerMs": 336.9,
+        "deferrals": 28,
+        "maxDeferUs": 123.3
       },
-      "harnessSHA256": "18ceaf9a49c146b421ccaf856ad01cd869510059694de61c9a1dbb4839b707fe"
+      "harnessSHA256": "c10eea9a4bd9f2351d35c4ff6119ac1e51b888499f16897125178308b55fa0ad"
     }
   },
   "hostTiming": {
     "passed": true,
     "episodes": 2000,
     "capMs": 20,
+    "writers": 3,
+    "cores": 4,
     "off": {
       "starved": 0,
-      "maxEpisodeUs": 10128.2,
-      "totalEpisodeMs": 1772.3,
-      "writerOpsPerMs": 575.7
+      "maxEpisodeUs": 13121.2,
+      "totalEpisodeMs": 2545.0,
+      "writerOpsPerMs": 619.4
     },
     "on": {
       "starved": 0,
-      "maxEpisodeUs": 499.7,
-      "totalEpisodeMs": 132.7,
-      "writerOpsPerMs": 624.2,
-      "deferrals": 2479,
-      "maxDeferUs": 194.5
+      "maxEpisodeUs": 3897.6,
+      "totalEpisodeMs": 251.6,
+      "writerOpsPerMs": 585.1,
+      "deferrals": 3774,
+      "maxDeferUs": 2047.0
     },
-    "harnessSHA256": "18ceaf9a49c146b421ccaf856ad01cd869510059694de61c9a1dbb4839b707fe"
+    "harnessSHA256": "c10eea9a4bd9f2351d35c4ff6119ac1e51b888499f16897125178308b55fa0ad"
   },
   "inputs": {
-    "test/rpcs3_cell571_test.py": "2241bd8581874f8fbfdc08fcd8b1bd3a27b87686810a76f3ade1b2951702a8d7",
-    "test/native/rpcs3_passive_gate571.inc": "e2013d11720f904352bec8ba44d28a09dfbe93e2d851876644ab684144c37795"
+    "test/rpcs3_cell571_test.py": "0388f661a44b85c0fabf6f76c3c628d6e499de3cd7637ebbcdbe01182bbeb262",
+    "test/native/rpcs3_passive_gate571.inc": "24155de4c2403dcb5f44274411c3933dcd69100f09c7723738a6aad8bb65d4d2"
   },
   "result": "passed",
   "physicalDeviceTested": false,

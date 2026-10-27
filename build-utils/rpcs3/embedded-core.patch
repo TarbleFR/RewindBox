@@ -24646,17 +24646,16 @@ index 6dc9a20ed..ae705ece4 100644
  		// Streaming compression is bounded, but committing guest/RSX state can
 diff --git a/rpcs3/ios/IOSPassiveLockGate.h b/rpcs3/ios/IOSPassiveLockGate.h
 new file mode 100644
-index 000000000..50c4250a7
+index 000000000..ee7cb305e
 --- /dev/null
 +++ b/rpcs3/ios/IOSPassiveLockGate.h
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,92 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
 +#include <atomic>
 +#include <chrono>
 +#include <cstdint>
-+#include <thread>
 +
 +// CELL571_PASSIVE_LOCK_FAIRNESS: a CPU thread re-entering guest memory
 +// (vm::passive_lock) waits until no exclusive writer lock is held anywhere, and
@@ -24668,7 +24667,9 @@ index 000000000..50c4250a7
 +// through `starving_after` timed waits marks itself starving; a writer about to
 +// take its lock first lets the held ones drain while one is, for at most
 +// `writer_deferral`. No lock is skipped or weakened: the waiter still waits for
-+// the word to clear, and the writer still takes its lock afterwards.
++// the word to clear, and the writer still takes its lock afterwards. The writer
++// spins with the CPU's pause hint: on Darwin sched_yield() depresses the
++// thread for a whole quantum (about 10 ms).
 +namespace rpcs3::ios::passive_gate
 +{
 +inline std::atomic<bool> enabled{false};
@@ -24713,7 +24714,16 @@ index 000000000..50c4250a7
 +	}
 +};
 +
-+// Before a writer publishes its lock: wait while a waiter starves, bounded.
++inline void relax() noexcept
++{
++#if defined(__aarch64__)
++	__asm__ volatile("yield" ::: "memory");
++#elif defined(__x86_64__) || defined(__i386__)
++	__builtin_ia32_pause();
++#endif
++}
++
++// Before a writer publishes its lock: spin while a waiter starves, bounded.
 +// Returns true when it deferred at all.
 +inline bool defer_writer() noexcept
 +{
@@ -24726,7 +24736,7 @@ index 000000000..50c4250a7
 +
 +	while (starving.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < stop)
 +	{
-+		std::this_thread::yield();
++		relax();
 +	}
 +
 +	return true;

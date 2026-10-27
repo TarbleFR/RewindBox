@@ -38,7 +38,9 @@ prennent leurs verrous d'écriture en rafales.
   `passive_lock` se déclare « affamé ».
 - Tant qu'un thread est affamé, un nouveau preneur de verrou d'écriture
   (PUTLLC lourd, STORE128, `stwcx` PPU, opération de réservation) cède la
-  place **avant** de poser son bit, au plus ~0,5 ms.
+  place **avant** de poser son bit, au plus ~0,5 ms. Il patiente par une
+  attente active avec l'instruction `yield` du processeur : sous Darwin,
+  `sched_yield()` abaisse le thread pendant tout un quantum (~10 ms).
 - Les verrous déjà pris se libèrent, le mot se vide, le thread passe, puis les
   écrivains reprennent.
 - Aucun verrou n'est sauté ni affaibli : le thread attend toujours le mot vide,
@@ -62,21 +64,32 @@ Rapport : [`evidence/rpcs3-cell571-host-linux.json`](evidence/rpcs3-cell571-host
 - Le bloc de politique est exécuté pour les trois modes.
 - La vérification syntaxique iOS ARM64 de `vm.cpp`, de la politique et des
   réglages ne donne aucune erreur et aucun avertissement nouveau.
-- **Modèle** (en-tête de production, temps d'attente de `vm.cpp`) : trois
-  écrivains en rafale, un thread passif, 2 000 reprises. Build optimisé sur
-  l'hôte Linux, 4 cœurs :
+- **Modèle** (en-tête de production, temps d'attente de `vm.cpp`) : des
+  écrivains en rafale (3, ou 2 si l'hôte a moins de 4 cœurs, pour laisser un
+  cœur au thread passif, comme dans DBZ qui occupe ~2,4 cœurs sur 6), un thread
+  passif, 2 000 reprises. Build optimisé sur l'hôte Linux, 4 cœurs :
 
 | | Sans | Avec |
 |---|---|---|
-| Plus longue attente | 10,1 ms | 0,5 ms |
-| Attente totale | 1 772 ms | 133 ms |
-| Débit des écrivains | 576 / ms | 624 / ms |
+| Plus longue attente | 13,1 ms | 3,9 ms |
+| Attente totale | 2 545 ms | 252 ms |
+| Débit des écrivains | 619 / ms | 585 / ms (−6 %) |
 
-  Sur plusieurs exécutions, le débit des écrivains varie de −10 % à +8 %
-  (bruit de l'hôte). Sous ASan/UBSan et TSan, aucune reprise ne reste bloquée.
-  La borne de latence n'est vérifiée que dans le build optimisé : sous TSan, le
-  Mac de la CI a mesuré 10,8 ms (run `40568663915`), parce que l'instrumentation
-  ralentit tous les threads.
+  - Sur plusieurs exécutions, le débit des écrivains varie de −20 % à +8 % : ce
+    modèle écrit sans arrêt, ce qui est le pire cas pour lui.
+  - Avec 3 cœurs émulés et 2 écrivains, l'attente totale est divisée par 2 à
+    3,6.
+  - Le test vérifie dans tous les builds (ASan/UBSan, TSan, optimisé)
+    qu'aucune reprise n'atteint 20 ms. Les latences sont rapportées sans borne
+    plus serrée.
+
+**Deux runs Core échoués avant celui-ci.**
+- `40568663915` : une borne de 10 ms sous TSan était trop serrée (10,8 ms).
+- `40569244176` : sur le Mac de la CI (3 cœurs), sans le correctif le thread
+  passif restait bloqué jusqu'à 24 ms. Avec la première version, une reprise a
+  duré 127 ms, et un écrivain a cédé la main jusqu'à 11 ms : `sched_yield()`
+  sous Darwin. D'où l'attente active bornée et le modèle qui laisse un cœur au
+  thread passif.
 
 Ce sont des chiffres de modèle sur l'hôte, pas des FPS sur iPhone.
 

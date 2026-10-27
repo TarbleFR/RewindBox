@@ -15,14 +15,18 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
 - `CELL571_PASSIVE_LOCK_FAIRNESS` (`ios/IOSPassiveLockGate.h`, `vm.cpp`): a
   waiter past two 50 us timed waits marks itself starving; range-lock writers
   (`vm::writer_lock` with a range lock) defer while one is, at most ~0.5 ms,
-  before publishing their bit. No lock skipped. Setting
+  before publishing their bit, spinning with the CPU `yield` hint (Darwin's
+  `sched_yield()` depresses a thread for ~10 ms: Core run `40569244176` failed
+  with a 127 ms re-entry and an 11 ms writer deferral with the first version).
+  No lock skipped. Setting
   `experimental.passive_lock_fairness`, Automatic = every title; Disabled = 569.
   Boot log `passive_fairness=%d`. Identities unchanged (no cold compile).
-- Host model with the production header (3 bursty writers, 1 passive waiter,
-  2,000 re-entries, optimized, 4-core Linux): max wait 10.1 -> 0.5 ms, total
-  1,772 -> 133 ms, writer throughput within -10..+8 % across runs. The latency
-  bound is asserted only in the optimized build (TSan on the Mac CI measured
-  10.8 ms in run `40568663915`, which failed on that bound). Evidence
+- Host model with the production header (3 bursty writers, or 2 below 4 cores
+  so the waiter keeps a core; 1 passive waiter; 2,000 re-entries; optimized,
+  4-core Linux): max wait 13.1 -> 3.9 ms, total 2,545 -> 252 ms, writer
+  throughput -6 % (-20..+8 % across runs, continuous writers being the worst
+  case). Every build asserts no re-entry reaches 20 ms; latencies are reported,
+  not bounded (run `40568663915` failed on a 10 ms TSan bound). Evidence
   `docs/evidence/rpcs3-cell571-host-linux.json`. No iPhone measurement. See
   `docs/rpcs3-cell571.md`.
 
