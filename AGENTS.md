@@ -3,6 +3,28 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Private 566: MeloNX engine — JIT translation units, GC gen2 budget — 27 October 2026
+
+- Build 564 `app.log`, Hogwarts Legacy with its update (SDK 17.5.4): two
+  sessions (one in a fresh process) ended about 32 s after start with
+  `JIT Cache exhausted` (512 MB TXM arena, never freed); the base game ran
+  727 s but from 50 s on `.NET_BGC` used 46-72 % of a core and FPS fell from
+  30 to 6-13. Analysis: `docs/melonx-jit-gc-566.md`. Engine commits
+  `b4e81d5f` + `86c2b4dc` (test comparison only): `adapt_jit_decoder.py` (end
+  a LightningJit unit after BRK/UDF and after a call or jump followed by a
+  stack-frame opening; offline on 93,318 functions of a clang ARM64 binary:
+  host code 293 -> 123 MiB, compile time -43 %) and `adapt_gc.py`
+  (`System.GC.ConserveMemory` 9 -> 5). Tests: `test/melonx_jit_decoder_test.py`;
+  the simulator smoke homebrew executes both new unit ends.
+- Private 566 recipe (`melonxjit566_tree.py`, `melonxjit566_delivery.py`,
+  `melonx-jit566-delivery.yml`, `validate_*566_ipa.py`,
+  `delivery-566-recipient.pem`): the delivered 564 product with only the MeloNX
+  engine swapped 564 (`876a087b`) -> 566, on the 564 pattern: `as_564()`,
+  `old_engine()` (564 engine in `dist/melonx564engine`), `derived_ipa()` (564
+  engine entries; the 564 validators derive their 563-equivalent from it).
+  565 is the RPCS3 session's number. Claimed by session `session_01K9YJtz…`.
+  Do not reuse 566.
+
 ## Private 564: MeloNX engine — garbage texture descriptors, bounded engine journal, crash record — 27 October 2026
 
 - Hogwarts Legacy `app.log` (Build 562): 15 s at 0 FPS (GPU thread 99 %,
