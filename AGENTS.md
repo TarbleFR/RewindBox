@@ -109,6 +109,12 @@ Maintainer request (video of the Switch playlist, `app.log`), branch `Claude`, n
   runs the 572 recipe in `as_572()` in turn; eight validators wrap the 573
   ones. Recipient `build-utils/delivery-575-recipient.pem`. Dispatch only once
   `docs/evidence/rpcs3-cell575-macos.json` records a passed Core run.
+- Private 575 delivered: run `40591563881` (workflow_dispatch) on `f9bedd76`,
+  artifact `12776007264`, IPA 0.0.8 (575) 188,094,296 bytes, SHA-256
+  `85b2efeb…`; signed Core = Core 575 (`90275c29…`), MeloNX engine 8cc2348.
+  Decrypted and inspected: build 575, Core `ddf73420`, the 575 Automatic texts
+  in the signed Core. Receipt `docs/evidence/rpcs3-cell575-delivery.json`.
+  Installs over 573. Not tested on iPhone.
 
 ## RPCS3 Core 573: texture residency cap and scoped revalidation (God of War III) — 27 October 2026
 
