@@ -187,10 +187,12 @@ abstract final class Rpcs3GameProfileService {
     // no DMA lock. Hypothesis measured on the next run by RANGELOCKPROF
     // wl_putllc/wl_store128 and the PPU range-wait time, not proven here.
     'advanced.accurate_spu_reservations': 'false',
-    // The maintainer's target is a constant, measured 30 fps: the limiter
-    // stops the light scenes from spending CPU on 55 fps and the performance
-    // summary reports the hold ratio against this target.
-    'gpu.frame_limit': '30',
+    // Build 565 (maintainer decision, 27 October 2026): no 30 fps cap. The
+    // PS3 game is not locked to 30 fps; RPCS3 limits it to the 60 Hz vblank
+    // (Auto) like every other title, so it runs as fast as the device allows
+    // up to 60 fps with its own timing. Explicit, so a published GameDB entry
+    // cannot bring a lower limit back; a per-game user choice still wins.
+    'gpu.frame_limit': 'Auto',
     'gpu.resolution_scale': '75',
     // Build 551: no shader mode is forced. "Async Recompiler" skips the draws
     // whose pipeline is still compiling; the maintainer excludes skipped

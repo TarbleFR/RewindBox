@@ -60,10 +60,11 @@ void main() {
           final profile = Rpcs3GameProfileService.profileForSerial(serial)!;
           expect(profile.settings['cpu.spu_block_size'], 'Mega');
           expect(profile.settings['cpu.preferred_spu_threads'], '0');
-          // Build 412: relaxed SPU reservations and the 30 fps limiter are
-          // measured hypotheses against the Build 411 writer-lock stalls.
+          // Build 412: relaxed SPU reservations are a measured hypothesis
+          // against the Build 411 writer-lock stalls. Build 565: no 30 fps
+          // cap; the title is limited to the 60 Hz vblank (Auto).
           expect(profile.settings['advanced.accurate_spu_reservations'], 'false');
-          expect(profile.settings['gpu.frame_limit'], '30');
+          expect(profile.settings['gpu.frame_limit'], 'Auto');
           expect(profile.settings['gpu.resolution_scale'], '75');
           // Build 551: Async skips draws while a pipeline compiles; the
           // profile no longer forces any shader mode.
@@ -195,9 +196,10 @@ void main() {
       // Build 412 replaces the former "never relax reservations" contract: the
       // Build 411 logs attribute the heavy-scene PPU stalls to the exclusive
       // writer lock of accurate PUTLLC/PUTLLUC; the relaxed upstream path is
-      // applied as a measured hypothesis together with the 30 fps limiter.
+      // applied as a measured hypothesis. Build 565 removes the 30 fps limiter.
       expect(yaml, contains('Accurate SPU Reservations: false'));
-      expect(yaml, contains('Frame limit: 30'));
+      expect(yaml, contains('Frame limit: Auto'));
+      expect(yaml, isNot(contains('Frame limit: 30')));
       expect(yaml, contains('Shader Precision: Ultra'));
       expect(yaml, contains('Write Color Buffers: true'));
       expect(yaml, isNot(contains('Audio:')));
