@@ -88,5 +88,16 @@ répété. Le premier run réel l'affichera étape par étape.
 
 ## 4. Mesure sur la chaîne réelle
 
-En cours : contrat source 563 complet appelé deux fois dans une copie épinglée
-de `0bf5854a`. Le résultat sera consigné ici.
+Contrat source 563 complet, dans une copie épinglée de `0bf5854a`, sur ce
+conteneur Linux (pas sur le runner macOS) :
+- **premier appel : 53 s** (calcul complet) ; **appels suivants : 0,1 s**
+  (réutilisation), avec le même rapport ;
+- la copie de travail reste égale à l'index épinglé ;
+- un fichier épinglé modifié (`rpcs3cell563_core.py`) force le recalcul, qui
+  échoue sur ce fichier, et rien n'est enregistré ;
+- le premier essai a montré qu'il fallait écarter les caches de bytecode
+  (`__pycache__`), que les imports et les vues créent et suppriment. Ils
+  dérivent des sources suivies, déjà couvertes par la clé.
+
+Le gain réel sur CI sera lu dans le premier run qui l'utilise : chaque étape
+affiche « reused » ou « recomputed » avec la raison.

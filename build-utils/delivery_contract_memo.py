@@ -106,7 +106,10 @@ def _relative(root: Path, path: str) -> str | None:
         relative = resolved.relative_to(root)
     except ValueError:
         return None
-    return None if relative.parts[:1] == ('.git',) or relative.parts[:2] == tuple(STORE.split('/')) else relative.as_posix()
+    # Bytecode caches are derived from tracked sources, which the key covers; imports and views create and drop them.
+    if relative.parts[:1] == ('.git',) or relative.parts[:2] == tuple(STORE.split('/')) or '__pycache__' in relative.parts:
+        return None
+    return relative.as_posix()
 
 
 def key(root: Path, reads: dict, declared) -> dict:
