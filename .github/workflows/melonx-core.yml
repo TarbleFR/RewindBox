@@ -27,6 +27,10 @@ run-name: MeloNX engine • ${{ github.sha }}
     - test/melonx_texture_pool_test.py
     - test/melonx_texture_pool/**
     - test/melonx_engine_journal_test.py
+    - build-utils/melonx/adapt_jit_decoder.py
+    - build-utils/melonx/adapt_gc.py
+    - test/melonx_jit_decoder_test.py
+    - test/melonx_jit_decoder/**
     - build-utils/melonx/adapt_audio.py
     - build-utils/melonx/adapt_apple_audio.py
     - test/melonx_apple_audio_test.py
@@ -146,6 +150,8 @@ jobs:
       run: python3 test/melonx_texture_pool_test.py .native-sources/MeloNX
     - name: Execute the engine journal's repeat bound and unhandled-exception record (JIT and NativeAOT)
       run: python3 test/melonx_engine_journal_test.py
+    - name: Compile guest code with the real LightningJit decoder (units end at traps and at the next function)
+      run: python3 test/melonx_jit_decoder_test.py .native-sources/MeloNX
     - name: Retain effective graphics journal regression proof
       run: |
         python3 - <<'PY'
@@ -201,6 +207,7 @@ jobs:
         assert 'build-utils/melonx/adapt_pipeline.py' in evidence
         assert 'build-utils/melonx/adapt_gpu_lifetime.py' in evidence
         assert 'build-utils/melonx/adapt_texture_pool.py' in evidence
+        assert 'build-utils/melonx/adapt_jit_decoder.py' in evidence and 'build-utils/melonx/adapt_gc.py' in evidence
         with zipfile.ZipFile(source) as z:
           shaders=z.read('src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs').decode('utf-8-sig')
           assert 'catch (VulkanException e) when (e.ResultCode is not' in shaders
@@ -224,6 +231,10 @@ jobs:
           assert 'public static void RecordEngine(bool error, string message)' in journal and 'public static void RecordCrash(object error)' in journal
           runtime=z.read('src/Ryujinx.Library/EmbeddedRuntime.cs').decode('utf-8-sig')
           assert 'EmbeddedLaunchDiagnostics.RecordCrash(e.ExceptionObject)' in runtime
+          decoder=z.read('src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Decoder.cs').decode('utf-8-sig')
+          assert decoder.count('StartsFunction(memoryManager, block.EndAddress)') == 1 and 'EndsWithTrap(block)' in decoder
+          project=z.read('src/Ryujinx.Library/Ryujinx.Library.csproj').decode('utf-8-sig')
+          assert '"System.GC.ConserveMemory" Value="5"' in project and 'Value="9"' not in project
         print('PASS actual Apple backend buffering and retained SDL3 correction in compiled source')
         PY
     - uses: actions/download-artifact@v4

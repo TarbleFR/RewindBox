@@ -17,6 +17,8 @@ from adapt_pipeline import apply as adapt_pipeline
 from adapt_gpu_lifetime import apply as adapt_gpu_lifetime
 from adapt_audio_pacing import apply as adapt_audio_pacing
 from adapt_texture_pool import apply as adapt_texture_pool
+from adapt_jit_decoder import apply as adapt_jit_decoder
+from adapt_gc import apply as adapt_gc
 
 
 def replace_once(path, old, new):
@@ -54,6 +56,8 @@ def main():
     adapted += adapt_gpu_lifetime(source)
     adapted += adapt_audio_pacing(source)
     adapted += adapt_texture_pool(source)
+    adapted += adapt_jit_decoder(source)
+    adapted += adapt_gc(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -92,6 +96,10 @@ def main():
     inputs['build-utils/melonx/adapt_audio_pacing.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_texture_pool.py')
     inputs['build-utils/melonx/adapt_texture_pool.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    adapter = Path(__file__).with_name('adapt_jit_decoder.py')
+    inputs['build-utils/melonx/adapt_jit_decoder.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    adapter = Path(__file__).with_name('adapt_gc.py')
+    inputs['build-utils/melonx/adapt_gc.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
     output.mkdir(parents=True, exist_ok=True)
     (output / 'embedded-inputs.json').write_text(json.dumps(inputs, indent=2) + '\n')
