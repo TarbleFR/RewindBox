@@ -3,6 +3,34 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## StikDebug fallback removed — 27 October 2026
+
+- User report (app.log via the maintainer): four Pokken Tournament DX launches
+  killed between `jitProbe begin` ("Checking executable RX/RW aliases") and
+  any result, with "User-selected external JIT method." No `failed` entry, so
+  the process was killed rather than refused. Source defect: with the global
+  StikDebug fallback (`ios_stikdebug_fallback_v1`), MeloNX sent
+  `jitBackend: external`, and `universal` required `builtin`, so iOS 26 ran
+  the legacy `MeloNXJitExecutableMappingProbe()` (mmap RX + vm_remap RW +
+  execution) instead of the helper's core-mapping handshake. The user's iOS
+  version is not in the log; the iOS 26 kill mechanism is inferred, not
+  observed.
+- Maintainer request: remove the mode. Removed the preference service, its
+  twelve-language locale and the Tools row (Tools: pairing, NeoSwap, then the
+  BIOS checker index 2 and the storage analysis index 3 on iOS). MeloNX always
+  prepares the integrated helper; the native bridge accepts only `builtin`
+  and takes the handshake on every iOS 26 launch. A stale stored `true` is
+  ignored. MeloNX was the only consumer. Do not reintroduce an external JIT
+  path that skips the iOS 26 handshake.
+- Tests: `test/jit_backend_preference_service_test.dart` (path kept for the
+  workflows that list it, contract replaced), `test/melonx_launch_flow_test.py`
+  (stale preference ignored; caught by restoring the old service),
+  `test/storage_tools_row_test.dart`, `test/libretro_bios_checker_screen_test.dart`,
+  the Tools contracts of `test/storage_contract_test.py` and
+  `test/neoplay_build397_integration_test.py`. Run locally with Flutter 3.47.2:
+  all pass. Three `storage_contract_test.py` failures in untouched files fail
+  identically on `876a087`. Swift not compiled here; no IPA, no iPhone test.
+
 ## RPCS3 Core 571: passive-lock fairness (DBZ combat stalls) — 27 October 2026
 
 - Build 567 DBZ combat (~195 draws/frame), per 5 s window: passive-lock

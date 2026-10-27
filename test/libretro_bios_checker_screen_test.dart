@@ -387,7 +387,7 @@ void main() {
             localizationsDelegates: FlutterLocalization.instance.localizationsDelegates,
             supportedLocales: FlutterLocalization.instance.supportedLocales,
             home: Scaffold(
-              body: ToolsSettingsContent(key: key, isContentFocused: true, selectedContentIndex: 3),
+              body: ToolsSettingsContent(key: key, isContentFocused: true, selectedContentIndex: 2),
             ),
           ),
         ),
@@ -396,32 +396,33 @@ void main() {
       return key;
     }
 
-    testWidgets('iOS shows the BIOS checker as the fourth tool and opens it', (tester) async {
+    testWidgets('iOS shows the BIOS checker as the third tool and opens it', (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
       addTearDown(() => debugDefaultTargetPlatformOverride = null);
       final key = await pumpTools(tester);
       // Contract replaced (docs/storage-audit-cleanup.md § 3.10, chantier 5):
-      // iOS now lists five tools, the storage analysis fifth after this
-      // checker (test/storage_tools_row_test.dart). The BIOS checker keeps
-      // its place: fourth row, index 3, checked below.
-      expect(key.currentState!.getItemCount(), 5);
+      // the storage analysis follows this checker
+      // (test/storage_tools_row_test.dart). With the StikDebug fallback row
+      // removed, iOS lists four tools and the BIOS checker is the third row,
+      // index 2, checked below.
+      expect(key.currentState!.getItemCount(), 4);
       expect(find.text(english['biosCheckerTitle']!), findsOneWidget);
       expect(find.text(english['biosCheckerSubtitle']!), findsOneWidget);
 
-      key.currentState!.selectItem(3);
+      key.currentState!.selectItem(2);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
       expect(find.byType(LibretroBiosCheckerScreen), findsOneWidget);
       debugDefaultTargetPlatformOverride = null;
     });
 
-    testWidgets('other platforms keep three tools', (tester) async {
+    testWidgets('other platforms keep two tools', (tester) async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       addTearDown(() => debugDefaultTargetPlatformOverride = null);
       final key = await pumpTools(tester);
-      expect(key.currentState!.getItemCount(), 3);
+      expect(key.currentState!.getItemCount(), 2);
       expect(find.text(english['biosCheckerTitle']!), findsNothing);
-      key.currentState!.selectItem(3);
+      key.currentState!.selectItem(2);
       await tester.pump();
       expect(find.byType(LibretroBiosCheckerScreen), findsNothing);
       debugDefaultTargetPlatformOverride = null;

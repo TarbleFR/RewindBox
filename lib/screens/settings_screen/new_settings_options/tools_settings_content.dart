@@ -11,13 +11,10 @@ import 'package:neostation/l10n/storage_locale.dart';
 import 'package:neostation/screens/libretro/libretro_bios_checker_screen.dart';
 import 'package:neostation/screens/settings_screen/neoswap_dialog.dart';
 import 'package:neostation/screens/storage/storage_audit_screen.dart';
-import 'package:neostation/l10n/jit_fallback_locale.dart';
 import 'package:neostation/l10n/pairing_file_locale.dart';
-import 'package:neostation/services/jit_backend_preference_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/pairing_file_service.dart';
 import 'package:neostation/widgets/custom_notification.dart';
-import 'package:neostation/widgets/custom_toggle_switch.dart';
 
 import 'settings_title.dart';
 import 'widgets/settings_card_row.dart';
@@ -45,15 +42,10 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
   bool _hasPairingFile = false;
   bool _isImportingPairingFile = false;
 
-  bool _jitFallbackStateLoaded = false;
-  bool _useStikDebugFallback = false;
-  bool _isUpdatingJitFallback = false;
-
   @override
   void initState() {
     super.initState();
     _refreshPairingState();
-    _refreshJitFallbackState();
   }
 
   /// The BIOS checker of the embedded libretro cores (Build 440) exists on
@@ -66,12 +58,13 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
   /// checker.
   bool get _showStorageAudit => defaultTargetPlatform == TargetPlatform.iOS;
 
-  /// Pairing, JIT fallback and NeoSwap everywhere; the BIOS checker fourth
-  /// and the storage analysis fifth, on iOS.
-  int getItemCount() => _showBiosChecker ? 5 : 3;
+  /// Pairing and NeoSwap everywhere; the BIOS checker third and the storage
+  /// analysis fourth, on iOS. The StikDebug fallback row was removed: the
+  /// integrated helper is the only JIT method.
+  int getItemCount() => _showBiosChecker ? 4 : 2;
 
   final List<GlobalKey> _rowKeys = List<GlobalKey>.generate(
-    5,
+    4,
     (_) => GlobalKey(),
   );
 
@@ -106,24 +99,20 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
   }
 
   void selectItem(int index) {
-    if (index == 4 && _showStorageAudit) {
+    if (index == 3 && _showStorageAudit) {
       _openStorageAudit();
       return;
     }
-    if (index == 3 && _showBiosChecker) {
+    if (index == 2 && _showBiosChecker) {
       _openBiosChecker();
       return;
     }
-    if (index == 2) {
+    if (index == 1) {
       _openNeoSwap();
       return;
     }
     if (index == 0) {
       _importOrReplacePairingFile();
-      return;
-    }
-    if (index == 1 && _jitFallbackStateLoaded && !_isUpdatingJitFallback) {
-      _setUseStikDebugFallback(!_useStikDebugFallback);
     }
   }
 
@@ -147,66 +136,6 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
         _hasPairingFile = false;
         _pairingStateLoaded = true;
       });
-    }
-  }
-
-  Future<void> _refreshJitFallbackState() async {
-    try {
-      final enabled = await JitBackendPreferenceService.useStikDebugFallback();
-      if (!mounted) return;
-      setState(() {
-        _useStikDebugFallback = enabled;
-        _jitFallbackStateLoaded = true;
-      });
-    } catch (error, stackTrace) {
-      _log.e(
-        'Could not load the global JIT fallback preference.',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!mounted) return;
-      setState(() {
-        _useStikDebugFallback = false;
-        _jitFallbackStateLoaded = true;
-      });
-    }
-  }
-
-  Future<void> _setUseStikDebugFallback(bool value) async {
-    if (!_jitFallbackStateLoaded || _isUpdatingJitFallback) return;
-
-    final previousValue = _useStikDebugFallback;
-    setState(() {
-      _useStikDebugFallback = value;
-      _isUpdatingJitFallback = true;
-    });
-
-    try {
-      await JitBackendPreferenceService.setUseStikDebugFallback(value);
-      if (!mounted) return;
-      AppNotification.showNotification(
-        context,
-        JitFallbackLocale.get(
-          context,
-          value ? JitFallbackLocale.enabled : JitFallbackLocale.disabled,
-        ),
-        type: NotificationType.success,
-      );
-    } catch (error, stackTrace) {
-      _log.e(
-        'Could not save the global JIT fallback preference.',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      if (!mounted) return;
-      setState(() => _useStikDebugFallback = previousValue);
-      AppNotification.showNotification(
-        context,
-        JitFallbackLocale.get(context, JitFallbackLocale.saveFailed),
-        type: NotificationType.error,
-      );
-    } finally {
-      if (mounted) setState(() => _isUpdatingJitFallback = false);
     }
   }
 
@@ -284,11 +213,8 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final pairingSelected =
         widget.isContentFocused && widget.selectedContentIndex == 0;
-    final fallbackSelected =
-        widget.isContentFocused && widget.selectedContentIndex == 1;
 
     final pairingStatus = !_pairingStateLoaded
         ? PairingFileLocale.get(context, PairingFileLocale.checking)
@@ -302,22 +228,6 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
             context,
             PairingFileLocale.notConfiguredSubtitle,
           );
-
-    final fallbackStatus = !_jitFallbackStateLoaded
-        ? JitFallbackLocale.get(context, JitFallbackLocale.checking)
-        : JitFallbackLocale.get(
-            context,
-            _useStikDebugFallback
-                ? JitFallbackLocale.fallbackStatus
-                : JitFallbackLocale.integratedStatus,
-          );
-
-    final fallbackDescription = JitFallbackLocale.get(
-      context,
-      _useStikDebugFallback
-          ? JitFallbackLocale.fallbackDescription
-          : JitFallbackLocale.integratedDescription,
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,55 +266,31 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
               ),
               SettingsCardRow(
                 key: _rowKeys[1],
-                icon: Symbols.swap_horiz_rounded,
-                title: JitFallbackLocale.get(context, JitFallbackLocale.title),
-                subtitle: '$fallbackStatus — $fallbackDescription',
-                subtitleMaxLines: 4,
-                selected: fallbackSelected,
-                onTap: !_jitFallbackStateLoaded || _isUpdatingJitFallback
-                    ? null
-                    : () => _setUseStikDebugFallback(!_useStikDebugFallback),
-                trailing: !_jitFallbackStateLoaded || _isUpdatingJitFallback
-                    ? SizedBox(
-                        width: 22.r,
-                        height: 22.r,
-                        child: const CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : IgnorePointer(
-                        child: CustomToggleSwitch(
-                          value: _useStikDebugFallback,
-                          onChanged: null,
-                          activeColor: theme.colorScheme.primary,
-                        ),
-                      ),
-              ),
-              SettingsCardRow(
-                key: _rowKeys[2],
                 icon: Icons.memory,
                 title: NeoSwapLocale.get(context, 'title'),
                 subtitle: NeoSwapLocale.get(context, 'scope'),
                 subtitleMaxLines: 4,
                 selected:
-                    widget.isContentFocused && widget.selectedContentIndex == 2,
+                    widget.isContentFocused && widget.selectedContentIndex == 1,
                 onTap: _openNeoSwap,
                 trailing: const Icon(Icons.chevron_right),
               ),
               if (_showBiosChecker)
                 SettingsCardRow(
-                  key: _rowKeys[3],
+                  key: _rowKeys[2],
                   icon: Symbols.fact_check_rounded,
                   title: LibretroLocale.text(context, 'biosCheckerTitle'),
                   subtitle: LibretroLocale.text(context, 'biosCheckerSubtitle'),
                   subtitleMaxLines: 4,
                   selected:
                       widget.isContentFocused &&
-                      widget.selectedContentIndex == 3,
+                      widget.selectedContentIndex == 2,
                   onTap: _openBiosChecker,
                   trailing: const Icon(Icons.chevron_right),
                 ),
               if (_showStorageAudit)
                 SettingsCardRow(
-                  key: _rowKeys[4],
+                  key: _rowKeys[3],
                   icon: Symbols.storage_rounded,
                   title: StorageLocale.text(context, StorageLocale.toolTitle),
                   subtitle: StorageLocale.text(
@@ -414,7 +300,7 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
                   subtitleMaxLines: 4,
                   selected:
                       widget.isContentFocused &&
-                      widget.selectedContentIndex == 4,
+                      widget.selectedContentIndex == 3,
                   onTap: _openStorageAudit,
                   trailing: const Icon(Icons.chevron_right),
                 ),

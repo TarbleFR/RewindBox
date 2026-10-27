@@ -8,7 +8,6 @@ import 'package:stikjit_bridge/stikjit_bridge.dart';
 import 'package:neostation/l10n/pairing_file_locale.dart';
 
 import 'config_service.dart';
-import 'jit_backend_preference_service.dart';
 import 'pairing_file_service.dart';
 import 'melonx_launch_diagnostics.dart';
 
@@ -377,11 +376,10 @@ abstract final class MelonxInternalService {
       } catch (_) {
         // Diagnostic I/O must never prevent an otherwise valid game launch.
       }
-      final external = await JitBackendPreferenceService.useStikDebugFallback();
+      // The integrated helper is the only JIT method. The removed StikDebug
+      // fallback ran the pre-iOS 26 RX/RW probe, which iOS 26 kills.
       MelonxLaunchDiagnostics.record('jitHelper', 'begin', {
-        'diagnostic': external
-            ? 'User-selected external JIT method.'
-            : 'User-selected embedded helper with LocalDevVPN route.',
+        'diagnostic': 'Embedded helper with LocalDevVPN route.',
       });
       if (report?['jitArenaReady'] == true) {
         final state = await _jit.invokeMapMethod<String, dynamic>('status');
@@ -394,7 +392,7 @@ abstract final class MelonxInternalService {
                 'The RewindBox process no longer has JIT authorization.',
           };
       }
-      if (report?['jitArenaReady'] != true && !external) {
+      if (report?['jitArenaReady'] != true) {
         if (!await PairingFileService.hasStoredPairingFile()) {
           final title = context != null && context.mounted
               ? PairingFileLocale.get(context, PairingFileLocale.pickerTitle)
@@ -427,7 +425,7 @@ abstract final class MelonxInternalService {
       final response = await channel.invokeMethod<Object?>('launch', {
         'gamePath': gamePath,
         'locale': locale,
-        'jitBackend': external ? 'external' : 'builtin',
+        'jitBackend': 'builtin',
         'graphics': await graphicsForGame(gamePath),
       });
       final result = response is Map

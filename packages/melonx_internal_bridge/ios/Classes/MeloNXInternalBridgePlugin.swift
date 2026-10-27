@@ -203,14 +203,16 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         guard let path = arguments["gamePath"] as? String, path.hasPrefix("/"),
               FileManager.default.isReadableFile(atPath:path),
               ["nro","nso","nsp","xci"].contains(URL(fileURLWithPath:path).pathExtension.lowercased()),
-              let backend = arguments["jitBackend"] as? String, ["builtin","external"].contains(backend) else {
+              arguments["jitBackend"] as? String == "builtin" else {
             result(["success":false,"error":"invalidLaunch"]); return
         }
         let locale = arguments["locale"] as? String ?? "en"
         let settings = arguments["graphics"] as? [String:Any] ?? [:]
         let reuseArena = arenaReady
         let token = replaceToken()
-        let universal = backend == "builtin" && ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26
+        // The integrated helper is the only JIT method. The removed StikDebug
+        // fallback took the RX/RW probe below on iOS 26, which kills the process.
+        let universal = ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26
         starting = true; cancelling = false; launchReply = result; frameReady = false; jitReady = reuseArena
         MeloNXStrings.locale = locale
         libraryQueue.async { [self] in
@@ -246,7 +248,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                 // Prepare both the shared cache and native signal mapping before
                 // creating guest threads. This is the standalone MeloNX order.
                 try runtime.prepareJit()
-                if backend == "builtin", !reuseArena {
+                if !reuseArena {
                     var message: NSString?
                     guard MeloNXJitWaitForDetach(120,&message) else {
                         throw MeloNXHostError.prepare(-1,message as String? ?? "The JIT helper did not confirm detach.")

@@ -48,6 +48,7 @@ void main() {
  final calls=<String>[];
  late Directory root;late File game;
  Map<String,dynamic> access={},launch={},jitReply={};
+ Map<Object?,Object?> launchArguments={};
  bool arena=false;
  Future<Object?> native(MethodCall call) async {
   calls.add(call.method);
@@ -55,14 +56,14 @@ void main() {
    case 'memoryEntitlements':return access;
    case 'diagnostics':return {'available':true,'jitArenaReady':arena};
    case 'configureLaunchJournal':return {'success':true};
-   case 'launch':return launch;
+   case 'launch':launchArguments=Map.of(call.arguments as Map);return launch;
    case 'cancelJit':return true;
   }
   throw StateError('Unexpected native method '+call.method);
  }
  setUp(()async {
-  calls.clear();arena=false;MelonxInternalService.nativeQuarantined=false;
-  SharedPreferences.setMockInitialValues({'ios_stikdebug_fallback_v1':true});
+  calls.clear();launchArguments={};arena=false;MelonxInternalService.nativeQuarantined=false;
+  SharedPreferences.setMockInitialValues({});
   root=await Directory.systemTemp.createTemp('melonx-launch-channel-');
   PathProviderPlatform.instance=Paths(root.path);
   game=await File('${root.path}/Été.nro').writeAsBytes([1,2,3,4]);
@@ -84,17 +85,22 @@ void main() {
   final result=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(result['error'],'missingKey');expect(result['nativeStatus'],-17);
   expect(MelonxLaunchDiagnostics.details(result),contains('key_area_key_application_16'));
-  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','launch']);
+  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','launch','cancelJit']);
  });
- test('external JIT choice is preserved and needs both native proofs',()async{
+ // Contract replaced: the StikDebug fallback is removed. Its external path ran
+ // the pre-iOS 26 RX/RW probe, which iOS 26 kills. A value stored by an older
+ // build must not route around the integrated helper.
+ test('a stale StikDebug fallback value is ignored and launch needs both native proofs',()async{
+  SharedPreferences.setMockInitialValues({'ios_stikdebug_fallback_v1':true});
   final first=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
-  expect(first['success'],true);expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','launch']);
+  expect(first['success'],true);
+  expect(calls,['memoryEntitlements','diagnostics','configureLaunchJournal','probeLocalDevVpnRoute','prepareJit','launch']);
+  expect(launchArguments['jitBackend'],'builtin');
   launch={'success':true};
   expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['success'],false);
-  expect((await SharedPreferences.getInstance()).getBool('ios_stikdebug_fallback_v1'),true);
+  expect(launchArguments['jitBackend'],'builtin');
  });
  test('helper refusal is explicit, cancelled once and retryable',()async{
-  SharedPreferences.setMockInitialValues({'ios_stikdebug_fallback_v1':false});
   jitReply={'success':false,'helperConnected':true,'pidAttached':false,'message':'PID attach rejected'};
   var result=await MelonxInternalService.launch(gamePath:game.path,locale:'fr');
   expect(result['error'],'jitUnavailable');expect(result['diagnostic'],'PID attach rejected');
@@ -118,7 +124,6 @@ void main() {
   pending.complete({'success':true,'firstMetalFramePresented':true,'jitMappingConfirmed':true});expect((await first)['success'],true);
  });
  test('native preflight refusal cancels the prepared helper once and allows retry',()async{
-  SharedPreferences.setMockInitialValues({'ios_stikdebug_fallback_v1':false});
   launch={'success':false,'error':'firmwareMissing','stage':'firmware','nativeStatus':-3};
   expect((await MelonxInternalService.launch(gamePath:game.path,locale:'fr'))['error'],'firmwareMissing');
   expect(calls.where((s)=>s=='cancelJit').length,1);expect(calls,isNot(contains('launchPreflight')));

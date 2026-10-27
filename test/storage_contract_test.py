@@ -571,7 +571,7 @@ class StorageScreensAndLocaleContract(unittest.TestCase):
                       'StorageMaintenanceRepository', 'storage_maintenance_repository', 'StorageReport',
                       'StorageLocale', 'storage_locale', 'StorageImportActivity', 'storage_import_activity'):
             self.assertNotIn(token, main.text, token)
-        # The fifth Tools row is the only way in.
+        # The storage Tools row (the fourth on iOS) is the only way in.
         for path in dart_files():
             relative = str(path.relative_to(ROOT))
             if relative.startswith(PAGES + '/') or relative == TOOLS:
@@ -582,9 +582,9 @@ class StorageScreensAndLocaleContract(unittest.TestCase):
         tools = Source(TOOLS)
         self.assertEqual(tools.masked.count('StorageAuditScreen('), 1)
         self.assertIn('bool get _showStorageAudit => defaultTargetPlatform == TargetPlatform.iOS;', tools.masked)
-        self.assertIn('int getItemCount() => _showBiosChecker ? 5 : 3;', tools.masked)
+        self.assertIn('int getItemCount() => _showBiosChecker ? 4 : 2;', tools.masked)
         select = Span(tools, 'void selectItem(')
-        self.assertLess(select.find('if (index == 4 && _showStorageAudit) {'), select.find('_openStorageAudit();'))
+        self.assertLess(select.find('if (index == 3 && _showStorageAudit) {'), select.find('_openStorageAudit();'))
 
     def test_every_key_the_pages_use_exists_in_the_twelve_languages(self) -> None:
         constants, languages = catalog()

@@ -288,17 +288,20 @@ class Build398Integration(unittest.TestCase):
         # NeoPlay (test/libretro_bios_checker_screen_test.dart drives it).
         # Build 447 (docs/storage-audit-cleanup.md § 3.10) adds the storage
         # analysis as the fifth iOS tool; index 4 is never NeoPlay either
-        # (test/storage_tools_row_test.dart drives it).
-        self.assertIn('int getItemCount() => _showBiosChecker ? 5 : 3;', text)
+        # (test/storage_tools_row_test.dart drives it). The removal of the
+        # StikDebug fallback row (27 October 2026) shifts both down by one:
+        # two tools everywhere, BIOS checker index 2 and storage index 3.
+        self.assertIn('int getItemCount() => _showBiosChecker ? 4 : 2;', text)
         self.assertIn('bool get _showStorageAudit => defaultTargetPlatform == TargetPlatform.iOS;', text)
-        self.assertRegex(text, r'if \(index == 4 && _showStorageAudit\)\s*\{\s*_openStorageAudit\(\);')
-        self.assertEqual(text.count('index == 4'), 1)
+        self.assertRegex(text, r'if \(index == 3 && _showStorageAudit\)\s*\{\s*_openStorageAudit\(\);')
+        self.assertEqual(text.count('index == 3'), 1)
         self.assertEqual(text.count('onTap: _openStorageAudit'), 1)
         self.assertIn('bool get _showBiosChecker => defaultTargetPlatform == TargetPlatform.iOS;', text)
-        self.assertRegex(text, r'if \(index == 3 && _showBiosChecker\)\s*\{\s*_openBiosChecker\(\);')
-        self.assertEqual(text.count('index == 3'), 1)
+        self.assertRegex(text, r'if \(index == 2 && _showBiosChecker\)\s*\{\s*_openBiosChecker\(\);')
+        self.assertEqual(text.count('index == 2'), 1)
         self.assertEqual(text.count('onTap: _openBiosChecker'), 1)
-        self.assertRegex(text, r'if \(index == 2\)\s*\{\s*_openNeoSwap\(\);')
+        self.assertNotIn('index == 4', text)
+        self.assertRegex(text, r'if \(index == 1\)\s*\{\s*_openNeoSwap\(\);')
         self.assertEqual(text.count('onTap: _openNeoSwap'), 1)
         self.assertNotIn('showNeoPlayDialog', text)
         self.assertNotIn('NeoPlayLocale', text)

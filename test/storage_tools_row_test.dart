@@ -16,10 +16,11 @@ import 'package:neostation/screens/storage/storage_audit_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Test I of docs/storage-audit-cleanup.md § 6 (§ 3.10): Settings › Tools
-/// gains a fifth row on iOS, « Analyse et nettoyage du stockage », after the
-/// BIOS checker (index 4, storage icon, its own row key), selected by the
-/// controller at index 4 and opening the analysis page; other platforms keep
-/// their three tools.
+/// shows « Analyse et nettoyage du stockage » on iOS after the BIOS checker
+/// (storage icon, its own row key), selected by the controller and opening
+/// the analysis page; other platforms keep their own tools. With the StikDebug
+/// fallback row removed, it is the fourth row (index 3) of four, and other
+/// platforms keep two tools.
 const _gamepads = MethodChannel('xyz.luan/gamepads');
 const _paths = MethodChannel('plugins.flutter.io/path_provider');
 const _bridge = MethodChannel('neostation/libretro_internal');
@@ -60,7 +61,7 @@ void main() {
 
   Future<GlobalKey<ToolsSettingsContentState>> pumpTools(
     WidgetTester tester, {
-    int selected = 4,
+    int selected = 3,
     bool focused = true,
   }) async {
     final key = GlobalKey<ToolsSettingsContentState>();
@@ -92,52 +93,52 @@ void main() {
   List<SettingsCardRow> rows(WidgetTester tester) =>
       tester.widgetList<SettingsCardRow>(find.byType(SettingsCardRow)).toList();
 
-  testWidgets('iOS: the storage analysis is the fifth tool, after the BIOS '
+  testWidgets('iOS: the storage analysis is the fourth tool, after the BIOS '
       'checker', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
     final key = await pumpTools(tester);
-    expect(key.currentState!.getItemCount(), 5);
+    expect(key.currentState!.getItemCount(), 4);
 
     final all = rows(tester);
-    expect(all, hasLength(5));
-    final storage = all[4];
+    expect(all, hasLength(4));
+    final storage = all[3];
     expect(storage.icon, Symbols.storage_rounded);
     expect(storage.title, english[StorageLocale.toolTitle]);
     expect(storage.subtitle, english[StorageLocale.toolSubtitle]);
     expect(storage.subtitleMaxLines, 4);
-    expect(storage.selected, isTrue, reason: 'the controller is on index 4');
+    expect(storage.selected, isTrue, reason: 'the controller is on index 3');
     expect(storage.trailing, isA<Icon>());
     expect((storage.trailing! as Icon).icon, Icons.chevron_right);
     expect(storage.key, isA<GlobalKey>(), reason: 'its own row key');
     expect(
       {for (final row in all) row.key}.length,
-      5,
-      reason: 'five distinct row keys',
+      4,
+      reason: 'four distinct row keys',
     );
-    // The BIOS checker stays fourth and is no longer selected.
-    expect(all[3].icon, Symbols.fact_check_rounded);
-    expect(all[3].selected, isFalse);
+    // The BIOS checker stays just before it and is no longer selected.
+    expect(all[2].icon, Symbols.fact_check_rounded);
+    expect(all[2].selected, isFalse);
     expect(find.text(english[StorageLocale.toolTitle]!), findsOneWidget);
     expect(find.text(english[StorageLocale.toolSubtitle]!), findsOneWidget);
 
-    // The controller keeps the fifth row on screen.
-    key.currentState!.scrollToIndex(4);
+    // The controller keeps the fourth row on screen.
+    key.currentState!.scrollToIndex(3);
     await tester.pump(const Duration(milliseconds: 200));
     expect(tester.takeException(), isNull);
     // Reset before the binding checks its debug variables.
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('iOS: index 4 and a tap open the storage analysis', (
+  testWidgets('iOS: index 3 and a tap open the storage analysis', (
     tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
     final key = await pumpTools(tester, selected: 0);
-    expect(rows(tester)[4].selected, isFalse);
+    expect(rows(tester)[3].selected, isFalse);
 
-    key.currentState!.selectItem(4);
+    key.currentState!.selectItem(3);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(StorageAuditScreen), findsOneWidget);
@@ -160,13 +161,13 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('iOS: index 3 still opens the BIOS checker', (tester) async {
+  testWidgets('iOS: index 2 still opens the BIOS checker', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
-    final key = await pumpTools(tester, selected: 3);
-    expect(rows(tester)[3].selected, isTrue);
-    expect(rows(tester)[4].selected, isFalse);
-    key.currentState!.selectItem(3);
+    final key = await pumpTools(tester, selected: 2);
+    expect(rows(tester)[2].selected, isTrue);
+    expect(rows(tester)[3].selected, isFalse);
+    key.currentState!.selectItem(2);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(LibretroBiosCheckerScreen), findsOneWidget);
@@ -175,18 +176,18 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('other platforms keep three tools and no storage row', (
+  testWidgets('other platforms keep two tools and no storage row', (
     tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
     final key = await pumpTools(tester);
-    expect(key.currentState!.getItemCount(), 3);
-    expect(rows(tester), hasLength(3));
+    expect(key.currentState!.getItemCount(), 2);
+    expect(rows(tester), hasLength(2));
     expect(find.text(english[StorageLocale.toolTitle]!), findsNothing);
     expect(find.byIcon(Symbols.storage_rounded), findsNothing);
 
-    key.currentState!.selectItem(4);
+    key.currentState!.selectItem(3);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(StorageAuditScreen), findsNothing);
