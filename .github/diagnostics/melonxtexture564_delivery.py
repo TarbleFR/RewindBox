@@ -101,22 +101,31 @@ def inherited(function,*args,**kwargs):
  with as_563():return function(*args,**kwargs)
 
 _old=[False]
+# Receipts this delivery's own steps write into dist/melonx that do not depend
+# on the engine (the standalone MeloNX MoltenVK, pinned upstream bytes): the
+# 563 recipe found them next to its engine, so they stay visible in the view.
+CARRIED=('standalone-moltenvk-identity.json',)
 
 @contextlib.contextmanager
 def old_engine():
  """The 558 engine's downloaded evidence in dist/melonx, where the earlier
- recipes read it; the 564 engine's is put back on exit. Without a downloaded
- 558 engine (before the component download), nothing moves."""
+ recipes read it, with the engine-independent receipts of this delivery's
+ steps; the 564 engine's is put back on exit. Without a downloaded 558 engine
+ (before the component download), nothing moves."""
  if _old[0] or not OLD.is_dir():
   yield
   return
  parked=ROOT/'dist/melonx564'
  assert not parked.exists(),parked
+ carried=[name for name in CARRIED if (NEW/name).is_file()]
+ assert not any((OLD/name).exists() for name in carried),carried
  NEW.rename(parked);OLD.rename(NEW)
+ for name in carried:shutil.copy2(parked/name,NEW/name)
  _old[0]=True
  try:yield
  finally:
   _old[0]=False
+  for name in carried:(NEW/name).unlink(missing_ok=True)
   NEW.rename(OLD);parked.rename(NEW)
  assert json.loads((NEW/'ios-arm64/identity.json').read_bytes())['host']==MELONX_SOURCE
 
