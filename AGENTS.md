@@ -98,6 +98,14 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `make_core_swap_workflow.py` variant (base release 0.0.10, build 559). The
   `9b40129f` MeloNX change is not in 561 (product files stay pinned to their
   delivered versions; it needs a full build). No release. Do not reuse 561.
+- Private 561 delivered: first attempt run `40486995044` failed at the StikJIT
+  pre-seal check (fixed in `9a805c6c`, see the core-swap section); run
+  `40491394767` on `9a805c6c` passed (macOS job 21.0 min vs 24.9 for the full
+  560). Artifact `12730102171`, IPA 0.0.8 (561) 188,062,278 bytes, SHA-256
+  `d92f314b…f5a18d`. Against the published 0.0.10 IPA, only
+  `libRPCS3Core.dylib` changes code: 73 of 85 Mach-O images are byte-identical,
+  11 differ only in signature. Local revalidation identical to CI. Receipt
+  `docs/evidence/rpcs3-cell561-delivery.json`. Not tested on iPhone.
 
 ## RPCS3 Core 560: deferred framebuffer-commit write-back (DBZ HD) — 26 October 2026
 

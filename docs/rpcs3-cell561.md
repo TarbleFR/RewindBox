@@ -204,3 +204,35 @@ recompiler.
 - **Workflow** : `rpcs3-cell561-delivery.yml` est dérivé du workflow complet
   par `make_core_swap_workflow.py` (base `0.0.10`, SHA-256 `f16c2a35…7896480d`,
   reçu `evidence/rpcs3-cell559-delivery.json`).
+
+## 8. IPA privée 561 livrée (premier run « Core seul »)
+
+- **Premier essai** : run `40486995044` sur `5dd6a5ae`. Le job `checks`
+  réussit ; le job macOS échoue à l'empaquetage, sur le contrôle StikJIT
+  d'avant scellement. Cause et correction :
+  [`core-swap-delivery.md`](core-swap-delivery.md) § 6.
+- **Run** `40491394767` sur `9a805c6c` : `checks` (5,2 min) et `cold`
+  (21,0 min, contre 24,9 min pour le build complet 560) réussis.
+- **Artefact** `12730102171`, chiffré pour `build-utils/delivery-561-recipient.pem`
+  (la clé privée n'est pas dans Git).
+- **IPA** `RewindBox-Build561-9a805c6c…-cold.ipa` : 0.0.8 (561), 188 062 278
+  octets, SHA-256 `d92f314bce6d140e2d12962c552cd25e395fc329fbb312f704ada827b3f5a18d`,
+  égal à `SHA256SUMS` et à `signed-payload-identity.json`.
+- **Comparée à l'IPA publiée 0.0.10** (build 559, 4 599 fichiers) :
+  - sur 85 images Mach-O, 73 sont identiques à l'octet ;
+  - 11 exécutables (dont `Runner`) ne diffèrent que par leur signature, parce
+    que l'`Info.plist` de leur bundle porte le nouveau numéro ;
+  - seul `libRPCS3Core.dylib` change de code : c'est le Core 561, dont
+    l'empreinte de code et de données est celle de l'artefact du run Core ;
+  - le reste : versions des `Info.plist`, signatures, reçus de source et
+    d'identité (les quatre reçus 559 deviennent 561).
+- **Revalidation locale** sur `9a805c6c` épinglé : les rapports RPCS3,
+  interface et fichiers de bibliothèque sont identiques octet pour octet à
+  ceux de la CI.
+
+Reçu : [`evidence/rpcs3-cell561-delivery.json`](evidence/rpcs3-cell561-delivery.json).
+Elle s'installe par-dessus la 559 ou la 560 après re-signature SideStore.
+Aucune release GitHub, aucune mesure sur iPhone.
+
+La 562 (autre session, run `40490382532`) porte ce même Core 561 avec le
+clavier Switch et la bascule L3/R3 de MeloNX ; voir `docs/melonx-keyboard562.md`.

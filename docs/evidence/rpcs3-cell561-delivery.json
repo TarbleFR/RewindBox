@@ -1,0 +1,162 @@
+{
+  "result": "passed",
+  "build": 561,
+  "version": "0.0.8",
+  "source": "9a805c6cb8753e38af620a08f8efbba8d2826518",
+  "run": 40491394767,
+  "mode": "core-swap (published 0.0.10 application, build 559)",
+  "jobs": {
+    "checks": {
+      "id": 122145939253,
+      "conclusion": "success"
+    },
+    "Release device build • cold": {
+      "id": 122148198780,
+      "conclusion": "success"
+    }
+  },
+  "firstAttempt": {
+    "source": "5dd6a5ae78182b51b092e16e4e8828f17905ee85",
+    "run": 40486995044,
+    "conclusion": "failure",
+    "failedStep": "Package and validate RewindBox IPA",
+    "cause": "validate_stikjit_ipa.py compares StikJIT byte for byte with the tested artifact before the seal; the published application carried it signed",
+    "fix": "9a805c6c: core_swap_base.py puts the tested binary back once the seal payload_fingerprint is proven equal"
+  },
+  "artifact": {
+    "id": 12730102171,
+    "name": "RewindBox-Build561-9a805c6cb8753e38af620a08f8efbba8d2826518-cold",
+    "bytes": 188989469,
+    "sha256": "6bb720c05eef8463c46b098d5612dc3d4a3a72ddec58ba253d1ad14b68629f8f",
+    "expires": "2026-11-10T11:14:58Z",
+    "recipient": "build-utils/delivery-561-recipient.pem",
+    "privateKeyInGit": false,
+    "cipher": "RSA-OAEP-SHA256 envelope, AES-256-CBC PBKDF2 200000"
+  },
+  "ipa": {
+    "name": "RewindBox-Build561-9a805c6cb8753e38af620a08f8efbba8d2826518-cold.ipa",
+    "bytes": 188062278,
+    "sha256": "d92f314bce6d140e2d12962c552cd25e395fc329fbb312f704ada827b3f5a18d",
+    "bundleVersion": "561",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "minimumOS": "18.0",
+    "sha256SumsMatches": true,
+    "signedPayloadIdentitySHA256": "d92f314bce6d140e2d12962c552cd25e395fc329fbb312f704ada827b3f5a18d",
+    "sideStoreAppleReSigningRequired": true
+  },
+  "coreSwapBase": {
+    "release": "0.0.10",
+    "asset": "RewindBox-.0.0.10.ipa",
+    "baseBuild": 559,
+    "baseSha256": "f16c2a3529537bfbaa933972ed63f6ce96bb2a9ca176f1e2d1726dcd7896480d",
+    "baseReceipt": "docs/evidence/rpcs3-cell559-delivery.json",
+    "recompiled": false,
+    "stampedBundleVersions": 11,
+    "removedBaseReceipts": [
+      "LiquidGlass-ui559-identity.json",
+      "MeloNX-perf559-identity.json",
+      "RPCS3-cell559-identity.json",
+      "RPCS3-library-files559-identity.json"
+    ],
+    "stikjit": {
+      "binary": "Frameworks/StikJIT.framework/StikJIT",
+      "publishedSha256": "5e37408cef1ec054afcd99c0f067cdfdf0c6c1cbd0c38269cdabe9d288948873",
+      "testedSha256": "224325cc2d62f50ff6b11252b47613330859be2d06356cdcceab5b7e7b072a6d",
+      "payloadFingerprint": "57e75fbd4ee836e209772cb3a0f732626b1e7becdf7654d4f0f05111926542f6"
+    },
+    "productTreesEqualBase": true
+  },
+  "comparedWithBase0010Ipa": {
+    "files": 4599,
+    "changed": 41,
+    "renamedIdentityReceipts": 4,
+    "machOImages": 85,
+    "machOByteIdentical": 73,
+    "machOCodeDataAbiChanged": [
+      "libRPCS3Core.dylib"
+    ],
+    "executablesDifferingOnlyInSignature": [
+      "ARMSX2JITHelper",
+      "DolphinCore",
+      "DolphinJITHelper",
+      "MeloNXCore",
+      "MeloNXJITHelper",
+      "MeloNXMoltenVKStandalone",
+      "MeloNXRamDonor",
+      "NeoSwapDonor",
+      "NeoSwapPageRelay",
+      "RPCS3JITHelper",
+      "Runner"
+    ],
+    "signatureReason": "their bundles Info.plist carry the new build number, which the signature hashes",
+    "other": "Info.plist versions, code signatures, source and identity receipts"
+  },
+  "comparedWith560Ipa": {
+    "files": 4599,
+    "changed": 42,
+    "note": "as against 0.0.10, plus dolphin_internal_bridge, which the 560 full build had relinked"
+  },
+  "productTrees": {
+    "lib": "8f44ab0deac261089ed40a185f9fce32380b7be3",
+    "native": "d02bf5f2b3255e8c446a6b8e9fbf62a3bfa13d49",
+    "packages": "43b727081425755a2102f3dcf32c1b6438e208eb",
+    "assets": "f364256146788c048293ef747389afc151648711",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "productTreesEqual560": true,
+  "rpcs3Core": {
+    "source": "5b033881a032be1c2ac71080e229b86dc675ed6d",
+    "run": 40486026315,
+    "artifact": 12725403841,
+    "sha256": "7b1e4fda0b94eaaf9224561259d78541a7cb8f34a75ddcf23f04702ab5c20cbe",
+    "abi": 30,
+    "exports": 88,
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "codegenUnchangedSince551": true,
+    "ipaCoreFingerprintEqualsCiCore": true,
+    "replaces": {
+      "source": "cba3fa9f98e38b2e90156ef5a255d35ec4849185",
+      "run": 40420391683
+    },
+    "contains": [
+      "560 Core",
+      "561 early command buffer submission (Automatic: BLES01658 only)"
+    ],
+    "evidence": [
+      "docs/evidence/rpcs3-cell561-host-linux.json",
+      "docs/evidence/rpcs3-cell561-macos.json"
+    ]
+  },
+  "ciValidation": {
+    "rpcs3": "rpcs3-memory-audit-ipa.json",
+    "interface": "liquid-glass-ui561-ipa-validation.json",
+    "libraryFiles": "rpcs3-library-files561-ipa-validation.json",
+    "melonx": "melonx-perf561-ipa-validation.json",
+    "stikjitCheck": "validate_stikjit_ipa.py passed in the packaging step (its report stays in the job, not in the artifact)"
+  },
+  "localRevalidation": {
+    "worktree": "9a805c6 pinned with rpcs3cell561_tree.py",
+    "rpcs3ReportIdenticalToCI": true,
+    "interfaceReportIdenticalToCI": true,
+    "libraryFilesReportIdenticalToCI": true,
+    "melonxNotRerunLocally": "its engine evidence needs the macOS job materialization; passed on CI"
+  },
+  "durations": {
+    "checksMinutes": 5.2,
+    "macOSJobMinutes": 21.0,
+    "fullBuild560MacOSJobMinutes": 24.9,
+    "core561RunMinutes": 15.9
+  },
+  "installsOver": [
+    559,
+    560
+  ],
+  "physicalDeviceTested": false,
+  "fpsGainMeasured": false,
+  "githubRelease": false,
+  "scope": "Published 559 product (0.0.10) with the RPCS3 Core 561. Host and CI evidence only; no iPhone FPS, frame time, stall, thermal or memory result."
+}
