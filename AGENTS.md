@@ -34,6 +34,10 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   blocks compiled verbatim for 7 titles x 2 FIFO idle modes x 3 modes (42
   cases). Evidence `docs/evidence/rpcs3-cell575-host-linux.json`. No iPhone
   measurement. See `docs/rpcs3-cell575.md`.
+- Core run `40589313705` (`ddf73420`, Apple Silicon): 42 policy cases pass;
+  iPhone Core SHA-256 `90275c29…`, 88 exports, 137 recorded inputs, identities
+  unchanged, the 575 Automatic texts in the binary. Evidence
+  `docs/evidence/rpcs3-cell575-macos.json`.
 - Private 575 recipe (`rpcs3-cell575-delivery.yml`, dispatch only): the
   delivered 573 tree (MeloNX engine 8cc2348, Core 573) with the Core 575 recipe
   of `ddf73420` (Core run `40589313705`); `rpcs3cell575_tree.py` /

@@ -97,6 +97,13 @@ Rapport : [`evidence/rpcs3-cell575-host-linux.json`](evidence/rpcs3-cell575-host
 
 Ce sont des vérifications sur l'hôte, pas des mesures sur iPhone.
 
+**Run Core sur Mac Apple Silicon (`40589313705`, `ddf73420`).**
+Reçu : [`evidence/rpcs3-cell575-macos.json`](evidence/rpcs3-cell575-macos.json).
+- Mêmes 42 cas de politique réussis que sous Linux.
+- Le Core iPhone est compilé : SHA-256 `90275c29…`, 88 exports, 137 entrées
+  enregistrées, identités PPU/SPU inchangées (aucune recompilation à froid).
+- Les trois textes « Automatique » du 575 sont dans le binaire.
+
 ## 5. À relever sur iPhone
 
 - Black Ops II :
