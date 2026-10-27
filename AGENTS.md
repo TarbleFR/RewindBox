@@ -61,6 +61,16 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   tree (`40539638348`) was cancelled at the maintainer's request so that 566
   keeps the RPCS3 565 fixes. Claimed by session `session_01K9YJtz…`. Do not
   reuse 566.
+- Delivered private 566: run `40547475049` on `45a7a3cc` (run `40542079433`
+  on `e7e96afb` stopped at the key import validator, which the workflow still
+  pointed at the 564 engine; fixed), artifact `12756265837`, IPA 0.0.8 (566)
+  188,084,692 bytes, SHA-256
+  `fba32a90a32dac22deb381ea58864e39c902dd77439d36f409d1591bc5e5aa70`; every
+  validator passed; decrypted and inspected independently (MeloNX engine
+  `86c2b4dc`, RPCS3 Core `07e416c4`). Receipt
+  `docs/evidence/melonx-jit566-delivery.json`. Not tested on iPhone; no FPS
+  gain measured. A workflow stacked on 566 must pass the 566 engine
+  (`86c2b4dc…`, run `40535449055`) to `validate_melonx_keys_ipa.py`.
 
 ## Private 564: MeloNX engine — garbage texture descriptors, bounded engine journal, crash record — 27 October 2026
 

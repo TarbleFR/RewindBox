@@ -1,0 +1,80 @@
+{
+  "result": "passed",
+  "build": 566,
+  "version": "0.0.8",
+  "source": "45a7a3cc5449642d770db60e3c369216b071b552",
+  "run": 40547475049,
+  "base": "delivered private 565 (RPCS3 Core 565 07e416c, God of War III frame limit Auto, MeloNX host 562)",
+  "attempts": [
+    {
+      "run": 40539638348,
+      "source": "3a2dd7963ee27fa3eda0e6684777f6a0ea0ed1b1",
+      "result": "cancelled",
+      "cause": "stacked on the 564 tree; cancelled at the maintainer's request so that 566 keeps the RPCS3 565 fixes"
+    },
+    {
+      "run": 40542079433,
+      "source": "e7e96afb854e7248da8ea0fb825f3bb628599dd6",
+      "result": "failed",
+      "failedStep": "Verify the exact packaged key import correction",
+      "cause": "the workflow still passed the 564 engine (876a087, run 40502672385) to validate_melonx_keys_ipa.py; fixed in 45a7a3cc"
+    }
+  ],
+  "artifact": {
+    "id": 12756265837,
+    "name": "RewindBox-Build566-45a7a3cc5449642d770db60e3c369216b071b552-cold",
+    "zipSHA256": "0a16521ace9bb87ab643c1642ae0c0b9516374ed9c294a8f768dbd04c106b151",
+    "recipient": "build-utils/delivery-566-recipient.pem",
+    "privateKeyInGit": false
+  },
+  "ipa": {
+    "name": "RewindBox-Build566-45a7a3cc5449642d770db60e3c369216b071b552-cold.ipa",
+    "bytes": 188084692,
+    "sha256": "fba32a90a32dac22deb381ea58864e39c902dd77439d36f409d1591bc5e5aa70",
+    "equalsSHA256SUMS": true,
+    "members": 5361
+  },
+  "melonxEngine": {
+    "source": "86c2b4dc4c2239bdae427e1725ca557a2b400f99",
+    "firstCommit": "b4e81d5ff1114c5ad2eae52924848d0ade45d88d",
+    "run": 40535449055,
+    "artifact": 12749113131,
+    "identitySHA256": "ccda7d225a24d299cc3c2b1c2f2aa172ed0cbeb92dfbaaca758afd37a8ae1e5c",
+    "changes": [
+      "adapt_jit_decoder: LightningJit units end after a trap and after a call or jump followed by a stack-frame opening",
+      "adapt_gc: System.GC.ConserveMemory 9 -> 5"
+    ]
+  },
+  "rpcsCore": {
+    "source": "07e416c42bbdfaede2df1870ccd7fda91d97abce",
+    "run": 40533429692
+  },
+  "validators": {
+    "hd-textures-ipa-validation.json": "passed",
+    "liquid-glass-ui566-ipa-validation.json": "passed",
+    "melonx-delete509-ipa.json": "passed",
+    "melonx-input566-ipa-validation.json": "passed",
+    "melonx-ipa.json": "passed",
+    "melonx-jit566-ipa-validation.json": "passed",
+    "melonx-keys517-ipa-validation.json": "passed",
+    "melonx-launch514-ipa-validation.json": "passed",
+    "melonx-perf566-ipa-validation.json": "passed",
+    "melonx-texture566-ipa-validation.json": "passed",
+    "motion507-ipa-validation.json": "passed",
+    "navigation512-ipa-validation.json": "passed",
+    "rpcs3-diag487-ipa-validation.json": "passed",
+    "rpcs3-library-files566-ipa-validation.json": "passed",
+    "rpcs3-memory-audit-ipa.json": "passed",
+    "ui-correction511-ipa-validation.json": "passed",
+    "unified-cheats-ipa-validation.json": "passed"
+  },
+  "independentInspection": {
+    "decrypted": true,
+    "engineHost": "86c2b4dc",
+    "rpcsCoreSource": "07e416c4",
+    "buildNumber": "566"
+  },
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "fpsGainMeasured": false
+}
