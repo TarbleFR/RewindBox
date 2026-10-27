@@ -88,7 +88,12 @@ def check(upstream: dict, adapted: dict):
     expect(u['guestInstructions'] == 48 and a['guestInstructions'] == 3 and a['emptyLastBlock'],
            f'NOP padding before the next frame: {u} {a}')
     for name in ('callThenCode', 'callBeforeTarget', 'trapBeforeTarget', 'loop'):
-        expect(upstream[name] == adapted[name], f'{name} unchanged: {upstream[name]} {adapted[name]}')
+        # Host addresses (function table slots) are process-specific and change
+        # how many MOVK instructions a constant takes: compare the units, and
+        # the code size within a few instructions.
+        u, a = dict(upstream[name]), dict(adapted[name])
+        size = abs(u.pop('hostBytes') - a.pop('hostBytes'))
+        expect(u == a and size <= 16, f'{name} unchanged: {upstream[name]} {adapted[name]}')
     expect(adapted['callThenCode']['guestInstructions'] == 45 and adapted['callBeforeTarget']['guestInstructions'] == 46,
            f'ordinary calls and known targets keep their unit: {adapted["callThenCode"]} {adapted["callBeforeTarget"]}')
     u, a = upstream['tailJump'], adapted['tailJump']
