@@ -19,6 +19,9 @@ from adapt_audio_pacing import apply as adapt_audio_pacing
 from adapt_texture_pool import apply as adapt_texture_pool
 from adapt_jit_decoder import apply as adapt_jit_decoder
 from adapt_gc import apply as adapt_gc
+from adapt_shader_warmup import apply as adapt_shader_warmup
+from adapt_attachmentless_framebuffer import apply as adapt_attachmentless_framebuffer
+from adapt_fft_boot_trace import apply as adapt_fft_boot_trace
 
 
 def replace_once(path, old, new):
@@ -58,6 +61,9 @@ def main():
     adapted += adapt_texture_pool(source)
     adapted += adapt_jit_decoder(source)
     adapted += adapt_gc(source)
+    adapted += adapt_shader_warmup(source)
+    adapted += adapt_attachmentless_framebuffer(source)
+    adapted += adapt_fft_boot_trace(source)  # TEMPORARY: remove once the FFT freeze is understood
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -100,6 +106,11 @@ def main():
     inputs['build-utils/melonx/adapt_jit_decoder.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_gc.py')
     inputs['build-utils/melonx/adapt_gc.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    adapter = Path(__file__).with_name('adapt_shader_warmup.py')
+    inputs['build-utils/melonx/adapt_shader_warmup.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
+    for name in ['adapt_attachmentless_framebuffer.py', 'adapt_fft_boot_trace.py']:
+        adapter = Path(__file__).with_name(name)
+        inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
     output.mkdir(parents=True, exist_ok=True)
     (output / 'embedded-inputs.json').write_text(json.dumps(inputs, indent=2) + '\n')
