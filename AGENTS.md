@@ -19,8 +19,10 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `experimental.passive_lock_fairness`, Automatic = every title; Disabled = 569.
   Boot log `passive_fairness=%d`. Identities unchanged (no cold compile).
 - Host model with the production header (3 bursty writers, 1 passive waiter,
-  2,000 re-entries, optimized, 4-core Linux): max wait 15.9 -> 0.9 ms, total
-  1,783 -> 305 ms, writer throughput -7 %. Evidence
+  2,000 re-entries, optimized, 4-core Linux): max wait 10.1 -> 0.5 ms, total
+  1,772 -> 133 ms, writer throughput within -10..+8 % across runs. The latency
+  bound is asserted only in the optimized build (TSan on the Mac CI measured
+  10.8 ms in run `40568663915`, which failed on that bound). Evidence
   `docs/evidence/rpcs3-cell571-host-linux.json`. No iPhone measurement. See
   `docs/rpcs3-cell571.md`.
 

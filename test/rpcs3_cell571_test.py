@@ -86,12 +86,12 @@ def between(text, start, end):
     return text[a:text.index(end, a) + len(end)]
 
 
-def experiment(source, work, sanitizer, optimize='-O1'):
+def experiment(source, work, sanitizer, optimize='-O1', timing=False):
     template = (NATIVE / 'rpcs3_passive_gate571.inc').read_text()
     prelude, main = template.split('//@@MAIN\n')
     prelude = prelude.split('//@@PRELUDE\n')[1]
-    report, digest = build_and_run(work, 'passive_gate571', prelude + main, source, sanitizer, extra=['-DRPCS3_IOS=1'],
-                                   optimize=optimize)
+    extra = ['-DRPCS3_IOS=1'] + (['-DCELL571_TIMING_CHECKS=1'] if timing else [])
+    report, digest = build_and_run(work, 'passive_gate571', prelude + main, source, sanitizer, extra=extra, optimize=optimize)
     assert report['on']['starved'] == 0, report
     return dict(report, harnessSHA256=digest)
 
@@ -161,7 +161,7 @@ def main():
                   'sourceContract': contract, 'codegenIdentity': codegen_identity(source),
                   'placement': placement_contract(source, before), 'policy': policy_modes(source, work)}
         result['experiment'] = {name: experiment(source, work, flag) for name, flag in SANITIZERS}
-        result['hostTiming'] = experiment(source, work, '', optimize='-O2')
+        result['hostTiming'] = experiment(source, work, '', optimize='-O2', timing=True)
         result['inputs'] = {p: sha((ROOT / p).read_bytes()) for p in INPUTS}
     result.update(passed=True, result='passed', physicalDeviceTested=False, gameplayMeasured=False,
                   scope='Host model of the 571 gate with the production header and the vm.cpp lock timings; '

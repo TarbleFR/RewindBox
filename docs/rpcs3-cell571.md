@@ -68,11 +68,15 @@ Rapport : [`evidence/rpcs3-cell571-host-linux.json`](evidence/rpcs3-cell571-host
 
 | | Sans | Avec |
 |---|---|---|
-| Plus longue attente | 15,9 ms | 0,9 ms |
-| Attente totale | 1 783 ms | 305 ms |
-| Débit des écrivains | 585 / ms | 545 / ms (−7 %) |
+| Plus longue attente | 10,1 ms | 0,5 ms |
+| Attente totale | 1 772 ms | 133 ms |
+| Débit des écrivains | 576 / ms | 624 / ms |
 
-  Sous ASan/UBSan et TSan, aucune reprise ne reste bloquée.
+  Sur plusieurs exécutions, le débit des écrivains varie de −10 % à +8 %
+  (bruit de l'hôte). Sous ASan/UBSan et TSan, aucune reprise ne reste bloquée.
+  La borne de latence n'est vérifiée que dans le build optimisé : sous TSan, le
+  Mac de la CI a mesuré 10,8 ms (run `40568663915`), parce que l'instrumentation
+  ralentit tous les threads.
 
 Ce sont des chiffres de modèle sur l'hôte, pas des FPS sur iPhone.
 

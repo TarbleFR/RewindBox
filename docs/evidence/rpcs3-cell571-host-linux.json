@@ -43,19 +43,19 @@
       "capMs": 20,
       "off": {
         "starved": 0,
-        "maxEpisodeUs": 9093.6,
-        "totalEpisodeMs": 595.0,
-        "writerOpsPerMs": 454.6
+        "maxEpisodeUs": 8151.2,
+        "totalEpisodeMs": 978.7,
+        "writerOpsPerMs": 548.3
       },
       "on": {
         "starved": 0,
-        "maxEpisodeUs": 1307.8,
-        "totalEpisodeMs": 134.1,
-        "writerOpsPerMs": 430.0,
-        "deferrals": 2627,
-        "maxDeferUs": 501.7
+        "maxEpisodeUs": 1483.0,
+        "totalEpisodeMs": 173.0,
+        "writerOpsPerMs": 489.7,
+        "deferrals": 3201,
+        "maxDeferUs": 695.4
       },
-      "harnessSHA256": "28eecab4691e31e4afbb3abab07c3e0bec5048092cf700bc2184c53bd7f0c233"
+      "harnessSHA256": "18ceaf9a49c146b421ccaf856ad01cd869510059694de61c9a1dbb4839b707fe"
     },
     "thread": {
       "passed": true,
@@ -63,19 +63,19 @@
       "capMs": 20,
       "off": {
         "starved": 0,
-        "maxEpisodeUs": 5214.3,
-        "totalEpisodeMs": 84.0,
-        "writerOpsPerMs": 306.2
+        "maxEpisodeUs": 2215.0,
+        "totalEpisodeMs": 126.0,
+        "writerOpsPerMs": 325.2
       },
       "on": {
         "starved": 0,
-        "maxEpisodeUs": 455.4,
-        "totalEpisodeMs": 76.7,
-        "writerOpsPerMs": 319.5,
-        "deferrals": 277,
-        "maxDeferUs": 206.5
+        "maxEpisodeUs": 2232.6,
+        "totalEpisodeMs": 63.0,
+        "writerOpsPerMs": 327.0,
+        "deferrals": 463,
+        "maxDeferUs": 503.0
       },
-      "harnessSHA256": "28eecab4691e31e4afbb3abab07c3e0bec5048092cf700bc2184c53bd7f0c233"
+      "harnessSHA256": "18ceaf9a49c146b421ccaf856ad01cd869510059694de61c9a1dbb4839b707fe"
     }
   },
   "hostTiming": {
@@ -84,23 +84,23 @@
     "capMs": 20,
     "off": {
       "starved": 0,
-      "maxEpisodeUs": 15864.5,
-      "totalEpisodeMs": 1783.3,
-      "writerOpsPerMs": 585.3
+      "maxEpisodeUs": 10128.2,
+      "totalEpisodeMs": 1772.3,
+      "writerOpsPerMs": 575.7
     },
     "on": {
       "starved": 0,
-      "maxEpisodeUs": 908.2,
-      "totalEpisodeMs": 305.1,
-      "writerOpsPerMs": 545.1,
-      "deferrals": 4201,
-      "maxDeferUs": 911.6
+      "maxEpisodeUs": 499.7,
+      "totalEpisodeMs": 132.7,
+      "writerOpsPerMs": 624.2,
+      "deferrals": 2479,
+      "maxDeferUs": 194.5
     },
-    "harnessSHA256": "28eecab4691e31e4afbb3abab07c3e0bec5048092cf700bc2184c53bd7f0c233"
+    "harnessSHA256": "18ceaf9a49c146b421ccaf856ad01cd869510059694de61c9a1dbb4839b707fe"
   },
   "inputs": {
-    "test/rpcs3_cell571_test.py": "d1ab11fc587e26e43b0d7c5c0e873fd21524510a90f0d35dd73b95b081f8fa3d",
-    "test/native/rpcs3_passive_gate571.inc": "c5b6fd440bad7cfd7e38ec83f83294daea8057ed6bafca0a86148edc0cd5fb33"
+    "test/rpcs3_cell571_test.py": "2241bd8581874f8fbfdc08fcd8b1bd3a27b87686810a76f3ade1b2951702a8d7",
+    "test/native/rpcs3_passive_gate571.inc": "e2013d11720f904352bec8ba44d28a09dfbe93e2d851876644ab684144c37795"
   },
   "result": "passed",
   "physicalDeviceTested": false,
