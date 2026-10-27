@@ -87,6 +87,9 @@ Reçu : [`evidence/rpcs3-cell567-macos.json`](evidence/rpcs3-cell567-macos.json)
   - remis à zéro, il lit *user-interactive* avec la priorité relative
     attendue (−2 en Automatique et Activé, 0 en Désactivé) ;
   - relevé, il lit *user-interactive*, priorité relative 0.
+- Le Core iPhone est compilé : SHA-256 `51273092…`, 88 exports, identités
+  PPU/SPU inchangées, aucune recompilation à froid. Il contient le réglage et
+  le champ de journal 567 ainsi que les marqueurs 555 à 565.
 - Ce sont des vérifications sur Mac, pas des FPS sur iPhone.
 
 ## 5. IPA privée 567

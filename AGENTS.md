@@ -23,8 +23,19 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   ASan/UBSan and TSan, worker reset, placement contract; the real Darwin QoS
   calls run on the Mac CI runner); materialized from upstream; `Thread.cpp`
   ARM64 iOS syntax with Apple QoS declarations, no new warning. No iPhone
-  measurement. See `docs/rpcs3-cell567.md`. The private 567 IPA stacks on the
-  delivered 566 tree (maintainer: install over 566).
+  measurement. See `docs/rpcs3-cell567.md`.
+- Core run `40547296252` on `67dd222`: Core `51273092…`, 88 exports, identities
+  unchanged; on the Apple Silicon runner the real Darwin QoS calls give the
+  three modes under ASan/UBSan and TSan (lowered = utility, reset =
+  user-interactive at the mode's relpri, raised = relpri 0). Receipt
+  `docs/evidence/rpcs3-cell567-macos.json`.
+- Private 567 recipe (`rpcs3cell567_tree.py`, `rpcs3cell567_delivery.py`,
+  `rpcs3-cell567-delivery.yml`, `validate_*567_ipa.py`,
+  `delivery-567-recipient.pem`): the delivered 566 product (MeloNX engine
+  86c2b4d, keyboard, L3/R3, GoW3 frame limit Auto) with only the Core swapped
+  565 -> 567; product trees equal to 566. The 566 recipe runs unchanged in
+  `as_566()`; the 566 validators run under it and their receipts are carried
+  under build 567. Maintainer: install over 566. No release.
 
 ## Private 566: MeloNX engine — JIT translation units, GC gen2 budget — 27 October 2026
 
