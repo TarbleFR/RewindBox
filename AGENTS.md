@@ -30,6 +30,33 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `test/neoplay_build397_integration_test.py`. Run locally with Flutter 3.47.2:
   all pass. Three `storage_contract_test.py` failures in untouched files fail
   identically on `876a087`. Swift not compiled here; no IPA, no iPhone test.
+## Private 572: MeloNX engine — a JIT unit ends at a jump past the other cases of a switch — 27 October 2026
+
+- Build 566 `app.log` (18:51): Hogwarts Legacy with its update (SDK 17.5.4)
+  still ended about 30 s after start with "JIT Cache exhausted" on engine
+  86c2b4d; the base game (19:01, 159 s) closed normally.
+- `8cc23480` (`adapt_jit_decoder.py`): after a forward B within 4 KB the A64
+  decoder read on through the code the jump passes over, so a switch case
+  entered through its jump table translated every case after it. A unit now
+  ends at such a jump when it passes over 64 instructions or more and nothing
+  in the unit enters them (no earlier branch target, no backward branch from
+  the jump target's code before its next unconditional branch: rotated loops
+  keep their body); shorter skips keep the upstream unit. Offline with this
+  engine's compiler on the 20,543 jump-table targets of a clang ARM64 binary:
+  host code 26.6 -> 19.5 MiB; following every exit, 56.6 -> 41.6 MiB, and
+  408 -> 386 MiB from all 93,318 function starts, with fewer units and exits.
+  Decoder test: switch case 82 -> 6 instructions, every other case unchanged;
+  the simulator smoke homebrew jumps past 67 undefined words before its SVC.
+  Not measured on the iPhone; not proven to be the whole cause.
+- Private 572 recipe (`melonxjit572_tree.py`, `melonxjit572_delivery.py`,
+  `melonx-jit572-delivery.yml`, `validate_*572_ipa.py`,
+  `delivery-572-recipient.pem`): the delivered 567 product (RPCS3 Core 567,
+  God of War III profile, MeloNX keyboard and L3/R3) with only the MeloNX
+  engine swapped 86c2b4d -> 8cc2348; product trees equal to 567. The 567
+  recipe runs unchanged in `as_567()`; inherited IPA validators check
+  `derived_ipa()` (this IPA with the 566 engine entries). The RPCS3 Cores
+  569 and 571 committed after 567 are not part of 572. Engine run
+  `40570622034` on `8cc23480`. Maintainer: install over 567. No release.
 
 ## RPCS3 Core 571: passive-lock fairness (DBZ combat stalls) — 27 October 2026
 
