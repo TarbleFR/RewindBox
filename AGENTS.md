@@ -55,8 +55,11 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   engine swapped 86c2b4d -> 8cc2348; product trees equal to 567. The 567
   recipe runs unchanged in `as_567()`; inherited IPA validators check
   `derived_ipa()` (this IPA with the 566 engine entries). The RPCS3 Cores
-  569 and 571 committed after 567 are not part of 572. Engine run
-  `40570622034` on `8cc23480`. Maintainer: install over 567. No release.
+  569 and 571 committed after 567, and the StikDebug fallback removal
+  (`504f9c08`), are not part of 572. Engine run `40570622034` on `8cc23480`
+  (every 566 engine step, the decoder test with the switch case, and the
+  simulator smoke executing the new unit end), artifact `12766340886`
+  (sha256 `612754d6…`). Maintainer: install over 567. No release.
 
 ## RPCS3 Core 571: passive-lock fairness (DBZ combat stalls) — 27 October 2026
 

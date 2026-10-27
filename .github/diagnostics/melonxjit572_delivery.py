@@ -47,7 +47,7 @@ assert MELONX566_SOURCE==d566.MELONX_SOURCE==tree.SOURCE566
 # Engine built and tested from 8cc2348, taken by ID and digest.
 MELONX_SOURCE=tree.SOURCE572
 MELONX_RUN=40570622034
-MELONX_ARTIFACT=(0,'')
+MELONX_ARTIFACT=(12766340886,'612754d62f2ba01c2eab7f70e4072c8b85c6dd68ecc25551a66323243fb0996e')
 # The engine workflow keeps its 566 steps; the decoder step now also runs the switch case.
 ENGINE_STEPS572=d566.ENGINE_STEPS566
 # 572 adds no export and no engine literal; the 566 ones must remain.
