@@ -139,3 +139,26 @@ publiée, donc le mode « Core seul » n'a pas de base.
   (`ab=`, `early_submit_ab=`, texte du réglage) à ceux de 555 à 561. MeloNX
   (mesure 558 et clavier 562), interface et fichiers de bibliothèque : les
   validateurs 562, exécutés dans la vue 562.
+
+## 7. IPA privée 563 livrée
+
+- **Run** `40501404250` sur `0bf5854a` : `checks` et `cold` réussis (build
+  Xcode complet).
+- **Artefact** `12735616104`, chiffré pour `build-utils/delivery-563-recipient.pem`
+  (la clé privée n'est pas dans Git).
+- **IPA** `RewindBox-Build563-0bf5854a…-cold.ipa` : 0.0.8 (563), 188 074 851
+  octets, SHA-256 `d23c6b7885d94bbfd97c9571fd1519fd126e5c83f5ccac1a5d24f85934119319`,
+  égal à `SHA256SUMS` et à `signed-payload-identity.json`.
+- **Contenu** : le Core embarqué a l'empreinte de code et de données du Core
+  563 du run Core, avec ses marqueurs A/B. Le clavier et la bascule L3/R3 de
+  MeloNX (562) sont présents. Face à la 561, seuls changent de code
+  `libRPCS3Core.dylib` (Core 563), `melonx_internal_bridge` (hôte MeloNX 562)
+  et `Runner` (relinké par Xcode). Les 82 autres images Mach-O sont identiques
+  ou ne diffèrent que par leur signature.
+- **Revalidation locale** sur `0bf5854a` épinglé : les rapports RPCS3,
+  interface et fichiers de bibliothèque sont identiques octet pour octet à
+  ceux de la CI.
+
+Reçu : [`evidence/rpcs3-cell563-delivery.json`](evidence/rpcs3-cell563-delivery.json).
+Elle s'installe par-dessus la 559 à la 562 après re-signature SideStore.
+Aucune release GitHub, aucune mesure sur iPhone.

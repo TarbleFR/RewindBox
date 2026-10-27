@@ -93,6 +93,12 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   561 -> 563 (`dd65e867`, Core run `40500425037`). Full Xcode build (562 is not
   a published release). The 562 recipe runs unchanged in `as_562()`. No
   release. Do not reuse 563.
+- Private 563 delivered: run `40501404250` on `0bf5854a` (checks + cold),
+  artifact `12735616104`, IPA 0.0.8 (563) 188,074,851 bytes, SHA-256
+  `d23c6b78…34119319`. Core = CI Core 563 (fingerprint), 562 MeloNX keyboard
+  present; against 561 only `libRPCS3Core.dylib`, `melonx_internal_bridge` and
+  `Runner` change code. Local revalidation identical to CI. Receipt
+  `docs/evidence/rpcs3-cell563-delivery.json`. Not tested on iPhone.
 
 ## RPCS3 Core 561: early command buffer submission (DBZ HD) — 27 October 2026
 
