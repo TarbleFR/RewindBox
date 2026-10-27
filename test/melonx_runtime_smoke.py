@@ -157,8 +157,9 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        // Original, unencrypted ARM64 homebrew: branch over its NRO header,
        // call a function whose return lands on a frame-opening STP (the JIT
        // ends that unit after the call and translates the continuation when
-       // the call returns), tail-jump past another frame opening, then issue
-       // SVC ExitProcess. This is CPU/session proof, not a graphical game.
+       // the call returns), tail-jump past another frame opening, jump past 67
+       // undefined words (that unit ends at the jump, as a switch case does),
+       // then issue SVC ExitProcess. This is CPU/session proof, not a graphical game.
        let homebrew=root.appendingPathComponent("RewindBox-owned-exit.nro")
        var nro=Data(repeating:0,count:0x3000)
        func word(_ offset:Int,_ value:UInt32) {var little=value.littleEndian;withUnsafeBytes(of:&little){nro.replaceSubrange(offset..<offset+4,with:$0)}}
@@ -166,7 +167,8 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        word(0x20,0);word(0x24,0x1000);word(0x28,0x1000);word(0x2c,0x1000);word(0x30,0x2000);word(0x34,0x1000);word(0x38,0x1000)
        word(0x80,0x94000020);word(0x84,0xa9bf7bfd);word(0x88,0xa8c17bfd);word(0x8c,0x14000021);word(0x90,0xa9bf7bfd)
        word(0x100,0xd65f03c0)
-       word(0x110,0xd2800000);word(0x114,0xd40000e1);word(0x118,0x14000000)
+       word(0x110,0x14000044)
+       word(0x220,0xd2800000);word(0x224,0xd40000e1);word(0x228,0x14000000)
        try nro.write(to:homebrew)
        NSLog("SMOKE boundary 142")
        let hb=try runtime.content(path:homebrew.path,operation:8)

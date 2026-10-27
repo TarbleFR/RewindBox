@@ -127,6 +127,17 @@ static class Program
             ["trapBeforeTarget"] = Unit(new[] { A64.Cbz(0, 2), A64.Brk }.Concat(tail).ToArray()),
             // L: add; subs; b.ne L; ret: loops are untouched.
             ["loop"] = Unit(new[] { A64.AddOne, A64.Subs, A64.BNe(2, 0), A64.Ret }),
+            // A switch case entered through its jump table: add x5; b end; <74 other
+            // case instructions>; end: add; ret.
+            ["switchCase"] = Unit(Enumerable.Repeat(A64.AddOne, 5).Append(A64.B(5, 80)).Concat(Enumerable.Repeat(A64.AddOne, 74))
+                .Concat(new[] { A64.AddOne, A64.Ret }).ToArray()),
+            // b cond; <69 body instructions>; cond: subs; b.ne body; ret: a rotated loop keeps its body.
+            ["rotatedLoop"] = Unit(new[] { A64.B(0, 70) }.Concat(Enumerable.Repeat(A64.AddOne, 69))
+                .Concat(new[] { A64.Subs, A64.BNe(71, 1), A64.Ret }).ToArray()),
+            // b L; <19 instructions>; L: add; ret: a short skip keeps its unit.
+            ["shortSkip"] = Unit(new[] { A64.B(0, 20) }.Concat(Enumerable.Repeat(A64.AddOne, 20)).Append(A64.Ret).ToArray()),
+            // cbz x0, M; b end; <78 instructions, M among them>; end: ret: an entered skip keeps its unit.
+            ["enteredSkip"] = Unit(new[] { A64.Cbz(0, 40), A64.B(1, 80) }.Concat(Enumerable.Repeat(A64.AddOne, 78)).Append(A64.Ret).ToArray()),
             ["layout"] = Layout(300),
         };
         Console.WriteLine(JsonSerializer.Serialize(report));

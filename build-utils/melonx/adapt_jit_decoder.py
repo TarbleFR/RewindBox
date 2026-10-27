@@ -22,7 +22,21 @@ and after a call or jump when the next instruction opens a stack frame
 usual host call and return check; only its continuation becomes a separate unit,
 translated if the call ever returns there. A branch target already known at that
 address keeps the unit going. Same measurement: 123 MiB of host code (-58 %),
-compile time -53 %, largest unit 898 KiB -> 232 KiB. Fail closed on drift.
+compile time -53 %, largest unit 898 KiB -> 232 KiB.
+
+The update still exhausted the arena after this (engine 566, 18:51 session of
+the same day, about 30 s). One more unbounded case: after a forward B within
+4 KB the decoder reads on through the code the jump passes over. A switch case,
+entered through its jump table (BR), ends with a jump to the end of the switch,
+so each case translated every case after it. Stop at such a jump when it passes
+over 64 instructions or more and nothing in the unit enters them: no earlier
+branch targets them, and the code at the jump target does not branch back into
+them before its next unconditional branch (a rotated loop keeps its body).
+Shorter skips keep the upstream unit. Measured with this engine's compiler on
+the 20,543 jump-table targets of the same binary (1,116 tables): 26.6 -> 19.5
+MiB of host code (-27 %); following every exit as the dispatcher would,
+56.6 -> 41.6 MiB, and 408 -> 386 MiB from all function starts (-5 %) with
+fewer units and exits. Fail closed on drift.
 """
 from adapt_session import once
 
@@ -75,6 +89,18 @@ def apply(source):
                     break;
                 }
 
+                if (!nextIsTarget && block.Instructions[^1].Name == InstName.BUncond &&
+                    TryGetBranchTarget(block, out ulong jumpTarget) && jumpTarget >= block.EndAddress + 256UL &&
+                    !IsSkippedCodeReachable(memoryManager, block.EndAddress, jumpTarget, branchTargets))
+                {
+                    // Nothing decoded so far enters the 64 or more instructions this forward
+                    // jump passes over (the other cases of a switch): end the unit with the
+                    // jump, whose target is then translated once for every unit reaching it.
+                    // Upstream decoded on, so each case entered through a jump table
+                    // translated every case after it as well. Shorter skips keep their unit.
+                    break;
+                }
+
                 address = block.EndAddress;''')
     once(decoder, '''        private static bool TryGetBranchTarget(Block block, out ulong targetAddress)
         {
@@ -110,6 +136,71 @@ def apply(source):
                        (encoding & 0xffc003e0u) == 0x6d8003e0u || // STP Dt, Dt2, [SP, #-imm]!
                        (encoding & 0xffe00fe0u) == 0xf8000fe0u || // STR Xt, [SP, #-imm]!
                        (encoding & 0xff8003ffu) == 0xd10003ffu;   // SUB SP, SP, #imm
+            }
+
+            return false;
+        }
+
+        private static bool IsSkippedCodeReachable(IMemoryManager memoryManager, ulong start, ulong end, List<ulong> branchTargets)
+        {
+            foreach (ulong target in branchTargets)
+            {
+                if (target > start && target < end)
+                {
+                    return true; // An earlier branch enters the skipped code.
+                }
+            }
+
+            // A rotated loop: the jump enters the loop condition, which branches back
+            // into the skipped body. Look at the code at the jump target, up to its
+            // first unconditional branch, without leaving its page.
+            for (ulong address = end; address < end + 32 * 4UL; address += 4UL)
+            {
+                if (address != end && (address & 0xfffUL) == 0)
+                {
+                    break;
+                }
+
+                uint encoding = memoryManager.Read<uint>(address);
+                long offset;
+
+                if ((encoding & 0x7c000000u) == 0x14000000u) // B, BL
+                {
+                    offset = ImmUtils.ExtractSImm26Times4(encoding);
+                }
+                else if ((encoding & 0xff000010u) == 0x54000000u || (encoding & 0x7e000000u) == 0x34000000u) // B.cond, CBZ, CBNZ
+                {
+                    offset = ImmUtils.ExtractSImm19Times4(encoding);
+                }
+                else if ((encoding & 0x7e000000u) == 0x36000000u) // TBZ, TBNZ
+                {
+                    offset = ImmUtils.ExtractSImm14Times4(encoding);
+                }
+                else if ((encoding & 0xfe000000u) == 0xd6000000u && (encoding & 0xfffffc1fu) != 0xd63f0000u)
+                {
+                    break; // BR, RET, ERET (BLR returns: keep looking).
+                }
+                else
+                {
+                    continue;
+                }
+
+                if ((encoding & 0xfc000000u) == 0x94000000u)
+                {
+                    continue; // BL returns.
+                }
+
+                ulong target = address + (ulong)offset;
+
+                if (target >= start && target < end)
+                {
+                    return true;
+                }
+
+                if ((encoding & 0xfc000000u) == 0x14000000u)
+                {
+                    break;
+                }
             }
 
             return false;

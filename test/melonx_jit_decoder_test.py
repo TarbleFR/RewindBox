@@ -6,8 +6,10 @@ Usage: melonx_jit_decoder_test.py <pinned MeloNX checkout>
 Both variants build the real Ryujinx.Cpu, ARMeilleure, Ryujinx.Memory and
 Ryujinx.Common projects from the pinned source and generate host ARM64 code;
 nothing is executed. A translation unit must end after a call that the next
-function follows and after trap padding; ordinary calls, known branch targets
-and loops keep the upstream units. The layout case is clang's: functions that
+function follows, after trap padding, and at a jump past 64 or more
+instructions nothing in the unit enters (the other cases of a switch);
+ordinary calls, known branch targets, loops, rotated loops and short skips
+keep the upstream units. The layout case is clang's: functions that
 end with a no-return call, back to back; the upstream decoder translates every
 following function again for each entry point.
 """
@@ -87,7 +89,7 @@ def check(upstream: dict, adapted: dict):
     u, a = upstream['callNopsThenFunction'], adapted['callNopsThenFunction']
     expect(u['guestInstructions'] == 48 and a['guestInstructions'] == 3 and a['emptyLastBlock'],
            f'NOP padding before the next frame: {u} {a}')
-    for name in ('callThenCode', 'callBeforeTarget', 'trapBeforeTarget', 'loop'):
+    for name in ('callThenCode', 'callBeforeTarget', 'trapBeforeTarget', 'loop', 'rotatedLoop', 'shortSkip', 'enteredSkip'):
         # Host addresses (function table slots) are process-specific and change
         # how many MOVK instructions a constant takes: compare the units, and
         # the code size within a few instructions.
@@ -102,6 +104,12 @@ def check(upstream: dict, adapted: dict):
     u, a = upstream['trapPadding'], adapted['trapPadding']
     expect(u['guestInstructions'] == 144 and a['guestInstructions'] == 3 and a['truncated'] and not a['emptyLastBlock'],
            f'trap padding: upstream decodes through it, adapted stops at the first trap: {u} {a}')
+    expect(adapted['rotatedLoop']['guestInstructions'] == 73 and adapted['shortSkip']['guestInstructions'] == 22 and
+           adapted['enteredSkip']['guestInstructions'] == 81,
+           f'rotated loops, short skips and skips an earlier branch enters keep their unit: {adapted}')
+    u, a = upstream['switchCase'], adapted['switchCase']
+    expect(u['guestInstructions'] == 82 and a['guestInstructions'] == 6 and not a['truncated'] and u['hostBytes'] > 5 * a['hostBytes'],
+           f'a switch case ends with its jump past the other cases: {u} {a}')
     u, a = upstream['layout'], adapted['layout']
     # The last function is followed by the frameless helper's RET, which it still includes.
     expect(a['guestInstructions'] == 300 * 12 + 1, f'adapted: each entry translates its own function: {a}')
@@ -130,4 +138,4 @@ u, a = upstream['layout'], adapted['layout']
 print(f"MeloNX JIT decoder: 300 back-to-back functions ending in a no-return call — upstream {u['guestInstructions']} guest "
       f"instructions / {u['hostBytes'] // 1024} KiB host code translated, adapted {a['guestInstructions']} / "
       f"{a['hostBytes'] // 1024} KiB; units end after calls followed by a frame and after traps; ordinary calls, "
-      f"known targets and loops unchanged.")
+      f"known targets and loops unchanged; a switch case stops at its jump past the other cases.")
