@@ -1,0 +1,169 @@
+{
+  "build": 563,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "baseline": "fc1c507f120f7cc20cdf8f3ea62290fda53f66e4",
+  "sourcePatchSHA256": "fcc3d203e26b2f16c17741b180b704baca7668a94a235638b85e1a123d94cde2",
+  "fixtureSHA256": "eff97199ae3a00141b870bdc650cbd86d3ab3f4ef7cb0bfa425f6c93150e2b32",
+  "hostPreflight": {
+    "command": "CXX=clang++-22 python3 .github/diagnostics/rpcs3cell563_core.py --source <fresh materialized source>",
+    "host": "Linux x86_64 (cloud container)",
+    "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)",
+    "proofAllTestsPassed": true,
+    "verifyReusePassed": true,
+    "referenceCore561": {
+      "source": "5b033881a032be1c2ac71080e229b86dc675ed6d",
+      "run": 40486026315,
+      "artifact": 12725733046,
+      "archiveSHA256": "6b0e783cdf7c2f077a3ec6550962434c755810044bb6aa8d3f75256a9e3ebab8",
+      "coreSHA256": "7b1e4fda0b94eaaf9224561259d78541a7cb8f34a75ddcf23f04702ab5c20cbe",
+      "tests": 1,
+      "historicalResults": true,
+      "coreBinaryReused": false,
+      "scope": "Authenticated561 Core evidence is historical. Current563 tests execute every563 change against the exact561 preimages. No iPhone gain claimed."
+    },
+    "proofInputSHA256Count": 138,
+    "report": {
+      "passed": true,
+      "sourceContract": {
+        "baseline": "fc1c507f120f7cc20cdf8f3ea62290fda53f66e4",
+        "fixtureSHA256": "eff97199ae3a00141b870bdc650cbd86d3ab3f4ef7cb0bfa425f6c93150e2b32",
+        "manifestSHA256": "f68c1f69dfd4f27d27cce66c11225f1e0fadd15ccfaeeb04c8af98b0c1090025",
+        "sourceSHA256": {
+          "rpcs3/ios/IOSEarlySubmit.h": "a395aa35b503e7dee3abddd31d2e3e0b65c1f082ce96d506d6d8f932231c6573",
+          "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "0e09e0476e662f7ab556b6d19695ef86b1e68ef9872c9d8eab3073239c2a2879",
+          "rpcs3/ios/RPCS3IOSPerformance.cpp": "29979fab916d32cfaddbd70e76a242c1a4a6a15142f329e52ec3866ad73457c6",
+          "rpcs3/ios/RPCS3IOSSettings.cpp": "f99449a2c2b9b1dd8c061dc1929c340f56640e862e3747792d8c98617161cd74"
+        },
+        "otherCoreSourcesUnchanged": 284,
+        "rendererUnchangedFrom561": true
+      },
+      "codegenIdentity": {
+        "identities": {
+          "PPU": "a987639e9f838d1c",
+          "SPU": "d070cb361bdef607"
+        },
+        "unchangedFrom561": true,
+        "coldCompileRequiredByThisChange": false
+      },
+      "boundary": {
+        "boundary": "window snapshot under m_profile_mutex",
+        "exportsEndingWindowState": true,
+        "fpsSummarySameWindow": true,
+        "decisionUnchangedFrom561": true
+      },
+      "exportLine": {
+        "line": "COREPROF OPT561 ... ab=",
+        "bootLog": "early_submit_ab=",
+        "automaticTitles": [
+          "BLES01658"
+        ],
+        "settingKeyUnchanged": "experimental.early_submit"
+      },
+      "abExperiment": {
+        "addressUndefined": {
+          "passed": true,
+          "policyCases": 7,
+          "windows": 12,
+          "onWindows": 6,
+          "offWindows": 6,
+          "sequence": "101010101010",
+          "explicitModesStable": true,
+          "otherTitlesOff": true,
+          "threadWindows": 400,
+          "everySubmissionReportedOnce": true,
+          "decisions": 1024,
+          "harnessSHA256": "501a4f0603955f4fbfd07d9ab7c95d1223850c96df4ea98b3287d4160b1cb1f2"
+        },
+        "thread": {
+          "passed": true,
+          "policyCases": 7,
+          "windows": 12,
+          "onWindows": 6,
+          "offWindows": 6,
+          "sequence": "101010101010",
+          "explicitModesStable": true,
+          "otherTitlesOff": true,
+          "threadWindows": 400,
+          "everySubmissionReportedOnce": true,
+          "decisions": 1024,
+          "harnessSHA256": "501a4f0603955f4fbfd07d9ab7c95d1223850c96df4ea98b3287d4160b1cb1f2"
+        }
+      }
+    }
+  },
+  "arm64Correctness": {
+    "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)",
+    "target": "aarch64-linux-gnu -mcpu=apple-a7 -march=armv8.4-a",
+    "runner": "qemu-aarch64-static",
+    "sanitizer": "UBSan trap mode (no ASan/TSan runtime under qemu-user)",
+    "harnessIdenticalToHostRun": true,
+    "resultsIdenticalToHostRun": true,
+    "results": {
+      "abExperiment": {
+        "passed": true,
+        "policyCases": 7,
+        "windows": 12,
+        "onWindows": 6,
+        "offWindows": 6,
+        "sequence": "101010101010",
+        "explicitModesStable": true,
+        "otherTitlesOff": true,
+        "threadWindows": 400,
+        "everySubmissionReportedOnce": true,
+        "decisions": 1024,
+        "harnessSHA256": "501a4f0603955f4fbfd07d9ab7c95d1223850c96df4ea98b3287d4160b1cb1f2"
+      }
+    },
+    "scope": "qemu-user emulation: correctness only, no performance figure"
+  },
+  "mutationChecks": {
+    "detected": [
+      "boundary_reports_next_state",
+      "toggles_without_alternation",
+      "never_toggles",
+      "ab_for_explicit_modes",
+      "ab_for_every_title",
+      "export_prints_next_state",
+      "ab_flag_dropped"
+    ],
+    "notDetected": [],
+    "scope": "Each mutation edits one 563 production line in a copy of the source; the harness must fail on behavior."
+  },
+  "productionSyntax": {
+    "compiler": "clang++-22 --target=aarch64-linux-gnu -std=gnu++23 -DRPCS3_IOS=1 -fsyntax-only",
+    "units": [
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+      "rpcs3/Emu/RSX/VK/VKDraw.cpp",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+      "rpcs3/Emu/RSX/VK/VKPresent.cpp",
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp"
+    ],
+    "errors": 0,
+    "projectWarningSetIdenticalBeforeAfter": true,
+    "warningFlags": "-Wall -Wold-style-cast -Werror=old-style-cast -Werror=sign-compare -Werror=reorder -Werror=return-type -Werror=missing-noreturn -Werror=implicit-fallthrough -Wshadow",
+    "warningBaseline": "the 561 tree, same flags and shims; the diagnostics differ only by line numbers"
+  },
+  "existingSourceTests": {
+    "passed": [
+      "rpcs3_preprocessor_balance_test",
+      "rpcs3_build301_passive_dlopen_test",
+      "rpcs3_atomic_startup_test",
+      "rpcs3_failed_startup_test",
+      "rpcs3_build264_gow3_core_test",
+      "rpcs3_build351_gow3_engine_test",
+      "rpcs3_build352_gow3_memory_test",
+      "rpcs3_build353_xitrix_v010_test",
+      "rpcs3_armsx3_performance_patch_test"
+    ],
+    "sourceOnlyPinContract": "neo_swap_core_pin_test.py --source-only passes with PATCH_SHA256 fcc3d203",
+    "preexistingFailure": {
+      "neo_swap_core_pin_test.py": "full mode fails identically on the unchanged base: Core pin cfe92344 lacks input test/rpcs3_restore_eof_test.py (public neoswap-ipa.yml pin, left to the maintainer)"
+    }
+  },
+  "scope": "Host correctness only. No iPhone FPS, frame time, GPU wait, Metal rendering, thermal or memory result for 563."
+}

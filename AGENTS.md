@@ -68,6 +68,25 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   delivery recipe together; the delivery waits for the exact Core run. See
   `docs/core-swap-delivery.md`.
 
+## RPCS3 Core 563: in-session A/B of the 561 early submission (DBZ HD) — 27 October 2026
+
+- Reason: the 562 measurement could not isolate 561 (the 562 session was also
+  slower where 561 never acted). Core 563 (`CELL563_EARLY_AB`) makes Automatic on
+  `BLES01658` alternate the 561 lever per profiling window (~5 s, on first):
+  `early_submit::window_boundary()` runs under `m_profile_mutex` with the window
+  snapshot, returns the ending window's state and switches the next one.
+  `COREPROF OPT561` prints that state plus `ab=1`; the boot log adds
+  `early_submit_ab=`. Explicit Enabled/Disabled keep one state; other titles and
+  the 561 decision, limits, guards and renderer hook are unchanged (renderer
+  sources byte-identical to 561). Codegen identities unchanged.
+- Host evidence `docs/evidence/rpcs3-cell563-host-linux.json`: production
+  header and verbatim policy/boundary/export bodies under ASan/UBSan, TSan and
+  ARM64 qemu (identical); 7 policy cases, alternation 101010101010, explicit
+  modes stable, 400 concurrent windows with every early submission reported
+  once; seven behavioral mutations detected; driver preflight authenticated
+  the 561 diagnostics artifact. A measurement build, not an optimization. See
+  `docs/rpcs3-cell563.md`.
+
 ## RPCS3 Core 561: early command buffer submission (DBZ HD) — 27 October 2026
 
 - Build 560 measured on DBZ `BLES01658` (`docs/rpcs3-cell560.md` §9): neutral,

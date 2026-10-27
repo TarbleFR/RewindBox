@@ -141,7 +141,9 @@ python3 "$PWD/test/rpcs3_build351_gow3_engine_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build352_gow3_memory_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build353_xitrix_v010_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_armsx3_performance_patch_test.py" "$SRC"
-if [[ -n "${RPCS3_CELL561_NATIVE_PROOF:-}" ]]; then
+if [[ -n "${RPCS3_CELL563_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell563_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL563_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL561_NATIVE_PROOF:-}" ]]; then
   python3 "$PWD/.github/diagnostics/rpcs3cell561_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL561_NATIVE_PROOF"
 elif [[ -n "${RPCS3_CELL560_NATIVE_PROOF:-}" ]]; then
   python3 "$PWD/.github/diagnostics/rpcs3cell560_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL560_NATIVE_PROOF"
