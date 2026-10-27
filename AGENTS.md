@@ -92,6 +92,15 @@ Maintainer request (video of the Switch playlist, `app.log`), branch `Claude`, n
   bubbles option, controller handler restored after an RPCS3 game, latched
   playlist menu; Swift/Objective-C++ first compiled by this delivery): its 24
   files and two new tests from `48b9865a`.
+- Private 576 delivered from `460c5b9b` (recipe `50d15eb1`), run
+  `40596334529` (checks + cold success): IPA 0.0.8 (576), 188,095,770 bytes,
+  SHA-256 `f9ee961340d8802835d41fa3505e1e687f920b667024e2ff9e216f920fed8f3b`
+  (equal to SHA256SUMS), artifact `12777729764` encrypted for
+  `delivery-576-recipient.pem`; MeloNX engine `301e0f86` (run 40591863306),
+  RPCS3 Core 575; 20 validator receipts passed; the Swift and
+  Objective-C++ of `48b9865a` compiled in the Release build. Receipt
+  `docs/evidence/melonx-warm576-delivery.json`. Not tested on iPhone; no
+  launch-time or FPS gain claimed. Do not reuse the number 576.
 
 ## RPCS3 Core 575: title levers for Black Ops II and Bladestorm — 27 October 2026
 
