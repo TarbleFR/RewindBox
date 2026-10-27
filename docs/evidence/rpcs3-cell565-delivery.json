@@ -1,0 +1,53 @@
+{
+  "build": 565,
+  "result": "delivered",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "5869c89eed9c3a26f0b590a916c497728dc134d6",
+  "run": 40536444985,
+  "workflow": ".github/workflows/rpcs3-cell565-delivery.yml",
+  "artifact": {
+    "id": 12750059637,
+    "name": "RewindBox-Build565-5869c89eed9c3a26f0b590a916c497728dc134d6-cold",
+    "bytes": 189136413,
+    "digest": "sha256:a72b5cb57e2420758470eee894c359648de81fafd1280bd55c65974f72ac845a",
+    "encryption": "AES-256-CBC PBKDF2 200000, key RSA OAEP SHA256 (build-utils/delivery-565-recipient.pem)"
+  },
+  "ipa": {
+    "version": "0.0.8",
+    "build": 565,
+    "bytes": 188083286,
+    "sha256": "970a48ac37bce8538be9855cead1c03e05094743edcea0e598db48ee98b6e37d",
+    "entries": 5360
+  },
+  "contents": {
+    "rpcs3Core": {
+      "source": "07e416c42bbdfaede2df1870ccd7fda91d97abce",
+      "run": 40533429692,
+      "sha256": "428b11e6bc51a283fd1ff2ffcc3fe7307a3dba44461a9f170005752c8db15ca5"
+    },
+    "gow3Profile": {
+      "source": "c5ba9175040b5a464d401cf5a0ee9bfe274d6114",
+      "frameLimit": "Auto (was 30)"
+    },
+    "melonxEngine": "876a087b536469017f2e71b41c8d4df4643c3976 (564, unchanged)",
+    "markersInSignedCore": [
+      "No-op PUTLLC Keeps Reservations",
+      "RSX Idle Park",
+      "noop_putllc=%d rsx_idle_park=%d",
+      "Early Command Buffer Submission"
+    ],
+    "removed563Marker": "early_submit_ab="
+  },
+  "durations": {
+    "checksMinutes": 6.7,
+    "macosJobMinutes": 26.6,
+    "endToEndMinutes": 33.4,
+    "comparedWith563": {
+      "macosJobMinutes": 32.6,
+      "endToEndMinutes": 40.0
+    },
+    "note": "first delivery computing its source contract once per job (delivery_contract_memo)"
+  },
+  "scope": "CI build, signature and validators only; no iPhone run, no FPS measured."
+}

@@ -204,6 +204,13 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   only the `lib` tree differs from 564. The 564 recipe runs unchanged in
   `as_564()`. First delivery to compute its source contract once per job
   (`delivery_contract_memo.reuse`). Full Xcode build. No release.
+- Private 565 delivered: run `40536444985` on `5869c89e`, artifact
+  `12750059637`, IPA 0.0.8 (565) 188,083,286 bytes, SHA-256 `970a48ac…`;
+  signed Core = Core 565 (`428b11e6…`), MeloNX engine 876a087. Delivery time
+  33.4 min end to end (macOS job 26.6 min) vs 40 / 32.6 min for 563: the
+  contract memo saved ~6 min. Receipt `docs/evidence/rpcs3-cell565-delivery.json`.
+  Not tested on iPhone. Parallel private 566 (other session) = 564 + MeloNX
+  engine 86c2b4d on Core 563; 567 (other session) is to combine both on 565.
 
 ## RPCS3 Core 563: in-session A/B of the 561 early submission (DBZ HD) — 27 October 2026
 
