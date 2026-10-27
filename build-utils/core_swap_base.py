@@ -19,7 +19,12 @@ validator) runs unchanged:
 - every bundle version equal to the base build number becomes this build's,
   and the short version must be the pubspec one;
 - the base's build-numbered identity receipts are removed: the embed steps
-  write this build's.
+  write this build's;
+- StikJIT, which Xcode embeds from the tested framework of the StikJIT steps
+  and the packaging validators compare byte for byte with that artifact before
+  the seal step signs it, is put back as the tested binary once its code, data
+  sections and ABI metadata are proven equal to the published one (only the
+  signature differs, and the seal step rewrites it).
 
 The Runner keeps the base's Apple generic version string (PROJECT:Runner-<base>),
 which iOS does not read; nothing of the compiled code is touched. The seal step
@@ -45,6 +50,9 @@ BUNDLE = 'Payload/NeoStation.app'
 # The shipped source trees, as the delivery tree modules define them.
 TREES = ['lib', 'native', 'packages', 'assets', 'pubspec.yaml', 'pubspec.lock']
 REPOSITORY = 'TarbleFR/RewindBox'
+# The tested StikJIT framework that the StikJIT steps install for Xcode.
+STIKJIT = 'Frameworks/StikJIT.framework/StikJIT'
+STIKJIT_TESTED = ROOT / 'build/stikjit-current'
 
 
 def demand(condition: bool, message: str) -> None:
@@ -169,6 +177,31 @@ def extract(ipa: Path, products: Path, base: str, build: str) -> dict:
                 files=sum(1 for p in app.rglob('*') if p.is_file()))
 
 
+def restore_tested_stikjit(app: Path, tested: Path = STIKJIT_TESTED) -> dict:
+    """The tested StikJIT binary in place of the published, signed one, as Xcode leaves it.
+
+    The seal step's fingerprint (code and data sections, symbols, dependencies,
+    run paths, platform, minimum OS, install name) must be the same for both:
+    the published application ships this code, and only its signature differs.
+    """
+    from delivery_benchmark import payload_fingerprint
+    identity = json.loads((tested / 'identity.json').read_text())
+    artifact = tested / 'StikJIT.xcframework/ios-arm64/StikJIT.framework/StikJIT'
+    demand(artifact.is_file() and sha256(artifact) == identity['binarySha256'],
+           'The tested StikJIT artifact is not the one its identity names')
+    shipped = app / STIKJIT
+    demand(shipped.is_file() and not shipped.is_symlink(), 'The base application has no StikJIT binary')
+    published, data = shipped.read_bytes(), artifact.read_bytes()
+    fingerprint = payload_fingerprint(data)
+    demand(payload_fingerprint(published) == fingerprint,
+           'The published StikJIT is not the tested one: a full build is required')
+    mode = shipped.stat().st_mode
+    shipped.write_bytes(data)
+    shipped.chmod(mode)
+    return dict(binary=STIKJIT, publishedSha256=hashlib.sha256(published).hexdigest(),
+                testedSha256=identity['binarySha256'], payloadFingerprint=fingerprint)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--tag', required=True)
@@ -206,6 +239,7 @@ def main() -> None:
         published = fetch(a.tag, a.asset, a.sha256, ipa)
     demand(sha256(ipa) == a.sha256, 'The downloaded base IPA is not the pinned one')
     result = extract(ipa, a.products, a.base_build, a.build_number)
+    result['stikjit'] = restore_tested_stikjit(a.products / APP)
     report = dict(schemaVersion=1, build=int(a.build_number), base=dict(build=int(a.base_build), sha256=a.sha256,
                   bytes=ipa.stat().st_size, receipt=a.base_receipt, receiptSource=receipt['source'],
                   release=published),

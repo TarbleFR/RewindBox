@@ -14,7 +14,8 @@ things in its macOS job:
 
 The checks job gains one step after its pin: core_swap_base.py --check, which
 fails within a minute when the release, the base receipt or the product trees
-do not allow a Core swap. Every other step, its order and every validator are
+do not allow a Core swap. core_swap_base.py joins the push paths: it is part of
+the recipe, so a change to it runs the delivery again. Every other step, its order and every validator are
 unchanged; the result is checked against that description before it is
 written. The tree module of the build must list build-utils/core_swap_base.py
 in its recipe, or the pin removes it.
@@ -37,6 +38,7 @@ CORE_STEPS = ('Require completed exact NeoSwap Core before artifact download',
               'Verify and install passive RPCS3 Core')
 FIRST_EMBED = 'Embed NeoPlay source identity and dependency acknowledgements'
 CORE_EMBED = 'Embed verified RPCS3 Core and signing metadata'
+SCRIPT = 'build-utils/core_swap_base.py'
 
 
 class Dumper(yaml.SafeDumper):
@@ -96,6 +98,9 @@ def transform(workflow: dict, tag: str, asset: str, sha256: str, base_build: str
     note = f' — Core swap on the published {tag} application (build {base_build})'
     result['name'] = workflow['name'] + note
     result['run-name'] = workflow['run-name'].replace(' — ${{ github.sha }}', note + ' — ${{ github.sha }}')
+    paths = result['on']['push']['paths']
+    assert SCRIPT not in paths, 'The full workflow already names the Core-swap script'
+    paths.append(SCRIPT)
     steps = result['jobs']['cold']['steps']
     names = [s.get('name', '') for s in steps]
     compile_at = names.index(COMPILE)
@@ -115,11 +120,14 @@ def transform(workflow: dict, tag: str, asset: str, sha256: str, base_build: str
 
 
 def check(full: dict, swap: dict, *base) -> None:
-    """The variant is the full workflow with exactly the two documented changes."""
+    """The variant is the full workflow with exactly the documented changes."""
     assert set(full) == set(swap) and set(full['jobs']) == set(swap['jobs'])
     for key in full:
-        if key not in ('name', 'run-name', 'jobs'):
+        if key not in ('name', 'run-name', 'jobs', 'on'):
             assert full[key] == swap[key], key
+    on = copy.deepcopy(full['on'])
+    on['push']['paths'] = on['push']['paths'] + [SCRIPT]
+    assert swap['on'] == on
     for job in full['jobs']:
         a, b = full['jobs'][job], swap['jobs'][job]
         assert {k: v for k, v in a.items() if k != 'steps'} == {k: v for k, v in b.items() if k != 'steps'}, job

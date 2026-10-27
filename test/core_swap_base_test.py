@@ -5,11 +5,17 @@ core_swap_base.extract runs on synthetic IPAs (binary and XML property lists,
 build-numbered and other receipts, a Runner with its Apple generic version):
 it must stamp exactly the bundles of the base build, remove only the base's
 build-numbered receipts, and refuse anything that is not the expected base.
+core_swap_base.restore_tested_stikjit runs on synthetic ARM64 images: it must
+put back the tested binary when only the signature differs, and refuse a
+different code section or an artifact that is not the one its identity names.
 make_core_swap_workflow.transform runs on the committed 560 delivery workflow
 and on altered copies it must refuse.
 """
 import copy
+import hashlib
+import json
 import plistlib
+import struct
 import subprocess
 import sys
 import tempfile
@@ -106,6 +112,56 @@ def test_refusals():
     refused(entries, 'already holds an application', products_with_app=True)
 
 
+def image(code, signature):
+    """A thin ARM64 dylib: one __TEXT,__text section and a code signature after it."""
+    commands = 72 + 80 + 16
+    text = 32 + commands
+    signed = text + 16 * ((len(code) + 15) // 16)
+    header = struct.pack('<IIIIIIII', 0xFEEDFACF, 0x0100000C, 0, 6, 2, commands, 0, 0)
+    segment = struct.pack('<II16sQQQQIIII', 0x19, 152, b'__TEXT', 0, signed, 0, signed, 5, 5, 1, 0)
+    section = struct.pack('<16s16sQQIIIIIIII', b'__text', b'__TEXT', text, len(code), text, 2, 0, 0, 0, 0, 0, 0)
+    signature = struct.pack('<IIII', 0x1D, 16, signed, len(signature))
+    return (header + segment + section + signature + code).ljust(signed, b'\0') + signature
+
+
+def stikjit(directory, published, tested, recorded=None):
+    app = Path(directory) / 'Runner.app'
+    shipped = app / base.STIKJIT
+    shipped.parent.mkdir(parents=True)
+    shipped.write_bytes(published)
+    shipped.chmod(0o755)
+    artifacts = Path(directory) / 'stikjit-current'
+    framework = artifacts / 'StikJIT.xcframework/ios-arm64/StikJIT.framework'
+    framework.mkdir(parents=True)
+    (framework / 'StikJIT').write_bytes(tested)
+    (artifacts / 'identity.json').write_text(json.dumps({'binarySha256': recorded or hashlib.sha256(tested).hexdigest()}))
+    return app, artifacts
+
+
+def test_tested_stikjit():
+    tested = image(b'\x1f\x20\x03\xd5' * 4, b'linker-signed')
+    published = image(b'\x1f\x20\x03\xd5' * 4, b'sealed by the base delivery')
+    assert published != tested
+    with tempfile.TemporaryDirectory() as td:
+        app, artifacts = stikjit(td, published, tested)
+        result = base.restore_tested_stikjit(app, artifacts)
+        shipped = app / base.STIKJIT
+        assert shipped.read_bytes() == tested and shipped.stat().st_mode & 0o777 == 0o755
+        assert result['publishedSha256'] == hashlib.sha256(published).hexdigest()
+        assert result['testedSha256'] == hashlib.sha256(tested).hexdigest()
+    for altered, recorded, message in ((image(b'\x00\x00\x80\xd2' * 4, b'sealed'), None, 'is not the tested one'),
+                                       (published, 'f' * 64, 'not the one its identity names')):
+        with tempfile.TemporaryDirectory() as td:
+            app, artifacts = stikjit(td, altered, tested, recorded)
+            try:
+                base.restore_tested_stikjit(app, artifacts)
+            except SystemExit as error:
+                assert message in str(error), (message, str(error))
+                assert (app / base.STIKJIT).read_bytes() == altered
+                continue
+            raise AssertionError('accepted: ' + message)
+
+
 def test_workflow_variant():
     full = yaml.safe_load((ROOT / '.github/workflows/rpcs3-cell560-delivery.yml').read_text())
     args = ('0.0.10', 'RewindBox-.0.0.10.ipa', 'f' * 64, '559', 'docs/evidence/rpcs3-cell559-delivery.json')
@@ -120,6 +176,8 @@ def test_workflow_variant():
     assert checks[pin + 1].startswith('Require the published 0.0.10 application')
     assert '--check' in swap['jobs']['checks']['steps'][pin + 1]['run']
     assert len(checks) == len(full['jobs']['checks']['steps']) + 1
+    # The Core-swap script is a recipe input: changing it runs the delivery again.
+    assert swap['on']['push']['paths'] == full['on']['push']['paths'] + [variant.SCRIPT]
     text = yaml.dump(swap, Dumper=variant.Dumper, sort_keys=False, width=120, allow_unicode=True)
     assert yaml.safe_load(text) == swap
     # Altered sources are refused: a missing Core step, Core steps after the compile, no compile.
@@ -147,5 +205,7 @@ def test_workflow_variant():
 if __name__ == '__main__':
     test_extract()
     test_refusals()
+    test_tested_stikjit()
     test_workflow_variant()
-    print('PASS core-swap base preparation (stamping, receipts, 7 refusals) and workflow variant (3 refusals)')
+    print('PASS core-swap base preparation (stamping, receipts, 7 refusals), tested StikJIT (2 refusals) '
+          'and workflow variant (3 refusals)')

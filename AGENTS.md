@@ -50,9 +50,16 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   every other step and validator is unchanged, and the checks job runs
   `core_swap_base.py --check` first. The build's tree module must list
   `build-utils/core_swap_base.py` in its recipe.
-- Prepared and tested off CI only (`test/core_swap_base_test.py`, the real
-  0.0.10 asset, comparison with the full 560 IPA); not yet run on CI. Any
-  shipped-source change requires the full build. Push the Core commit and the
+- First CI run (delivery 561, run `40486995044`): `checks` passed; the macOS
+  job failed at packaging, `validate_stikjit_ipa.py` (before the seal) compares
+  StikJIT byte for byte with the tested artifact `224325cc`, and the published
+  app carries it signed (`5e37408c`). `core_swap_base.py` now puts the tested
+  binary back after requiring the seal step's `payload_fingerprint` (code and
+  data sections, ABI metadata) to equal the published one's; the 559 seal
+  receipt records that fingerprint (`57e75fbd`) for the unsigned binary.
+  `make_core_swap_workflow.py` adds `core_swap_base.py` to the variant's push
+  paths. Tests: `test/core_swap_base_test.py`. Any shipped-source change
+  requires the full build. Push the Core commit and the
   delivery recipe together; the delivery waits for the exact Core run. See
   `docs/core-swap-delivery.md`.
 

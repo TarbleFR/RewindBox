@@ -1,8 +1,9 @@
 # Livraison « Core seul » à partir d'une IPA publiée
 
 27 octobre 2026. Ce mode raccourcit les livraisons privées qui ne changent que
-le Core RPCS3, comme 559 et 560. Il est préparé mais **n'a encore tourné sur
-aucun run CI**.
+le Core RPCS3, comme 559 et 560. Son premier run CI (livraison 561) a révélé
+un contrôle que la validation hors CI n'avait pas couvert (§ 6) ; il est
+corrigé.
 
 ## 1. Pourquoi
 
@@ -52,6 +53,7 @@ résultat contre cette description.
      numéro de base ; la version courte doit être celle du `pubspec` ;
    - il retire les reçus d'identité numérotés de la base, que les étapes
      d'intégration réécrivent pour le build ;
+   - il remet StikJIT dans son état d'avant scellement (§ 6) ;
    - il écrit `build/delivery/core-swap-base.json`.
 3. **Job macOS : étapes du Core déplacées.** Les quatre étapes du Core RPCS3
    (attente du run, attente du composant, téléchargement, vérification et
@@ -126,3 +128,30 @@ lui-même.
 
 Le premier run réel est à surveiller. En cas d'échec, la recette complète
 sert de repli, au prix d'un run de plus.
+
+## 6. Premier run CI (livraison 561) et correction StikJIT
+
+- **Run `40486995044`** sur `5dd6a5ae` : le job `checks` réussit, contrôle
+  core-swap compris. Le job macOS échoue à « Package and validate RewindBox
+  IPA » : `StikJIT binary does not match tested native artifact`.
+- **Cause.** Xcode intègre StikJIT depuis le framework testé que les étapes
+  StikJIT installent (binaire `224325cc…`, le même artefact en cache pour
+  559, 560 et 561). `validate_stikjit_ipa.py` compare ce binaire octet pour
+  octet **avant** le scellement. L'app publiée porte le même binaire, mais
+  déjà signé par le scellement de la 559 (`5e37408c…`).
+- **Correction.** `core_swap_base.py` remet le binaire testé à la place du
+  binaire publié, après avoir exigé la même empreinte `payload_fingerprint`
+  que celle du scellement : sections de code et de données, symboles,
+  dépendances, run paths, plateforme, OS minimum et nom d'installation.
+  Seule la signature diffère, et le scellement la réécrit. Le reçu de
+  scellement de la 559 enregistre pour ce binaire non signé l'empreinte
+  `57e75fbd…`, qui est aussi celle du binaire publié.
+- **Autres images.** Les autres binaires issus d'artefacts testés (ARMSX2,
+  libretro, MoltenVK, MeloNX, Core RPCS3) sont recopiés par les étapes
+  d'intégration, comme dans le build complet. StikJIT est le seul qu'Xcode
+  intègre lui-même.
+- `make_core_swap_workflow.py` ajoute `core_swap_base.py` aux chemins de
+  déclenchement de la variante : le script fait partie de la recette.
+- `test/core_swap_base_test.py` couvre la remise en place du binaire testé et
+  deux refus : un code différent, et un artefact qui n'est pas celui de son
+  identité.

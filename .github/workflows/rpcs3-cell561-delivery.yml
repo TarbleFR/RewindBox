@@ -14,6 +14,7 @@ run-name: RewindBox Build 561 — RPCS3 Core 561 on the 560 tree — Core swap o
     - build-utils/validate_rpcs3_library_files561_ipa.py
     - build-utils/validate_melonx_perf561_ipa.py
     - build-utils/validate_liquid_glass561_ipa.py
+    - build-utils/core_swap_base.py
   workflow_dispatch:
     inputs:
       recipient:
