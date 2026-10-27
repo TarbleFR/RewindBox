@@ -35,6 +35,17 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
 - Core run `40578797847` (`92074e51`, Apple Silicon): same model results; iPhone
   Core SHA-256 `2d80a2beee8e…`, 88 exports, identities unchanged. Evidence
   `docs/evidence/rpcs3-cell573-macos.json`.
+- Private 573 recipe (`d1f61ee0`, `rpcs3-cell573-delivery.yml`, dispatch only):
+  the delivered 572 tree (MeloNX engine 8cc2348) with the Core 573 recipe of
+  `92074e51`; `rpcs3cell573_tree.py` / `rpcs3cell573_delivery.py` run the 572
+  recipe unchanged in `as_572()`; eight validators wrap the 572 ones.
+  Recipient `build-utils/delivery-573-recipient.pem`.
+- Private 573 delivered: run `40581439146` (workflow_dispatch) on `d1f61ee0`,
+  artifact `12771372912`, IPA 0.0.8 (573) 188,093,650 bytes, SHA-256
+  `369d96cd…`; signed Core = Core 573 (`2d80a2be…`), MeloNX engine 8cc2348.
+  Decrypted and inspected: build 573, `RPCS3-cell573-identity.json` names Core
+  `92074e51`. Receipt `docs/evidence/rpcs3-cell573-delivery.json`. Installs over
+  572. Not tested on iPhone.
 
 ## StikDebug fallback removed — 27 October 2026
 
