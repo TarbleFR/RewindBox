@@ -1,0 +1,67 @@
+{
+  "build": 567,
+  "result": "delivered",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "30022a46db71b70542382f71f724988f75a98b8e",
+  "run": 40552860886,
+  "workflow": ".github/workflows/rpcs3-cell567-delivery.yml",
+  "event": "workflow_dispatch",
+  "artifact": {
+    "id": 12757313916,
+    "name": "RewindBox-Build567-30022a46db71b70542382f71f724988f75a98b8e-cold",
+    "bytes": 189198365,
+    "digest": "sha256:64d42d5a480b857642f3436e60568ef12d80f6f65a38c399c73c0ae08168c5c5",
+    "encryption": "AES-256-CBC PBKDF2 200000, key RSA OAEP SHA256 (build-utils/delivery-567-recipient.pem)"
+  },
+  "ipa": {
+    "version": "0.0.8",
+    "build": 567,
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "bytes": 188087640,
+    "sha256": "2d0f343b79c3bd34dcc67a2bd9b5eff795f017239223c1fee305d00e94a3a724",
+    "entries": 5361,
+    "installsOver": "private 566 (fba32a90..., run 40547475049)"
+  },
+  "contents": {
+    "rpcs3Core": {
+      "source": "67dd222bdbc8dbfefa6a666560e56672346f1521",
+      "run": 40547296252,
+      "sha256": "51273092cf5b62fc9b17372bbd339020eb08ce7096b20c5fab4a5a5f4403c984",
+      "replaces": {
+        "source": "07e416c42bbdfaede2df1870ccd7fda91d97abce",
+        "sha256": "428b11e6bc51a283fd1ff2ffcc3fe7307a3dba44461a9f170005752c8db15ca5"
+      }
+    },
+    "melonxEngine": "86c2b4dc4c2239bdae427e1725ca557a2b400f99 (566, unchanged, run 40535449055)",
+    "gow3Profile": "frame limit Auto (c5ba917, unchanged)",
+    "markersInSignedCore": [
+      "RSX Thread Priority",
+      "experimental.rsx_thread_priority",
+      "noop_putllc=%d rsx_idle_park=%d rsx_thread_priority=%d",
+      "No-op PUTLLC Keeps Reservations",
+      "RSX Idle Park"
+    ],
+    "validators": [
+      "validate_rpcs3_567_ipa",
+      "validate_liquid_glass567_ipa",
+      "validate_melonx_perf567_ipa",
+      "validate_rpcs3_library_files567_ipa",
+      "validate_melonx_input567_ipa",
+      "validate_melonx_texture567_ipa",
+      "validate_melonx_jit567_ipa",
+      "validate_melonx_keys_ipa (566 engine)"
+    ]
+  },
+  "durations": {
+    "checksMinutes": 7.6,
+    "macosJobMinutes": 32.7,
+    "endToEndMinutes": 40.4
+  },
+  "earlierRun": {
+    "run": 40549806812,
+    "source": "ea559dfe659d30bc76bc16859",
+    "note": "the untagged draft's message quoted the delivery tag; its checks job stopped before the Mac receipt existed (no IPA built)"
+  },
+  "scope": "CI build, signature and validators only; no iPhone run, no FPS measured."
+}

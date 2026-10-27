@@ -36,6 +36,12 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   565 -> 567; product trees equal to 566. The 566 recipe runs unchanged in
   `as_566()`; the 566 validators run under it and their receipts are carried
   under build 567. Maintainer: install over 566. No release.
+- Private 567 delivered: run `40552860886` (workflow_dispatch) on `30022a46`,
+  artifact `12757313916`, IPA 0.0.8 (567) 188,087,640 bytes, SHA-256
+  `2d0f343b…`; signed Core = Core 567 (`51273092…`), MeloNX engine 86c2b4d.
+  An earlier run (`40549806812` on `ea559dfe`) started because the draft's
+  message quoted the delivery tag; it stopped in checks before any IPA. Receipt
+  `docs/evidence/rpcs3-cell567-delivery.json`. Not tested on iPhone.
 
 ## Private 566: MeloNX engine — JIT translation units, GC gen2 budget — 27 October 2026
 
