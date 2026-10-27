@@ -17,9 +17,11 @@ partial class Library
         Logger.Updated += (_, entry) =>
         {
             if (entry.Level == LogLevel.Error || entry.Level == LogLevel.Warning)
-                EmbeddedLaunchDiagnostics.Record(EmbeddedLaunchDiagnostics.Stage,
-                    entry.Level == LogLevel.Error ? "engineError" : "engineWarning", detail: entry.Message);
+                EmbeddedLaunchDiagnostics.RecordEngine(entry.Level == LogLevel.Error, entry.Message);
         };
+        // adapt_session removes Library's per-game handler, which only queued
+        // an Info line the dying process never wrote. Once per process.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) => EmbeddedLaunchDiagnostics.RecordCrash(e.ExceptionObject);
     }
 
     [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_diagnostics_abi")]

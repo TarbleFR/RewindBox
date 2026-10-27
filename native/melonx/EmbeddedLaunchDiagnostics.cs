@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace Ryujinx.Common;
 
@@ -37,7 +38,16 @@ public static partial class EmbeddedLaunchDiagnostics
         lock (Gate) { JournalPath = path; JournalFailure = ""; }
     }
 
-    private static unsafe void Persist(long sequence, string stage, string status, int code, string detail)
+    // Engine warnings and errors repeat: a guest that keeps touching a bad
+    // texture or socket emits the same text thousands of times a second, on
+    // the thread doing that work, and fills app.log before anything useful
+    // follows. Journal the first occurrences of each text, then only its
+    // power-of-two counts. Counts restart with each game.
+    private const long EngineRepeatsJournaled = 8;
+    private const int EngineTextsTracked = 1024;
+    private static readonly Dictionary<string, long> EngineRepeats = new();
+
+    private static unsafe void Persist(long sequence, string stage, string status, int code, string detail, bool force = false)
     {
         if (JournalPath == null) return;
         try
@@ -54,7 +64,7 @@ public static partial class EmbeddedLaunchDiagnostics
                 json.WriteEndObject();
             }
             var file = new FileInfo(JournalPath);
-            if (file.Exists && file.Length >= 5 * 1024 * 1024) return;
+            if (!force && file.Exists && file.Length >= 5 * 1024 * 1024) return;
             byte[] prefix = Encoding.UTF8.GetBytes("[MeloNX:core] ");
             byte[] record = new byte[prefix.Length + memory.Length + 1];
             prefix.CopyTo(record, 0);
@@ -92,7 +102,33 @@ public static partial class EmbeddedLaunchDiagnostics
 
     public static void Begin()
     {
-        lock (Gate) { ErrorCode = ""; ErrorDetail = ""; }
+        lock (Gate) { ErrorCode = ""; ErrorDetail = ""; EngineRepeats.Clear(); }
+    }
+
+    public static void RecordEngine(bool error, string message)
+    {
+        message ??= "";
+        long count;
+        lock (Gate)
+        {
+            if (!EngineRepeats.TryGetValue(message, out count) && EngineRepeats.Count >= EngineTextsTracked)
+                EngineRepeats.Clear();
+            EngineRepeats[message] = ++count;
+        }
+        if (count > EngineRepeatsJournaled && (count & (count - 1)) != 0) return;
+        Record(Stage, error ? "engineError" : "engineWarning",
+            detail: count > EngineRepeatsJournaled ? message + " (repeated " + count + " times)" : message);
+    }
+
+    // The process ends right after an unhandled managed exception, before the
+    // stderr relay reads the runtime's report. Write it now, past the file
+    // ceiling, without waiting long on a gate another thread may hold.
+    public static void RecordCrash(object error)
+    {
+        string detail = Safe(error?.ToString() ?? "Unknown exception object.");
+        bool locked = Monitor.TryEnter(Gate, 250);
+        try { Persist(Interlocked.Increment(ref Sequence), "crash", "unhandledException", 0, detail, force: true); }
+        finally { if (locked) Monitor.Exit(Gate); }
     }
 
     public static void Record(string stage, string status, int code = 0, string detail = "")

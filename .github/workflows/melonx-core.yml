@@ -23,6 +23,10 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_gpu_lifetime.py
     - test/melonx_gpu_teardown_test.py
     - test/melonx_gpu_teardown/**
+    - build-utils/melonx/adapt_texture_pool.py
+    - test/melonx_texture_pool_test.py
+    - test/melonx_texture_pool/**
+    - test/melonx_engine_journal_test.py
     - build-utils/melonx/adapt_audio.py
     - build-utils/melonx/adapt_apple_audio.py
     - test/melonx_apple_audio_test.py
@@ -138,6 +142,10 @@ jobs:
       run: python3 test/melonx_pipeline_failure_test.py .native-sources/MeloNX
     - name: Execute compiled GPU texture teardown ownership and deferred-release concurrency
       run: python3 test/melonx_gpu_teardown_test.py .native-sources/MeloNX
+    - name: Execute compiled texture pool lookups of out-of-space descriptors through the engine journal
+      run: python3 test/melonx_texture_pool_test.py .native-sources/MeloNX
+    - name: Execute the engine journal's repeat bound and unhandled-exception record (JIT and NativeAOT)
+      run: python3 test/melonx_engine_journal_test.py
     - name: Retain effective graphics journal regression proof
       run: |
         python3 - <<'PY'
@@ -192,6 +200,7 @@ jobs:
         assert 'build-utils/melonx/adapt_audio.py' in evidence
         assert 'build-utils/melonx/adapt_pipeline.py' in evidence
         assert 'build-utils/melonx/adapt_gpu_lifetime.py' in evidence
+        assert 'build-utils/melonx/adapt_texture_pool.py' in evidence
         with zipfile.ZipFile(source) as z:
           shaders=z.read('src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs').decode('utf-8-sig')
           assert 'catch (VulkanException e) when (e.ResultCode is not' in shaders
@@ -209,6 +218,12 @@ jobs:
           assert 'internal ConcurrentQueue<Action> DeferredActions { get; }' in context
           physical=z.read('src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs').decode('utf-8-sig')
           assert 'Interlocked.Exchange(ref _disposeRequested, 1) == 0' in physical
+          pool=z.read('src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs').decode('utf-8-sig')
+          assert pool.count('if (!MemoryManager.ValidateAddress(descriptor.UnpackAddress()))') == 1
+          journal=z.read('src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs').decode('utf-8-sig')
+          assert 'public static void RecordEngine(bool error, string message)' in journal and 'public static void RecordCrash(object error)' in journal
+          runtime=z.read('src/Ryujinx.Library/EmbeddedRuntime.cs').decode('utf-8-sig')
+          assert 'EmbeddedLaunchDiagnostics.RecordCrash(e.ExceptionObject)' in runtime
         print('PASS actual Apple backend buffering and retained SDL3 correction in compiled source')
         PY
     - uses: actions/download-artifact@v4
