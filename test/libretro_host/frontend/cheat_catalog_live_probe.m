@@ -66,7 +66,8 @@ int main(void) { @autoreleasepool {
   if(ff7){psxDone=NO;[catalog downloadGame:ff7 completion:^(NSArray *cheats,NSError *error){
     CHECK(error==nil && cheats.count==19,"real FFVII resource downloads, validates and parses all 19 codes");
     NSUInteger supported=0;for(NSDictionary *cheat in cheats)if([LibretroCheats codesForCheat:cheat core:@"mednafen_psx_hw" console:@"psx"])supported++;
-    CHECK(supported==17,"downloaded FFVII contains 17 supported native programs");psxDone=YES;
+    // PSX repeaters are reviewed since (unified_identity_test.m): all 19 programs are native.
+    CHECK(supported==19,"downloaded FFVII contains 19 supported native programs");psxDone=YES;
   }];Wait(&psxDone);[downloaded addObject:ff7];}
   LibretroCheatCatalog *offline = [[LibretroCheatCatalog alloc] initWithDirectory:root];
   offline.fetch = ^NSData *(NSURL *url,NSUInteger limit,NSError **error) {
