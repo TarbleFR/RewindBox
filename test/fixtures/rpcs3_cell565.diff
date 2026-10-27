@@ -1,0 +1,445 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index 851e04600..db5a75faf 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -18,11 +18,13 @@ function(neostation_codegen_compatible_hash source actual output)
+     # confirmed poll of unchanged data while a draw waits for a pipeline
+     # (ios/IOSCompilePressure.h). CELL551 adds wait and PUTLLC counters
+     # (ios/IOSSpuWaitProfile.h) to process_mfc_cmd, do_putllc and RdEventStat.
+-    # Both are host code that SPU objects call, not code they contain:
++    # CELL565 lets do_putllc complete a no-op write-back without advancing the
++    # reservation time (policy flag noop_putllc_keeps_reservations).
++    # All are host code that SPU objects call, not code they contain:
+     # generated objects are unchanged. Keep the 546 identity for this exact
+     # source snapshot only.
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+-           actual STREQUAL "23b66d39ba7cffc1574bf62aa91438dfd8fe188a2749d66bc29ff8a7d8afe032")
++           actual STREQUAL "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c")
+         set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
+     # CELL559: compile() builds the LLVM analysis managers and the function pass
+     # pipeline only when no cached object is linked. A miss runs the same passes
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+index 85a5ef549..55f49a605 100644
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -3579,6 +3579,24 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+ 
+ 		if (accurate && cmp_rdata(to_write, rdata))
+ 		{
++#ifdef RPCS3_IOS
++			// CELL565_NOOP_PUTLLC: the write-back stores nothing, so it is complete once the
++			// line is seen unchanged under an unchanged reservation time (checked on both
++			// sides of the data comparison). Keeping that time, instead of advancing it,
++			// leaves the reservations other SPUs hold on the line valid: SPUs polling one
++			// line with no-op PUTLLC no longer fail each other's PUTLLC, including the
++			// ones that change data. Waiters are not notified, as below.
++			if (rpcs3::ios::get_experimental_policy().noop_putllc_keeps_reservations)
++			{
++				if (cmp_rdata(rdata, vm::_ref<spu_rdata_t>(addr)) && rdata_fence() && res == rtime && cmp_rdata(rdata, vm::_ref<spu_rdata_t>(addr)) && rdata_fence() && res == rtime)
++				{
++					raddr = 0; // Disable notification
++					return true;
++				}
++
++				return false;
++			}
++#endif
+ 			// Writeback of unchanged data. Only check memory change
+ 			// For the comparison, load twice for atomicity
+ 			if (cmp_rdata(rdata, vm::_ref<spu_rdata_t>(addr)) && rdata_fence() && res == rtime && cmp_rdata(rdata, vm::_ref<spu_rdata_t>(addr)) && res.compare_and_swap_test(rtime, rtime + 128))
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
+index 5305bf1dc..1014ba245 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.cpp
++++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
+@@ -13,6 +13,7 @@
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
+ #include "ios/IOSRsxSyncProfile.h"
+ #include "ios/IOSTextureValidationProfile.h"
++#include "ios/IOSRsxIdlePark.h"
+ #endif
+ 
+ #include "util/asm.hpp"
+@@ -40,6 +41,7 @@ namespace rsx
+ 			m_deferred_get_publishing = policy.deferred_get_publishing;
+ 			m_fifo_idle_wfe = policy.fifo_idle_wfe;
+ 			m_fifo_idle_bounded_sleep = policy.fifo_idle_bounded_sleep; // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L3)
++			m_rsx_idle_park = policy.rsx_idle_park; // CELL565_RSX_IDLE_PARK
+ #endif
+ 		}
+ 
+@@ -69,6 +71,24 @@ namespace rsx
+ 
+ 		void FIFO_control::idle_wait()
+ 		{
++#ifdef RPCS3_IOS
++			// CELL565_RSX_IDLE_PARK: once the FIFO has stayed empty for the grace period,
++			// sleep one slice instead of yielding (rpcs3/ios/IOSRsxIdlePark.h).
++			if (m_rsx_idle_park)
++			{
++				const u64 now = get_system_time();
++
++				if (!m_idle_since)
++				{
++					m_idle_since = now;
++				}
++				else if (now - m_idle_since >= rpcs3::ios::rsx_idle_park::grace_us)
++				{
++					rpcs3::ios::rsx_idle_park::park();
++					return;
++				}
++			}
++#endif
+ 			if (m_idle_spins < 8)
+ 			{
+ 				++m_idle_spins;
+@@ -891,6 +911,9 @@ namespace rsx
+ 			state != FIFO::state::running)
+ 		{
+ 			performance_counters.state = FIFO::state::running;
++#ifdef RPCS3_IOS
++			fifo_ctrl->end_idle_period(); // CELL565_RSX_IDLE_PARK
++#endif
+ 
+ 			// Hack: Delay FIFO wake-up according to setting
+ 			// NOTE: The typical spin setup is a NOP followed by a jump-to-self
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.h b/rpcs3/Emu/RSX/RSXFIFO.h
+index 274a6776c..39c6390ed 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.h
++++ b/rpcs3/Emu/RSX/RSXFIFO.h
+@@ -156,6 +156,10 @@ namespace rsx
+ 			bool m_deferred_get_publishing = false;
+ 			bool m_fifo_idle_wfe = false;
+ 			bool m_fifo_idle_bounded_sleep = false; // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L3)
++#ifdef RPCS3_IOS
++			bool m_rsx_idle_park = false; // CELL565_RSX_IDLE_PARK
++			u64 m_idle_since = 0;
++#endif
+ 			mutable u32 m_get_sync_counter = 0;
+ 			mutable u32 m_published_get = umax;
+ 			u32 m_idle_spins = 0;
+@@ -183,6 +187,10 @@ namespace rsx
+ 			void sync_get() const;
+ 			void sync_get_force() const;
+ 			void reset_idle_wait() { m_idle_spins = 0; }
++#ifdef RPCS3_IOS
++			// CELL565_RSX_IDLE_PARK: the FIFO left its idle state.
++			void end_idle_period() { m_idle_since = 0; }
++#endif
+ 			void idle_wait();
+ 			std::span<const u32> get_current_arg_ptr(u32 length_in_words) const;
+ 			u32 get_remaining_args_count() const { return m_remaining_commands; }
+diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
+index e5b7847d2..c1bcddbf9 100644
+--- a/rpcs3/Emu/RSX/RSXThread.cpp
++++ b/rpcs3/Emu/RSX/RSXThread.cpp
+@@ -32,6 +32,7 @@
+ #include "ios/RPCS3IOSPerformance.h"
+ #include "ios/RPCS3IOSProfilerHelpers.h"
+ #include "ios/IOSRsxSyncProfile.h"
++#include "ios/IOSRsxIdlePark.h"
+ #include "Overlays/overlay_cursor.h"
+ #endif
+ 
+@@ -3665,6 +3666,9 @@ namespace rsx
+ 			async_flip_requested |= flip_request::emu_requested;
+ 
+ 			m_eng_interrupt_mask |= rsx::display_interrupt;
++#ifdef RPCS3_IOS
++			rpcs3::ios::rsx_idle_park::wake(); // CELL565_RSX_IDLE_PARK
++#endif
+ 
+ 			if (state & cpu_flag::exit)
+ 			{
+diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
+index 4db376603..1bef33510 100644
+--- a/rpcs3/Emu/RSX/RSXZCULL.cpp
++++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
+@@ -3,6 +3,9 @@
+ #include "Core/RSXReservationLock.hpp"
+ #include "Host/MM.h"
+ #include "RSXThread.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSRsxIdlePark.h"
++#endif
+ 
+ namespace rsx
+ {
+@@ -956,6 +959,9 @@ namespace rsx
+ 				disable_optimizations(thr, location);
+ 
+ 				thr->m_eng_interrupt_mask |= rsx::pipe_flush_interrupt;
++#ifdef RPCS3_IOS
++				rpcs3::ios::rsx_idle_park::wake(); // CELL565_RSX_IDLE_PARK
++#endif
+ 				return true;
+ 			}
+ 
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index 681487eb0..32f1dd28d 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -27,6 +27,7 @@
+ #include "ios/IOSReadbackProfile.h"
+ #include "ios/IOSDeferredCommit.h"
+ #include "ios/IOSEarlySubmit.h"
++#include "ios/IOSRsxIdlePark.h"
+ #endif
+ 
+ #include "../Program/SPIRVCommon.h"
+@@ -970,6 +971,9 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+ 			g_fxo->get<rsx::dma_manager>().set_mem_fault_flag();
+ 			m_queue_status |= flush_queue_state::deadlock;
+ 			m_eng_interrupt_mask |= rsx::backend_interrupt;
++#ifdef RPCS3_IOS
++			rpcs3::ios::rsx_idle_park::wake(); // CELL565_RSX_IDLE_PARK
++#endif
+ 
+ 			// Wait for deadlock to clear
+ 			while (m_queue_status & flush_queue_state::deadlock)
+@@ -994,6 +998,10 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+ 			m_flush_requests.post(false);
+ 			m_eng_interrupt_mask |= rsx::backend_interrupt;
+ 			has_queue_ref = true;
++#ifdef RPCS3_IOS
++			// CELL565_RSX_IDLE_PARK: this thread waits until the RSX thread serves the request.
++			rpcs3::ios::rsx_idle_park::wake();
++#endif
+ 		}
+ 		else
+ 		{
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index cc72702a0..1ca4ec826 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -137,6 +137,10 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> deferred_fbo_writeback{ this, "Deferred Framebuffer Write-back", ios_experimental_mode::automatic };
+ 		// CELL561_EARLY_SUBMIT: Automatic enables it for Dragon Ball Z Budokai HD Collection only.
+ 		cfg::_enum<ios_experimental_mode> early_submit{ this, "Early Command Buffer Submission", ios_experimental_mode::automatic };
++		// CELL565_NOOP_PUTLLC: Automatic enables it for Dragon Ball Z Budokai HD Collection only.
++		cfg::_enum<ios_experimental_mode> noop_putllc_keeps_reservations{ this, "No-op PUTLLC Keeps Reservations", ios_experimental_mode::automatic };
++		// CELL565_RSX_IDLE_PARK: Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III.
++		cfg::_enum<ios_experimental_mode> rsx_idle_park{ this, "RSX Idle Park", ios_experimental_mode::automatic };
+ 
+ 		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSEarlySubmit.h b/rpcs3/ios/IOSEarlySubmit.h
+index 3e85b64cd..e5df604df 100644
+--- a/rpcs3/ios/IOSEarlySubmit.h
++++ b/rpcs3/ios/IOSEarlySubmit.h
+@@ -17,9 +17,6 @@
+ namespace rpcs3::ios::early_submit
+ {
+ inline std::atomic<bool> enabled{false};
+-// CELL563_EARLY_AB: set when the lever alternates per profiling window, so one
+-// session measures both states under the same device conditions and scenes.
+-inline std::atomic<bool> alternate{false};
+ 
+ // An early submission carries at least this many draws; a frame has at most this many.
+ constexpr std::uint32_t min_draws = 32;
+@@ -51,18 +48,4 @@ constexpr verdict decide(bool on, std::uint32_t draws, std::uint32_t this_frame,
+ 
+ 	return gpu_idle ? verdict::submit : verdict::gpu_busy;
+ }
+-
+-// CELL563_EARLY_AB: called once per profiling window, at its boundary. Returns the
+-// state the ending window ran with; when alternating, the next window runs with the
+-// other one. Each end of draw reads the state on its own, so a switch between draws
+-// changes no command, only where later command buffer boundaries may fall.
+-inline bool window_boundary() noexcept
+-{
+-	const bool state = enabled.load(std::memory_order_relaxed);
+-	if (alternate.load(std::memory_order_relaxed))
+-	{
+-		enabled.store(!state, std::memory_order_relaxed);
+-	}
+-	return state;
+-}
+ }
+diff --git a/rpcs3/ios/IOSRsxIdlePark.h b/rpcs3/ios/IOSRsxIdlePark.h
+new file mode 100644
+index 000000000..b3442839e
+--- /dev/null
++++ b/rpcs3/ios/IOSRsxIdlePark.h
+@@ -0,0 +1,58 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <chrono>
++#include <condition_variable>
++#include <cstdint>
++#include <mutex>
++
++// CELL565_RSX_IDLE_PARK: with an empty FIFO the RSX thread yields in a loop, so
++// it keeps a whole core while it waits for the next guest commands (Dragon Ball
++// Z Budokai HD on build 564: 0.90 core with the FIFO busy 33-43 % of the time,
++// one idle period of about 12 ms per frame). The iPhone has two performance
++// cores; that core is taken from the SPU and PPU threads doing the guest's
++// work. After the FIFO has stayed empty for grace_us, the thread sleeps in
++// slices of slice_us instead. The guest's next PUT is seen at the end of the
++// current slice at worst; a flush request, a flip request or a ZCULL pipe flush
++// posted by another thread wakes it at once.
++namespace rpcs3::ios::rsx_idle_park
++{
++inline std::atomic<bool> enabled{false};
++
++// Short gaps inside a frame keep the yield loop; only a long idle period parks.
++constexpr std::uint64_t grace_us = 1000;
++constexpr std::uint64_t slice_us = 50;
++
++inline std::mutex gate_mutex;
++inline std::condition_variable gate;
++inline std::uint64_t generation = 0;
++inline std::atomic<std::uint32_t> parked{0};
++
++// RSX thread only: sleep one slice unless woken.
++inline void park() noexcept
++{
++	parked.fetch_add(1, std::memory_order_seq_cst);
++	{
++		std::unique_lock lock(gate_mutex);
++		const std::uint64_t seen = generation;
++		gate.wait_for(lock, std::chrono::microseconds(slice_us), [&] { return generation != seen; });
++	}
++	parked.fetch_sub(1, std::memory_order_relaxed);
++}
++
++// Any thread, after posting work the RSX thread must service.
++inline void wake() noexcept
++{
++	if (!enabled.load(std::memory_order_relaxed) || !parked.load(std::memory_order_seq_cst))
++	{
++		return;
++	}
++
++	{
++		std::lock_guard lock(gate_mutex);
++		generation++;
++	}
++	gate.notify_all();
++}
++}
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index b8c916beb..824707090 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -9,6 +9,7 @@
+ #include "IOSTextureValidationProfile.h"
+ #include "IOSDeferredCommit.h"
+ #include "IOSEarlySubmit.h"
++#include "IOSRsxIdlePark.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+ 
+@@ -137,15 +138,23 @@ void resolve_experimental_policy() noexcept
+ 	// CELL561_EARLY_SUBMIT: Automatic is Dragon Ball Z Budokai HD Collection only, where
+ 	// build 560 read one render target back per frame and waited for the GPU to execute
+ 	// the draws it had recorded since the last submission.
+-	const bool early_submit_title = rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID());
+-	resolved.early_submit = resolve_mode(g_cfg.ios_experimental.early_submit, early_submit_title);
++	resolved.early_submit = resolve_mode(g_cfg.ios_experimental.early_submit,
++		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
+ 	rpcs3::ios::early_submit::enabled.store(resolved.early_submit, std::memory_order_relaxed);
+-	// CELL563_EARLY_AB: build 562 measured no gain on that title, under session conditions
+-	// that also slowed the frames the lever never touched. Automatic there alternates the
+-	// lever per profiling window (on first), so one session compares both states; an
+-	// explicit Enabled or Disabled keeps one state.
+-	const bool early_submit_ab = g_cfg.ios_experimental.early_submit == ios_experimental_mode::automatic && early_submit_title;
+-	rpcs3::ios::early_submit::alternate.store(early_submit_ab, std::memory_order_relaxed);
++	// CELL565_NOOP_PUTLLC: Automatic is Dragon Ball Z Budokai HD Collection only, where
++	// build 564 counted about 120,000 successful and 75,000 failed PUTLLC per frame in
++	// combat for about 500 that changed data: the no-op write-backs invalidated each
++	// other's reservations.
++	resolved.noop_putllc_keeps_reservations = resolve_mode(g_cfg.ios_experimental.noop_putllc_keeps_reservations,
++		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
++	// CELL565_RSX_IDLE_PARK: Automatic is Dragon Ball Z Budokai HD Collection, whose RSX
++	// thread yielded 0.90 core for a FIFO busy 33-43 % of the time on build 564, and
++	// God of War III, whose CELL threads need every core. A non-default FIFO idle wait
++	// (Wait for event, Bounded sleep) keeps its own behaviour.
++	resolved.rsx_idle_park = g_cfg.ios_experimental.fifo_idle_mode == ios_fifo_idle_mode::yield &&
++		resolve_mode(g_cfg.ios_experimental.rsx_idle_park,
++			rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()) || is_god_of_war_iii_title(Emu.GetTitleID()));
++	rpcs3::ios::rsx_idle_park::enabled.store(resolved.rsx_idle_park, std::memory_order_relaxed);
+ 	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
+ 	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
+ 	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
+@@ -178,9 +187,9 @@ void resolve_experimental_policy() noexcept
+ 	}
+ 
+ 	s_policy = resolved;
+-	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d early_submit_ab=%d",
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d noop_putllc=%d rsx_idle_park=%d",
+ 		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
+-		resolved.deferred_fbo_writeback, resolved.early_submit, early_submit_ab);
++		resolved.deferred_fbo_writeback, resolved.early_submit, resolved.noop_putllc_keeps_reservations, resolved.rsx_idle_park);
+ 	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 731e84658..301bc3923 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -18,6 +18,11 @@ struct experimental_policy
+ 	bool texture_validation_epoch = false;
+ 	bool deferred_fbo_writeback = false;
+ 	bool early_submit = false;
++	// CELL565_NOOP_PUTLLC: with Accurate SPU Reservations, a PUTLLC that writes back
++	// unchanged data succeeds without invalidating the other reservations of the line.
++	bool noop_putllc_keeps_reservations = false;
++	// CELL565_RSX_IDLE_PARK: the RSX thread sleeps in short slices after a long idle period.
++	bool rsx_idle_park = false;
+ 	u32 fifo_cache_bytes = 1024;
+ 	bool fifo_idle_wfe = false;
+ 	bool deferred_get_publishing = false;
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index e8ae9c011..542ca189b 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -730,7 +730,6 @@ private:
+         rpcs3::ios::diagnostics::ProcessMemoryWindow memory_window;
+         std::array<rpcs3::ios::diagnostics::EventCost::Sample, 7> costs{};
+         jit_publication::snapshot publication;
+-        bool early_submit_state = false;
+ 
+ 		{
+ 			std::lock_guard lock(m_profile_mutex);
+@@ -743,8 +742,6 @@ private:
+             memory_window = m_process_memory;
+             for (usz index = 0; index < costs.size(); ++index) costs[index] = m_event_costs[index].take();
+             publication = jit_publication::metrics().exchange();
+-            // CELL563_EARLY_AB: the state of the ending window, switched at the same boundary.
+-            early_submit_state = rpcs3::ios::early_submit::window_boundary();
+ 			loading = m_spu_loading.take();
+ 			gameplay = m_spu_gameplay.take();
+ 			range = m_range_episodes.take();
+@@ -1082,12 +1079,12 @@ private:
+         {
+             namespace early = rpcs3::ios::early_submit;
+             ios_core_profiler.notice("COREPROF OPT561 session=%llu window=%llu early_submit=%u early_submits=%llu early_draws=%llu "
+-                "gpu_busy_checks=%llu frame_capped_checks=%llu min_draws=%u max_per_frame=%u ab=%u "
++                "gpu_busy_checks=%llu frame_capped_checks=%llu min_draws=%u max_per_frame=%u "
+                 "scope=process_window_counters window_boundary_approximate=1",
+-                profile_session, profile_window, early_submit_state ? 1u : 0u,
++                profile_session, profile_window, early::enabled.load(std::memory_order_relaxed) ? 1u : 0u,
+                 early::submits.exchange(0, std::memory_order_relaxed), early::submitted_draws.exchange(0, std::memory_order_relaxed),
+                 early::gpu_busy.exchange(0, std::memory_order_relaxed), early::frame_capped.exchange(0, std::memory_order_relaxed),
+-                early::min_draws, early::max_per_frame, early::alternate.load(std::memory_order_relaxed) ? 1u : 0u);
++                early::min_draws, early::max_per_frame);
+         }
+         const auto& mem = memory_window.latest;
+         const auto& peak = memory_window.peak;
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index d1035f909..3695ac187 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -128,7 +128,9 @@ const std::array catalog{
+ 	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
+ 	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III only; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
+ 	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
+-	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic alternates it every profiling window (about five seconds) for Dragon Ball Z Budokai HD Collection only, to measure its effect in one session; Enabled keeps it on; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
++	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
++	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
++	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
+ 	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
+ 	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
+ 	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),

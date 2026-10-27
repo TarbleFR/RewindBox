@@ -3836,10 +3836,10 @@ index e11a27509..353f45920 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 000000000..851e04600
+index 000000000..db5a75faf
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,39 @@
 +# CELL538: the exact reviewed JITLLVM change only suppresses a second SPU
 +# cache probe after a validated miss. It changes neither generated objects nor
 +# their ABI. Preserve the 536 identity for this exact source snapshot only.
@@ -3860,11 +3860,13 @@ index 000000000..851e04600
 +    # confirmed poll of unchanged data while a draw waits for a pipeline
 +    # (ios/IOSCompilePressure.h). CELL551 adds wait and PUTLLC counters
 +    # (ios/IOSSpuWaitProfile.h) to process_mfc_cmd, do_putllc and RdEventStat.
-+    # Both are host code that SPU objects call, not code they contain:
++    # CELL565 lets do_putllc complete a no-op write-back without advancing the
++    # reservation time (policy flag noop_putllc_keeps_reservations).
++    # All are host code that SPU objects call, not code they contain:
 +    # generated objects are unchanged. Keep the 546 identity for this exact
 +    # source snapshot only.
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
-+           actual STREQUAL "23b66d39ba7cffc1574bf62aa91438dfd8fe188a2749d66bc29ff8a7d8afe032")
++           actual STREQUAL "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c")
 +        set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
 +    # CELL559: compile() builds the LLVM analysis managers and the function pass
 +    # pipeline only when no cached object is linked. A miss runs the same passes
@@ -12498,7 +12500,7 @@ index faf4082dc..d08c48071 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e5b..85a5ef549 100644
+index bc9ec5e5b..55f49a605 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
 @@ -25,11 +25,19 @@
@@ -12786,7 +12788,7 @@ index bc9ec5e5b..85a5ef549 100644
  		auto& res = vm::reservation_acquire(addr);
  
  		// TODO: Limit scope!!
-@@ -3457,26 +3574,14 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3457,26 +3574,32 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (rtime != res)
  		{
@@ -12803,11 +12805,27 @@ index bc9ec5e5b..85a5ef549 100644
 +		if (accurate && cmp_rdata(to_write, rdata))
  		{
 -			if (!g_cfg.core.spu_accurate_reservations)
--			{
++#ifdef RPCS3_IOS
++			// CELL565_NOOP_PUTLLC: the write-back stores nothing, so it is complete once the
++			// line is seen unchanged under an unchanged reservation time (checked on both
++			// sides of the data comparison). Keeping that time, instead of advancing it,
++			// leaves the reservations other SPUs hold on the line valid: SPUs polling one
++			// line with no-op PUTLLC no longer fail each other's PUTLLC, including the
++			// ones that change data. Waiters are not notified, as below.
++			if (rpcs3::ios::get_experimental_policy().noop_putllc_keeps_reservations)
+ 			{
 -				raddr = 0;
 -				return true;
 -			}
--
++				if (cmp_rdata(rdata, vm::_ref<spu_rdata_t>(addr)) && rdata_fence() && res == rtime && cmp_rdata(rdata, vm::_ref<spu_rdata_t>(addr)) && rdata_fence() && res == rtime)
++				{
++					raddr = 0; // Disable notification
++					return true;
++				}
+ 
++				return false;
++			}
++#endif
  			// Writeback of unchanged data. Only check memory change
  			// For the comparison, load twice for atomicity
 -			if (cmp_rdata(rdata, vm::_ref<spu_rdata_t>(addr)) && res == rtime && cmp_rdata(rdata, vm::_ref<spu_rdata_t>(addr)) && res.compare_and_swap_test(rtime, rtime + 128))
@@ -12815,7 +12833,7 @@ index bc9ec5e5b..85a5ef549 100644
  			{
  				raddr = 0; // Disable notification
  				return true;
-@@ -3488,7 +3593,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3488,7 +3611,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		static const auto cast_as = [](void* ptr, usz pos){ return reinterpret_cast<u128*>(ptr) + pos; };
  		static const auto cast_as_const = [](const void* ptr, usz pos){ return reinterpret_cast<const u128*>(ptr) + pos; };
  
@@ -12830,7 +12848,7 @@ index bc9ec5e5b..85a5ef549 100644
  
  		auto [_oldd, _ok] = res.fetch_op([&](u64& r)
  		{
-@@ -3507,25 +3618,53 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3507,25 +3636,53 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  			return false;
  		}
  
@@ -12886,7 +12904,7 @@ index bc9ec5e5b..85a5ef549 100644
  			vm::writer_lock lock(addr, range_lock);
  
  			if (cmp_rdata(rdata, super_data))
-@@ -3552,6 +3691,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3552,6 +3709,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		return success;
  	}())
  	{
@@ -12896,7 +12914,7 @@ index bc9ec5e5b..85a5ef549 100644
  		if (raddr)
  		{
  			if (raddr != spurs_addr || pc != 0x11e4)
-@@ -3579,6 +3721,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3579,6 +3739,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  	}
  	else
  	{
@@ -12906,7 +12924,7 @@ index bc9ec5e5b..85a5ef549 100644
  		if (raddr)
  		{
  			// Last check for event before we clear the reservation
-@@ -3631,7 +3776,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3631,7 +3794,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  
  			if (!(at_read_time & 127))
  			{
@@ -12915,7 +12933,7 @@ index bc9ec5e5b..85a5ef549 100644
  				{
  					// Write of the same data (verified atomically)
  					vm::try_reservation_update(addr);
-@@ -3640,6 +3785,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3640,6 +3803,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  			}
  		}
  
@@ -12935,7 +12953,7 @@ index bc9ec5e5b..85a5ef549 100644
  		for (u64 j = 0;; j++)
  		{
  			auto [_oldd, _ok] = res.fetch_op([&](u128& r)
-@@ -3714,8 +3872,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3714,8 +3890,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  		}
  		else
  		{
@@ -12949,7 +12967,7 @@ index bc9ec5e5b..85a5ef549 100644
  
  			// Hard lock
  			auto spu = cpu ? cpu->try_get<spu_thread>() : nullptr;
-@@ -3726,6 +3887,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3726,6 +3905,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  				cpu->state += cpu_flag::wait;
  			}
  
@@ -12959,7 +12977,7 @@ index bc9ec5e5b..85a5ef549 100644
  			vm::writer_lock lock(addr, spu ? spu->range_lock : nullptr);
  			mov_rdata(sdata, *static_cast<const spu_rdata_t*>(to_write));
  			vm::reservation_acquire(addr) += 32;
-@@ -3941,8 +4105,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3941,8 +4123,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  
  bool spu_thread::check_mfc_interrupts(u32 next_pc)
  {
@@ -12970,7 +12988,7 @@ index bc9ec5e5b..85a5ef549 100644
  		srr0 = next_pc;
  
  		// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -4306,6 +4471,25 @@ bool spu_thread::process_mfc_cmd()
+@@ -4306,6 +4489,25 @@ bool spu_thread::process_mfc_cmd()
  	{
  		perf_meter<"GETLLAR"_u64> perf0;
  
@@ -12996,7 +13014,7 @@ index bc9ec5e5b..85a5ef549 100644
  		const u32 addr = ch_mfc_cmd.eal & -128;
  		const auto& data = vm::_ref<spu_rdata_t>(addr);
  
-@@ -4315,7 +4499,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4315,7 +4517,7 @@ bool spu_thread::process_mfc_cmd()
  			spu_log.trace(u8"GETLLAR after fail: addr=0x%x, time=%u c", last_faddr, (perf0.get() - last_ftsc));
  		}
  
@@ -13005,7 +13023,7 @@ index bc9ec5e5b..85a5ef549 100644
  		{
  			rtime = last_ftime;
  			raddr = last_faddr;
-@@ -4355,8 +4539,14 @@ bool spu_thread::process_mfc_cmd()
+@@ -4355,8 +4557,14 @@ bool spu_thread::process_mfc_cmd()
  					// Need to check twice for it to be accurate, the code is before and not after this check for:
  					// 1. Reduce time between reservation accesses so TSX panelty would be lowered
  					// 2. Increase the chance of change detection: if GETLLAR has been called again new data is probably wanted
@@ -13021,7 +13039,7 @@ index bc9ec5e5b..85a5ef549 100644
  						if (this_time != rtime)
  						{
  							// Reservation was lost but the data itself remains unchanged so try to ignore it
-@@ -4367,7 +4557,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4367,7 +4575,7 @@ bool spu_thread::process_mfc_cmd()
  						if ([&]() -> bool
  						{
  							// Validation that it is indeed GETLLAR spinning (large time window is intentional)
@@ -13030,7 +13048,7 @@ index bc9ec5e5b..85a5ef549 100644
  							{
  								// Seemingly not
  								getllar_busy_waiting_switch = umax;
-@@ -4441,7 +4631,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4441,7 +4649,7 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  							// Don't be stubborn, force operating sleep if too much time has passed
@@ -13039,7 +13057,7 @@ index bc9ec5e5b..85a5ef549 100644
  							{
  								// Hidden value to force busy waiting
  								if (!g_cfg.core.spu_getllar_spin_optimization_disabled)
-@@ -4452,6 +4642,18 @@ bool spu_thread::process_mfc_cmd()
+@@ -4452,6 +4660,18 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  
@@ -13058,7 +13076,7 @@ index bc9ec5e5b..85a5ef549 100644
  							// Either 1 or umax
  							return getllar_busy_waiting_switch != 0;
  						}())
-@@ -4472,6 +4674,11 @@ bool spu_thread::process_mfc_cmd()
+@@ -4472,6 +4692,11 @@ bool spu_thread::process_mfc_cmd()
  							if (getllar_busy_waiting_switch == 1)
  							{
  								getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front() = 0;
@@ -13070,7 +13088,7 @@ index bc9ec5e5b..85a5ef549 100644
  
  #if defined(ARCH_X64)
  								if (utils::has_um_wait())
-@@ -4522,7 +4729,15 @@ bool spu_thread::process_mfc_cmd()
+@@ -4522,7 +4747,15 @@ bool spu_thread::process_mfc_cmd()
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
  						{
  							cache_line_waiter_index = register_cache_line_waiter(addr);
@@ -13086,7 +13104,7 @@ index bc9ec5e5b..85a5ef549 100644
  							vm::reservation_notifier_end_wait(*wait_var);
  						}
  
-@@ -4533,7 +4748,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4533,7 +4766,7 @@ bool spu_thread::process_mfc_cmd()
  						// Quick check if there were reservation changes
  						const u64 new_time = res;
  
@@ -13095,7 +13113,7 @@ index bc9ec5e5b..85a5ef549 100644
  						{
  							if (g_cfg.core.mfc_debug)
  							{
-@@ -4551,8 +4766,13 @@ bool spu_thread::process_mfc_cmd()
+@@ -4551,8 +4784,13 @@ bool spu_thread::process_mfc_cmd()
  								rtime = new_time;
  							}
  
@@ -13111,7 +13129,7 @@ index bc9ec5e5b..85a5ef549 100644
  
  							// Reset perf
  							perf0.restart();
-@@ -4659,6 +4879,8 @@ bool spu_thread::process_mfc_cmd()
+@@ -4659,6 +4897,8 @@ bool spu_thread::process_mfc_cmd()
  
  			mov_rdata(rdata, data);
  
@@ -13120,7 +13138,7 @@ index bc9ec5e5b..85a5ef549 100644
  			if (u64 time0 = vm::reservation_acquire(addr); ntime != time0)
  			{
  				// Reservation data has been modified recently
-@@ -5075,7 +5297,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5075,7 +5315,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13129,7 +13147,7 @@ index bc9ec5e5b..85a5ef549 100644
  	}
  
  	if ((addr >> 20) == (current_eal >> 20))
-@@ -5083,13 +5305,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5083,13 +5323,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  		if (vm::check_addr(addr, vm::page_1m_size))
  		{
  			// Same random-access-memory page as the current MFC command, assume allocated
@@ -13145,7 +13163,7 @@ index bc9ec5e5b..85a5ef549 100644
  		}
  	}
  
-@@ -5163,7 +5385,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5163,7 +5403,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	const bool res = cmp_rdata(data, vm::_ref<decltype(rdata)>(addr));
  
  	range_lock->release(0);
@@ -13154,7 +13172,7 @@ index bc9ec5e5b..85a5ef549 100644
  }
  
  bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range_lock)
-@@ -5171,7 +5393,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5171,7 +5411,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13163,7 +13181,7 @@ index bc9ec5e5b..85a5ef549 100644
  	}
  
  	// Ensure data is allocated (HACK: would raise LR event if not)
-@@ -5244,7 +5466,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5244,7 +5484,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	const bool res = compute_rdata_hash32(*vm::get_super_ptr<decltype(rdata)>(addr)) == hash;
  
  	range_lock->release(0);
@@ -13172,7 +13190,7 @@ index bc9ec5e5b..85a5ef549 100644
  }
  
  usz spu_thread::register_cache_line_waiter(u32 addr)
-@@ -5352,6 +5574,7 @@ retry:
+@@ -5352,6 +5592,7 @@ retry:
  			// Set next event to the next time the decrementer underflows
  			ch_dec_start_timestamp -= res << 32;
  			collect |= SPU_EVENT_TM;
@@ -13180,7 +13198,7 @@ index bc9ec5e5b..85a5ef549 100644
  		}
  	}
  
-@@ -5400,29 +5623,134 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +5641,134 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -13327,7 +13345,7 @@ index bc9ec5e5b..85a5ef549 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5760,8 +6088,16 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5760,8 +6106,16 @@ s64 spu_thread::get_ch_value(u32 ch)
  			eventstat_busy_waiting_switch = value ? 1 : 0;
  		}
  
@@ -13344,7 +13362,7 @@ index bc9ec5e5b..85a5ef549 100644
  			const auto old = +state;
  
  			if (is_stopped(old))
-@@ -5792,7 +6128,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6146,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -13353,7 +13371,7 @@ index bc9ec5e5b..85a5ef549 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6265,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6283,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -13362,7 +13380,7 @@ index bc9ec5e5b..85a5ef549 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6285,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6303,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13371,7 +13389,7 @@ index bc9ec5e5b..85a5ef549 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6365,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6383,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13380,7 +13398,7 @@ index bc9ec5e5b..85a5ef549 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6056,6 +6392,14 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6056,6 +6410,14 @@ s64 spu_thread::get_ch_value(u32 ch)
  			thread_ctrl::wait_on(state, old, 100);
  		}
  
@@ -13395,7 +13413,7 @@ index bc9ec5e5b..85a5ef549 100644
  		if (is_reservation_data_checking_thread)
  		{
  			s_is_reservation_data_checking_thread = 0;
-@@ -6452,6 +6796,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +6814,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -13405,7 +13423,7 @@ index bc9ec5e5b..85a5ef549 100644
  		return true;
  	}
  
-@@ -6479,6 +6826,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +6844,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -13414,7 +13432,7 @@ index bc9ec5e5b..85a5ef549 100644
  		return true;
  	}
  
-@@ -6509,6 +6858,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +6876,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -17038,15 +17056,16 @@ index e1bdc8852..c3fdcc46d 100644
  	}
  };
 diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
-index a36ce5242..5305bf1dc 100644
+index a36ce5242..1014ba245 100644
 --- a/rpcs3/Emu/RSX/RSXFIFO.cpp
 +++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
-@@ -11,10 +11,13 @@
+@@ -11,10 +11,14 @@
  
  #ifdef RPCS3_IOS
  #include "ios/RPCS3IOSExperimentalPolicy.h"
 +#include "ios/IOSRsxSyncProfile.h"
 +#include "ios/IOSTextureValidationProfile.h"
++#include "ios/IOSRsxIdlePark.h"
  #endif
  
  #include "util/asm.hpp"
@@ -17055,19 +17074,38 @@ index a36ce5242..5305bf1dc 100644
  #include <thread>
  
  using spu_rdata_t = std::byte[128];
-@@ -36,6 +39,7 @@ namespace rsx
+@@ -36,6 +40,8 @@ namespace rsx
  			m_cache_line_count = policy.fifo_cache_bytes / 128;
  			m_deferred_get_publishing = policy.deferred_get_publishing;
  			m_fifo_idle_wfe = policy.fifo_idle_wfe;
 +			m_fifo_idle_bounded_sleep = policy.fifo_idle_bounded_sleep; // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L3)
++			m_rsx_idle_park = policy.rsx_idle_park; // CELL565_RSX_IDLE_PARK
  #endif
  		}
  
-@@ -65,10 +69,32 @@ namespace rsx
+@@ -65,10 +71,50 @@ namespace rsx
  
  		void FIFO_control::idle_wait()
  		{
 -			if (m_fifo_idle_wfe && m_idle_spins++ >= 8)
++#ifdef RPCS3_IOS
++			// CELL565_RSX_IDLE_PARK: once the FIFO has stayed empty for the grace period,
++			// sleep one slice instead of yielding (rpcs3/ios/IOSRsxIdlePark.h).
++			if (m_rsx_idle_park)
++			{
++				const u64 now = get_system_time();
++
++				if (!m_idle_since)
++				{
++					m_idle_since = now;
++				}
++				else if (now - m_idle_since >= rpcs3::ios::rsx_idle_park::grace_us)
++				{
++					rpcs3::ios::rsx_idle_park::park();
++					return;
++				}
++			}
++#endif
 +			if (m_idle_spins < 8)
 +			{
 +				++m_idle_spins;
@@ -17097,7 +17135,7 @@ index a36ce5242..5305bf1dc 100644
  			else
  			{
  				std::this_thread::yield();
-@@ -107,6 +133,27 @@ namespace rsx
+@@ -107,6 +153,27 @@ namespace rsx
  		template <bool Full>
  		inline u32 FIFO_control::read_put() const
  		{
@@ -17125,7 +17163,7 @@ index a36ce5242..5305bf1dc 100644
  			if constexpr (!Full)
  			{
  				return m_ctrl->put & ~3;
-@@ -120,6 +167,7 @@ namespace rsx
+@@ -120,6 +187,7 @@ namespace rsx
  
  				return m_ctrl->put.and_fetch(~3);
  			}
@@ -17133,7 +17171,7 @@ index a36ce5242..5305bf1dc 100644
  		}
  
  		std::pair<bool, u32> FIFO_control::fetch_u32_refill(u32 addr)
-@@ -178,15 +226,11 @@ namespace rsx
+@@ -178,15 +246,11 @@ namespace rsx
  				u32 bytes_read = 0;
  				const auto next_cache_line = [&](u32 current)
  				{
@@ -17154,7 +17192,7 @@ index a36ce5242..5305bf1dc 100644
  				};
  
  				// Find the next set bit after every iteration
-@@ -708,6 +752,9 @@ namespace rsx
+@@ -708,6 +772,9 @@ namespace rsx
  				{
  					performance_counters.FIFO_idle_timestamp = get_system_time();
  					performance_counters.state = FIFO::state::nop;
@@ -17164,7 +17202,7 @@ index a36ce5242..5305bf1dc 100644
  				}
  
  				fifo_ctrl->sync_get_force();
-@@ -722,10 +769,25 @@ namespace rsx
+@@ -722,10 +789,25 @@ namespace rsx
  					performance_counters.FIFO_idle_timestamp = get_system_time();
  					performance_counters.state = FIFO::state::empty;
  					fifo_ctrl->reset_idle_wait();
@@ -17190,7 +17228,7 @@ index a36ce5242..5305bf1dc 100644
  				}
  
  				return;
-@@ -757,6 +819,9 @@ namespace rsx
+@@ -757,6 +839,9 @@ namespace rsx
  					{
  						performance_counters.FIFO_idle_timestamp = get_system_time();
  						sync_point_request.release(true);
@@ -17200,7 +17238,17 @@ index a36ce5242..5305bf1dc 100644
  					}
  
  					performance_counters.state = FIFO::state::spinning;
-@@ -946,7 +1011,8 @@ namespace rsx
+@@ -826,6 +911,9 @@ namespace rsx
+ 			state != FIFO::state::running)
+ 		{
+ 			performance_counters.state = FIFO::state::running;
++#ifdef RPCS3_IOS
++			fifo_ctrl->end_idle_period(); // CELL565_RSX_IDLE_PARK
++#endif
+ 
+ 			// Hack: Delay FIFO wake-up according to setting
+ 			// NOTE: The typical spin setup is a NOP followed by a jump-to-self
+@@ -946,7 +1034,8 @@ namespace rsx
  			{
  				method(m_ctx, reg, value);
  
@@ -17211,7 +17259,7 @@ index a36ce5242..5305bf1dc 100644
  					m_ctx->register_state->decode(reg, m_ctx->register_state->latch);
  					break;
 diff --git a/rpcs3/Emu/RSX/RSXFIFO.h b/rpcs3/Emu/RSX/RSXFIFO.h
-index 25916b1b9..274a6776c 100644
+index 25916b1b9..39c6390ed 100644
 --- a/rpcs3/Emu/RSX/RSXFIFO.h
 +++ b/rpcs3/Emu/RSX/RSXFIFO.h
 @@ -137,6 +137,10 @@ namespace rsx
@@ -17225,14 +17273,29 @@ index 25916b1b9..274a6776c 100644
  
  			u32 m_command_reg = 0;
  			u32 m_command_inc = 0;
-@@ -151,6 +155,7 @@ namespace rsx
+@@ -151,6 +155,11 @@ namespace rsx
  			u32 m_cache_line_count = 8;
  			bool m_deferred_get_publishing = false;
  			bool m_fifo_idle_wfe = false;
 +			bool m_fifo_idle_bounded_sleep = false; // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L3)
++#ifdef RPCS3_IOS
++			bool m_rsx_idle_park = false; // CELL565_RSX_IDLE_PARK
++			u64 m_idle_since = 0;
++#endif
  			mutable u32 m_get_sync_counter = 0;
  			mutable u32 m_published_get = umax;
  			u32 m_idle_spins = 0;
+@@ -178,6 +187,10 @@ namespace rsx
+ 			void sync_get() const;
+ 			void sync_get_force() const;
+ 			void reset_idle_wait() { m_idle_spins = 0; }
++#ifdef RPCS3_IOS
++			// CELL565_RSX_IDLE_PARK: the FIFO left its idle state.
++			void end_idle_period() { m_idle_since = 0; }
++#endif
+ 			void idle_wait();
+ 			std::span<const u32> get_current_arg_ptr(u32 length_in_words) const;
+ 			u32 get_remaining_args_count() const { return m_remaining_commands; }
 diff --git a/rpcs3/Emu/RSX/RSXOffload.cpp b/rpcs3/Emu/RSX/RSXOffload.cpp
 index 8b57f19de..c8bd51ddf 100644
 --- a/rpcs3/Emu/RSX/RSXOffload.cpp
@@ -17346,10 +17409,10 @@ index a710d6639..f6c2cbc5e 100644
  
  	color4f fragment_texture::remapped_border_color(bool apply_colorspace_remapping) const
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index dff27c6ed..e5b7847d2 100644
+index dff27c6ed..c1bcddbf9 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
-@@ -26,6 +26,14 @@
+@@ -26,6 +26,15 @@
  #include "Overlays/overlay_perf_metrics.h"
  #include "Overlays/overlay_debug_overlay.h"
  #include "Overlays/overlay_manager.h"
@@ -17359,12 +17422,13 @@ index dff27c6ed..e5b7847d2 100644
 +#include "ios/RPCS3IOSPerformance.h"
 +#include "ios/RPCS3IOSProfilerHelpers.h"
 +#include "ios/IOSRsxSyncProfile.h"
++#include "ios/IOSRsxIdlePark.h"
 +#include "Overlays/overlay_cursor.h"
 +#endif
  
  #include "Utilities/date_time.h"
  
-@@ -42,6 +50,8 @@ class GSRender;
+@@ -42,6 +51,8 @@ class GSRender;
  atomic_t<bool> g_user_asked_for_recording = false;
  atomic_t<bool> g_user_asked_for_screenshot = false;
  atomic_t<bool> g_user_asked_for_frame_capture = false;
@@ -17373,7 +17437,7 @@ index dff27c6ed..e5b7847d2 100644
  atomic_t<bool> g_disable_frame_limit = false;
  rsx::frame_trace_data frame_debug;
  rsx::frame_capture_data frame_capture;
-@@ -478,15 +488,15 @@ namespace rsx
+@@ -478,15 +489,15 @@ namespace rsx
  				}
  				else
  				{
@@ -17394,7 +17458,7 @@ index dff27c6ed..e5b7847d2 100644
  						// Discard lower frequencies because it has been proven that there are indices higher than them
  						const usz discard_cnt = frequencies + freq_count - std::remove_if(frequencies, frequencies + freq_count, [&max_result_by_division](u32 freq)
  						{
-@@ -523,7 +533,8 @@ namespace rsx
+@@ -523,7 +534,8 @@ namespace rsx
  				break;
  			}
  
@@ -17404,7 +17468,7 @@ index dff27c6ed..e5b7847d2 100644
  
  			const auto re_evaluate = [&] <typename T> (const std::byte* ptr, T)
  			{
-@@ -586,59 +597,6 @@ namespace rsx
+@@ -586,59 +598,6 @@ namespace rsx
  		return vertex_range;
  	}
  
@@ -17464,7 +17528,7 @@ index dff27c6ed..e5b7847d2 100644
  	void tiled_region::write(const void *src, u32 width, u32 height, u32 pitch)
  	{
  		if (!tile)
-@@ -752,6 +710,10 @@ namespace rsx
+@@ -752,6 +711,10 @@ namespace rsx
  
  	thread::~thread()
  	{
@@ -17475,7 +17539,7 @@ index dff27c6ed..e5b7847d2 100644
  		g_access_violation_handler = nullptr;
  	}
  
-@@ -833,6 +795,8 @@ namespace rsx
+@@ -833,6 +796,8 @@ namespace rsx
  		m_graphics_state |= pipeline_state::all_dirty;
  
  		g_user_asked_for_frame_capture = false;
@@ -17484,7 +17548,7 @@ index dff27c6ed..e5b7847d2 100644
  
  		// TODO: Proper context management in the driver
  		s_ctx.rsxthr = this;
-@@ -1252,13 +1216,40 @@ namespace rsx
+@@ -1252,13 +1217,40 @@ namespace rsx
  			manager->stop_audio();
  		}
  
@@ -17525,7 +17589,7 @@ index dff27c6ed..e5b7847d2 100644
  				if (!rsx_thread_running)
  				{
  					return;
-@@ -1278,6 +1269,16 @@ namespace rsx
+@@ -1278,6 +1270,16 @@ namespace rsx
  			// If something is going on in the backend that requires an update, set the interrupt bit explicitly.
  			if ((m_cycles_counter++ & 63) == 0 || m_eng_interrupt_mask)
  			{
@@ -17542,7 +17606,7 @@ index dff27c6ed..e5b7847d2 100644
  				// Execute backend-local tasks first
  				do_local_task(performance_counters.state);
  
-@@ -2367,6 +2368,11 @@ namespace rsx
+@@ -2367,6 +2369,11 @@ namespace rsx
  			{
  				// Emulation required
  				current_fragment_program.ctrl |= RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE;
@@ -17554,7 +17618,7 @@ index dff27c6ed..e5b7847d2 100644
  			}
  		}
  
-@@ -2718,6 +2724,37 @@ namespace rsx
+@@ -2718,6 +2725,37 @@ namespace rsx
  			}
  		}
  
@@ -17592,7 +17656,7 @@ index dff27c6ed..e5b7847d2 100644
  		last_host_flip_timestamp = get_system_time();
  	}
  
-@@ -3351,6 +3388,47 @@ namespace rsx
+@@ -3351,6 +3389,47 @@ namespace rsx
  
  	u32 thread::get_load()
  	{
@@ -17640,7 +17704,7 @@ index dff27c6ed..e5b7847d2 100644
  		// Average load over around 30 frames
  		if (!performance_counters.last_update_timestamp || performance_counters.sampled_frames > 30)
  		{
-@@ -3367,6 +3445,7 @@ namespace rsx
+@@ -3367,6 +3446,7 @@ namespace rsx
  			performance_counters.sampled_frames = 0;
  			performance_counters.last_update_timestamp = timestamp;
  		}
@@ -17648,7 +17712,7 @@ index dff27c6ed..e5b7847d2 100644
  
  		return performance_counters.approximate_load;
  	}
-@@ -3378,56 +3457,73 @@ namespace rsx
+@@ -3378,54 +3458,71 @@ namespace rsx
  		// MM sync. This is a pre-emptive operation, so we can use a deferred request.
  		rsx::mm_flush_lazy();
  
@@ -17724,7 +17788,7 @@ index dff27c6ed..e5b7847d2 100644
 -				rsx_log.fatal("Capture failed: %s (%s)", file_path, fs::g_tls_error);
 +				// Keep already committed files; stop the burst at the first failure.
 +				capture_frames_remaining = 0;
-+			}
+ 			}
 +			frame_capture.reset();
 +			g_frame_capture_remaining = capture_frames_remaining;
 +			pause_emulator = capture_frames_remaining == 0;
@@ -17739,9 +17803,9 @@ index dff27c6ed..e5b7847d2 100644
 +			{
 +				// A monotonic identifier avoids second-resolution collisions between bursts.
 +				capture_sequence_path += fmt::format("_%llu", get_system_time());
- 			}
- 		}
- 
++			}
++		}
++
 +		if (capture_frames_remaining)
 +		{
 +			// Start the next recording at this SAME boundary: no uncaptured gap frame.
@@ -17753,12 +17817,10 @@ index dff27c6ed..e5b7847d2 100644
 +			replay_cmd.rsx_command = std::make_pair(NV4097_NO_OPERATION, 0);
 +			frame_capture.replay_commands.push_back(std::move(replay_cmd));
 +			capture::capture_display_tile_state(this, frame_capture.replay_commands.back());
-+		}
-+
+ 		}
+ 
  		if (zcull_ctrl->has_pending())
- 		{
- 			// NOTE: This is a workaround for buggy games.
-@@ -3481,9 +3577,40 @@ namespace rsx
+@@ -3481,9 +3578,40 @@ namespace rsx
  			thread_ctrl::wait_for(30'000);
  		}
  
@@ -17799,6 +17861,16 @@ index dff27c6ed..e5b7847d2 100644
  	}
  
  	f64 thread::get_cached_display_refresh_rate()
+@@ -3538,6 +3666,9 @@ namespace rsx
+ 			async_flip_requested |= flip_request::emu_requested;
+ 
+ 			m_eng_interrupt_mask |= rsx::display_interrupt;
++#ifdef RPCS3_IOS
++			rpcs3::ios::rsx_idle_park::wake(); // CELL565_RSX_IDLE_PARK
++#endif
+ 
+ 			if (state & cpu_flag::exit)
+ 			{
 diff --git a/rpcs3/Emu/RSX/RSXThread.h b/rpcs3/Emu/RSX/RSXThread.h
 index fefbfb962..041fbbf2e 100644
 --- a/rpcs3/Emu/RSX/RSXThread.h
@@ -17883,6 +17955,30 @@ index fefbfb962..041fbbf2e 100644
  
  		u64 vblank_at_flip = umax;
  		u64 flip_notification_count = 0;
+diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
+index 4db376603..1bef33510 100644
+--- a/rpcs3/Emu/RSX/RSXZCULL.cpp
++++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
+@@ -3,6 +3,9 @@
+ #include "Core/RSXReservationLock.hpp"
+ #include "Host/MM.h"
+ #include "RSXThread.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSRsxIdlePark.h"
++#endif
+ 
+ namespace rsx
+ {
+@@ -956,6 +959,9 @@ namespace rsx
+ 				disable_optimizations(thr, location);
+ 
+ 				thr->m_eng_interrupt_mask |= rsx::pipe_flush_interrupt;
++#ifdef RPCS3_IOS
++				rpcs3::ios::rsx_idle_park::wake(); // CELL565_RSX_IDLE_PARK
++#endif
+ 				return true;
+ 			}
+ 
 diff --git a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
 index 4925d8830..b2b000f21 100644
 --- a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
@@ -18166,10 +18262,10 @@ index af6a25a44..68145edf4 100644
  	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
  	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28e9..681487eb0 100644
+index 63cab28e9..32f1dd28d 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-@@ -16,10 +16,18 @@
+@@ -16,10 +16,19 @@
  #include "vkutils/scratch.h"
  
  #include "Emu/RSX/rsx_methods.h"
@@ -18184,11 +18280,12 @@ index 63cab28e9..681487eb0 100644
 +#include "ios/IOSReadbackProfile.h"
 +#include "ios/IOSDeferredCommit.h"
 +#include "ios/IOSEarlySubmit.h"
++#include "ios/IOSRsxIdlePark.h"
 +#endif
  
  #include "../Program/SPIRVCommon.h"
  
-@@ -475,6 +483,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -475,6 +484,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  	vk::set_current_renderer(m_swapchain->get_device());
  	vk::init();
  
@@ -18219,7 +18316,7 @@ index 63cab28e9..681487eb0 100644
  	m_swapchain_dims.width = m_frame->client_width();
  	m_swapchain_dims.height = m_frame->client_height();
  
-@@ -537,7 +569,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -537,7 +570,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  	m_flushable_data_heaps = vk::data_heap_manager::to_list().filter(FN(x->has_shadow()));
  
@@ -18228,7 +18325,7 @@ index 63cab28e9..681487eb0 100644
  
  	if (shadermode == shader_mode::async_with_interpreter || shadermode == shader_mode::interpreter_only)
  	{
-@@ -796,6 +828,9 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -796,6 +829,9 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  VKGSRender::~VKGSRender()
  {
@@ -18238,7 +18335,28 @@ index 63cab28e9..681487eb0 100644
  	if (m_device == VK_NULL_HANDLE)
  	{
  		//Initialization failed
-@@ -983,6 +1018,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -935,6 +971,9 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+ 			g_fxo->get<rsx::dma_manager>().set_mem_fault_flag();
+ 			m_queue_status |= flush_queue_state::deadlock;
+ 			m_eng_interrupt_mask |= rsx::backend_interrupt;
++#ifdef RPCS3_IOS
++			rpcs3::ios::rsx_idle_park::wake(); // CELL565_RSX_IDLE_PARK
++#endif
+ 
+ 			// Wait for deadlock to clear
+ 			while (m_queue_status & flush_queue_state::deadlock)
+@@ -959,6 +998,10 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+ 			m_flush_requests.post(false);
+ 			m_eng_interrupt_mask |= rsx::backend_interrupt;
+ 			has_queue_ref = true;
++#ifdef RPCS3_IOS
++			// CELL565_RSX_IDLE_PARK: this thread waits until the RSX thread serves the request.
++			rpcs3::ios::rsx_idle_park::wake();
++#endif
+ 		}
+ 		else
+ 		{
+@@ -983,6 +1026,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			};
  		}
  
@@ -18250,7 +18368,7 @@ index 63cab28e9..681487eb0 100644
  		m_texture_cache.flush_all(*m_secondary_cb_list.next(), result, data_transfer_completed_callback);
  
  		if (has_queue_ref)
-@@ -1019,12 +1059,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
+@@ -1019,12 +1067,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
  
  void VKGSRender::on_semaphore_acquire_wait()
  {
@@ -18290,7 +18408,7 @@ index 63cab28e9..681487eb0 100644
  }
  
  bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
-@@ -1048,6 +1115,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1048,6 +1123,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  				for (auto i = 0ull; i < texture_array.size(); ++i)
  				{
  					const auto& tex = texture_array[i];
@@ -18304,7 +18422,7 @@ index 63cab28e9..681487eb0 100644
  					const auto addr = rsx::get_address(tex.offset(), tex.location());
  					exclusion_list.insert(addr);
  				}
-@@ -1096,33 +1170,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1096,33 +1178,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  		return any_cache_relieved;
  	}
  
@@ -18319,15 +18437,7 @@ index 63cab28e9..681487eb0 100644
 -			{
 -				return;
 -			}
-+		// Spilling and resolve-cache eviction destroy image views. Invalidate
-+		// every cached framebuffer descriptor, even when a global refresh is
-+		// already pending: load_texture_env only refreshes the current shader's
-+		// referenced slots before clearing that global flag.
-+		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
-+			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
-+		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
-+			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
- 
+-
 -			for (auto i = 0ull; i < texture_array.size(); ++i)
 -			{
 -				if (texture_array[i].enabled() &&
@@ -18339,7 +18449,15 @@ index 63cab28e9..681487eb0 100644
 -				}
 -			}
 -		};
--
++		// Spilling and resolve-cache eviction destroy image views. Invalidate
++		// every cached framebuffer descriptor, even when a global refresh is
++		// already pending: load_texture_env only refreshes the current shader's
++		// referenced slots before clearing that global flag.
++		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
++			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
++		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
++			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
+ 
 -		scan_array(rsx::method_registers.fragment_textures, fs_sampler_state);
 -		scan_array(rsx::method_registers.vertex_textures, vs_sampler_state);
 -
@@ -18348,7 +18466,7 @@ index 63cab28e9..681487eb0 100644
  		{
  			m_samplers_dirty.store(true);
  		}
-@@ -1250,8 +1309,8 @@ void VKGSRender::on_init_thread()
+@@ -1250,8 +1317,8 @@ void VKGSRender::on_init_thread()
  	GSRender::on_init_thread();
  	zcull_ctrl.reset(static_cast<::rsx::reports::ZCULL_control*>(this));
  
@@ -18359,7 +18477,7 @@ index 63cab28e9..681487eb0 100644
  	{
  		std::unique_ptr<rsx::shader_loading_dialog> dlg = m_overlay_manager
  			? std::make_unique<rsx::shader_loading_dialog_native>(this)
-@@ -1260,7 +1319,7 @@ void VKGSRender::on_init_thread()
+@@ -1260,7 +1327,7 @@ void VKGSRender::on_init_thread()
  		dlg->close();
  	}
  
@@ -18368,7 +18486,7 @@ index 63cab28e9..681487eb0 100644
  	{
  		if (!m_overlay_manager)
  		{
-@@ -1276,12 +1335,30 @@ void VKGSRender::on_init_thread()
+@@ -1276,12 +1343,30 @@ void VKGSRender::on_init_thread()
  			m_shaders_cache->load(&dlg);
  		}
  	}
@@ -18399,7 +18517,7 @@ index 63cab28e9..681487eb0 100644
  	zcull_ctrl.release();
  }
  
-@@ -1541,6 +1618,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
+@@ -1541,6 +1626,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
  
  	if (hard_sync)
  	{
@@ -18409,7 +18527,7 @@ index 63cab28e9..681487eb0 100644
  		// wait for the latest instruction to execute
  		m_current_command_buffer->reset();
  
-@@ -1801,7 +1881,7 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
+@@ -1801,7 +1889,7 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
  
  bool VKGSRender::load_program()
  {
@@ -18418,7 +18536,7 @@ index 63cab28e9..681487eb0 100644
  
  	// TODO: EXT_dynamic_state should get rid of this sillyness soon (kd)
  	const auto vertex_state = vk::decode_vertex_input_assembly_state();
-@@ -1862,6 +1942,10 @@ bool VKGSRender::load_program()
+@@ -1862,6 +1950,10 @@ bool VKGSRender::load_program()
  		);
  
  		properties.renderpass_key = m_current_renderpass_key;
@@ -18429,7 +18547,7 @@ index 63cab28e9..681487eb0 100644
  		if (m_program &&
  			!m_shader_interpreter.is_interpreter(m_program) &&
  			m_pipeline_properties == properties)
-@@ -1872,7 +1956,6 @@ bool VKGSRender::load_program()
+@@ -1872,7 +1964,6 @@ bool VKGSRender::load_program()
  
  		// Fallthrough
  		m_pipeline_properties = properties;
@@ -18437,7 +18555,7 @@ index 63cab28e9..681487eb0 100644
  	}
  	else
  	{
-@@ -1912,7 +1995,11 @@ bool VKGSRender::load_program()
+@@ -1912,7 +2003,11 @@ bool VKGSRender::load_program()
  
  		vk::leave_uninterruptible();
  
@@ -18450,7 +18568,7 @@ index 63cab28e9..681487eb0 100644
  		{
  			// Notify the user with HUD notification
  			if (g_cfg.misc.show_shader_compilation_hint)
-@@ -2482,10 +2569,61 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2482,10 +2577,61 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  	}
  
  	m_current_command_buffer->submit(primary_submit_info, force_flush);
@@ -18512,7 +18630,7 @@ index 63cab28e9..681487eb0 100644
  void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  {
  	const bool clipped_scissor = (context == rsx::framebuffer_creation_context::context_draw);
-@@ -2602,6 +2740,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2602,6 +2748,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		flush_command_queue();
  	}
  
@@ -18533,7 +18651,7 @@ index 63cab28e9..681487eb0 100644
  	if (!m_rtts.superseded_surfaces.empty())
  	{
  		for (auto& surface : m_rtts.superseded_surfaces)
-@@ -2636,6 +2788,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2636,6 +2796,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  			if (!lock) [[likely]]
  			{
  				m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface->get_memory_range());
@@ -18543,7 +18661,7 @@ index 63cab28e9..681487eb0 100644
  				continue;
  			}
  
-@@ -2663,6 +2818,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2663,6 +2826,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -18553,7 +18671,7 @@ index 63cab28e9..681487eb0 100644
  		}
  	}
  
-@@ -2679,6 +2837,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2679,6 +2845,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -22925,7 +23043,7 @@ index 130f54b02..4c096c903 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922d2..cc72702a0 100644
+index 7072922d2..1ca4ec826 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -22955,7 +23073,7 @@ index 7072922d2..cc72702a0 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -121,6 +132,11 @@ struct cfg_root : cfg::node
+@@ -121,6 +132,15 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
@@ -22964,10 +23082,14 @@ index 7072922d2..cc72702a0 100644
 +		cfg::_enum<ios_experimental_mode> deferred_fbo_writeback{ this, "Deferred Framebuffer Write-back", ios_experimental_mode::automatic };
 +		// CELL561_EARLY_SUBMIT: Automatic enables it for Dragon Ball Z Budokai HD Collection only.
 +		cfg::_enum<ios_experimental_mode> early_submit{ this, "Early Command Buffer Submission", ios_experimental_mode::automatic };
++		// CELL565_NOOP_PUTLLC: Automatic enables it for Dragon Ball Z Budokai HD Collection only.
++		cfg::_enum<ios_experimental_mode> noop_putllc_keeps_reservations{ this, "No-op PUTLLC Keeps Reservations", ios_experimental_mode::automatic };
++		// CELL565_RSX_IDLE_PARK: Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III.
++		cfg::_enum<ios_experimental_mode> rsx_idle_park{ this, "RSX Idle Park", ios_experimental_mode::automatic };
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +150,18 @@ struct cfg_root : cfg::node
+@@ -134,6 +154,18 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -23989,10 +24111,10 @@ index 000000000..661bcee0d
 +}
 diff --git a/rpcs3/ios/IOSEarlySubmit.h b/rpcs3/ios/IOSEarlySubmit.h
 new file mode 100644
-index 000000000..3e85b64cd
+index 000000000..e5df604df
 --- /dev/null
 +++ b/rpcs3/ios/IOSEarlySubmit.h
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,51 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -24012,9 +24134,6 @@ index 000000000..3e85b64cd
 +namespace rpcs3::ios::early_submit
 +{
 +inline std::atomic<bool> enabled{false};
-+// CELL563_EARLY_AB: set when the lever alternates per profiling window, so one
-+// session measures both states under the same device conditions and scenes.
-+inline std::atomic<bool> alternate{false};
 +
 +// An early submission carries at least this many draws; a frame has at most this many.
 +constexpr std::uint32_t min_draws = 32;
@@ -24045,20 +24164,6 @@ index 000000000..3e85b64cd
 +	}
 +
 +	return gpu_idle ? verdict::submit : verdict::gpu_busy;
-+}
-+
-+// CELL563_EARLY_AB: called once per profiling window, at its boundary. Returns the
-+// state the ending window ran with; when alternating, the next window runs with the
-+// other one. Each end of draw reads the state on its own, so a switch between draws
-+// changes no command, only where later command buffer boundaries may fall.
-+inline bool window_boundary() noexcept
-+{
-+	const bool state = enabled.load(std::memory_order_relaxed);
-+	if (alternate.load(std::memory_order_relaxed))
-+	{
-+		enabled.store(!state, std::memory_order_relaxed);
-+	}
-+	return state;
 +}
 +}
 diff --git a/rpcs3/ios/IOSFullOverwrite.h b/rpcs3/ios/IOSFullOverwrite.h
@@ -24714,6 +24819,70 @@ index 000000000..8c8be8d89
 +        const auto c = static_cast<unsigned char>(path[i]);
 +        current.disc_path[i] = c >= 32 && c < 127 ? static_cast<char>(c) : '?';
 +    }
++}
++}
+diff --git a/rpcs3/ios/IOSRsxIdlePark.h b/rpcs3/ios/IOSRsxIdlePark.h
+new file mode 100644
+index 000000000..b3442839e
+--- /dev/null
++++ b/rpcs3/ios/IOSRsxIdlePark.h
+@@ -0,0 +1,58 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <chrono>
++#include <condition_variable>
++#include <cstdint>
++#include <mutex>
++
++// CELL565_RSX_IDLE_PARK: with an empty FIFO the RSX thread yields in a loop, so
++// it keeps a whole core while it waits for the next guest commands (Dragon Ball
++// Z Budokai HD on build 564: 0.90 core with the FIFO busy 33-43 % of the time,
++// one idle period of about 12 ms per frame). The iPhone has two performance
++// cores; that core is taken from the SPU and PPU threads doing the guest's
++// work. After the FIFO has stayed empty for grace_us, the thread sleeps in
++// slices of slice_us instead. The guest's next PUT is seen at the end of the
++// current slice at worst; a flush request, a flip request or a ZCULL pipe flush
++// posted by another thread wakes it at once.
++namespace rpcs3::ios::rsx_idle_park
++{
++inline std::atomic<bool> enabled{false};
++
++// Short gaps inside a frame keep the yield loop; only a long idle period parks.
++constexpr std::uint64_t grace_us = 1000;
++constexpr std::uint64_t slice_us = 50;
++
++inline std::mutex gate_mutex;
++inline std::condition_variable gate;
++inline std::uint64_t generation = 0;
++inline std::atomic<std::uint32_t> parked{0};
++
++// RSX thread only: sleep one slice unless woken.
++inline void park() noexcept
++{
++	parked.fetch_add(1, std::memory_order_seq_cst);
++	{
++		std::unique_lock lock(gate_mutex);
++		const std::uint64_t seen = generation;
++		gate.wait_for(lock, std::chrono::microseconds(slice_us), [&] { return generation != seen; });
++	}
++	parked.fetch_sub(1, std::memory_order_relaxed);
++}
++
++// Any thread, after posting work the RSX thread must service.
++inline void wake() noexcept
++{
++	if (!enabled.load(std::memory_order_relaxed) || !parked.load(std::memory_order_seq_cst))
++	{
++		return;
++	}
++
++	{
++		std::lock_guard lock(gate_mutex);
++		generation++;
++	}
++	gate.notify_all();
 +}
 +}
 diff --git a/rpcs3/ios/IOSRsxSyncProfile.h b/rpcs3/ios/IOSRsxSyncProfile.h
@@ -29030,10 +29199,10 @@ index b4602fea9..37a708aa6 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b83..b8c916beb 100644
+index 7c3389b83..824707090 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,8 +1,15 @@
+@@ -1,8 +1,16 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -29045,11 +29214,12 @@ index 7c3389b83..b8c916beb 100644
 +#include "IOSTextureValidationProfile.h"
 +#include "IOSDeferredCommit.h"
 +#include "IOSEarlySubmit.h"
++#include "IOSRsxIdlePark.h"
 +#include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
  #include "util/logs.hpp"
  
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
-@@ -27,6 +34,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +35,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -29126,7 +29296,7 @@ index 7c3389b83..b8c916beb 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +124,28 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +125,36 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -29143,19 +29313,27 @@ index 7c3389b83..b8c916beb 100644
 +	// CELL561_EARLY_SUBMIT: Automatic is Dragon Ball Z Budokai HD Collection only, where
 +	// build 560 read one render target back per frame and waited for the GPU to execute
 +	// the draws it had recorded since the last submission.
-+	const bool early_submit_title = rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID());
-+	resolved.early_submit = resolve_mode(g_cfg.ios_experimental.early_submit, early_submit_title);
++	resolved.early_submit = resolve_mode(g_cfg.ios_experimental.early_submit,
++		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
 +	rpcs3::ios::early_submit::enabled.store(resolved.early_submit, std::memory_order_relaxed);
-+	// CELL563_EARLY_AB: build 562 measured no gain on that title, under session conditions
-+	// that also slowed the frames the lever never touched. Automatic there alternates the
-+	// lever per profiling window (on first), so one session compares both states; an
-+	// explicit Enabled or Disabled keeps one state.
-+	const bool early_submit_ab = g_cfg.ios_experimental.early_submit == ios_experimental_mode::automatic && early_submit_title;
-+	rpcs3::ios::early_submit::alternate.store(early_submit_ab, std::memory_order_relaxed);
++	// CELL565_NOOP_PUTLLC: Automatic is Dragon Ball Z Budokai HD Collection only, where
++	// build 564 counted about 120,000 successful and 75,000 failed PUTLLC per frame in
++	// combat for about 500 that changed data: the no-op write-backs invalidated each
++	// other's reservations.
++	resolved.noop_putllc_keeps_reservations = resolve_mode(g_cfg.ios_experimental.noop_putllc_keeps_reservations,
++		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
++	// CELL565_RSX_IDLE_PARK: Automatic is Dragon Ball Z Budokai HD Collection, whose RSX
++	// thread yielded 0.90 core for a FIFO busy 33-43 % of the time on build 564, and
++	// God of War III, whose CELL threads need every core. A non-default FIFO idle wait
++	// (Wait for event, Bounded sleep) keeps its own behaviour.
++	resolved.rsx_idle_park = g_cfg.ios_experimental.fifo_idle_mode == ios_fifo_idle_mode::yield &&
++		resolve_mode(g_cfg.ios_experimental.rsx_idle_park,
++			rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()) || is_god_of_war_iii_title(Emu.GetTitleID()));
++	rpcs3::ios::rsx_idle_park::enabled.store(resolved.rsx_idle_park, std::memory_order_relaxed);
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +157,58 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +166,58 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -29188,9 +29366,9 @@ index 7c3389b83..b8c916beb 100644
  	s_policy = resolved;
 -	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d",
 -		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid);
-+	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d early_submit_ab=%d",
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d noop_putllc=%d rsx_idle_park=%d",
 +		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
-+		resolved.deferred_fbo_writeback, resolved.early_submit, early_submit_ab);
++		resolved.deferred_fbo_writeback, resolved.early_submit, resolved.noop_putllc_keeps_reservations, resolved.rsx_idle_park);
  	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
  
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
@@ -29225,7 +29403,7 @@ index 7c3389b83..b8c916beb 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197b4..731e84658 100644
+index 8fba197b4..301bc3923 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -29236,7 +29414,7 @@ index 8fba197b4..731e84658 100644
  
  namespace rpcs3::ios
  {
-@@ -12,6 +13,11 @@ struct experimental_policy
+@@ -12,6 +13,16 @@ struct experimental_policy
  	bool mobile_spu_scheduling = false;
  	bool dma_copy_specialization = false;
  	bool texture_hash_hybrid = false;
@@ -29245,10 +29423,15 @@ index 8fba197b4..731e84658 100644
 +	bool texture_validation_epoch = false;
 +	bool deferred_fbo_writeback = false;
 +	bool early_submit = false;
++	// CELL565_NOOP_PUTLLC: with Accurate SPU Reservations, a PUTLLC that writes back
++	// unchanged data succeeds without invalidating the other reservations of the line.
++	bool noop_putllc_keeps_reservations = false;
++	// CELL565_RSX_IDLE_PARK: the RSX thread sleeps in short slices after a long idle period.
++	bool rsx_idle_park = false;
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,8 +26,42 @@ struct experimental_policy
+@@ -20,8 +31,42 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -29912,7 +30095,7 @@ index 000000000..094a67210
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d8005424b..e8ae9c011 100644
+index d8005424b..542ca189b 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,185 @@
@@ -30512,7 +30695,7 @@ index d8005424b..e8ae9c011 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +623,769 @@ public:
+@@ -108,12 +623,766 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -30625,7 +30808,6 @@ index d8005424b..e8ae9c011 100644
 +        rpcs3::ios::diagnostics::ProcessMemoryWindow memory_window;
 +        std::array<rpcs3::ios::diagnostics::EventCost::Sample, 7> costs{};
 +        jit_publication::snapshot publication;
-+        bool early_submit_state = false;
 +
 +		{
 +			std::lock_guard lock(m_profile_mutex);
@@ -30638,8 +30820,6 @@ index d8005424b..e8ae9c011 100644
 +            memory_window = m_process_memory;
 +            for (usz index = 0; index < costs.size(); ++index) costs[index] = m_event_costs[index].take();
 +            publication = jit_publication::metrics().exchange();
-+            // CELL563_EARLY_AB: the state of the ending window, switched at the same boundary.
-+            early_submit_state = rpcs3::ios::early_submit::window_boundary();
 +			loading = m_spu_loading.take();
 +			gameplay = m_spu_gameplay.take();
 +			range = m_range_episodes.take();
@@ -30977,12 +31157,12 @@ index d8005424b..e8ae9c011 100644
 +        {
 +            namespace early = rpcs3::ios::early_submit;
 +            ios_core_profiler.notice("COREPROF OPT561 session=%llu window=%llu early_submit=%u early_submits=%llu early_draws=%llu "
-+                "gpu_busy_checks=%llu frame_capped_checks=%llu min_draws=%u max_per_frame=%u ab=%u "
++                "gpu_busy_checks=%llu frame_capped_checks=%llu min_draws=%u max_per_frame=%u "
 +                "scope=process_window_counters window_boundary_approximate=1",
-+                profile_session, profile_window, early_submit_state ? 1u : 0u,
++                profile_session, profile_window, early::enabled.load(std::memory_order_relaxed) ? 1u : 0u,
 +                early::submits.exchange(0, std::memory_order_relaxed), early::submitted_draws.exchange(0, std::memory_order_relaxed),
 +                early::gpu_busy.exchange(0, std::memory_order_relaxed), early::frame_capped.exchange(0, std::memory_order_relaxed),
-+                early::min_draws, early::max_per_frame, early::alternate.load(std::memory_order_relaxed) ? 1u : 0u);
++                early::min_draws, early::max_per_frame);
 +        }
 +        const auto& mem = memory_window.latest;
 +        const auto& peak = memory_window.peak;
@@ -31284,7 +31464,7 @@ index d8005424b..e8ae9c011 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1393,91 @@ private:
+@@ -121,6 +1390,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -31376,7 +31556,7 @@ index d8005424b..e8ae9c011 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1485,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1482,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -31464,7 +31644,7 @@ index d8005424b..e8ae9c011 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1576,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1573,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -31593,7 +31773,7 @@ index d8005424b..e8ae9c011 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1707,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1704,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -32108,7 +32288,7 @@ index 000000000..b6b0c699e
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b047471..d1035f909 100644
+index b7b047471..3695ac187 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -32136,13 +32316,15 @@ index b7b047471..d1035f909 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,34 @@ const std::array catalog{
+@@ -122,21 +126,36 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
 +	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III only; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
 +	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
-+	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic alternates it every profiling window (about five seconds) for Dragon Ball Z Budokai HD Collection only, to measure its effect in one session; Enabled keeps it on; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
++	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
++	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
++	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
  	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
  	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
  	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),
@@ -32173,7 +32355,7 @@ index b7b047471..d1035f909 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +222,89 @@ const std::array catalog{
+@@ -205,6 +224,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -32263,7 +32445,7 @@ index b7b047471..d1035f909 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +673,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +675,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

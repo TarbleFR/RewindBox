@@ -120,6 +120,38 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   force one recomputation); not yet measured on CI. Tests:
   `test/delivery_contract_memo_test.py`. See `docs/delivery-speed.md`.
 
+## RPCS3 Core 565: early submission kept on, no-op PUTLLC keeps reservations, RSX idle park — 27 October 2026
+
+- Maintainer direction (27 October): engine optimizations over diagnostics and
+  A/B cycles; keep the 561 lever on. From 564 logs of DBZ `BLES01658` (combat):
+  ~120,000 successful and ~75,000 failed SPU PUTLLC per frame for ~500 that
+  change data (Accurate SPU Reservations on: a no-op write-back advances the
+  reservation time and kills the other SPUs' reservations on the line); RSX
+  thread 0.90 core for a FIFO busy 33-43 % (one ~12 ms idle period per frame in
+  `yield`); the iPhone (A18 Pro) has two performance cores.
+- A: the 563 alternation is removed; `IOSEarlySubmit.h` and
+  `RPCS3IOSPerformance.cpp` are the 561 files again; Automatic keeps early
+  submission on for `BLES01658` all session.
+- B `CELL565_NOOP_PUTLLC` (`do_putllc`, accurate mode, data equal to the
+  snapshot): succeeds when the line and the time are unchanged on both sides of
+  the comparison, without advancing the time; waiters are not notified (as
+  before). Setting `experimental.noop_putllc_keeps_reservations`, Automatic =
+  DBZ only. Host code SPU objects call: the `SPUThread.cpp` alias in
+  `JITCacheCompatibility.cmake` moves to the new snapshot; codegen identities
+  unchanged (no cold compile).
+- C `CELL565_RSX_IDLE_PARK` (`ios/IOSRsxIdlePark.h`): after 1 ms of empty FIFO,
+  `FIFO_control::idle_wait` sleeps in 50 us slices instead of yielding; FIFO
+  resume ends the idle period; the fault flush request, offloader request, PPU
+  flip request and ZCULL pipe flush call `wake()`. Setting
+  `experimental.rsx_idle_park`, Automatic = DBZ and God of War III, only with
+  "RSX FIFO Idle Wait" = Yield. Non-iOS view of every touched file unchanged.
+- Host evidence `docs/evidence/rpcs3-cell565-host-linux.json`: 162 policy cases,
+  10 PUTLLC protocol cases, three-poller model (0 failed data-changing PUTLLC
+  with 565 vs 17/95/4/32,728 with the old path), park (200/200 wakes, 13.3 ms
+  CPU per 60 ms idle on the Linux host vs 60 ms), six mutations detected;
+  ASan/UBSan, TSan, ARM64 qemu, materialized from upstream, ARM64 iOS syntax
+  with the 563 warning set. No iPhone measurement. See `docs/rpcs3-cell565.md`.
+
 ## RPCS3 Core 563: in-session A/B of the 561 early submission (DBZ HD) — 27 October 2026
 
 - Reason: the 562 measurement could not isolate 561 (the 562 session was also

@@ -1,0 +1,297 @@
+{
+  "build": 565,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "baseline": "e9ee22ed51525623c5776c01fd0c237bd65912f5",
+  "sourcePatchSHA256": "51dbbaa51ab446938003d1e765ce1b6991bd12de7eda9bf50cbd87488f6cc453",
+  "fixtureSHA256": "8f4bda794d7f4a34fadfef3ab20bfa41aa74696591265c37106fa7535b6dea35",
+  "hostTest": {
+    "command": "python3 test/rpcs3_cell565_test.py <565 source>",
+    "host": "Linux x86_64",
+    "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "report": {
+      "passed": true,
+      "build": 565,
+      "hostSystem": "Linux",
+      "hostMachine": "x86_64",
+      "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "sourceContract": {
+        "baseline": "e9ee22ed51525623c5776c01fd0c237bd65912f5",
+        "fixtureSHA256": "8f4bda794d7f4a34fadfef3ab20bfa41aa74696591265c37106fa7535b6dea35",
+        "manifestSHA256": "0709211d819bd130e84347e9ba9f61d901e680a85318fee697aa7246c05a97d6",
+        "sourceSHA256": {
+          "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "6c8c84c6d2a921def57e84af54d9440f4af980974ded84d93bb8d1e25db0945c",
+          "rpcs3/Emu/Cell/SPUThread.cpp": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+          "rpcs3/Emu/RSX/RSXFIFO.cpp": "e4f381adffa30632bb8b9d315d77bbe095632dafaddf574ae9e3cb9ab095c23b",
+          "rpcs3/Emu/RSX/RSXFIFO.h": "ac047d734f37006362fb24b881280bd149edb38df39a50857b4292d22c8bd564",
+          "rpcs3/Emu/RSX/RSXThread.cpp": "c9145bc1dbd4cfa4ed8ab80f1250d5f6dfb8a47e5d0b0d472c4943adfd89966b",
+          "rpcs3/Emu/RSX/RSXZCULL.cpp": "c0c1be9aac22702b7ab9b04fdf3f62edd1561f795dfe00e66ac42053e53dfcbb",
+          "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "a42b8272c089fc62ea3e142df6758694bf88413df1cf97d6e2ad8261d90b9bfe",
+          "rpcs3/Emu/system_config.h": "f5113594e3e66a03b2e9a025bc51b6af678007f77d95c249469c7a6806c4bf1d",
+          "rpcs3/ios/IOSEarlySubmit.h": "9d3a2be35192b00eeab551ed986952ca5933b40ae5760463aa6babdb1c3e20a2",
+          "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "9313056ecc67e55eeb08644ef3b5ea55f1624fa210d1b5443dec207e2bfa3b11",
+          "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "65fbd643ba17c9d62bd8ff0117de26b9f7676b0bcdbae9a6ab93ba6a23d9df50",
+          "rpcs3/ios/RPCS3IOSPerformance.cpp": "5fcb145e4236653e5b0c96897834e6a4e64415293f27d0e5ad185da49311d988",
+          "rpcs3/ios/RPCS3IOSSettings.cpp": "d6693291f9fefbcf4b447eb433e86dba32fd7031f69dd7dd389418c66298c766",
+          "rpcs3/ios/IOSRsxIdlePark.h": "f8cb125c1474691ba7bf58bda03ba5dba208c9ba703d8ce9e1bff2fa05793fa2"
+        },
+        "otherCoreSourcesUnchanged": 275
+      },
+      "codegenIdentity": {
+        "identities": {
+          "PPU": "a987639e9f838d1c",
+          "SPU": "d070cb361bdef607"
+        },
+        "unchangedFrom563": true,
+        "spuThreadAlias": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+        "coldCompileRequiredByThisChange": false
+      },
+      "earlySubmit": {
+        "automatic": "BLES01658 on for the whole session",
+        "headerAndReporterEqual561": true,
+        "alternationRemoved": true
+      },
+      "placement": {
+        "noopBlockOnlyAddition": true,
+        "parkBeforeYieldLoop": true,
+        "idlePeriodEndsOnResume": true,
+        "wakeSites": {
+          "rpcs3/Emu/RSX/VK/VKGSRender.cpp": 2,
+          "rpcs3/Emu/RSX/RSXThread.cpp": 1,
+          "rpcs3/Emu/RSX/RSXZCULL.cpp": 1
+        },
+        "nonIOSUnchanged": true,
+        "graceUs": 1000,
+        "sliceUs": 50
+      },
+      "experiment": {
+        "addressUndefined": {
+          "passed": true,
+          "policyCases": 162,
+          "noopProtocolCases": 10,
+          "contention": {
+            "pollers": 3,
+            "increments": 20000,
+            "keep": {
+              "workerFailures": 0,
+              "workerAttempts": 20000,
+              "pollerSuccesses": 153,
+              "pollerFailures": 2643,
+              "elapsedUs": 11032,
+              "finalTime": 2560000
+            },
+            "advance": {
+              "workerFailures": 17,
+              "workerAttempts": 20017,
+              "pollerSuccesses": 112,
+              "pollerFailures": 4494,
+              "elapsedUs": 12327,
+              "finalTime": 2574336
+            }
+          },
+          "park": {
+            "graceUs": 1000,
+            "sliceUs": 50,
+            "disabledCpuUs": 59604,
+            "disabledWallUs": 60000,
+            "enabledCpuUs": 13755,
+            "enabledWallUs": 60005,
+            "enabledParks": 465,
+            "enabledYields": 1443,
+            "firstParkAfterUs": 1001,
+            "wakes": 200,
+            "woken": 200,
+            "medianWakeUs": 20,
+            "maxWakeUs": 160,
+            "notifyWaitUs": 76,
+            "resetRestartsGrace": true,
+            "wakeWithoutParkedIsNoop": true
+          },
+          "harnessSHA256": "fdf42332613e6bb24c56c198a7397c6fd9f55ba6a6adc743f7a65c8b6a331b80"
+        },
+        "thread": {
+          "passed": true,
+          "policyCases": 162,
+          "noopProtocolCases": 10,
+          "contention": {
+            "pollers": 3,
+            "increments": 20000,
+            "keep": {
+              "workerFailures": 0,
+              "workerAttempts": 20000,
+              "pollerSuccesses": 1023,
+              "pollerFailures": 21403,
+              "elapsedUs": 193388,
+              "finalTime": 2560000
+            },
+            "advance": {
+              "workerFailures": 95,
+              "workerAttempts": 20095,
+              "pollerSuccesses": 1109,
+              "pollerFailures": 34731,
+              "elapsedUs": 162830,
+              "finalTime": 2701952
+            }
+          },
+          "park": {
+            "graceUs": 1000,
+            "sliceUs": 50,
+            "disabledCpuUs": 59952,
+            "disabledWallUs": 60000,
+            "enabledCpuUs": 13401,
+            "enabledWallUs": 60045,
+            "enabledParks": 470,
+            "enabledYields": 1643,
+            "firstParkAfterUs": 1001,
+            "wakes": 200,
+            "woken": 200,
+            "medianWakeUs": 24,
+            "maxWakeUs": 664,
+            "notifyWaitUs": 129,
+            "resetRestartsGrace": true,
+            "wakeWithoutParkedIsNoop": true
+          },
+          "harnessSHA256": "fdf42332613e6bb24c56c198a7397c6fd9f55ba6a6adc743f7a65c8b6a331b80"
+        }
+      },
+      "hostTiming": {
+        "passed": true,
+        "policyCases": 162,
+        "noopProtocolCases": 10,
+        "contention": {
+          "pollers": 3,
+          "increments": 200000,
+          "keep": {
+            "workerFailures": 0,
+            "workerAttempts": 200000,
+            "pollerSuccesses": 364158,
+            "pollerFailures": 31740,
+            "elapsedUs": 67777,
+            "finalTime": 25600000
+          },
+          "advance": {
+            "workerFailures": 32728,
+            "workerAttempts": 232728,
+            "pollerSuccesses": 69136,
+            "pollerFailures": 88398,
+            "elapsedUs": 74768,
+            "finalTime": 34449408
+          }
+        },
+        "park": {
+          "graceUs": 1000,
+          "sliceUs": 50,
+          "disabledCpuUs": 60000,
+          "disabledWallUs": 60000,
+          "enabledCpuUs": 13346,
+          "enabledWallUs": 60092,
+          "enabledParks": 465,
+          "enabledYields": 1772,
+          "firstParkAfterUs": 1001,
+          "wakes": 200,
+          "woken": 200,
+          "medianWakeUs": 29,
+          "maxWakeUs": 285,
+          "notifyWaitUs": 93,
+          "resetRestartsGrace": true,
+          "wakeWithoutParkedIsNoop": true
+        },
+        "harnessSHA256": "fdf42332613e6bb24c56c198a7397c6fd9f55ba6a6adc743f7a65c8b6a331b80",
+        "scope": "host timing; not an iPhone measurement"
+      },
+      "inputs": {
+        "test/rpcs3_cell565_test.py": "a074e99893eaa32d3e6e4b888e328eb54b0c639d955118432c57b6b98a93380f",
+        "test/native/rpcs3_spu_rsx565.inc": "884d77f7f33296fe3cfccb74c4871207898ddcfe5bafa3d68b9b3e3c46d956e3"
+      },
+      "result": "passed",
+      "physicalDeviceTested": false,
+      "gameplayMeasured": false,
+      "scope": "Host behaviour of the 565 production bodies: policy resolution, the no-op PUTLLC protocol and the contention it removes in a three-poller model, and the RSX idle park; no iPhone FPS, frame time, Metal rendering, thermal or memory-pressure result."
+    }
+  },
+  "materializedSourceTest": {
+    "source": "upstream 22f1152 + build-utils/rpcs3/embedded-core.patch (materialize_rpcs3_core.py: all postimage hashes verified)",
+    "passed": true
+  },
+  "arm64Correctness": {
+    "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)",
+    "target": "aarch64-linux-gnu -mcpu=apple-a7 -march=armv8.4-a",
+    "runner": "qemu-aarch64-static",
+    "sanitizer": "UBSan trap mode (no ASan/TSan runtime under qemu-user)",
+    "policyCases": 162,
+    "noopProtocolCases": 10,
+    "contention": {
+      "pollers": 3,
+      "increments": 20000,
+      "keep": {
+        "workerFailures": 0,
+        "workerAttempts": 20000,
+        "pollerSuccesses": 8257,
+        "pollerFailures": 9201,
+        "elapsedUs": 15247,
+        "finalTime": 2560000
+      },
+      "advance": {
+        "workerFailures": 4,
+        "workerAttempts": 20004,
+        "pollerSuccesses": 3369,
+        "pollerFailures": 3119,
+        "elapsedUs": 8842,
+        "finalTime": 2991232
+      }
+    },
+    "parkCorrectness": {
+      "wakes": 200,
+      "woken": 200,
+      "resetRestartsGrace": true,
+      "wakeWithoutParkedIsNoop": true,
+      "firstParkAfterUs": 1131,
+      "graceUs": 1000,
+      "sliceUs": 50
+    },
+    "scope": "qemu-user emulation: correctness only, no performance figure"
+  },
+  "mutationChecks": {
+    "detected": [
+      "noop path advances the time",
+      "noop path skips the data comparison",
+      "park without grace period",
+      "wake ignores parked threads",
+      "Automatic noop also on God of War III",
+      "fault flush request does not wake"
+    ],
+    "notDetected": [],
+    "scope": "one mutation at a time on a copy of the 565 source; the 565 harness and placement contract must fail"
+  },
+  "productionSyntax": {
+    "compiler": "clang++-22 --target=aarch64-linux-gnu -DRPCS3_IOS=1 -fsyntax-only (project -Werror set, -Wshadow)",
+    "units": [
+      "rpcs3/Emu/RSX/RSXFIFO.cpp",
+      "rpcs3/Emu/RSX/RSXThread.cpp",
+      "rpcs3/Emu/RSX/RSXZCULL.cpp",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+      "rpcs3/Emu/Cell/SPUThread.cpp",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp"
+    ],
+    "errors": 0,
+    "warningSetIdenticalTo563": true
+  },
+  "existingSourceTests": {
+    "passed": [
+      "rpcs3_failed_startup_test",
+      "rpcs3_atomic_startup_test",
+      "rpcs3_preprocessor_balance_test",
+      "rpcs3_build264_gow3_core_test",
+      "rpcs3_build301_passive_dlopen_test",
+      "rpcs3_build351_gow3_engine_test",
+      "rpcs3_build352_gow3_memory_test",
+      "rpcs3_build353_xitrix_v010_test",
+      "rpcs3_armsx3_performance_patch_test"
+    ],
+    "sourceOnlyPinContract": "passed"
+  },
+  "scope": "Host behaviour only. The contention figures come from a three-poller model and the idle-park CPU figures from this Linux host; neither is an iPhone FPS, frame time, GPU, thermal or memory result for 565."
+}
