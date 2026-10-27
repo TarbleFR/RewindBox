@@ -63,6 +63,18 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `test/neoplay_build397_integration_test.py`. Run locally with Flutter 3.47.2:
   all pass. Three `storage_contract_test.py` failures in untouched files fail
   identically on `876a087`. Swift not compiled here; no IPA, no iPhone test.
+- CI after `504f9c0` (maintainer request: fix the reported failures, all
+  already red on its parent): tests updated to the shipped behavior, no
+  product change. Rebrand strings (3DS language label, libretro journal
+  header, simulator teardown step "returning to RewindBox"); the Import
+  segment contrast measured on the Liquid Glass chrome background instead of
+  `tertiaryFixed` (all 14 themes >= 3.43); the skin test `settle` also waits
+  for `LiquidProgressIndicator`; `cheat_automatic_test.m` follows the reviewed
+  PSX condition/repeater contract of `unified_identity_test.m` (19/19 FFVII,
+  `C0` still refused; expectations from a Python port of `codesForCheat`, not
+  compiled here). `liquid-glass-ui-checks.yml` host guard moved from
+  `3494edc9` to `d645f05c` (private 557, the only reviewed change to those
+  paths since); move it only to another reviewed host change.
 ## Private 572: MeloNX engine — a JIT unit ends at a jump past the other cases of a switch — 27 October 2026
 
 - Build 566 `app.log` (18:51): Hogwarts Legacy with its update (SDK 17.5.4)

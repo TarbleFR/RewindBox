@@ -12,6 +12,7 @@ import 'package:neostation/models/game_model.dart';
 import 'package:neostation/models/system_model.dart';
 import 'package:neostation/widgets/melonx_multi_delete_dialog.dart';
 import 'package:neostation/widgets/delete_game_dialog.dart';
+import 'package:neostation/widgets/glass/glass_surface.dart';
 import 'database_test_helper.dart';
 
 import 'package:neostation/themes/abyss_theme.dart';
@@ -1092,7 +1093,16 @@ void main() {
           final foreground = tester
               .widget<Icon>(find.byIcon(Icons.file_upload_outlined))
               .color!;
-          final background = embedded ? scheme.surface : scheme.tertiaryFixed;
+          // Since the Liquid Glass interface the standalone segment sits on
+          // a chrome GlassSurface over the surface, no longer on
+          // tertiaryFixed: measure against the background actually drawn.
+          final context = tester.element(find.byType(PlaylistImportButton));
+          final background = embedded
+              ? scheme.surface
+              : Color.alphaBlend(
+                  LiquidGlassTheme.of(context).fill(context, GlassRole.chrome),
+                  scheme.surface,
+                );
           final high = foreground.computeLuminance(),
               low = background.computeLuminance();
           expect(

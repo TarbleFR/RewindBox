@@ -457,7 +457,8 @@ TEARDOWN_ORDER = (
     'teardown: renderer released',
     'teardown: dlclose called',
     'teardown: dlclose returned',
-    'stop: game view dismissed, returning to NeoStation',
+    # LibretroSession.m names the app RewindBox since the rebranding.
+    'stop: game view dismissed, returning to RewindBox',
 )
 
 

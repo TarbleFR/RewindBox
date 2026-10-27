@@ -96,7 +96,11 @@ jobs:
         # The interface changes presentation sources only. Engine sources
         # (native/) are left out: the MeloNX and RPCS3 sessions change them,
         # and each delivery recipe binds its own engine and host proofs.
+        # Reference: the validated 542 host (3494edc9) plus the reviewed RPCS3
+        # host change of private 557 (d645f05c: ROM folder saves, PS3 disc
+        # rows), the only change to these paths since. Move it only to another
+        # reviewed host change, never to absorb an interface edit.
         run: >-
-          git diff --quiet 3494edc9e09fb60fecc35dd6cc301bcb93bc9434 HEAD --
+          git diff --quiet d645f05cf0af4e2052038fee361148b54f8eac6a HEAD --
           lib/main.dart lib/data lib/repositories lib/models lib/utils lib/sync
           assets ios pubspec.yaml pubspec.lock

@@ -21,6 +21,7 @@ import 'package:neostation/services/libretro_skin_catalogs.dart';
 import 'package:neostation/services/libretro_skin_compatibility.dart';
 import 'package:neostation/services/libretro_skin_service.dart';
 import 'package:neostation/services/sfx_service.dart';
+import 'package:neostation/widgets/liquid_progress.dart';
 import 'package:path/path.dart' as path;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -202,7 +203,11 @@ void main() {
     for (var round = 0; round < rounds; round++) {
       await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
       await tester.pump();
-      if (until.evaluate().isNotEmpty && find.byType(LinearProgressIndicator).evaluate().isEmpty) {
+      // Since the Liquid Glass interface the pages show LiquidProgressIndicator,
+      // which keeps moving while a job runs: wait for it as for the Material one.
+      if (until.evaluate().isNotEmpty &&
+          find.byType(LinearProgressIndicator).evaluate().isEmpty &&
+          find.byType(LiquidProgressIndicator).evaluate().isEmpty) {
         // A few more rounds let the reads still running (previews) finish.
         for (var extra = 0; extra < 5; extra++) {
           await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
