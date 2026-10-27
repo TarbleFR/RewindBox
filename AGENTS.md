@@ -105,6 +105,13 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   (every 566 engine step, the decoder test with the switch case, and the
   simulator smoke executing the new unit end), artifact `12766340886`
   (sha256 `612754d6…`). Maintainer: install over 567. No release.
+- Private 572 delivered: run `40578083074` (workflow_dispatch) on `9ef839f4`,
+  artifact `12770453569`, IPA 0.0.8 (572) 188,090,347 bytes, SHA-256
+  `39e4b701…`; MeloNX engine 8cc2348 (identity `04f235fd…`), signed Core =
+  Core 567 (`51273092…`); 19 IPA validators passed. The first run
+  (`40572900601` on `da10d8a4`) stopped at the key import validator, which
+  still named the 566 engine (fixed in `9ef839f4`). Receipt
+  `docs/evidence/melonx-jit572-delivery.json`. Not tested on iPhone.
 
 ## RPCS3 Core 571: passive-lock fairness (DBZ combat stalls) — 27 October 2026
 
