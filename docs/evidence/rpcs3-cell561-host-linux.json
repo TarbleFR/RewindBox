@@ -1,0 +1,236 @@
+{
+  "build": 561,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "baseline": "e0f4f6d9f02763df0356669870e464eeab415443",
+  "sourcePatchSHA256": "07e1b71ea0dcb993f2b2526652fcd19ca80a0239f95c644025543f7ce868c078",
+  "fixtureSHA256": "5a0cfd81aac6c0f341bbe9e0d2e67bbcca82544f357a3c22f5b9432dad2d317d",
+  "hostPreflight": {
+    "command": "CXX=clang++-22 python3 .github/diagnostics/rpcs3cell561_core.py --source <fresh materialized source>",
+    "host": "Linux x86_64 (cloud container)",
+    "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)",
+    "proofAllTestsPassed": true,
+    "verifyReusePassed": true,
+    "referenceCore560": {
+      "source": "cba3fa9f98e38b2e90156ef5a255d35ec4849185",
+      "run": 40420391683,
+      "artifact": 12698765197,
+      "archiveSHA256": "5ccb7078f7d43d602eaee765ca2159000a4ba8ff0cb1d570e2b9b30e45ef4c49",
+      "coreSHA256": "84e4e21c7ce52539959caae5cd46733319ede964de6547460b8847e2b72678cf",
+      "tests": 1,
+      "historicalResults": true,
+      "coreBinaryReused": false,
+      "scope": "Authenticated560 Core evidence is historical. Current561 tests execute every561 change against the exact560 preimages. No iPhone gain claimed."
+    },
+    "proofInputSHA256Count": 138,
+    "report": {
+      "passed": true,
+      "sourceContract": {
+        "baseline": "e0f4f6d9f02763df0356669870e464eeab415443",
+        "fixtureSHA256": "5a0cfd81aac6c0f341bbe9e0d2e67bbcca82544f357a3c22f5b9432dad2d317d",
+        "manifestSHA256": "4b57a0a8428ac8ac3dd123abfcaa68fcd735928febb0eb0baffbec8d44f3b93f",
+        "sourceSHA256": {
+          "rpcs3/Emu/RSX/VK/VKDraw.cpp": "1f605264ac9e7c173cae4b0e0237d2d11ad792c7c1888a6f21db2172634b45d3",
+          "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "89a150da137fca19e858448210b8a3e9ecc7aea2f679ce4eb5a3a0f068b242c4",
+          "rpcs3/Emu/RSX/VK/VKGSRender.h": "b7da81752cbd731405c2601062de5791e766075d9eef5abb34c472f91885c187",
+          "rpcs3/Emu/RSX/VK/VKPresent.cpp": "11deed9d110c179529ca54006a48e46182ed06b1b26f470b1d2d1223101a3ffa",
+          "rpcs3/Emu/system_config.h": "a92b1f9cb225ea31fd2a5a45006c4c3254010f9405ec1510bc56fca8df907799",
+          "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "dbc898d8f3684c1fec31852308751ad04e329d5bd224a6fa2ed22f9807a76bb1",
+          "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "c97d1e1e1458cfe90e59ffc740e9bbb7351af9f552077db92c084f5bffaa5d24",
+          "rpcs3/ios/RPCS3IOSPerformance.cpp": "5fcb145e4236653e5b0c96897834e6a4e64415293f27d0e5ad185da49311d988",
+          "rpcs3/ios/RPCS3IOSSettings.cpp": "929f0c342338c813e6c357591d248582999d492dbd64bf50098e93f1d106fdf9",
+          "rpcs3/ios/IOSEarlySubmit.h": "9d3a2be35192b00eeab551ed986952ca5933b40ae5760463aa6babdb1c3e20a2"
+        },
+        "otherCoreSourcesUnchanged": 278
+      },
+      "codegenIdentity": {
+        "identities": {
+          "PPU": "a987639e9f838d1c",
+          "SPU": "d070cb361bdef607"
+        },
+        "unchangedFrom560": true,
+        "coldCompileRequiredByThisChange": false
+      },
+      "renderer": {
+        "hook": "end of VKGSRender::end",
+        "tracking": "after the primary submit",
+        "reset": "flip submission",
+        "switchesOnlyThroughFlushCommandQueue": true,
+        "nonIosRendererUnchanged": true
+      },
+      "exportLine": {
+        "line": "COREPROF OPT561",
+        "automaticTitles": [
+          "BLES01658"
+        ],
+        "minDraws": 32,
+        "maxPerFrame": 6
+      },
+      "earlySubmission": {
+        "addressUndefined": {
+          "passed": true,
+          "decisions": 2048,
+          "scenarios": 8,
+          "combat": {
+            "readbackWaitBeforeMsPerFrame": 7.2,
+            "readbackWaitAfterMsPerFrame": 1.377,
+            "frameBeforeMs": 24.0,
+            "frameAfterMs": 18.177,
+            "earlyPerFrame": 5.0,
+            "earlyDrawsPerSubmit": 32.0,
+            "submissionsBeforePerFrame": 1.0,
+            "submissionsAfterPerFrame": 6.0
+          },
+          "lightUnchanged": true,
+          "gpuBound": {
+            "earlyTotal": 2,
+            "frameBeforeMs": 28.538,
+            "frameAfterMs": 28.474
+          },
+          "disabledIdenticalTo560": true,
+          "guardsKeepBoundaries": 3,
+          "capReachedWithFastGpu": 6,
+          "orderPreserved": true,
+          "minDraws": 32,
+          "maxPerFrame": 6,
+          "harnessSHA256": "4595e4d85d6d96032afee648f05971eb74712d130701c7f647c0e05716e52ce2"
+        },
+        "thread": {
+          "passed": true,
+          "decisions": 2048,
+          "scenarios": 8,
+          "combat": {
+            "readbackWaitBeforeMsPerFrame": 7.2,
+            "readbackWaitAfterMsPerFrame": 1.377,
+            "frameBeforeMs": 24.0,
+            "frameAfterMs": 18.177,
+            "earlyPerFrame": 5.0,
+            "earlyDrawsPerSubmit": 32.0,
+            "submissionsBeforePerFrame": 1.0,
+            "submissionsAfterPerFrame": 6.0
+          },
+          "lightUnchanged": true,
+          "gpuBound": {
+            "earlyTotal": 2,
+            "frameBeforeMs": 28.538,
+            "frameAfterMs": 28.474
+          },
+          "disabledIdenticalTo560": true,
+          "guardsKeepBoundaries": 3,
+          "capReachedWithFastGpu": 6,
+          "orderPreserved": true,
+          "minDraws": 32,
+          "maxPerFrame": 6,
+          "harnessSHA256": "4595e4d85d6d96032afee648f05971eb74712d130701c7f647c0e05716e52ce2"
+        }
+      }
+    }
+  },
+  "arm64Correctness": {
+    "compiler": "Ubuntu clang version 22.1.8 (++20260714014902+ca7933e47d3a-1~exp1~20260714135019.80)",
+    "target": "aarch64-linux-gnu -mcpu=apple-a7 -march=armv8.4-a",
+    "runner": "qemu-aarch64-static",
+    "sanitizer": "UBSan trap mode (no ASan/TSan runtime under qemu-user)",
+    "harnessIdenticalToHostRun": true,
+    "results": {
+      "earlySubmission": {
+        "passed": true,
+        "decisions": 2048,
+        "scenarios": 8,
+        "combat": {
+          "readbackWaitBeforeMsPerFrame": 7.2,
+          "readbackWaitAfterMsPerFrame": 1.377,
+          "frameBeforeMs": 24.0,
+          "frameAfterMs": 18.177,
+          "earlyPerFrame": 5.0,
+          "earlyDrawsPerSubmit": 32.0,
+          "submissionsBeforePerFrame": 1.0,
+          "submissionsAfterPerFrame": 6.0
+        },
+        "lightUnchanged": true,
+        "gpuBound": {
+          "earlyTotal": 2,
+          "frameBeforeMs": 28.538,
+          "frameAfterMs": 28.474
+        },
+        "disabledIdenticalTo560": true,
+        "guardsKeepBoundaries": 3,
+        "capReachedWithFastGpu": 6,
+        "orderPreserved": true,
+        "minDraws": 32,
+        "maxPerFrame": 6,
+        "harnessSHA256": "4595e4d85d6d96032afee648f05971eb74712d130701c7f647c0e05716e52ce2"
+      }
+    },
+    "scope": "qemu-user emulation: correctness only, no performance figure"
+  },
+  "mutationChecks": {
+    "detected": [
+      "submit_while_gpu_busy",
+      "no_minimum_chunk",
+      "no_frame_budget",
+      "tracking_keeps_draw_count",
+      "tracking_forgets_last_submit",
+      "budget_never_resets",
+      "guard_ignores_flushing"
+    ],
+    "notDetected": [],
+    "scope": "Each mutation edits one 561 production line in a copy of the source while keeping every source anchor; the harness must fail on behavior."
+  },
+  "productionSyntax": {
+    "compiler": "clang++-22 --target=aarch64-linux-gnu -std=gnu++23 -DRPCS3_IOS=1 -fsyntax-only",
+    "units": [
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+      "rpcs3/Emu/RSX/VK/VKDraw.cpp",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+      "rpcs3/Emu/RSX/VK/VKPresent.cpp",
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp"
+    ],
+    "errors": 0,
+    "projectWarningSetIdenticalBeforeAfter": true,
+    "warningFlags": "-Wall -Wold-style-cast -Werror=old-style-cast -Werror=sign-compare -Werror=reorder -Werror=return-type -Werror=missing-noreturn -Werror=implicit-fallthrough -Wshadow",
+    "shims": "Apple headers shim, X11 headers and a syntax-only vulkan_xlib.h declaration stub for the renderer unit; never built into the Core.",
+    "warningBaseline": "clean 560 worktree, same flags and shims; the 81 diagnostics differ only by line numbers shifted by the inserted lines"
+  },
+  "existingSourceTests": {
+    "passed": [
+      "rpcs3_preprocessor_balance_test",
+      "rpcs3_build301_passive_dlopen_test",
+      "rpcs3_atomic_startup_test",
+      "rpcs3_failed_startup_test",
+      "rpcs3_build264_gow3_core_test",
+      "rpcs3_build351_gow3_engine_test",
+      "rpcs3_build352_gow3_memory_test",
+      "rpcs3_build353_xitrix_v010_test",
+      "rpcs3_armsx3_performance_patch_test"
+    ],
+    "sourceOnlyPinContract": "neo_swap_core_pin_test.py --source-only passes with PATCH_SHA256 07e1b71e",
+    "preexistingFailure": {
+      "neo_swap_core_pin_test.py": "full mode fails identically on the unchanged base: Core pin cfe92344 lacks input test/rpcs3_restore_eof_test.py (public neoswap-ipa.yml pin, left to the maintainer)"
+    }
+  },
+  "model": {
+    "kind": "simulated time, not a measurement",
+    "combat": "177 draws recorded over ~10 ms of RSX time and ~7 ms of GPU time per frame (build 560 DBZ combat figures), 0.2 ms GPU cost per extra submission, the guest reading the color surface back right after the flip",
+    "frameMs": {
+      "before": 24.0,
+      "after": 18.177
+    },
+    "readbackWaitMsPerFrame": {
+      "before": 7.2,
+      "after": 1.377
+    },
+    "notWorse": [
+      "light scenes (fewer than 32 draws between submissions)",
+      "GPU-bound frames (GPU never drained: 2 early submissions in the whole run)",
+      "disabled (identical to 560)",
+      "flush or deadlock or uninterruptible states (boundaries kept)"
+    ],
+    "assumptions": "One GPU queue executing submissions in order; the per-submission cost is an assumption, not an iPhone figure"
+  },
+  "scope": "Host correctness and a model only. No iPhone FPS, frame time, GPU wait, Metal rendering, thermal or memory result for 561."
+}

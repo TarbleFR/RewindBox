@@ -1,0 +1,291 @@
+diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+index 9102bf6d2..c28861fe9 100644
+--- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
++++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+@@ -1456,6 +1456,10 @@ void VKGSRender::end()
+ 	}
+ 
+ 	m_rtts.on_write(m_framebuffer_layout.color_write_enabled, m_framebuffer_layout.zeta_write_enabled);
++#ifdef RPCS3_IOS
++	// CELL561_EARLY_SUBMIT: the draw is complete; feed a GPU that has drained.
++	ios_early_submit();
++#endif
+ 
+ 	rsx::thread::end();
+ }
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index 31bd55cfa..681487eb0 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -26,6 +26,7 @@
+ #include "ios/IOSShaderTiming.h"
+ #include "ios/IOSReadbackProfile.h"
+ #include "ios/IOSDeferredCommit.h"
++#include "ios/IOSEarlySubmit.h"
+ #endif
+ 
+ #include "../Program/SPIRVCommon.h"
+@@ -2568,10 +2569,61 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+ 	}
+ 
+ 	m_current_command_buffer->submit(primary_submit_info, force_flush);
++#ifdef RPCS3_IOS
++	// CELL561_EARLY_SUBMIT: every primary submission passes here.
++	m_ios_last_primary_submit = m_current_command_buffer;
++	m_ios_draws_since_submit = 0;
++#endif
+ 
+ 	m_queue_status.clear(flush_queue_state::flushing);
+ }
+ 
++#ifdef RPCS3_IOS
++void VKGSRender::ios_early_submit()
++{
++	namespace early = rpcs3::ios::early_submit;
++	if (!early::enabled.load(std::memory_order_relaxed))
++	{
++		return;
++	}
++
++	if (++m_ios_draws_since_submit < early::min_draws)
++	{
++		return;
++	}
++
++	// A submission in progress, an offloader fault or uninterruptible recording keep the current boundaries.
++	if ((m_queue_status & flush_queue_state::flushing) || (m_queue_status & flush_queue_state::deadlock) ||
++		vk::is_uninterruptible())
++	{
++		return;
++	}
++
++	// Non-blocking: the fence of the last primary submission, if it has completed.
++	const bool gpu_idle = !m_ios_last_primary_submit || m_ios_last_primary_submit->poke();
++	switch (early::decide(true, m_ios_draws_since_submit, m_ios_early_submits_this_frame, gpu_idle))
++	{
++	case early::verdict::submit:
++	{
++		const u32 draws = m_ios_draws_since_submit;
++		flush_command_queue();
++		m_ios_early_submits_this_frame++;
++		early::submits.fetch_add(1, std::memory_order_relaxed);
++		early::submitted_draws.fetch_add(draws, std::memory_order_relaxed);
++		break;
++	}
++	case early::verdict::gpu_busy:
++		early::gpu_busy.fetch_add(1, std::memory_order_relaxed);
++		break;
++	case early::verdict::capped:
++		early::frame_capped.fetch_add(1, std::memory_order_relaxed);
++		break;
++	case early::verdict::keep:
++		break;
++	}
++}
++#endif
++
+ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+ {
+ 	const bool clipped_scissor = (context == rsx::framebuffer_creation_context::context_draw);
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
+index c5100bee3..20aa0dcd3 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.h
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
+@@ -196,6 +196,11 @@ private:
+ 	u64 m_next_semaphore_service = 0;
+ 	u32 m_semaphore_wait_polls = 0;
+ 	bool m_servicing_semaphore_wait = false;
++	// CELL561_EARLY_SUBMIT: draws recorded since the last primary submission, early
++	// submissions since the last flip, and that last primary submission.
++	u32 m_ios_draws_since_submit = 0;
++	u32 m_ios_early_submits_this_frame = 0;
++	vk::command_buffer_chunk* m_ios_last_primary_submit = nullptr;
+ #endif
+ 
+ 	// Offloader thread deadlock recovery
+@@ -237,6 +242,9 @@ private:
+ 		VkPipelineStageFlags pipeline_stage_flags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+ 
+ 	void flush_command_queue(bool hard_sync = false, bool do_not_switch = false);
++#ifdef RPCS3_IOS
++	void ios_early_submit();
++#endif
+ 	void queue_swap_request(bool wait_on_acquire = true);
+ 	void frame_context_cleanup(vk::frame_context_t *ctx);
+ 	void advance_queued_frames();
+diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+index 1dbf9499d..990a8e07c 100644
+--- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
++++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+@@ -249,6 +249,8 @@ void VKGSRender::queue_swap_request(bool wait_on_acquire)
+ 
+ #ifdef RPCS3_IOS
+ 	m_current_frame->ios_submit_tsc = utils::get_tsc();
++	// CELL561_EARLY_SUBMIT: the frame is submitted; the next one starts its own budget.
++	m_ios_early_submits_this_frame = 0;
+ #endif
+ 	// Set up a present request for this frame as well
+ 	present(m_current_frame);
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 0532dd9ba..cc72702a0 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -135,6 +135,8 @@ struct cfg_root : cfg::node
+ 		// CELL559_TEXTURE_EPOCH: Automatic enables it for God of War III only.
+ 		cfg::_enum<ios_experimental_mode> texture_validation_epoch{ this, "Texture Validation Per FIFO Batch", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> deferred_fbo_writeback{ this, "Deferred Framebuffer Write-back", ios_experimental_mode::automatic };
++		// CELL561_EARLY_SUBMIT: Automatic enables it for Dragon Ball Z Budokai HD Collection only.
++		cfg::_enum<ios_experimental_mode> early_submit{ this, "Early Command Buffer Submission", ios_experimental_mode::automatic };
+ 
+ 		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSEarlySubmit.h b/rpcs3/ios/IOSEarlySubmit.h
+new file mode 100644
+index 000000000..e5df604df
+--- /dev/null
++++ b/rpcs3/ios/IOSEarlySubmit.h
+@@ -0,0 +1,51 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// CELL561_EARLY_SUBMIT: the RSX thread records the draws of a frame into one
++// command buffer and submits it at the flip, or when a guest access to memory
++// the GPU wrote asks for a flush. A title that reads a render target back every
++// frame then waits, from that access, for the GPU to execute everything the
++// frame recorded. When the GPU has completed every command buffer already
++// submitted, the draws recorded since then are submitted at the end of a draw,
++// so the GPU renders while the RSX thread keeps recording. The commands, their
++// order and their synchronization are unchanged; only command buffer
++// boundaries move, at the point a flush request already uses. A GPU that is
++// still busy never sees an early submission.
++namespace rpcs3::ios::early_submit
++{
++inline std::atomic<bool> enabled{false};
++
++// An early submission carries at least this many draws; a frame has at most this many.
++constexpr std::uint32_t min_draws = 32;
++constexpr std::uint32_t max_per_frame = 6;
++
++inline std::atomic<std::uint64_t> submits{0}, submitted_draws{0}, gpu_busy{0}, frame_capped{0};
++
++enum class verdict : std::uint8_t
++{
++	keep,      // fewer than min_draws recorded, or disabled
++	gpu_busy,  // the last submission has not completed: the GPU has work
++	capped,    // this frame already used max_per_frame early submissions
++	submit,
++};
++
++// draws: recorded since the last primary submission; this_frame: early
++// submissions since the last flip; gpu_idle: the last primary submission completed.
++constexpr verdict decide(bool on, std::uint32_t draws, std::uint32_t this_frame, bool gpu_idle) noexcept
++{
++	if (!on || draws < min_draws)
++	{
++		return verdict::keep;
++	}
++
++	if (this_frame >= max_per_frame)
++	{
++		return verdict::capped;
++	}
++
++	return gpu_idle ? verdict::submit : verdict::gpu_busy;
++}
++}
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 859afb3f9..3bacaee5d 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -8,6 +8,7 @@
+ #include "IOSMemoryPressurePolicy.h"
+ #include "IOSTextureValidationProfile.h"
+ #include "IOSDeferredCommit.h"
++#include "IOSEarlySubmit.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+ 
+@@ -133,6 +134,12 @@ void resolve_experimental_policy() noexcept
+ 	resolved.deferred_fbo_writeback = resolve_mode(g_cfg.ios_experimental.deferred_fbo_writeback,
+ 		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
+ 	rpcs3::ios::deferred_commit::enabled.store(resolved.deferred_fbo_writeback, std::memory_order_relaxed);
++	// CELL561_EARLY_SUBMIT: Automatic is Dragon Ball Z Budokai HD Collection only, where
++	// build 560 read one render target back per frame and waited for the GPU to execute
++	// the draws it had recorded since the last submission.
++	resolved.early_submit = resolve_mode(g_cfg.ios_experimental.early_submit,
++		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
++	rpcs3::ios::early_submit::enabled.store(resolved.early_submit, std::memory_order_relaxed);
+ 	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
+ 	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
+ 	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
+@@ -165,9 +172,9 @@ void resolve_experimental_policy() noexcept
+ 	}
+ 
+ 	s_policy = resolved;
+-	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d",
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d",
+ 		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
+-		resolved.deferred_fbo_writeback);
++		resolved.deferred_fbo_writeback, resolved.early_submit);
+ 	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index a30457f2c..731e84658 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -17,6 +17,7 @@ struct experimental_policy
+ 	// synchronization point instead of re-hashing it for every draw.
+ 	bool texture_validation_epoch = false;
+ 	bool deferred_fbo_writeback = false;
++	bool early_submit = false;
+ 	u32 fifo_cache_bytes = 1024;
+ 	bool fifo_idle_wfe = false;
+ 	bool deferred_get_publishing = false;
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 823e7e21d..542ca189b 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -15,6 +15,7 @@
+ #include "IOSReadbackProfile.h"
+ #include "IOSFullOverwrite.h"
+ #include "IOSDeferredCommit.h"
++#include "IOSEarlySubmit.h"
+ #include "IOSCompileAdmission.h"
+ #include "IOSRuntimeMetrics.h"
+ #include "IOSShaderTiming.h"
+@@ -1072,6 +1073,19 @@ private:
+                 deferred::dropped.exchange(0, std::memory_order_relaxed), deferred::dropped_bytes.exchange(0, std::memory_order_relaxed),
+                 deferred::submits.exchange(0, std::memory_order_relaxed));
+         }
++        // CELL561_OPT_EXPORT: early submissions of this window, the draws they carried and
++        // the end-of-draw checks that kept the boundary because the GPU was busy or the
++        // frame had used its budget, one bounded line.
++        {
++            namespace early = rpcs3::ios::early_submit;
++            ios_core_profiler.notice("COREPROF OPT561 session=%llu window=%llu early_submit=%u early_submits=%llu early_draws=%llu "
++                "gpu_busy_checks=%llu frame_capped_checks=%llu min_draws=%u max_per_frame=%u "
++                "scope=process_window_counters window_boundary_approximate=1",
++                profile_session, profile_window, early::enabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                early::submits.exchange(0, std::memory_order_relaxed), early::submitted_draws.exchange(0, std::memory_order_relaxed),
++                early::gpu_busy.exchange(0, std::memory_order_relaxed), early::frame_capped.exchange(0, std::memory_order_relaxed),
++                early::min_draws, early::max_per_frame);
++        }
+         const auto& mem = memory_window.latest;
+         const auto& peak = memory_window.peak;
+         ios_core_profiler.notice(
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 60900fc33..e68b2fdd9 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -128,6 +128,7 @@ const std::array catalog{
+ 	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
+ 	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III only; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
+ 	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
++	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
+ 	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
+ 	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
+ 	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),

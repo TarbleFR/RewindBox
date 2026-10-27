@@ -27,6 +27,28 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   delivery recipe together; the delivery waits for the exact Core run. See
   `docs/core-swap-delivery.md`.
 
+## RPCS3 Core 561: early command buffer submission (DBZ HD) — 27 October 2026
+
+- Build 560 measured on DBZ `BLES01658` (`docs/rpcs3-cell560.md` §9): neutral,
+  ~42 FPS in combat; the guest reads one 1280x720x4 surface back per frame
+  (`fault_read` ~7.9 ms/frame, `dropped` 0) and waits for the GPU to execute
+  the frame, which the RSX thread submits only at the flip or at a flush.
+- Core 561 (`CELL561_EARLY_SUBMIT`, `ios/IOSEarlySubmit.h`): at the end of a
+  draw, when at least 32 draws were recorded since the last primary submission,
+  that submission's fence has completed (non-blocking `poke()`), the frame has
+  used fewer than 6 early submissions and no flush, offloader deadlock or
+  uninterruptible recording is active, call `flush_command_queue()`. Commands
+  and their order are unchanged; only command buffer boundaries move. The flip
+  resets the budget. Setting "Early Command Buffer Submission"
+  (`experimental.early_submit`, Automatic = `BLES01658` only). New
+  `COREPROF OPT561`; boot log `early_submit=`. Codegen identities unchanged.
+- Host evidence `docs/evidence/rpcs3-cell561-host-linux.json`: production
+  bodies against the 560 preimages under ASan/UBSan, TSan and ARM64 qemu;
+  simulated-time model (not a measurement): combat frame 24.0 -> 18.2 ms,
+  light scenes and disabled identical to 560, GPU-bound not worse; seven
+  behavioral mutations detected; driver preflight authenticated the 560
+  diagnostics artifact. No iPhone measurement. See `docs/rpcs3-cell561.md`.
+
 ## RPCS3 Core 560: deferred framebuffer-commit write-back (DBZ HD) — 26 October 2026
 
 - Maintainer logs of build 559, Dragon Ball Z Budokai HD Collection `BLES01658`

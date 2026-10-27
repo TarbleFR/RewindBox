@@ -17916,7 +17916,7 @@ index 4925d8830..b2b000f21 100644
  
  		// Signal fence
 diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-index 77927e27b..9102bf6d2 100644
+index 77927e27b..c28861fe9 100644
 --- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
 @@ -172,14 +172,14 @@ void VKGSRender::update_draw_state()
@@ -18142,6 +18142,17 @@ index 77927e27b..9102bf6d2 100644
  		const int offsets[] = { 0, 16, 48, 32 };
  		auto& sampled_image_info = texture_env[offsets[static_cast<u32>(sampler_state->image_type)] + i];
  		sampled_image_info = { *view, *fs_sampler_handles[i] };
+@@ -1404,6 +1456,10 @@ void VKGSRender::end()
+ 	}
+ 
+ 	m_rtts.on_write(m_framebuffer_layout.color_write_enabled, m_framebuffer_layout.zeta_write_enabled);
++#ifdef RPCS3_IOS
++	// CELL561_EARLY_SUBMIT: the draw is complete; feed a GPU that has drained.
++	ios_early_submit();
++#endif
+ 
+ 	rsx::thread::end();
+ }
 diff --git a/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp b/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
 index af6a25a44..68145edf4 100644
 --- a/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp
@@ -18155,10 +18166,10 @@ index af6a25a44..68145edf4 100644
  	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
  	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28e9..31bd55cfa 100644
+index 63cab28e9..681487eb0 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-@@ -16,10 +16,17 @@
+@@ -16,10 +16,18 @@
  #include "vkutils/scratch.h"
  
  #include "Emu/RSX/rsx_methods.h"
@@ -18172,11 +18183,12 @@ index 63cab28e9..31bd55cfa 100644
 +#include "ios/IOSShaderTiming.h"
 +#include "ios/IOSReadbackProfile.h"
 +#include "ios/IOSDeferredCommit.h"
++#include "ios/IOSEarlySubmit.h"
 +#endif
  
  #include "../Program/SPIRVCommon.h"
  
-@@ -475,6 +482,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -475,6 +483,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  	vk::set_current_renderer(m_swapchain->get_device());
  	vk::init();
  
@@ -18207,7 +18219,7 @@ index 63cab28e9..31bd55cfa 100644
  	m_swapchain_dims.width = m_frame->client_width();
  	m_swapchain_dims.height = m_frame->client_height();
  
-@@ -537,7 +568,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -537,7 +569,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  	m_flushable_data_heaps = vk::data_heap_manager::to_list().filter(FN(x->has_shadow()));
  
@@ -18216,7 +18228,7 @@ index 63cab28e9..31bd55cfa 100644
  
  	if (shadermode == shader_mode::async_with_interpreter || shadermode == shader_mode::interpreter_only)
  	{
-@@ -796,6 +827,9 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -796,6 +828,9 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  VKGSRender::~VKGSRender()
  {
@@ -18226,7 +18238,7 @@ index 63cab28e9..31bd55cfa 100644
  	if (m_device == VK_NULL_HANDLE)
  	{
  		//Initialization failed
-@@ -983,6 +1017,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -983,6 +1018,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			};
  		}
  
@@ -18238,7 +18250,7 @@ index 63cab28e9..31bd55cfa 100644
  		m_texture_cache.flush_all(*m_secondary_cb_list.next(), result, data_transfer_completed_callback);
  
  		if (has_queue_ref)
-@@ -1019,12 +1058,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
+@@ -1019,12 +1059,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
  
  void VKGSRender::on_semaphore_acquire_wait()
  {
@@ -18278,7 +18290,7 @@ index 63cab28e9..31bd55cfa 100644
  }
  
  bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
-@@ -1048,6 +1114,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1048,6 +1115,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  				for (auto i = 0ull; i < texture_array.size(); ++i)
  				{
  					const auto& tex = texture_array[i];
@@ -18292,7 +18304,7 @@ index 63cab28e9..31bd55cfa 100644
  					const auto addr = rsx::get_address(tex.offset(), tex.location());
  					exclusion_list.insert(addr);
  				}
-@@ -1096,33 +1169,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1096,33 +1170,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  		return any_cache_relieved;
  	}
  
@@ -18336,7 +18348,7 @@ index 63cab28e9..31bd55cfa 100644
  		{
  			m_samplers_dirty.store(true);
  		}
-@@ -1250,8 +1308,8 @@ void VKGSRender::on_init_thread()
+@@ -1250,8 +1309,8 @@ void VKGSRender::on_init_thread()
  	GSRender::on_init_thread();
  	zcull_ctrl.reset(static_cast<::rsx::reports::ZCULL_control*>(this));
  
@@ -18347,7 +18359,7 @@ index 63cab28e9..31bd55cfa 100644
  	{
  		std::unique_ptr<rsx::shader_loading_dialog> dlg = m_overlay_manager
  			? std::make_unique<rsx::shader_loading_dialog_native>(this)
-@@ -1260,7 +1318,7 @@ void VKGSRender::on_init_thread()
+@@ -1260,7 +1319,7 @@ void VKGSRender::on_init_thread()
  		dlg->close();
  	}
  
@@ -18356,7 +18368,7 @@ index 63cab28e9..31bd55cfa 100644
  	{
  		if (!m_overlay_manager)
  		{
-@@ -1276,12 +1334,30 @@ void VKGSRender::on_init_thread()
+@@ -1276,12 +1335,30 @@ void VKGSRender::on_init_thread()
  			m_shaders_cache->load(&dlg);
  		}
  	}
@@ -18387,7 +18399,7 @@ index 63cab28e9..31bd55cfa 100644
  	zcull_ctrl.release();
  }
  
-@@ -1541,6 +1617,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
+@@ -1541,6 +1618,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
  
  	if (hard_sync)
  	{
@@ -18397,7 +18409,7 @@ index 63cab28e9..31bd55cfa 100644
  		// wait for the latest instruction to execute
  		m_current_command_buffer->reset();
  
-@@ -1801,7 +1880,7 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
+@@ -1801,7 +1881,7 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
  
  bool VKGSRender::load_program()
  {
@@ -18406,7 +18418,7 @@ index 63cab28e9..31bd55cfa 100644
  
  	// TODO: EXT_dynamic_state should get rid of this sillyness soon (kd)
  	const auto vertex_state = vk::decode_vertex_input_assembly_state();
-@@ -1862,6 +1941,10 @@ bool VKGSRender::load_program()
+@@ -1862,6 +1942,10 @@ bool VKGSRender::load_program()
  		);
  
  		properties.renderpass_key = m_current_renderpass_key;
@@ -18417,7 +18429,7 @@ index 63cab28e9..31bd55cfa 100644
  		if (m_program &&
  			!m_shader_interpreter.is_interpreter(m_program) &&
  			m_pipeline_properties == properties)
-@@ -1872,7 +1955,6 @@ bool VKGSRender::load_program()
+@@ -1872,7 +1956,6 @@ bool VKGSRender::load_program()
  
  		// Fallthrough
  		m_pipeline_properties = properties;
@@ -18425,7 +18437,7 @@ index 63cab28e9..31bd55cfa 100644
  	}
  	else
  	{
-@@ -1912,7 +1994,11 @@ bool VKGSRender::load_program()
+@@ -1912,7 +1995,11 @@ bool VKGSRender::load_program()
  
  		vk::leave_uninterruptible();
  
@@ -18438,7 +18450,69 @@ index 63cab28e9..31bd55cfa 100644
  		{
  			// Notify the user with HUD notification
  			if (g_cfg.misc.show_shader_compilation_hint)
-@@ -2602,6 +2688,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2482,10 +2569,61 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+ 	}
+ 
+ 	m_current_command_buffer->submit(primary_submit_info, force_flush);
++#ifdef RPCS3_IOS
++	// CELL561_EARLY_SUBMIT: every primary submission passes here.
++	m_ios_last_primary_submit = m_current_command_buffer;
++	m_ios_draws_since_submit = 0;
++#endif
+ 
+ 	m_queue_status.clear(flush_queue_state::flushing);
+ }
+ 
++#ifdef RPCS3_IOS
++void VKGSRender::ios_early_submit()
++{
++	namespace early = rpcs3::ios::early_submit;
++	if (!early::enabled.load(std::memory_order_relaxed))
++	{
++		return;
++	}
++
++	if (++m_ios_draws_since_submit < early::min_draws)
++	{
++		return;
++	}
++
++	// A submission in progress, an offloader fault or uninterruptible recording keep the current boundaries.
++	if ((m_queue_status & flush_queue_state::flushing) || (m_queue_status & flush_queue_state::deadlock) ||
++		vk::is_uninterruptible())
++	{
++		return;
++	}
++
++	// Non-blocking: the fence of the last primary submission, if it has completed.
++	const bool gpu_idle = !m_ios_last_primary_submit || m_ios_last_primary_submit->poke();
++	switch (early::decide(true, m_ios_draws_since_submit, m_ios_early_submits_this_frame, gpu_idle))
++	{
++	case early::verdict::submit:
++	{
++		const u32 draws = m_ios_draws_since_submit;
++		flush_command_queue();
++		m_ios_early_submits_this_frame++;
++		early::submits.fetch_add(1, std::memory_order_relaxed);
++		early::submitted_draws.fetch_add(draws, std::memory_order_relaxed);
++		break;
++	}
++	case early::verdict::gpu_busy:
++		early::gpu_busy.fetch_add(1, std::memory_order_relaxed);
++		break;
++	case early::verdict::capped:
++		early::frame_capped.fetch_add(1, std::memory_order_relaxed);
++		break;
++	case early::verdict::keep:
++		break;
++	}
++}
++#endif
++
+ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+ {
+ 	const bool clipped_scissor = (context == rsx::framebuffer_creation_context::context_draw);
+@@ -2602,6 +2740,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		flush_command_queue();
  	}
  
@@ -18459,7 +18533,7 @@ index 63cab28e9..31bd55cfa 100644
  	if (!m_rtts.superseded_surfaces.empty())
  	{
  		for (auto& surface : m_rtts.superseded_surfaces)
-@@ -2636,6 +2736,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2636,6 +2788,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  			if (!lock) [[likely]]
  			{
  				m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface->get_memory_range());
@@ -18469,7 +18543,7 @@ index 63cab28e9..31bd55cfa 100644
  				continue;
  			}
  
-@@ -2663,6 +2766,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2663,6 +2818,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -18479,7 +18553,7 @@ index 63cab28e9..31bd55cfa 100644
  		}
  	}
  
-@@ -2679,6 +2785,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2679,6 +2837,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -18490,7 +18564,7 @@ index 63cab28e9..31bd55cfa 100644
  	}
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
-index e3817d8e6..c5100bee3 100644
+index e3817d8e6..20aa0dcd3 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.h
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
 @@ -104,6 +104,7 @@ private:
@@ -18501,7 +18575,7 @@ index e3817d8e6..c5100bee3 100644
  
  	//Vulkan internals
  	std::unique_ptr<vk::query_pool_manager> m_occlusion_query_manager;
-@@ -190,6 +191,12 @@ private:
+@@ -190,6 +191,17 @@ private:
  	vk::flush_request_task m_flush_requests;
  
  	ullong m_last_cond_render_eval_hint = 0;
@@ -18510,11 +18584,26 @@ index e3817d8e6..c5100bee3 100644
 +	u64 m_next_semaphore_service = 0;
 +	u32 m_semaphore_wait_polls = 0;
 +	bool m_servicing_semaphore_wait = false;
++	// CELL561_EARLY_SUBMIT: draws recorded since the last primary submission, early
++	// submissions since the last flip, and that last primary submission.
++	u32 m_ios_draws_since_submit = 0;
++	u32 m_ios_early_submits_this_frame = 0;
++	vk::command_buffer_chunk* m_ios_last_primary_submit = nullptr;
 +#endif
  
  	// Offloader thread deadlock recovery
  	rsx::atomic_bitmask_t<flush_queue_state> m_queue_status;
-@@ -255,6 +262,7 @@ private:
+@@ -230,6 +242,9 @@ private:
+ 		VkPipelineStageFlags pipeline_stage_flags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+ 
+ 	void flush_command_queue(bool hard_sync = false, bool do_not_switch = false);
++#ifdef RPCS3_IOS
++	void ios_early_submit();
++#endif
+ 	void queue_swap_request(bool wait_on_acquire = true);
+ 	void frame_context_cleanup(vk::frame_context_t *ctx);
+ 	void advance_queued_frames();
+@@ -255,6 +270,7 @@ private:
  	void upload_transform_constants(const rsx::io_buffer& buffer);
  
  	void load_texture_env();
@@ -18952,7 +19041,7 @@ index 712505ee2..d67babe62 100644
  	}
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
-index a604696f1..1dbf9499d 100644
+index a604696f1..990a8e07c 100644
 --- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
 @@ -12,6 +12,12 @@
@@ -18998,17 +19087,19 @@ index a604696f1..1dbf9499d 100644
  
  	// Texture cache is also double buffered to prevent use-after-free
  	m_texture_cache.on_frame_end();
-@@ -233,6 +247,9 @@ void VKGSRender::queue_swap_request(bool wait_on_acquire)
+@@ -233,6 +247,11 @@ void VKGSRender::queue_swap_request(bool wait_on_acquire)
  			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT);
  	}
  
 +#ifdef RPCS3_IOS
 +	m_current_frame->ios_submit_tsc = utils::get_tsc();
++	// CELL561_EARLY_SUBMIT: the frame is submitted; the next one starts its own budget.
++	m_ios_early_submits_this_frame = 0;
 +#endif
  	// Set up a present request for this frame as well
  	present(m_current_frame);
  
-@@ -250,11 +267,21 @@ void VKGSRender::frame_context_cleanup(vk::frame_context_t *ctx)
+@@ -250,11 +269,21 @@ void VKGSRender::frame_context_cleanup(vk::frame_context_t *ctx)
  	ensure(ctx->swap_command_buffer);
  
  	// Perform hard swap here
@@ -19030,7 +19121,7 @@ index a604696f1..1dbf9499d 100644
  
  	// Resource cleanup.
  	{
-@@ -392,6 +419,11 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
+@@ -392,6 +421,11 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
  			flush_command_queue();
  		}
  
@@ -19042,7 +19133,7 @@ index a604696f1..1dbf9499d 100644
  		m_texture_cache.invalidate_range(*m_current_command_buffer, range, rsx::invalidation_cause::read);
  		image_to_flip = m_texture_cache.upload_image_simple(*m_current_command_buffer, expected_format, info->address, info->width, info->height, info->pitch);
  	}
-@@ -597,6 +629,10 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -597,6 +631,10 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  
  	u64 timeout = m_swapchain->get_swap_image_count() <= 2? 0ull: 100000000ull;
  	u32 out_of_date_rebuilds = 0;
@@ -19053,7 +19144,7 @@ index a604696f1..1dbf9499d 100644
  	while (VkResult status = m_swapchain->acquire_next_swapchain_image(m_current_frame->acquire_signal_semaphore, timeout, &m_current_frame->present_image))
  	{
  		switch (status)
-@@ -641,6 +677,10 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -641,6 +679,10 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  		}
  	}
  
@@ -19064,7 +19155,7 @@ index a604696f1..1dbf9499d 100644
  	// Confirm that the driver did not silently fail
  	ensure(m_current_frame->present_image != umax);
  
-@@ -718,7 +758,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -718,7 +760,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  
  		if (g_cfg.video.record_with_overlays && has_overlay)
  		{
@@ -22834,7 +22925,7 @@ index 130f54b02..4c096c903 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922d2..0532dd9ba 100644
+index 7072922d2..cc72702a0 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -22864,17 +22955,19 @@ index 7072922d2..0532dd9ba 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -121,6 +132,9 @@ struct cfg_root : cfg::node
+@@ -121,6 +132,11 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
 +		// CELL559_TEXTURE_EPOCH: Automatic enables it for God of War III only.
 +		cfg::_enum<ios_experimental_mode> texture_validation_epoch{ this, "Texture Validation Per FIFO Batch", ios_experimental_mode::automatic };
 +		cfg::_enum<ios_experimental_mode> deferred_fbo_writeback{ this, "Deferred Framebuffer Write-back", ios_experimental_mode::automatic };
++		// CELL561_EARLY_SUBMIT: Automatic enables it for Dragon Ball Z Budokai HD Collection only.
++		cfg::_enum<ios_experimental_mode> early_submit{ this, "Early Command Buffer Submission", ios_experimental_mode::automatic };
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +148,18 @@ struct cfg_root : cfg::node
+@@ -134,6 +150,18 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -23892,6 +23985,63 @@ index 000000000..661bcee0d
 +constexpr bool is_dbz_budokai_hd_title(std::string_view title_id) noexcept
 +{
 +	return title_id == "BLES01658";
++}
++}
+diff --git a/rpcs3/ios/IOSEarlySubmit.h b/rpcs3/ios/IOSEarlySubmit.h
+new file mode 100644
+index 000000000..e5df604df
+--- /dev/null
++++ b/rpcs3/ios/IOSEarlySubmit.h
+@@ -0,0 +1,51 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// CELL561_EARLY_SUBMIT: the RSX thread records the draws of a frame into one
++// command buffer and submits it at the flip, or when a guest access to memory
++// the GPU wrote asks for a flush. A title that reads a render target back every
++// frame then waits, from that access, for the GPU to execute everything the
++// frame recorded. When the GPU has completed every command buffer already
++// submitted, the draws recorded since then are submitted at the end of a draw,
++// so the GPU renders while the RSX thread keeps recording. The commands, their
++// order and their synchronization are unchanged; only command buffer
++// boundaries move, at the point a flush request already uses. A GPU that is
++// still busy never sees an early submission.
++namespace rpcs3::ios::early_submit
++{
++inline std::atomic<bool> enabled{false};
++
++// An early submission carries at least this many draws; a frame has at most this many.
++constexpr std::uint32_t min_draws = 32;
++constexpr std::uint32_t max_per_frame = 6;
++
++inline std::atomic<std::uint64_t> submits{0}, submitted_draws{0}, gpu_busy{0}, frame_capped{0};
++
++enum class verdict : std::uint8_t
++{
++	keep,      // fewer than min_draws recorded, or disabled
++	gpu_busy,  // the last submission has not completed: the GPU has work
++	capped,    // this frame already used max_per_frame early submissions
++	submit,
++};
++
++// draws: recorded since the last primary submission; this_frame: early
++// submissions since the last flip; gpu_idle: the last primary submission completed.
++constexpr verdict decide(bool on, std::uint32_t draws, std::uint32_t this_frame, bool gpu_idle) noexcept
++{
++	if (!on || draws < min_draws)
++	{
++		return verdict::keep;
++	}
++
++	if (this_frame >= max_per_frame)
++	{
++		return verdict::capped;
++	}
++
++	return gpu_idle ? verdict::submit : verdict::gpu_busy;
 +}
 +}
 diff --git a/rpcs3/ios/IOSFullOverwrite.h b/rpcs3/ios/IOSFullOverwrite.h
@@ -28863,10 +29013,10 @@ index b4602fea9..37a708aa6 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b83..859afb3f9 100644
+index 7c3389b83..3bacaee5d 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,8 +1,14 @@
+@@ -1,8 +1,15 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -28877,11 +29027,12 @@ index 7c3389b83..859afb3f9 100644
 +#include "IOSMemoryPressurePolicy.h"
 +#include "IOSTextureValidationProfile.h"
 +#include "IOSDeferredCommit.h"
++#include "IOSEarlySubmit.h"
 +#include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
  #include "util/logs.hpp"
  
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
-@@ -27,6 +33,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +34,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -28958,7 +29109,7 @@ index 7c3389b83..859afb3f9 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +123,16 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +124,22 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -28972,10 +29123,16 @@ index 7c3389b83..859afb3f9 100644
 +	resolved.deferred_fbo_writeback = resolve_mode(g_cfg.ios_experimental.deferred_fbo_writeback,
 +		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
 +	rpcs3::ios::deferred_commit::enabled.store(resolved.deferred_fbo_writeback, std::memory_order_relaxed);
++	// CELL561_EARLY_SUBMIT: Automatic is Dragon Ball Z Budokai HD Collection only, where
++	// build 560 read one render target back per frame and waited for the GPU to execute
++	// the draws it had recorded since the last submission.
++	resolved.early_submit = resolve_mode(g_cfg.ios_experimental.early_submit,
++		rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()));
++	rpcs3::ios::early_submit::enabled.store(resolved.early_submit, std::memory_order_relaxed);
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +144,58 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +151,58 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -29008,9 +29165,9 @@ index 7c3389b83..859afb3f9 100644
  	s_policy = resolved;
 -	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d",
 -		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid);
-+	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d",
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d",
 +		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
-+		resolved.deferred_fbo_writeback);
++		resolved.deferred_fbo_writeback, resolved.early_submit);
  	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
  
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
@@ -29045,7 +29202,7 @@ index 7c3389b83..859afb3f9 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197b4..a30457f2c 100644
+index 8fba197b4..731e84658 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -29056,7 +29213,7 @@ index 8fba197b4..a30457f2c 100644
  
  namespace rpcs3::ios
  {
-@@ -12,6 +13,10 @@ struct experimental_policy
+@@ -12,6 +13,11 @@ struct experimental_policy
  	bool mobile_spu_scheduling = false;
  	bool dma_copy_specialization = false;
  	bool texture_hash_hybrid = false;
@@ -29064,10 +29221,11 @@ index 8fba197b4..a30457f2c 100644
 +	// synchronization point instead of re-hashing it for every draw.
 +	bool texture_validation_epoch = false;
 +	bool deferred_fbo_writeback = false;
++	bool early_submit = false;
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,8 +25,42 @@ struct experimental_policy
+@@ -20,8 +26,42 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -29731,10 +29889,10 @@ index 000000000..094a67210
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d8005424b..823e7e21d 100644
+index d8005424b..542ca189b 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,184 @@
+@@ -1,26 +1,185 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -29752,6 +29910,7 @@ index d8005424b..823e7e21d 100644
 +#include "IOSReadbackProfile.h"
 +#include "IOSFullOverwrite.h"
 +#include "IOSDeferredCommit.h"
++#include "IOSEarlySubmit.h"
 +#include "IOSCompileAdmission.h"
 +#include "IOSRuntimeMetrics.h"
 +#include "IOSShaderTiming.h"
@@ -29919,7 +30078,7 @@ index d8005424b..823e7e21d 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +196,387 @@ u64 process_memory_footprint()
+@@ -38,31 +197,387 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -30317,7 +30476,7 @@ index d8005424b..823e7e21d 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +586,10 @@ public:
+@@ -72,10 +587,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -30330,7 +30489,7 @@ index d8005424b..823e7e21d 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +622,753 @@ public:
+@@ -108,12 +623,766 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -30786,6 +30945,19 @@ index d8005424b..823e7e21d 100644
 +                deferred::dropped.exchange(0, std::memory_order_relaxed), deferred::dropped_bytes.exchange(0, std::memory_order_relaxed),
 +                deferred::submits.exchange(0, std::memory_order_relaxed));
 +        }
++        // CELL561_OPT_EXPORT: early submissions of this window, the draws they carried and
++        // the end-of-draw checks that kept the boundary because the GPU was busy or the
++        // frame had used its budget, one bounded line.
++        {
++            namespace early = rpcs3::ios::early_submit;
++            ios_core_profiler.notice("COREPROF OPT561 session=%llu window=%llu early_submit=%u early_submits=%llu early_draws=%llu "
++                "gpu_busy_checks=%llu frame_capped_checks=%llu min_draws=%u max_per_frame=%u "
++                "scope=process_window_counters window_boundary_approximate=1",
++                profile_session, profile_window, early::enabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                early::submits.exchange(0, std::memory_order_relaxed), early::submitted_draws.exchange(0, std::memory_order_relaxed),
++                early::gpu_busy.exchange(0, std::memory_order_relaxed), early::frame_capped.exchange(0, std::memory_order_relaxed),
++                early::min_draws, early::max_per_frame);
++        }
 +        const auto& mem = memory_window.latest;
 +        const auto& peak = memory_window.peak;
 +        ios_core_profiler.notice(
@@ -31086,7 +31258,7 @@ index d8005424b..823e7e21d 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1376,91 @@ private:
+@@ -121,6 +1390,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -31178,7 +31350,7 @@ index d8005424b..823e7e21d 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1468,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1482,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -31266,7 +31438,7 @@ index d8005424b..823e7e21d 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1559,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1573,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -31395,7 +31567,7 @@ index d8005424b..823e7e21d 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1690,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1704,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -31910,7 +32082,7 @@ index 000000000..b6b0c699e
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b047471..60900fc33 100644
+index b7b047471..e68b2fdd9 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -31938,12 +32110,13 @@ index b7b047471..60900fc33 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,33 @@ const std::array catalog{
+@@ -122,21 +126,34 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
 +	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III only; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
 +	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
++	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
  	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
  	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
  	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),
@@ -31974,7 +32147,7 @@ index b7b047471..60900fc33 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +221,89 @@ const std::array catalog{
+@@ -205,6 +222,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -32064,7 +32237,7 @@ index b7b047471..60900fc33 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +672,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +673,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
