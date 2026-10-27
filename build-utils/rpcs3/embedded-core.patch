@@ -2593,7 +2593,7 @@ index 000000000..1708e6f4d
 +};
 +}
 diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
-index 944511012..4efc4f05b 100644
+index 944511012..9bdc28a06 100644
 --- a/Utilities/Thread.cpp
 +++ b/Utilities/Thread.cpp
 @@ -1297,12 +1297,14 @@ a64_mem_info_t decode_a64_mem_inst(u32 inst)
@@ -2614,6 +2614,40 @@ index 944511012..4efc4f05b 100644
  	{
  		const u32 size = (inst >> 30) & 3;
  		const u32 opc  = (inst >> 22) & 3;
+@@ -2768,6 +2770,8 @@ thread_local DECLARE(thread_ctrl::g_tls_error_callback) = nullptr;
+ DECLARE(thread_ctrl::g_native_core_layout) { native_core_arrangement::undefined };
+ 
+ #ifdef RPCS3_IOS
++#include "ios/IOSThreadQoS.h"
++
+ namespace
+ {
+ 	struct ios_thread_worker_pool;
+@@ -2879,6 +2883,10 @@ void* ios_thread_worker::run(void* opaque) noexcept
+ 			worker->job.wait(nullptr);
+ 		}
+ 
++		// CELL567_THREAD_QOS: a job starts at the default level, whatever class the
++		// previous job of this worker left behind (ios/IOSThreadQoS.h).
++		thread_ctrl::set_native_priority(0);
++
+ 		job_context context{worker, thread};
+ 		pthread_cleanup_push(&ios_thread_worker::abandon, &context);
+ 		thread->entry_point(thread);
+@@ -4067,9 +4075,11 @@ void thread_ctrl::set_native_priority(int priority)
+ 	// SCHED_RR policy or query POSIX scheduling state: Metal performs the same
+ 	// query while compiling shaders, and physical iOS 27 incidents faulted in
+ 	// that path after RPCS3 created real-time-priority pthreads.
+-	const qos_class_t qos = priority < 0 ? QOS_CLASS_UTILITY : QOS_CLASS_USER_INTERACTIVE;
++	// CELL567_THREAD_QOS: +1 stays above the threads that request nothing (ios/IOSThreadQoS.h).
++	const auto level = rpcs3::ios::thread_qos::for_priority(priority);
++	const qos_class_t qos = level.utility ? QOS_CLASS_UTILITY : QOS_CLASS_USER_INTERACTIVE;
+ 
+-	if (const int err = pthread_set_qos_class_self_np(qos, 0))
++	if (const int err = pthread_set_qos_class_self_np(qos, level.relative_priority))
+ 	{
+ 		sig_log.error("pthread_set_qos_class_self_np() failed: %d", err);
+ 	}
 diff --git a/Utilities/mutex.h b/Utilities/mutex.h
 index 4c0943109..0d16c5542 100644
 --- a/Utilities/mutex.h
@@ -23043,7 +23077,7 @@ index 130f54b02..4c096c903 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922d2..1ca4ec826 100644
+index 7072922d2..b894aa025 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -23073,7 +23107,7 @@ index 7072922d2..1ca4ec826 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -121,6 +132,15 @@ struct cfg_root : cfg::node
+@@ -121,6 +132,17 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
@@ -23086,10 +23120,12 @@ index 7072922d2..1ca4ec826 100644
 +		cfg::_enum<ios_experimental_mode> noop_putllc_keeps_reservations{ this, "No-op PUTLLC Keeps Reservations", ios_experimental_mode::automatic };
 +		// CELL565_RSX_IDLE_PARK: Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III.
 +		cfg::_enum<ios_experimental_mode> rsx_idle_park{ this, "RSX Idle Park", ios_experimental_mode::automatic };
++		// CELL567_THREAD_QOS: Automatic enables it for every title.
++		cfg::_enum<ios_experimental_mode> rsx_thread_priority{ this, "RSX Thread Priority", ios_experimental_mode::automatic };
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +154,18 @@ struct cfg_root : cfg::node
+@@ -134,6 +156,18 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -25794,6 +25830,59 @@ index 000000000..13baaa863
 +		validation_epoch.fetch_add(1, std::memory_order_acq_rel);
 +		epoch_bumps.fetch_add(1, std::memory_order_relaxed);
 +	}
++}
++}
+diff --git a/rpcs3/ios/IOSThreadQoS.h b/rpcs3/ios/IOSThreadQoS.h
+new file mode 100644
+index 000000000..0f2f94b52
+--- /dev/null
++++ b/rpcs3/ios/IOSThreadQoS.h
+@@ -0,0 +1,47 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++
++// CELL567_THREAD_QOS: iOS schedules threads by QoS class and, within a class,
++// by relative priority (0 down to QOS_MIN_RELATIVE_PRIORITY, -15). RPCS3 raises
++// the RSX thread and the two audio threads "above other threads" (priority +1)
++// and lowers compilers and loggers (-1); on iOS +1 and the default 0 were the
++// same user-interactive class at relative priority 0, so the RSX thread had no
++// precedence over the SPU and PPU threads when they oversubscribe the two
++// performance cores (God of War III on build 565: about 4.7 cores requested,
++// RSX FIFO 85-90 % busy at 0.57 core). Threads that ask for nothing now run one
++// step below the raised ones in the same class.
++//
++// The native worker pool also reuses threads: a worker that ran a thread which
++// lowered itself (shader cache writer: set_native_priority(-1), never restored)
++// kept the utility class for the next thread it ran, an SPU or PPU thread for
++// instance. Each job now starts at the default level.
++namespace rpcs3::ios::thread_qos
++{
++// Relative priority of threads that request no priority while the ordering is on.
++constexpr int lowered_relative_priority = -2;
++inline std::atomic<int> default_relative_priority{0};
++
++struct level
++{
++	bool utility;           // QOS_CLASS_UTILITY instead of QOS_CLASS_USER_INTERACTIVE
++	int relative_priority;  // pthread_set_qos_class_self_np's relative priority
++};
++
++// thread_ctrl::set_native_priority(priority); 0 is also every pooled job's start.
++inline level for_priority(int priority) noexcept
++{
++	if (priority < 0)
++	{
++		return {true, 0};
++	}
++
++	if (priority > 0)
++	{
++		return {false, 0};
++	}
++
++	return {false, default_relative_priority.load(std::memory_order_relaxed)};
 +}
 +}
 diff --git a/rpcs3/ios/NeoStationSavestateIO.h b/rpcs3/ios/NeoStationSavestateIO.h
@@ -29199,10 +29288,10 @@ index b4602fea9..37a708aa6 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b83..824707090 100644
+index 7c3389b83..849bf0948 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,8 +1,16 @@
+@@ -1,8 +1,17 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -29215,11 +29304,12 @@ index 7c3389b83..824707090 100644
 +#include "IOSDeferredCommit.h"
 +#include "IOSEarlySubmit.h"
 +#include "IOSRsxIdlePark.h"
++#include "IOSThreadQoS.h"
 +#include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
  #include "util/logs.hpp"
  
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
-@@ -27,6 +35,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +36,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -29296,7 +29386,7 @@ index 7c3389b83..824707090 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +125,36 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +126,42 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -29330,10 +29420,16 @@ index 7c3389b83..824707090 100644
 +		resolve_mode(g_cfg.ios_experimental.rsx_idle_park,
 +			rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID()) || is_god_of_war_iii_title(Emu.GetTitleID()));
 +	rpcs3::ios::rsx_idle_park::enabled.store(resolved.rsx_idle_park, std::memory_order_relaxed);
++	// CELL567_THREAD_QOS: Automatic is every title. RPCS3 raises the RSX and audio threads
++	// above the others; on iOS that order only exists while the others run one step lower.
++	// Resolved before the emulation threads of this boot start.
++	resolved.rsx_thread_priority = resolve_mode(g_cfg.ios_experimental.rsx_thread_priority, true);
++	rpcs3::ios::thread_qos::default_relative_priority.store(
++		resolved.rsx_thread_priority ? rpcs3::ios::thread_qos::lowered_relative_priority : 0, std::memory_order_relaxed);
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +166,58 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +173,58 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -29366,9 +29462,9 @@ index 7c3389b83..824707090 100644
  	s_policy = resolved;
 -	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d",
 -		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid);
-+	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d noop_putllc=%d rsx_idle_park=%d",
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d noop_putllc=%d rsx_idle_park=%d rsx_thread_priority=%d",
 +		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
-+		resolved.deferred_fbo_writeback, resolved.early_submit, resolved.noop_putllc_keeps_reservations, resolved.rsx_idle_park);
++		resolved.deferred_fbo_writeback, resolved.early_submit, resolved.noop_putllc_keeps_reservations, resolved.rsx_idle_park, resolved.rsx_thread_priority);
  	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
  
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
@@ -29403,7 +29499,7 @@ index 7c3389b83..824707090 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197b4..301bc3923 100644
+index 8fba197b4..ef1a0e775 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -29414,7 +29510,7 @@ index 8fba197b4..301bc3923 100644
  
  namespace rpcs3::ios
  {
-@@ -12,6 +13,16 @@ struct experimental_policy
+@@ -12,6 +13,18 @@ struct experimental_policy
  	bool mobile_spu_scheduling = false;
  	bool dma_copy_specialization = false;
  	bool texture_hash_hybrid = false;
@@ -29428,10 +29524,12 @@ index 8fba197b4..301bc3923 100644
 +	bool noop_putllc_keeps_reservations = false;
 +	// CELL565_RSX_IDLE_PARK: the RSX thread sleeps in short slices after a long idle period.
 +	bool rsx_idle_park = false;
++	// CELL567_THREAD_QOS: threads that request no priority run below the RSX and audio threads.
++	bool rsx_thread_priority = false;
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,8 +31,42 @@ struct experimental_policy
+@@ -20,8 +33,42 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -32288,7 +32386,7 @@ index 000000000..b6b0c699e
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b047471..3695ac187 100644
+index b7b047471..5946845ef 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -32316,7 +32414,7 @@ index b7b047471..3695ac187 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,36 @@ const std::array catalog{
+@@ -122,21 +126,37 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -32325,6 +32423,7 @@ index b7b047471..3695ac187 100644
 +	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
 +	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
 +	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
++	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
  	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
  	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
  	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),
@@ -32355,7 +32454,7 @@ index b7b047471..3695ac187 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +224,89 @@ const std::array catalog{
+@@ -205,6 +225,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -32445,7 +32544,7 @@ index b7b047471..3695ac187 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +675,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +676,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

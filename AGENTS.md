@@ -3,6 +3,29 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 Core 567: RSX thread priority, pooled-worker QoS reset — 27 October 2026
+
+- From 565 logs: God of War III without the 30 cap runs 13-17 FPS with the RSX
+  FIFO 85-90 % busy while the RSX thread gets 0.57 core (SPU ~3.4 cores).
+  On iOS `set_native_priority` gave every thread that asks nothing the same
+  user-interactive QoS as RSX, so upstream's `scoped_priority(+1)` (RSX,
+  cellAudio, rsxaudio) did nothing; and a pooled `ios_thread_worker` kept the
+  utility class the shader-cache writer sets (`rsx_cache.h`, never restored)
+  for its next job, PPU or SPU included.
+- `CELL567_THREAD_QOS` (`ios/IOSThreadQoS.h`, `Utilities/Thread.cpp`): one
+  mapping; +1 user-interactive relpri 0, 0 user-interactive relpri -2, -1
+  utility (unchanged); `ios_thread_worker::run` calls `set_native_priority(0)`
+  before each job. Setting `experimental.rsx_thread_priority`, Automatic = every
+  title; Disabled = relpri 0 for all (565 order), the worker reset stays.
+  `Thread.cpp` is not a codegen identity input: identities unchanged (no cold
+  compile). Non-iOS view of every touched file unchanged.
+- Host evidence `docs/evidence/rpcs3-cell567-host-linux.json` (three modes under
+  ASan/UBSan and TSan, worker reset, placement contract; the real Darwin QoS
+  calls run on the Mac CI runner); materialized from upstream; `Thread.cpp`
+  ARM64 iOS syntax with Apple QoS declarations, no new warning. No iPhone
+  measurement. See `docs/rpcs3-cell567.md`. The private 567 IPA stacks on the
+  delivered 566 tree (maintainer: install over 566).
+
 ## Private 566: MeloNX engine — JIT translation units, GC gen2 budget — 27 October 2026
 
 - Build 564 `app.log`, Hogwarts Legacy with its update (SDK 17.5.4): two
