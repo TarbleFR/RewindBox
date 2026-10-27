@@ -86,6 +86,13 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   once; seven behavioral mutations detected; driver preflight authenticated
   the 561 diagnostics artifact. A measurement build, not an optimization. See
   `docs/rpcs3-cell563.md`.
+- Private 563 recipe (`rpcs3cell563_tree.py`, `rpcs3cell563_delivery.py`,
+  `rpcs3-cell563-delivery.yml`, `validate_*563_ipa.py`,
+  `delivery-563-recipient.pem`): the delivered 562 product (the other session's
+  MeloNX keyboard and L3/R3 on the 561 product) with only the RPCS3 Core swapped
+  561 -> 563 (`dd65e867`, Core run `40500425037`). Full Xcode build (562 is not
+  a published release). The 562 recipe runs unchanged in `as_562()`. No
+  release. Do not reuse 563.
 
 ## RPCS3 Core 561: early command buffer submission (DBZ HD) — 27 October 2026
 

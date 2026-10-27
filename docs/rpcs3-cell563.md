@@ -104,3 +104,27 @@ Reçu : [`evidence/rpcs3-cell563-host-linux.json`](evidence/rpcs3-cell563-host-l
 - Les fenêtres de transition de scène sont à écarter de l'appariement.
 - Rien n'est mesuré sur iPhone tant que les journaux de la 563 ne sont pas
   revenus.
+
+## 6. Recette de l'IPA privée 563
+
+563 livre le produit 562 octet pour octet : le produit 561, avec le clavier
+Switch et la bascule L3/R3 de MeloNX de l'autre session. Seul le Core RPCS3
+change : le 561 (`5b033881`) est remplacé par le 563 (`dd65e867`, run
+`40500425037`). C'est un build Xcode complet : la 562 n'existe pas en release
+publiée, donc le mode « Core seul » n'a pas de base.
+
+- **Arbre** (`rpcs3cell563_tree.py`) : l'arbre 562 livré
+  (`melonxinput562_tree.py`), plus les fichiers de recette Core pris à
+  `dd65e867` et la documentation 563. 5 d'entre eux étaient épinglés au 561 :
+  le delta, le manifeste, le script de build, le test de pin et
+  `rpcs3-core.yml`. Seul le commit Core `dd65e867` les a modifiés depuis
+  `5b033881`.
+- **Contrôles hérités** (`rpcs3cell563_delivery.py`, `as_562()`) : la recette
+  562 tourne inchangée sur l'arbre 562 livré (index de travail, fichiers 563
+  dans leur version 562, modules Python de cet arbre, `BUILD_NUMBER` 562,
+  identité du Core installé mise de côté). Les vues 561 à 554 suivent par
+  emboîtement.
+- **Validateurs IPA** : `validate_rpcs3_563_ipa.py` ajoute les marqueurs 563
+  (`ab=`, `early_submit_ab=`, texte du réglage) à ceux de 555 à 561. MeloNX
+  (mesure 558 et clavier 562), interface et fichiers de bibliothèque : les
+  validateurs 562, exécutés dans la vue 562.
