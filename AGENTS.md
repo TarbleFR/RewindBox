@@ -120,6 +120,19 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   force one recomputation); not yet measured on CI. Tests:
   `test/delivery_contract_memo_test.py`. See `docs/delivery-speed.md`.
 
+## God of War III: no 30 fps limiter (maintainer request, 27 October 2026)
+
+- The only 30 fps cap was the RewindBox God of War III profile
+  (`gpu.frame_limit: '30'`, build 412). The Core has no title-specific frame
+  limit; the shipped GoW3 patches are cheats only; on PS3 the game is not
+  locked to 30 (variable, 60 Hz vblank, own timing). `c5ba917` sets
+  `'gpu.frame_limit': 'Auto'` (Core default, 60 Hz vblank), explicit so a
+  GameDB entry cannot lower it; per-game user choices still apply last; the
+  legacy-config inheritance applies it where the old file left the global
+  value. Above 60 would need a higher VBlank Frequency (may change game speed):
+  not enabled, not tested. Do not bring the 30 cap back without a maintainer
+  decision. Shipped by private 565. No GoW3 measurement since 551.
+
 ## RPCS3 Core 565: early submission kept on, no-op PUTLLC keeps reservations, RSX idle park — 27 October 2026
 
 - Maintainer direction (27 October): engine optimizations over diagnostics and
@@ -152,6 +165,20 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   mutations detected;
   ASan/UBSan, TSan, ARM64 qemu, materialized from upstream, ARM64 iOS syntax
   with the 563 warning set. No iPhone measurement. See `docs/rpcs3-cell565.md`.
+- Core run `40533429692` on `07e416c` (the first, `40532040733` on `36ff40f`,
+  stopped on a harness timing check, fixed without production change): Core
+  `428b11e6…`, identities unchanged; on the Apple Silicon runner the
+  three-poller model gives 0 vs 637,736 failed data-changing PUTLLC (200,000
+  increments) and the parked idle thread 1.7 ms CPU per 60 ms vs 56.4 ms.
+  Receipt `docs/evidence/rpcs3-cell565-macos.json`.
+- Private 565 recipe (`rpcs3cell565_tree.py`, `rpcs3cell565_delivery.py`,
+  `rpcs3-cell565-delivery.yml`, `validate_*565_ipa.py`,
+  `delivery-565-recipient.pem`): the delivered 564 product (other session's
+  MeloNX engine 876a087, keyboard, L3/R3) with the Core swapped 563 -> 565
+  (`07e416c`) and the God of War III profile of `c5ba917` (frame limit Auto);
+  only the `lib` tree differs from 564. The 564 recipe runs unchanged in
+  `as_564()`. First delivery to compute its source contract once per job
+  (`delivery_contract_memo.reuse`). Full Xcode build. No release.
 
 ## RPCS3 Core 563: in-session A/B of the 561 early submission (DBZ HD) — 27 October 2026
 

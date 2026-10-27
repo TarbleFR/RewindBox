@@ -70,6 +70,41 @@ Automatique, actif sur `BLES01658` pendant toute la session.
 
 Hors iOS, chaque fichier modifié est identique au 563.
 
+**D. God of War III sans limite à 30 FPS (application, `c5ba917`).**
+- **D'où venait la limite.**
+  - Le profil God of War III de RewindBox
+    (`lib/services/rpcs3_game_profile_service.dart`, build 412) réglait le
+    limiteur de RPCS3 sur 30 (`gpu.frame_limit: '30'`), comme cible mesurée de
+    l'époque.
+  - Rien d'autre ne plafonne ce jeu à 30 : le Core n'a aucune limite propre à
+    God of War III. Le limiteur de RPCS3 ne prend que les valeurs du réglage
+    « Frame limit » (`RSXThread.cpp`) ; la présentation MoltenVK suit
+    l'écran.
+  - Les correctifs de jeu fournis pour ce titre ne contiennent que des triches.
+- **Ce qui vient du jeu.** Sur PS3, God of War III n'est pas verrouillé à
+  30 FPS : sa cadence varie, synchronisée sur le vblank à 60 Hz, et il anime
+  avec son propre temps. Aucun correctif du moteur n'est donc nécessaire pour
+  dépasser 30.
+- **Le changement.**
+  - Le profil règle « Frame limit » sur `Auto`, la valeur par défaut du Core
+    et celle des autres titres : limite au vblank de 60 Hz. La vitesse du jeu,
+    la physique, les animations, les cinématiques et l'audio suivent donc son
+    propre temps, comme sur PS3.
+  - La valeur est explicite : une entrée GameDB publiée ne peut pas ramener
+    une limite plus basse.
+  - Un choix par jeu de l'utilisateur reste appliqué en dernier.
+  - Sur un appareil qui garde un ancien `config_BCES00510.yml` complet, la
+    couche d'héritage applique la valeur du profil quand le fichier avait laissé
+    la valeur globale (`kept=0` aux démarrages 553).
+- **Au-delà de 60.**
+  - Il faudrait relever la fréquence du vblank (réglage par jeu « VBlank
+    Frequency », par exemple 120 Hz, avec « Frame limit » sur 120 ou Display
+    rate).
+  - Ce réglage peut modifier la vitesse du jeu et la cadence de ses
+    événements. Il n'est pas activé, et rien n'a été testé.
+- **Coût.** Le limiteur à 30 laissait du temps CPU libre dans les scènes
+  légères. Sans lui, le jeu travaille plus et chauffe davantage.
+
 ## 3. Vérifications (hôte)
 
 Rapport : [`evidence/rpcs3-cell565-host-linux.json`](evidence/rpcs3-cell565-host-linux.json).
@@ -98,6 +133,19 @@ Rapport : [`evidence/rpcs3-cell565-host-linux.json`](evidence/rpcs3-cell565-host
 
 Ces chiffres valent pour l'hôte et le modèle, pas pour l'iPhone.
 
+**Run Core sur Mac Apple Silicon (`40533429692`, `07e416c`).**
+Reçu : [`evidence/rpcs3-cell565-macos.json`](evidence/rpcs3-cell565-macos.json).
+- Les mêmes tests passent sur le Mac ARM64 de la CI (ASan/UBSan, TSan, build
+  optimisé).
+- Le Core iPhone est compilé : SHA-256 `428b11e6…`, 88 exports, identités
+  PPU/SPU inchangées, aucune recompilation à froid.
+- Modèle à trois SPU, build optimisé, 200 000 incréments : **0 échec** avec
+  565, contre **637 736 échecs** avec l'ancien chemin, soit plus de trois
+  échecs par mise à jour réussie.
+- Repos RSX : 1,7 ms CPU pour 60 ms d'attente, contre 56,4 ms en `yield` ;
+  réveil médian 2 µs, maximum 15 µs.
+- Ce sont des mesures de modèle sur Mac, pas des FPS sur iPhone.
+
 Le premier run Core (`40532040733`, `36ff40f`) a échoué dans le test natif sur
 le Mac : le harnais chronométrait le premier repos à partir d'une lecture
 d'horloge antérieure au bloc de repos (999 µs contre 1 000 µs de grâce). Il le
@@ -109,5 +157,7 @@ de production ne change.
 - DBZ : `putllc_fail` (`SPUWAIT551`) en forte baisse ; `rsx_thread_cpu` /
   `top=rsx__thread` en baisse ; FPS, p95/p99 et `fault_read` ms/image dans les
   mêmes scènes de combat que le 564.
-- God of War III : FPS et `rsx_thread_cpu` (repos RSX seulement).
+- God of War III : `frame_limit=Auto` dans `CONFIG_LAYERS` ; FPS, temps
+  d'image et p95/p99 sans la limite à 30 ; `rsx_thread_cpu` (repos RSX). Aucune
+  mesure God of War III n'existe depuis le build 551 : aucun gain n'est annoncé.
 - Journal de démarrage : `noop_putllc=1 rsx_idle_park=1`.
