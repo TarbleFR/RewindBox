@@ -34,6 +34,13 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   blocks compiled verbatim for 7 titles x 2 FIFO idle modes x 3 modes (42
   cases). Evidence `docs/evidence/rpcs3-cell575-host-linux.json`. No iPhone
   measurement. See `docs/rpcs3-cell575.md`.
+- Private 575 recipe (`rpcs3-cell575-delivery.yml`, dispatch only): the
+  delivered 573 tree (MeloNX engine 8cc2348, Core 573) with the Core 575 recipe
+  of `ddf73420` (Core run `40589313705`); `rpcs3cell575_tree.py` /
+  `rpcs3cell575_delivery.py` run the 573 recipe unchanged in `as_573()`, which
+  runs the 572 recipe in `as_572()` in turn; eight validators wrap the 573
+  ones. Recipient `build-utils/delivery-575-recipient.pem`. Dispatch only once
+  `docs/evidence/rpcs3-cell575-macos.json` records a passed Core run.
 
 ## RPCS3 Core 573: texture residency cap and scoped revalidation (God of War III) — 27 October 2026
 
