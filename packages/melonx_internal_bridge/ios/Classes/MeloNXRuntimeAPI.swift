@@ -18,6 +18,8 @@ final class MeloNXRuntimeAPI {
     private typealias Button = @convention(c) (Int64, Int32, Int32, Int32) -> Int32
     private typealias Stick = @convention(c) (Int64, Int32, Int32, Float, Float) -> Int32
     private typealias Diagnostic = @convention(c) (UnsafeMutablePointer<CChar>?, Int32) -> Int32
+    typealias CallbackRegister = @convention(c) (UnsafePointer<CChar>?, UnsafeRawPointer?, UnsafeMutableRawPointer?) -> Void
+    typealias CallbackInvoke = @convention(c) (UnsafePointer<CChar>?, UnsafeRawPointer?, Int32) -> UInt8
     private static var preparedSDLPaths = Set<String>() // main-thread only
     private static func prepareSDL(frameworks: URL) throws {
         let prepare = {
@@ -54,6 +56,10 @@ final class MeloNXRuntimeAPI {
     var providesPerformanceSnapshot: Bool { performanceSnapshotFunction != nil }
     private let presentTargetFunction: PresentTarget?
     private let audioPacingFunction: AudioPacing?
+    /// The engine's callback registry (Ryujinx.Common.Callbacks), through which
+    /// MeloNX asks the host for text; nil on an engine without these exports.
+    let registerCallback: CallbackRegister?
+    let invokeCallback: CallbackInvoke?
     /// The MoltenVK this process loaded: 0 source-built, 1 the standalone app's.
     let moltenVk: Int32
     private let configureJit: Mode
@@ -94,6 +100,8 @@ final class MeloNXRuntimeAPI {
         performanceSnapshotFunction = dlsym(handle, "neostation_melonx_performance_snapshot").map { unsafeBitCast($0, to: PerformanceSnapshot.self) }
         presentTargetFunction = dlsym(handle, "neostation_melonx_set_present_target_fps").map { unsafeBitCast($0, to: PresentTarget.self) }
         audioPacingFunction = dlsym(handle, "neostation_melonx_audio_pacing").map { unsafeBitCast($0, to: AudioPacing.self) }
+        registerCallback = dlsym(handle, "RegisterCallback").map { unsafeBitCast($0, to: CallbackRegister.self) }
+        invokeCallback = dlsym(handle, "InvokeCallback").map { unsafeBitCast($0, to: CallbackInvoke.self) }
         configureJit = try symbol("neostation_melonx_configure_jit", Mode.self)
         contentFunction = try symbol("neostation_melonx_content", Content.self)
         contentProgressFunction = dlsym(handle, "neostation_melonx_content_progress").map { unsafeBitCast($0, to: Version.self) }

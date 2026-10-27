@@ -1231,6 +1231,34 @@
       "다음 게임을 시작할 때 적용됩니다.",
       "将在下次启动游戏时生效。",
       "將在下次啟動遊戲時生效。"
+    ],
+    "Text input": [
+      "Text input",
+      "Saisie de texte",
+      "Texteingabe",
+      "Introducir texto",
+      "Inserimento testo",
+      "Inserir texto",
+      "Ввод текста",
+      "Masukan teks",
+      "テキスト入力",
+      "텍스트 입력",
+      "文本输入",
+      "文字輸入"
+    ],
+    "Stick buttons (L3/R3)": [
+      "Stick buttons (L3/R3)",
+      "Boutons des sticks (L3/R3)",
+      "Stick-Tasten (L3/R3)",
+      "Botones de los sticks (L3/R3)",
+      "Pulsanti degli stick (L3/R3)",
+      "Botões dos analógicos (L3/R3)",
+      "Кнопки стиков (L3/R3)",
+      "Tombol stik (L3/R3)",
+      "スティックボタン (L3/R3)",
+      "스틱 버튼 (L3/R3)",
+      "摇杆按键 (L3/R3)",
+      "搖桿按鍵 (L3/R3)"
     ]
   }
 }

@@ -167,6 +167,8 @@ final class MeloNXMetalSessionViewController: UIViewController {
         self.generation = generation
         guard let runtime else { return }
         startPerfJournal(runtime:runtime,generation:generation)
+        // The Switch keyboard, inline text and amiibo names (standalone AlertHandlers).
+        MeloNXTextInput.shared.attach(register:runtime.registerCallback,invoke:runtime.invokeCallback,presenter:self)
         let router = MeloNXInputRouter(runtime:runtime,generation:generation,game:game,titleID:titleID)
         self.router = router
         router.onMenu = { [weak self] in self?.showMenu() }
@@ -218,7 +220,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
                 prepared:{ [weak self] id in self?.installControls(generation:id) },beforeRun:beforeRun) { [weak self, finished] result in
                     self?.perf?.stop(); self?.perf = nil
                     MeloNXStdioCapture.end(); UIApplication.shared.isIdleTimerDisabled = false
-                    self?.router?.close(); self?.closing = true; self?.updateMemoryGraph()
+                    self?.router?.close(); MeloNXTextInput.shared.detach(self); self?.closing = true; self?.updateMemoryGraph()
                     if let self, self.presentingViewController != nil {
                         self.dismiss(animated:true) { finished(result) }
                     } else { finished(result) }
@@ -273,6 +275,13 @@ final class MeloNXMetalSessionViewController: UIViewController {
             menu.addAction(UIAlertAction(title:MeloNXText("Controller mapping"),style:.default) { [weak self] _ in self?.editMapping() })
             let title = MeloNXText("Hide touch controls when a controller is connected") + ": " + MeloNXText(router.hideWithController ? "On" : "Off")
             menu.addAction(UIAlertAction(title:title,style:.default) { [weak self] _ in router.hideWithController.toggle(); self?.setPause("menu",enabled:false) })
+            // Melo-Controller's own L3/R3 buttons (standalone "Show Stick Buttons").
+            // The overlay is rebuilt so it reads the new value whatever the
+            // KVO behavior of its dotted @AppStorage key.
+            let sticks = MeloNXText("Stick buttons (L3/R3)") + ": " + MeloNXText(Self.stickButtons ? "On" : "Off")
+            menu.addAction(UIAlertAction(title:sticks,style:.default) { [weak self] _ in
+                Self.stickButtons.toggle(); self?.refreshControls(); self?.setPause("menu",enabled:false)
+            })
         }
         menu.addAction(UIAlertAction(title:MeloNXText("Close game"),style:.destructive) { [weak self] _ in self?.requestClose() })
         menu.popoverPresentationController?.sourceView = menuButton
@@ -391,20 +400,27 @@ final class MeloNXMetalSessionViewController: UIViewController {
     }
     func requestClose() {
         guard !closing else { return }; closing = true
-        router?.close(); host.requestStop(); updateMemoryGraph()
+        // A guest thread waiting for text would hold the stop: answer it first.
+        router?.close(); MeloNXTextInput.shared.detach(self); host.requestStop(); updateMemoryGraph()
         spinner.startAnimating(); menuButton.isEnabled = false
     }
     func setPaused(_ paused: Bool) { setPause("host",enabled:paused) }
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         visible = false; updateMemoryGraph()
-        if isBeingDismissed || presentingViewController == nil { router?.close(); host.requestStop() }
+        if isBeingDismissed || presentingViewController == nil { router?.close(); MeloNXTextInput.shared.detach(self); host.requestStop() }
     }
     deinit {
         perf?.stop()
         memoryGraph?.setSampling(false)
         observers.forEach { NotificationCenter.default.removeObserver($0) }
-        router?.close(); host.requestStop()
+        router?.close(); MeloNXTextInput.shared.detach(self); host.requestStop()
+    }
+    /// ControllerView's @AppStorage("stickButton"), renamed by vendor_controller.py.
+    static let stickButtonsKey = "rewindbox.melonx.stickButton"
+    static var stickButtons: Bool {
+        get { UserDefaults.standard.bool(forKey:stickButtonsKey) }
+        set { UserDefaults.standard.set(newValue,forKey:stickButtonsKey) }
     }
     override var prefersStatusBarHidden: Bool { true }
 }
