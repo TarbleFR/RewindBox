@@ -78,7 +78,31 @@ Rapport : [`evidence/rpcs3-cell567-host-linux.json`](evidence/rpcs3-cell567-host
 
 Ces résultats valent pour l'hôte, pas pour l'iPhone.
 
-## 5. À relever sur iPhone
+**Run Core sur Mac Apple Silicon (`40547296252`, `67dd222`).**
+Reçu : [`evidence/rpcs3-cell567-macos.json`](evidence/rpcs3-cell567-macos.json).
+- Les mêmes tests passent sur le Mac ARM64 de la CI (ASan/UBSan, TSan).
+- Les vrais appels QoS de Darwin confirment les trois modes, sous ASan/UBSan
+  comme sous TSan :
+  - un thread abaissé lit la classe *utility* ;
+  - remis à zéro, il lit *user-interactive* avec la priorité relative
+    attendue (−2 en Automatique et Activé, 0 en Désactivé) ;
+  - relevé, il lit *user-interactive*, priorité relative 0.
+- Ce sont des vérifications sur Mac, pas des FPS sur iPhone.
+
+## 5. IPA privée 567
+
+- Elle reprend le produit 566 livré :
+  - moteur MeloNX `86c2b4d`, clavier, L3/R3 ;
+  - God of War III sans la limite à 30 FPS.
+- Seul le Core RPCS3 change : 565 devient 567.
+- Elle s'installe par-dessus la 566 (même application, build 567).
+- Recette : `rpcs3cell567_tree.py`, `rpcs3cell567_delivery.py`,
+  `rpcs3-cell567-delivery.yml`, `validate_*567_ipa.py`.
+- La recette 566 tourne inchangée sur l'arbre 566 livré (`as_566()`).
+- La vérification des clés MeloNX attend le moteur réellement embarqué,
+  `86c2b4d` (run `40535449055`).
+
+## 6. À relever sur iPhone
 
 - God of War III : FPS, temps d'image, p95/p99 ; `rsx_thread_cpu` (attendu en
   hausse) ; occupation de la FIFO.
