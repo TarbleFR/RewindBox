@@ -3,6 +3,35 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## MeloNX engine 576: shader-cache warm-ups off the game's start, attachment-less framebuffers, temporary FFT boot trace — 27 October 2026
+
+- Build 572 app.log: Super Smash Bros. Ultimate spent 18 s in "Loading 2743
+  shaders from the cache": the disk cache loader waited for each cached
+  program's initial pipeline warm-up, compiled one by one by the single
+  low-priority pipeline worker of a six-core iPhone. FINAL FANTASY TACTICS -
+  The Ivalice Chronicles (010038b015560000, 0 cached shaders) froze 0.4 s
+  after start, every guest thread waiting, 4 % CPU, no frame, no audio.
+- Engine commit `301e0f86` (`build-utils/melonx`): `adapt_shader_warmup.py`
+  (a cached program is ready once its shader modules are; its warm-up keeps
+  compiling in the background; a draw that needs a queued warm-up promotes
+  it to the demand worker; Dispose cancels a warm-up no worker took);
+  `adapt_attachmentless_framebuffer.py` (a pass without attachments covered
+  1x1 — Ryubing issue 103's FFT black screen — and now covers its viewports,
+  device limit); `adapt_fft_boot_trace.py`, TEMPORARY, FFT only: first 300
+  service calls at Info level and the HleProcessDebugger minidump at close.
+  Remove the trace once the freeze is understood.
+- Local: full prepare_embedded chain on the pinned source; Vulkan and HLE
+  build; scratch probes (scheduler cancel/promote 13 checks, framebuffer
+  sizing and trace budget 16 checks). Engine run `40591863306`. No iPhone
+  measurement: no launch-time or FPS gain is claimed.
+- Private 576 recipe (`melonx-warm576-delivery.yml`, dispatch only): the
+  delivered 575 tree with the five files of `301e0f86`;
+  `melonxwarm576_tree.py` / `melonxwarm576_delivery.py` run the 575 recipe
+  unchanged in `as_575()` with the 572 engine's evidence (`old_engine()`),
+  the inherited validators on `derived_ipa()` (this IPA with the 572 engine
+  entries); nine validators (eight wrap the 575 ones, `validate_melonx_warm576`
+  binds the 576 engine). Recipient `build-utils/delivery-576-recipient.pem`.
+
 ## RPCS3 Core 575: title levers for Black Ops II and Bladestorm — 27 October 2026
 
 - Build 567 logs. Call of Duty: Black Ops II `BLES01717` (SPU and RSX bound,
