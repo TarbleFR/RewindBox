@@ -31,6 +31,10 @@ PLAYLIST = 'lib/widgets/libretro_internal_playlist_actions.dart'
 DIRECTORIES = 'lib/screens/settings_screen/new_settings_options/directories_settings_content.dart'
 ORIGINAL_REVIEWED = 'a5650b9bddefbed76f941fb53735545bebcbbd39'
 REVIEWED = '29b24945b2e7041f08e02d7d70e8c90ffe8a1c24'
+# Latest reviewed version of the directories page: 127b527f retired the
+# external MeloNX folder, 9cd71fe5 renamed the app RewindBox and 598d35d5
+# (Liquid Glass, delivered in 549) migrated its chrome.
+CURRENT_REVIEWED = '598d35d5da79b2638356e8e212dad9fd945725e6'
 MARKER = 'LIBRETRO_INTERNAL_BEGIN: embedded_consoles'
 
 
@@ -167,6 +171,8 @@ try:
                               capture_output=True).stdout.decode('utf-8')
     original_reviewed = subprocess.run(['git', 'show', f'{ORIGINAL_REVIEWED}:{DIRECTORIES}'], cwd=ROOT,
                                        check=True, capture_output=True).stdout.decode('utf-8')
+    current_reviewed = subprocess.run(['git', 'show', f'{CURRENT_REVIEWED}:{DIRECTORIES}'], cwd=ROOT,
+                                      check=True, capture_output=True).stdout.decode('utf-8')
 except (OSError, subprocess.CalledProcessError) as error:
     raise SystemExit(f'libretro frontend UI contract: cannot read reviewed directories source ({error})')
 old_guard = 'if (builtContext != null) {'
@@ -175,8 +181,13 @@ require(original_reviewed.count(old_guard) == 1,
         'the original directories scroll callback must have exactly one context guard')
 require(reviewed == original_reviewed.replace(old_guard, mounted_guard, 1),
         '29b24945 directories must differ from a5650b9b only by the earlier mounted-context guard')
-require(directories == reviewed,
-        'directories_settings_content.dart differs from the complete reviewed 29b24945 source')
+# Contract replaced (27 October 2026): the file identity moved from 29b24945
+# to the latest reviewed version (see CURRENT_REVIEWED); the history above
+# stays checked and the retired entry stays absent below.
+require(reviewed != current_reviewed and MARKER not in current_reviewed,
+        'the reviewed directories page has no embedded-consoles entry')
+require(directories == current_reviewed,
+        f'directories_settings_content.dart differs from the complete reviewed {CURRENT_REVIEWED[:8]} source')
 for leftover in (MARKER, 'libretro_consoles', 'LibretroConsolesScreen', 'LibretroLocale'):
     require(leftover not in directories, f'Settings › Folders still names {leftover}')
 
@@ -185,9 +196,11 @@ for leftover in (MARKER, 'libretro_consoles', 'LibretroConsolesScreen', 'Libretr
 nav_tabs = read('lib/utils/nav_tabs.dart')
 enum = re.search(r'enum NavTab \{([^}]*)\}', nav_tabs)
 require(enum is not None, 'NavTab enum')
+# 252297bf (AirPlay navigation) appended airplay after consoles: indices
+# stay identities, consoles keeps index 6.
 require([name.strip() for name in enum.group(1).split(',') if name.strip()]
-        == ['systems', 'search', 'achievements', 'scraper', 'settings', 'library', 'consoles'],
-        'consoles appended last to NavTab')
+        == ['systems', 'search', 'achievements', 'scraper', 'settings', 'library', 'consoles', 'airplay'],
+        'consoles appended to NavTab, followed only by the later airplay tab')
 display = re.search(r'navTabDisplayOrder = \[([^\]]*)\]', nav_tabs)
 require(display is not None and re.findall(r'NavTab\.(\w+)', display.group(1))[:3]
         == ['systems', 'consoles', 'search'], 'consoles drawn after Systems and before Search')
@@ -226,9 +239,13 @@ require('NavTabIcon(spec: navTabSpec(tab), tint: tint)' in header and 'navTabLab
 # SYSTEM PRUNING). A console with games is shown again, never removed
 # (test/libretro_consoles_tab_test.dart, "Restore defaults keeps a console
 # the tab added once it holds games").
+# dart format (4973e6cd) wraps long calls and adds trailing commas: compare
+# the calls without whitespace and without a comma before ')'.
+def compact(text):
+    return re.sub(r'\s+', '', text).replace(',)', ')')
 for call in ('_mainMenu.showEntry(entry, provider)', '_mainMenu.hideEntry(entry, provider)',
              '_mainMenu.showAll(', '_mainMenu.restoreDefaults(ConsoleCatalog.entries, provider)'):
-    require(call in consoles, f'the switch and the bulk actions go through LibretroMainMenu: {call}')
+    require(compact(call) in compact(consoles), f'the switch and the bulk actions go through LibretroMainMenu: {call}')
 require('LibretroMainMenu.stateOfEntry(' in consoles, 'each console shows its place in the main menu')
 require('ConsoleManagerLocale.' in consoles, 'the consoles page texts come from ConsoleManagerLocale')
 main_menu = read('lib/services/libretro_main_menu.dart')
@@ -246,7 +263,11 @@ for forbidden in ('updateDetectedSystems', 'addRomFolder', 'removeRomFolder', 's
 
 # 3. Playlist actions.
 playlist = read(PLAYLIST)
-require('if (widget.embedded) return button' in playlist, 'embedded tab action unchanged')
+# Since 0a7975e3 the shared PlaylistImportButton returns the bare button in
+# the tab placement (integrated_import_tab_contract_test.py checks it too).
+require('return PlaylistImportButton(' in playlist and 'embedded: widget.embedded,' in playlist
+        and 'if (embedded) return button;' in read('lib/widgets/playlist_import_button.dart'),
+        'embedded tab action unchanged')
 require("const ValueKey('libretro-internal-import-menu')" in playlist, 'menu key unchanged')
 for item in ("value: 'games'", "value: 'retroarch'", "value: 'skins'"):
     require(item in playlist, f'menu item {item}')

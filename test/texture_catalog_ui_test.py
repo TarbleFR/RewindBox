@@ -21,6 +21,9 @@ ROOT = Path(__file__).resolve().parents[1]
 POD = ROOT / 'packages/neo_texture_catalog/ios'
 CLASSES = POD / 'Classes'
 ARMSX2 = ROOT / 'packages/armsx2_internal_bridge/ios/Classes'
+# The HD page shows the Liquid Glass progress view of neo_cheat_catalog
+# (598d35d5): the host app compiles it and resolves <neo_cheat_catalog/...>.
+CHEAT_CATALOG = ROOT / 'packages/neo_cheat_catalog/ios'
 LANGUAGES = ['en', 'es', 'ru', 'zh', 'zh-Hant', 'pt', 'fr', 'de', 'it', 'id', 'ja', 'ko']
 
 APP = r'''
@@ -425,13 +428,18 @@ def native():
     sources = sorted(str(p) for p in CLASSES.glob('*.m') if p.name != 'NeoTextureCatalogPlugin.m')
     sources += sorted(str(p) for p in CLASSES.glob('*.mm')) + [str(CLASSES / 'NeoTextureLZMA.c'), str(CLASSES / 'NeoTextureRARMemory.c'), str(ARMSX2 / 'ARMSX2TexturePackStore.mm')]
     sources += sorted(str(p) for p in (POD / 'ThirdParty/libarchive').glob('*.c'))
+    sources += [str(CHEAT_CATALOG / 'Classes/RBLiquidProgressView.m')]
     with tempfile.TemporaryDirectory(prefix='texture-catalog-ui-') as folder:
         directory = Path(folder)
+        from texture_catalog_ios_syntax_test import stage_cheat_catalog_headers
+        cheat_include = stage_cheat_catalog_headers(directory)
         (directory / 'main.m').write_text(APP)
         (directory / 'TextureCatalogPageTests.m').write_text(TESTS)
         sdk_dependencies = [{'sdk': 'UIKit.framework'}, {'sdk': 'Foundation.framework'}, {'sdk': 'Metal.framework'},
-                            {'sdk': 'libz.tbd'}, {'sdk': 'libiconv.tbd'}, {'sdk': 'libc++.tbd'}, {'sdk': 'UniformTypeIdentifiers.framework'}]
-        search_paths = ' '.join(str(p) for p in (CLASSES, CLASSES / 'Public', POD / 'ThirdParty/lzma', POD / 'ThirdParty/libarchive', ARMSX2))
+                            {'sdk': 'libz.tbd'}, {'sdk': 'libiconv.tbd'}, {'sdk': 'libc++.tbd'}, {'sdk': 'UniformTypeIdentifiers.framework'},
+                            {'sdk': 'QuartzCore.framework'}]
+        search_paths = ' '.join(str(p) for p in (CLASSES, CLASSES / 'Public', POD / 'ThirdParty/lzma', POD / 'ThirdParty/libarchive', ARMSX2,
+                                                 cheat_include))
         project = {
             'name': 'TextureCatalog486',
             'options': {'deploymentTarget': {'iOS': '17.4'}},

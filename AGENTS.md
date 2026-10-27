@@ -125,6 +125,26 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   compiled here). `liquid-glass-ui-checks.yml` host guard moved from
   `3494edc9` to `d645f05c` (private 557, the only reviewed change to those
   paths since); move it only to another reviewed host change.
+- Second round (maintainer request, same day): steps the red jobs never
+  reached, all failing identically on `8cc2348`. Tests only, no product
+  change. `cheats_media_source_contract_test.py`: lifecycle reference
+  `d3e558fa` -> `eabc057f` (MeloNX quarantine, host run 40209413009).
+  `embedded_engine_route_contract_test.py`: anchors the Switch route, not
+  the `7f88ee9b` dispatch check; policy call matched across `dart format`.
+  `integrated_import_tab_contract_test.py` and the libretro UI contract:
+  libretro delegates to `PlaylistImportButton` (`0a7975e3`); directories
+  identity `29b24945` -> `598d35d5` (history still checked), NavTab gains
+  `airplay`, bulk calls matched across `dart format`. `storage_contract_test.py`:
+  the MeloNX imports (all inside `StorageImportActivity.run`) listed, the
+  playlist's read of `StorageImportActivity.active` allowed in `_discover`
+  only. `ui_refresh_rate_scope_test.py` decodes the YAML-escaped ProMotion
+  assert (`48867389`). `retroarch_baseline_scope_test.py` (Build 419
+  baseline, maintainer-authorized): the duplicate `restore_rewindbox_branding`
+  of merge `4c71aad0` removed, NeoSwap storage fingerprints of RPCS3 Cores
+  521/528/534 added as a reviewed overlay (manifest unchanged). HD textures
+  harnesses stage the published `<neo_cheat_catalog/...>` headers and link
+  `RBLiquidProgressView.m`. Local: 40 contract scripts and 252 build486 Dart
+  tests pass, analyzer clean; macOS harnesses not run here.
 ## Private 572: MeloNX engine — a JIT unit ends at a jump past the other cases of a switch — 27 October 2026
 
 - Build 566 `app.log` (18:51): Hogwarts Legacy with its update (SDK 17.5.4)

@@ -22,6 +22,11 @@ assert "_rpcs3FirmwareReady &&" in screen
 libretro = (root / "lib/widgets/libretro_internal_playlist_actions.dart").read_text()
 assert "_buildEmbeddedLibretroImportAction" in screen
 assert "_buildLibretroImportAction()" in screen
-assert "if (widget.embedded) return button" in libretro
+# Since 0a7975e3 libretro uses the shared PlaylistImportButton, which returns
+# the bare button in the tab placement itself.
+shared = (root / "lib/widgets/playlist_import_button.dart").read_text()
+assert "return PlaylistImportButton(" in libretro
+assert "embedded: widget.embedded," in libretro
+assert "if (embedded) return button;" in shared
 assert screen.count("embedded: true") >= 3
 print("Integrated import tab contract: OK")

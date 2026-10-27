@@ -8,15 +8,32 @@ Flutter plugin header is the repository's declaration stub
 linked into one dynamic library and `nm -u` must list no symbol of the pod
 itself (NeoTexture*, NeoTex*), and no LZMA SDK symbol may be exported.
 """
+import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
+from libretro_ios_syntax_test import public_headers
+
 ROOT = Path(__file__).resolve().parents[1]
 POD = ROOT / 'packages/neo_texture_catalog/ios'
 TARGET = 'arm64-apple-ios17.4'
 FRAMEWORKS = ('Foundation', 'UIKit', 'UniformTypeIdentifiers', 'Metal')
+# The HD page imports <neo_cheat_catalog/RBLiquidProgressView.h> (Liquid Glass,
+# 598d35d5); the podspec depends on neo_cheat_catalog. Only the headers that
+# pod publishes resolve that way in the app build, so only those are staged.
+CHEAT_CATALOG = ROOT / 'packages/neo_cheat_catalog/ios'
+
+
+def stage_cheat_catalog_headers(directory):
+    staged = directory / 'include' / 'neo_cheat_catalog'
+    staged.mkdir(parents=True)
+    headers = public_headers('neo_cheat_catalog', CHEAT_CATALOG)
+    for header in headers:
+        shutil.copyfile(header, staged / header.name)
+    print(f'Staged {len(headers)} public neo_cheat_catalog header(s) as <neo_cheat_catalog/...>', flush=True)
+    return directory / 'include'
 
 
 def main():
@@ -29,6 +46,7 @@ def main():
     failed, objects = [], []
     with tempfile.TemporaryDirectory(prefix='texture-catalog-ios-') as temporary:
         directory = Path(temporary)
+        base += ['-I', str(stage_cheat_catalog_headers(directory))]
         for source in sources:
             output = directory / (source.name + '.o')
             if source.suffix == '.c':

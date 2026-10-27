@@ -169,6 +169,10 @@ class RepositoryScopeTests(unittest.TestCase):
                         writers.append(str(path.relative_to(ROOT)))
         self.assertEqual(writers, [])
         delivery = (ROOT / '.github/workflows/retroarch-delivery.yml').read_text(encoding='utf-8')
+        # Since 48867389 (Build 506) the step is a YAML double-quoted scalar:
+        # decode its escaped line breaks ('\\' + newline + indent) and escaped
+        # spaces ('\\ ') so the Python it runs is compared as written.
+        delivery = re.sub(r'\\\n[ \t]*', '', delivery).replace('\\ ', ' ')
         self.assertGreaterEqual(
             delivery.count("assert info.get('CADisableMinimumFrameDurationOnPhone') is True"),
             max(1, delivery.count('name: Release device build')),

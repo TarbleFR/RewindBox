@@ -11,6 +11,7 @@ is tested in Dart (test/console_manager_test.dart, test/libretro_consoles_tab_te
 this file pins where the checks sit in the router.
 """
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -48,8 +49,14 @@ for retired in ("'ports'", 'ios_dusklight_internal', 'ios_kartpad_internal',
                 'isRemovedKartPadGamePath'):
     require(retired not in router, 'the router keeps no Ports route: ' + retired)
 
-switch = between(router, "if (Platform.isIOS && system.folderName.toLowerCase() == 'switch')", 'final isArmsx2VirtualRom')
-require(switch.index(POLICY) < switch.index('MelonxInternalService.launch('), 'Switch checks its embedded policy')
+# The route itself, not the earlier dispatch-failure check of 7f88ee9b that
+# tests the same folder name with '&& !result.success'. dart format may wrap
+# the policy call (and add a trailing comma), so it is matched as a pattern.
+switch = between(router, "if (Platform.isIOS && system.folderName.toLowerCase() == 'switch') {", 'final isArmsx2VirtualRom')
+switch_policy = re.search(r'EmbeddedEnginePolicy\.instance\.allowsSystem\(\s*system\s*,?\s*\)', switch)
+require(switch_policy is not None and switch_policy.start() < switch.index('MelonxInternalService.launch('),
+        'Switch checks its embedded policy')
+require('if (!allowed) return _embeddedEngineOff(context, system);' in switch, 'Switch off is an explicit refusal')
 require('GameSessionManager.cancelGameLaunch();' in switch, 'failed Switch launch cancels its session')
 require('MelonxInternalService.isRetiredLink' in switch, 'external-only rows require a file import')
 require('launchUrl' not in switch and 'RetroArch' not in switch, 'Switch has no external fallback')

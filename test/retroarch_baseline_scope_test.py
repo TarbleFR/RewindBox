@@ -40,6 +40,24 @@ NEOSWAP_DIRECT_444_REVIEWED = {
     'native/neoswap-relay/Backend.h': '230e5572307f01c6ba47c11f9e6e47fcfcd1a5fd43f0d9e450d6e4304a1fff35',
 }
 
+# RPCS3 Cores 521, 528 and 534 (24-25 October 2026, docs/rpcs3-cell521.md,
+# docs/rpcs3-cell528.md, docs/rpcs3-cell534.md): the NeoSwap storage archive
+# and its tests gained bounded video read-ahead and measured relay loans
+# (c7b0732f), fewer archive transactions with restore diagnostics (845d0188)
+# and no temporary-archive device flush (2fa4ad66). These fingerprints
+# supersede the manifest for those eight files only; this list was not
+# updated when they landed, so the check failed from then on.
+NEOSWAP_STORAGE_RPCS3_534_REVIEWED = {
+    'native/neoswap-storage/FrameClient.h': '8893b1c6f7e4a068895abf4740a6505b3b4b4978eda8807377b0ddd1ebd31f3a',
+    'native/neoswap-storage/SourceArchive.cpp': '6782e8ebc4261db87df324a050f98bbbf829020cdb11258e74e0174bde3243ae',
+    'native/neoswap-storage/SourceClient.cpp': '938f1a0add50445fe03e1eb5d554f60feac9eb9d8d73b1f7269dcd8e3c9994d0',
+    'native/neoswap-storage/Store.cpp': 'aefe035cdca80682362019cca31b4ab11ebc775b459d9c4f5ebfc9f9db24bb1c',
+    'native/neoswap-storage/Store.h': '52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce',
+    'native/neoswap-storage/tests/frame_archive_test.cpp': '6047470b5993c4a09e792b936c3911219994936baeaf139dff4571519e956965',
+    'native/neoswap-storage/tests/source_archive_test.cpp': '0721a65eab63429af6f9ab8d26a6ff3f526ae3be7747e421ca7efc946102ae4b',
+    'native/neoswap-storage/tests/source_work_test.cpp': '3595af83a8c9b9bc88fcd0d20f22352a77ac410873d8313ccf09e2ac7955a29d',
+}
+
 # KartPad removal, maintainer decision of 19 October 2026: KartPad is no longer
 # part of NeoStation (players build it themselves as a separate app). The two
 # library files lose exactly the KartPad scan root, reconstructed below before
@@ -330,18 +348,9 @@ def restore_rewindbox_branding(data, name):
     return data
 
 
-
-
-def restore_rewindbox_branding(data, name):
-    """Undo only reviewed display-text edits before historical hash checks."""
-    record = json.loads((ROOT / 'docs/rewindbox-branding-compatibility.json').read_text())
-    for change in record['locked_replacements'].get(name, []):
-        current = change['new'].encode('utf-8')
-        original = change['old'].encode('utf-8')
-        if data.count(current) != change['count']:
-            raise AssertionError('Unexpected branding edit: ' + name)
-        data = data.replace(current, original)
-    return data
+# A single definition: the automated merge 4c71aad0 (25 October 2026) appended
+# the pre-Rewind Motion version of restore_rewindbox_branding after this one,
+# which then replaced it and skipped the startup presentation step.
 
 
 class RetroArchBaselineScope(unittest.TestCase):
@@ -418,6 +427,7 @@ class RetroArchBaselineScope(unittest.TestCase):
         })
         self.assertLessEqual(NEOSWAP_PREPARED_441_REVIEWED.keys(), MANIFEST['native_sha256'].keys())
         self.assertEqual(set(NEOSWAP_DIRECT_444_REVIEWED), set(NEOSWAP_PREPARED_441_REVIEWED))
+        self.assertLessEqual(NEOSWAP_STORAGE_RPCS3_534_REVIEWED.keys(), MANIFEST['native_sha256'].keys())
         for name, expected in MANIFEST['native_sha256'].items():
             with self.subTest(path=name):
                 if name.startswith((RETIRED_KARTPAD_NATIVE, RETIRED_DUSKLIGHT_NATIVE)):
@@ -425,7 +435,8 @@ class RetroArchBaselineScope(unittest.TestCase):
                     # must not come back.
                     self.assertFalse((ROOT / name).exists())
                     continue
-                reviewed = NEOSWAP_DIRECT_444_REVIEWED.get(name, NEOSWAP_PREPARED_441_REVIEWED.get(name, NEOSWAP_MELONX_REVIEWED.get(name, expected)))
+                reviewed = NEOSWAP_STORAGE_RPCS3_534_REVIEWED.get(name, NEOSWAP_DIRECT_444_REVIEWED.get(
+                    name, NEOSWAP_PREPARED_441_REVIEWED.get(name, NEOSWAP_MELONX_REVIEWED.get(name, expected))))
                 self.assertEqual(hashlib.sha256(restore_rewindbox_branding((ROOT / name).read_bytes(), name)).hexdigest(), reviewed)
 
     def test_retired_repairs_are_outside_executable_app_sources(self):
