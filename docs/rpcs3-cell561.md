@@ -145,6 +145,19 @@ une mesure.**
 Le reçu complet est dans
 [`evidence/rpcs3-cell561-host-linux.json`](evidence/rpcs3-cell561-host-linux.json).
 
+**Core iPhone 561 construit** (run `40486026315` sur `5b033881`, macOS ARM64,
+Apple clang 17, Xcode 16.4) :
+- les 8 scénarios et les 2 048 décisions passent sous ASan+UBSan et TSan,
+  avec exactement les chiffres du run Linux ; l'empreinte du banc est la même ;
+- dylib SHA-256 `7b1e4fda…5c20cbe`, ABI 30, 88 exports, chargement passif
+  vérifié, 138 entrées enregistrées ; les huit marqueurs 561 sont présents ;
+- identités de codegen inchangées (PPU `a987639e9f838d1c`, SPU
+  `d070cb361bdef607`) : aucune recompilation à froid ;
+- artefacts : Core `12725403841`, diagnostics `12725733046`.
+
+Reçu : [`evidence/rpcs3-cell561-macos.json`](evidence/rpcs3-cell561-macos.json).
+Ce ne sont pas des mesures iPhone.
+
 ## 6. Limites
 
 - **Rien n'est mesuré sur iPhone** pour 561 : ni FPS, ni temps d'image, ni

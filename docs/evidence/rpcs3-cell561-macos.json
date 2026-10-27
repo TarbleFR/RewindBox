@@ -1,0 +1,120 @@
+{
+  "build": 561,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "5b033881a032be1c2ac71080e229b86dc675ed6d",
+  "run": 40486026315,
+  "workflow": ".github/workflows/rpcs3-cell561-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12725403841,
+      "name": "RPCS3Core-5b033881a032be1c2ac71080e229b86dc675ed6d",
+      "bytes": 29070102,
+      "digest": "sha256:722a0f561562ee290a3490e34dbdf3f24a29adb7f5585a393a2ca7e6bc4e7476"
+    },
+    "diagnostics": {
+      "id": 12725733046,
+      "bytes": 203992,
+      "digest": "sha256:6b0e783cdf7c2f077a3ec6550962434c755810044bb6aa8d3f75256a9e3ebab8"
+    }
+  },
+  "core": {
+    "sha256": "7b1e4fda0b94eaaf9224561259d78541a7cb8f34a75ddcf23f04702ab5c20cbe",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "07e1b71ea0dcb993f2b2526652fcd19ca80a0239f95c644025543f7ce868c078",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 138,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom560": true,
+    "coldCompileRequiredByThisChange": false,
+    "markers561": [
+      "COREPROF OPT561",
+      "early_submit=",
+      "early_submits=",
+      "gpu_busy_checks=",
+      "frame_capped_checks=",
+      "Early Command Buffer Submission",
+      "experimental.early_submit",
+      "Early command buffer submission"
+    ],
+    "replaces": {
+      "source": "cba3fa9f98e38b2e90156ef5a255d35ec4849185",
+      "run": 40420391683,
+      "sha256": "84e4e21c7ce52539959caae5cd46733319ede964de6547460b8847e2b72678cf"
+    }
+  },
+  "sanitizers": {
+    "addressUndefined": true,
+    "thread": true
+  },
+  "results": {
+    "earlySubmission": {
+      "passed": true,
+      "decisions": 2048,
+      "scenarios": 8,
+      "combat": {
+        "readbackWaitBeforeMsPerFrame": 7.2,
+        "readbackWaitAfterMsPerFrame": 1.377,
+        "frameBeforeMs": 24.0,
+        "frameAfterMs": 18.177,
+        "earlyPerFrame": 5.0,
+        "earlyDrawsPerSubmit": 32.0,
+        "submissionsBeforePerFrame": 1.0,
+        "submissionsAfterPerFrame": 6.0
+      },
+      "lightUnchanged": true,
+      "gpuBound": {
+        "earlyTotal": 2,
+        "frameBeforeMs": 28.538,
+        "frameAfterMs": 28.474
+      },
+      "disabledIdenticalTo560": true,
+      "guardsKeepBoundaries": 3,
+      "capReachedWithFastGpu": 6,
+      "orderPreserved": true,
+      "minDraws": 32,
+      "maxPerFrame": 6
+    },
+    "threadIdentical": true,
+    "renderer": {
+      "hook": "end of VKGSRender::end",
+      "tracking": "after the primary submit",
+      "reset": "flip submission",
+      "switchesOnlyThroughFlushCommandQueue": true,
+      "nonIosRendererUnchanged": true
+    },
+    "exportLine": {
+      "line": "COREPROF OPT561",
+      "automaticTitles": [
+        "BLES01658"
+      ],
+      "minDraws": 32,
+      "maxPerFrame": 6
+    }
+  },
+  "harnessSHA256": "4595e4d85d6d96032afee648f05971eb74712d130701c7f647c0e05716e52ce2",
+  "harnessIdenticalToLinuxRun": true,
+  "resultsIdenticalToLinuxRun": true,
+  "inputsSHA256": {
+    "test/rpcs3_cell561_test.py": "f6535be64a37b8c3ee7e5ece6c7ff8b102267a5b62225535104bda46ff81d2c0",
+    "test/native/rpcs3_early561.inc": "06c3743cfc3f957068c9a1dd517b842ed348fdef56bfe76338781aa69c3b9e01"
+  },
+  "diagnosticsResultSHA256": "b28f8b0ce70900f182579e6d73918e281d0e044f2a11545c9146375fa6b15d93",
+  "scope": "Host correctness of the 561 production bodies and a simulated-time model of the RSX thread and one GPU queue; no iPhone FPS, frame time, Metal rendering, thermal or memory-pressure result."
+}
