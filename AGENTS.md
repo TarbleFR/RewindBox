@@ -209,8 +209,9 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   signed Core = Core 565 (`428b11e6…`), MeloNX engine 876a087. Delivery time
   33.4 min end to end (macOS job 26.6 min) vs 40 / 32.6 min for 563: the
   contract memo saved ~6 min. Receipt `docs/evidence/rpcs3-cell565-delivery.json`.
-  Not tested on iPhone. Parallel private 566 (other session) = 564 + MeloNX
-  engine 86c2b4d on Core 563; 567 (other session) is to combine both on 565.
+  Not tested on iPhone. The other session's private 566 (`e7e96afb`) stacks
+  MeloNX engine 86c2b4d on this delivered 565 tree (Core 565 and the GoW3
+  profile kept); the next RPCS3 build stacks on 566.
 
 ## RPCS3 Core 563: in-session A/B of the 561 early submission (DBZ HD) — 27 October 2026
 
