@@ -3,6 +3,31 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Private 564: MeloNX engine — garbage texture descriptors, bounded engine journal, crash record — 27 October 2026
+
+- Hogwarts Legacy `app.log` (Build 562): 15 s at 0 FPS (GPU thread 99 %,
+  `Logger.MessageThread` 80 %) and later 1-9 FPS with the .NET GC busy, while
+  pool entries filled with 0x5A5A5A5A (format `0x25A5A`, GPU VA beyond 40 bits)
+  logged "Invalid texture format" more than 13,000 times a second, each
+  written synchronously to app.log on the GPU thread. Analysis:
+  `docs/melonx-texture-journal.md`. Engine commit `876a087b`:
+  `adapt_texture_pool.py` (reject an address that fails `ValidateAddress`
+  before sizing or logging; same null result), `RecordEngine` (8 occurrences
+  per text, then powers of two; reset per game), `RecordCrash` (unhandled
+  managed exception written past the 5 MiB ceiling). Engine run `40502672385`
+  green with `test/melonx_texture_pool_test.py` and
+  `test/melonx_engine_journal_test.py` (NativeAOT crash record included).
+- Private 564 recipe (`melonxtexture564_tree.py`, `melonxtexture564_delivery.py`,
+  `melonx-texture564-delivery.yml`, `validate_*564_ipa.py`,
+  `delivery-564-recipient.pem`): the delivered 563 product with only the MeloNX
+  engine swapped 558 (`8f83748b`) -> 564. The 563 recipe runs unchanged in
+  `as_563()`; `old_engine()` puts the 558 engine evidence back in
+  `dist/melonx` for inherited checks, and the inherited MeloNX IPA validators
+  check `derived_ipa()` (the IPA with the 558 engine entries packaged by
+  `package_runtime` on the 563 tree, every other entry byte for byte).
+  `validate_melonx_texture564_ipa.py` checks the real engine and that only the
+  engine entries differ. Claimed by session `session_01K9YJtz…`. Do not reuse 564.
+
 ## Private 562: MeloNX Switch keyboard and L3/R3 touch buttons — 27 October 2026
 
 - User requests (Discord, via the maintainer): a game asking for text crashed
