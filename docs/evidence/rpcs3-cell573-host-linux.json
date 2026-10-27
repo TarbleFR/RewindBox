@@ -1,0 +1,119 @@
+{
+  "passed": true,
+  "build": 573,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "sourceContract": {
+    "baseline": "a786dad5e4d589455f37d433349b46604727f336",
+    "fixtureSHA256": "e50b1e9e897fc1f82adfa532485825467fda50d22115dfcc465f7b05ba6aef90",
+    "sourceSHA256": {
+      "rpcs3/Emu/RSX/Common/texture_cache.h": "4a7ce3fbab1d7b535c9982366779f5f3fd712bd2c7e1e4732f38e2da562cb708",
+      "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "c100803ca2a8dfb739d0c051d105bcfbdb5fe1852c6860d3ea3cf1f38197d151",
+      "rpcs3/Emu/RSX/VK/VKPresent.cpp": "bbcfe4f91090578d43b0a92667845bdaca57e9321fb4a1da70f4e04630172ea6",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "ac1e24963ec7cfae45cbcb97b0506946cdf0389782fb2e9e1a0d782109524c16",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.h": "756c680bd2b3e5b327295db439412ea12447170838776399e873f5e4b03af846",
+      "rpcs3/Emu/system_config.h": "7d9d1113fa8c49869fb8421b59cc5e7161972039e8419e01e5ccb1ff32ab2e07",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "c62f38170aec04bbee56e4b0021991dcde14394e0abf04c788fb7cbd1336afe5",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "7a36acdcf2eb2f85007ee76f3aff461dbe4d3f1c851066f2f47f0976c9af6737",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "e7e34f2daf54ca448ff7924ea1b66b26323794ed43b9a4c230262d4793c3115a",
+      "rpcs3/ios/IOSTextureResidency.h": "168e273272709347fa7aec38259d587854c6593afd1fd8c63b69af35ebe4be26"
+    },
+    "otherCoreSourcesUnchanged": 283
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom571": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "placement": {
+    "nonIosBuildIdentical": 5,
+    "globalEpochSites": 3,
+    "usesStampMaintenanceDoesNot": true,
+    "passBeforeFrameEnd": true,
+    "boundTexturesExcluded": true,
+    "descriptorsInvalidated": [
+      "shader_read",
+      "blit_engine_src"
+    ],
+    "settingsAndLogWired": true
+  },
+  "policy": {
+    "passed": true,
+    "cases": 9,
+    "harnessSHA256": "9d5864f83e7eacadb0f361a618e346b02fdbae0651567ede62be75dd520b3f16"
+  },
+  "residency": {
+    "addressUndefined": {
+      "passed": true,
+      "frames": 6000,
+      "softCapMiB": 768,
+      "off": {
+        "peakLiveMiB": 10304,
+        "finalLiveMiB": 10304,
+        "uploads": 6127
+      },
+      "on": {
+        "peakLiveMiB": 828,
+        "finalLiveMiB": 768,
+        "uploads": 6127,
+        "evictedMiB": 23740,
+        "passes": 375,
+        "reuploadsWorkingSet": 0,
+        "reuploadsRevisitedArea": 0,
+        "minIdleFramesAtEviction": 39
+      },
+      "harnessSHA256": "af84dea4b49c0f644926a1c2e10dd826a1bd39f8502b3ac919d1febe34726c8d"
+    },
+    "optimized": {
+      "passed": true,
+      "frames": 6000,
+      "softCapMiB": 768,
+      "off": {
+        "peakLiveMiB": 10304,
+        "finalLiveMiB": 10304,
+        "uploads": 6127
+      },
+      "on": {
+        "peakLiveMiB": 828,
+        "finalLiveMiB": 768,
+        "uploads": 6127,
+        "evictedMiB": 23740,
+        "passes": 375,
+        "reuploadsWorkingSet": 0,
+        "reuploadsRevisitedArea": 0,
+        "minIdleFramesAtEviction": 39
+      },
+      "harnessSHA256": "af84dea4b49c0f644926a1c2e10dd826a1bd39f8502b3ac919d1febe34726c8d"
+    }
+  },
+  "scopedRevalidation": {
+    "addressUndefined": {
+      "passed": true,
+      "sections": 5,
+      "flushHashes": {
+        "global": 5,
+        "scoped": 2
+      },
+      "commitHashes": {
+        "global": 5,
+        "scoped": 3
+      },
+      "cpuCausesGlobal": true,
+      "changesDetected": true,
+      "harnessSHA256": "2fa2ab3c953685d31ca5499e7d9702e97a88d13a494e648164a6b39b3c86c46e"
+    }
+  },
+  "inputs": {
+    "test/rpcs3_cell573_test.py": "3af8f0e1b9bc789e02dd736d7007031d9df4234585f506c655b6d9a5309f1765",
+    "test/native/rpcs3_texture_residency573.inc": "ac65a3c031a47e00ed500c3e36c7e20634aa778501121744f1820394eb9e437c",
+    "test/native/rpcs3_scoped_revalidation573.inc": "1b16848c738ca4068095c57c347dbd301f937eb6b29bd4e1ee7cfef2f0362608"
+  },
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Host models of the 573 eviction routine and scoped revalidation, copied from the Core; no iPhone FPS, frame time or memory result."
+}

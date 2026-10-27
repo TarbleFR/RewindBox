@@ -1,0 +1,556 @@
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+index c2392e224..8a499227d 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -795,6 +795,17 @@ namespace rsx
+ 			return true;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// CELL573_SCOPED_RSX_WRITES: the next validation of every section over `range` hashes again.
++		void revalidate_overlapping(const address_range32& range)
++		{
++			for (auto It = m_storage.range_begin(range, full_range, true); It != m_storage.range_end(); ++It)
++			{
++				It->reset_validation();
++			}
++		}
++#endif
++
+ 		/**
+ 		 * Section invalidation
+ 		 */
+@@ -805,7 +816,18 @@ namespace rsx
+ 			AUDIT(!data.flushed);
+ #ifdef RPCS3_IOS
+ 			// CELL559_TEXTURE_EPOCH: GPU data is about to be written to guest memory.
+-			rpcs3::ios::texture_validation::advance_epoch();
++			// CELL573_SCOPED_RSX_WRITES: it is written over the flushed sections only.
++			if (rpcs3::ios::texture_validation_scope::enabled.load(std::memory_order_relaxed))
++			{
++				for (const auto& surface : data.sections_to_flush)
++				{
++					revalidate_overlapping(surface->get_section_range());
++				}
++			}
++			else
++			{
++				rpcs3::ios::texture_validation::advance_epoch();
++			}
+ #endif
+ 
+ 			if (data.sections_to_flush.size() > 1)
+@@ -1170,7 +1192,12 @@ namespace rsx
+ 			AUDIT(fault_range_in.valid());
+ #ifdef RPCS3_IOS
+ 			// CELL559_TEXTURE_EPOCH: a write, unmap or surface commit changes guest memory.
+-			if (!cause.is_read())
++			// CELL573_SCOPED_RSX_WRITES: a surface commit writes (deferred commits) only
++			// over the sections it trampled; those are revalidated below instead.
++			const bool ios_scoped_commit =
++				(cause == invalidation_cause::committed_as_fbo || cause == invalidation_cause::superseded_by_fbo) &&
++				rpcs3::ios::texture_validation_scope::enabled.load(std::memory_order_relaxed);
++			if (!cause.is_read() && !ios_scoped_commit)
+ 			{
+ 				rpcs3::ios::texture_validation::advance_epoch();
+ 			}
+@@ -1178,6 +1205,13 @@ namespace rsx
+ 			address_range32 fault_range = fault_range_in.to_page_range();
+ 
+ 			intersecting_set trampled_set = get_intersecting_set(fault_range);
++#ifdef RPCS3_IOS
++			if (ios_scoped_commit)
++			{
++				// fault_range, grown over every trampled section.
++				revalidate_overlapping(trampled_set.invalidate_range);
++			}
++#endif
+ 
+ 			thrashed_set result = {};
+ 			result.cause = cause;
+@@ -1959,6 +1993,7 @@ namespace rsx
+ #ifdef RPCS3_IOS
+ 			// CELL559_TEXTURE_EPOCH: at most one frame between full revalidations.
+ 			rpcs3::ios::texture_validation::advance_epoch();
++			rpcs3::ios::texture_residency::advance_frame();
+ #endif
+ 			// Must manually release each cached entry
+ 			for (auto& entry : m_temporary_subresource_cache)
+@@ -2424,6 +2459,102 @@ namespace rsx
+ 			return evicted_set.violation_handled;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// CELL573_TEXTURE_RESIDENCY: releases idle CPU textures to cover `excess_bytes`
++		// of host memory: first those overlapped by a section used after them that
++		// extends past them, then the least recently used (ios/IOSTextureResidency.h). Bound
++		// textures are excluded. Returns the host bytes released; their images go
++		// back to the pool or are destroyed.
++		template <typename HostBytes>
++		u64 evict_idle_sections(const std::set<u32>& exclusion_list, u64 excess_bytes, HostBytes&& host_bytes)
++		{
++			ensure(rsx::get_current_renderer()->is_current_thread());
++			std::unique_lock lock(m_cache_mutex, std::defer_lock);
++
++			if (!lock.try_lock())
++			{
++				return 0;
++			}
++
++			namespace residency = rpcs3::ios::texture_residency;
++			std::vector<residency::candidate<section_storage_type*>> candidates;
++			const u32 type_to_evict = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_src;
++			for (auto It = m_storage.begin(); It != m_storage.end(); ++It)
++			{
++				auto& block = *It;
++				if (block.empty())
++				{
++					continue;
++				}
++
++				for (auto& region : block)
++				{
++					if (region.is_dirty() || !region.is_locked() || !(region.get_context() & type_to_evict) ||
++						exclusion_list.contains(region.get_section_base()))
++					{
++						continue;
++					}
++
++					candidates.push_back({ region.last_use_frame, host_bytes(region), &region });
++				}
++			}
++
++			// An idle section overlapped by a section used after it and extending past it:
++			// its memory holds other data now. A section inside it may be a view of the
++			// same data; same-range sections are validated on upload.
++			const u64 now = residency::current_frame();
++			for (auto& candidate : candidates)
++			{
++				if (!residency::idle(candidate.last_use, now, true))
++				{
++					continue;
++				}
++
++				const auto& range = candidate.section->get_section_range();
++				for (auto It = m_storage.range_begin(range, full_range, true); It != m_storage.range_end(); ++It)
++				{
++					if (It->last_use_frame > candidate.last_use && !It->is_dirty() && !It->get_section_range().inside(range))
++					{
++						candidate.superseded = true;
++						break;
++					}
++				}
++			}
++
++			const usz count = residency::select(candidates, now, excess_bytes);
++			if (!count)
++			{
++				return 0;
++			}
++
++			thrashed_set evicted_set;
++			u64 released = 0;
++			for (usz i = 0; i < count; ++i)
++			{
++				auto& region = *candidates[i].section;
++				released += candidates[i].bytes;
++				region.set_dirty(true);
++
++				if (region.is_locked(true))
++				{
++					evicted_set.sections_to_unprotect.push_back(&region);
++				}
++				else
++				{
++					region.discard(true);
++				}
++			}
++
++			if (!evicted_set.sections_to_unprotect.empty())
++			{
++				unprotect_set(evicted_set);
++			}
++
++			m_storage.purge_unreleased_sections();
++			return released;
++		}
++#endif
++
+ 		// Expands a _3d_unwrap descriptor into the explicit slice list used by _3d_gather.
+ 		static void expand_3d_unwrap_sections(rsx::simple_array<copy_region_descriptor>& sections, const deferred_subresource& desc, u8 level)
+ 		{
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+index 37c7e6338..de5fffcf3 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -13,6 +13,7 @@
+ #include <unordered_set>
+ #ifdef RPCS3_IOS
+ #include "ios/IOSTextureValidationProfile.h"
++#include "ios/IOSTextureResidency.h"
+ #include "ios/IOSDeferredCommit.h"
+ #include "util/tsc.hpp"
+ #endif
+@@ -634,8 +635,11 @@ namespace rsx
+ #ifdef RPCS3_IOS
+ 							++observed_sections;
+ 							observed_bytes += tex.get_confirmed_range().length();
+-#endif
++							// CELL573_TEXTURE_RESIDENCY: a maintenance validation is not a use.
++							tex.sync_protection_untouched();
++#else
+ 							tex.sync_protection();
++#endif
+ 						}
+ 					}
+ 				}
+@@ -929,6 +933,10 @@ namespace rsx
+ 		void protect(utils::protection prot, const std::pair<u32, u32>& new_confirm);
+ 		void unprotect();
+ 		bool sync() const;
++#ifdef RPCS3_IOS
++		// CELL573_SCOPED_RSX_WRITES: the next validation hashes again.
++		void reset_validation() const { validated_epoch = 0; }
++#endif
+ 
+ 		void discard();
+ 		const address_range32& get_bounds(section_bounds bounds) const;
+@@ -1120,6 +1128,10 @@ namespace rsx
+ 	public:
+ 		u64 cache_tag = 0;
+ 		u64 last_write_tag = 0;
++#ifdef RPCS3_IOS
++		// CELL573_TEXTURE_RESIDENCY: frame of the last lookup that used this section.
++		u64 last_use_frame = 0;
++#endif
+ 
+ 		~cached_texture_section()
+ 		{
+@@ -1180,6 +1192,9 @@ namespace rsx
+ 
+ 			cache_tag = 0ull;
+ 			last_write_tag = 0ull;
++#ifdef RPCS3_IOS
++			last_use_frame = rpcs3::ios::texture_residency::current_frame();
++#endif
+ 
+ 			m_predictor_entry = nullptr;
+ 
+@@ -1634,9 +1649,22 @@ namespace rsx
+ 				return false;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			last_use_frame = rpcs3::ios::texture_residency::current_frame();
++#endif
+ 			return true;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		bool sync_protection_untouched()
++		{
++			const u64 last_use = last_use_frame;
++			const bool valid = sync_protection();
++			last_use_frame = last_use;
++			return valid;
++		}
++#endif
++
+ 
+ 		/**
+ 		 * Flush
+diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+index 990a8e07c..48be5063a 100644
+--- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
++++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+@@ -16,6 +16,8 @@
+ #include "ios/IOSRsxSyncProfile.h"
+ // CELL555_READBACK_INCLUDE
+ #include "ios/IOSReadbackProfile.h"
++#include "ios/IOSTextureResidency.h"
++#include "Emu/RSX/Common/sampler_invalidation.h"
+ #endif
+ 
+ extern atomic_t<bool> g_user_asked_for_screenshot;
+@@ -210,6 +212,39 @@ void VKGSRender::advance_queued_frames()
+ 	// memory twice per frame and could observe two different hysteresis states.
+ 	m_rtts.trim(*m_current_command_buffer, memory_pressure);
+ 
++#ifdef RPCS3_IOS
++	// CELL573_TEXTURE_RESIDENCY: above the soft cap, release textures no draw has
++	// looked up for a while. Bound textures stay; every cached descriptor of the
++	// released kinds is looked up again before its next use.
++	if (rpcs3::ios::texture_residency::pass_due())
++	{
++		std::set<u32> bound_textures;
++		auto scan_array = [&](const auto& texture_array)
++		{
++			for (const auto& tex : texture_array)
++			{
++				if (tex.enabled())
++				{
++					bound_textures.insert(rsx::get_address(tex.offset(), tex.location()));
++				}
++			}
++		};
++
++		scan_array(rsx::method_registers.fragment_textures);
++		scan_array(rsx::method_registers.vertex_textures);
++
++		if (m_texture_cache.evict_idle_textures(bound_textures))
++		{
++			std::lock_guard lock(m_sampler_mutex);
++			for (const auto context : { rsx::texture_upload_context::shader_read, rsx::texture_upload_context::blit_engine_src })
++			{
++				rsx::invalidate_sampler_context(fs_sampler_state, m_textures_dirty, context);
++				rsx::invalidate_sampler_context(vs_sampler_state, m_vertex_textures_dirty, context);
++			}
++		}
++	}
++#endif
++
+ 	// Texture cache is also double buffered to prevent use-after-free
+ 	m_texture_cache.on_frame_end();
+ 	m_samplers_dirty.store(true);
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+index 5b9cdfa98..51ede090e 100644
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -1844,4 +1844,26 @@ namespace vk
+ 
+ 		return false;
+ 	}
++
++#ifdef RPCS3_IOS
++	bool texture_cache::evict_idle_textures(const std::set<u32>& exclusion_list)
++	{
++		namespace residency = rpcs3::ios::texture_residency;
++
++		// Live textures: the pool without the images kept for reuse.
++		const u64 pool_bytes = vmm_get_application_pool_usage(VMM_ALLOCATION_POOL_TEXTURE_CACHE);
++		const u64 recyclable_bytes = m_cached_memory_size.load();
++		const u64 live_bytes = pool_bytes > recyclable_bytes ? pool_bytes - recyclable_bytes : 0;
++		if (live_bytes <= residency::soft_cap_bytes)
++		{
++			return false;
++		}
++
++		return evict_idle_sections(exclusion_list, live_bytes - residency::soft_cap_bytes, [](vk::cached_texture_section& section) -> u64
++		{
++			const auto image = section.get_raw_texture();
++			return image && image->memory ? image->memory->size() : 0;
++		}) != 0;
++	}
++#endif
+ }
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+index 7369f1910..2bebcb6f9 100644
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+@@ -552,5 +552,9 @@ namespace vk
+ 		u64 get_temporary_memory_in_use() const;
+ 
+ 		bool is_overallocated() const;
++#ifdef RPCS3_IOS
++		// CELL573_TEXTURE_RESIDENCY: true when idle textures were released.
++		bool evict_idle_textures(const std::set<u32>& exclusion_list);
++#endif
+ 	};
+ }
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 703151874..9c25493d6 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -145,6 +145,9 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> rsx_thread_priority{ this, "RSX Thread Priority", ios_experimental_mode::automatic };
+ 		// CELL571_PASSIVE_LOCK_FAIRNESS: Automatic enables it for every title.
+ 		cfg::_enum<ios_experimental_mode> passive_lock_fairness{ this, "Passive Lock Fairness", ios_experimental_mode::automatic };
++		// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic enables them for God of War III.
++		cfg::_enum<ios_experimental_mode> texture_residency{ this, "Texture Residency Cap", ios_experimental_mode::automatic };
++		cfg::_enum<ios_experimental_mode> scoped_texture_revalidation{ this, "Scoped Texture Revalidation", ios_experimental_mode::automatic };
+ 
+ 		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSTextureResidency.h b/rpcs3/ios/IOSTextureResidency.h
+new file mode 100644
+index 000000000..65acd8efe
+--- /dev/null
++++ b/rpcs3/ios/IOSTextureResidency.h
+@@ -0,0 +1,108 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <algorithm>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <vector>
++
++// CELL573_TEXTURE_RESIDENCY: on iOS the texture cache confirms CPU textures by
++// content hash, not page protection, so a guest write to their memory never
++// faults. A texture whose memory the title has reused for other data is found
++// stale only when it is looked up again; one that is never looked up again
++// keeps its GPU image. God of War III streams its levels through the same
++// guest memory: on build 567 the texture pool grew to 1.72 GB (the PS3 has
++// 512 MB in all), fell to 366 MB when the memory-pressure reclaim purged it,
++// and grew back to 1.56 GB within 75 s. While the live texture bytes exceed
++// `soft_cap_bytes`, idle sections are released, at most `max_bytes_per_pass`
++// per pass, one pass every `pass_interval` frames: first those overlapped by a
++// section used after them that extends past them, whose guest memory holds
++// other data now, once idle for `min_idle_frames_superseded` frames; then the
++// least recently used of those no lookup has used for `min_idle_frames`.
++// Bound textures are never released. A released texture the title samples
++// again is uploaded from guest memory as on its first use.
++namespace rpcs3::ios::texture_residency
++{
++inline std::atomic<bool> enabled{false};
++// Frames presented since boot, advanced by the texture cache's frame end.
++inline std::atomic<std::uint64_t> frame{1};
++
++constexpr std::uint64_t soft_cap_bytes = 768ull << 20;
++constexpr std::uint64_t min_idle_frames = 64;
++constexpr std::uint64_t min_idle_frames_superseded = 8;
++constexpr std::uint64_t pass_interval = 16;
++constexpr std::uint64_t max_bytes_per_pass = 128ull << 20;
++
++inline std::uint64_t current_frame() noexcept
++{
++	return frame.load(std::memory_order_relaxed);
++}
++
++inline void advance_frame() noexcept
++{
++	frame.fetch_add(1, std::memory_order_relaxed);
++}
++
++inline bool pass_due() noexcept
++{
++	return enabled.load(std::memory_order_relaxed) && current_frame() % pass_interval == 0;
++}
++
++inline bool idle(std::uint64_t last_use, std::uint64_t now, bool superseded = false) noexcept
++{
++	return last_use <= now && now - last_use >= (superseded ? min_idle_frames_superseded : min_idle_frames);
++}
++
++template <typename Section>
++struct candidate
++{
++	std::uint64_t last_use = 0;
++	std::uint64_t bytes = 0;
++	Section section{};
++	// Overlapped by a section used after it that extends past it.
++	bool superseded = false;
++};
++
++// Moves the candidates to release to the front and returns their count: only
++// idle ones, superseded first, then least recently used first, until
++// `excess_bytes` (at most `max_bytes_per_pass`) are covered.
++template <typename Section>
++std::size_t select(std::vector<candidate<Section>>& candidates, std::uint64_t now, std::uint64_t excess_bytes)
++{
++	const auto idle_end = std::partition(candidates.begin(), candidates.end(), [now](const candidate<Section>& c)
++	{
++		return idle(c.last_use, now, c.superseded);
++	});
++
++	std::stable_sort(candidates.begin(), idle_end, [](const candidate<Section>& a, const candidate<Section>& b)
++	{
++		return a.superseded != b.superseded ? a.superseded : a.last_use < b.last_use;
++	});
++
++	const std::uint64_t target = std::min(excess_bytes, max_bytes_per_pass);
++	std::uint64_t covered = 0;
++	std::size_t count = 0;
++
++	for (auto it = candidates.begin(); it != idle_end && covered < target; ++it, ++count)
++	{
++		covered += it->bytes;
++	}
++
++	return count;
++}
++}
++
++// CELL573_SCOPED_RSX_WRITES: under "Texture Validation Per FIFO Batch" every
++// guest-memory write by the RSX itself (a render target written back for a
++// CPU read, a render target committed over a range) advanced the global
++// epoch, so the next lookup of every texture hashed it again, wherever it
++// was. God of War III goes through about nine epochs per frame and hashes
++// 6-12 GB of texture data per 5 s window on build 567 (8 ms of its 10 ms
++// texture time per frame). The RSX knows the range it writes: only the
++// sections over it are revalidated. Guest PUT, semaphore acquires, CPU write
++// faults, unmaps and the frame end still advance the global epoch.
++namespace rpcs3::ios::texture_validation_scope
++{
++inline std::atomic<bool> enabled{false};
++}
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index d5fbed59e..128aa5cfc 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -11,6 +11,7 @@
+ #include "IOSEarlySubmit.h"
+ #include "IOSRsxIdlePark.h"
+ #include "IOSPassiveLockGate.h"
++#include "IOSTextureResidency.h"
+ #include "IOSThreadQoS.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+@@ -167,6 +168,15 @@ void resolve_experimental_policy() noexcept
+ 	// CPU thread has waited through several timed waits to re-enter guest memory.
+ 	resolved.passive_lock_fairness = resolve_mode(g_cfg.ios_experimental.passive_lock_fairness, true);
+ 	rpcs3::ios::passive_gate::enabled.store(resolved.passive_lock_fairness, std::memory_order_relaxed);
++	// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic is God of War III,
++	// whose texture pool keeps textures of reused memory and whose RSX writes back a
++	// render target for the CPU every frame.
++	resolved.texture_residency = resolve_mode(g_cfg.ios_experimental.texture_residency,
++		is_god_of_war_iii_title(Emu.GetTitleID()));
++	rpcs3::ios::texture_residency::enabled.store(resolved.texture_residency, std::memory_order_relaxed);
++	resolved.scoped_texture_revalidation = resolve_mode(g_cfg.ios_experimental.scoped_texture_revalidation,
++		is_god_of_war_iii_title(Emu.GetTitleID()));
++	rpcs3::ios::texture_validation_scope::enabled.store(resolved.scoped_texture_revalidation, std::memory_order_relaxed);
+ 	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
+ 	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
+ 	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
+@@ -199,10 +209,10 @@ void resolve_experimental_policy() noexcept
+ 	}
+ 
+ 	s_policy = resolved;
+-	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d noop_putllc=%d rsx_idle_park=%d rsx_thread_priority=%d passive_fairness=%d",
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d noop_putllc=%d rsx_idle_park=%d rsx_thread_priority=%d passive_fairness=%d texture_residency=%d scoped_revalidation=%d",
+ 		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
+ 		resolved.deferred_fbo_writeback, resolved.early_submit, resolved.noop_putllc_keeps_reservations, resolved.rsx_idle_park, resolved.rsx_thread_priority,
+-		resolved.passive_lock_fairness);
++		resolved.passive_lock_fairness, resolved.texture_residency, resolved.scoped_texture_revalidation);
+ 	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index cf2df11c6..bc81850a8 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -27,6 +27,10 @@ struct experimental_policy
+ 	bool rsx_thread_priority = false;
+ 	// CELL571_PASSIVE_LOCK_FAIRNESS: a starving passive locker makes new writer locks defer.
+ 	bool passive_lock_fairness = false;
++	// CELL573_TEXTURE_RESIDENCY: idle textures above a soft cap are released.
++	bool texture_residency = false;
++	// CELL573_SCOPED_RSX_WRITES: RSX writes revalidate only the textures they overlap.
++	bool scoped_texture_revalidation = false;
+ 	u32 fifo_cache_bytes = 1024;
+ 	bool fifo_idle_wfe = false;
+ 	bool deferred_get_publishing = false;
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index c0bd4be38..184a97323 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -133,6 +133,8 @@ const std::array catalog{
+ 	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
+ 	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
+ 	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
++	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
++	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),
+ 	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
+ 	SETTING("experimental.neon_primitive_restart", "Experimental", "ARM64 Uploads", "ARM64 primitive-restart uploads", "Uses NEON min/max and restart filtering for index uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_primitive_restart, 0, 0, 0),
+ 	SETTING("experimental.precomputed_indices", "Experimental", "ARM64 Uploads", "Precomputed non-native indices", "Copies cached quad and triangle-fan index patterns instead of regenerating them for each draw. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.precomputed_indices, 0, 0, 0),

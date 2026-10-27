@@ -3,6 +3,36 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 Core 573: texture residency cap and scoped revalidation (God of War III) — 27 October 2026
+
+- Build 567 God of War III: 4.75 GB footprint (1.25 GB compressed by iOS);
+  texture pool up to 1.72 GB, purged to 366 MB by the pressure reclaim and
+  back to 1.56 GB within 75 s; VMA blocks 2.76-2.83 GB with up to 1.99 GB
+  unused; texture time ~10 ms per frame of which ~8 ms hashing (5.4-12.7 GB
+  per 5 s window over ~9 validation epochs per frame). On iOS textures are
+  confirmed by content hash, so a texture whose guest memory was reused stays
+  until looked up again.
+- `CELL573_TEXTURE_RESIDENCY` (`ios/IOSTextureResidency.h`, `texture_cache.h`
+  `evict_idle_sections`, VK frame end): every 16 frames, while live textures
+  (pool minus recyclable images) exceed 768 MiB, idle CPU textures are
+  released, at most 128 MiB per pass: first those overlapped by a section used
+  after them that extends past them (idle 8 frames), then least recently used
+  (idle 64 frames). Bound textures excluded; shader_read/blit_engine_src
+  descriptors looked up again. Lookups stamp `last_use_frame`; `trim_sections`
+  does not. Setting `experimental.texture_residency`, Automatic = GoW3.
+- `CELL573_SCOPED_RSX_WRITES`: `flush_set` revalidates only sections over the
+  flushed sections; `committed_as_fbo` / `superseded_by_fbo` only those over
+  the trampled range (covers 560 deferred write-backs). PUT, semaphores, CPU
+  causes, unmaps and the frame end still advance the global epoch. Setting
+  `experimental.scoped_texture_revalidation`, Automatic = GoW3. Boot log
+  `texture_residency=%d scoped_revalidation=%d`. Identities unchanged.
+- Host models with the Core code copied verbatim (eviction routine; sync, the
+  flush_set/invalidate iOS blocks): 6,000-frame GoW3-like stream peaks at 10.3
+  GB without, 828 MiB with, no re-upload of used or revisited textures; scoped
+  revalidation re-hashes 2 of 5 (flush) and 3 of 5 (commit) instead of 5, every
+  change detected. Evidence `docs/evidence/rpcs3-cell573-host-linux.json`. No
+  iPhone measurement. See `docs/rpcs3-cell573.md`.
+
 ## StikDebug fallback removed — 27 October 2026
 
 - User report (app.log via the maintainer): four Pokken Tournament DX launches
