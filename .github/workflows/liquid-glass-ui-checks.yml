@@ -98,9 +98,12 @@ jobs:
         # and each delivery recipe binds its own engine and host proofs.
         # Reference: the validated 542 host (3494edc9) plus the reviewed RPCS3
         # host change of private 557 (d645f05c: ROM folder saves, PS3 disc
-        # rows), the only change to these paths since. Move it only to another
-        # reviewed host change, never to absorb an interface edit.
+        # rows), then the reviewed controller change shipped by private 576
+        # (48b9865a: the latched Select layer in lib/utils/gamepad_nav.dart,
+        # covered by test/select_layer_latch_test.dart), the only changes to
+        # these paths since. Move it only to another reviewed host change,
+        # never to absorb an interface edit.
         run: >-
-          git diff --quiet d645f05cf0af4e2052038fee361148b54f8eac6a HEAD --
+          git diff --quiet 48b9865a3a305b4ed9e9cc2f6e45a15ce8d8a728 HEAD --
           lib/main.dart lib/data lib/repositories lib/models lib/utils lib/sync
           assets ios pubspec.yaml pubspec.lock
