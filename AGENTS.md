@@ -18,6 +18,10 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   nothing. Callers unchanged; identities unchanged (no cold compile).
   Host evidence `docs/evidence/rpcs3-cell569-host-linux.json`; the Mac CI runs
   the real QoS/affinity calls. No iPhone measurement. See `docs/rpcs3-cell569.md`.
+- Core run `40566094740` on `e70fa381`: Core `7fd47394…`, 88 exports, identities
+  unchanged. On the Apple Silicon runner: relpri -2 + THREAD_AFFINITY_POLICY +
+  raise = EPERM; relpri 0 = success; the 569 sequence keeps QoS. Receipt
+  `docs/evidence/rpcs3-cell569-macos.json`.
 
 ## RPCS3 Core 567: RSX thread priority, pooled-worker QoS reset — 27 October 2026
 

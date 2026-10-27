@@ -56,6 +56,15 @@ Rapport hôte : [`evidence/rpcs3-cell569-host-linux.json`](evidence/rpcs3-cell56
   - la séquence 569 (−2, affinité, +1) doit garder la QoS et la relever ;
   - la séquence 567 et la séquence à priorité relative 0 sont enregistrées.
 
+**Run Core sur Mac Apple Silicon (`40566094740`, `e70fa381`).**
+Reçu : [`evidence/rpcs3-cell569-macos.json`](evidence/rpcs3-cell569-macos.json).
+- Les vrais appels Darwin confirment la cause, sous ASan/UBSan comme sous TSan :
+  - priorité relative −2, puis affinité, puis relèvement : **EPERM** ;
+  - la même séquence à priorité relative 0 : succès ;
+  - la séquence 569 : la QoS est gardée et le thread est relevé.
+- Le Core iPhone est compilé : SHA-256 `7fd47394…`, 88 exports, identités
+  PPU/SPU inchangées, aucune recompilation à froid.
+
 ## 5. À relever sur iPhone
 
 - Plus aucune ligne `pthread_set_qos_class_self_np() failed`.
