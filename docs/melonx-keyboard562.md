@@ -88,3 +88,25 @@ lié à l'arbre épinglé (`validate_melonx_input562_ipa.py`).
 2. Menu (⋯) → « Boutons des sticks (L3/R3) » : Activé. L3 et R3 apparaissent ;
    les tester dans un jeu qui les utilise.
 3. En cas de problème, exporter `app.log` : lignes `[MeloNX:launch] textInput …`.
+
+## 5. Livraison privée 562 (27 octobre 2026)
+
+- Run `40490382532` sur `e33cee36` (`checks` et `cold` réussis, compilation
+  Xcode complète), artefact `12730156567` chiffré pour
+  `build-utils/delivery-562-recipient.pem` (clé privée hors Git).
+  **IPA 0.0.8 (562), 188 076 362 octets, SHA-256
+  `b5ec68d58c031356df27da779e84f2f40b8d2e2bd5671cde08f9af99290b395e`**, égal à
+  `SHA256SUMS` et à `signed-payload-identity.json`.
+- Contenu : l'arbre produit 561 (Core RPCS3 561 de `5b033881`, moteur MeloNX
+  558) avec les seuls fichiers hôte MeloNX de `9b40129f`. Validateurs CI
+  réussis : clavier et L3/R3, mesure MeloNX 558, interface, fichiers de
+  bibliothèque, Core RPCS3 561.
+- Vérification indépendante de l'IPA déchiffrée : les textes du clavier, la
+  clé L3/R3 et les traductions sont dans le pont MeloNX compilé ; le moteur
+  exporte `RegisterCallback`/`InvokeCallback` ; le Core est le 561.
+  Reçu : `docs/evidence/melonx-input562-delivery.json`.
+- La livraison 561 de la session RPCS3 (Core seul, depuis l'app publiée) a
+  échoué au premier essai sur le contrôle StikJIT puis a été relancée
+  (`9a805c6c`) ; la 562 est une compilation complète qui contient le même
+  Core 561.
+- Aucune validation sur iPhone ; re-signature SideStore/AltStore requise.

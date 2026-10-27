@@ -1,0 +1,178 @@
+{
+  "result": "passed",
+  "build": 562,
+  "version": "0.0.8",
+  "source": "e33cee365e2871b2a1555fa7c692869cf2126378",
+  "run": 40490382532,
+  "jobs": {
+    "checks": 122142544316,
+    "cold": 122144888876
+  },
+  "artifact": {
+    "id": 12730156567,
+    "name": "RewindBox-Build562-e33cee365e2871b2a1555fa7c692869cf2126378-cold",
+    "bytes": 189020061,
+    "zipSHA256": "2813a77d6107782453d9528b572a652bab8ead5b8aab3c4dd078da8ce9c84867",
+    "recipient": "build-utils/delivery-562-recipient.pem",
+    "cipher": "AES-256-CBC PBKDF2 200000 + RSA OAEP SHA256",
+    "privateKey": "outside Git"
+  },
+  "ipa": {
+    "name": "RewindBox-Build562-e33cee365e2871b2a1555fa7c692869cf2126378-cold.ipa",
+    "bytes": 188076362,
+    "sha256": "b5ec68d58c031356df27da779e84f2f40b8d2e2bd5671cde08f9af99290b395e",
+    "sha256sumsMatched": true,
+    "signedPayloadIdentityMatched": true,
+    "cfBundleShortVersion": "0.0.8",
+    "cfBundleVersion": "562",
+    "bundleIdentifier": "com.neogamelab.neostation",
+    "members": 5359
+  },
+  "tree": {
+    "hostTree": "6c6c624179540b860de16eab9c08323efaf12683",
+    "source561": "5b033881a032be1c2ac71080e229b86dc675ed6d",
+    "source562": "9b40129fa188f8e2aa6a35c94abea005406062d3",
+    "replaced": [
+      "build-utils/melonx/ui-strings.json",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift"
+    ],
+    "restored": {
+      "6c6c624179540b860de16eab9c08323efaf12683": [
+        ".github/workflows/melonx-host.yml"
+      ]
+    },
+    "removed": [
+      ".github/diagnostics/melonxparity552_delivery.py",
+      ".github/diagnostics/melonxparity552_tree.py",
+      ".github/diagnostics/rpcs3cell555_core.py",
+      ".github/workflows/melonx-parity552-delivery.yml",
+      ".github/workflows/rpcs3-cell554-bench.yml",
+      ".github/workflows/rpcs3-cell555-core.yml",
+      "build-utils/analyze_rpcs3_cell555_logs.py",
+      "build-utils/delivery-552-recipient.pem",
+      "build-utils/make_core_swap_workflow.py",
+      "build-utils/validate_liquid_glass552_ipa.py",
+      "build-utils/validate_melonx_parity552_ipa.py",
+      "docs/core-swap-delivery.md",
+      "docs/evidence/liquid-glass-ui548-delivery.json",
+      "docs/evidence/liquid-glass-ui550-delivery.json",
+      "docs/evidence/melonx-parity552-local.json",
+      "docs/evidence/melonx-parity553-delivery.json",
+      "docs/evidence/melonx-perf558-delivery.json",
+      "docs/evidence/melonx-threading549-delivery.json",
+      "docs/evidence/rpcs3-cell551-delivery.json",
+      "docs/evidence/rpcs3-cell555-dbz-observed.json",
+      "docs/evidence/rpcs3-cell555-hash-selection.json",
+      "docs/evidence/rpcs3-cell555-host-linux.json",
+      "docs/evidence/rpcs3-cell555-observed.json",
+      "docs/evidence/rpcs3-cell559-delivery.json",
+      "docs/evidence/rpcs3-cell560-dbz-measured.json",
+      "docs/evidence/rpcs3-cell560-delivery.json",
+      "docs/evidence/rpcs3-fix552-delivery.json",
+      "docs/evidence/rpcs3-import554-delivery.json",
+      "docs/evidence/rpcs3-library-files557-delivery.json",
+      "docs/rpcs3-cell555-dbz.md",
+      "docs/rpcs3-cell555.md",
+      "test/core_swap_base_test.py",
+      "test/fixtures/rpcs3_cell555.diff",
+      "test/native/rpcs3_cell555.inc",
+      "test/native/rpcs3_fingerprint553.inc",
+      "test/native/rpcs3_readback555.inc",
+      "test/native/rpcs3_shader555.inc",
+      "test/native/rpcs3_texture_hash554.inc",
+      "test/native/rpcs3_texture_hash554_group4.inc",
+      "test/native/rpcs3_texture_hash554_hybrid4.inc",
+      "test/native/rpcs3_texture_hash554_pair.inc",
+      "test/native/rpcs3_texture_hash554_twins6.inc",
+      "test/native/rpcs3_texture_hash554_twins8.inc",
+      "test/rpcs3_cell555_test.py",
+      "test/rpcs3_readback555_test.py",
+      "test/rpcs3_shader555_test.py",
+      "test/rpcs3_texture_hash554_test.py"
+    ],
+    "productTrees": {
+      "lib": "8f44ab0deac261089ed40a185f9fce32380b7be3",
+      "native": "d02bf5f2b3255e8c446a6b8e9fbf62a3bfa13d49",
+      "packages": "d88f20ab17f075804d021c8d2c9b86d8046c6bc7",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "productTrees561": {
+      "lib": "8f44ab0deac261089ed40a185f9fce32380b7be3",
+      "native": "d02bf5f2b3255e8c446a6b8e9fbf62a3bfa13d49",
+      "packages": "43b727081425755a2102f3dcf32c1b6438e208eb",
+      "assets": "f364256146788c048293ef747389afc151648711",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    }
+  },
+  "components": {
+    "rpcCoreSource": "5b033881a032be1c2ac71080e229b86dc675ed6d",
+    "rpcCoreRun": 40486026315,
+    "melonxEngineSource": "8f83748bd91fc759f4b199613225bfb4272c4574",
+    "melonxEngineRun": 40376664278,
+    "host562Source": "9b40129fa188f8e2aa6a35c94abea005406062d3",
+    "host562Run": 40484359276,
+    "host562Artifact": 12724972766
+  },
+  "ciValidation": {
+    "melonxInput": {
+      "result": "passed",
+      "build": 562,
+      "ipaSHA256": "b5ec68d58c031356df27da779e84f2f40b8d2e2bd5671cde08f9af99290b395e"
+    },
+    "melonxPerf": {
+      "result": "passed",
+      "build": 562,
+      "ipaSHA256": "b5ec68d58c031356df27da779e84f2f40b8d2e2bd5671cde08f9af99290b395e"
+    },
+    "liquidGlass": {
+      "result": "passed",
+      "build": 562,
+      "ipaSHA256": "b5ec68d58c031356df27da779e84f2f40b8d2e2bd5671cde08f9af99290b395e"
+    },
+    "rpcs3LibraryFiles": {
+      "result": "passed",
+      "build": 562,
+      "ipaSHA256": "b5ec68d58c031356df27da779e84f2f40b8d2e2bd5671cde08f9af99290b395e"
+    },
+    "rpcs3Core": {
+      "result": "passed",
+      "build": 562,
+      "ipaSHA256": "b5ec68d58c031356df27da779e84f2f40b8d2e2bd5671cde08f9af99290b395e"
+    }
+  },
+  "localRevalidation": {
+    "hostMarkers": [
+      "Unreadable keyboard request; the guest keeps waiting.",
+      "This engine has no callback registry; games cannot ask for text.",
+      "Empty answer: the game keeps its initial text.",
+      "RegisterCallback",
+      "rewindbox.melonx.stickButton",
+      "Stick buttons (L3/R3)",
+      "Boutons des sticks (L3/R3)",
+      "テキスト入力"
+    ],
+    "engineExports": [
+      "_RegisterCallback",
+      "_InvokeCallback"
+    ],
+    "rpcs3CoreMarkers": [
+      "Early Command Buffer Submission",
+      "COREPROF OPT560",
+      "COREPROF OPT559"
+    ],
+    "coreIdentityHostCommit": "5b033881",
+    "inputIdentityProbeChecks": 19
+  },
+  "installsOver": [
+    559,
+    560,
+    561
+  ],
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "scope": "MeloNX Switch keyboard answer and L3/R3 touch toggle (host only) on the 561 product tree with the RPCS3 Core 561; UIKit simulator probe, CI validators and compiled-marker checks; no game or iPhone run."
+}

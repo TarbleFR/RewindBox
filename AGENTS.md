@@ -31,6 +31,11 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   in `as_561()` (which also regenerates the 561 controller strings), the 562
   host run is bound to the pinned tree. RPCS3 Core 561 and the 558 MeloNX
   engine unchanged. Claimed by session `session_01K9YJtz…`. Do not reuse 562.
+- Delivered private 562: run `40490382532` on `e33cee36` (full Xcode build),
+  artifact `12730156567`, IPA 0.0.8 (562) 188,076,362 bytes, SHA-256
+  `b5ec68d58c031356df27da779e84f2f40b8d2e2bd5671cde08f9af99290b395e`; all five
+  562 validators passed; decrypted and inspected independently. Receipt
+  `docs/evidence/melonx-input562-delivery.json`. Not tested on iPhone.
 
 ## Core-only deliveries from the published application (core swap) — 27 October 2026
 
