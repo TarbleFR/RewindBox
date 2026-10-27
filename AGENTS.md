@@ -3,24 +3,6 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
-## Private 577 recipe: interface and controller of 48b9865 on the delivered 576 tree — 27 October 2026
-
-- Maintainer request: 577 = the 576 product (MeloNX engine 301e0f8, RPCS3 Core
-  575) plus exactly the 26 files of 48b9865 (system bubbles option, controller
-  reclaimed after a game, latched `⋯` menu, their tests). 576 belongs to the
-  MeloNX session; dispatch 577 only after 576 is delivered.
-- `interface577_tree.py` pins the 576 tree plus those files (5 replace 550
-  interface files at e12f1d4, the rest follow the host tree or are new tests);
-  14 parent contracts back to 558; only `lib` and `packages` differ from 576.
-  `interface577_delivery.py` runs the 576 recipe unchanged in `as_576()`.
-  Nine validators wrap the 576 ones in that view and name build 577;
-  `validate_interface577_ipa.py` records the 577 tests on the pinned tree
-  (checks job) and checks their receipt and compiled markers in the IPA.
-  Recipient `build-utils/delivery-577-recipient.pem` (private key outside Git).
-- Local dry run (scratch worktree, throwaway commit): tree pin and the full
-  inherited source contract pass; the rebuilt 576 product trees equal those of
-  the 576 recipe's own pin. Not dispatched; no IPA yet; no iPhone validation.
-
 ## Interface option and controller navigation after a game — 27 October 2026
 
 Maintainer request (video of the Switch playlist, `app.log`), branch `Claude`, no IPA, nothing pushed.
