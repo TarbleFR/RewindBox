@@ -44,6 +44,10 @@ Maintainer request (video of the Switch playlist, `app.log`), branch `Claude`, n
   files (lib, packages) and tests from `504f9c08`, the two deleted Dart files
   removed, `test/storage_contract_test.py` from `bfbb8067`. The product trees
   differ from 575 in lib and packages only.
+- It also carries the interface fixes of `48b9865a` (another session: system
+  bubbles option, controller handler restored after an RPCS3 game, latched
+  playlist menu; Swift/Objective-C++ first compiled by this delivery): its 24
+  files and two new tests from `48b9865a`.
 
 ## RPCS3 Core 575: title levers for Black Ops II and Bladestorm — 27 October 2026
 

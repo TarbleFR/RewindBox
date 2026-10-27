@@ -1,4 +1,4 @@
-"""Private576 delivery tree: the delivered 575 product tree with the MeloNX engine files of 301e0f8 and the StikDebug fallback removal of 504f9c0.
+"""Private576 delivery tree: the delivered 575 product tree with the MeloNX engine files of 301e0f8, the StikDebug fallback removal of 504f9c0 and the interface fixes of 48b9865.
 
 575 shipped the 573 product (the 572 product with the RPCS3 Core 573; MeloNX
 engine 8cc2348, God of War III without the 30 fps limiter, MeloNX keyboard
@@ -19,7 +19,10 @@ the integrated JIT helper, whose iOS 26 handshake the external backend
 skipped, running the RX/RW probe iOS 26 kills). Its three changed product
 files (lib, packages) and its tests come from 504f9c0, the two files it
 deletes are removed, and the storage contract test from bfbb806, the later
-commit that also lists the MeloNX imports. The product trees differ from the
+commit that also lists the MeloNX imports. It also carries the interface
+fixes of 48b9865 (another session; system bubbles option, controller handler
+restored after a game, latched playlist menu): its 24 changed product and test
+files and its two new tests, from 48b9865. The product trees differ from the
 delivered 575 ones in lib and packages only.
 
 Earlier receipts stay bound to the delivered 575 tree, which at_575() gives
@@ -68,6 +71,7 @@ ENGINE576 = ['build-utils/melonx/adapt_attachmentless_framebuffer.py',
 # test from bfbb806, which keeps 504f9c0's change and lists the MeloNX imports.
 SOURCE_APP576 = '504f9c087999a0dbcc9b2aa62c2bfd49c7bee7bf'
 SOURCE_TEST576 = 'bfbb806705efbc3398bef9e1cb85ea4cfbd9f01a'
+SOURCE_UI576 = '48b9865a3a305b4ed9e9cc2f6e45a15ce8d8a728'
 APP576 = {'lib/l10n/jit_fallback_locale.dart': SOURCE_APP576,
           'lib/screens/settings_screen/new_settings_options/tools_settings_content.dart': SOURCE_APP576,
           'lib/services/jit_backend_preference_service.dart': SOURCE_APP576,
@@ -78,8 +82,37 @@ APP576 = {'lib/l10n/jit_fallback_locale.dart': SOURCE_APP576,
           'test/melonx_launch_flow_test.py': SOURCE_APP576,
           'test/neoplay_build397_integration_test.py': SOURCE_APP576,
           'test/storage_tools_row_test.dart': SOURCE_APP576,
-          'test/storage_contract_test.py': SOURCE_TEST576}
+          'test/storage_contract_test.py': SOURCE_TEST576,
+          # The interface fixes of 48b9865 (system bubbles option, controller
+          # handler restored after a game, latched playlist menu) and their tests.
+          'lib/l10n/interface_style_locale.dart': SOURCE_UI576,
+          'lib/screens/game_screen/game_details_card/tabs/game_details_achievements_tab.dart': SOURCE_UI576,
+          'lib/screens/game_screen/my_games_carousel.dart': SOURCE_UI576,
+          'lib/screens/game_screen/my_games_grid.dart': SOURCE_UI576,
+          'lib/screens/game_screen/my_games_list.dart': SOURCE_UI576,
+          'lib/screens/game_screen/my_games_list/gamepad_nav.dart': SOURCE_UI576,
+          'lib/screens/settings_screen/interface_style/interface_style_screen.dart': SOURCE_UI576,
+          'lib/screens/systems_screen/my_systems_section/my_systems_grid.dart': SOURCE_UI576,
+          'lib/screens/systems_screen/my_systems_section/system_card.dart': SOURCE_UI576,
+          'lib/services/game_launch_manager.dart': SOURCE_UI576,
+          'lib/themes/interface_style.dart': SOURCE_UI576,
+          'lib/utils/gamepad_nav.dart': SOURCE_UI576,
+          'lib/widgets/console_bubble_transition.dart': SOURCE_UI576,
+          'lib/widgets/game_action_buttons.dart': SOURCE_UI576,
+          'lib/widgets/game_view_footer.dart': SOURCE_UI576,
+          'packages/gamepads/lib/src/gamepads.dart': SOURCE_UI576,
+          'packages/gamepads_darwin/ios/Classes/GamepadsIosPlugin.swift': SOURCE_UI576,
+          'packages/gamepads_darwin/ios/Classes/GamepadsListener.swift': SOURCE_UI576,
+          'packages/gamepads_platform_interface/lib/gamepads_platform_interface.dart': SOURCE_UI576,
+          'packages/gamepads_platform_interface/lib/method_channel_gamepads_platform_interface.dart': SOURCE_UI576,
+          'packages/rpcs3_internal_bridge/ios/Classes/RPCS3GameInputController.mm': SOURCE_UI576,
+          'test/game_audio_handoff_test.py': SOURCE_UI576,
+          'test/interface_style_settings_test.dart': SOURCE_UI576,
+          'test/ios_gamepad_navigation_test.dart': SOURCE_UI576,
+          'test/select_layer_latch_test.dart': SOURCE_UI576,
+          'test/system_bubbles_option_test.dart': SOURCE_UI576,}
 DELETED576 = ['lib/l10n/jit_fallback_locale.dart', 'lib/services/jit_backend_preference_service.dart']
+ADDED_APP576 = ['test/select_layer_latch_test.dart', 'test/system_bubbles_option_test.dart']
 # delivery_contract_memo.py, which the 565 recipe owns, follows HEAD here too.
 RECIPE = ['.github/diagnostics/melonxwarm576_tree.py', '.github/diagnostics/melonxwarm576_delivery.py',
           '.github/workflows/melonx-warm576-delivery.yml', 'build-utils/validate_rpcs3_576_ipa.py',
@@ -164,20 +197,26 @@ def parent_contract():
     assert commits == ENGINE_COMMITS, commits
     for commit in ENGINE_COMMITS:
         assert SESSION in git('log', '-1', '--format=%B', commit)
-    # The application change is exactly 504f9c0 (and bfbb806 for the storage
-    # contract test): each file's version before it is the one the 575 tree
-    # carries, and each file changed or was deleted.
-    app_parent = git('rev-parse', SOURCE_APP576 + '^')
+    # The application changes are exactly 504f9c0 and 48b9865 (and bfbb806 for
+    # the storage contract test): each file's version before its commit is the
+    # one the 575 tree carries (absent for the two added tests), and each file
+    # changed, was added or was deleted.
     for p, source in APP576.items():
         before = previous.source_of(p)
-        assert exists(before, p) and blob(app_parent, p) == blob(before, p), (p, before)
+        origin = SOURCE_APP576 if source == SOURCE_TEST576 else source
+        parent = git('rev-parse', origin + '^')
+        if p in ADDED_APP576:
+            assert not exists(before, p) and not exists(parent, p), (p, before)
+        else:
+            assert exists(before, p) and blob(parent, p) == blob(before, p), (p, before)
         if p in DELETED576:
             assert not exists(source, p), p
         else:
-            assert exists(source, p) and blob(source, p) != blob(before, p), (p, 'unchanged')
-        expected = [SOURCE_TEST576, SOURCE_APP576] if source == SOURCE_TEST576 else [SOURCE_APP576]
+            assert exists(source, p) and (p in ADDED_APP576 or blob(source, p) != blob(before, p)), (p, 'unchanged')
+        expected = [SOURCE_TEST576, SOURCE_APP576] if source == SOURCE_TEST576 else [origin]
         assert git('log', '--format=%H', before + '..' + source, '--', p).split() == expected, p
-    assert 'Claude-Session:' in git('log', '-1', '--format=%B', SOURCE_APP576)
+    for commit in (SOURCE_APP576, SOURCE_UI576):
+        assert 'Claude-Session:' in git('log', '-1', '--format=%B', commit), commit
 
 
 def verify():
@@ -263,9 +302,10 @@ def pin(report):
                    source566=SOURCE566, source567=SOURCE567, source569=SOURCE569, source571=SOURCE571,
                    source572=SOURCE572, source573=SOURCE573, source575=SOURCE575, source576=SOURCE576,
                    replaced=REPLACED, added=ADDED, sourceApp576=SOURCE_APP576, sourceTest576=SOURCE_TEST576,
+                   sourceUi576=SOURCE_UI576,
                    app576=APP576, deleted576=DELETED576, restored=restored, removed=sorted(removed), keptFiles=kept,
                    productTrees=trees, productTrees575=trees575,
-                   reason='The 575 product tree with the MeloNX engine files of 301e0f8 and the StikDebug fallback removal of 504f9c0; each file from the commit that validated it; Git history unchanged.')
+                   reason='The 575 product tree with the MeloNX engine files of 301e0f8, the StikDebug fallback removal of 504f9c0 and the interface fixes of 48b9865; each file from the commit that validated it; Git history unchanged.')
     if report:
         out = ROOT / report
         out.parent.mkdir(parents=True, exist_ok=True)

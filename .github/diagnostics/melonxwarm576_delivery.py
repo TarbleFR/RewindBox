@@ -1,4 +1,4 @@
-"""Private576: the MeloNX engine of 301e0f8 (shader-cache warm-ups off the game's start, attachment-less framebuffers sized to the viewports, temporary FFT boot trace; its own engine run) and the StikDebug fallback removal of 504f9c0 on the delivered 575 product tree.
+"""Private576: the MeloNX engine of 301e0f8 (shader-cache warm-ups off the game's start, attachment-less framebuffers sized to the viewports, temporary FFT boot trace; its own engine run), the StikDebug fallback removal of 504f9c0 and the interface fixes of 48b9865 on the delivered 575 product tree.
 
 576 ships the 575 product (the 573 product with the RPCS3 Core 575; MeloNX
 engine 8cc2348, God of War III without the 30 fps limiter, MeloNX keyboard
@@ -7,7 +7,10 @@ built and tested from 301e0f8, whose sources change no file compiled into
 the application (three engine adaptations, the adaptation list and the
 engine workflow's push paths). The application also loses the StikDebug JIT
 fallback (504f9c0: MeloNX always uses the integrated helper; three product
-files in lib and packages, two Dart files deleted, their tests). The 575
+files in lib and packages, two Dart files deleted, their tests) and gains
+the interface fixes of 48b9865 (system bubbles option, controller handler
+restored after a game, latched playlist menu; 24 files and two new tests).
+The 575
 recipe runs unchanged on the delivered 575 tree, which as_575() puts in
 place of the pinned 576 one for each inherited check (a scratch index, the
 576 files' 575 versions in the working tree, the deleted files restored, and
@@ -283,7 +286,8 @@ def source_contract():
  return dict(report,build=int(BUILD),source=head,build575=report['build'],source575Recipe=report['source'],
   source576=MELONX_SOURCE,melonxSource=MELONX_SOURCE,melonxRun=MELONX_RUN,melonxArtifact=MELONX_ARTIFACT[0],
   melonx572Source=MELONX572_SOURCE,melonx572Run=MELONX572_RUN,replaced576=tree.REPLACED,added576=tree.ADDED,
-  sourceApp576=tree.SOURCE_APP576,app576=sorted(tree.APP576),deleted576=tree.DELETED576,stikDebugFallbackRemoved=True,
+  sourceApp576=tree.SOURCE_APP576,sourceUi576=tree.SOURCE_UI576,app576=sorted(tree.APP576),deleted576=tree.DELETED576,
+  stikDebugFallbackRemoved=True,interfaceFixes576=True,
   changed576=sorted(changed),pinnedFiles=kept,productTrees=trees,productTrees575=report['productTrees'],
   physicalDeviceTested=False,gameTested=False)
 
