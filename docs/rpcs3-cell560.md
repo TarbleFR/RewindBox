@@ -278,3 +278,45 @@ le 560 (`cba3fa9f`).
 Reçu : [`evidence/rpcs3-cell560-delivery.json`](evidence/rpcs3-cell560-delivery.json).
 Elle s'installe par-dessus la 559 après re-signature SideStore. Aucune release
 GitHub, aucune mesure sur iPhone.
+
+## 9. Mesure du 560 sur DBZ (journaux du build 560)
+
+27 octobre 2026. Le mainteneur a fourni des journaux du **build 560** pour
+Dragon Ball Z Budokai HD Collection (`BLES01658`, session 2). Reçu :
+[`evidence/rpcs3-cell560-dbz-measured.json`](evidence/rpcs3-cell560-dbz-measured.json).
+Ce sont des journaux d'appareil ; aucun test FPS formel n'a été exécuté par
+moi. Les chiffres viennent des lignes `COREPROF` du jeu.
+
+**Ce que le 560 a changé, mesuré.**
+- La relecture synchrone au commit a disparu : `fbo_commit` = 0 relecture sur
+  toute la session. Le chemin 559 est bien supprimé.
+- Le jeu relit **une surface couleur complète 1280×720×4 (3,68 Mo) par image**
+  par faute CPU (`fault_read`), et `dropped` = 0 : chaque zone différée finit
+  par être lue. Rien n'est économisé.
+- Le coût de la relecture n'a pas disparu, il s'est **déplacé** : du thread RSX
+  (commit, en 559) vers le thread qui faute (`fault_read`, en 560), ~7,9 ms par
+  image en combat soutenu. Il suit le temps GPU de l'image (combat ~7,9 ms,
+  scènes légères ~5,0 ms).
+
+**FPS.**
+- Combat soutenu (fenêtres 13–30, ~177 dessins/image) : **~42 FPS**, temps
+  d'image ~23–24 ms.
+- Scènes légères (fenêtres 1–11, <40 dessins/image) : 50–59 FPS.
+- Le combat soutenu est **identique** à la base 559 de DBZ (42,2 FPS). **Le 560
+  est neutre sur DBZ.**
+
+**Stabilité.** Aucun `FREEZE_DUMP` pour le 560, aucun plantage ; les messages
+de fin (`sys_event_port_disconnect … CELL_ENOTCONN`, signaux du helper JIT
+iOS) n'apparaissent qu'à l'arrêt. Le 560 est sûr.
+
+**Interprétation.** DBZ est **limité par la relecture GPU** : le titre exige le
+tampon couleur en mémoire invitée à chaque image. Différer l'écriture est
+correct et sans risque, mais ne peut pas supprimer une relecture GPU
+intrinsèque que le jeu réclame. C'est exactement la limite annoncée au §6.
+Le reste du budget image est du travail SPU (≈1,7 cœur ; 37 % d'échecs
+`putllc`, contention d'atomiques inhérente au jeu) et le temps GPU lui-même.
+Aucun de ces coûts n'est un « travail redondant » supprimable comme l'étaient
+les optimisations 555/559/560 ; les lever demanderait soit une mesure sur
+appareil d'un réglage par jeu (risque de compatibilité), soit un travail SPU
+ou GPU profond à valider sur iPhone. Aucun gain supplémentaire n'est donc
+implémenté à l'aveugle ici.
