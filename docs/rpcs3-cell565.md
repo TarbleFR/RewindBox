@@ -81,12 +81,13 @@ Rapport : [`evidence/rpcs3-cell565-host-linux.json`](evidence/rpcs3-cell565-host
   - 162 cas de politique (titres × trois réglages × trois modes d'attente FIFO) ;
   - 10 cas de protocole `PUTLLC` ;
   - un modèle à trois SPU qui interrogent la ligne pendant qu'un quatrième
-    l'incrémente : **0 échec** du `PUTLLC` qui change la donnée avec 565,
-    contre 17 (ASan), 95 (TSan), 4 (ARM64) et 32 728 (build optimisé,
-    200 000 incréments) avec l'ancien chemin ; aucune mise à jour perdue ;
+    l'incrémente : **0 échec** du `PUTLLC` qui change la donnée avec 565 ;
+    avec l'ancien chemin, de 0 à plusieurs dizaines de milliers selon le
+    build et l'exécution (37 392 sur 200 000 incréments dans le build
+    optimisé) ; aucune mise à jour perdue ;
   - le repos RSX : 200 réveils sur 200 ; un waiter avec un délai de 5 s
-    revient dès `wake()` ; une attente de 60 ms consomme 13,3 ms CPU sur cette
-    machine Linux, contre 60 ms en `yield` ; réveil médian 29 µs.
+    revient dès `wake()` ; une attente de 60 ms consomme 14 ms CPU sur cette
+    machine Linux, contre 60 ms en `yield` ; réveil médian 20 µs.
   - six mutations du comportement (temps avancé, comparaison omise, sans
     délai de grâce, sans notification, mauvais titre, réveil retiré de la
     faute) : toutes détectées.
@@ -96,6 +97,12 @@ Rapport : [`evidence/rpcs3-cell565-host-linux.json`](evidence/rpcs3-cell565-host
   (`--source-only`) passent.
 
 Ces chiffres valent pour l'hôte et le modèle, pas pour l'iPhone.
+
+Le premier run Core (`40532040733`, `36ff40f`) a échoué dans le test natif sur
+le Mac : le harnais chronométrait le premier repos à partir d'une lecture
+d'horloge antérieure au bloc de repos (999 µs contre 1 000 µs de grâce). Il le
+mesure maintenant depuis le début d'attente utilisé par le bloc. Aucune source
+de production ne change.
 
 ## 4. À relever sur iPhone
 

@@ -76,39 +76,39 @@
             "keep": {
               "workerFailures": 0,
               "workerAttempts": 20000,
-              "pollerSuccesses": 153,
-              "pollerFailures": 2643,
-              "elapsedUs": 11032,
+              "pollerSuccesses": 263,
+              "pollerFailures": 1049,
+              "elapsedUs": 9542,
               "finalTime": 2560000
             },
             "advance": {
-              "workerFailures": 17,
-              "workerAttempts": 20017,
-              "pollerSuccesses": 112,
-              "pollerFailures": 4494,
-              "elapsedUs": 12327,
-              "finalTime": 2574336
+              "workerFailures": 3,
+              "workerAttempts": 20003,
+              "pollerSuccesses": 118,
+              "pollerFailures": 1258,
+              "elapsedUs": 10418,
+              "finalTime": 2575104
             }
           },
           "park": {
             "graceUs": 1000,
             "sliceUs": 50,
-            "disabledCpuUs": 59604,
-            "disabledWallUs": 60000,
-            "enabledCpuUs": 13755,
-            "enabledWallUs": 60005,
-            "enabledParks": 465,
-            "enabledYields": 1443,
-            "firstParkAfterUs": 1001,
+            "disabledCpuUs": 60000,
+            "disabledWallUs": 60001,
+            "enabledCpuUs": 15443,
+            "enabledWallUs": 60097,
+            "enabledParks": 442,
+            "enabledYields": 771,
+            "firstParkAfterUs": 1228,
             "wakes": 200,
             "woken": 200,
-            "medianWakeUs": 20,
+            "medianWakeUs": 25,
             "maxWakeUs": 160,
-            "notifyWaitUs": 76,
+            "notifyWaitUs": 117,
             "resetRestartsGrace": true,
             "wakeWithoutParkedIsNoop": true
           },
-          "harnessSHA256": "fdf42332613e6bb24c56c198a7397c6fd9f55ba6a6adc743f7a65c8b6a331b80"
+          "harnessSHA256": "3ba842a69311acb38b014cba684023aeede7fc6cd67b101973cfaa59d92c7bad"
         },
         "thread": {
           "passed": true,
@@ -120,39 +120,39 @@
             "keep": {
               "workerFailures": 0,
               "workerAttempts": 20000,
-              "pollerSuccesses": 1023,
-              "pollerFailures": 21403,
-              "elapsedUs": 193388,
+              "pollerSuccesses": 1827,
+              "pollerFailures": 10230,
+              "elapsedUs": 201777,
               "finalTime": 2560000
             },
             "advance": {
-              "workerFailures": 95,
-              "workerAttempts": 20095,
-              "pollerSuccesses": 1109,
-              "pollerFailures": 34731,
-              "elapsedUs": 162830,
-              "finalTime": 2701952
+              "workerFailures": 545,
+              "workerAttempts": 20545,
+              "pollerSuccesses": 1250,
+              "pollerFailures": 35058,
+              "elapsedUs": 276976,
+              "finalTime": 2720000
             }
           },
           "park": {
             "graceUs": 1000,
             "sliceUs": 50,
-            "disabledCpuUs": 59952,
+            "disabledCpuUs": 60001,
             "disabledWallUs": 60000,
-            "enabledCpuUs": 13401,
-            "enabledWallUs": 60045,
-            "enabledParks": 470,
-            "enabledYields": 1643,
-            "firstParkAfterUs": 1001,
+            "enabledCpuUs": 16221,
+            "enabledWallUs": 60057,
+            "enabledParks": 439,
+            "enabledYields": 1042,
+            "firstParkAfterUs": 1326,
             "wakes": 200,
             "woken": 200,
-            "medianWakeUs": 24,
-            "maxWakeUs": 664,
-            "notifyWaitUs": 129,
+            "medianWakeUs": 33,
+            "maxWakeUs": 181,
+            "notifyWaitUs": 115,
             "resetRestartsGrace": true,
             "wakeWithoutParkedIsNoop": true
           },
-          "harnessSHA256": "fdf42332613e6bb24c56c198a7397c6fd9f55ba6a6adc743f7a65c8b6a331b80"
+          "harnessSHA256": "3ba842a69311acb38b014cba684023aeede7fc6cd67b101973cfaa59d92c7bad"
         }
       },
       "hostTiming": {
@@ -165,44 +165,44 @@
           "keep": {
             "workerFailures": 0,
             "workerAttempts": 200000,
-            "pollerSuccesses": 364158,
-            "pollerFailures": 31740,
-            "elapsedUs": 67777,
+            "pollerSuccesses": 54239,
+            "pollerFailures": 23858,
+            "elapsedUs": 45590,
             "finalTime": 25600000
           },
           "advance": {
-            "workerFailures": 32728,
-            "workerAttempts": 232728,
-            "pollerSuccesses": 69136,
-            "pollerFailures": 88398,
-            "elapsedUs": 74768,
-            "finalTime": 34449408
+            "workerFailures": 37392,
+            "workerAttempts": 237392,
+            "pollerSuccesses": 128193,
+            "pollerFailures": 143264,
+            "elapsedUs": 112127,
+            "finalTime": 42008704
           }
         },
         "park": {
           "graceUs": 1000,
           "sliceUs": 50,
-          "disabledCpuUs": 60000,
+          "disabledCpuUs": 60001,
           "disabledWallUs": 60000,
-          "enabledCpuUs": 13346,
-          "enabledWallUs": 60092,
-          "enabledParks": 465,
-          "enabledYields": 1772,
-          "firstParkAfterUs": 1001,
+          "enabledCpuUs": 14023,
+          "enabledWallUs": 60040,
+          "enabledParks": 456,
+          "enabledYields": 2233,
+          "firstParkAfterUs": 1129,
           "wakes": 200,
           "woken": 200,
-          "medianWakeUs": 29,
-          "maxWakeUs": 285,
-          "notifyWaitUs": 93,
+          "medianWakeUs": 20,
+          "maxWakeUs": 86,
+          "notifyWaitUs": 78,
           "resetRestartsGrace": true,
           "wakeWithoutParkedIsNoop": true
         },
-        "harnessSHA256": "fdf42332613e6bb24c56c198a7397c6fd9f55ba6a6adc743f7a65c8b6a331b80",
+        "harnessSHA256": "3ba842a69311acb38b014cba684023aeede7fc6cd67b101973cfaa59d92c7bad",
         "scope": "host timing; not an iPhone measurement"
       },
       "inputs": {
         "test/rpcs3_cell565_test.py": "a074e99893eaa32d3e6e4b888e328eb54b0c639d955118432c57b6b98a93380f",
-        "test/native/rpcs3_spu_rsx565.inc": "884d77f7f33296fe3cfccb74c4871207898ddcfe5bafa3d68b9b3e3c46d956e3"
+        "test/native/rpcs3_spu_rsx565.inc": "5a771eed9feb313bb5efa747548bcf67a33ff4a405b25b400615728a650b0f3f"
       },
       "result": "passed",
       "physicalDeviceTested": false,
@@ -227,18 +227,18 @@
       "keep": {
         "workerFailures": 0,
         "workerAttempts": 20000,
-        "pollerSuccesses": 8257,
-        "pollerFailures": 9201,
-        "elapsedUs": 15247,
+        "pollerSuccesses": 10952,
+        "pollerFailures": 4838,
+        "elapsedUs": 11668,
         "finalTime": 2560000
       },
       "advance": {
-        "workerFailures": 4,
-        "workerAttempts": 20004,
-        "pollerSuccesses": 3369,
-        "pollerFailures": 3119,
-        "elapsedUs": 8842,
-        "finalTime": 2991232
+        "workerFailures": 0,
+        "workerAttempts": 20000,
+        "pollerSuccesses": 2947,
+        "pollerFailures": 2735,
+        "elapsedUs": 5340,
+        "finalTime": 2937216
       }
     },
     "parkCorrectness": {
@@ -246,9 +246,10 @@
       "woken": 200,
       "resetRestartsGrace": true,
       "wakeWithoutParkedIsNoop": true,
-      "firstParkAfterUs": 1131,
+      "firstParkAfterUs": 1945,
       "graceUs": 1000,
-      "sliceUs": 50
+      "sliceUs": 50,
+      "notifyWaitUs": 1047
     },
     "scope": "qemu-user emulation: correctness only, no performance figure"
   },
@@ -293,5 +294,11 @@
     ],
     "sourceOnlyPinContract": "passed"
   },
-  "scope": "Host behaviour only. The contention figures come from a three-poller model and the idle-park CPU figures from this Linux host; neither is an iPhone FPS, frame time, GPU, thermal or memory result for 565."
+  "firstCoreRun": {
+    "run": 40532040733,
+    "source": "36ff40f6f9668dcdc1165cd72f967a94cdba8476",
+    "conclusion": "failure",
+    "cause": "harness timing: the first park was timed from a clock read taken before the park block (999 us against the 1000 us grace); the harness now times it from the idle start the block used. No production source changed."
+  },
+  "scope": "Host behaviour only. The contention figures come from a three-poller model and vary between runs; the idle-park CPU figures come from this Linux host; neither is an iPhone FPS, frame time, GPU, thermal or memory result for 565."
 }

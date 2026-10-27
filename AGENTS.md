@@ -147,8 +147,9 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   "RSX FIFO Idle Wait" = Yield. Non-iOS view of every touched file unchanged.
 - Host evidence `docs/evidence/rpcs3-cell565-host-linux.json`: 162 policy cases,
   10 PUTLLC protocol cases, three-poller model (0 failed data-changing PUTLLC
-  with 565 vs 17/95/4/32,728 with the old path), park (200/200 wakes, 13.3 ms
-  CPU per 60 ms idle on the Linux host vs 60 ms), six mutations detected;
+  with 565; with the old path 0 to 37,392 depending on build and run), park
+  (200/200 wakes, 14 ms CPU per 60 ms idle on the Linux host vs 60 ms), six
+  mutations detected;
   ASan/UBSan, TSan, ARM64 qemu, materialized from upstream, ARM64 iOS syntax
   with the 563 warning set. No iPhone measurement. See `docs/rpcs3-cell565.md`.
 

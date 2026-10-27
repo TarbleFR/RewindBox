@@ -270,7 +270,9 @@ struct fifo_model
 	u64 m_idle_since = 0;
 	u64 yields = 0;
 	u64 parks = 0;
-	u64 first_park_us = 0;
+	// Measured after the park block decided, against the idle start it used: the
+	// same monotonic clock, so first_park_after is at least the grace period.
+	u64 first_park_after = 0;
 
 //@ENDIDLE@
 
@@ -278,7 +280,6 @@ struct fifo_model
 	// the lambda reports that the production body parked instead of falling through.
 	void idle_wait()
 	{
-		const u64 entered = now_us();
 		const bool parking = [&]() -> bool
 		{
 //@PARK@
@@ -287,9 +288,9 @@ struct fifo_model
 		if (parking)
 		{
 			parks++;
-			if (!first_park_us)
+			if (!first_park_after)
 			{
-				first_park_us = entered;
+				first_park_after = now_us() - m_idle_since;
 			}
 			return;
 		}
@@ -516,7 +517,7 @@ static park_result park_cases()
 		result.enabled_cpu_us = thread_cpu_us() - cpu;
 		result.enabled_parks = fifo.parks;
 		result.enabled_yields = fifo.yields;
-		result.first_park_after_us = fifo.first_park_us - wall;
+		result.first_park_after_us = fifo.first_park_after;
 		CHECK(fifo.parks > 0 && fifo.yields > 0);
 		CHECK(result.first_park_after_us >= park::grace_us);
 		// Each park sleeps at least most of a slice, so far fewer waits than yields per unit of time.
