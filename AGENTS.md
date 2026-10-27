@@ -18,12 +18,15 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   the simulator smoke homebrew executes both new unit ends.
 - Private 566 recipe (`melonxjit566_tree.py`, `melonxjit566_delivery.py`,
   `melonx-jit566-delivery.yml`, `validate_*566_ipa.py`,
-  `delivery-566-recipient.pem`): the delivered 564 product with only the MeloNX
-  engine swapped 564 (`876a087b`) -> 566, on the 564 pattern: `as_564()`,
-  `old_engine()` (564 engine in `dist/melonx564engine`), `derived_ipa()` (564
-  engine entries; the 564 validators derive their 563-equivalent from it).
-  565 is the RPCS3 session's number. Claimed by session `session_01K9YJtz…`.
-  Do not reuse 566.
+  `delivery-566-recipient.pem`): the delivered 565 product (RPCS3 Core 565,
+  God of War III frame limit Auto) with only the MeloNX engine swapped 564
+  (`876a087b`) -> 566, on the 564 pattern: `as_565()`, `old_engine()` (564
+  engine in `dist/melonx564engine`), `derived_ipa()` (564 engine entries; the
+  565/564 validators derive their 563-equivalent from it); source contract
+  memoized per job (`delivery_contract_memo.py`). A first 566 run on the 564
+  tree (`40539638348`) was cancelled at the maintainer's request so that 566
+  keeps the RPCS3 565 fixes. Claimed by session `session_01K9YJtz…`. Do not
+  reuse 566.
 
 ## Private 564: MeloNX engine — garbage texture descriptors, bounded engine journal, crash record — 27 October 2026
 

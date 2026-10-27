@@ -25,7 +25,7 @@ def sha(p):
 
 def expected():
  return dict(build=int(delivery.BUILD),engineSource=delivery.MELONX_SOURCE,engineRun=delivery.MELONX_RUN,
-  engineArtifact=delivery.MELONX_ARTIFACT[0],engine564Source=delivery.MELONX564_SOURCE,engine564Run=delivery.MELONX564_RUN,
+  engineArtifact=delivery.MELONX_ARTIFACT[0],engine564Source=delivery.MELONX564_SOURCE,engine564Run=delivery.MELONX564_RUN,rpcCore563Source=delivery.CORE563_SOURCE,
   rpcCoreSource=delivery.CORE_SOURCE,rpcCoreRun=delivery.CORE_RUN,evidence=delivery.engine_evidence(),
   inputs={p:sha(p) for p in sorted(tree.FIX566) if p not in tree.DOCS566},exports=delivery.EXPORTS566,
   coreText=delivery.CORE_TEXT566,physicalDeviceTested=False,gameTested=False,fpsGainMeasured=False)

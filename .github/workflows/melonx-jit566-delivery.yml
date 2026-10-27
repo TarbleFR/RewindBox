@@ -1,5 +1,5 @@
-name: RewindBox private IPA 566 — MeloNX engine 86c2b4d (JIT translation units, GC gen2 budget) on the delivered 564 tree (RPCS3 Core 563, MeloNX engine 876a087 changes kept)
-run-name: RewindBox Build 566 — MeloNX engine 86c2b4d on the 564 tree — ${{ github.sha }}
+name: RewindBox private IPA 566 — MeloNX engine 86c2b4d (JIT translation units, GC gen2 budget) on the delivered 565 tree (RPCS3 Core 565, God of War III without the 30 fps limiter, MeloNX keyboard and L3/R3)
+run-name: RewindBox Build 566 — MeloNX engine 86c2b4d on the 565 tree — ${{ github.sha }}
 'on':
   push:
     branches:
@@ -15,6 +15,7 @@ run-name: RewindBox Build 566 — MeloNX engine 86c2b4d on the 564 tree — ${{ 
     - build-utils/validate_melonx_input566_ipa.py
     - build-utils/validate_melonx_texture566_ipa.py
     - build-utils/validate_melonx_jit566_ipa.py
+    - build-utils/delivery_contract_memo.py
   workflow_dispatch:
     inputs:
       recipient:
@@ -43,14 +44,14 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Pin the delivered 564 product tree with the MeloNX engine files of 86c2b4d, each file from the commit that validated it
+    - name: Pin the delivered 565 product tree with the MeloNX engine files of 86c2b4d, each file from the commit that validated it
       run: python3 .github/diagnostics/melonxjit566_tree.py --pin
     - uses: subosito/flutter-action@v2
       with:
         flutter-version: 3.47.2
         channel: stable
         cache: true
-    - name: Analyze the complete application and exercise the interface, the MeloNX settings, the 552 game profiles, the 554/557 library files and the 558 log fixes and the 562 keyboard wiring on the 566 tree (the 564 product with the 566 engine sources)
+    - name: Analyze the complete application and exercise the interface, the MeloNX settings, the 552 game profiles, the 554/557 library files and the 558 log fixes and the 562 keyboard wiring on the 566 tree (the 565 product with the 566 engine sources)
       run: |
         flutter pub get --enforce-lockfile
         flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
@@ -119,7 +120,7 @@ jobs:
         python3 test/melonx_audio_pacing_test.py .native-sources/MeloNX
         python3 test/melonx_texture_pool_test.py .native-sources/MeloNX
         python3 test/melonx_engine_journal_test.py --no-aot
-    - name: Retain unchanged import checks; bind the 553 MeloNX re-run, the 550 interface, the 552 fix and the 554 import receipts on the delivered 554 tree, the 557 receipt on the delivered 557 tree, the 558 receipts on the delivered 558 tree, the 559 receipts on the delivered 559 tree, the 560 receipts on the delivered 560 tree, the 561 Core receipt on the delivered 561 tree, the 562 host run on the delivered 562 tree, the 563 Core receipt on the delivered 563 tree, and the 564 engine run on the pinned tree
+    - name: Retain unchanged import checks; bind the 553 MeloNX re-run, the 550 interface, the 552 fix and the 554 import receipts on the delivered 554 tree, the 557 receipt on the delivered 557 tree, the 558 receipts on the delivered 558 tree, the 559 receipts on the delivered 559 tree, the 560 receipts on the delivered 560 tree, the 561 Core receipt on the delivered 561 tree, the 562 host run on the delivered 562 tree, the 563 Core receipt on the delivered 563 tree, the 564 engine run on the delivered 564 tree, and the 565 Core receipt on the pinned tree
       run: python3 .github/diagnostics/melonxjit566_delivery.py --retain-checks
     - name: Retain exact input-bound test receipts
       uses: actions/upload-artifact@v4
@@ -143,8 +144,8 @@ jobs:
       DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
-      RPCS3_CORE_HOST_SHA: dd65e867f2d6a5408e02c0677ed3aaa95e5e3f57
-      RPCS3_CORE_RUN_ID: '40500425037'
+      RPCS3_CORE_HOST_SHA: 07e416c42bbdfaede2df1870ccd7fda91d97abce
+      RPCS3_CORE_RUN_ID: '40533429692'
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_RUN_ID: '39455712245'
@@ -165,7 +166,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Pin the delivered 564 product tree with the MeloNX engine files of 86c2b4d, each file from the commit that validated it
+    - name: Pin the delivered 565 product tree with the MeloNX engine files of 86c2b4d, each file from the commit that validated it
       run: python3 .github/diagnostics/melonxjit566_tree.py --pin
     - name: Load exact local import and historical Foundation receipts
       uses: actions/download-artifact@v4
@@ -272,7 +273,7 @@ jobs:
         \        assert result['conclusion']=='success',result\n        print('Verified successful exact NeoSwap Core',result['id'],result['head_sha'])\n\
         \        break\n    assert time.monotonic()<deadline,'NeoSwap Core did not finish within the allowed wait'\n    print('Waiting\
         \ for exact Core',result['id'],result['status'],flush=True)\n    time.sleep(30)\nPYCOREWAIT\n"
-    - name: Wait for the exact source-built563 RPCS3 Core
+    - name: Wait for the exact source-built565 RPCS3 Core
       run: python3 .github/diagnostics/melonxjit566_delivery.py --wait-for-components
     - name: Download pinned passive RPCS3 Core
       uses: actions/download-artifact@v4
@@ -539,7 +540,7 @@ jobs:
         python3 build-utils/melonx/vendor_controller.py .native-sources/Melo-Controller .native-sources/MeloNX'
     - name: Package the standalone MeloNX app's own MoltenVK (maintainer exception, pinned upstream bytes)
       run: python3 build-utils/melonx/package_standalone_moltenvk.py --source .native-sources/MeloNX
-    - name: Bind the downloaded 558 and 564 engines and UIKit evidence to the delivered 564 tree (as 564 bound them), the 562 host and keyboard probe to the delivered 562 tree, and the 566 engine and its receipts to the pinned tree
+    - name: Bind the downloaded 558 and 564 engines and UIKit evidence to the delivered 565 tree (as 565 bound them), the 562 host and keyboard probe to the delivered 562 tree, and the 566 engine and its receipts to the pinned tree
       run: python3 .github/diagnostics/melonxjit566_delivery.py --engine-evidence --output build/delivery/melonx-engine-evidence566.json
     - name: Retain already compiled exact iPhone host evidence
       run: cp dist/melonx-host/checks.json build/delivery/melonx-header-sdk.json
@@ -801,7 +802,7 @@ jobs:
       run: python3 build-utils/validate_melonx_ipa.py dist/NeoStation.ipa --report build/delivery/melonx-ipa.json
     - name: Verify final signed motion assets and linked native and Dart components
       run: python3 build-utils/validate_motion507_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/motion507-ipa-validation.json
-    - name: Verify final signed RPCS3 563 Core identity (561 Core with the early submission alternating per window on DBZ), 552 host profiles and logger, timeline families and compiler broker
+    - name: Verify final signed RPCS3 565 Core identity (563 Core with the early submission kept on for DBZ, no-op PUTLLC keeping reservations and RSX idle park), 552 host profiles and logger, timeline families and compiler broker
       run: python3 build-utils/validate_rpcs3_566_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/rpcs3-memory-audit-ipa.json
     - name: Verify the compiled Liquid Glass interface, its preference key and the translated settings
       run: python3 build-utils/validate_liquid_glass566_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/liquid-glass-ui566-ipa-validation.json
@@ -829,10 +830,10 @@ jobs:
     - name: Verify the compiled MeloNX keyboard answer, the L3/R3 menu entry and strings, and the engine callback registry
       run: python3 build-utils/validate_melonx_input566_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
         build/delivery/melonx-input566-ipa-validation.json
-    - name: Verify the 564 engine receipt on the 564-equivalent IPA (564 engine identity, fingerprint, exports, journal literals; only the engine entries differ from the 563-equivalent)
+    - name: Verify the 564 engine receipt on the 565-equivalent IPA (564 engine identity, fingerprint, exports, journal literals; only the engine entries differ from the 563-equivalent)
       run: python3 build-utils/validate_melonx_texture566_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
         build/delivery/melonx-texture566-ipa-validation.json
-    - name: Verify the 566 MeloNX engine (identity, fingerprint, exports, journal literals, decoder receipt) and that only the engine entries differ from the 564-equivalent IPA
+    - name: Verify the 566 MeloNX engine (identity, fingerprint, exports, journal literals, decoder receipt) and that only the engine entries differ from the 565-equivalent IPA
       run: python3 build-utils/validate_melonx_jit566_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
         build/delivery/melonx-jit566-ipa-validation.json
     - name: Finalize observed timings and artifact identity

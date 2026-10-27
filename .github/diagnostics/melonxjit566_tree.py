@@ -1,25 +1,27 @@
-"""Private566 delivery tree: the delivered 564 product tree with the MeloNX engine files of 86c2b4d.
+"""Private566 delivery tree: the delivered 565 product tree with the MeloNX engine files of 86c2b4d.
 
-564 shipped the 563 product with the MeloNX engine of 876a087. 566 keeps all
-of it and replaces only the files of the MeloNX engine commits b4e81d5 and
-86c2b4d (this session; the second only corrects the decoder test's comparison
-of host code sizes): the LightningJit decoder adaptation (translation units end after a
-trap and where the next function starts), the GC adaptation (ConserveMemory
-9 -> 5), their registration, the decoder test and its probe, the simulator
-smoke homebrew that executes the new unit ends, the engine workflow wiring,
-and the analysis. The engine they describe is built and tested by its own
-engine run from 86c2b4d. Every file's version before b4e81d5 equals the 564
-pinned one, so the change is exactly those two commits. No file of lib, native, packages,
-assets or pubspec changes: the product trees are the delivered 564 ones.
+565 shipped the 564 product (MeloNX engine 876a087, keyboard and L3/R3) with
+the RPCS3 Core 565 and the God of War III profile without the 30 fps limiter.
+566 keeps all of it and replaces only the files of the MeloNX engine commits
+b4e81d5 and 86c2b4d (this session; the second only corrects the decoder test's
+comparison of host code sizes): the LightningJit decoder adaptation
+(translation units end after a trap and where the next function starts), the
+GC adaptation (ConserveMemory 9 -> 5), their registration, the decoder test
+and its probe, the simulator smoke homebrew that executes the new unit ends,
+the engine workflow wiring, and the analysis. The engine they describe is
+built and tested by its own engine run from 86c2b4d. Every file's version
+before b4e81d5 equals the 565 pinned one, so the change is exactly those two
+commits. No file of lib, native, packages, assets or pubspec changes: the
+product trees are the delivered 565 ones.
 
-Earlier receipts stay bound to the delivered 564 tree, which at_564() gives
-back: the 566 files at their 564 versions and this recipe removed (this
+Earlier receipts stay bound to the delivered 565 tree, which at_565() gives
+back: the 566 files at their 565 versions and this recipe removed (this
 build's analysis is absent there). Runner checkout only: Git history is not
 changed.
 """
 import argparse, fnmatch, json, os, subprocess, tempfile
 from pathlib import Path
-import melonxtexture564_tree as previous
+import rpcs3cell565_tree as previous
 
 ROOT = Path(__file__).resolve().parents[2]
 HOST_TREE = previous.HOST_TREE
@@ -31,11 +33,13 @@ SOURCE561 = previous.SOURCE561
 SOURCE562 = previous.SOURCE562
 SOURCE563 = previous.SOURCE563
 SOURCE564 = previous.SOURCE564
+SOURCE565 = previous.SOURCE565
+SOURCE565APP = previous.SOURCE565APP
 # The MeloNX engine commits; the last is built and tested by its own engine run.
 FIRST566 = 'b4e81d5ff1114c5ad2eae52924848d0ade45d88d'
 SOURCE566 = '86c2b4dc4c2239bdae427e1725ca557a2b400f99'
 ENGINE_COMMITS = [SOURCE566, FIRST566]
-SESSION = previous.SESSION
+SESSION = 'Claude-Session: https://claude.ai/code/session_01K9YJtzFdPCSuLb7YJr2eeo'
 # This build's analysis follows HEAD; every other file is taken from 86c2b4d.
 DOCS566 = ['docs/melonx-jit-gc-566.md']
 FIX566 = ['.github/workflows/melonx-core.yml',
@@ -49,6 +53,7 @@ FIX566 = ['.github/workflows/melonx-core.yml',
 # The engine's own inputs (hashed by the engine identity as adaptations).
 ENGINE566 = ['build-utils/melonx/adapt_gc.py', 'build-utils/melonx/adapt_jit_decoder.py',
              'build-utils/melonx/prepare_embedded.py']
+# delivery_contract_memo.py, which the 565 recipe owns, follows HEAD here too.
 RECIPE = ['.github/diagnostics/melonxjit566_tree.py', '.github/diagnostics/melonxjit566_delivery.py',
           '.github/workflows/melonx-jit566-delivery.yml', 'build-utils/validate_rpcs3_566_ipa.py',
           'build-utils/validate_liquid_glass566_ipa.py', 'build-utils/validate_melonx_perf566_ipa.py',
@@ -63,6 +68,8 @@ assert REPLACED == sorted(['.github/workflows/melonx-core.yml', 'build-utils/mel
                            'test/melonx_runtime_smoke.py']), REPLACED
 # 566 ships no application file: the engine is its only product change.
 assert not [p for p in FIX566 if p.startswith(('lib/', 'native/', 'packages/', 'assets/', 'pubspec.'))]
+assert not set(FIX566) & (set(previous.CELL565) | set(previous.FIX565))
+assert previous.owned('build-utils/delivery_contract_memo.py')
 
 
 def git(*args, env=None):
@@ -92,10 +99,10 @@ blob = previous.blob
 index_with = previous.index_with
 
 
-def at_564():
+def at_565():
     """{path: commit, or None when absent}: every 566 file at its version in
-    the delivered 564 tree, and this recipe removed. Applied to this index it
-    gives back the 564 index exactly (this build's analysis is absent there)."""
+    the delivered 565 tree, and this recipe removed. Applied to this index it
+    gives back the 565 index exactly (this build's analysis is absent there)."""
     versions = {p: None for p in RECIPE}
     for p in FIX566:
         source = previous.source_of(p)
@@ -105,7 +112,7 @@ def at_564():
 
 def parent_contract():
     """The 566 change is exactly this session's two engine commits: each
-    file's version before them is the one the 564 tree pins (absent for the new
+    file's version before them is the one the 565 tree pins (absent for the new
     files), no other commit touched a 566 file since, and each non-analysis file
     did change."""
     parent = git('rev-parse', FIRST566 + '^')
@@ -123,7 +130,7 @@ def parent_contract():
 
 
 def verify():
-    """The index is the 564 product tree with the 566 files, each from its source.
+    """The index is the 565 product tree with the 566 files, each from its source.
 
     The index, not the working tree, is compared: later build steps generate and
     patch files in place but never stage them, so the check stays valid.
@@ -147,12 +154,13 @@ def pin(report):
     head = git('rev-parse', 'HEAD')
     parent_contract()
     chain = previous
-    for _ in range(7):
-        # 564, 563, 562, 561, 560, 559 and 558, each against its own parent.
+    for _ in range(8):
+        # 565, 564, 563, 562, 561, 560, 559 and 558, each against its own parent.
         chain.parent_contract()
         p558 = chain
         chain = chain.previous
-    p563 = previous.previous
+    p564 = previous.previous
+    p563 = p564.previous
     p562 = p563.previous
     p561 = p562.previous
     committed = {p for p in git('diff', '--name-only', HOST_TREE, head).splitlines() if p}
@@ -160,8 +168,8 @@ def pin(report):
     for p in sorted(committed | set(p558.UI550) | set(p558.CELL551) | set(p558.FIX552)
                     | set(p558.PARITY) | set(p558.FIX554) | set(p558.FIX557)
                     | set(p558.FIX558) | set(p561.previous.previous.CELL559) | set(p561.previous.CELL560)
-                    | set(p561.CELL561) | set(p562.FIX562) | set(p563.CELL563) | set(previous.FIX564)
-                    | set(FIX566)):
+                    | set(p561.CELL561) | set(p562.FIX562) | set(p563.CELL563) | set(p564.FIX564)
+                    | set(previous.CELL565) | set(previous.FIX565) | set(FIX566)):
         source = source_of(p)
         if source is not None:
             plan.setdefault(source, []).append(p)
@@ -183,15 +191,15 @@ def pin(report):
     assert not git('diff', '--name-only'), git('diff', '--name-only')
     assert not git('ls-files', '--others', '--exclude-standard', '--', 'lib', 'native', 'packages', 'assets', 'build-utils/rpcs3')
     trees = product_trees()
-    trees564 = product_trees_564()
+    trees565 = product_trees_565()
     # No product tree changes: the engine is built from its own run.
-    assert trees == trees564, (trees, trees564)
+    assert trees == trees565, (trees, trees565)
     receipt = dict(schemaVersion=1, head=head, hostTree=HOST_TREE, source551=SOURCE551, source558=SOURCE558,
                    source559=SOURCE559, source560=SOURCE560, source561=SOURCE561, source562=SOURCE562,
-                   source563=SOURCE563, source564=SOURCE564, source566=SOURCE566, replaced=REPLACED,
-                   restored=restored, removed=sorted(removed), keptFiles=kept, productTrees=trees,
-                   productTrees564=trees564,
-                   reason='The 564 product tree with the MeloNX engine files of 86c2b4d; each file from the commit that validated it; Git history unchanged.')
+                   source563=SOURCE563, source564=SOURCE564, source565=SOURCE565, source565App=SOURCE565APP,
+                   source566=SOURCE566, replaced=REPLACED, restored=restored, removed=sorted(removed),
+                   keptFiles=kept, productTrees=trees, productTrees565=trees565,
+                   reason='The 565 product tree with the MeloNX engine files of 86c2b4d; each file from the commit that validated it; Git history unchanged.')
     if report:
         out = ROOT / report
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -206,16 +214,16 @@ def product_trees():
     return {p: git('rev-parse', tree + ':' + p) for p in TREES}
 
 
-def tree_564():
-    """The delivered 564 tree: the 566 files at their 564 versions, computed in
+def tree_565():
+    """The delivered 565 tree: the 566 files at their 565 versions, computed in
     a scratch copy of the index, so the pinned index is untouched."""
     with tempfile.TemporaryDirectory() as scratch:
-        env = index_with(at_564(), os.path.join(scratch, 'index'))
+        env = index_with(at_565(), os.path.join(scratch, 'index'))
         return git('write-tree', env=env)
 
 
-def product_trees_564():
-    tree = tree_564()
+def product_trees_565():
+    tree = tree_565()
     return {p: git('rev-parse', tree + ':' + p) for p in TREES}
 
 

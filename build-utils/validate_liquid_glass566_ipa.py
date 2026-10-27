@@ -3,9 +3,9 @@
 
 The 550 validator runs unchanged against the 566 recipe: its receipt (the
 550 interface inputs and tests) is checked on the delivered 558 tree, which
-melonxjit566_delivery puts back through the 564 view (and the 564 to 557
+melonxjit566_delivery puts back through the 565 view (and the 565 to 557
 recipes their own views in turn). 566 ships no interface file. The embedded
-identity names build 566, the 563 Core and the 566 engine.
+identity names build 566, the 565 Core and the 566 engine.
 """
 import argparse,json,sys
 from pathlib import Path
