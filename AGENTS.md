@@ -3,6 +3,50 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 levers for every newly tested game — maintainer rule, 27 October 2026
+
+Apply this rule to every PS3 game the maintainer tests from now on. Use only
+the existing counters of `RPCS3-diagnostic.log` / `RPCS3-performance.log`;
+add no new diagnostic. Never claim an iPhone gain without device logs.
+
+1. **Already Automatic for every title (keep):** RSX thread priority (567),
+   iOS QoS kept (569), passive-lock fairness (571), persistent SPU object
+   cache, NEON paths. Never narrow them to a title list.
+2. **To make Automatic for every title in the next RPCS3 Core:** RSX idle park
+   (565, FIFO idle wait Yield only). Its condition (FIFO empty for 1 ms) is
+   title-independent; DBZ and GoW3 run it since 565 with no reported
+   regression. Until that Core ships, add each new title whose RSX thread uses
+   >= 0.5 core for a FIFO busy <= 50 %
+   (DBZ 0.73/44 %, Bladestorm 0.68/31 %).
+3. **Promote to every title after device logs of the 575 (GoW3, BO2,
+   Bladestorm) show no stale or wrong texture:** texture validation per FIFO
+   batch (559), scoped revalidation (573), texture residency cap (573, acts
+   only above 768 MB of live textures). Until then, add a title to the two
+   validation levers when its `RSXFRAME551 texture_ms` is >= 5 ms per frame
+   (GoW3 8.1, Bladestorm 7.3, BO2 9-16; DBZ 0.5, Two Worlds II 2.4), and to
+   the cap when `JITMEM gpu_textures_requested` exceeds 768 MB.
+4. **Per title only, on the signature in its logs:**
+   - no-op PUTLLC (565), when `SPUWAIT551 putllc_fail` is >= 1 M per 5 s
+     window with accurate reservations on (DBZ 8-14 M, BO2 5.3 M; GoW3
+     0.02 M, Bladestorm 0.04 M). It departs from hardware reservation loss,
+     so it is never global.
+   - deferred FBO write-back (560) and early submission (561), only on DBZ's
+     pattern: a GPU wait on framebuffer commits or on a render-target
+     readback every frame.
+5. **Not a lever case:** freezes on the first launch of a game or mode
+   (`SPUPROF obj_hits=0`, PPU modules compiled at boot, `SHADERSTALL538_EVENT`
+   bursts). The caches are written; ask for a second launch of the same mode
+   and check `obj_hits` and the stall count before changing anything. The
+   shader interpreter and the deferred SPU compile stay off (maintainer
+   decisions 551 and 436, confirmed 27 October 2026).
+6. **Recording:** each title added goes to `rpcs3/ios/IOSTitleLevers.h` with
+   its serials and the log values that justify it, in the Core's own record
+   and doc. Enabled and Disabled stay unchanged; Disabled restores the
+   previous behaviour.
+7. **Promotion to every title** needs all three: a title-independent
+   mechanism that acts only when its condition occurs, device logs on at
+   least two titles without regression, and an unchanged Disabled path.
+
 ## Interface option and controller navigation after a game — 27 October 2026
 
 Maintainer request (video of the Switch playlist, `app.log`), branch `Claude`, no IPA, nothing pushed.
