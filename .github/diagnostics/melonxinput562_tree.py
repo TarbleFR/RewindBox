@@ -17,6 +17,11 @@ receipts hash. Those receipts stay bound to the delivered 561 tree, which
 at_561() gives back: the 562 files at their 561 versions and this recipe
 removed (documentation follows HEAD in both). Runner checkout only: Git
 history is not changed.
+
+The 561 tree is the pinned index of the 561 recipe; its own core-swap
+delivery (run 40486995044) stopped at the StikJIT check of the published
+base app, which a full Xcode build like this one does not use. 562 is
+therefore the first IPA built with the Core 561 (its Core run 40486026315).
 """
 import argparse, fnmatch, json, os, subprocess, tempfile
 from pathlib import Path
