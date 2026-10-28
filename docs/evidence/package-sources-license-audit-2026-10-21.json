@@ -37,7 +37,7 @@
     "packages/neo_box_reader/ios/neo_box_reader.podspec": "f370d75835c593d65622434d1f5dd9e39db6ceb9fa393d9dfee6be2c7a962da2",
     "packages/neo_box_reader/pubspec.yaml": "85092d8fafa6a20113030478639dc204a2d5870075c75c5093b792577a8d302c",
     "packages/neo_cheat_catalog/ios/neo_cheat_catalog.podspec": "c81d3c72dfdd48c1e6335cc9e24ac4ae1e06fb5448ae779400da73e4064a3ca2",
-    "packages/neo_cheat_catalog/pubspec.yaml": "d355fbcf78c963206afb2bbaab34fd69887cd3b87647544274438d1adca354e9",
+    "packages/neo_cheat_catalog/pubspec.yaml": "c42b488bca4cc6337fb5206db0681ecdc51e8f8953411a45de87237d9aee1ce2",
     "packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/SOURCE.txt": "6636f3bb09f5a3b50bc2cc36155accb6339ad7d53077f3dfd6cc19c5044ceb67",
     "packages/neo_shader_kit/ios/ThirdParty/glslang/SOURCE.txt": "dc3c8288c3bfe69c2451e885d8dda71a0474e5cdeb76c9644baeb210d580a778",
     "packages/neo_shader_kit/ios/neo_shader_kit.podspec": "7357cecc906b087348972df016fd5da67108ea6b99a5a483f109c380a3bdc680",
@@ -6913,6 +6913,8 @@
       "origin": "Local NeoStation package; no external package identity is asserted from its name",
       "license_files": [],
       "dependencies": {
+        "archive": "^4.0.9",
+        "crypto": "^3.0.7",
         "flutter": {
           "sdk": "flutter"
         }
@@ -10950,5 +10952,39 @@
     ],
     "donor_upstream": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
     "scope": "MeloNX Pod source selection and compilation settings only. Existing source notices and mixed upstream MIT/GPL statements are preserved; no blanket license clearance is inferred."
+  },
+  "cheat_origin_publication_followup": {
+    "review_date": "2026-10-28",
+    "source_commits": [
+      "68e28ddc7d26dd68fc65e54ba522533a827b03a2",
+      "d0f27cc861d5881555d7eaeaeb3948d41506e636"
+    ],
+    "declaration": "packages/neo_cheat_catalog/pubspec.yaml",
+    "previous_declaration_sha256": "d355fbcf78c963206afb2bbaab34fd69887cd3b87647544274438d1adca354e9",
+    "declaration_sha256": "c42b488bca4cc6337fb5206db0681ecdc51e8f8953411a45de87237d9aee1ce2",
+    "changes": [
+      "68e28dd: declare archive ^4.0.9 and crypto ^3.0.7 as dependencies of the local neo_cheat_catalog package (origin publication v2: pinned source tarballs and SHA-256 checks).",
+      "d0f27cc: declare dartPluginClass NeoCheatCatalog for iOS, so Flutter registers the package's Dart origin handler."
+    ],
+    "hosted_dependencies": {
+      "archive": {
+        "version": "4.0.9",
+        "root_license": "MIT",
+        "archive_sha256": "a96e8b390886ee8abb49b7bd3ac8df6f451c621619f52a26e815fdcf568959ff"
+      },
+      "crypto": {
+        "version": "3.0.7",
+        "root_license": "BSD-3-Clause",
+        "archive_sha256": "c8ea0233063ba03258fbcf2ca4d6dadfefe14f02fab57702265467a19f27fadf"
+      }
+    },
+    "pubspec_lock_sha256_unchanged": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+    "unchanged_declarations": [
+      "license",
+      "version",
+      "podspec",
+      "iOS pluginClass"
+    ],
+    "scope": "Dependency and plugin declaration of the local cheat catalogue package only. Both packages were already reviewed above as direct main dependencies of the application with the same locked versions and archive checksums; the dependency closure and pubspec.lock are unchanged. The package's new Dart sources (canonical_json, origin_recipe, origin_resolver) are project code under the package's existing GPL-3.0 declaration. No blanket license clearance is inferred."
   }
 }
