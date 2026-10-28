@@ -1,0 +1,145 @@
+{
+  "build": 585,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "2b013636f53a432bf67752d30d84a2bb33facbf2",
+  "run": 40700604912,
+  "workflow": ".github/workflows/rpcs3-cell585-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12822825321,
+      "name": "RPCS3Core-2b013636f53a432bf67752d30d84a2bb33facbf2",
+      "bytes": 29087268,
+      "digest": "sha256:626484e4764ee9ed4fa307807e9976cf3951651d28da8441fe4b951dd155a93b"
+    },
+    "diagnostics": {
+      "id": 12822765692,
+      "bytes": 205661,
+      "digest": "sha256:026ecf609bb791ff4a6c8266aa51a2c6e243967f12e0f82a3a6714c2180eb656"
+    }
+  },
+  "core": {
+    "sha256": "363ea475473aeddb4b0009c3a383abb0fd2b75ce146e65e49cd068b81b8a8510",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "20326080185f00f2c7cf9df5b4ccbb29918cc2a96dfd6f60ec4c6132403e8608",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 137,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom583": true,
+    "coldCompileRequiredByThisChange": false,
+    "markers585": [
+      "Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III; Disabled sends at the end of the frame as before.",
+      "Early Command Buffer Submission",
+      "experimental.early_submit",
+      "COREPROF OPT561",
+      "COREPROF OPT581",
+      "COREPROF OPT583"
+    ],
+    "old561TextAbsent": true,
+    "replaces": {
+      "source": "8ebca28794af4ea0056c90e6d5ee13140dc94ad6",
+      "run": 40683438937,
+      "sha256": "9aa3c7ee645bd89dc67d8f848edffcf91eb6256610fe0f5abdc88d20dedf57f4"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell585"
+    ]
+  },
+  "gating": {
+    "cases": 36,
+    "automaticOn": [
+      "BCAS25003",
+      "BCES00510",
+      "BCES00799",
+      "BCJS37001",
+      "BCKS15003",
+      "BCUS98111",
+      "BLES01658"
+    ],
+    "automaticNewlyOn": [
+      "BCES00510",
+      "BCES00799",
+      "BCUS98111",
+      "BCJS37001",
+      "BCAS25003",
+      "BCKS15003"
+    ],
+    "dbzSerials": [
+      "BLES01658"
+    ],
+    "otherSerialsOff": [
+      "BLES01717",
+      "BLES00113",
+      "BLUS30070",
+      "BLES00215",
+      "NPUB00000"
+    ],
+    "enabledAll": true,
+    "disabledNone": true,
+    "decideUnchanged": true,
+    "sanitizers": [
+      "address",
+      "undefined"
+    ]
+  },
+  "policy": {
+    "automaticBefore": "rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID())",
+    "automaticAfter": "rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(title_id) || is_god_of_war_iii_title(title_id)",
+    "setting": "Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III; Disabled sends at the end of the frame as before.",
+    "mechanismUnchanged": [
+      "ios/IOSEarlySubmit.h",
+      "VKGSRender::ios_early_submit",
+      "VKDraw.cpp call site"
+    ]
+  },
+  "offIOS": {
+    "sharedFiles": [],
+    "iosOnlyFiles": [
+      "rpcs3/ios/IOSTitleLevers.h",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp"
+    ]
+  },
+  "sourceContract": {
+    "baseline": "8ebca28794af4ea0056c90e6d5ee13140dc94ad6",
+    "fixtureSHA256": "905dd85b466c6a5d3662d3e5eb75fee5a7b3285fb17697968bb006329d424eed",
+    "sourceSHA256": {
+      "rpcs3/ios/IOSTitleLevers.h": "e04bbaa74c8dc82dcc3090b0d4e3b7e68871e3a1a7d3348f1798723bf9b937b6",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "cfb10016fe7b2c81d14f63add84a5d6ffcd498b57a4d7d108f744b62fb9ab82d",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "e9ead8286e2bee2d372e299ef11bb5d37356103b9a088e0ff7c869f06e837d27"
+    },
+    "newFiles": [],
+    "otherCoreSourcesUnchanged": 299
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom583": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "inputsSHA256": {
+    "test/rpcs3_cell585_test.py": "4455b1e89215497f362dbb988df2ec8e052e0deb8571d1cd5fe5ac1f14616292"
+  },
+  "scope": "The 585 gating code compiled and evaluated on the Apple Silicon runner (plain and ASan/UBSan), and the iPhone Core built from the verified source. No iPhone FPS, frame time or memory result."
+}

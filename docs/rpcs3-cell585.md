@@ -84,7 +84,22 @@ Rapport : [`evidence/rpcs3-cell585-host-linux.json`](evidence/rpcs3-cell585-host
 
 Ce sont des vérifications sur l'hôte, pas des mesures sur iPhone.
 
-## 4. À relever sur iPhone (God of War III)
+## 4. Core iPhone (Mac de la CI)
+
+Run `40700604912` depuis `2b01363` (macOS 15, Apple Silicon, Apple clang 17,
+Xcode 16.4) ; rapport :
+[`evidence/rpcs3-cell585-macos.json`](evidence/rpcs3-cell585-macos.json).
+
+- Le Core 583 (`8ebca28`, run `40683438937`) est authentifié avant tout, puis
+  le test 585 passe sur ARM64 (sélection des titres, sans et avec
+  ASan/UBSan).
+- Core iPhone compilé depuis la source vérifiée : SHA-256 `363ea475…8510`,
+  88 exports, chargement passif, 137 entrées enregistrées. Le nouveau texte du
+  réglage est dans le binaire, l'ancien (« Dragon Ball Z … only ») n'y est
+  plus ; `COREPROF OPT561`, `OPT581` et `OPT583` y sont. Identités de codegen
+  inchangées : **pas de recompilation à froid**.
+
+## 5. À relever sur iPhone (God of War III)
 
 - `COREPROF OPT561` : `early_submit=1`, `early_submits`, `gpu_busy_checks` ;
 - `READBACK555 fault_read` : attente par image, contre 2,1-6,7 ms en 583 ;

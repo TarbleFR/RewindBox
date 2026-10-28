@@ -181,6 +181,20 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
 - `test/neo_swap_core_pin_test.py` fails at HEAD before and after 585 on the
   public `neoswap-ipa.yml` exact pin (`cfe92344` lacks
   `test/rpcs3_restore_eof_test.py`), unchanged by decision.
+- Core run `40700604912` from `2b013636`: the 583 Core authenticated, the 585
+  test passed on the Apple Silicon runner (gating, plain and ASan/UBSan); Core
+  SHA-256 `363ea475…8510`, 88 exports, passive loading, 137 recorded inputs,
+  the new setting text present and the 561 "only" text absent, codegen
+  identities unchanged. Evidence `docs/evidence/rpcs3-cell585-macos.json`.
+- Private 585 recipe (`rpcs3-cell585-delivery.yml`, dispatch only): the
+  delivered 583 tree with the Core 585 recipe of `2b013636`;
+  `rpcs3cell585_tree.py` / `rpcs3cell585_delivery.py` run the 583 recipe
+  unchanged in `as_583()` (which runs the 582 one in its own `as_582()`);
+  eleven validators wrap the 583 ones (identities renamed to 585; the
+  MeloNX base modules' IDENTITY and expected() patched; the RPCS3 one binds
+  Core run 40700604912 and adds the 585 setting text). Product trees equal to
+  583 (the other agent's later MeloNX commits are not in this tree).
+  Recipient `build-utils/delivery-585-recipient.pem`.
 
 ## RPCS3 Core 583: texture pre-validation pacing, God of War III only — 28 October 2026
 
