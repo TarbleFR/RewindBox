@@ -10,6 +10,7 @@ This board is *not* an automatic queue. No user feature task has been assigned b
 | --- | --- | --- | --- | --- | --- | --- |
 | — | No feature task delegated during orchestrator setup | — | Not started | — | Check actual Git HEAD | Await user's next development request |
 | TASK-586 | Private IPA 586: delivered 585 (RPCS3 Core 585) + MeloNX engine `ac16f1c5` + Cheats & Enhancements page and catalogues (maintainer: "tout dedans", 28 Oct 2026) | Claude Code (session 01K9YJtz) | In progress | Recipe `melonxalloc586_*` on top of the `rpcs3cell585_*` recipe; engine files of `6314127f`/`d8cd5f68`/`ac16f1c5`; enhancements files at `c9b42115`. Build number 586 reserved; other agents please do not reuse it. | `2b08899d` | Dispatch after the 585 delivery succeeds |
+| TASK-587 | RPCS3 Core 587: MoltenVK asynchronous submits made safe (encode barrier before each acquisition, MetalFX ordering, boot canary that returns to synchronous submits after a failed asynchronous boot), Automatic for God of War III only; private IPA 587 | Claude Code (session 01BcZDeV) | In progress | Core source and tests in progress; recipe will sit on the delivered 586 tree (keeps TASK-586's MeloNX engine and Cheats & Enhancements) | `521f7b7e` | Core 587 CI, then the 587 recipe once 586 is delivered |
 
 ## Task entry template
 
