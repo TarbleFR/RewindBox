@@ -1,0 +1,151 @@
+{
+  "result": "passed",
+  "build": 586,
+  "version": "0.0.8",
+  "source": "ef909b8444aa563efbbb5945b0cb3886b32214f6",
+  "recipeSource": "ef909b8444aa563efbbb5945b0cb3886b32214f6",
+  "run": 40774769488,
+  "base": "delivered private 585 (RPCS3 Core 585 on the 583 tree: MeloNX engine e55ca25, Switch discovery fix), the baseline of this delivery (maintainer rule of 28 October 2026)",
+  "recipe": "rewind586-baseline-delivery.yml (baseline 585 + 586 delta)",
+  "artifact": {
+    "id": 12854612274,
+    "name": "RewindBox-Build586-ef909b8444aa563efbbb5945b0cb3886b32214f6-cold",
+    "zipSHA256": "abab575b19ac4cd532ae54a9dac8298c8dda9aa9f7eb09f9744856e960b018ed",
+    "recipient": "build-utils/delivery-586-recipient.pem",
+    "privateKeyInGit": false,
+    "digest": "sha256:abab575b19ac4cd532ae54a9dac8298c8dda9aa9f7eb09f9744856e960b018ed"
+  },
+  "ipa": {
+    "name": "RewindBox-Build586-ef909b8444aa563efbbb5945b0cb3886b32214f6-cold.ipa",
+    "bytes": 188284277,
+    "sha256": "d0f86d93e2487a08cf5043f348a2ff5559b26eb7ba8b9b57195a59181ca43b25",
+    "equalsSHA256SUMS": true,
+    "members": 5352
+  },
+  "melonxEngine": {
+    "source": "75a13f7eda665b99c0ac96556e3956655379e668",
+    "engineCommits": [
+      "75a13f7eda665b99c0ac96556e3956655379e668",
+      "6edcd57ea107e3bd150e067346ea0d494963ade2",
+      "ac16f1c5b84e850902ff120bf8cd7950584f4642",
+      "d8cd5f68996ef57c2e479b2eefebbda08c1e4ce9",
+      "6314127faf7c3da242d1ffa327f278526f8408d4"
+    ],
+    "run": 40734346962,
+    "artifact": 12838535262,
+    "identitySHA256": "5050090ee9f60bcf9451ba0e5825ea20d53495785cd9bddd7234c71227ab31c5",
+    "previous": "e55ca256a9347c4df8381bafc4702f80211fb492"
+  },
+  "rpcs3Core": {
+    "source": "a8a7ce1072c189806f4ddf70552280b3e95a1e17",
+    "run": 40718679248,
+    "coreSHA256": "c638d4ce331afe1d0fbc5fe6695c0e65986ff43d5ec52f08c210651050c200e8"
+  },
+  "enhancements": {
+    "appCommits": [
+      "b451b10256acd6ab7cd3c356a06f28b99a858003",
+      "23a847d68665d2a6b6eebbe9fc714f5730d13f1f",
+      "1c1d1f7f4b3fcf088a623d3cbf1014ea35b58811",
+      "cb59a78472a9ce5c5fc6925db7119649e76b3220",
+      "1345bd3e96baba179b4045bbac89791923765b92",
+      "3192f0f957fc20bb05cea71bd38bfc3cabff6d08",
+      "c9b42115eea9419a572f6db04104aacade3130db",
+      "68e28ddc7d26dd68fc65e54ba522533a827b03a2",
+      "4a19415c63c1f917f3a42259bd5cb560e9fb082a",
+      "e017be1c332221e0291d785e5d9611e313cfc42e",
+      "d0f27cc861d5881555d7eaeaeb3948d41506e636"
+    ],
+    "indexSHA256": "ee5bace6734f48e93b4932ebfce8547ab347aa428cd6c522f6f6c9d76a648293",
+    "cheatIndexSHA256": "9f28a4e218d94156135dfab9c772ffefb8f7a18289830b7fe6dc5cd111439edc",
+    "hostedCheatIndexSHA256": "88911e5b2312eafe4450cfbc477f304ab9fd49c3720ac5eae2c147f75b90503b",
+    "cheatIndex": {
+      "games": 51014,
+      "packs": 874,
+      "programs": 2394631
+    },
+    "originPublication": {
+      "hosted_chunks": 26128,
+      "manifest_bytes": 7548870,
+      "manifest_sha256": "9f28a4e218d94156135dfab9c772ffefb8f7a18289830b7fe6dc5cd111439edc",
+      "origin_bytes": 143100598,
+      "origin_files": 17481,
+      "origin_programs": 718409,
+      "pack_bytes": 263839354,
+      "skeleton_chunks": 24886
+    }
+  },
+  "validators": {
+    "enhancements586-ipa-validation.json": "passed",
+    "hd-textures-ipa-validation.json": "passed",
+    "melonx-delete509-ipa.json": "passed",
+    "melonx-engine586-ipa-validation.json": "passed",
+    "melonx-ipa.json": "passed",
+    "melonx-keys517-ipa-validation.json": "passed",
+    "melonx-launch514-ipa-validation.json": "passed",
+    "motion507-ipa-validation.json": "passed",
+    "navigation512-ipa-validation.json": "passed",
+    "rpcs3-core587-ipa-validation.json": "passed",
+    "rpcs3-diag487-ipa-validation.json": "passed",
+    "ui-correction511-ipa-validation.json": "passed",
+    "unified-cheats-ipa-validation.json": "passed"
+  },
+  "independentInspection": {
+    "decrypted": true,
+    "buildNumber": 586,
+    "engineHost": "75a13f7e",
+    "deferredFlushAdaptationInEngineIdentity": true,
+    "bindlessAdaptationInEngineIdentity": true,
+    "bundledCheatIndexIsOriginPublication": true,
+    "originChannelInCheatCatalog": true,
+    "originChannelInDart": true,
+    "packsBundled": 0,
+    "all586ReceiptsEmbedded": 3,
+    "receipts586": [
+      "MeloNX-alloc586-identity.json",
+      "RPCS3-core587-identity.json",
+      "RewindBox-enhancements586-identity.json"
+    ],
+    "enhancementsIndexBundled": true,
+    "enhancementMarkersInDart": true,
+    "withheldGuardInCheatCatalog": true,
+    "rpcs3CoreEntries": [
+      "Payload/NeoStation.app/Frameworks/libRPCS3Core.dylib"
+    ],
+    "engineBinaryBytes": 37863856
+  },
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "launchTimeMeasured": false,
+  "fpsGainMeasured": false,
+  "workflow": ".github/workflows/rewind586-baseline-delivery.yml",
+  "event": "workflow_dispatch",
+  "durations": {
+    "endToEndMinutes": 12.1,
+    "macosJobMinutes": 12.1,
+    "checksMinutes": 6.75,
+    "parallelJobs": true,
+    "compileMinutes": 3.4,
+    "configureHostMinutes": 0.5,
+    "packageAndValidateMinutes": 1.6,
+    "sealMinutes": 0.6,
+    "earlierRecipe": {
+      "run": 40744757151,
+      "macosJobMinutes": 85,
+      "checksMinutes": 14,
+      "note": "rewind586-delivery.yml, re-proved builds 558-585; stopped at the legal bundle"
+    },
+    "firstBaselineRun": {
+      "run": 40769640791,
+      "checksMinutes": 8.9,
+      "macosJobMinutes": 22.2,
+      "note": "checks then macOS; stopped at a split engine validator call"
+    }
+  },
+  "scope": "CI build, signature and validators only; no iPhone run, no FPS, frame time or memory measured.",
+  "deliveredTree": {
+    "tree": "20c69d83f006381256ae1f5c9a8239ac96c3aef7",
+    "report": "host-tree586.json of the delivery",
+    "reproducedLocallyAt": "ef909b8444aa563efbbb5945b0cb3886b32214f6",
+    "nextBaseline": "The baseline of the next delivery (AGENTS.md, \"Delivery baseline\")."
+  }
+}

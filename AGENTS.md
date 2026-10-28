@@ -35,6 +35,85 @@ private build. From now on:
    under 40 minutes end to end.
 
 
+## Private build 586: MeloNX engine 75a13f7, RPCS3 Core 587, Cheats & Enhancements — 28 October 2026
+
+- Contents, on the delivered 585 tree (RPCS3 Core 585 on the 583 tree):
+  - MeloNX engine `75a13f7` (commits `6314127`, `d8cd5f6`, `ac16f1c`,
+    `6edcd57`, `75a13f7`; engine run `40734346962`, artifact `12838535262`), replacing
+    the 582 engine `e55ca25`: GPU-thread allocations
+    (`adapt_gpu_allocations.py`), blocking program waits and the depth-only
+    warm-up key (`adapt_shader_waits.py`), misaligned JIT unit guards
+    (`adapt_jit_decoder.py`), and `adapt_deferred_flush.py`: a texture
+    write-back the GPU thread queues to the render thread is skipped when its
+    guest memory was unmapped since (Hogwarts build 582 crash of 28 October,
+    InvalidMemoryRegionException in the HostTracked fault handler on
+    NeoStation.MeloNX.Render; one occurrence, not reproduced on a host), and
+    `adapt_bindless.py`: bindless texture handles read through SHFL (Mesa's
+    manual textureGrad, SAM/RAM) bind to the sampler array or the pool
+    instead of reading 0 (Hogwarts black sky and background areas; the four
+    textureCube failures of the log reproduced with the real translator and
+    bound after the change); the host shader cache version changes, so each
+    game's shaders are translated again once.
+  - RPCS3 Core 587 (`a8a7ce1`, Core run `40718679248`, session 01BcZDeV):
+    MoltenVK asynchronous submits behind an encode barrier, MetalFX ordering,
+    boot canary; profile commit `147af30` (God of War III asynchronous
+    submits Automatic, Black Ops II relaxed SPU reservations). Bound through
+    `.github/diagnostics/rpcs3cell587_delivery_core.py`.
+  - Cheats & Enhancements page and catalogues (session 01JA5QgP, commits
+    `b451b10` to `d0f27cc`) with the 28 October withdrawal of the unlicensed
+    60 FPS programs and the origin publication v2 (`68e28dd`; tests `4a19415`, `e017be1`; plugin registration `d0f27cc`): the
+    app bundles `native/cheats/catalogue/v2/manifest.json.gz` (same games and
+    chunk SHA-256 as the hosted v1 index) and downloads the codes of
+    unhosted sources from their source (`resolveOriginPack`). From build 586
+    the unified cheats validator binds the bundled index to
+    `v2/VALIDATION.json` and the hosted v1 index to
+    `docs/evidence/source-rights-withdrawal-fps478.json`.
+  - Host journal: lifecycle transitions and `mem=footprint/headroom/device
+    %/donors` (MeloNXMetalSessionViewController, MeloNXPerfJournal), to tell
+    a system kill from a native abort (Hogwarts build 582 session that ended
+    silently one second after returning from the Control Center).
+- Hogwarts Legacy build 582 log (28 October, three sessions, 2-9 min): no
+  "JIT Cache exhausted" (four on 27 October with builds 576-581, each about
+  30 s in); median 30 FPS in two sessions; the recorded cutscene ran at
+  1-11 FPS with the .NET background GC at 20-64 % of a core (what the 586
+  allocation and shader-wait changes target; not measured on a device).
+  Multi-second stalls (`{Nv}` WaitOnSyncpoint > 1000 ms, 17 today): the GPU
+  thread waits on the render thread, which waits on pipeline compiles
+  serialized by MeloNX's PipelineCreationLock (Metal compiles out of
+  process); no fix justified without data — next test: the same scenes with
+  "Shaders asynchrones" on. Black sky and background areas: `adapt_bindless.py`
+  above (cyan areas not attributed).
+- Recipe: `rewind586-baseline-delivery.yml` (dispatch only), the first
+  recipe under the delivery baseline rule. `rewind586_baseline.json.gz`
+  holds the delivered 585 index (6,904 paths, tree `37157ea`, derived once by
+  the 586 recipe of `rewind586_tree.py`, which proved it against 558-585)
+  and the 586 delta (1,132 files from 15 commits); `rewind586_baseline.py`
+  pins baseline + delta + the recipe files of HEAD in one read-tree and
+  checks each delta file against its commit; `rewind586_baseline_delivery.py`
+  checks the 586 engine and iPhone host runs, the 587 Core run and receipt,
+  downloads the engine and host proofs, and binds the engine evidence;
+  `validate_melonx_engine586_ipa.py` and `validate_rpcs3_core587_ipa.py` check
+  the signed engine and Core; the other validators of the signed IPA are the
+  585 ones. Removed: receipts and checks of features unchanged since 585,
+  earlier engines, logger proofs. The earlier recipe (`rewind586-delivery.yml`,
+  run `40744757151`: 85 minutes on the macOS runner, stopped at the legal
+  bundle) stays in the repository, unused.
+- Delivery: run `40774769488` (head `ef909b8`), artifact `12854612274`
+  (digest `abab575b…18ed`), IPA 0.0.8 (586) SHA-256 `d0f86d93…3b25`,
+  5,352 entries; decrypted with the private 586 key, equal to SHA256SUMS;
+  receipts `MeloNX-alloc586-identity.json`, `RPCS3-core587-identity.json`,
+  `RewindBox-enhancements586-identity.json`; every validator passed.
+  Evidence: `docs/evidence/rewind586-delivery.json`.
+- Durations: 12 min end to end (macOS job 12.1 min, checks 6.75 min at the
+  same time; compile 3.4 min). The earlier recipe spent 85 min on the
+  macOS job after 14 min of checks (run `40744757151`); the first baseline
+  run took 8.9 + 22.2 min (run `40769640791`, stopped at an engine
+  validator call split across two lines). `rewind586_fast.py` batches the
+  ~3,400 existence checks the 559-586 tree modules run on import.
+- Baseline of the next delivery: the delivered 586 index, tree `20c69d8`
+  (`host-tree586.json` of the delivery, reproduced locally at `ef909b8`).
+  Not tested on an iPhone; no FPS, frame time or memory gain is claimed.
+
 ## Cheats & Enhancements catalogue — 28 October 2026 (source only, no build)
 
 - Maintainer request: one catalogue of cheats, FPS, ultrawide, graphics,
