@@ -25,7 +25,8 @@ REVIEWED_PATHS={
  'rpcs3/Emu/Memory/vm.cpp','rpcs3/Emu/Memory/vm_locking.h','rpcs3/Emu/Memory/vm_reservation.h',
  'rpcs3/ios/IOSPassiveLockGate.h','rpcs3/util/asm.hpp','rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp','rpcs3/ios/RPCS3IOSSettings.cpp',
  'rpcs3/Emu/Cell/lv2/sys_semaphore.cpp','rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp','rpcs3/Emu/Cell/lv2/sys_event.cpp','rpcs3/Emu/Cell/lv2/sys_cond.cpp',
- 'rpcs3/Emu/Cell/lv2/sys_lwcond.cpp','rpcs3/Emu/Cell/lv2/sys_event_flag.cpp','rpcs3/Emu/Cell/lv2/sys_mutex.cpp'}
+ 'rpcs3/Emu/Cell/lv2/sys_lwcond.cpp','rpcs3/Emu/Cell/lv2/sys_event_flag.cpp','rpcs3/Emu/Cell/lv2/sys_mutex.cpp',
+ 'rpcs3/ios/IOSReservationLockPolicy.h','rpcs3/ios/RPCS3IOSPlatform.mm','rpcs3/Emu/system_config.h','rpcs3/ios/RPCS3IOSExperimentalPolicy.h'}
 sha=prior.sha;command=prior.command;pin_module=prior.pin_module
 
 def manifest():return json.loads((ROOT/'build-utils/rpcs3/canonical-source.json').read_bytes())
@@ -151,7 +152,9 @@ def identity(directory):
                'passive_fairness=%d texture_residency=%d scoped_revalidation=%d',
                'Automatic enables it for God of War III, Call of Duty: Black Ops II and Bladestorm;',
                'Automatic enables it for Dragon Ball Z Budokai HD Collection and Call of Duty: Black Ops II;',
-               'Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before.']:
+               'Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before.',
+               'Writer Lock Yield Without Depression','experimental.writer_yield_no_depress',
+               'scoped_revalidation=%d writer_yield=%d']:
   assert marker.encode() in data,marker
  log=(OUT/'build.log').read_text();actual={kind:re.findall(r'NeoStation '+kind+r' codegen identity: ([0-9a-f]{16})',log) for kind in ('PPU','SPU')}
  assert actual=={k:[v] for k,v in manifest()['cell579']['codegen'].items()},actual

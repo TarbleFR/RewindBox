@@ -1,4 +1,4 @@
-# RPCS3 iOS 579 — plantage SPURS de God of War III, attente des écrivains, attentes PPU
+# RPCS3 iOS 579 — plantage SPURS de God of War III, attente des écrivains, attentes PPU, cession sans dépression
 
 28 octobre 2026. Ce Core part des journaux du **build 575** (God of War III
 `BCES00510`, Call of Duty: Black Ops II `BLES01717`, Dragon Ball Z Budokai HD
@@ -35,6 +35,20 @@ repart réveille un seul écrivain endormi, et chaque écrivain réveillé
 réveille le suivant : le PPU ne paie qu'un réveil. Les attentes de moins de
 50 µs (cas de DBZ, qui a des cœurs libres) sont inchangées. Ce que l'écrivain
 et le PPU attendent ne change pas.
+
+**`CELL579_WRITER_YIELD` — l'écrivain cède son cœur sans perdre sa priorité
+(Black Ops II, God of War III).** Après avoir publié son bit exclusif, qui
+immobilise tous les PPU, l'écrivain attend en tournant, puis cède son cœur une
+fois sur 32 au-delà de 128 tours. Sur Darwin, `sched_yield()` vaut
+`swtch_pri(0)` : dès qu'un autre thread est prêt, l'écrivain descend à la
+priorité 0 jusqu'à sa prochaine exécution, au plus un quantum de 10 ms, et il
+garde son bit pendant ce temps. Avec le nouveau réglage *Writer lock yield
+without depression* (Automatique : tous les jeux), la cession devient
+`thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0)` : le `sched_yield` de
+libpthread lui-même avec `PTHREAD_YIELD_TO_ZERO=0`, la même cession mais
+sans la dépression. Le rythme des cessions, la cession de la boucle de
+publication et toutes les conditions d'attente sont ceux du 575. Désactivé
+rend exactement le comportement 575.
 
 **`CELL579_SPIN_NS` — attentes PPU à la bonne durée (tous les jeux, DBZ).**
 `utils::spin_ns()` attend une durée réelle sur le compteur de l'appareil, en
@@ -78,10 +92,14 @@ touché : **pas de recompilation à froid**, les caches 575 restent valides.
   elle change la façon dont MoltenVK rend les textures résidentes pour tous
   les jeux, et son coût en FPS ne peut pas être mesuré hors iPhone. Elle est
   reportée.
-- **Boucle PUTLLC sans effet de Black Ops II (4,6 cœurs SPU).** La correction
-  touche `SPUThread.cpp`, qui fait partie de l'identité de codegen SPU : elle
-  imposerait une recompilation à froid de tous les caches SPU. Elle est
-  reportée.
+- **Boucle PUTLLC sans effet de Black Ops II (4,6 cœurs SPU).** Réfutée à la
+  vérification : la session 4 de Black Ops II est le menu (10 dessins par
+  image), le détecteur ne s'enclencherait pas (lignes alternées), et la
+  correction touche `SPUThread.cpp`, qui fait partie de l'identité de codegen
+  SPU : elle imposerait une recompilation à froid de tous les caches SPU.
+- **Passage de la main au PPU qui n'a pas répondu (`thread_switch` vers son
+  port Mach).** Seule la cession sans dépression est retenue ; le passage de
+  main ciblé reste une piste.
 
 ## 4. Vérifications (hôte)
 
@@ -105,16 +123,25 @@ Rapport : [`evidence/rpcs3-cell579-host-linux.json`](evidence/rpcs3-cell579-host
 
   | Mesure | 575 | 579 |
   |---|---:|---:|
-  | CPU d'un écrivain pour une temporisation complète de 500 µs | 508 µs | 85 µs |
-  | Retour quand le PPU affamé repart après 200 µs | 233 µs | 248 µs |
-  | Part CPU de six écrivains sur quatre cœurs | 0,56 | 0,32 |
+  | CPU d'un écrivain pour une temporisation complète de 500 µs | 503 µs | 75 µs |
+  | Retour quand le PPU affamé repart après 200 µs | 229 µs | 256 µs |
+  | Part CPU de six écrivains sur quatre cœurs | 0,57 | 0,33 |
 
   Aucun épisode affamé. TSan réussi.
+- Cession sans dépression : le corps de `reservation_lock_yield()` est
+  compilé tel quel. Sous Linux, une imitation de `thread_switch` reçoit
+  exactement `(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0)` quand le réglage est
+  actif, et rien sinon. Le rythme des cessions (`reservation_lock_should_yield`)
+  et la cession de la boucle de publication sont identiques au 575. Sur le Mac
+  de la CI, les vrais en-têtes Mach sont compilés et les durées de
+  `sched_yield` et de `thread_switch` sous charge sont rapportées.
 - `spin_ns` : les conversions sont vérifiées à la compilation pour 24 MHz,
   19,2 MHz et 1 GHz. Les neuf sites sont des branches iOS dont le `#else`
   est le `busy_wait` du 575.
-- Vérification syntaxique ARM64 iOS des 12 unités touchées : mêmes
-  diagnostics que le Core 575.
+- Vérification syntaxique ARM64 iOS des unités touchées (`vm.cpp`, les
+  sept primitives lv2, `cellSpurs.cpp`, `cellSpursSpu.cpp`, la politique, les
+  réglages, `system_config.cpp`) : mêmes diagnostics que le Core 575.
+  `RPCS3IOSPlatform.mm` (Objective-C++) n'est compilé que par la CI macOS.
 
 Ce sont des vérifications sur l'hôte, pas des mesures sur iPhone.
 
@@ -126,11 +153,14 @@ Ce sont des vérifications sur l'hôte, pas des mesures sur iPhone.
   - `RANGELOCKPROF wl_putllc`, temps d'acquisition par verrou ;
   - `COREPROF range_wait_ms` ;
   - `WAITPROF527 vm_range_episode` ;
+  - `RANGELOCKPROF max_ms` : le groupe autour de 10 ms doit disparaître ;
   - `spu_cores` et FPS.
 - DBZ :
   - `vm_range_episode`, nombre et durée totale en baisse ;
   - verrous d'écriture toujours à 0,3–0,6 µs ;
   - FPS et p99.
-- En cas de régression : *Passive lock fairness* sur Désactivé rend l'ordre
-  des verrous d'avant 571. *RSX idle park* sur Désactivé rend l'attente
-  active. L'attente PPU et la correction SPURS n'ont pas de réglage.
+- En cas de régression :
+  - *Writer lock yield without depression* sur Désactivé rend la cession 575 ;
+  - *Passive lock fairness* sur Désactivé rend l'ordre des verrous d'avant 571 ;
+  - *RSX idle park* sur Désactivé rend l'attente active.
+  L'attente PPU et la correction SPURS n'ont pas de réglage.

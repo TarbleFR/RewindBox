@@ -6,7 +6,7 @@
   "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
   "sourceContract": {
     "baseline": "ddf734206dfc5aee950c1538f13d13b5532bbb93",
-    "fixtureSHA256": "3d37380b4325504e27c24e43e7aed1ad4dec523e5839ce831db74cea790fb52b",
+    "fixtureSHA256": "4f6af41ecace258f2dcffa5f663573a9babcb658592df091c9dcc6e15809ad60",
     "sourceSHA256": {
       "rpcs3/Emu/Cell/lv2/sys_cond.cpp": "abf0ef76c9d032174afbceb84e0f5973ba3065f5efff78867a3b83792f2dab9f",
       "rpcs3/Emu/Cell/lv2/sys_event.cpp": "7f434bd818d52d80e20093554680d5bf8771f1f9f1b3623a851d6e4537acf244",
@@ -15,12 +15,16 @@
       "rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp": "d1a4fde8c5d4483739e5e526cea12404a4f2951521bd9531365ed2d34d242169",
       "rpcs3/Emu/Cell/lv2/sys_mutex.cpp": "923c64995ab858a05597b4b73ef720e8c95db975f838d5affb299622cfdc1622",
       "rpcs3/Emu/Cell/lv2/sys_semaphore.cpp": "fe4b68857b063e4b000287192c416dcb8431f71c21fa4e659ac6e27f32c2a2a7",
-      "rpcs3/Emu/Memory/vm.cpp": "9c68c3350d4aeba134e1f887c290a0864dad84794ac494dbbe1c6c2361b56ae7",
+      "rpcs3/Emu/Memory/vm.cpp": "d6ffd3817287d0ea05dbe3c68bee1793392f2582fced963c9e5339de498d28f2",
       "rpcs3/Emu/Memory/vm_locking.h": "324e1d72801211f867a33294130967ed5129ae1a5f48add94d7c345fa6bc7081",
       "rpcs3/Emu/Memory/vm_reservation.h": "654b2e2dcd63c3df10e3f09453060106c1d38ef502b71e3cb85b2569bb301fc2",
+      "rpcs3/Emu/system_config.h": "973d8ca3b152f783fbbddfe62aac247367185daea8297e016416c2587b537b09",
       "rpcs3/ios/IOSPassiveLockGate.h": "70fe316209742032f12b594e57e3b0b8bbfcc63ee56dc3b31a3481dcdca81820",
-      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "9a690e1be98420cbf4d1606cacabac59c1bced203030548d2240917e5d4d699e",
-      "rpcs3/ios/RPCS3IOSSettings.cpp": "f0872ddb4ea5874342abb34e1d3400dfdc7cb53d2c49313b5abdb3e401a8c676",
+      "rpcs3/ios/IOSReservationLockPolicy.h": "6a71a8fb997ce8a02431b7815f6de545419161c0d56c1f3a18aed13334b2c3e8",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "d341da9d9efd3f5b846889a625d2a20593a3ea79ab226f092abaa976f05f82cb",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "e4cf5abd10a803031ad408e1afc7d34cb9b380b582cd28d8dcc28b499c716a36",
+      "rpcs3/ios/RPCS3IOSPlatform.mm": "833e627c60c17e2ea4d1e77ceb9b5cf40de5a33ef4fd23d196865664e7353786",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "edd18aa245212c36eac00fe92e52dbef72d74d0ea48bedf55d3b06cddfe556ec",
       "rpcs3/util/asm.hpp": "e4ba293cf8abacd5684f4870bb5fa07071f6174ee3d68e40adeccf33122bb36a"
     },
     "upstreamPreimages": [
@@ -29,9 +33,10 @@
       "rpcs3/Emu/Cell/lv2/sys_event_flag.cpp",
       "rpcs3/Emu/Cell/lv2/sys_lwcond.cpp",
       "rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp",
-      "rpcs3/Emu/Cell/lv2/sys_semaphore.cpp"
+      "rpcs3/Emu/Cell/lv2/sys_semaphore.cpp",
+      "rpcs3/ios/IOSReservationLockPolicy.h"
     ],
-    "otherCoreSourcesUnchanged": 286
+    "otherCoreSourcesUnchanged": 283
   },
   "codegenIdentity": {
     "identities": {
@@ -54,31 +59,31 @@
   "gateSleep": {
     "gate575": {
       "passed": true,
-      "boundWallUs": 572.4,
-      "boundCpuUs": 507.9,
-      "earlyReturnWallUs": 232.7,
-      "earlyReturnMaxCpuUs": 270.8,
+      "boundWallUs": 515.6,
+      "boundCpuUs": 502.9,
+      "earlyReturnWallUs": 229.4,
+      "earlyReturnMaxCpuUs": 255.7,
       "deferredTrials": 20,
       "writers": 6,
       "cores": 4,
-      "oversubscribedWallMs": 127.8,
-      "writerCpuMs": 427.6,
-      "writerCpuShare": 0.558,
-      "episodesMs": 60.7
+      "oversubscribedWallMs": 123.7,
+      "writerCpuMs": 421.3,
+      "writerCpuShare": 0.568,
+      "episodesMs": 60.9
     },
     "gate579": {
       "passed": true,
-      "boundWallUs": 616.2,
-      "boundCpuUs": 84.8,
-      "earlyReturnWallUs": 248.1,
-      "earlyReturnMaxCpuUs": 106.7,
+      "boundWallUs": 609.0,
+      "boundCpuUs": 75.3,
+      "earlyReturnWallUs": 256.0,
+      "earlyReturnMaxCpuUs": 103.1,
       "deferredTrials": 20,
       "writers": 6,
       "cores": 4,
-      "oversubscribedWallMs": 126.8,
-      "writerCpuMs": 240.3,
-      "writerCpuShare": 0.316,
-      "episodesMs": 65.0
+      "oversubscribedWallMs": 121.9,
+      "writerCpuMs": 243.3,
+      "writerCpuShare": 0.333,
+      "episodesMs": 63.4
     },
     "tsan": true,
     "harnessSHA256": "df4bb7861a3fa7ac821cf8d04204ba6b5c012c2bd3e5c38703a5df0b8fc67eff"
@@ -92,11 +97,23 @@
     "sites": 9,
     "harnessSHA256": "738f3db189646e12bb7b693a3f248d9436a9893396a7c8057de349688d1bdb84"
   },
+  "writerYield": {
+    "passed": true,
+    "realMach": false,
+    "busyThreads": 6,
+    "yields": 800,
+    "schedYieldMaxUs": 7955.6,
+    "schedYieldTotalMs": 1731.2,
+    "threadSwitchMaxUs": 1.3,
+    "threadSwitchTotalMs": 0.1,
+    "harnessSHA256": "6578fb6bb82e1341e400cb1b2ee324b50424960144b26f35c7fe516db33c50b6"
+  },
   "policy": {
-    "rsxIdleParkAutomatic": "every title (FIFO idle wait Yield)"
+    "rsxIdleParkAutomatic": "every title (FIFO idle wait Yield)",
+    "writerYieldNoDepressAutomatic": "every title"
   },
   "inputs": {
-    "test/rpcs3_cell579_test.py": "ea2e2eb54a3e7d7483e2943b4f773b8189bb502a54a98c9eff8f959b40c77084"
+    "test/rpcs3_cell579_test.py": "631fbc64609a1d5f26095831568857a94f23bf12ad0bbebd72f2a735b6573de3"
   },
   "result": "passed",
   "physicalDeviceTested": false,

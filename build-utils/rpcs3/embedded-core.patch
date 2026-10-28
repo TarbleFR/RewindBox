@@ -14382,7 +14382,7 @@ index 669f7594e..d0e01fd8c 100644
  
  		return false;
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index e7f55d727..809421457 100644
+index e7f55d727..6086314cd 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
 @@ -12,7 +12,10 @@
@@ -14396,23 +14396,27 @@ index e7f55d727..809421457 100644
  #endif
  #include <deque>
  #include <span>
-@@ -105,12 +108,27 @@ namespace vm
- 		}
- #endif
- 
+@@ -100,7 +103,18 @@ namespace vm
+ #ifdef RPCS3_IOS
+ 		if (rpcs3::ios::reservation_lock_should_yield(wait_iteration)) [[unlikely]]
+ 		{
+-			std::this_thread::yield();
++			// CELL579_WRITER_YIELD: without priority depression while the lever is on.
++			rpcs3::ios::reservation_lock_yield();
++			return;
++		}
++#endif
++
 +#if defined(RPCS3_IOS) && defined(ARCH_ARM64)
 +		// A hardware hint suffices for short PPU reservation waits. Retain
 +		// periodic ISB and the existing scheduler fallback for long waits.
 +		if ((wait_iteration & 15) != 15)
 +		{
 +			asm volatile("yield" ::: "memory");
-+			return;
-+		}
-+#endif
-+
- 		utils::pause();
- 	}
- 
+ 			return;
+ 		}
+ #endif
+@@ -111,6 +125,11 @@ namespace vm
  	// Memory range lock slots (sparse atomics)
  	atomic_t<u64, 128> g_range_lock_set[64]{};
  
@@ -14424,7 +14428,7 @@ index e7f55d727..809421457 100644
  	// Memory pages
  	std::array<memory_page, 0x100000000 / 4096> g_pages;
  
-@@ -416,6 +434,21 @@ namespace vm
+@@ -416,6 +435,21 @@ namespace vm
  
  		if (!ok || cpu.state & cpu_flag::memory)
  		{
@@ -14446,7 +14450,7 @@ index e7f55d727..809421457 100644
  			for (u64 i = 0;; i++)
  			{
  				if (cpu.is_paused())
-@@ -429,10 +462,29 @@ namespace vm
+@@ -429,10 +463,29 @@ namespace vm
  					return;
  				}
  
@@ -14478,7 +14482,7 @@ index e7f55d727..809421457 100644
  
  				if (cpu_flag::wait - cpu.state)
  				{
-@@ -470,6 +522,28 @@ namespace vm
+@@ -470,6 +523,28 @@ namespace vm
  		}
  	}
  
@@ -14507,7 +14511,7 @@ index e7f55d727..809421457 100644
  	writer_lock::writer_lock() noexcept
  		: writer_lock(0, nullptr, 1)
  	{
-@@ -478,6 +552,12 @@ namespace vm
+@@ -478,6 +553,12 @@ namespace vm
  	writer_lock::writer_lock(u32 const addr, atomic_t<u64, 128>* range_lock, u32 const size, u64 const flags) noexcept
  		: range_lock(range_lock)
  	{
@@ -14520,7 +14524,7 @@ index e7f55d727..809421457 100644
  		if (cpu_thread* cpu = cpu_thread::get_current(); cpu && cpu->get_class() == thread_class::ppu)
  		{
  			// cpu_flag::wait must be added by the caller
-@@ -494,6 +574,15 @@ namespace vm
+@@ -494,6 +575,15 @@ namespace vm
  			}
  		}
  
@@ -14536,7 +14540,7 @@ index e7f55d727..809421457 100644
  		for (u64 i = 0;; i++)
  		{
  			auto& bits = get_range_lock_bits(true);
-@@ -539,7 +628,7 @@ namespace vm
+@@ -539,7 +629,7 @@ namespace vm
  
  		if (range_lock)
  		{
@@ -14545,7 +14549,7 @@ index e7f55d727..809421457 100644
  
  			for (auto lock = g_locks.cbegin(), end = lock + g_cfg.core.ppu_threads; lock != end; lock++)
  			{
-@@ -601,6 +690,10 @@ namespace vm
+@@ -601,6 +691,10 @@ namespace vm
  				}
  			}
  		}
@@ -14556,7 +14560,7 @@ index e7f55d727..809421457 100644
  	}
  
  	atomic_t<u32>* reservation_notifier_notify(u32 raddr, u64 rtime, bool postpone)
-@@ -1044,7 +1137,7 @@ namespace vm
+@@ -1044,7 +1138,7 @@ namespace vm
  		else
  		{
  			shm->unmap_critical(g_base_addr + addr);
@@ -14565,7 +14569,7 @@ index e7f55d727..809421457 100644
  			shm->unmap_critical(g_sudo_addr + addr);
  #endif
  		}
-@@ -1321,7 +1414,7 @@ namespace vm
+@@ -1321,7 +1415,7 @@ namespace vm
  			};
  
  			// Special path for whole-allocated areas allowing 4k granularity
@@ -14574,7 +14578,7 @@ index e7f55d727..809421457 100644
  
  			if (!map_critical(vm::_ptr<u8>(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no) || !map_critical(vm::get_super_ptr(addr), utils::protection::rw))
  			{
-@@ -1361,7 +1454,7 @@ namespace vm
+@@ -1361,7 +1455,7 @@ namespace vm
  			if (m_common)
  			{
  				m_common->unmap_critical(vm::base(addr));
@@ -14583,7 +14587,7 @@ index e7f55d727..809421457 100644
  				m_common->unmap_critical(vm::get_super_ptr(addr));
  #endif
  				ensure(m_common.use_count() == 1);
-@@ -1415,7 +1508,7 @@ namespace vm
+@@ -1415,7 +1509,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -14592,7 +14596,7 @@ index e7f55d727..809421457 100644
  		}
  
  		const u32 max = (this->addr + this->size - size) & (0 - align);
-@@ -1494,7 +1587,7 @@ namespace vm
+@@ -1494,7 +1588,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -14601,7 +14605,7 @@ index e7f55d727..809421457 100644
  		}
  
  		vm::writer_lock lock;
-@@ -1725,6 +1818,52 @@ namespace vm
+@@ -1725,6 +1819,52 @@ namespace vm
  
  		ar.breathe();
  
@@ -14654,7 +14658,7 @@ index e7f55d727..809421457 100644
  		for (usz iter_count = 0; size; iter_count += sizeof(u32), ptr += byte_of_pages * sizeof(u32))
  		{
  			const u32 bitmap = read_from_ptr<le_t<u32>>(bit_array, iter_count);
-@@ -1757,6 +1896,7 @@ namespace vm
+@@ -1757,6 +1897,7 @@ namespace vm
  			}
  		}
  
@@ -14662,7 +14666,7 @@ index e7f55d727..809421457 100644
  		ar.breathe();
  	}
  
-@@ -1808,7 +1948,7 @@ namespace vm
+@@ -1808,7 +1949,7 @@ namespace vm
  	{
  		if (flags & preallocated)
  		{
@@ -14671,7 +14675,7 @@ index e7f55d727..809421457 100644
  			m_common->map_critical(vm::base(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no);
  			m_common->map_critical(vm::get_super_ptr(addr));
  		}
-@@ -1849,6 +1989,13 @@ namespace vm
+@@ -1849,6 +1990,13 @@ namespace vm
  			{
  				pflags |= page_size_64k;
  			}
@@ -14685,7 +14689,7 @@ index e7f55d727..809421457 100644
  			else if (!(flags & (page_size_mask & ~page_size_1m)))
  			{
  				pflags |= page_size_1m;
-@@ -2403,7 +2550,7 @@ namespace vm
+@@ -2403,7 +2551,7 @@ namespace vm
  
  			const u32 flags = ar.pop<u32>();
  			const u64 size = ar.pop<u64>();
@@ -23583,7 +23587,7 @@ index 130f54b02..4c096c903 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922d2..9c25493d6 100644
+index 7072922d2..de9945529 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -23613,7 +23617,7 @@ index 7072922d2..9c25493d6 100644
  		cfg::_bool empty_hdd0_tmp{ this, "Empty /dev_hdd0/tmp/", true };
  
  	} vfs{ this };
-@@ -121,6 +132,22 @@ struct cfg_root : cfg::node
+@@ -121,6 +132,24 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> fps_optimization_batch{ this, "FPS Optimization Batch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> dma_copy_specialization{ this, "DMA Copy Specialization", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> texture_hash_hybrid{ this, "Hybrid Texture Hash", ios_experimental_mode::automatic };
@@ -23633,10 +23637,12 @@ index 7072922d2..9c25493d6 100644
 +		// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic enables them for God of War III.
 +		cfg::_enum<ios_experimental_mode> texture_residency{ this, "Texture Residency Cap", ios_experimental_mode::automatic };
 +		cfg::_enum<ios_experimental_mode> scoped_texture_revalidation{ this, "Scoped Texture Revalidation", ios_experimental_mode::automatic };
++		// CELL579_WRITER_YIELD: Automatic enables it for every title.
++		cfg::_enum<ios_experimental_mode> writer_yield_no_depress{ this, "Writer Lock Yield Without Depression", ios_experimental_mode::automatic };
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +161,18 @@ struct cfg_root : cfg::node
+@@ -134,6 +163,18 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -25460,6 +25466,36 @@ index 000000000..65d78d311
 +    }
 +}
 +}
+diff --git a/rpcs3/ios/IOSReservationLockPolicy.h b/rpcs3/ios/IOSReservationLockPolicy.h
+index f47523796..322cfc5d2 100644
+--- a/rpcs3/ios/IOSReservationLockPolicy.h
++++ b/rpcs3/ios/IOSReservationLockPolicy.h
+@@ -1,5 +1,6 @@
+ #pragma once
+ 
++#include <atomic>
+ #include <cstdint>
+ 
+ namespace rpcs3::ios
+@@ -17,4 +18,18 @@ namespace rpcs3::ios
+ 		return wait_iteration >= reservation_lock_spin_iterations &&
+ 			(wait_iteration % reservation_lock_yield_interval) == 0;
+ 	}
++
++	// CELL579_WRITER_YIELD: these yields run while the writer holds its exclusive
++	// bit, which parks every PPU thread. On Darwin sched_yield() is swtch_pri(0):
++	// with any other thread runnable it drops the caller to priority 0 until it is
++	// dispatched again, for up to one 10 ms quantum (build 567 DBZ episode maxima of
++	// 9.99-10.16 ms; Black Ops II, build 575: 116-197 us per heavy PUTLLC lock while
++	// both PPU slots stayed parked). With the lever on, the yield is
++	// thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0), libpthread's own
++	// sched_yield with PTHREAD_YIELD_TO_ZERO=0: the same hand-off without the
++	// depression. The cadence above and every wait condition are unchanged.
++	inline std::atomic<bool> reservation_yield_no_depress{false};
++
++	// Defined in RPCS3IOSPlatform.mm, the iOS unit that includes the Mach headers.
++	void reservation_lock_yield() noexcept;
+ }
 diff --git a/rpcs3/ios/IOSRestoreExecutor.h b/rpcs3/ios/IOSRestoreExecutor.h
 new file mode 100644
 index 000000000..31b2c8149
@@ -30131,10 +30167,10 @@ index b4602fea9..37a708aa6 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b83..bada7a481 100644
+index 7c3389b83..70331f70a 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,8 +1,20 @@
+@@ -1,8 +1,21 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -30148,6 +30184,7 @@ index 7c3389b83..bada7a481 100644
 +#include "IOSEarlySubmit.h"
 +#include "IOSRsxIdlePark.h"
 +#include "IOSPassiveLockGate.h"
++#include "IOSReservationLockPolicy.h"
 +#include "IOSTextureResidency.h"
 +#include "IOSTitleLevers.h"
 +#include "IOSThreadQoS.h"
@@ -30155,7 +30192,7 @@ index 7c3389b83..bada7a481 100644
  #include "util/logs.hpp"
  
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
-@@ -27,6 +39,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +40,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -30232,7 +30269,7 @@ index 7c3389b83..bada7a481 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +129,63 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +130,66 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -30284,6 +30321,9 @@ index 7c3389b83..bada7a481 100644
 +	// CPU thread has waited through several timed waits to re-enter guest memory.
 +	resolved.passive_lock_fairness = resolve_mode(g_cfg.ios_experimental.passive_lock_fairness, true);
 +	rpcs3::ios::passive_gate::enabled.store(resolved.passive_lock_fairness, std::memory_order_relaxed);
++	// CELL579_WRITER_YIELD: Automatic is every title. Resolved before the emulation threads start.
++	resolved.writer_yield_no_depress = resolve_mode(g_cfg.ios_experimental.writer_yield_no_depress, true);
++	rpcs3::ios::reservation_yield_no_depress.store(resolved.writer_yield_no_depress, std::memory_order_relaxed);
 +	// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic is God of War III,
 +	// whose texture pool keeps textures of reused memory and whose RSX writes back a
 +	// render target for the CPU every frame.
@@ -30296,7 +30336,7 @@ index 7c3389b83..bada7a481 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +197,59 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +201,59 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -30329,10 +30369,10 @@ index 7c3389b83..bada7a481 100644
  	s_policy = resolved;
 -	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d",
 -		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid);
-+	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d noop_putllc=%d rsx_idle_park=%d rsx_thread_priority=%d passive_fairness=%d texture_residency=%d scoped_revalidation=%d",
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d noop_putllc=%d rsx_idle_park=%d rsx_thread_priority=%d passive_fairness=%d texture_residency=%d scoped_revalidation=%d writer_yield=%d",
 +		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
 +		resolved.deferred_fbo_writeback, resolved.early_submit, resolved.noop_putllc_keeps_reservations, resolved.rsx_idle_park, resolved.rsx_thread_priority,
-+		resolved.passive_lock_fairness, resolved.texture_residency, resolved.scoped_texture_revalidation);
++		resolved.passive_lock_fairness, resolved.texture_residency, resolved.scoped_texture_revalidation, resolved.writer_yield_no_depress);
  	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
  
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
@@ -30367,7 +30407,7 @@ index 7c3389b83..bada7a481 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197b4..bc81850a8 100644
+index 8fba197b4..24a935616 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -30378,7 +30418,7 @@ index 8fba197b4..bc81850a8 100644
  
  namespace rpcs3::ios
  {
-@@ -12,6 +13,24 @@ struct experimental_policy
+@@ -12,6 +13,26 @@ struct experimental_policy
  	bool mobile_spu_scheduling = false;
  	bool dma_copy_specialization = false;
  	bool texture_hash_hybrid = false;
@@ -30400,10 +30440,12 @@ index 8fba197b4..bc81850a8 100644
 +	bool texture_residency = false;
 +	// CELL573_SCOPED_RSX_WRITES: RSX writes revalidate only the textures they overlap.
 +	bool scoped_texture_revalidation = false;
++	// CELL579_WRITER_YIELD: a writer holding its exclusive bit yields without Darwin's priority depression.
++	bool writer_yield_no_depress = false;
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,8 +39,42 @@ struct experimental_policy
+@@ -20,8 +41,42 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -32875,15 +32917,20 @@ index 88392e05f..d08383774 100644
  // allocation workload, such as an LLVM compilation batch.
  u64 relieve_process_memory_pressure() noexcept;
 diff --git a/rpcs3/ios/RPCS3IOSPlatform.mm b/rpcs3/ios/RPCS3IOSPlatform.mm
-index 41559b064..5f149756e 100644
+index 41559b064..84f56e786 100644
 --- a/rpcs3/ios/RPCS3IOSPlatform.mm
 +++ b/rpcs3/ios/RPCS3IOSPlatform.mm
-@@ -8,6 +8,32 @@
+@@ -8,9 +8,52 @@
  #include <TargetConditionals.h>
  
  #include <dispatch/dispatch.h>
++#include <mach/mach_traps.h>
++#include <mach/thread_switch.h>
 +#include <pthread/qos.h>
 +
++#include <thread>
++
++#include "IOSReservationLockPolicy.h"
 +#include "IOSRsxSyncProfile.h"
 +
 +// REWINDBOX_MOLTENVK_COMPILE_QOS_V1: MoltenVK 1.4.2 builds every Metal library
@@ -32911,6 +32958,21 @@ index 41559b064..5f149756e 100644
  
  namespace rpcs3::ios
  {
++void reservation_lock_yield() noexcept
++{
++	// CELL579_WRITER_YIELD: ios/IOSReservationLockPolicy.h.
++	if (reservation_yield_no_depress.load(std::memory_order_relaxed))
++	{
++		static_cast<void>(thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0));
++		return;
++	}
++
++	std::this_thread::yield();
++}
++
+ namespace
+ {
+ #if !TARGET_OS_VISION
 diff --git a/rpcs3/ios/RPCS3IOSProfilerHelpers.h b/rpcs3/ios/RPCS3IOSProfilerHelpers.h
 new file mode 100644
 index 000000000..b6b0c699e
@@ -33260,7 +33322,7 @@ index 000000000..b6b0c699e
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b047471..3ace6b3ac 100644
+index b7b047471..48616f6ef 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -33288,7 +33350,7 @@ index b7b047471..3ace6b3ac 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,40 @@ const std::array catalog{
+@@ -122,21 +126,41 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -33299,6 +33361,7 @@ index b7b047471..3ace6b3ac 100644
 +	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
 +	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
 +	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
++	SETTING("experimental.writer_yield_no_depress", "Experimental", "FPS Experiments", "Writer lock yield without depression", "When an SPU or PPU atomic write that holds the reservation write lock waits for other threads, it yields its CPU core without iOS lowering its priority for a whole scheduling quantum (about 10 ms), so the PPU threads it keeps waiting resume sooner. No lock is skipped. Automatic enables it for every title; Disabled yields as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_yield_no_depress, 0, 0, 0),
 +	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
 +	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III, Call of Duty: Black Ops II and Bladestorm; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),
  	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
@@ -33331,7 +33394,7 @@ index b7b047471..3ace6b3ac 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +228,89 @@ const std::array catalog{
+@@ -205,6 +229,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -33421,7 +33484,7 @@ index b7b047471..3ace6b3ac 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +679,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +680,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

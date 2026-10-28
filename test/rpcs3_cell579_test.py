@@ -44,11 +44,16 @@ VM_LOCKING = 'rpcs3/Emu/Memory/vm_locking.h'
 VM_RESERVATION = 'rpcs3/Emu/Memory/vm_reservation.h'
 GATE = 'rpcs3/ios/IOSPassiveLockGate.h'
 ASM = 'rpcs3/util/asm.hpp'
+YIELD_POLICY = 'rpcs3/ios/IOSReservationLockPolicy.h'
+PLATFORM = 'rpcs3/ios/RPCS3IOSPlatform.mm'
+CONFIG = 'rpcs3/Emu/system_config.h'
+POLICY_H = 'rpcs3/ios/RPCS3IOSExperimentalPolicy.h'
 POLICY = 'rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp'
 SETTINGS = 'rpcs3/ios/RPCS3IOSSettings.cpp'
 LV2_SPINS = {'sys_semaphore.cpp': 1, 'sys_lwmutex.cpp': 1, 'sys_event.cpp': 1, 'sys_cond.cpp': 1, 'sys_lwcond.cpp': 1,
              'sys_event_flag.cpp': 1, 'sys_mutex.cpp': 2}
-MODIFIED = {VM, VM_LOCKING, VM_RESERVATION, GATE, ASM, POLICY, SETTINGS} | {'rpcs3/Emu/Cell/lv2/' + n for n in LV2_SPINS}
+MODIFIED = ({VM, VM_LOCKING, VM_RESERVATION, GATE, ASM, POLICY, SETTINGS, YIELD_POLICY, PLATFORM, CONFIG, POLICY_H}
+            | {'rpcs3/Emu/Cell/lv2/' + n for n in LV2_SPINS})
 INPUTS = ['test/rpcs3_cell579_test.py']
 
 
@@ -534,6 +539,109 @@ def spin_timing(work, source, before):
     return dict(report, sites=sites + 1, harnessSHA256=digest)
 
 
+YIELD_HARNESS = r"""
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <thread>
+#include <vector>
+
+#ifdef __APPLE__
+#include <mach/mach_traps.h>
+#include <mach/thread_switch.h>
+constexpr bool real_mach = true;
+#else
+// Linux: the Mach trap the production code calls, recorded.
+using mach_port_name_t = unsigned;
+constexpr unsigned MACH_PORT_NULL = 0;
+constexpr int SWITCH_OPTION_NONE = 0, SWITCH_OPTION_DEPRESS = 1;
+constexpr bool real_mach = false;
+static int g_switches = 0, g_option = -1;
+static unsigned g_port = 99, g_time = 99;
+static int thread_switch(mach_port_name_t port, int option, unsigned time) { g_switches++; g_port = port; g_option = option; g_time = time; return 0; }
+#endif
+
+namespace rpcs3::ios
+{
+	inline std::atomic<bool> reservation_yield_no_depress{false};
+@PRODUCTION@
+}
+
+using clock_type = std::chrono::steady_clock;
+
+int main()
+{
+	bool ok = true;
+#ifndef __APPLE__
+	rpcs3::ios::reservation_yield_no_depress = true;
+	rpcs3::ios::reservation_lock_yield();
+	ok &= g_switches == 1 && g_port == MACH_PORT_NULL && g_option == SWITCH_OPTION_NONE && g_time == 0;
+	rpcs3::ios::reservation_yield_no_depress = false;
+	rpcs3::ios::reservation_lock_yield();
+	ok &= g_switches == 1;
+#endif
+	// Reported only: one yield's duration while busy threads oversubscribe every core.
+	const unsigned cores = std::max(1u, std::thread::hardware_concurrency());
+	std::atomic<bool> stop{false};
+	std::vector<std::thread> busy;
+	for (unsigned i = 0; i < cores + 2; i++) busy.emplace_back([&] { while (!stop.load(std::memory_order_relaxed)) {} });
+	double max_us[2] = {0, 0}, total_ms[2] = {0, 0};
+	for (int round = 0; round < 4; round++)
+	{
+		for (int mode = 0; mode < 2; mode++)
+		{
+			rpcs3::ios::reservation_yield_no_depress = mode == 1;
+			for (int i = 0; i < 200; i++)
+			{
+				const auto t0 = clock_type::now();
+				rpcs3::ios::reservation_lock_yield();
+				const double us = std::chrono::duration<double, std::micro>(clock_type::now() - t0).count();
+				max_us[mode] = std::max(max_us[mode], us);
+				total_ms[mode] += us / 1000.0;
+			}
+		}
+	}
+	stop = true;
+	for (auto& t : busy) t.join();
+	std::printf("{\"passed\": %s, \"realMach\": %s, \"busyThreads\": %u, \"yields\": 800, \"schedYieldMaxUs\": %.1f, \"schedYieldTotalMs\": %.1f, \"threadSwitchMaxUs\": %.1f, \"threadSwitchTotalMs\": %.1f}\n",
+		ok ? "true" : "false", real_mach ? "true" : "false", cores + 2, max_us[0], total_ms[0], max_us[1], total_ms[1]);
+	return ok ? 0 : 1;
+}
+"""
+
+
+def writer_yield(work, source, before):
+    """CELL579_WRITER_YIELD: the writer's yield inside reservation_lock_wait, the only
+    yield of the two post-publish loops, goes through reservation_lock_yield(): with the
+    lever on, thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0) (libpthread's
+    sched_yield without swtch_pri's depression), else sched_yield as in 575. The cadence,
+    the publish-loop yield and every wait condition are the 575 ones."""
+    vm, old_vm = (source / VM).read_text(), (before / VM).read_text()
+    wait = braced(vm, '\tFORCE_INLINE static void reservation_lock_wait(u64 wait_iteration) noexcept\n')
+    old_wait = braced(old_vm, '\tFORCE_INLINE static void reservation_lock_wait(u64 wait_iteration) noexcept\n')
+    assert 'std::this_thread::yield();' in old_wait and 'std::this_thread::yield();' not in wait
+    assert wait.count('rpcs3::ios::reservation_lock_yield();') == 1
+    assert wait.replace('\t\t\t// CELL579_WRITER_YIELD: without priority depression while the lever is on.\n\t\t\trpcs3::ios::reservation_lock_yield();',
+                        '\t\t\tstd::this_thread::yield();') == old_wait
+    # The publish loop keeps its yield (not under RPCS3_IOS, reached only behind a global writer).
+    assert vm.count('std::this_thread::yield();') == old_vm.count('std::this_thread::yield();') - 1
+    policy_h, old_policy_h = (source / YIELD_POLICY).read_text(), (before / YIELD_POLICY).read_text()
+    old_should = braced(old_policy_h, '\tconstexpr bool reservation_lock_should_yield(std::uint64_t wait_iteration) noexcept\n')
+    assert braced(policy_h, '\tconstexpr bool reservation_lock_should_yield(std::uint64_t wait_iteration) noexcept\n') == old_should
+    assert 'inline constexpr std::uint64_t reservation_lock_spin_iterations = 128;' in policy_h
+    assert 'inline constexpr std::uint64_t reservation_lock_yield_interval = 32;' in policy_h
+    assert 'inline std::atomic<bool> reservation_yield_no_depress{false};' in policy_h and 'void reservation_lock_yield() noexcept;' in policy_h
+    platform = (source / PLATFORM).read_text()
+    body = braced(platform, 'void reservation_lock_yield() noexcept\n')
+    assert 'thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0)' in body and 'std::this_thread::yield();' in body
+    assert '#include <mach/mach_traps.h>\n#include <mach/thread_switch.h>\n' in platform
+    assert without_ios_blocks(vm) == without_ios_blocks(old_vm)
+    report, digest = build_and_run(work, 'yield579', YIELD_HARNESS.replace('@PRODUCTION@', body), source, 'address,undefined')
+    return dict(report, harnessSHA256=digest)
+
+
 def policy_contract(source, before):
     """RSX idle park resolves Automatic to every title; off iOS the policy and settings files are unchanged."""
     policy = (source / POLICY).read_text()
@@ -541,9 +649,17 @@ def policy_contract(source, before):
     settings = (source / SETTINGS).read_text()
     assert 'Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before.' in settings
     old_settings = (before / SETTINGS).read_text()
-    assert settings.replace('Automatic enables it for every title; Disabled spins as before.',
+    yield_setting = [l for l in settings.splitlines(keepends=True) if 'SETTING("experimental.writer_yield_no_depress"' in l]
+    assert len(yield_setting) == 1 and 'Automatic enables it for every title; Disabled yields as before.' in yield_setting[0]
+    assert settings.replace(yield_setting[0], '').replace('Automatic enables it for every title; Disabled spins as before.',
                             'Automatic enables it for Dragon Ball Z Budokai HD Collection, God of War III and Bladestorm; Disabled spins as before.') == old_settings
-    return {'rsxIdleParkAutomatic': 'every title (FIFO idle wait Yield)'}
+    # CELL579_WRITER_YIELD: Automatic is every title, resolved and published before the emulation threads start.
+    assert 'resolved.writer_yield_no_depress = resolve_mode(g_cfg.ios_experimental.writer_yield_no_depress, true);' in policy
+    assert 'rpcs3::ios::reservation_yield_no_depress.store(resolved.writer_yield_no_depress, std::memory_order_relaxed);' in policy
+    assert 'scoped_revalidation=%d writer_yield=%d"' in policy
+    assert 'bool writer_yield_no_depress = false;' in (source / POLICY_H).read_text()
+    assert 'cfg::_enum<ios_experimental_mode> writer_yield_no_depress{ this, "Writer Lock Yield Without Depression", ios_experimental_mode::automatic };' in (source / CONFIG).read_text()
+    return {'rsxIdleParkAutomatic': 'every title (FIFO idle wait Yield)', 'writerYieldNoDepressAutomatic': 'every title'}
 
 
 def main():
@@ -563,6 +679,7 @@ def main():
         result['reservationOpWait'] = reservation_op_wait(work, source, before)
         result['gateSleep'] = gate_sleep(work, source, before)
         result['spinTiming'] = spin_timing(work, source, before)
+        result['writerYield'] = writer_yield(work, source, before)
         result['policy'] = policy_contract(source, before)
         result['inputs'] = {p: sha((ROOT / p).read_bytes()) for p in INPUTS}
         result.update(passed=True, result='passed', physicalDeviceTested=False, gameplayMeasured=False,

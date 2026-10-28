@@ -47,7 +47,7 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
    mechanism that acts only when its condition occurs, device logs on at
    least two titles without regression, and an unchanged Disabled path.
 
-## RPCS3 Core 579: SPURS reservation_op wait, sleeping writer deferral, PPU spin timing, RSX idle park for every title — 28 October 2026
+## RPCS3 Core 579: SPURS reservation_op wait, sleeping writer deferral, writer yield without depression, PPU spin timing, RSX idle park for every title — 28 October 2026
 
 - Build 575 logs: the first God of War III boot of the process ended in 2 of 2
   cases (567, 575) on "vm::writer_lock is being used without cpu_flag::wait
@@ -66,6 +66,12 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   sleeps on the starving count with `os_sync_wait_on_address` on iOS 17.4+,
   futex on Linux; the last starving waiter wakes one sleeper, each woken
   writer the next; trigger, 500 us bound and lock protocol unchanged);
+  `CELL579_WRITER_YIELD` (new setting Writer Lock Yield Without Depression,
+  Automatic = every title: the yield of `reservation_lock_wait`, run while the
+  writer holds its exclusive bit, is `thread_switch(MACH_PORT_NULL,
+  SWITCH_OPTION_NONE, 0)` from `ios/RPCS3IOSPlatform.mm` instead of
+  `sched_yield()` = `swtch_pri(0)`; cadence and wait conditions unchanged;
+  Disabled = 575);
   `CELL579_SPIN_NS` (`utils::spin_ns`, rounded up: passive_lock and seven lv2
   primitives wait the upstream 3 GHz durations, 6.7-8.3 us at 1 GHz, the same
   ticks as before at 24 MHz; `shared_mutex` untouched);
@@ -74,13 +80,17 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   (565 ran every thread at one level with the same GoW3 RSX gap). Not done:
   DBZ ready-ahead readback (refuted), dedicated VkImage memory (MoltenVK
   residency cost not measurable off device), the BO2 no-op PUTLLC poll wait
-  (touches SPUThread.cpp, which would force a cold SPU recompile).
+  (refuted: BO2 session 4 is the menu; it also touches SPUThread.cpp, a SPU
+  codegen source); the directed hand-off to the unacknowledged PPU's Mach
+  port (only the undepressed yield is in).
 - Local: canonical delta rematerialized on `22f1152` (six lv2 preimages
   authenticated against XITRIX), `test/rpcs3_cell579_test.py` passed three
   times (575 text reproduces the fatal error 15 times in the model, 579 0;
-  gate model: 508 -> 85 us of writer CPU per full deferral; ASan/UBSan,
-  TSan), pin source contract, Core scheduling, 579 driver contract, ARM64
-  syntax of 12 units equal to 575. Evidence
+  gate model: 503 -> 75 us of writer CPU per full deferral; the yield body
+  calls thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0) only with the
+  lever on; ASan/UBSan, TSan), pin source contract, Core scheduling, 579
+  driver contract, ARM64 syntax of the touched C++ units equal to 575
+  (`RPCS3IOSPlatform.mm` is compiled by the macOS CI only). Evidence
   `docs/evidence/rpcs3-cell579-host-linux.json`. No iPhone measurement: no
   FPS, frame time or memory gain is claimed.
 

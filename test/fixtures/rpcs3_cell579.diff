@@ -131,10 +131,20 @@ index dea96fcf5..f238df8b5 100644
  
  		if (ppu.state & cpu_flag::signal)
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index 9fa052471..809421457 100644
+index 9fa052471..6086314cd 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
-@@ -465,7 +465,12 @@ namespace vm
+@@ -103,7 +103,8 @@ namespace vm
+ #ifdef RPCS3_IOS
+ 		if (rpcs3::ios::reservation_lock_should_yield(wait_iteration)) [[unlikely]]
+ 		{
+-			std::this_thread::yield();
++			// CELL579_WRITER_YIELD: without priority depression while the lever is on.
++			rpcs3::ios::reservation_lock_yield();
+ 			return;
+ 		}
+ #endif
+@@ -465,7 +466,12 @@ namespace vm
  				// NEOSTATION_ARMSX3_RANGE_LOCK_WAIT_V1: wait for a notified transition instead of yielding blind.
  				if (i < 100)
  				{
@@ -147,7 +157,7 @@ index 9fa052471..809421457 100644
  				}
  				else if (const u64 bits = get_range_lock_bits(true))
  				{
-@@ -517,6 +522,28 @@ namespace vm
+@@ -517,6 +523,28 @@ namespace vm
  		}
  	}
  
@@ -240,6 +250,19 @@ index 87383111f..c1404adb5 100644
  
  			if (Ack && result)
  				reservation_notifier_notify(addr, old_time);
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 9c25493d6..de9945529 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -148,6 +148,8 @@ struct cfg_root : cfg::node
+ 		// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic enables them for God of War III.
+ 		cfg::_enum<ios_experimental_mode> texture_residency{ this, "Texture Residency Cap", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> scoped_texture_revalidation{ this, "Scoped Texture Revalidation", ios_experimental_mode::automatic };
++		// CELL579_WRITER_YIELD: Automatic enables it for every title.
++		cfg::_enum<ios_experimental_mode> writer_yield_no_depress{ this, "Writer Lock Yield Without Depression", ios_experimental_mode::automatic };
+ 
+ 		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
 diff --git a/rpcs3/ios/IOSPassiveLockGate.h b/rpcs3/ios/IOSPassiveLockGate.h
 index ee7cb305e..29ae3d360 100644
 --- a/rpcs3/ios/IOSPassiveLockGate.h
@@ -390,11 +413,49 @@ index ee7cb305e..29ae3d360 100644
  	}
  
  	return true;
+diff --git a/rpcs3/ios/IOSReservationLockPolicy.h b/rpcs3/ios/IOSReservationLockPolicy.h
+index f47523796..322cfc5d2 100644
+--- a/rpcs3/ios/IOSReservationLockPolicy.h
++++ b/rpcs3/ios/IOSReservationLockPolicy.h
+@@ -1,5 +1,6 @@
+ #pragma once
+ 
++#include <atomic>
+ #include <cstdint>
+ 
+ namespace rpcs3::ios
+@@ -17,4 +18,18 @@ namespace rpcs3::ios
+ 		return wait_iteration >= reservation_lock_spin_iterations &&
+ 			(wait_iteration % reservation_lock_yield_interval) == 0;
+ 	}
++
++	// CELL579_WRITER_YIELD: these yields run while the writer holds its exclusive
++	// bit, which parks every PPU thread. On Darwin sched_yield() is swtch_pri(0):
++	// with any other thread runnable it drops the caller to priority 0 until it is
++	// dispatched again, for up to one 10 ms quantum (build 567 DBZ episode maxima of
++	// 9.99-10.16 ms; Black Ops II, build 575: 116-197 us per heavy PUTLLC lock while
++	// both PPU slots stayed parked). With the lever on, the yield is
++	// thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0), libpthread's own
++	// sched_yield with PTHREAD_YIELD_TO_ZERO=0: the same hand-off without the
++	// depression. The cadence above and every wait condition are unchanged.
++	inline std::atomic<bool> reservation_yield_no_depress{false};
++
++	// Defined in RPCS3IOSPlatform.mm, the iOS unit that includes the Mach headers.
++	void reservation_lock_yield() noexcept;
+ }
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index dc809f104..bada7a481 100644
+index dc809f104..70331f70a 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -161,10 +161,11 @@ void resolve_experimental_policy() noexcept
+@@ -11,6 +11,7 @@
+ #include "IOSEarlySubmit.h"
+ #include "IOSRsxIdlePark.h"
+ #include "IOSPassiveLockGate.h"
++#include "IOSReservationLockPolicy.h"
+ #include "IOSTextureResidency.h"
+ #include "IOSTitleLevers.h"
+ #include "IOSThreadQoS.h"
+@@ -161,10 +162,11 @@ void resolve_experimental_policy() noexcept
  	// God of War III, whose CELL threads need every core. A non-default FIFO idle wait
  	// (Wait for event, Bounded sleep) keeps its own behaviour.
  	// CELL575_TITLE_LEVERS adds Bladestorm: RSX thread 0.66 core for a FIFO busy 31 % on build 567.
@@ -409,11 +470,84 @@ index dc809f104..bada7a481 100644
  	rpcs3::ios::rsx_idle_park::enabled.store(resolved.rsx_idle_park, std::memory_order_relaxed);
  	// CELL567_THREAD_QOS: Automatic is every title. RPCS3 raises the RSX and audio threads
  	// above the others; on iOS that order only exists while the others run one step lower.
+@@ -176,6 +178,9 @@ void resolve_experimental_policy() noexcept
+ 	// CPU thread has waited through several timed waits to re-enter guest memory.
+ 	resolved.passive_lock_fairness = resolve_mode(g_cfg.ios_experimental.passive_lock_fairness, true);
+ 	rpcs3::ios::passive_gate::enabled.store(resolved.passive_lock_fairness, std::memory_order_relaxed);
++	// CELL579_WRITER_YIELD: Automatic is every title. Resolved before the emulation threads start.
++	resolved.writer_yield_no_depress = resolve_mode(g_cfg.ios_experimental.writer_yield_no_depress, true);
++	rpcs3::ios::reservation_yield_no_depress.store(resolved.writer_yield_no_depress, std::memory_order_relaxed);
+ 	// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic is God of War III,
+ 	// whose texture pool keeps textures of reused memory and whose RSX writes back a
+ 	// render target for the CPU every frame.
+@@ -217,10 +222,10 @@ void resolve_experimental_policy() noexcept
+ 	}
+ 
+ 	s_policy = resolved;
+-	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d noop_putllc=%d rsx_idle_park=%d rsx_thread_priority=%d passive_fairness=%d texture_residency=%d scoped_revalidation=%d",
++	ios_experimental_log.notice("FPS experiment batch: requested=%d dma_copy=%d texture_hash_hybrid=%d texture_validation_epoch=%d deferred_fbo_writeback=%d early_submit=%d noop_putllc=%d rsx_idle_park=%d rsx_thread_priority=%d passive_fairness=%d texture_residency=%d scoped_revalidation=%d writer_yield=%d",
+ 		fps_batch, resolved.dma_copy_specialization, resolved.texture_hash_hybrid, resolved.texture_validation_epoch,
+ 		resolved.deferred_fbo_writeback, resolved.early_submit, resolved.noop_putllc_keeps_reservations, resolved.rsx_idle_park, resolved.rsx_thread_priority,
+-		resolved.passive_lock_fairness, resolved.texture_residency, resolved.scoped_texture_revalidation);
++		resolved.passive_lock_fairness, resolved.texture_residency, resolved.scoped_texture_revalidation, resolved.writer_yield_no_depress);
+ 	configure_buffer_optimizations(resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices);
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D): the line keeps its Build 483
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index bc81850a8..24a935616 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -31,6 +31,8 @@ struct experimental_policy
+ 	bool texture_residency = false;
+ 	// CELL573_SCOPED_RSX_WRITES: RSX writes revalidate only the textures they overlap.
+ 	bool scoped_texture_revalidation = false;
++	// CELL579_WRITER_YIELD: a writer holding its exclusive bit yields without Darwin's priority depression.
++	bool writer_yield_no_depress = false;
+ 	u32 fifo_cache_bytes = 1024;
+ 	bool fifo_idle_wfe = false;
+ 	bool deferred_get_publishing = false;
+diff --git a/rpcs3/ios/RPCS3IOSPlatform.mm b/rpcs3/ios/RPCS3IOSPlatform.mm
+index 5f149756e..84f56e786 100644
+--- a/rpcs3/ios/RPCS3IOSPlatform.mm
++++ b/rpcs3/ios/RPCS3IOSPlatform.mm
+@@ -8,8 +8,13 @@
+ #include <TargetConditionals.h>
+ 
+ #include <dispatch/dispatch.h>
++#include <mach/mach_traps.h>
++#include <mach/thread_switch.h>
+ #include <pthread/qos.h>
+ 
++#include <thread>
++
++#include "IOSReservationLockPolicy.h"
+ #include "IOSRsxSyncProfile.h"
+ 
+ // REWINDBOX_MOLTENVK_COMPILE_QOS_V1: MoltenVK 1.4.2 builds every Metal library
+@@ -37,6 +42,18 @@ extern "C" __attribute__((visibility("hidden"))) dispatch_queue_t rbx_mvk_compil
+ 
+ namespace rpcs3::ios
+ {
++void reservation_lock_yield() noexcept
++{
++	// CELL579_WRITER_YIELD: ios/IOSReservationLockPolicy.h.
++	if (reservation_yield_no_depress.load(std::memory_order_relaxed))
++	{
++		static_cast<void>(thread_switch(MACH_PORT_NULL, SWITCH_OPTION_NONE, 0));
++		return;
++	}
++
++	std::this_thread::yield();
++}
++
+ namespace
+ {
+ #if !TARGET_OS_VISION
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index da156346b..3ace6b3ac 100644
+index da156346b..48616f6ef 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
-@@ -130,7 +130,7 @@ const std::array catalog{
+@@ -130,9 +130,10 @@ const std::array catalog{
  	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
  	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
  	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection and Call of Duty: Black Ops II; Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
@@ -421,7 +555,10 @@ index da156346b..3ace6b3ac 100644
 +	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
  	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
  	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
++	SETTING("experimental.writer_yield_no_depress", "Experimental", "FPS Experiments", "Writer lock yield without depression", "When an SPU or PPU atomic write that holds the reservation write lock waits for other threads, it yields its CPU core without iOS lowering its priority for a whole scheduling quantum (about 10 ms), so the PPU threads it keeps waiting resume sooner. No lock is skipped. Automatic enables it for every title; Disabled yields as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_yield_no_depress, 0, 0, 0),
  	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
+ 	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III, Call of Duty: Black Ops II and Bladestorm; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),
+ 	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
 diff --git a/rpcs3/util/asm.hpp b/rpcs3/util/asm.hpp
 index 8f68949b9..456485f49 100644
 --- a/rpcs3/util/asm.hpp
