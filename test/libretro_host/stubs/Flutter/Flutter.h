@@ -30,8 +30,12 @@ FOUNDATION_EXPORT NSObject *const FlutterMethodNotImplemented;
 // FlutterCodecs.h (Flutter 3.47.2): PNG previews and refused arguments.
 @interface FlutterStandardTypedData : NSObject
 + (instancetype)typedDataWithBytes:(NSData *)data;
+@property(readonly, nonatomic) NSData *data;
 @end
 @interface FlutterError : NSObject
 + (instancetype)errorWithCode:(NSString *)code message:(NSString *_Nullable)message details:(id _Nullable)details;
+@property(readonly, nonatomic) NSString *code;
+@property(readonly, nonatomic, nullable) NSString *message;
+@property(readonly, nonatomic, nullable) id details;
 @end
 NS_ASSUME_NONNULL_END

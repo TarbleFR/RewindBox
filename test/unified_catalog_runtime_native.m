@@ -160,6 +160,7 @@ static void RejectionChecks(NSString *root) {
     NSDictionary *responses=fixture[@"responses"];
     NeoUnifiedCheatCatalog *catalog=[NeoUnifiedCheatCatalog new];catalog.bundledDirectory=nil;
     catalog.storageDirectory=[root stringByAppendingPathComponent:[NSString stringWithFormat:@"reject-%lu",(unsigned long)variant]];
+    catalog.manifestURL=[NSURL URLWithString:@"https://catalogue.invalid/catalogue/manifest.json.gz"];
     catalog.fetch=^(NSURL *url,NSUInteger limit,void(^completion)(NSData*,NSError*)) {
       NSString *key=[url.path componentsSeparatedByString:@"/catalogue/"].lastObject;
       completion([url.lastPathComponent hasPrefix:@"manifest.json"] ? Bytes(manifest) : responses[key],nil);
@@ -175,6 +176,7 @@ static void RejectionChecks(NSString *root) {
   CHECK([NSFileManager.defaultManager createDirectoryAtPath:blocked withIntermediateDirectories:YES attributes:nil error:NULL],"create symlink test cache");
   CHECK([NSFileManager.defaultManager createSymbolicLinkAtPath:[blocked stringByAppendingPathComponent:@"files"] withDestinationPath:outside error:NULL],"create internal cache link");
   NeoUnifiedCheatCatalog *linked=[NeoUnifiedCheatCatalog new];linked.bundledDirectory=nil;linked.storageDirectory=blocked;
+  linked.manifestURL=[NSURL URLWithString:@"https://catalogue.invalid/catalogue/manifest.json.gz"];
   linked.fetch=^(NSURL *url,NSUInteger limit,void(^completion)(NSData*,NSError*)){NSString *key=[url.path componentsSeparatedByString:@"/catalogue/"].lastObject;completion([url.lastPathComponent hasPrefix:@"manifest.json"] ? Bytes(fixture[@"manifest"]) : fixture[@"responses"][key],nil);};
   NSDictionary *blockedResult=Install(linked,YES);
   CHECK([blockedResult[@"installed_games"] unsignedIntegerValue]==0,"internal cache link cannot receive an installation");

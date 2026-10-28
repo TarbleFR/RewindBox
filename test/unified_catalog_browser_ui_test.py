@@ -125,6 +125,8 @@ def native(result_path: Path | None, regional_only: bool = False, direct_only: b
                     "type": "application", "platform": "iOS",
                     "sources": [str(directory / "main.m"), str(CLASSES / "NeoUnifiedCheatCatalog.m"),
                                 str(CLASSES / "NeoUnifiedCheatBrowser.m"), str(CLASSES / "NeoUnifiedCheatList.m"),
+                                # The browser's download progress (598d35d5).
+                                str(CLASSES / "RBLiquidProgressView.m"),
                                 {"path": str(POD / "Resources/labels.json"), "buildPhase": "resources"}]
                                 + [str(LIBRETRO / name) for name in ("LibretroCheatMenu.m", "LibretroCheats.m", "LibretroCheatCatalog.m", "LibretroSessionMenu.m", "LibretroOrientation.m")],
                     "dependencies": frameworks,
