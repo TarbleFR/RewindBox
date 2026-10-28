@@ -1,0 +1,217 @@
+{
+  "build": 587,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "a8a7ce1072c189806f4ddf70552280b3e95a1e17",
+  "run": 40718679248,
+  "workflow": ".github/workflows/rpcs3-cell587-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12829624759,
+      "name": "RPCS3Core-a8a7ce1072c189806f4ddf70552280b3e95a1e17",
+      "bytes": 29091949,
+      "digest": "sha256:497dacc546c02cbdbae208627e06cd020d78c511b36b78a6f7290517046283d1"
+    },
+    "diagnostics": {
+      "id": 12829764336,
+      "bytes": 208398,
+      "digest": "sha256:92a8b5da807b6f65b16bdebba5e23533856fec848c7bf2ad3ee3bb65b514478b"
+    }
+  },
+  "core": {
+    "sha256": "c638d4ce331afe1d0fbc5fe6695c0e65986ff43d5ec52f08c210651050c200e8",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "63c916c864cd9cfad67125197e41d0bf09b3be6e7d4c5c79ae6b22d5bf5f525b",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 140,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom585": true,
+    "coldCompileRequiredByThisChange": false,
+    "moltenvkArchive": "0ee6ae968193749e56d76be71dafb7c36ce4aa19b84f5bb69acd8154d38e06a1",
+    "encodingQueueHookLinked": true,
+    "markers587": [
+      "COREPROF OPT587",
+      "canary=%s confirmed=%u exec_queues=%u",
+      "MoltenVK asynchronous submits: encoding queue recorded; acquisitions wait for the last queued present",
+      "rewindbox-mvk-async-587.txt",
+      "MoltenVK asynchronous submits stay off for %s: its last asynchronous boot did not finish (crash or forced exit)",
+      "MoltenVK asynchronous submits enabled for this boot",
+      "COREPROF OPT561",
+      "COREPROF OPT581",
+      "COREPROF OPT583"
+    ],
+    "replaces": {
+      "source": "2b013636f53a432bf67752d30d84a2bb33facbf2",
+      "run": 40700604912,
+      "sha256": "363ea475473aeddb4b0009c3a383abb0fd2b75ce146e65e49cd068b81b8a8510"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell587"
+    ]
+  },
+  "native": {
+    "realLibdispatch": true,
+    "gcd": {
+      "plain": {
+        "presentWaitMs": 161.424,
+        "drainMs": 345.908,
+        "markerLagMaxMs": 161.396,
+        "failures": 0
+      },
+      "asanUbsan": {
+        "presentWaitMs": 172.96,
+        "drainMs": 324.526,
+        "markerLagMaxMs": 172.927,
+        "failures": 0
+      },
+      "tsan": {
+        "presentWaitMs": 102.127,
+        "drainMs": 323.256,
+        "markerLagMaxMs": 102.101,
+        "failures": 0
+      }
+    },
+    "model": {
+      "plain": {
+        "flips": 400,
+        "stallEvery": 8,
+        "stallUs": 3000,
+        "hazardsWithoutBarrier": 51,
+        "hazardsWithBarrier": 0,
+        "barrierWaits": 399,
+        "barrierWaitMs": 1279.579
+      },
+      "asanUbsan": {
+        "flips": 400,
+        "stallEvery": 8,
+        "stallUs": 3000,
+        "hazardsWithoutBarrier": 77,
+        "hazardsWithBarrier": 0,
+        "barrierWaits": 399,
+        "barrierWaitMs": 1093.784
+      },
+      "tsan": {
+        "flips": 400,
+        "stallEvery": 8,
+        "stallUs": 3000,
+        "hazardsWithoutBarrier": 121,
+        "hazardsWithBarrier": 0,
+        "barrierWaits": 399,
+        "barrierWaitMs": 1154.074
+      }
+    },
+    "sanitizers": [
+      "plain",
+      "asanUbsan",
+      "tsan"
+    ]
+  },
+  "barrier": {
+    "acquisitionSites": [
+      "rpcs3/Emu/RSX/VK/vkutils/swapchain_core.h"
+    ],
+    "acquireCallers": [
+      "rpcs3/Emu/RSX/VK/VKPresent.cpp",
+      "rpcs3/Emu/RSX/VK/vkutils/swapchain.cpp"
+    ],
+    "barrierBeforeAcquire": true,
+    "markerAfterPresent": true,
+    "metalFxOrdered": true,
+    "canaryArmedAtInstance": true,
+    "canaryConfirmedBy": [
+      "900 guest flips",
+      "renderer shutdown"
+    ],
+    "automatic": "God of War III (is_god_of_war_iii_title)",
+    "globalPriorityHigh": true
+  },
+  "moltenvkArchiveTool": {
+    "inputSHA256": "b91a46f74456949aa2a6cb73de9696d0b5508efe3a7c30041e0ff07232fc9de4",
+    "patchedSHA256": "0ee6ae968193749e56d76be71dafb7c36ce4aa19b84f5bb69acd8154d38e06a1",
+    "renamed": [
+      "_dispatch_queue_create",
+      "_rbx_mvk_exec_q_create"
+    ],
+    "gate": "REWINDBOX_MOLTENVK_EXEC_BARRIER_V1",
+    "appliedAfterCompileQoS": true,
+    "linkCheck": true
+  },
+  "offIOS": {
+    "sharedFiles": [
+      "rpcs3/Emu/RSX/VK/VKPresent.cpp",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+      "rpcs3/Emu/RSX/VK/VKGSRender.h",
+      "rpcs3/Emu/RSX/VK/vkutils/device.cpp",
+      "rpcs3/Emu/RSX/VK/vkutils/instance.cpp"
+    ],
+    "iosOnlyFiles": [
+      "rpcs3/ios/IOSMoltenVKAsyncCanary.h",
+      "rpcs3/ios/IOSMoltenVKExec.h",
+      "rpcs3/ios/IOSMoltenVKExecQueue.h",
+      "rpcs3/ios/IOSTitleLevers.h",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.h",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp",
+      "rpcs3/ios/RPCS3IOSPlatform.mm"
+    ]
+  },
+  "sourceContract": {
+    "baseline": "2b013636f53a432bf67752d30d84a2bb33facbf2",
+    "fixtureSHA256": "912718c583af7edf1da47f87c0a57a3a53debcece8ad119a1951c33a9ea5091d",
+    "sourceSHA256": {
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "897fecfed78009fd93fc2cf3a9ee47dc2763d1ad2215d3dfd1677681788d69f0",
+      "rpcs3/Emu/RSX/VK/VKGSRender.h": "58b3b070c934839152e6b5ea5b4882517a5a79192037885473d1125ed53b71ef",
+      "rpcs3/Emu/RSX/VK/VKPresent.cpp": "a294b01d30d8753353035142ef07ad58d40f8c788641972065cc9356f2b482d9",
+      "rpcs3/Emu/RSX/VK/vkutils/device.cpp": "3246db472dec7d8d048c4b0dc8d1248aef6d96844715eec394e2661985849477",
+      "rpcs3/Emu/RSX/VK/vkutils/instance.cpp": "f9f1db8df684fb57bcd219a91dc223cab01a34a9f4c659333a12e4ba2d3fa227",
+      "rpcs3/ios/IOSTitleLevers.h": "867bdaf06c02fff3b93aeadda870d68a4a8e1eb69b2b76dca1016193742a8750",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "f9a25de1c2a0fd40b8fbe39f71c3c278eaf793ab3101d209bb42d70f07afe1cb",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "66212138677c0740c345bc6681e925d9765bb55f743d20b77f8c4122951773f2",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "2f80528b0b11c8bd531345b0ac68a4059c5e1120bfb0511c4a5747297d65e8fb",
+      "rpcs3/ios/RPCS3IOSPlatform.mm": "3729cbd350e96c998128c0a238daf0cdb5891a55c25d7d3494635905171df555",
+      "rpcs3/ios/IOSMoltenVKExec.h": "9fc07caa2227ab2c11d1e8dddd8506a30503be1bac690201c21ef5e734c6df2a",
+      "rpcs3/ios/IOSMoltenVKExecQueue.h": "3d030bef4cee687a87325e1acbf5fda6a850fb87669cc45adbdaf711e6e0e532",
+      "rpcs3/ios/IOSMoltenVKAsyncCanary.h": "85407b2308ac7e3ef31d7b05a7325da89d390c8ad704341925ed2fda95e53d6b"
+    },
+    "newFiles": [
+      "rpcs3/ios/IOSMoltenVKExec.h",
+      "rpcs3/ios/IOSMoltenVKExecQueue.h",
+      "rpcs3/ios/IOSMoltenVKAsyncCanary.h"
+    ],
+    "otherCoreSourcesUnchanged": 292
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom585": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "inputsSHA256": {
+    "test/rpcs3_cell587_test.py": "b21cff5754ff01b01a2d15fd256ced451deb7a971214fac42980347ac3ee45d2",
+    "test/native/rpcs3_cell587_mvk_exec_test.cpp": "eab8b9959f96e988ba2e33b8649718590aa85ef5d060a53a81de992c123b58cb",
+    "test/native/rpcs3_cell587_mvk_gcd_test.cpp": "a5320ab272d2ad7e99bc26d5ae3b2f1106b7c75b673ea93a81cdc86aa979c9d8",
+    "build-utils/rpcs3/patch_moltenvk_exec_queue.py": "0bf571fd46ef50d75a815d7e6991180e3d122ba65f28fb97dfa793dce2397e6e"
+  },
+  "scope": "The 587 header logic, the MoltenVK swapchain model and the GCD registry against the real libdispatch on the Apple Silicon runner (plain, ASan/UBSan, TSan), and the iPhone Core built from the verified source with the encoding-queue hook linked. No iPhone FPS, frame time or crash result."
+}

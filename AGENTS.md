@@ -192,6 +192,15 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   `rpcs3_cell587_mvk_gcd_test.cpp` against the real libdispatch
   (`--require-gcd`). Evidence `docs/evidence/rpcs3-cell587-host-linux.json`.
   Not tested on iPhone; no FPS or crash result claimed.
+- Core run `40718679248` (`a8a7ce10`, Apple Silicon; attempt 1 stopped on an
+  HTTP 503 of the artifact API before any test, attempt 2 passed): the 587
+  test with the GCD registry against the real libdispatch (plain, ASan/UBSan,
+  TSan: the barrier stops at the queued present, later work keeps running),
+  archive `b91a46f7…` -> `0ee6ae96…` and "MoltenVK encoding-queue hook linked"
+  in the build log; iPhone Core SHA-256 `c638d4ce…00e8`, 88 exports, 140
+  recorded inputs, codegen identities unchanged, the 587 markers in the binary.
+  Evidence `docs/evidence/rpcs3-cell587-macos.json`. Binding module for the
+  delivery that ships it: `.github/diagnostics/rpcs3cell587_delivery_core.py`.
 
 ## RPCS3 Core 585: early submission for God of War III — 28 October 2026
 
