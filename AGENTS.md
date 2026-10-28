@@ -195,6 +195,18 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   Core run 40700604912 and adds the 585 setting text). Product trees equal to
   583 (the other agent's later MeloNX commits are not in this tree).
   Recipient `build-utils/delivery-585-recipient.pem`.
+- Private 585 delivered from `2b08899d` (recipe of the same commit), run
+  `40703700988` (checks + cold success, 56 min): IPA 0.0.8 (585),
+  188,118,106 bytes, SHA-256
+  `626a2f8b36cf2b1d2a9104e47c52c1272ce6fed09af9f4c9e1a7e53985655abe` (equal to
+  SHA256SUMS), artifact `12825874417` encrypted for
+  `delivery-585-recipient.pem`; RPCS3 Core 585 `2b013636` (run 40700604912,
+  `363ea475…`, identity receipt equal), MeloNX engine `e55ca256` (582)
+  unchanged; every validator receipt passed; decrypted and inspected
+  independently (build 585, the 561/581/583 markers and the 585 setting text
+  in the signed Core, the 561 "only" text absent). Receipt
+  `docs/evidence/rpcs3-cell585-delivery.json`. Not tested on iPhone; no FPS,
+  frame time or memory gain claimed. Do not reuse the number 585.
 
 ## RPCS3 Core 583: texture pre-validation pacing, God of War III only — 28 October 2026
 
