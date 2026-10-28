@@ -47,6 +47,53 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
    mechanism that acts only when its condition occurs, device logs on at
    least two titles without regression, and an unchanged Disabled path.
 
+## MeloNX engine 577: kernel wakeups, GC memory-load threshold, Hogwarts code arena, per-title pipeline cache — 28 October 2026
+
+- Builds 575-576 app.log (26-28 October 2026): FINAL FANTASY TACTICS - The
+  Ivalice Chronicles still froze 0.4 s after start (576 trace: every guest
+  thread in a kernel wait, no service call after the save mount, no SVC
+  failure). Hogwarts Legacy with its update ended 25-32 s after every launch
+  on "JIT Cache exhausted" (512 MiB TXM arena); past loading, `.NET_BGC` used
+  40-80 % of a core at 7-14 FPS. The shared Vulkan pipeline cache was over its
+  128 MiB budget (Hogwarts 263-269 MiB, never saved) or replaced by another
+  game's (Smash reloaded "0,00 KiB main data" after an FFT session).
+- Engine commit `cfa51168` (`build-utils/melonx`): `adapt_kernel_sync.py` (an
+  expired timed wait leaves the condition variable or arbiter waiter list at
+  once, as Horizon's CancelWait; equal priorities stay FIFO;
+  SignalAndModifyByWaitingCountIfEqual decrements when the signal leaves no
+  waiter; DecrementAndWaitIfLessThan writes only below the threshold; a
+  zero-timeout condvar wait returns TimedOut); `adapt_gc.py` adds
+  `System.GC.HighMemoryPercent` 99 (on Apple the .NET GC reads the
+  device-wide memory load, kern.memorystatus_level); `adapt_jit_arena.py`
+  with `native/melonx/EmbeddedRuntime.cs` and `EmbeddedLaunchPreflight.cs`
+  (the preflight asks for a 1 GiB TXM code arena for Hogwarts Legacy
+  0100F7E00C70E000 with an update; the default arena is mapped if the helper
+  cannot prepare it); `adapt_pipeline_cache.py` (one cache file per title
+  ID, 384 MiB main budget, an unchanged snapshot is not rewritten, the former
+  shared files are removed, MeloNX's MoltenVK keeps its retained MSL
+  LZ4-compressed). `adapt_fft_boot_trace.py` removed. `afd0d4b0`: the launch
+  preflight test's fixture. `d1f7b8dd`: MeloNXInputRouter takes the pad's
+  profile-wide handler (which relayed every stick and trigger change to
+  Flutter on the main thread) while a game owns the controller, and restores
+  it at close or reconnection.
+- Local: full prepare_embedded chain on the pinned source, Ryujinx.Library
+  build, launch preflight test (14 checks). Engine run `40610510834`
+  (artifact `12782599009`), host run `40609951631` (the Swift compiled).
+  Whether the kernel fixes end the FFT freeze is unknown without a device
+  log. No iPhone measurement: no FPS, loading-time or memory gain is claimed.
+- Private 577 recipe (`melonx-sync577-delivery.yml`, dispatch only): the
+  delivered 576 tree with the ten files of `cfa51168`/`afd0d4b0` (the trace
+  deleted) and the router of `d1f7b8dd`; `melonxsync577_tree.py` /
+  `melonxsync577_delivery.py` run the 576 recipe unchanged in `as_576()` with
+  the 576 engine's evidence (`old_engine()`), the inherited validators on
+  `derived_ipa()` (this IPA with the 576 engine entries); ten validators (nine
+  wrap the 576 ones, `validate_melonx_sync577` binds the 577 engine and the
+  router source). Product trees differ from 576 in native and packages only.
+  Recipient `build-utils/delivery-577-recipient.pem` (the withdrawn
+  interface577 recipe never built an IPA). Local dry run on a scratch
+  worktree: tree pin, full inherited source contract, 577 and 576 engine
+  evidence against the real artifacts.
+
 ## Interface option and controller navigation after a game — 27 October 2026
 
 Maintainer request (video of the Switch playlist, `app.log`), branch `Claude`, no IPA, nothing pushed.
