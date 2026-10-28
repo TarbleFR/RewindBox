@@ -53,7 +53,7 @@ SOURCES = {
         'url': 'https://wiki.rpcs3.net/index.php?title=Help:Game_Patches',
         'download': 'https://rpcs3.net/compatibility?patch&api=v1&v=1.2',
         'sha256': 'f1f3cab0c8fee21c30ef69789d79468e2c69a4f52583e53e4392a1cf97791486',
-        'license': 'CC BY-SA 4.0 (RPCS3 Wiki, per its General disclaimer; to be confirmed in a browser). '
+        'license': 'CC BY-SA 4.0 (RPCS3 Wiki; General disclaimer and patch-help footer browser-verified 2026-10-28; except where otherwise noted). '
                    'Adapted: converted to RewindBox JSON and filtered; the adapted RPCS3 entries are '
                    'distributed under CC BY-SA 4.0. Per-patch Author and Notes kept.',
         'engines': ['rpcs3'],

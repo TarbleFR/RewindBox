@@ -164,7 +164,7 @@ engine already ships, are kept (see Rights). Per-category totals are in
 
 | Engine | Source | Revision | Entries | Licence |
 | --- | --- | --- | ---: | --- |
-| RPCS3 | [RPCS3 game patches](https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) via `rpcs3.net/compatibility?patch&api=v1&v=1.2` | content `f1f3cab0c8fe…` | 3,643 | CC BY-SA 4.0 (to confirm) |
+| RPCS3 | [RPCS3 game patches](https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) via `rpcs3.net/compatibility?patch&api=v1&v=1.2` | content `f1f3cab0c8fe…` | 3,643 | CC BY-SA 4.0 (browser-verified 28 October 2026; page-specific exceptions apply) |
 | ARMSX2 | [ARMSX2 `patches.zip`](https://github.com/ARMSX2/ARMSX2/blob/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe/platforms/ios/app/src/main/assets/resources/patches.zip) (the engine's own patch set, names and author credits only) | `9d989ca933a8` | 6,092 | shipped by the engine; nothing redistributed |
 | ARMSX2 | [CookiePLMonster/Console-Cheat-Codes](https://github.com/CookiePLMonster/Console-Cheat-Codes) (PS2) | `26e407a754e0` | 79 | MIT |
 | ARMSX2 | [AeroWidescreen/PCSX2-Cheats](https://github.com/AeroWidescreen/PCSX2-Cheats) | `ab043ba5adb9` | 52 | MIT |
@@ -234,14 +234,16 @@ server code.
 - **RPCS3 game patches.**
   - The data comes from RPCS3 Wiki pages (`AniLeo/rpcs3-compatibility`
     parses `{{patch` templates).
-  - The wiki's General disclaimer and footer state CC BY-SA 4.0. This is
-    seen through the search index only: Cloudflare blocks automated reads.
+  - The wiki's General disclaimer and Help:Game Patches footer were read
+    directly in Chrome on 28 October 2026 and state CC BY-SA 4.0, except
+    where otherwise noted. Evidence: `docs/licenses/rpcs3-wiki-2026-10-28.md`
+    and its JSON observation record.
   - RewindBox credits the RPCS3 Wiki contributors and every Author, and
     states its changes. The adapted RPCS3 entries in this repository are
     distributed under CC BY-SA 4.0, and the codes are not inside the IPA.
-  - **The maintainer must confirm the footer in a browser** and archive it
-    under `docs/licenses/`. Until then this source is kept on that evidence;
-    removing it is one line in `SOURCES`.
+  - Browser confirmation is complete. Preserve per-patch attribution and
+    check any separately stated terms before publication. The wiki's default
+    license is not an individual rights audit of every patch author.
 - **ARMSX2 `patches.zip`.** The pcsx2_patches set carries no licence, but
   the embedded engine already ships it in the IPA. RewindBox lists a patch's
   name and `author=` credit and writes `Enable = <name>`, as the in-game

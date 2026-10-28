@@ -61,9 +61,14 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `cheats/<SERIAL>_<CRC>_rewindbox.pnach` with their notices, enabled by
   `[Cheats] Enable =` and per-game `[EmuCore] EnableCheats` (previous value
   restored). Pnach files of the earlier layout are removed at the next
-  change. Still to confirm before a public release: the RPCS3 wiki's
-  CC BY-SA 4.0 footer in a browser. The pre-existing unified cheat catalogue
-  (`native/cheats/`) is a separate feature and was not changed.
+  change. Independent follow-up on 28 October: the RPCS3 Wiki General
+  disclaimer and Help:Game Patches footer were directly browser-verified
+  as CC BY-SA 4.0, except where otherwise noted; see
+  `docs/licenses/rpcs3-wiki-2026-10-28.md`. The pre-existing unified cheat
+  catalogue (`native/cheats/`) remains a separate unresolved rights review.
+  Its current manifest has no active Switch source, but still lists
+  `pcsx2_fps478` and `gabominated_fps478`. The confirmation does not clear
+  those inputs. No history rewrite is implied by the documentation update.
 
 ## RPCS3 levers for every newly tested game — maintainer rule, 27 October 2026
 

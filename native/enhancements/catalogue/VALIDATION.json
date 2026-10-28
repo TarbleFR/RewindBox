@@ -1,6 +1,6 @@
 {
-  "index_sha256": "ce68862ceff7d6222979e177f147f0e7ca0b92574672fc13c772316fc35d53a8",
-  "index_size": 96801,
+  "index_sha256": "6ff49a3d293becdff3e88c154eae28595bed009cbc92fd0bf8e16bd4f3380bdf",
+  "index_size": 96828,
   "rejections": {
     "armsx2_duplicate_groups": 80,
     "armsx2_skipped_files": 5,

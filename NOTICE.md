@@ -103,9 +103,11 @@ https://github.com/TarbleFR/RewindBox/issues; entries are removed promptly.
   SHA-256 f1f3cab0c8fee21c30ef69789d79468e2c69a4f52583e53e4392a1cf97791486.
   Licensed under Creative Commons Attribution-ShareAlike 4.0 International
   (https://creativecommons.org/licenses/by-sa/4.0/), per the wiki's General
-  disclaimer as indexed; the maintainer must confirm the footer in a browser
-  (Cloudflare blocks automated reads). Changes: converted to RewindBox JSON,
-  anchors flattened, configurable values turned into fixed choices, filtered.
+  disclaimer and Help:Game Patches footer, directly browser-verified on
+  28 October 2026 (docs/licenses/rpcs3-wiki-2026-10-28.md). The footer
+  retains the exception for content otherwise noted. Changes: converted to
+  RewindBox JSON, anchors flattened, configurable values turned into fixed
+  choices, filtered.
   The adapted RPCS3 entries in native/enhancements/catalogue/ are distributed
   under CC BY-SA 4.0. RPCS3 is a trademark of its owners; no affiliation.
 - ARMSX2 patches.zip (ARMSX2/ARMSX2 9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe,
