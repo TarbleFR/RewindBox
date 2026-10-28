@@ -1,0 +1,172 @@
+{
+  "build": 579,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "1f82f9d988cbecb9bf07bdcb3ed3983404668270",
+  "run": 40621029169,
+  "workflow": ".github/workflows/rpcs3-cell579-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12787203521,
+      "name": "RPCS3Core-1f82f9d988cbecb9bf07bdcb3ed3983404668270",
+      "bytes": 29086587,
+      "digest": "sha256:798e168f4c420367d905e8909dc50165f33da77af5e41cbc0183193a2a0d817e"
+    },
+    "diagnostics": {
+      "id": 12787323425,
+      "bytes": 206814,
+      "digest": "sha256:5f052b8d4fa093b918a161a86f1fb47571b2e5dc7844fec926f69ed0aeb46434"
+    }
+  },
+  "core": {
+    "sha256": "8d6b91ae9523b1199f7d5d2bfd47cc32f20bcd1ec473541036964e1215c47929",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "4b771964dcd82618ff27b96115b15d9f91d6b3fc88b1472d194a6a166b03a3b9",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 137,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom575": true,
+    "coldCompileRequiredByThisChange": false,
+    "markers579": [
+      "Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before.",
+      "Writer Lock Yield Without Depression",
+      "experimental.writer_yield_no_depress",
+      "scoped_revalidation=%d writer_yield=%d"
+    ],
+    "replaces": {
+      "source": "ddf734206dfc5aee950c1538f13d13b5532bbb93",
+      "run": 40589313705,
+      "sha256": "90275c29d52109a0e4be60246053b56a127a5307302ed459097a8ef0a7690638"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell579"
+    ]
+  },
+  "reservationOpWait": {
+    "passed": true,
+    "scenarios": 36,
+    "fatal": 0,
+    "locks": 36,
+    "notifies": 24,
+    "tsan": true,
+    "fatalWith575": 15
+  },
+  "gateSleep": {
+    "gate575": {
+      "passed": true,
+      "boundWallUs": 501.6,
+      "boundCpuUs": 501.0,
+      "earlyReturnWallUs": 200.5,
+      "earlyReturnMaxCpuUs": 200.8,
+      "deferredTrials": 20,
+      "writers": 5,
+      "cores": 3,
+      "oversubscribedWallMs": 262.9,
+      "writerCpuMs": 287.9,
+      "writerCpuShare": 0.219,
+      "episodesMs": 60.3
+    },
+    "gate579": {
+      "passed": true,
+      "boundWallUs": 644.8,
+      "boundCpuUs": 64.7,
+      "earlyReturnWallUs": 211.3,
+      "earlyReturnMaxCpuUs": 69.2,
+      "deferredTrials": 20,
+      "writers": 5,
+      "cores": 3,
+      "oversubscribedWallMs": 266.3,
+      "writerCpuMs": 286.9,
+      "writerCpuShare": 0.215,
+      "episodesMs": 64.5
+    },
+    "tsan": true
+  },
+  "spinTiming": {
+    "passed": true,
+    "lv2Spin1GHzUs": 8.35,
+    "lv2Spin24MHzUs": 10.42,
+    "passiveSpin1GHzUs": 6.7,
+    "passiveSpin24MHzUs": 8.33,
+    "sites": 9
+  },
+  "writerYield": {
+    "passed": true,
+    "realMach": true,
+    "busyThreads": 5,
+    "yields": 800,
+    "schedYieldMaxUs": 22440.4,
+    "schedYieldTotalMs": 6271.5,
+    "threadSwitchMaxUs": 18.4,
+    "threadSwitchTotalMs": 0.4
+  },
+  "policy": {
+    "rsxIdleParkAutomatic": "every title (FIFO idle wait Yield)",
+    "writerYieldNoDepressAutomatic": "every title"
+  },
+  "sourceContract": {
+    "baseline": "ddf734206dfc5aee950c1538f13d13b5532bbb93",
+    "fixtureSHA256": "4f6af41ecace258f2dcffa5f663573a9babcb658592df091c9dcc6e15809ad60",
+    "sourceSHA256": {
+      "rpcs3/Emu/Cell/lv2/sys_cond.cpp": "abf0ef76c9d032174afbceb84e0f5973ba3065f5efff78867a3b83792f2dab9f",
+      "rpcs3/Emu/Cell/lv2/sys_event.cpp": "7f434bd818d52d80e20093554680d5bf8771f1f9f1b3623a851d6e4537acf244",
+      "rpcs3/Emu/Cell/lv2/sys_event_flag.cpp": "ce6c6e6ef79b26125117e23f89e077bf5a077a9d39ebb5f629f570bc877c0e32",
+      "rpcs3/Emu/Cell/lv2/sys_lwcond.cpp": "a994ffcbde77b0327d350592b05e0898b2ba6326de4c78fe75134030bfc358d1",
+      "rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp": "d1a4fde8c5d4483739e5e526cea12404a4f2951521bd9531365ed2d34d242169",
+      "rpcs3/Emu/Cell/lv2/sys_mutex.cpp": "923c64995ab858a05597b4b73ef720e8c95db975f838d5affb299622cfdc1622",
+      "rpcs3/Emu/Cell/lv2/sys_semaphore.cpp": "fe4b68857b063e4b000287192c416dcb8431f71c21fa4e659ac6e27f32c2a2a7",
+      "rpcs3/Emu/Memory/vm.cpp": "d6ffd3817287d0ea05dbe3c68bee1793392f2582fced963c9e5339de498d28f2",
+      "rpcs3/Emu/Memory/vm_locking.h": "324e1d72801211f867a33294130967ed5129ae1a5f48add94d7c345fa6bc7081",
+      "rpcs3/Emu/Memory/vm_reservation.h": "654b2e2dcd63c3df10e3f09453060106c1d38ef502b71e3cb85b2569bb301fc2",
+      "rpcs3/Emu/system_config.h": "973d8ca3b152f783fbbddfe62aac247367185daea8297e016416c2587b537b09",
+      "rpcs3/ios/IOSPassiveLockGate.h": "70fe316209742032f12b594e57e3b0b8bbfcc63ee56dc3b31a3481dcdca81820",
+      "rpcs3/ios/IOSReservationLockPolicy.h": "6a71a8fb997ce8a02431b7815f6de545419161c0d56c1f3a18aed13334b2c3e8",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "d341da9d9efd3f5b846889a625d2a20593a3ea79ab226f092abaa976f05f82cb",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "e4cf5abd10a803031ad408e1afc7d34cb9b380b582cd28d8dcc28b499c716a36",
+      "rpcs3/ios/RPCS3IOSPlatform.mm": "833e627c60c17e2ea4d1e77ceb9b5cf40de5a33ef4fd23d196865664e7353786",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "edd18aa245212c36eac00fe92e52dbef72d74d0ea48bedf55d3b06cddfe556ec",
+      "rpcs3/util/asm.hpp": "e4ba293cf8abacd5684f4870bb5fa07071f6174ee3d68e40adeccf33122bb36a"
+    },
+    "upstreamPreimages": [
+      "rpcs3/Emu/Cell/lv2/sys_cond.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_event.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_event_flag.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_lwcond.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_semaphore.cpp",
+      "rpcs3/ios/IOSReservationLockPolicy.h"
+    ],
+    "otherCoreSourcesUnchanged": 283
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom575": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "inputsSHA256": {
+    "test/rpcs3_cell579_test.py": "08c5bcc74d1d52e191f17311a80f0ca968cf7561274b3c7c0f443e70a9c115b7"
+  },
+  "scope": "The 579 production code compiled in host models on the Apple Silicon runner (real os_sync_wait_on_address and Mach headers), and the iPhone Core built from the verified source. No iPhone FPS, frame time or memory result."
+}

@@ -145,6 +145,25 @@ Rapport : [`evidence/rpcs3-cell579-host-linux.json`](evidence/rpcs3-cell579-host
 
 Ce sont des vérifications sur l'hôte, pas des mesures sur iPhone.
 
+**Mac Apple Silicon de la CI (run Core `40621029169`, `1f82f9d`).** Rapport :
+[`evidence/rpcs3-cell579-macos.json`](evidence/rpcs3-cell579-macos.json). Le
+Core iPhone est compilé depuis la source vérifiée : SHA-256 `8d6b91ae…7929`,
+88 symboles exportés, chargement passif validé, les quatre marqueurs 579
+présents et le texte 575 de la veille RSX absent, 137 entrées enregistrées,
+identités de codegen PPU `a987639e9f838d1c` et SPU `d070cb361bdef607`. Les
+mêmes modèles passent avec les vrais en-têtes Mach et `os_sync_wait_on_address`
+(Apple clang 17, 3 cœurs) :
+
+| Mesure (noyau XNU réel) | 575 | 579 |
+|---|---:|---:|
+| Cession sous 5 threads occupés : durée maximale | 22,4 ms (`sched_yield`) | 18 µs (`thread_switch`) |
+| Cession : total pour 800 cessions | 6 271 ms | 0,4 ms |
+| CPU d'un écrivain pour une temporisation complète de 500 µs | 501 µs | 65 µs |
+| Retour quand le PPU affamé repart après 200 µs | 201 µs | 211 µs |
+
+C'est le comportement du noyau macOS, celui de l'iPhone dérive du même XNU ;
+ce n'est pas une mesure sur l'iPhone.
+
 ## 5. À relever sur iPhone
 
 - God of War III, premier lancement après l'installation : il ne doit plus

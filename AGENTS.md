@@ -93,6 +93,24 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   (`RPCS3IOSPlatform.mm` is compiled by the macOS CI only). Evidence
   `docs/evidence/rpcs3-cell579-host-linux.json`. No iPhone measurement: no
   FPS, frame time or memory gain is claimed.
+- Core run `40621029169` from `1f82f9d9` (completing `968920b1`, whose run
+  stopped on a host-model assertion now reported, and `9297546a`, cancelled
+  before the Core compiled): the 579 models passed on the Apple Silicon runner
+  with the real Mach headers and `os_sync_wait_on_address` (`sched_yield`
+  under five busy threads up to 22.4 ms, `thread_switch` 18 us; writer CPU per
+  full deferral 501 -> 65 us); Core SHA-256 `8d6b91ae…7929`, 88 exports,
+  passive loading, the four 579 markers present and the 575 idle-park text
+  absent, codegen identities unchanged. Evidence
+  `docs/evidence/rpcs3-cell579-macos.json`.
+- Private 579 recipe (`rpcs3-cell579-delivery.yml`, dispatch only): the
+  delivered 577 tree with the Core 579 recipe of `1f82f9d9`;
+  `rpcs3cell579_tree.py` / `rpcs3cell579_delivery.py` run the 577 recipe
+  unchanged in `as_577()`; ten validators wrap the 577 ones (identity renamed
+  to 579, the RPCS3 one binds Core run 40621029169 and its 24 markers).
+  Product trees equal to 577. Recipient
+  `build-utils/delivery-579-recipient.pem`. Local dry run on a scratch
+  worktree: tree pin, full inherited source contract, retained checks,
+  every validator import, the 24 markers in the real Core.
 
 ## MeloNX engine 577: kernel wakeups, GC memory-load threshold, Hogwarts code arena, per-title pipeline cache — 28 October 2026
 
