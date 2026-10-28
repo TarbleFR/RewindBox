@@ -89,10 +89,10 @@ EnhancementService ── EnhancementStore (state.json: every file/line written)
 
 | Engine | Identity (never a title guess) | What RewindBox writes | Applied |
 | --- | --- | --- | --- |
-| **MeloNX** (Switch, Ryujinx) | Title ID from the native `metadata` call (`EmbeddedContent` op 0) or the library row; updates/DLC map to the application (`& ~0x1FFF`), collections add their sub-programs (+1…+15) and homebrew keeps its exact ID | `Documents/MeloNX/mods/contents/<tid>/RewindBox/cheats/<BUILDID>.txt` (Atmosphere sections) and `mods/contents/<tid>/cheats/enabled.txt` (`<BUILDID>-<<name> Cheat>`) | Ryujinx `ModLoader.LoadCheats` at game start; a file is installed only when its name equals a loaded executable's Build ID, so a code for another version never runs |
+| **MeloNX** (Switch, Ryujinx) | Title ID from the native `metadata` call (`EmbeddedContent` op 0) or the library row; updates/DLC map to the application (`& ~0x1FFF`), collections add their sub-programs (+1…+15) and homebrew keeps its exact ID | Cheats: `Documents/MeloNX/mods/contents/<tid>/RewindBox/cheats/<BUILDID>.txt` (Atmosphere sections) and `mods/contents/<tid>/cheats/enabled.txt` (`<BUILDID>-<<name> Cheat>`). Exefs mods: `mods/contents/<tid>/RewindBox/exefs/<entry>-<n>.pchtxt`, written only while on | Ryujinx `ModLoader` at game start: a cheat file applies only when its name equals a loaded executable's Build ID; a `.pchtxt` only when its first line `@nsobid-<BUILDID>` equals it (case-sensitive, normalised to upper case at build time) |
 | **RPCS3** (PS3) | Serial from the library row, APP_VER from the installed title (`Rpcs3LibraryService`) | Pending records in `Data/NeoStationUnifiedCheats/state.json`, the bridge's existing staging file | `RPCS3UnifiedCheats applyPendingWhileStoppedForTitle` before every boot: Core YAML validation, `patches/<SERIAL>_patch.yml`, Core `set_enabled(serial, hash, title, version, description)`; the Core matches the PPU hash |
-| **ARMSX2** (PS2) | Serial and boot-ELF CRC read from the image (`Ps2DiscIdentity`: ISO 2048, BIN 2352 MODE1/MODE2; same algorithm as PCSX2 and `NeoTextureIdentity::PS2`) | `Documents/ARMSX2/patches/<SERIAL>_<CRC>.pnach` (PCSX2 prefers it over patches.zip) and `Enable = <name>` in `[Patches]` of `gamesettings/<SERIAL>_<CRC>.ini` | PCSX2 patch loader at boot, the same INI and keys as the in-game Patches page |
-| **Dolphin** (GameCube/Wii) | Game ID from the native `saveIdentity` (DiscIO, no core start); revision from the image header (ISO/GCM, CISO, WBFS, RVZ/WIA) | `$name` lines in `[OnFrame_Enabled]`/`[Gecko_Enabled]`/`[ActionReplay_Enabled]` of `User/GameSettings/<GAMEID>.ini`; a matching `_Disabled` line (also in the in-game menu's `<GAMEID>r<rev>.ini`) is lifted and put back on restore; `[Core] EnableCheats = True` in `User/Config/Dolphin.ini` for Gecko/AR | Dolphin merges the user INIs over the engine's own `Sys/GameSettings` (dolphin-ios `7cac5416`, the code bodies) at boot |
+| **ARMSX2** (PS2) | Serial and boot-ELF CRC read from the image (`Ps2DiscIdentity`: ISO 2048, BIN 2352 MODE1/MODE2; same algorithm as PCSX2 and `NeoTextureIdentity::PS2`) | `Documents/ARMSX2/patches/<SERIAL>_<CRC>.pnach` (PCSX2 prefers it over patches.zip): the pcsx2_patches file verbatim, followed by the labelled groups other sources add, each block headed by a comment naming its repository; and `Enable = <name>` in `[Patches]` of `gamesettings/<SERIAL>_<CRC>.ini` | PCSX2 patch loader at boot, the same INI and keys as the in-game Patches page |
+| **Dolphin** (GameCube/Wii) | Game ID from the native `saveIdentity` (DiscIO, no core start); revision from the image header (ISO/GCM, CISO, WBFS, RVZ/WIA) | `$name` lines in `[OnFrame_Enabled]`/`[Gecko_Enabled]`/`[ActionReplay_Enabled]` of `User/GameSettings/<GAMEID>.ini`. A code the engine does not ship (from upstream Dolphin, Ishiiruka, Slippi, MPN or Admentus64) is also written with its body into `[Gecko]`/`[ActionReplay]`/`[OnFrame]` while it is on, and removed when it is off. A matching `_Disabled` line (also in the in-game menu's `<GAMEID>r<rev>.ini`) is lifted and put back on restore. `[Core] EnableCheats = True` in `User/Config/Dolphin.ini` for Gecko/AR | Dolphin merges the user INIs over the engine's own `Sys/GameSettings` (dolphin-ios `7cac5416`) at boot |
 | **Libretro** | — | — | HD textures through the existing page; cheats through the existing in-game menu |
 
 ### Safety rules shared by the adapters
@@ -137,34 +137,123 @@ EnhancementService ── EnhancementStore (state.json: every file/line written)
   - MeloNX: the Build ID match is enforced by the engine itself.
 - **Dolphin entries.** Only enhancements are listed. Gameplay codes stay in
   the unified cheat catalogue, compatibility fixes stay the engine's
-  decision, and codes the engine enables by default are not offered.
+  decision, and codes the engine enables by default are not offered. A code
+  body is never added under a name the engine already ships for that game,
+  nor when the player's INI already holds a code of that name.
+- **Exclusive choices.** Entries that rewrite the same values exclude each
+  other: RPCS3 author groups and enum choices; aspect-ratio entries of one
+  game (`16:9`, `21:9`, `3440x1440`, "ultrawide"…) on every engine; Switch
+  exefs resolution and aspect mods (one display mod), and exefs frame-rate
+  mods (one at a time); a PS2 group renamed because another source used its
+  name (`Widescreen 16:9 (Aero)`) and its namesake.
+- **Merged pnach files.** Only labelled groups of the other PS2 sources are
+  merged. Patch lines outside a group (PCSX2 applies them always) are never
+  imported. A group identical to one already present is not repeated.
 
 ## Sources
 
-| Source | Revision | Engines | Entries | Licence note |
-| --- | --- | --- | ---: | --- |
-| [HamletDuFromage/switch-cheats-db](https://github.com/HamletDuFromage/switch-cheats-db) (mirror of GBAtemp and ChanseyIsTheBest/NX-60FPS-RES-GFX-Cheats) | `109766ab21c7` | MeloNX | 40,860 programs, 2,475 titles | No licence file; community codes; every author credit kept (Credits in the Cheats tab) |
-| [RPCS3 game patches](https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) via the official patch API (`rpcs3.net/compatibility?patch&api=v1&v=1.2`) | content SHA-256 `f1f3cab0c8fe…` | RPCS3 | 3,523 entries, 964 serials | Distributed by the RPCS3 project to its own patch manager; per-patch Author and Notes kept |
-| [PCSX2/pcsx2_patches](https://github.com/PCSX2/pcsx2_patches) | `ba8ef4f42c35` | ARMSX2 | 6,849 entries, 4,405 serials | No licence file; the set PCSX2 (GPL-3.0) and ARMSX2's bundled patches.zip ship; `author=` kept |
-| [Dolphin Sys/GameSettings](https://github.com/OatmealDome/dolphin-ios/tree/7cac54161659421ed95c2cd1c0b0746539a4cd38/Data/Sys/GameSettings) (the embedded engine's revision) | `7cac54161659` | Dolphin | 240 entries | GPL-2.0-or-later; only names are referenced, the bodies ship with the engine |
-
+17 pinned sources, 57,841 entries (catalogue revision `2026-10-28.f5ee4d557b15`).
 Per-category totals are in `native/enhancements/catalogue/VALIDATION.json`.
 
-- **Sources researched and not integrated:**
-  - `theboy181/switch-ptchtxt-mods`: unstructured RAR archives and no
-    licence.
-  - Switch `.pchtxt`/IPS exefs patch collections in general: no structured
-    pinned export was found. MeloNX could load them, but the 60 FPS and
-    resolution codes reach MeloNX here as Atmosphere cheats.
-  - The existing `docs/CHEAT_CATALOG_SOURCES.md` lists the sources of the
-    unified cheat catalogue.
-- **Rights to establish.** Two sources have no licence file
-  (switch-cheats-db and pcsx2_patches), and the RPCS3 wiki licence is not
-  stated by its API. The catalogue is published for on-demand download only;
-  the IPA carries the index, not the codes. The maintainer should confirm
-  these rights before any public release (`NOTICE.md`).
-- **No commercial content.** The catalogue contains no game, BIOS, firmware
-  or key. Inputs are code text and patch metadata only.
+| Engine | Source | Revision | Entries | Licence |
+| --- | --- | --- | ---: | --- |
+| MeloNX | [HamletDuFromage/switch-cheats-db](https://github.com/HamletDuFromage/switch-cheats-db) (GBAtemp main cheat file and ChanseyIsTheBest 60 FPS/resolution/graphics) | `109766ab21c7` | 36,980 | none (see Rights) |
+| MeloNX | [exefer/gbatemp-matias3ds-cheats](https://github.com/exefer/gbatemp-matias3ds-cheats) (GBAtemp request thread) | `ca85a7c9a309` | 1,170 | compilation MIT; codes by their authors |
+| MeloNX | [blawar/titledb `cheats.json`](https://github.com/blawar/titledb) | `d424690446ee` | 6,639 | repository MIT; codes uncredited |
+| MeloNX | [KeatonTheBot/switch-pchtxt-mods](https://github.com/KeatonTheBot/switch-pchtxt-mods) (exefs) | `81e79b555056` | 213 | none |
+| MeloNX | [Fl4sh9174/Switch-Ultrawide-Mods](https://github.com/Fl4sh9174/Switch-Ultrawide-Mods) (exefs, exefs-only mods) | `76fc6ac3e577` | 668 | none |
+| RPCS3 | [RPCS3 game patches](https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) via `rpcs3.net/compatibility?patch&api=v1&v=1.2` | content `f1f3cab0c8fe…` | 3,643 | CC BY-SA 4.0 (to confirm) |
+| ARMSX2 | [PCSX2/pcsx2_patches](https://github.com/PCSX2/pcsx2_patches) | `ba8ef4f42c35` | 6,849 | none |
+| ARMSX2 | [Gabominated/PCSX2](https://github.com/Gabominated/PCSX2) | `24eaa108d39a` | 855 | none |
+| ARMSX2 | [PeterDelta/PCSX2](https://github.com/PeterDelta/PCSX2) (`patches/`) | `1ad26ca29667` | 392 | none |
+| ARMSX2 | [CookiePLMonster/Console-Cheat-Codes](https://github.com/CookiePLMonster/Console-Cheat-Codes) (PS2) | `26e407a754e0` | 42 | MIT |
+| ARMSX2 | [AeroWidescreen/PCSX2-Cheats](https://github.com/AeroWidescreen/PCSX2-Cheats) | `ab043ba5adb9` | 52 | MIT |
+| Dolphin | [dolphin-ios Sys/GameSettings](https://github.com/OatmealDome/dolphin-ios/tree/7cac54161659421ed95c2cd1c0b0746539a4cd38/Data/Sys/GameSettings) (the engine's own codes, names only) | `7cac54161659` | 240 | GPL-2.0+ |
+| Dolphin | [dolphin-emu/dolphin](https://github.com/dolphin-emu/dolphin) GameSettings (newer codes, with bodies) | `3eb30c7620b4` | 36 | GPL-2.0+ |
+| Dolphin | [Tinob/Ishiiruka](https://github.com/Tinob/Ishiiruka) GameSettings | `cba6d7279b44` | 15 | GPL-2.0+ |
+| Dolphin | [project-slippi/Ishiiruka](https://github.com/project-slippi/Ishiiruka) GameSettings | `d6779e03dcfd` | 1 | GPL-2.0+ |
+| Dolphin | [MarioPartyNetplay/Dolphin-MPN](https://github.com/MarioPartyNetplay/Dolphin-MPN) GameSettings | `cb414b1d6521` | 9 | GPL-2.0+ |
+| Dolphin | [Admentus64/Enhancement-Codes](https://github.com/Admentus64/Enhancement-Codes) (GameCube discs) | `f8e9ad12d904` | 37 | GPL-3.0 |
+
+Engines' entry totals:
+
+| Engine | Games | Entries | Cheats | FPS | Ultrawide | Graphics | Performance |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| MeloNX | 2,578 | 45,670 | 30,231 | 1,599 | 247 | 13,452 | 141 |
+| RPCS3 | 964 | 3,643 | 1,592 | 643 | 694 | 702 | 12 |
+| ARMSX2 | 4,537 | 8,190 | 791 | 1,556 | 4,822 | 1,011 | 10 |
+| Dolphin | 282 files | 338 | — | 62 | 216 | 33 | 27 |
+
+Not integrated after research (28 October 2026):
+
+- **Rights:**
+  - StevensND/switch-port-mods and ue4-emuswitch-60fps: the author forbids
+    reuploads.
+  - theboy181/switch-ptchtxt-mods and MaxLastBreath/TOTK-mods (UltraCam):
+    CC BY-NC.
+- **Format:**
+  - masagrator/FPSLocker-Warehouse needs the SaltySD FPSLocker runtime.
+  - NetherSX2 and the PCSX2 1.6 `cheats_ws.zip` have unlabelled,
+    CRC-only files.
+  - igorciz777 configurable tweaks need its generator.
+- **Keying:** the Dolphin Wiki codes (CC BY-SA 3.0, ≈285 new) only infer the
+  game ID from the page title.
+- **Redundant:**
+  - ibnux/switch-cheat, tomvita/NXCheatCode, EdiZon and LordApple add
+    nothing beyond titledb + matias.
+  - codes.rc24.xyz is identical to GeckoArchive.
+  - The illusion0001 mirror equals the official patch.yml.
+  - Small RPCS3 repos add only gameplay patches.
+- **No engine:** Flycast widescreen tables (no Dreamcast core).
+- **Unified cheat catalogue (in-game menu):** PSP CWCheat+ (2,519 FPS and
+  widescreen programs) and DuckStation `patches/` (PS1, 128 new) are
+  libretro-core content. Their FPS and widescreen programs reach players
+  through the existing in-game cheat menu, not this page (see Limitations).
+
+## Rights
+
+The rights review of 28 October 2026 found the following. Each verdict was
+challenged by two independent checks, which could not refute it. The
+evidence was read from the repositories, their git history and READMEs, and
+the RPCS3 API and server code.
+
+- **RPCS3 game patches.**
+  - The data comes from RPCS3 Wiki pages (`AniLeo/rpcs3-compatibility`
+    parses `{{patch` templates).
+  - The wiki's General disclaimer and footer state CC BY-SA 4.0. This is
+    seen through the search index only: Cloudflare blocks automated reads.
+  - RewindBox credits the RPCS3 Wiki contributors and every Author, and
+    states its changes. The adapted RPCS3 entries in this repository are
+    distributed under CC BY-SA 4.0, and the codes are not inside the IPA.
+  - **The maintainer must confirm the footer in a browser** and archive it
+    under `docs/licenses/`.
+- **pcsx2_patches, Gabominated, PeterDelta.**
+  - These sources have no licence, so all rights stay with their authors.
+    Third-party redistribution (ARMSX2, Gentoo) has been tolerated without
+    known objection; that is not a grant.
+  - Every `author=` line and every comment credit is kept verbatim inside
+    the installed pnach.
+  - The MIT notices of CookiePLMonster and ThirteenAG upstreams are in
+    `NOTICE.md`.
+- **Switch cheats (switch-cheats-db, matias, titledb).**
+  - These sources have no licence for the codes.
+  - **194 titles carry explicit author restrictions** ("Exclusive to
+    GBAtemp", "Spreading codes outside of GBAtemp is prohibited!", "Please
+    don't reprint them outside of GBAtemp", "Do not repost"). They are
+    excluded from every Switch cheat source, failing closed.
+  - Credits are kept whole (notices included, up to 64 lines of 2,000
+    characters per title).
+  - The remainder is published with permission pending.
+- **Exefs mods (KeatonTheBot, Fl4sh9174).** These have no licence and no
+  prohibition. The authors are credited in the source entry.
+- **Removal on request.** Any author can ask for removal at
+  https://github.com/TarbleFR/RewindBox/issues.
+- **Before a public release**, the maintainer should:
+  - confirm the RPCS3 licence;
+  - consider asking HamletDuFromage, ChanseyIsTheBest, Gabominated,
+    PeterDelta, KeatonTheBot and Fl4sh9174 for written permission.
+
+No game, BIOS, firmware or key is part of the catalogue.
 
 ## Regeneration and validation
 
@@ -194,7 +283,8 @@ Checks run in this change:
   - Dolphin entries off by default;
   - source attribution;
   - category rules.
-- `flutter test`, 51 tests in total:
+- `flutter test`, 64 tests in total (the 28 October expansion added exefs
+  mods, merged pnach sources, Dolphin code bodies and duplicate PPU keys):
   - `test/enhancement_catalog_test.dart`: download once, cache, a tampered
     shard rejected, a damaged cache refetched, index refresh accepted or
     refused;
@@ -227,6 +317,9 @@ Not done here:
 
 ## Limitations
 
+- **Libretro cores (PSP, PS1, N64…).** Their FPS and widescreen cheats
+  (CWCheat+, DuckStation) stay in the unified cheat catalogue of the in-game
+  menu. The page has no Libretro adapter yet.
 - **MeloNX.** Without an engine rebuild the installed game's Build ID is not
   known before launch. Every build's codes are installed and the engine
   keeps only the matching file, so an entry can be Active and still not

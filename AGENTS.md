@@ -38,6 +38,18 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `storage_contract_test.py` and the `build486/492` targeted runners need
   history absent from a shallow clone and are identical before this change.
   No device test, no IPA, no CI run, no release.
+- Same day, second pass (rights review + expansion, `docs/ENHANCEMENTS.md`
+  "Sources"/"Rights"): 17 pinned sources, 57,841 entries. 194 Switch titles
+  whose authors restrict distribution are excluded from every Switch cheat
+  source (fail closed, `RESTRICTED` in the builder); RPCS3 data declared
+  CC BY-SA 4.0 (browser confirmation pending); NOTICE.md lists every source.
+  Added: gbatemp-matias3ds and titledb Atmosphere cheats, KeatonTheBot and
+  Fl4sh9174 exefs `.pchtxt` mods (MeloNX adapter writes
+  `RewindBox/exefs/` while on), Gabominated, PeterDelta, CookiePLMonster and
+  AeroWidescreen pnach groups merged into one SERIAL_CRC file, upstream
+  Dolphin/Ishiiruka/Slippi/MPN/Admentus64 codes written with their bodies,
+  RPCS3 duplicate PPU keys merged as yaml-cpp does. 64 Dart tests and the
+  data test pass; no device test, no IPA, no CI.
 - Rights to confirm before a public release: switch-cheats-db and
   pcsx2_patches have no licence file; the RPCS3 wiki data licence is not
   stated by its API (`NOTICE.md`).

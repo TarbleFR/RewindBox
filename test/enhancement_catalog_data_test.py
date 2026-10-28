@@ -64,7 +64,9 @@ class CatalogueData(unittest.TestCase):
                 self.assertTrue(all(cat in ('cheat', 'fps', 'ultrawide', 'graphics', 'performance') for cat in counts))
 
     def test_melonx_files_parse_unchanged_in_ryujinx(self):
-        count = 0
+        count = exefs = 0
+        restricted = set(json.loads((CATALOGUE / 'VALIDATION.json').read_text())['rejections']['melonx_restricted_titles'])
+        self.assertGreater(len(restricted), 100, 'author-restricted titles are detected')
         for title, record in self.records('melonx'):
             self.assertRegex(title, r'^0100[0-9A-F]{12}$')
             # Collections keep one directory per sub-program (+1..+15): the adapter maps them.
@@ -72,7 +74,20 @@ class CatalogueData(unittest.TestCase):
                 self.assertRegex(build, r'^[0-9A-F]{16}$')
                 self.assertTrue(all(SWITCH_LINE.match(l) for l in lines))
             names = set()
+            cheat_entries = [e for e in record['entries'] if 'exefs' not in e]
+            if cheat_entries:
+                self.assertNotIn(title, restricted, 'no code of an author-restricted title is published')
             for entry in record['entries']:
+                if 'exefs' in entry:
+                    exefs += 1
+                    self.assertTrue(entry['exefs'])
+                    for patch in entry['exefs']:
+                        # Ryujinx reads the header on the first line and compares it,
+                        # case-sensitively, to the upper-case hex Build ID.
+                        self.assertRegex(patch['text'].split('\n', 1)[0], r'^@nsobid-[0-9A-F]{32,64}$')
+                        self.assertEqual(patch['text'].split('\n', 1)[0][8:], patch['bid'])
+                        self.assertGreaterEqual(len(patch['bid'].rstrip('0')), 32)
+                    continue
                 count += 1
                 self.assertFalse(UNSAFE_SWITCH_NAME.search(entry['name']), entry['name'])
                 self.assertEqual(entry['name'], entry['name'].strip())
@@ -81,7 +96,8 @@ class CatalogueData(unittest.TestCase):
                 for build, lines in entry['builds'].items():
                     self.assertRegex(build, r'^[0-9A-F]{16}$')
                     self.assertTrue(lines and all(SWITCH_LINE.match(l) for l in lines), entry['name'])
-        self.assertGreater(count, 30000)
+        self.assertGreater(count, 40000)
+        self.assertGreater(exefs, 500)
 
     def test_rpcs3_records_stay_inside_the_bridge_whitelist(self):
         count = 0
@@ -124,10 +140,25 @@ class CatalogueData(unittest.TestCase):
                 self.assertNotIn(entry['name'], record['defaults'].get(entry['kind'], []))
                 if entry['kind'] == 'gecko':
                     self.assertNotIn('[', entry['name'], 'Gecko names exclude the creator')
+                if 'body' in entry:
+                    pattern = (r'^0x[0-9A-Fa-f]{8}:(byte|word|dword):0x[0-9A-Fa-f]{1,8}$' if entry['kind'] == 'onframe'
+                               else r'^[0-9A-F]{8} [0-9A-F]{8}$')
+                    self.assertTrue(all(re.match(pattern, line) for line in entry['body']), entry['name'])
+                    self.assertNotEqual(entry['source'], 'dolphin-gamesettings', 'engine codes ship without a body')
 
     def test_sources_carry_attribution(self):
         sources = {s['id']: s for s in self.index['sources']}
-        self.assertEqual(set(sources), {'switch-cheats-db', 'rpcs3-patches', 'pcsx2-patches', 'dolphin-gamesettings'})
+        self.assertEqual(set(sources), {
+            'switch-cheats-db', 'gbatemp-matias3ds', 'titledb-cheats', 'keatonthebot-pchtxt', 'fl4sh-ultrawide',
+            'rpcs3-patches',
+            'pcsx2-patches', 'gabominated-pcsx2', 'peterdelta-pcsx2', 'cookieplmonster-ccc', 'aerowidescreen-pcsx2',
+            'dolphin-gamesettings', 'dolphin-upstream', 'ishiiruka-gamesettings', 'slippi-gamesettings',
+            'mpn-gamesettings', 'admentus-enhancement-codes'})
+        used = set()
+        for engine in ('melonx', 'rpcs3', 'armsx2', 'dolphin'):
+            for _, record in self.records(engine):
+                used.update(entry['source'] for entry in record['entries'])
+        self.assertEqual(used, set(sources), 'every declared source contributes and none is undeclared')
         for source in sources.values():
             self.assertTrue(source['license'] and source['url'].startswith('https://') and source['revision'])
 

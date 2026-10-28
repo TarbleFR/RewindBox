@@ -77,6 +77,43 @@ class IniDocument {
     return true;
   }
 
+  /// Appends a code block (`$name` header and its lines) to [section].
+  void addBlock(String section, List<String> block) {
+    final range = _range(section);
+    if (range == null) {
+      if (_lines.isNotEmpty && _lines.last.trim().isNotEmpty) _lines.add('');
+      _lines
+        ..add('[$section]')
+        ..addAll(block);
+      return;
+    }
+    var insert = range.$2;
+    while (insert > range.$1 && _lines[insert - 1].trim().isEmpty) {
+      insert--;
+    }
+    _lines.insertAll(insert, block);
+  }
+
+  /// Removes the code block whose header line is [header]: the header and
+  /// every following line up to the next `$` header of [section].
+  bool removeBlock(String section, String header) {
+    final range = _range(section);
+    if (range == null) return false;
+    for (var i = range.$1; i < range.$2; i++) {
+      if (_lines[i].trim() != header.trim()) continue;
+      var end = i + 1;
+      while (end < range.$2 && !_lines[end].trim().startsWith(r'$')) {
+        end++;
+      }
+      while (end > i + 1 && _lines[end - 1].trim().isEmpty) {
+        end--;
+      }
+      _lines.removeRange(i, end);
+      return true;
+    }
+    return false;
+  }
+
   /// Removes body lines of [section] equal to [line] after trimming.
   int removeLine(String section, String line) =>
       removeWhere(section, (candidate) => candidate == line.trim());

@@ -85,24 +85,77 @@ Credits are not a clearance of these findings. Verified upstream cheat
 notices supplement the frozen catalogue metadata and are archived under
 docs/licenses/cheats/. This documentation does not change existing IPAs.
 
-CHEATS & ENHANCEMENTS CATALOGUE — 28 OCTOBER 2026
+CHEATS & ENHANCEMENTS CATALOGUE — 28 OCTOBER 2026 (RIGHTS REVIEWED)
 
 docs/ENHANCEMENTS.md and native/enhancements/catalogue/. The IPA bundles only
-the catalogue index; code entries are downloaded on demand per game. Sources,
-pinned, with every author credit they carry kept in the entries:
+the catalogue index (titles and counts); code entries are downloaded on demand
+per game from the RewindBox repository. No game, BIOS, firmware or key is
+included. Rights review of 28 October 2026 (findings and evidence in
+docs/ENHANCEMENTS.md, "Rights"). These notes are not a clearance. Authors who
+want their entries removed or credited differently can open an issue at
+https://github.com/TarbleFR/RewindBox/issues; entries are removed promptly.
+
+Licensed sources
+- RPCS3 game patches — content of the RPCS3 Wiki
+  (https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) by the RPCS3 Wiki
+  contributors; per-patch authors are credited in each entry. Obtained through
+  https://rpcs3.net/compatibility?patch&api=v1&v=1.2, patch.yml 1.2, content
+  SHA-256 f1f3cab0c8fee21c30ef69789d79468e2c69a4f52583e53e4392a1cf97791486.
+  Licensed under Creative Commons Attribution-ShareAlike 4.0 International
+  (https://creativecommons.org/licenses/by-sa/4.0/), per the wiki's General
+  disclaimer as indexed; the maintainer must confirm the footer in a browser
+  (Cloudflare blocks automated reads). Changes: converted to RewindBox JSON,
+  anchors flattened, configurable values turned into fixed choices, filtered.
+  The adapted RPCS3 entries in native/enhancements/catalogue/ are distributed
+  under CC BY-SA 4.0. RPCS3 is a trademark of its owners; no affiliation.
+- CookiePLMonster/Console-Cheat-Codes 26e407a754e0a2b2c73f55ad4f9261b32cfb42cd:
+  MIT, Copyright (c) 2020-2023 Adrian Zdanowicz (Silent).
+- AeroWidescreen/PCSX2-Cheats ab043ba5adb9e65837fd451d207e6c7c2731c3b1:
+  MIT, Copyright (c) 2023 Aero_.
+- Some pcsx2_patches entries cite MIT upstreams in their comments, kept
+  verbatim: CookiePLMonster/Console-Cheat-Codes (MIT, (c) 2020-2023 Adrian
+  Zdanowicz) and ThirteenAG/WidescreenFixesPack (MIT, (c) 2018 ThirteenAG).
+- Dolphin GameSettings, GPL-2.0-or-later: OatmealDome/dolphin-ios
+  7cac54161659421ed95c2cd1c0b0746539a4cd38 (names only, bodies ship with the
+  engine); dolphin-emu/dolphin 3eb30c7620b4475b2e0404228ba0d2b238a132f1;
+  Tinob/Ishiiruka cba6d7279b44894297d8c1dde1effdbba3605c32;
+  project-slippi/Ishiiruka d6779e03dcfd8dab4bb9b6634eb8f9b393c9d195;
+  MarioPartyNetplay/Dolphin-MPN cb414b1d65213869928ccb2b6fd0d2406d04bfe0.
+  Code credits ([Ralf], [gamemasterplc]...) are kept in each label.
+- Admentus64/Enhancement-Codes f8e9ad12d90460e316b552fdf73052eb308e9ab9:
+  GPL-3.0 (GameCube disc files only).
+
+Sources without a licence (all rights stay with their authors; RewindBox does
+not relicense them, keeps every credit they carry and removes entries on
+request; redistribution relies on community tolerance, not on a grant)
+- PCSX2/pcsx2_patches ba8ef4f42c353d8ee44d572f8111b10db54a3f0b: patches by the
+  authors named in author= and comment lines (Arapapa, PeterDelta, ElHecht,
+  Gabominated, nemesis2000, El_Patas, asasega, Silent and others; files
+  without author= are credited to the pcsx2_patches contributors). The set
+  PCSX2 and ARMSX2 distribute as patches.zip; neither licenses the data.
+- Gabominated/PCSX2 24eaa108d39a63aec5d53e19b4962bb239f145ef and
+  PeterDelta/PCSX2 1ad26ca29667ea29cd96989f77ed323c233f939a: pnach groups by
+  their authors, merged with a source comment naming the repository.
 - HamletDuFromage/switch-cheats-db 109766ab21c784150287c83ff85c02ab9512dccb
-  (mirror of GBAtemp contributors and ChanseyIsTheBest/NX-60FPS-RES-GFX-Cheats).
-  No licence file: permission status not established.
-- RPCS3 game patches (wiki.rpcs3.net) through the RPCS3 patch API, patch.yml
-  1.2 content SHA-256 f1f3cab0c8fee21c30ef69789d79468e2c69a4f52583e53e4392a1cf97791486.
-  Licence of the wiki data not stated by the API: to confirm.
-- PCSX2/pcsx2_patches ba8ef4f42c353d8ee44d572f8111b10db54a3f0b, the patch set
-  distributed with PCSX2 (GPL-3.0) and ARMSX2. No licence file in the repository.
-- Dolphin Data/Sys/GameSettings of OatmealDome/dolphin-ios
-  7cac54161659421ed95c2cd1c0b0746539a4cd38, GPL-2.0-or-later; only code names
-  are referenced, the bodies are those already shipped with the engine.
-These notes are not a clearance; confirm the open permissions before any
-public release. No game, BIOS, firmware or key is included.
+  (mirror of the GBAtemp "Cheat codes SXOS and AMS main cheat file" and of
+  ChanseyIsTheBest/NX-60FPS-RES-GFX-Cheats), exefer/gbatemp-matias3ds-cheats
+  ca85a7c9a30983a9084ba49866369a67f3d152a5 (compilation MIT (c) 2026 exefer;
+  "All rights belong to the original cheat authors") and blawar/titledb
+  cheats.json d424690446eec6f4484209b9a1c067c7f7511398 (repository MIT (c) 2019
+  Blake Warner). Every title whose authors restrict distribution ("Exclusive
+  to GBAtemp", "Spreading codes outside of GBAtemp is prohibited!", "Please
+  don't reprint them outside of GBAtemp", "Do not repost") is excluded from
+  every Switch cheat source: 194 titles, listed in VALIDATION.json.
+- KeatonTheBot/switch-pchtxt-mods 81e79b55505648ff20fd9c0ed4540d5634c60f0e and
+  Fl4sh9174/Switch-Ultrawide-Mods 76fc6ac3e5776ed41d8b6724c7141f46b74a6617:
+  exefs patches by their authors (exefs-only mods; romfs game assets are
+  never taken).
+
+Researched and not integrated: StevensND/switch-port-mods and
+ue4-emuswitch-60fps (author forbids reuploads), theboy181/switch-ptchtxt-mods
+and UltraCam (CC BY-NC), masagrator/FPSLocker-Warehouse (needs its own
+runtime), Dolphin Wiki codes (game ID only inferred), codes.rc24.xyz (same
+content as GeckoArchive).
 
 RGPAD 1.5 overlay: DJM; Libretro common-overlays collection, CC BY 4.0.
 Original input:

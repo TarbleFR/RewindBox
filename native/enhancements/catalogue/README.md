@@ -11,8 +11,11 @@ hand. Documentation: [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md).
   on demand for one game and verified against the index before use.
 - `VALIDATION.json` — totals and the inputs the builder rejected.
 
-Sources (pinned): HamletDuFromage/switch-cheats-db `109766ab21c7`, RPCS3 game
-patches (patch.yml 1.2, content SHA-256 `f1f3cab0c8fe…`), PCSX2/pcsx2_patches
-`ba8ef4f42c35`, Dolphin Sys/GameSettings of dolphin-ios `7cac54161659`. All
-author credits present in the sources are kept in the entries. No game, BIOS,
-firmware or key is part of this catalogue.
+Sources (pinned): 17, listed with revisions and licences in `index.json.gz`
+(`sources`), in [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md) and in
+`NOTICE.md`. The adapted RPCS3 entries are distributed under CC BY-SA 4.0
+(RPCS3 Wiki contributors). Entries from sources without a licence remain the
+work of the authors credited in them; they are removed on request
+(https://github.com/TarbleFR/RewindBox/issues). Titles whose authors restrict
+distribution are excluded (`VALIDATION.json`, `melonx_restricted_titles`). No
+game, BIOS, firmware or key is part of this catalogue.

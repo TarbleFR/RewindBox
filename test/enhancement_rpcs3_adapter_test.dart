@@ -80,6 +80,14 @@ void main() {
     expect(records.where((record) => record['enabled'] == true).map((r) => r['entry']).toSet(), {fps.id});
   });
 
+  test('a PPU hash listed twice in patch.yml keeps the patches of both blocks', () async {
+    installedVersion = '02.11';
+    final gt5 = testGame(name: 'Gran Turismo 5', romPath: '/rpcs3/BCUS98114', titleId: 'BCUS98114');
+    final view = await service.open(gt5, 'ps3', download: true);
+    final names = view.items.where((item) => item.canActivate).map((item) => item.name).toSet();
+    expect(names, containsAll(['Unlock FPS', 'Use 2x MSAA in 720p Mode']));
+  });
+
   test('aspect-ratio choices are exclusive', () async {
     var view = await service.open(game, 'ps3', download: true);
     final choices = view.items.where((item) => item.name.startsWith('Aspect Ratio — ')).toList();

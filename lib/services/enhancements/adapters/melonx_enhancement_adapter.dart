@@ -173,6 +173,19 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
   static bool _safeName(String name) =>
       name.trim().isNotEmpty && name.trim() == name && !_unsafeName.hasMatch(name);
 
+  static final _nsobid = RegExp(r'^@nsobid-([0-9A-F]{32,64})\n');
+
+  /// IPSwitch patches of an exefs entry: Ryujinx reads the `@nsobid-` header
+  /// on the first line and applies the file only to that executable.
+  static List<({String bid, String text})> _exefs(Map<String, dynamic> entry) => [
+    for (final patch in (entry['exefs'] as List? ?? const []))
+      if (patch is Map &&
+          patch['text'] is String &&
+          _nsobid.firstMatch(patch['text'] as String)?.group(1) == patch['bid'] &&
+          (patch['text'] as String).length <= 64 * 1024)
+        (bid: patch['bid'] as String, text: patch['text'] as String),
+  ];
+
   @override
   List<EnhancementItem> items(
     EnhancementGameIdentity identity,
@@ -184,8 +197,32 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       final id = entry['id']?.toString() ?? '';
       final name = entry['name']?.toString() ?? '';
       final category = EnhancementCategory.parse(entry['cat']?.toString());
+      if (id.isEmpty || category == null) continue;
+      final patches = _exefs(entry);
+      if (patches.isNotEmpty) {
+        // Exefs mods are written only while active: no installed state.
+        final bids = [for (final patch in patches) patch.bid.substring(0, 16)]..sort();
+        items.add(
+          EnhancementItem(
+            id: id,
+            engine: engine,
+            category: category,
+            name: name,
+            sourceId: entry['source']?.toString() ?? '',
+            status: state?.active.contains(id) == true
+                ? EnhancementStatus.active
+                : EnhancementStatus.available,
+            compatibility:
+                'Title ID ${entry['program'] ?? identity.key} · exefs Build ID ${bids.join(', ')}',
+            version: '${bids.length}',
+            exclusiveGroup: entry['group']?.toString() ?? '',
+            payload: {'builds': bids, 'exefs': true},
+          ),
+        );
+        continue;
+      }
       final builds = _builds(entry);
-      if (id.isEmpty || !_safeName(name) || category == null || builds.isEmpty) continue;
+      if (!_safeName(name) || builds.isEmpty) continue;
       final buildList = builds.keys.toList()..sort();
       items.add(
         EnhancementItem(
@@ -198,6 +235,7 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
           compatibility:
               'Title ID ${entry['program'] ?? identity.key} · Build ID ${buildList.join(', ')}',
           version: '${buildList.length}',
+          exclusiveGroup: entry['group']?.toString() ?? '',
           payload: {'builds': buildList},
         ),
       );
@@ -293,6 +331,8 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
   ) async {
     final titleDirectory = await _titleDirectory(program);
     final cheatsDirectory = Directory(path.join(titleDirectory.path, modName, 'cheats'));
+    final exefsDirectory = Directory(path.join(titleDirectory.path, modName, 'exefs'));
+    final exefsFiles = <String, String>{};
     final masters = <String, List<String>>{};
     if (rawMasters is Map) {
       for (final master in rawMasters.entries) {
@@ -314,7 +354,17 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
     for (final entry in entries) {
       final id = entry['id']?.toString() ?? '';
       final name = entry['name']?.toString() ?? '';
-      if (id.isEmpty || !_safeName(name)) continue;
+      if (id.isEmpty) continue;
+      final patches = _exefs(entry);
+      if (patches.isNotEmpty) {
+        if (active.contains(id)) {
+          for (var index = 0; index < patches.length; index++) {
+            exefsFiles[path.join(exefsDirectory.path, '$id-$index.pchtxt')] = patches[index].text;
+          }
+        }
+        continue;
+      }
+      if (!_safeName(name)) continue;
       for (final build in _builds(entry).entries) {
         final buffer = perBuild.putIfAbsent(build.key, () {
           final header = StringBuffer();
@@ -348,6 +398,7 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       files: {
         for (final build in perBuild.entries)
           path.join(cheatsDirectory.path, '${build.key}.txt'): build.value.toString(),
+        ...exefsFiles,
       },
       all: allKeys,
       active: activeKeys,
@@ -469,6 +520,10 @@ class MelonxEnhancementAdapter extends EnhancementAdapter {
       }
       await EnhancementFiles.deleteEmptyParents(
         Directory(path.join(titleDirectory.path, modName, 'cheats')),
+        contents,
+      );
+      await EnhancementFiles.deleteEmptyParents(
+        Directory(path.join(titleDirectory.path, modName, 'exefs')),
         contents,
       );
       await EnhancementFiles.deleteEmptyParents(Directory(path.join(titleDirectory.path, 'cheats')), contents);

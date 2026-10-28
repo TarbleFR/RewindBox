@@ -106,6 +106,7 @@ class Armsx2EnhancementAdapter extends EnhancementAdapter {
           description: entry['description']?.toString() ?? '',
           author: entry['author']?.toString() ?? '',
           compatibility: '${identity.key} · CRC $crc',
+          exclusiveGroup: entry['group']?.toString() ?? '',
           payload: {'crc': crc},
         ),
       );

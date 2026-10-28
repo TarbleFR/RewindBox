@@ -86,6 +86,10 @@ class DolphinEnhancementAdapter extends EnhancementAdapter {
     );
   }
 
+  /// The name Dolphin matches in `_Enabled` lists: Gecko drops its [creator].
+  static String codeName(String section, String label) =>
+      section == 'Gecko' ? label.split('[').first.trim() : label.trim();
+
   /// The disc revision byte of the image header when the container keeps a
   /// plain copy of it; null for compressed layouts (GCZ) and unknown files.
   static Future<int?> discRevision(String imagePath, String gameId) async {
@@ -184,9 +188,12 @@ class DolphinEnhancementAdapter extends EnhancementAdapter {
       final name = entry['name']?.toString() ?? '';
       final category = EnhancementCategory.parse(entry['cat']?.toString());
       if (id.isEmpty || name.isEmpty || category == null) continue;
+      final shipped = entry['body'] is! List;
       final status = state?.active.contains(id) == true
           ? EnhancementStatus.active
-          : EnhancementStatus.installed; // the body ships with the engine
+          : shipped
+          ? EnhancementStatus.installed // the body ships with the engine
+          : EnhancementStatus.available; // written into the user INI when on
       items.add(
         EnhancementItem(
           id: id,
@@ -195,10 +202,14 @@ class DolphinEnhancementAdapter extends EnhancementAdapter {
           name: name,
           sourceId: entry['source']?.toString() ?? '',
           status: status,
-          description: entry['label']?.toString() ?? '',
+          description: [
+            entry['label']?.toString() ?? '',
+            entry['notes']?.toString() ?? '',
+          ].where((text) => text.isNotEmpty).join(' — '),
           compatibility:
               '${identity.key}${identity.revision == null ? '' : ' rev ${identity.revision}'} · '
               '${sections[entry['kind']]}',
+          exclusiveGroup: entry['group']?.toString() ?? '',
           payload: {'kind': entry['kind']},
         ),
       );
@@ -262,12 +273,42 @@ class DolphinEnhancementAdapter extends EnhancementAdapter {
         if (item is Map) Map<String, dynamic>.from(item),
     ];
     final wanted = <String, (String, String)>{};
+    final blocks = <String, (String, List<String>)>{};
     for (final entry in _entries(record)) {
       if (active.contains(entry['id'])) {
         final section = sections[entry['kind']]!;
         wanted['$section\u001f${entry['name']}'] = (section, entry['name'].toString());
+        final body = entry['body'];
+        if (body is List && body.isNotEmpty) {
+          final notes = entry['notes']?.toString() ?? '';
+          blocks['$section\u001f\$${entry['label'] ?? entry['name']}'] = (section, [
+            '\$${entry['label'] ?? entry['name']}',
+            for (final line in body) line.toString(),
+            if (entry['kind'] == 'gecko' && notes.isNotEmpty) '*$notes',
+          ]);
+        }
       }
     }
+    // Code bodies the engine does not ship: written while on, removed when off.
+    final written = {for (final key in (state.data['codes'] as List? ?? const [])) key.toString()};
+    for (final key in written.difference(blocks.keys.toSet())) {
+      final parts = key.split('\u001f');
+      ini.removeBlock(parts[0], parts[1]);
+    }
+    written.removeWhere((key) => !blocks.containsKey(key));
+    for (final block in blocks.entries) {
+      final (section, lines) = block.value;
+      if (written.contains(block.key)) continue;
+      final name = DolphinEnhancementAdapter.codeName(section, lines.first.substring(1));
+      final present = ini
+          .lines(section)
+          .where((line) => line.startsWith(r'$'))
+          .any((line) => DolphinEnhancementAdapter.codeName(section, line.substring(1)) == name);
+      if (present) continue; // a code of the player's with that name stays theirs
+      ini.addBlock(section, lines);
+      written.add(block.key);
+    }
+    state.data['codes'] = written.toList()..sort();
     for (final key in ours.difference(wanted.keys.toSet())) {
       final parts = key.split('\u001f');
       ini.removeLine('${parts[0]}_Enabled', '\$${parts[1]}');
@@ -291,7 +332,9 @@ class DolphinEnhancementAdapter extends EnhancementAdapter {
         }
       }
     }
-    ini.dropEmptySections([for (final section in sections.values) '${section}_Enabled']);
+    ini.dropEmptySections([
+      for (final section in sections.values) ...['${section}_Enabled', section],
+    ]);
     if (!existed) state.data['settingsCreated'] = true;
     if (ini.isBlank && state.data['settingsCreated'] == true) {
       if (await local.exists()) await local.delete();
@@ -330,7 +373,13 @@ class DolphinEnhancementAdapter extends EnhancementAdapter {
         final parts = key.toString().split('\u001f');
         if (parts.length == 2) ini.removeLine('${parts[0]}_Enabled', '\$${parts[1]}');
       }
-      ini.dropEmptySections([for (final section in sections.values) '${section}_Enabled']);
+      for (final key in (state.data['codes'] as List? ?? const [])) {
+        final parts = key.toString().split('\u001f');
+        if (parts.length == 2) ini.removeBlock(parts[0], parts[1]);
+      }
+      ini.dropEmptySections([
+        for (final section in sections.values) ...['${section}_Enabled', section],
+      ]);
       if (ini.isBlank && state.data['settingsCreated'] == true) {
         await local.delete();
       } else {

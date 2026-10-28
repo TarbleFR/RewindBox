@@ -65,6 +65,35 @@ void main() {
     expect(local().existsSync(), isFalse);
   });
 
+  test('a code the engine does not ship is written with its body, then removed', () async {
+    final upstream = EnhancementService(
+      catalog: repositoryCatalog(Directory(path.join(temp.path, 'cache'))),
+      store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
+      adapters: [
+        DolphinEnhancementAdapter(
+          userDirectory: () async => user,
+          nativeIdentity: (gamePath, system) async => {'system': system, 'gameId': 'GF7E01'},
+        ),
+      ],
+      texturesSupported: (_) => false,
+    );
+    final rom = File(path.join(temp.path, 'fzero.iso'))..writeAsBytesSync([0]);
+    final game = testGame(name: 'F-Zero GX', romPath: rom.path);
+    var view = await upstream.open(game, 'gc', download: true);
+    final fps = view.items.firstWhere((item) => item.name == '60 FPS');
+    expect(fps.status, EnhancementStatus.available, reason: 'the body is written only when on');
+    expect(fps.sourceId, 'dolphin-upstream');
+    view = await upstream.setActive(game, 'gc', view, fps, true);
+    final ini = File(path.join(user.path, 'GameSettings', 'GF7E01.ini')).readAsStringSync();
+    expect(ini, contains('[Gecko]\n\$60 FPS'));
+    expect(RegExp(r'^[0-9A-F]{8} [0-9A-F]{8}$', multiLine: true).hasMatch(ini), isTrue);
+    expect(ini, contains('[Gecko_Enabled]\n\$60 FPS'));
+
+    view = await upstream.setActive(game, 'gc', view, view.items.firstWhere((i) => i.id == fps.id), false);
+    expect(File(path.join(user.path, 'GameSettings', 'GF7E01.ini')).existsSync(), isFalse,
+        reason: 'the file RewindBox created holds nothing else');
+  });
+
   test('a code disabled in-game is lifted, then put back on restore', () async {
     final revision = File(path.join(user.path, 'GameSettings', '${_gameId}r0.ini'))
       ..createSync(recursive: true)

@@ -150,6 +150,23 @@ void main() {
       expect(settings().existsSync(), isFalse, reason: 'RewindBox created it');
     });
 
+    test('groups of other sources join the same pnach; ratio variants exclude each other', () async {
+      final game = testGame(name: 'Burnout 3', romPath: rom.path);
+      var view = await service.open(game, 'ps2', download: true);
+      final pcsx2 = view.items.firstWhere((item) => item.name == 'Widescreen 16:9');
+      final aero = view.items.firstWhere((item) => item.name == 'Widescreen 16:9 (Aero)');
+      expect(aero.sourceId, 'aerowidescreen-pcsx2');
+      expect(aero.exclusiveGroup, isNotEmpty);
+      expect(aero.exclusiveGroup, pcsx2.exclusiveGroup);
+      view = await service.setActive(game, 'ps2', view, pcsx2, true);
+      view = await service.setActive(game, 'ps2', view, view.items.firstWhere((i) => i.id == aero.id), true);
+      expect(settings().readAsStringSync(), '[Patches]\nEnable = Widescreen 16:9 (Aero)\n');
+      final text = pnach().readAsStringSync();
+      expect(text, contains('// --- RewindBox: from AeroWidescreen PCSX2-Cheats'));
+      expect(text, contains('[Widescreen 16:9 (Aero)]'));
+      expect(text, contains('[Widescreen 16:9]'), reason: 'the pcsx2_patches file stays whole');
+    });
+
     test('settings written by ARMSX2 keep their other lines', () async {
       settings()
         ..createSync(recursive: true)

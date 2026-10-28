@@ -170,6 +170,44 @@ void main() {
     expect(program.existsSync(), isFalse);
   });
 
+  test('an exefs mod is written only while on, header first, one display mod at a time', () async {
+    final crab = EnhancementService(
+      catalog: repositoryCatalog(Directory(path.join(temp.path, 'cache'))),
+      store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
+      adapters: [
+        MelonxEnhancementAdapter(
+          root: () async => root,
+          metadata: (_) async => {'titleId': '0100A21017C42000', 'version': '1.0.103.9'},
+        ),
+      ],
+      texturesSupported: (_) => false,
+    );
+    final game = testGame(name: "Another Crab's Treasure", romPath: '/Documents/MeloNX/act.nsp');
+    var view = await crab.open(game, 'switch', download: true);
+    final ultrawide = view.items.firstWhere((item) => item.name == '21.9 Ultrawide v1.0.103.9');
+    final fourK = view.items.firstWhere((item) => item.name == '4K');
+    expect(ultrawide.category, EnhancementCategory.ultrawide);
+    expect(ultrawide.status, EnhancementStatus.available);
+    expect(ultrawide.exclusiveGroup, fourK.exclusiveGroup, reason: 'both rewrite the render size');
+    final exefs = Directory(path.join(root.path, 'mods', 'contents', '0100a21017c42000', 'RewindBox', 'exefs'));
+
+    view = await crab.setActive(game, 'switch', view, ultrawide, true);
+    final files = exefs.listSync().whereType<File>().toList();
+    expect(files, isNotEmpty);
+    for (final file in files) {
+      expect(file.path, endsWith('.pchtxt'));
+      expect(file.readAsLinesSync().first, matches(RegExp(r'^@nsobid-[0-9A-F]{32,64}$')));
+    }
+
+    view = await crab.setActive(game, 'switch', view, view.items.firstWhere((i) => i.id == fourK.id), true);
+    expect(view.items.firstWhere((i) => i.id == ultrawide.id).status, EnhancementStatus.available);
+    expect(view.items.firstWhere((i) => i.id == fourK.id).status, EnhancementStatus.active);
+    expect(exefs.listSync().whereType<File>().every((f) => f.path.contains(fourK.id)), isTrue);
+
+    await crab.restore(view.identity.storeKey);
+    expect(exefs.existsSync(), isFalse);
+  });
+
   test('a homebrew Title ID is matched exactly', () {
     expect(MelonxEnhancementAdapter.programAliases('0100414D32524000', '0100414D32524E00'),
         contains('0100414D32524E00'));
