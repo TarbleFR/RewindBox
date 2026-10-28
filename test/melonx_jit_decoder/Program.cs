@@ -31,7 +31,17 @@ sealed class GuestCode : IMemoryManager
     }
     public T ReadTracked<T>(ulong va) where T : unmanaged => Read<T>(va);
     public void Write<T>(ulong va, T value) where T : unmanaged => throw new NotSupportedException();
-    public ReadOnlySpan<byte> GetSpan(ulong va, int size, bool tracked = false) => throw new NotSupportedException();
+    // The adapted decoder reads code a page at a time; bytes past the code read 0 as in Read.
+    public ReadOnlySpan<byte> GetSpan(ulong va, int size, bool tracked = false)
+    {
+        byte[] data = new byte[size];
+        for (int i = 0; i < size; i++)
+        {
+            long offset = (long)(va - Base) + i;
+            if (offset >= 0 && offset < _bytes.Length) data[i] = _bytes[offset];
+        }
+        return data;
+    }
     public ref T GetRef<T>(ulong va) where T : unmanaged => throw new NotSupportedException();
     public bool IsMapped(ulong va) => true;
     public void SignalMemoryTracking(ulong va, ulong size, bool write, bool precise = false, int? exemptId = null) { }
@@ -168,9 +178,9 @@ static class Program
             // add x40; ret, with a translation starting at the 21st add: the unit
             // ends before it (inside a block) and tail-calls it.
             ["knownRunOn"] = UnitWith(Enumerable.Repeat(A64.AddOne, 40).Append(A64.Ret).ToArray(), [20]),
-            // add; cbz x0, L; <8 adds>; L: add; ret, with a translation at the
-            // fall-through of the cbz: the unit ends with an empty block there.
-            ["knownBlockStart"] = UnitWith(new[] { A64.AddOne, A64.Cbz(1, 10) }.Concat(Enumerable.Repeat(A64.AddOne, 9))
+            // add; cbz x0, <80 instructions on>; <9 adds>; ret, with a translation at
+            // the fall-through of the cbz: the unit ends with an empty block there.
+            ["knownBlockStart"] = UnitWith(new[] { A64.AddOne, A64.Cbz(1, 81) }.Concat(Enumerable.Repeat(A64.AddOne, 9))
                 .Append(A64.Ret).ToArray(), [2]),
             // add; L: <6 adds>; subs; b.ne L; ret, with translations inside the loop
             // body: the code from there branches back into the unit, which keeps
@@ -185,6 +195,13 @@ static class Program
             // add: the branch back is farther than the 1,024 instructions looked at.
             ["farLoop"] = UnitWith(Enumerable.Repeat(A64.AddOne, 1200).Concat(new[] { A64.Subs, A64.BNe(1201, 0), A64.Ret }).ToArray(), [100]),
             ["framelessLayout"] = Layout(300, frames: false, knownStarts: true),
+            // A switch case entered through its jump table: add x3; b end; <8 instructions
+            // of other cases, each translated>; end: add; ret. The jump to the end stays
+            // in the unit, as upstream, instead of becoming a tail call.
+            ["knownSwitchCases"] = UnitWith(Enumerable.Repeat(A64.AddOne, 3).Append(A64.B(3, 12)).Concat(Enumerable.Repeat(A64.AddOne, 9))
+                .Append(A64.Ret).ToArray(), [4, 8]),
+            // cbz x0, L; <then: 6 instructions, translated from the 3rd>; L: add; ret.
+            ["knownSkippedThen"] = UnitWith(new[] { A64.Cbz(0, 7) }.Concat(Enumerable.Repeat(A64.AddOne, 7)).Append(A64.Ret).ToArray(), [3]),
         };
         Console.WriteLine(JsonSerializer.Serialize(report));
     }

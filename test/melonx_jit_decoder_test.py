@@ -14,7 +14,8 @@ end with a no-return call, back to back; the upstream decoder translates every
 following function again for each entry point. With translations already
 starting inside the code, a unit ends before the first of them and tail-calls
 it, unless the code from there branches back into the unit within 1,024
-instructions (a loop stays in one unit); without them, nothing changes.
+instructions (a loop stays in one unit) or a forward branch of the unit
+passes over it by fewer than 64 instructions; without them, nothing changes.
 """
 from pathlib import Path
 import hashlib, json, shutil, subprocess, sys, tempfile
@@ -136,6 +137,11 @@ def check(upstream: dict, adapted: dict):
     u, a = upstream['farLoop'], adapted['farLoop']
     expect(u['guestInstructions'] == 1203 and a['guestInstructions'] == 100 and a['truncated'],
            f'a branch back farther than 1,024 instructions does not keep the unit going: {u} {a}')
+    for name in ('knownSwitchCases', 'knownSkippedThen'):
+        u, a = dict(upstream[name]), dict(adapted[name])
+        size = abs(u.pop('hostBytes') - a.pop('hostBytes'))
+        expect(u == a and size <= 16 and not a['truncated'],
+               f'{name}: code a short forward branch passes over stays in the unit: {upstream[name]} {adapted[name]}')
     u, a = upstream['framelessLayout'], adapted['framelessLayout']
     expect(a['guestInstructions'] == 300 * 12 + 1 and u['guestInstructions'] > 50 * a['guestInstructions'] and
            u['hostBytes'] > 20 * a['hostBytes'],

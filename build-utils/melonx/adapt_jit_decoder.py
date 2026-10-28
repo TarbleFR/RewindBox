@@ -50,13 +50,23 @@ it as after a truncation (the function table already points there). The
 translator keeps those addresses in a lock-free bitmap, one bit per
 instruction (2 KiB per 64 KiB of guest code), cleared when a region is
 invalidated; a missing or stale bit only costs a duplicate translation or a
-dispatch. A loop stays in one unit: when a branch within the next 1,024
-instructions targets the code the unit already holds, the unit decodes on as
-before. Same binary, every exit followed, in address and in shuffled call
-order: 394 -> 321-323 MiB of host code (-18 %), managed allocations -17 %,
-loops held by no single unit +2 %. Without the loop rule -30 %, but three
-times as many loops of up to 64 bytes split across two units. Fail closed on
-drift.
+dispatch. Code the unit's own control flow runs through stays in it: a loop,
+when a branch within the next 1,024 instructions targets the code the unit
+already holds (without this rule three times as many loops of up to 64 bytes
+were split across two units), and what a forward branch passes over by fewer
+than 64 instructions, through its target (a switch case's jump to the end of
+the switch, the jump over an else), which would otherwise become a tail call
+each time it is taken.
+
+The decoder reads guest code a 4 KiB page at a time. On iOS (16 KiB host
+pages) the engine uses MemoryManagerHostTracked, where every IMemoryManager
+read takes the address space's partition lock and private-allocation tree
+lock, about 105 ns against 0.75 us to decode and compile an instruction, and
+the decoder read every instruction it decoded. Same binary through the
+production memory manager, every exit followed: compile time 13.2-13.8 s ->
+11.3-12.1 s from the page reads alone, 10.2-11.0 s with the stops (-20 %),
+host code 495 -> 434 MiB (-12 %), loops held by no single unit +0.4 %. Fail
+closed on drift.
 """
 from adapt_session import once
 
@@ -96,7 +106,7 @@ def apply(source):
                     break;
                 }
 
-                if (!nextIsTarget && EndsWithCallOrJump(block) && StartsFunction(memoryManager, block.EndAddress))
+                if (!nextIsTarget && EndsWithCallOrJump(block) && StartsFunction(code, block.EndAddress))
                 {
                     // The next function starts here: the callee does not return or the
                     // jump was a tail call. A call keeps its return check; if it does
@@ -111,7 +121,7 @@ def apply(source):
 
                 if (!nextIsTarget && block.Instructions[^1].Name == InstName.BUncond &&
                     TryGetBranchTarget(block, out ulong jumpTarget) && jumpTarget >= block.EndAddress + 256UL &&
-                    !IsSkippedCodeReachable(memoryManager, block.EndAddress, jumpTarget, branchTargets))
+                    !IsSkippedCodeReachable(code, block.EndAddress, jumpTarget, branchTargets))
                 {
                     // Nothing decoded so far enters the 64 or more instructions this forward
                     // jump passes over (the other cases of a switch): end the unit with the
@@ -134,7 +144,7 @@ def apply(source):
             return block.Instructions[^1].Name is InstName.Bl or InstName.Blr or InstName.BUncond;
         }
 
-        private static bool StartsFunction(IMemoryManager memoryManager, ulong address)
+        private static bool StartsFunction(CodeReader code, ulong address)
         {
             for (int index = 0; index < 4; index++)
             {
@@ -145,7 +155,7 @@ def apply(source):
                     break; // Only read the page the decoder would read next anyway.
                 }
 
-                uint encoding = memoryManager.Read<uint>(current);
+                uint encoding = code.Read(current);
 
                 if (encoding == 0xd503201fu)
                 {
@@ -161,7 +171,7 @@ def apply(source):
             return false;
         }
 
-        private static bool IsSkippedCodeReachable(IMemoryManager memoryManager, ulong start, ulong end, List<ulong> branchTargets)
+        private static bool IsSkippedCodeReachable(CodeReader code, ulong start, ulong end, List<ulong> branchTargets)
         {
             foreach (ulong target in branchTargets)
             {
@@ -181,7 +191,7 @@ def apply(source):
                     break;
                 }
 
-                uint encoding = memoryManager.Read<uint>(address);
+                uint encoding = code.Read(address);
                 long offset;
 
                 if ((encoding & 0x7c000000u) == 0x14000000u) // B, BL
@@ -226,40 +236,126 @@ def apply(source):
             return false;
         }
 
+        // Guest code, read a 4 KiB page at a time. On iOS (16 KiB host pages,
+        // MemoryManagerHostTracked) every IMemoryManager read takes the address
+        // space's partition lock and private-allocation tree lock, about as long
+        // as decoding the instruction, and decoding reads every instruction.
+        private sealed class CodeReader
+        {
+            private const ulong PageSize = 0x1000UL;
+
+            [System.ThreadStatic]
+            private static CodeReader _threadReader;
+
+            private readonly uint[] _words = new uint[PageSize / 4];
+            private IMemoryManager _memoryManager;
+            private ulong _page;
+            private bool _valid;
+
+            public static CodeReader For(IMemoryManager memoryManager)
+            {
+                CodeReader reader = _threadReader ??= new CodeReader();
+
+                reader._memoryManager = memoryManager;
+                reader._valid = false;
+
+                return reader;
+            }
+
+            public uint Read(ulong address)
+            {
+                ulong page = address & ~(PageSize - 1);
+
+                if (!_valid || page != _page)
+                {
+                    System.Runtime.InteropServices.MemoryMarshal.Cast<byte, uint>(_memoryManager.GetSpan(page, (int)PageSize)).CopyTo(_words);
+                    _page = page;
+                    _valid = true;
+                }
+
+                return _words[(address & (PageSize - 1)) >> 2];
+            }
+
+            public bool IsMapped(ulong address)
+            {
+                return _memoryManager.IsMapped(address);
+            }
+        }
+
         private static bool TryGetBranchTarget(Block block, out ulong targetAddress)
         {
             return TryGetBranchTarget(''')
-    return [decoder, *apply_entries(source)]
-
-
-def apply_entries(source):
-    jit = source / 'src/Ryujinx.Cpu/LightningJit'
-    decoder = jit / 'Arm64/Target/Arm64/Decoder.cs'
     once(decoder, '''            int totalInsts = 0;
 
             while (true)
             {
                 Block block = Decode(cpuPreset, memoryManager, address, ref totalInsts, ref useMask, ref hasHostCall, ref hasMemoryInstruction);
 ''', '''            int totalInsts = 0;
+            CodeReader code = CodeReader.For(memoryManager);
+
+            while (true)
+            {
+                Block block = Decode(cpuPreset, memoryManager, code, address, ref totalInsts, ref useMask, ref hasHostCall, ref hasMemoryInstruction);
+''')
+    once(decoder, '''            IMemoryManager memoryManager,
+            ulong address,
+            ref int totalInsts,
+''', '''            IMemoryManager memoryManager,
+            CodeReader code,
+            ulong address,
+            ref int totalInsts,
+''')
+    once(decoder, '''                encoding = memoryManager.Read<uint>(address);
+                address += 4UL;
+''', '''                encoding = code.Read(address);
+                address += 4UL;
+''')
+    return [decoder, *apply_entries(source)]
+
+
+def apply_entries(source):
+    jit = source / 'src/Ryujinx.Cpu/LightningJit'
+    decoder = jit / 'Arm64/Target/Arm64/Decoder.cs'
+    once(decoder, '''            CodeReader code = CodeReader.For(memoryManager);
+
+            while (true)
+            {
+                Block block = Decode(cpuPreset, memoryManager, code, address, ref totalInsts, ref useMask, ref hasHostCall, ref hasMemoryInstruction);
+''', '''            CodeReader code = CodeReader.For(memoryManager);
             EntryStop entryStop = new(TranslatedEntries.Current, address);
 
             while (true)
             {
-                Block block = Decode(cpuPreset, memoryManager, address, ref totalInsts, ref useMask, ref hasHostCall, ref hasMemoryInstruction, ref entryStop);
+                Block block = Decode(cpuPreset, memoryManager, code, address, ref totalInsts, ref useMask, ref hasHostCall, ref hasMemoryInstruction, ref entryStop);
+''')
+    once(decoder, '''                    // translated every case after it as well. Shorter skips keep their unit.
+                    break;
+                }
+
+                address = block.EndAddress;
+''', '''                    // translated every case after it as well. Shorter skips keep their unit.
+                    break;
+                }
+
+                entryStop.Continue(block);
+
+                address = block.EndAddress;
 ''')
     once(decoder, '''        private static bool IsSkippedCodeReachable(''', '''        // Ends a unit before an instruction where another translation starts
         // (TranslatedEntries): the unit tail-calls it, as after a truncation,
-        // instead of translating that code again. A loop stays in one unit: when
-        // the code from there branches back into the unit, decoding goes on.
+        // instead of translating that code again. Code the unit's own control flow
+        // runs through stays in it: a loop, when the code from there branches back
+        // into the unit, and what a short forward branch passes over.
         private struct EntryStop
         {
             private const int LoopScanInstructions = 1024;
+            private const ulong ShortSkipBytes = 256;
 
             private readonly TranslatedEntries _entries;
             private readonly ulong _unitAddress;
             private ulong _chunkIndex;
             private ulong[] _chunk;
-            private ulong _loopEnd;
+            private ulong _keepThrough;
 
             public EntryStop(TranslatedEntries entries, ulong unitAddress)
             {
@@ -267,12 +363,12 @@ def apply_entries(source):
                 _unitAddress = unitAddress;
                 _chunkIndex = ulong.MaxValue;
                 _chunk = null;
-                _loopEnd = 0;
+                _keepThrough = 0;
             }
 
-            public bool StopsAt(IMemoryManager memoryManager, ulong address)
+            public bool StopsAt(CodeReader code, ulong address)
             {
-                if (_entries == null || address == _unitAddress || address <= _loopEnd)
+                if (_entries == null || address == _unitAddress || address <= _keepThrough)
                 {
                     return false;
                 }
@@ -288,23 +384,36 @@ def apply_entries(source):
                     return false;
                 }
 
-                _loopEnd = FindBranchInto(memoryManager, address, _unitAddress, address);
+                _keepThrough = FindBranchInto(code, address, _unitAddress, address);
 
-                return _loopEnd == 0;
+                return _keepThrough == 0;
+            }
+
+            // A forward branch over fewer than 64 instructions keeps what it passes
+            // over and its target in the unit, as upstream: ending the unit there
+            // would turn the branch into a tail call each time it is taken (a switch
+            // case's jump to the end of the switch, the jump over an else).
+            public void Continue(Block block)
+            {
+                if (TryGetBranchTarget(block, out ulong target) && target > block.EndAddress &&
+                    target - block.EndAddress < ShortSkipBytes && target > _keepThrough)
+                {
+                    _keepThrough = target;
+                }
             }
 
             // The first B, B.cond, CBZ/CBNZ or TBZ/TBNZ from address on, within
             // LoopScanInstructions and mapped pages, whose target is in [low, high).
-            private static ulong FindBranchInto(IMemoryManager memoryManager, ulong address, ulong low, ulong high)
+            private static ulong FindBranchInto(CodeReader code, ulong address, ulong low, ulong high)
             {
                 for (int index = 0; index < LoopScanInstructions; index++, address += 4UL)
                 {
-                    if (index != 0 && (address & 0xfffUL) == 0 && !memoryManager.IsMapped(address))
+                    if (index != 0 && (address & 0xfffUL) == 0 && !code.IsMapped(address))
                     {
                         break;
                     }
 
-                    uint encoding = memoryManager.Read<uint>(address);
+                    uint encoding = code.Read(address);
                     long offset;
 
                     if ((encoding & 0xfc000000u) == 0x14000000u) // B
@@ -355,7 +464,7 @@ def apply_entries(source):
 
             do
             {
-                encoding = memoryManager.Read<uint>(address);
+                encoding = code.Read(address);
 ''', '''            uint encoding = 0;
             InstName name = default;
             InstFlags flags;
@@ -364,7 +473,7 @@ def apply_entries(source):
 
             do
             {
-                if (entryStop.StopsAt(memoryManager, address))
+                if (entryStop.StopsAt(code, address))
                 {
                     // Another translation starts here: tail-call it.
                     isTruncated = true;
@@ -372,7 +481,7 @@ def apply_entries(source):
                     break;
                 }
 
-                encoding = memoryManager.Read<uint>(address);
+                encoding = code.Read(address);
 ''')
     translator = jit / 'Translator.cs'
     once(translator, '''    class Translator : IDisposable
