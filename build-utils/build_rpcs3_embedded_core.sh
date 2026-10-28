@@ -132,6 +132,19 @@ if grep -q 'REWINDBOX_MOLTENVK_COMPILE_QOS_V1' "$SRC/rpcs3/ios/RPCS3IOSPlatform.
   MOLTENVK_ROOT="$MOLTENVK_QOS_ROOT"
   MOLTENVK_LIB="$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX"
 fi
+# REWINDBOX_MOLTENVK_EXEC_BARRIER_V1: a Core source that defines
+# rbx_mvk_exec_q_create (rpcs3/ios/RPCS3IOSPlatform.mm) also renames the
+# archive's single dispatch_queue_create reference (MVKQueue::initExecQueue,
+# the encoding queue of asynchronous submits) to it, on the compile-QoS copy.
+if grep -q 'REWINDBOX_MOLTENVK_EXEC_BARRIER_V1' "$SRC/rpcs3/ios/RPCS3IOSPlatform.mm"; then
+  [[ "${MOLTENVK_QOS_ROOT:-}" && "$MOLTENVK_LIB" = "$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX" ]] \
+    || die "the MoltenVK encoding-queue patch applies to the compile-QoS archive"
+  log "Link MoltenVK with its encoding queue visible to the Core"
+  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_exec_queue.py" "$MOLTENVK_LIB" \
+    || die "MoltenVK encoding-queue patch failed"
+  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_exec_queue.py" "$MOLTENVK_LIB" --check \
+    || die "MoltenVK archive is not the pinned encoding-queue archive"
+fi
 python3 "$PWD/test/rpcs3_preprocessor_balance_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build301_passive_dlopen_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_atomic_startup_test.py" "$SRC"
@@ -141,7 +154,9 @@ python3 "$PWD/test/rpcs3_build351_gow3_engine_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build352_gow3_memory_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build353_xitrix_v010_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_armsx3_performance_patch_test.py" "$SRC"
-if [[ -n "${RPCS3_CELL585_NATIVE_PROOF:-}" ]]; then
+if [[ -n "${RPCS3_CELL587_NATIVE_PROOF:-}" ]]; then
+  python3 "$PWD/.github/diagnostics/rpcs3cell587_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL587_NATIVE_PROOF"
+elif [[ -n "${RPCS3_CELL585_NATIVE_PROOF:-}" ]]; then
   python3 "$PWD/.github/diagnostics/rpcs3cell585_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL585_NATIVE_PROOF"
 elif [[ -n "${RPCS3_CELL583_NATIVE_PROOF:-}" ]]; then
   python3 "$PWD/.github/diagnostics/rpcs3cell583_core.py" --source "$SRC" --verify-reuse "$RPCS3_CELL583_NATIVE_PROOF"
@@ -315,6 +330,13 @@ if [[ -n "${MOLTENVK_QOS_ROOT:-}" ]]; then
     die "MoltenVK compile QoS hook is unresolved in libRPCS3Core.dylib"
   fi
   log "MoltenVK compile QoS hook linked"
+fi
+if grep -q 'REWINDBOX_MOLTENVK_EXEC_BARRIER_V1' "$SRC/rpcs3/ios/RPCS3IOSPlatform.mm"; then
+  # REWINDBOX_MOLTENVK_EXEC_BARRIER_V1: MoltenVK's renamed queue creation resolved inside the Core.
+  if nm -u "$OUTPUT_DIR/libRPCS3Core.dylib" | grep -q '_rbx_mvk_exec_q_create$'; then
+    die "MoltenVK encoding-queue hook is unresolved in libRPCS3Core.dylib"
+  fi
+  log "MoltenVK encoding-queue hook linked"
 fi
 shasum -a 256 "$OUTPUT_DIR/libRPCS3Core.dylib" | tee "$OUTPUT_DIR/libRPCS3Core.dylib.sha256"
 printf '%s\n' "$RPCS3_COMMIT" > "$OUTPUT_DIR/RPCS3_SOURCE_COMMIT.txt"

@@ -149,6 +149,50 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
    maintainer removed Write Color Buffers from the user settings on
    purpose); optimizations are automatic, in the Core or the title profile.
 
+## RPCS3 Core 587: MoltenVK asynchronous submits made safe (encode barrier, boot canary), Black Ops II relaxed reservations — 28 October 2026
+
+- Maintainer: the 551 launch crash came from asynchronous MoltenVK submits;
+  "Tu peux apporter les correctifs". Core 587 goes into the MeloNX session's
+  private 586 in place of Core 585 (maintainer, 28 October 2026); no separate
+  587 IPA. `docs/rpcs3-cell587.md`.
+- Cause found in MoltenVK 1.4.2 (source read, not proven by a 551 stack):
+  asynchronous submits encode on a serial GCD queue after vkQueueSubmit /
+  vkQueuePresentKHR return, and vkAcquireNextImageKHR releases, without a
+  lock, the drawable of the image it returns, which a still-queued render or
+  present of that image fetches. The shader cache dialog flips back to back:
+  widest window in the first second, where every 551 boot ended.
+- Core changes (record `cell587`, codegen identities unchanged, off-iOS text
+  of the five shared VK files equal to 585):
+  `CELL587_MVK_ENCODE_BARRIER` (new `ios/IOSMoltenVKExec.h`,
+  `ios/IOSMoltenVKExecQueue.h`; `RPCS3IOSPlatform.mm` defines
+  `rbx_mvk_exec_q_create`, the build renames the archive's only
+  `dispatch_queue_create` reference to it with
+  `build-utils/rpcs3/patch_moltenvk_exec_queue.py` after the 551 QoS patch,
+  archive `b91a46f7…` -> `0ee6ae96…`; a marker queued behind each present;
+  every acquisition waits for the last one; MetalFX handoff flushed and
+  drained; `COREPROF OPT587`), `CELL587_MVK_ASYNC_CANARY` (new
+  `ios/IOSMoltenVKAsyncCanary.h`; Automatic = God of War III; armed durably
+  at Vulkan instance creation, ok after 900 guest flips or a clean renderer
+  shutdown, a title found armed at boot is failed and keeps synchronous
+  submits; `rewindbox-mvk-async-587.txt`).
+- Profile commit (outside the Core): God of War III
+  `experimental.moltenvk_async_submits` Disabled -> Automatic; Black Ops II
+  `BLES01717` `advanced.accurate_spu_reservations: false` (583 logs: SPU-bound,
+  1.1-6.3 M data-changing PUTLLC per 5 s window under the exclusive writer
+  lock, 0.74-2.9 s of writer-lock acquisition, 0.3-0.9 s of PPU waits; FPS
+  falls with them; same choice as God of War III since Build 412).
+- Correction to an earlier remark: Black Ops II's RSX thread uses
+  0.15-0.18 core, so asynchronous submits would not help it; its limit is the
+  SPU writer lock. DBZ unchanged (synchronous, global profile).
+- Host: `test/rpcs3_cell587_test.py` (preimages, contract, off-iOS, tool and
+  build step) and `test/native/rpcs3_cell587_mvk_exec_test.cpp` plain,
+  ASan/UBSan and TSan, including a model of MoltenVK's swapchain rules on a
+  serial queue thread with RPCS3's pacing: 309-373 releases of a drawable
+  still awaited without the barrier, 0 with it. The macOS job also runs
+  `rpcs3_cell587_mvk_gcd_test.cpp` against the real libdispatch
+  (`--require-gcd`). Evidence `docs/evidence/rpcs3-cell587-host-linux.json`.
+  Not tested on iPhone; no FPS or crash result claimed.
+
 ## RPCS3 Core 585: early submission for God of War III — 28 October 2026
 
 - Build 583 iPhone logs (`docs/rpcs3-cell585.md` section 1):
