@@ -13,7 +13,23 @@ objects worth 5.6 % of it. generation_to_condemn also turns every gen2
 collection whose gen2+LOH fragmentation exceeds 1 - N / 10 (10 %) into a
 blocking compacting one. 5 is the value the GC itself uses when it adapts to
 the application size: growth up to 50 % before the next gen2 collection, and
-compaction past 50 % fragmentation. Fail closed on drift.
+compaction past 50 % fragmentation.
+
+Build 575 (Hogwarts Legacy, 27 October 2026, engine 572 with the setting
+above): .NET_BGC still used 40-80 % of a core through every session that got
+past loading, at 7-14 FPS. On Apple platforms the .NET 10 GC takes its memory
+load from the whole device (gcenv.unix.cpp GetAvailablePhysicalMemory:
+kern.memorystatus_level, the share of RAM iOS reports available), not from
+this process. Under a large game that share stays below 10 %, the GC's
+default "high memory load" threshold (90 %, gc.cpp init), and
+generation_to_condemn then turns any collection into a full background one as
+soon as 10 % of the gen2 budget is used ("if we are in high memory load and
+have consumed 10% of the gen2 budget, do a gen2 now"), and elevates
+fragmented gen2s to blocking compactions. Memory iOS keeps for itself or for
+other processes is not memory this heap can return. System.GC.HighMemoryPercent
+99 (read as a decimal runtime knob; the GC caps it at 99) keeps that mode for
+a device about to run out. ConserveMemory still bounds the heap. Fail closed
+on drift.
 """
 from adapt_session import once
 
@@ -21,5 +37,6 @@ from adapt_session import once
 def apply(source):
     project = source / 'src/Ryujinx.Library/Ryujinx.Library.csproj'
     once(project, '<RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="9" />',
-         '<RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />')
+         '''<RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+    <RuntimeHostConfigurationOption Include="System.GC.HighMemoryPercent" Value="99" />''')
     return [project]

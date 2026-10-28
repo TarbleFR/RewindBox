@@ -21,7 +21,9 @@ from adapt_jit_decoder import apply as adapt_jit_decoder
 from adapt_gc import apply as adapt_gc
 from adapt_shader_warmup import apply as adapt_shader_warmup
 from adapt_attachmentless_framebuffer import apply as adapt_attachmentless_framebuffer
-from adapt_fft_boot_trace import apply as adapt_fft_boot_trace
+from adapt_kernel_sync import apply as adapt_kernel_sync
+from adapt_jit_arena import apply as adapt_jit_arena
+from adapt_pipeline_cache import apply as adapt_pipeline_cache
 
 
 def replace_once(path, old, new):
@@ -63,7 +65,9 @@ def main():
     adapted += adapt_gc(source)
     adapted += adapt_shader_warmup(source)
     adapted += adapt_attachmentless_framebuffer(source)
-    adapted += adapt_fft_boot_trace(source)  # TEMPORARY: remove once the FFT freeze is understood
+    adapted += adapt_kernel_sync(source)
+    adapted += adapt_jit_arena(source)
+    adapted += adapt_pipeline_cache(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -108,7 +112,8 @@ def main():
     inputs['build-utils/melonx/adapt_gc.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_shader_warmup.py')
     inputs['build-utils/melonx/adapt_shader_warmup.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
-    for name in ['adapt_attachmentless_framebuffer.py', 'adapt_fft_boot_trace.py']:
+    for name in ['adapt_attachmentless_framebuffer.py', 'adapt_kernel_sync.py', 'adapt_jit_arena.py',
+                 'adapt_pipeline_cache.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

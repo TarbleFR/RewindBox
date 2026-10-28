@@ -40,6 +40,25 @@ partial class Library
         catch { return -1; }
     }
 
+    // Code arena bytes the last launch preflight asks for; 0 keeps the default
+    // (512 MiB under TXM). The helper maps the arena once per process.
+    private static ulong EmbeddedJitArenaHint;
+
+    // Hogwarts Legacy with its update filled the 512 MiB TXM arena 25-32 s
+    // after every launch (Builds 564-575); the base game ran 727 s in it. The
+    // helper writes every arena page, so the larger arena stays specific.
+    private static ulong EmbeddedJitArenaFor(ulong titleId, LibHac.Tools.FsSystem.NcaUtils.Nca program)
+    {
+        if (titleId != 0x0100F7E00C70E000UL) return 0;
+        try
+        {
+            (var patch, _) = Ryujinx.HLE.Loaders.Processes.Extensions.NcaExtensions.GetUpdateData(program,
+                _virtualFileSystem, LibHac.Tools.FsSystem.IntegrityCheckLevel.None, 0, out _);
+            return patch != null ? 1UL << 30 : 0;
+        }
+        catch { return 0; }
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_prepare_jit")]
     public static int EmbeddedPrepareJit()
     {
@@ -50,8 +69,10 @@ partial class Library
             EmbeddedLaunchDiagnostics.Record("jitArena", "begin");
             try
             {
+                Ryujinx.Cpu.LightningJit.DualMappedMemory.RequestedArenaSize = EmbeddedJitArenaHint;
                 Ryujinx.Cpu.LightningJit.DualMappedMemory.PrepareEmbeddedMapping();
-                EmbeddedLaunchDiagnostics.Record("jitArena", "passed", detail: "Real MeloNX code arena and signal mapping prepared; ARM64 probe executed through the arena's RX/RW aliases.");
+                EmbeddedLaunchDiagnostics.Record("jitArena", "passed", detail: "Real MeloNX code arena (" +
+                    (Ryujinx.Cpu.LightningJit.DualMappedMemory.ArenaSize >> 20) + " MiB) and signal mapping prepared; ARM64 probe executed through the arena's RX/RW aliases.");
                 return 0;
             }
             catch (Exception error)

@@ -31,7 +31,9 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_gc.py
     - build-utils/melonx/adapt_shader_warmup.py
     - build-utils/melonx/adapt_attachmentless_framebuffer.py
-    - build-utils/melonx/adapt_fft_boot_trace.py
+    - build-utils/melonx/adapt_kernel_sync.py
+    - build-utils/melonx/adapt_jit_arena.py
+    - build-utils/melonx/adapt_pipeline_cache.py
     - test/melonx_jit_decoder_test.py
     - test/melonx_jit_decoder/**
     - build-utils/melonx/adapt_audio.py

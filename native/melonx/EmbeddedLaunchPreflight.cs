@@ -21,6 +21,7 @@ partial class Library
     private static void EmbeddedLaunchPreflight(string path, Utf8JsonWriter json)
     {
         EmbeddedLaunchDiagnostics.Begin();
+        EmbeddedJitArenaHint = 0;
         EmbeddedLaunchDiagnostics.Record("file", "begin");
         if (path == null || !Path.IsPathFullyQualified(path) || !File.Exists(path))
             throw new FileNotFoundException("The selected local game is unavailable.");
@@ -74,6 +75,7 @@ partial class Library
                     }
                 }
                 json.WriteString("titleId", entry.Key.ToString("x16"));
+                EmbeddedJitArenaHint = EmbeddedJitArenaFor(entry.Key, program);
                 programFound = true; break;
             }
             if (!programFound) throw new InvalidDataException("No base program was found in the selected package.");
