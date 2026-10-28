@@ -100,8 +100,35 @@ plantage n'est revendiquée.
   `acquire_waits` et `marker_lag_ms`. Sous `RSXSYNC551`, `submit=` ne mesure
   plus que la mise en file ; comparer les images/s aux mêmes scènes que la 583.
   Si le jeu plante au démarrage, le lancement suivant reste synchrone
-  (`canary=previous_boot_failed`) : envoyer le journal de diagnostic et le
-  rapport iOS.
+  (`canary=previous_boot_failed`) : conserver les journaux habituels ; aucun
+  rapport `.ips` n'est demandé.
 * Black Ops II : `RANGELOCKPROF wl_putllc` et `WAITPROF527 vm_range_episode`
   doivent chuter, les images/s des scènes chargées monter. Signaler tout gel
   ou défaut de jeu.
+
+## 5. Premiers journaux iPhone de la 586 — relecture du 28 octobre 2026
+
+Les fichiers `RPCS3-milestones(10).log`, `RPCS3-performance(2).log`,
+`RPCS3-diagnostic(10).log`, `NeoSwap-v1.jsonl` et le journal applicatif
+étendent la référence 585. Voir [la revue 586](rpcs3-device586-review.md) et
+[ses preuves](evidence/rpcs3-device586-review.json).
+
+- Black Ops II (pid 45405, sessions 3 et 4) : `accurate_res=false` confirmé.
+  Les 50 rapports périodiques complets conservés ont `wl_putllc=0:0.000:0.000`
+  et `putllc_heavy=0`. La contention ciblée du 587 est absente ; le gain de
+  FPS à scène identique n'est pas établi. Les pauses restantes accompagnent
+  des compilations SPU à froid et de nouveaux pipelines Metal (jusqu'à
+  4,55 s de builds bloquants dans une fenêtre). Six avertissements mémoire
+  iOS : pression réelle, attribution et coût causal non isolés ; fermeture
+  observée, sans jetsam démontré.
+- God of War III : démarrage et savestate, profil hérité (`inherited=19
+  kept=0`), WCB actif et Auto. Pas de fenêtre détaillée en jeu dans les
+  fichiers conservés : **l'asynchrone, le canari et la barrière du 587 ne sont
+  pas validés sur ce jeu par ce lot**. Les lignes `OPT587` présentes sont
+  celles de Black Ops II, où l'asynchrone est off.
+
+Aucun nouveau correctif moteur ni nouvelle IPA par cette revue. La règle 5
+s'applique : second passage dans le même mode de Black Ops II avec les caches
+conservés, sans nouveau réglage ni diagnostic. Les versions 589 des leviers
+Assassin's Creed et de son profil étaient déjà dans les sources ; cette IPA
+586 ne les embarque pas.

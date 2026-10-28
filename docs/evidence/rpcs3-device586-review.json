@@ -1,0 +1,851 @@
+{
+  "reviewDate": "2026-10-28",
+  "repository": "TarbleFR/RewindBox",
+  "branch": "Claude",
+  "reviewedHead": "700db785608f3fb1b7d1489776a62ca9a3969371",
+  "inputs": {
+    "RPCS3-milestones(10).log": {
+      "sha256": "daf10411cce4eb1a56dc313f21d7825f5dce3b5195d9deb7275a7ae1bd8739a2",
+      "bytes": 270496,
+      "lines": 458
+    },
+    "RPCS3-performance(2).log": {
+      "sha256": "588c4f841e6f294614b3e88367198fdda0c3416f35dcfffaa16fb27cd71878e6",
+      "bytes": 957539,
+      "lines": 1593
+    },
+    "NeoSwap-v1.jsonl": {
+      "sha256": "9bcb383af79741da512e7d1a5b3df4ab19fd51dd0da4e7ccc3c9a698f551f47f",
+      "bytes": 14796251,
+      "lines": 729
+    },
+    "RPCS3-diagnostic(10).log": {
+      "sha256": "6b92279468308471cda9dfce9ce2fadbf0121ec74a1500fb5a0a6dd903f01a9b",
+      "bytes": 1235006,
+      "lines": 1837
+    },
+    "app(20261028-222327).log": {
+      "sha256": "593816c3da8ceb90a0dfe1a8b569500ee66df21d6aaf43c0f6a47e6f5b60153e",
+      "bytes": 4523261,
+      "lines": 37642
+    }
+  },
+  "device": {
+    "cpu": "Apple A18 Pro",
+    "physicalMemoryBytes": 7989460992,
+    "os": "Version 27.0 (Build 24A5380h)",
+    "thermalInNeoSwap": 1
+  },
+  "runtimeIdentity": {
+    "appBuild": 586,
+    "pid": 45405,
+    "publicVersionNotUsedAsCoreIdentity": true,
+    "marker": "COREPROF OPT587",
+    "compatibleCore": 587,
+    "exactLoadedCoreSHA256Available": false,
+    "deliveryReceipt": "docs/evidence/rewind586-delivery.json",
+    "expectedCoreSource": "a8a7ce1072c189806f4ddf70552280b3e95a1e17",
+    "expectedCoreSHA256": "c638d4ce331afe1d0fbc5fe6695c0e65986ff43d5ec52f08c210651050c200e8",
+    "PPUCodegenFromReceipt": "a987639e9f838d1c",
+    "SPUCodegenFromReceipt": "d070cb361bdef607",
+    "codegenReadFromDeviceLogs": false,
+    "gameVersionsInLogs": null,
+    "blackOpsIIPatchesInLogs": null,
+    "godOfWarIIIRestoreAppliedPatches": 0
+  },
+  "boots586": [
+    {
+      "line": 410,
+      "session": 1,
+      "bootKind": "fresh",
+      "modulesCached": 40,
+      "modulesCompiled": 0,
+      "wallMs": 691.967
+    },
+    {
+      "line": 438,
+      "session": 2,
+      "bootKind": "savestate",
+      "modulesCached": 45,
+      "modulesCompiled": 0,
+      "wallMs": 700.865
+    },
+    {
+      "line": 448,
+      "session": 3,
+      "bootKind": "fresh",
+      "modulesCached": 72,
+      "modulesCompiled": 0,
+      "wallMs": 2476.317
+    },
+    {
+      "line": 454,
+      "session": 4,
+      "bootKind": "fresh",
+      "modulesCached": 86,
+      "modulesCompiled": 0,
+      "wallMs": 2889.461
+    }
+  ],
+  "configLayers586": [
+    {
+      "line": 407,
+      "timestamp": 1793225113.393992,
+      "settings": {
+        "title": "BCES00510",
+        "database": "1",
+        "legacy_custom": "1",
+        "sparse_overrides": "0",
+        "shader_mode": "Legacy%20Recompiler%20(single-threaded)",
+        "frame_limit": "Auto",
+        "wcb": "true",
+        "wdb": "false",
+        "rsx_res": "75",
+        "spu_block": "Mega",
+        "spu_decoder": "Recompiler%20(LLVM)",
+        "ppu_decoder": "Recompiler%20(LLVM)",
+        "async_tex": "false",
+        "max_spurs": "6",
+        "getllar_pct": "100",
+        "inherited": "19",
+        "kept": "0",
+        "accurate_res": "false",
+        "mt_rsx": "true",
+        "spu_spin": "Reference",
+        "mlaa_bypass": "1"
+      }
+    },
+    {
+      "line": 415,
+      "timestamp": 1793225132.218886,
+      "settings": {
+        "title": "BCES00510",
+        "database": "1",
+        "legacy_custom": "1",
+        "sparse_overrides": "0",
+        "shader_mode": "Legacy%20Recompiler%20(single-threaded)",
+        "frame_limit": "Auto",
+        "wcb": "true",
+        "wdb": "false",
+        "rsx_res": "75",
+        "spu_block": "Mega",
+        "spu_decoder": "Recompiler%20(LLVM)",
+        "ppu_decoder": "Recompiler%20(LLVM)",
+        "async_tex": "false",
+        "max_spurs": "6",
+        "getllar_pct": "100",
+        "inherited": "19",
+        "kept": "0",
+        "accurate_res": "false",
+        "mt_rsx": "true",
+        "spu_spin": "Reference",
+        "mlaa_bypass": "1"
+      }
+    },
+    {
+      "line": 445,
+      "timestamp": 1793225253.9832811,
+      "settings": {
+        "title": "BLES01717",
+        "database": "1",
+        "legacy_custom": "0",
+        "sparse_overrides": "1",
+        "shader_mode": "Legacy%20Recompiler%20(single-threaded)",
+        "frame_limit": "Auto",
+        "wcb": "false",
+        "wdb": "false",
+        "rsx_res": "100",
+        "spu_block": "Safe",
+        "spu_decoder": "Recompiler%20(LLVM)",
+        "ppu_decoder": "Recompiler%20(LLVM)",
+        "async_tex": "false",
+        "max_spurs": "6",
+        "getllar_pct": "100",
+        "inherited": "0",
+        "kept": "0",
+        "accurate_res": "false",
+        "mt_rsx": "false",
+        "spu_spin": "Reference",
+        "mlaa_bypass": "0"
+      }
+    },
+    {
+      "line": 452,
+      "timestamp": 1793225331.285285,
+      "settings": {
+        "title": "BLES01717",
+        "database": "1",
+        "legacy_custom": "0",
+        "sparse_overrides": "1",
+        "shader_mode": "Legacy%20Recompiler%20(single-threaded)",
+        "frame_limit": "Auto",
+        "wcb": "false",
+        "wdb": "false",
+        "rsx_res": "100",
+        "spu_block": "Safe",
+        "spu_decoder": "Recompiler%20(LLVM)",
+        "ppu_decoder": "Recompiler%20(LLVM)",
+        "async_tex": "false",
+        "max_spurs": "6",
+        "getllar_pct": "100",
+        "inherited": "0",
+        "kept": "0",
+        "accurate_res": "false",
+        "mt_rsx": "false",
+        "spu_spin": "Reference",
+        "mlaa_bypass": "0"
+      }
+    }
+  ],
+  "blackOpsII": {
+    "serial": "BLES01717",
+    "sessions": [
+      3,
+      4
+    ],
+    "normalBoots": true,
+    "differentExecutableInferredFromModules": [
+      72,
+      86
+    ],
+    "sceneAndModeNamesUnavailable": true,
+    "completePeriodicWindows": 50,
+    "allCompleteWindowsPutllcWriterAcquisitionsZero": true,
+    "allCompleteWindowsSPUObjectHitsZero": true,
+    "totalSPUObjectMissesInCompleteWindows": {
+      "3": 9668,
+      "4": 14641
+    },
+    "partialFirstWindow": {
+      "session": 3,
+      "window": 3,
+      "SPUObjectMisses": 451,
+      "otherCountersIncomplete": true
+    },
+    "texturePrehash": false,
+    "earlySubmit": false,
+    "deferredFBOWriteback": false,
+    "moltenvkAsync": false,
+    "gpuTimeMs": null,
+    "maximumRequestedTextureAllocationBytes": 251444224,
+    "windows": [
+      {
+        "sessionWindow": "3:14",
+        "endUTC": "2026-10-28T22:08:47.889734+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5254.257,
+        "completedGuestIntervals": 142,
+        "completedIntervalsPerWallSecond": 27.02570506162908,
+        "completedIntervalAverageFPS": 27.13,
+        "medianMs": 33.117,
+        "p99Ms": 115.35,
+        "maxMs": 635.985,
+        "texturePreparationSampledMsPerFrame": 6.017,
+        "sampledFrames": 18,
+        "drawsPerFrame": 3948.4,
+        "spuCores": 3.937,
+        "spuCompileAttempts": 94,
+        "spuCompileAllThreadsMs": 991.241,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 94,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "0:0.000:0.000",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 317
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 330
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 341
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 342
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 328
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:12",
+        "endUTC": "2026-10-28T22:09:54.496668+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5244.697,
+        "completedGuestIntervals": 3,
+        "completedIntervalsPerWallSecond": 0.5720063523212113,
+        "completedIntervalAverageFPS": 0.124,
+        "medianMs": 1375.499,
+        "p99Ms": 22695.533,
+        "maxMs": 22695.533,
+        "texturePreparationSampledMsPerFrame": null,
+        "sampledFrames": 0,
+        "drawsPerFrame": 4732.7,
+        "spuCores": 2.121,
+        "spuCompileAttempts": 1220,
+        "spuCompileAllThreadsMs": 15358.885,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 1210,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "0:0.000:0.000",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 683
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 696
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 707
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 708
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 694
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:14",
+        "endUTC": "2026-10-28T22:10:05.088485+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5145.403,
+        "completedGuestIntervals": 72,
+        "completedIntervalsPerWallSecond": 13.993073040148653,
+        "completedIntervalAverageFPS": 13.756,
+        "medianMs": 32.796,
+        "p99Ms": 1015.946,
+        "maxMs": 1015.946,
+        "texturePreparationSampledMsPerFrame": 3.634,
+        "sampledFrames": 9,
+        "drawsPerFrame": 4803.1,
+        "spuCores": 4.273,
+        "spuCompileAttempts": 309,
+        "spuCompileAllThreadsMs": 3501.01,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 300,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "0:0.000:0.000",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 743
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 756
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 767
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 768
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 754
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:20",
+        "endUTC": "2026-10-28T22:10:37.116692+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5324.069,
+        "completedGuestIntervals": 173,
+        "completedIntervalsPerWallSecond": 32.49394401161968,
+        "completedIntervalAverageFPS": 32.432,
+        "medianMs": 33.172,
+        "p99Ms": 59.064,
+        "maxMs": 83.511,
+        "texturePreparationSampledMsPerFrame": 6.773,
+        "sampledFrames": 22,
+        "drawsPerFrame": 3487.0,
+        "spuCores": 3.992,
+        "spuCompileAttempts": 22,
+        "spuCompileAllThreadsMs": 234.162,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 27,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "3:6.750:3.066",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 930
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 943
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 954
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 955
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 941
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:29",
+        "endUTC": "2026-10-28T22:11:24.425343+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5124.228,
+        "completedGuestIntervals": 133,
+        "completedIntervalsPerWallSecond": 25.955129240931512,
+        "completedIntervalAverageFPS": 28.094,
+        "medianMs": 32.884,
+        "p99Ms": 134.373,
+        "maxMs": 434.294,
+        "texturePreparationSampledMsPerFrame": 8.578,
+        "sampledFrames": 16,
+        "drawsPerFrame": 2213.8,
+        "spuCores": 3.758,
+        "spuCompileAttempts": 83,
+        "spuCompileAllThreadsMs": 1770.2,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 77,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "0:0.000:0.000",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1225
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1238
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1249
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1250
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1236
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:30",
+        "endUTC": "2026-10-28T22:11:29.743165+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5290.085,
+        "completedGuestIntervals": 122,
+        "completedIntervalsPerWallSecond": 23.06201129093389,
+        "completedIntervalAverageFPS": 22.323,
+        "medianMs": 33.644,
+        "p99Ms": 299.147,
+        "maxMs": 582.641,
+        "texturePreparationSampledMsPerFrame": 8.741,
+        "sampledFrames": 15,
+        "drawsPerFrame": 3283.1,
+        "spuCores": 3.971,
+        "spuCompileAttempts": 92,
+        "spuCompileAllThreadsMs": 1079.825,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 99,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "1:552.397:552.397",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1255
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1269
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1280
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1281
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1267
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:33",
+        "endUTC": "2026-10-28T22:11:45.678431+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5070.472,
+        "completedGuestIntervals": 122,
+        "completedIntervalsPerWallSecond": 24.060876383894833,
+        "completedIntervalAverageFPS": 26.815,
+        "medianMs": 33.188,
+        "p99Ms": 132.519,
+        "maxMs": 599.86,
+        "texturePreparationSampledMsPerFrame": 6.399,
+        "sampledFrames": 15,
+        "drawsPerFrame": 2808.9,
+        "spuCores": 3.843,
+        "spuCompileAttempts": 42,
+        "spuCompileAllThreadsMs": 579.912,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 42,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "1:562.867:562.867",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1349
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1363
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1374
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1375
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1361
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:34",
+        "endUTC": "2026-10-28T22:11:51.224281+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5182.152,
+        "completedGuestIntervals": 109,
+        "completedIntervalsPerWallSecond": 21.033732704096675,
+        "completedIntervalAverageFPS": 19.735,
+        "medianMs": 24.019,
+        "p99Ms": 832.337,
+        "maxMs": 1269.019,
+        "texturePreparationSampledMsPerFrame": 4.709,
+        "sampledFrames": 14,
+        "drawsPerFrame": 1938.5,
+        "spuCores": 3.978,
+        "spuCompileAttempts": 57,
+        "spuCompileAllThreadsMs": 666.195,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 57,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "7:2560.574:591.609",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1380
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1398
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1409
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1410
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1396
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:35",
+        "endUTC": "2026-10-28T22:11:55.866667+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5011.461,
+        "completedGuestIntervals": 75,
+        "completedIntervalsPerWallSecond": 14.965695632471249,
+        "completedIntervalAverageFPS": 14.915,
+        "medianMs": 22.237,
+        "p99Ms": 900.575,
+        "maxMs": 900.575,
+        "texturePreparationSampledMsPerFrame": 5.451,
+        "sampledFrames": 9,
+        "drawsPerFrame": 2021.6,
+        "spuCores": 3.861,
+        "spuCompileAttempts": 5,
+        "spuCompileAllThreadsMs": 77.365,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 5,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "10:2869.209:677.231",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1415
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1434
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1445
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1446
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1432
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:36",
+        "endUTC": "2026-10-28T22:12:00.986287+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5139.08,
+        "completedGuestIntervals": 32,
+        "completedIntervalsPerWallSecond": 6.226795457552714,
+        "completedIntervalAverageFPS": 21.602,
+        "medianMs": 18.086,
+        "p99Ms": 431.792,
+        "maxMs": 431.792,
+        "texturePreparationSampledMsPerFrame": 5.16,
+        "sampledFrames": 4,
+        "drawsPerFrame": 1759.9,
+        "spuCores": 3.972,
+        "spuCompileAttempts": 20,
+        "spuCompileAllThreadsMs": 244.926,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 20,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "11:4109.670:583.326",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1451
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1473
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1484
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1485
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1471
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:37",
+        "endUTC": "2026-10-28T22:12:06.227458+00:00",
+        "phase": "guest_unclassified",
+        "windowMs": 5123.079,
+        "completedGuestIntervals": 32,
+        "completedIntervalsPerWallSecond": 6.246243713985281,
+        "completedIntervalAverageFPS": 3.887,
+        "medianMs": 19.97,
+        "p99Ms": 7502.561,
+        "maxMs": 7502.561,
+        "texturePreparationSampledMsPerFrame": 4.779,
+        "sampledFrames": 4,
+        "drawsPerFrame": 1795.9,
+        "spuCores": 4.151,
+        "spuCompileAttempts": 0,
+        "spuCompileAllThreadsMs": 0.0,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 0,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "10:4549.717:779.234",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1491
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1511
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1522
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1523
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1509
+          }
+        }
+      },
+      {
+        "sessionWindow": "4:38",
+        "endUTC": "2026-10-28T22:12:11.296619+00:00",
+        "phase": "stopped",
+        "windowMs": 5225.027,
+        "completedGuestIntervals": 7,
+        "completedIntervalsPerWallSecond": 1.3397059957776294,
+        "completedIntervalAverageFPS": 1.268,
+        "medianMs": 814.378,
+        "p99Ms": 2112.603,
+        "maxMs": 2112.603,
+        "texturePreparationSampledMsPerFrame": 5.112,
+        "sampledFrames": 1,
+        "drawsPerFrame": 1740.8,
+        "spuCores": 3.745,
+        "spuCompileAttempts": 0,
+        "spuCompileAllThreadsMs": 0.0,
+        "spuObjectHits": 0,
+        "spuObjectMisses": 0,
+        "blockingPipelineBuilds_countTotalMsMaxMs": "6:4435.965:880.380",
+        "putllcWriterLock_countAcquisitionMsMaxMs": "0:0.000:0.000",
+        "refs": {
+          "FRAMEPROF527": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1528
+          },
+          "RSXFRAME551": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1548
+          },
+          "SPUPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1559
+          },
+          "RANGELOCKPROF": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1560
+          },
+          "PRESSURE547": {
+            "file": "RPCS3-performance(2).log",
+            "line": 1546
+          }
+        }
+      }
+    ]
+  },
+  "memory": {
+    "NeoSwapSamples": 729,
+    "iosMemoryWarningEvents": 6,
+    "warningLines": [
+      645,
+      650,
+      652,
+      653,
+      654,
+      660
+    ],
+    "maximumProcessFootprintBytes": 6455912016,
+    "maximumFootprintLine": 725,
+    "minimumProcessAvailableBytes": 523409840,
+    "minimumAvailableLine": 725,
+    "maximumCompressedLedgerBytes": 3601973248,
+    "terminationCause": null,
+    "jetsamConfirmed": false,
+    "sessionEndEvents": [
+      {
+        "line": 728,
+        "event": "donation_session_end",
+        "timestamp": 1793225531.577413
+      },
+      {
+        "line": 729,
+        "event": "rpcs3_memory_session_end",
+        "timestamp": 1793225531.579876
+      }
+    ],
+    "shaderStorageForBlackOpsII": "inactive: unsupported_title",
+    "causality": "Pressure confirmed. Allocation ownership, a leak and stall time caused by pressure are not established."
+  },
+  "sourceReview": {
+    "canonicalPatchSHA256": "c069fb596fbc76b835b981779caaf8ebae01c2fff9f571e8cbe09712d0c8a4e7",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "filesMaterializedAndMatched": [
+      {
+        "path": "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+        "normalizedSHA256": "cf958f5d6fea3702d95c00dfd23de35ba7b944411a8a7621f9b8bc3c222fd06d"
+      },
+      {
+        "path": "rpcs3/Emu/Cell/SPUThread.cpp",
+        "normalizedSHA256": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c"
+      },
+      {
+        "path": "rpcs3/Emu/RSX/Common/texture_cache.cpp",
+        "normalizedSHA256": "b0227f95e0032956fd28fca3bed92b097910fd43cb25cf9ef38e7f776da25311"
+      },
+      {
+        "path": "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+        "normalizedSHA256": "897fecfed78009fd93fc2cf3a9ee47dc2763d1ad2215d3dfd1677681788d69f0"
+      },
+      {
+        "path": "rpcs3/Emu/RSX/VK/vkutils/instance.cpp",
+        "normalizedSHA256": "f9f1db8df684fb57bcd219a91dc223cab01a34a9f4c659333a12e4ba2d3fa227"
+      },
+      {
+        "path": "rpcs3/ios/IOSTitleLevers.h",
+        "normalizedSHA256": "c291afdcb87c0ffb7a79cc38984424208c3ad756dbd0a20eb362e48b52f7f22b"
+      },
+      {
+        "path": "rpcs3/ios/IOSTexturePrehash.h",
+        "normalizedSHA256": "9a91a05ccb795e406b7bd4a3418e6ea4182bcb0f9238ad2ea605f1d46cac943e"
+      },
+      {
+        "path": "rpcs3/ios/IOSMoltenVKAsyncCanary.h",
+        "normalizedSHA256": "85407b2308ac7e3ef31d7b05a7325da89d390c8ad704341925ed2fda95e53d6b"
+      }
+    ]
+  },
+  "decision": {
+    "newEngineCorrectionImplementedThisReview": false,
+    "newDiagnosticsAdded": false,
+    "newSettingsAdded": false,
+    "repeatedHistoricalBuilds": false,
+    "newIPA": false,
+    "publicRelease": false,
+    "performanceGainClaimed": false,
+    "reason": "The 587 profile takes effect and its targeted writer contention is absent. Retained new stalls are accompanied by cold compilation; AGENTS rule 5 requires the same mode with preserved caches before a new lever. No source defect justifying a further engine change was demonstrated. Core 589 and its separate profile already exist for Assassin's Creed; not in this IPA."
+  },
+  "method": {
+    "scope": "Offline review of existing device logs, not new runtime instrumentation. Source and evidence consistency checks only; no full build or test suite rerun.",
+    "overlap": "Performance and diagnostic periodic records deduplicated by pid/session/window/type. Input 3:3 tail excluded from complete-window totals.",
+    "grouping": "FRAMEPROF527 begins each report; following COREPROF frames, SPUPROF, RANGELOCKPROF and JITMEM belong to that same report even though not all carry a window number.",
+    "FPS": "Completed guest intervals per wall-window second and completed-interval FPS retained separately. Long intervals can cross report boundaries. Neither means new scene-equivalent FPS improvement.",
+    "times": "SPU totals span concurrent threads. SHADERCOST534 and PRESSURE547 overlap. READBACK includes parent waits. No overlapping time totals added. Unsampled texture averages and GPU time -1 are unavailable.",
+    "counterScope": "texture_hash_* covers hybrid_ge4096 only; zero here does not mean zero texture hashing. The 587 marker belongs to Black Ops II, where async is off; it does not validate God of War III async or the encoding barrier."
+  }
+}
