@@ -51,7 +51,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Pin the delivered 585 product tree with the MeloNX engine files of 6314127, d8cd5f6, ac16f1c, 6edcd57 and 75a13f7, the Cheats & Enhancements work of b451b10 to e017be1 and the RPCS3 Core 587 of a8a7ce1, each file from the commit that validated it
+    - name: Pin the delivered 585 product tree with the MeloNX engine files of 6314127, d8cd5f6, ac16f1c, 6edcd57 and 75a13f7, the Cheats & Enhancements work of b451b10 to d0f27cc and the RPCS3 Core 587 of a8a7ce1, each file from the commit that validated it
       run: python3 .github/diagnostics/rewind586_tree.py --pin
     - uses: subosito/flutter-action@v2
       with:
@@ -184,7 +184,7 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Pin the delivered 585 product tree with the MeloNX engine files of 6314127, d8cd5f6, ac16f1c, 6edcd57 and 75a13f7, the Cheats & Enhancements work of b451b10 to e017be1 and the RPCS3 Core 587 of a8a7ce1, each file from the commit that validated it
+    - name: Pin the delivered 585 product tree with the MeloNX engine files of 6314127, d8cd5f6, ac16f1c, 6edcd57 and 75a13f7, the Cheats & Enhancements work of b451b10 to d0f27cc and the RPCS3 Core 587 of a8a7ce1, each file from the commit that validated it
       run: python3 .github/diagnostics/rewind586_tree.py --pin
     - name: Load exact local import and historical Foundation receipts
       uses: actions/download-artifact@v4

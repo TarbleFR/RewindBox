@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bind the Cheats & Enhancements page and catalogues (b451b10 to e017be1), the 28 October cheat withdrawal and the origin publication (v2) of the cheat index to private IPA586.
+"""Bind the Cheats & Enhancements page and catalogues (b451b10 to d0f27cc), the 28 October cheat withdrawal and the origin publication (v2) of the cheat index to private IPA586.
 
 The receipt names every shipped file of the change with its digest (the
 catalogue shards and cheat packs, downloaded on demand and never bundled, by

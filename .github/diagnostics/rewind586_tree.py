@@ -1,4 +1,4 @@
-"""Private586 delivery tree: the delivered 585 product tree with the MeloNX engine files of 6314127, d8cd5f6, ac16f1c, 6edcd57 and 75a13f7, the Cheats & Enhancements work of b451b10 to e017be1 and the RPCS3 Core 587 of a8a7ce1.
+"""Private586 delivery tree: the delivered 585 product tree with the MeloNX engine files of 6314127, d8cd5f6, ac16f1c, 6edcd57 and 75a13f7, the Cheats & Enhancements work of b451b10 to d0f27cc and the RPCS3 Core 587 of a8a7ce1.
 
 585 shipped the 583 product (the 582 product with the RPCS3 Core 583: the
 581 product with the MeloNX engine of e55ca25 and the Switch discovery fix
@@ -28,9 +28,12 @@ of 32a0da6/63fdb7e) with the RPCS3 Core 585. 586 keeps all of it and adds:
   (NOTICE.md) and the withdrawal receipt the shipped tests and the unified
   cheats validator read. The rest of these commits' documentation follows
   HEAD (AGENTS.md) or stays at its 585 version.
-- the unified cheats validator binding that receipt from build 586.
+- the unified cheats validator binding that receipt and the origin
+  publication (v2) from build 586.
 - lifecycle transitions and memory figures in the MeloNX session journal
   (host Swift, this session).
+- the package audit with the review of the cheat catalogue package's new
+  dependency declaration, which the legal bundle checks (this session).
 - the RPCS3 Core 587 recipe of a8a7ce1 (session 01BcZDeV9dViZteLEWQGkbHE:
   MoltenVK asynchronous submits with an encode barrier before every swapchain
   acquisition, the MetalFX handoff ordered, a boot canary), built and tested
@@ -98,13 +101,17 @@ ENGINE586 = ['build-utils/melonx/adapt_gpu_allocations.py', 'build-utils/melonx/
              'build-utils/melonx/prepare_embedded.py']
 # The Cheats & Enhancements commits, oldest first (two commits of the same session in between
 # change documentation only); 68e28dd bundles the origin publication (v2) of the cheat index, 4a19415
-# and e017be1 adapt its macOS and UIKit tests.
+# and e017be1 adapt its macOS and UIKit tests, d0f27cc registers its Dart handler from the plugin.
+# Files a later commit restored to their 585 version stay at that version (d0f27cc restores
+# lib/main.dart, which 68e28dd had changed).
+REVERTED586 = ['lib/main.dart']
 ENHANCE_SESSION = 'Claude-Session: https://claude.ai/code/session_01JA5QgPNMf2RK6ptCEMpk2z'
 APP_COMMITS = ['b451b10256acd6ab7cd3c356a06f28b99a858003', '23a847d68665d2a6b6eebbe9fc714f5730d13f1f',
                '1c1d1f7f4b3fcf088a623d3cbf1014ea35b58811', 'cb59a78472a9ce5c5fc6925db7119649e76b3220',
                '1345bd3e96baba179b4045bbac89791923765b92', '3192f0f957fc20bb05cea71bd38bfc3cabff6d08',
                'c9b42115eea9419a572f6db04104aacade3130db', '68e28ddc7d26dd68fc65e54ba522533a827b03a2',
-               '4a19415c63c1f917f3a42259bd5cb560e9fb082a', 'e017be1c332221e0291d785e5d9611e313cfc42e']
+               '4a19415c63c1f917f3a42259bd5cb560e9fb082a', 'e017be1c332221e0291d785e5d9611e313cfc42e',
+               'd0f27cc861d5881555d7eaeaeb3948d41506e636']
 DOC_COMMITS = ['208274efa8f96509a4ec63cfae8d203a3fd8af58', 'd6cccb3c321eb0b6d09a784151a6bf3041d4d2dc']
 # Documentation the shipped tests and the unified cheats validator read; NOTICE.md ships in the legal bundle.
 KEPT_DOCS = ['docs/evidence/source-rights-withdrawal-fps478.json']
@@ -114,6 +121,10 @@ VALIDATOR586 = {'build-utils/validate_unified_cheats_ipa.py': '8b099a6bc387665fc
 DIAG_SOURCE = 'd1ea146f281394ba25ab731361458132b2f72924'
 DIAG586 = {'packages/melonx_internal_bridge/ios/Classes/MeloNXMetalSessionViewController.swift': DIAG_SOURCE,
            'packages/melonx_internal_bridge/ios/Classes/MeloNXPerfJournal.swift': DIAG_SOURCE}
+# The package audit reviews the cheat catalogue's dependency declaration of 68e28dd, which the legal
+# bundle checks (this session).
+AUDIT_SOURCE = 'b29a3a980d873261e1d9d83bcd663bb5ad08db95'
+AUDIT586 = {'docs/evidence/package-sources-license-audit-2026-10-21.json': AUDIT_SOURCE}
 # The RPCS3 Core 587 (session 01BcZDeV9dViZteLEWQGkbHE), built and tested by its own Core run, in place of
 # the Core 585: the files of its Core commit, and the profile commit that follows it in the application.
 RPCS3_SESSION = 'Claude-Session: https://claude.ai/code/session_01BcZDeV9dViZteLEWQGkbHE'
@@ -165,6 +176,8 @@ def app_files():
         for p in touched(commit):
             if p and not documentation(p):
                 files[p] = commit
+    for p in REVERTED586:
+        assert previous.blob(files.pop(p), p) == previous.blob(previous.source_of(p), p), p
     return files
 
 
@@ -172,6 +185,7 @@ APP586 = app_files()
 APP586.update(VALIDATOR586)
 APP586.update(PROFILE587)
 APP586.update(DIAG586)
+APP586.update(AUDIT586)
 CHANGED = FIX586 + sorted(APP586) + CORE587
 OWNED = previous.OWNED + CHANGED + CORE_DOCS587 + RECIPE
 
@@ -304,10 +318,12 @@ def parent_contract():
     for commit in DOC_COMMITS:
         assert all(documentation(p) for p in touched(commit)), commit
     for commit in APP_COMMITS:
-        assert [p for p in touched(commit) if p not in APP586] == [p for p in touched(commit) if documentation(p)], commit
+        assert [p for p in touched(commit) if p not in APP586 and p not in REVERTED586] == [
+            p for p in touched(commit) if documentation(p)], commit
     for p, commit in VALIDATOR586.items():
         assert SESSION in git('log', '-1', '--format=%B', commit) and touched(commit) == [p], commit
     assert SESSION in git('log', '-1', '--format=%B', DIAG_SOURCE) and set(touched(DIAG_SOURCE)) == set(DIAG586), DIAG_SOURCE
+    assert SESSION in git('log', '-1', '--format=%B', AUDIT_SOURCE) and touched(AUDIT_SOURCE) == list(AUDIT586), AUDIT_SOURCE
     first = git('rev-parse', ENGINE_COMMITS[-1] + '^')
     for p in FIX586:
         before = previous.source_of(p)
@@ -332,7 +348,7 @@ def parent_contract():
     assert commits == [SOURCE587], commits
     for short, tag in CORE_COMMITS.items():
         assert git('log', '-1', '--format=%s', short).endswith(tag), short
-    allowed = set(APP_COMMITS) | set(VALIDATOR586.values()) | {PROFILE_SOURCE, DIAG_SOURCE}
+    allowed = set(APP_COMMITS) | set(VALIDATOR586.values()) | {PROFILE_SOURCE, DIAG_SOURCE, AUDIT_SOURCE}
     for p, source in APP586.items():
         before = previous.source_of(p)
         assert before is not None, (p, 'follows HEAD in the 585 tree')
@@ -440,7 +456,7 @@ def pin(report):
                    validator586=VALIDATOR586, app586=APP586, replaced=REPLACED, added=ADDED, deleted=DELETED586,
                    restored=restored, removed=sorted(removed), keptFiles=kept,
                    productTrees=trees, productTrees585=trees585,
-                   reason='The 585 product tree with the MeloNX engine files of 6314127, d8cd5f6, ac16f1c, 6edcd57 and 75a13f7, the Cheats & Enhancements work of b451b10 to e017be1 and the RPCS3 Core 587 of a8a7ce1 with the profile of 147af30; each file from the commit that validated it; Git history unchanged.')
+                   reason='The 585 product tree with the MeloNX engine files of 6314127, d8cd5f6, ac16f1c, 6edcd57 and 75a13f7, the Cheats & Enhancements work of b451b10 to d0f27cc and the RPCS3 Core 587 of a8a7ce1 with the profile of 147af30; each file from the commit that validated it; Git history unchanged.')
     if report:
         out = ROOT / report
         out.parent.mkdir(parents=True, exist_ok=True)
