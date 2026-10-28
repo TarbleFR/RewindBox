@@ -236,6 +236,34 @@ void main() {
     );
 
     test(
+      "Assassin's Creed relaxes SPU reservations over the official entry",
+      () async {
+        // Build 589: the build 585 logs show Black Ops II's signature, about
+        // one million data-changing PUTLLC per window under the writer lock.
+        for (final serial in <String>['BLES00158', 'BLUS30089']) {
+          final profile = Rpcs3GameProfileService.profileForSerial(serial)!;
+          expect(profile.settings, <String, String>{
+            'advanced.accurate_spu_reservations': 'false',
+          });
+          final payload =
+              await Rpcs3GameProfileService.databasePayloadForSerials(
+                <String>[serial],
+              );
+          final games =
+              (jsonDecode(payload) as Map<String, dynamic>)['games']
+                  as Map<String, dynamic>;
+          final yaml =
+              (games[serial] as Map<String, dynamic>)['config'] as String;
+          expect(yaml, contains('Accurate SPU Reservations: false'));
+          expect(yaml, contains('Multithreaded RSX: true'));
+          expect(yaml, contains('Asynchronous Texture Streaming: true'));
+          expect(yaml, contains('Relaxed ZCULL Sync: true'));
+          expect(yaml, isNot(contains('MoltenVK Asynchronous Submits')));
+        }
+      },
+    );
+
+    test(
       'Dragon Ball Z HD Collection runs the global profile it ran on 547',
       () async {
         // Build 552: the 551 title profile (asynchronous submits and texture

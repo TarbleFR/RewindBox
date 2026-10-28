@@ -178,6 +178,20 @@ abstract final class Rpcs3GameProfileService {
     // reservations. Measured on the next run by the same counters.
     'BLES01717': {'advanced.accurate_spu_reservations': 'false'},
 
+    // Assassin's Creed (BLES00158, BLUS30089), first build 585 run: in the
+    // steady game scene (12-29 fps) its SPUs store 0.87-1.03 million
+    // data-changing PUTLLC per 5 s window under the exclusive writer lock
+    // (RANGELOCKPROF wl_putllc 0.98-1.32 s per window), and its PPU threads
+    // wait 1.26-1.71 s per window in 19,500-32,100 range-lock episodes
+    // (WAITPROF527 vm_range_episode), beside an RSX thread at 0.54-0.80 core.
+    // Black Ops II's signature, with the same relaxed path: one 16-byte lane
+    // or the SPURS control block is stored without the writer lock. The
+    // official RPCS3 entry (Multithreaded RSX, asynchronous texture
+    // streaming, relaxed ZCULL) stays underneath and does not ask for
+    // accurate reservations. Measured on the next run by the same counters.
+    'BLES00158': {'advanced.accurate_spu_reservations': 'false'},
+    'BLUS30089': {'advanced.accurate_spu_reservations': 'false'},
+
     // ARMSX3 issue #77 is guest pacing rather than an Android driver hack.
     // PS3 Native honours the title's alternate-vblank flip cadence.
     'BLUS31213': {'gpu.frame_limit': 'PS3 Native'},
