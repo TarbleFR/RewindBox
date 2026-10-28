@@ -70,7 +70,8 @@ read on even when the guest never got there: a memory manager that checks
 mappings (HostMapped) failed the whole translation, and HostTracked, which
 iOS uses, decoded the bytes of guest physical page 0 up to the unit's
 instruction limit. A misaligned unit (the guest faults there on hardware)
-ignores the entries and the 572 look-ahead and decodes as upstream.
+ignores the entries and the 572 look-ahead, whose reads could run past the
+page; it still ends at traps and frame-opening calls (566).
 
 Same binary through the production memory manager, every exit followed:
 compile time 13.2-13.8 s -> 10.6-10.8 s (-20 %; 10.9-11.3 s from the page
@@ -454,7 +455,7 @@ def apply_entries(source):
             public bool StopsAt(CodeReader code, ulong address)
             {
                 // Entry bits belong to aligned words: a misaligned unit (the guest faults there on
-                // hardware) decodes as upstream.
+                // hardware) ignores them.
                 if (_entries == null || address == _unitAddress || address <= _keepThrough || (_unitAddress & 3UL) != 0)
                 {
                     return false;

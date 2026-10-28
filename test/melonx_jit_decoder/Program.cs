@@ -23,9 +23,11 @@ sealed class GuestCode : IMemoryManager
     // page as guest physical page 0; IsMapped is false either way.
     private readonly ulong _mappedEnd;
     private readonly bool _silent;
-    public GuestCode(uint[] words, ulong mappedEnd = ulong.MaxValue, bool silent = false)
+    // The code starts shift bytes after Base (a misaligned layout when not 0).
+    public GuestCode(uint[] words, ulong mappedEnd = ulong.MaxValue, bool silent = false, int shift = 0)
     {
-        _bytes = MemoryMarshal.AsBytes(words.AsSpan()).ToArray();
+        _bytes = new byte[shift + words.Length * 4];
+        MemoryMarshal.AsBytes(words.AsSpan()).CopyTo(_bytes.AsSpan(shift));
         _mappedEnd = mappedEnd;
         _silent = silent;
     }
@@ -133,6 +135,51 @@ static class Program
 #else
         return Unit(words, entry, mappedEnd);
 #endif
+    }
+
+    // A unit laid out shift bytes off word alignment (a PC that faults on hardware),
+    // with the next page unmapped and translations at the given addresses: the decode
+    // and compile outcomes, exceptions included.
+    private static Dictionary<string, object> Misaligned(uint[] words, int shift, int entry, ulong[] translated)
+    {
+        GuestCode code = new(words, GuestCode.Base + 0x1000, shift: shift);
+        ulong address = GuestCode.Base + (ulong)shift + (ulong)entry * 4;
+#if ADAPTED
+        TranslatedEntries entries = new();
+        foreach (ulong at in translated) entries.Add(at);
+        TranslatedEntries.Current = entries;
+#endif
+        try
+        {
+            Dictionary<string, object> result = new();
+            try
+            {
+                MultiBlock multi = Decoder.DecodeMulti(CpuPresets.CortexA57, code, address);
+                result["decoded"] = multi.Blocks.Sum(block => block.Instructions.Count);
+                result["truncated"] = multi.IsTruncated;
+            }
+            catch (Exception e)
+            {
+                result["decodeThrows"] = e.GetType().Name;
+                return result;
+            }
+            try
+            {
+                CompiledFunction compiled = AarchCompiler.Compile(CpuPresets.CortexA57, code, address, Table, (nint)0x10000, ExecutionMode.Aarch64, Architecture.Arm64);
+                result["guestInstructions"] = compiled.GuestCodeLength / 4;
+            }
+            catch (Exception e)
+            {
+                result["compileThrows"] = e.GetType().Name;
+            }
+            return result;
+        }
+        finally
+        {
+#if ADAPTED
+            TranslatedEntries.Current = null;
+#endif
+        }
     }
 
     // Functions laid out the way clang emits them: each ends with a call that
@@ -243,6 +290,20 @@ static class Program
             ["unmappedLongJump"] = Unit(Enumerable.Repeat(A64.AddOne, 1000).Append(A64.B(1000, 1100)).Concat(Enumerable.Repeat(A64.AddOne, 9))
                 .Append(A64.B(1010, 0)).ToArray(), 0, GuestCode.Base + 0x1000),
         };
+        // Units laid out 1-3 bytes off word alignment, the next page unmapped: add x64; b <936 on,
+        // 24 instructions before the page end>; add; ret (the 572 look-ahead), and add x66; ret with
+        // a translation at the aligned word of the 67th add (entry stops). Both rules leave such a
+        // unit alone: it decodes and compiles as upstream.
+        foreach (int shift in new[] { 1, 2, 3 })
+        {
+            uint[] jump = Enumerable.Repeat(A64.AddOne, 1024).ToArray();
+            jump[64] = A64.B(64, 1000);
+            jump[66] = A64.Ret;
+            report[$"misalignedJump{shift}"] = Misaligned(jump, shift, 64, []);
+            uint[] entry = Enumerable.Repeat(A64.AddOne, 1024).ToArray();
+            entry[67] = A64.Ret;
+            report[$"misalignedEntry{shift}"] = Misaligned(entry, shift, 64, [GuestCode.Base + 66 * 4]);
+        }
         Console.WriteLine(JsonSerializer.Serialize(report));
     }
 }

@@ -24,24 +24,37 @@ one allocates on every use, on the GPU thread or for it, in every game:
   written back exactly as before. Copies above 16 MiB keep their own array.
 - GPFifoDevice: every command segment the guest submits was copied into a
   new int[] by the thread that submits it, so the whole command stream was
-  reallocated every frame. Segments of up to 1 MiB are now copied into
-  arrays rented from a pool shared by the channels (up to 32 arrays per
-  power-of-two size, so at most 64 MiB stay pooled) and returned once the
-  GPU thread has processed them; larger segments keep their own array. The
-  words are only read during Process and every consumer copies what it
-  keeps. A segment pushed by the host keeps its own array.
-- MemoryOwner<T>: the pool behind texture conversions and uploads kept one
+  reallocated every frame. Segments are now copied into arrays rented from
+  the runtime's shared pool (ArrayPool<int>.Shared) and returned once the
+  GPU thread has processed them. That pool drops, when a gen 2 collection
+  runs, the arrays it has kept unused for about 10 s at high memory load
+  (the load iOS reports during a large game), 60 s otherwise. Host
+  harness: 28-69 times fewer bytes allocated than before. The words are
+  only read during Process and every consumer copies what it keeps. A
+  segment pushed by the host keeps its own array.
+- MemoryOwner<T>: the pool behind texture conversions and uploads keeps one
   array per length and dropped every other array of that length when it was
-  returned, so N same-sized uploads in flight left N-1 arrays to the GC. It
-  now keeps all of them, up to 64 MiB per element type (the oldest entries
-  make room), which also bounds a pool that had no bound (one array per
-  distinct length, never trimmed).
+  returned, so N same-sized uploads in flight left N-1 arrays to the GC, as
+  large objects from 85,000 bytes. Such an array (85,000 bytes or more) now
+  waits as a spare, outside the list the pool searches: that list, its
+  search, skip counts and cleanup are unchanged, and when a rent takes a
+  length's array, a spare of that length takes its place. Spares use at
+  most 64 MiB per element type (the oldest go first), a timer releases each
+  3 s after it was returned, and the cleanup that drops a length drops its
+  spares. Host benchmark (x86-64, the .NET GC set as on iOS), 600 frames:
+  4 uploads of 4 MiB per frame, gen 2 collections 237-245 -> 2 and GC
+  pauses 235-252 ms -> 1 ms; 200 uploads of 256 KiB, 1,050-1,111 -> 10-20
+  and 1.27-1.30 s -> 7-20 ms; peak working set 25-110 MiB higher.
 - ThreadedRenderer: data passed to the render thread with a command (buffer
   uploads, per-draw state) goes through an 8 MiB ring; when the render thread
   is more than 8 MiB behind, every such span became a new array. The ring
-  becomes 32 MiB.
+  becomes 32 MiB, written in full by normal traffic, so 24 MiB more stay
+  resident.
 
-No rendering path changes: the same bytes reach the same calls. Not measured
+Memory kept for these: 16 MiB at most per GPU channel for the copy buffer,
+64 MiB at most of pooled spares (each released 3 s after it was returned)
+and 24 MiB for the ring; the word arrays are the runtime pool's. No
+rendering path changes: the same bytes reach the same calls. Not measured
 on an iPhone; no FPS gain is claimed. Fail closed on drift.
 """
 from adapt_session import once
@@ -116,9 +129,9 @@ def apply(source):
     once(fifo, '''        private readonly ConcurrentQueue<CommandBuffer> _commandBufferQueue;
 ''', '''        private readonly ConcurrentQueue<CommandBuffer> _commandBufferQueue;
 
-        // Prefetched command words, returned once the GPU thread has processed them. Shared by every
-        // channel; each power-of-two size up to 1 MiB keeps up to 32 arrays (64 MiB at most).
-        private static readonly System.Buffers.ArrayPool<int> _wordPool = System.Buffers.ArrayPool<int>.Create(1 << 18, 32);
+        // Prefetched command words, returned to the runtime's shared pool once the GPU thread has
+        // processed them; that pool drops arrays left unused for a while when gen 2 collections run.
+        private static readonly System.Buffers.ArrayPool<int> _wordPool = System.Buffers.ArrayPool<int>.Shared;
 ''')
     once(fifo, '''                entry.Processor.Process(entry.EntryAddress, words);
 ''', '''                entry.Processor.Process(entry.EntryAddress, words);
@@ -133,60 +146,60 @@ def apply(source):
     once(owner, '''                public int SkipCount;
                 public readonly T[]? Array = array;
 ''', '''                public int SkipCount;
-                public long Stamp;
+                // Set while this array waits as a spare: its place in the age list and in its length's list.
+                public LinkedListNode<Holder>? Spare;
+                public LinkedListNode<Holder>? SameLength;
+                public long Returned;
                 public readonly T[]? Array = array;
 ''')
     once(owner, '''            private const int MaxSkipCount = 50;
 ''', '''            private const int MaxSkipCount = 50;
 
-            // Arrays kept for reuse, several of one length included, up to this many bytes; the
-            // oldest entries make room.
-            private const long MaxPooledBytes = 64L * 1024 * 1024;
-            private static long _pooledBytes;
-            private static long _stamp;
+            // Arrays of 85,000 bytes or more returned while their length is pooled wait as spares
+            // instead of being dropped (a frame uploads several textures of one size), outside
+            // _pool, which keeps one array per length as before. When a rent takes a length's
+            // array, a spare of that length takes its place. Spares use at most 64 MiB; the oldest
+            // go first, and a timer releases a spare 3 s after it was returned.
+            private const long MinSpareBytes = 85000;
+            private const long MaxSpareBytes = 64L * 1024 * 1024;
+            private const int SpareIdleMilliseconds = 3000;
+            private static readonly LinkedList<Holder> _spares = new();
+            private static readonly Dictionary<int, LinkedList<Holder>> _sparesByLength = new();
+            private static long _spareBytes;
+            private static Timer? _spareTimer;
 ''')
     once(owner, '''                        _pool.Remove(holder);
                         return holder.Array!;
-''', '''                        RemoveLocked(index);
+''', '''                        if (_sparesByLength.TryGetValue(holder.Array!.Length, out LinkedList<Holder>? spares))
+                        {
+                            Holder spare = spares.Last!.Value;
+                            RemoveSpareLocked(spare);
+                            _pool[index] = spare;
+                        }
+                        else
+                        {
+                            _pool.RemoveAt(index);
+                        }
+
                         return holder.Array!;
 ''')
-    once(owner, '''            public static void Return(T[] array)
-            {
-
-                lock (_lock)
-                {
-                    Holder holder = new(array);
-                    int i = _pool.BinarySearch(holder);
-                    if (i < 0)
+    once(owner, '''                    if (i < 0)
                     {
                         _pool.Insert(~i, holder);
                     }
-''', '''            public static void Return(T[] array)
-            {
-                long bytes = Bytes(array);
-
-                if (bytes > MaxPooledBytes)
-                {
-                    return;
-                }
-
-                lock (_lock)
-                {
-                    // Keep every returned array: a frame uploads many textures of one size, and
-                    // keeping only one array per length left the others to the GC.
-                    while (_pool.Count > 0 && _pooledBytes + bytes > MaxPooledBytes)
+''', '''                    if (i < 0)
                     {
-                        RemoveLocked(OldestLocked());
+                        _pool.Insert(~i, holder);
                     }
-
-                    Holder holder = new(array) { Stamp = ++_stamp };
-                    int i = _pool.BinarySearch(holder);
-                    _pool.Insert(i >= 0 ? i : ~i, holder);
-                    _pooledBytes += bytes;
+                    else
+                    {
+                        KeepSpareLocked(holder);
+                    }
 ''')
     once(owner, '''                                _pool.Remove(h);
                                 index--;
-''', '''                                RemoveLocked(index);
+''', '''                                _pool.RemoveAt(index);
+                                DropSparesLocked(h.Array!.Length);
                                 index--;
 ''')
     once(owner, '''                        _maxCacheCount = _pool.Count * 2;
@@ -200,25 +213,77 @@ def apply(source):
 
             private static long Bytes(T[] array) => (long)array.Length * Unsafe.SizeOf<T>();
 
-            private static int OldestLocked()
+            private static void KeepSpareLocked(Holder holder)
             {
-                int oldest = 0;
+                long bytes = Bytes(holder.Array!);
 
-                for (int index = 1; index < _pool.Count; index++)
+                if (bytes < MinSpareBytes || bytes > MaxSpareBytes)
                 {
-                    if (_pool[index].Stamp < _pool[oldest].Stamp)
-                    {
-                        oldest = index;
-                    }
+                    return;
                 }
 
-                return oldest;
+                while (_spareBytes + bytes > MaxSpareBytes)
+                {
+                    RemoveSpareLocked(_spares.First!.Value);
+                }
+
+                holder.Returned = Environment.TickCount64;
+                holder.Spare = _spares.AddLast(holder);
+
+                if (!_sparesByLength.TryGetValue(holder.Array!.Length, out LinkedList<Holder>? sameLength))
+                {
+                    _sparesByLength[holder.Array!.Length] = sameLength = new();
+                }
+
+                holder.SameLength = sameLength.AddLast(holder);
+                _spareBytes += bytes;
+
+                if (_spares.Count == 1)
+                {
+                    (_spareTimer ??= new Timer(ReleaseIdleSpares)).Change(SpareIdleMilliseconds, Timeout.Infinite);
+                }
             }
 
-            private static void RemoveLocked(int index)
+            private static void RemoveSpareLocked(Holder holder)
             {
-                _pooledBytes -= Bytes(_pool[index].Array!);
-                _pool.RemoveAt(index);
+                LinkedList<Holder> sameLength = holder.SameLength!.List!;
+
+                _spares.Remove(holder.Spare!);
+                sameLength.Remove(holder.SameLength);
+                holder.Spare = null;
+                holder.SameLength = null;
+                _spareBytes -= Bytes(holder.Array!);
+
+                if (sameLength.Count == 0)
+                {
+                    _sparesByLength.Remove(holder.Array!.Length);
+                }
+            }
+
+            private static void DropSparesLocked(int length)
+            {
+                while (_sparesByLength.TryGetValue(length, out LinkedList<Holder>? spares))
+                {
+                    RemoveSpareLocked(spares.First!.Value);
+                }
+            }
+
+            private static void ReleaseIdleSpares(object? state)
+            {
+                lock (_lock)
+                {
+                    long now = Environment.TickCount64;
+
+                    while (_spares.First is { } oldest && now - oldest.Value.Returned >= SpareIdleMilliseconds)
+                    {
+                        RemoveSpareLocked(oldest.Value);
+                    }
+
+                    if (_spares.First is { } next)
+                    {
+                        _spareTimer!.Change(Math.Max(1, next.Value.Returned + SpareIdleMilliseconds - now), Timeout.Infinite);
+                    }
+                }
             }
 ''')
 

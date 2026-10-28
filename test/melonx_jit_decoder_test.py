@@ -17,7 +17,11 @@ it, unless the code from there branches back into the unit within 1,024
 instructions (a loop stays in one unit; for code reached without a branch,
 back past it) or a forward branch of the unit passes over it by fewer than
 64 instructions; without them, nothing changes. A unit ends before a page
-that is not mapped, where upstream fails the whole translation.
+that is not mapped, where upstream fails the whole translation (a memory
+manager that checks mappings) or decodes on into zeros (HostTracked, iOS).
+A unit laid out off word alignment (a PC that faults on hardware) ignores
+translated entries and the jump look-ahead, whose reads would cross into the
+unmapped page: without traps or calls it decodes and compiles as upstream.
 """
 from pathlib import Path
 import hashlib, json, shutil, subprocess, sys, tempfile
@@ -159,6 +163,13 @@ def check(upstream: dict, adapted: dict):
         size = abs(u.pop('hostBytes') - a.pop('hostBytes'))
         expect(u == a and size <= 16 and not a['truncated'],
                f'{name}: code a short forward branch passes over stays in the unit: {upstream[name]} {adapted[name]}')
+    for shift in (1, 2, 3):
+        for name in (f'misalignedJump{shift}', f'misalignedEntry{shift}'):
+            u, a = upstream[name], adapted[name]
+            expect('decodeThrows' not in u and u == a, f'{name}: a misaligned unit decodes and compiles as upstream: {u} {a}')
+        u, a = upstream[f'misalignedJump{shift}'], upstream[f'misalignedEntry{shift}']
+        expect(u.get('decoded') == 3 and u.get('compileThrows') == 'ArgumentException' and a.get('decoded') == 4 and
+               a.get('guestInstructions') == 4, f'misaligned cases as laid out (shift {shift}): {u} {a}')
     u, a = upstream['framelessLayout'], adapted['framelessLayout']
     expect(a['guestInstructions'] == 300 * 12 + 1 and u['guestInstructions'] > 50 * a['guestInstructions'] and
            u['hostBytes'] > 20 * a['hostBytes'],
