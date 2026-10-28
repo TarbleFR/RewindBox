@@ -1,13 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neo_cheat_catalog/neo_cheat_catalog.dart';
 import 'package:neo_cheat_catalog/src/canonical_json.dart';
 import 'package:neo_cheat_catalog/src/origin_recipe.dart';
-import 'package:neo_cheat_catalog/src/origin_resolver.dart';
 
 /// Packs of the origin publication rebuild to the chunks the hosted
 /// publication served. Made-up programs in the shapes tools/cheats/origin
@@ -166,6 +168,48 @@ void main() {
 
     // Cached by SHA-256: a second pack fetches nothing.
     await OriginResolver(cache: temp, fetch: (uri, limit) async => throw StateError('offline')).resolve(pack(origin));
+  });
+
+  test('Flutter registers the resolver the native catalogue calls', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    NeoCheatCatalog.registerWith();
+    const codec = StandardMethodCodec();
+    Future<Object?> call(Object? arguments) async {
+      final reply = Completer<ByteData?>();
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.handlePlatformMessage(
+        'neostation/cheat_catalog',
+        codec.encodeMethodCall(MethodCall('resolveOriginPack', arguments)),
+        reply.complete,
+      );
+      return codec.decodeEnvelope((await reply.future)!);
+    }
+
+    // A program with no recipe needs no origin file: nothing is downloaded.
+    final chunk = {
+      'schema_version': 1,
+      'game': {'id': 'g'},
+      'cheats': [
+        {'id': 'p', 'name': 'Hosted', 'code': '01FF10C0'},
+      ],
+    };
+    final body = Uint8List.fromList(
+      utf8.encode(
+        jsonEncode({
+          'schema_version': 1,
+          'origin': {'version': 1, 'sources': {}, 'files': []},
+          'files': [
+            {'game_id': 'g', 'skeleton': base64Encode(canonicalJson(chunk))},
+          ],
+        }),
+      ),
+    );
+    final answer = await call({'pack': body, 'cache': '${temp.path}/origin'});
+    final files = (jsonDecode(utf8.decode(answer! as Uint8List))['files'] as List).cast<Map<String, dynamic>>();
+    expect(files.single['data'], base64Encode(canonicalJson(chunk)));
+    await expectLater(
+      call({'pack': body}),
+      throwsA(isA<PlatformException>().having((e) => e.code, 'code', 'origin_arguments')),
+    );
   });
 
   test('an origin file that changed at its source is refused', () async {

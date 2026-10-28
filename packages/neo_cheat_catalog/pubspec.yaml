@@ -19,3 +19,4 @@ flutter:
     platforms:
       ios:
         pluginClass: NeoCheatCatalogPlugin
+        dartPluginClass: NeoCheatCatalog

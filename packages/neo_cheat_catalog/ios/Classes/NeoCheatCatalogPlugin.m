@@ -20,12 +20,16 @@ static NSDictionary *CompactSummary(NSDictionary *data) {
   NeoCheatCatalogPlugin *plugin=[self new];
   FlutterMethodChannel *methods=[FlutterMethodChannel methodChannelWithName:@"neostation/cheat_catalog" binaryMessenger:registrar.messenger];
   [registrar addMethodCallDelegate:plugin channel:methods];
-  // Origin packs are rebuilt by Dart (package:neo_cheat_catalog OriginResolver).
-  // The catalogue calls this on a pack worker; the channel is used on main.
+  // Origin packs are rebuilt by Dart (package:neo_cheat_catalog OriginResolver,
+  // registered by Flutter before main). The catalogue calls this on a pack
+  // worker; the channel is used on main. Origin files are cached in
+  // Application Support, outside the user's Documents.
+  NSString *support=NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory,NSUserDomainMask,YES).firstObject ?: NSTemporaryDirectory();
+  NSString *originCache=[support stringByAppendingPathComponent:@"RewindBox/Cheats/Origin"];
   NeoUnifiedCheatCatalog.sharedCatalog.originResolver=^NSData *(NSData *pack,NSError **error){
     __block id answer=nil;dispatch_semaphore_t done=dispatch_semaphore_create(0);
     dispatch_async(dispatch_get_main_queue(),^{
-      [methods invokeMethod:@"resolveOriginPack" arguments:[FlutterStandardTypedData typedDataWithBytes:pack]
+      [methods invokeMethod:@"resolveOriginPack" arguments:@{@"pack":[FlutterStandardTypedData typedDataWithBytes:pack],@"cache":originCache}
                      result:^(id result){answer=result;dispatch_semaphore_signal(done);}];
     });
     if(dispatch_semaphore_wait(done,dispatch_time(DISPATCH_TIME_NOW,(int64_t)900*NSEC_PER_SEC))!=0){

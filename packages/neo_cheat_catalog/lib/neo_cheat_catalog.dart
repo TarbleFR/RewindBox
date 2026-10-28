@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/services.dart';
@@ -17,22 +18,41 @@ class NeoCheatCatalog {
       .receiveBroadcastStream()
       .map((value) => Map<String, dynamic>.from(value as Map));
 
-  /// Lets the native catalogue rebuild packs of the origin publication: it
-  /// calls `resolveOriginPack` with a pack's JSON and receives the standard
-  /// pack back (OriginResolver). Origin files are cached under [cache].
-  /// Call once at startup on iOS; without it, those packs report an error.
-  static void enableOriginDownloads(Directory cache) {
-    final resolver = OriginResolver(cache: cache);
-    _channel.setMethodCallHandler((call) async {
-      if (call.method != 'resolveOriginPack') throw MissingPluginException(call.method);
-      final pack = call.arguments;
-      if (pack is! Uint8List) throw PlatformException(code: 'origin_arguments');
-      try {
-        return await resolver.resolve(pack);
-      } catch (error) {
-        throw PlatformException(code: 'origin_failed', message: error.toString());
-      }
-    });
+  /// Called by Flutter before `main` (pubspec `dartPluginClass`): the native
+  /// catalogue can then rebuild packs of the origin publication. It calls
+  /// `resolveOriginPack` with a pack's JSON and the folder that caches origin
+  /// files, and receives the standard pack back (OriginResolver). The app's
+  /// own code is not involved.
+  static void registerWith() => _listen();
+
+  static OriginResolver? _resolver;
+
+  static void _listen() {
+    try {
+      _channel.setMethodCallHandler(_handle);
+    } catch (_) {
+      // Before main initialises the binding there is no messenger yet.
+      Timer(const Duration(milliseconds: 50), _listen);
+    }
+  }
+
+  static Future<Object?> _handle(MethodCall call) async {
+    if (call.method != 'resolveOriginPack') throw MissingPluginException(call.method);
+    final arguments = call.arguments;
+    final pack = arguments is Map ? arguments['pack'] : null;
+    final cache = arguments is Map ? arguments['cache'] : null;
+    if (pack is! Uint8List || cache is! String || cache.isEmpty) {
+      throw PlatformException(code: 'origin_arguments');
+    }
+    var resolver = _resolver;
+    if (resolver == null || resolver.cache.path != cache) {
+      resolver = _resolver = OriginResolver(cache: Directory(cache));
+    }
+    try {
+      return await resolver.resolve(pack);
+    } catch (error) {
+      throw PlatformException(code: 'origin_failed', message: error.toString());
+    }
   }
 
   static Future<Map<String, dynamic>> load() async =>

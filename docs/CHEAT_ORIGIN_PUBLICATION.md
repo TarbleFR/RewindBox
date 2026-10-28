@@ -51,9 +51,11 @@ cp1252, float `repr`).
 
 1. The native catalogue (`NeoUnifiedCheatCatalog.m`) downloads the pack, which
    is hosted and checked against the manifest as before.
-2. A pack with an `origin` table goes to the Dart resolver
-   (`NeoCheatCatalog.enableOriginDownloads`, `OriginResolver`) through the
-   plugin's channel.
+2. A pack with an `origin` table goes to the Dart resolver (`OriginResolver`)
+   through the plugin's channel, with the folder that caches origin files
+   (Application Support). Flutter registers the handler before `main`
+   (`dartPluginClass: NeoCheatCatalog` in the plugin's pubspec), so
+   `lib/main.dart` keeps its Build 419 bytes.
 3. The resolver downloads each origin file it needs.
    - Each file is checked against its size and SHA-256, then cached by digest.
    - After 64 files of one source, or on HTTP 429, it downloads the source's

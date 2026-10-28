@@ -110,6 +110,10 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   - The app bundles v2 and refreshes from the v2 URL. Native
     `installPack` hands origin packs to the Dart `OriginResolver` (plugin
     channel `resolveOriginPack`), then verifies each chunk as before.
+    Flutter registers the Dart handler before `main` (pubspec
+    `dartPluginClass: NeoCheatCatalog`); `lib/main.dart` stays the Build
+    419 reference. The plugin passes the origin cache folder (Application
+    Support/RewindBox/Cheats/Origin).
   - Tools: `tools/cheats/origin/` (locate, recipe, skeleton, sources).
   - Tests:
     - `test/cheat_canonical_json_test.dart`

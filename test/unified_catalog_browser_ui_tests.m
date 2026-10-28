@@ -1064,7 +1064,10 @@ static void NUCBExchangeSingleton(void) {
     NeoUnifiedCheatList *list=[self directListWithItems:@[]];self.catalog.holdCheats=YES;
     __block NSUInteger mutations=0;list.install=^(NSDictionary *g,NSArray *p,void (^done)(NSDictionary*,NSError*)){mutations++;};list.setEnabled=^(NSDictionary *i,BOOL e,void (^done)(BOOL)){mutations++;};
     [list reloadCheats];[self waitFor:^BOOL{return self.catalog.cheatsCompletion!=nil;}];void (^late)(NSArray*,NSError*)=self.catalog.cheatsCompletion;
-    [self.navigation popViewControllerAnimated:NO];NSUInteger oldRows=[[list valueForKey:@"rows"] count];late(@[[self program:@"late" dependencies:@[]]],nil);
+    // UIKit may finish a non-animated pop on the next layout pass: deliver the
+    // late parts once the list has really closed.
+    [self.navigation popViewControllerAnimated:NO];[self waitFor:^BOOL{return [[list valueForKey:@"closed"] boolValue];}];
+    NSUInteger oldRows=[[list valueForKey:@"rows"] count];late(@[[self program:@"late" dependencies:@[]]],nil);
     [NSRunLoop.mainRunLoop runUntilDate:[NSDate dateWithTimeIntervalSinceNow:.1]];
     XCTAssertEqual([[list valueForKey:@"rows"] count],oldRows);XCTAssertEqual(mutations,0U);
 }
