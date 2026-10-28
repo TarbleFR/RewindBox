@@ -3,6 +3,38 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Delivery baseline: verify and rebuild only what changed — maintainer rule, 28 October 2026
+
+The maintainer found the deliveries far too long: build 586 (run
+`40744757151`) spent 85 minutes on the macOS runner, about 6 of them in the
+Xcode and Flutter compile; the rest re-proved the history of every earlier
+private build. From now on:
+
+1. **Baseline.** The last private IPA delivered by a green delivery run is
+   the baseline of the next delivery (585 when this rule was set, then each
+   delivered build in turn). Its own delivery already proved its tree,
+   recipe and receipts; a later delivery does not prove them again.
+2. **Delta only.** A new delivery recipe starts from the baseline's recorded
+   product tree and adds only the files of the new commits, each from the
+   commit that validated it. It does not re-pin or re-verify the trees,
+   recipes, nested views or receipts of earlier builds (558 up to the
+   baseline), and does not re-embed or re-verify receipts of features
+   unchanged since the baseline.
+3. **Still checked:** the new commits (sources, tests, adaptations), each
+   new or changed component (engine or Core run, by ID and digest), the
+   legal and license bundle, and the final signed IPA (build number,
+   signatures, compiled markers of the new changes, unchanged components by
+   digest).
+4. **One computation per job.** A shared contract is computed once per job
+   (`build-utils/delivery_contract_memo.py`); a step that recomputes it is a
+   defect to fix, not a cost to accept. The 586 recipe keeps file modes so
+   the memo records (`contract_keeping_modes`, `0aede035`): the 579 view
+   dropped the executable bit of `test/rpcs3_cell579_test.py`, so every step
+   recomputed the whole contract (8 to 15 minutes each).
+5. **Time.** Report each delivery's duration and its longest steps; aim for
+   under 40 minutes end to end.
+
+
 ## Cheats & Enhancements catalogue — 28 October 2026 (source only, no build)
 
 - Maintainer request: one catalogue of cheats, FPS, ultrawide, graphics,
