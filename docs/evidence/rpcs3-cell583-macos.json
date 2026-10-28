@@ -1,0 +1,268 @@
+{
+  "build": 583,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "8ebca28794af4ea0056c90e6d5ee13140dc94ad6",
+  "run": 40683438937,
+  "workflow": ".github/workflows/rpcs3-cell583-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12815095521,
+      "name": "RPCS3Core-8ebca28794af4ea0056c90e6d5ee13140dc94ad6",
+      "bytes": 29087594,
+      "digest": "sha256:540c8a81384e862ae1c9afbcb72ce4948879e42797ec857ee7828e80c975e42e"
+    },
+    "diagnostics": {
+      "id": 12815475014,
+      "bytes": 206866,
+      "digest": "sha256:50f53915e3c1ca55d0b36cafe75c02094d5c40d09ca4058668abb3b723e19d06"
+    }
+  },
+  "core": {
+    "sha256": "9aa3c7ee645bd89dc67d8f848edffcf91eb6256610fe0f5abdc88d20dedf57f4",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "20fcaff4eef155b812c77ffc07e1d5960125790361f357354935d11f186d4795",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 139,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom581": true,
+    "coldCompileRequiredByThisChange": false,
+    "markers583": [
+      "COREPROF OPT583",
+      "worker_passed=%llu worker_refills=%llu",
+      "Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before.",
+      "COREPROF OPT581",
+      "Texture Pre-Validation",
+      "experimental.texture_prehash",
+      "writer_yield=%d texture_prehash=%d"
+    ],
+    "replaces": {
+      "source": "03956454afc710cb55901c74108b88fbb03dec5d",
+      "run": 40631132527,
+      "sha256": "a6e97d33120ccabe396ecd5a59411c8652a7ae93a525f74eac769efe7949213c"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell583"
+    ]
+  },
+  "prehashPacing": {
+    "worker581": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 176,
+        "misses": 76,
+        "hitRate": 0.698,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 201,
+        "workerPassed": 0,
+        "workerRefills": 0
+      },
+      "tightLoop": {
+        "hits": 47,
+        "misses": 79,
+        "staleAccepted": 0,
+        "workerHashes": 75,
+        "workerPassed": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 79,
+        "misses": 47,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 1554,
+        "workerSkips": 6,
+        "workerHashes": 21
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true
+    },
+    "plain": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 211,
+        "misses": 41,
+        "hitRate": 0.837,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 236,
+        "workerPassed": 0,
+        "workerRefills": 130
+      },
+      "tightLoop": {
+        "hits": 107,
+        "misses": 19,
+        "staleAccepted": 0,
+        "workerHashes": 123,
+        "workerPassed": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 105,
+        "misses": 21,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 1677,
+        "workerSkips": 6,
+        "workerHashes": 7
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true
+    },
+    "asanUbsan": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 158,
+        "misses": 94,
+        "hitRate": 0.627,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 232,
+        "workerPassed": 0,
+        "workerRefills": 113
+      },
+      "tightLoop": {
+        "hits": 74,
+        "misses": 52,
+        "staleAccepted": 0,
+        "workerHashes": 101,
+        "workerPassed": 11
+      },
+      "scopedRsxWrites": {
+        "hits": 102,
+        "misses": 24,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 107,
+        "workerSkips": 6,
+        "workerHashes": 6
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true
+    },
+    "tsan": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 183,
+        "misses": 69,
+        "hitRate": 0.726,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 248,
+        "workerPassed": 2,
+        "workerRefills": 108
+      },
+      "tightLoop": {
+        "hits": 81,
+        "misses": 45,
+        "staleAccepted": 0,
+        "workerHashes": 118,
+        "workerPassed": 8
+      },
+      "scopedRsxWrites": {
+        "hits": 81,
+        "misses": 45,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 8,
+        "workerSkips": 5,
+        "workerHashes": 3
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true
+    },
+    "mutations": {
+      "no_epoch_check": {
+        "rejected": true
+      },
+      "no_bypass": {
+        "rejected": true
+      }
+    }
+  },
+  "policy": {
+    "automatic": "God of War III",
+    "enabled": "any title with Texture Validation Per FIFO Batch",
+    "disabled": "hashes on the RSX thread as in 579",
+    "profileLines": [
+      "COREPROF OPT581",
+      "COREPROF OPT583"
+    ]
+  },
+  "offIOS": {
+    "sharedFiles": [
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp"
+    ],
+    "iosOnlyFiles": [
+      "rpcs3/ios/IOSTexturePrehash.h",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp"
+    ]
+  },
+  "sourceContract": {
+    "baseline": "03956454afc710cb55901c74108b88fbb03dec5d",
+    "fixtureSHA256": "d0a2ad60b9615a4b35130b305c595fe7d6fc85d520aea20386669bce85fc2e6d",
+    "sourceSHA256": {
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp": "b0227f95e0032956fd28fca3bed92b097910fd43cb25cf9ef38e7f776da25311",
+      "rpcs3/ios/IOSTexturePrehash.h": "9a91a05ccb795e406b7bd4a3418e6ea4182bcb0f9238ad2ea605f1d46cac943e",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "f983dc903996945fa93f15024e332c30ad9ff020f7d3ccf24da82aa565e95de5",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "53c03577dd943661b0f146c388a70fe94d8b4d514566a2b5a20b3174f2b322be",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "3804e2fb8a09b5e87dac6187b314cf85c8ba94c490c29035283e28696c5455b5"
+    },
+    "newFiles": [],
+    "otherCoreSourcesUnchanged": 297
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom581": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "inputsSHA256": {
+    "test/rpcs3_cell583_test.py": "4483487f2e32f1cae16c72f897aa8c38640328f53a6de91b1709056087be2e42",
+    "test/native/rpcs3_prehash583.inc": "e78ce921f683842311d1115efea5d00f24f4452d7e9fa7edbf4d21330f34056f",
+    "test/fixtures/rpcs3_cell581.diff": "2960004550815b7c9b638260209766377ddfcf35cdbab0e6b82e7a03c0a70127"
+  },
+  "scope": "The 583 production code (and the 581 worker beside it) compiled in a host model on the Apple Silicon runner (the cache's XXH3 hash, a real address reservation, the vm range lock protocol and an unmapper), and the iPhone Core built from the verified source. No iPhone FPS, frame time or memory result."
+}

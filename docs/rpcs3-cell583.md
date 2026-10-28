@@ -82,11 +82,21 @@ Rapport : [`evidence/rpcs3-cell583-host-linux.json`](evidence/rpcs3-cell583-host
   réservation, protocole de verrou de plage, démappeur) tourne deux fois :
   avec le thread 581 et avec le thread 583.
 
-  | Modèle (GCC 13) | Thread 581 | Thread 583 |
+  Le rapport du test (un passage, GCC 13) donne 70,6 % contre 83,3 % en
+  régime établi (ASan 80,6 %, TSan 79,4 %) et 29 % contre 67 % en boucle
+  serrée. Ce modèle est bruité sur un hôte partagé : sur six passages
+  répétés (GCC 13, sans sanitizer) :
+
+  | Modèle, 6 passages | Thread 581 : médiane (min-max) | Thread 583 : médiane (min-max) |
   |---|---:|---:|
-  | Validations servies, régime établi | 70,6 % | 83,3 % (ASan 80,6 %, TSan 79,4 %) |
-  | Validations servies, boucle serrée | 29 % | 67 % |
+  | Validations servies, régime établi | 81,3 % (51,6-82,1) | 84,1 % (82,5-89,7) |
+  | Validations servies, boucle serrée | 66,7 % (57,1-74,6) | 77,8 % (69,0-79,4) |
   | Textures périmées acceptées | 0 | 0 |
+
+  En régime établi, l'écart est faible et un passage Clang isolé a même donné
+  81,7 % au 581 contre 77,4 % au 583. Le gain net du modèle est surtout dans
+  la boucle serrée (le RSX dépasse le thread), qui est le cas des scènes
+  chargées de God of War III.
 
 - Les deux mutations du 581 (sans contrôle d'époque, sans contournement après
   une écriture du RSX) sont toujours rejetées avec le thread 583.
@@ -100,7 +110,34 @@ Rapport : [`evidence/rpcs3-cell583-host-linux.json`](evidence/rpcs3-cell583-host
 
 Ce sont des vérifications sur l'hôte, pas des mesures sur iPhone.
 
-## 4. À relever sur iPhone
+## 4. Core iPhone (Mac de la CI)
+
+Run `40683438937` depuis `8ebca28` (macOS 15, Apple Silicon, Apple clang 17,
+Xcode 16.4) ; rapport :
+[`evidence/rpcs3-cell583-macos.json`](evidence/rpcs3-cell583-macos.json).
+
+- Le Core 581 (`0395645`, run `40631132527`) est authentifié avant tout, puis
+  le modèle passe sur ARM64 avec les deux threads (un passage chacun) :
+
+  | Modèle (Apple clang 17, ARM64) | Thread 581 | Thread 583 | 583 ASan/UBSan | 583 TSan |
+  |---|---:|---:|---:|---:|
+  | Validations servies, régime établi | 69,8 % | 83,7 % | 62,7 % | 72,6 % |
+  | Validations servies, boucle serrée | 37 % | 85 % | 59 % | 64 % |
+  | Textures périmées acceptées | 0 | 0 | 0 | 0 |
+
+  Les passages avec sanitizers sont lents et bruités : ils servent à la
+  sûreté (aucune faute, aucune course signalée), pas à la mesure. Les deux
+  mutations sont rejetées. Pendant 1 677 démappages (thread 583, sans
+  sanitizer), aucune lecture de mémoire retirée.
+- Core iPhone compilé depuis la source vérifiée : SHA-256
+  `9aa3c7ee…57f4`, 88 exports, chargement passif, 139 entrées enregistrées.
+  Les marqueurs 581 et 583 sont dans le binaire. Identités de codegen
+  inchangées : **pas de recompilation à froid**.
+- Le pilote du run vérifie deux fois `COREPROF OPT583` et pas
+  `COREPROF OPT581` (erreur de recopie) ; la présence de `OPT581` dans le
+  binaire est vérifiée par la preuve Mac et par le validateur RPCS3 de l'IPA.
+
+## 5. À relever sur iPhone
 
 - **God of War III** :
   - `OPT581` : hits contre misses, `worker_ms` ;

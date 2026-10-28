@@ -128,13 +128,34 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   - New profile line `COREPROF OPT583`; `OPT581` unchanged.
 - Local:
   - `test/rpcs3_cell583_test.py` runs the 581 model with the 581 worker and
-    the 583 worker. Steady state 70.6 -> 83.3 % served (ASan 80.6, TSan
-    79.4); tight loop 29 -> 67 %; 0 stale; both 581 mutations still caught.
+    the 583 worker; 0 stale, both 581 mutations still caught. One GCC
+    report: steady 70.6 -> 83.3 % served, tight loop 29 -> 67 %. The model
+    is noisy: six repeated GCC runs give steady medians 81.3 % (51.6-82.1)
+    -> 84.1 % (82.5-89.7), tight-loop medians 66.7 % (57.1-74.6) -> 77.8 %
+    (69.0-79.4); one Clang run had 581 above 583 in steady state (81.7 vs
+    77.4). The model gain is mainly the tight loop.
   - The unmap race of the model is bounded at 40,000 frames.
   - ARM64 diagnostics of the 4 units equal to 581; pin, scheduling and the
     583 driver contract (139 inputs).
   - Evidence `docs/evidence/rpcs3-cell583-host-linux.json`. No iPhone
     measurement of 583.
+- Core run `40683438937` from `8ebca287`: the 581 Core authenticated, then
+  the model passed on the Apple Silicon runner (one run each: steady state
+  581 worker 69.8 %, 583 worker 83.7 %, ASan/UBSan 62.7 %, TSan 72.6 %;
+  tight loop 37 -> 85 %; 0 stale; both mutations caught; 1,677 unmaps
+  without a fault); Core SHA-256 `9aa3c7ee…57f4`, 88 exports, passive
+  loading, 139 recorded inputs, codegen identities unchanged. The driver's
+  marker list names `COREPROF OPT583` twice and not `OPT581` (copy slip);
+  `OPT581` is checked by the Mac evidence and the IPA validator. Evidence
+  `docs/evidence/rpcs3-cell583-macos.json`.
+- Private 583 recipe (`rpcs3-cell583-delivery.yml`, dispatch only): the
+  delivered 582 tree (MeloNX engine `e55ca25`, Switch discovery fix) with the
+  Core 583 recipe of `8ebca287`; `rpcs3cell583_tree.py` /
+  `rpcs3cell583_delivery.py` run the 582 recipe unchanged in `as_582()`
+  (which runs the 581 one in its own `as_581()`); eleven validators wrap the
+  582 ones (identities renamed to 583, the RPCS3 one binds Core run
+  40683438937 and adds the three 583 markers). Product trees equal to 582.
+  Recipient `build-utils/delivery-583-recipient.pem`.
 
 ## MeloNX engine 582: JIT units end where another translation starts; Switch discovery off the main thread — 28 October 2026
 
