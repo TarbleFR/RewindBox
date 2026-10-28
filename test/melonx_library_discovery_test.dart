@@ -10,6 +10,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/services/frontend_media_gate.dart';
+import 'package:neostation/services/ios_library_root_relocation.dart';
 import 'package:neostation/services/melonx_internal_service.dart';
 import 'package:neostation/services/melonx_library_scanner.dart';
 import 'database_test_helper.dart';
@@ -50,6 +51,7 @@ void main() {
   tearDown(() async {
     FrontendMediaGate.instance.release(launch);
     MelonxLibraryScanner.nativeDigests = false;
+    MelonxLibraryScanner.containerOf = IosLibraryRootRelocation.split;
     messenger.setMockMethodCallHandler(MelonxInternalService.channel, null);
     PathProviderPlatform.instance = previous;
     await temporary.delete(recursive: true);
@@ -191,6 +193,126 @@ void main() {
       // Four digests in all: the file indexed before the stop is not hashed again.
       expect(hashed, hasLength(4));
       expect(hashed.where((name) => name == first), hasLength(1));
+    },
+  );
+
+  test('a launch during the metadata call sends no native hash request', () async {
+    final db = await database();
+    MelonxLibraryScanner.nativeDigests = true;
+    final calls = <String>[];
+    messenger.setMockMethodCallHandler(MelonxInternalService.channel, (
+      call,
+    ) async {
+      calls.add(call.method);
+      if (call.method == 'metadata') {
+        // The player starts a game while the native metadata call runs.
+        FrontendMediaGate.instance.hold(launch);
+        return {
+          'success': true,
+          'titleId': '0100123456780000',
+          'title': 'Game',
+        };
+      }
+      if (call.method == 'fingerprint') return 'f' * 64;
+      return null;
+    });
+    await write(p.join(root.path, 'roms/switch/Game.nsp'), 'game');
+    final config = SqliteConfigProvider();
+    addTearDown(config.dispose);
+    expect(await MelonxLibraryScanner.refresh(config), 0);
+    await pumpEventQueue();
+    expect(calls, ['metadata', 'cancelFingerprint']);
+    expect(await db.query('user_roms'), isEmpty);
+  });
+
+  test(
+    'after a container move, a game whose row is already at its new path keeps its digest there',
+    () async {
+      final db = await database();
+      const oldContainer = '11111111-1111-1111-1111-111111111111';
+      const newContainer = '22222222-2222-2222-2222-222222222222';
+      final containers = p.join(temporary.path, 'Containers');
+      final pattern = RegExp(
+        '^(${RegExp.escape(containers)}/[0-9A-Fa-f-]{36})(?:/(.*))?\$',
+      );
+      MelonxLibraryScanner.containerOf = (location) {
+        final match = pattern.firstMatch(p.normalize(location));
+        return match == null
+            ? null
+            : (container: match.group(1)!, relative: match.group(2) ?? '');
+      };
+      PathProviderPlatform.instance = _Paths(
+        p.join(containers, newContainer, 'Documents'),
+      );
+      root = await MelonxInternalService.rootDirectory();
+      MelonxLibraryScanner.nativeDigests = true;
+      final hashed = <String>[];
+      final inspected = <String>[];
+      messenger.setMockMethodCallHandler(MelonxInternalService.channel, (
+        call,
+      ) async {
+        final location = (call.arguments as Map?)?['path'] as String?;
+        if (call.method == 'metadata') {
+          inspected.add(p.basename(location!));
+          return {
+            'success': true,
+            'titleId': '0100123456780000',
+            'title': 'Game',
+          };
+        }
+        if (call.method == 'fingerprint') {
+          hashed.add(p.basename(location!));
+          return sha256.convert(await File(location).readAsBytes()).toString();
+        }
+        return null;
+      });
+      final game = await write(p.join(root.path, 'roms/switch/Game.nsp'), 'game');
+      final stat = await game.stat();
+      final digest = sha256.convert(utf8.encode('game')).toString();
+      // Indexed in the former container; the general scan already added the
+      // row at the new path, as it does at startup after a container move.
+      final oldPath = p.join(
+        containers,
+        oldContainer,
+        'Documents/MeloNX/roms/switch/Game.nsp',
+      );
+      await write(
+        p.join(root.path, 'cache', 'rewindbox-library.json'),
+        jsonEncode({
+          oldPath: {
+            'stamp': '${stat.size}:${stat.modified.microsecondsSinceEpoch}',
+            'sha256': digest,
+            'info': {'titleId': '0100123456780000', 'title': 'Game'},
+          },
+        }),
+      );
+      await db.insert('user_roms', {
+        'app_system_id': 'switch',
+        'filename': 'Game.nsp',
+        'rom_path': game.path,
+        'title_id': '0100123456780000',
+      });
+      final config = SqliteConfigProvider();
+      addTearDown(config.dispose);
+
+      expect(await MelonxLibraryScanner.refresh(config), 0);
+      expect(hashed, isEmpty);
+      expect(inspected, isEmpty);
+      final index =
+          jsonDecode(
+                await File(
+                  p.join(root.path, 'cache', 'rewindbox-library.json'),
+                ).readAsString(),
+              )
+              as Map;
+      expect((index[game.path] as Map)['sha256'], digest);
+
+      // A copy of the game is still recognized as a duplicate of its row.
+      await Directory(p.join(root.path, 'games')).create(recursive: true);
+      await File(game.path).copy(p.join(root.path, 'games/Copy.nsp'));
+      await MelonxLibraryScanner.refresh(config);
+      expect(hashed, ['Copy.nsp']);
+      expect(await db.query('user_roms'), hasLength(1));
     },
   );
 }

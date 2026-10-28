@@ -56,7 +56,16 @@ abstract final class MelonxLibraryScanner {
   static bool _interrupted(int generation) =>
       generation != _generation || FrontendMediaGate.instance.blocked;
 
-  static Future<String> _digest(String location, File file) async {
+  static Future<String> _digest(
+    String location,
+    File file,
+    int generation,
+  ) async {
+    // No await between this check and the request: FrontendMediaGate.hold
+    // runs _stop synchronously, so a stop after it posts cancelFingerprint
+    // behind this request and the native side abandons the hash. A stop
+    // during the metadata call that preceded it never reaches a later hash.
+    if (_interrupted(generation)) throw const _DiscoveryInterrupted();
     if (!nativeDigests) return fingerprint(file);
     try {
       final digest = await MelonxInternalService.channel.invokeMethod<String>(
@@ -73,6 +82,11 @@ abstract final class MelonxLibraryScanner {
     }
   }
 
+  /// The iOS app container of a path and the path inside it.
+  @visibleForTesting
+  static ({String container, String relative})? Function(String path)
+  containerOf = IosLibraryRootRelocation.split;
+
   /// Index entries of files under a scan root's former iOS app container,
   /// keyed by the same file's path in the current one. iOS gives the app a
   /// new container when it is reinstalled or updated
@@ -86,13 +100,13 @@ abstract final class MelonxLibraryScanner {
     Iterable<String> roots,
   ) {
     final mounts = [
-      for (final root in roots) IosLibraryRootRelocation.split(root),
+      for (final root in roots) containerOf(root),
     ].nonNulls.toList();
     final moves = <String, List<Map>>{};
     if (mounts.isEmpty) return moves;
     index.forEach((key, entry) {
       if (entry is! Map) return;
-      final old = IosLibraryRootRelocation.split(key);
+      final old = containerOf(key);
       if (old == null) return;
       for (final mount in mounts) {
         if (mount.container == old.container) continue;
@@ -202,6 +216,10 @@ abstract final class MelonxLibraryScanner {
               (index[location] ??
                       moves[location]?.where((e) => e['stamp'] == stamp).firstOrNull)
                   as Map?;
+          // An entry found through a container move belongs to this path now;
+          // digest matches read index[row path], so keep it under this one.
+          if (previous != null && index[location] == null)
+            index[location] = Map<String, dynamic>.from(previous);
           if (previous?['stamp'] == stamp &&
               previous?['failed'] == true &&
               previous?['keys'] == keyStamp)
@@ -211,6 +229,7 @@ abstract final class MelonxLibraryScanner {
               .firstOrNull;
           if (previous?['stamp'] == stamp && row != null) continue;
           try {
+            if (_interrupted(generation)) throw const _DiscoveryInterrupted();
             final info = previous?['stamp'] == stamp && previous?['info'] is Map
                 ? Map<String, dynamic>.from(previous!['info'] as Map)
                 : await MelonxInternalService.content(
@@ -222,7 +241,7 @@ abstract final class MelonxLibraryScanner {
             final digest =
                 previous?['stamp'] == stamp && previous?['sha256'] is String
                 ? previous!['sha256'] as String
-                : await _digest(location, file);
+                : await _digest(location, file, generation);
             final identical = rows
                 .where((r) => index[r['rom_path']]?['sha256'] == digest)
                 .toList();
@@ -269,8 +288,13 @@ abstract final class MelonxLibraryScanner {
               }
             }
             index[location] = {'stamp': stamp, 'sha256': digest, 'info': info};
-            // Kept at once: a stop or a killed app never costs this digest again.
-            await _save(cache, index);
+            // Kept at once: a stop or a killed app never costs this digest
+            // again. A failed write is retried by the final one.
+            try {
+              await _save(cache, index);
+            } on FileSystemException {
+              /* kept in memory */
+            }
             if (duplicate && row == null) continue;
             if (row == null && moved != null) {
               await _preserveControls(
