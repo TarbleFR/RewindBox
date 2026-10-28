@@ -86,6 +86,69 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
    mechanism that acts only when its condition occurs, device logs on at
    least two titles without regression, and an unchanged Disabled path.
 
+## MeloNX engine 582: JIT units end where another translation starts; Switch discovery off the main thread — 28 October 2026
+
+- Builds 575-576 app.log: in 12 of 18 MeloNX sessions the iOS main thread ran
+  at 86-107 % for 60-134 s from the first second: `MelonxLibraryScanner`
+  computed a pure-Dart SHA-256 of whole Switch games (7-16 GB) on the root
+  isolate for every file whose absolute path had no index entry (every game
+  after iOS moves the app container), and nothing stopped it at a launch.
+  Fix `32a0da60` + `63fdb7ed`: the MeloNX bridge hashes with CryptoKit on its
+  own utility queue (F_NOCACHE, 4 MiB reads, cancelled between reads at
+  `cancelFingerprint` or any launch, refused during a game; same digest);
+  discovery does not start while `FrontendMediaGate` is held and stops at the
+  next file when a hold begins; the index is saved after each digest and an
+  entry follows its file into a new container (same relative path, size and
+  mtime). `test/melonx_library_discovery_test.dart` (6 cases). CI:
+  melonx-integration `40643006039`/`40648012242`, melonx-host `40643006036`
+  (Swift compiled). The Navigation 512 scope test failure on `32a0da60` is
+  pre-existing (same failure on `48b9865` and `05c2e03`).
+- Engine commits `6d8929d0`, `e72895b6`, `e55ca256`
+  (`build-utils/melonx/adapt_jit_decoder.py`, probe and test): a LightningJit
+  unit ends where another translation already starts (`TranslatedEntries`,
+  one bit per aligned word, set in RegisterFunction, cleared on
+  invalidation), unless a branch within 1,024 instructions goes back past the
+  entry (a loop around it; for an entry reached by falling through, any
+  branch back past it) or the unit reached it by a forward branch of less
+  than 256 bytes; guest code is read a 4 KiB page at a time (`CodeReader`)
+  instead of one locked HostTracked read per instruction; a unit ends before
+  an unmapped page and the 572 rule no longer reads a jump target there.
+  Same clang ARM64 text through the production `MemoryManagerHostTracked`,
+  every exit followed: compile time 13.2-13.8 s (577) -> 10.6-10.8 s
+  (-20 %), host code 495 -> 450 MiB (-9 %), compile allocations -9 %, loops
+  held by no single unit +0.3 %, unit hand-overs on a static walk +0.9 %.
+  Probe: a 300-function layout translates 3,601 guest instructions instead
+  of 542,100. Engine run `40665520797` (artifact `12806293726`). Adversarial
+  re-verification (2.6 M decodes against upstream, all compiled): no
+  correctness, crash or compile defect on aligned code; the misaligned-PC
+  cases it found are guarded in the next engine.
+- Private 582 recipe (`melonx-entry582-delivery.yml`, dispatch only): the
+  delivered 581 tree with the three engine files of `e55ca256` and the four
+  discovery files; `melonxentry582_tree.py` / `melonxentry582_delivery.py`
+  run the 581 recipe unchanged in `as_581()` with the 577 engine's evidence
+  (`old_engine()`), the inherited validators on `derived_ipa()` (this IPA
+  with the 577 engine entries packaged on the 581 tree); ten validators wrap
+  the 581 ones, `validate_melonx_entry582` binds the 582 engine (adapted-source
+  markers, the probe's 582 cases, its run) and the compiled discovery fix.
+  The delivery checks also run the discovery test. Product trees differ from
+  581 in lib and packages only. Recipient `build-utils/delivery-582-recipient.pem`.
+  Local dry run on a scratch worktree: tree pin, full inherited source
+  contract, retained checks, engine evidence 563 to 582 against the real
+  artifacts, ten of eleven embeds (the eleventh needs the macOS MoltenVK
+  receipt), flutter analyze and the discovery test on the pinned tree.
+- Private 582 delivered from `ecad3c40` (recipe of the same commit), run
+  `40675054767` (checks + cold success): IPA 0.0.8 (582), 188,118,382 bytes,
+  SHA-256 `002d07d18cd5812c724c57a5ceaeca52a06dd748feff9dbc5be6371b8937a0c5`
+  (equal to SHA256SUMS), artifact `12813245444` encrypted for
+  `delivery-582-recipient.pem`; MeloNX engine `e55ca256` (run 40665520797,
+  identity `15aa1ac6…`, the engine artifact's dylib), RPCS3 Core 581; 22
+  validator receipts passed; decrypted and inspected independently (build
+  582, engine host `e55ca256`, the decoder adaptation in the engine
+  identity, the eleven 582 receipts, the discovery markers in the Dart
+  snapshot and the Swift bridge). Receipt
+  `docs/evidence/melonx-entry582-delivery.json`. Not tested on iPhone; no
+  FPS, loading-time or memory gain claimed. Do not reuse the number 582.
+
 ## RPCS3 Core 581: texture pre-validation by a worker thread (God of War III) — 28 October 2026
 
 - Build 575 logs, God of War III: on iOS the texture cache confirms CPU
