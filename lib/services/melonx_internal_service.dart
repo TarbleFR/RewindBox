@@ -120,10 +120,61 @@ abstract final class MelonxInternalService {
 
   static String _graphicsKey(String gamePath) =>
       'rewindbox.melonx.graphics.${path.normalize(gamePath).split('/Documents/').last}';
+
+  /// Per-game graphics choices are also kept in Documents. An update that
+  /// moves the app to a new container keeps Documents (library, caches,
+  /// saves) but can start with empty preferences: build 586, 28 October 2026,
+  /// launched Hogwarts Legacy at 1.0 right after the update although it was
+  /// set to 0.75 under build 585.
+  static Future<File?> Function() durableGraphicsFile = () async =>
+      Platform.isIOS
+          ? File(path.join((await rootDirectory()).path, 'rewindbox-graphics.json'))
+          : null;
+
+  static Future<Map<String, dynamic>> _durableGraphics(File? file) async {
+    try {
+      if (file == null || !await file.exists()) return {};
+      final decoded = jsonDecode(await file.readAsString());
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : {};
+    } on Object {
+      return {};
+    }
+  }
+
+  static Future<void> _keepDurableGraphics(String key, String text) async {
+    try {
+      final file = await durableGraphicsFile();
+      if (file == null) return;
+      final all = await _durableGraphics(file);
+      if (all[key] == text) return;
+      all[key] = text;
+      final temporary = File('${file.path}.tmp');
+      await temporary.writeAsString(jsonEncode(all), flush: true);
+      await temporary.rename(file.path);
+    } on Object {
+      // The preference is the primary copy; Documents only backs it up.
+    }
+  }
+
   static Future<Map<String, dynamic>> graphicsForGame(String gamePath) async {
-    final text = (await SharedPreferences.getInstance()).getString(
-      _graphicsKey(gamePath),
-    );
+    final prefs = await SharedPreferences.getInstance();
+    final key = _graphicsKey(gamePath);
+    var text = prefs.getString(key);
+    if (text == null) {
+      File? file;
+      try {
+        file = await durableGraphicsFile();
+      } on Object {
+        file = null;
+      }
+      final kept = (await _durableGraphics(file))[key];
+      if (kept is String) {
+        text = kept;
+        await prefs.setString(key, kept);
+      }
+    } else {
+      await _keepDurableGraphics(key, text);
+    }
     final decoded = text == null ? null : jsonDecode(text);
     final saved = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
     // Older preferences contain only resolution/filter. Fill missing options from
@@ -222,12 +273,25 @@ abstract final class MelonxInternalService {
     String gamePath,
     Map<String, dynamic> settings,
   ) async {
-    if (!await (await SharedPreferences.getInstance()).setString(
-      _graphicsKey(gamePath),
-      jsonEncode(settings),
-    )) {
+    final key = _graphicsKey(gamePath);
+    final text = jsonEncode(settings);
+    if (!await (await SharedPreferences.getInstance()).setString(key, text)) {
       throw StateError('Graphics configuration could not be saved');
     }
+    await _keepDurableGraphics(key, text);
+  }
+
+  /// A library row written before an update can still name the previous
+  /// container (`/var/mobile/Containers/Data/Application/<old>/Documents/...`)
+  /// until the next scan; the same file now lives under this container's
+  /// Documents (build 586, 28 October 2026: the first Hogwarts Legacy launch
+  /// after the update failed with localGameRequired, the next one worked).
+  static Future<String> inCurrentDocuments(String gamePath) async {
+    final marker = gamePath.indexOf('/Documents/');
+    if (marker < 0 || await File(gamePath).exists()) return gamePath;
+    final documents = await getApplicationDocumentsDirectory();
+    final moved = path.join(documents.path, gamePath.substring(marker + '/Documents/'.length));
+    return moved != gamePath && await File(moved).exists() ? moved : gamePath;
   }
 
   static Future<bool> runtimeAvailable() async {
@@ -333,6 +397,7 @@ abstract final class MelonxInternalService {
       if (!Platform.isIOS || isRetiredLink(gamePath)) {
         return {'success': false, 'error': 'localGameRequired'};
       }
+      gamePath = await inCurrentDocuments(gamePath);
       MelonxLaunchDiagnostics.record('file', 'begin');
       if (!gameExtensions.contains(
             path.extension(gamePath).replaceFirst('.', '').toLowerCase(),
