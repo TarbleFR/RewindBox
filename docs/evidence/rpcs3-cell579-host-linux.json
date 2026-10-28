@@ -59,31 +59,31 @@
   "gateSleep": {
     "gate575": {
       "passed": true,
-      "boundWallUs": 515.6,
-      "boundCpuUs": 502.9,
-      "earlyReturnWallUs": 229.4,
-      "earlyReturnMaxCpuUs": 255.7,
+      "boundWallUs": 516.7,
+      "boundCpuUs": 502.6,
+      "earlyReturnWallUs": 232.1,
+      "earlyReturnMaxCpuUs": 541.9,
       "deferredTrials": 20,
       "writers": 6,
       "cores": 4,
-      "oversubscribedWallMs": 123.7,
-      "writerCpuMs": 421.3,
-      "writerCpuShare": 0.568,
-      "episodesMs": 60.9
+      "oversubscribedWallMs": 123.0,
+      "writerCpuMs": 420.6,
+      "writerCpuShare": 0.57,
+      "episodesMs": 61.0
     },
     "gate579": {
       "passed": true,
-      "boundWallUs": 609.0,
-      "boundCpuUs": 75.3,
-      "earlyReturnWallUs": 256.0,
-      "earlyReturnMaxCpuUs": 103.1,
+      "boundWallUs": 620.8,
+      "boundCpuUs": 92.7,
+      "earlyReturnWallUs": 270.7,
+      "earlyReturnMaxCpuUs": 153.9,
       "deferredTrials": 20,
       "writers": 6,
       "cores": 4,
-      "oversubscribedWallMs": 121.9,
-      "writerCpuMs": 243.3,
-      "writerCpuShare": 0.333,
-      "episodesMs": 63.4
+      "oversubscribedWallMs": 125.3,
+      "writerCpuMs": 252.6,
+      "writerCpuShare": 0.336,
+      "episodesMs": 65.1
     },
     "tsan": true,
     "harnessSHA256": "df4bb7861a3fa7ac821cf8d04204ba6b5c012c2bd3e5c38703a5df0b8fc67eff"
@@ -102,9 +102,9 @@
     "realMach": false,
     "busyThreads": 6,
     "yields": 800,
-    "schedYieldMaxUs": 7955.6,
-    "schedYieldTotalMs": 1731.2,
-    "threadSwitchMaxUs": 1.3,
+    "schedYieldMaxUs": 5330.4,
+    "schedYieldTotalMs": 1698.8,
+    "threadSwitchMaxUs": 1.0,
     "threadSwitchTotalMs": 0.1,
     "harnessSHA256": "6578fb6bb82e1341e400cb1b2ee324b50424960144b26f35c7fe516db33c50b6"
   },
@@ -113,7 +113,7 @@
     "writerYieldNoDepressAutomatic": "every title"
   },
   "inputs": {
-    "test/rpcs3_cell579_test.py": "631fbc64609a1d5f26095831568857a94f23bf12ad0bbebd72f2a735b6573de3"
+    "test/rpcs3_cell579_test.py": "08c5bcc74d1d52e191f17311a80f0ca968cf7561274b3c7c0f443e70a9c115b7"
   },
   "result": "passed",
   "physicalDeviceTested": false,
