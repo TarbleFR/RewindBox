@@ -283,6 +283,28 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
    maintainer removed Write Color Buffers from the user settings on
    purpose); optimizations are automatic, in the Core or the title profile.
 
+## RPCS3 Core 591: compiler and shader temporary lifetimes — 28 October 2026 (source)
+
+- The maintainer asks to retain the IPA 585 five-game table and find concrete
+  fixes for all of them; 586 logs do not replace that reference. Three new
+  iOS-only common resource-lifetime fixes, on Core 589, are documented in
+  `docs/rpcs3-cell591.md`: shader warmup raw fragment copies released only
+  after both worker groups join (owned program clones remain); finalized SPU
+  Modules detached/destroyed after native entry acquisition (MCJIT native
+  objects, RuntimeDyld and LLVMContext remain); stack ObjectCache cleared on
+  a recovered `try_add` error before the stack object dies.
+- Four native files change including exact codegen compatibility aliases;
+  the other 301 canonical files, non-iOS behavior, interpreter, title levers,
+  settings, ABI, disk caches, JIT arena, NeoSwap and other engines remain.
+  PPU/SPU codegen IDs stay unchanged; no new cold compilation required.
+- Tests: `test/rpcs3_cell591_test.py`, inverse 589 fixture and native lifetime
+  helpers. Local LLVM20 smoke and adapted ownership tests are partial. The
+  actual LLVM22 C++ regression (cached objects, native globals and later
+  cross-module relocations, plain + ASan/UBSan) is mandatory in the 591 Core
+  workflow; absence cannot pass through a smoke-test substitute. No device
+  result or FPS/RAM/crash gain claimed. No IPA or public release by this
+  source task; any delivery starts from the delivered 586 baseline.
+
 ## RPCS3 Core 589: Assassin's Creed joins the texture validation levers; Assassin's Creed relaxed reservations — 28 October 2026
 
 - Build 585 iPhone logs of 28 October (`docs/rpcs3-cell589.md` section 1;
