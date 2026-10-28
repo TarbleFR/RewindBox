@@ -1,0 +1,88 @@
+{
+  "passed": true,
+  "build": 585,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "sourceContract": {
+    "baseline": "8ebca28794af4ea0056c90e6d5ee13140dc94ad6",
+    "fixtureSHA256": "905dd85b466c6a5d3662d3e5eb75fee5a7b3285fb17697968bb006329d424eed",
+    "sourceSHA256": {
+      "rpcs3/ios/IOSTitleLevers.h": "e04bbaa74c8dc82dcc3090b0d4e3b7e68871e3a1a7d3348f1798723bf9b937b6",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "cfb10016fe7b2c81d14f63add84a5d6ffcd498b57a4d7d108f744b62fb9ab82d",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "e9ead8286e2bee2d372e299ef11bb5d37356103b9a088e0ff7c869f06e837d27"
+    },
+    "newFiles": [],
+    "otherCoreSourcesUnchanged": 299
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom583": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "offIOS": {
+    "sharedFiles": [],
+    "iosOnlyFiles": [
+      "rpcs3/ios/IOSTitleLevers.h",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp"
+    ]
+  },
+  "policy": {
+    "automaticBefore": "rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(Emu.GetTitleID())",
+    "automaticAfter": "rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(title_id) || is_god_of_war_iii_title(title_id)",
+    "setting": "Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III; Disabled sends at the end of the frame as before.",
+    "mechanismUnchanged": [
+      "ios/IOSEarlySubmit.h",
+      "VKGSRender::ios_early_submit",
+      "VKDraw.cpp call site"
+    ]
+  },
+  "gating": {
+    "cases": 36,
+    "automaticOn": [
+      "BCAS25003",
+      "BCES00510",
+      "BCES00799",
+      "BCJS37001",
+      "BCKS15003",
+      "BCUS98111",
+      "BLES01658"
+    ],
+    "automaticNewlyOn": [
+      "BCES00510",
+      "BCES00799",
+      "BCUS98111",
+      "BCJS37001",
+      "BCAS25003",
+      "BCKS15003"
+    ],
+    "dbzSerials": [
+      "BLES01658"
+    ],
+    "otherSerialsOff": [
+      "BLES01717",
+      "BLES00113",
+      "BLUS30070",
+      "BLES00215",
+      "NPUB00000"
+    ],
+    "enabledAll": true,
+    "disabledNone": true,
+    "decideUnchanged": true,
+    "sanitizers": [
+      "address",
+      "undefined"
+    ]
+  },
+  "inputs": {
+    "test/rpcs3_cell585_test.py": "4455b1e89215497f362dbb988df2ec8e052e0deb8571d1cd5fe5ac1f14616292"
+  },
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "The 585 gating code compiled and evaluated on the host; the 561 mechanism is unchanged. No iPhone FPS, frame time or memory result."
+}

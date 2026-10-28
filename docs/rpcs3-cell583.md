@@ -147,24 +147,18 @@ Xcode 16.4) ; rapport :
 - **Black Ops II** : `OPT581 texture_prehash=0`, puis cœurs SPU et FPS en jeu,
   au second passage dans les mêmes zones.
 
-## 6. Piste suivante, sans build : « Write color buffers » sur God of War III
+## 6. Relecture de God of War III : piste retirée, remplacée par le 585
 
 Dans les journaux 581 (session 5, fenêtres 2 à 10), God of War III relit
 **une cible de rendu de 3,69 Mo par image** (1280 × 720 × 4 octets) :
 `READBACK555 fault_read` compte une relecture par image, pour 2,1 à 7,2 ms
-par image (156 à 948 ms par fenêtre de 5 s ; 737 ms en fenêtre 5, pour un
-intervalle médian de 35 ms).
+par image. C'est la GameDB qui active `Write Color Buffers` pour ce titre ;
+le backend Vulkan protège alors chaque cible de couleur liée, et la lecture
+du jeu attend le GPU.
 
-C'est la GameDB officielle qui active `Write Color Buffers` pour ce titre.
-Avec ce réglage, le backend Vulkan protège la mémoire de chaque cible de
-couleur liée (`VKGSRender.cpp`, `lock_memory_region`) ; la première lecture
-CPU de cette mémoire provoque une faute, et le thread qui lit attend que le
-GPU finisse l'image puis la recopie. Le contournement MLAA est actif
-(`mlaa_bypass=1`) : le lecteur d'origine, le MLAA des SPU, ne tourne plus.
-
-Essai proposé au mainteneur : désactiver « Write color buffers » dans les
-réglages **propres à God of War III**, comparer FPS et image dans les mêmes
-scènes, et vérifier `fault_read=0`. Risque : si une autre partie du jeu lit
-encore l'image (menu de pause, capture, effet), elle lira une image
-ancienne : défauts visuels possibles. Aucun gain n'est revendiqué tant que
-ce n'est pas mesuré.
+Désactiver ce réglage n'est **pas** retenu : le mainteneur l'a retiré des
+réglages proposés aux joueurs, aucun réglage ne doit leur être demandé, et le
+jeu en a besoin (éclairage, cinématiques, d'après une source communautaire).
+Le Core 585 ([`rpcs3-cell585.md`](rpcs3-cell585.md)) s'attaque à l'attente
+elle-même : la soumission anticipée des commandes (561) devient automatique
+pour God of War III.

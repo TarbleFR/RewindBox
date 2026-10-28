@@ -131,6 +131,43 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
 7. **Promotion to every title** needs all three: a title-independent
    mechanism that acts only when its condition occurs, device logs on at
    least two titles without regression, and an unchanged Disabled path.
+8. **No setting for the player** (maintainer, 28 October 2026): the player
+   has as few settings as possible and is never asked to change one (the
+   maintainer removed Write Color Buffers from the user settings on
+   purpose); optimizations are automatic, in the Core or the title profile.
+
+## RPCS3 Core 585: early submission for God of War III — 28 October 2026
+
+- Build 583 iPhone logs (`docs/rpcs3-cell585.md` section 1):
+  - God of War III, same savestate as 581 (first window 1,066.7 vs 1,066.5
+    draws per frame): light ~700-draw scenes 29-33 fps (median 30-34 ms)
+    against 26-31 (32-38 ms); heavy ~2,000-draw scenes 16-19 fps (53-67 ms)
+    against 12-13 (77-80 ms). The 583 counters barely moved (served 54-66 %
+    vs 49-64 %, wasted 39-51 % vs 44-53 %, `worker_passed` 60-400 per
+    window): the gain is not attributable to 583 with certainty.
+  - God of War III reads one 1280x720x4 render target back every frame
+    (`READBACK555 fault_read`, 3.69 MB, one per frame): 2.1-6.7 ms per frame,
+    0.80-1.06 s per 5 s window in light scenes. Write Color Buffers (GameDB)
+    causes it and stays on: the game needs it (lighting, cinematics).
+  - Dragon Ball Z: 60 fps (cap) in 18 of 25 windows, 28-48 in five.
+    Black Ops II: 60 Metal pipeline-compile stalls in game (median 0.57 s, up
+    to 4.8 s per window), pipeline cache 671 -> 801 (new areas, rule 5).
+    Bladestorm: 30 fps (cap).
+- Core change (record `cell585`, three iOS files, codegen identities
+  unchanged): `CELL585_EARLY_SUBMIT_GOW3`. Early Command Buffer Submission
+  (561) Automatic = Dragon Ball Z and the six God of War III serials (rule 4:
+  a render-target readback every frame). Mechanism, Enabled and Disabled
+  unchanged. God of War III runs Multithreaded RSX (DBZ does not); the early
+  submission uses the same `flush_command_queue()` as every other one.
+- Local: `test/rpcs3_cell585_test.py` authenticates the 583 preimages and
+  compiles the production gating code (plain and ASan/UBSan): Automatic on
+  for God of War III and DBZ only, Enabled on for all, Disabled off for all,
+  `decide` unchanged; ARM64 diagnostics of the 3 units equal to 583. The 585
+  driver also checks `COREPROF OPT581` in the Core. Evidence
+  `docs/evidence/rpcs3-cell585-host-linux.json`. No iPhone measurement of 585.
+- `test/neo_swap_core_pin_test.py` fails at HEAD before and after 585 on the
+  public `neoswap-ipa.yml` exact pin (`cfe92344` lacks
+  `test/rpcs3_restore_eof_test.py`), unchanged by decision.
 
 ## RPCS3 Core 583: texture pre-validation pacing, God of War III only — 28 October 2026
 
@@ -203,12 +240,10 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   absent). Receipt `docs/evidence/rpcs3-cell583-delivery.json`. Not tested on
   iPhone; no FPS, frame time or memory gain claimed. Do not reuse the number
   583.
-- Next lead, zero build (`docs/rpcs3-cell583.md` section 6): God of War III
-  reads back one 3.69 MB colour target per frame in the 581 logs
-  (`READBACK555 fault_read`, 2.1-7.2 ms per frame); the GameDB's Write Color
-  Buffers locks every bound colour target and the MLAA bypass is active.
-  Proposed to the maintainer as a per-game experiment (visual errors
-  possible).
+- God of War III reads back one 3.69 MB colour target per frame
+  (`READBACK555 fault_read`, 2.1-7.2 ms per frame in 581) because the
+  GameDB's Write Color Buffers locks every bound colour target. Turning it off
+  is rejected (rule 8, and the game needs it); Core 585 targets the wait.
 
 ## MeloNX engine 582: JIT units end where another translation starts; Switch discovery off the main thread — 28 October 2026
 
