@@ -11,7 +11,10 @@ instructions nothing in the unit enters (the other cases of a switch);
 ordinary calls, known branch targets, loops, rotated loops and short skips
 keep the upstream units. The layout case is clang's: functions that
 end with a no-return call, back to back; the upstream decoder translates every
-following function again for each entry point.
+following function again for each entry point. With translations already
+starting inside the code, a unit ends before the first of them and tail-calls
+it, unless the code from there branches back into the unit within 1,024
+instructions (a loop stays in one unit); without them, nothing changes.
 """
 from pathlib import Path
 import hashlib, json, shutil, subprocess, sys, tempfile
@@ -29,6 +32,7 @@ assert not subprocess.check_output(['git', '-C', str(SOURCE), 'status', '--porce
 
 PROJECTS = ['Ryujinx.Cpu', 'ARMeilleure', 'Ryujinx.Memory', 'Ryujinx.Common']
 DECODER = 'src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Decoder.cs'
+TRANSLATOR = 'src/Ryujinx.Cpu/LightningJit/Translator.cs'
 
 
 def build_variant(work: Path, adapted: bool) -> dict:
@@ -40,7 +44,7 @@ def build_variant(work: Path, adapted: bool) -> dict:
     for project in PROJECTS:
         shutil.copytree(SOURCE / 'src' / project, source / 'src' / project, ignore=shutil.ignore_patterns('bin', 'obj'))
     if adapted:
-        assert [p.relative_to(source).as_posix() for p in apply(source)] == [DECODER]
+        assert [p.relative_to(source).as_posix() for p in apply(source)] == [DECODER, TRANSLATOR]
     cpu = source / 'src/Ryujinx.Cpu/Ryujinx.Cpu.csproj'
     text = cpu.read_text(encoding='utf-8-sig')
     assert text.count('</Project>') == 1
@@ -54,7 +58,7 @@ def build_variant(work: Path, adapted: bool) -> dict:
   <PropertyGroup>
     <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks><NoWarn>CA1416;CS8632</NoWarn>
-    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>{'<DefineConstants>$(DefineConstants);ADAPTED</DefineConstants>' if adapted else ''}
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="{source}/src/Ryujinx.Cpu/Ryujinx.Cpu.csproj" />
@@ -115,6 +119,27 @@ def check(upstream: dict, adapted: dict):
     expect(a['guestInstructions'] == 300 * 12 + 1, f'adapted: each entry translates its own function: {a}')
     expect(u['guestInstructions'] > 50 * a['guestInstructions'] and u['hostBytes'] > 20 * a['hostBytes'],
            f'upstream: each entry translates the following functions too: {u} vs {a}')
+    u, a = upstream['knownRunOn'], adapted['knownRunOn']
+    expect(u['guestInstructions'] == 41 and not u['truncated'] and a['guestInstructions'] == 20 and a['truncated'] and
+           not a['emptyLastBlock'], f'a unit ends before an instruction another translation starts at: {u} {a}')
+    u, a = upstream['knownBlockStart'], adapted['knownBlockStart']
+    expect(u['guestInstructions'] == 12 and a['guestInstructions'] == 2 and a['truncated'] and a['emptyLastBlock'],
+           f'at a block start the unit ends with an empty block: {u} {a}')
+    u, a = upstream['knownAfterLoop'], adapted['knownAfterLoop']
+    expect(u['guestInstructions'] == 11 and a['guestInstructions'] == 5 and a['truncated'],
+           f'a translation after a loop ends the unit there: {u} {a}')
+    for name in ('knownInLoop', 'ownEntry'):
+        u, a = dict(upstream[name]), dict(adapted[name])
+        size = abs(u.pop('hostBytes') - a.pop('hostBytes'))
+        expect(u == a and size <= 16 and not a['truncated'],
+               f'{name}: a loop through a translated entry stays in its unit: {upstream[name]} {adapted[name]}')
+    u, a = upstream['farLoop'], adapted['farLoop']
+    expect(u['guestInstructions'] == 1203 and a['guestInstructions'] == 100 and a['truncated'],
+           f'a branch back farther than 1,024 instructions does not keep the unit going: {u} {a}')
+    u, a = upstream['framelessLayout'], adapted['framelessLayout']
+    expect(a['guestInstructions'] == 300 * 12 + 1 and u['guestInstructions'] > 50 * a['guestInstructions'] and
+           u['hostBytes'] > 20 * a['hostBytes'],
+           f'functions without a frame stop at the next translated function start: {u} vs {a}')
     return failures
 
 
@@ -127,7 +152,7 @@ inputs = ['build-utils/melonx/adapt_jit_decoder.py', 'test/melonx_jit_decoder_te
 receipt = dict(result='failed' if failures else 'passed', failures=failures, upstream=upstream, adapted=adapted,
                executed=False, physicalDeviceTested=False, upstreamRevision=PIN['revision'],
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
-               upstreamInputs={DECODER: hashlib.sha256((SOURCE / DECODER).read_bytes()).hexdigest()})
+               upstreamInputs={p: hashlib.sha256((SOURCE / p).read_bytes()).hexdigest() for p in (DECODER, TRANSLATOR)})
 out = ROOT / 'dist/melonx/jit-decoder-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')
@@ -138,4 +163,7 @@ u, a = upstream['layout'], adapted['layout']
 print(f"MeloNX JIT decoder: 300 back-to-back functions ending in a no-return call — upstream {u['guestInstructions']} guest "
       f"instructions / {u['hostBytes'] // 1024} KiB host code translated, adapted {a['guestInstructions']} / "
       f"{a['hostBytes'] // 1024} KiB; units end after calls followed by a frame and after traps; ordinary calls, "
-      f"known targets and loops unchanged; a switch case stops at its jump past the other cases.")
+      f"known targets and loops unchanged; a switch case stops at its jump past the other cases. Frameless functions "
+      f"with translated starts: upstream {upstream['framelessLayout']['guestInstructions']} / adapted "
+      f"{adapted['framelessLayout']['guestInstructions']} guest instructions; units end where another translation starts, "
+      f"loops through it stay whole.")

@@ -36,7 +36,27 @@ Shorter skips keep the upstream unit. Measured with this engine's compiler on
 the 20,543 jump-table targets of the same binary (1,116 tables): 26.6 -> 19.5
 MiB of host code (-27 %); following every exit as the dispatcher would,
 56.6 -> 41.6 MiB, and 408 -> 386 MiB from all function starts (-5 %) with
-fewer units and exits. Fail closed on drift.
+fewer units and exits.
+
+Hogwarts v1.0.4 spends 5-8 guest CPU-seconds before its first content query
+against under 1 s for v1.0.0, with every decoder version logged. A unit is
+keyed by its exact entry, and upstream decodes on from every entry through
+code other units already translated: each loop back-target, each continuation
+of a register-pressure truncation and each run-on into another translation
+starts a copy of everything after it. One 17 KiB function of the same binary
+became 306 units and 26 times its size in guest code translated. Now a unit
+ends before an instruction where another translation starts, and tail-calls
+it as after a truncation (the function table already points there). The
+translator keeps those addresses in a lock-free bitmap, one bit per
+instruction (2 KiB per 64 KiB of guest code), cleared when a region is
+invalidated; a missing or stale bit only costs a duplicate translation or a
+dispatch. A loop stays in one unit: when a branch within the next 1,024
+instructions targets the code the unit already holds, the unit decodes on as
+before. Same binary, every exit followed, in address and in shuffled call
+order: 394 -> 321-323 MiB of host code (-18 %), managed allocations -17 %,
+loops held by no single unit +2 %. Without the loop rule -30 %, but three
+times as many loops of up to 64 bytes split across two units. Fail closed on
+drift.
 """
 from adapt_session import once
 
@@ -209,4 +229,238 @@ def apply(source):
         private static bool TryGetBranchTarget(Block block, out ulong targetAddress)
         {
             return TryGetBranchTarget(''')
-    return [decoder]
+    return [decoder, *apply_entries(source)]
+
+
+def apply_entries(source):
+    jit = source / 'src/Ryujinx.Cpu/LightningJit'
+    decoder = jit / 'Arm64/Target/Arm64/Decoder.cs'
+    once(decoder, '''            int totalInsts = 0;
+
+            while (true)
+            {
+                Block block = Decode(cpuPreset, memoryManager, address, ref totalInsts, ref useMask, ref hasHostCall, ref hasMemoryInstruction);
+''', '''            int totalInsts = 0;
+            EntryStop entryStop = new(TranslatedEntries.Current, address);
+
+            while (true)
+            {
+                Block block = Decode(cpuPreset, memoryManager, address, ref totalInsts, ref useMask, ref hasHostCall, ref hasMemoryInstruction, ref entryStop);
+''')
+    once(decoder, '''        private static bool IsSkippedCodeReachable(''', '''        // Ends a unit before an instruction where another translation starts
+        // (TranslatedEntries): the unit tail-calls it, as after a truncation,
+        // instead of translating that code again. A loop stays in one unit: when
+        // the code from there branches back into the unit, decoding goes on.
+        private struct EntryStop
+        {
+            private const int LoopScanInstructions = 1024;
+
+            private readonly TranslatedEntries _entries;
+            private readonly ulong _unitAddress;
+            private ulong _chunkIndex;
+            private ulong[] _chunk;
+            private ulong _loopEnd;
+
+            public EntryStop(TranslatedEntries entries, ulong unitAddress)
+            {
+                _entries = entries;
+                _unitAddress = unitAddress;
+                _chunkIndex = ulong.MaxValue;
+                _chunk = null;
+                _loopEnd = 0;
+            }
+
+            public bool StopsAt(IMemoryManager memoryManager, ulong address)
+            {
+                if (_entries == null || address == _unitAddress || address <= _loopEnd)
+                {
+                    return false;
+                }
+
+                if (TranslatedEntries.ChunkIndex(address) != _chunkIndex)
+                {
+                    _chunkIndex = TranslatedEntries.ChunkIndex(address);
+                    _chunk = _entries.GetChunk(address);
+                }
+
+                if (_chunk == null || !TranslatedEntries.Contains(_chunk, address))
+                {
+                    return false;
+                }
+
+                _loopEnd = FindBranchInto(memoryManager, address, _unitAddress, address);
+
+                return _loopEnd == 0;
+            }
+
+            // The first B, B.cond, CBZ/CBNZ or TBZ/TBNZ from address on, within
+            // LoopScanInstructions and mapped pages, whose target is in [low, high).
+            private static ulong FindBranchInto(IMemoryManager memoryManager, ulong address, ulong low, ulong high)
+            {
+                for (int index = 0; index < LoopScanInstructions; index++, address += 4UL)
+                {
+                    if (index != 0 && (address & 0xfffUL) == 0 && !memoryManager.IsMapped(address))
+                    {
+                        break;
+                    }
+
+                    uint encoding = memoryManager.Read<uint>(address);
+                    long offset;
+
+                    if ((encoding & 0xfc000000u) == 0x14000000u) // B
+                    {
+                        offset = ImmUtils.ExtractSImm26Times4(encoding);
+                    }
+                    else if ((encoding & 0xff000010u) == 0x54000000u || (encoding & 0x7e000000u) == 0x34000000u) // B.cond, CBZ, CBNZ
+                    {
+                        offset = ImmUtils.ExtractSImm19Times4(encoding);
+                    }
+                    else if ((encoding & 0x7e000000u) == 0x36000000u) // TBZ, TBNZ
+                    {
+                        offset = ImmUtils.ExtractSImm14Times4(encoding);
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
+                    ulong target = address + (ulong)offset;
+
+                    if (target >= low && target < high)
+                    {
+                        return address;
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        private static bool IsSkippedCodeReachable(''')
+    once(decoder, '''            ref bool hasHostCall,
+            ref bool hasMemoryInstruction)
+        {
+            ulong startAddress = address;
+''', '''            ref bool hasHostCall,
+            ref bool hasMemoryInstruction,
+            ref EntryStop entryStop)
+        {
+            ulong startAddress = address;
+''')
+    once(decoder, '''            uint encoding;
+            InstName name;
+            InstFlags flags;
+            bool isControlFlow;
+            bool isTruncated = false;
+
+            do
+            {
+                encoding = memoryManager.Read<uint>(address);
+''', '''            uint encoding = 0;
+            InstName name = default;
+            InstFlags flags;
+            bool isControlFlow;
+            bool isTruncated = false;
+
+            do
+            {
+                if (entryStop.StopsAt(memoryManager, address))
+                {
+                    // Another translation starts here: tail-call it.
+                    isTruncated = true;
+
+                    break;
+                }
+
+                encoding = memoryManager.Read<uint>(address);
+''')
+    translator = jit / 'Translator.cs'
+    once(translator, '''    class Translator : IDisposable
+    {
+''', '''    // Guest addresses where a translation starts, one bit per A64 instruction
+    // in 64 KiB chunks of guest code (2 KiB each). The A64 decoder ends a unit
+    // there (Decoder.EntryStop). Only a hint: a missing or stale bit costs a
+    // duplicate translation or a dispatch, never correctness, so it is read
+    // and updated without a lock.
+    sealed class TranslatedEntries
+    {
+        private const int ChunkShift = 16;
+        private const int ChunkWords = 1 << (ChunkShift - 8);
+
+        // The translator compiling on this thread (Translator.Compile).
+        [ThreadStatic]
+        internal static TranslatedEntries Current;
+
+        private readonly ConcurrentDictionary<ulong, ulong[]> _chunks = new();
+
+        public static ulong ChunkIndex(ulong address) => address >> ChunkShift;
+
+        public void Add(ulong address)
+        {
+            ulong[] chunk = _chunks.GetOrAdd(ChunkIndex(address), static _ => new ulong[ChunkWords]);
+
+            Interlocked.Or(ref chunk[Word(address)], Bit(address));
+        }
+
+        public void Remove(ulong address)
+        {
+            if (_chunks.TryGetValue(ChunkIndex(address), out ulong[] chunk))
+            {
+                Interlocked.And(ref chunk[Word(address)], ~Bit(address));
+            }
+        }
+
+        public ulong[] GetChunk(ulong address)
+        {
+            return _chunks.TryGetValue(ChunkIndex(address), out ulong[] chunk) ? chunk : null;
+        }
+
+        public static bool Contains(ulong[] chunk, ulong address)
+        {
+            return (Volatile.Read(ref chunk[Word(address)]) & Bit(address)) != 0;
+        }
+
+        private static int Word(ulong address) => (int)(address >> 8) & (ChunkWords - 1);
+
+        private static ulong Bit(ulong address) => 1UL << (int)((address >> 2) & 63);
+    }
+
+    class Translator : IDisposable
+    {
+''')
+    once(translator, '''        private readonly ConcurrentQueue<KeyValuePair<ulong, TranslatedFunction>> _oldFuncs;
+''', '''        private readonly ConcurrentQueue<KeyValuePair<ulong, TranslatedFunction>> _oldFuncs;
+        private readonly TranslatedEntries _entries = new();
+''')
+    once(translator, '''                Volatile.Write(ref FunctionTable.GetValue(guestAddress), (ulong)func.FuncPointer);
+            }
+        }
+''', '''                Volatile.Write(ref FunctionTable.GetValue(guestAddress), (ulong)func.FuncPointer);
+            }
+
+            _entries.Add(guestAddress);
+        }
+''')
+    once(translator, '''        private CompiledFunction Compile(ulong address, ExecutionMode mode)
+        {
+            return AarchCompiler.Compile(CpuPresets.CortexA57, Memory, address, FunctionTable, Stubs.DispatchStub, mode, RuntimeInformation.ProcessArchitecture);
+        }
+''', '''        private CompiledFunction Compile(ulong address, ExecutionMode mode)
+        {
+            TranslatedEntries.Current = _entries;
+
+            try
+            {
+                return AarchCompiler.Compile(CpuPresets.CortexA57, Memory, address, FunctionTable, Stubs.DispatchStub, mode, RuntimeInformation.ProcessArchitecture);
+            }
+            finally
+            {
+                TranslatedEntries.Current = null;
+            }
+        }
+''')
+    once(translator, '''                    Functions.Remove(overlapAddress);
+''', '''                    Functions.Remove(overlapAddress);
+                    _entries.Remove(overlapAddress);
+''')
+    return [translator]

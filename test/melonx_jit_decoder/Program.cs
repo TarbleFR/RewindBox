@@ -77,9 +77,34 @@ static class Program
         };
     }
 
+    // The same unit while the translator already holds translations starting at
+    // the given instructions. The upstream build has no such map and decodes as
+    // before.
+    private static Dictionary<string, object> UnitWith(uint[] words, int[] translated, int entry = 0)
+    {
+#if ADAPTED
+        TranslatedEntries entries = new();
+        foreach (int index in translated) entries.Add(GuestCode.Base + (ulong)index * 4);
+        TranslatedEntries.Current = entries;
+        try
+        {
+            return Unit(words, entry);
+        }
+        finally
+        {
+            TranslatedEntries.Current = null;
+        }
+#else
+        return Unit(words, entry);
+#endif
+    }
+
     // Functions laid out the way clang emits them: each ends with a call that
-    // does not return, and the next function starts right after it.
-    private static Dictionary<string, object> Layout(int functions)
+    // does not return, and the next function starts right after it. Without a
+    // frame, nothing at the next function tells the decoder where it starts;
+    // with knownStarts, every function start already has a translation (each
+    // was called before).
+    private static Dictionary<string, object> Layout(int functions, bool frames = true, bool knownStarts = false)
     {
         const int Size = 12;
         int helper = functions * Size;
@@ -87,8 +112,8 @@ static class Program
         for (int f = 0; f < functions; f++)
         {
             int start = f * Size;
-            words.Add(A64.Push);
-            words.Add(A64.Frame);
+            words.Add(frames ? A64.Push : A64.AddOne);
+            words.Add(frames ? A64.Frame : A64.AddOne);
             for (int i = 0; i < 8; i++) words.Add(A64.AddOne);
             words.Add(A64.Bl(start + 10, helper));
             words.Add(A64.Bl(start + 11, helper + 1));
@@ -96,10 +121,11 @@ static class Program
         words.Add(A64.Ret);
         words.Add(A64.Brk);
         uint[] code = words.ToArray();
+        int[] starts = knownStarts ? Enumerable.Range(0, functions).Select(f => f * Size).ToArray() : [];
         long guest = 0, host = 0;
         for (int f = 0; f < functions; f++)
         {
-            Dictionary<string, object> unit = Unit(code, f * Size);
+            Dictionary<string, object> unit = UnitWith(code, starts, f * Size);
             guest += (int)unit["guestInstructions"];
             host += (int)unit["hostBytes"];
         }
@@ -139,6 +165,26 @@ static class Program
             // cbz x0, M; b end; <78 instructions, M among them>; end: ret: an entered skip keeps its unit.
             ["enteredSkip"] = Unit(new[] { A64.Cbz(0, 40), A64.B(1, 80) }.Concat(Enumerable.Repeat(A64.AddOne, 78)).Append(A64.Ret).ToArray()),
             ["layout"] = Layout(300),
+            // add x40; ret, with a translation starting at the 21st add: the unit
+            // ends before it (inside a block) and tail-calls it.
+            ["knownRunOn"] = UnitWith(Enumerable.Repeat(A64.AddOne, 40).Append(A64.Ret).ToArray(), [20]),
+            // add; cbz x0, L; <8 adds>; L: add; ret, with a translation at the
+            // fall-through of the cbz: the unit ends with an empty block there.
+            ["knownBlockStart"] = UnitWith(new[] { A64.AddOne, A64.Cbz(1, 10) }.Concat(Enumerable.Repeat(A64.AddOne, 9))
+                .Append(A64.Ret).ToArray(), [2]),
+            // add; L: <6 adds>; subs; b.ne L; ret, with translations inside the loop
+            // body: the code from there branches back into the unit, which keeps
+            // the whole loop.
+            ["knownInLoop"] = UnitWith(Enumerable.Repeat(A64.AddOne, 8).Concat(new[] { A64.Subs, A64.BNe(9, 1), A64.Ret }).ToArray(), [5, 7]),
+            // L: add; subs; b.ne L; <7 adds>; ret, with a translation after the loop.
+            ["knownAfterLoop"] = UnitWith(new[] { A64.AddOne, A64.Subs, A64.BNe(2, 0) }.Concat(Enumerable.Repeat(A64.AddOne, 7))
+                .Append(A64.Ret).ToArray(), [5]),
+            // The loop above with its own entry translated: nothing changes.
+            ["ownEntry"] = UnitWith(new[] { A64.AddOne, A64.Subs, A64.BNe(2, 0), A64.Ret }, [0]),
+            // L: <1,200 adds>; subs; b.ne L; ret, with a translation at the 101st
+            // add: the branch back is farther than the 1,024 instructions looked at.
+            ["farLoop"] = UnitWith(Enumerable.Repeat(A64.AddOne, 1200).Concat(new[] { A64.Subs, A64.BNe(1201, 0), A64.Ret }).ToArray(), [100]),
+            ["framelessLayout"] = Layout(300, frames: false, knownStarts: true),
         };
         Console.WriteLine(JsonSerializer.Serialize(report));
     }
