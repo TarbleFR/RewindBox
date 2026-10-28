@@ -85,17 +85,17 @@ Credits are not a clearance of these findings. Verified upstream cheat
 notices supplement the frozen catalogue metadata and are archived under
 docs/licenses/cheats/. This documentation does not change existing IPAs.
 
-CHEATS & ENHANCEMENTS CATALOGUE — 28 OCTOBER 2026 (RIGHTS REVIEWED)
+CHEATS & ENHANCEMENTS CATALOGUE — 28 OCTOBER 2026 (LICENSED SOURCES ONLY)
 
 docs/ENHANCEMENTS.md and native/enhancements/catalogue/. The IPA bundles only
 the catalogue index (titles and counts); code entries are downloaded on demand
 per game from the RewindBox repository. No game, BIOS, firmware or key is
-included. Rights review of 28 October 2026 (findings and evidence in
+included. Only content whose licence allows redistribution, or that the
+embedded engine already ships, is listed (rights review of 28 October 2026,
 docs/ENHANCEMENTS.md, "Rights"). These notes are not a clearance. Authors who
 want their entries removed or credited differently can open an issue at
 https://github.com/TarbleFR/RewindBox/issues; entries are removed promptly.
 
-Licensed sources
 - RPCS3 game patches — content of the RPCS3 Wiki
   (https://wiki.rpcs3.net/index.php?title=Help:Game_Patches) by the RPCS3 Wiki
   contributors; per-patch authors are credited in each entry. Obtained through
@@ -108,13 +108,16 @@ Licensed sources
   anchors flattened, configurable values turned into fixed choices, filtered.
   The adapted RPCS3 entries in native/enhancements/catalogue/ are distributed
   under CC BY-SA 4.0. RPCS3 is a trademark of its owners; no affiliation.
+- ARMSX2 patches.zip (ARMSX2/ARMSX2 9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe,
+  the PCSX2 patch set the embedded engine already ships): referenced by patch
+  name and author credit only, to enable a patch in the per-game settings. No
+  patch body or description is redistributed.
 - CookiePLMonster/Console-Cheat-Codes 26e407a754e0a2b2c73f55ad4f9261b32cfb42cd:
   MIT, Copyright (c) 2020-2023 Adrian Zdanowicz (Silent).
 - AeroWidescreen/PCSX2-Cheats ab043ba5adb9e65837fd451d207e6c7c2731c3b1:
   MIT, Copyright (c) 2023 Aero_.
-- Some pcsx2_patches entries cite MIT upstreams in their comments, kept
-  verbatim: CookiePLMonster/Console-Cheat-Codes (MIT, (c) 2020-2023 Adrian
-  Zdanowicz) and ThirteenAG/WidescreenFixesPack (MIT, (c) 2018 ThirteenAG).
+  Each cheat file RewindBox installs from these two sources carries their
+  copyright and permission notice in its comments.
 - Dolphin GameSettings, GPL-2.0-or-later: OatmealDome/dolphin-ios
   7cac54161659421ed95c2cd1c0b0746539a4cd38 (names only, bodies ship with the
   engine); dolphin-emu/dolphin 3eb30c7620b4475b2e0404228ba0d2b238a132f1;
@@ -125,31 +128,13 @@ Licensed sources
 - Admentus64/Enhancement-Codes f8e9ad12d90460e316b552fdf73052eb308e9ab9:
   GPL-3.0 (GameCube disc files only).
 
-Sources without a licence (all rights stay with their authors; RewindBox does
-not relicense them, keeps every credit they carry and removes entries on
-request; redistribution relies on community tolerance, not on a grant)
-- PCSX2/pcsx2_patches ba8ef4f42c353d8ee44d572f8111b10db54a3f0b: patches by the
-  authors named in author= and comment lines (Arapapa, PeterDelta, ElHecht,
-  Gabominated, nemesis2000, El_Patas, asasega, Silent and others; files
-  without author= are credited to the pcsx2_patches contributors). The set
-  PCSX2 and ARMSX2 distribute as patches.zip; neither licenses the data.
-- Gabominated/PCSX2 24eaa108d39a63aec5d53e19b4962bb239f145ef and
-  PeterDelta/PCSX2 1ad26ca29667ea29cd96989f77ed323c233f939a: pnach groups by
-  their authors, merged with a source comment naming the repository.
-- HamletDuFromage/switch-cheats-db 109766ab21c784150287c83ff85c02ab9512dccb
-  (mirror of the GBAtemp "Cheat codes SXOS and AMS main cheat file" and of
-  ChanseyIsTheBest/NX-60FPS-RES-GFX-Cheats), exefer/gbatemp-matias3ds-cheats
-  ca85a7c9a30983a9084ba49866369a67f3d152a5 (compilation MIT (c) 2026 exefer;
-  "All rights belong to the original cheat authors") and blawar/titledb
-  cheats.json d424690446eec6f4484209b9a1c067c7f7511398 (repository MIT (c) 2019
-  Blake Warner). Every title whose authors restrict distribution ("Exclusive
-  to GBAtemp", "Spreading codes outside of GBAtemp is prohibited!", "Please
-  don't reprint them outside of GBAtemp", "Do not repost") is excluded from
-  every Switch cheat source: 194 titles, listed in VALIDATION.json.
-- KeatonTheBot/switch-pchtxt-mods 81e79b55505648ff20fd9c0ed4540d5634c60f0e and
-  Fl4sh9174/Switch-Ultrawide-Mods 76fc6ac3e5776ed41d8b6724c7141f46b74a6617:
-  exefs patches by their authors (exefs-only mods; romfs game assets are
-  never taken).
+Removed on 28 October 2026 because they grant no licence to redistribute
+their codes: HamletDuFromage/switch-cheats-db, exefer/gbatemp-matias3ds-cheats
+("All rights belong to the original cheat authors"), blawar/titledb
+cheats.json (uncredited codes), KeatonTheBot/switch-pchtxt-mods,
+Fl4sh9174/Switch-Ultrawide-Mods, the pcsx2_patches bodies (only names of the
+copy ARMSX2 ships are referenced), Gabominated/PCSX2 and PeterDelta/PCSX2.
+The Switch (MeloNX) catalogue is therefore empty.
 
 Researched and not integrated: StevensND/switch-port-mods and
 ue4-emuswitch-60fps (author forbids reuploads), theboy181/switch-ptchtxt-mods

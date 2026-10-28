@@ -9,8 +9,57 @@ import 'package:path/path.dart' as path;
 
 import 'enhancement_test_support.dart';
 
-/// Super Mario Odyssey: three Build IDs in the pinned switch-cheats-db.
+/// Super Mario Odyssey's Title ID with three Build IDs. The committed
+/// catalogue lists no Switch source (none licenses its codes), so these
+/// tests run on made-up records shaped as tools/enhancements writes them.
 const _title = '0100000000010000';
+const _line = '04000000 00000000 00000001';
+
+Map<String, dynamic> _cheat(String name, List<String> builds, {String cat = 'cheat'}) => {
+  'id': name.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-'),
+  'cat': cat,
+  'name': name,
+  'source': 'fixture',
+  'builds': {
+    for (final build in builds) build: [_line],
+  },
+};
+
+Map<String, dynamic> _exefsMod(String name, String cat, String group) {
+  final bid = '0123456789ABCDEF0123456789ABCDEF${name.length.toRadixString(16).toUpperCase().padLeft(8, '0')}';
+  return {
+    'id': 'exefs-${name.toLowerCase().replaceAll(RegExp('[^a-z0-9]+'), '-')}',
+    'cat': cat,
+    'name': name,
+    'source': 'fixture',
+    'group': group,
+    'exefs': [
+      {'bid': bid, 'text': '@nsobid-$bid\n@flag offset_shift 0x100\n@enabled\n00001000 1F2003D5\n@stop\n'},
+    ],
+  };
+}
+
+Map<String, dynamic> _record(String title, List<Map<String, dynamic>> entries) => {
+  'title': title,
+  'master': <String, dynamic>{},
+  'credits': ['Fixture'],
+  'entries': entries,
+};
+
+final _records = <String, Map<String, dynamic>>{
+  _title: _record('Super Mario Odyssey', [
+    _cheat('9999 Coins Save 1', ['3CA12DFAAF9C82DA', 'F5DCCDDB37E97724']),
+    _cheat('Infinite Health', ['B424BE150A8E7D78', 'F5DCCDDB37E97724']),
+  ]),
+  for (var program = 0; program < 4; program++)
+    '010049900F54600$program': _record('Super Mario 3D All-Stars', [
+      _cheat('Infinite Lives $program', ['A638857E6DF584F$program']),
+    ]),
+  '0100A21017C42000': _record("Another Crab's Treasure", [
+    _exefsMod('21.9 Ultrawide v1.0.103.9', 'ultrawide', 'display/0100A21017C42000'),
+    _exefsMod('4K', 'graphics', 'display/0100A21017C42000'),
+  ]),
+};
 
 void main() {
   late Directory temp;
@@ -26,7 +75,7 @@ void main() {
       metadata: (gamePath) async => {'titleId': '0100000000010800', 'version': '1.3.0', 'title': 'SMO'},
     );
     service = EnhancementService(
-      catalog: repositoryCatalog(Directory(path.join(temp.path, 'cache'))),
+      catalog: fixtureCatalog(Directory(path.join(temp.path, 'cache')), {'melonx': _records}),
       store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
       adapters: [adapter],
       texturesSupported: (_) => false,
@@ -41,7 +90,7 @@ void main() {
 
   test('the page is offered only where an engine or HD textures exist', () async {
     final offline = EnhancementService(
-      catalog: repositoryCatalog(Directory(path.join(temp.path, 'cache'))),
+      catalog: fixtureCatalog(Directory(path.join(temp.path, 'cache')), {'melonx': _records}),
       store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
       adapters: [adapter],
       texturesSupported: (folder) => folder == 'psx',
@@ -54,7 +103,7 @@ void main() {
     expect(view.identity.problem, EnhancementProblem.unsupportedSystem);
     expect(view.items, isEmpty);
     final ios = EnhancementService(
-      catalog: repositoryCatalog(Directory(path.join(temp.path, 'cache'))),
+      catalog: fixtureCatalog(Directory(path.join(temp.path, 'cache')), {'melonx': _records}),
       store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
       adapters: [adapter],
       texturesSupported: (_) => false,
@@ -76,8 +125,11 @@ void main() {
       ),
       ['<default>', 'Moon Jump', 'Coins'],
     );
-    expect(MelonxEnhancementAdapter.parseCheatNames('[Broken # name]\n04000000 00000000 00000000\n'), isEmpty,
-        reason: 'a comment marker inside a name makes Ryujinx skip the whole file');
+    expect(
+      MelonxEnhancementAdapter.parseCheatNames('[Broken # name]\n04000000 00000000 00000000\n'),
+      isEmpty,
+      reason: 'a comment marker inside a name makes Ryujinx skip the whole file',
+    );
   });
 
   test('activation writes Atmosphere files per Build ID and enables only the choice', () async {
@@ -92,18 +144,20 @@ void main() {
     expect(view.items.where((item) => item.status == EnhancementStatus.installed), isNotEmpty);
 
     final files = modCheats().listSync().whereType<File>().toList();
-    expect(files.map((file) => path.basenameWithoutExtension(file.path)),
-        containsAll(['3CA12DFAAF9C82DA', 'B424BE150A8E7D78', 'F5DCCDDB37E97724']));
+    expect(
+      files.map((file) => path.basenameWithoutExtension(file.path)),
+      containsAll(['3CA12DFAAF9C82DA', 'B424BE150A8E7D78', 'F5DCCDDB37E97724']),
+    );
     for (final file in files) {
       final names = MelonxEnhancementAdapter.parseCheatNames(file.readAsStringSync());
       expect(names, isNotEmpty, reason: 'Ryujinx must not skip ${file.path}');
       expect(names, isNot(contains('<default>')), reason: 'every program is named');
     }
     final enabled = enabledList().readAsLinesSync();
-    expect(enabled, containsAll([
-      '3CA12DFAAF9C82DA-<9999 Coins Save 1 Cheat>',
-      'F5DCCDDB37E97724-<9999 Coins Save 1 Cheat>',
-    ]));
+    expect(
+      enabled,
+      containsAll(['3CA12DFAAF9C82DA-<9999 Coins Save 1 Cheat>', 'F5DCCDDB37E97724-<9999 Coins Save 1 Cheat>']),
+    );
     expect(enabled.where((line) => line.contains('Infinite Health')), isEmpty);
 
     // Off again: the files stay installed, the enable list is emptied.
@@ -113,10 +167,10 @@ void main() {
   });
 
   test('existing cheats of the player stay enabled and restore removes only ours', () async {
-    final own = File(path.join(root.path, 'mods', 'contents', _title.toLowerCase(), 'Mine', 'cheats',
-        '3CA12DFAAF9C82DA.txt'))
-      ..createSync(recursive: true)
-      ..writeAsStringSync('[My code]\n04000000 00000000 00000001\n');
+    final own =
+        File(path.join(root.path, 'mods', 'contents', _title.toLowerCase(), 'Mine', 'cheats', '3CA12DFAAF9C82DA.txt'))
+          ..createSync(recursive: true)
+          ..writeAsStringSync('[My code]\n04000000 00000000 00000001\n');
     var view = await service.open(game, 'switch', download: true);
     final item = view.items.firstWhere((item) => item.category == EnhancementCategory.cheat);
     view = await service.setActive(game, 'switch', view, item, true);
@@ -150,21 +204,28 @@ void main() {
       metadata: (_) async => {'titleId': '010049900F546000', 'version': '1.1.0'},
     );
     final allStars = EnhancementService(
-      catalog: repositoryCatalog(Directory(path.join(temp.path, 'cache'))),
+      catalog: fixtureCatalog(Directory(path.join(temp.path, 'cache')), {'melonx': _records}),
       store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
       adapters: [collection],
       texturesSupported: (_) => false,
     );
     final game = testGame(name: 'Super Mario 3D All-Stars', romPath: '/Documents/MeloNX/3das.nsp');
     var view = await allStars.open(game, 'switch', download: true);
-    expect(view.items.map((item) => item.compatibility.split(' · ').first).toSet(),
-        containsAll(['Title ID 010049900F546000', 'Title ID 010049900F546001', 'Title ID 010049900F546003']));
+    expect(
+      view.items.map((item) => item.compatibility.split(' · ').first).toSet(),
+      containsAll(['Title ID 010049900F546000', 'Title ID 010049900F546001', 'Title ID 010049900F546003']),
+    );
     final sunshine = view.items.firstWhere((item) => item.compatibility.startsWith('Title ID 010049900F546002'));
     view = await allStars.setActive(game, 'switch', view, sunshine, true);
     final program = File(path.join(root.path, 'mods', 'contents', '010049900f546002', 'cheats', 'enabled.txt'));
     expect(program.readAsStringSync(), contains('<${sunshine.name} Cheat>'));
-    expect(File(path.join(root.path, 'mods', 'contents', '010049900f546000', 'cheats', 'enabled.txt')).readAsStringSync().trim(),
-        isEmpty, reason: 'installed, nothing enabled for the other programs');
+    expect(
+      File(
+        path.join(root.path, 'mods', 'contents', '010049900f546000', 'cheats', 'enabled.txt'),
+      ).readAsStringSync().trim(),
+      isEmpty,
+      reason: 'installed, nothing enabled for the other programs',
+    );
     await allStars.restore(view.identity.storeKey);
     expect(Directory(path.join(root.path, 'mods', 'contents', '010049900f546002', 'RewindBox')).existsSync(), isFalse);
     expect(program.existsSync(), isFalse);
@@ -172,7 +233,7 @@ void main() {
 
   test('an exefs mod is written only while on, header first, one display mod at a time', () async {
     final crab = EnhancementService(
-      catalog: repositoryCatalog(Directory(path.join(temp.path, 'cache'))),
+      catalog: fixtureCatalog(Directory(path.join(temp.path, 'cache')), {'melonx': _records}),
       store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
       adapters: [
         MelonxEnhancementAdapter(
@@ -209,8 +270,10 @@ void main() {
   });
 
   test('a homebrew Title ID is matched exactly', () {
-    expect(MelonxEnhancementAdapter.programAliases('0100414D32524000', '0100414D32524E00'),
-        contains('0100414D32524E00'));
+    expect(
+      MelonxEnhancementAdapter.programAliases('0100414D32524000', '0100414D32524E00'),
+      contains('0100414D32524E00'),
+    );
     expect(MelonxEnhancementAdapter.programAliases(_title, _title), isNot(contains(_title)));
   });
 

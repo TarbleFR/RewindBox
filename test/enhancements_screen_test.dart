@@ -10,7 +10,7 @@ import 'package:neostation/l10n/enhancements_locale.dart';
 import 'package:neostation/models/system_model.dart';
 import 'package:neostation/providers/theme_provider.dart';
 import 'package:neostation/screens/enhancements/enhancements_screen.dart';
-import 'package:neostation/services/enhancements/adapters/melonx_enhancement_adapter.dart';
+import 'package:neostation/services/enhancements/adapters/rpcs3_enhancement_adapter.dart';
 import 'package:neostation/services/enhancements/enhancement_service.dart';
 import 'package:neostation/services/enhancements/enhancement_store.dart';
 import 'package:neostation/services/sfx_service.dart';
@@ -36,19 +36,14 @@ void main() {
   });
   tearDownAll(() => SfxService().setEnabled(true));
 
-  testWidgets('a Switch game lists its categories and switches a cheat in one tap', (tester) async {
+  testWidgets('a PS3 game lists its categories and switches a cheat in one tap', (tester) async {
     final temp = Directory.systemTemp.createTempSync('enh-screen-');
     addTearDown(() => temp.deleteSync(recursive: true));
-    final root = Directory(path.join(temp.path, 'MeloNX'))..createSync();
+    final data = Directory(path.join(temp.path, 'Data'))..createSync();
     final service = EnhancementService(
       catalog: repositoryCatalog(Directory(path.join(temp.path, 'cache'))),
       store: EnhancementStore(root: () async => Directory(path.join(temp.path, 'store'))),
-      adapters: [
-        MelonxEnhancementAdapter(
-          root: () async => root,
-          metadata: (_) async => {'titleId': '0100000000010000', 'version': '1.3.0'},
-        ),
-      ],
+      adapters: [Rpcs3EnhancementAdapter(dataDirectory: () async => data, installedVersion: (_) async => '01.00')],
       texturesSupported: (_) => false,
     );
     await tester.binding.setSurfaceSize(const Size(956, 440));
@@ -72,9 +67,9 @@ void main() {
               localizationsDelegates: FlutterLocalization.instance.localizationsDelegates,
               supportedLocales: FlutterLocalization.instance.supportedLocales,
               home: EnhancementsScreen(
-                game: testGame(name: 'Super Mario Odyssey', romPath: '/Documents/MeloNX/smo.nsp'),
-                system: const SystemModel(folderName: 'switch', realName: 'Nintendo Switch', iconImage: '', color: ''),
-                systemFolder: 'switch',
+                game: testGame(name: "Demon's Souls", romPath: '/rpcs3/BLUS30443', titleId: 'BLUS30443'),
+                system: const SystemModel(folderName: 'ps3', realName: 'PlayStation 3', iconImage: '', color: ''),
+                systemFolder: 'ps3',
                 service: service,
               ),
             ),
@@ -83,7 +78,8 @@ void main() {
       ),
     );
     final toggle = find.byWidgetPredicate(
-      (widget) => widget.key is ValueKey<String> && (widget.key! as ValueKey<String>).value.startsWith('enhancements-toggle-'),
+      (widget) =>
+          widget.key is ValueKey<String> && (widget.key! as ValueKey<String>).value.startsWith('enhancements-toggle-'),
     );
     await settle(() => toggle.evaluate().isNotEmpty);
     expect(toggle, findsWidgets);
@@ -93,10 +89,10 @@ void main() {
     expect(tester.takeException(), isNull);
 
     await tester.tap(toggle.first);
-    final enabled = File(path.join(root.path, 'mods', 'contents', '0100000000010000', 'cheats', 'enabled.txt'));
+    final staged = File(path.join(data.path, 'NeoStationUnifiedCheats', 'state.json'));
     await settle(() => find.byKey(const ValueKey('enhancements-active-count')).evaluate().isNotEmpty);
     expect(find.byKey(const ValueKey('enhancements-active-count')), findsOneWidget);
-    expect(enabled.readAsStringSync().trim(), isNotEmpty);
+    expect(staged.readAsStringSync(), contains('"enabled":true'));
     final restore = find.text(en(EnhancementsLocale.restore));
     await tester.scrollUntilVisible(
       restore,

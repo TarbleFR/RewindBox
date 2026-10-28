@@ -70,7 +70,7 @@ Key services include:
 - `HomeMusicService` — user-selected main-menu music, lifecycle handling and playback arbitration.
 - `MusicPlayerService` — normal user music playback.
 - `LoggerService` — structured logging.
-- `EnhancementService` (`lib/services/enhancements/`) — Cheats & Enhancements catalogue: shards downloaded on demand and SHA-256 checked, one adapter per embedded engine writing that engine's own format (MeloNX Atmosphere cheats, RPCS3 patch staging, ARMSX2 pnach/INI, Dolphin GameSettings), every write recorded so a game can be restored. See `docs/ENHANCEMENTS.md`.
+- `EnhancementService` (`lib/services/enhancements/`) — Cheats & Enhancements catalogue: shards downloaded on demand and SHA-256 checked, one adapter per embedded engine writing that engine's own format (MeloNX Atmosphere cheats, RPCS3 patch staging, ARMSX2 per-game INI and licensed cheat pnach, Dolphin GameSettings), every write recorded so a game can be restored. See `docs/ENHANCEMENTS.md`.
 
 ## Data sources
 

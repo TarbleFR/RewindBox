@@ -3,8 +3,7 @@
 /// Only the lines an operation names change: comments, ordering, unknown
 /// sections and keys written by the engine stay byte-identical.
 class IniDocument {
-  IniDocument.parse(String text)
-    : _lines = text.isEmpty ? <String>[] : text.split(RegExp(r'\r?\n')) {
+  IniDocument.parse(String text) : _lines = text.isEmpty ? <String>[] : text.split(RegExp(r'\r?\n')) {
     if (_lines.isNotEmpty && _lines.last.isEmpty) _lines.removeLast();
   }
 
@@ -115,8 +114,7 @@ class IniDocument {
   }
 
   /// Removes body lines of [section] equal to [line] after trimming.
-  int removeLine(String section, String line) =>
-      removeWhere(section, (candidate) => candidate == line.trim());
+  int removeLine(String section, String line) => removeWhere(section, (candidate) => candidate == line.trim());
 
   int removeWhere(String section, bool Function(String trimmed) test) {
     final range = _range(section);
@@ -141,18 +139,21 @@ class IniDocument {
   }
 
   /// Removes `key = …` lines of [section].
-  void removeKey(String section, String key) =>
-      removeWhere(section, (line) => _keyOf(line) == key.toLowerCase());
+  void removeKey(String section, String key) => removeWhere(section, (line) => _keyOf(line) == key.toLowerCase());
 
   /// Drops sections left without any body line.
   void dropEmptySections(Iterable<String> sections) {
     for (final section in sections) {
       final range = _range(section);
       if (range == null) continue;
-      final empty = [
-        for (var i = range.$1; i < range.$2; i++) _lines[i],
-      ].every((line) => line.trim().isEmpty);
-      if (empty) _lines.removeRange(range.$1 - 1, range.$2);
+      final empty = [for (var i = range.$1; i < range.$2; i++) _lines[i]].every((line) => line.trim().isEmpty);
+      if (!empty) continue;
+      final last = range.$2 == _lines.length;
+      _lines.removeRange(range.$1 - 1, range.$2);
+      // The blank line addLine put before a last section goes with it.
+      while (last && _lines.isNotEmpty && _lines.last.trim().isEmpty) {
+        _lines.removeLast();
+      }
     }
   }
 

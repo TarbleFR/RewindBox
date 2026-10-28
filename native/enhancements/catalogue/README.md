@@ -11,11 +11,12 @@ hand. Documentation: [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md).
   on demand for one game and verified against the index before use.
 - `VALIDATION.json` — totals and the inputs the builder rejected.
 
-Sources (pinned): 17, listed with revisions and licences in `index.json.gz`
+Sources (pinned): 10, listed with revisions and licences in `index.json.gz`
 (`sources`), in [`docs/ENHANCEMENTS.md`](../../../docs/ENHANCEMENTS.md) and in
-`NOTICE.md`. The adapted RPCS3 entries are distributed under CC BY-SA 4.0
-(RPCS3 Wiki contributors). Entries from sources without a licence remain the
-work of the authors credited in them; they are removed on request
-(https://github.com/TarbleFR/RewindBox/issues). Titles whose authors restrict
-distribution are excluded (`VALIDATION.json`, `melonx_restricted_titles`). No
-game, BIOS, firmware or key is part of this catalogue.
+`NOTICE.md`. Only sources whose licence allows redistribution, or content the
+embedded engine already ships (ARMSX2 `patches.zip`, referenced by name only),
+are listed. The adapted RPCS3 entries are distributed under CC BY-SA 4.0
+(RPCS3 Wiki contributors); the PS2 cheat files carry their MIT notices; the
+Dolphin codes are GPL. Authors can ask for removal at
+https://github.com/TarbleFR/RewindBox/issues. No game, BIOS, firmware or key is
+part of this catalogue.

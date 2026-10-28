@@ -2,7 +2,7 @@
 """Checks the committed Cheats & Enhancements catalogue against what each
 engine accepts. Runs on any host; reads only repository files.
 
-  python3 -m unittest test/enhancement_catalog_data_test.py
+  python3 test/enhancement_catalog_data_test.py
 """
 import gzip
 import hashlib
@@ -18,8 +18,6 @@ sys.path.insert(0, str(ROOT / 'tools/enhancements'))
 from classify import classify  # noqa: E402
 from build_enhancement_catalog import RPCS3_TYPES  # noqa: E402
 
-UNSAFE_SWITCH_NAME = re.compile(r'//|[#;\[\]{}\r\n]')
-SWITCH_LINE = re.compile(r'^[0-9A-F]{8}( [0-9A-F]{8}){0,3}$')
 
 
 def load(path):
@@ -63,41 +61,10 @@ class CatalogueData(unittest.TestCase):
                 self.assertIn(shard, self.index['shards'], (engine, key))
                 self.assertTrue(all(cat in ('cheat', 'fps', 'ultrawide', 'graphics', 'performance') for cat in counts))
 
-    def test_melonx_files_parse_unchanged_in_ryujinx(self):
-        count = exefs = 0
-        restricted = set(json.loads((CATALOGUE / 'VALIDATION.json').read_text())['rejections']['melonx_restricted_titles'])
-        self.assertGreater(len(restricted), 100, 'author-restricted titles are detected')
-        for title, record in self.records('melonx'):
-            self.assertRegex(title, r'^0100[0-9A-F]{12}$')
-            # Collections keep one directory per sub-program (+1..+15): the adapter maps them.
-            for build, lines in record['master'].items():
-                self.assertRegex(build, r'^[0-9A-F]{16}$')
-                self.assertTrue(all(SWITCH_LINE.match(l) for l in lines))
-            names = set()
-            cheat_entries = [e for e in record['entries'] if 'exefs' not in e]
-            if cheat_entries:
-                self.assertNotIn(title, restricted, 'no code of an author-restricted title is published')
-            for entry in record['entries']:
-                if 'exefs' in entry:
-                    exefs += 1
-                    self.assertTrue(entry['exefs'])
-                    for patch in entry['exefs']:
-                        # Ryujinx reads the header on the first line and compares it,
-                        # case-sensitively, to the upper-case hex Build ID.
-                        self.assertRegex(patch['text'].split('\n', 1)[0], r'^@nsobid-[0-9A-F]{32,64}$')
-                        self.assertEqual(patch['text'].split('\n', 1)[0][8:], patch['bid'])
-                        self.assertGreaterEqual(len(patch['bid'].rstrip('0')), 32)
-                    continue
-                count += 1
-                self.assertFalse(UNSAFE_SWITCH_NAME.search(entry['name']), entry['name'])
-                self.assertEqual(entry['name'], entry['name'].strip())
-                self.assertNotIn(entry['name'].casefold(), names, 'one program per name')
-                names.add(entry['name'].casefold())
-                for build, lines in entry['builds'].items():
-                    self.assertRegex(build, r'^[0-9A-F]{16}$')
-                    self.assertTrue(lines and all(SWITCH_LINE.match(l) for l in lines), entry['name'])
-        self.assertGreater(count, 40000)
-        self.assertGreater(exefs, 500)
+    def test_no_unlicensed_switch_source_is_published(self):
+        # No Switch cheat or patch collection licenses its codes (docs/ENHANCEMENTS.md, Rights).
+        self.assertEqual(self.index['engines']['melonx']['keys'], {})
+        self.assertEqual(list(self.records('melonx')), [])
 
     def test_rpcs3_records_stay_inside_the_bridge_whitelist(self):
         count = 0
@@ -117,18 +84,31 @@ class CatalogueData(unittest.TestCase):
                         self.assertIsInstance(value, str)
         self.assertGreater(count, 2000)
 
-    def test_armsx2_payloads_hash_to_their_installed_bytes(self):
+    def test_armsx2_engine_patches_by_name_and_licensed_cheats_with_their_notice(self):
+        count = 0
         for serial, record in self.records('armsx2'):
             self.assertRegex(serial, r'^[A-Z]{4}-[0-9]{5}$')
             for crc, payload in record['files'].items():
                 self.assertRegex(crc, r'^[0-9A-F]{8}$')
-                self.assertEqual(payload['name'], f'{serial}_{crc}.pnach')
+                # Under cheats/, matched by PCSX2's "<SERIAL>_*.pnach" cheat glob.
+                self.assertEqual(payload['name'], f'{serial}_{crc}_rewindbox.pnach')
                 encoded = payload['text'].encode('utf-8')
                 self.assertEqual(hashlib.sha256(encoded).hexdigest(), payload['sha256'])
                 self.assertEqual(len(encoded), payload['size'])
+                self.assertIn('// Permission is hereby granted, free of charge', payload['text'])
+                head = payload['text'].split('\n[', 1)[0]
+                self.assertTrue(all(not l.strip() or l.startswith(('//', 'gametitle=')) for l in head.split('\n')),
+                                'no unlabelled patch: PCSX2 would apply it unconditionally')
             for entry in record['entries']:
-                self.assertIn(entry['crc'], record['files'])
-                self.assertIn('[' + entry['name'] + ']', record['files'][entry['crc']]['text'])
+                count += 1
+                self.assertIn(entry['kind'], ('patch', 'cheat'))
+                if entry['kind'] == 'patch':
+                    self.assertEqual(entry['source'], 'armsx2-patches-zip')
+                    self.assertEqual(entry['description'], '', 'the engine ships the patch and its text')
+                else:
+                    self.assertIn(entry['source'], ('cookieplmonster-ccc', 'aerowidescreen-pcsx2'))
+                    self.assertIn('[' + entry['name'] + ']', record['files'][entry['crc']]['text'])
+        self.assertGreater(count, 6000)
 
     def test_dolphin_entries_are_enhancements_off_by_default(self):
         kinds = {'onframe', 'gecko', 'ar'}
@@ -149,9 +129,8 @@ class CatalogueData(unittest.TestCase):
     def test_sources_carry_attribution(self):
         sources = {s['id']: s for s in self.index['sources']}
         self.assertEqual(set(sources), {
-            'switch-cheats-db', 'gbatemp-matias3ds', 'titledb-cheats', 'keatonthebot-pchtxt', 'fl4sh-ultrawide',
             'rpcs3-patches',
-            'pcsx2-patches', 'gabominated-pcsx2', 'peterdelta-pcsx2', 'cookieplmonster-ccc', 'aerowidescreen-pcsx2',
+            'armsx2-patches-zip', 'cookieplmonster-ccc', 'aerowidescreen-pcsx2',
             'dolphin-gamesettings', 'dolphin-upstream', 'ishiiruka-gamesettings', 'slippi-gamesettings',
             'mpn-gamesettings', 'admentus-enhancement-codes'})
         used = set()

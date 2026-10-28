@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Build the RewindBox Cheats & Enhancements catalogue.
 
-The catalogue only references formats each embedded engine already reads:
+The catalogue only references formats each embedded engine already reads,
+and only content whose licence allows redistribution or that the engine
+already ships:
 
-* MeloNX (Ryujinx): Atmosphere cheat files keyed by Title ID and Build ID,
-  and exefs IPSwitch patches (.pchtxt) keyed by their @nsobid header.
-* RPCS3: patch.yml 1.2 entries, keyed by PPU hash, serial and APP_VER.
-* ARMSX2 (PCSX2): one .pnach per serial and boot ELF CRC, merging the
-  labelled groups of several sources.
-* Dolphin: OnFrame/Gecko/AR codes of GameSettings INIs: the engine's own by
-  name, others with their bodies.
-
-Titles whose authors restrict distribution are excluded (RESTRICTED).
+* RPCS3: patch.yml 1.2 entries (CC BY-SA 4.0), keyed by PPU hash, serial
+  and APP_VER.
+* ARMSX2 (PCSX2): the engine's own patches.zip by name, plus MIT-licensed
+  cheat groups in one cheats/ pnach per serial and boot ELF CRC.
+* Dolphin: OnFrame/Gecko/AR codes of GPL GameSettings INIs: the engine's own
+  by name, others with their bodies.
+* MeloNX: none. The Switch cheat and patch collections carry no licence.
 
 Inputs are pinned (git revisions or a content SHA-256). No game, BIOS,
 firmware or key is read or written. Usage:
@@ -43,56 +43,10 @@ BUNDLED_INDEX = ROOT / 'assets/data/enhancements_index.json.gz'
 BASE_URL = 'https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/native/enhancements/catalogue/'
 SHARDS_PER_ENGINE = 32
 
-TAKEDOWN = 'https://github.com/TarbleFR/RewindBox/issues'
-NO_LICENCE = ('No licence file: all rights stay with the authors credited in each entry. RewindBox '
-              'republishes the entries for on-demand download only, does not relicense them and '
-              'removes any author\'s entries on request (' + TAKEDOWN + ').')
-
+# Only sources whose licence allows redistribution, or content the embedded
+# engine already ships (referenced by name, never redistributed). Sources
+# without a licence were reviewed and removed (docs/ENHANCEMENTS.md, Rights).
 SOURCES = {
-    # ------------------------------------------------------------ MeloNX
-    'switch-cheats-db': {
-        'name': 'HamletDuFromage switch-cheats-db (GBAtemp and ChanseyIsTheBest mirror)',
-        'url': 'https://github.com/HamletDuFromage/switch-cheats-db',
-        'git': 'https://github.com/HamletDuFromage/switch-cheats-db',
-        'revision': '109766ab21c784150287c83ff85c02ab9512dccb',
-        'license': NO_LICENCE + ' Titles whose authors restrict distribution to GBAtemp are excluded.',
-        'engines': ['melonx'],
-    },
-    'gbatemp-matias3ds': {
-        'name': 'exefer gbatemp-matias3ds-cheats (GBAtemp cheat request thread)',
-        'url': 'https://github.com/exefer/gbatemp-matias3ds-cheats',
-        'git': 'https://github.com/exefer/gbatemp-matias3ds-cheats',
-        'revision': 'ca85a7c9a30983a9084ba49866369a67f3d152a5',
-        'license': 'Repository compilation MIT (c) 2026 exefer; "All rights belong to the original cheat '
-                   'authors". ' + NO_LICENCE,
-        'engines': ['melonx'],
-    },
-    'titledb-cheats': {
-        'name': 'blawar titledb cheats.json',
-        'url': 'https://github.com/blawar/titledb/blob/d424690446eec6f4484209b9a1c067c7f7511398/cheats.json',
-        'git': 'https://github.com/blawar/titledb',
-        'revision': 'd424690446eec6f4484209b9a1c067c7f7511398',
-        'sparse': 'cheats.json',
-        'license': 'Repository MIT (c) 2019 Blake Warner; community codes without per-code credit. ' + NO_LICENCE,
-        'engines': ['melonx'],
-    },
-    'keatonthebot-pchtxt': {
-        'name': 'KeatonTheBot switch-pchtxt-mods (exefs patches)',
-        'url': 'https://github.com/KeatonTheBot/switch-pchtxt-mods',
-        'git': 'https://github.com/KeatonTheBot/switch-pchtxt-mods',
-        'revision': '81e79b55505648ff20fd9c0ed4540d5634c60f0e',
-        'license': 'Mods by KeatonTheBot (https://linktr.ee/keatonthebot). ' + NO_LICENCE,
-        'engines': ['melonx'],
-    },
-    'fl4sh-ultrawide': {
-        'name': 'Fl4sh9174 Switch Emulator Ultrawide, FPS and Graphics Mods (exefs patches)',
-        'url': 'https://github.com/Fl4sh9174/Switch-Ultrawide-Mods',
-        'git': 'https://github.com/Fl4sh9174/Switch-Ultrawide-Mods',
-        'revision': '76fc6ac3e5776ed41d8b6724c7141f46b74a6617',
-        'license': 'Mods by Fl4sh9174 (https://ko-fi.com/fl4sh9174); exefs-only mods, romfs assets excluded. '
-                   + NO_LICENCE,
-        'engines': ['melonx'],
-    },
     # ------------------------------------------------------------ RPCS3
     'rpcs3-patches': {
         'name': 'RPCS3 game patches (RPCS3 Wiki contributors, official patch API)',
@@ -105,30 +59,16 @@ SOURCES = {
         'engines': ['rpcs3'],
     },
     # ------------------------------------------------------------ ARMSX2
-    'pcsx2-patches': {
-        'name': 'PCSX2 pcsx2_patches',
-        'url': 'https://github.com/PCSX2/pcsx2_patches',
-        'git': 'https://github.com/PCSX2/pcsx2_patches',
-        'revision': 'ba8ef4f42c353d8ee44d572f8111b10db54a3f0b',
-        'license': 'Patches by the authors named in author= and comments (Arapapa, PeterDelta, ElHecht, '
-                   'nemesis2000, Gabominated, El_Patas, asasega, Silent and others). The set PCSX2 and ARMSX2 '
-                   'distribute as patches.zip. ' + NO_LICENCE,
-        'engines': ['armsx2'],
-    },
-    'gabominated-pcsx2': {
-        'name': 'Gabominated PCSX2 patches (50/60 FPS, widescreen, visual enhance)',
-        'url': 'https://github.com/Gabominated/PCSX2',
-        'git': 'https://github.com/Gabominated/PCSX2',
-        'revision': '24eaa108d39a63aec5d53e19b4962bb239f145ef',
-        'license': 'Patches by Gabominated and the authors named in each file. ' + NO_LICENCE,
-        'engines': ['armsx2'],
-    },
-    'peterdelta-pcsx2': {
-        'name': 'PeterDelta PCSX2 patches (50/60 FPS, widescreen)',
-        'url': 'https://github.com/PeterDelta/PCSX2',
-        'git': 'https://github.com/PeterDelta/PCSX2',
-        'revision': '1ad26ca29667ea29cd96989f77ed323c233f939a',
-        'license': 'Patches by PeterDelta and the authors named in each file. ' + NO_LICENCE,
+    'armsx2-patches-zip': {
+        'name': 'ARMSX2 engine patches.zip (the PCSX2 patch set inside the embedded engine)',
+        'url': 'https://github.com/ARMSX2/ARMSX2/blob/9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe/'
+               'platforms/ios/app/src/main/assets/resources/patches.zip',
+        'git': 'https://github.com/ARMSX2/ARMSX2.git',
+        'revision': '9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe',
+        'sparse': 'platforms/ios/app/src/main/assets/resources/patches.zip',
+        'license': 'Shipped inside the embedded ARMSX2 engine (build-utils/armsx2/source.json). RewindBox '
+                   'lists patch names and author credits only and enables them in the per-game settings; '
+                   'no patch body is redistributed.',
         'engines': ['armsx2'],
     },
     'cookieplmonster-ccc': {
@@ -204,9 +144,6 @@ SOURCES = {
     },
 }
 
-SWITCH_BUILD = re.compile(r'^[0-9A-F]{16}$')
-SWITCH_TITLE = re.compile(r'^0100[0-9A-F]{12}$')
-SWITCH_LINE = re.compile(r'^[0-9A-Fa-f]{8}( [0-9A-Fa-f]{8}){0,3}$')
 RPCS3_HASH = re.compile(r'^PPU-[0-9a-fA-F]{40}$')
 RPCS3_SERIAL = re.compile(r'^[A-Z]{4}[0-9]{5}$')
 RPCS3_VERSION = re.compile(r'^[0-9]{2}\.[0-9]{2}$')
@@ -216,7 +153,8 @@ RPCS3_TYPES = {
     'byte', 'le16', 'le32', 'le64', 'lef32', 'lef64', 'be16', 'be32', 'be64', 'bd32', 'bd64',
     'bef32', 'bef64', 'alloc', 'calloc', 'code_alloc', 'jump', 'jump_link', 'jump_func',
     'utf8', 'cutf8', 'bpex'}
-PS2_FILE = re.compile(r'^([A-Z]{4}-[0-9]{5})_([0-9A-F]{8})\.pnach$')
+PS2_FILE = re.compile(r'^(?:([A-Z]{4}-[0-9]{5})_)?([0-9A-F]{8})\.pnach$')
+PS2_SERIAL = re.compile(r'\b([A-Z]{4})[-_ ]?([0-9]{3})\.?([0-9]{2})\b')
 DOLPHIN_STEM = re.compile(r'^([A-Z0-9]{1}|[A-Z0-9]{3}|[A-Z0-9]{6})(r[0-9]+)?$')
 
 
@@ -234,7 +172,6 @@ def clean_label(text, limit=160):
 
 
 RATIO = re.compile(r'\b(4|5|15|16|18|20|21|32|43) ?[:.] ?(3|4|9|10|18)\b|ultra ?wide|\b\d{3,4} ?x ?\d{3,4}\b', re.I)
-RESOLUTION = re.compile(r'\b\d{3,4}p\b|\b[2-8] ?k\b|\b\d{3,4} ?x ?\d{3,4}\b|resolution', re.I)
 
 
 def display_group(scope, name, category):
@@ -285,342 +222,6 @@ def fetch_rpcs3(cache, offline):
         raise SystemExit(f'rpcs3-patches: content {digest} is not the pinned {source["sha256"]}; '
                          'review the new patch.yml and update the pin')
     return text
-
-
-# ---------------------------------------------------------------- MeloNX
-
-# Authors who restrict where their codes may appear. Any title carrying such
-# a notice in any source is excluded from every Switch cheat source.
-RESTRICTED = re.compile(
-    r"exclusive to gbatemp|outside (of )?gbatemp|do not (steal|distribute|re-?post|re-?upload|share)|"
-    r"don'?t (steal|distribute|re-?post|re-?upload|share)|(re)?distribution (is )?(prohibited|forbidden|not allowed)|"
-    r"spreading codes .* prohibited", re.I)
-NSOBID = re.compile(r'^@nsobid-([0-9A-Fa-f]{32,64})\s*$')
-# cp1252 sequences produced when UTF-8 text was decoded as Latin-1.
-MOJIBAKE = re.compile('[ÂÃâîï][\u0080-¿ŒœŠšŸŽžƒˆ˜–—‘-„†-•…‰‹›€™]')
-
-
-def switch_lines(body):
-    """Opcode words of one Atmosphere section, or None when any line is not one."""
-    lines = []
-    for raw in body:
-        line = raw.strip()
-        if not line:
-            continue
-        if not SWITCH_LINE.match(line):
-            return None
-        lines.append(line.upper())
-    if not lines or len(lines) > 512:
-        return None
-    return lines
-
-
-def switch_name(raw):
-    """A section label Ryujinx parses unchanged: it strips //, # and ; first."""
-    name = raw.strip()
-    if len(name) >= 2 and name[0] in '[{' and name[-1] in ']}':
-        name = name[1:-1]
-    name = re.sub(r'//|[#;\[\]{}]', ' ', name)
-    return clean_label(name, 120)
-
-
-def repair_mojibake(name):
-    """Undo UTF-8 read as cp1252; None when the name stays garbled."""
-    if not MOJIBAKE.search(name):
-        return name
-    try:
-        fixed = name.encode('cp1252').decode('utf-8')
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        return None
-    return None if MOJIBAKE.search(fixed) else fixed
-
-
-def atmosphere_sections(text):
-    """(kind, label, lines) of an Atmosphere file; kind is '[' or '{'."""
-    sections, current = [], None
-    for raw in text.replace('\r', '').split('\n'):
-        line = raw.strip().lstrip('﻿')
-        if line.startswith('[') and line.endswith(']') or line.startswith('{') and line.endswith('}'):
-            current = (line[0], line[1:-1].strip(), [])
-            sections.append(current)
-        elif line and current is not None:
-            current[2].append(line)
-    return sections
-
-
-class SwitchCatalogue:
-    """Merges Atmosphere cheats of several sources per title.
-
-    The first source to name a program on a build keeps it; a later source
-    adds only builds that program lacks, and a body already present on a
-    build under another name is not added twice."""
-
-    def __init__(self, stats):
-        self.titles = {}
-        self.bodies = {}
-        self.stats = stats
-
-    def record(self, tid):
-        return self.titles.setdefault(tid, {'title': '', 'credits': [], 'master': {}, 'entries': {}})
-
-    def credit(self, tid, text, source_id):
-        text = re.sub(r'\s+', ' ', text).strip()
-        if not text or SWITCH_LINE.match(text):
-            return
-        if len(text) > 2000:
-            self.stats['melonx_long_credits'] += 1
-            text = text[:2000]
-        credits = self.record(tid)['credits']
-        line = text if source_id == 'switch-cheats-db' else f'{text} ({source_id})'
-        if line not in credits and len(credits) < 64:
-            credits.append(line)
-
-    def add(self, tid, build, raw_name, body, source_id, default):
-        lines = switch_lines(body)
-        if lines is None:
-            self.stats['melonx_rejected_cheats'] += 1
-            return
-        record = self.record(tid)
-        if raw_name.strip().startswith('{'):
-            record['master'].setdefault(build, lines)  # always on with any cheat of its build
-            return
-        name = repair_mojibake(switch_name(raw_name))
-        if not name:
-            self.stats['melonx_rejected_cheats'] += 1
-            return
-        seen = self.bodies.setdefault((tid, build), set())
-        key = tuple(lines)
-        category = classify(name, default)
-        entry = record['entries'].get(name.casefold())
-        if entry is None:
-            if key in seen:
-                self.stats['melonx_duplicate_cheats'] += 1
-                return
-            entry = record['entries'][name.casefold()] = {
-                'id': stable_id('melonx', tid, name.casefold()), 'cat': category, 'name': name,
-                'source': source_id, 'builds': {}}
-        if category != 'cheat' and entry['cat'] == 'cheat':
-            entry['cat'] = category
-        if build in entry['builds'] or key in seen:
-            self.stats['melonx_duplicate_cheats'] += 1
-            return
-        entry['builds'][build] = lines
-        seen.add(key)
-        if entry['source'] != source_id:
-            entry.setdefault('also', [])
-            if source_id not in entry['also']:
-                entry['also'].append(source_id)
-
-
-def switch_restricted_titles(scdb, matias):
-    """Title IDs whose authors limit distribution, from every Switch source."""
-    restricted = set()
-    for folder in ('cheats', 'cheats_gfx', 'cheats_gbatemp'):
-        for path in sorted((scdb / folder).glob('*.json')):
-            data = json.loads(path.read_text(encoding='utf-8'))
-            for file_name, credit in (data.get('attribution') or {}).items():
-                if RESTRICTED.search(file_name) or RESTRICTED.search(str(credit)):
-                    restricted.add(path.stem.upper())
-    for path in sorted((matias / 'titles').glob('*/cheats/*.txt')):
-        if RESTRICTED.search(path.read_text(encoding='utf-8', errors='replace')):
-            restricted.add(path.parts[-3].upper())
-    return restricted
-
-
-def build_melonx(scdb, matias, titledb, keaton, fl4sh, stats):
-    restricted = switch_restricted_titles(scdb, matias)
-    stats['melonx_restricted_titles'] = sorted(restricted)
-    catalogue = SwitchCatalogue(stats)
-
-    def allowed(tid):
-        if not SWITCH_TITLE.match(tid):
-            stats['melonx_rejected_titles'] += 1
-            return False
-        if tid in restricted:
-            stats['melonx_restricted_skipped'] += 1
-            return False
-        return True
-
-    # 1. switch-cheats-db: gameplay codes, then the graphics/FPS mirror.
-    for folder, default in (('cheats', 'cheat'), ('cheats_gfx', 'graphics')):
-        for path in sorted((scdb / folder).glob('*.json')):
-            tid = path.stem.upper()
-            if not allowed(tid):
-                continue
-            data = json.loads(path.read_text(encoding='utf-8'))
-            record = catalogue.record(tid)
-            for file_name, credit in sorted((data.get('attribution') or {}).items()):
-                if not record['title']:
-                    record['title'] = clean_label(re.sub(r'\.txt$', '', file_name, flags=re.I), 120)
-                # Attribution files sometimes repeat the codes: keep every other line.
-                prose = [l.strip() for l in str(credit).splitlines()
-                         if l.strip() and not SWITCH_LINE.match(l.strip())
-                         and not (l.strip().startswith('[') and l.strip().endswith(']'))]
-                catalogue.credit(tid, ' '.join(prose), 'switch-cheats-db')
-            for build, cheats in data.items():
-                if build == 'attribution':
-                    continue
-                if not SWITCH_BUILD.match(build) or not isinstance(cheats, dict):
-                    stats['melonx_rejected_builds'] += 1
-                    continue
-                for raw_name, code in cheats.items():
-                    catalogue.add(tid, build, raw_name, str(code).split('\n')[1:], 'switch-cheats-db', default)
-
-    # 2. gbatemp-matias3ds: one Atmosphere file per Build ID.
-    for path in sorted((matias / 'titles').glob('*/cheats/*.txt')):
-        tid, build = path.parts[-3].upper(), path.stem.upper()
-        if not allowed(tid):
-            continue
-        if not SWITCH_BUILD.match(build):
-            stats['melonx_rejected_builds'] += 1
-            continue
-        for kind, label, body in atmosphere_sections(path.read_text(encoding='utf-8', errors='replace')):
-            if not body:
-                catalogue.credit(tid, label, 'gbatemp-matias3ds')  # e.g. [From MAX-CHEATS.com by ...]
-                continue
-            catalogue.add(tid, build, f'{kind}{label}{"]" if kind == "[" else "}"}', body,
-                          'gbatemp-matias3ds', 'cheat')
-
-    # 3. titledb cheats.json: title -> build -> hash -> {title, source}.
-    data = json.loads((titledb / 'cheats.json').read_text(encoding='utf-8'))
-    for tid, builds in sorted(data.items()):
-        tid = tid.upper()
-        if not allowed(tid) or not isinstance(builds, dict):
-            continue
-        for build, cheats in sorted(builds.items()):
-            build = build.upper()[:16]
-            if not SWITCH_BUILD.match(build) or not isinstance(cheats, dict):
-                stats['melonx_rejected_builds'] += 1
-                continue
-            for _, cheat in sorted(cheats.items()):
-                if not isinstance(cheat, dict):
-                    continue
-                label = str(cheat.get('title') or '').strip()
-                if not label:
-                    continue
-                if label[0] not in '[{':
-                    label = f'[{label}]'
-                catalogue.add(tid, build, label, str(cheat.get('source') or '').split('\n'),
-                              'titledb-cheats', 'cheat')
-
-    # 4. exefs patches (.pchtxt), one entry per mod folder.
-    exefs = build_melonx_exefs(keaton, fl4sh, stats)
-
-    out = {}
-    for tid in sorted(set(catalogue.titles) | set(exefs)):
-        record = catalogue.titles.get(tid) or {'title': '', 'credits': [], 'master': {}, 'entries': {}}
-        mods = exefs.get(tid, {'title': '', 'entries': []})
-        entries = sorted(record['entries'].values(), key=lambda e: (e['cat'], e['name'].casefold()))
-        for entry in entries:
-            group = display_group(tid, entry['name'], entry['cat'])
-            if group:
-                entry['group'] = group
-        entries += mods['entries']
-        if not entries:
-            continue
-        out[tid] = {'title': record['title'] or mods['title'] or tid, 'credits': record['credits'],
-                    'master': record['master'], 'entries': entries}
-    return out
-
-
-def normalise_pchtxt(text):
-    """The text Ryujinx's IPSwitchPatcher matches: the @nsobid line first, upper-case.
-
-    The engine compares that header to the executable's hex Build ID exactly
-    (Convert.ToHexString is upper-case), so a lower-case or late header would
-    never load. Returns (build id, text) or None."""
-    lines = text.replace('\r', '').lstrip('﻿').split('\n')
-    while lines and not lines[0].strip():
-        lines.pop(0)
-    if not lines:
-        return None
-    match = NSOBID.match(lines[0].strip())
-    if not match:
-        return None
-    bid = match.group(1).upper()
-    if len(bid.rstrip('0')) < 32:
-        return None  # truncated ids never match a loaded executable
-    body = '\n'.join(lines[1:]).strip('\n')
-    if len(body) > 64 * 1024 or not re.search(r'^\s*[0-9A-Fa-f]{6,8}\s+\S', body, re.M):
-        return None
-    return bid, f'@nsobid-{bid}\n{body}\n'
-
-
-def build_melonx_exefs(keaton, fl4sh, stats):
-    import zipfile
-
-    mods = {}
-
-    def add(tid, title, mod, files, source_id):
-        tid = tid.upper()
-        if not SWITCH_TITLE.match(tid):
-            stats['melonx_exefs_rejected'] += 1
-            return
-        patches, bids = [], set()
-        for name, text in sorted(files):
-            normalised = normalise_pchtxt(text)
-            if normalised is None:
-                stats['melonx_exefs_rejected'] += 1
-                continue
-            bid, body = normalised
-            if bid in bids:
-                continue
-            bids.add(bid)
-            patches.append({'bid': bid, 'text': body})
-        if not patches:
-            return
-        label = clean_label(re.sub(r'[\[\]]', '', mod), 120)
-        category = classify(label, 'graphics')
-        record = mods.setdefault(tid, {'title': title, 'entries': [], 'keys': set()})
-        key = tuple(sorted(p['text'] for p in patches))
-        if key in record['keys']:
-            stats['melonx_exefs_duplicates'] += 1
-            return
-        record['keys'].add(key)
-        record['entries'].append({
-            'id': stable_id('melonx-exefs', tid, source_id, label.casefold()), 'cat': category,
-            'name': label, 'source': source_id, 'exefs': patches,
-            # Resolution and aspect mods rewrite the same render targets, and
-            # frame-rate mods the same timing: one of each at a time.
-            'group': (f'display/{tid}' if category == 'ultrawide' or RESOLUTION.search(label)
-                      else f'exefs-fps/{tid}' if category == 'fps' else '')})
-
-    # KeatonTheBot: <Game>/<TITLEID>/<Mod>/exefs/<version>.pchtxt
-    grouped = {}
-    for path in sorted(keaton.glob('*/*/*/exefs/*.pchtxt')):
-        game, tid, mod = path.parts[-5], path.parts[-4], path.parts[-3]
-        grouped.setdefault((tid, game, mod), []).append((path.name, path.read_text(encoding='utf-8', errors='replace')))
-    for (tid, game, mod), files in sorted(grouped.items()):
-        add(tid, game, mod, files, 'keatonthebot-pchtxt')
-
-    # Fl4sh9174: <Game> [TITLEID]...zip with [Mod]/exefs/*.pchtxt; mods carrying
-    # anything else (romfs assets, scripts) are skipped whole.
-    for path in sorted(fl4sh.glob('*.zip')):
-        match = re.search(r'\[(0100[0-9A-Fa-f]{12})\]', path.name)
-        if not match:
-            stats['melonx_exefs_rejected'] += 1
-            continue
-        game = clean_label(path.name.split('[')[0], 120)
-        with zipfile.ZipFile(path) as archive:
-            members = {}
-            for info in archive.infolist():
-                parts = info.filename.split('/')
-                if info.is_dir() or len(parts) < 2 or '..' in parts:
-                    continue
-                members.setdefault(parts[0], []).append((info, parts))
-            for mod, items in sorted(members.items()):
-                if any(len(parts) != 3 or parts[1].lower() != 'exefs' or not parts[2].lower().endswith('.pchtxt')
-                       for _, parts in items):
-                    stats['melonx_exefs_mods_with_other_content'] += 1
-                    continue
-                files = [(parts[2], archive.read(info).decode('utf-8', errors='replace'))
-                         for info, parts in items if info.file_size <= 64 * 1024]
-                add(match.group(1), game, mod, files, 'fl4sh-ultrawide')
-
-    for record in mods.values():
-        record.pop('keys')
-        record['entries'].sort(key=lambda e: (e['cat'], e['name'].casefold()))
-    return mods
 
 
 # ---------------------------------------------------------------- RPCS3
@@ -758,10 +359,8 @@ def build_rpcs3(text, stats):
 # ---------------------------------------------------------------- ARMSX2
 
 PS2_ANY_FILE = re.compile(r'^([A-Z]{4}-[0-9]{5})_([0-9A-Fa-f]{8})(?:_[^/]*)?\.pnach$')
-# Extra pnach sources after pcsx2_patches, in priority order: (source id, glob, label).
+# Licensed cheat sources, in priority order: (source id, glob, label).
 PS2_EXTRA = (
-    ('gabominated-pcsx2', 'PCSX2 Patches/*.pnach', 'Gabominated'),
-    ('peterdelta-pcsx2', 'patches/*.pnach', 'PeterDelta'),
     ('cookieplmonster-ccc', 'PS2/**/*.pnach', 'Silent'),
     ('aerowidescreen-pcsx2', '**/*.pnach', 'Aero'),
 )
@@ -802,50 +401,62 @@ def parse_pnach(text):
     return title, comments, groups
 
 
+def licence_comment(root):
+    """The MIT notice a copy of the source's code must carry, as pnach comments."""
+    text = (root / 'LICENSE').read_text(encoding='utf-8').strip()
+    return [('// ' + line).rstrip() for line in text.split('\n')]
+
+
 def build_armsx2(roots, stats):
-    """One SERIAL_CRC.pnach per game: pcsx2_patches verbatim, then the labelled
-    groups other sources add. An identical group is not repeated; a different
-    group under a taken name is renamed with its author."""
+    """Per game: the patches ARMSX2 ships in its patches.zip, referenced by
+    name only (enabled under [Patches]); then the labelled groups of licensed
+    sources the zip lacks, in one cheat file the adapter writes to cheats/
+    (enabled under [Cheats]). PCSX2 reads patches.zip only while patches/
+    holds no file for the game, so nothing is written there."""
+    import zipfile
+    source = SOURCES['armsx2-patches-zip']
     games = {}
-
-    def key_of(name):
-        match = PS2_ANY_FILE.match(name)
-        return (match.group(1), match.group(2).upper()) if match else None
-
-    for path in sorted((roots['pcsx2-patches'] / 'patches').glob('*.pnach')):
-        match = PS2_FILE.match(path.name)
-        if not match:
-            stats['armsx2_skipped_files'] += 1
-            continue
-        data = path.read_bytes()
-        if len(data) > 512 * 1024:
-            stats['armsx2_skipped_files'] += 1
-            continue
-        text = data.decode('utf-8', errors='replace')
-        title, _, groups = parse_pnach(text)
-        game = games.setdefault(match.groups(), {'title': title, 'base': text, 'groups': [], 'extra': []})
-        for group in groups:
-            if group['name'] and group['patches']:
-                game['groups'].append((group, 'pcsx2-patches'))
+    with zipfile.ZipFile(roots['armsx2-patches-zip'] / source['sparse']) as archive:
+        names = set(archive.namelist())
+        for name in sorted(names):
+            match = PS2_FILE.match(name)
+            if not match:
+                stats['armsx2_skipped_files'] += 1
+                continue
+            serial, crc = match.groups()
+            text = archive.read(name).decode('utf-8', errors='replace')
+            title, _, groups = parse_pnach(text)
+            if serial is None:
+                # PCSX2 falls back to CRC.pnach only without SERIAL_CRC.pnach.
+                found = PS2_SERIAL.search(title)
+                serial = found and f'{found.group(1)}-{found.group(2)}{found.group(3)}'
+                if not serial or f'{serial}_{crc}.pnach' in names:
+                    stats['armsx2_skipped_files'] += 1
+                    continue
+            game = games.setdefault((serial, crc), {'title': title, 'groups': [], 'extra': []})
+            for group in groups:
+                if group['name'] and group['patches']:
+                    game['groups'].append((group, 'armsx2-patches-zip'))
 
     for source_id, pattern, label in PS2_EXTRA:
         root = roots[source_id]
         for path in sorted(root.glob(pattern)):
-            key = key_of(path.name)
-            if key is None or path.stat().st_size > 512 * 1024:
+            match = PS2_ANY_FILE.match(path.name)
+            if match is None or path.stat().st_size > 512 * 1024:
                 stats['armsx2_skipped_files'] += 1
                 continue
-            title, comments, groups = parse_pnach(path.read_bytes().decode('utf-8', errors='replace'))
-            game = games.setdefault(key, {'title': title, 'base': '', 'groups': [], 'extra': []})
+            key = (match.group(1), match.group(2).upper())
+            title, _, groups = parse_pnach(path.read_bytes().decode('utf-8', errors='replace'))
+            game = games.setdefault(key, {'title': title, 'groups': [], 'extra': []})
             game['title'] = game['title'] or title
-            taken = {g['name'].casefold(): g for g, _ in game['groups']}
+            taken = {g['name'].casefold() for g, _ in game['groups']}
             codes = {tuple(g['code']) for g, _ in game['groups']}
             added = []
             for group in groups:
                 if not group['name'] or not group['patches']:
                     continue
                 if tuple(group['code']) in codes:
-                    stats['armsx2_duplicate_groups'] += 1
+                    stats['armsx2_duplicate_groups'] += 1  # the engine already ships it
                     continue
                 name = group['name']
                 if name.casefold() in taken:
@@ -853,54 +464,52 @@ def build_armsx2(roots, stats):
                     if name.casefold() in taken:
                         stats['armsx2_duplicate_groups'] += 1
                         continue
-                renamed = dict(group, name=name)
+                renamed = dict(group, name=name, kind='cheat')
                 if name != group['name']:
                     renamed['variant_of'] = group['name']
-                taken[name.casefold()] = renamed
+                taken.add(name.casefold())
                 codes.add(tuple(group['code']))
                 game['groups'].append((renamed, source_id))
                 added.append(renamed)
             if added:
-                game['extra'].append((source_id, path.relative_to(root).as_posix(), comments, added))
+                game['extra'].append((source_id, path.relative_to(root).as_posix(), added))
 
     serials = {}
     for (serial, crc), game in sorted(games.items()):
         if not game['groups']:
             continue
-        text = game['base'] or f'gametitle={game["title"]}\n'
-        for source_id, relative, comments, groups in game['extra']:
-            source = SOURCES[source_id]
-            text = text.rstrip('\n') + (
-                f'\n\n// --- RewindBox: from {source["name"]}, {source["url"]} @ {source["revision"][:12]}, '
-                f'{relative} ---\n')
-            for comment in comments[:20]:
-                text += comment + '\n'
-            for group in groups:
-                text += f'\n[{group["name"]}]\n' + '\n'.join(group['lines']) + '\n'
-        encoded = text.encode('utf-8')
-        if len(encoded) > 512 * 1024:
-            stats['armsx2_skipped_files'] += 1
-            continue
         record = serials.setdefault(serial, {'title': '', 'files': {}, 'entries': []})
         # gametitle often carries the serial, CRC and version: keep the name.
         name = re.split(r'\s*[(\[]?\b[A-Z]{4}[-_ ]?[0-9]{3}\.?[0-9]{2}', game['title'])[0]
         record['title'] = record['title'] or clean_label(name.strip(' -/'), 120)
-        # The installed bytes are the UTF-8 text RewindBox writes.
-        record['files'][crc] = {'name': f'{serial}_{crc}.pnach', 'sha256': hashlib.sha256(encoded).hexdigest(),
-                                'size': len(encoded), 'text': text}
+        if game['extra']:
+            text = f'gametitle={game["title"]}\n'
+            for source_id, relative, groups in game['extra']:
+                extra = SOURCES[source_id]
+                text += (f'\n// --- {extra["name"]}, {extra["url"]} @ {extra["revision"][:12]}, {relative}\n'
+                         + '\n'.join(licence_comment(roots[source_id])) + '\n')
+                for group in groups:
+                    text += f'\n[{group["name"]}]\n' + '\n'.join(group['lines']) + '\n'
+            encoded = text.encode('utf-8')
+            # The installed bytes are the UTF-8 text RewindBox writes.
+            record['files'][crc] = {'name': f'{serial}_{crc}_rewindbox.pnach', 'size': len(encoded),
+                                    'sha256': hashlib.sha256(encoded).hexdigest(), 'text': text}
         for group, source_id in game['groups']:
             if len(group['name']) > 160:
                 stats['armsx2_skipped_groups'] += 1
                 continue
+            cat = classify(group['name'] + ' ' + group['description'])
+            cheat = group.get('kind') == 'cheat'
             # PCSX2 matches `Enable = <name>` to the group name exactly.
             record['entries'].append({
                 'id': stable_id('armsx2', serial, crc, group['name'].casefold()),
-                'cat': classify(group['name'] + ' ' + group['description']),
-                'name': group['name'], 'crc': crc,
-                'description': clean_label(group['description'], 300),
+                'cat': cat, 'name': group['name'], 'crc': crc,
+                'kind': 'cheat' if cheat else 'patch',
+                # Bodies and descriptions of the engine's patches stay in the engine.
+                'description': clean_label(group['description'], 300) if cheat else '',
                 'author': clean_label(group['author'], 200), 'source': source_id,
                 # A renamed variant replaces its namesake; ratio choices exclude each other.
-                'group': display_group(crc, group['name'], classify(group['name'] + ' ' + group['description']))
+                'group': display_group(crc, group['name'], cat)
                 or (f'variant/{crc}/{group["variant_of"].casefold()}' if group.get('variant_of') else '')})
         variants = {e['group'] for e in record['entries'] if e['group'].startswith('variant/')}
         for entry in record['entries']:
@@ -1101,8 +710,8 @@ def main():
     git = {source_id: fetch_git(args.cache, source_id, args.offline)
            for source_id, source in SOURCES.items() if 'git' in source}
     engines = {
-        'melonx': build_melonx(git['switch-cheats-db'], git['gbatemp-matias3ds'], git['titledb-cheats'],
-                               git['keatonthebot-pchtxt'], git['fl4sh-ultrawide'], stats),
+        # No Switch source licenses its codes for redistribution (docs/ENHANCEMENTS.md, Rights).
+        'melonx': {},
         'rpcs3': build_rpcs3(fetch_rpcs3(args.cache, args.offline), stats),
         'armsx2': build_armsx2(git, stats),
         'dolphin': build_dolphin(git, stats),

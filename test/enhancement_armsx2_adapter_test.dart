@@ -109,7 +109,7 @@ void main() {
   group('adapter', () {
     late EnhancementService service;
     late File rom;
-    var crc = 'BEBF8793'; // Burnout 3: Takedown (U), SLUS-21050, in pcsx2_patches.
+    var crc = 'BEBF8793'; // Burnout 3: Takedown (U), SLUS-21050, in ARMSX2's patches.zip.
 
     setUp(() {
       crc = 'BEBF8793';
@@ -127,17 +127,24 @@ void main() {
       );
     });
 
-    File pnach() => File(path.join(data.path, 'patches', 'SLUS-21050_BEBF8793.pnach'));
+    File userPatch() => File(path.join(data.path, 'patches', 'SLUS-21050_BEBF8793.pnach'));
+    File cheatFile() => File(path.join(data.path, 'cheats', 'SLUS-21050_BEBF8793_rewindbox.pnach'));
     File settings() => File(path.join(data.path, 'gamesettings', 'SLUS-21050_BEBF8793.ini'));
 
-    test('installs the pnach PCSX2 prefers and enables the patch by name', () async {
+    test('a patch of the engine patches.zip is enabled by name, nothing else is written', () async {
       final game = testGame(name: 'Burnout 3', romPath: rom.path);
       var view = await service.open(game, 'ps2', download: true);
       final widescreen = view.items.firstWhere((item) => item.name == 'Widescreen 16:9');
       expect(widescreen.category, EnhancementCategory.ultrawide);
+      expect(widescreen.sourceId, 'armsx2-patches-zip');
+      expect(widescreen.status, EnhancementStatus.installed, reason: 'the body ships with the engine');
       view = await service.setActive(game, 'ps2', view, widescreen, true);
-      expect(pnach().readAsStringSync(), contains('[Widescreen 16:9]'));
       expect(settings().readAsStringSync(), '[Patches]\nEnable = Widescreen 16:9\n');
+      expect(
+        Directory(path.join(data.path, 'patches')).existsSync(),
+        isFalse,
+        reason: 'a file there would hide patches.zip from PCSX2',
+      );
 
       final fps = view.items.firstWhere((item) => item.name == '60 FPS for Menus');
       view = await service.setActive(game, 'ps2', view, fps, true);
@@ -146,52 +153,91 @@ void main() {
       expect(settings().readAsStringSync(), isNot(contains('Widescreen')));
 
       await service.restore(view.identity.storeKey);
-      expect(pnach().existsSync(), isFalse);
       expect(settings().existsSync(), isFalse, reason: 'RewindBox created it');
     });
 
-    test('groups of other sources join the same pnach; ratio variants exclude each other', () async {
+    test('a licensed cheat goes to cheats/ with its MIT notice and the cheat switch', () async {
       final game = testGame(name: 'Burnout 3', romPath: rom.path);
       var view = await service.open(game, 'ps2', download: true);
-      final pcsx2 = view.items.firstWhere((item) => item.name == 'Widescreen 16:9');
+      final engine = view.items.firstWhere((item) => item.name == 'Widescreen 16:9');
       final aero = view.items.firstWhere((item) => item.name == 'Widescreen 16:9 (Aero)');
       expect(aero.sourceId, 'aerowidescreen-pcsx2');
+      expect(aero.status, EnhancementStatus.available);
       expect(aero.exclusiveGroup, isNotEmpty);
-      expect(aero.exclusiveGroup, pcsx2.exclusiveGroup);
-      view = await service.setActive(game, 'ps2', view, pcsx2, true);
+      expect(aero.exclusiveGroup, engine.exclusiveGroup, reason: 'one aspect ratio at a time');
+      view = await service.setActive(game, 'ps2', view, engine, true);
       view = await service.setActive(game, 'ps2', view, view.items.firstWhere((i) => i.id == aero.id), true);
-      expect(settings().readAsStringSync(), '[Patches]\nEnable = Widescreen 16:9 (Aero)\n');
-      final text = pnach().readAsStringSync();
-      expect(text, contains('// --- RewindBox: from AeroWidescreen PCSX2-Cheats'));
+      expect(view.items.firstWhere((i) => i.id == aero.id).status, EnhancementStatus.active);
+      expect(
+        settings().readAsStringSync(),
+        '[Cheats]\nEnable = Widescreen 16:9 (Aero)\n\n[EmuCore]\nEnableCheats = true\n',
+      );
+      final text = cheatFile().readAsStringSync();
       expect(text, contains('[Widescreen 16:9 (Aero)]'));
-      expect(text, contains('[Widescreen 16:9]'), reason: 'the pcsx2_patches file stays whole');
+      expect(text, contains('// Copyright (c) 2023 Aero_'));
+      expect(text, contains('// The above copyright notice and this permission notice shall be included'));
+
+      view = await service.setActive(game, 'ps2', view, view.items.firstWhere((i) => i.id == aero.id), false);
+      expect(cheatFile().existsSync(), isFalse, reason: 'present only while one of its cheats is on');
+      expect(settings().existsSync(), isFalse);
     });
 
-    test('settings written by ARMSX2 keep their other lines', () async {
+    test('settings written by ARMSX2 keep their lines and get back their values', () async {
+      const original =
+          '[EmuCore]\nEnableCheats = false\n\n[EmuCore/GS]\nupscale_multiplier = 3\n\n'
+          '[Patches]\nEnable = Progressive Scan\nDisable = Disable Bloom\n';
       settings()
         ..createSync(recursive: true)
-        ..writeAsStringSync('[EmuCore/GS]\nupscale_multiplier = 3\n\n[Patches]\nEnable = Progressive Scan\n');
+        ..writeAsStringSync(original);
       final game = testGame(name: 'Burnout 3', romPath: rom.path);
       var view = await service.open(game, 'ps2', download: true);
-      expect(view.items.firstWhere((i) => i.name == 'Progressive Scan').status, EnhancementStatus.active,
-          reason: 'enabled from the in-game Patches page');
-      view = await service.setActive(game, 'ps2', view, view.items.firstWhere((i) => i.name == 'Widescreen 16:9'), true);
+      expect(
+        view.items.firstWhere((i) => i.name == 'Progressive Scan').status,
+        EnhancementStatus.active,
+        reason: 'enabled from the in-game Patches page',
+      );
+      view = await service.setActive(game, 'ps2', view, view.items.firstWhere((i) => i.name == 'Disable Bloom'), true);
+      expect(
+        settings().readAsStringSync(),
+        isNot(contains('Disable = Disable Bloom')),
+        reason: 'PCSX2 drops a name listed under Disable',
+      );
+      view = await service.setActive(game, 'ps2', view, view.items.firstWhere((i) => i.name == 'Button Mapping'), true);
+      expect(settings().readAsStringSync(), contains('EnableCheats = true'));
       await service.restore(view.identity.storeKey);
-      expect(settings().readAsStringSync(),
-          '[EmuCore/GS]\nupscale_multiplier = 3\n\n[Patches]\nEnable = Progressive Scan\n');
+      expect(settings().readAsStringSync(), original);
+      expect(cheatFile().existsSync(), isFalse);
     });
 
-    test('a pnach of the player is never replaced', () async {
-      pnach()
+    test('a pnach of the player in patches/ hides the engine patches, never replaced', () async {
+      userPatch()
         ..createSync(recursive: true)
         ..writeAsStringSync('gametitle=mine\n[Mine]\npatch=1,EE,00100000,word,00000000\n');
       final game = testGame(name: 'Burnout 3', romPath: rom.path);
       final view = await service.open(game, 'ps2', download: true);
+      final widescreen = view.items.firstWhere((item) => item.name == 'Widescreen 16:9');
+      expect(widescreen.status, EnhancementStatus.incompatible);
+      expect(widescreen.problem, EnhancementProblem.userFilePresent);
+      expect(
+        view.items.firstWhere((i) => i.name == 'Button Mapping').canActivate,
+        isTrue,
+        reason: 'cheats are read from cheats/',
+      );
+      await expectLater(service.setActive(game, 'ps2', view, widescreen, true), throwsA(isA<EnhancementException>()));
+      expect(userPatch().readAsStringSync(), contains('gametitle=mine'));
+    });
+
+    test('a cheat file of the player is never replaced', () async {
+      cheatFile()
+        ..createSync(recursive: true)
+        ..writeAsStringSync('gametitle=mine\n');
+      final game = testGame(name: 'Burnout 3', romPath: rom.path);
+      final view = await service.open(game, 'ps2', download: true);
       await expectLater(
-        service.setActive(game, 'ps2', view, view.items.first, true),
+        service.setActive(game, 'ps2', view, view.items.firstWhere((i) => i.name == 'Button Mapping'), true),
         throwsA(isA<EnhancementException>().having((e) => e.code, 'code', 'user_file_present')),
       );
-      expect(pnach().readAsStringSync(), contains('gametitle=mine'));
+      expect(cheatFile().readAsStringSync(), 'gametitle=mine\n');
     });
 
     test('another disc revision shows the patches as incompatible', () async {

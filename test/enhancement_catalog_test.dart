@@ -25,34 +25,37 @@ void main() {
     for (final engine in ['melonx', 'rpcs3', 'armsx2', 'dolphin']) {
       expect(index.totals[engine], isNotNull, reason: engine);
     }
-    expect(index.sources.map((s) => s.id), containsAll(['switch-cheats-db', 'rpcs3-patches', 'pcsx2-patches', 'dolphin-gamesettings']));
-    expect(index.contains(EnhancementEngine.melonx, '0100000000010000'), isTrue);
+    expect(
+      index.sources.map((s) => s.id),
+      containsAll(['rpcs3-patches', 'armsx2-patches-zip', 'dolphin-gamesettings']),
+    );
+    expect(index.contains(EnhancementEngine.melonx, '0100000000010000'), isFalse, reason: 'no licensed Switch source');
     expect(index.contains(EnhancementEngine.rpcs3, 'BLUS30443'), isTrue);
   });
 
   test('a record is downloaded once, verified and served from the cache', () async {
     final requests = <Uri>[];
     final catalog = repositoryCatalog(cache, requests: requests);
-    expect(await catalog.isDownloaded(EnhancementEngine.melonx, '0100000000010000'), isFalse);
+    expect(await catalog.isDownloaded(EnhancementEngine.rpcs3, 'BLUS30443'), isFalse);
     expect(
-      await catalog.record(EnhancementEngine.melonx, '0100000000010000', download: false),
+      await catalog.record(EnhancementEngine.rpcs3, 'BLUS30443', download: false),
       isNull,
       reason: 'no network without consent',
     );
     final progress = <int>[];
     final record = await catalog.record(
-      EnhancementEngine.melonx,
-      '0100000000010000',
+      EnhancementEngine.rpcs3,
+      'BLUS30443',
       onProgress: (received, total) => progress.add(received),
     );
     expect(record?['entries'], isNotEmpty);
     expect(progress, isNotEmpty);
     expect(requests, hasLength(1));
-    expect(await catalog.isDownloaded(EnhancementEngine.melonx, '0100000000010000'), isTrue);
+    expect(await catalog.isDownloaded(EnhancementEngine.rpcs3, 'BLUS30443'), isTrue);
 
     // A fresh instance (next app start) reads the verified cached shard.
     final reopened = repositoryCatalog(cache, requests: requests);
-    expect(await reopened.record(EnhancementEngine.melonx, '0100000000010000', download: false), isNotNull);
+    expect(await reopened.record(EnhancementEngine.rpcs3, 'BLUS30443', download: false), isNotNull);
     expect(requests, hasLength(1));
   });
 
@@ -83,9 +86,9 @@ void main() {
   });
 
   test('refresh keeps a newer valid index and refuses a malformed one', () async {
-    final source = jsonDecode(
-      utf8.decode(gzip.decode(File('native/enhancements/catalogue/index.json.gz').readAsBytesSync())),
-    ) as Map<String, dynamic>;
+    final source =
+        jsonDecode(utf8.decode(gzip.decode(File('native/enhancements/catalogue/index.json.gz').readAsBytesSync())))
+            as Map<String, dynamic>;
     Uint8List encode(Map<String, dynamic> json) => Uint8List.fromList(gzip.encode(utf8.encode(jsonEncode(json))));
 
     final newer = Map<String, dynamic>.from(source)..['revision'] = '9999-01-01.newer';

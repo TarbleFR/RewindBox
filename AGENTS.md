@@ -17,7 +17,7 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `assets/data/enhancements_index.json.gz`; shards downloaded on demand from
   the `Claude` branch, SHA-256 checked).
 - Adapters write only formats the engines already read at boot; no core or
-  bridge source changed: MeloNX Atmosphere cheats in
+  bridge source changed (ARMSX2 layout as of the third pass below): MeloNX Atmosphere cheats in
   `Documents/MeloNX/mods/contents/<tid>/RewindBox/cheats/` + `enabled.txt`
   (player cheats preserved), RPCS3 pending records in the bridge's own
   `Data/NeoStationUnifiedCheats/state.json` (tagged
@@ -50,9 +50,20 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   Dolphin/Ishiiruka/Slippi/MPN/Admentus64 codes written with their bodies,
   RPCS3 duplicate PPU keys merged as yaml-cpp does. 64 Dart tests and the
   data test pass; no device test, no IPA, no CI.
-- Rights to confirm before a public release: switch-cheats-db and
-  pcsx2_patches have no licence file; the RPCS3 wiki data licence is not
-  stated by its API (`NOTICE.md`).
+- Same day, third pass (maintainer: keep only what can be integrated and
+  respects copyright): 10 sources, 10,204 entries. Removed every source
+  without a licence (switch-cheats-db, matias, titledb, KeatonTheBot,
+  Fl4sh9174, Gabominated, PeterDelta, pcsx2_patches bodies): the MeloNX
+  catalogue is empty (adapter kept, tested on made-up records). ARMSX2 now
+  references the engine's own `patches.zip` (ARMSX2 `9d989ca9`) by name only
+  (`[Patches] Enable =`, nothing in `patches/`, which would hide the zip) and
+  writes the MIT CookiePLMonster/AeroWidescreen groups to
+  `cheats/<SERIAL>_<CRC>_rewindbox.pnach` with their notices, enabled by
+  `[Cheats] Enable =` and per-game `[EmuCore] EnableCheats` (previous value
+  restored). Pnach files of the earlier layout are removed at the next
+  change. Still to confirm before a public release: the RPCS3 wiki's
+  CC BY-SA 4.0 footer in a browser. The pre-existing unified cheat catalogue
+  (`native/cheats/`) is a separate feature and was not changed.
 
 ## RPCS3 levers for every newly tested game — maintainer rule, 27 October 2026
 
