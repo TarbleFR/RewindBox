@@ -167,6 +167,25 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   582 ones (identities renamed to 583, the RPCS3 one binds Core run
   40683438937 and adds the three 583 markers). Product trees equal to 582.
   Recipient `build-utils/delivery-583-recipient.pem`.
+- Private 583 delivered from `e6374d49` (recipe of the same commit), run
+  `40686712890` (checks + cold success, 52 min): IPA 0.0.8 (583),
+  188,117,202 bytes, SHA-256
+  `f76718880cf321affd98c53f297822a8c22155a0ad3c440cef53bf5b0db105b3` (equal to
+  SHA256SUMS), artifact `12818262071` encrypted for
+  `delivery-583-recipient.pem`; RPCS3 Core 583 `8ebca287` (run 40683438937,
+  `9aa3c7ee…`, identity receipt equal), MeloNX engine `e55ca256` (582)
+  unchanged; every validator receipt passed; decrypted and inspected
+  independently (build 583, the four 581 and three 583 markers in the signed
+  Core, the 581 "Automatic follows Texture Validation Per FIFO Batch" text
+  absent). Receipt `docs/evidence/rpcs3-cell583-delivery.json`. Not tested on
+  iPhone; no FPS, frame time or memory gain claimed. Do not reuse the number
+  583.
+- Next lead, zero build (`docs/rpcs3-cell583.md` section 6): God of War III
+  reads back one 3.69 MB colour target per frame in the 581 logs
+  (`READBACK555 fault_read`, 2.1-7.2 ms per frame); the GameDB's Write Color
+  Buffers locks every bound colour target and the MLAA bypass is active.
+  Proposed to the maintainer as a per-game experiment (visual errors
+  possible).
 
 ## MeloNX engine 582: JIT units end where another translation starts; Switch discovery off the main thread — 28 October 2026
 
