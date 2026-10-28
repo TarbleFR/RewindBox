@@ -119,6 +119,12 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         let oldQueue = controller.handlerQueue
         controller.handlerQueue = .main
         restoreHandlers.append { controller.handlerQueue = oldQueue }
+        // The game owns the pad: the menu's profile-wide handler would relay
+        // every stick and trigger change to Flutter on the main thread for the
+        // whole game. Restored at close; the menu also reclaims it afterwards.
+        let menuHandler = profile.valueChangedHandler
+        profile.valueChangedHandler = nil
+        restoreHandlers.append { profile.valueChangedHandler = menuHandler }
         let physical: [(PhysicalInput, GCControllerButtonInput?)] = [
             (.a,profile.buttonA),(.b,profile.buttonB),(.x,profile.buttonX),(.y,profile.buttonY),
             (.dpadUp,profile.dpad.up),(.dpadDown,profile.dpad.down),(.dpadLeft,profile.dpad.left),(.dpadRight,profile.dpad.right),
