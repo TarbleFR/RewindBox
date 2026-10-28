@@ -1,0 +1,179 @@
+{
+  "passed": true,
+  "build": 581,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "sourceContract": {
+    "baseline": "1f82f9d988cbecb9bf07bdcb3ed3983404668270",
+    "fixtureSHA256": "2960004550815b7c9b638260209766377ddfcf35cdbab0e6b82e7a03c0a70127",
+    "sourceSHA256": {
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp": "d2666834de0fa3494686564579754ee39d8897ecb1530eb05b9bc0af0ec3c906",
+      "rpcs3/Emu/RSX/Common/texture_cache.h": "77006008182feb4a494e6a5d21d3912d9c0520303ce87b03d954767e469be7d7",
+      "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "b855feb2bffe0de6de99a881d33d46f0eaf07cb5c99d4e362352939848d18654",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "b65b898ac48331068e1b68b078d4982a96ea320c0b60e030acdafff972802f3b",
+      "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+      "rpcs3/ios/IOSTextureValidationProfile.h": "5686eb04be07904bfcaf1be57115c2c97b8662bc90292df035b8c42544a71aa7",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "d673dfe33d32dccf5d9a68c2c54b1e6349dd5758bffb6b4388ec9b1f75d21c61",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "8ea8f2313442b461e33a17f0b2347855451fa0c50aa978415969533afae1275a",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "25a80845ae40deb55e2ee7a88fcb63ced07195e886c3cfafa3fb85b4d89137b9",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "a840139e143a18fa2cd9b21d7a11375b8da6acc341c7d7e84039957c2c55f668",
+      "rpcs3/ios/IOSTexturePrehash.h": "e44bbc45e959f8ed28b0f0e7df8f542858cc52893d013ea020419dbe53a01073"
+    },
+    "newFiles": [
+      "rpcs3/ios/IOSTexturePrehash.h"
+    ],
+    "otherCoreSourcesUnchanged": 291
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom579": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "offIOS": {
+    "sharedFiles": [
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp",
+      "rpcs3/Emu/RSX/Common/texture_cache.h",
+      "rpcs3/Emu/RSX/Common/texture_cache_utils.h",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+      "rpcs3/Emu/system_config.h"
+    ],
+    "iosOnlyFiles": [
+      "rpcs3/ios/IOSTextureValidationProfile.h",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.h",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp",
+      "rpcs3/ios/IOSTexturePrehash.h"
+    ],
+    "headerIncludedOnlyUnderRPCS3IOS": [
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp",
+      "rpcs3/Emu/RSX/Common/texture_cache_utils.h"
+    ]
+  },
+  "texturePrehash": {
+    "plain": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 212,
+        "misses": 40,
+        "hitRate": 0.841,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 238
+      },
+      "tightLoop": {
+        "hits": 97,
+        "misses": 29,
+        "staleAccepted": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 104,
+        "misses": 22,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 71,
+        "workerSkips": 6,
+        "workerHashes": 6
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true,
+      "harnessSHA256": "d1e40ae1b17d9b471a447fa0879195e6b6e1a56eb970d1a62ff5656485caa15f"
+    },
+    "asanUbsan": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 203,
+        "misses": 49,
+        "hitRate": 0.806,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 247
+      },
+      "tightLoop": {
+        "hits": 112,
+        "misses": 14,
+        "staleAccepted": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 103,
+        "misses": 23,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 8,
+        "workerSkips": 66,
+        "workerHashes": 3
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true,
+      "harnessSHA256": "d1e40ae1b17d9b471a447fa0879195e6b6e1a56eb970d1a62ff5656485caa15f"
+    },
+    "tsan": {
+      "passed": true,
+      "disabledIdenticalTo579": true,
+      "textures": 24,
+      "steady": {
+        "validations": 288,
+        "hits": 203,
+        "misses": 49,
+        "hitRate": 0.806,
+        "changesSeen": 12,
+        "staleAccepted": 0,
+        "workerHashes": 251
+      },
+      "tightLoop": {
+        "hits": 92,
+        "misses": 34,
+        "staleAccepted": 0
+      },
+      "scopedRsxWrites": {
+        "hits": 98,
+        "misses": 28,
+        "changesSeen": 23,
+        "staleAccepted": 0
+      },
+      "unmapRace": {
+        "unmaps": 8,
+        "workerSkips": 44,
+        "workerHashes": 1
+      },
+      "rangeLockReleased": true,
+      "noRestartAfterStop": true,
+      "harnessSHA256": "d1e40ae1b17d9b471a447fa0879195e6b6e1a56eb970d1a62ff5656485caa15f"
+    },
+    "mutations": {
+      "no_epoch_check": {
+        "rejected": true
+      },
+      "no_bypass": {
+        "rejected": true
+      }
+    }
+  },
+  "policy": {
+    "automatic": "Texture Validation Per FIFO Batch titles (God of War III, Call of Duty: Black Ops II, Bladestorm)",
+    "disabled": "hashes on the RSX thread as in 579",
+    "profileLine": "COREPROF OPT581"
+  },
+  "inputs": {
+    "test/rpcs3_cell581_test.py": "40acb2d1973ed75692cf3ea276d845e4248c28dfbff4d6145b76b01ca401dc3f",
+    "test/native/rpcs3_prehash581.inc": "134e0629e2e7e44e0c2e43117b5c30356b35da1cc224bce631c615d323197ac6"
+  },
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "The 581 production code compiled in a host model; no iPhone FPS, frame time or memory result."
+}

@@ -47,6 +47,37 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
    mechanism that acts only when its condition occurs, device logs on at
    least two titles without regression, and an unchanged Disabled path.
 
+## RPCS3 Core 581: texture pre-validation by a worker thread (God of War III) — 28 October 2026
+
+- Build 575 logs, God of War III: on iOS the texture cache confirms CPU
+  textures by content hash, and under Texture Validation Per FIFO Batch (559)
+  a texture is hashed again on its first use after each synchronization
+  point, on the RSX thread: 461-815 ms per 5 s window (2.8-10.4 ms per frame,
+  13-17 % of the frame, 7-10 GB) with the RSX FIFO 72-95 % busy. Dragon Ball Z
+  and Black Ops II hash nothing.
+- Core change (`docs/rpcs3-cell581.md`, record `cell581`, iOS only, shared
+  files' off-iOS text equal to 579, codegen identities unchanged):
+  `CELL581_TEXTURE_PREHASH` (new `ios/IOSTexturePrehash.h`, worker in
+  `texture_cache.cpp`, setting Texture Pre-Validation, Automatic = the
+  epoch titles). The RSX thread records the ranges (>= 64 KiB) it validates
+  per frame; when an epoch starts, a worker hashes the ranges the previous
+  frame validated next with the cache's own hash (identical results) and
+  publishes them tagged with the epoch read before the bytes; the RSX uses a
+  result only in that epoch, never for a section an RSX write revalidated
+  (573), and hashes the rest as before. Local memory is read directly, main
+  memory only under a `range_readable` vm range lock (unmaps wait for it,
+  PUTLLC writers do not). The worker stops at RSX exit and only restarts on
+  the next boot. Profile line `COREPROF OPT581`.
+- Local: canonical delta rematerialized on `22f1152`,
+  `test/rpcs3_cell581_test.py` (model: real code next to the 579 version on a
+  real address reservation, vm range lock protocol, an unmapper on main
+  memory; steady-state validations served by the worker 84 % plain, 81 %
+  ASan/UBSan and TSan; 0 stale textures; both deliberate mutations caught;
+  GCC 13 and Clang 22), pin source contract, Core scheduling, 581 driver
+  contract (138 inputs), ARM64 syntax of the 8 touched units equal to 579.
+  Evidence `docs/evidence/rpcs3-cell581-host-linux.json`. No iPhone
+  measurement: no FPS, frame time or memory gain is claimed.
+
 ## RPCS3 Core 579: SPURS reservation_op wait, sleeping writer deferral, writer yield without depression, PPU spin timing, RSX idle park for every title — 28 October 2026
 
 - Build 575 logs: the first God of War III boot of the process ended in 2 of 2
